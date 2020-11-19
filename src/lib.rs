@@ -2,7 +2,6 @@
 
 #![feature(proc_macro_hygiene, decl_macro)]
 
-pub mod data_types;
 pub mod models;
 pub mod schema;
 pub mod service;
