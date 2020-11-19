@@ -1,0 +1,4 @@
+[image]
+target = builder-install
+repository = gcr.io/mobilenode-211420/
+Dockerfile-version = 1_12
