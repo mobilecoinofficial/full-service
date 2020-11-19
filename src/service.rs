@@ -63,10 +63,13 @@ mod tests {
     use super::*;
     use dotenv::dotenv;
     use mc_common::logger::{log, test_with_logger, Logger};
+    use rocket::config::Value;
     use rocket::{
         http::{ContentType, Status},
         local::Client,
     };
+    use rocket_contrib::json::JsonValue;
+    use std::collections::HashMap;
     use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 
     // FIXME: example rocket tests with DB: https://github.com/SergioBenitez/Rocket/blob/v0.4/examples/todo/src/tests.rs
@@ -82,8 +85,19 @@ mod tests {
             println!("\x1b[1;31mvars = {:?}: {:?}\x1b[0m", k, v);
         }
 
-        let mut rocket_config: rocket::Config = rocket::Config::development();
-        rocket_config.set_port(get_free_port());
+        let mut database_config = HashMap::new();
+        let mut databases = HashMap::new();
+
+        // This is the same as the following TOML:
+        // posts_db = { url = "./src/db/test.db" }
+        database_config.insert("url", Value::from("./src/db/test.db"));
+        databases.insert("posts_db", Value::from(database_config));
+
+        let rocket_config: rocket::Config =
+            rocket::Config::build(rocket::config::Environment::Development)
+                .port(get_free_port())
+                .extra("databases", databases)
+                .unwrap();
         let rocket = rocket(
             rocket_config,
             // State {
@@ -100,7 +114,8 @@ mod tests {
         let body = json!({
         "method": "create_account",
         "params": {
-        "comment": "Alice Main Account",
+        "title": "Alice Main Account",
+        "body": "Body"
         }
         });
         let mut res = client

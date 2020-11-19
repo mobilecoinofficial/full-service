@@ -6,8 +6,7 @@
 use dotenv::dotenv;
 use mc_common::logger::{create_app_logger, log, o};
 use mc_wallet_service::service::rocket;
-use rocket::config::{Config, Environment, Value};
-use rocket_contrib::databases::database_config;
+use rocket::config::Value;
 use std::collections::HashMap;
 use structopt::StructOpt;
 
@@ -53,7 +52,7 @@ fn main() {
     let mut databases = HashMap::new();
 
     // This is the same as the following TOML:
-    // my_db = { url = "database.sqlite" }
+    // posts_db = { url = "./src/db/test.db" }
     database_config.insert("url", Value::from("./src/db/test.db"));
     databases.insert("posts_db", Value::from(database_config));
 
