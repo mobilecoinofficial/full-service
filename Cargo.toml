@@ -6,12 +6,15 @@ edition = "2018"
 
 [dependencies]
 mc-account-keys = { path = "mobilecoin/account-keys" }
+mc-api = { path = "mobilecoin/api" }
 mc-common = { path = "mobilecoin/common", features = ["loggers"] }
 mc-crypto-digestible = { path = "mobilecoin/crypto/digestible", features = ["derive"] }
+mc-mobilecoind-api = { path = "mobilecoin/mobilecoind/api" }
 mc-util-serial = { path = "mobilecoin/util/serial" }
 mc-util-from-random = { path = "mobilecoin/util/from-random" }
 
 diesel = { version = "1.4", features = ["sqlite"] }
+displaydoc = {version = "0.1", default-features = false }
 dotenv = "0.15.0"
 hex = "0.4"
 rand = "0.7"
@@ -24,7 +27,6 @@ structopt = "0.3"
 uuid = { version = "0.7", features = ["serde", "v4"] }
 
 [patch.crates-io]
-
 prost = { git = "https://github.com/danburkert/prost", rev = "6113789f70b69709820becba4242824b4fb3ffec" }
 prost-derive = { git = "https://github.com/danburkert/prost", rev = "6113789f70b69709820becba4242824b4fb3ffec" }
 
@@ -34,8 +36,7 @@ slog = { git = "https://github.com/mobilecoinofficial/slog", rev = "cc1562258b81
 
 # Patched to depend on crates that depend on digest 0.9
 bulletproofs = { git = "https://github.com/eranrund/bulletproofs", rev = "e8e8ef45ecc6d31f1a9525140edc977351d0f780" }
-# Patched to disable the cpuid instruction because that is incompatible with our sgx builds.
-cpuid-bool = { git = "https://github.com/eranrund/RustCrypto-utils", rev = "e00f5f16e395349c2c2395aac9287da0ac843a73" }
 
 # We need to patch aes-gcm so we can make some fields/functions/structs pub in order to have a constant time decrypt
 aes-gcm = { git = "https://github.com/xoloki/AEADs", rev = "d1a8517d3dd867ed9c5794002add67992a42f6aa" }
+

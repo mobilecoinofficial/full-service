@@ -3,18 +3,18 @@
 //! Provides the CRUD implementations for our DB, and converts types to what is expected
 //! by the DB.
 
+use mc_account_keys::{AccountKey, PublicAddress};
+use mc_crypto_digestible::{Digestible, MerlinTranscript};
+
 use diesel::prelude::*;
 use diesel::Connection;
-use diesel::QueryDsl;
 use diesel::RunQueryDsl;
 use dotenv::dotenv;
 use std::env;
 
-// use accounts::dsl::accounts as dsl_accounts;
+use crate::error::WalletDBError;
 use crate::models::*;
 use crate::schema::accounts;
-
-use uuid::Uuid;
 
 pub fn establish_connection() -> SqliteConnection {
     dotenv().ok();
@@ -26,32 +26,47 @@ pub fn establish_connection() -> SqliteConnection {
 
 pub fn create_account(
     conn: &SqliteConnection,
-    account_id_hex: &str,
-    encrypted_account_key: &Vec<u8>,
-    main_subaddress_index: &str,
-    change_subaddress_index: &str,
-    next_subaddress_index: &str,
-    first_block: &str,
-    next_block: &str,
+    account_key: &AccountKey,
+    main_subaddress_index: u64,
+    change_subaddress_index: u64,
+    next_subaddress_index: u64,
+    first_block: u64,
+    next_block: u64,
     name: &str,
-) {
-    // FIXME: should these be typed?
-    // FIXME: how do we do optional/defaults and overrides?
+) -> Result<String, WalletDBError> {
+    // Get the account ID from the contents of the account key
+    #[derive(Digestible)]
+    struct ConstAccountData {
+        // We use PublicAddress and not AccountKey so that the monitor_id is not sensitive.
+        pub address: PublicAddress,
+        pub main_subaddress: u64,
+        pub first_block: u64,
+    }
+    let const_data = ConstAccountData {
+        address: account_key.subaddress(main_subaddress_index),
+        main_subaddress: main_subaddress_index,
+        first_block: first_block,
+    };
+    let temp: [u8; 32] = const_data.digest32::<MerlinTranscript>(b"monitor_data");
+    let account_id_hex = hex::encode(temp);
+
+    // FIXME: how do we want to do optional/defaults and overrides?
     let new_account = NewAccount {
-        account_id_hex,
-        encrypted_account_key,
-        main_subaddress_index,
-        change_subaddress_index,
-        next_subaddress_index,
-        first_block,
-        next_block,
+        account_id_hex: &account_id_hex,
+        encrypted_account_key: &mc_util_serial::encode(account_key), // FIXME: add encryption
+        main_subaddress_index: &main_subaddress_index.to_string(),
+        change_subaddress_index: &change_subaddress_index.to_string(),
+        next_subaddress_index: &next_subaddress_index.to_string(),
+        first_block: &first_block.to_string(),
+        next_block: &next_block.to_string(),
         name,
     };
 
     diesel::insert_into(accounts::table)
         .values(&new_account)
-        .execute(conn)
-        .expect("Error saving new post");
+        .execute(conn)?;
+
+    Ok(account_id_hex)
 }
 
 /* Example UPDATE

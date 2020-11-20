@@ -4,7 +4,7 @@
 
 #![feature(proc_macro_hygiene, decl_macro)]
 use dotenv::dotenv;
-use mc_common::logger::{create_app_logger, log, o};
+use mc_common::logger::{create_app_logger, o};
 use mc_wallet_service::service::rocket;
 use rocket::config::Value;
 use std::collections::HashMap;
@@ -24,7 +24,6 @@ pub struct APIConfig {
     /// Port to start webserver on.
     #[structopt(long, default_value = "9090")]
     pub listen_port: u16,
-    // FIXME: add all the mobilecoind config params too
 }
 
 fn main() {
@@ -35,26 +34,16 @@ fn main() {
 
     let config = APIConfig::from_args();
 
-    let (logger, _global_logger_guard) = create_app_logger(o!());
-    log::info!(
-        logger,
-        "Starting MobileCoin Wallet Service on {}:{}",
-        config.listen_host,
-        config.listen_port,
-    );
-    log::info!(
-        logger,
-        "\x1b[1;33m cur dir = {:?}\x1b[0m",
-        std::env::current_dir()
-    );
+    let (_logger, _global_logger_guard) = create_app_logger(o!());
 
     let mut database_config = HashMap::new();
     let mut databases = HashMap::new();
 
-    // This is the same as the following TOML:
-    // posts_db = { url = "./src/db/test.db" }
+    // Note: This is the same as the following TOML in Rocket.toml:
+    // wallet_db = { url = "./src/db/test.db" }
+    // But we cannot use Rocket.toml because it is ignored Config::build
     database_config.insert("url", Value::from("./src/db/test.db"));
-    databases.insert("posts_db", Value::from(database_config));
+    databases.insert("wallet_db", Value::from(database_config));
 
     let rocket_config: rocket::Config =
         rocket::Config::build(rocket::config::Environment::Development)
@@ -62,16 +51,8 @@ fn main() {
             .port(config.listen_port)
             .extra("databases", databases)
             .unwrap();
-    log::info!(
-        logger,
-        "\x1b[1;32m rocket config = {:?}\x1b[0m",
-        rocket_config
-    );
 
     let rocket = rocket(rocket_config);
-    log::info!(logger, "\x1b[1;33m HELLO WORLD\x1b[0m");
-    // let config = database_config("posts_db", rocket.config()).unwrap();
-    // log::info!(logger, "\x1b[1;36m database config = {:?}\x1b[0m", config);
 
     rocket.launch();
 }
