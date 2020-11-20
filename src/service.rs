@@ -1,4 +1,6 @@
-use crate::{create_post, publish_post};
+// Copyright (c) 2020 MobileCoin Inc.
+
+use crate::service_impl::create_account_impl;
 use rocket::{post, routes};
 use rocket_contrib::databases::diesel;
 use rocket_contrib::json::Json;
@@ -16,7 +18,7 @@ struct DbConn(diesel::SqliteConnection);
 #[serde(tag = "method", content = "params")]
 #[allow(non_camel_case_types)]
 pub enum JsonCommandRequest {
-    create_account { title: String, body: String },
+    create_account { name: String },
 }
 #[derive(Deserialize, Serialize)]
 #[serde(tag = "method", content = "result")]
@@ -35,13 +37,12 @@ fn wallet_api(
     command: Json<JsonCommandRequest>,
 ) -> Result<Json<JsonCommandResponse>, String> {
     let result = match command.0 {
-        JsonCommandRequest::create_account { title, body } => {
-            let post_id = create_post(&conn, &title, &body);
-            let _update_int = publish_post(&conn, post_id);
+        JsonCommandRequest::create_account { name } => {
+            let (entropy, public_address, account_id) = create_account_impl(&conn, name);
             JsonCommandResponse::create_account {
-                public_address: "Hello!".to_string(),
-                entropy: "World!".to_string(),
-                account_id: "I'm here!".to_string(),
+                public_address,
+                entropy,
+                account_id,
             }
         }
     };
@@ -105,8 +106,7 @@ mod tests {
         let body = json!({
             "method": "create_account",
             "params": {
-                "title": "Alice Main Account",
-                "body": "Body"
+                "name": "Alice Main Account",
             }
         });
         let mut res = client
