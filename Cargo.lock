@@ -132,6 +132,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "blake2"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "10a5720225ef5daecf08657f23791354e1685a8c91a4c60c7f3d3b2892f978f4"
+dependencies = [
+ "crypto-mac",
+ "digest",
+ "opaque-debug",
+]
+
+[[package]]
 name = "blake2b_simd"
 version = "0.5.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -278,8 +289,7 @@ dependencies = [
 [[package]]
 name = "cpuid-bool"
 version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8aebca1129a03dc6dc2b127edd729435bbc4a37e1d5f4d7513165089ceb02634"
+source = "git+https://github.com/eranrund/RustCrypto-utils?rev=e00f5f16e395349c2c2395aac9287da0ac843a73#e00f5f16e395349c2c2395aac9287da0ac843a73"
 
 [[package]]
 name = "crc32fast"
@@ -309,6 +319,16 @@ dependencies = [
  "autocfg 1.0.1",
  "cfg-if 0.1.10",
  "lazy_static",
+]
+
+[[package]]
+name = "crypto-mac"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b584a330336237c1eecd3e94266efb216c56ed91225d634cb2991c5f3fd1aeab"
+dependencies = [
+ "generic-array",
+ "subtle",
 ]
 
 [[package]]
@@ -418,6 +438,17 @@ dependencies = [
  "libc",
  "redox_users",
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "displaydoc"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "adc2ab4d5a16117f9029e9a6b5e4e79f4c67f6519bc134210d4d4a04ba31f41b"
+dependencies = [
+ "proc-macro2 1.0.24",
+ "quote 1.0.7",
+ "syn 1.0.48",
 ]
 
 [[package]]
@@ -757,6 +788,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b07f60793ff0a4d9cef0f18e63b5357e06209987153a64648c972c1e5aff336f"
 
 [[package]]
+name = "hkdf"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe1149865383e4526a43aee8495f9a325f0b806c63ce6427d06336a590abbbc9"
+dependencies = [
+ "digest",
+ "hmac",
+]
+
+[[package]]
+name = "hmac"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "126888268dcc288495a26bf004b38c5fdbb31682f992c84ceb046a1f0fe38840"
+dependencies = [
+ "crypto-mac",
+ "digest",
+]
+
+[[package]]
 name = "hostname"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -961,9 +1012,9 @@ checksum = "47be2f14c678be2fdcab04ab1171db51b2762ce6f0a8ee87c8dd4a04ed216135"
 
 [[package]]
 name = "itertools"
-version = "0.8.2"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f56a2d0bc861f9165be4eb3442afd3c236d8a98afd426f65d92324ae1091a484"
+checksum = "284f18f85651fe11e8a991b2adb42cb078325c996ed026d994719efcfca1d54b"
 dependencies = [
  "either",
 ]
@@ -1079,6 +1130,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60302e4db3a61da70c0cb7991976248362f30319e88850c487b9b95bbf059e00"
 
 [[package]]
+name = "mc-account-keys"
+version = "1.0.0"
+dependencies = [
+ "blake2",
+ "curve25519-dalek",
+ "digest",
+ "displaydoc",
+ "hkdf",
+ "mc-crypto-digestible",
+ "mc-crypto-hashes",
+ "mc-crypto-keys",
+ "mc-crypto-sig",
+ "mc-util-from-random",
+ "mc-util-repr-bytes",
+ "mc-util-serial",
+ "prost",
+ "rand_core 0.5.1",
+ "zeroize",
+]
+
+[[package]]
 name = "mc-common"
 version = "1.0.0"
 dependencies = [
@@ -1137,6 +1209,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "mc-crypto-hashes"
+version = "1.0.0"
+dependencies = [
+ "blake2",
+ "digest",
+ "mc-crypto-digestible",
+]
+
+[[package]]
 name = "mc-crypto-keys"
 version = "1.0.0"
 dependencies = [
@@ -1170,6 +1251,18 @@ dependencies = [
  "rand 0.7.3",
  "rand_core 0.5.1",
  "rand_hc 0.2.0",
+]
+
+[[package]]
+name = "mc-crypto-sig"
+version = "1.0.0"
+dependencies = [
+ "mc-crypto-hashes",
+ "mc-crypto-keys",
+ "merlin",
+ "rand_core 0.5.1",
+ "rand_hc 0.2.0",
+ "schnorrkel",
 ]
 
 [[package]]
@@ -1217,8 +1310,11 @@ dependencies = [
  "diesel",
  "dotenv",
  "hex",
+ "mc-account-keys",
  "mc-common",
  "mc-crypto-digestible",
+ "mc-util-from-random",
+ "mc-util-serial",
  "rand 0.7.3",
  "rocket",
  "rocket_contrib",
@@ -1591,8 +1687,7 @@ dependencies = [
 [[package]]
 name = "prost"
 version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce49aefe0a6144a45de32927c77bd2859a5f7677b55f220ae5b744e87389c212"
+source = "git+https://github.com/danburkert/prost?rev=6113789f70b69709820becba4242824b4fb3ffec#6113789f70b69709820becba4242824b4fb3ffec"
 dependencies = [
  "bytes",
  "prost-derive",
@@ -1601,8 +1696,7 @@ dependencies = [
 [[package]]
 name = "prost-derive"
 version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "537aa19b95acde10a12fec4301466386f757403de4cd4e5b4fa78fb5ecb18f72"
+source = "git+https://github.com/danburkert/prost?rev=6113789f70b69709820becba4242824b4fb3ffec#6113789f70b69709820becba4242824b4fb3ffec"
 dependencies = [
  "anyhow",
  "itertools",
@@ -2059,6 +2153,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc6f74fd1204073fa02d5d5d68bec8021be4c38690b61264b2fdb48083d0e7d7"
 dependencies = [
  "parking_lot",
+]
+
+[[package]]
+name = "schnorrkel"
+version = "0.9.1"
+source = "git+https://github.com/w3f/schnorrkel?rev=cfdbe9ae865a4d3ffa2566d896d4dbedf5107028#cfdbe9ae865a4d3ffa2566d896d4dbedf5107028"
+dependencies = [
+ "arrayref",
+ "arrayvec",
+ "curve25519-dalek",
+ "merlin",
+ "rand_core 0.5.1",
+ "sha2",
+ "subtle",
+ "zeroize",
 ]
 
 [[package]]
@@ -3036,3 +3145,13 @@ dependencies = [
  "syn 1.0.48",
  "synstructure",
 ]
+
+[[patch.unused]]
+name = "aes-gcm"
+version = "0.6.0"
+source = "git+https://github.com/xoloki/AEADs?rev=d1a8517d3dd867ed9c5794002add67992a42f6aa#d1a8517d3dd867ed9c5794002add67992a42f6aa"
+
+[[patch.unused]]
+name = "bulletproofs"
+version = "2.0.0"
+source = "git+https://github.com/eranrund/bulletproofs?rev=e8e8ef45ecc6d31f1a9525140edc977351d0f780#e8e8ef45ecc6d31f1a9525140edc977351d0f780"
