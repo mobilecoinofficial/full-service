@@ -1,6 +1,7 @@
 // Copyright (c) 2020 MobileCoin Inc.
 
-//! Provides the CRUD implementations for our DB
+//! Provides the CRUD implementations for our DB, and converts types to what is expected
+//! by the DB.
 
 use diesel::prelude::*;
 use diesel::Connection;
