@@ -1,18 +1,29 @@
-use super::schema::posts;
+// Copyright (c) 2020 MobileCoin Inc.
+
+use super::schema::accounts;
 use serde::Serialize;
 
 #[derive(Serialize, Queryable)]
-pub struct Post {
-    pub id: String,
-    pub title: String,
-    pub body: String,
-    pub published: bool,
+pub struct Account {
+    pub account_id_hex: String,
+    pub encrypted_account_key: Vec<u8>,
+    pub main_subaddress_index: String,
+    pub change_subaddress_index: String,
+    pub next_subaddress_index: String,
+    pub first_block: String,
+    pub next_block: String,
+    pub name: String,
 }
 
 #[derive(Insertable)]
-#[table_name = "posts"]
-pub struct NewPost<'a> {
-    pub id: &'a str,
-    pub title: &'a str,
-    pub body: &'a str,
+#[table_name = "accounts"]
+pub struct NewAccount<'a> {
+    pub account_id_hex: &'a str,
+    pub encrypted_account_key: &'a Vec<u8>,
+    pub main_subaddress_index: &'a str,
+    pub change_subaddress_index: &'a str,
+    pub next_subaddress_index: &'a str,
+    pub first_block: &'a str,
+    pub next_block: &'a str,
+    pub name: &'a str,
 }
