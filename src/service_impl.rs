@@ -3,8 +3,8 @@
 //! The implementation of the wallet service methods.
 
 use crate::db;
+use crate::error::WalletServiceError;
 use mc_account_keys::{AccountKey, PublicAddress, RootIdentity, DEFAULT_SUBADDRESS_INDEX};
-use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_util_from_random::FromRandom;
 
 use diesel::prelude::*;
@@ -13,46 +13,52 @@ pub const DEFAULT_CHANGE_SUBADDRESS_INDEX: u64 = 1;
 pub const DEFAULT_NEXT_SUBADDRESS_INDEX: u64 = 2;
 pub const DEFAULT_FIRST_BLOCK: u64 = 0;
 
-pub fn create_account_impl(conn: &SqliteConnection, name: String) -> (String, String, String) {
+// Helper method to use our PrintableWrapper to b58 encode the PublicAddress
+pub fn b58_encode(public_address: &PublicAddress) -> Result<String, WalletServiceError> {
+    let mut wrapper = mc_mobilecoind_api::printable::PrintableWrapper::new();
+    wrapper.set_public_address(public_address.into());
+    Ok(wrapper.b58_encode()?)
+}
+
+/// Creates a new account with defaults
+pub fn create_account(
+    conn: &SqliteConnection,
+    name: String,
+    first_block: Option<u64>,
+) -> Result<(String, String, String), WalletServiceError> {
     // Generate entropy for the account
     let mut rng = rand::thread_rng();
     let root_id = RootIdentity::from_random(&mut rng);
     let account_key = AccountKey::from(&root_id.clone());
     let entropy_str = hex::encode(root_id.root_entropy);
     let public_address = account_key.subaddress(DEFAULT_SUBADDRESS_INDEX);
-    // FIXME: printable wrapper for public address
+    // FIXME: Also add public address to assigned_subaddresses table
 
-    #[derive(Digestible)]
-    struct ConstAccountData {
-        // We use PublicAddress and not AccountKey so that the monitor_id is not sensitive.
-        pub address: PublicAddress,
-        pub main_subaddress: u64,
-        pub first_block: u64,
-    }
-    let const_data = ConstAccountData {
-        address: public_address,
-        main_subaddress: DEFAULT_SUBADDRESS_INDEX,
-        first_block: DEFAULT_FIRST_BLOCK,
-    };
-    let temp: [u8; 32] = const_data.digest32::<MerlinTranscript>(b"monitor_data");
-    let account_id = hex::encode(temp);
-    // let account_id = "test";
-
-    db::create_account(
+    let account_id = db::create_account(
         conn,
-        &account_id,
-        &mc_util_serial::encode(&account_key),
-        &DEFAULT_SUBADDRESS_INDEX.to_string(),
-        &DEFAULT_CHANGE_SUBADDRESS_INDEX.to_string(),
-        &DEFAULT_NEXT_SUBADDRESS_INDEX.to_string(),
-        &DEFAULT_FIRST_BLOCK.to_string(),
-        &(DEFAULT_FIRST_BLOCK + 1).to_string(),
+        &account_key,
+        DEFAULT_SUBADDRESS_INDEX,
+        DEFAULT_CHANGE_SUBADDRESS_INDEX,
+        DEFAULT_NEXT_SUBADDRESS_INDEX,
+        first_block.unwrap_or(DEFAULT_FIRST_BLOCK),
+        DEFAULT_FIRST_BLOCK + 1,
         &name,
-    );
+    )?;
 
-    (
+    Ok((
         entropy_str.to_string(),
-        "b58_public_address".to_string(),
-        account_id.to_string(),
-    )
+        b58_encode(&public_address)?,
+        account_id,
+    ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mc_common::logger::{log, test_with_logger, Logger};
+
+    #[test_with_logger]
+    fn test_create_account(_logger: Logger) {
+        create_account(conn, "Alice's Main Account".to_string(), None).unwrap();
+    }
 }

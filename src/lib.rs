@@ -3,6 +3,7 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 
 mod db;
+mod error;
 pub mod models;
 pub mod schema;
 pub mod service;
