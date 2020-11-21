@@ -22,6 +22,9 @@ pub enum JsonCommandRequest {
     get_account {
         id: String,
     },
+    delete_account {
+        id: String,
+    },
 }
 #[derive(Deserialize, Serialize)]
 #[serde(tag = "method", content = "result")]
@@ -38,6 +41,9 @@ pub enum JsonCommandResponse {
     get_account {
         name: Option<String>,
         balance: String,
+    },
+    delete_account {
+        success: bool,
     },
 }
 
@@ -68,6 +74,10 @@ fn wallet_api(
                 name: state.service.get_account(&id)?,
                 balance: "0".to_string(), // FIXME once implemented
             }
+        }
+        JsonCommandRequest::delete_account { id } => {
+            state.service.delete_account(&id)?;
+            JsonCommandResponse::delete_account { success: true }
         }
     };
     Ok(Json(result))
@@ -157,6 +167,23 @@ mod tests {
         let name = result.get("name").unwrap();
         assert_eq!("Alice Main Account", name.as_str().unwrap());
         // FIXME: assert balance
+
+        // Delete Account
+        let body = json!({
+            "method": "delete_account",
+            "params": {
+                "id": *account_id,
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        assert_eq!(result.get("success").unwrap(), true);
+
+        let body = json!({
+            "method": "list_accounts",
+        });
+        let result = dispatch(&client, body, &logger);
+        let accounts = result.get("accounts").unwrap().as_array().unwrap();
+        assert_eq!(accounts.len(), 0);
     }
 
     #[test_with_logger]

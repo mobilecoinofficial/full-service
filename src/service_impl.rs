@@ -79,6 +79,11 @@ impl WalletService {
         let account = self.walletdb.get_account(account_id_hex)?;
         Ok(account.name)
     }
+
+    pub fn delete_account(&self, account_id_hex: &str) -> Result<(), WalletServiceError> {
+        self.walletdb.delete_account(account_id_hex)?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
