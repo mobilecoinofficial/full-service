@@ -76,10 +76,10 @@ mod tests {
         PORT_NR.fetch_add(1, SeqCst) as u16 + 30300
     }
 
-    fn setup() -> Client {
+    fn setup(logger: Logger) -> Client {
         let db_test_context = WalletDbTestContext::default();
         let walletdb = db_test_context.get_db_instance();
-        let service = WalletService::new(walletdb);
+        let service = WalletService::new(walletdb, logger);
 
         let rocket_config: rocket::Config =
             rocket::Config::build(rocket::config::Environment::Development)
@@ -91,7 +91,7 @@ mod tests {
 
     #[test_with_logger]
     fn test_create_account(logger: Logger) {
-        let client = setup();
+        let client = setup(logger.clone());
 
         let body = json!({
             "method": "create_account",
@@ -117,7 +117,7 @@ mod tests {
 
     #[test_with_logger]
     fn test_create_account_with_first_block(logger: Logger) {
-        let client = setup();
+        let client = setup(logger.clone());
 
         let body = json!({
             "method": "create_account",

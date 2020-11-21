@@ -37,6 +37,12 @@ pub enum WalletDBError {
 
     /// Error with rocket databases: {0}
     RocketDB(rocket_contrib::databases::r2d2::Error),
+
+    /// Duplicate entries with the same ID {0}
+    DuplicateEntries(String),
+
+    /// Entry not found
+    NotFound(String),
 }
 
 impl From<diesel::result::Error> for WalletDBError {

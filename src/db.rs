@@ -91,16 +91,49 @@ impl WalletDb {
             .load::<Account>(&conn)?;
         Ok(results)
     }
-}
 
-/* Example UPDATE
-pub fn publish_post(conn: &SqliteConnection, key: String) -> usize {
-    diesel::update(dsl_accounts.find(key))
-        .set(published.eq(true))
-        .execute(conn)
-        .expect("Unable to find post")
+    /// Get a specific account
+    pub fn get_account(&self, account_id_hex: &str) -> Result<Account, WalletDBError> {
+        let conn = self.pool.get()?;
+
+        let matches = schema_accounts::table
+            .select(schema_accounts::all_columns)
+            .filter(schema_accounts::account_id_hex.eq(account_id_hex))
+            .load::<Account>(&conn)?;
+
+        if matches.len() == 0 {
+            Err(WalletDBError::NotFound(account_id_hex.to_string()))
+        } else if matches.len() > 1 {
+            Err(WalletDBError::DuplicateEntries(account_id_hex.to_string()))
+        } else {
+            Ok(matches[0].clone())
+        }
+    }
+
+    /// Update an account.
+    /// The only updatable field is the name. Any other desired update requires adding
+    /// a new account, and deleting the existing if desired.
+    pub fn update_account(
+        &self,
+        account_id_hex: &str,
+        new_name: Option<String>,
+    ) -> Result<(), WalletDBError> {
+        let conn = self.pool.get()?;
+
+        diesel::update(dsl_accounts.find(account_id_hex))
+            .set(schema_accounts::name.eq(new_name))
+            .execute(&conn)?;
+        Ok(())
+    }
+
+    /// Delete an account.
+    pub fn delete_account(&self, account_id_hex: &str) -> Result<(), WalletDBError> {
+        let conn = self.pool.get()?;
+
+        diesel::delete(dsl_accounts.find(account_id_hex)).execute(&conn)?;
+        Ok(())
+    }
 }
- */
 
 #[cfg(test)]
 mod tests {
@@ -118,24 +151,15 @@ mod tests {
         let db_test_context = WalletDbTestContext::default();
         let walletdb = db_test_context.get_db_instance();
 
-        // FIXME: eventually mobilecoind test_utils to get the test_environment
-
         let account_key = AccountKey::from(&RootIdentity::from_random(&mut rng));
-        walletdb
+        let account_id_hex = walletdb
             .create_account(&account_key, 0, 1, 2, 0, 1, Some("Alice's Main Account"))
             .unwrap();
 
         let res = walletdb.list_accounts().unwrap();
         assert_eq!(res.len(), 1);
 
-        let const_data = ConstAccountData {
-            address: account_key.subaddress(0),
-            main_subaddress: 0,
-            first_block: 0,
-        };
-        let temp: [u8; 32] = const_data.digest32::<MerlinTranscript>(b"monitor_data");
-        let account_id_hex = hex::encode(temp);
-
+        let acc = walletdb.get_account(&account_id_hex).unwrap();
         let expected_account = Account {
             account_id_hex,
             encrypted_account_key: mc_util_serial::encode(&account_key),
@@ -146,26 +170,19 @@ mod tests {
             next_block: "1".to_string(),
             name: Some("Alice's Main Account".to_string()),
         };
-        assert_eq!(expected_account, res[0]);
+        assert_eq!(expected_account, acc);
 
         // Add another account with no name, scanning from later
         let account_key_secondary = AccountKey::from(&RootIdentity::from_random(&mut rng));
-        walletdb
+        let account_id_hex_secondary = walletdb
             .create_account(&account_key_secondary, 0, 1, 2, 50, 51, None)
             .unwrap();
         let res = walletdb.list_accounts().unwrap();
         assert_eq!(res.len(), 2);
 
-        let const_data = ConstAccountData {
-            address: account_key_secondary.subaddress(0),
-            main_subaddress: 0,
-            first_block: 50,
-        };
-        let temp: [u8; 32] = const_data.digest32::<MerlinTranscript>(b"monitor_data");
-        let account_id_hex_secondary = hex::encode(temp);
-
-        let expected_account_secondary = Account {
-            account_id_hex: account_id_hex_secondary,
+        let acc_secondary = walletdb.get_account(&account_id_hex_secondary).unwrap();
+        let mut expected_account_secondary = Account {
+            account_id_hex: account_id_hex_secondary.clone(),
             encrypted_account_key: mc_util_serial::encode(&account_key_secondary),
             main_subaddress_index: "0".to_string(),
             change_subaddress_index: "1".to_string(),
@@ -174,6 +191,31 @@ mod tests {
             next_block: "51".to_string(),
             name: None,
         };
-        assert_eq!(expected_account_secondary, res[1]);
+        assert_eq!(expected_account_secondary, acc_secondary);
+
+        // Update the name for the secondary account
+        walletdb
+            .update_account(
+                &account_id_hex_secondary,
+                Some("Alice's Secondary Account".to_string()),
+            )
+            .unwrap();
+        let acc_secondary2 = walletdb.get_account(&account_id_hex_secondary).unwrap();
+        expected_account_secondary.name = Some("Alice's Secondary Account".to_string());
+        assert_eq!(expected_account_secondary, acc_secondary2);
+
+        // Delete the secondary account
+        walletdb.delete_account(&account_id_hex_secondary).unwrap();
+
+        let res = walletdb.list_accounts().unwrap();
+        assert_eq!(res.len(), 1);
+
+        // Attempt to get the deleted account
+        let res = walletdb.get_account(&account_id_hex_secondary);
+        match res {
+            Ok(_) => panic!("Should have deleted account"),
+            Err(WalletDBError::NotFound(s)) => assert_eq!(s, account_id_hex_secondary.to_string()),
+            Err(_) => panic!("Should error with NotFound"),
+        }
     }
 }

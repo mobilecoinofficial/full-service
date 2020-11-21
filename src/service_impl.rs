@@ -5,6 +5,7 @@
 use crate::db::WalletDb;
 use crate::error::WalletServiceError;
 use mc_account_keys::{AccountKey, PublicAddress, RootIdentity, DEFAULT_SUBADDRESS_INDEX};
+use mc_common::logger::{log, Logger};
 use mc_util_from_random::FromRandom;
 
 pub const DEFAULT_CHANGE_SUBADDRESS_INDEX: u64 = 1;
@@ -18,13 +19,15 @@ pub fn b58_encode(public_address: &PublicAddress) -> Result<String, WalletServic
     Ok(wrapper.b58_encode()?)
 }
 
+/// Service for interacting with the wallet
 pub struct WalletService {
     walletdb: WalletDb,
+    logger: Logger,
 }
 
 impl WalletService {
-    pub fn new(walletdb: WalletDb) -> WalletService {
-        WalletService { walletdb }
+    pub fn new(walletdb: WalletDb, logger: Logger) -> WalletService {
+        WalletService { walletdb, logger }
     }
     /// Creates a new account with defaults
     pub fn create_account(
@@ -32,6 +35,12 @@ impl WalletService {
         name: Option<String>,
         first_block: Option<u64>,
     ) -> Result<(String, String, String), WalletServiceError> {
+        log::info!(
+            self.logger,
+            "Creating account {:?} with first_block: {:?}",
+            name,
+            first_block,
+        );
         // Generate entropy for the account
         let mut rng = rand::thread_rng();
         let root_id = RootIdentity::from_random(&mut rng);
@@ -61,11 +70,24 @@ impl WalletService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mc_common::logger::{log, test_with_logger, Logger};
+    use crate::test_utils::WalletDbTestContext;
+    use mc_common::logger::{test_with_logger, Logger};
+
+    fn setup_service(logger: Logger) -> WalletService {
+        let db_test_context = WalletDbTestContext::default();
+        let walletdb = db_test_context.get_db_instance();
+
+        WalletService::new(walletdb, logger)
+    }
 
     #[test_with_logger]
-    fn test_create_account(_logger: Logger) {
-        assert!(true);
-        //create_account(conn, "Alice's Main Account".to_string(), None).unwrap();
+    fn test_create_account(logger: Logger) {
+        let service = setup_service(logger);
+        let _account_details = service
+            .create_account(Some("Alice's Main Account".to_string()), None)
+            .unwrap();
+
+        // FIXME: TODO - assert other things that should be true with the service state
+        //        after an account has been created, such as the balance, etc
     }
 }
