@@ -15,11 +15,11 @@ pub enum WalletServiceError {
     B58EncodeError(mc_api::display::Error),
 
     /// Error interacting with the DB {0}
-    DBError(WalletDBError),
+    DBError(WalletDbError),
 }
 
-impl From<WalletDBError> for WalletServiceError {
-    fn from(src: WalletDBError) -> Self {
+impl From<WalletDbError> for WalletServiceError {
+    fn from(src: WalletDbError) -> Self {
         Self::DBError(src)
     }
 }
@@ -31,7 +31,7 @@ impl From<mc_api::display::Error> for WalletServiceError {
 }
 
 #[derive(Display, Debug)]
-pub enum WalletDBError {
+pub enum WalletDbError {
     /// Diesel Error: {0}
     DieselError(diesel::result::Error),
 
@@ -45,13 +45,13 @@ pub enum WalletDBError {
     NotFound(String),
 }
 
-impl From<diesel::result::Error> for WalletDBError {
+impl From<diesel::result::Error> for WalletDbError {
     fn from(src: diesel::result::Error) -> Self {
         Self::DieselError(src)
     }
 }
 
-impl From<rocket_contrib::databases::r2d2::Error> for WalletDBError {
+impl From<rocket_contrib::databases::r2d2::Error> for WalletDbError {
     fn from(src: rocket_contrib::databases::r2d2::Error) -> Self {
         Self::RocketDB(src)
     }

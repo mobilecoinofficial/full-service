@@ -10,7 +10,7 @@ use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::RunQueryDsl;
 
-use crate::error::WalletDBError;
+use crate::error::WalletDbError;
 use crate::models::{Account, NewAccount};
 use crate::schema::accounts as schema_accounts;
 use crate::schema::accounts::dsl::accounts as dsl_accounts;
@@ -33,7 +33,7 @@ impl WalletDb {
         Self { pool }
     }
 
-    pub fn new_from_url(database_url: &str) -> Result<Self, WalletDBError> {
+    pub fn new_from_url(database_url: &str) -> Result<Self, WalletDbError> {
         let manager = ConnectionManager::<SqliteConnection>::new(database_url);
         let pool = Pool::builder()
             .max_size(1)
@@ -52,7 +52,7 @@ impl WalletDb {
         first_block: u64,
         next_block: u64,
         name: Option<&str>,
-    ) -> Result<String, WalletDBError> {
+    ) -> Result<String, WalletDbError> {
         let conn = self.pool.get()?;
 
         let const_data = ConstAccountData {
@@ -83,7 +83,7 @@ impl WalletDb {
     }
 
     /// List all accounts.
-    pub fn list_accounts(&self) -> Result<Vec<Account>, WalletDBError> {
+    pub fn list_accounts(&self) -> Result<Vec<Account>, WalletDbError> {
         let conn = self.pool.get()?;
 
         let results: Vec<Account> = schema_accounts::table
@@ -93,7 +93,7 @@ impl WalletDb {
     }
 
     /// Get a specific account
-    pub fn get_account(&self, account_id_hex: &str) -> Result<Account, WalletDBError> {
+    pub fn get_account(&self, account_id_hex: &str) -> Result<Account, WalletDbError> {
         let conn = self.pool.get()?;
 
         let matches = schema_accounts::table
@@ -102,9 +102,9 @@ impl WalletDb {
             .load::<Account>(&conn)?;
 
         if matches.len() == 0 {
-            Err(WalletDBError::NotFound(account_id_hex.to_string()))
+            Err(WalletDbError::NotFound(account_id_hex.to_string()))
         } else if matches.len() > 1 {
-            Err(WalletDBError::DuplicateEntries(account_id_hex.to_string()))
+            Err(WalletDbError::DuplicateEntries(account_id_hex.to_string()))
         } else {
             Ok(matches[0].clone())
         }
@@ -117,7 +117,7 @@ impl WalletDb {
         &self,
         account_id_hex: &str,
         new_name: Option<String>,
-    ) -> Result<(), WalletDBError> {
+    ) -> Result<(), WalletDbError> {
         let conn = self.pool.get()?;
 
         diesel::update(dsl_accounts.find(account_id_hex))
@@ -127,7 +127,7 @@ impl WalletDb {
     }
 
     /// Delete an account.
-    pub fn delete_account(&self, account_id_hex: &str) -> Result<(), WalletDBError> {
+    pub fn delete_account(&self, account_id_hex: &str) -> Result<(), WalletDbError> {
         let conn = self.pool.get()?;
 
         diesel::delete(dsl_accounts.find(account_id_hex)).execute(&conn)?;
@@ -140,12 +140,11 @@ mod tests {
     use super::*;
     use crate::test_utils::WalletDbTestContext;
     use mc_account_keys::RootIdentity;
-    use mc_common::logger::{test_with_logger, Logger};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
-    #[test_with_logger]
-    fn test_account_crud(_logger: Logger) {
+    #[test]
+    fn test_account_crud() {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -214,7 +213,7 @@ mod tests {
         let res = walletdb.get_account(&account_id_hex_secondary);
         match res {
             Ok(_) => panic!("Should have deleted account"),
-            Err(WalletDBError::NotFound(s)) => assert_eq!(s, account_id_hex_secondary.to_string()),
+            Err(WalletDbError::NotFound(s)) => assert_eq!(s, account_id_hex_secondary.to_string()),
             Err(_) => panic!("Should error with NotFound"),
         }
     }

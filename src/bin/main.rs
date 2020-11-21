@@ -7,6 +7,7 @@ use dotenv::dotenv;
 use mc_common::logger::{create_app_logger, o};
 use mc_wallet_service::service::{rocket, State};
 use mc_wallet_service::{WalletDb, WalletService};
+use std::path::PathBuf;
 use structopt::StructOpt;
 
 /// Command line config
@@ -23,6 +24,10 @@ pub struct APIConfig {
     /// Port to start webserver on.
     #[structopt(long, default_value = "9090")]
     pub listen_port: u16,
+
+    /// Path to WalletDb
+    #[structopt(long, default_value = "/tmp/walletdb", parse(from_os_str))]
+    pub wallet_db: PathBuf,
 }
 
 fn main() {
@@ -41,7 +46,13 @@ fn main() {
             .port(config.listen_port)
             .unwrap();
 
-    let walletdb = WalletDb::new_from_url("./src/db/test.db").expect("Could not access wallet db");
+    let walletdb = WalletDb::new_from_url(
+        config
+            .wallet_db
+            .to_str()
+            .expect("Could not get wallet_db path"),
+    )
+    .expect("Could not access wallet db");
     let state = State {
         service: WalletService::new(walletdb, logger),
     };
