@@ -65,6 +65,20 @@ impl WalletService {
             account_id,
         ))
     }
+
+    pub fn list_accounts(&self) -> Result<Vec<String>, WalletServiceError> {
+        Ok(self
+            .walletdb
+            .list_accounts()?
+            .iter()
+            .map(|a| a.account_id_hex.clone())
+            .collect())
+    }
+
+    pub fn get_account(&self, account_id_hex: &str) -> Result<Option<String>, WalletServiceError> {
+        let account = self.walletdb.get_account(account_id_hex)?;
+        Ok(account.name)
+    }
 }
 
 #[cfg(test)]

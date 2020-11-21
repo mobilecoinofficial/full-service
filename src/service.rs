@@ -18,6 +18,10 @@ pub enum JsonCommandRequest {
         name: Option<String>,
         first_block: Option<String>,
     },
+    list_accounts,
+    get_account {
+        id: String,
+    },
 }
 #[derive(Deserialize, Serialize)]
 #[serde(tag = "method", content = "result")]
@@ -27,6 +31,13 @@ pub enum JsonCommandResponse {
         public_address: String,
         entropy: String,
         account_id: String,
+    },
+    list_accounts {
+        accounts: Vec<String>,
+    },
+    get_account {
+        name: Option<String>,
+        balance: String,
     },
 }
 
@@ -47,6 +58,15 @@ fn wallet_api(
                 public_address,
                 entropy,
                 account_id,
+            }
+        }
+        JsonCommandRequest::list_accounts => JsonCommandResponse::list_accounts {
+            accounts: state.service.list_accounts()?,
+        },
+        JsonCommandRequest::get_account { id } => {
+            JsonCommandResponse::get_account {
+                name: state.service.get_account(&id)?,
+                balance: "0".to_string(), // FIXME once implemented
             }
         }
     };
@@ -89,16 +109,7 @@ mod tests {
         Client::new(rocket).expect("valid rocket instance")
     }
 
-    #[test_with_logger]
-    fn test_create_account(logger: Logger) {
-        let client = setup(logger.clone());
-
-        let body = json!({
-            "method": "create_account",
-            "params": {
-                "name": "Alice Main Account",
-            }
-        });
+    fn dispatch(client: &Client, body: JsonValue, logger: &Logger) -> serde_json::Value {
         let mut res = client
             .post("/wallet")
             .header(ContentType::JSON)
@@ -108,11 +119,44 @@ mod tests {
         let body = res.body().unwrap().into_string().unwrap();
         log::info!(logger, "Attempted dispatch got response {:?}", body);
 
-        let res_json: JsonValue = serde_json::from_str(&body).unwrap();
-        let result = res_json.get("result").unwrap();
+        let res: JsonValue = serde_json::from_str(&body).unwrap();
+        res.get("result").unwrap().clone()
+    }
+
+    #[test_with_logger]
+    fn test_account_crud(logger: Logger) {
+        let client = setup(logger.clone());
+
+        let body = json!({
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            }
+        });
+        let result = dispatch(&client, body, &logger);
         assert!(result.get("public_address").is_some());
         assert!(result.get("entropy").is_some());
         assert!(result.get("account_id").is_some());
+        let account_id = result.get("account_id").unwrap();
+
+        let body = json!({
+            "method": "list_accounts",
+        });
+        let result = dispatch(&client, body, &logger);
+        let accounts = result.get("accounts").unwrap().as_array().unwrap();
+        assert_eq!(accounts.len(), 1);
+        assert_eq!(accounts[0], account_id.clone());
+
+        let body = json!({
+            "method": "get_account",
+            "params": {
+                "id": *account_id,
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        let name = result.get("name").unwrap();
+        assert_eq!("Alice Main Account", name.as_str().unwrap());
+        // FIXME: assert balance
     }
 
     #[test_with_logger]
@@ -126,17 +170,7 @@ mod tests {
                 "first_block": "200",
             }
         });
-        let mut res = client
-            .post("/wallet")
-            .header(ContentType::JSON)
-            .body(body.to_string())
-            .dispatch();
-        assert_eq!(res.status(), Status::Ok);
-        let body = res.body().unwrap().into_string().unwrap();
-        log::info!(logger, "Attempted dispatch got response {:?}", body);
-
-        let res_json: JsonValue = serde_json::from_str(&body).unwrap();
-        let result = res_json.get("result").unwrap();
+        let result = dispatch(&client, body, &logger);
         assert!(result.get("public_address").is_some());
         assert!(result.get("entropy").is_some());
         assert!(result.get("account_id").is_some());
