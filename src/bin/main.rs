@@ -3,12 +3,20 @@
 //! MobileCoin wallet service
 
 #![feature(proc_macro_hygiene, decl_macro)]
+use diesel::{prelude::*, SqliteConnection};
+use diesel_migrations::embed_migrations;
 use dotenv::dotenv;
 use mc_common::logger::{create_app_logger, o};
 use mc_wallet_service::service::{rocket, State};
 use mc_wallet_service::{WalletDb, WalletService};
 use std::path::PathBuf;
 use structopt::StructOpt;
+
+#[allow(unused_imports)] // Needed for embedded_migrations!
+#[macro_use]
+extern crate diesel_migrations;
+
+embed_migrations!("migrations/");
 
 /// Command line config
 #[derive(Clone, Debug, StructOpt)]
@@ -45,6 +53,17 @@ fn main() {
             .address(&config.listen_host)
             .port(config.listen_port)
             .unwrap();
+
+    // Connect to the database and run the migrations
+    let conn =
+        SqliteConnection::establish(&config.wallet_db.to_str().unwrap()).unwrap_or_else(|err| {
+            panic!(
+                "Cannot connect to {:?} database: {:?}",
+                config.wallet_db, err
+            )
+        });
+
+    embedded_migrations::run(&conn).expect("failed running migrations");
 
     let walletdb = WalletDb::new_from_url(
         config

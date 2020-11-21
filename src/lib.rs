@@ -19,7 +19,7 @@ extern crate dotenv;
 #[allow(unused_imports)] // Needed for json!
 #[macro_use]
 extern crate rocket_contrib;
-#[allow(unused_imports)] // Needed for embed_migrations!
+#[allow(unused_imports)] // Needed for embedded_migrations!
 #[macro_use]
 extern crate diesel_migrations;
 
