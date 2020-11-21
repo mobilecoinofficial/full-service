@@ -33,27 +33,17 @@ fn main() {
 
     let config = APIConfig::from_args();
 
-    let (_logger, _global_logger_guard) = create_app_logger(o!());
-
-    // let mut database_config = HashMap::new();
-    // let mut databases = HashMap::new();
-
-    // Note: This is the same as the following TOML in Rocket.toml:
-    // wallet_db = { url = "./src/db/test.db" }
-    // But we cannot use Rocket.toml because it is ignored Config::build
-    // database_config.insert("url", Value::from("./src/db/test.db"));
-    // databases.insert("wallet_db", Value::from(database_config));
+    let (logger, _global_logger_guard) = create_app_logger(o!());
 
     let rocket_config: rocket::Config =
         rocket::Config::build(rocket::config::Environment::Development)
             .address(&config.listen_host)
             .port(config.listen_port)
-            //.extra("databases", databases)
             .unwrap();
 
     let walletdb = WalletDb::new_from_url("./src/db/test.db").expect("Could not access wallet db");
     let state = State {
-        service: WalletService::new(walletdb),
+        service: WalletService::new(walletdb, logger),
     };
 
     let rocket = rocket(rocket_config, state);

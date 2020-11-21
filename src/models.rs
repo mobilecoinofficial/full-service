@@ -3,7 +3,7 @@
 use super::schema::accounts;
 use serde::Serialize;
 
-#[derive(Serialize, Queryable, PartialEq, Debug)]
+#[derive(Clone, Serialize, Queryable, PartialEq, Debug)]
 pub struct Account {
     pub account_id_hex: String,
     pub encrypted_account_key: Vec<u8>,
