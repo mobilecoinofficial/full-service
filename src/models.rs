@@ -3,7 +3,7 @@
 use super::schema::accounts;
 use serde::Serialize;
 
-#[derive(Serialize, Queryable)]
+#[derive(Serialize, Queryable, PartialEq, Debug)]
 pub struct Account {
     pub account_id_hex: String,
     pub encrypted_account_key: Vec<u8>,
@@ -12,7 +12,7 @@ pub struct Account {
     pub next_subaddress_index: String,
     pub first_block: String,
     pub next_block: String,
-    pub name: String,
+    pub name: Option<String>,
 }
 
 #[derive(Insertable)]
@@ -25,5 +25,5 @@ pub struct NewAccount<'a> {
     pub next_subaddress_index: &'a str,
     pub first_block: &'a str,
     pub next_block: &'a str,
-    pub name: &'a str,
+    pub name: Option<&'a str>,
 }

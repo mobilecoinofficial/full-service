@@ -5,9 +5,8 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 use dotenv::dotenv;
 use mc_common::logger::{create_app_logger, o};
-use mc_wallet_service::service::rocket;
-use rocket::config::Value;
-use std::collections::HashMap;
+use mc_wallet_service::service::{rocket, State};
+use mc_wallet_service::{WalletDb, WalletService};
 use structopt::StructOpt;
 
 /// Command line config
@@ -36,23 +35,28 @@ fn main() {
 
     let (_logger, _global_logger_guard) = create_app_logger(o!());
 
-    let mut database_config = HashMap::new();
-    let mut databases = HashMap::new();
+    // let mut database_config = HashMap::new();
+    // let mut databases = HashMap::new();
 
     // Note: This is the same as the following TOML in Rocket.toml:
     // wallet_db = { url = "./src/db/test.db" }
     // But we cannot use Rocket.toml because it is ignored Config::build
-    database_config.insert("url", Value::from("./src/db/test.db"));
-    databases.insert("wallet_db", Value::from(database_config));
+    // database_config.insert("url", Value::from("./src/db/test.db"));
+    // databases.insert("wallet_db", Value::from(database_config));
 
     let rocket_config: rocket::Config =
         rocket::Config::build(rocket::config::Environment::Development)
             .address(&config.listen_host)
             .port(config.listen_port)
-            .extra("databases", databases)
+            //.extra("databases", databases)
             .unwrap();
 
-    let rocket = rocket(rocket_config);
+    let walletdb = WalletDb::new_from_url("./src/db/test.db").expect("Could not access wallet db");
+    let state = State {
+        service: WalletService::new(walletdb),
+    };
+
+    let rocket = rocket(rocket_config, state);
 
     rocket.launch();
 }
