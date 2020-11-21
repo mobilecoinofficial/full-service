@@ -34,11 +34,20 @@ impl From<mc_api::display::Error> for WalletServiceError {
 pub enum WalletDBError {
     /// Diesel Error: {0}
     DieselError(diesel::result::Error),
+
+    /// Error with rocket databases: {0}
+    RocketDB(rocket_contrib::databases::r2d2::Error),
 }
 
 impl From<diesel::result::Error> for WalletDBError {
     fn from(src: diesel::result::Error) -> Self {
         Self::DieselError(src)
+    }
+}
+
+impl From<rocket_contrib::databases::r2d2::Error> for WalletDBError {
+    fn from(src: rocket_contrib::databases::r2d2::Error) -> Self {
+        Self::RocketDB(src)
     }
 }
 
