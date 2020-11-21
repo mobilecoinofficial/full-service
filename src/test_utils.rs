@@ -1,3 +1,5 @@
+// Copyright (c) 2020 MobileCoin Inc.
+
 use crate::db::WalletDb;
 use diesel::{prelude::*, SqliteConnection};
 use diesel_migrations::embed_migrations;
