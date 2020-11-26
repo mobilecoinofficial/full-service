@@ -22,6 +22,10 @@ pub enum JsonCommandRequest {
     get_account {
         id: String,
     },
+    update_account_name {
+        id: String,
+        name: String,
+    },
     delete_account {
         id: String,
     },
@@ -39,8 +43,11 @@ pub enum JsonCommandResponse {
         accounts: Vec<String>,
     },
     get_account {
-        name: Option<String>,
+        name: String,
         balance: String,
+    },
+    update_account_name {
+        success: bool,
     },
     delete_account {
         success: bool,
@@ -74,6 +81,10 @@ fn wallet_api(
                 name: state.service.get_account(&id)?,
                 balance: "0".to_string(), // FIXME once implemented
             }
+        }
+        JsonCommandRequest::update_account_name { id, name } => {
+            state.service.update_account_name(&id, name)?;
+            JsonCommandResponse::update_account_name { success: true }
         }
         JsonCommandRequest::delete_account { id } => {
             state.service.delete_account(&id)?;
@@ -137,6 +148,7 @@ mod tests {
     fn test_account_crud(logger: Logger) {
         let client = setup(logger.clone());
 
+        // Create Account
         let body = json!({
             "method": "create_account",
             "params": {
@@ -149,6 +161,7 @@ mod tests {
         assert!(result.get("account_id").is_some());
         let account_id = result.get("account_id").unwrap();
 
+        // Read Accounts via List, Get
         let body = json!({
             "method": "list_accounts",
         });
@@ -167,6 +180,27 @@ mod tests {
         let name = result.get("name").unwrap();
         assert_eq!("Alice Main Account", name.as_str().unwrap());
         // FIXME: assert balance
+
+        // Update Account
+        let body = json!({
+            "method": "update_account_name",
+            "params": {
+                "id": *account_id,
+                "name": "Eve Main Account",
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        assert_eq!(result.get("success").unwrap(), true);
+
+        let body = json!({
+            "method": "get_account",
+            "params": {
+                "id": *account_id,
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        let name = result.get("name").unwrap();
+        assert_eq!("Eve Main Account", name.as_str().unwrap());
 
         // Delete Account
         let body = json!({

@@ -7,12 +7,12 @@ use serde::Serialize;
 pub struct Account {
     pub account_id_hex: String,
     pub encrypted_account_key: Vec<u8>,
-    pub main_subaddress_index: String,
-    pub change_subaddress_index: String,
-    pub next_subaddress_index: String,
-    pub first_block: String,
-    pub next_block: String,
-    pub name: Option<String>,
+    pub main_subaddress_index: i64,
+    pub change_subaddress_index: i64,
+    pub next_subaddress_index: i64,
+    pub first_block: i64,
+    pub next_block: i64,
+    pub name: String,
 }
 
 #[derive(Insertable)]
@@ -20,10 +20,10 @@ pub struct Account {
 pub struct NewAccount<'a> {
     pub account_id_hex: &'a str,
     pub encrypted_account_key: &'a Vec<u8>,
-    pub main_subaddress_index: &'a str,
-    pub change_subaddress_index: &'a str,
-    pub next_subaddress_index: &'a str,
-    pub first_block: &'a str,
-    pub next_block: &'a str,
-    pub name: Option<&'a str>,
+    pub main_subaddress_index: i64,
+    pub change_subaddress_index: i64,
+    pub next_subaddress_index: i64,
+    pub first_block: i64,
+    pub next_block: i64,
+    pub name: &'a str,
 }

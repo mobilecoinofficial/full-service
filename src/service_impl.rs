@@ -56,7 +56,7 @@ impl WalletService {
             DEFAULT_NEXT_SUBADDRESS_INDEX,
             first_block.unwrap_or(DEFAULT_FIRST_BLOCK),
             DEFAULT_FIRST_BLOCK + 1,
-            name.as_deref(),
+            &name.unwrap_or("".to_string()),
         )?;
 
         Ok((
@@ -75,9 +75,18 @@ impl WalletService {
             .collect())
     }
 
-    pub fn get_account(&self, account_id_hex: &str) -> Result<Option<String>, WalletServiceError> {
+    pub fn get_account(&self, account_id_hex: &str) -> Result<String, WalletServiceError> {
         let account = self.walletdb.get_account(account_id_hex)?;
         Ok(account.name)
+    }
+
+    pub fn update_account_name(
+        &self,
+        account_id_hex: &str,
+        name: String,
+    ) -> Result<(), WalletServiceError> {
+        self.walletdb.update_account_name(account_id_hex, name)?;
+        Ok(())
     }
 
     pub fn delete_account(&self, account_id_hex: &str) -> Result<(), WalletServiceError> {

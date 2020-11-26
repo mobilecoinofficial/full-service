@@ -15,12 +15,13 @@ use crate::models::{Account, NewAccount};
 use crate::schema::accounts as schema_accounts;
 use crate::schema::accounts::dsl::accounts as dsl_accounts;
 
-// The account ID is derived from the contents of the account key
+/// The account ID is derived from the contents of the account key
 #[derive(Digestible)]
 struct ConstAccountData {
+    /// The public address of the main subaddress for this account
     pub address: PublicAddress,
-    pub main_subaddress: u64,
-    pub first_block: u64,
+    /// The main subaddress index for this account
+    pub main_subaddress_index: u64,
 }
 
 #[derive(Clone)]
@@ -51,27 +52,26 @@ impl WalletDb {
         next_subaddress_index: u64,
         first_block: u64,
         next_block: u64,
-        name: Option<&str>,
+        name: &str,
     ) -> Result<String, WalletDbError> {
         let conn = self.pool.get()?;
 
         let const_data = ConstAccountData {
             address: account_key.subaddress(main_subaddress_index),
-            main_subaddress: main_subaddress_index,
-            first_block: first_block,
+            main_subaddress_index: main_subaddress_index,
         };
         let temp: [u8; 32] = const_data.digest32::<MerlinTranscript>(b"monitor_data");
         let account_id_hex = hex::encode(temp);
 
-        // FIXME: how do we want to do optional/defaults and overrides?
+        // FIXME: It's concerning to lose a bit of precision in casting to i64
         let new_account = NewAccount {
             account_id_hex: &account_id_hex,
             encrypted_account_key: &mc_util_serial::encode(account_key), // FIXME: add encryption
-            main_subaddress_index: &main_subaddress_index.to_string(),
-            change_subaddress_index: &change_subaddress_index.to_string(),
-            next_subaddress_index: &next_subaddress_index.to_string(),
-            first_block: &first_block.to_string(),
-            next_block: &next_block.to_string(),
+            main_subaddress_index: main_subaddress_index as i64,
+            change_subaddress_index: change_subaddress_index as i64,
+            next_subaddress_index: next_subaddress_index as i64,
+            first_block: first_block as i64,
+            next_block: next_block as i64,
             name,
         };
 
@@ -101,7 +101,7 @@ impl WalletDb {
             .filter(schema_accounts::account_id_hex.eq(account_id_hex))
             .load::<Account>(&conn)?;
 
-        if matches.len() == 0 {
+        if matches.is_empty() {
             Err(WalletDbError::NotFound(account_id_hex.to_string()))
         } else if matches.len() > 1 {
             Err(WalletDbError::DuplicateEntries(account_id_hex.to_string()))
@@ -113,10 +113,10 @@ impl WalletDb {
     /// Update an account.
     /// The only updatable field is the name. Any other desired update requires adding
     /// a new account, and deleting the existing if desired.
-    pub fn update_account(
+    pub fn update_account_name(
         &self,
         account_id_hex: &str,
-        new_name: Option<String>,
+        new_name: String,
     ) -> Result<(), WalletDbError> {
         let conn = self.pool.get()?;
 
@@ -152,7 +152,7 @@ mod tests {
 
         let account_key = AccountKey::from(&RootIdentity::from_random(&mut rng));
         let account_id_hex = walletdb
-            .create_account(&account_key, 0, 1, 2, 0, 1, Some("Alice's Main Account"))
+            .create_account(&account_key, 0, 1, 2, 0, 1, "Alice's Main Account")
             .unwrap();
 
         let res = walletdb.list_accounts().unwrap();
@@ -162,19 +162,19 @@ mod tests {
         let expected_account = Account {
             account_id_hex,
             encrypted_account_key: mc_util_serial::encode(&account_key),
-            main_subaddress_index: "0".to_string(),
-            change_subaddress_index: "1".to_string(),
-            next_subaddress_index: "2".to_string(),
-            first_block: "0".to_string(),
-            next_block: "1".to_string(),
-            name: Some("Alice's Main Account".to_string()),
+            main_subaddress_index: 0,
+            change_subaddress_index: 1,
+            next_subaddress_index: 2,
+            first_block: 0,
+            next_block: 1,
+            name: "Alice's Main Account".to_string(),
         };
         assert_eq!(expected_account, acc);
 
         // Add another account with no name, scanning from later
         let account_key_secondary = AccountKey::from(&RootIdentity::from_random(&mut rng));
         let account_id_hex_secondary = walletdb
-            .create_account(&account_key_secondary, 0, 1, 2, 50, 51, None)
+            .create_account(&account_key_secondary, 0, 1, 2, 50, 51, "")
             .unwrap();
         let res = walletdb.list_accounts().unwrap();
         assert_eq!(res.len(), 2);
@@ -183,24 +183,24 @@ mod tests {
         let mut expected_account_secondary = Account {
             account_id_hex: account_id_hex_secondary.clone(),
             encrypted_account_key: mc_util_serial::encode(&account_key_secondary),
-            main_subaddress_index: "0".to_string(),
-            change_subaddress_index: "1".to_string(),
-            next_subaddress_index: "2".to_string(),
-            first_block: "50".to_string(),
-            next_block: "51".to_string(),
-            name: None,
+            main_subaddress_index: 0,
+            change_subaddress_index: 1,
+            next_subaddress_index: 2,
+            first_block: 50,
+            next_block: 51,
+            name: "".to_string(),
         };
         assert_eq!(expected_account_secondary, acc_secondary);
 
         // Update the name for the secondary account
         walletdb
-            .update_account(
+            .update_account_name(
                 &account_id_hex_secondary,
-                Some("Alice's Secondary Account".to_string()),
+                "Alice's Secondary Account".to_string(),
             )
             .unwrap();
         let acc_secondary2 = walletdb.get_account(&account_id_hex_secondary).unwrap();
-        expected_account_secondary.name = Some("Alice's Secondary Account".to_string());
+        expected_account_secondary.name = "Alice's Secondary Account".to_string();
         assert_eq!(expected_account_secondary, acc_secondary2);
 
         // Delete the secondary account
