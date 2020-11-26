@@ -5,7 +5,7 @@ A MobileCoin service for wallet implementations.
 
     ```
     cargo build --release
-    ./target/release/wallet-service
+    ./target/release/wallet-service --wallet-db /tmp/wallet-db/wallet.db
     ```
 
 ## API
@@ -45,7 +45,7 @@ A MobileCoin service for wallet implementations.
       }
     }
     ```
-    
+
 #### Get Account
 
     ```
@@ -60,8 +60,20 @@ A MobileCoin service for wallet implementations.
       }
     }
     ```
-    
-### Delete Account
+
+#### Update Account
+
+    ```
+    curl -s localhost:9090/wallet -d '{"method": "update_account_name", "params": {"id": "2b2d5cce6e24f4a396402fcf5f036890f9c06660f5d29f8420b8c89ef9074cd6", "name": "Eve"}}' -X POST -H 'Content-type: application/json'  | jq
+    {
+      "method": "update_account_name",
+      "result": {
+        "success": true
+      }
+    }
+    ```
+
+#### Delete Account
 
     ```
     curl -s localhost:9090/wallet -d '{"method": "delete_account", "params": {"id": "a8c9c7acb96cf4ad9154eec9384
