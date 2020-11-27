@@ -1,6 +1,7 @@
 // Copyright (c) 2020 MobileCoin Inc.
 
 use crate::error::WalletAPIError;
+use crate::service_decorated_types::JsonListTxosResponse;
 use crate::service_impl::WalletService;
 use rocket::{post, routes};
 use rocket_contrib::json::Json;
@@ -29,6 +30,9 @@ pub enum JsonCommandRequest {
     delete_account {
         id: String,
     },
+    list_txos {
+        id: String,
+    },
 }
 #[derive(Deserialize, Serialize)]
 #[serde(tag = "method", content = "result")]
@@ -51,6 +55,9 @@ pub enum JsonCommandResponse {
     },
     delete_account {
         success: bool,
+    },
+    list_txos {
+        txos: Vec<JsonListTxosResponse>,
     },
 }
 
@@ -90,6 +97,9 @@ fn wallet_api(
             state.service.delete_account(&id)?;
             JsonCommandResponse::delete_account { success: true }
         }
+        JsonCommandRequest::list_txos { id } => JsonCommandResponse::list_txos {
+            txos: state.service.list_txos(&id)?,
+        },
     };
     Ok(Json(result))
 }
@@ -103,37 +113,60 @@ pub fn rocket(rocket_config: rocket::Config, state: State) -> rocket::Rocket {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::{get_test_ledger, WalletDbTestContext};
+    use crate::test_utils::{add_block_to_ledger_db, get_test_ledger, WalletDbTestContext};
     use mc_account_keys::PublicAddress;
     use mc_common::logger::{log, test_with_logger, Logger};
+    use mc_crypto_rand::rand_core::RngCore;
+    use mc_ledger_db::LedgerDB;
+    use mc_transaction_core::ring_signature::KeyImage;
     use rand::{rngs::StdRng, SeedableRng};
     use rocket::{
         http::{ContentType, Status},
         local::Client,
     };
     use rocket_contrib::json::JsonValue;
+    use std::convert::TryFrom;
     use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
+    use std::time::Duration;
 
     fn get_free_port() -> u16 {
         static PORT_NR: AtomicUsize = AtomicUsize::new(0);
         PORT_NR.fetch_add(1, SeqCst) as u16 + 30300
     }
 
-    fn setup(logger: Logger) -> Client {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+    // FIXME: this will probably live in db or service_impl once we're decoding public addresses
+    fn b58_decode(b58_public_address: &str) -> PublicAddress {
+        let wrapper = mc_mobilecoind_api::printable::PrintableWrapper::b58_decode(
+            b58_public_address.to_string(),
+        )
+        .unwrap();
+        let pubaddr_proto: &mc_api::external::PublicAddress = if wrapper.has_payment_request() {
+            let payment_request = wrapper.get_payment_request();
+            payment_request.get_public_address()
+        } else if wrapper.has_public_address() {
+            wrapper.get_public_address()
+        } else {
+            panic!("No public address in wrapper");
+        };
+        PublicAddress::try_from(pubaddr_proto).unwrap()
+    }
 
+    fn setup(mut rng: &mut StdRng, logger: Logger) -> (Client, LedgerDB) {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance();
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
-        let service = WalletService::new(wallet_db, ledger_db, None, logger);
+        let service = WalletService::new(wallet_db, ledger_db.clone(), None, logger);
 
         let rocket_config: rocket::Config =
             rocket::Config::build(rocket::config::Environment::Development)
                 .port(get_free_port())
                 .unwrap();
         let rocket = rocket(rocket_config, State { service });
-        Client::new(rocket).expect("valid rocket instance")
+        (
+            Client::new(rocket).expect("valid rocket instance"),
+            ledger_db,
+        )
     }
 
     fn dispatch(client: &Client, body: JsonValue, logger: &Logger) -> serde_json::Value {
@@ -152,7 +185,8 @@ mod tests {
 
     #[test_with_logger]
     fn test_account_crud(logger: Logger) {
-        let client = setup(logger.clone());
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db) = setup(&mut rng, logger.clone());
 
         // Create Account
         let body = json!({
@@ -228,7 +262,8 @@ mod tests {
 
     #[test_with_logger]
     fn test_create_account_with_first_block(logger: Logger) {
-        let client = setup(logger.clone());
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db) = setup(&mut rng, logger.clone());
 
         let body = json!({
             "method": "create_account",
@@ -241,5 +276,53 @@ mod tests {
         assert!(result.get("public_address").is_some());
         assert!(result.get("entropy").is_some());
         assert!(result.get("account_id").is_some());
+    }
+
+    #[test_with_logger]
+    fn test_list_txos(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+                "first_block": "0",
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        let account_id = result.get("account_id").unwrap().as_str().unwrap();
+        let b58_public_address = result.get("public_address").unwrap().as_str().unwrap();
+        let public_address = b58_decode(b58_public_address);
+
+        // Add a block with a txo for this address
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![public_address],
+            100,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        // Sleep to let the sync thread process the txo
+        std::thread::sleep(Duration::from_secs(3));
+
+        let body = json!({
+            "method": "list_txos",
+            "params": {
+                "id": account_id,
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        let txos = result.get("txos").unwrap().as_array().unwrap();
+        assert_eq!(txos.len(), 1);
+        let txo = &txos[0];
+        let txo_status = txo.get("txo_status").unwrap().as_str().unwrap();
+        assert_eq!(txo_status, "unspent");
+        let txo_type = txo.get("txo_type").unwrap().as_str().unwrap();
+        assert_eq!(txo_type, "received");
+        let value = txo.get("value").unwrap().as_str().unwrap();
+        assert_eq!(value, "100");
     }
 }

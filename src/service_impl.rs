@@ -4,6 +4,7 @@
 
 use crate::db::WalletDb;
 use crate::error::WalletServiceError;
+use crate::service_decorated_types::JsonListTxosResponse;
 use crate::sync::SyncThread;
 use mc_account_keys::{AccountKey, RootIdentity, DEFAULT_SUBADDRESS_INDEX};
 use mc_common::logger::{log, Logger};
@@ -98,6 +99,17 @@ impl WalletService {
     pub fn delete_account(&self, account_id_hex: &str) -> Result<(), WalletServiceError> {
         self.wallet_db.delete_account(account_id_hex)?;
         Ok(())
+    }
+
+    pub fn list_txos(
+        &self,
+        account_id_hex: &str,
+    ) -> Result<Vec<JsonListTxosResponse>, WalletServiceError> {
+        let txos = self.wallet_db.list_txos(account_id_hex)?;
+        Ok(txos
+            .iter()
+            .map(|(t, s)| JsonListTxosResponse::new(t, s))
+            .collect())
     }
 }
 
