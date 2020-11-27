@@ -2,12 +2,14 @@
 
 #![feature(proc_macro_hygiene, decl_macro)]
 
+pub mod config;
 mod db;
 mod error;
 pub mod models;
 pub mod schema;
 pub mod service;
 mod service_impl;
+pub mod sync;
 
 pub use db::WalletDb;
 pub use service_impl::WalletService;

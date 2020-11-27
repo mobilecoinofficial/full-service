@@ -22,9 +22,11 @@
 //! be picked up by the next available worker thread.
 
 use crate::{
-    db::WalletDb, error::SyncError, models::Account, subaddress_store::SubaddressSPKId,
-    utxo_store::UnspentTxOut,
+    db::{AccountID, WalletDb},
+    error::{SyncError, WalletDbError},
+    models::Account,
 };
+use mc_account_keys::AccountKey;
 use mc_common::{
     logger::{log, Logger},
     HashSet,
@@ -153,13 +155,13 @@ impl SyncThread {
                             .expect("failed getting accounts from WalletDb")
                         {
                             // If there are no new blocks for this account, don't do anything.
-                            if account.next_block >= num_blocks {
+                            if account.next_block >= num_blocks as i64 {
                                 continue;
                             }
 
                             let mut queued_monitor_ids =
                                 queued_monitor_ids.lock().expect("mutex poisoned");
-                            if !queued_monitor_ids.insert(account.account_id_hex) {
+                            if !queued_monitor_ids.insert(account.account_id_hex.clone()) {
                                 // Already queued, no need to add again to queue at this point.
                                 log::trace!(
                                     logger,
@@ -272,7 +274,7 @@ fn sync_thread_entry_point(
                     }
 
                     // Errors that are acceptable - nothing to do.
-                    Err(Error::MonitorIdNotFound) => {}
+                    Err(SyncError::AccountNotFound) => {}
 
                     // Other errors - log.
                     Err(err) => {
@@ -294,12 +296,12 @@ fn sync_monitor(
     wallet_db: &WalletDb,
     monitor_id: &MonitorId,
     logger: &Logger,
-) -> Result<SyncMonitorOk, Error> {
+) -> Result<SyncMonitorOk, SyncError> {
     for _ in 0..MAX_BLOCKS_PROCESSING_CHUNK_SIZE {
         // Get the account data. If it is no longer available, the monitor has been removed and we
         // can simply return. FIXME - verify this works as intended with new data model
         let account = wallet_db.get_account(monitor_id)?;
-        let block_contents = match ledger_db.get_block_contents(account.next_block) {
+        let block_contents = match ledger_db.get_block_contents(account.next_block as u64) {
             Ok(block_contents) => block_contents,
             Err(mc_ledger_db::Error::NotFound) => {
                 return Ok(SyncMonitorOk::NoMoreBlocks);
@@ -319,7 +321,7 @@ fn sync_monitor(
         );
 
         // Match tx outs into UTXOs.
-        let utxos = process_txos(
+        process_txos(
             &wallet_db,
             &block_contents.outputs,
             &account,
@@ -331,7 +333,7 @@ fn sync_monitor(
         //       We do actually want to do it this way, because each account may need to process
         //       the same block at a different time, depending on when we add it to the DB.
         wallet_db.update_spent(
-            account_id_hex,
+            &account.account_id_hex,
             account.next_block,
             block_contents.key_images,
         )?;
@@ -345,19 +347,18 @@ fn process_txos(
     wallet_db: &WalletDb,
     outputs: &[TxOut],
     account: &Account,
-    received_block_index: u64,
+    received_block_index: i64,
     logger: &Logger,
 ) -> Result<(), SyncError> {
-    let account_key: AccountKey = mc_util_serial::decode(&account.encrypted_account_key);
+    let account_key: AccountKey = mc_util_serial::decode(&account.encrypted_account_key)?;
     let view_key = account_key.view_key();
-    let mut results = Vec::new();
 
     for tx_out in outputs {
         // Calculate the subaddress spend public key for tx_out.
         let tx_out_target_key = RistrettoPublic::try_from(&tx_out.target_key)?;
         let tx_public_key = RistrettoPublic::try_from(&tx_out.public_key)?;
 
-        let subaddress_spk: RistrettoPublic = &recover_public_subaddress_spend_key(
+        let subaddress_spk: RistrettoPublic = recover_public_subaddress_spend_key(
             &view_key.view_private_key,
             &tx_out_target_key,
             &tx_public_key,
@@ -375,14 +376,14 @@ fn process_txos(
                     );
                     (index, account_id)
                 }
-                Err(WalletDbError::NotFound) => continue,
+                Err(WalletDbError::NotFound(_)) => continue,
                 Err(err) => {
-                    return Err(err);
+                    return Err(err.into());
                 }
             };
 
-        // Sanity - we should only get a match for our own monitor id.
-        assert_eq!(monitor_id, account_id_hex);
+        // Sanity - we should only get a match for our own account ID.
+        assert_eq!(AccountID::from(&account_key).to_string(), account_id_hex);
 
         let shared_secret =
             get_tx_out_shared_secret(account_key.view_private_key(), &tx_public_key);
@@ -395,7 +396,7 @@ fn process_txos(
         let onetime_private_key = recover_onetime_private_key(
             &tx_public_key,
             account_key.view_private_key(),
-            &account_key.subaddress_spend_private(subaddress_id.index),
+            &account_key.subaddress_spend_private(subaddress_index as u64),
         );
 
         let key_image = KeyImage::from(&onetime_private_key);
@@ -403,12 +404,12 @@ fn process_txos(
         // Insert received txo
         wallet_db.create_received_txo(
             tx_out.clone(),
-            subaddress_index,
+            subaddress_index as u64, // FIXME: precision...
             key_image,
             value,
-            received_block_height,
-            account_id_hex,
-        );
+            received_block_index,
+            &account_id_hex,
+        )?;
     }
 
     Ok(())

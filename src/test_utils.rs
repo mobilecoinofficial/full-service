@@ -3,9 +3,11 @@
 use crate::db::WalletDb;
 use diesel::{prelude::*, SqliteConnection};
 use diesel_migrations::embed_migrations;
-// use mc_account_keys::PublicAddress;
-// use mc_crypto_rand::{CryptoRng, RngCore};
+use mc_account_keys::PublicAddress;
+use mc_crypto_rand::{CryptoRng, RngCore};
+use mc_ledger_db::LedgerDB;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
+use tempdir::TempDir;
 
 embed_migrations!("migrations/");
 
@@ -46,7 +48,6 @@ impl WalletDbTestContext {
     }
 }
 
-/*
 /// Sets up ledger_db. Each block contains one txo per recipient.
 ///
 /// # Arguments
@@ -96,5 +97,3 @@ pub fn get_test_ledger(
 
     ledger_db
 }
-
-*/

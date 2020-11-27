@@ -4,22 +4,37 @@ version = "0.1.0"
 authors = ["MobileCoin"]
 edition = "2018"
 
+[[bin]]
+name = "wallet-service"
+path = "src/bin/main.rs"
+
 [dependencies]
 mc-account-keys = { path = "mobilecoin/account-keys" }
 mc-api = { path = "mobilecoin/api" }
+mc-attest-core = { path = "mobilecoin/attest/core" }
 mc-common = { path = "mobilecoin/common", features = ["loggers"] }
+mc-connection = { path = "mobilecoin/connection" }
+mc-consensus-enclave-measurement = { path = "mobilecoin/consensus/enclave/measurement" }
+mc-consensus-scp = { path = "mobilecoin/consensus/scp" }
 mc-crypto-digestible = { path = "mobilecoin/crypto/digestible", features = ["derive"] }
 mc-crypto-keys = { path = "mobilecoin/crypto/keys" }
+mc-ledger-db = { path = "mobilecoin/ledger/db" }
+mc-ledger-sync = { path = "mobilecoin/ledger/sync" }
 mc-mobilecoind-api = { path = "mobilecoin/mobilecoind/api" }
 mc-transaction-core = { path = "mobilecoin/transaction/core" }
-mc-util-serial = { path = "mobilecoin/util/serial" }
 mc-util-from-random = { path = "mobilecoin/util/from-random" }
+mc-util-serial = { path = "mobilecoin/util/serial" }
+mc-util-uri = { path = "mobilecoin/util/uri" }
 
+crossbeam-channel = "0.4"
 diesel = { version = "1.4", features = ["sqlite"] }
 diesel_migrations = { version = "1.4.0", features = ["sqlite"] }
 displaydoc = {version = "0.1", default-features = false }
 dotenv = "0.15.0"
+grpcio = "0.6.0"
 hex = "0.4"
+num_cpus = "1.12"
+prost = { version = "0.6.1", default-features = false, features = ["prost-derive"] }
 rand = "0.7"
 rocket = { version = "0.4.5", default-features = false }
 rocket_contrib = { version = "0.4.5", default-features = false, features = ["json", "diesel_sqlite_pool"] }
@@ -47,3 +62,7 @@ bulletproofs = { git = "https://github.com/eranrund/bulletproofs", rev = "e8e8ef
 # We need to patch aes-gcm so we can make some fields/functions/structs pub in order to have a constant time decrypt
 aes-gcm = { git = "https://github.com/xoloki/AEADs", rev = "d1a8517d3dd867ed9c5794002add67992a42f6aa" }
 
+# grpcio patched with metadata
+grpcio = { git = "https://github.com/jcape/grpc-rs", rev = "2ad042e9e65ecb664a60e034d0a899a8760d81d3" }
+# Code gen patched with metadata
+grpcio-compiler = { git = "https://github.com/jcape/grpc-rs", rev = "2ad042e9e65ecb664a60e034d0a899a8760d81d3" }

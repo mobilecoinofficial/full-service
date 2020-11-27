@@ -6,10 +6,13 @@
 use diesel::{prelude::*, SqliteConnection};
 use diesel_migrations::embed_migrations;
 use dotenv::dotenv;
-use mc_common::logger::{create_app_logger, o};
+use mc_attest_core::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
+use mc_common::logger::{create_app_logger, log, o};
+use mc_ledger_sync::{LedgerSyncServiceThread, PollingNetworkState, ReqwestTransactionsFetcher};
+use mc_wallet_service::config::APIConfig;
 use mc_wallet_service::service::{rocket, State};
 use mc_wallet_service::{WalletDb, WalletService};
-use std::path::PathBuf;
+use std::sync::{Arc, RwLock};
 use structopt::StructOpt;
 
 #[allow(unused_imports)] // Needed for embedded_migrations!
@@ -17,26 +20,6 @@ use structopt::StructOpt;
 extern crate diesel_migrations;
 
 embed_migrations!("migrations/");
-
-/// Command line config
-#[derive(Clone, Debug, StructOpt)]
-#[structopt(
-    name = "wallet-service",
-    about = "An HTTP wallet service for MobileCoin"
-)]
-pub struct APIConfig {
-    /// Host to listen on.
-    #[structopt(long, default_value = "127.0.0.1")]
-    pub listen_host: String,
-
-    /// Port to start webserver on.
-    #[structopt(long, default_value = "9090")]
-    pub listen_port: u16,
-
-    /// Path to WalletDb.
-    #[structopt(long, parse(from_os_str))]
-    pub wallet_db: PathBuf,
-}
 
 fn main() {
     dotenv().ok();
@@ -65,15 +48,58 @@ fn main() {
 
     embedded_migrations::run(&conn).expect("failed running migrations");
 
-    let walletdb = WalletDb::new_from_url(
+    let wallet_db = WalletDb::new_from_url(
         config
             .wallet_db
             .to_str()
             .expect("Could not get wallet_db path"),
     )
     .expect("Could not access wallet db");
+
+    let mut mr_signer_verifier =
+        MrSignerVerifier::from(mc_consensus_enclave_measurement::sigstruct());
+    mr_signer_verifier.allow_hardening_advisory("INTEL-SA-00334");
+
+    let mut verifier = Verifier::default();
+    verifier.mr_signer(mr_signer_verifier).debug(DEBUG_ENCLAVE);
+
+    log::debug!(logger, "Verifier: {:?}", verifier);
+
+    // Create peer manager.
+    let peer_manager = config.peers_config.create_peer_manager(verifier, &logger);
+
+    // Create network state, transactions fetcher and ledger sync.
+    let network_state = Arc::new(RwLock::new(PollingNetworkState::new(
+        config.quorum_set(),
+        peer_manager.clone(),
+        logger.clone(),
+    )));
+
+    let transactions_fetcher = ReqwestTransactionsFetcher::new(
+        config.tx_source_urls.clone().unwrap_or_default(),
+        logger.clone(),
+    )
+    .expect("Failed creating ReqwestTransactionsFetcher");
+
+    // Create the ledger_db.
+    let ledger_db = config.create_or_open_ledger_db(&logger, &transactions_fetcher);
+
+    // Start ledger sync thread unless running in offline mode.
+    let _ledger_sync_service_thread = if config.offline {
+        None
+    } else {
+        Some(LedgerSyncServiceThread::new(
+            ledger_db.clone(),
+            peer_manager.clone(),
+            network_state.clone(),
+            transactions_fetcher.clone(),
+            config.poll_interval,
+            logger.clone(),
+        ))
+    };
+
     let state = State {
-        service: WalletService::new(walletdb, logger),
+        service: WalletService::new(wallet_db, ledger_db, config.num_workers, logger),
     };
 
     let rocket = rocket(rocket_config, state);

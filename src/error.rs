@@ -90,4 +90,43 @@ impl From<std::num::ParseIntError> for WalletAPIError {
 pub enum SyncError {
     /// Error downloading blocks
     DownloadError,
+
+    /// Could not find account
+    AccountNotFound,
+
+    /// Error with WalletDb {0}
+    WalletDb(WalletDbError),
+
+    /// Error with LedgerDB {0}
+    LedgerDB(mc_ledger_db::Error),
+
+    /// Error with Keys {0}
+    CryptoKey(mc_crypto_keys::KeyError),
+
+    /// Error decoding prost {0}
+    ProstDecode(prost::DecodeError),
+}
+
+impl From<WalletDbError> for SyncError {
+    fn from(src: WalletDbError) -> Self {
+        Self::WalletDb(src)
+    }
+}
+
+impl From<mc_ledger_db::Error> for SyncError {
+    fn from(src: mc_ledger_db::Error) -> Self {
+        Self::LedgerDB(src)
+    }
+}
+
+impl From<mc_crypto_keys::KeyError> for SyncError {
+    fn from(src: mc_crypto_keys::KeyError) -> Self {
+        Self::CryptoKey(src)
+    }
+}
+
+impl From<prost::DecodeError> for SyncError {
+    fn from(src: prost::DecodeError) -> Self {
+        Self::ProstDecode(src)
+    }
 }
