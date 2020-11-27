@@ -3,7 +3,7 @@
 //! Provides the CRUD implementations for our DB, and converts types to what is expected
 //! by the DB.
 
-use mc_account_keys::{AccountKey, PublicAddress};
+use mc_account_keys::{AccountKey, PublicAddress, DEFAULT_SUBADDRESS_INDEX};
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::RistrettoPublic;
 use mc_transaction_core::ring_signature::KeyImage;
@@ -36,11 +36,30 @@ pub fn b58_encode(public_address: &PublicAddress) -> Result<String, WalletDbErro
     Ok(wrapper.b58_encode()?)
 }
 
-/// The account ID is derived from the contents of the account key
-#[derive(Digestible)]
-struct ConstAccountData {
-    /// The public address of the main subaddress for this account
-    pub address: PublicAddress,
+#[derive(Debug)]
+pub struct AccountID(String);
+
+impl From<&AccountKey> for AccountID {
+    fn from(src: &AccountKey) -> AccountID {
+        let main_subaddress = src.subaddress(DEFAULT_SUBADDRESS_INDEX);
+        /// The account ID is derived from the contents of the account key
+        #[derive(Digestible)]
+        struct ConstAccountData {
+            /// The public address of the main subaddress for this account
+            pub address: PublicAddress,
+        }
+        let const_data = ConstAccountData {
+            address: main_subaddress.clone(),
+        };
+        let temp: [u8; 32] = const_data.digest32::<MerlinTranscript>(b"account_data");
+        Self(hex::encode(temp))
+    }
+}
+
+impl AccountID {
+    pub fn to_string(&self) -> String {
+        self.0.clone()
+    }
 }
 
 /// The txo ID is derived from the contents of the txo
@@ -83,15 +102,11 @@ impl WalletDb {
         let conn = self.pool.get()?;
 
         let main_subaddress = account_key.subaddress(main_subaddress_index);
-        let const_data = ConstAccountData {
-            address: main_subaddress.clone(),
-        };
-        let temp: [u8; 32] = const_data.digest32::<MerlinTranscript>(b"account_data");
-        let account_id_hex = hex::encode(temp);
+        let account_id = AccountID::from(account_key);
 
         // FIXME: It's concerning to lose a bit of precision in casting to i64
         let new_account = NewAccount {
-            account_id_hex: &account_id_hex,
+            account_id_hex: &account_id.0,
             encrypted_account_key: &mc_util_serial::encode(account_key), // FIXME: add encryption
             main_subaddress_index: main_subaddress_index as i64,
             change_subaddress_index: change_subaddress_index as i64,
@@ -109,7 +124,7 @@ impl WalletDb {
         let main_subaddress_b58 = b58_encode(&main_subaddress)?;
         let main_subaddress_entry = NewAssignedSubaddress {
             assigned_subaddress_b58: &main_subaddress_b58,
-            account_id_hex: &account_id_hex,
+            account_id_hex: &account_id.0,
             address_book_entry: None, // FIXME: Address Book Entry if details provided, or None always for main?
             public_address: &mc_util_serial::encode(&main_subaddress),
             subaddress_index: main_subaddress_index as i64,
@@ -126,7 +141,7 @@ impl WalletDb {
         let change_subaddress_b58 = b58_encode(&change_subaddress)?;
         let change_subaddress_entry = NewAssignedSubaddress {
             assigned_subaddress_b58: &change_subaddress_b58,
-            account_id_hex: &account_id_hex,
+            account_id_hex: &account_id.0,
             address_book_entry: None, // FIXME: Address Book Entry if details provided, or None always for main?
             public_address: &mc_util_serial::encode(&change_subaddress),
             subaddress_index: change_subaddress_index as i64,
@@ -139,7 +154,7 @@ impl WalletDb {
             .values(&change_subaddress_entry)
             .execute(&conn)?;
 
-        Ok((account_id_hex, main_subaddress_b58))
+        Ok((account_id.0, main_subaddress_b58))
     }
 
     /// List all accounts.
@@ -200,7 +215,7 @@ impl WalletDb {
         subaddress_index: u64,
         key_image: KeyImage,
         value: u64,
-        received_block_height: u64,
+        received_block_height: i64,
         account_id_hex: &str,
     ) -> Result<String, WalletDbError> {
         let conn = self.pool.get()?;
@@ -320,7 +335,7 @@ impl WalletDb {
     pub fn update_spent(
         &self,
         account_id_hex: &str,
-        spent_block_height: u64,
+        spent_block_height: i64,
         key_images: Vec<KeyImage>,
     ) -> Result<(), WalletDbError> {
         let conn = self.pool.get()?;
@@ -352,7 +367,7 @@ impl WalletDb {
                     spent_block_height
                 );
                 diesel::update(dsl_txos.find(&matches[0].txo_id_hex))
-                    .set(schema_txos::spent_block_height.eq(Some(spent_block_height as i64)))
+                    .set(schema_txos::spent_block_height.eq(Some(spent_block_height)))
                     .execute(&conn)?;
 
                 // Update the AccountTxoStatus

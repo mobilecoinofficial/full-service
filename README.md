@@ -3,10 +3,31 @@ A MobileCoin service for wallet implementations.
 
 ## Build and Run
 
-    ```
-    cargo build --release
-    ./target/release/wallet-service --wallet-db /tmp/wallet-db/wallet.db
-    ```
+    1. Get the appropriate published enclave measurement, and save to `$(pwd)/consensus-enclave.css`
+
+        ```
+        NAMESPACE=test
+        SIGNED_ENCLAVE_URI=$(curl -s https://enclave-distribution.${NAMESPACE}.mobilecoin.com/production.json | grep consensus-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
+        curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${SIGNED_ENCLAVE_URI}
+        ```
+
+    1. Build
+
+        ```
+        SGX_MODE=HW IAS_MODE=PROD CONSENSUS_ENCLAVE_CSS=$(pwd)/consensus-enclave.css cargo build --release
+        ```
+
+    1. Run
+
+        ```
+        ./target/release/wallet-service \
+            --wallet-db /tmp/wallet-db/wallet.db \
+            --ledger-db /tmp/ledger-db/ \
+            --peer mc://node1.test.mobilecoin.com/ \
+            --peer mc://node2.test.mobilecoin.com/ \
+            --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
+            --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/
+        ```
 
 ## API
 
@@ -61,7 +82,7 @@ A MobileCoin service for wallet implementations.
     }
     ```
 
-#### Update Account
+#### Update Account Name
 
     ```
     curl -s localhost:9090/wallet -d '{"method": "update_account_name", "params": {"id": "2b2d5cce6e24f4a396402fcf5f036890f9c06660f5d29f8420b8c89ef9074cd6", "name": "Eve"}}' -X POST -H 'Content-type: application/json'  | jq
@@ -86,6 +107,10 @@ A MobileCoin service for wallet implementations.
       }
     }
     ```
+
+### TXOs
+
+#### List TXOs for a given account
 
 ## Contributing
 
