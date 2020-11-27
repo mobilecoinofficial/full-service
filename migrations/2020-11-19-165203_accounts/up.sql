@@ -24,7 +24,7 @@ create TABLE txos (
   proof BLOB
 );
 
-create TABLE account_txo_status (
+create TABLE account_txo_statuses (
   account_id_hex VARCHAR NOT NULL,
   txo_id_hex VARCHAR NOT NULL,
   txo_status VARCHAR(8) NOT NULL,

@@ -1,24 +1,24 @@
 // Copyright (c) 2018-2020 MobileCoin Inc.
 
-//! Manages ledger block scanning for mobilecoind monitors.
+//! Manages ledger block scanning for wallet accounts..
 //!
 //! Note: Copied and reworked from mobilecoin/mobilecoind/src/sync.rs. Future work is to figure out
 //!       how to better share this code.
 //!
 //! The sync code creates a pool of worker threads, and a main thread to hand off tasks to the
 //! worker threads over a crossbeam channel. Each task is a request to sync block data for a given
-//! monitor id. Each task is limited to a pre-defined amount of blocks - this is useful when the
-//! amount of monitors exceeds the amount of working threads as it ensures monitors are processed
+//! account id. Each task is limited to a pre-defined amount of blocks - this is useful when the
+//! amount of accounts exceeds the amount of working threads as it ensures accounts are processed
 //! concurrently.
 //!
-//! The main thread periodically queries the database for all currently known monitor ids, and
-//! submits new jobs into the queue for each monitor not currently queued. In order to prevent
-//! duplicate queueing, the code also keeps track of the list of already-queued monitor ids inside
+//! The main thread periodically queries the database for all currently known account ids, and
+//! submits new jobs into the queue for each account not currently queued. In order to prevent
+//! duplicate queueing, the code also keeps track of the list of already-queued account ids inside
 //! a hashset that is shared with the worker threads. When a worker thread is finished with a given
-//! monitor id, it removes it from the hashset, which in turns allows the main thread to queue it
+//! account id, it removes it from the hashset, which in turns allows the main thread to queue it
 //! again once the polling interval is exceeded. Since the worker thread processes blocks in
 //! chunks, it is possible that not all available blocks gets processed at once. When that happens,
-//! instead of removing the monitor id from the hashset, it would be placed back into the queue to
+//! instead of removing the account id from the hashset, it would be placed back into the queue to
 //! be picked up by the next available worker thread.
 
 use crate::{
