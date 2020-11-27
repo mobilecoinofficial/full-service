@@ -2,7 +2,7 @@
 
 //! DB Models
 
-use super::schema::{account_txo_status, accounts, txos};
+use super::schema::{account_txo_statuses, accounts, txos};
 use serde::Serialize;
 
 #[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
@@ -66,9 +66,9 @@ pub struct NewTxo<'a> {
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
 #[belongs_to(Account, foreign_key = "account_id_hex")]
 #[belongs_to(Txo, foreign_key = "txo_id_hex")]
-#[table_name = "account_txo_status"]
+#[table_name = "account_txo_statuses"]
 #[primary_key(account_id_hex, txo_id_hex)]
-pub struct AccountTxoStatus {
+pub struct AccountTxoStatuses {
     pub account_id_hex: String,
     pub txo_id_hex: String,
     pub txo_status: String,
@@ -76,7 +76,7 @@ pub struct AccountTxoStatus {
 }
 
 #[derive(Insertable)]
-#[table_name = "account_txo_status"]
+#[table_name = "account_txo_statuses"]
 pub struct NewAccountTxoStatus<'a> {
     pub account_id_hex: &'a str,
     pub txo_id_hex: &'a str,

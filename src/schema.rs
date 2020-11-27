@@ -1,5 +1,5 @@
 table! {
-    account_txo_status (account_id_hex, txo_id_hex) {
+    account_txo_statuses (account_id_hex, txo_id_hex) {
         account_id_hex -> Text,
         txo_id_hex -> Text,
         txo_status -> Text,
@@ -36,7 +36,7 @@ table! {
     }
 }
 
-joinable!(account_txo_status -> accounts (account_id_hex));
-joinable!(account_txo_status -> txos (txo_id_hex));
+joinable!(account_txo_statuses -> accounts (account_id_hex));
+joinable!(account_txo_statuses -> txos (txo_id_hex));
 
-allow_tables_to_appear_in_same_query!(account_txo_status, accounts, txos,);
+allow_tables_to_appear_in_same_query!(account_txo_statuses, accounts, txos,);

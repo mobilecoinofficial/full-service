@@ -12,8 +12,8 @@ use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::RunQueryDsl;
 
 use crate::error::WalletDbError;
-use crate::models::{Account, AccountTxoStatus, NewAccount, NewAccountTxoStatus, NewTxo, Txo};
-use crate::schema::account_txo_status as schema_account_txo_status;
+use crate::models::{Account, NewAccount, NewAccountTxoStatus, NewTxo, Txo};
+use crate::schema::account_txo_statuses as schema_account_txo_statuses;
 use crate::schema::accounts as schema_accounts;
 use crate::schema::accounts::dsl::accounts as dsl_accounts;
 use crate::schema::txos as schema_txos;
@@ -186,31 +186,25 @@ impl WalletDb {
             txo_type: "received",
         };
 
-        diesel::insert_into(schema_account_txo_status::table)
+        diesel::insert_into(schema_account_txo_statuses::table)
             .values(&new_account_txo_status)
             .execute(&conn)?;
 
         Ok(txo_id_hex)
     }
 
-    /// List all txos.
+    /// List all txos for a given account.
     pub fn list_txos(&self, account_id_hex: &str) -> Result<Vec<Txo>, WalletDbError> {
         let conn = self.pool.get()?;
 
-        let _account = dsl_accounts
-            .find(account_id_hex)
-            .get_result::<Account>(&conn)?;
-
         let results: Vec<Txo> = schema_txos::table
+            .inner_join(
+                schema_account_txo_statuses::table.on(schema_txos::txo_id_hex
+                    .eq(schema_account_txo_statuses::txo_id_hex)
+                    .and(schema_account_txo_statuses::account_id_hex.eq(account_id_hex))),
+            )
             .select(schema_txos::all_columns)
-            .load::<Txo>(&conn)?;
-
-        for txo in results.iter() {
-            let acct = AccountTxoStatus::belonging_to(txo)
-                .select(schema_account_txo_status::all_columns)
-                .load::<AccountTxoStatus>(&conn)?;
-            println!("\x1b[1;31m acct {:?} \x1b[0m", acct);
-        }
+            .load(&conn)?;
 
         Ok(results)
     }
@@ -340,9 +334,9 @@ mod tests {
 
         let received_block_height = 144;
 
-        let _txo_hex = walletdb
+        let txo_hex = walletdb
             .create_received_txo(
-                txo,
+                txo.clone(),
                 subaddress_index,
                 key_image.to_vec(),
                 value,
@@ -354,6 +348,20 @@ mod tests {
         let txos = walletdb.list_txos(&account_id_hex).unwrap();
         println!("\x1b[1;36m txos = {:?}\x1b[0m", txos);
         assert_eq!(txos.len(), 1);
-        assert!(false)
+
+        let expected_txo = Txo {
+            txo_id_hex: txo_hex,
+            value: value as i64,
+            target_key: txo.target_key.as_bytes().to_vec(),
+            public_key: txo.public_key.as_bytes().to_vec(),
+            e_fog_hint: txo.e_fog_hint.to_bytes().to_vec(),
+            subaddress_index: subaddress_index as i64,
+            key_image: Some(key_image.as_bytes().to_vec()),
+            received_block_height: Some(received_block_height as i64),
+            spent_tombstone_block_height: None,
+            spent_block_height: None,
+            proof: None,
+        };
+        assert_eq!(txos[0], expected_txo);
     }
 }
