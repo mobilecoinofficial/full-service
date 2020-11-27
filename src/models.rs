@@ -71,7 +71,9 @@ pub struct NewTxo<'a> {
 pub struct AccountTxoStatus {
     pub account_id_hex: String,
     pub txo_id_hex: String,
+    // Statuses: unspent, pending, spent, unknown
     pub txo_status: String,
+    // Types: minted, received
     pub txo_type: String,
 }
 
