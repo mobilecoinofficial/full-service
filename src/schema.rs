@@ -21,6 +21,19 @@ table! {
 }
 
 table! {
+    assigned_subaddresses (assigned_subaddress_b58) {
+        assigned_subaddress_b58 -> Text,
+        account_id_hex -> Text,
+        address_book_entry -> Nullable<BigInt>,
+        public_address -> Binary,
+        subaddress_index -> BigInt,
+        comment -> Text,
+        expected_value -> Nullable<BigInt>,
+        subaddress_spend_key -> Binary,
+    }
+}
+
+table! {
     txos (txo_id_hex) {
         txo_id_hex -> Text,
         value -> BigInt,
@@ -38,5 +51,6 @@ table! {
 
 joinable!(account_txo_statuses -> accounts (account_id_hex));
 joinable!(account_txo_statuses -> txos (txo_id_hex));
+joinable!(assigned_subaddresses -> accounts (account_id_hex));
 
-allow_tables_to_appear_in_same_query!(account_txo_statuses, accounts, txos,);
+allow_tables_to_appear_in_same_query!(account_txo_statuses, accounts, assigned_subaddresses, txos,);

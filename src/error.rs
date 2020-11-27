@@ -11,9 +11,6 @@ use std::io::Cursor;
 
 #[derive(Display, Debug)]
 pub enum WalletServiceError {
-    /// Error encoding b58 {0}
-    B58EncodeError(mc_api::display::Error),
-
     /// Error interacting with the DB {0}
     DBError(WalletDbError),
 }
@@ -21,12 +18,6 @@ pub enum WalletServiceError {
 impl From<WalletDbError> for WalletServiceError {
     fn from(src: WalletDbError) -> Self {
         Self::DBError(src)
-    }
-}
-
-impl From<mc_api::display::Error> for WalletServiceError {
-    fn from(src: mc_api::display::Error) -> Self {
-        Self::B58EncodeError(src)
     }
 }
 
@@ -43,6 +34,9 @@ pub enum WalletDbError {
 
     /// Entry not found
     NotFound(String),
+
+    /// Error encoding b58 {0}
+    B58EncodeError(mc_api::display::Error),
 }
 
 impl From<diesel::result::Error> for WalletDbError {
@@ -54,6 +48,12 @@ impl From<diesel::result::Error> for WalletDbError {
 impl From<rocket_contrib::databases::r2d2::Error> for WalletDbError {
     fn from(src: rocket_contrib::databases::r2d2::Error) -> Self {
         Self::RocketDB(src)
+    }
+}
+
+impl From<mc_api::display::Error> for WalletDbError {
+    fn from(src: mc_api::display::Error) -> Self {
+        Self::B58EncodeError(src)
     }
 }
 

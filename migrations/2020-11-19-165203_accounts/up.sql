@@ -33,3 +33,15 @@ create TABLE account_txo_statuses (
   FOREIGN KEY (account_id_hex) REFERENCES accounts(account_id_hex),
   FOREIGN KEY (txo_id_hex) REFERENCES txos(txo_id_hex)
 );
+
+create TABLE assigned_subaddresses (
+  assigned_subaddress_b58 VARCHAR NOT NULL PRIMARY KEY,
+  account_id_hex VARCHAR NOT NULL,
+  address_book_entry UNSIGNED BIG INT, -- FIXME add foreign key from address book table
+  public_address BLOB NOT NULL,
+  subaddress_index UNSIGNED BIG INT NOT NULL,
+  comment VARCHAR NOT NULL DEFAULT '',
+  expected_value UNSIGNED BIG INT,
+  subaddress_spend_key BLOB NOT NULL,
+  FOREIGN KEY (account_id_hex) REFERENCES accounts(account_id_hex)
+)

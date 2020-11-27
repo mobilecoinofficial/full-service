@@ -4,20 +4,13 @@
 
 use crate::db::WalletDb;
 use crate::error::WalletServiceError;
-use mc_account_keys::{AccountKey, PublicAddress, RootIdentity, DEFAULT_SUBADDRESS_INDEX};
+use mc_account_keys::{AccountKey, RootIdentity, DEFAULT_SUBADDRESS_INDEX};
 use mc_common::logger::{log, Logger};
 use mc_util_from_random::FromRandom;
 
 pub const DEFAULT_CHANGE_SUBADDRESS_INDEX: u64 = 1;
 pub const DEFAULT_NEXT_SUBADDRESS_INDEX: u64 = 2;
 pub const DEFAULT_FIRST_BLOCK: u64 = 0;
-
-// Helper method to use our PrintableWrapper to b58 encode the PublicAddress
-pub fn b58_encode(public_address: &PublicAddress) -> Result<String, WalletServiceError> {
-    let mut wrapper = mc_mobilecoind_api::printable::PrintableWrapper::new();
-    wrapper.set_public_address(public_address.into());
-    Ok(wrapper.b58_encode()?)
-}
 
 /// Service for interacting with the wallet
 pub struct WalletService {
@@ -46,10 +39,8 @@ impl WalletService {
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id.clone());
         let entropy_str = hex::encode(root_id.root_entropy);
-        let public_address = account_key.subaddress(DEFAULT_SUBADDRESS_INDEX);
-        // FIXME: Also add public address to assigned_subaddresses table
 
-        let account_id = self.walletdb.create_account(
+        let (account_id, public_address_b58) = self.walletdb.create_account(
             &account_key,
             DEFAULT_SUBADDRESS_INDEX,
             DEFAULT_CHANGE_SUBADDRESS_INDEX,
@@ -59,11 +50,7 @@ impl WalletService {
             &name.unwrap_or("".to_string()),
         )?;
 
-        Ok((
-            entropy_str.to_string(),
-            b58_encode(&public_address)?,
-            account_id,
-        ))
+        Ok((entropy_str.to_string(), public_address_b58, account_id))
     }
 
     pub fn list_accounts(&self) -> Result<Vec<String>, WalletServiceError> {
