@@ -319,15 +319,21 @@ fn sync_monitor(
         );
 
         // Match tx outs into UTXOs.
-        let utxos =
-            match_tx_outs_into_utxos(&wallet_db, &block_contents.outputs, &account, logger)?;
+        let utxos = process_txos(
+            &wallet_db,
+            &block_contents.outputs,
+            &account,
+            account.next_block,
+            logger,
+        )?;
 
-        // Update database.
-        mobilecoind_db.block_processed(
-            monitor_id,
-            monitor_data.next_block,
-            &utxos,
-            &block_contents.key_images,
+        // Note: Doing this here means we are updating key images multiple times, once per account.
+        //       We do actually want to do it this way, because each account may need to process
+        //       the same block at a different time, depending on when we add it to the DB.
+        wallet_db.update_spent(
+            account_id_hex,
+            account.next_block,
+            block_contents.key_images,
         )?;
     }
 
@@ -335,12 +341,13 @@ fn sync_monitor(
 }
 
 /// Helper function for matching a list of TxOuts to a given monitor.
-fn match_tx_outs_into_utxos(
+fn process_txos(
     wallet_db: &WalletDb,
     outputs: &[TxOut],
     account: &Account,
+    received_block_index: u64,
     logger: &Logger,
-) -> Result<Vec<UnspentTxOut>, Error> {
+) -> Result<(), SyncError> {
     let account_key: AccountKey = mc_util_serial::decode(&account.encrypted_account_key);
     let view_key = account_key.view_key();
     let mut results = Vec::new();
@@ -356,27 +363,26 @@ fn match_tx_outs_into_utxos(
             &tx_public_key,
         );
 
-        // See if it matches any of our monitors. FIXME: for now only monitoring
-        // main subaddress 0 and change at 1 - next phase adds in the assigned subaddresses
-        let subaddress_id = match mobilecoind_db.get_subaddress_id_by_spk(&subaddress_spk) {
-            Ok(data) => {
-                log::trace!(
-                    logger,
-                    "matched subaddress index {} for monitor_id {}",
-                    data.index,
-                    data.monitor_id,
-                );
-
-                data
-            }
-            Err(Error::SubaddressSPKNotFound) => continue,
-            Err(err) => {
-                return Err(err);
-            }
-        };
+        // See if it matches any of our assigned subaddresses.
+        let (subaddress_index, account_id_hex) =
+            match wallet_db.get_subaddress_index_by_subaddress_spend_public_key(&subaddress_spk) {
+                Ok((index, account_id)) => {
+                    log::trace!(
+                        logger,
+                        "matched subaddress index {} for monitor_id {}",
+                        index,
+                        account_id,
+                    );
+                    (index, account_id)
+                }
+                Err(WalletDbError::NotFound) => continue,
+                Err(err) => {
+                    return Err(err);
+                }
+            };
 
         // Sanity - we should only get a match for our own monitor id.
-        assert_eq!(monitor_id, &subaddress_id.monitor_id);
+        assert_eq!(monitor_id, account_id_hex);
 
         let shared_secret =
             get_tx_out_shared_secret(account_key.view_private_key(), &tx_public_key);
@@ -394,17 +400,18 @@ fn match_tx_outs_into_utxos(
 
         let key_image = KeyImage::from(&onetime_private_key);
 
-        results.push(UnspentTxOut {
-            tx_out: tx_out.clone(),
-            subaddress_index: subaddress_id.index,
+        // Insert received txo
+        wallet_db.create_received_txo(
+            tx_out.clone(),
+            subaddress_index,
             key_image,
             value,
-            attempted_spend_height: 0,
-            attempted_spend_tombstone: 0,
-        });
+            received_block_height,
+            account_id_hex,
+        );
     }
 
-    Ok(results)
+    Ok(())
 }
 
 #[cfg(test)]
