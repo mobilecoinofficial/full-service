@@ -332,7 +332,7 @@ impl WalletDb {
         }
     }
 
-    pub fn update_spent(
+    pub fn update_spent_and_increment_next_block(
         &self,
         account_id_hex: &str,
         spent_block_height: i64,
@@ -380,6 +380,9 @@ impl WalletDb {
                 // FIXME: make sure the path for all txo_statuses and txo_types exist and are tested
             }
         }
+        diesel::update(dsl_accounts.find(account_id_hex))
+            .set(schema_accounts::next_block.eq(spent_block_height + 1))
+            .execute(&conn)?;
         Ok(())
     }
 }
@@ -567,7 +570,11 @@ mod tests {
         let spent_block_height = 365;
 
         walletdb
-            .update_spent(&account_id_hex, spent_block_height, vec![key_image])
+            .update_spent_and_increment_next_block(
+                &account_id_hex,
+                spent_block_height,
+                vec![key_image],
+            )
             .unwrap();
 
         let txos = walletdb.list_txos(&account_id_hex).unwrap();
@@ -577,5 +584,9 @@ mod tests {
             spent_block_height as i64
         );
         assert_eq!(txos[0].1.txo_status, "spent".to_string());
+
+        // Verify that the next block height is + 1
+        let account = walletdb.get_account(&account_id_hex).unwrap();
+        assert_eq!(account.next_block, spent_block_height + 1);
     }
 }

@@ -8,6 +8,7 @@ mod error;
 pub mod models;
 pub mod schema;
 pub mod service;
+mod service_decorated_types;
 mod service_impl;
 pub mod sync;
 

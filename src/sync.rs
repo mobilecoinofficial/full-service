@@ -332,7 +332,7 @@ fn sync_monitor(
         // Note: Doing this here means we are updating key images multiple times, once per account.
         //       We do actually want to do it this way, because each account may need to process
         //       the same block at a different time, depending on when we add it to the DB.
-        wallet_db.update_spent(
+        wallet_db.update_spent_and_increment_next_block(
             &account.account_id_hex,
             account.next_block,
             block_contents.key_images,
