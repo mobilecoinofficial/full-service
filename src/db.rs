@@ -96,17 +96,17 @@ impl WalletDb {
     pub fn get_account(&self, account_id_hex: &str) -> Result<Account, WalletDbError> {
         let conn = self.pool.get()?;
 
-        let matches = schema_accounts::table
+        match dsl_accounts
             .select(schema_accounts::all_columns)
             .filter(schema_accounts::account_id_hex.eq(account_id_hex))
-            .load::<Account>(&conn)?;
-
-        if matches.is_empty() {
-            Err(WalletDbError::NotFound(account_id_hex.to_string()))
-        } else if matches.len() > 1 {
-            Err(WalletDbError::DuplicateEntries(account_id_hex.to_string()))
-        } else {
-            Ok(matches[0].clone())
+            .first(&conn)
+        {
+            Ok(a) => Ok(a),
+            // Match on NotFound to get a more informative NotFound
+            Err(diesel::result::Error::NotFound) => {
+                Err(WalletDbError::NotFound(account_id_hex.to_string()))
+            }
+            Err(e) => Err(e.into()),
         }
     }
 
@@ -214,7 +214,7 @@ mod tests {
         match res {
             Ok(_) => panic!("Should have deleted account"),
             Err(WalletDbError::NotFound(s)) => assert_eq!(s, account_id_hex_secondary.to_string()),
-            Err(_) => panic!("Should error with NotFound"),
+            Err(_) => panic!("Should error with NotFound but got {:?}", res),
         }
     }
 }
