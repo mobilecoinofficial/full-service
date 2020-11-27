@@ -123,10 +123,10 @@ mod tests {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
-        let walletdb = db_test_context.get_db_instance();
+        let wallet_db = db_test_context.get_db_instance();
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
-        let service = WalletService::new(walletdb, ledger_db, None, logger);
+        let service = WalletService::new(wallet_db, ledger_db, None, logger);
 
         let rocket_config: rocket::Config =
             rocket::Config::build(rocket::config::Environment::Development)
