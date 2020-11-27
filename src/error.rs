@@ -85,3 +85,9 @@ impl From<std::num::ParseIntError> for WalletAPIError {
         Self::U64ParseError
     }
 }
+
+#[derive(Display, Debug)]
+pub enum SyncError {
+    /// Error downloading blocks
+    DownloadError,
+}

@@ -3,6 +3,8 @@
 use crate::db::WalletDb;
 use diesel::{prelude::*, SqliteConnection};
 use diesel_migrations::embed_migrations;
+// use mc_account_keys::PublicAddress;
+// use mc_crypto_rand::{CryptoRng, RngCore};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 
 embed_migrations!("migrations/");
@@ -43,3 +45,56 @@ impl WalletDbTestContext {
             .expect("failed creating new SqlRecoveryDb")
     }
 }
+
+/*
+/// Sets up ledger_db. Each block contains one txo per recipient.
+///
+/// # Arguments
+/// *
+/// * `num_random_recipients` - Number of random recipients to create.
+/// * `known_recipients` - A list of known recipients to create.
+/// * `num_blocks` - Number of blocks to create in the ledger_db.
+/// * `rng`
+///
+/// Note that all txos will be controlled by the subindex DEFAULT_SUBADDRESS_INDEX
+pub fn get_test_ledger(
+    num_random_recipients: u32,
+    known_recipients: &[PublicAddress],
+    num_blocks: usize,
+    mut rng: &mut (impl CryptoRng + RngCore),
+) -> LedgerDB {
+    let mut public_addresses: Vec<PublicAddress> = (0..num_random_recipients)
+        .map(|_i| mc_account_keys::AccountKey::random(&mut rng).default_subaddress())
+        .collect();
+
+    public_addresses.extend(known_recipients.iter().cloned());
+
+    // Note that TempDir manages uniqueness by constructing paths
+    // like: /tmp/ledger_db.tvF0XHTKsilx
+    let ledger_db_tmp = TempDir::new("ledger_db").expect("Could not make tempdir for ledger db");
+    let ledger_db_path = ledger_db_tmp
+        .path()
+        .to_str()
+        .expect("Could not get path as string");
+
+    let mut ledger_db = generate_ledger_db(&ledger_db_path);
+
+    for block_index in 0..num_blocks {
+        let key_images = if block_index == 0 {
+            vec![]
+        } else {
+            vec![KeyImage::from(rng.next_u64())]
+        };
+        let _new_block_height = add_block_to_ledger_db(
+            &mut ledger_db,
+            &public_addresses,
+            DEFAULT_PER_RECIPIENT_AMOUNT,
+            &key_images,
+            rng,
+        );
+    }
+
+    ledger_db
+}
+
+*/
