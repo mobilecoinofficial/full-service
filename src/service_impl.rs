@@ -105,6 +105,7 @@ impl WalletService {
 mod tests {
     use super::*;
     use crate::test_utils::{get_test_ledger, WalletDbTestContext};
+    use mc_account_keys::PublicAddress;
     use mc_common::logger::{test_with_logger, Logger};
     use rand::{rngs::StdRng, SeedableRng};
 
@@ -119,7 +120,8 @@ mod tests {
     fn test_create_account(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
-        let ledger_db = get_test_ledger(5, known_recipients, 12, &mut rng);
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         let service = setup_service(ledger_db, logger);
         let _account_details = service
