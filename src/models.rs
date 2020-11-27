@@ -2,7 +2,7 @@
 
 //! DB Models
 
-use super::schema::{account_txo_statuses, accounts, txos};
+use super::schema::{account_txo_statuses, accounts, assigned_subaddresses, txos};
 use serde::Serialize;
 
 #[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
@@ -68,7 +68,7 @@ pub struct NewTxo<'a> {
 #[belongs_to(Txo, foreign_key = "txo_id_hex")]
 #[table_name = "account_txo_statuses"]
 #[primary_key(account_id_hex, txo_id_hex)]
-pub struct AccountTxoStatuses {
+pub struct AccountTxoStatus {
     pub account_id_hex: String,
     pub txo_id_hex: String,
     pub txo_status: String,
@@ -82,4 +82,32 @@ pub struct NewAccountTxoStatus<'a> {
     pub txo_id_hex: &'a str,
     pub txo_status: &'a str,
     pub txo_type: &'a str,
+}
+
+#[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
+#[belongs_to(Account, foreign_key = "account_id_hex")]
+#[primary_key(assigned_subaddress_b58)]
+#[table_name = "assigned_subaddresses"]
+pub struct AssignedSubaddress {
+    pub assigned_subaddress_b58: String,
+    pub account_id_hex: String,
+    pub address_book_entry: Option<i64>,
+    pub public_address: Vec<u8>,
+    pub subaddress_index: i64,
+    pub comment: String,
+    pub expected_value: Option<i64>,
+    pub subaddress_spend_key: Vec<u8>,
+}
+
+#[derive(Insertable)]
+#[table_name = "assigned_subaddresses"]
+pub struct NewAssignedSubaddress<'a> {
+    pub assigned_subaddress_b58: &'a str,
+    pub account_id_hex: &'a str,
+    pub address_book_entry: Option<i64>,
+    pub public_address: &'a Vec<u8>,
+    pub subaddress_index: i64,
+    pub comment: &'a str,
+    pub expected_value: Option<i64>,
+    pub subaddress_spend_key: &'a Vec<u8>,
 }

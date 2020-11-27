@@ -22,10 +22,7 @@
 //! be picked up by the next available worker thread.
 
 use crate::{
-    db::WalletDb,
-    error::SyncError,
-    monitor_store::{MonitorData, MonitorId},
-    subaddress_store::SubaddressSPKId,
+    db::WalletDb, error::SyncError, models::Account, subaddress_store::SubaddressSPKId,
     utxo_store::UnspentTxOut,
 };
 use mc_common::{
@@ -52,7 +49,10 @@ use std::{
 ///  The maximal number of blocks a worker thread would process at once.
 const MAX_BLOCKS_PROCESSING_CHUNK_SIZE: usize = 5;
 
-/// Message type the our crossbeam channel used to communicate with the worker thread pull.
+/// The MonitorId corresponds to the Account's primary key: account_key_hex.
+pub type MonitorId = String;
+
+/// Message type our crossbeam channel uses to communicate with the worker thread pull.
 enum SyncMsg {
     SyncMonitor(MonitorId),
     Stop,
@@ -61,10 +61,10 @@ enum SyncMsg {
 /// Possible return values for the `sync_monitor` function.
 #[derive(Debug, Eq, PartialEq)]
 enum SyncMonitorOk {
-    // No more blocks are currently available for processing.
+    /// No more blocks are currently available for processing.
     NoMoreBlocks,
 
-    // More blocks might be available.
+    /// More blocks might be available.
     MoreBlocksPotentiallyAvailable,
 }
 
@@ -80,7 +80,7 @@ pub struct SyncThread {
 impl SyncThread {
     pub fn start(
         ledger_db: LedgerDB,
-        mobilecoind_db: Database,
+        wallet_db: WalletDb,
         num_workers: Option<usize>,
         logger: Logger,
     ) -> Self {
@@ -96,7 +96,7 @@ impl SyncThread {
 
         for idx in 0..num_workers.unwrap_or_else(num_cpus::get) {
             let thread_ledger_db = ledger_db.clone();
-            let thread_mobilecoind_db = mobilecoind_db.clone();
+            let thread_wallet_db = wallet_db.clone();
             let thread_sender = sender.clone();
             let thread_receiver = receiver.clone();
             let thread_queued_monitor_ids = queued_monitor_ids.clone();
@@ -106,7 +106,7 @@ impl SyncThread {
                 .spawn(move || {
                     sync_thread_entry_point(
                         thread_ledger_db,
-                        thread_mobilecoind_db,
+                        thread_wallet_db,
                         thread_sender,
                         thread_receiver,
                         thread_queued_monitor_ids,
@@ -147,32 +147,36 @@ impl SyncThread {
                         // a bit so that we do not use 100% cpu.
                         let mut message_sent = false;
 
-                        // Go over our list of monitors and see which one needs to process these blocks.
-                        for (monitor_id, monitor_data) in mobilecoind_db
-                            .get_monitor_map()
-                            .expect("failed getting monitor map")
+                        // Go over our list of accounts and see which one needs to process these blocks.
+                        for account in wallet_db
+                            .list_accounts()
+                            .expect("failed getting accounts from WalletDb")
                         {
-                            // If there are no new blocks for this monitor, don't do anything.
-                            if monitor_data.next_block >= num_blocks {
+                            // If there are no new blocks for this account, don't do anything.
+                            if account.next_block >= num_blocks {
                                 continue;
                             }
 
                             let mut queued_monitor_ids =
                                 queued_monitor_ids.lock().expect("mutex poisoned");
-                            if !queued_monitor_ids.insert(monitor_id) {
+                            if !queued_monitor_ids.insert(account.account_id_hex) {
                                 // Already queued, no need to add again to queue at this point.
-                                log::trace!(logger, "{}: skipping, already queued", monitor_id);
+                                log::trace!(
+                                    logger,
+                                    "{}: skipping, already queued",
+                                    account.account_id_hex
+                                );
                                 continue;
                             }
 
-                            // This monitor has blocks to process, put it in the queue.
+                            // This account has blocks to process, put it in the queue.
                             log::info!(
                                 logger,
                                 "sync thread noticed monitor {} needs syncing",
-                                monitor_id,
+                                account.account_id_hex,
                             );
                             sender
-                                .send(SyncMsg::SyncMonitor(monitor_id))
+                                .send(SyncMsg::SyncMonitor(account.account_id_hex))
                                 .expect("failed sending to queue");
                             message_sent = true;
                         }
@@ -232,7 +236,7 @@ impl Drop for SyncThread {
 /// The entry point of a sync worker thread that processes queue messages.
 fn sync_thread_entry_point(
     ledger_db: LedgerDB,
-    mobilecoind_db: WalletDb,
+    wallet_db: WalletDb,
     sender: crossbeam_channel::Sender<SyncMsg>,
     receiver: crossbeam_channel::Receiver<SyncMsg>,
     queued_monitor_ids: Arc<Mutex<HashSet<MonitorId>>>,
@@ -241,7 +245,7 @@ fn sync_thread_entry_point(
     for msg in receiver.iter() {
         match msg {
             SyncMsg::SyncMonitor(monitor_id) => {
-                match sync_monitor(&ledger_db, &mobilecoind_db, &monitor_id, &logger) {
+                match sync_monitor(&ledger_db, &wallet_db, &monitor_id, &logger) {
                     // Success - No more blocks are currently available.
                     Ok(SyncMonitorOk::NoMoreBlocks) => {
                         // Remove the monitor id from the list of queued ones so that the main thread could
@@ -287,15 +291,15 @@ fn sync_thread_entry_point(
 /// Sync a single monitor.
 fn sync_monitor(
     ledger_db: &LedgerDB,
-    mobilecoind_db: &Database,
+    wallet_db: &WalletDb,
     monitor_id: &MonitorId,
     logger: &Logger,
 ) -> Result<SyncMonitorOk, Error> {
     for _ in 0..MAX_BLOCKS_PROCESSING_CHUNK_SIZE {
-        // Get the monitor data. If it is no longer available, the monitor has been removed and we
-        // can simply return.
-        let monitor_data = mobilecoind_db.get_monitor_data(monitor_id)?;
-        let block_contents = match ledger_db.get_block_contents(monitor_data.next_block) {
+        // Get the account data. If it is no longer available, the monitor has been removed and we
+        // can simply return. FIXME - verify this works as intended with new data model
+        let account = wallet_db.get_account(monitor_id)?;
+        let block_contents = match ledger_db.get_block_contents(account.next_block) {
             Ok(block_contents) => block_contents,
             Err(mc_ledger_db::Error::NotFound) => {
                 return Ok(SyncMonitorOk::NoMoreBlocks);
@@ -307,21 +311,16 @@ fn sync_monitor(
 
         log::trace!(
             logger,
-            "processing {} outputs and {} key images from block {} for monitor_id {}",
+            "processing {} outputs and {} key images from block {} for account {}",
             block_contents.outputs.len(),
             block_contents.key_images.len(),
-            monitor_data.next_block,
+            account.next_block,
             monitor_id,
         );
 
         // Match tx outs into UTXOs.
-        let utxos = match_tx_outs_into_utxos(
-            &mobilecoind_db,
-            &block_contents.outputs,
-            monitor_id,
-            &monitor_data,
-            logger,
-        )?;
+        let utxos =
+            match_tx_outs_into_utxos(&wallet_db, &block_contents.outputs, &account, logger)?;
 
         // Update database.
         mobilecoind_db.block_processed(
@@ -337,13 +336,12 @@ fn sync_monitor(
 
 /// Helper function for matching a list of TxOuts to a given monitor.
 fn match_tx_outs_into_utxos(
-    mobilecoind_db: &Database,
+    wallet_db: &WalletDb,
     outputs: &[TxOut],
-    monitor_id: &MonitorId,
-    monitor_data: &MonitorData,
+    account: &Account,
     logger: &Logger,
 ) -> Result<Vec<UnspentTxOut>, Error> {
-    let account_key = &monitor_data.account_key;
+    let account_key: AccountKey = mc_util_serial::decode(&account.encrypted_account_key);
     let view_key = account_key.view_key();
     let mut results = Vec::new();
 
@@ -352,13 +350,14 @@ fn match_tx_outs_into_utxos(
         let tx_out_target_key = RistrettoPublic::try_from(&tx_out.target_key)?;
         let tx_public_key = RistrettoPublic::try_from(&tx_out.public_key)?;
 
-        let subaddress_spk = SubaddressSPKId::from(&recover_public_subaddress_spend_key(
+        let subaddress_spk: RistrettoPublic = &recover_public_subaddress_spend_key(
             &view_key.view_private_key,
             &tx_out_target_key,
             &tx_public_key,
-        ));
+        );
 
-        // See if it matches any of our monitors.
+        // See if it matches any of our monitors. FIXME: for now only monitoring
+        // main subaddress 0 and change at 1 - next phase adds in the assigned subaddresses
         let subaddress_id = match mobilecoind_db.get_subaddress_id_by_spk(&subaddress_spk) {
             Ok(data) => {
                 log::trace!(

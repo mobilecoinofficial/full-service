@@ -12,19 +12,28 @@ use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::RunQueryDsl;
 
 use crate::error::WalletDbError;
-use crate::models::{Account, NewAccount, NewAccountTxoStatus, NewTxo, Txo};
+use crate::models::{
+    Account, AssignedSubaddress, NewAccount, NewAccountTxoStatus, NewAssignedSubaddress, NewTxo,
+    Txo,
+};
 use crate::schema::account_txo_statuses as schema_account_txo_statuses;
 use crate::schema::accounts as schema_accounts;
 use crate::schema::accounts::dsl::accounts as dsl_accounts;
+use crate::schema::assigned_subaddresses as schema_assigned_subaddresses;
 use crate::schema::txos as schema_txos;
+
+// Helper method to use our PrintableWrapper to b58 encode the PublicAddress
+pub fn b58_encode(public_address: &PublicAddress) -> Result<String, WalletDbError> {
+    let mut wrapper = mc_mobilecoind_api::printable::PrintableWrapper::new();
+    wrapper.set_public_address(public_address.into());
+    Ok(wrapper.b58_encode()?)
+}
 
 /// The account ID is derived from the contents of the account key
 #[derive(Digestible)]
 struct ConstAccountData {
     /// The public address of the main subaddress for this account
     pub address: PublicAddress,
-    /// The main subaddress index for this account
-    pub main_subaddress_index: u64, // FIXME: remove - we will have unique accounts
 }
 
 /// The txo ID is derived from the contents of the txo
@@ -63,12 +72,12 @@ impl WalletDb {
         first_block: u64,
         next_block: u64,
         name: &str,
-    ) -> Result<String, WalletDbError> {
+    ) -> Result<(String, String), WalletDbError> {
         let conn = self.pool.get()?;
 
+        let main_subaddress = account_key.subaddress(main_subaddress_index);
         let const_data = ConstAccountData {
-            address: account_key.subaddress(main_subaddress_index),
-            main_subaddress_index: main_subaddress_index,
+            address: main_subaddress.clone(),
         };
         let temp: [u8; 32] = const_data.digest32::<MerlinTranscript>(b"account_data");
         let account_id_hex = hex::encode(temp);
@@ -89,9 +98,41 @@ impl WalletDb {
             .values(&new_account)
             .execute(&conn)?;
 
-        // FIXME: also add main_subaddress to the assigned_subaddresses table
+        // Insert the assigned subaddresses for main and change
+        let main_subaddress_b58 = b58_encode(&main_subaddress)?;
+        let main_subaddress_entry = NewAssignedSubaddress {
+            assigned_subaddress_b58: &main_subaddress_b58,
+            account_id_hex: &account_id_hex,
+            address_book_entry: None, // FIXME: Address Book Entry if details provided, or None always for main?
+            public_address: &mc_util_serial::encode(&main_subaddress),
+            subaddress_index: main_subaddress_index as i64,
+            comment: "Main",
+            expected_value: None,
+            subaddress_spend_key: &mc_util_serial::encode(main_subaddress.spend_public_key()),
+        };
 
-        Ok(account_id_hex)
+        diesel::insert_into(schema_assigned_subaddresses::table)
+            .values(&main_subaddress_entry)
+            .execute(&conn)?;
+
+        let change_subaddress = account_key.subaddress(change_subaddress_index);
+        let change_subaddress_b58 = b58_encode(&change_subaddress)?;
+        let change_subaddress_entry = NewAssignedSubaddress {
+            assigned_subaddress_b58: &change_subaddress_b58,
+            account_id_hex: &account_id_hex,
+            address_book_entry: None, // FIXME: Address Book Entry if details provided, or None always for main?
+            public_address: &mc_util_serial::encode(&change_subaddress),
+            subaddress_index: change_subaddress_index as i64,
+            comment: "Change",
+            expected_value: None,
+            subaddress_spend_key: &mc_util_serial::encode(change_subaddress.spend_public_key()),
+        };
+
+        diesel::insert_into(schema_assigned_subaddresses::table)
+            .values(&change_subaddress_entry)
+            .execute(&conn)?;
+
+        Ok((account_id_hex, main_subaddress_b58))
     }
 
     /// List all accounts.
@@ -208,6 +249,25 @@ impl WalletDb {
 
         Ok(results)
     }
+
+    /// List all subaddresses for a given account.
+    pub fn list_subaddresses(
+        &self,
+        account_id_hex: &str,
+    ) -> Result<Vec<AssignedSubaddress>, WalletDbError> {
+        let conn = self.pool.get()?;
+
+        let results: Vec<AssignedSubaddress> = schema_accounts::table
+            .inner_join(
+                schema_assigned_subaddresses::table.on(schema_accounts::account_id_hex
+                    .eq(schema_assigned_subaddresses::account_id_hex)
+                    .and(schema_accounts::account_id_hex.eq(account_id_hex))),
+            )
+            .select(schema_assigned_subaddresses::all_columns)
+            .load(&conn)?;
+
+        Ok(results)
+    }
 }
 
 #[cfg(test)]
@@ -221,7 +281,9 @@ mod tests {
     use mc_transaction_core::ring_signature::KeyImage;
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
+    use std::collections::HashSet;
     use std::convert::TryFrom;
+    use std::iter::FromIterator;
 
     #[test]
     fn test_account_crud() {
@@ -231,7 +293,7 @@ mod tests {
         let walletdb = db_test_context.get_db_instance();
 
         let account_key = AccountKey::random(&mut rng);
-        let account_id_hex = walletdb
+        let (account_id_hex, _public_address_b58) = walletdb
             .create_account(&account_key, 0, 1, 2, 0, 1, "Alice's Main Account")
             .unwrap();
 
@@ -240,7 +302,7 @@ mod tests {
 
         let acc = walletdb.get_account(&account_id_hex).unwrap();
         let expected_account = Account {
-            account_id_hex,
+            account_id_hex: account_id_hex.clone(),
             encrypted_account_key: mc_util_serial::encode(&account_key),
             main_subaddress_index: 0,
             change_subaddress_index: 1,
@@ -251,9 +313,17 @@ mod tests {
         };
         assert_eq!(expected_account, acc);
 
+        // FIXME Verify that the subaddress table entries were updated for main and change
+        let subaddresses = walletdb.list_subaddresses(&account_id_hex).unwrap();
+        assert_eq!(subaddresses.len(), 2);
+        let subaddress_indices: HashSet<i64> =
+            HashSet::from_iter(subaddresses.iter().map(|s| s.subaddress_index));
+        assert!(subaddress_indices.get(&0).is_some());
+        assert!(subaddress_indices.get(&1).is_some());
+
         // Add another account with no name, scanning from later
         let account_key_secondary = AccountKey::from(&RootIdentity::from_random(&mut rng));
-        let account_id_hex_secondary = walletdb
+        let (account_id_hex_secondary, _public_address_b58_secondary) = walletdb
             .create_account(&account_key_secondary, 0, 1, 2, 50, 51, "")
             .unwrap();
         let res = walletdb.list_accounts().unwrap();
@@ -306,7 +376,7 @@ mod tests {
         let walletdb = db_test_context.get_db_instance();
 
         let account_key = AccountKey::random(&mut rng);
-        let account_id_hex = walletdb
+        let (account_id_hex, _public_address_b58) = walletdb
             .create_account(&account_key, 0, 1, 2, 0, 1, "Alice's Main Account")
             .unwrap();
 
@@ -346,7 +416,6 @@ mod tests {
             .unwrap();
 
         let txos = walletdb.list_txos(&account_id_hex).unwrap();
-        println!("\x1b[1;36m txos = {:?}\x1b[0m", txos);
         assert_eq!(txos.len(), 1);
 
         let expected_txo = Txo {
