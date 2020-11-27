@@ -4,12 +4,21 @@ use crate::db::WalletDb;
 use diesel::{prelude::*, SqliteConnection};
 use diesel_migrations::embed_migrations;
 use mc_account_keys::PublicAddress;
+use mc_crypto_keys::RistrettoPrivate;
 use mc_crypto_rand::{CryptoRng, RngCore};
-use mc_ledger_db::LedgerDB;
+use mc_ledger_db::{Ledger, LedgerDB};
+use mc_transaction_core::{
+    ring_signature::KeyImage, tx::TxOut, Block, BlockContents, BLOCK_VERSION,
+};
+use mc_util_from_random::FromRandom;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
+use std::path::PathBuf;
 use tempdir::TempDir;
 
 embed_migrations!("migrations/");
+
+/// The amount each recipient gets in the test ledger.
+pub const DEFAULT_PER_RECIPIENT_AMOUNT: u64 = 5_000 * 1_000_000_000_000;
 
 pub struct WalletDbTestContext {
     base_url: String,
@@ -96,4 +105,67 @@ pub fn get_test_ledger(
     }
 
     ledger_db
+}
+
+/// Creates an empty LedgerDB.
+///
+/// # Arguments
+/// * `path` - Path to the ledger's data.mdb file. If such a file exists, it will be replaced.
+fn generate_ledger_db(path: &str) -> LedgerDB {
+    // DELETE the old database if it already exists.
+    let _ = std::fs::remove_file(format!("{}/data.mdb", path));
+    LedgerDB::create(PathBuf::from(path)).expect("Could not create ledger_db");
+    let db = LedgerDB::open(PathBuf::from(path)).expect("Could not open ledger_db");
+    db
+}
+
+/// Adds a block containing one txo for each provided recipient and returns new block height.
+///
+/// # Arguments
+/// * `ledger_db` - Ledger database instance.
+/// * `recipients` - Recipients of outputs.
+/// * `output_value` - The amount each recipient will get.
+/// * `key_images` - Key images to include in the block.
+/// * `rng` - Random number generator.
+pub fn add_block_to_ledger_db(
+    ledger_db: &mut LedgerDB,
+    recipients: &[PublicAddress],
+    output_value: u64,
+    key_images: &[KeyImage],
+    rng: &mut (impl CryptoRng + RngCore),
+) -> u64 {
+    let outputs: Vec<_> = recipients
+        .iter()
+        .map(|recipient| {
+            TxOut::new(
+                // TODO: allow for subaddress index!
+                output_value,
+                recipient,
+                &RistrettoPrivate::from_random(rng),
+                Default::default(),
+            )
+            .unwrap()
+        })
+        .collect();
+
+    let block_contents = BlockContents::new(key_images.to_vec(), outputs.clone());
+
+    let num_blocks = ledger_db.num_blocks().expect("failed to get block height");
+
+    let new_block;
+    if num_blocks > 0 {
+        let parent = ledger_db
+            .get_block(num_blocks - 1)
+            .expect("failed to get parent block");
+        new_block =
+            Block::new_with_parent(BLOCK_VERSION, &parent, &Default::default(), &block_contents);
+    } else {
+        new_block = Block::new_origin_block(&outputs);
+    }
+
+    ledger_db
+        .append_block(&new_block, &block_contents, None)
+        .expect("failed writing initial transactions");
+
+    ledger_db.num_blocks().expect("failed to get block height")
 }

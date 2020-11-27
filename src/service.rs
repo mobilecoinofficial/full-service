@@ -103,8 +103,10 @@ pub fn rocket(rocket_config: rocket::Config, state: State) -> rocket::Rocket {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::WalletDbTestContext;
+    use crate::test_utils::{get_test_ledger, WalletDbTestContext};
+    use mc_account_keys::PublicAddress;
     use mc_common::logger::{log, test_with_logger, Logger};
+    use rand::{rngs::StdRng, SeedableRng};
     use rocket::{
         http::{ContentType, Status},
         local::Client,
@@ -118,9 +120,13 @@ mod tests {
     }
 
     fn setup(logger: Logger) -> Client {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
         let db_test_context = WalletDbTestContext::default();
         let walletdb = db_test_context.get_db_instance();
-        let service = WalletService::new(walletdb, logger);
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+        let service = WalletService::new(walletdb, ledger_db, None, logger);
 
         let rocket_config: rocket::Config =
             rocket::Config::build(rocket::config::Environment::Development)

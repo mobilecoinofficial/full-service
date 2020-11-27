@@ -114,8 +114,18 @@ A MobileCoin service for wallet implementations.
 
 ## Contributing
 
+### Database Schema
+
 To add or edit tables:
 
 1. Create a migration with `diesel migration generate <migration_name>`
 1. Edit the migrations/<migration_name>/up.sql and down.sql.
 1. Run the migration with `diesel migration run`, and test delete with `diesel migration redo`
+
+### Running Tests
+
+    FIXME: I'm not sure why we need to provide these vars for cargo test...
+
+    ```
+    SGX_MODE=HW IAS_MODE=DEV CONSENSUS_ENCLAVE_CSS=$(pwd)/consensus-enclave.css cargo test
+    ```
