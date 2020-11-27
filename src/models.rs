@@ -96,7 +96,7 @@ pub struct AssignedSubaddress {
     pub subaddress_index: i64,
     pub comment: String,
     pub expected_value: Option<i64>,
-    pub subaddress_spend_key: Vec<u8>,
+    pub subaddress_spend_key: Vec<u8>, // FIXME: should we be indexing on this col? We do a lot of lookups by this
 }
 
 #[derive(Insertable)]

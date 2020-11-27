@@ -5,6 +5,7 @@
 
 use mc_account_keys::{AccountKey, PublicAddress};
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
+use mc_crypto_keys::RistrettoPublic;
 use mc_transaction_core::tx::TxOut;
 
 use diesel::prelude::*;
@@ -268,6 +269,35 @@ impl WalletDb {
 
         Ok(results)
     }
+
+    pub fn get_subaddress_index_by_subaddress_spend_public_key(
+        &self,
+        subaddress_spend_public_key: &RistrettoPublic,
+    ) -> Result<i64, WalletDbError> {
+        let conn = self.pool.get()?;
+
+        let matches = schema_assigned_subaddresses::table
+            .select(schema_assigned_subaddresses::subaddress_index)
+            .filter(
+                schema_assigned_subaddresses::subaddress_spend_key
+                    .eq(mc_util_serial::encode(subaddress_spend_public_key)),
+            )
+            .load::<i64>(&conn)?;
+
+        if matches.len() == 0 {
+            Err(WalletDbError::NotFound(format!(
+                "{:?}",
+                subaddress_spend_public_key
+            )))
+        } else if matches.len() > 1 {
+            Err(WalletDbError::DuplicateEntries(format!(
+                "{:?}",
+                subaddress_spend_public_key
+            )))
+        } else {
+            Ok(matches[0].clone())
+        }
+    }
 }
 
 #[cfg(test)]
@@ -313,13 +343,20 @@ mod tests {
         };
         assert_eq!(expected_account, acc);
 
-        // FIXME Verify that the subaddress table entries were updated for main and change
+        // Verify that the subaddress table entries were updated for main and change
         let subaddresses = walletdb.list_subaddresses(&account_id_hex).unwrap();
         assert_eq!(subaddresses.len(), 2);
         let subaddress_indices: HashSet<i64> =
             HashSet::from_iter(subaddresses.iter().map(|s| s.subaddress_index));
         assert!(subaddress_indices.get(&0).is_some());
         assert!(subaddress_indices.get(&1).is_some());
+
+        // Verify that we can get the correct subaddress index from the spend public key
+        let main_subaddress = account_key.subaddress(0);
+        let retrieved_index = walletdb
+            .get_subaddress_index_by_subaddress_spend_public_key(main_subaddress.spend_public_key())
+            .unwrap();
+        assert_eq!(retrieved_index, 0);
 
         // Add another account with no name, scanning from later
         let account_key_secondary = AccountKey::from(&RootIdentity::from_random(&mut rng));
