@@ -33,7 +33,7 @@ pub struct APIConfig {
     #[structopt(long, default_value = "9090")]
     pub listen_port: u16,
 
-    /// Path to WalletDb
+    /// Path to WalletDb.
     #[structopt(long, parse(from_os_str))]
     pub wallet_db: PathBuf,
 }

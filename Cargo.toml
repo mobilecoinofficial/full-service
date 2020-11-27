@@ -9,7 +9,9 @@ mc-account-keys = { path = "mobilecoin/account-keys" }
 mc-api = { path = "mobilecoin/api" }
 mc-common = { path = "mobilecoin/common", features = ["loggers"] }
 mc-crypto-digestible = { path = "mobilecoin/crypto/digestible", features = ["derive"] }
+mc-crypto-keys = { path = "mobilecoin/crypto/keys" }
 mc-mobilecoind-api = { path = "mobilecoin/mobilecoind/api" }
+mc-transaction-core = { path = "mobilecoin/transaction/core" }
 mc-util-serial = { path = "mobilecoin/util/serial" }
 mc-util-from-random = { path = "mobilecoin/util/from-random" }
 
@@ -26,6 +28,10 @@ serde_json = "1.0"
 serde_derive = "1.0"
 structopt = "0.3"
 uuid = { version = "0.7", features = ["serde", "v4"] }
+
+[dev-dependencies]
+mc-crypto-rand = { path = "mobilecoin/crypto/rand" }
+tempdir = "0.3"
 
 [patch.crates-io]
 prost = { git = "https://github.com/danburkert/prost", rev = "6113789f70b69709820becba4242824b4fb3ffec" }
