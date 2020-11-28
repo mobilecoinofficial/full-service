@@ -10,8 +10,10 @@ use crate::service_decorated_types::{
 use crate::sync::SyncThread;
 use mc_account_keys::{AccountKey, RootEntropy, RootIdentity, DEFAULT_SUBADDRESS_INDEX};
 use mc_common::logger::{log, Logger};
+// use mc_connection::{ConnectionManager, RetryableUserTxConnection, UserTxConnection};
 use mc_ledger_db::LedgerDB;
 use mc_util_from_random::FromRandom;
+// use std::sync::Arc;
 
 pub const DEFAULT_CHANGE_SUBADDRESS_INDEX: u64 = 1;
 pub const DEFAULT_NEXT_SUBADDRESS_INDEX: u64 = 2;
@@ -19,18 +21,30 @@ pub const DEFAULT_FIRST_BLOCK: u64 = 0;
 
 /// Service for interacting with the wallet
 pub struct WalletService {
+    //<
+    //     T: UserTxConnection + 'static,
+    //     FPR: FogPubkeyResolver + Send + Sync + 'static,
+    // > {
     wallet_db: WalletDb,
+    ledger_db: LedgerDB,
+    // peer_manager: ConnectionManager<T>,
+    // fog_pubkey_resolver: Option<Arc<FPR>>,
     _sync_thread: SyncThread,
     logger: Logger,
 }
 
-impl WalletService {
+impl WalletService
+//<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'static>
+//     WalletService<T, FPR>
+{
     pub fn new(
         wallet_db: WalletDb,
         ledger_db: LedgerDB,
+        // peer_manager: Connectionmanager<T>,
+        // fog_pubkey_resolver: Option<Arc<FPR>>,
         num_workers: Option<usize>,
         logger: Logger,
-    ) -> WalletService {
+    ) -> Self {
         log::info!(logger, "Starting Wallet TXO Sync Task Thread");
         let sync_thread = SyncThread::start(
             ledger_db.clone(),
@@ -40,10 +54,14 @@ impl WalletService {
         );
         WalletService {
             wallet_db,
+            ledger_db,
+            // peer_manager,
+            // fog_pubkey_resolver,
             _sync_thread: sync_thread,
             logger,
         }
     }
+
     /// Creates a new account with defaults
     pub fn create_account(
         &self,
@@ -153,18 +171,25 @@ impl WalletService {
     }
 
     pub fn get_balance(&self, account_id_hex: &str) -> Result<u64, WalletServiceError> {
-        let txos = self.wallet_db.list_txos(account_id_hex)?;
-        Ok(txos
-            .iter()
-            .map(|(t, s)| {
-                if s.txo_status == "unspent" {
-                    t.value as u64
-                } else {
-                    0
-                }
-            })
-            .sum())
+        let txos = self.wallet_db.list_unspent_txos(account_id_hex)?;
+        Ok(txos.iter().map(|t| t.value as u64).sum())
     }
+
+    // pub fn build_transaction(
+    //     &self,
+    //     account_id_hex: &str,
+    //     input_txo_ids: Option<Vec<&str>>,
+    //     recipient_public_address: String,
+    //     value: u64,
+    //     fee: Option<u64>,
+    //     tombstone_block: Option<u64>,
+    // ) -> Result<JsonTxProposal, WalletServiceError> {
+    //     // Select utxos for the given value
+    //     let txos: Vec<Txo> = self
+    //         .wallet_db
+    //         .list_unspent_txos(account_id_hex)?;
+    //     }
+    // }
 }
 
 #[cfg(test)]

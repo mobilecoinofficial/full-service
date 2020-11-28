@@ -2,17 +2,21 @@
 
 //! Config definition and processing for Wallet Service.
 
-use mc_attest_core::Verifier;
+use mc_attest_core::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
 use mc_common::{
     logger::{log, Logger},
     ResponderId,
 };
 use mc_connection::{ConnectionManager, ThickClient};
 use mc_consensus_scp::QuorumSet;
+use mc_fog_report_connection::GrpcFogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::ReqwestTransactionsFetcher;
+use mc_sgx_css::Signature;
 use mc_util_uri::{ConnectionUri, ConsensusClientUri};
 use std::{
+    convert::TryFrom,
+    fs,
     path::{Path, PathBuf},
     str::FromStr,
     sync::Arc,
@@ -75,6 +79,11 @@ pub struct APIConfig {
     /// Offline mode.
     #[structopt(long)]
     pub offline: bool,
+
+    /// Fog ingest enclave CSS file (needed in order to enable sending transactions to fog
+    /// recipients).
+    #[structopt(long, parse(try_from_str=load_css_file))]
+    pub fog_ingest_enclave_css: Option<Signature>,
 }
 
 fn parse_duration_in_seconds(src: &str) -> Result<Duration, std::num::ParseIntError> {
@@ -90,6 +99,14 @@ fn parse_quorum_set_from_json(src: &str) -> Result<QuorumSet<ResponderId>, Strin
     }
 
     Ok(quorum_set)
+}
+
+fn load_css_file(filename: &str) -> Result<Signature, String> {
+    let bytes =
+        fs::read(filename).map_err(|err| format!("Failed reading file '{}': {}", filename, err))?;
+    let signature = Signature::try_from(&bytes[..])
+        .map_err(|err| format!("Failed parsing CSS file '{}': {}", filename, err))?;
+    Ok(signature)
 }
 
 impl APIConfig {
@@ -117,6 +134,34 @@ impl APIConfig {
             })
             .collect::<Vec<ResponderId>>();
         QuorumSet::new_with_node_ids(node_ids.len() as u32, node_ids)
+    }
+
+    pub fn get_fog_pubkey_resolver(&self, logger: Logger) -> Option<GrpcFogPubkeyResolver> {
+        self.fog_ingest_enclave_css.as_ref().map(|signature| {
+            let mr_signer_verifier = {
+                let mut mr_signer_verifier = MrSignerVerifier::new(
+                    signature.mrsigner().into(),
+                    signature.product_id(),
+                    signature.version(),
+                );
+                mr_signer_verifier.allow_hardening_advisories(&["INTEL-SA-00334"]);
+                mr_signer_verifier
+            };
+
+            let report_verifier = {
+                let mut verifier = Verifier::default();
+                verifier.debug(DEBUG_ENCLAVE).mr_signer(mr_signer_verifier);
+                verifier
+            };
+
+            let env = Arc::new(
+                grpcio::EnvBuilder::new()
+                    .name_prefix("FogPubkeyResolver-RPC".to_string())
+                    .build(),
+            );
+
+            GrpcFogPubkeyResolver::new(&report_verifier, env, logger)
+        })
     }
 
     pub fn create_or_open_ledger_db(
