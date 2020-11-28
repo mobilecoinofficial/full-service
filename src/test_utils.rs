@@ -197,7 +197,7 @@ pub fn setup_grpc_peer_manager(logger: Logger) -> ConnectionManager<ThickClient>
             .build(),
     );
 
-    let mut verifier = Verifier::default();
+    let verifier = Verifier::default();
 
     let connected_peers = peers
         .iter()
