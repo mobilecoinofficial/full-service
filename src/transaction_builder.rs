@@ -13,6 +13,7 @@ use mc_account_keys::{AccountKey, PublicAddress};
 use mc_common::logger::{log, Logger};
 use mc_common::{HashMap, HashSet};
 use mc_crypto_keys::RistrettoPublic;
+use mc_fog_report_connection::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_mobilecoind::payments::{Outlay, TxProposal};
 use mc_mobilecoind::UnspentTxOut;
@@ -20,55 +21,18 @@ use mc_transaction_core::constants::{MAX_INPUTS, MINIMUM_FEE, RING_SIZE};
 use mc_transaction_core::onetime_keys::recover_onetime_private_key;
 use mc_transaction_core::ring_signature::KeyImage;
 use mc_transaction_core::tx::{TxOut, TxOutMembershipProof};
+use mc_transaction_core::BlockIndex;
 use mc_transaction_std::{InputCredentials, TransactionBuilder};
 use rand::Rng;
 use std::convert::TryFrom;
 use std::iter::FromIterator;
+use std::sync::Arc;
 
 /// Default number of blocks used for calculating transaction tombstone block number.
 // TODO support for making this configurable
 pub const DEFAULT_NEW_TX_BLOCK_ATTEMPTS: u64 = 50;
 
-/*
-/// The API representation of a desired transaction output.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Outlay {
-    /// Value being sent.
-    pub value: u64,
-
-    /// Destination public address.
-    pub recipient: PublicAddress,
-}
-
-/// A single pending transaction.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct TxProposal {
-    /// The ids for the txos used as inputs for this transaction.
-    pub input_list: Vec<String>,
-
-    /// Destinations the transaction is being sent to.
-    pub destination_list: Vec<Destination>,
-
-    /// The actual transaction.
-    pub tx: Tx,
-
-    /// A map of outlay index -> TxOut index in the Tx object.
-    /// This is needed to map recipients to their respective TxOuts.
-    pub destination_index_to_tx_out_index: HashMap<usize, usize>,
-
-    /// A list of the confirmation numbers, in the same order
-    /// as the outlays.
-    pub destination_confirmation_numbers: Vec<TxOutConfirmationNumber>,
-}
-
-impl TxProposal {
-    pub fn fee(&self) -> u64 {
-        self.tx.prefix.fee
-    }
-}
- */
-
-pub struct WalletTransactionBuilder {
+pub struct WalletTransactionBuilder<FPR: FogPubkeyResolver + Send + Sync + 'static> {
     account_id_hex: String,
     wallet_db: WalletDb,
     ledger_db: LedgerDB,
@@ -76,14 +40,17 @@ pub struct WalletTransactionBuilder {
     inputs: Vec<Txo>,
     outlays: Vec<(PublicAddress, u64)>,
     tombstone: u64,
+    /// Fog pub key resolver, used when constructing outputs to fog recipients.
+    fog_pubkey_resolver: Option<Arc<FPR>>,
     logger: Logger,
 }
 
-impl WalletTransactionBuilder {
+impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FPR> {
     pub fn new(
         account_id_hex: String,
         wallet_db: WalletDb,
         ledger_db: LedgerDB,
+        fog_pubkey_resolver: Option<Arc<FPR>>,
         logger: Logger,
     ) -> Self {
         let transaction_builder = TransactionBuilder::new();
@@ -95,6 +62,7 @@ impl WalletTransactionBuilder {
             inputs: vec![],
             outlays: vec![],
             tombstone: 0,
+            fog_pubkey_resolver,
             logger,
         }
     }
@@ -336,7 +304,7 @@ impl WalletTransactionBuilder {
         for (i, (recipient, out_value)) in self.outlays.iter().enumerate() {
             // let target_acct_pubkey = Self::get_fog_pubkey_for_public_address(
             //     &recipient,
-            //     self.fog_pubkey_resolver,
+            //     &self.fog_pubkey_resolver,
             //     self.tombstone,
             // )?;
 
@@ -346,7 +314,12 @@ impl WalletTransactionBuilder {
                 None,
                 &mut rng,
             )?;
-            // self.transaction_builder.add_output(out_value, &recipient, target_acct_pubkey.as_ref(), rng)?;
+            self.transaction_builder.add_output(
+                *out_value as u64,
+                &recipient,
+                None, //target_acct_pubkey.as_ref(),
+                &mut rng,
+            )?;
 
             tx_out_to_outlay_index.insert(tx_out, i);
             outlay_confirmation_numbers.push(confirmation_number);
@@ -375,16 +348,17 @@ impl WalletTransactionBuilder {
             //     from_account_key.subaddress(account.main_subaddress_index as u64);
 
             // Note: The pubkey still needs to be for the main account
+            // FIXME: Needs fixing in mobilecoind
             // let target_acct_pubkey = Self::get_fog_pubkey_for_public_address(
             //     &main_public_address,
-            //     fog_pubkey_resolver,
-            //     tombstone_block,
+            //     &self.fog_pubkey_resolver,
+            //     self.tombstone,
             // )?;
 
             self.transaction_builder.add_output(
                 change,
                 &change_public_address,
-                None, // target_acct_pubkey.as_ref(),
+                None, //target_acct_pubkey.as_ref(),
                 &mut rng,
             )?; // FIXME: map error to indicate error with change
         }
@@ -515,5 +489,36 @@ impl WalletTransactionBuilder {
         }
 
         Ok(rings_with_proofs)
+    }
+
+    fn get_fog_pubkey_for_public_address(
+        address: &PublicAddress,
+        fog_pubkey_resolver: &Option<Arc<FPR>>,
+        tombstone_block: BlockIndex,
+    ) -> Result<Option<RistrettoPublic>, WalletTransactionBuilderError> {
+        if address.fog_report_url().is_none() {
+            return Ok(None);
+        }
+
+        match fog_pubkey_resolver.as_ref() {
+            None => Err(WalletTransactionBuilderError::FogError(format!(
+                "{} uses fog but mobilecoind was started without fog support",
+                address,
+            ))),
+            Some(resolver) => resolver
+                .get_fog_pubkey(address)
+                .map_err(|err| {
+                    WalletTransactionBuilderError::FogError(format!(
+                        "Failed getting fog public key for{}: {}",
+                        address, err
+                    ))
+                })
+                .and_then(|result| {
+                    if tombstone_block > result.pubkey_expiry {
+                        return Err(WalletTransactionBuilderError::FogError(format!("{} fog public key expiry block ({}) is lower than the provided tombstone block ({})", address, result.pubkey_expiry, tombstone_block)));
+                    }
+                    Ok(Some(result.pubkey))
+                }),
+        }
     }
 }

@@ -18,6 +18,7 @@ mc-consensus-enclave-measurement = { path = "mobilecoin/consensus/enclave/measur
 mc-consensus-scp = { path = "mobilecoin/consensus/scp" }
 mc-crypto-digestible = { path = "mobilecoin/crypto/digestible", features = ["derive"] }
 mc-crypto-keys = { path = "mobilecoin/crypto/keys" }
+mc-crypto-rand = { path = "mobilecoin/crypto/rand" }
 mc-fog-report-connection = { path = "mobilecoin/fog/report/connection" }
 mc-ledger-db = { path = "mobilecoin/ledger/db" }
 mc-ledger-sync = { path = "mobilecoin/ledger/sync" }
@@ -41,6 +42,7 @@ hex = "0.4"
 num_cpus = "1.12"
 prost = { version = "0.6.1", default-features = false, features = ["prost-derive"] }
 rand = "0.7"
+retry = "0.5"
 rocket = { version = "0.4.5", default-features = false }
 rocket_contrib = { version = "0.4.5", default-features = false, features = ["json", "diesel_sqlite_pool"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -50,7 +52,8 @@ structopt = "0.3"
 uuid = { version = "0.7", features = ["serde", "v4"] }
 
 [dev-dependencies]
-mc-crypto-rand = { path = "mobilecoin/crypto/rand" }
+mc-connection-test-utils = { path = "mobilecoin/connection/test-utils" }
+mc-fog-report-validation = { path = "mobilecoin/fog/report/validation", features = ["automock"] }
 tempdir = "0.3"
 
 [patch.crates-io]

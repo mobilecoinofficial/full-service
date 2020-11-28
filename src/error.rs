@@ -22,6 +22,21 @@ pub enum WalletServiceError {
 
     /// Error parsing u64
     U64ParseError,
+
+    /// No peers configured
+    NoPeersConfigured,
+
+    /// Node not found
+    NodeNotFound,
+
+    /// Error converting json
+    JsonConversion(String),
+
+    /// Connection Error
+    Connection(retry::Error<mc_connection::Error>),
+
+    /// Error converting to/from API protos
+    ProtoConversion(mc_api::ConversionError),
 }
 
 impl From<WalletDbError> for WalletServiceError {
@@ -45,6 +60,18 @@ impl From<WalletTransactionBuilderError> for WalletServiceError {
 impl From<std::num::ParseIntError> for WalletServiceError {
     fn from(_src: std::num::ParseIntError) -> Self {
         Self::U64ParseError
+    }
+}
+
+impl From<retry::Error<mc_connection::Error>> for WalletServiceError {
+    fn from(e: retry::Error<mc_connection::Error>) -> Self {
+        Self::Connection(e)
+    }
+}
+
+impl From<mc_api::ConversionError> for WalletServiceError {
+    fn from(src: mc_api::ConversionError) -> Self {
+        Self::ProtoConversion(src)
     }
 }
 
@@ -192,6 +219,9 @@ pub enum WalletTransactionBuilderError {
 
     /// Wallet DB Error {0}
     WalletDb(WalletDbError),
+
+    /// Error interacting with fog {0}
+    FogError(String),
 }
 
 impl From<mc_ledger_db::Error> for WalletTransactionBuilderError {

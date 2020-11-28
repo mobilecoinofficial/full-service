@@ -4,7 +4,10 @@ use crate::db::WalletDb;
 use diesel::{prelude::*, SqliteConnection};
 use diesel_migrations::embed_migrations;
 use mc_account_keys::PublicAddress;
+use mc_attest_core::Verifier;
 use mc_common::logger::Logger;
+use mc_connection::{ConnectionManager, ThickClient};
+use mc_connection_test_utils::{test_client_uri, MockBlockchainConnection};
 use mc_crypto_keys::RistrettoPrivate;
 use mc_crypto_rand::{CryptoRng, RngCore};
 use mc_ledger_db::{Ledger, LedgerDB};
@@ -14,6 +17,7 @@ use mc_transaction_core::{
 use mc_util_from_random::FromRandom;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use std::path::PathBuf;
+use std::sync::Arc;
 use tempdir::TempDir;
 
 embed_migrations!("migrations/");
@@ -169,4 +173,44 @@ pub fn add_block_to_ledger_db(
         .expect("failed writing initial transactions");
 
     ledger_db.num_blocks().expect("failed to get block height")
+}
+
+pub fn setup_peer_manager(
+    ledger_db: LedgerDB,
+    logger: Logger,
+) -> ConnectionManager<MockBlockchainConnection<LedgerDB>> {
+    let peer1 = MockBlockchainConnection::new(test_client_uri(1), ledger_db.clone(), 0);
+    let peer2 = MockBlockchainConnection::new(test_client_uri(2), ledger_db.clone(), 0);
+
+    ConnectionManager::new(vec![peer1, peer2], logger.clone())
+}
+
+pub fn setup_grpc_peer_manager(logger: Logger) -> ConnectionManager<ThickClient> {
+    let peer1 = test_client_uri(1);
+    let peer2 = test_client_uri(2);
+    let peers = vec![peer1, peer2];
+
+    let grpc_env = Arc::new(
+        grpcio::EnvBuilder::new()
+            .cq_count(1)
+            .name_prefix("peer")
+            .build(),
+    );
+
+    let mut verifier = Verifier::default();
+
+    let connected_peers = peers
+        .iter()
+        .map(|client_uri| {
+            ThickClient::new(
+                client_uri.clone(),
+                verifier.clone(),
+                grpc_env.clone(),
+                logger.clone(),
+            )
+            .expect("Could not create thick client.")
+        })
+        .collect();
+
+    ConnectionManager::new(connected_peers, logger.clone())
 }

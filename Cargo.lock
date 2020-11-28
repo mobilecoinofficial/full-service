@@ -1812,6 +1812,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mc-connection-test-utils"
+version = "1.0.0"
+dependencies = [
+ "mc-connection",
+ "mc-ledger-db",
+ "mc-transaction-core",
+ "mc-util-uri",
+]
+
+[[package]]
 name = "mc-consensus-api"
 version = "1.0.0"
 dependencies = [
@@ -2059,6 +2069,7 @@ dependencies = [
  "mc-crypto-keys",
  "mc-util-encodings",
  "mc-util-serial",
+ "mockall",
 ]
 
 [[package]]
@@ -2079,6 +2090,7 @@ dependencies = [
  "mc-util-serial",
  "mockall",
  "prost",
+ "rand 0.7.3",
  "rand_core 0.5.1",
  "serde",
 ]
@@ -2527,12 +2539,14 @@ dependencies = [
  "mc-attest-core",
  "mc-common",
  "mc-connection",
+ "mc-connection-test-utils",
  "mc-consensus-enclave-measurement",
  "mc-consensus-scp",
  "mc-crypto-digestible",
  "mc-crypto-keys",
  "mc-crypto-rand",
  "mc-fog-report-connection",
+ "mc-fog-report-validation",
  "mc-ledger-db",
  "mc-ledger-sync",
  "mc-mobilecoind",
@@ -2547,6 +2561,7 @@ dependencies = [
  "num_cpus",
  "prost",
  "rand 0.7.3",
+ "retry",
  "rocket",
  "rocket_contrib",
  "serde",

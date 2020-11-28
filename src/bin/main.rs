@@ -10,7 +10,7 @@ use mc_attest_core::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
 use mc_common::logger::{create_app_logger, log, o};
 use mc_ledger_sync::{LedgerSyncServiceThread, PollingNetworkState, ReqwestTransactionsFetcher};
 use mc_wallet_service::config::APIConfig;
-use mc_wallet_service::service::{rocket, State};
+use mc_wallet_service::service::{rocket, WalletState};
 use mc_wallet_service::{WalletDb, WalletService};
 use std::sync::{Arc, RwLock};
 use structopt::StructOpt;
@@ -99,8 +99,15 @@ fn main() {
         ))
     };
 
-    let state = State {
-        service: WalletService::new(wallet_db, ledger_db, config.num_workers, logger),
+    let state = WalletState {
+        service: WalletService::new(
+            wallet_db,
+            ledger_db,
+            peer_manager,
+            config.get_fog_pubkey_resolver(logger.clone()).map(Arc::new),
+            config.num_workers,
+            logger,
+        ),
     };
 
     let rocket = rocket(rocket_config, state);

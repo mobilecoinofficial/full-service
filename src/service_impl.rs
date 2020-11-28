@@ -13,12 +13,16 @@ use mc_account_keys::{
     AccountKey, PublicAddress, RootEntropy, RootIdentity, DEFAULT_SUBADDRESS_INDEX,
 };
 use mc_common::logger::{log, Logger};
-use mc_mobilecoind_json::data_types::JsonTxProposal;
-// use mc_connection::{ConnectionManager, RetryableUserTxConnection, UserTxConnection};
+use mc_connection::{ConnectionManager, RetryableUserTxConnection, UserTxConnection};
+use mc_crypto_rand::rand_core::RngCore;
+use mc_fog_report_connection::FogPubkeyResolver;
 use mc_ledger_db::LedgerDB;
+use mc_mobilecoind_json::data_types::JsonTxProposal;
 use mc_util_from_random::FromRandom;
-// use std::sync::Arc;
 use std::convert::TryFrom;
+use std::iter::empty;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 pub const DEFAULT_CHANGE_SUBADDRESS_INDEX: u64 = 1;
 pub const DEFAULT_NEXT_SUBADDRESS_INDEX: u64 = 2;
@@ -41,28 +45,28 @@ pub fn b58_decode(b58_public_address: &str) -> PublicAddress {
 }
 
 /// Service for interacting with the wallet
-pub struct WalletService {
-    //<
-    //     T: UserTxConnection + 'static,
-    //     FPR: FogPubkeyResolver + Send + Sync + 'static,
-    // > {
+pub struct WalletService<
+    T: UserTxConnection + 'static,
+    FPR: FogPubkeyResolver + Send + Sync + 'static,
+> {
     wallet_db: WalletDb,
     ledger_db: LedgerDB,
-    // peer_manager: ConnectionManager<T>,
-    // fog_pubkey_resolver: Option<Arc<FPR>>,
+    peer_manager: ConnectionManager<T>,
+    fog_pubkey_resolver: Option<Arc<FPR>>,
     _sync_thread: SyncThread,
+    /// Monotonically increasing counter. This is used for node round-robin selection.
+    submit_node_offset: Arc<AtomicUsize>,
     logger: Logger,
 }
 
-impl WalletService
-//<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'static>
-//     WalletService<T, FPR>
+impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'static>
+    WalletService<T, FPR>
 {
     pub fn new(
         wallet_db: WalletDb,
         ledger_db: LedgerDB,
-        // peer_manager: Connectionmanager<T>,
-        // fog_pubkey_resolver: Option<Arc<FPR>>,
+        peer_manager: ConnectionManager<T>,
+        fog_pubkey_resolver: Option<Arc<FPR>>,
         num_workers: Option<usize>,
         logger: Logger,
     ) -> Self {
@@ -73,12 +77,14 @@ impl WalletService
             num_workers,
             logger.clone(),
         );
+        let mut rng = rand::thread_rng();
         WalletService {
             wallet_db,
             ledger_db,
-            // peer_manager,
-            // fog_pubkey_resolver,
+            peer_manager,
+            fog_pubkey_resolver,
             _sync_thread: sync_thread,
+            submit_node_offset: Arc::new(AtomicUsize::new(rng.next_u64() as usize)),
             logger,
         }
     }
@@ -210,6 +216,7 @@ impl WalletService
             account_id_hex.to_string(),
             self.wallet_db.clone(),
             self.ledger_db.clone(),
+            self.fog_pubkey_resolver.clone(),
             self.logger.clone(),
         );
         let recipient = b58_decode(recipient_public_address);
@@ -226,6 +233,8 @@ impl WalletService
         }
         if let Some(tombstone) = tombstone_block {
             builder.set_tombstone(tombstone.parse::<u64>()?)?;
+        } else {
+            builder.set_tombstone(0)?;
         }
         if let Some(f) = fee {
             builder.set_fee(f.parse::<u64>()?)?;
@@ -235,21 +244,71 @@ impl WalletService
         let proto_tx_proposal = mc_mobilecoind_api::TxProposal::from(&tx_proposal);
         Ok(JsonTxProposal::from(&proto_tx_proposal))
     }
+
+    pub fn submit_transaction(
+        &self,
+        tx_proposal: JsonTxProposal,
+    ) -> Result<(), WalletServiceError> {
+        // Pick a peer to submit to.
+        let responder_ids = self.peer_manager.responder_ids();
+        if responder_ids.is_empty() {
+            return Err(WalletServiceError::NoPeersConfigured);
+        }
+
+        let idx = self.submit_node_offset.fetch_add(1, Ordering::SeqCst);
+        let responder_id = &responder_ids[idx % responder_ids.len()];
+
+        let proto_tx = mc_api::external::Tx::try_from(&tx_proposal.tx)
+            .map_err(|e| WalletServiceError::JsonConversion(e))?;
+
+        // Try and submit.
+        let tx = mc_transaction_core::tx::Tx::try_from(&proto_tx)?;
+        let block_height = self
+            .peer_manager
+            .conn(responder_id)
+            .ok_or(WalletServiceError::NodeNotFound)?
+            .propose_tx(&tx, empty())
+            .map_err(WalletServiceError::from)?;
+
+        log::info!(
+            self.logger,
+            "Tx {:?} submitted at block height {}",
+            tx,
+            block_height
+        );
+
+        // FIXME: update db tables with submitted block height etc
+
+        // Successfully submitted.
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::{get_test_ledger, WalletDbTestContext};
+    use crate::test_utils::{get_test_ledger, setup_peer_manager, WalletDbTestContext};
     use mc_account_keys::PublicAddress;
     use mc_common::logger::{test_with_logger, Logger};
+    use mc_connection_test_utils::MockBlockchainConnection;
+    use mc_fog_report_validation::MockFogPubkeyResolver;
     use rand::{rngs::StdRng, SeedableRng};
 
-    fn setup_service(ledger_db: LedgerDB, logger: Logger) -> WalletService {
+    fn setup_service(
+        ledger_db: LedgerDB,
+        logger: Logger,
+    ) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger.clone());
-
-        WalletService::new(wallet_db, ledger_db, None, logger)
+        let peer_manager = setup_peer_manager(ledger_db.clone(), logger.clone());
+        WalletService::new(
+            wallet_db,
+            ledger_db,
+            peer_manager,
+            Some(Arc::new(MockFogPubkeyResolver::new())),
+            None,
+            logger,
+        )
     }
 
     #[test_with_logger]
