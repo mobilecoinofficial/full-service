@@ -16,6 +16,7 @@ create TABLE txos (
   target_key BLOB NOT NULL,
   public_key BLOB NOT NULL,
   e_fog_hint BLOB NOT NULL,
+  txo BLOB NOT NULL,
   subaddress_index UNSIGNED BIG INT NOT NULL,
   key_image BLOB,
   received_block_height UNSIGNED BIG INT,

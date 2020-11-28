@@ -3,6 +3,7 @@
 use crate::error::WalletAPIError;
 use crate::service_decorated_types::JsonListTxosResponse;
 use crate::service_impl::WalletService;
+use mc_mobilecoind_json::data_types::JsonTxProposal;
 use rocket::{post, routes};
 use rocket_contrib::json::Json;
 use serde::{Deserialize, Serialize};
@@ -41,6 +42,15 @@ pub enum JsonCommandRequest {
     get_balance {
         account_id: String,
     },
+    build_transaction {
+        account_id: String,
+        input_txo_ids: Option<Vec<String>>,
+        recipient_public_address: String,
+        value: String,
+        fee: Option<String>,
+        tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
+    },
 }
 #[derive(Deserialize, Serialize)]
 #[serde(tag = "method", content = "result")]
@@ -72,6 +82,9 @@ pub enum JsonCommandResponse {
     },
     get_balance {
         balance: String,
+    },
+    build_transaction {
+        tx_proposal: JsonTxProposal,
     },
 }
 
@@ -131,6 +144,28 @@ fn wallet_api(
         JsonCommandRequest::get_balance { account_id } => JsonCommandResponse::get_balance {
             balance: state.service.get_balance(&account_id)?.to_string(),
         },
+        JsonCommandRequest::build_transaction {
+            account_id,
+            input_txo_ids,
+            recipient_public_address,
+            value,
+            fee,
+            tombstone_block,
+            max_spendable_value,
+        } => {
+            let tx_proposal = state.service.build_transaction(
+                &account_id,
+                input_txo_ids.as_ref(),
+                &recipient_public_address,
+                value,
+                fee,
+                tombstone_block,
+                max_spendable_value,
+            )?;
+            JsonCommandResponse::build_transaction {
+                tx_proposal: tx_proposal.into(),
+            }
+        }
     };
     Ok(Json(result))
 }
@@ -144,6 +179,7 @@ pub fn rocket(rocket_config: rocket::Config, state: State) -> rocket::Rocket {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::service_impl::b58_decode;
     use crate::test_utils::{add_block_to_ledger_db, get_test_ledger, WalletDbTestContext};
     use mc_account_keys::PublicAddress;
     use mc_common::logger::{log, test_with_logger, Logger};
@@ -156,30 +192,12 @@ mod tests {
         local::Client,
     };
     use rocket_contrib::json::JsonValue;
-    use std::convert::TryFrom;
     use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
     use std::time::Duration;
 
     fn get_free_port() -> u16 {
         static PORT_NR: AtomicUsize = AtomicUsize::new(0);
         PORT_NR.fetch_add(1, SeqCst) as u16 + 30300
-    }
-
-    // FIXME: this will probably live in db or service_impl once we're decoding public addresses
-    fn b58_decode(b58_public_address: &str) -> PublicAddress {
-        let wrapper = mc_mobilecoind_api::printable::PrintableWrapper::b58_decode(
-            b58_public_address.to_string(),
-        )
-        .unwrap();
-        let pubaddr_proto: &mc_api::external::PublicAddress = if wrapper.has_payment_request() {
-            let payment_request = wrapper.get_payment_request();
-            payment_request.get_public_address()
-        } else if wrapper.has_public_address() {
-            wrapper.get_public_address()
-        } else {
-            panic!("No public address in wrapper");
-        };
-        PublicAddress::try_from(pubaddr_proto).unwrap()
     }
 
     fn setup(mut rng: &mut StdRng, logger: Logger) -> (Client, LedgerDB) {
@@ -212,6 +230,23 @@ mod tests {
 
         let res: JsonValue = serde_json::from_str(&body).unwrap();
         res.get("result").unwrap().clone()
+    }
+
+    fn dispatch_expect_error(
+        client: &Client,
+        body: JsonValue,
+        logger: &Logger,
+        expected_err: String,
+    ) {
+        let mut res = client
+            .post("/wallet")
+            .header(ContentType::JSON)
+            .body(body.to_string())
+            .dispatch();
+        assert_eq!(res.status(), Status::Ok);
+        let body = res.body().unwrap().into_string().unwrap();
+        log::info!(logger, "Attempted dispatch got response {:?}", body);
+        assert_eq!(body, expected_err);
     }
 
     #[test_with_logger]
@@ -360,7 +395,7 @@ mod tests {
         );
 
         // Sleep to let the sync thread process the txo
-        std::thread::sleep(Duration::from_secs(3));
+        std::thread::sleep(Duration::from_secs(2));
 
         let body = json!({
             "method": "list_txos",
@@ -389,5 +424,120 @@ mod tests {
         let result = dispatch(&client, body, &logger);
         let balance = result.get("balance").unwrap().as_str().unwrap();
         assert_eq!(balance, "100");
+    }
+
+    #[test_with_logger]
+    fn test_build_transaction(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+                "first_block": "0",
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        let account_id = result.get("account_id").unwrap().as_str().unwrap();
+        let b58_public_address = result.get("public_address").unwrap().as_str().unwrap();
+        let public_address = b58_decode(b58_public_address);
+
+        // Add a block with a txo for this address (note that value is smaller than MINIMUM_FEE)
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![public_address.clone()],
+            100,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        // Sleep to let the sync thread process the txo
+        std::thread::sleep(Duration::from_secs(2));
+
+        // Create a tx proposal to ourselves
+        let body = json!({
+            "method": "build_transaction",
+            "params": {
+                "account_id": account_id,
+                "recipient_public_address": b58_public_address,
+                "value": "42",
+            }
+        });
+        dispatch_expect_error(
+            &client,
+            body,
+            &logger,
+            "WalletService(TransactionBuilder(InsufficientFunds(\"100\")))".to_string(),
+        );
+
+        // Add a block with significantly more MOB
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![public_address],
+            100000000000000, // 100.0 MOB
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        // Sleep to let the sync thread process the txo
+        std::thread::sleep(Duration::from_secs(2));
+
+        // Create a tx proposal to ourselves
+        let body = json!({
+            "method": "build_transaction",
+            "params": {
+                "account_id": account_id,
+                "recipient_public_address": b58_public_address,
+                "value": "42000000000000", // 42.0 MOB
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        let tx_proposal = result.get("tx_proposal").unwrap();
+        let tx = tx_proposal.get("tx").unwrap();
+        let tx_prefix = tx.get("prefix").unwrap();
+
+        // Assert the fee is correct in both places
+        let prefix_fee = tx_prefix.get("fee").unwrap().as_str().unwrap();
+        let fee = tx_proposal.get("fee").unwrap();
+        // FIXME: Note, minimum fee does not fit into i32 - need to make sure we are not losing
+        //        precision with the JsonTxProposal treating Fee as number
+        assert_eq!(fee.to_string(), "10000000000");
+        assert_eq!(fee.to_string(), prefix_fee);
+
+        // Transaction builder attempts to use as many inputs as we have txos
+        let inputs = tx_proposal.get("input_list").unwrap().as_array().unwrap();
+        assert_eq!(inputs.len(), 2);
+        let prefix_inputs = tx_prefix.get("inputs").unwrap().as_array().unwrap();
+        assert_eq!(prefix_inputs.len(), inputs.len());
+
+        // One destination
+        let outlays = tx_proposal.get("outlay_list").unwrap().as_array().unwrap();
+        assert_eq!(outlays.len(), 1);
+
+        // Map outlay -> tx_out, should have one entry for one outlay
+        let outlay_index_to_tx_out_index = tx_proposal
+            .get("outlay_index_to_tx_out_index")
+            .unwrap()
+            .as_array()
+            .unwrap();
+        assert_eq!(outlay_index_to_tx_out_index.len(), 1);
+
+        // Two outputs in the prefix, one for change
+        let prefix_outputs = tx_prefix.get("outputs").unwrap().as_array().unwrap();
+        assert_eq!(prefix_outputs.len(), 2);
+
+        // One outlay confirmation number for our one outlay (no receipt for change)
+        let outlay_confirmation_numbers = tx_proposal
+            .get("outlay_confirmation_numbers")
+            .unwrap()
+            .as_array()
+            .unwrap();
+        assert_eq!(outlay_confirmation_numbers.len(), 1);
+
+        // Tombstone not set FIXME: is this correct?
+        let prefix_tombstone = tx_prefix.get("tombstone_block").unwrap();
+        assert_eq!(prefix_tombstone, "0");
     }
 }

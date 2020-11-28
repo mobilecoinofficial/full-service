@@ -11,6 +11,7 @@ pub mod service;
 mod service_decorated_types;
 mod service_impl;
 pub mod sync;
+mod transaction_builder;
 
 pub use db::WalletDb;
 pub use service_impl::WalletService;

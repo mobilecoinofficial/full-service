@@ -21,9 +21,12 @@ mc-crypto-keys = { path = "mobilecoin/crypto/keys" }
 mc-fog-report-connection = { path = "mobilecoin/fog/report/connection" }
 mc-ledger-db = { path = "mobilecoin/ledger/db" }
 mc-ledger-sync = { path = "mobilecoin/ledger/sync" }
+mc-mobilecoind = { path = "mobilecoin/mobilecoind" }
 mc-mobilecoind-api = { path = "mobilecoin/mobilecoind/api" }
+mc-mobilecoind-json = { path = "mobilecoin/mobilecoind-json" }
 mc-sgx-css = { path = "mobilecoin/sgx/css" }
 mc-transaction-core = { path = "mobilecoin/transaction/core" }
+mc-transaction-std = { path = "mobilecoin/transaction/std" }
 mc-util-from-random = { path = "mobilecoin/util/from-random" }
 mc-util-serial = { path = "mobilecoin/util/serial" }
 mc-util-uri = { path = "mobilecoin/util/uri" }
