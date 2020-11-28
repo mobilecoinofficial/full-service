@@ -53,6 +53,7 @@ fn main() {
             .wallet_db
             .to_str()
             .expect("Could not get wallet_db path"),
+        logger.clone(),
     )
     .expect("Could not access wallet db");
 

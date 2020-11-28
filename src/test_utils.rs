@@ -4,6 +4,7 @@ use crate::db::WalletDb;
 use diesel::{prelude::*, SqliteConnection};
 use diesel_migrations::embed_migrations;
 use mc_account_keys::PublicAddress;
+use mc_common::logger::Logger;
 use mc_crypto_keys::RistrettoPrivate;
 use mc_crypto_rand::{CryptoRng, RngCore};
 use mc_ledger_db::{Ledger, LedgerDB};
@@ -51,8 +52,8 @@ impl Default for WalletDbTestContext {
 }
 
 impl WalletDbTestContext {
-    pub fn get_db_instance(&self) -> WalletDb {
-        WalletDb::new_from_url(&format!("{}/{}", self.base_url, self.db_name))
+    pub fn get_db_instance(&self, logger: Logger) -> WalletDb {
+        WalletDb::new_from_url(&format!("{}/{}", self.base_url, self.db_name), logger)
             .expect("failed creating new SqlRecoveryDb")
     }
 }

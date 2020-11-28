@@ -13,11 +13,20 @@ use std::io::Cursor;
 pub enum WalletServiceError {
     /// Error interacting with the DB {0}
     DBError(WalletDbError),
+
+    /// Error decoding from hex {0}
+    HexDecode(hex::FromHexError),
 }
 
 impl From<WalletDbError> for WalletServiceError {
     fn from(src: WalletDbError) -> Self {
         Self::DBError(src)
+    }
+}
+
+impl From<hex::FromHexError> for WalletServiceError {
+    fn from(src: hex::FromHexError) -> Self {
+        Self::HexDecode(src)
     }
 }
 
