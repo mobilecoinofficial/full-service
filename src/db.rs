@@ -233,6 +233,7 @@ impl WalletDb {
             target_key: &mc_util_serial::encode(&txo.target_key),
             public_key: &mc_util_serial::encode(&txo.public_key),
             e_fog_hint: &mc_util_serial::encode(&txo.e_fog_hint),
+            txo: &mc_util_serial::encode(&txo),
             subaddress_index: subaddress_index as i64,
             key_image: Some(&key_image_bytes),
             received_block_height: Some(received_block_height as i64),
@@ -292,6 +293,69 @@ impl WalletDb {
             )
             .select(schema_txos::all_columns)
             .load(&conn)?;
+        Ok(results)
+    }
+
+    pub fn select_txos_by_id(
+        &self,
+        account_id_hex: &str,
+        txo_ids: &Vec<String>,
+    ) -> Result<Vec<(Txo, AccountTxoStatus)>, WalletDbError> {
+        let conn = self.pool.get()?;
+
+        let mut results: Vec<(Txo, AccountTxoStatus)> = Vec::new();
+        for txo_id in txo_ids {
+            match dsl_txos.find(txo_id).get_result::<Txo>(&conn) {
+                Ok(txo) => {
+                    // Check that this txo is indeed owned by the account we think it is
+                    match dsl_account_txo_statuses
+                        .find((account_id_hex, txo_id))
+                        .get_result::<AccountTxoStatus>(&conn)
+                    {
+                        Ok(status) => {
+                            results.push((txo, status));
+                        }
+                        Err(diesel::result::Error::NotFound) => {
+                            return Err(WalletDbError::NotFound(format!(
+                                "Txo({:?}) found, but does not belong to Account({:?})",
+                                txo_id, account_id_hex
+                            )));
+                        }
+                        Err(e) => {
+                            return Err(e.into());
+                        }
+                    }
+                }
+                Err(diesel::result::Error::NotFound) => {
+                    return Err(WalletDbError::NotFound(txo_id.to_string()));
+                }
+                Err(e) => {
+                    return Err(e.into());
+                }
+            }
+        }
+        Ok(results)
+    }
+
+    pub fn select_unspent_txos_for_value(
+        &self,
+        account_id_hex: &str,
+        max_spendable_value: i64,
+    ) -> Result<Vec<Txo>, WalletDbError> {
+        let conn = self.pool.get()?;
+
+        let results: Vec<Txo> = schema_txos::table
+            .inner_join(
+                schema_account_txo_statuses::table.on(schema_txos::txo_id_hex
+                    .eq(schema_account_txo_statuses::txo_id_hex)
+                    .and(schema_account_txo_statuses::account_id_hex.eq(account_id_hex))
+                    .and(schema_account_txo_statuses::txo_status.eq("unspent"))
+                    .and(schema_txos::value.lt(max_spendable_value))),
+            )
+            .select(schema_txos::all_columns)
+            .order_by(schema_txos::value.desc())
+            .load(&conn)?;
+
         Ok(results)
     }
 
@@ -562,6 +626,7 @@ mod tests {
             target_key: mc_util_serial::encode(&txo.target_key),
             public_key: mc_util_serial::encode(&txo.public_key),
             e_fog_hint: mc_util_serial::encode(&txo.e_fog_hint),
+            txo: mc_util_serial::encode(&txo),
             subaddress_index: subaddress_index as i64,
             key_image: Some(mc_util_serial::encode(&key_image)),
             received_block_height: Some(received_block_height as i64),
@@ -578,6 +643,10 @@ mod tests {
         };
         assert_eq!(txos[0].0, expected_txo);
         assert_eq!(txos[0].1, expected_txo_status);
+
+        // Verify that the unspent filter works as well
+        let unspent = walletdb.list_unspent_txos(&account_id_hex).unwrap();
+        assert_eq!(unspent.len(), 1);
 
         // Now we'll "spend" the TXO
         let spent_block_height = 365;

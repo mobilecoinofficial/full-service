@@ -40,6 +40,7 @@ table! {
         target_key -> Binary,
         public_key -> Binary,
         e_fog_hint -> Binary,
+        txo -> Binary,
         subaddress_index -> BigInt,
         key_image -> Nullable<Binary>,
         received_block_height -> Nullable<BigInt>,

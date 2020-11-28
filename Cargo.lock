@@ -111,6 +111,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23b62fc65de8e4e7f52534fb52b0f3ed04746ae267519eef2a83941e8085068b"
 
 [[package]]
+name = "async-compression"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb1ff21a63d3262af46b9f33a826a8d134e2d0d9b2179c86034948b732ea8b2a"
+dependencies = [
+ "bytes",
+ "flate2",
+ "futures-core",
+ "memchr",
+ "pin-project-lite",
+]
+
+[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1116,6 +1129,12 @@ checksum = "d36fab90f82edc3c747f9d438e06cf0a491055896f2a279638bb5beed6c40177"
 
 [[package]]
 name = "hashbrown"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e1de41fb8dba9714efd92241565cdff73f78508c95697dd56787d3cba27e2353"
+
+[[package]]
+name = "hashbrown"
 version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8e6073d0ca812575946eb5f35ff68dbe519907b25c42530389ff946dc84c6ead"
@@ -1549,6 +1568,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4fabed175da42fed1fa0746b0ea71f412aa9d35e76e95e59b192c64b9dc2bf8b"
 dependencies = [
  "cfg-if 0.1.10",
+]
+
+[[package]]
+name = "lru"
+version = "0.1.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5d8f669d42c72d18514dfca8115689c5f6370a17d980cb5bd777a67f404594c8"
+dependencies = [
+ "hashbrown 0.5.0",
 ]
 
 [[package]]
@@ -2088,6 +2116,57 @@ dependencies = [
 ]
 
 [[package]]
+name = "mc-mobilecoind"
+version = "1.0.0"
+dependencies = [
+ "crossbeam-channel",
+ "displaydoc",
+ "failure",
+ "futures",
+ "grpcio",
+ "hex_fmt",
+ "libz-sys",
+ "lmdb-rkv",
+ "lru",
+ "mc-account-keys",
+ "mc-api",
+ "mc-attest-core",
+ "mc-common",
+ "mc-connection",
+ "mc-consensus-api",
+ "mc-consensus-enclave-measurement",
+ "mc-consensus-scp",
+ "mc-crypto-digestible",
+ "mc-crypto-keys",
+ "mc-crypto-rand",
+ "mc-fog-report-connection",
+ "mc-ledger-db",
+ "mc-ledger-sync",
+ "mc-mobilecoind-api",
+ "mc-sgx-css",
+ "mc-transaction-core",
+ "mc-transaction-std",
+ "mc-util-from-random",
+ "mc-util-grpc",
+ "mc-util-lmdb",
+ "mc-util-repr-bytes",
+ "mc-util-serial",
+ "mc-util-uri",
+ "mc-watcher",
+ "num_cpus",
+ "prost",
+ "protobuf",
+ "rand 0.7.3",
+ "rand_core 0.5.1",
+ "reqwest",
+ "retry",
+ "serde_json",
+ "sha3",
+ "structopt",
+ "tempdir",
+]
+
+[[package]]
 name = "mc-mobilecoind-api"
 version = "1.0.0"
 dependencies = [
@@ -2102,6 +2181,24 @@ dependencies = [
  "mc-util-build-script",
  "mc-util-uri",
  "protobuf",
+]
+
+[[package]]
+name = "mc-mobilecoind-json"
+version = "1.0.0"
+dependencies = [
+ "grpcio",
+ "hex",
+ "mc-api",
+ "mc-common",
+ "mc-mobilecoind-api",
+ "mc-util-grpc",
+ "protobuf",
+ "rocket",
+ "rocket_contrib",
+ "serde",
+ "serde_derive",
+ "structopt",
 ]
 
 [[package]]
@@ -2438,9 +2535,12 @@ dependencies = [
  "mc-fog-report-connection",
  "mc-ledger-db",
  "mc-ledger-sync",
+ "mc-mobilecoind",
  "mc-mobilecoind-api",
+ "mc-mobilecoind-json",
  "mc-sgx-css",
  "mc-transaction-core",
+ "mc-transaction-std",
  "mc-util-from-random",
  "mc-util-serial",
  "mc-util-uri",
@@ -2455,6 +2555,28 @@ dependencies = [
  "structopt",
  "tempdir",
  "uuid 0.7.4",
+]
+
+[[package]]
+name = "mc-watcher"
+version = "1.0.0"
+dependencies = [
+ "failure",
+ "lmdb-rkv",
+ "mc-api",
+ "mc-common",
+ "mc-crypto-keys",
+ "mc-ledger-db",
+ "mc-ledger-sync",
+ "mc-transaction-core",
+ "mc-transaction-core-test-utils",
+ "mc-util-from-random",
+ "mc-util-lmdb",
+ "mc-util-serial",
+ "mc-watcher-api",
+ "prost",
+ "structopt",
+ "url 2.2.0",
 ]
 
 [[package]]
@@ -3285,6 +3407,7 @@ version = "0.10.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e9eaa17ac5d7b838b7503d118fa16ad88f440498bf9ffe5424e621f93190d61e"
 dependencies = [
+ "async-compression",
  "base64 0.12.3",
  "bytes",
  "encoding_rs",

@@ -8,16 +8,37 @@ use crate::service_decorated_types::{
     JsonCreateAccountResponse, JsonImportAccountResponse, JsonListTxosResponse,
 };
 use crate::sync::SyncThread;
-use mc_account_keys::{AccountKey, RootEntropy, RootIdentity, DEFAULT_SUBADDRESS_INDEX};
+use crate::transaction_builder::WalletTransactionBuilder;
+use mc_account_keys::{
+    AccountKey, PublicAddress, RootEntropy, RootIdentity, DEFAULT_SUBADDRESS_INDEX,
+};
 use mc_common::logger::{log, Logger};
+use mc_mobilecoind_json::data_types::JsonTxProposal;
 // use mc_connection::{ConnectionManager, RetryableUserTxConnection, UserTxConnection};
 use mc_ledger_db::LedgerDB;
 use mc_util_from_random::FromRandom;
 // use std::sync::Arc;
+use std::convert::TryFrom;
 
 pub const DEFAULT_CHANGE_SUBADDRESS_INDEX: u64 = 1;
 pub const DEFAULT_NEXT_SUBADDRESS_INDEX: u64 = 2;
 pub const DEFAULT_FIRST_BLOCK: u64 = 0;
+
+// FIXME: this will probably live in db or service_impl once we're decoding public addresses
+pub fn b58_decode(b58_public_address: &str) -> PublicAddress {
+    let wrapper =
+        mc_mobilecoind_api::printable::PrintableWrapper::b58_decode(b58_public_address.to_string())
+            .unwrap();
+    let pubaddr_proto: &mc_api::external::PublicAddress = if wrapper.has_payment_request() {
+        let payment_request = wrapper.get_payment_request();
+        payment_request.get_public_address()
+    } else if wrapper.has_public_address() {
+        wrapper.get_public_address()
+    } else {
+        panic!("No public address in wrapper");
+    };
+    PublicAddress::try_from(pubaddr_proto).unwrap()
+}
 
 /// Service for interacting with the wallet
 pub struct WalletService {
@@ -175,21 +196,45 @@ impl WalletService
         Ok(txos.iter().map(|t| t.value as u64).sum())
     }
 
-    // pub fn build_transaction(
-    //     &self,
-    //     account_id_hex: &str,
-    //     input_txo_ids: Option<Vec<&str>>,
-    //     recipient_public_address: String,
-    //     value: u64,
-    //     fee: Option<u64>,
-    //     tombstone_block: Option<u64>,
-    // ) -> Result<JsonTxProposal, WalletServiceError> {
-    //     // Select utxos for the given value
-    //     let txos: Vec<Txo> = self
-    //         .wallet_db
-    //         .list_unspent_txos(account_id_hex)?;
-    //     }
-    // }
+    pub fn build_transaction(
+        &self,
+        account_id_hex: &str,
+        input_txo_ids: Option<&Vec<String>>,
+        recipient_public_address: &str,
+        value: String,
+        fee: Option<String>,
+        tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
+    ) -> Result<JsonTxProposal, WalletServiceError> {
+        let mut builder = WalletTransactionBuilder::new(
+            account_id_hex.to_string(),
+            self.wallet_db.clone(),
+            self.ledger_db.clone(),
+            self.logger.clone(),
+        );
+        let recipient = b58_decode(recipient_public_address);
+        builder.add_recipient(recipient, value.parse::<u64>()?)?;
+        if let Some(inputs) = input_txo_ids {
+            builder.set_txos(inputs)?;
+        } else {
+            let max_spendable = if let Some(msv) = max_spendable_value {
+                Some(msv.parse::<u64>()?)
+            } else {
+                None
+            };
+            builder.select_txos(max_spendable)?;
+        }
+        if let Some(tombstone) = tombstone_block {
+            builder.set_tombstone(tombstone.parse::<u64>()?)?;
+        }
+        if let Some(f) = fee {
+            builder.set_fee(f.parse::<u64>()?)?;
+        }
+        let tx_proposal = builder.build()?;
+        // FIXME: Would rather not have to convert it to proto first
+        let proto_tx_proposal = mc_mobilecoind_api::TxProposal::from(&tx_proposal);
+        Ok(JsonTxProposal::from(&proto_tx_proposal))
+    }
 }
 
 #[cfg(test)]
