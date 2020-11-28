@@ -151,6 +151,20 @@ impl WalletService {
             .map(|(t, s)| JsonListTxosResponse::new(t, s))
             .collect())
     }
+
+    pub fn get_balance(&self, account_id_hex: &str) -> Result<u64, WalletServiceError> {
+        let txos = self.wallet_db.list_txos(account_id_hex)?;
+        Ok(txos
+            .iter()
+            .map(|(t, s)| {
+                if s.txo_status == "unspent" {
+                    t.value as u64
+                } else {
+                    0
+                }
+            })
+            .sum())
+    }
 }
 
 #[cfg(test)]
