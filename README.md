@@ -607,6 +607,41 @@ curl -s localhost:9090/wallet \
 }
 ```
 
+Note, as the tx_proposal json object is quite large, you may wish to write the result to a file for use in the submit_transaction call, such as:
+
+```sh
+curl -s localhost:9090/wallet \
+    -d '{
+          "method": "build_transaction",
+          "params": {
+            "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
+            "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+            "value": "42000000000000"
+          }
+        }' \
+    -X POST -H 'Content-type: application/json' | jq -c '.result | .tx_proposal' > test-tx-proposal.json
+```
+
+#### Submit Transaction
+
+```sh
+curl -s localhost:9090/wallet \
+    -d '{
+          "method": "submit_transaction",
+          "params": {
+            "tx_proposal": '$(cat test-tx-proposal.json)'
+          }
+        }' \
+    -X POST -H 'Content-type: application/json'
+
+{
+  "method": "submit_transaction",
+  "result": {
+    "success": true
+  }
+}
+```
+
 ## Contributing
 
 ### Database Schema

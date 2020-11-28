@@ -3,16 +3,23 @@
 use crate::error::WalletAPIError;
 use crate::service_decorated_types::JsonListTxosResponse;
 use crate::service_impl::WalletService;
+use mc_connection::ThickClient;
+use mc_connection::UserTxConnection;
+use mc_fog_report_connection::FogPubkeyResolver;
+use mc_fog_report_connection::GrpcFogPubkeyResolver;
 use mc_mobilecoind_json::data_types::JsonTxProposal;
 use rocket::{post, routes};
 use rocket_contrib::json::Json;
 use serde::{Deserialize, Serialize};
 
-pub struct State {
-    pub service: WalletService,
+pub struct WalletState<
+    T: UserTxConnection + 'static,
+    FPR: FogPubkeyResolver + Send + Sync + 'static,
+> {
+    pub service: WalletService<T, FPR>,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize)]
 #[serde(tag = "method", content = "params")]
 #[allow(non_camel_case_types)]
 pub enum JsonCommandRequest {
@@ -51,6 +58,9 @@ pub enum JsonCommandRequest {
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
     },
+    submit_transaction {
+        tx_proposal: JsonTxProposal,
+    },
 }
 #[derive(Deserialize, Serialize)]
 #[serde(tag = "method", content = "result")]
@@ -86,11 +96,14 @@ pub enum JsonCommandResponse {
     build_transaction {
         tx_proposal: JsonTxProposal,
     },
+    submit_transaction {
+        success: bool, // FIXME: there will be more here
+    },
 }
 
 #[post("/wallet", format = "json", data = "<command>")]
 fn wallet_api(
-    state: rocket::State<State>,
+    state: rocket::State<WalletState<ThickClient, GrpcFogPubkeyResolver>>,
     command: Json<JsonCommandRequest>,
 ) -> Result<Json<JsonCommandResponse>, WalletAPIError> {
     let result = match command.0 {
@@ -166,11 +179,22 @@ fn wallet_api(
                 tx_proposal: tx_proposal.into(),
             }
         }
+        JsonCommandRequest::submit_transaction { tx_proposal } => {
+            state.service.submit_transaction(tx_proposal)?;
+            JsonCommandResponse::submit_transaction { success: true }
+        }
     };
     Ok(Json(result))
 }
 
-pub fn rocket(rocket_config: rocket::Config, state: State) -> rocket::Rocket {
+pub fn rocket(
+    rocket_config: rocket::Config,
+    state: WalletState<ThickClient, GrpcFogPubkeyResolver>,
+) -> rocket::Rocket {
+    // FIXME: Note that if state has different type parameters, it throws an error that you are
+    // requesting unmanaged state. This is an issue in tests, where we want to use mock
+    // connections. For now, I am simply not testing the endpoints like submit_transaction,
+    // and I am not building test transactions with a fog recipients.
     rocket::custom(rocket_config)
         .mount("/", routes![wallet_api,])
         .manage(state)
@@ -180,10 +204,13 @@ pub fn rocket(rocket_config: rocket::Config, state: State) -> rocket::Rocket {
 mod tests {
     use super::*;
     use crate::service_impl::b58_decode;
-    use crate::test_utils::{add_block_to_ledger_db, get_test_ledger, WalletDbTestContext};
+    use crate::test_utils::{
+        add_block_to_ledger_db, get_test_ledger, setup_grpc_peer_manager, WalletDbTestContext,
+    };
     use mc_account_keys::PublicAddress;
     use mc_common::logger::{log, test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
+    use mc_fog_report_validation::MockFogPubkeyResolver;
     use mc_ledger_db::LedgerDB;
     use mc_transaction_core::ring_signature::KeyImage;
     use rand::{rngs::StdRng, SeedableRng};
@@ -193,6 +220,7 @@ mod tests {
     };
     use rocket_contrib::json::JsonValue;
     use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
+    use std::sync::Arc;
     use std::time::Duration;
 
     fn get_free_port() -> u16 {
@@ -205,13 +233,22 @@ mod tests {
         let wallet_db = db_test_context.get_db_instance(logger.clone());
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
-        let service = WalletService::new(wallet_db, ledger_db.clone(), None, logger);
+        let peer_manager = setup_grpc_peer_manager(logger.clone());
+
+        let service = WalletService::new(
+            wallet_db,
+            ledger_db.clone(),
+            peer_manager,
+            None,
+            None,
+            logger,
+        );
 
         let rocket_config: rocket::Config =
             rocket::Config::build(rocket::config::Environment::Development)
                 .port(get_free_port())
                 .unwrap();
-        let rocket = rocket(rocket_config, State { service });
+        let rocket = rocket(rocket_config, WalletState { service });
         (
             Client::new(rocket).expect("valid rocket instance"),
             ledger_db,
