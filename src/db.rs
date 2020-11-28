@@ -4,6 +4,7 @@
 //! by the DB.
 
 use mc_account_keys::{AccountKey, PublicAddress, DEFAULT_SUBADDRESS_INDEX};
+use mc_common::logger::{log, Logger};
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::RistrettoPublic;
 use mc_transaction_core::ring_signature::KeyImage;
@@ -72,20 +73,21 @@ struct ConstTxoData {
 #[derive(Clone)]
 pub struct WalletDb {
     pool: Pool<ConnectionManager<SqliteConnection>>,
+    logger: Logger,
 }
 
 impl WalletDb {
-    pub fn new(pool: Pool<ConnectionManager<SqliteConnection>>) -> Self {
-        Self { pool }
+    pub fn new(pool: Pool<ConnectionManager<SqliteConnection>>, logger: Logger) -> Self {
+        Self { pool, logger }
     }
 
-    pub fn new_from_url(database_url: &str) -> Result<Self, WalletDbError> {
+    pub fn new_from_url(database_url: &str, logger: Logger) -> Result<Self, WalletDbError> {
         let manager = ConnectionManager::<SqliteConnection>::new(database_url);
         let pool = Pool::builder()
             .max_size(1)
             .test_on_check_out(true)
             .build(manager)?;
-        Ok(Self::new(pool))
+        Ok(Self::new(pool, logger))
     }
 
     /// Create a new account.
@@ -340,11 +342,6 @@ impl WalletDb {
     ) -> Result<(), WalletDbError> {
         let conn = self.pool.get()?;
 
-        println!(
-            "\x1b[1;33m Now updating spent for key_images {:?}\x1b[0m",
-            key_images
-        );
-
         for key_image in key_images {
             // Get the txo by key_image
             let matches = schema_txos::table
@@ -362,9 +359,12 @@ impl WalletDb {
                 )));
             } else {
                 // Update the TXO
-                println!(
-                    "\x1b[1;36m updating spent to {:?}\x1b[0m",
-                    spent_block_height
+                log::trace!(
+                    self.logger,
+                    "Updating spent for account {:?} at block height {:?} with key_image {:?}",
+                    account_id_hex,
+                    spent_block_height,
+                    key_image
                 );
                 diesel::update(dsl_txos.find(&matches[0].txo_id_hex))
                     .set(schema_txos::spent_block_height.eq(Some(spent_block_height)))
@@ -392,6 +392,7 @@ mod tests {
     use super::*;
     use crate::test_utils::WalletDbTestContext;
     use mc_account_keys::RootIdentity;
+    use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
     use mc_transaction_core::encrypted_fog_hint::EncryptedFogHint;
     use mc_transaction_core::onetime_keys::recover_public_subaddress_spend_key;
@@ -402,12 +403,12 @@ mod tests {
     use std::convert::TryFrom;
     use std::iter::FromIterator;
 
-    #[test]
-    fn test_account_crud() {
+    #[test_with_logger]
+    fn test_account_crud(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
-        let walletdb = db_test_context.get_db_instance();
+        let walletdb = db_test_context.get_db_instance(logger);
 
         let account_key = AccountKey::random(&mut rng);
         let (account_id_hex, _public_address_b58) = walletdb
@@ -493,12 +494,12 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_received_tx_lifecycle() {
+    #[test_with_logger]
+    fn test_received_tx_lifecycle(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
-        let walletdb = db_test_context.get_db_instance();
+        let walletdb = db_test_context.get_db_instance(logger);
 
         let account_key = AccountKey::random(&mut rng);
         let (account_id_hex, _public_address_b58) = walletdb

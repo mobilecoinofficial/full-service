@@ -38,8 +38,7 @@ A MobileCoin service for wallet implementations.
     Create a new account in the wallet. 
     
     ```
-    curl -s localhost:9090/wallet -d '{"method": "create_account", "params": {"name": "Alice"}}' -X POST -H 'Con
-    tent-type: application/json'  | jq
+    curl -s localhost:9090/wallet -d '{"method": "create_account", "params": {"name": "Alice"}}' -X POST -H 'Content-type: application/json'  | jq
     
     {
       "method": "create_account",
@@ -50,7 +49,22 @@ A MobileCoin service for wallet implementations.
       }
     }
     ```
-    
+
+#### Import Account
+
+    Import an existing account from the secret entropy.
+
+    ```curl -s localhost:9090/wallet -d '{"method": "import_account", "params": {"entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b", "name": "Alice"}}' -X POST -H 'Content-type: application/json'  | jq
+
+       {
+         "method": "import_account",
+         "result": {
+           "public_address": "8JtpPPh9mV2PTLrrDz4f2j4PtUpNWnrRg8HKpnuwkZbj5j8bGqtNMNLC9E3zjzcw456215yMjkCVYK4FPZTX4gijYHiuDT31biNHrHmQmsU",
+           "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
+         }
+       }
+    ```
+
 #### List Accounts
 
     ```
@@ -70,8 +84,7 @@ A MobileCoin service for wallet implementations.
 #### Get Account
 
     ```
-    curl -s localhost:9090/wallet -d '{"method": "get_account", "params": {"id": "a8c9c7acb96cf4ad9154eec9384c09
-    f2c75a340b441924847fe5f60a41805bde"}}' -X POST -H 'Content-type: application/json'  | jq
+    curl -s localhost:9090/wallet -d '{"method": "get_account", "params": {"account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"}}' -X POST -H 'Content-type: application/json'  | jq
     
     {
       "method": "get_account",
@@ -85,7 +98,7 @@ A MobileCoin service for wallet implementations.
 #### Update Account Name
 
     ```
-    curl -s localhost:9090/wallet -d '{"method": "update_account_name", "params": {"id": "2b2d5cce6e24f4a396402fcf5f036890f9c06660f5d29f8420b8c89ef9074cd6", "name": "Eve"}}' -X POST -H 'Content-type: application/json'  | jq
+    curl -s localhost:9090/wallet -d '{"method": "update_account_name", "params": {"acount_id": "2b2d5cce6e24f4a396402fcf5f036890f9c06660f5d29f8420b8c89ef9074cd6", "name": "Eve"}}' -X POST -H 'Content-type: application/json'  | jq
     {
       "method": "update_account_name",
       "result": {
@@ -97,8 +110,7 @@ A MobileCoin service for wallet implementations.
 #### Delete Account
 
     ```
-    curl -s localhost:9090/wallet -d '{"method": "delete_account", "params": {"id": "a8c9c7acb96cf4ad9154eec9384
-    c09f2c75a340b441924847fe5f60a41805bde"}}' -X POST -H 'Content-type: application/json'  | jq
+    curl -s localhost:9090/wallet -d '{"method": "delete_account", "params": {"account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"}}' -X POST -H 'Content-type: application/json'  | jq
     
     {
       "method": "delete_account",
@@ -111,6 +123,42 @@ A MobileCoin service for wallet implementations.
 ### TXOs
 
 #### List TXOs for a given account
+
+    ```
+    curl -s localhost:9090/wallet -d '{"method": "list_txos", "params": {"account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"}}' -X POST -H 'Content-type: application/json'  | jq
+
+    {
+      "method": "list_txos",
+      "result": {
+        "txos": [
+          {
+            "txo_id": "000d688cfe28ab128a7514148f700dc6872e97c1498753fdef4fdd8b90601cd1",
+            "value": "97582349900010990",
+            "txo_type": "received",
+            "txo_status": "spent"
+          },
+          {
+            "txo_id": "00a92e639f2601e9af3ba796c62087cc1c6b9d1bc7c4921df4b136d134ff4027",
+            "value": "1",
+            "txo_type": "received",
+            "txo_status": "spent"
+          },
+          {
+            "txo_id": "00ae2c1a638296dbfe0514019e4efa03b0c714c45b391f1d2180a2c50a38ffad",
+            "value": "1",
+            "txo_type": "received",
+            "txo_status": "spent"
+          },
+          {
+            "txo_id": "00d4f35588ed694edaf58762be9edf3a3cb6941f2a9de3ee779f7c91c3a064a0",
+            "value": "97584329900010990",
+            "txo_type": "received",
+            "txo_status": "spent"
+          },
+        ]
+      }
+    }
+    ```
 
 ## Contributing
 

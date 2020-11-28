@@ -172,7 +172,7 @@ impl SyncThread {
                             }
 
                             // This account has blocks to process, put it in the queue.
-                            log::info!(
+                            log::debug!(
                                 logger,
                                 "sync thread noticed monitor {} needs syncing",
                                 account.account_id_hex,

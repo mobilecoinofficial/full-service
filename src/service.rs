@@ -19,19 +19,24 @@ pub enum JsonCommandRequest {
         name: Option<String>,
         first_block: Option<String>,
     },
+    import_account {
+        entropy: String,
+        name: Option<String>,
+        first_block: Option<String>,
+    },
     list_accounts,
     get_account {
-        id: String,
+        account_id: String,
     },
     update_account_name {
-        id: String,
+        account_id: String,
         name: String,
     },
     delete_account {
-        id: String,
+        account_id: String,
     },
     list_txos {
-        id: String,
+        account_id: String,
     },
 }
 #[derive(Deserialize, Serialize)]
@@ -41,6 +46,10 @@ pub enum JsonCommandResponse {
     create_account {
         public_address: String,
         entropy: String,
+        account_id: String,
+    },
+    import_account {
+        public_address: String,
         account_id: String,
     },
     list_accounts {
@@ -73,32 +82,49 @@ fn wallet_api(
             } else {
                 None
             };
-            let (entropy, public_address, account_id) = state.service.create_account(name, fb)?;
+            // FIXME: better way to convert between the json type and enum
+            let result = state.service.create_account(name, fb)?;
             JsonCommandResponse::create_account {
-                public_address,
-                entropy,
-                account_id,
+                public_address: result.public_address_b58,
+                entropy: result.entropy,
+                account_id: result.account_id,
+            }
+        }
+        JsonCommandRequest::import_account {
+            entropy,
+            name,
+            first_block,
+        } => {
+            let fb = if let Some(fb) = first_block {
+                Some(fb.parse::<u64>()?)
+            } else {
+                None
+            };
+            let result = state.service.import_account(entropy, name, fb)?;
+            JsonCommandResponse::import_account {
+                public_address: result.public_address_b58,
+                account_id: result.account_id,
             }
         }
         JsonCommandRequest::list_accounts => JsonCommandResponse::list_accounts {
             accounts: state.service.list_accounts()?,
         },
-        JsonCommandRequest::get_account { id } => {
+        JsonCommandRequest::get_account { account_id } => {
             JsonCommandResponse::get_account {
-                name: state.service.get_account(&id)?,
+                name: state.service.get_account(&account_id)?,
                 balance: "0".to_string(), // FIXME once implemented
             }
         }
-        JsonCommandRequest::update_account_name { id, name } => {
-            state.service.update_account_name(&id, name)?;
+        JsonCommandRequest::update_account_name { account_id, name } => {
+            state.service.update_account_name(&account_id, name)?;
             JsonCommandResponse::update_account_name { success: true }
         }
-        JsonCommandRequest::delete_account { id } => {
-            state.service.delete_account(&id)?;
+        JsonCommandRequest::delete_account { account_id } => {
+            state.service.delete_account(&account_id)?;
             JsonCommandResponse::delete_account { success: true }
         }
-        JsonCommandRequest::list_txos { id } => JsonCommandResponse::list_txos {
-            txos: state.service.list_txos(&id)?,
+        JsonCommandRequest::list_txos { account_id } => JsonCommandResponse::list_txos {
+            txos: state.service.list_txos(&account_id)?,
         },
     };
     Ok(Json(result))
@@ -153,7 +179,7 @@ mod tests {
 
     fn setup(mut rng: &mut StdRng, logger: Logger) -> (Client, LedgerDB) {
         let db_test_context = WalletDbTestContext::default();
-        let wallet_db = db_test_context.get_db_instance();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
         let service = WalletService::new(wallet_db, ledger_db.clone(), None, logger);
@@ -213,7 +239,7 @@ mod tests {
         let body = json!({
             "method": "get_account",
             "params": {
-                "id": *account_id,
+                "account_id": *account_id,
             }
         });
         let result = dispatch(&client, body, &logger);
@@ -225,7 +251,7 @@ mod tests {
         let body = json!({
             "method": "update_account_name",
             "params": {
-                "id": *account_id,
+                "account_id": *account_id,
                 "name": "Eve Main Account",
             }
         });
@@ -235,7 +261,7 @@ mod tests {
         let body = json!({
             "method": "get_account",
             "params": {
-                "id": *account_id,
+                "account_id": *account_id,
             }
         });
         let result = dispatch(&client, body, &logger);
@@ -246,7 +272,7 @@ mod tests {
         let body = json!({
             "method": "delete_account",
             "params": {
-                "id": *account_id,
+                "account_id": *account_id,
             }
         });
         let result = dispatch(&client, body, &logger);
@@ -258,6 +284,29 @@ mod tests {
         let result = dispatch(&client, body, &logger);
         let accounts = result.get("accounts").unwrap().as_array().unwrap();
         assert_eq!(accounts.len(), 0);
+    }
+
+    #[test_with_logger]
+    fn test_import_account(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db) = setup(&mut rng, logger.clone());
+
+        let body = json!({
+            "method": "import_account",
+            "params": {
+                "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
+                "name": "Alice Main Account",
+                "first_block": "200",
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        let public_address = result.get("public_address").unwrap().as_str().unwrap();
+        assert_eq!(public_address, "8JtpPPh9mV2PTLrrDz4f2j4PtUpNWnrRg8HKpnuwkZbj5j8bGqtNMNLC9E3zjzcw456215yMjkCVYK4FPZTX4gijYHiuDT31biNHrHmQmsU");
+        let account_id = result.get("account_id").unwrap().as_str().unwrap();
+        assert_eq!(
+            account_id,
+            "da150710b5fbc21432edf721b530d379fcefbf50cfca93155c47fe20bb219e48"
+        );
     }
 
     #[test_with_logger]
@@ -311,7 +360,7 @@ mod tests {
         let body = json!({
             "method": "list_txos",
             "params": {
-                "id": account_id,
+                "account_id": account_id,
             }
         });
         let result = dispatch(&client, body, &logger);

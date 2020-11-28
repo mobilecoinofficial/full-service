@@ -4,9 +4,11 @@
 
 use crate::db::WalletDb;
 use crate::error::WalletServiceError;
-use crate::service_decorated_types::JsonListTxosResponse;
+use crate::service_decorated_types::{
+    JsonCreateAccountResponse, JsonImportAccountResponse, JsonListTxosResponse,
+};
 use crate::sync::SyncThread;
-use mc_account_keys::{AccountKey, RootIdentity, DEFAULT_SUBADDRESS_INDEX};
+use mc_account_keys::{AccountKey, RootEntropy, RootIdentity, DEFAULT_SUBADDRESS_INDEX};
 use mc_common::logger::{log, Logger};
 use mc_ledger_db::LedgerDB;
 use mc_util_from_random::FromRandom;
@@ -47,7 +49,7 @@ impl WalletService {
         &self,
         name: Option<String>,
         first_block: Option<u64>,
-    ) -> Result<(String, String, String), WalletServiceError> {
+    ) -> Result<JsonCreateAccountResponse, WalletServiceError> {
         log::info!(
             self.logger,
             "Creating account {:?} with first_block: {:?}",
@@ -60,17 +62,55 @@ impl WalletService {
         let account_key = AccountKey::from(&root_id.clone());
         let entropy_str = hex::encode(root_id.root_entropy);
 
+        let fb = first_block.unwrap_or(DEFAULT_FIRST_BLOCK);
         let (account_id, public_address_b58) = self.wallet_db.create_account(
             &account_key,
             DEFAULT_SUBADDRESS_INDEX,
             DEFAULT_CHANGE_SUBADDRESS_INDEX,
             DEFAULT_NEXT_SUBADDRESS_INDEX,
-            first_block.unwrap_or(DEFAULT_FIRST_BLOCK),
-            DEFAULT_FIRST_BLOCK + 1,
+            fb,
+            fb + 1,
             &name.unwrap_or("".to_string()),
         )?;
 
-        Ok((entropy_str.to_string(), public_address_b58, account_id))
+        Ok(JsonCreateAccountResponse {
+            entropy: entropy_str.to_string(),
+            public_address_b58,
+            account_id,
+        })
+    }
+
+    pub fn import_account(
+        &self,
+        entropy: String,
+        name: Option<String>,
+        first_block: Option<u64>,
+    ) -> Result<JsonImportAccountResponse, WalletServiceError> {
+        log::info!(
+            self.logger,
+            "Importing account {:?} with first_block: {:?}",
+            name,
+            first_block,
+        );
+        // Get account key from entropy
+        let mut entropy_bytes = [0u8; 32];
+        hex::decode_to_slice(entropy, &mut entropy_bytes)?;
+        let account_key = AccountKey::from(&RootIdentity::from(&RootEntropy::from(&entropy_bytes)));
+
+        let fb = first_block.unwrap_or(DEFAULT_FIRST_BLOCK);
+        let (account_id, public_address_b58) = self.wallet_db.create_account(
+            &account_key,
+            DEFAULT_SUBADDRESS_INDEX,
+            DEFAULT_CHANGE_SUBADDRESS_INDEX,
+            DEFAULT_NEXT_SUBADDRESS_INDEX,
+            fb,
+            fb + 1,
+            &name.unwrap_or("".to_string()),
+        )?;
+        Ok(JsonImportAccountResponse {
+            public_address_b58,
+            account_id,
+        })
     }
 
     pub fn list_accounts(&self) -> Result<Vec<String>, WalletServiceError> {
@@ -123,7 +163,7 @@ mod tests {
 
     fn setup_service(ledger_db: LedgerDB, logger: Logger) -> WalletService {
         let db_test_context = WalletDbTestContext::default();
-        let wallet_db = db_test_context.get_db_instance();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
 
         WalletService::new(wallet_db, ledger_db, None, logger)
     }
