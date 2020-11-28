@@ -38,6 +38,9 @@ pub enum JsonCommandRequest {
     list_txos {
         account_id: String,
     },
+    get_balance {
+        account_id: String,
+    },
 }
 #[derive(Deserialize, Serialize)]
 #[serde(tag = "method", content = "result")]
@@ -57,7 +60,6 @@ pub enum JsonCommandResponse {
     },
     get_account {
         name: String,
-        balance: String,
     },
     update_account_name {
         success: bool,
@@ -67,6 +69,9 @@ pub enum JsonCommandResponse {
     },
     list_txos {
         txos: Vec<JsonListTxosResponse>,
+    },
+    get_balance {
+        balance: String,
     },
 }
 
@@ -109,12 +114,9 @@ fn wallet_api(
         JsonCommandRequest::list_accounts => JsonCommandResponse::list_accounts {
             accounts: state.service.list_accounts()?,
         },
-        JsonCommandRequest::get_account { account_id } => {
-            JsonCommandResponse::get_account {
-                name: state.service.get_account(&account_id)?,
-                balance: "0".to_string(), // FIXME once implemented
-            }
-        }
+        JsonCommandRequest::get_account { account_id } => JsonCommandResponse::get_account {
+            name: state.service.get_account(&account_id)?,
+        },
         JsonCommandRequest::update_account_name { account_id, name } => {
             state.service.update_account_name(&account_id, name)?;
             JsonCommandResponse::update_account_name { success: true }
@@ -125,6 +127,9 @@ fn wallet_api(
         }
         JsonCommandRequest::list_txos { account_id } => JsonCommandResponse::list_txos {
             txos: state.service.list_txos(&account_id)?,
+        },
+        JsonCommandRequest::get_balance { account_id } => JsonCommandResponse::get_balance {
+            balance: state.service.get_balance(&account_id)?.to_string(),
         },
     };
     Ok(Json(result))
@@ -373,5 +378,16 @@ mod tests {
         assert_eq!(txo_type, "received");
         let value = txo.get("value").unwrap().as_str().unwrap();
         assert_eq!(value, "100");
+
+        // Check the overall balance for the account
+        let body = json!({
+            "method": "get_balance",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        let balance = result.get("balance").unwrap().as_str().unwrap();
+        assert_eq!(balance, "100");
     }
 }

@@ -160,6 +160,19 @@ A MobileCoin service for wallet implementations.
     }
     ```
 
+#### Get Balance for a given account
+
+    ```
+    curl -s localhost:9090/wallet -d '{"method": "get_balance", "params": {"account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"}}' -X POST -H 'Content-type: application/json'  | jq
+
+    {
+      "method": "get_balance",
+      "result": {
+        "balance": "97580449900010991"
+      }
+    }
+    ```
+
 ## Contributing
 
 ### Database Schema
