@@ -296,28 +296,22 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
             )?);
         }
 
-        // Add outputs to our outlays.
+        // Add outputs to our destinations.
         let mut total_value = 0;
         let mut tx_out_to_outlay_index: HashMap<TxOut, usize> = HashMap::default();
         let mut outlay_confirmation_numbers = Vec::default();
         let mut rng = rand::thread_rng();
         for (i, (recipient, out_value)) in self.outlays.iter().enumerate() {
-            // let target_acct_pubkey = Self::get_fog_pubkey_for_public_address(
-            //     &recipient,
-            //     &self.fog_pubkey_resolver,
-            //     self.tombstone,
-            // )?;
+            let target_acct_pubkey = Self::get_fog_pubkey_for_public_address(
+                &recipient,
+                &self.fog_pubkey_resolver,
+                self.tombstone,
+            )?;
 
             let (tx_out, confirmation_number) = self.transaction_builder.add_output(
                 *out_value as u64,
                 &recipient,
-                None,
-                &mut rng,
-            )?;
-            self.transaction_builder.add_output(
-                *out_value as u64,
-                &recipient,
-                None, //target_acct_pubkey.as_ref(),
+                target_acct_pubkey.as_ref(),
                 &mut rng,
             )?;
 
@@ -344,21 +338,21 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
         if change > 0 {
             let change_public_address =
                 from_account_key.subaddress(account.change_subaddress_index as u64);
-            // let main_public_address =
-            //     from_account_key.subaddress(account.main_subaddress_index as u64);
+            let main_public_address =
+                from_account_key.subaddress(account.main_subaddress_index as u64);
 
             // Note: The pubkey still needs to be for the main account
             // FIXME: Needs fixing in mobilecoind
-            // let target_acct_pubkey = Self::get_fog_pubkey_for_public_address(
-            //     &main_public_address,
-            //     &self.fog_pubkey_resolver,
-            //     self.tombstone,
-            // )?;
+            let target_acct_pubkey = Self::get_fog_pubkey_for_public_address(
+                &main_public_address,
+                &self.fog_pubkey_resolver,
+                self.tombstone,
+            )?;
 
             self.transaction_builder.add_output(
                 change,
                 &change_public_address,
-                None, //target_acct_pubkey.as_ref(),
+                target_acct_pubkey.as_ref(),
                 &mut rng,
             )?; // FIXME: map error to indicate error with change
         }
@@ -519,6 +513,6 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
                     }
                     Ok(Some(result.pubkey))
                 }),
-        }
+            }
     }
 }
