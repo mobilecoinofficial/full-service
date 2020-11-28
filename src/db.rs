@@ -277,9 +277,21 @@ impl WalletDb {
                 schema_account_txo_statuses::all_columns,
             ))
             .load(&conn)?;
+        Ok(results)
+    }
 
-        // FIXME: convert into display object, including statuses, or does this happen in service_impl?
+    pub fn list_unspent_txos(&self, account_id_hex: &str) -> Result<Vec<Txo>, WalletDbError> {
+        let conn = self.pool.get()?;
 
+        let results: Vec<Txo> = schema_txos::table
+            .inner_join(
+                schema_account_txo_statuses::table.on(schema_txos::txo_id_hex
+                    .eq(schema_account_txo_statuses::txo_id_hex)
+                    .and(schema_account_txo_statuses::account_id_hex.eq(account_id_hex))
+                    .and(schema_account_txo_statuses::txo_status.eq("unspent"))),
+            )
+            .select(schema_txos::all_columns)
+            .load(&conn)?;
         Ok(results)
     }
 
@@ -589,5 +601,9 @@ mod tests {
         // Verify that the next block height is + 1
         let account = walletdb.get_account(&account_id_hex).unwrap();
         assert_eq!(account.next_block, spent_block_height + 1);
+
+        // Verify that there are no unspent txos
+        let unspent = walletdb.list_unspent_txos(&account_id_hex).unwrap();
+        assert!(unspent.is_empty());
     }
 }
