@@ -210,7 +210,6 @@ mod tests {
     use mc_account_keys::PublicAddress;
     use mc_common::logger::{log, test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
-    use mc_fog_report_validation::MockFogPubkeyResolver;
     use mc_ledger_db::LedgerDB;
     use mc_transaction_core::ring_signature::KeyImage;
     use rand::{rngs::StdRng, SeedableRng};
@@ -220,7 +219,6 @@ mod tests {
     };
     use rocket_contrib::json::JsonValue;
     use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
-    use std::sync::Arc;
     use std::time::Duration;
 
     fn get_free_port() -> u16 {
@@ -573,8 +571,8 @@ mod tests {
             .unwrap();
         assert_eq!(outlay_confirmation_numbers.len(), 1);
 
-        // Tombstone not set FIXME: is this correct?
+        // Tombstone block = ledger height (12 to start + 2 new blocks + 50 default tombstone)
         let prefix_tombstone = tx_prefix.get("tombstone_block").unwrap();
-        assert_eq!(prefix_tombstone, "0");
+        assert_eq!(prefix_tombstone, "64");
     }
 }
