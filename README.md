@@ -274,6 +274,14 @@ curl -s localhost:9090/wallet \
 | :------------- | :----------------------- | :------------------------ |
 | `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
 
+### Addresses
+
+#### Create Assigned Subaddress
+
+```sh
+
+```
+
 ### Transactions
 
 #### Send Transaction

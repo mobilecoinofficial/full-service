@@ -51,6 +51,20 @@ pub enum JsonCommandRequest {
     get_balance {
         account_id: String,
     },
+    create_address {
+        account_id: String,
+        comment: Option<String>,
+    },
+    send_transaction {
+        account_id: String,
+        recipient_public_address: String,
+        value: String,
+        input_txo_ids: Option<Vec<String>>,
+        fee: Option<String>,
+        tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
+        comment: Option<String>,
+    },
     build_transaction {
         account_id: String,
         recipient_public_address: String,
@@ -62,16 +76,6 @@ pub enum JsonCommandRequest {
     },
     submit_transaction {
         tx_proposal: JsonTxProposal,
-        comment: Option<String>,
-    },
-    send_transaction {
-        account_id: String,
-        recipient_public_address: String,
-        value: String,
-        input_txo_ids: Option<Vec<String>>,
-        fee: Option<String>,
-        tombstone_block: Option<String>,
-        max_spendable_value: Option<String>,
         comment: Option<String>,
     },
     list_transactions {
@@ -109,13 +113,17 @@ pub enum JsonCommandResponse {
     get_balance {
         status: JsonBalanceResponse,
     },
+    create_address {
+        public_address_b58: String,
+        address_book_entry_id: Option<String>,
+    },
+    send_transaction {
+        transaction: JsonSubmitResponse,
+    },
     build_transaction {
         tx_proposal: JsonTxProposal,
     },
     submit_transaction {
-        transaction: JsonSubmitResponse,
-    },
-    send_transaction {
         transaction: JsonSubmitResponse,
     },
     list_transactions {
@@ -179,6 +187,42 @@ fn wallet_api(
         JsonCommandRequest::get_balance { account_id } => JsonCommandResponse::get_balance {
             status: state.service.get_balance(&account_id)?,
         },
+        JsonCommandRequest::create_address {
+            account_id,
+            comment,
+        } => {
+            let result = state
+                .service
+                .create_assigned_subaddress(&account_id, comment.as_deref())?;
+            JsonCommandResponse::create_address {
+                public_address_b58: result.public_address_b58,
+                address_book_entry_id: result.address_book_entry_id,
+            }
+        }
+        JsonCommandRequest::send_transaction {
+            account_id,
+            recipient_public_address,
+            value,
+            input_txo_ids,
+            fee,
+            tombstone_block,
+            max_spendable_value,
+            comment,
+        } => {
+            let transaction_details = state.service.send_transaction(
+                &account_id,
+                &recipient_public_address,
+                value,
+                input_txo_ids.as_ref(),
+                fee,
+                tombstone_block,
+                max_spendable_value,
+                comment,
+            )?;
+            JsonCommandResponse::send_transaction {
+                transaction: transaction_details,
+            }
+        }
         JsonCommandRequest::build_transaction {
             account_id,
             recipient_public_address,
@@ -207,30 +251,6 @@ fn wallet_api(
         } => {
             let transaction_details = state.service.submit_transaction(tx_proposal, comment)?;
             JsonCommandResponse::submit_transaction {
-                transaction: transaction_details,
-            }
-        }
-        JsonCommandRequest::send_transaction {
-            account_id,
-            recipient_public_address,
-            value,
-            input_txo_ids,
-            fee,
-            tombstone_block,
-            max_spendable_value,
-            comment,
-        } => {
-            let transaction_details = state.service.send_transaction(
-                &account_id,
-                &recipient_public_address,
-                value,
-                input_txo_ids.as_ref(),
-                fee,
-                tombstone_block,
-                max_spendable_value,
-                comment,
-            )?;
-            JsonCommandResponse::send_transaction {
                 transaction: transaction_details,
             }
         }

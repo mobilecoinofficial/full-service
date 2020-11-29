@@ -106,6 +106,9 @@ pub enum WalletDbError {
 
     /// Constructed a transaction that is not linked to any account in the wallet
     TransactionLacksAccount,
+
+    /// Error decoding prost {0}
+    ProstDecode(prost::DecodeError),
 }
 
 impl From<diesel::result::Error> for WalletDbError {
@@ -123,6 +126,12 @@ impl From<rocket_contrib::databases::r2d2::Error> for WalletDbError {
 impl From<mc_api::display::Error> for WalletDbError {
     fn from(src: mc_api::display::Error) -> Self {
         Self::B58EncodeError(src)
+    }
+}
+
+impl From<prost::DecodeError> for WalletDbError {
+    fn from(src: prost::DecodeError) -> Self {
+        Self::ProstDecode(src)
     }
 }
 

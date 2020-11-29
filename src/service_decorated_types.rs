@@ -46,6 +46,12 @@ pub struct JsonBalanceResponse {
 }
 
 #[derive(Deserialize, Serialize, Default, Debug)]
+pub struct JsonCreateAddressResponse {
+    pub public_address_b58: String,
+    pub address_book_entry_id: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, Default, Debug)]
 pub struct JsonSubmitResponse {
     pub transaction_id: String,
 }
