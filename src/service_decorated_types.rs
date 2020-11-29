@@ -5,20 +5,20 @@
 use crate::models::{AccountTxoStatus, Txo};
 use serde_derive::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Default)]
+#[derive(Deserialize, Serialize, Default, Debug)]
 pub struct JsonCreateAccountResponse {
     pub entropy: String,
     pub public_address_b58: String,
     pub account_id: String,
 }
 
-#[derive(Deserialize, Serialize, Default)]
+#[derive(Deserialize, Serialize, Default, Debug)]
 pub struct JsonImportAccountResponse {
     pub public_address_b58: String,
     pub account_id: String,
 }
 
-#[derive(Deserialize, Serialize, Default)]
+#[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct JsonListTxosResponse {
     pub txo_id: String,
     pub value: String,
@@ -35,4 +35,12 @@ impl JsonListTxosResponse {
             txo_status: account_txo_status.txo_status.clone(),
         }
     }
+}
+
+#[derive(Deserialize, Serialize, Default, Debug)]
+pub struct JsonBalanceResponse {
+    pub unspent: String,
+    pub pending: String,
+    pub spent: String,
+    pub unknown: String,
 }

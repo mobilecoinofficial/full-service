@@ -1,7 +1,7 @@
 // Copyright (c) 2020 MobileCoin Inc.
 
 use crate::error::WalletAPIError;
-use crate::service_decorated_types::JsonListTxosResponse;
+use crate::service_decorated_types::{JsonBalanceResponse, JsonListTxosResponse};
 use crate::service_impl::WalletService;
 use mc_connection::ThickClient;
 use mc_connection::UserTxConnection;
@@ -91,7 +91,7 @@ pub enum JsonCommandResponse {
         txos: Vec<JsonListTxosResponse>,
     },
     get_balance {
-        balance: String,
+        status: JsonBalanceResponse,
     },
     build_transaction {
         tx_proposal: JsonTxProposal,
@@ -155,7 +155,7 @@ fn wallet_api(
             txos: state.service.list_txos(&account_id)?,
         },
         JsonCommandRequest::get_balance { account_id } => JsonCommandResponse::get_balance {
-            balance: state.service.get_balance(&account_id)?.to_string(),
+            status: state.service.get_balance(&account_id)?,
         },
         JsonCommandRequest::build_transaction {
             account_id,
@@ -457,8 +457,9 @@ mod tests {
             }
         });
         let result = dispatch(&client, body, &logger);
-        let balance = result.get("balance").unwrap().as_str().unwrap();
-        assert_eq!(balance, "100");
+        let balance_status = result.get("status").unwrap();
+        let unspent = balance_status.get("unspent").unwrap().as_str().unwrap();
+        assert_eq!(unspent, "100");
     }
 
     #[test_with_logger]
