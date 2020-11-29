@@ -37,6 +37,9 @@ pub enum WalletServiceError {
 
     /// Error converting to/from API protos
     ProtoConversion(mc_api::ConversionError),
+
+    /// Error Converting Proto but throws convert::Infallible
+    ProtoConversionInfallible,
 }
 
 impl From<WalletDbError> for WalletServiceError {
@@ -91,6 +94,9 @@ pub enum WalletDbError {
 
     /// Error encoding b58 {0}
     B58EncodeError(mc_api::display::Error),
+
+    /// Constructed a malformed transaction with multiple account IDs
+    MultipleAccountIDsInTransaction,
 }
 
 impl From<diesel::result::Error> for WalletDbError {
