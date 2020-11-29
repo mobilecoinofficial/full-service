@@ -234,6 +234,30 @@ curl -s localhost:9090/wallet \
 
 ### Transactions
 
+#### Send Transaction
+
+Sending a transaction is a convenience method that first builds and then submits a transaction.
+
+```
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "send_transaction",
+        "params": {
+          "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
+          "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+          "value": "42000000000000"
+        }
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
+
+{
+  "method": "send_transaction",
+  "result": {
+    "success": true
+  }
+}
+```
+
 #### Build Transaction
 
 You can build a transaction to confirm its contents before submitting it to the network.

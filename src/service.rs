@@ -61,6 +61,15 @@ pub enum JsonCommandRequest {
     submit_transaction {
         tx_proposal: JsonTxProposal,
     },
+    send_transaction {
+        account_id: String,
+        input_txo_ids: Option<Vec<String>>,
+        recipient_public_address: String,
+        value: String,
+        fee: Option<String>,
+        tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
+    },
 }
 #[derive(Deserialize, Serialize)]
 #[serde(tag = "method", content = "result")]
@@ -97,6 +106,9 @@ pub enum JsonCommandResponse {
         tx_proposal: JsonTxProposal,
     },
     submit_transaction {
+        success: bool, // FIXME: there will be more here
+    },
+    send_transaction {
         success: bool, // FIXME: there will be more here
     },
 }
@@ -182,6 +194,26 @@ fn wallet_api(
         JsonCommandRequest::submit_transaction { tx_proposal } => {
             state.service.submit_transaction(tx_proposal)?;
             JsonCommandResponse::submit_transaction { success: true }
+        }
+        JsonCommandRequest::send_transaction {
+            account_id,
+            input_txo_ids,
+            recipient_public_address,
+            value,
+            fee,
+            tombstone_block,
+            max_spendable_value,
+        } => {
+            state.service.send_transaction(
+                &account_id,
+                input_txo_ids.as_ref(),
+                &recipient_public_address,
+                value,
+                fee,
+                tombstone_block,
+                max_spendable_value,
+            )?;
+            JsonCommandResponse::send_transaction { success: true }
         }
     };
     Ok(Json(result))
