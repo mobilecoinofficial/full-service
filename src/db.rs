@@ -803,6 +803,7 @@ impl WalletDb {
                 println!(
                     "\x1b[1;32m \t\t\t UPDATE_TX_STATUS: now updating status to succeeded \x1b[0m"
                 );
+                // FIXME: Also update the block height where it succeeded
                 diesel::update(dsl_transaction_logs.find(&transaction.transaction_id_hex))
                     .set(schema_transaction_logs::status.eq("succeeded"))
                     .execute(conn)?;
@@ -810,6 +811,7 @@ impl WalletDb {
                 println!(
                     "\x1b[1;31m \t\t\t UPDATE_TX_STATUS: now updating status to failed \x1b[0m"
                 );
+                // FIXME: Also update the block height where it failed
                 diesel::update(dsl_transaction_logs.find(&transaction.transaction_id_hex))
                     .set(schema_transaction_logs::status.eq("failed"))
                     .execute(conn)?;
