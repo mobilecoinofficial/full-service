@@ -2,7 +2,10 @@
 
 //! DB Models
 
-use super::schema::{account_txo_statuses, accounts, assigned_subaddresses, txos};
+use super::schema::{
+    account_txo_statuses, accounts, assigned_subaddresses, transaction_logs, transactions_txos,
+    txos,
+};
 use serde::Serialize;
 
 #[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
@@ -15,7 +18,7 @@ pub struct Account {
     pub next_subaddress_index: i64,
     pub first_block: i64,
     pub next_block: i64,
-    pub name: String,
+    pub name: String, // empty string for nullable
 }
 
 #[derive(Insertable)]
@@ -98,7 +101,7 @@ pub struct AssignedSubaddress {
     pub address_book_entry: Option<i64>,
     pub public_address: Vec<u8>,
     pub subaddress_index: i64,
-    pub comment: String,
+    pub comment: String, // empty string for nullable
     pub expected_value: Option<i64>,
     pub subaddress_spend_key: Vec<u8>, // FIXME: should we be indexing on this col? We do a lot of lookups by this
 }
@@ -114,4 +117,58 @@ pub struct NewAssignedSubaddress<'a> {
     pub comment: &'a str,
     pub expected_value: Option<i64>,
     pub subaddress_spend_key: &'a Vec<u8>,
+}
+
+#[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
+#[belongs_to(Account, foreign_key = "account_id_hex")]
+#[belongs_to(AssignedSubaddress, foreign_key = "assigned_subaddress_b58")]
+#[primary_key(transaction_id_hex)]
+#[table_name = "transaction_logs"]
+pub struct TransactionLog {
+    pub transaction_id_hex: String,
+    pub account_id_hex: String,
+    pub recipient_public_address_b58: String, // empty string for nullable
+    pub assigned_subaddress_b58: String,      // empty string for nullable
+    pub value: i64,
+    pub fee: Option<i64>,
+    // Statuses: proposed, pending, succeeded, failed
+    pub status: String,
+    pub sent_time: String, // empty string for nullable
+    pub block_height: i64,
+    pub comment: String, // empty string for nullable
+    // Directions: sent, received
+    pub direction: String,
+}
+
+#[derive(Insertable)]
+#[table_name = "transaction_logs"]
+pub struct NewTransactionLog<'a> {
+    pub transaction_id_hex: &'a str,
+    pub account_id_hex: &'a str,
+    pub recipient_public_address_b58: &'a str,
+    pub assigned_subaddress_b58: &'a str,
+    pub value: i64,
+    pub fee: Option<i64>,
+    pub status: &'a str,
+    pub sent_time: &'a str,
+    pub block_height: i64,
+    pub comment: &'a str,
+    pub direction: &'a str,
+}
+
+#[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
+#[belongs_to(TransactionLog, foreign_key = "transaction_id_hex")]
+#[belongs_to(Txo, foreign_key = "txo_id_hex")]
+#[table_name = "transactions_txos"]
+#[primary_key(transaction_id_hex, txo_id_hex)]
+pub struct TransactionsTxosEntry {
+    pub transaction_id_hex: String,
+    pub txo_id_hex: String,
+}
+
+#[derive(Insertable)]
+#[table_name = "transactions_txos"]
+pub struct NewTransactionsTxosEntry<'a> {
+    pub transaction_id_hex: &'a str,
+    pub txo_id_hex: &'a str,
 }

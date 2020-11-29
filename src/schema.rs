@@ -34,6 +34,29 @@ table! {
 }
 
 table! {
+    transaction_logs (transaction_id_hex) {
+        transaction_id_hex -> Text,
+        account_id_hex -> Text,
+        recipient_public_address_b58 -> Text,
+        assigned_subaddress_b58 -> Text,
+        value -> BigInt,
+        fee -> Nullable<BigInt>,
+        status -> Text,
+        sent_time -> Text,
+        block_height -> BigInt,
+        comment -> Nullable<Text>,
+        direction -> Text,
+    }
+}
+
+table! {
+    transactions_txos (transaction_id_hex, txo_id_hex) {
+        transaction_id_hex -> Text,
+        txo_id_hex -> Text,
+    }
+}
+
+table! {
     txos (txo_id_hex) {
         txo_id_hex -> Text,
         value -> BigInt,
@@ -53,5 +76,16 @@ table! {
 joinable!(account_txo_statuses -> accounts (account_id_hex));
 joinable!(account_txo_statuses -> txos (txo_id_hex));
 joinable!(assigned_subaddresses -> accounts (account_id_hex));
+joinable!(transaction_logs -> accounts (account_id_hex));
+joinable!(transaction_logs -> assigned_subaddresses (assigned_subaddress_b58));
+joinable!(transactions_txos -> transaction_logs (transaction_id_hex));
+joinable!(transactions_txos -> txos (txo_id_hex));
 
-allow_tables_to_appear_in_same_query!(account_txo_statuses, accounts, assigned_subaddresses, txos,);
+allow_tables_to_appear_in_same_query!(
+    account_txo_statuses,
+    accounts,
+    assigned_subaddresses,
+    transaction_logs,
+    transactions_txos,
+    txos,
+);

@@ -45,4 +45,28 @@ create TABLE assigned_subaddresses (
   expected_value UNSIGNED BIG INT,
   subaddress_spend_key BLOB NOT NULL,
   FOREIGN KEY (account_id_hex) REFERENCES accounts(account_id_hex)
+);
+
+create TABLE transaction_logs (
+    transaction_id_hex VARCHAR NOT NULL PRIMARY KEY UNIQUE,
+    account_id_hex VARCHAR NOT NULL,
+    recipient_public_address_b58 VARCHAR NOT NULL DEFAULT '', -- FIXME add foreign key from recipient public addresses table
+    assigned_subaddress_b58 VARCHAR NOT NULL DEFAULT '',
+    value UNSIGNED BIG INT NOT NULL,
+    fee UNSIGNED BIG INT,
+    status VARCHAR(8) NOT NULL,
+    sent_time VARCHAR NOT NULL DEFAULT '',
+    block_height UNSIGNED BIG INT NOT NULL,
+    comment TEXT,
+    direction VARCHAR(8) NOT NULL,
+    FOREIGN KEY (account_id_hex) REFERENCES accounts(account_id_hex),
+    FOREIGN KEY (assigned_subaddress_b58) REFERENCES assigned_subaddresses(assigned_subaddress_b58)
+);
+
+create TABLE transactions_txos (
+    transaction_id_hex VARCHAR NOT NULL,
+    txo_id_hex VARCHAR NOT NULL,
+    PRIMARY KEY (transaction_id_hex, txo_id_hex),
+    FOREIGN KEY (transaction_id_hex) REFERENCES transaction_logs(transaction_id_hex),
+    FOREIGN KEY (txo_id_hex) REFERENCES txos(txo_id_hex)
 )
