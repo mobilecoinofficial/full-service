@@ -432,15 +432,15 @@ mod tests {
         let tx_proposal = service
             .build_transaction(
                 &alice.account_id,
-                None,
                 &bob.public_address_b58,
                 "42000000000000".to_string(),
                 None,
                 None,
                 None,
+                None,
             )
             .unwrap();
-        let _submitted = service.submit_transaction(tx_proposal).unwrap();
+        let _submitted = service.submit_transaction(tx_proposal, None).unwrap();
 
         // We should now have 3 txos - one pending, two minted (one of which will be change)
         let txos = service.list_txos(&alice.account_id).unwrap();
