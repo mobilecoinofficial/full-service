@@ -253,6 +253,54 @@ impl WalletDb {
         Ok(())
     }
 
+    pub fn create_assigned_subaddress(
+        &self,
+        account_id_hex: &str,
+        comment: &str,
+    ) -> Result<String, WalletDbError> {
+        let conn = self.pool.get()?;
+
+        let account: Account = match dsl_accounts
+            .find(account_id_hex)
+            .get_result::<Account>(&conn)
+        {
+            Ok(a) => a,
+            // Match on NotFound to get a more informative NotFound Error
+            Err(diesel::result::Error::NotFound) => {
+                return Err(WalletDbError::NotFound(account_id_hex.to_string()));
+            }
+            Err(e) => {
+                return Err(e.into());
+            }
+        };
+        let account_key: AccountKey = mc_util_serial::decode(&account.encrypted_account_key)?;
+        let subaddress_index = account.next_subaddress_index;
+        let subaddress = account_key.subaddress(subaddress_index as u64);
+
+        let subaddress_b58 = b58_encode(&subaddress)?;
+        let subaddress_entry = NewAssignedSubaddress {
+            assigned_subaddress_b58: &subaddress_b58,
+            account_id_hex,
+            address_book_entry: None, // FIXME: Address Book Entry if details provided, or None always for main?
+            public_address: &mc_util_serial::encode(&subaddress),
+            subaddress_index: subaddress_index as i64,
+            comment,
+            expected_value: None, // FIXME: rethink if we need this
+            subaddress_spend_key: &mc_util_serial::encode(subaddress.spend_public_key()),
+        };
+
+        diesel::insert_into(schema_assigned_subaddresses::table)
+            .values(&subaddress_entry)
+            .execute(&conn)?;
+
+        // Update the next subaddress index for the account
+        diesel::update(dsl_accounts.find(account_id_hex))
+            .set(schema_accounts::next_subaddress_index.eq(subaddress_index + 1))
+            .execute(&conn)?;
+
+        Ok(subaddress_b58)
+    }
+
     /// Create a TXO entry
     pub fn create_received_txo(
         &self,

@@ -5,8 +5,8 @@
 use crate::db::WalletDb;
 use crate::error::WalletServiceError;
 use crate::service_decorated_types::{
-    JsonBalanceResponse, JsonCreateAccountResponse, JsonImportAccountResponse,
-    JsonListTxosResponse, JsonSubmitResponse, JsonTransactionResponse,
+    JsonBalanceResponse, JsonCreateAccountResponse, JsonCreateAddressResponse,
+    JsonImportAccountResponse, JsonListTxosResponse, JsonSubmitResponse, JsonTransactionResponse,
 };
 use crate::sync::SyncThread;
 use crate::transaction_builder::WalletTransactionBuilder;
@@ -211,11 +211,27 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         let spent: u64 = status_map["spent"].iter().map(|t| t.value as u64).sum();
         let unknown: u64 = status_map["unknown"].iter().map(|t| t.value as u64).sum();
 
+        // FIXME: add block height info (see also BEAM wallet-status)
         Ok(JsonBalanceResponse {
             unspent: unspent.to_string(),
             pending: pending.to_string(),
             spent: spent.to_string(),
             unknown: unknown.to_string(),
+        })
+    }
+
+    pub fn create_assigned_subaddress(
+        &self,
+        account_id_hex: &str,
+        comment: Option<&str>,
+    ) -> Result<JsonCreateAddressResponse, WalletServiceError> {
+        let public_address_b58 = self
+            .wallet_db
+            .create_assigned_subaddress(account_id_hex, comment.unwrap_or(""))?;
+
+        Ok(JsonCreateAddressResponse {
+            public_address_b58,
+            address_book_entry_id: None,
         })
     }
 
