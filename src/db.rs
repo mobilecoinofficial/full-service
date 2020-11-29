@@ -7,6 +7,7 @@ use mc_account_keys::{AccountKey, PublicAddress, DEFAULT_SUBADDRESS_INDEX};
 use mc_common::logger::{log, Logger};
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::RistrettoPublic;
+use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::ring_signature::KeyImage;
 use mc_transaction_core::tx::TxOut;
 
@@ -63,11 +64,27 @@ impl AccountID {
     }
 }
 
-/// The txo ID is derived from the contents of the txo
-#[derive(Digestible)]
-struct ConstTxoData {
-    /// The public address of the main subaddress for this account
-    pub txo: TxOut,
+#[derive(Debug)]
+pub struct TxoID(String);
+
+impl From<&TxOut> for TxoID {
+    fn from(src: &TxOut) -> TxoID {
+        /// The txo ID is derived from the contents of the txo
+        #[derive(Digestible)]
+        struct ConstTxoData {
+            /// The public address of the main subaddress for this account
+            pub txo: TxOut,
+        }
+        let const_data = ConstTxoData { txo: src.clone() };
+        let temp: [u8; 32] = const_data.digest32::<MerlinTranscript>(b"txo_data");
+        Self(hex::encode(temp))
+    }
+}
+
+impl TxoID {
+    pub fn to_string(&self) -> String {
+        self.0.clone()
+    }
 }
 
 #[derive(Clone)]
@@ -222,13 +239,11 @@ impl WalletDb {
     ) -> Result<String, WalletDbError> {
         let conn = self.pool.get()?;
 
-        let const_data = ConstTxoData { txo: txo.clone() };
-        let temp: [u8; 32] = const_data.digest32::<MerlinTranscript>(b"txo_data");
-        let txo_id_hex = hex::encode(temp);
+        let txo_id = TxoID::from(&txo);
 
         let key_image_bytes = mc_util_serial::encode(&key_image);
         let new_txo = NewTxo {
-            txo_id_hex: &txo_id_hex,
+            txo_id_hex: &txo_id.0,
             value: value as i64,
             target_key: &mc_util_serial::encode(&txo.target_key),
             public_key: &mc_util_serial::encode(&txo.public_key),
@@ -248,7 +263,7 @@ impl WalletDb {
 
         let new_account_txo_status = NewAccountTxoStatus {
             account_id_hex: &account_id_hex,
-            txo_id_hex: &txo_id_hex,
+            txo_id_hex: &txo_id.0,
             txo_status: "unspent",
             txo_type: "received",
         };
@@ -257,7 +272,7 @@ impl WalletDb {
             .values(&new_account_txo_status)
             .execute(&conn)?;
 
-        Ok(txo_id_hex)
+        Ok(txo_id.0)
     }
 
     /// List all txos for a given account.
@@ -461,6 +476,114 @@ impl WalletDb {
             .execute(&conn)?;
         Ok(())
     }
+
+    pub fn update_submitted_transaction(
+        &self,
+        tx_proposal: TxProposal,
+    ) -> Result<(), WalletDbError> {
+        let conn = self.pool.get()?;
+
+        // FIXME: make these updates atomic
+
+        // First update all inputs to "pending." They will remain pending until their key_image
+        // hits the ledger.
+        let account_id_hex = {
+            let mut account_id = None;
+            for utxo in tx_proposal.utxos.iter() {
+                // Get the associated TxoID
+                let txo_id = TxoID::from(&utxo.tx_out);
+
+                // Find the account associated with this Txo
+                let matches = schema_account_txo_statuses::table
+                    .select(schema_account_txo_statuses::account_id_hex)
+                    .filter(schema_account_txo_statuses::txo_id_hex.eq(txo_id.0.clone()))
+                    .load::<String>(&conn)?;
+
+                if matches.is_empty() {
+                    return Err(WalletDbError::NotFound(txo_id.0.clone()));
+                } else if matches.len() > 1 {
+                    return Err(WalletDbError::DuplicateEntries(txo_id.0.clone()));
+                } else {
+                    let account_id_hex = matches[0].clone();
+                    account_id = Some(account_id_hex.clone());
+
+                    // Update the status
+                    diesel::update(
+                        dsl_account_txo_statuses.find((account_id_hex.clone(), &txo_id.0)),
+                    )
+                    .set(schema_account_txo_statuses::txo_status.eq("pending".to_string()))
+                    .execute(&conn)?;
+                }
+            }
+            if let Some(account_id_hex) = account_id {
+                account_id_hex
+            } else {
+                return Err(WalletDbError::MultipleAccountIDsInTransaction);
+            }
+        };
+
+        // Next, add all of our minted outputs to the Txo Table
+        for (i, output) in tx_proposal.tx.prefix.outputs.iter().enumerate() {
+            let txo_id = TxoID::from(output);
+
+            // FIXME: currently only have the value and proofs for outlays, not change - will need
+            //        to amend what's saved in the TxProposal to include change as outlays
+            let (value, proof) = if let Some(outlay_index) = tx_proposal
+                .outlay_index_to_tx_out_index
+                .iter()
+                .find_map(|(k, &v)| if v == i { Some(k) } else { None })
+            {
+                (
+                    tx_proposal.outlays[outlay_index.clone()].value,
+                    Some(outlay_index.clone()),
+                )
+            } else {
+                (0, None)
+            };
+
+            // FIXME: Note, the subaddress_index is missing from the minted txo - do we want
+            //        this to be the subaddress from which it was minted? We only have that during
+            //        construction.
+            let subaddress_index = 0;
+
+            let encoded_proof =
+                proof.map(|p| mc_util_serial::encode(&tx_proposal.outlay_confirmation_numbers[p]));
+
+            let new_txo = NewTxo {
+                txo_id_hex: &txo_id.0,
+                value: value as i64,
+                target_key: &mc_util_serial::encode(&output.target_key),
+                public_key: &mc_util_serial::encode(&output.public_key),
+                e_fog_hint: &mc_util_serial::encode(&output.e_fog_hint),
+                txo: &mc_util_serial::encode(output),
+                subaddress_index: subaddress_index as i64,
+                key_image: None, // Only the recipient can calculate the KeyImage
+                received_block_height: None,
+                spent_tombstone_block_height: Some(tx_proposal.tx.prefix.tombstone_block as i64),
+                spent_block_height: None,
+                proof: encoded_proof.as_ref(),
+            };
+
+            diesel::insert_into(schema_txos::table)
+                .values(&new_txo)
+                .execute(&conn)?;
+
+            let new_account_txo_status = NewAccountTxoStatus {
+                account_id_hex: &account_id_hex,
+                txo_id_hex: &txo_id.0,
+                txo_status: "unknown", // We cannot track spent status for minted TXOs unless change
+                txo_type: "minted",
+            };
+
+            diesel::insert_into(schema_account_txo_statuses::table)
+                .values(&new_account_txo_status)
+                .execute(&conn)?;
+        }
+
+        // FIXME: TODO: create a transaction table entry
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -649,6 +772,10 @@ mod tests {
         assert_eq!(unspent.len(), 1);
 
         // Now we'll "spend" the TXO
+        // FIXME TODO: construct transaction proposal to spend it, maybe needs a helper in test_utils
+        // self.update_submitted_transaction(tx_proposal)?;
+
+        // Now we'll process the ledger and verify that the TXO was spent
         let spent_block_height = 365;
 
         walletdb

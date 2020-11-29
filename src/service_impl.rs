@@ -17,6 +17,7 @@ use mc_connection::{ConnectionManager, RetryableUserTxConnection, UserTxConnecti
 use mc_crypto_rand::rand_core::RngCore;
 use mc_fog_report_connection::FogPubkeyResolver;
 use mc_ledger_db::LedgerDB;
+use mc_mobilecoind::payments::TxProposal;
 use mc_mobilecoind_json::data_types::JsonTxProposal;
 use mc_util_from_random::FromRandom;
 use std::convert::TryFrom;
@@ -242,6 +243,9 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         let tx_proposal = builder.build()?;
         // FIXME: Would rather not have to convert it to proto first
         let proto_tx_proposal = mc_mobilecoind_api::TxProposal::from(&tx_proposal);
+
+        // FIXME: Might be nice to have a tx_proposal table so that you don't have to
+        //        write these out to local files. That's V2, though.
         Ok(JsonTxProposal::from(&proto_tx_proposal))
     }
 
@@ -258,11 +262,14 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         let idx = self.submit_node_offset.fetch_add(1, Ordering::SeqCst);
         let responder_id = &responder_ids[idx % responder_ids.len()];
 
-        let proto_tx = mc_api::external::Tx::try_from(&tx_proposal.tx)
+        // FIXME: would prefer not to convert to proto as intermediary
+        let tx_proposal_proto = mc_mobilecoind_api::TxProposal::try_from(&tx_proposal)
             .map_err(|e| WalletServiceError::JsonConversion(e))?;
 
         // Try and submit.
-        let tx = mc_transaction_core::tx::Tx::try_from(&proto_tx)?;
+        let tx = mc_transaction_core::tx::Tx::try_from(tx_proposal_proto.get_tx())
+            .map_err(|_| WalletServiceError::ProtoConversionInfallible)?;
+
         let block_height = self
             .peer_manager
             .conn(responder_id)
@@ -276,8 +283,9 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
             tx,
             block_height
         );
-
-        // FIXME: update db tables with submitted block height etc
+        let converted_proposal = TxProposal::try_from(&tx_proposal_proto)?;
+        self.wallet_db
+            .update_submitted_transaction(converted_proposal)?;
 
         // Successfully submitted.
         Ok(())
@@ -287,12 +295,16 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::{get_test_ledger, setup_peer_manager, WalletDbTestContext};
+    use crate::test_utils::{
+        add_block_to_ledger_db, get_test_ledger, setup_peer_manager, WalletDbTestContext,
+    };
     use mc_account_keys::PublicAddress;
     use mc_common::logger::{test_with_logger, Logger};
     use mc_connection_test_utils::MockBlockchainConnection;
     use mc_fog_report_validation::MockFogPubkeyResolver;
+    use mc_transaction_core::ring_signature::KeyImage;
     use rand::{rngs::StdRng, SeedableRng};
+    use std::time::Duration;
 
     fn setup_service(
         ledger_db: LedgerDB,
@@ -312,15 +324,56 @@ mod tests {
     }
 
     #[test_with_logger]
-    fn test_create_account(logger: Logger) {
+    fn test_txo_lifecycle(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
-        let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
-        let service = setup_service(ledger_db, logger);
-        let _account_details = service
+        let service = setup_service(ledger_db.clone(), logger);
+        let alice = service
             .create_account(Some("Alice's Main Account".to_string()), None)
+            .unwrap();
+
+        // Add a block with a transaction for this recipient
+        // Add a block with a txo for this address (note that value is smaller than MINIMUM_FEE)
+        let alice_public_address = b58_decode(&alice.public_address_b58);
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![alice_public_address.clone()],
+            100000000000000, // 100.0 MOB
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        // Sleep to let the sync thread process the txo
+        std::thread::sleep(Duration::from_secs(2));
+
+        // Verify balance for Alice
+        let balance = service.get_balance(&alice.account_id).unwrap();
+
+        assert_eq!(balance, 100000000000000);
+
+        // Verify that we have 1 txo
+        let txos = service.list_txos(&alice.account_id).unwrap();
+        assert_eq!(txos.len(), 1);
+
+        // Add another account
+        let bob = service
+            .create_account(Some("Bob's Main Account".to_string()), None)
+            .unwrap();
+
+        // Construct a new transaction to Bob
+        let tx_proposal = service
+            .build_transaction(
+                &alice.account_id,
+                None,
+                &bob.public_address_b58,
+                "42000000000000".to_string(),
+                None,
+                None,
+                None,
+            )
             .unwrap();
 
         // FIXME: TODO - assert other things that should be true with the service state
