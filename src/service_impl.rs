@@ -7,6 +7,7 @@ use crate::error::WalletServiceError;
 use crate::service_decorated_types::{
     JsonBalanceResponse, JsonCreateAccountResponse, JsonCreateAddressResponse,
     JsonImportAccountResponse, JsonListTxosResponse, JsonSubmitResponse, JsonTransactionResponse,
+    JsonTxo,
 };
 use crate::sync::SyncThread;
 use crate::transaction_builder::WalletTransactionBuilder;
@@ -199,6 +200,21 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
             .collect())
     }
 
+    pub fn get_txo(
+        &self,
+        account_id_hex: &str,
+        txo_id_hex: &str,
+    ) -> Result<JsonTxo, WalletServiceError> {
+        // FIXME: also add transaction IDs in which this txo was involved
+        let (txo, account_txo_status, assigned_subaddress) =
+            self.wallet_db.get_txo(account_id_hex, txo_id_hex)?;
+        Ok(JsonTxo::new(
+            &txo,
+            &account_txo_status,
+            &assigned_subaddress,
+        ))
+    }
+
     // Balance consists of the sums of the various txo states in our wallet
     // FIXME: We can do more interesting logic here, especially once we have proper change accounting
     pub fn get_balance(
@@ -225,12 +241,13 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         account_id_hex: &str,
         comment: Option<&str>,
     ) -> Result<JsonCreateAddressResponse, WalletServiceError> {
-        let public_address_b58 = self
+        let (public_address_b58, subaddress_index) = self
             .wallet_db
             .create_assigned_subaddress(account_id_hex, comment.unwrap_or(""))?;
 
         Ok(JsonCreateAddressResponse {
             public_address_b58,
+            subaddress_index: subaddress_index.to_string(),
             address_book_entry_id: None,
         })
     }
