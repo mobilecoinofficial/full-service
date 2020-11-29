@@ -18,6 +18,13 @@ pub struct JsonImportAccountResponse {
     pub account_id: String,
 }
 
+#[derive(Deserialize, Serialize, Default, Debug)]
+pub struct JsonAccount {
+    pub account_id: String,
+    pub name: String,
+    pub synced_blocks: String,
+}
+
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct JsonListTxosResponse {
     pub txo_id: String,
@@ -78,6 +85,8 @@ pub struct JsonBalanceResponse {
     pub pending: String,
     pub spent: String,
     pub unknown: String,
+    pub local_block_height: String,
+    pub synced_blocks: String,
 }
 
 #[derive(Deserialize, Serialize, Default, Debug)]

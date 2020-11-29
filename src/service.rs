@@ -2,7 +2,7 @@
 
 use crate::error::WalletAPIError;
 use crate::service_decorated_types::{
-    JsonAddress, JsonBalanceResponse, JsonListTxosResponse, JsonSubmitResponse,
+    JsonAccount, JsonAddress, JsonBalanceResponse, JsonListTxosResponse, JsonSubmitResponse,
     JsonTransactionResponse, JsonTxo,
 };
 use crate::service_impl::WalletService;
@@ -107,10 +107,10 @@ pub enum JsonCommandResponse {
         account_id: String,
     },
     list_accounts {
-        accounts: Vec<String>,
+        accounts: Vec<JsonAccount>,
     },
     get_account {
-        name: String,
+        account: JsonAccount,
     },
     update_account_name {
         success: bool,
@@ -190,7 +190,7 @@ fn wallet_api(
             accounts: state.service.list_accounts()?,
         },
         JsonCommandRequest::get_account { account_id } => JsonCommandResponse::get_account {
-            name: state.service.get_account(&account_id)?,
+            account: state.service.get_account(&account_id)?,
         },
         JsonCommandRequest::update_account_name { account_id, name } => {
             state.service.update_account_name(&account_id, name)?;
@@ -418,7 +418,7 @@ mod tests {
             }
         });
         let result = dispatch(&client, body, &logger);
-        let name = result.get("name").unwrap();
+        let name = result.get("account").unwrap().get("name").unwrap();
         assert_eq!("Alice Main Account", name.as_str().unwrap());
         // FIXME: assert balance
 
@@ -440,7 +440,7 @@ mod tests {
             }
         });
         let result = dispatch(&client, body, &logger);
-        let name = result.get("name").unwrap();
+        let name = result.get("account").unwrap().get("name").unwrap();
         assert_eq!("Eve Main Account", name.as_str().unwrap());
 
         // Delete Account

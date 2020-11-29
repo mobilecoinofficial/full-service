@@ -5,8 +5,9 @@
 use crate::db::WalletDb;
 use crate::error::WalletServiceError;
 use crate::service_decorated_types::{
-    JsonAddress, JsonBalanceResponse, JsonCreateAccountResponse, JsonImportAccountResponse,
-    JsonListTxosResponse, JsonSubmitResponse, JsonTransactionResponse, JsonTxo,
+    JsonAccount, JsonAddress, JsonBalanceResponse, JsonCreateAccountResponse,
+    JsonImportAccountResponse, JsonListTxosResponse, JsonSubmitResponse, JsonTransactionResponse,
+    JsonTxo,
 };
 use crate::sync::SyncThread;
 use crate::transaction_builder::WalletTransactionBuilder;
@@ -17,7 +18,7 @@ use mc_common::logger::{log, Logger};
 use mc_connection::{ConnectionManager, RetryableUserTxConnection, UserTxConnection};
 use mc_crypto_rand::rand_core::RngCore;
 use mc_fog_report_connection::FogPubkeyResolver;
-use mc_ledger_db::LedgerDB;
+use mc_ledger_db::{Ledger, LedgerDB};
 use mc_mobilecoind::payments::TxProposal;
 use mc_mobilecoind_json::data_types::JsonTxProposal;
 use mc_util_from_random::FromRandom;
@@ -160,18 +161,26 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         })
     }
 
-    pub fn list_accounts(&self) -> Result<Vec<String>, WalletServiceError> {
+    pub fn list_accounts(&self) -> Result<Vec<JsonAccount>, WalletServiceError> {
         Ok(self
             .wallet_db
             .list_accounts()?
             .iter()
-            .map(|a| a.account_id_hex.clone())
+            .map(|a| JsonAccount {
+                account_id: a.account_id_hex.clone(),
+                name: a.name.clone(),
+                synced_blocks: a.next_block.to_string(),
+            })
             .collect())
     }
 
-    pub fn get_account(&self, account_id_hex: &str) -> Result<String, WalletServiceError> {
+    pub fn get_account(&self, account_id_hex: &str) -> Result<JsonAccount, WalletServiceError> {
         let account = self.wallet_db.get_account(account_id_hex)?;
-        Ok(account.name)
+        Ok(JsonAccount {
+            account_id: account.account_id_hex.clone(),
+            name: account.name.clone(),
+            synced_blocks: account.next_block.to_string(),
+        })
     }
 
     pub fn update_account_name(
@@ -188,6 +197,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         Ok(())
     }
 
+    // FIXME: Would rather return JsonTxo - need to join with AssignedSubaddresses
     pub fn list_txos(
         &self,
         account_id_hex: &str,
@@ -204,9 +214,11 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         account_id_hex: &str,
         txo_id_hex: &str,
     ) -> Result<JsonTxo, WalletServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+
         // FIXME: also add transaction IDs in which this txo was involved
         let (txo, account_txo_status, assigned_subaddress) =
-            self.wallet_db.get_txo(account_id_hex, txo_id_hex)?;
+            self.wallet_db.get_txo(account_id_hex, txo_id_hex, &conn)?;
         Ok(JsonTxo::new(
             &txo,
             &account_txo_status,
@@ -216,15 +228,28 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
 
     // Balance consists of the sums of the various txo states in our wallet
     // FIXME: We can do more interesting logic here, especially once we have proper change accounting
+    // FIXME: Balance for a specific subaddress? Does that need to be exposed? Balance is
+    //        somewhat meaningless per subaddress because funds can be moved around arbitrarily.
     pub fn get_balance(
         &self,
         account_id_hex: &str,
     ) -> Result<JsonBalanceResponse, WalletServiceError> {
+        println!("\x1b[1;36m BALANCE: now getting status map\x1b[0m");
+
         let status_map = self.wallet_db.list_txos_by_status(account_id_hex)?;
         let unspent: u64 = status_map["unspent"].iter().map(|t| t.value as u64).sum();
         let pending: u64 = status_map["pending"].iter().map(|t| t.value as u64).sum();
         let spent: u64 = status_map["spent"].iter().map(|t| t.value as u64).sum();
         let unknown: u64 = status_map["unknown"].iter().map(|t| t.value as u64).sum();
+
+        println!("\x1b[1;36m BALANCE: now getting local block height\x1b[0m");
+
+        let local_block_height = self.ledger_db.num_blocks()?;
+
+        println!("\x1b[1;36m BALANCE: now getting account\x1b[0m");
+        let account = self.wallet_db.get_account(account_id_hex)?;
+
+        // FIXME: probably also want to compare with network height
 
         // FIXME: add block height info (see also BEAM wallet-status)
         Ok(JsonBalanceResponse {
@@ -232,6 +257,8 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
             pending: pending.to_string(),
             spent: spent.to_string(),
             unknown: unknown.to_string(),
+            local_block_height: local_block_height.to_string(),
+            synced_blocks: account.next_block.to_string(),
         })
     }
 
@@ -403,8 +430,10 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         &self,
         transaction_id_hex: &str,
     ) -> Result<JsonTransactionResponse, WalletServiceError> {
+        // FIXME: hack to get around current db access design
+        let conn = self.wallet_db.get_conn()?;
         let (transaction, inputs, outputs, change) =
-            self.wallet_db.get_transaction(transaction_id_hex)?;
+            self.wallet_db.get_transaction(transaction_id_hex, &conn)?;
 
         Ok(JsonTransactionResponse::new(
             &transaction,
