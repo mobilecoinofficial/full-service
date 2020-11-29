@@ -398,6 +398,21 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         }
         Ok(results)
     }
+
+    pub fn get_transaction(
+        &self,
+        transaction_id_hex: &str,
+    ) -> Result<JsonTransactionResponse, WalletServiceError> {
+        let (transaction, inputs, outputs, change) =
+            self.wallet_db.get_transaction(transaction_id_hex)?;
+
+        Ok(JsonTransactionResponse::new(
+            &transaction,
+            &inputs,
+            &outputs,
+            &change,
+        ))
+    }
 }
 
 #[cfg(test)]
