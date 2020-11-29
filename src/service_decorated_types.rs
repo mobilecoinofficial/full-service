@@ -81,10 +81,24 @@ pub struct JsonBalanceResponse {
 }
 
 #[derive(Deserialize, Serialize, Default, Debug)]
-pub struct JsonCreateAddressResponse {
+pub struct JsonAddress {
     pub public_address_b58: String,
     pub subaddress_index: String,
     pub address_book_entry_id: Option<String>,
+    pub comment: String,
+}
+
+impl JsonAddress {
+    pub fn new(assigned_subaddress: &AssignedSubaddress) -> Self {
+        Self {
+            public_address_b58: assigned_subaddress.assigned_subaddress_b58.clone(),
+            subaddress_index: assigned_subaddress.subaddress_index.to_string(),
+            address_book_entry_id: assigned_subaddress
+                .address_book_entry
+                .map(|x| x.to_string()),
+            comment: assigned_subaddress.comment.clone(),
+        }
+    }
 }
 
 #[derive(Deserialize, Serialize, Default, Debug)]

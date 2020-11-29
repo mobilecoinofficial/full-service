@@ -5,9 +5,8 @@
 use crate::db::WalletDb;
 use crate::error::WalletServiceError;
 use crate::service_decorated_types::{
-    JsonBalanceResponse, JsonCreateAccountResponse, JsonCreateAddressResponse,
-    JsonImportAccountResponse, JsonListTxosResponse, JsonSubmitResponse, JsonTransactionResponse,
-    JsonTxo,
+    JsonAddress, JsonBalanceResponse, JsonCreateAccountResponse, JsonImportAccountResponse,
+    JsonListTxosResponse, JsonSubmitResponse, JsonTransactionResponse, JsonTxo,
 };
 use crate::sync::SyncThread;
 use crate::transaction_builder::WalletTransactionBuilder;
@@ -240,16 +239,30 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         &self,
         account_id_hex: &str,
         comment: Option<&str>,
-    ) -> Result<JsonCreateAddressResponse, WalletServiceError> {
+    ) -> Result<JsonAddress, WalletServiceError> {
         let (public_address_b58, subaddress_index) = self
             .wallet_db
             .create_assigned_subaddress(account_id_hex, comment.unwrap_or(""))?;
 
-        Ok(JsonCreateAddressResponse {
+        // FIXME: have create_assigned_subaddress return the full object
+        Ok(JsonAddress {
             public_address_b58,
             subaddress_index: subaddress_index.to_string(),
             address_book_entry_id: None,
+            comment: comment.unwrap_or("").to_string(),
         })
+    }
+
+    pub fn list_assigned_subaddresses(
+        &self,
+        account_id_hex: &str,
+    ) -> Result<Vec<JsonAddress>, WalletServiceError> {
+        Ok(self
+            .wallet_db
+            .list_subaddresses(account_id_hex)?
+            .iter()
+            .map(|a| JsonAddress::new(a))
+            .collect::<Vec<JsonAddress>>())
     }
 
     pub fn build_transaction(
