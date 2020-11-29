@@ -97,6 +97,15 @@ pub enum WalletDbError {
 
     /// Constructed a malformed transaction with multiple account IDs
     MultipleAccountIDsInTransaction,
+
+    /// Constructed a transaction with multiple recipients (not currently supported for transaction logs)
+    MultipleRecipientsInTransaction,
+
+    /// Constructed a transaction with no recipient
+    TransactionLacksRecipient,
+
+    /// Constructed a transaction that is not linked to any account in the wallet
+    TransactionLacksAccount,
 }
 
 impl From<diesel::result::Error> for WalletDbError {

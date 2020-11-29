@@ -221,9 +221,9 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
     pub fn build_transaction(
         &self,
         account_id_hex: &str,
-        input_txo_ids: Option<&Vec<String>>,
         recipient_public_address: &str,
         value: String,
+        input_txo_ids: Option<&Vec<String>>,
         fee: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
@@ -267,6 +267,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
     pub fn submit_transaction(
         &self,
         tx_proposal: JsonTxProposal,
+        comment: Option<String>,
     ) -> Result<(), WalletServiceError> {
         // Pick a peer to submit to.
         let responder_ids = self.peer_manager.responder_ids();
@@ -299,8 +300,11 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
             block_height
         );
         let converted_proposal = TxProposal::try_from(&tx_proposal_proto)?;
-        self.wallet_db
-            .update_submitted_transaction(converted_proposal)?;
+        self.wallet_db.log_submitted_transaction(
+            converted_proposal,
+            block_height,
+            comment.unwrap_or("".to_string()),
+        )?;
 
         // Successfully submitted.
         Ok(())
@@ -310,23 +314,24 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
     pub fn send_transaction(
         &self,
         account_id_hex: &str,
-        input_txo_ids: Option<&Vec<String>>,
         recipient_public_address: &str,
         value: String,
+        input_txo_ids: Option<&Vec<String>>,
         fee: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
+        comment: Option<String>,
     ) -> Result<(), WalletServiceError> {
         let tx_proposal = self.build_transaction(
             account_id_hex,
-            input_txo_ids,
             recipient_public_address,
             value,
+            input_txo_ids,
             fee,
             tombstone_block,
             max_spendable_value,
         )?;
-        Ok(self.submit_transaction(tx_proposal)?)
+        Ok(self.submit_transaction(tx_proposal, comment)?)
     }
 }
 

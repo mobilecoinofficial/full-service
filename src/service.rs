@@ -51,24 +51,26 @@ pub enum JsonCommandRequest {
     },
     build_transaction {
         account_id: String,
-        input_txo_ids: Option<Vec<String>>,
         recipient_public_address: String,
         value: String,
+        input_txo_ids: Option<Vec<String>>,
         fee: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
     },
     submit_transaction {
         tx_proposal: JsonTxProposal,
+        comment: Option<String>,
     },
     send_transaction {
         account_id: String,
-        input_txo_ids: Option<Vec<String>>,
         recipient_public_address: String,
         value: String,
+        input_txo_ids: Option<Vec<String>>,
         fee: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
+        comment: Option<String>,
     },
 }
 #[derive(Deserialize, Serialize)]
@@ -171,18 +173,18 @@ fn wallet_api(
         },
         JsonCommandRequest::build_transaction {
             account_id,
-            input_txo_ids,
             recipient_public_address,
             value,
+            input_txo_ids,
             fee,
             tombstone_block,
             max_spendable_value,
         } => {
             let tx_proposal = state.service.build_transaction(
                 &account_id,
-                input_txo_ids.as_ref(),
                 &recipient_public_address,
                 value,
+                input_txo_ids.as_ref(),
                 fee,
                 tombstone_block,
                 max_spendable_value,
@@ -191,27 +193,32 @@ fn wallet_api(
                 tx_proposal: tx_proposal.into(),
             }
         }
-        JsonCommandRequest::submit_transaction { tx_proposal } => {
-            state.service.submit_transaction(tx_proposal)?;
+        JsonCommandRequest::submit_transaction {
+            tx_proposal,
+            comment,
+        } => {
+            state.service.submit_transaction(tx_proposal, comment)?;
             JsonCommandResponse::submit_transaction { success: true }
         }
         JsonCommandRequest::send_transaction {
             account_id,
-            input_txo_ids,
             recipient_public_address,
             value,
+            input_txo_ids,
             fee,
             tombstone_block,
             max_spendable_value,
+            comment,
         } => {
             state.service.send_transaction(
                 &account_id,
-                input_txo_ids.as_ref(),
                 &recipient_public_address,
                 value,
+                input_txo_ids.as_ref(),
                 fee,
                 tombstone_block,
                 max_spendable_value,
+                comment,
             )?;
             JsonCommandResponse::send_transaction { success: true }
         }
