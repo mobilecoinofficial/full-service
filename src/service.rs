@@ -1,7 +1,9 @@
 // Copyright (c) 2020 MobileCoin Inc.
 
 use crate::error::WalletAPIError;
-use crate::service_decorated_types::{JsonBalanceResponse, JsonListTxosResponse};
+use crate::service_decorated_types::{
+    JsonBalanceResponse, JsonListTxosResponse, JsonSubmitResponse, JsonTransactionResponse,
+};
 use crate::service_impl::WalletService;
 use mc_connection::ThickClient;
 use mc_connection::UserTxConnection;
@@ -72,6 +74,9 @@ pub enum JsonCommandRequest {
         max_spendable_value: Option<String>,
         comment: Option<String>,
     },
+    list_transactions {
+        account_id: String,
+    },
 }
 #[derive(Deserialize, Serialize)]
 #[serde(tag = "method", content = "result")]
@@ -108,10 +113,13 @@ pub enum JsonCommandResponse {
         tx_proposal: JsonTxProposal,
     },
     submit_transaction {
-        success: bool, // FIXME: there will be more here
+        transaction: JsonSubmitResponse,
     },
     send_transaction {
-        success: bool, // FIXME: there will be more here
+        transaction: JsonSubmitResponse,
+    },
+    list_transactions {
+        transactions: Vec<JsonTransactionResponse>,
     },
 }
 
@@ -197,8 +205,10 @@ fn wallet_api(
             tx_proposal,
             comment,
         } => {
-            state.service.submit_transaction(tx_proposal, comment)?;
-            JsonCommandResponse::submit_transaction { success: true }
+            let transaction_details = state.service.submit_transaction(tx_proposal, comment)?;
+            JsonCommandResponse::submit_transaction {
+                transaction: transaction_details,
+            }
         }
         JsonCommandRequest::send_transaction {
             account_id,
@@ -210,7 +220,7 @@ fn wallet_api(
             max_spendable_value,
             comment,
         } => {
-            state.service.send_transaction(
+            let transaction_details = state.service.send_transaction(
                 &account_id,
                 &recipient_public_address,
                 value,
@@ -220,7 +230,13 @@ fn wallet_api(
                 max_spendable_value,
                 comment,
             )?;
-            JsonCommandResponse::send_transaction { success: true }
+            JsonCommandResponse::send_transaction {
+                transaction: transaction_details,
+            }
+        }
+        JsonCommandRequest::list_transactions { account_id } => {
+            let transactions = state.service.list_transactions(&account_id)?;
+            JsonCommandResponse::list_transactions { transactions }
         }
     };
     Ok(Json(result))

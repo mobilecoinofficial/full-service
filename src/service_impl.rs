@@ -5,7 +5,8 @@
 use crate::db::WalletDb;
 use crate::error::WalletServiceError;
 use crate::service_decorated_types::{
-    JsonBalanceResponse, JsonCreateAccountResponse, JsonImportAccountResponse, JsonListTxosResponse,
+    JsonBalanceResponse, JsonCreateAccountResponse, JsonImportAccountResponse,
+    JsonListTxosResponse, JsonSubmitResponse, JsonTransactionResponse,
 };
 use crate::sync::SyncThread;
 use crate::transaction_builder::WalletTransactionBuilder;
@@ -268,7 +269,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         &self,
         tx_proposal: JsonTxProposal,
         comment: Option<String>,
-    ) -> Result<(), WalletServiceError> {
+    ) -> Result<JsonSubmitResponse, WalletServiceError> {
         // Pick a peer to submit to.
         let responder_ids = self.peer_manager.responder_ids();
         if responder_ids.is_empty() {
@@ -300,14 +301,14 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
             block_height
         );
         let converted_proposal = TxProposal::try_from(&tx_proposal_proto)?;
-        self.wallet_db.log_submitted_transaction(
+        let transaction_id = self.wallet_db.log_submitted_transaction(
             converted_proposal,
             block_height,
             comment.unwrap_or("".to_string()),
         )?;
 
         // Successfully submitted.
-        Ok(())
+        Ok(JsonSubmitResponse { transaction_id })
     }
 
     /// Convenience method that builds and submits in one go.
@@ -321,7 +322,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
-    ) -> Result<(), WalletServiceError> {
+    ) -> Result<JsonSubmitResponse, WalletServiceError> {
         let tx_proposal = self.build_transaction(
             account_id_hex,
             recipient_public_address,
@@ -332,6 +333,24 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
             max_spendable_value,
         )?;
         Ok(self.submit_transaction(tx_proposal, comment)?)
+    }
+
+    pub fn list_transactions(
+        &self,
+        account_id_hex: &str,
+    ) -> Result<Vec<JsonTransactionResponse>, WalletServiceError> {
+        let transactions = self.wallet_db.list_transactions(account_id_hex)?;
+
+        let mut results: Vec<JsonTransactionResponse> = Vec::new();
+        for (transaction, inputs, outputs, change) in transactions.iter() {
+            results.push(JsonTransactionResponse::new(
+                &transaction,
+                inputs,
+                outputs,
+                change,
+            ));
+        }
+        Ok(results)
     }
 }
 

@@ -29,6 +29,14 @@ A MobileCoin service for wallet implementations.
         --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/
     ```
 
+   | Param         | Purpose                  | Requirements              |
+   | :------------ | :----------------------- | :------------------------ |
+   | `wallet-db`   | Path to wallet file      | Created if does not exist |
+   | `ledger-db`   | Path to ledger directory | Created if does not exist |
+   | `peer`        | URI of consensus node. Used to submit <br /> transactions and to check the network <br /> block height. | MC URI format |
+   | `tx-src-urrl` | S3 location of archived ledger. Used to <br /> sync transactions to the local ledger. | S3 URI format |
+
+
 ## API
 
 ### Accounts
@@ -57,6 +65,11 @@ curl -s localhost:9090/wallet \
 }
 ```
 
+   | Optional Param | Purpose                  | Requirements              |
+   | :------------- | :----------------------- | :------------------------ |
+   | `name`         | Label for this account   | Can have duplicates (not recommended) |
+   | `first_block`  | The block from which to start scanning the ledger |  |
+
 #### Import Account
 
 Import an existing account from the secret entropy.
@@ -80,6 +93,14 @@ curl -s localhost:9090/wallet \
  }
 }
 ```
+| Required Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `entropy`      | The secret root entropy  | 32 bytes of randomness, hex-encoded  |
+
+| Optional Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `name`         | Label for this account   | Can have duplicates (not recommended) |
+| `first_block`  | The block from which to start scanning the ledger |  |
 
 #### List Accounts
 
@@ -120,6 +141,10 @@ curl -s localhost:9090/wallet \
 }
 ```
 
+| Required Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
+
 #### Update Account Name
 
 ```sh
@@ -140,6 +165,11 @@ curl -s localhost:9090/wallet \
 }
 ```
 
+| Required Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
+| `name`         | The new name for this account  |   |
+
 #### Delete Account
 
 ```sh
@@ -159,6 +189,10 @@ curl -s localhost:9090/wallet \
   }
 }
 ```
+
+| Required Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
 
 ### TXOs
 
@@ -207,6 +241,10 @@ curl -s localhost:9090/wallet \
 }
 ```
 
+| Required Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
+
 #### Get Balance for a given account
 
 ```
@@ -232,6 +270,10 @@ curl -s localhost:9090/wallet \
 }
 ```
 
+| Required Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
+
 ### Transactions
 
 #### Send Transaction
@@ -251,12 +293,28 @@ curl -s localhost:9090/wallet \
   -X POST -H 'Content-type: application/json' | jq
 
 {
-  "method": "send_transaction",
+  "method": "submit_transaction",
   "result": {
-    "success": true
+    "transaction": {
+      "transaction_id": "96df759d272cfc134b71e24374a7b5125fe535f1d00fc44c1f12a91c1f951122"
+    }
   }
 }
 ```
+
+| Required Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `account_id` | The account on which to perform this action  | Account must exist in the wallet  |
+| `recipient_public_address` | Recipient for this transaction  | b58-encoded public address bytes  |
+| `value` | The amount of MOB to send in this transaction  |   |
+
+| Optional Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `input_txo_ids` | Specific TXOs to use as inputs to this transaction   | TXO IDs (obtain from `list_txos`) |
+| `fee` | The fee amount to submit with this transaction | If not provided, uses `MINIMUM_FEE` = .01 MOB |
+| `tombstone_block` | The block after which this transaction expires | If not provided, uses `cur_height` + 50 |
+| `max_spendable_value` | The maximum amount for an input TXO selected for this transaction |  |
+| `comment` | Comment to annotate this transaction in the transaction log   | |
 
 #### Build Transaction
 
@@ -459,6 +517,19 @@ curl -s localhost:9090/wallet \
 }
 ```
 
+| Required Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `account_id` | The account on which to perform this action  | Account must exist in the wallet  |
+| `recipient_public_address` | Recipient for this transaction  | b58-encoded public address bytes  |
+| `value` | The amount of MOB to send in this transaction  |   |
+
+| Optional Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `input_txo_ids` | Specific TXOs to use as inputs to this transaction   | TXO IDs (obtain from `list_txos`) |
+| `fee` | The fee amount to submit with this transaction | If not provided, uses `MINIMUM_FEE` = .01 MOB |
+| `tombstone_block` | The block after which this transaction expires | If not provided, uses `cur_height` + 50 |
+| `max_spendable_value` | The maximum amount for an input TXO selected for this transaction |  |
+
 Note, as the tx_proposal json object is quite large, you may wish to write the result to a file for use in the submit_transaction call, such as:
 
 ```sh
@@ -489,10 +560,67 @@ curl -s localhost:9090/wallet \
 {
   "method": "submit_transaction",
   "result": {
-    "success": true
+    "transaction": {
+      "transaction_id": "96df759d272cfc134b71e24374a7b5125fe535f1d00fc44c1f12a91c1f951122"
+    }
   }
 }
 ```
+
+| Required Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `tx_proposal`  | Transaction proposal to submit  | Created with `build_transaction`  |
+
+| Optional Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `comment` | Comment to annotate this transaction in the transaction log   | |
+
+#### List Transactions
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "list_transactions",
+        "params": {
+          "account_id": "1916a9b39ed28ab3a6eea69ac364b834ccc35b8e9763e8516d1a1f06aba5fb72"
+        }
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
+
+{
+  "method": "list_transactions",
+  "result": {
+    "transactions": [
+      {
+        "transaction_id": "96df759d272cfc134b71e24374a7b5125fe535f1d00fc44c1f12a91c1f951122",
+        "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
+        "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+        "assigned_subaddress": "",
+        "value": "1200000000000",
+        "fee": "10000000000",
+        "status": "pending",
+        "sent_time": "",
+        "block_height": "114192",
+        "comment": "",
+        "direction": "sent",
+        "inputs": [
+          "972d1369fbef99653e336de89d55a365db76743f413e8fb07b075f1e72dcb61f"
+        ],
+        "outputs": [
+          "a73d8ace011a745d2e6a3c39c55ccd0cc176462e1af62061b1ce77530e75318a"
+        ],
+        "change": [
+          "7e35f469b60bc41aaeac90b218f02a4b1a5453eefa405a4ae356c9edc1492715"
+        ]
+      }
+    ]
+  }
+}
+```
+
+| Required Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
 
 ## Contributing
 

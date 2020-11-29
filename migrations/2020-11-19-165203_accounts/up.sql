@@ -57,15 +57,16 @@ create TABLE transaction_logs (
     status VARCHAR(8) NOT NULL,
     sent_time VARCHAR NOT NULL DEFAULT '',
     block_height UNSIGNED BIG INT NOT NULL,
-    comment TEXT,
+    comment TEXT NOT NULL DEFAULT '',
     direction VARCHAR(8) NOT NULL,
     FOREIGN KEY (account_id_hex) REFERENCES accounts(account_id_hex),
     FOREIGN KEY (assigned_subaddress_b58) REFERENCES assigned_subaddresses(assigned_subaddress_b58)
 );
 
-create TABLE transactions_txos (
+create TABLE transaction_txo_types (
     transaction_id_hex VARCHAR NOT NULL,
     txo_id_hex VARCHAR NOT NULL,
+    transaction_txo_type VARCHAR(6) NOT NULL,
     PRIMARY KEY (transaction_id_hex, txo_id_hex),
     FOREIGN KEY (transaction_id_hex) REFERENCES transaction_logs(transaction_id_hex),
     FOREIGN KEY (txo_id_hex) REFERENCES txos(txo_id_hex)
