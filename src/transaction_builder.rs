@@ -328,7 +328,7 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
         // FIXME: Can get subtraction overflow in mobilecoind::payments - needs fixing
         if (total_value + self.transaction_builder.fee) > input_value as u64 {
             return Err(WalletTransactionBuilderError::InsufficientFunds(
-                input_value.to_string(),
+                format!("Cannot make change for value {:?}" input_value),
             ));
         }
 
