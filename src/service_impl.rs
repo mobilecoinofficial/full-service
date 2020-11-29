@@ -305,6 +305,29 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         // Successfully submitted.
         Ok(())
     }
+
+    /// Convenience method that builds and submits in one go.
+    pub fn send_transaction(
+        &self,
+        account_id_hex: &str,
+        input_txo_ids: Option<&Vec<String>>,
+        recipient_public_address: &str,
+        value: String,
+        fee: Option<String>,
+        tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
+    ) -> Result<(), WalletServiceError> {
+        let tx_proposal = self.build_transaction(
+            account_id_hex,
+            input_txo_ids,
+            recipient_public_address,
+            value,
+            fee,
+            tombstone_block,
+            max_spendable_value,
+        )?;
+        Ok(self.submit_transaction(tx_proposal)?)
+    }
 }
 
 #[cfg(test)]
