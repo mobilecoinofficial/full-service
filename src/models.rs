@@ -3,7 +3,7 @@
 //! DB Models
 
 use super::schema::{
-    account_txo_statuses, accounts, assigned_subaddresses, transaction_logs, transactions_txos,
+    account_txo_statuses, accounts, assigned_subaddresses, transaction_logs, transaction_txo_types,
     txos,
 };
 use serde::Serialize;
@@ -159,16 +159,19 @@ pub struct NewTransactionLog<'a> {
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
 #[belongs_to(TransactionLog, foreign_key = "transaction_id_hex")]
 #[belongs_to(Txo, foreign_key = "txo_id_hex")]
-#[table_name = "transactions_txos"]
+#[table_name = "transaction_txo_types"]
 #[primary_key(transaction_id_hex, txo_id_hex)]
-pub struct TransactionsTxosEntry {
+pub struct TransactionTxoType {
     pub transaction_id_hex: String,
     pub txo_id_hex: String,
+    // Statuses: input, output, change
+    pub transaction_txo_type: String,
 }
 
 #[derive(Insertable)]
-#[table_name = "transactions_txos"]
-pub struct NewTransactionsTxosEntry<'a> {
+#[table_name = "transaction_txo_types"]
+pub struct NewTransactionTxoType<'a> {
     pub transaction_id_hex: &'a str,
     pub txo_id_hex: &'a str,
+    pub transaction_txo_type: &'a str,
 }

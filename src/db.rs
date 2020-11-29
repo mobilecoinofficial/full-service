@@ -20,14 +20,15 @@ use diesel::RunQueryDsl;
 use crate::error::WalletDbError;
 use crate::models::{
     Account, AccountTxoStatus, AssignedSubaddress, NewAccount, NewAccountTxoStatus,
-    NewAssignedSubaddress, NewTransactionLog, NewTransactionsTxosEntry, NewTxo, Txo,
+    NewAssignedSubaddress, NewTransactionLog, NewTransactionTxoType, NewTxo, TransactionLog,
+    TransactionTxoType, Txo,
 };
 // Schema Tables
 use crate::schema::account_txo_statuses as schema_account_txo_statuses;
 use crate::schema::accounts as schema_accounts;
 use crate::schema::assigned_subaddresses as schema_assigned_subaddresses;
 use crate::schema::transaction_logs as schema_transaction_logs;
-use crate::schema::transactions_txos as schema_transactions_txos;
+use crate::schema::transaction_txo_types as schema_transaction_txo_types;
 use crate::schema::txos as schema_txos;
 
 // Query Objects
@@ -553,11 +554,13 @@ impl WalletDb {
         tx_proposal: TxProposal,
         block_height: u64,
         comment: String,
-    ) -> Result<(), WalletDbError> {
+    ) -> Result<String, WalletDbError> {
         let conn = self.pool.get()?;
 
-        // FIXME: batch these updates to make atomic
-        let mut txo_ids: Vec<TxoID> = Vec::new();
+        // FIXME: batch all these updates to make this an atomic operation
+
+        // Store the txo_id -> transaction_txo_type
+        let mut txo_ids: Vec<(String, &str)> = Vec::new();
 
         // First update all inputs to "pending." They will remain pending until their key_image
         // hits the ledger.
@@ -567,6 +570,7 @@ impl WalletDb {
                 // Get the associated TxoID
                 let txo_id = TxoID::from(&utxo.tx_out);
 
+                // FIXME: Update the list rather than iterating, querying, etc
                 // Find the account associated with this Txo
                 let matches = schema_account_txo_statuses::table
                     .select(schema_account_txo_statuses::account_id_hex)
@@ -597,7 +601,7 @@ impl WalletDb {
                     .set(schema_account_txo_statuses::txo_status.eq("pending".to_string()))
                     .execute(&conn)?;
 
-                    txo_ids.push(txo_id);
+                    txo_ids.push((txo_id.to_string(), "input"));
                 }
             }
             account_id
@@ -634,7 +638,7 @@ impl WalletDb {
                     (0, None, None)
                 };
 
-                // Update receiver if outlay was found
+                // Update receiver, transaction_value, and transaction_txo_type, if outlay was found
                 if let Some(receiver) = outlay_receiver {
                     if let Some(current_recipient) = recipient_address.as_ref() {
                         if current_recipient != &receiver {
@@ -645,9 +649,12 @@ impl WalletDb {
                     } else {
                         recipient_address = Some(receiver);
                     }
+                    value_sum += value;
+                    txo_ids.push((txo_id.to_string(), "output"));
+                } else {
+                    // If not in an outlay, this output is change FIXME: Is this a good enough check?
+                    txo_ids.push((txo_id.to_string(), "change"));
                 }
-
-                value_sum += value;
 
                 // FIXME: Not yet looking up subaddress_index for recipient in AssignedSubaddresses Table
                 // FIXME: It's also not clear to me what this value should be for minted TXOs, and
@@ -688,8 +695,6 @@ impl WalletDb {
                 diesel::insert_into(schema_account_txo_statuses::table)
                     .values(&new_account_txo_status)
                     .execute(&conn)?;
-
-                txo_ids.push(txo_id);
             }
             (recipient_address, value_sum)
         };
@@ -717,21 +722,85 @@ impl WalletDb {
                 .values(&new_transaction_log)
                 .execute(&conn)?;
 
-            // Create an entry per TXO for the TransactionsTxos Joins Table
-            for txo_id in txo_ids {
-                let new_transaction_txo = NewTransactionsTxosEntry {
+            // Create an entry per TXO for the TransactionTxoTypes
+            for (txo_id_hex, transaction_txo_type) in txo_ids {
+                let new_transaction_txo = NewTransactionTxoType {
                     transaction_id_hex: &transaction_id.to_string(),
-                    txo_id_hex: &txo_id.to_string(),
+                    txo_id_hex: &txo_id_hex,
+                    transaction_txo_type,
                 };
-                diesel::insert_into(schema_transactions_txos::table)
+                diesel::insert_into(schema_transaction_txo_types::table)
                     .values(&new_transaction_txo)
                     .execute(&conn)?;
             }
-        } else {
-            return Err(WalletDbError::TransactionLacksRecipient);
-        }
 
-        Ok(())
+            Ok(transaction_id.to_string())
+        } else {
+            Err(WalletDbError::TransactionLacksRecipient)
+        }
+    }
+
+    /// Returns vector of (Transaction, Inputs, Outputs, Change)
+    pub fn list_transactions(
+        &self,
+        account_id_hex: &str,
+    ) -> Result<Vec<(TransactionLog, Vec<String>, Vec<String>, Vec<String>)>, WalletDbError> {
+        let conn = self.pool.get()?;
+
+        // FIXME: use group_by rather than the processing below:
+        // https://docs.diesel.rs/diesel/associations/trait.GroupedBy.html
+        let transactions: Vec<(TransactionLog, TransactionTxoType)> =
+            schema_transaction_logs::table
+                .inner_join(
+                    schema_transaction_txo_types::table.on(
+                        schema_transaction_logs::transaction_id_hex
+                            .eq(schema_transaction_txo_types::transaction_id_hex)
+                            .and(schema_transaction_logs::account_id_hex.eq(account_id_hex)),
+                    ),
+                )
+                .select((
+                    schema_transaction_logs::all_columns,
+                    schema_transaction_txo_types::all_columns,
+                ))
+                .load(&conn)?;
+
+        #[derive(Clone)]
+        struct TransactionContents {
+            transaction_log: TransactionLog,
+            inputs: Vec<String>,
+            outputs: Vec<String>,
+            change: Vec<String>,
+        }
+        let mut results: HashMap<String, TransactionContents> = HashMap::default();
+        for (transaction, transaction_txo_type) in transactions {
+            if results.get(&transaction.transaction_id_hex).is_none() {
+                results.insert(
+                    transaction.transaction_id_hex.clone(),
+                    TransactionContents {
+                        transaction_log: transaction.clone(),
+                        inputs: Vec::new(),
+                        outputs: Vec::new(),
+                        change: Vec::new(),
+                    },
+                );
+            };
+
+            let mut entry = results.get_mut(&transaction.transaction_id_hex).unwrap();
+
+            entry.transaction_log = transaction;
+            if transaction_txo_type.transaction_txo_type == "input" {
+                entry.inputs.push(transaction_txo_type.txo_id_hex);
+            } else if transaction_txo_type.transaction_txo_type == "output" {
+                entry.outputs.push(transaction_txo_type.txo_id_hex);
+            } else if transaction_txo_type.transaction_txo_type == "change" {
+                entry.change.push(transaction_txo_type.txo_id_hex);
+            }
+        }
+        Ok(results
+            .values()
+            .cloned()
+            .map(|t| (t.transaction_log, t.inputs, t.outputs, t.change))
+            .collect())
     }
 }
 

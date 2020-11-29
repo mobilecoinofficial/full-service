@@ -44,15 +44,16 @@ table! {
         status -> Text,
         sent_time -> Text,
         block_height -> BigInt,
-        comment -> Nullable<Text>,
+        comment -> Text,
         direction -> Text,
     }
 }
 
 table! {
-    transactions_txos (transaction_id_hex, txo_id_hex) {
+    transaction_txo_types (transaction_id_hex, txo_id_hex) {
         transaction_id_hex -> Text,
         txo_id_hex -> Text,
+        transaction_txo_type -> Text,
     }
 }
 
@@ -78,14 +79,14 @@ joinable!(account_txo_statuses -> txos (txo_id_hex));
 joinable!(assigned_subaddresses -> accounts (account_id_hex));
 joinable!(transaction_logs -> accounts (account_id_hex));
 joinable!(transaction_logs -> assigned_subaddresses (assigned_subaddress_b58));
-joinable!(transactions_txos -> transaction_logs (transaction_id_hex));
-joinable!(transactions_txos -> txos (txo_id_hex));
+joinable!(transaction_txo_types -> transaction_logs (transaction_id_hex));
+joinable!(transaction_txo_types -> txos (txo_id_hex));
 
 allow_tables_to_appear_in_same_query!(
     account_txo_statuses,
     accounts,
     assigned_subaddresses,
     transaction_logs,
-    transactions_txos,
+    transaction_txo_types,
     txos,
 );
