@@ -39,13 +39,13 @@ Create a new account in the wallet.
 
 ```sh
 curl -s localhost:9090/wallet \
-    -d '{
-          "method": "create_account",
-          "params": {
-            "name": "Alice"
-          }
-        }' \
-    -X POST -H 'Content-type: application/json' | jq
+  -d '{
+        "method": "create_account",
+        "params": {
+          "name": "Alice"
+        }
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
 
 {
   "method": "create_account",
@@ -63,14 +63,14 @@ Import an existing account from the secret entropy.
 
 ```sh
 curl -s localhost:9090/wallet \
-    -d '{
-          "method": "import_account",
-          "params": {
-            "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
-            "name": "Alice"
-          }
-        }' \
-     -X POST -H 'Content-type: application/json' | jq
+  -d '{
+        "method": "import_account",
+        "params": {
+          "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
+          "name": "Alice"
+        }
+      }' \
+   -X POST -H 'Content-type: application/json' | jq
 
 {
  "method": "import_account",
@@ -85,8 +85,8 @@ curl -s localhost:9090/wallet \
 
 ```sh
 curl -s localhost:9090/wallet \
-    -d '{"method": "list_accounts"}' \
-    -X POST -H 'Content-type: application/json' | jq
+  -d '{"method": "list_accounts"}' \
+  -X POST -H 'Content-type: application/json' | jq
 
 {
   "method": "list_accounts",
@@ -103,13 +103,13 @@ curl -s localhost:9090/wallet \
 
 ```sh
 curl -s localhost:9090/wallet \
-    -d '{
-          "method": "get_account",
-          "params": {
-            "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
-          }
-        }' \
-    -X POST -H 'Content-type: application/json'  | jq
+  -d '{
+        "method": "get_account",
+        "params": {
+          "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
+        }
+      }' \
+  -X POST -H 'Content-type: application/json'  | jq
 
 {
   "method": "get_account",
@@ -124,14 +124,14 @@ curl -s localhost:9090/wallet \
 
 ```sh
 curl -s localhost:9090/wallet \
-    -d '{
-          "method": "update_account_name",
-          "params": {
-            "acount_id": "2b2d5cce6e24f4a396402fcf5f036890f9c06660f5d29f8420b8c89ef9074cd6",
-            "name": "Eve"
-          }
-        }' \
-    -X POST -H 'Content-type: application/json'  | jq
+  -d '{
+        "method": "update_account_name",
+        "params": {
+          "acount_id": "2b2d5cce6e24f4a396402fcf5f036890f9c06660f5d29f8420b8c89ef9074cd6",
+          "name": "Eve"
+        }
+      }' \
+  -X POST -H 'Content-type: application/json'  | jq
 {
   "method": "update_account_name",
   "result": {
@@ -144,13 +144,13 @@ curl -s localhost:9090/wallet \
 
 ```sh
 curl -s localhost:9090/wallet \
-    -d '{
-          "method": "delete_account",
-          "params": {
-            "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
-          }
-        }' \
-    -X POST -H 'Content-type: application/json' | jq
+  -d '{
+        "method": "delete_account",
+        "params": {
+          "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
+        }
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
 
 {
   "method": "delete_account",
@@ -166,13 +166,13 @@ curl -s localhost:9090/wallet \
 
 ```sh
 curl -s localhost:9090/wallet \
-    -d '{
-          "method": "list_txos",
-          "params": {
-            "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
-          }
-        }' \
-     -X POST -H 'Content-type: application/json'  | jq
+  -d '{
+        "method": "list_txos",
+        "params": {
+          "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
+        }
+      }' \
+  -X POST -H 'Content-type: application/json'  | jq
 
 {
   "method": "list_txos",
@@ -211,18 +211,23 @@ curl -s localhost:9090/wallet \
 
 ```
 curl -s localhost:9090/wallet \
-    -d '{
-          "method": "get_balance",
-          "params": {
-             "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
-          }
-        }' \
-    -X POST -H 'Content-type: application/json' | jq
+  -d '{
+        "method": "get_balance",
+        "params": {
+           "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
+        }
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
 
 {
   "method": "get_balance",
   "result": {
-    "balance": "97580449900010991"
+    "status": {
+      "unspent": "97580439900010991",
+      "pending": "0",
+      "spent": "18135938351572161289",
+      "unknown": "0"
+    }
   }
 }
 ```
@@ -235,14 +240,15 @@ You can build a transaction to confirm its contents before submitting it to the 
 
 ```
 curl -s localhost:9090/wallet \
-    -d '{
-          "method": "build_transaction",
-          "params": {
-            "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
-            "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-            "value": "42000000000000"
-          }
-        }' -X POST -H 'Content-type: application/json' | jq
+  -d '{
+        "method": "build_transaction",
+        "params": {
+          "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
+          "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+          "value": "42000000000000"
+        }
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
 
 {
   "method": "build_transaction",
@@ -433,28 +439,28 @@ Note, as the tx_proposal json object is quite large, you may wish to write the r
 
 ```sh
 curl -s localhost:9090/wallet \
-    -d '{
-          "method": "build_transaction",
-          "params": {
-            "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
-            "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-            "value": "42000000000000"
-          }
-        }' \
-    -X POST -H 'Content-type: application/json' | jq -c '.result | .tx_proposal' > test-tx-proposal.json
+  -d '{
+        "method": "build_transaction",
+        "params": {
+          "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
+          "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+          "value": "42000000000000"
+        }
+      }' \
+  -X POST -H 'Content-type: application/json' | jq -c '.result | .tx_proposal' > test-tx-proposal.json
 ```
 
 #### Submit Transaction
 
 ```sh
 curl -s localhost:9090/wallet \
-    -d '{
-          "method": "submit_transaction",
-          "params": {
-            "tx_proposal": '$(cat test-tx-proposal.json)'
-          }
-        }' \
-    -X POST -H 'Content-type: application/json'
+  -d '{
+        "method": "submit_transaction",
+        "params": {
+          "tx_proposal": '$(cat test-tx-proposal.json)'
+        }
+      }' \
+  -X POST -H 'Content-type: application/json'
 
 {
   "method": "submit_transaction",

@@ -5,7 +5,7 @@
 use crate::db::WalletDb;
 use crate::error::WalletServiceError;
 use crate::service_decorated_types::{
-    JsonCreateAccountResponse, JsonImportAccountResponse, JsonListTxosResponse,
+    JsonBalanceResponse, JsonCreateAccountResponse, JsonImportAccountResponse, JsonListTxosResponse,
 };
 use crate::sync::SyncThread;
 use crate::transaction_builder::WalletTransactionBuilder;
@@ -198,9 +198,24 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
             .collect())
     }
 
-    pub fn get_balance(&self, account_id_hex: &str) -> Result<u64, WalletServiceError> {
-        let txos = self.wallet_db.list_unspent_txos(account_id_hex)?;
-        Ok(txos.iter().map(|t| t.value as u64).sum())
+    // Balance consists of the sums of the various txo states in our wallet
+    // FIXME: We can do more interesting logic here, especially once we have proper change accounting
+    pub fn get_balance(
+        &self,
+        account_id_hex: &str,
+    ) -> Result<JsonBalanceResponse, WalletServiceError> {
+        let status_map = self.wallet_db.list_txos_by_status(account_id_hex)?;
+        let unspent: u64 = status_map["unspent"].iter().map(|t| t.value as u64).sum();
+        let pending: u64 = status_map["pending"].iter().map(|t| t.value as u64).sum();
+        let spent: u64 = status_map["spent"].iter().map(|t| t.value as u64).sum();
+        let unknown: u64 = status_map["unknown"].iter().map(|t| t.value as u64).sum();
+
+        Ok(JsonBalanceResponse {
+            unspent: unspent.to_string(),
+            pending: pending.to_string(),
+            spent: spent.to_string(),
+            unknown: unknown.to_string(),
+        })
     }
 
     pub fn build_transaction(
@@ -300,10 +315,12 @@ mod tests {
     };
     use mc_account_keys::PublicAddress;
     use mc_common::logger::{test_with_logger, Logger};
+    use mc_common::HashSet;
     use mc_connection_test_utils::MockBlockchainConnection;
     use mc_fog_report_validation::MockFogPubkeyResolver;
     use mc_transaction_core::ring_signature::KeyImage;
     use rand::{rngs::StdRng, SeedableRng};
+    use std::iter::FromIterator;
     use std::time::Duration;
 
     fn setup_service(
@@ -352,11 +369,12 @@ mod tests {
         // Verify balance for Alice
         let balance = service.get_balance(&alice.account_id).unwrap();
 
-        assert_eq!(balance, 100000000000000);
+        assert_eq!(balance.unspent, "100000000000000");
 
         // Verify that we have 1 txo
         let txos = service.list_txos(&alice.account_id).unwrap();
         assert_eq!(txos.len(), 1);
+        assert_eq!(txos[0].txo_status, "unspent");
 
         // Add another account
         let bob = service
@@ -375,8 +393,42 @@ mod tests {
                 None,
             )
             .unwrap();
+        let _submitted = service.submit_transaction(tx_proposal).unwrap();
 
-        // FIXME: TODO - assert other things that should be true with the service state
-        //        after an account has been created, such as the balance, etc
+        // We should now have 3 txos - one pending, two minted (one of which will be change)
+        let txos = service.list_txos(&alice.account_id).unwrap();
+        assert_eq!(txos.len(), 3);
+        // The Pending Tx
+        let pending: Vec<JsonListTxosResponse> = txos
+            .iter()
+            .cloned()
+            .filter(|t| t.txo_status == "pending")
+            .collect();
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].txo_type, "received");
+        assert_eq!(pending[0].value, "100000000000000");
+        // The Minted have Status Unknown
+        let minted: Vec<JsonListTxosResponse> = txos
+            .iter()
+            .cloned()
+            .filter(|t| t.txo_status == "unknown")
+            .collect();
+        assert_eq!(minted.len(), 2);
+        assert_eq!(minted[0].txo_type, "minted");
+        assert_eq!(minted[1].txo_type, "minted");
+        let minted_value_set = HashSet::from_iter(minted.iter().map(|m| m.value.clone()));
+        assert!(minted_value_set.contains("0"));
+        assert!(minted_value_set.contains("42000000000000"));
+
+        // Our balance should reflect the various statuses of our txos
+        let balance = service.get_balance(&alice.account_id).unwrap();
+        println!("\x1b[1;31m Got balance = {:?}\x1b[0m", balance);
+        assert_eq!(balance.unspent, "0");
+        assert_eq!(balance.pending, "100000000000000");
+        assert_eq!(balance.spent, "0");
+        // In this case, unknown is sent
+        assert_eq!(balance.unknown, "42000000000000");
+
+        // FIXME: How to make the transaction actually hit the test ledger?
     }
 }
