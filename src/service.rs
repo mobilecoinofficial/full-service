@@ -2,7 +2,8 @@
 
 use crate::error::WalletAPIError;
 use crate::service_decorated_types::{
-    JsonBalanceResponse, JsonListTxosResponse, JsonSubmitResponse, JsonTransactionResponse, JsonTxo,
+    JsonAddress, JsonBalanceResponse, JsonListTxosResponse, JsonSubmitResponse,
+    JsonTransactionResponse, JsonTxo,
 };
 use crate::service_impl::WalletService;
 use mc_connection::ThickClient;
@@ -58,6 +59,9 @@ pub enum JsonCommandRequest {
     create_address {
         account_id: String,
         comment: Option<String>,
+    },
+    list_addresses {
+        account_id: String,
     },
     send_transaction {
         account_id: String,
@@ -121,9 +125,10 @@ pub enum JsonCommandResponse {
         status: JsonBalanceResponse,
     },
     create_address {
-        public_address: String,
-        subaddress_index: String,
-        address_book_entry_id: Option<String>,
+        address: JsonAddress,
+    },
+    list_addresses {
+        addresses: Vec<JsonAddress>,
     },
     send_transaction {
         transaction: JsonSubmitResponse,
@@ -202,16 +207,14 @@ fn wallet_api(
         JsonCommandRequest::create_address {
             account_id,
             comment,
-        } => {
-            let result = state
+        } => JsonCommandResponse::create_address {
+            address: state
                 .service
-                .create_assigned_subaddress(&account_id, comment.as_deref())?;
-            JsonCommandResponse::create_address {
-                public_address: result.public_address_b58,
-                subaddress_index: result.subaddress_index,
-                address_book_entry_id: result.address_book_entry_id,
-            }
-        }
+                .create_assigned_subaddress(&account_id, comment.as_deref())?,
+        },
+        JsonCommandRequest::list_addresses { account_id } => JsonCommandResponse::list_addresses {
+            addresses: state.service.list_assigned_subaddresses(&account_id)?,
+        },
         JsonCommandRequest::send_transaction {
             account_id,
             recipient_public_address,

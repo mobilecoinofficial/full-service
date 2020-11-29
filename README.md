@@ -318,7 +318,7 @@ curl -s localhost:9090/wallet \
   -d '{
         "method": "create_address",
         "params": {
-          "account_id": "1916a9b39ed28ab3a6eea69ac364b834ccc35b8e9763e8516d1a1f06aba5fb72",
+          "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
           "comment": "For transactions from Carol"
         }
       }' \
@@ -327,9 +327,12 @@ curl -s localhost:9090/wallet \
 {
   "method": "create_address",
   "result": {
-    "public_address": "4BcaqBawj4VMgcCfSZeJCeV8nUtnKcYCu89jQupgNVFLCtRgvnM7kQPvfj78sRZfy2MiVc4wJGr4jt3VCRQrksL9JsW8iuC65P7SoGkwJL",
-    "subaddress_index": "4",
-    "address_book_entry_id": null
+    "address": {
+      "public_address_b58": "84NXhbCHE9hQ6fbioRyZJMhuoz6NJFo43JJqboZa7PtqrQWU5ozBi2Px5shPYAr7PR2ED4EL9BvuT1rqDc289t3rMLUYSyxQZxX6EnskNLz",
+      "subaddress_index": "3",
+      "address_book_entry_id": null,
+      "comment": "For transactions from Carol"
+    }
   }
 }
 ```
@@ -342,6 +345,54 @@ curl -s localhost:9090/wallet \
 | :------------- | :----------------------- | :------------------------ |
 | `comment`      | Annotation for this subaddress |  |
 
+#### List Assigned Subaddresses
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "list_addresses",
+        "params": {
+          "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
+        }
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
+
+{
+  "method": "list_addresses",
+  "result": {
+    "addresses": [
+      {
+        "public_address_b58": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+        "subaddress_index": "0",
+        "address_book_entry_id": null,
+        "comment": "Main"
+      },
+      {
+        "public_address_b58": "7xKjiti17VLvkJZT2Wb16QWtQSgmVxVwBjr34btrWRLXNBmavK9LEwovkEhrchdXQGCwjDtFo93qLhaBNoKNSSfRNqA5WhK8XQGmyN6Kntv",
+        "subaddress_index": "1",
+        "address_book_entry_id": null,
+        "comment": "Change"
+      },
+      {
+        "public_address_b58": "6mWmJtmyuXiB8iBVbTpB3DKKeKM6rdfiGF9SxhKnBqREdHtD3APooCxxFRL8Ga8rQKeo1b3XKPj8sj227tPdkiybBNEaGXXinFGk7XXA7Bu",
+        "subaddress_index": "2",
+        "address_book_entry_id": null,
+        "comment": "For transactions from Bob"
+      },
+      {
+        "public_address_b58": "7uvFzQXBPbKj4K8fndfve7s1wxRKKVogyCnpqepTWkpshk4gRu63fh5G8JD5UagxfLZvtfYfXuazBPcQSkNiwXVAjmWQTcpw3gQahx1cUmM",
+        "subaddress_index": "3",
+        "address_book_entry_id": null,
+        "comment": "For transactions from Carol"
+      },
+    ]
+  }
+}
+```
+
+| Required Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
 
 ### Transactions
 
@@ -651,7 +702,7 @@ curl -s localhost:9090/wallet \
   -d '{
         "method": "list_transactions",
         "params": {
-          "account_id": "1916a9b39ed28ab3a6eea69ac364b834ccc35b8e9763e8516d1a1f06aba5fb72"
+          "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
         }
       }' \
   -X POST -H 'Content-type: application/json' | jq
@@ -681,6 +732,7 @@ curl -s localhost:9090/wallet \
         "change": [
           "7e35f469b60bc41aaeac90b218f02a4b1a5453eefa405a4ae356c9edc1492715"
         ]
+        ...
       }
     ]
   }
