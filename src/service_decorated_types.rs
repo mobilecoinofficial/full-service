@@ -2,7 +2,7 @@
 
 //! Decorated types for the service to return, with constructors from the database types.
 
-use crate::models::{AccountTxoStatus, TransactionLog, Txo};
+use crate::models::{AccountTxoStatus, AssignedSubaddress, TransactionLog, Txo};
 use serde_derive::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Default, Debug)]
@@ -37,6 +37,41 @@ impl JsonListTxosResponse {
     }
 }
 
+#[derive(Deserialize, Serialize, Default, Debug, Clone)]
+pub struct JsonTxo {
+    pub txo_id: String,
+    pub value: String,
+    pub assigned_subaddress: String,
+    pub subaddress_index: String,
+    pub txo_type: String,
+    pub txo_status: String,
+    pub received_block_height: Option<String>,
+    pub spent_tombstone_block_height: Option<String>,
+    pub spent_block_height: Option<String>,
+    pub proof: Option<String>,
+}
+
+impl JsonTxo {
+    pub fn new(
+        txo: &Txo,
+        account_txo_status: &AccountTxoStatus,
+        assigned_subaddress: &AssignedSubaddress,
+    ) -> Self {
+        Self {
+            txo_id: txo.txo_id_hex.clone(),
+            value: txo.value.to_string(),
+            assigned_subaddress: assigned_subaddress.assigned_subaddress_b58.clone(),
+            subaddress_index: txo.subaddress_index.to_string(),
+            txo_type: account_txo_status.txo_type.clone(),
+            txo_status: account_txo_status.txo_status.clone(),
+            received_block_height: txo.received_block_height.map(|x| x.to_string()),
+            spent_tombstone_block_height: txo.spent_tombstone_block_height.map(|x| x.to_string()),
+            spent_block_height: txo.spent_block_height.map(|x| x.to_string()),
+            proof: txo.proof.as_ref().map(|x| hex::encode(x)),
+        }
+    }
+}
+
 #[derive(Deserialize, Serialize, Default, Debug)]
 pub struct JsonBalanceResponse {
     pub unspent: String,
@@ -48,6 +83,7 @@ pub struct JsonBalanceResponse {
 #[derive(Deserialize, Serialize, Default, Debug)]
 pub struct JsonCreateAddressResponse {
     pub public_address_b58: String,
+    pub subaddress_index: String,
     pub address_book_entry_id: Option<String>,
 }
 

@@ -2,7 +2,7 @@
 
 use crate::error::WalletAPIError;
 use crate::service_decorated_types::{
-    JsonBalanceResponse, JsonListTxosResponse, JsonSubmitResponse, JsonTransactionResponse,
+    JsonBalanceResponse, JsonListTxosResponse, JsonSubmitResponse, JsonTransactionResponse, JsonTxo,
 };
 use crate::service_impl::WalletService;
 use mc_connection::ThickClient;
@@ -47,6 +47,10 @@ pub enum JsonCommandRequest {
     },
     list_txos {
         account_id: String,
+    },
+    get_txo {
+        account_id: String,
+        txo_id: String,
     },
     get_balance {
         account_id: String,
@@ -110,11 +114,15 @@ pub enum JsonCommandResponse {
     list_txos {
         txos: Vec<JsonListTxosResponse>,
     },
+    get_txo {
+        txo: JsonTxo,
+    },
     get_balance {
         status: JsonBalanceResponse,
     },
     create_address {
-        public_address_b58: String,
+        public_address: String,
+        subaddress_index: String,
         address_book_entry_id: Option<String>,
     },
     send_transaction {
@@ -184,6 +192,10 @@ fn wallet_api(
         JsonCommandRequest::list_txos { account_id } => JsonCommandResponse::list_txos {
             txos: state.service.list_txos(&account_id)?,
         },
+        JsonCommandRequest::get_txo { account_id, txo_id } => {
+            let result = state.service.get_txo(&account_id, &txo_id)?;
+            JsonCommandResponse::get_txo { txo: result }
+        }
         JsonCommandRequest::get_balance { account_id } => JsonCommandResponse::get_balance {
             status: state.service.get_balance(&account_id)?,
         },
@@ -195,7 +207,8 @@ fn wallet_api(
                 .service
                 .create_assigned_subaddress(&account_id, comment.as_deref())?;
             JsonCommandResponse::create_address {
-                public_address_b58: result.public_address_b58,
+                public_address: result.public_address_b58,
+                subaddress_index: result.subaddress_index,
                 address_book_entry_id: result.address_book_entry_id,
             }
         }
@@ -650,5 +663,64 @@ mod tests {
         // Tombstone block = ledger height (12 to start + 2 new blocks + 50 default tombstone)
         let prefix_tombstone = tx_prefix.get("tombstone_block").unwrap();
         assert_eq!(prefix_tombstone, "64");
+    }
+
+    #[test_with_logger]
+    fn test_create_assigned_subaddress(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        let account_id = result.get("account_id").unwrap().as_str().unwrap();
+        let b58_public_address = result.get("public_address").unwrap().as_str().unwrap();
+        let public_address = b58_decode(b58_public_address);
+
+        // Create a subaddress
+        let body = json!({
+            "method": "create_address",
+            "params": {
+                "account_id": account_id,
+                "comment": "For Bob",
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        let b58_public_address = result.get("public_address").unwrap().as_str().unwrap();
+        let from_bob_public_address = b58_decode(b58_public_address);
+
+        // Add a block to the ledger with a transaction "From Bob"
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![from_bob_public_address],
+            42000000000000,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        // Sleep to let the sync thread process the txo
+        std::thread::sleep(Duration::from_secs(2));
+
+        let body = json!({
+            "method": "list_txos",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        let txos = result.get("txos").unwrap().as_array().unwrap();
+        assert_eq!(txos.len(), 1);
+        let txo = &txos[0];
+        let txo_status = txo.get("txo_status").unwrap().as_str().unwrap();
+        assert_eq!(txo_status, "unspent");
+        let txo_type = txo.get("txo_type").unwrap().as_str().unwrap();
+        assert_eq!(txo_type, "received");
+        let value = txo.get("value").unwrap().as_str().unwrap();
+        assert_eq!(value, "42000000000000");
     }
 }

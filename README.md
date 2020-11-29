@@ -245,9 +245,44 @@ curl -s localhost:9090/wallet \
 | :------------- | :----------------------- | :------------------------ |
 | `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
 
+#### Get TXO Details
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "get_txo",
+        "params": {
+          "account_id": "1916a9b39ed28ab3a6eea69ac364b834ccc35b8e9763e8516d1a1f06aba5fb72",
+          "txo_id": "fff8e8b65e606578a9baeaa3f2919453444fdd9787e3a04ad5667dd248d02aee"}}' \
+  -X POST -H 'Content-type: application/json' | jq
+
+{
+  "method": "get_txo",
+  "result": {
+    "txo": {
+      "txo_id": "fff8e8b65e606578a9baeaa3f2919453444fdd9787e3a04ad5667dd248d02aee",
+      "value": "659999999999",
+      "assigned_subaddress": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+      "subaddress_index": "0",
+      "txo_type": "received",
+      "txo_status": "spent",
+      "received_block_height": "27009",
+      "spent_tombstone_block_height": null,
+      "spent_block_height": "27010",
+      "proof": null
+    }
+  }
+}
+```
+
+| Required Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
+| `txo_id`   | The txo ID for which to get details  |  |
+
 #### Get Balance for a given account
 
-```
+```sh
 curl -s localhost:9090/wallet \
   -d '{
         "method": "get_balance",
@@ -279,8 +314,34 @@ curl -s localhost:9090/wallet \
 #### Create Assigned Subaddress
 
 ```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "create_address",
+        "params": {
+          "account_id": "1916a9b39ed28ab3a6eea69ac364b834ccc35b8e9763e8516d1a1f06aba5fb72",
+          "comment": "For transactions from Carol"
+        }
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
 
+{
+  "method": "create_address",
+  "result": {
+    "public_address": "4BcaqBawj4VMgcCfSZeJCeV8nUtnKcYCu89jQupgNVFLCtRgvnM7kQPvfj78sRZfy2MiVc4wJGr4jt3VCRQrksL9JsW8iuC65P7SoGkwJL",
+    "subaddress_index": "4",
+    "address_book_entry_id": null
+  }
+}
 ```
+
+| Required Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
+
+| Optional Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `comment`      | Annotation for this subaddress |  |
+
 
 ### Transactions
 
