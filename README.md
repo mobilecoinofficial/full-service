@@ -743,6 +743,47 @@ curl -s localhost:9090/wallet \
 | :------------- | :----------------------- | :------------------------ |
 | `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
 
+#### Get Transaction
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "get_transaction",
+        "params": {"transaction_id": "2b5c7581264583feaac32296b8ade5562f2c1891d3c92ee86e6df0a8746ec9c9"
+        }
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
+
+{
+  "method": "get_transaction",
+  "result": {
+    "transaction": {
+      "transaction_id": "2b5c7581264583feaac32296b8ade5562f2c1891d3c92ee86e6df0a8746ec9c9",
+      "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
+      "recipient_public_address": "84NXhbCHE9hQ6fbioRyZJMhuoz6NJFo43JJqboZa7PtqrQWU5ozBi2Px5shPYAr7PR2ED4EL9BvuT1rqDc289t3rMLUYSyxQZxX6EnskNLz",
+      "assigned_subaddress": "",
+      "value": "12300000000000",
+      "fee": "10000000000",
+      "status": "pending",
+      "sent_time": "",
+      "block_height": "116316",
+      "comment": "",
+      "direction": "sent",
+      "input_txo_ids": [
+        "352165cb67adc9f840cc2d561bbded01f8aed011c854ff447dc2924fa457d8ca",
+        "72eb5eb66a12dc45e9e01dd60a0555203ddfdc383b18dbd38c82983ca6662408"
+      ],
+      "output_txo_ids": [
+        "871ca6e7e4db3f691349bbacce02774becaf349b7ad87d487d08f48c14c5e1e9"
+      ],
+      "change_txo_ids": [
+        "ed2a2abdf8d126d93782e8f4b1cdb9ee67eead96563ffbab0fe08a6c44d47c9f"
+      ]
+    }
+  }
+}
+```
+
 ## Contributing
 
 ### Database Schema

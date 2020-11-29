@@ -922,6 +922,50 @@ impl WalletDb {
             .map(|t| (t.transaction_log, t.inputs, t.outputs, t.change))
             .collect())
     }
+
+    // FIXME: DRY - these will be refactored to live on the models
+    /// Returns (Transaction, Inputs, Outputs, Change)
+    pub fn get_transaction(
+        &self,
+        transaction_id_hex: &str,
+    ) -> Result<(TransactionLog, Vec<String>, Vec<String>, Vec<String>), WalletDbError> {
+        let conn = self.pool.get()?;
+
+        // FIXME: use group_by rather than the processing below:
+        // https://docs.diesel.rs/diesel/associations/trait.GroupedBy.html
+        let transaction_txos: Vec<(TransactionLog, TransactionTxoType)> =
+            schema_transaction_logs::table
+                .inner_join(
+                    schema_transaction_txo_types::table.on(
+                        schema_transaction_logs::transaction_id_hex
+                            .eq(schema_transaction_txo_types::transaction_id_hex)
+                            .and(
+                                schema_transaction_logs::transaction_id_hex.eq(transaction_id_hex),
+                            ),
+                    ),
+                )
+                .select((
+                    schema_transaction_logs::all_columns,
+                    schema_transaction_txo_types::all_columns,
+                ))
+                .load(&conn)?;
+
+        let mut inputs: Vec<String> = Vec::new();
+        let mut outputs: Vec<String> = Vec::new();
+        let mut change: Vec<String> = Vec::new();
+
+        let transaction = transaction_txos[0].0.clone();
+        for (_transaction, transaction_txo_type) in transaction_txos {
+            if transaction_txo_type.transaction_txo_type == "input" {
+                inputs.push(transaction_txo_type.txo_id_hex);
+            } else if transaction_txo_type.transaction_txo_type == "output" {
+                outputs.push(transaction_txo_type.txo_id_hex);
+            } else if transaction_txo_type.transaction_txo_type == "change" {
+                change.push(transaction_txo_type.txo_id_hex);
+            }
+        }
+        Ok((transaction, inputs, outputs, change))
+    }
 }
 
 #[cfg(test)]

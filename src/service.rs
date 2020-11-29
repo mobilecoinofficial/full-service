@@ -89,6 +89,9 @@ pub enum JsonCommandRequest {
     list_transactions {
         account_id: String,
     },
+    get_transaction {
+        transaction_id: String,
+    },
 }
 #[derive(Deserialize, Serialize)]
 #[serde(tag = "method", content = "result")]
@@ -141,6 +144,9 @@ pub enum JsonCommandResponse {
     },
     list_transactions {
         transactions: Vec<JsonTransactionResponse>,
+    },
+    get_transaction {
+        transaction: JsonTransactionResponse,
     },
 }
 
@@ -264,15 +270,18 @@ fn wallet_api(
         JsonCommandRequest::submit_transaction {
             tx_proposal,
             comment,
-        } => {
-            let transaction_details = state.service.submit_transaction(tx_proposal, comment)?;
-            JsonCommandResponse::submit_transaction {
-                transaction: transaction_details,
+        } => JsonCommandResponse::submit_transaction {
+            transaction: state.service.submit_transaction(tx_proposal, comment)?,
+        },
+        JsonCommandRequest::list_transactions { account_id } => {
+            JsonCommandResponse::list_transactions {
+                transactions: state.service.list_transactions(&account_id)?,
             }
         }
-        JsonCommandRequest::list_transactions { account_id } => {
-            let transactions = state.service.list_transactions(&account_id)?;
-            JsonCommandResponse::list_transactions { transactions }
+        JsonCommandRequest::get_transaction { transaction_id } => {
+            JsonCommandResponse::get_transaction {
+                transaction: state.service.get_transaction(&transaction_id)?,
+            }
         }
     };
     Ok(Json(result))
