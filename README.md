@@ -136,7 +136,6 @@ curl -s localhost:9090/wallet \
   "method": "get_account",
   "result": {
     "name": "Alice",
-    "balance": "0"
   }
 }
 ```
@@ -245,6 +244,18 @@ curl -s localhost:9090/wallet \
 | :------------- | :----------------------- | :------------------------ |
 | `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
 
+Note, you may wish to filter TXOs using a tool like jq. For example, to get all unspent TXOs, you can use:
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "list_txos",
+        "params": {"account_id": "1916a9b39ed28ab3a6eea69ac364b834ccc35b8e9763e8516d1a1f06aba5fb72"
+        }
+      }' \
+  -X POST -H 'Content-type: application/json'  | jq '.result | .txos[] | select(.txo_status | contains("unspent"))'
+```
+
 #### Get TXO Details
 
 ```sh
@@ -300,6 +311,7 @@ curl -s localhost:9090/wallet \
       "pending": "0",
       "spent": "18135938351572161289",
       "unknown": "0"
+      "local_block_height": "116504"
     }
   }
 }

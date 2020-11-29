@@ -14,7 +14,7 @@ use mc_transaction_core::tx::{Tx, TxOut};
 use std::iter::FromIterator;
 
 use diesel::prelude::*;
-use diesel::r2d2::{ConnectionManager, Pool};
+use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
 use diesel::RunQueryDsl;
 
 use crate::error::WalletDbError;
@@ -35,6 +35,7 @@ use crate::schema::txos as schema_txos;
 use crate::schema::account_txo_statuses::dsl::account_txo_statuses as dsl_account_txo_statuses;
 use crate::schema::accounts::dsl::accounts as dsl_accounts;
 use crate::schema::assigned_subaddresses::dsl::assigned_subaddresses as dsl_assigned_subaddresses;
+use crate::schema::transaction_logs::dsl::transaction_logs as dsl_transaction_logs;
 use crate::schema::txos::dsl::txos as dsl_txos;
 
 // Helper method to use our PrintableWrapper to b58 encode the PublicAddress
@@ -295,8 +296,14 @@ impl WalletDb {
             .execute(&conn)?;
 
         // Update the next subaddress index for the account
+        // Note: we also update the first_block back to 0 to scan from the beginning of the
+        //       ledger for this new subaddress. FIXME: we could expose "first block" per
+        //       subaddress
         diesel::update(dsl_accounts.find(account_id_hex))
-            .set(schema_accounts::next_subaddress_index.eq(subaddress_index + 1))
+            .set((
+                schema_accounts::next_subaddress_index.eq(subaddress_index + 1),
+                schema_accounts::next_block.eq(0),
+            ))
             .execute(&conn)?;
 
         Ok((subaddress_b58, subaddress_index))
@@ -316,36 +323,81 @@ impl WalletDb {
 
         let txo_id = TxoID::from(&txo);
 
-        let key_image_bytes = mc_util_serial::encode(&key_image);
-        let new_txo = NewTxo {
-            txo_id_hex: &txo_id.to_string(),
-            value: value as i64,
-            target_key: &mc_util_serial::encode(&txo.target_key),
-            public_key: &mc_util_serial::encode(&txo.public_key),
-            e_fog_hint: &mc_util_serial::encode(&txo.e_fog_hint),
-            txo: &mc_util_serial::encode(&txo),
-            subaddress_index: subaddress_index as i64,
-            key_image: Some(&key_image_bytes),
-            received_block_height: Some(received_block_height as i64),
-            spent_tombstone_block_height: None,
-            spent_block_height: None,
-            proof: None,
+        // If we already have this TXO (e.g. from minting in a previous transaction), we need to update it
+        match dsl_txos.find(&txo_id.to_string()).get_result::<Txo>(&conn) {
+            Ok(_txo) => {
+                // get the type of this TXO
+                let account_txo_status: AccountTxoStatus = match dsl_account_txo_statuses
+                    .find((account_id_hex, &txo_id.to_string()))
+                    .get_result::<AccountTxoStatus>(&conn)
+                {
+                    Ok(t) => t,
+                    // Match on NotFound to get a more informative NotFound Error
+                    Err(diesel::result::Error::NotFound) => {
+                        return Err(WalletDbError::NotFound(format!(
+                            "{:?}",
+                            (account_id_hex.to_string(), txo_id.to_string())
+                        )));
+                    }
+                    Err(e) => {
+                        return Err(e.into());
+                    }
+                };
+
+                if account_txo_status.txo_type == "minted" {
+                    // Update received block height and subaddress index
+                    diesel::update(dsl_txos.find(&txo_id.to_string()))
+                        .set((
+                            schema_txos::received_block_height.eq(Some(received_block_height)),
+                            schema_txos::subaddress_index.eq(subaddress_index as i64),
+                        ))
+                        .execute(&conn)?;
+
+                // FIXME: update the status to received? What about is_change bool on status?
+                } else if account_txo_status.txo_type == "received".to_string() {
+                    // We already processed this TXO and can ignore
+                    return Ok(txo_id.to_string());
+                } else {
+                    panic!("New txo_type must be handled");
+                }
+            }
+            // Match on NotFound to get a more informative NotFound Error
+            Err(diesel::result::Error::NotFound) => {
+                let key_image_bytes = mc_util_serial::encode(&key_image);
+                let new_txo = NewTxo {
+                    txo_id_hex: &txo_id.to_string(),
+                    value: value as i64,
+                    target_key: &mc_util_serial::encode(&txo.target_key),
+                    public_key: &mc_util_serial::encode(&txo.public_key),
+                    e_fog_hint: &mc_util_serial::encode(&txo.e_fog_hint),
+                    txo: &mc_util_serial::encode(&txo),
+                    subaddress_index: subaddress_index as i64,
+                    key_image: Some(&key_image_bytes),
+                    received_block_height: Some(received_block_height as i64),
+                    spent_tombstone_block_height: None,
+                    spent_block_height: None,
+                    proof: None,
+                };
+
+                diesel::insert_into(schema_txos::table)
+                    .values(&new_txo)
+                    .execute(&conn)?;
+
+                let new_account_txo_status = NewAccountTxoStatus {
+                    account_id_hex: &account_id_hex,
+                    txo_id_hex: &txo_id.to_string(),
+                    txo_status: "unspent",
+                    txo_type: "received",
+                };
+
+                diesel::insert_into(schema_account_txo_statuses::table)
+                    .values(&new_account_txo_status)
+                    .execute(&conn)?;
+            }
+            Err(e) => {
+                return Err(e.into());
+            }
         };
-
-        diesel::insert_into(schema_txos::table)
-            .values(&new_txo)
-            .execute(&conn)?;
-
-        let new_account_txo_status = NewAccountTxoStatus {
-            account_id_hex: &account_id_hex,
-            txo_id_hex: &txo_id.to_string(),
-            txo_status: "unspent",
-            txo_type: "received",
-        };
-
-        diesel::insert_into(schema_account_txo_statuses::table)
-            .values(&new_account_txo_status)
-            .execute(&conn)?;
 
         Ok(txo_id.to_string())
     }
@@ -357,6 +409,7 @@ impl WalletDb {
     ) -> Result<Vec<(Txo, AccountTxoStatus)>, WalletDbError> {
         let conn = self.pool.get()?;
 
+        // FIXME: join 3 tables to also get AssignedSubaddresses
         let results: Vec<(Txo, AccountTxoStatus)> = schema_txos::table
             .inner_join(
                 schema_account_txo_statuses::table.on(schema_txos::txo_id_hex
@@ -375,10 +428,10 @@ impl WalletDb {
         &self,
         account_id_hex: &str,
         txo_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(Txo, AccountTxoStatus, AssignedSubaddress), WalletDbError> {
-        let conn = self.pool.get()?;
-
-        let txo: Txo = match dsl_txos.find(txo_id_hex).get_result::<Txo>(&conn) {
+        println!("\x1b[1;36m \t\t\t\t GET_TXO: finding specific gxo \x1b[0m");
+        let txo: Txo = match dsl_txos.find(txo_id_hex).get_result::<Txo>(conn) {
             Ok(t) => t,
             // Match on NotFound to get a more informative NotFound Error
             Err(diesel::result::Error::NotFound) => {
@@ -389,9 +442,11 @@ impl WalletDb {
             }
         };
 
+        println!("\x1b[1;36m \t\t\t\t GET_TXO: finding specific status \x1b[0m");
+
         let account_txo_status: AccountTxoStatus = match dsl_account_txo_statuses
             .find((account_id_hex, txo_id_hex))
-            .get_result::<AccountTxoStatus>(&conn)
+            .get_result::<AccountTxoStatus>(conn)
         {
             Ok(t) => t,
             // Match on NotFound to get a more informative NotFound Error
@@ -406,10 +461,12 @@ impl WalletDb {
             }
         };
 
+        println!("\x1b[1;36m \t\t\t\t GET_TXO: finding specific account \x1b[0m");
+
         // Get subaddress key from account_key and txo subaddress
         let account: Account = match dsl_accounts
             .find(account_id_hex)
-            .get_result::<Account>(&conn)
+            .get_result::<Account>(conn)
         {
             Ok(t) => t,
             // Match on NotFound to get a more informative NotFound Error
@@ -425,9 +482,11 @@ impl WalletDb {
         let subaddress = account_key.subaddress(txo.subaddress_index as u64);
         let subaddress_b58 = b58_encode(&subaddress)?;
 
+        println!("\x1b[1;36m \t\t\t\t GET_TXO: finding specific subaddress \x1b[0m");
+
         let assigned_subaddress: AssignedSubaddress = match dsl_assigned_subaddresses
             .find(&subaddress_b58)
-            .get_result::<AssignedSubaddress>(&conn)
+            .get_result::<AssignedSubaddress>(conn)
         {
             Ok(t) => t,
             // Match on NotFound to get a more informative NotFound Error
@@ -479,6 +538,7 @@ impl WalletDb {
             .select(schema_txos::all_columns)
             .load(&conn)?;
 
+        // FIXME: Maybe we don't want to expose this in the balance
         let unknown: Vec<Txo> = schema_txos::table
             .inner_join(
                 schema_account_txo_statuses::table.on(schema_txos::txo_id_hex
@@ -620,6 +680,7 @@ impl WalletDb {
         let conn = self.pool.get()?;
 
         for key_image in key_images {
+            println!("\x1b[1;33m \t\tUPDATE SPENT: now matching txos by key image \x1b[0m");
             // Get the txo by key_image
             let matches = schema_txos::table
                 .select(schema_txos::all_columns)
@@ -643,11 +704,17 @@ impl WalletDb {
                     spent_block_height,
                     key_image
                 );
+                println!(
+                    "\x1b[1;32m \t\tUPDATE_SPENT: now updating spent block height for txo \x1b[0m"
+                );
                 diesel::update(dsl_txos.find(&matches[0].txo_id_hex))
                     .set(schema_txos::spent_block_height.eq(Some(spent_block_height)))
                     .execute(&conn)?;
 
                 // Update the AccountTxoStatus
+                println!(
+                    "\x1b[1;34m \t\tUPDATE_SPENT: now updating status to spent for txo \x1b[0m"
+                );
                 diesel::update(
                     dsl_account_txo_statuses.find((account_id_hex, &matches[0].txo_id_hex)),
                 )
@@ -655,11 +722,100 @@ impl WalletDb {
                 .execute(&conn)?;
 
                 // FIXME: make sure the path for all txo_statuses and txo_types exist and are tested
+                // Update the transaction status if the txos are all spent
+                println!("\x1b[1;35m \t\tUPDATE_SPENT: now updating the transaciton status for all transactions associatd with this txo \x1b[0m");
+                self.update_transaction_status(
+                    &matches[0].txo_id_hex,
+                    spent_block_height as u64,
+                    &conn,
+                )?;
             }
         }
+        println!("\x1b[1;33m \t\tUPDATE_SPENT: now updating next block for account ID \x1b[0m");
         diesel::update(dsl_accounts.find(account_id_hex))
             .set(schema_accounts::next_block.eq(spent_block_height + 1))
             .execute(&conn)?;
+        Ok(())
+    }
+
+    fn update_transaction_status(
+        &self,
+        txo_id_hex: &str,
+        cur_block_height: u64,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError> {
+        println!("\x1b[1;34m \t\t\t UPDATE_TX_STATUS: now getting inner joins table for associated transactions \x1b[0m");
+        // Get associated transaction IDs from txo - FIXME: make own function on model
+        let res: Result<Vec<TransactionLog>, _> = schema_transaction_logs::table
+            .inner_join(
+                schema_transaction_txo_types::table.on(schema_transaction_logs::transaction_id_hex
+                    .eq(schema_transaction_txo_types::transaction_id_hex)
+                    .and(schema_transaction_txo_types::txo_id_hex.eq(txo_id_hex))),
+            )
+            .select(schema_transaction_logs::all_columns)
+            .load(conn);
+
+        println!(
+            "\x1b[1;34m \t\t\t UPDATE_TX_STATUS: got joins result {:?} \x1b[0m",
+            res
+        );
+
+        if res.is_err() {
+            panic!("\x1b[1;31m Got error {:?}\x1b[0m", res);
+        }
+        let associated_transactions = res.unwrap();
+
+        for transaction in associated_transactions {
+            println!(
+                "\x1b[1;33m \t\t\t UPDATE_TX_STATUS: now getting specific transaction \x1b[0m"
+            );
+            let (transaction, inputs, _outputs, _change) =
+                self.get_transaction(&transaction.transaction_id_hex, conn)?;
+
+            println!(
+                "\x1b[1;33m \t\t\t UPDATE_TX_STATUS: got specific transaction {:?} \x1b[0m",
+                transaction
+            );
+
+            // Only update if proposed or pending
+            if transaction.status == "succeeded" || transaction.status == "failed" {
+                continue;
+            }
+
+            let num_inputs = inputs.len();
+            let mut spent_count = 0;
+            let mut tombstone_exceeded_count = 0;
+            for input_id in inputs {
+                println!("\x1b[1;33m \t\t\t UPDATE_TX_STATUS: now gtting specificd txo \x1b[0m",);
+                let (txo, txo_status, _assigned_subaddress) =
+                    self.get_txo(&transaction.account_id_hex, &input_id, conn)?;
+                if txo_status.txo_status == "spent" {
+                    spent_count += 1;
+                } else {
+                    if let Some(tombstone) = txo.spent_tombstone_block_height {
+                        if cur_block_height > tombstone as u64 {
+                            tombstone_exceeded_count += 1;
+                        }
+                    }
+                }
+            }
+            if spent_count == num_inputs {
+                println!(
+                    "\x1b[1;32m \t\t\t UPDATE_TX_STATUS: now updating status to succeeded \x1b[0m"
+                );
+                diesel::update(dsl_transaction_logs.find(&transaction.transaction_id_hex))
+                    .set(schema_transaction_logs::status.eq("succeeded"))
+                    .execute(conn)?;
+            } else if tombstone_exceeded_count > 0 {
+                println!(
+                    "\x1b[1;31m \t\t\t UPDATE_TX_STATUS: now updating status to failed \x1b[0m"
+                );
+                diesel::update(dsl_transaction_logs.find(&transaction.transaction_id_hex))
+                    .set(schema_transaction_logs::status.eq("failed"))
+                    .execute(conn)?;
+            }
+        }
+
         Ok(())
     }
 
@@ -860,6 +1016,13 @@ impl WalletDb {
         }
     }
 
+    // FIXME: hack to get around current db access design
+    pub fn get_conn(
+        &self,
+    ) -> Result<PooledConnection<ConnectionManager<SqliteConnection>>, WalletDbError> {
+        Ok(self.pool.get()?)
+    }
+
     /// Returns vector of (Transaction, Inputs, Outputs, Change)
     pub fn list_transactions(
         &self,
@@ -928,12 +1091,12 @@ impl WalletDb {
     pub fn get_transaction(
         &self,
         transaction_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(TransactionLog, Vec<String>, Vec<String>, Vec<String>), WalletDbError> {
-        let conn = self.pool.get()?;
-
+        println!("\x1b[1;32m GETTX: Now getting transaction and transaction txo type\x1b[0m");
         // FIXME: use group_by rather than the processing below:
         // https://docs.diesel.rs/diesel/associations/trait.GroupedBy.html
-        let transaction_txos: Vec<(TransactionLog, TransactionTxoType)> =
+        let res: Result<Vec<(TransactionLog, TransactionTxoType)>, _> =
             schema_transaction_logs::table
                 .inner_join(
                     schema_transaction_txo_types::table.on(
@@ -948,7 +1111,18 @@ impl WalletDb {
                     schema_transaction_logs::all_columns,
                     schema_transaction_txo_types::all_columns,
                 ))
-                .load(&conn)?;
+                .load(conn);
+
+        println!(
+            "\x1b[1;32m GETTX: done with query got result {:?}\x1b[0m",
+            res
+        );
+
+        if res.is_err() {
+            println!("\x1b[1;36m GETTX got error: {:?}\x1b[0m", res);
+            return Err(res.err().unwrap().into());
+        }
+        let transaction_txos = res.unwrap();
 
         let mut inputs: Vec<String> = Vec::new();
         let mut outputs: Vec<String> = Vec::new();
@@ -964,6 +1138,8 @@ impl WalletDb {
                 change.push(transaction_txo_type.txo_id_hex);
             }
         }
+        println!("\x1b[1;32m GETTX: returning transaction\x1b[0m");
+
         Ok((transaction, inputs, outputs, change))
     }
 }

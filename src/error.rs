@@ -40,6 +40,9 @@ pub enum WalletServiceError {
 
     /// Error Converting Proto but throws convert::Infallible
     ProtoConversionInfallible,
+
+    /// Error with LedgerDB {0}
+    LedgerDB(mc_ledger_db::Error),
 }
 
 impl From<WalletDbError> for WalletServiceError {
@@ -75,6 +78,12 @@ impl From<retry::Error<mc_connection::Error>> for WalletServiceError {
 impl From<mc_api::ConversionError> for WalletServiceError {
     fn from(src: mc_api::ConversionError) -> Self {
         Self::ProtoConversion(src)
+    }
+}
+
+impl From<mc_ledger_db::Error> for WalletServiceError {
+    fn from(src: mc_ledger_db::Error) -> Self {
+        Self::LedgerDB(src)
     }
 }
 
