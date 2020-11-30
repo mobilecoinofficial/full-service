@@ -29,7 +29,7 @@ use crate::{
 use mc_account_keys::AccountKey;
 use mc_common::{
     logger::{log, Logger},
-    HashSet,
+    HashMap, HashSet,
 };
 use mc_crypto_keys::RistrettoPublic;
 use mc_ledger_db::{Ledger, LedgerDB};
@@ -156,7 +156,6 @@ impl SyncThread {
                         {
                             // If there are no new blocks for this account, don't do anything.
                             if account.next_block >= num_blocks as i64 {
-                                println!("\x1b[1;31m SYNC: No new blocks for account\x1b[0m");
                                 continue;
                             }
 
@@ -301,7 +300,6 @@ fn sync_monitor(
     for _ in 0..MAX_BLOCKS_PROCESSING_CHUNK_SIZE {
         // Get the account data. If it is no longer available, the monitor has been removed and we
         // can simply return. FIXME - verify this works as intended with new data model
-        println!("\x1b[1;33m \tSYNC: now getting account \x1b[0m");
         let account = wallet_db.get_account(monitor_id)?;
         let block_contents = match ledger_db.get_block_contents(account.next_block as u64) {
             Ok(block_contents) => block_contents,
@@ -323,8 +321,7 @@ fn sync_monitor(
         );
 
         // Match tx outs into UTXOs.
-        println!("\x1b[1;34m \tSYNC: now processing utxos \x1b[0m");
-        process_txos(
+        let output_txo_ids = process_txos(
             &wallet_db,
             &block_contents.outputs,
             &account,
@@ -332,7 +329,6 @@ fn sync_monitor(
             logger,
         )?;
 
-        println!("\x1b[1;35m \tSYNC: now updating spent and incrementing block \x1b[0m");
         // Note: Doing this here means we are updating key images multiple times, once per account.
         //       We do actually want to do it this way, because each account may need to process
         //       the same block at a different time, depending on when we add it to the DB.
@@ -341,6 +337,9 @@ fn sync_monitor(
             account.next_block,
             block_contents.key_images,
         )?;
+
+        // Add a transaction for the received TXOs
+        wallet_db.log_received_transactions(output_txo_ids, &account, account.next_block as u64)?;
     }
 
     Ok(SyncMonitorOk::MoreBlocksPotentiallyAvailable)
@@ -353,9 +352,11 @@ fn process_txos(
     account: &Account,
     received_block_index: i64,
     logger: &Logger,
-) -> Result<(), SyncError> {
+) -> Result<HashMap<u64, Vec<String>>, SyncError> {
     let account_key: AccountKey = mc_util_serial::decode(&account.encrypted_account_key)?;
     let view_key = account_key.view_key();
+
+    let mut output_txo_ids: HashMap<u64, Vec<String>> = HashMap::default();
 
     for tx_out in outputs {
         // Calculate the subaddress spend public key for tx_out.
@@ -367,8 +368,8 @@ fn process_txos(
             &tx_out_target_key,
             &tx_public_key,
         );
+        // FIXME: update subaddress table for subaddresses
 
-        println!("\x1b[1;31m \tSYNC: getting subaddress by spend public key \x1b[0m");
         // See if it matches any of our assigned subaddresses.
         let (subaddress_index, account_id_hex) =
             match wallet_db.get_subaddress_index_by_subaddress_spend_public_key(&subaddress_spk) {
@@ -406,9 +407,8 @@ fn process_txos(
 
         let key_image = KeyImage::from(&onetime_private_key);
 
-        println!("\x1b[1;32m \tSYNC: now creating a received TXO \x1b[0m");
         // Insert received txo
-        wallet_db.create_received_txo(
+        let txo_id = wallet_db.create_received_txo(
             tx_out.clone(),
             subaddress_index as u64, // FIXME: precision...
             key_image,
@@ -416,9 +416,18 @@ fn process_txos(
             received_block_index,
             &account_id_hex,
         )?;
+
+        if output_txo_ids.get(&(subaddress_index as u64)).is_none() {
+            output_txo_ids.insert(subaddress_index as u64, Vec::new());
+        }
+
+        output_txo_ids
+            .get_mut(&(subaddress_index as u64))
+            .unwrap() // We know the key exists because we inserted above
+            .push(txo_id);
     }
 
-    Ok(())
+    Ok(output_txo_ids)
 }
 
 // FIXME: Add tests

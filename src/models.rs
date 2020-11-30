@@ -19,6 +19,8 @@ pub struct Account {
     pub first_block: i64,
     pub next_block: i64,
     pub name: String, // empty string for nullable
+                      // FIXME: add import_block to indicate that all data prior to that block was
+                      //        recovered from the ledger and may be missing data
 }
 
 #[derive(Insertable)]

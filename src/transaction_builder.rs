@@ -327,9 +327,10 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
             .fold(0, |acc, (utxo, _proof)| acc + utxo.value);
         // FIXME: Can get subtraction overflow in mobilecoind::payments - needs fixing
         if (total_value + self.transaction_builder.fee) > input_value as u64 {
-            return Err(WalletTransactionBuilderError::InsufficientFunds(
-                format!("Cannot make change for value {:?}" input_value),
-            ));
+            return Err(WalletTransactionBuilderError::InsufficientFunds(format!(
+                "Cannot make change for value {:?}",
+                input_value
+            )));
         }
 
         let change = input_value as u64 - total_value - self.transaction_builder.fee;

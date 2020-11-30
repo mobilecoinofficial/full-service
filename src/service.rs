@@ -409,7 +409,7 @@ mod tests {
         let result = dispatch(&client, body, &logger);
         let accounts = result.get("accounts").unwrap().as_array().unwrap();
         assert_eq!(accounts.len(), 1);
-        assert_eq!(accounts[0], account_id.clone());
+        assert_eq!(accounts[0].get("account_id").unwrap(), &account_id.clone());
 
         let body = json!({
             "method": "get_account",
@@ -605,7 +605,7 @@ mod tests {
             &client,
             body,
             &logger,
-            "WalletService(TransactionBuilder(InsufficientFunds(\"100\")))".to_string(),
+            "WalletService(TransactionBuilder(InsufficientFunds(\"Cannot make change for value 100\")))".to_string(),
         );
 
         // Add a block with significantly more MOB
@@ -691,8 +691,6 @@ mod tests {
         });
         let result = dispatch(&client, body, &logger);
         let account_id = result.get("account_id").unwrap().as_str().unwrap();
-        let b58_public_address = result.get("public_address").unwrap().as_str().unwrap();
-        let public_address = b58_decode(b58_public_address);
 
         // Create a subaddress
         let body = json!({
@@ -703,7 +701,13 @@ mod tests {
             }
         });
         let result = dispatch(&client, body, &logger);
-        let b58_public_address = result.get("public_address").unwrap().as_str().unwrap();
+        let b58_public_address = result
+            .get("address")
+            .unwrap()
+            .get("public_address_b58")
+            .unwrap()
+            .as_str()
+            .unwrap();
         let from_bob_public_address = b58_decode(b58_public_address);
 
         // Add a block to the ledger with a transaction "From Bob"

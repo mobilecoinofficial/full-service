@@ -744,8 +744,26 @@ curl -s localhost:9090/wallet \
         "change": [
           "7e35f469b60bc41aaeac90b218f02a4b1a5453eefa405a4ae356c9edc1492715"
         ]
-        ...
+      },
+      {
+        "transaction_id": "bdc8a8c2c0b259c8b3d3027d4616e681aac937071bb45ff97673b26aa37acd05",
+        "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
+        "recipient_public_address": "",
+        "assigned_subaddress": "PRwfPLTEJQxE5igytABzL1wJ5zujZNsYzfzEewoUsA91AUfpuPyk3QjgrXcwnhv4HVRZvT5MTE8cWyUE8LwkzSwnENuXyFF26kfDUSritG",
+        "value": "111000000000",
+        "fee": null,
+        "status": "succeeded",
+        "sent_time": "",
+        "block_height": "116867",
+        "comment": "",
+        "direction": "received",
+        "input_txo_ids": [],
+        "output_txo_ids": [
+          "6ab350a4122eb029fe75038cebb16c24576c033088be73c8f113aab539704c91"
+        ],
+        "change_txo_ids": []
       }
+      ...
     ]
   }
 }
