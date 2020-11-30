@@ -328,6 +328,13 @@ impl WalletDb {
             .set((schema_accounts::next_subaddress_index.eq(subaddress_index + 1),))
             .execute(&conn)?;
 
+        // FIXME: Currently getting 2020-11-30 04:15:15.758107 UTC ERRO error syncing monitor 873b295eb48dccd3612b64ec69d5dc26c0923aa3545a783c6423354bea5de3e8:
+        // WalletDb(DieselError(DatabaseError(UniqueViolation, "UNIQUE constraint failed: transaction_logs.transaction_id_hex"))),
+        // mc.app: wallet-service, mc.module: mc_wallet_service::sync, mc.src: src/sync.rs:282
+        //        when creating a new subaddress to try to pick up orphaned transactions
+
+        // FIXME: When adding multiple addresses for syncing, possibly due to error above, the
+        //        syncing stops, and the account is stuck at 0
         Ok((subaddress_b58, subaddress_index))
     }
 
@@ -395,6 +402,25 @@ impl WalletDb {
                     return Ok(txo_id.to_string());
                 } else {
                     panic!("New txo_type must be handled");
+                }
+
+                // If this TXO was previously orphaned, we can now update it, and make it spendable
+                if account_txo_status.txo_status == "orphaned" {
+                    let key_image = if let Some(ki) = key_image {
+                        mc_util_serial::encode(&ki)
+                    } else {
+                        return Err(WalletDbError::MissingKeyImage);
+                    };
+                    diesel::update(dsl_txos.find(&txo_id.to_string()))
+                        .set((
+                            schema_txos::key_image.eq(key_image),
+                            schema_txos::subaddress_index.eq(subaddress_index),
+                        ))
+                        .execute(&conn)?;
+
+                    diesel::update(&account_txo_status)
+                        .set(schema_account_txo_statuses::txo_status.eq("unspent"))
+                        .execute(&conn)?;
                 }
             }
             // If we don't already have this TXO, create a new entry

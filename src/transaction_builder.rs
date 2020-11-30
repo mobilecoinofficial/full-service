@@ -337,6 +337,9 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
             .fold(0, |acc, (utxo, _proof)| acc + utxo.value);
         // FIXME: Can get subtraction overflow in mobilecoind::payments - needs fixing
         if (total_value + self.transaction_builder.fee) > input_value as u64 {
+            // FIXME: Getting this error when I had 3 txos for 11.0 MOB, one for much
+            //        larger and I wanted to send 11.0 - sending a smaller amount got past it,
+            //        but this is a bug in uxo selection or in this calculation.
             return Err(WalletTransactionBuilderError::InsufficientFunds(format!(
                 "Cannot make change for value {:?}",
                 input_value

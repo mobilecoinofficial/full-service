@@ -121,6 +121,9 @@ pub enum WalletDbError {
 
     /// We expect one change output per TxProposal
     UnexpectedNumberOfChangeOutputs,
+
+    /// Key Image missing when recovering orphaned Txo
+    MissingKeyImage,
 }
 
 impl From<diesel::result::Error> for WalletDbError {

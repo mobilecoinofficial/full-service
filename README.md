@@ -312,7 +312,8 @@ curl -s localhost:9090/wallet \
       "spent": "18135938351572161289",
       "secreted": "0",
       "orphaned": "0",
-      "local_block_height": "116504"
+      "local_block_height": "116504",
+      "synced_blocks": "116504"
     }
   }
 }
