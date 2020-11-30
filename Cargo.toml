@@ -32,6 +32,7 @@ mc-util-from-random = { path = "mobilecoin/util/from-random" }
 mc-util-serial = { path = "mobilecoin/util/serial" }
 mc-util-uri = { path = "mobilecoin/util/uri" }
 
+chrono = "0.4"
 crossbeam-channel = "0.4"
 diesel = { version = "1.4", features = ["sqlite"] }
 diesel_migrations = { version = "1.4.0", features = ["sqlite"] }
