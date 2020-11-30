@@ -124,6 +124,9 @@ pub enum WalletDbError {
 
     /// Key Image missing when recovering orphaned Txo
     MissingKeyImage,
+
+    /// Subaddress on received transaction is null
+    NullSubaddressOnReceived,
 }
 
 impl From<diesel::result::Error> for WalletDbError {
@@ -273,6 +276,9 @@ pub enum WalletTransactionBuilderError {
 
     /// Attmpting to build a transaction from a TXO withou a subaddress
     NullSubaddress(String),
+
+    /// No spendable TXOs in the wallet
+    NoSpendableTxos,
 }
 
 impl From<mc_ledger_db::Error> for WalletTransactionBuilderError {

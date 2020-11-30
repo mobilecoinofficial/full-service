@@ -99,6 +99,10 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
         let mut txos: Vec<Txo> = self
             .wallet_db
             .select_unspent_txos_for_value(&self.account_id_hex, max_spendable)?;
+        if txos.is_empty() {
+            return Err(WalletTransactionBuilderError::NoSpendableTxos);
+        }
+        println!("\x1b[1;36m SELECTED THE FOLLOWING TXOS {:?}\x1b[0m", txos);
 
         // The maximum spendable is limited by the maximal number of inputs we can use.
         // FIXME: is this really doing what we want? Just because the MAX_INPUTS smallest are < value does

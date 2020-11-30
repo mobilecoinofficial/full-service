@@ -3,6 +3,7 @@
 //! Provides the CRUD implementations for our DB, and converts types to what is expected
 //! by the DB.
 
+use chrono::prelude::Utc;
 use mc_account_keys::{AccountKey, PublicAddress, DEFAULT_SUBADDRESS_INDEX};
 use mc_common::logger::{log, Logger};
 use mc_common::HashMap;
@@ -376,11 +377,23 @@ impl WalletDb {
                 // For TXOs that we sent previously, they are either change, or we sent to ourselves
                 // for some other reason. Their status will be secreted in either case.
                 if account_txo_status.txo_type == "minted" {
+                    println!(
+                        "\x1b[1;34m Received minted at block {:?}\x1b[0m",
+                        received_block_height
+                    );
+                    // Verify that we have a subaddress, otherwise this transaction will be
+                    // unspendable.
+                    if subaddress_index.is_none() || key_image.is_none() {
+                        return Err(WalletDbError::NullSubaddressOnReceived);
+                    }
+
                     // Update received block height and subaddress index
+                    let encoded_key_image = key_image.map(|k| mc_util_serial::encode(&k));
                     diesel::update(dsl_txos.find(&txo_id.to_string()))
                         .set((
                             schema_txos::received_block_height.eq(Some(received_block_height)),
                             schema_txos::subaddress_index.eq(subaddress_index),
+                            schema_txos::key_image.eq(encoded_key_image),
                         ))
                         .execute(&conn)?;
 
@@ -390,22 +403,30 @@ impl WalletDb {
                         .set(schema_account_txo_statuses::txo_status.eq("unspent"))
                         .execute(&conn)?;
                 } else if account_txo_status.txo_type == "received".to_string() {
+                    println!(
+                        "\x1b[1;34m Received 'received' at block {:?}\x1b[0m",
+                        received_block_height
+                    );
                     // If the existing Txo subadddress is null and we have the received subaddress
                     // now, then we want to update to received subaddress
                     if let Some(subaddress_i) = subaddress_index {
+                        println!("\x1b[1;37m SUBADDRESS was NULL, updating\x1b[0m");
                         if txo.subaddress_index.is_none() {
                             diesel::update(dsl_txos.find(&txo_id.to_string()))
                                 .set((schema_txos::subaddress_index.eq(subaddress_i as i64),))
                                 .execute(&conn)?;
                         }
                     }
-                    return Ok(txo_id.to_string());
                 } else {
                     panic!("New txo_type must be handled");
                 }
 
-                // If this TXO was previously orphaned, we can now update it, and make it spendable
+                // If this Txo was previously orphaned, we can now update it, and make it spendable
                 if account_txo_status.txo_status == "orphaned" {
+                    println!(
+                        "\x1b[1;34m Received orphaned at block {:?}\x1b[0m",
+                        received_block_height
+                    );
                     let key_image = if let Some(ki) = key_image {
                         mc_util_serial::encode(&ki)
                     } else {
@@ -422,9 +443,15 @@ impl WalletDb {
                         .set(schema_account_txo_statuses::txo_status.eq("unspent"))
                         .execute(&conn)?;
                 }
+
+                return Ok(txo_id.to_string());
             }
             // If we don't already have this TXO, create a new entry
             Err(diesel::result::Error::NotFound) => {
+                println!(
+                    "\x1b[1;34m Never saw this txo before, at block height {:?}\x1b[0m",
+                    received_block_height
+                );
                 let key_image_bytes = key_image.map(|k| mc_util_serial::encode(&k));
                 let new_txo = NewTxo {
                     txo_id_hex: &txo_id.to_string(),
@@ -441,6 +468,10 @@ impl WalletDb {
                     proof: None,
                 };
 
+                println!(
+                    "\x1b[1;34m Inserting new received txo at block height {:?}\x1b[0m",
+                    received_block_height
+                );
                 diesel::insert_into(schema_txos::table)
                     .values(&new_txo)
                     .execute(&conn)?;
@@ -458,6 +489,10 @@ impl WalletDb {
                     txo_type: "received",
                 };
 
+                println!(
+                    "\x1b[1;34m Inserting new status at block {:?}\x1b[0m",
+                    received_block_height
+                );
                 diesel::insert_into(schema_account_txo_statuses::table)
                     .values(&new_account_txo_status)
                     .execute(&conn)?;
@@ -690,11 +725,15 @@ impl WalletDb {
                     .eq(schema_account_txo_statuses::txo_id_hex)
                     .and(schema_account_txo_statuses::account_id_hex.eq(account_id_hex))
                     .and(schema_account_txo_statuses::txo_status.eq("unspent"))
+                    .and(schema_txos::subaddress_index.is_not_null())
+                    .and(schema_txos::key_image.is_not_null()) // Could technically recreate with subaddress
                     .and(schema_txos::value.lt(max_spendable_value))),
             )
             .select(schema_txos::all_columns)
             .order_by(schema_txos::value.desc())
             .load(&conn)?;
+
+        println!("\x1b[1;34mselected the following txos {:?}\x1b[0m", results);
 
         Ok(results)
     }
@@ -876,6 +915,16 @@ impl WalletDb {
         for (subaddress_index, output_txo_ids) in subaddress_to_output_txo_ids {
             let transaction_id = TransactionID::from(&output_txo_ids.to_vec());
 
+            // Check that we haven't already logged this transaction on a previous sync
+            match dsl_transaction_logs
+                .find(&transaction_id.to_string())
+                .first::<TransactionLog>(&conn)
+            {
+                Ok(_) => continue, // We've already processed this transaction on a previous sync
+                Err(diesel::result::Error::NotFound) => {} // Insert below
+                Err(e) => return Err(e.into()),
+            }
+
             // FIXME: should move onto model
             let txos = schema_txos::table
                 .select(schema_txos::all_columns)
@@ -1013,8 +1062,8 @@ impl WalletDb {
             for (i, output) in tx_proposal.tx.prefix.outputs.iter().enumerate() {
                 let txo_id = TxoID::from(output);
 
-                // FIXME: currently only have the value and proofs for outlays, not change - will need
-                //        to amend what's saved in the TxProposal to include change as outlays
+                // FIXME: currently only have the proofs for outlays, not change - we likely don't
+                //        need to prove to ourself that we sent that change.
                 let (value, proof, outlay_receiver) = if let Some(outlay_index) = tx_proposal
                     .outlay_index_to_tx_out_index
                     .iter()
@@ -1109,7 +1158,7 @@ impl WalletDb {
                 value: transaction_value as i64,
                 fee: Some(tx_proposal.tx.prefix.fee as i64),
                 status: "pending",
-                sent_time: "",                     // FIXME: what format do we want?
+                sent_time: &Utc::now().to_string(),
                 block_height: block_height as i64, // FIXME: is this going to do what we want? It's
                 // submitted block height, but not necessarily when it hits the ledger - would we
                 // update when we see a key_image from this transaction?
