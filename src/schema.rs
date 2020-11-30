@@ -65,7 +65,7 @@ table! {
         public_key -> Binary,
         e_fog_hint -> Binary,
         txo -> Binary,
-        subaddress_index -> BigInt,
+        subaddress_index -> Nullable<BigInt>,
         key_image -> Nullable<Binary>,
         received_block_height -> Nullable<BigInt>,
         spent_tombstone_block_height -> Nullable<BigInt>,

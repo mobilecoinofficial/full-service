@@ -222,7 +222,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         Ok(JsonTxo::new(
             &txo,
             &account_txo_status,
-            &assigned_subaddress,
+            assigned_subaddress.as_ref(),
         ))
     }
 
@@ -238,7 +238,8 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         let unspent: u64 = status_map["unspent"].iter().map(|t| t.value as u64).sum();
         let pending: u64 = status_map["pending"].iter().map(|t| t.value as u64).sum();
         let spent: u64 = status_map["spent"].iter().map(|t| t.value as u64).sum();
-        let unknown: u64 = status_map["unknown"].iter().map(|t| t.value as u64).sum();
+        let secreted: u64 = status_map["secreted"].iter().map(|t| t.value as u64).sum();
+        let orphaned: u64 = status_map["orphaned"].iter().map(|t| t.value as u64).sum();
 
         let local_block_height = self.ledger_db.num_blocks()?;
 
@@ -251,7 +252,8 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
             unspent: unspent.to_string(),
             pending: pending.to_string(),
             spent: spent.to_string(),
-            unknown: unknown.to_string(),
+            secreted: secreted.to_string(),
+            orphaned: orphaned.to_string(),
             local_block_height: local_block_height.to_string(),
             synced_blocks: account.next_block.to_string(),
         })
@@ -261,6 +263,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         &self,
         account_id_hex: &str,
         comment: Option<&str>,
+        // FIXME: add "sync from block"
     ) -> Result<JsonAddress, WalletServiceError> {
         let (public_address_b58, subaddress_index) = self
             .wallet_db
@@ -400,6 +403,10 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
             tombstone_block,
             max_spendable_value,
         )?;
+        println!(
+            "\x1b[1;36m SENDING TRANSACTION, constructed proposal with change {:?}\x1b[0m",
+            tx_proposal.change_value
+        );
         Ok(self.submit_transaction(tx_proposal, comment)?)
     }
 
@@ -539,11 +546,11 @@ mod tests {
         assert_eq!(pending.len(), 1);
         assert_eq!(pending[0].txo_type, "received");
         assert_eq!(pending[0].value, "100000000000000");
-        // The Minted have Status Unknown
+        // The Minted have Status "secreted"
         let minted: Vec<JsonListTxosResponse> = txos
             .iter()
             .cloned()
-            .filter(|t| t.txo_status == "unknown")
+            .filter(|t| t.txo_status == "secreted")
             .collect();
         assert_eq!(minted.len(), 2);
         assert_eq!(minted[0].txo_type, "minted");
@@ -557,8 +564,8 @@ mod tests {
         assert_eq!(balance.unspent, "0");
         assert_eq!(balance.pending, "100000000000000");
         assert_eq!(balance.spent, "0");
-        // In this case, unknown is sent
-        assert_eq!(balance.unknown, "42000000000000");
+        assert_eq!(balance.secreted, "42000000000000");
+        assert_eq!(balance.orphaned, "0");
 
         // FIXME: How to make the transaction actually hit the test ledger?
     }

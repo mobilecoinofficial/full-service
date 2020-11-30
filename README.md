@@ -310,7 +310,8 @@ curl -s localhost:9090/wallet \
       "unspent": "97580439900010991",
       "pending": "0",
       "spent": "18135938351572161289",
-      "unknown": "0"
+      "secreted": "0",
+      "orphaned": "0",
       "local_block_height": "116504"
     }
   }

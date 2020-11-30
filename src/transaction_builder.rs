@@ -271,10 +271,20 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
             }
 
             let public_key = RistrettoPublic::try_from(&db_tx_out.public_key).unwrap();
+
+            let subaddress_index = if let Some(s) = utxo.subaddress_index {
+                s
+            } else {
+                return Err(WalletTransactionBuilderError::NullSubaddress(format!(
+                    "{}",
+                    utxo.txo_id_hex
+                )));
+            };
+
             let onetime_private_key = recover_onetime_private_key(
                 &public_key,
                 from_account_key.view_private_key(),
-                &from_account_key.subaddress_spend_private(utxo.subaddress_index as u64),
+                &from_account_key.subaddress_spend_private(subaddress_index as u64),
             );
 
             let key_image = KeyImage::from(&onetime_private_key);
@@ -334,9 +344,14 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
         }
 
         let change = input_value as u64 - total_value - self.transaction_builder.fee;
+        println!(
+            "\x1b[1;31m TRANSACTION BUILDER calcualted change to {:?}\x1b[0m",
+            change
+        );
 
         // If we do, add an output for that as well.
         if change > 0 {
+            println!("\x1b[1;32m Change > 0 so actually adding output for it \x1b[0m");
             let change_public_address =
                 from_account_key.subaddress(account.change_subaddress_index as u64);
             let main_public_address =
@@ -401,9 +416,10 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
                 let decoded_tx_out = mc_util_serial::decode(&utxo.txo).unwrap();
                 let decoded_key_image =
                     mc_util_serial::decode(&utxo.key_image.clone().unwrap()).unwrap();
+
                 UnspentTxOut {
                     tx_out: decoded_tx_out,
-                    subaddress_index: utxo.subaddress_index as u64,
+                    subaddress_index: utxo.subaddress_index.unwrap() as u64, // verified not null earlier
                     key_image: decoded_key_image,
                     value: utxo.value as u64,
                     attempted_spend_height: 0, // NOTE: these are null because not tracked here
@@ -411,6 +427,11 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
                 }
             })
             .collect();
+
+        println!(
+            "\x1b[1;33m About to return with change = {:?} \x1b[0m",
+            change
+        );
 
         Ok(TxProposal {
             utxos: selected_utxos,
@@ -425,6 +446,7 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
             tx,
             outlay_index_to_tx_out_index,
             outlay_confirmation_numbers,
+            change_value: change,
         })
     }
 

@@ -118,6 +118,9 @@ pub enum WalletDbError {
 
     /// Error decoding prost {0}
     ProstDecode(prost::DecodeError),
+
+    /// We expect one change output per TxProposal
+    UnexpectedNumberOfChangeOutputs,
 }
 
 impl From<diesel::result::Error> for WalletDbError {
@@ -192,6 +195,9 @@ pub enum SyncError {
 
     /// Error decoding prost {0}
     ProstDecode(prost::DecodeError),
+
+    /// Error with the Amount {0}
+    Amount(mc_transaction_core::AmountError),
 }
 
 impl From<WalletDbError> for SyncError {
@@ -215,6 +221,12 @@ impl From<mc_crypto_keys::KeyError> for SyncError {
 impl From<prost::DecodeError> for SyncError {
     fn from(src: prost::DecodeError) -> Self {
         Self::ProstDecode(src)
+    }
+}
+
+impl From<mc_transaction_core::AmountError> for SyncError {
+    fn from(src: mc_transaction_core::AmountError) -> Self {
+        Self::Amount(src)
     }
 }
 
@@ -255,6 +267,9 @@ pub enum WalletTransactionBuilderError {
 
     /// Error interacting with fog {0}
     FogError(String),
+
+    /// Attmpting to build a transaction from a TXO withou a subaddress
+    NullSubaddress(String),
 }
 
 impl From<mc_ledger_db::Error> for WalletTransactionBuilderError {

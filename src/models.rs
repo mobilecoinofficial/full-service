@@ -45,7 +45,7 @@ pub struct Txo {
     pub public_key: Vec<u8>,
     pub e_fog_hint: Vec<u8>,
     pub txo: Vec<u8>,
-    pub subaddress_index: i64,
+    pub subaddress_index: Option<i64>,
     pub key_image: Option<Vec<u8>>,
     pub received_block_height: Option<i64>,
     pub spent_tombstone_block_height: Option<i64>,
@@ -62,7 +62,7 @@ pub struct NewTxo<'a> {
     pub public_key: &'a Vec<u8>,
     pub e_fog_hint: &'a Vec<u8>,
     pub txo: &'a Vec<u8>,
-    pub subaddress_index: i64,
+    pub subaddress_index: Option<i64>,
     pub key_image: Option<&'a Vec<u8>>,
     pub received_block_height: Option<i64>,
     pub spent_tombstone_block_height: Option<i64>,
@@ -78,7 +78,7 @@ pub struct NewTxo<'a> {
 pub struct AccountTxoStatus {
     pub account_id_hex: String,
     pub txo_id_hex: String,
-    // Statuses: unspent, pending, spent, unknown
+    // Statuses: unspent, pending, spent, secreted, orphaned
     pub txo_status: String,
     // Types: minted, received
     pub txo_type: String,

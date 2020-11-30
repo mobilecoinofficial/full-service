@@ -17,7 +17,7 @@ create TABLE txos (
   public_key BLOB NOT NULL,
   e_fog_hint BLOB NOT NULL,
   txo BLOB NOT NULL,
-  subaddress_index UNSIGNED BIG INT NOT NULL,
+  subaddress_index UNSIGNED BIG INT,
   key_image BLOB,
   received_block_height UNSIGNED BIG INT,
   spent_tombstone_block_height UNSIGNED BIG INT,

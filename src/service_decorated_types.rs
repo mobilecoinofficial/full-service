@@ -48,8 +48,8 @@ impl JsonListTxosResponse {
 pub struct JsonTxo {
     pub txo_id: String,
     pub value: String,
-    pub assigned_subaddress: String,
-    pub subaddress_index: String,
+    pub assigned_subaddress: Option<String>,
+    pub subaddress_index: Option<String>,
     pub txo_type: String,
     pub txo_status: String,
     pub received_block_height: Option<String>,
@@ -62,13 +62,13 @@ impl JsonTxo {
     pub fn new(
         txo: &Txo,
         account_txo_status: &AccountTxoStatus,
-        assigned_subaddress: &AssignedSubaddress,
+        assigned_subaddress: Option<&AssignedSubaddress>,
     ) -> Self {
         Self {
             txo_id: txo.txo_id_hex.clone(),
             value: txo.value.to_string(),
-            assigned_subaddress: assigned_subaddress.assigned_subaddress_b58.clone(),
-            subaddress_index: txo.subaddress_index.to_string(),
+            assigned_subaddress: assigned_subaddress.map(|a| a.assigned_subaddress_b58.clone()),
+            subaddress_index: txo.subaddress_index.map(|s| s.to_string()),
             txo_type: account_txo_status.txo_type.clone(),
             txo_status: account_txo_status.txo_status.clone(),
             received_block_height: txo.received_block_height.map(|x| x.to_string()),
@@ -84,7 +84,8 @@ pub struct JsonBalanceResponse {
     pub unspent: String,
     pub pending: String,
     pub spent: String,
-    pub unknown: String,
+    pub secreted: String,
+    pub orphaned: String,
     pub local_block_height: String,
     pub synced_blocks: String,
 }

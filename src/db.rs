@@ -311,16 +311,21 @@ impl WalletDb {
         diesel::insert_into(schema_assigned_subaddresses::table)
             .values(&subaddress_entry)
             .execute(&conn)?;
-
         // Update the next subaddress index for the account
         // Note: we also update the first_block back to 0 to scan from the beginning of the
-        //       ledger for this new subaddress. FIXME: we do not need to do this - we should
-        //       change sync to create assigned_subaddress entries for all found subaddresses
+        //       ledger for this new subaddress.
+        // FIXME: pass in a "sync from" block rather than 0
+        let sync_from = 0;
         diesel::update(dsl_accounts.find(account_id_hex))
             .set((
                 schema_accounts::next_subaddress_index.eq(subaddress_index + 1),
-                schema_accounts::next_block.eq(0),
+                schema_accounts::next_block.eq(sync_from),
             ))
+            .execute(&conn)?;
+
+        // Update the next subaddress index for the account
+        diesel::update(dsl_accounts.find(account_id_hex))
+            .set((schema_accounts::next_subaddress_index.eq(subaddress_index + 1),))
             .execute(&conn)?;
 
         Ok((subaddress_b58, subaddress_index))
@@ -330,8 +335,8 @@ impl WalletDb {
     pub fn create_received_txo(
         &self,
         txo: TxOut,
-        subaddress_index: u64,
-        key_image: KeyImage,
+        subaddress_index: Option<i64>,
+        key_image: Option<KeyImage>,
         value: u64,
         received_block_height: i64,
         account_id_hex: &str,
@@ -342,7 +347,7 @@ impl WalletDb {
 
         // If we already have this TXO (e.g. from minting in a previous transaction), we need to update it
         match dsl_txos.find(&txo_id.to_string()).get_result::<Txo>(&conn) {
-            Ok(_txo) => {
+            Ok(txo) => {
                 // get the type of this TXO
                 let account_txo_status: AccountTxoStatus = match dsl_account_txo_statuses
                     .find((account_id_hex, &txo_id.to_string()))
@@ -362,13 +367,13 @@ impl WalletDb {
                 };
 
                 // For TXOs that we sent previously, they are either change, or we sent to ourselves
-                // for some other reason. Their status will be unknown in either case.
+                // for some other reason. Their status will be secreted in either case.
                 if account_txo_status.txo_type == "minted" {
                     // Update received block height and subaddress index
                     diesel::update(dsl_txos.find(&txo_id.to_string()))
                         .set((
                             schema_txos::received_block_height.eq(Some(received_block_height)),
-                            schema_txos::subaddress_index.eq(subaddress_index as i64),
+                            schema_txos::subaddress_index.eq(subaddress_index),
                         ))
                         .execute(&conn)?;
 
@@ -378,7 +383,15 @@ impl WalletDb {
                         .set(schema_account_txo_statuses::txo_status.eq("unspent"))
                         .execute(&conn)?;
                 } else if account_txo_status.txo_type == "received".to_string() {
-                    // We already processed this TXO and can ignore
+                    // If the existing Txo subadddress is null and we have the received subaddress
+                    // now, then we want to update to received subaddress
+                    if let Some(subaddress_i) = subaddress_index {
+                        if txo.subaddress_index.is_none() {
+                            diesel::update(dsl_txos.find(&txo_id.to_string()))
+                                .set((schema_txos::subaddress_index.eq(subaddress_i as i64),))
+                                .execute(&conn)?;
+                        }
+                    }
                     return Ok(txo_id.to_string());
                 } else {
                     panic!("New txo_type must be handled");
@@ -386,7 +399,7 @@ impl WalletDb {
             }
             // If we don't already have this TXO, create a new entry
             Err(diesel::result::Error::NotFound) => {
-                let key_image_bytes = mc_util_serial::encode(&key_image);
+                let key_image_bytes = key_image.map(|k| mc_util_serial::encode(&k));
                 let new_txo = NewTxo {
                     txo_id_hex: &txo_id.to_string(),
                     value: value as i64,
@@ -394,8 +407,8 @@ impl WalletDb {
                     public_key: &mc_util_serial::encode(&txo.public_key),
                     e_fog_hint: &mc_util_serial::encode(&txo.e_fog_hint),
                     txo: &mc_util_serial::encode(&txo),
-                    subaddress_index: subaddress_index as i64,
-                    key_image: Some(&key_image_bytes),
+                    subaddress_index,
+                    key_image: key_image_bytes.as_ref(),
                     received_block_height: Some(received_block_height as i64),
                     spent_tombstone_block_height: None,
                     spent_block_height: None,
@@ -406,10 +419,16 @@ impl WalletDb {
                     .values(&new_txo)
                     .execute(&conn)?;
 
+                let status = if subaddress_index.is_some() {
+                    "unspent"
+                } else {
+                    // Note: An orphaned Txo cannot be spent until the subaddress is recovered.
+                    "orphaned"
+                };
                 let new_account_txo_status = NewAccountTxoStatus {
                     account_id_hex: &account_id_hex,
                     txo_id_hex: &txo_id.to_string(),
-                    txo_status: "unspent",
+                    txo_status: status,
                     txo_type: "received",
                 };
 
@@ -452,7 +471,7 @@ impl WalletDb {
         account_id_hex: &str,
         txo_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<(Txo, AccountTxoStatus, AssignedSubaddress), WalletDbError> {
+    ) -> Result<(Txo, AccountTxoStatus, Option<AssignedSubaddress>), WalletDbError> {
         let txo: Txo = match dsl_txos.find(txo_id_hex).get_result::<Txo>(conn) {
             Ok(t) => t,
             // Match on NotFound to get a more informative NotFound Error
@@ -496,22 +515,28 @@ impl WalletDb {
             }
         };
 
-        let account_key: AccountKey = mc_util_serial::decode(&account.encrypted_account_key)?;
-        let subaddress = account_key.subaddress(txo.subaddress_index as u64);
-        let subaddress_b58 = b58_encode(&subaddress)?;
+        // Get the subaddress details if assigned
+        let assigned_subaddress = if let Some(subaddress_index) = txo.subaddress_index {
+            let account_key: AccountKey = mc_util_serial::decode(&account.encrypted_account_key)?;
+            let subaddress = account_key.subaddress(subaddress_index as u64);
+            let subaddress_b58 = b58_encode(&subaddress)?;
 
-        let assigned_subaddress: AssignedSubaddress = match dsl_assigned_subaddresses
-            .find(&subaddress_b58)
-            .get_result::<AssignedSubaddress>(conn)
-        {
-            Ok(t) => t,
-            // Match on NotFound to get a more informative NotFound Error
-            Err(diesel::result::Error::NotFound) => {
-                return Err(WalletDbError::NotFound(subaddress_b58));
-            }
-            Err(e) => {
-                return Err(e.into());
-            }
+            let assigned_subaddress: AssignedSubaddress = match dsl_assigned_subaddresses
+                .find(&subaddress_b58)
+                .get_result::<AssignedSubaddress>(conn)
+            {
+                Ok(t) => t,
+                // Match on NotFound to get a more informative NotFound Error
+                Err(diesel::result::Error::NotFound) => {
+                    return Err(WalletDbError::NotFound(subaddress_b58));
+                }
+                Err(e) => {
+                    return Err(e.into());
+                }
+            };
+            Some(assigned_subaddress)
+        } else {
+            None
         };
 
         Ok((txo, account_txo_status, assigned_subaddress))
@@ -555,20 +580,32 @@ impl WalletDb {
             .load(&conn)?;
 
         // FIXME: Maybe we don't want to expose this in the balance
-        let unknown: Vec<Txo> = schema_txos::table
+        let secreted: Vec<Txo> = schema_txos::table
             .inner_join(
                 schema_account_txo_statuses::table.on(schema_txos::txo_id_hex
                     .eq(schema_account_txo_statuses::txo_id_hex)
                     .and(schema_account_txo_statuses::account_id_hex.eq(account_id_hex))
-                    .and(schema_account_txo_statuses::txo_status.eq("unknown"))),
+                    .and(schema_account_txo_statuses::txo_status.eq("secreted"))),
             )
             .select(schema_txos::all_columns)
             .load(&conn)?;
+
+        let orphaned: Vec<Txo> = schema_txos::table
+            .inner_join(
+                schema_account_txo_statuses::table.on(schema_txos::txo_id_hex
+                    .eq(schema_account_txo_statuses::txo_id_hex)
+                    .and(schema_account_txo_statuses::account_id_hex.eq(account_id_hex))
+                    .and(schema_account_txo_statuses::txo_status.eq("orphaned"))),
+            )
+            .select(schema_txos::all_columns)
+            .load(&conn)?;
+
         let results = HashMap::from_iter(vec![
             ("unspent".to_string(), unspent),
             ("pending".to_string(), pending),
             ("spent".to_string(), spent),
-            ("unknown".to_string(), unknown),
+            ("secreted".to_string(), secreted),
+            ("orphaned".to_string(), orphaned),
         ]);
         Ok(results)
     }
@@ -804,7 +841,7 @@ impl WalletDb {
 
     pub fn log_received_transactions(
         &self,
-        subaddress_to_output_txo_ids: HashMap<u64, Vec<String>>,
+        subaddress_to_output_txo_ids: HashMap<i64, Vec<String>>,
         account: &Account,
         block_height: u64,
     ) -> Result<(), WalletDbError> {
@@ -823,8 +860,13 @@ impl WalletDb {
 
             // Get the public address for the subaddress that received these TXOs
             let account_key: AccountKey = mc_util_serial::decode(&account.encrypted_account_key)?;
-            let subaddress = account_key.subaddress(subaddress_index);
-            let b58_subaddress = b58_encode(&subaddress)?;
+            let b58_subaddress = if subaddress_index >= 0 {
+                let subaddress = account_key.subaddress(subaddress_index as u64);
+                b58_encode(&subaddress)?
+            } else {
+                // If not matched to an existing subaddress, empty string as NULL
+                "".to_string()
+            };
 
             // Create a TransactionLogs entry
             let new_transaction_log = NewTransactionLog {
@@ -879,6 +921,12 @@ impl WalletDb {
 
         // Store the txo_id -> transaction_txo_type
         let mut txo_ids: Vec<(String, &str)> = Vec::new();
+
+        // Verify that the TxProposal is well-formed according to our assumptions about
+        // how to store the sent data in our wallet.
+        if tx_proposal.tx.prefix.outputs.len() - 1 != tx_proposal.outlays.len() {
+            return Err(WalletDbError::UnexpectedNumberOfChangeOutputs);
+        }
 
         // First update all inputs to "pending." They will remain pending until their key_image
         // hits the ledger.
@@ -953,7 +1001,15 @@ impl WalletDb {
                         Some(outlay.receiver.clone()),
                     )
                 } else {
-                    (0, None, None)
+                    // This is the change output. Note: there should only be one change output
+                    // per transaction, based on how we construct transactions. If we change
+                    // how we construct transactions, these assumptions will change, and should be
+                    // reflected in the TxProposal.
+                    println!(
+                        "\x1b[1;36m GOT CHANGE with value {:?}\x1b[0m",
+                        tx_proposal.change_value
+                    );
+                    (tx_proposal.change_value, None, None)
                 };
 
                 // Update receiver, transaction_value, and transaction_txo_type, if outlay was found
@@ -974,14 +1030,13 @@ impl WalletDb {
                     txo_ids.push((txo_id.to_string(), "change"));
                 }
 
-                // FIXME: Not yet looking up subaddress_index for recipient in AssignedSubaddresses Table
-                // FIXME: It's also not clear to me what this value should be for minted TXOs, and
-                //        I'm assuming for change it should be the change subaddress?
-                let subaddress_index = 0;
-
                 let encoded_proof = proof
                     .map(|p| mc_util_serial::encode(&tx_proposal.outlay_confirmation_numbers[p]));
 
+                println!(
+                    "\x1b[1;33m SETTING VALUE FOR THIS OUTPUT TO {:?}\x1b[0m",
+                    value
+                );
                 let new_txo = NewTxo {
                     txo_id_hex: &txo_id.to_string(),
                     value: value as i64,
@@ -989,8 +1044,8 @@ impl WalletDb {
                     public_key: &mc_util_serial::encode(&output.public_key),
                     e_fog_hint: &mc_util_serial::encode(&output.e_fog_hint),
                     txo: &mc_util_serial::encode(output),
-                    subaddress_index: subaddress_index as i64,
-                    key_image: None, // Only the recipient can calculate the KeyImage
+                    subaddress_index: None, // Minted set subaddress_index to None. Once received, overrides.
+                    key_image: None,        // Only the recipient can calculate the KeyImage
                     received_block_height: None,
                     spent_tombstone_block_height: Some(
                         tx_proposal.tx.prefix.tombstone_block as i64,
@@ -1006,7 +1061,7 @@ impl WalletDb {
                 let new_account_txo_status = NewAccountTxoStatus {
                     account_id_hex: &account_id_hex,
                     txo_id_hex: &txo_id.to_string(),
-                    txo_status: "unknown", // We cannot track spent status for minted TXOs unless change
+                    txo_status: "secreted", // We cannot track spent status for minted TXOs unless change
                     txo_type: "minted",
                 };
 
@@ -1319,8 +1374,8 @@ mod tests {
         let txo_hex = walletdb
             .create_received_txo(
                 txo.clone(),
-                subaddress_index,
-                key_image,
+                Some(subaddress_index),
+                Some(key_image),
                 value,
                 received_block_height,
                 &account_id_hex,
@@ -1337,7 +1392,7 @@ mod tests {
             public_key: mc_util_serial::encode(&txo.public_key),
             e_fog_hint: mc_util_serial::encode(&txo.e_fog_hint),
             txo: mc_util_serial::encode(&txo),
-            subaddress_index: subaddress_index as i64,
+            subaddress_index: Some(subaddress_index),
             key_image: Some(mc_util_serial::encode(&key_image)),
             received_block_height: Some(received_block_height as i64),
             spent_tombstone_block_height: None,

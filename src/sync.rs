@@ -38,6 +38,7 @@ use mc_transaction_core::{
     onetime_keys::{recover_onetime_private_key, recover_public_subaddress_spend_key},
     ring_signature::KeyImage,
     tx::TxOut,
+    AmountError,
 };
 use std::{
     convert::TryFrom,
@@ -352,11 +353,12 @@ fn process_txos(
     account: &Account,
     received_block_index: i64,
     logger: &Logger,
-) -> Result<HashMap<u64, Vec<String>>, SyncError> {
+) -> Result<HashMap<i64, Vec<String>>, SyncError> {
     let account_key: AccountKey = mc_util_serial::decode(&account.encrypted_account_key)?;
     let view_key = account_key.view_key();
+    let account_id_hex = AccountID::from(&account_key).to_string();
 
-    let mut output_txo_ids: HashMap<u64, Vec<String>> = HashMap::default();
+    let mut output_txo_ids: HashMap<i64, Vec<String>> = HashMap::default();
 
     for tx_out in outputs {
         // Calculate the subaddress spend public key for tx_out.
@@ -368,61 +370,76 @@ fn process_txos(
             &tx_out_target_key,
             &tx_public_key,
         );
-        // FIXME: update subaddress table for subaddresses
 
         // See if it matches any of our assigned subaddresses.
-        let (subaddress_index, account_id_hex) =
+        let subaddress_index =
             match wallet_db.get_subaddress_index_by_subaddress_spend_public_key(&subaddress_spk) {
                 Ok((index, account_id)) => {
                     log::trace!(
                         logger,
-                        "matched subaddress index {} for monitor_id {}",
+                        "matched subaddress index {} for account_id {}",
                         index,
                         account_id,
                     );
-                    (index, account_id)
+                    // Sanity - we should only get a match for our own account ID.
+                    assert_eq!(account_id, account_id_hex);
+                    Some(index)
                 }
-                Err(WalletDbError::NotFound(_)) => continue,
+                Err(WalletDbError::NotFound(_)) => {
+                    log::trace!(
+                        logger,
+                        "Not tracking this subaddress spend public key for account {}",
+                        account_id_hex
+                    );
+                    None
+                }
                 Err(err) => {
                     return Err(err.into());
                 }
             };
 
-        // Sanity - we should only get a match for our own account ID.
-        assert_eq!(AccountID::from(&account_key).to_string(), account_id_hex);
-
         let shared_secret =
             get_tx_out_shared_secret(account_key.view_private_key(), &tx_public_key);
 
-        let (value, _blinding) = tx_out
-            .amount
-            .get_value(&shared_secret)
-            .expect("Malformed amount"); // TODO
+        let value = match tx_out.amount.get_value(&shared_secret) {
+            Ok((v, _blinding)) => v,
+            Err(AmountError::InconsistentCommitment) => {
+                // Assume this is not a transaction that belongs to us. We go this far because
+                // we are trying to match txos even if we did not preemptively store a subaddress spk.
+                continue;
+            }
+        };
 
-        let onetime_private_key = recover_onetime_private_key(
-            &tx_public_key,
-            account_key.view_private_key(),
-            &account_key.subaddress_spend_private(subaddress_index as u64),
-        );
+        let key_image = if let Some(subaddress_i) = subaddress_index {
+            let onetime_private_key = recover_onetime_private_key(
+                &tx_public_key,
+                account_key.view_private_key(),
+                &account_key.subaddress_spend_private(subaddress_i as u64),
+            );
 
-        let key_image = KeyImage::from(&onetime_private_key);
+            Some(KeyImage::from(&onetime_private_key))
+        } else {
+            None
+        };
 
         // Insert received txo
         let txo_id = wallet_db.create_received_txo(
             tx_out.clone(),
-            subaddress_index as u64, // FIXME: precision...
+            subaddress_index,
             key_image,
             value,
             received_block_index,
             &account_id_hex,
         )?;
 
-        if output_txo_ids.get(&(subaddress_index as u64)).is_none() {
-            output_txo_ids.insert(subaddress_index as u64, Vec::new());
+        // If we couldn't find an assigned subaddress for this value, store for -1
+        let subaddress_key: i64 = subaddress_index.unwrap_or(-1) as i64;
+        if output_txo_ids.get(&(subaddress_key)).is_none() {
+            output_txo_ids.insert(subaddress_key, Vec::new());
         }
 
         output_txo_ids
-            .get_mut(&(subaddress_index as u64))
+            .get_mut(&(subaddress_key))
             .unwrap() // We know the key exists because we inserted above
             .push(txo_id);
     }
