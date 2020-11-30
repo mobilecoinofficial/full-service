@@ -234,19 +234,14 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         &self,
         account_id_hex: &str,
     ) -> Result<JsonBalanceResponse, WalletServiceError> {
-        println!("\x1b[1;36m BALANCE: now getting status map\x1b[0m");
-
         let status_map = self.wallet_db.list_txos_by_status(account_id_hex)?;
         let unspent: u64 = status_map["unspent"].iter().map(|t| t.value as u64).sum();
         let pending: u64 = status_map["pending"].iter().map(|t| t.value as u64).sum();
         let spent: u64 = status_map["spent"].iter().map(|t| t.value as u64).sum();
         let unknown: u64 = status_map["unknown"].iter().map(|t| t.value as u64).sum();
 
-        println!("\x1b[1;36m BALANCE: now getting local block height\x1b[0m");
-
         let local_block_height = self.ledger_db.num_blocks()?;
 
-        println!("\x1b[1;36m BALANCE: now getting account\x1b[0m");
         let account = self.wallet_db.get_account(account_id_hex)?;
 
         // FIXME: probably also want to compare with network height
@@ -559,7 +554,6 @@ mod tests {
 
         // Our balance should reflect the various statuses of our txos
         let balance = service.get_balance(&alice.account_id).unwrap();
-        println!("\x1b[1;31m Got balance = {:?}\x1b[0m", balance);
         assert_eq!(balance.unspent, "0");
         assert_eq!(balance.pending, "100000000000000");
         assert_eq!(balance.spent, "0");
