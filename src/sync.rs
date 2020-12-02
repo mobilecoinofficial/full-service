@@ -21,10 +21,13 @@
 //! instead of removing the account id from the hashset, it would be placed back into the queue to
 //! be picked up by the next available worker thread.
 
+use crate::db_models::account::{AccountID, AccountModel};
+use crate::db_models::assigned_subaddress::AssignedSubaddressModel;
 use crate::{
-    db::{AccountID, WalletDb},
+    db::WalletDb,
     error::{SyncError, WalletDbError},
     models::Account,
+    models::AssignedSubaddress,
 };
 use mc_account_keys::AccountKey;
 use mc_common::{
@@ -151,9 +154,12 @@ impl SyncThread {
                         let mut message_sent = false;
 
                         // Go over our list of accounts and see which one needs to process these blocks.
-                        for account in wallet_db
-                            .list_accounts()
-                            .expect("failed getting accounts from WalletDb")
+                        for account in Account::list_accounts(
+                            &wallet_db
+                                .get_conn()
+                                .expect("Could not get connection to DB"),
+                        )
+                        .expect("Failed getting accounts from WalletDb")
                         {
                             // If there are no new blocks for this account, don't do anything.
                             if account.next_block >= num_blocks as i64 {
@@ -372,31 +378,33 @@ fn process_txos(
         );
 
         // See if it matches any of our assigned subaddresses.
-        let subaddress_index =
-            match wallet_db.get_subaddress_index_by_subaddress_spend_public_key(&subaddress_spk) {
-                Ok((index, account_id)) => {
-                    log::trace!(
-                        logger,
-                        "matched subaddress index {} for account_id {}",
-                        index,
-                        account_id,
-                    );
-                    // Sanity - we should only get a match for our own account ID.
-                    assert_eq!(account_id, account_id_hex);
-                    Some(index)
-                }
-                Err(WalletDbError::NotFound(_)) => {
-                    log::trace!(
-                        logger,
-                        "Not tracking this subaddress spend public key for account {}",
-                        account_id_hex
-                    );
-                    None
-                }
-                Err(err) => {
-                    return Err(err.into());
-                }
-            };
+        let subaddress_index = match AssignedSubaddress::find_by_subaddress_spend_public_key(
+            &subaddress_spk,
+            &wallet_db.get_conn()?,
+        ) {
+            Ok((index, account_id)) => {
+                log::trace!(
+                    logger,
+                    "matched subaddress index {} for account_id {}",
+                    index,
+                    account_id,
+                );
+                // Sanity - we should only get a match for our own account ID.
+                assert_eq!(account_id, account_id_hex);
+                Some(index)
+            }
+            Err(WalletDbError::NotFound(_)) => {
+                log::trace!(
+                    logger,
+                    "Not tracking this subaddress spend public key for account {}",
+                    account_id_hex
+                );
+                None
+            }
+            Err(err) => {
+                return Err(err.into());
+            }
+        };
 
         let shared_secret =
             get_tx_out_shared_secret(account_key.view_private_key(), &tx_public_key);

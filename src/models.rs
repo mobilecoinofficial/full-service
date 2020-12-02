@@ -2,9 +2,6 @@
 
 //! DB Models
 
-use super::db_models::account::AccountModel;
-use super::db_models::assigned_subaddress::AssignedSubaddressModel;
-
 use super::schema::{
     account_txo_statuses, accounts, assigned_subaddresses, transaction_logs, transaction_txo_types,
     txos,

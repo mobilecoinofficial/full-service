@@ -4,11 +4,10 @@
 //! by the DB.
 
 use chrono::prelude::Utc;
-use mc_account_keys::{AccountKey, PublicAddress, DEFAULT_SUBADDRESS_INDEX};
+use mc_account_keys::{AccountKey, PublicAddress};
 use mc_common::logger::{log, Logger};
 use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
-use mc_crypto_keys::RistrettoPublic;
 use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::ring_signature::KeyImage;
 use mc_transaction_core::tx::{Tx, TxOut};
@@ -43,32 +42,6 @@ pub fn b58_encode(public_address: &PublicAddress) -> Result<String, WalletDbErro
     let mut wrapper = mc_mobilecoind_api::printable::PrintableWrapper::new();
     wrapper.set_public_address(public_address.into());
     Ok(wrapper.b58_encode()?)
-}
-
-#[derive(Debug)]
-pub struct AccountID(String);
-
-impl From<&AccountKey> for AccountID {
-    fn from(src: &AccountKey) -> AccountID {
-        let main_subaddress = src.subaddress(DEFAULT_SUBADDRESS_INDEX);
-        /// The account ID is derived from the contents of the account key
-        #[derive(Digestible)]
-        struct ConstAccountData {
-            /// The public address of the main subaddress for this account
-            pub address: PublicAddress,
-        }
-        let const_data = ConstAccountData {
-            address: main_subaddress.clone(),
-        };
-        let temp: [u8; 32] = const_data.digest32::<MerlinTranscript>(b"account_data");
-        Self(hex::encode(temp))
-    }
-}
-
-impl AccountID {
-    pub fn to_string(&self) -> String {
-        self.0.clone()
-    }
 }
 
 #[derive(Debug)]
@@ -150,16 +123,6 @@ impl WalletDb {
             .test_on_check_out(true)
             .build(manager)?;
         Ok(Self::new(pool, logger))
-    }
-
-    /// List all accounts.
-    pub fn list_accounts(&self) -> Result<Vec<Account>, WalletDbError> {
-        let conn = self.pool.get()?;
-
-        let results: Vec<Account> = schema_accounts::table
-            .select(schema_accounts::all_columns)
-            .load::<Account>(&conn)?;
-        Ok(results)
     }
 
     /// Get a specific account
@@ -686,38 +649,6 @@ impl WalletDb {
         Ok(results)
     }
 
-    pub fn get_subaddress_index_by_subaddress_spend_public_key(
-        &self,
-        subaddress_spend_public_key: &RistrettoPublic,
-    ) -> Result<(i64, String), WalletDbError> {
-        let conn = self.pool.get()?;
-
-        let matches = schema_assigned_subaddresses::table
-            .select((
-                schema_assigned_subaddresses::subaddress_index,
-                schema_assigned_subaddresses::account_id_hex,
-            ))
-            .filter(
-                schema_assigned_subaddresses::subaddress_spend_key
-                    .eq(mc_util_serial::encode(subaddress_spend_public_key)),
-            )
-            .load::<(i64, String)>(&conn)?;
-
-        if matches.len() == 0 {
-            Err(WalletDbError::NotFound(format!(
-                "{:?}",
-                subaddress_spend_public_key
-            )))
-        } else if matches.len() > 1 {
-            Err(WalletDbError::DuplicateEntries(format!(
-                "{:?}",
-                subaddress_spend_public_key
-            )))
-        } else {
-            Ok(matches[0].clone())
-        }
-    }
-
     pub fn update_spent_and_increment_next_block(
         &self,
         account_id_hex: &str,
@@ -1238,6 +1169,7 @@ impl WalletDb {
 mod tests {
     use super::*;
     use crate::db_models::account::AccountModel;
+    use crate::db_models::assigned_subaddress::AssignedSubaddressModel;
     use crate::test_utils::WalletDbTestContext;
     use mc_account_keys::RootIdentity;
     use mc_common::logger::{test_with_logger, Logger};
@@ -1256,25 +1188,21 @@ mod tests {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
-        let walletdb = db_test_context.get_db_instance(logger);
+        let wallet_db = db_test_context.get_db_instance(logger);
 
         let account_key = AccountKey::random(&mut rng);
-        let (account_id_hex, _public_address_b58) = Account::create(
-            &account_key,
-            0,
-            1,
-            2,
-            0,
-            1,
-            "Alice's Main Account",
-            &walletdb.get_conn().unwrap(),
-        )
-        .unwrap();
+        let account_id_hex = {
+            let conn = wallet_db.get_conn().unwrap();
+            let (account_id_hex, _public_address_b58) =
+                Account::create(&account_key, 0, 1, 2, 0, 1, "Alice's Main Account", &conn)
+                    .unwrap();
+            account_id_hex
+        };
 
-        let res = walletdb.list_accounts().unwrap();
+        let res = Account::list_accounts(&wallet_db.get_conn().unwrap()).unwrap();
         assert_eq!(res.len(), 1);
 
-        let acc = walletdb.get_account(&account_id_hex).unwrap();
+        let acc = wallet_db.get_account(&account_id_hex).unwrap();
         let expected_account = Account {
             account_id_hex: account_id_hex.clone(),
             encrypted_account_key: mc_util_serial::encode(&account_key),
@@ -1288,7 +1216,7 @@ mod tests {
         assert_eq!(expected_account, acc);
 
         // Verify that the subaddress table entries were updated for main and change
-        let subaddresses = walletdb.list_subaddresses(&account_id_hex).unwrap();
+        let subaddresses = wallet_db.list_subaddresses(&account_id_hex).unwrap();
         assert_eq!(subaddresses.len(), 2);
         let subaddress_indices: HashSet<i64> =
             HashSet::from_iter(subaddresses.iter().map(|s| s.subaddress_index));
@@ -1297,8 +1225,11 @@ mod tests {
 
         // Verify that we can get the correct subaddress index from the spend public key
         let main_subaddress = account_key.subaddress(0);
-        let (retrieved_index, retrieved_acocunt_id_hex) = walletdb
-            .get_subaddress_index_by_subaddress_spend_public_key(main_subaddress.spend_public_key())
+        let (retrieved_index, retrieved_acocunt_id_hex) =
+            AssignedSubaddress::find_by_subaddress_spend_public_key(
+                main_subaddress.spend_public_key(),
+                &wallet_db.get_conn().unwrap(),
+            )
             .unwrap();
         assert_eq!(retrieved_index, 0);
         assert_eq!(retrieved_acocunt_id_hex, account_id_hex);
@@ -1313,13 +1244,13 @@ mod tests {
             50,
             51,
             "",
-            &walletdb.get_conn().unwrap(),
+            &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        let res = walletdb.list_accounts().unwrap();
+        let res = Account::list_accounts(&wallet_db.get_conn().unwrap()).unwrap();
         assert_eq!(res.len(), 2);
 
-        let acc_secondary = walletdb.get_account(&account_id_hex_secondary).unwrap();
+        let acc_secondary = wallet_db.get_account(&account_id_hex_secondary).unwrap();
         let mut expected_account_secondary = Account {
             account_id_hex: account_id_hex_secondary.clone(),
             encrypted_account_key: mc_util_serial::encode(&account_key_secondary),
@@ -1333,24 +1264,24 @@ mod tests {
         assert_eq!(expected_account_secondary, acc_secondary);
 
         // Update the name for the secondary account
-        walletdb
+        wallet_db
             .update_account_name(
                 &account_id_hex_secondary,
                 "Alice's Secondary Account".to_string(),
             )
             .unwrap();
-        let acc_secondary2 = walletdb.get_account(&account_id_hex_secondary).unwrap();
+        let acc_secondary2 = wallet_db.get_account(&account_id_hex_secondary).unwrap();
         expected_account_secondary.name = "Alice's Secondary Account".to_string();
         assert_eq!(expected_account_secondary, acc_secondary2);
 
         // Delete the secondary account
-        walletdb.delete_account(&account_id_hex_secondary).unwrap();
+        wallet_db.delete_account(&account_id_hex_secondary).unwrap();
 
-        let res = walletdb.list_accounts().unwrap();
+        let res = Account::list_accounts(&wallet_db.get_conn().unwrap()).unwrap();
         assert_eq!(res.len(), 1);
 
         // Attempt to get the deleted account
-        let res = walletdb.get_account(&account_id_hex_secondary);
+        let res = wallet_db.get_account(&account_id_hex_secondary);
         match res {
             Ok(_) => panic!("Should have deleted account"),
             Err(WalletDbError::NotFound(s)) => assert_eq!(s, account_id_hex_secondary.to_string()),
