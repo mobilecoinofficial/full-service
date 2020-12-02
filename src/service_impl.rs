@@ -5,9 +5,9 @@
 use crate::db::WalletDb;
 use crate::error::WalletServiceError;
 use crate::service_decorated_types::{
-    JsonAccount, JsonAddress, JsonBalanceResponse, JsonCreateAccountResponse,
-    JsonImportAccountResponse, JsonListTxosResponse, JsonSubmitResponse, JsonTransactionResponse,
-    JsonTxo,
+    JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
+    JsonCreateAccountResponse, JsonImportAccountResponse, JsonListTxosResponse, JsonSubmitResponse,
+    JsonTransactionResponse, JsonTxo,
 };
 use crate::sync::SyncThread;
 use crate::transaction_builder::WalletTransactionBuilder;
@@ -20,8 +20,8 @@ use mc_crypto_rand::rand_core::RngCore;
 use mc_fog_report_connection::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_mobilecoind::payments::TxProposal;
-use mc_mobilecoind_json::data_types::{JsonTx, JsonTxProposal};
-use mc_transaction_core::tx::Tx;
+use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
+use mc_transaction_core::tx::{Tx, TxOut};
 use mc_util_from_random::FromRandom;
 use std::convert::TryFrom;
 use std::iter::empty;
@@ -463,6 +463,34 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         } else {
             Err(WalletServiceError::NoTxInTransaction)
         }
+    }
+
+    pub fn get_txo_object(
+        &self,
+        account_id_hex: &str,
+        txo_id_hex: &str,
+    ) -> Result<JsonTxOut, WalletServiceError> {
+        // FIXME: hack to get around current db access design
+        let conn = self.wallet_db.get_conn()?;
+        let (txo, _account_txo_status, _assigned_subaddress) =
+            self.wallet_db.get_txo(account_id_hex, txo_id_hex, &conn)?;
+
+        let txo: TxOut = mc_util_serial::decode(&txo.txo)?;
+        // Convert to proto
+        let proto_txo = mc_api::external::TxOut::from(&txo);
+        Ok(JsonTxOut::from(&proto_txo))
+    }
+
+    pub fn get_block_object(
+        &self,
+        block_index: u64,
+    ) -> Result<(JsonBlock, JsonBlockContents), WalletServiceError> {
+        let block = self.ledger_db.get_block(block_index)?;
+        let block_contents = self.ledger_db.get_block_contents(block_index)?;
+        Ok((
+            JsonBlock::new(&block),
+            JsonBlockContents::new(&block_contents),
+        ))
     }
 }
 
