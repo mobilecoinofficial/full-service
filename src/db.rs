@@ -21,8 +21,8 @@ use diesel::{
 use crate::db_models::txo::{TxoID, TxoModel};
 use crate::error::WalletDbError;
 use crate::models::{
-    Account, AccountTxoStatus, AssignedSubaddress, NewAccountTxoStatus, NewAssignedSubaddress,
-    NewTransactionLog, NewTransactionTxoType, NewTxo, TransactionLog, TransactionTxoType, Txo,
+    Account, AssignedSubaddress, NewAccountTxoStatus, NewAssignedSubaddress, NewTransactionLog,
+    NewTransactionTxoType, NewTxo, TransactionLog, TransactionTxoType, Txo,
 };
 // Schema Tables
 use crate::schema::account_txo_statuses as schema_account_txo_statuses;
@@ -167,73 +167,6 @@ impl WalletDb {
         // FIXME: When adding multiple addresses for syncing, possibly due to error above, the
         //        syncing stops, and the account is stuck at 0
         Ok((subaddress_b58, subaddress_index))
-    }
-
-    pub fn select_txos_by_id(
-        &self,
-        account_id_hex: &str,
-        txo_ids: &Vec<String>,
-    ) -> Result<Vec<(Txo, AccountTxoStatus)>, WalletDbError> {
-        let conn = self.pool.get()?;
-
-        let mut results: Vec<(Txo, AccountTxoStatus)> = Vec::new();
-        for txo_id in txo_ids {
-            match dsl_txos.find(txo_id).get_result::<Txo>(&conn) {
-                Ok(txo) => {
-                    // Check that this txo is indeed owned by the account we think it is
-                    match dsl_account_txo_statuses
-                        .find((account_id_hex, txo_id))
-                        .get_result::<AccountTxoStatus>(&conn)
-                    {
-                        Ok(status) => {
-                            results.push((txo, status));
-                        }
-                        Err(diesel::result::Error::NotFound) => {
-                            return Err(WalletDbError::NotFound(format!(
-                                "Txo({:?}) found, but does not belong to Account({:?})",
-                                txo_id, account_id_hex
-                            )));
-                        }
-                        Err(e) => {
-                            return Err(e.into());
-                        }
-                    }
-                }
-                Err(diesel::result::Error::NotFound) => {
-                    return Err(WalletDbError::NotFound(txo_id.to_string()));
-                }
-                Err(e) => {
-                    return Err(e.into());
-                }
-            }
-        }
-        Ok(results)
-    }
-
-    pub fn select_unspent_txos_for_value(
-        &self,
-        account_id_hex: &str,
-        max_spendable_value: i64,
-    ) -> Result<Vec<Txo>, WalletDbError> {
-        let conn = self.pool.get()?;
-
-        let results: Vec<Txo> = schema_txos::table
-            .inner_join(
-                schema_account_txo_statuses::table.on(schema_txos::txo_id_hex
-                    .eq(schema_account_txo_statuses::txo_id_hex)
-                    .and(schema_account_txo_statuses::account_id_hex.eq(account_id_hex))
-                    .and(schema_account_txo_statuses::txo_status.eq("unspent"))
-                    .and(schema_txos::subaddress_index.is_not_null())
-                    .and(schema_txos::key_image.is_not_null()) // Could technically recreate with subaddress
-                    .and(schema_txos::value.lt(max_spendable_value))),
-            )
-            .select(schema_txos::all_columns)
-            .order_by(schema_txos::value.desc())
-            .load(&conn)?;
-
-        // println!("\x1b[1;34mselected the following txos {:?}\x1b[0m", results);
-
-        Ok(results)
     }
 
     /// List all subaddresses for a given account.
