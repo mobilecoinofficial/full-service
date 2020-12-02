@@ -4,9 +4,9 @@
 
 use crate::{
     db::WalletDb,
-    db_models::{account::AccountModel, txo::TxoModel},
+    db_models::{account::AccountModel, transaction_log::TransactionLogModel, txo::TxoModel},
     error::WalletServiceError,
-    models::{Account, Txo},
+    models::{Account, TransactionLog, Txo},
     service_decorated_types::{
         JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
         JsonCreateAccountResponse, JsonImportAccountResponse, JsonListTxosResponse,
@@ -420,10 +420,6 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
             tombstone_block,
             max_spendable_value,
         )?;
-        // println!(
-        //     "\x1b[1;36m SENDING TRANSACTION, constructed proposal with change {:?}\x1b[0m",
-        //     tx_proposal.change_value
-        // );
         Ok(self.submit_transaction(tx_proposal, comment)?)
     }
 
@@ -449,10 +445,10 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         &self,
         transaction_id_hex: &str,
     ) -> Result<JsonTransactionResponse, WalletServiceError> {
-        // FIXME: hack to get around current db access design
         let conn = self.wallet_db.get_conn()?;
-        let (transaction, inputs, outputs, change) =
-            self.wallet_db.get_transaction(transaction_id_hex, &conn)?;
+        let transaction = TransactionLog::get(transaction_id_hex, &conn)?;
+
+        let (inputs, outputs, change) = transaction.get_associated_txos(&conn)?;
 
         Ok(JsonTransactionResponse::new(
             &transaction,
@@ -466,10 +462,8 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         &self,
         transaction_id_hex: &str,
     ) -> Result<JsonTx, WalletServiceError> {
-        // FIXME: hack to get around current db access design
         let conn = self.wallet_db.get_conn()?;
-        let (transaction, _inputs, _outputs, _change) =
-            self.wallet_db.get_transaction(transaction_id_hex, &conn)?;
+        let transaction = TransactionLog::get(transaction_id_hex, &conn)?;
 
         if let Some(tx_bytes) = transaction.tx {
             let tx: Tx = mc_util_serial::decode(&tx_bytes)?;
@@ -486,7 +480,6 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         account_id_hex: &str,
         txo_id_hex: &str,
     ) -> Result<JsonTxOut, WalletServiceError> {
-        // FIXME: hack to get around current db access design
         let conn = self.wallet_db.get_conn()?;
         let (txo, _account_txo_status, _assigned_subaddress) =
             Txo::get(account_id_hex, txo_id_hex, &conn)?;

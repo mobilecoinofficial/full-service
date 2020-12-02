@@ -55,7 +55,7 @@ pub struct JsonTxo {
     pub txo_type: String,
     pub txo_status: String,
     pub received_block_height: Option<String>,
-    pub spent_tombstone_block_height: Option<String>,
+    pub pending_tombstone_block_height: Option<String>,
     pub spent_block_height: Option<String>,
     pub proof: Option<String>,
 }
@@ -75,7 +75,9 @@ impl JsonTxo {
             txo_type: account_txo_status.txo_type.clone(),
             txo_status: account_txo_status.txo_status.clone(),
             received_block_height: txo.received_block_height.map(|x| x.to_string()),
-            spent_tombstone_block_height: txo.spent_tombstone_block_height.map(|x| x.to_string()),
+            pending_tombstone_block_height: txo
+                .pending_tombstone_block_height
+                .map(|x| x.to_string()),
             spent_block_height: txo.spent_block_height.map(|x| x.to_string()),
             proof: txo.proof.as_ref().map(|x| hex::encode(x)),
         }

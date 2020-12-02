@@ -49,7 +49,7 @@ pub struct Txo {
     pub subaddress_index: Option<i64>,
     pub key_image: Option<Vec<u8>>,
     pub received_block_height: Option<i64>,
-    pub spent_tombstone_block_height: Option<i64>,
+    pub pending_tombstone_block_height: Option<i64>,
     pub spent_block_height: Option<i64>,
     pub proof: Option<Vec<u8>>,
 }
@@ -66,7 +66,7 @@ pub struct NewTxo<'a> {
     pub subaddress_index: Option<i64>,
     pub key_image: Option<&'a Vec<u8>>,
     pub received_block_height: Option<i64>,
-    pub spent_tombstone_block_height: Option<i64>,
+    pub pending_tombstone_block_height: Option<i64>,
     pub spent_block_height: Option<i64>,
     pub proof: Option<&'a Vec<u8>>,
 }

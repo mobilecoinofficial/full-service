@@ -68,7 +68,7 @@ table! {
         subaddress_index -> Nullable<BigInt>,
         key_image -> Nullable<Binary>,
         received_block_height -> Nullable<BigInt>,
-        spent_tombstone_block_height -> Nullable<BigInt>,
+        pending_tombstone_block_height -> Nullable<BigInt>,
         spent_block_height -> Nullable<BigInt>,
         proof -> Nullable<Binary>,
     }
