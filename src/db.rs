@@ -11,7 +11,6 @@ use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::ring_signature::KeyImage;
 use mc_transaction_core::tx::Tx;
-use std::iter::FromIterator;
 
 use diesel::{
     prelude::*,
@@ -168,74 +167,6 @@ impl WalletDb {
         // FIXME: When adding multiple addresses for syncing, possibly due to error above, the
         //        syncing stops, and the account is stuck at 0
         Ok((subaddress_b58, subaddress_index))
-    }
-
-    pub fn list_txos_by_status(
-        &self,
-        account_id_hex: &str,
-    ) -> Result<HashMap<String, Vec<Txo>>, WalletDbError> {
-        let conn = self.pool.get()?;
-
-        // FIXME: don't do 4 queries
-        let unspent: Vec<Txo> = schema_txos::table
-            .inner_join(
-                schema_account_txo_statuses::table.on(schema_txos::txo_id_hex
-                    .eq(schema_account_txo_statuses::txo_id_hex)
-                    .and(schema_account_txo_statuses::account_id_hex.eq(account_id_hex))
-                    .and(schema_account_txo_statuses::txo_status.eq("unspent"))),
-            )
-            .select(schema_txos::all_columns)
-            .load(&conn)?;
-
-        let pending: Vec<Txo> = schema_txos::table
-            .inner_join(
-                schema_account_txo_statuses::table.on(schema_txos::txo_id_hex
-                    .eq(schema_account_txo_statuses::txo_id_hex)
-                    .and(schema_account_txo_statuses::account_id_hex.eq(account_id_hex))
-                    .and(schema_account_txo_statuses::txo_status.eq("pending"))),
-            )
-            .select(schema_txos::all_columns)
-            .load(&conn)?;
-
-        let spent: Vec<Txo> = schema_txos::table
-            .inner_join(
-                schema_account_txo_statuses::table.on(schema_txos::txo_id_hex
-                    .eq(schema_account_txo_statuses::txo_id_hex)
-                    .and(schema_account_txo_statuses::account_id_hex.eq(account_id_hex))
-                    .and(schema_account_txo_statuses::txo_status.eq("spent"))),
-            )
-            .select(schema_txos::all_columns)
-            .load(&conn)?;
-
-        // FIXME: Maybe we don't want to expose this in the balance
-        let secreted: Vec<Txo> = schema_txos::table
-            .inner_join(
-                schema_account_txo_statuses::table.on(schema_txos::txo_id_hex
-                    .eq(schema_account_txo_statuses::txo_id_hex)
-                    .and(schema_account_txo_statuses::account_id_hex.eq(account_id_hex))
-                    .and(schema_account_txo_statuses::txo_status.eq("secreted"))),
-            )
-            .select(schema_txos::all_columns)
-            .load(&conn)?;
-
-        let orphaned: Vec<Txo> = schema_txos::table
-            .inner_join(
-                schema_account_txo_statuses::table.on(schema_txos::txo_id_hex
-                    .eq(schema_account_txo_statuses::txo_id_hex)
-                    .and(schema_account_txo_statuses::account_id_hex.eq(account_id_hex))
-                    .and(schema_account_txo_statuses::txo_status.eq("orphaned"))),
-            )
-            .select(schema_txos::all_columns)
-            .load(&conn)?;
-
-        let results = HashMap::from_iter(vec![
-            ("unspent".to_string(), unspent),
-            ("pending".to_string(), pending),
-            ("spent".to_string(), spent),
-            ("secreted".to_string(), secreted),
-            ("orphaned".to_string(), orphaned),
-        ]);
-        Ok(results)
     }
 
     pub fn select_txos_by_id(

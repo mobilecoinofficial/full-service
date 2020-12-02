@@ -251,7 +251,9 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         &self,
         account_id_hex: &str,
     ) -> Result<JsonBalanceResponse, WalletServiceError> {
-        let status_map = self.wallet_db.list_txos_by_status(account_id_hex)?;
+        let conn = self.wallet_db.get_conn()?;
+
+        let status_map = Txo::list_by_status(account_id_hex, &conn)?;
         let unspent: u64 = status_map["unspent"].iter().map(|t| t.value as u64).sum();
         let pending: u64 = status_map["pending"].iter().map(|t| t.value as u64).sum();
         let spent: u64 = status_map["spent"].iter().map(|t| t.value as u64).sum();
@@ -259,11 +261,9 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         let orphaned: u64 = status_map["orphaned"].iter().map(|t| t.value as u64).sum();
 
         let local_block_height = self.ledger_db.num_blocks()?;
-
-        let account = Account::get(account_id_hex, &self.wallet_db.get_conn()?)?;
+        let account = Account::get(account_id_hex, &conn)?;
 
         // FIXME: probably also want to compare with network height
-
         // FIXME: add block height info (see also BEAM wallet-status)
         Ok(JsonBalanceResponse {
             unspent: unspent.to_string(),
