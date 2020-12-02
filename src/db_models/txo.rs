@@ -3,11 +3,16 @@
 //! DB impl for the Txo model.
 
 use crate::{
-    db_models::account_txo_status::AccountTxoStatusModel,
+    db::b58_encode,
+    db_models::{
+        account::AccountModel, account_txo_status::AccountTxoStatusModel,
+        assigned_subaddress::AssignedSubaddressModel,
+    },
     error::WalletDbError,
-    models::{AccountTxoStatus, NewTxo, Txo},
+    models::{Account, AccountTxoStatus, AssignedSubaddress, NewTxo, Txo},
 };
 
+use mc_account_keys::AccountKey;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_transaction_core::{ring_signature::KeyImage, tx::TxOut};
 
@@ -51,6 +56,8 @@ pub trait TxoModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<String, WalletDbError>;
 
+    /// Update an existing Txo when it is received in the ledger.
+    /// A Txo can be created before being received if it is minted, for example.
     fn update_received(
         &self,
         account_id_hex: &str,
@@ -60,6 +67,7 @@ pub trait TxoModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
+    /// Update an existing Txo to spendable by including its subaddress_index and key_image.
     fn update_to_spendable(
         &self,
         received_subaddress_index: Option<i64>,
@@ -67,6 +75,17 @@ pub trait TxoModel {
         block_height: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
+
+    fn list_for_account(
+        account_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<(Txo, AccountTxoStatus)>, WalletDbError>;
+
+    fn get(
+        account_id_hex: &str,
+        txo_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(Txo, AccountTxoStatus, Option<AssignedSubaddress>), WalletDbError>;
 }
 
 impl TxoModel for Txo {
@@ -218,6 +237,63 @@ impl TxoModel for Txo {
             .execute(conn)?;
         Ok(())
     }
+
+    fn list_for_account(
+        account_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<(Txo, AccountTxoStatus)>, WalletDbError> {
+        use crate::schema::account_txo_statuses;
+        use crate::schema::txos;
+
+        // FIXME: join 3 tables to also get AssignedSubaddresses
+        let results: Vec<(Txo, AccountTxoStatus)> = txos::table
+            .inner_join(
+                account_txo_statuses::table.on(txos::txo_id_hex
+                    .eq(account_txo_statuses::txo_id_hex)
+                    .and(account_txo_statuses::account_id_hex.eq(account_id_hex))),
+            )
+            .select((txos::all_columns, account_txo_statuses::all_columns))
+            .load(conn)?;
+        Ok(results)
+    }
+
+    fn get(
+        account_id_hex: &str,
+        txo_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(Txo, AccountTxoStatus, Option<AssignedSubaddress>), WalletDbError> {
+        use crate::schema::txos::dsl::txos;
+
+        let txo: Txo = match txos.find(txo_id_hex).get_result::<Txo>(conn) {
+            Ok(t) => t,
+            // Match on NotFound to get a more informative NotFound Error
+            Err(diesel::result::Error::NotFound) => {
+                return Err(WalletDbError::NotFound(txo_id_hex.to_string()));
+            }
+            Err(e) => {
+                return Err(e.into());
+            }
+        };
+
+        let account_txo_status: AccountTxoStatus =
+            AccountTxoStatus::get(account_id_hex, txo_id_hex, conn)?;
+
+        // Get subaddress key from account_key and txo subaddress
+        let account: Account = Account::get(account_id_hex, conn)?;
+
+        // Get the subaddress details if assigned
+        let assigned_subaddress = if let Some(subaddress_index) = txo.subaddress_index {
+            let account_key: AccountKey = mc_util_serial::decode(&account.encrypted_account_key)?;
+            let subaddress = account_key.subaddress(subaddress_index as u64);
+            let subaddress_b58 = b58_encode(&subaddress)?;
+
+            Some(AssignedSubaddress::get(&subaddress_b58, conn)?)
+        } else {
+            None
+        };
+
+        Ok((txo, account_txo_status, assigned_subaddress))
+    }
 }
 
 #[cfg(test)]
@@ -292,7 +368,7 @@ mod tests {
         )
         .unwrap();
 
-        let txos = wallet_db.list_txos(&account_id_hex).unwrap();
+        let txos = Txo::list_for_account(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
         assert_eq!(txos.len(), 1);
 
         let expected_txo = Txo {
@@ -338,7 +414,7 @@ mod tests {
             )
             .unwrap();
 
-        let txos = wallet_db.list_txos(&account_id_hex).unwrap();
+        let txos = Txo::list_for_account(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
         assert_eq!(txos.len(), 1);
         assert_eq!(
             txos[0].0.spent_block_height.unwrap(),
