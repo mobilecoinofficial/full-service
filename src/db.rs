@@ -18,6 +18,7 @@ use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
 use diesel::RunQueryDsl;
 
+use crate::db_models::account::AccountModel;
 use crate::error::WalletDbError;
 use crate::models::{
     Account, AccountTxoStatus, AssignedSubaddress, NewAccount, NewAccountTxoStatus,
@@ -151,75 +152,6 @@ impl WalletDb {
             .test_on_check_out(true)
             .build(manager)?;
         Ok(Self::new(pool, logger))
-    }
-
-    /// Create a new account.
-    pub fn create_account(
-        &self,
-        account_key: &AccountKey,
-        main_subaddress_index: u64,
-        change_subaddress_index: u64,
-        next_subaddress_index: u64,
-        first_block: u64,
-        next_block: u64,
-        name: &str,
-    ) -> Result<(String, String), WalletDbError> {
-        let conn = self.pool.get()?;
-
-        let main_subaddress = account_key.subaddress(main_subaddress_index);
-        let account_id = AccountID::from(account_key);
-
-        // FIXME: It's concerning to lose a bit of precision in casting to i64
-        let new_account = NewAccount {
-            account_id_hex: &account_id.to_string(),
-            encrypted_account_key: &mc_util_serial::encode(account_key), // FIXME: add encryption
-            main_subaddress_index: main_subaddress_index as i64,
-            change_subaddress_index: change_subaddress_index as i64,
-            next_subaddress_index: next_subaddress_index as i64,
-            first_block: first_block as i64,
-            next_block: next_block as i64,
-            name,
-        };
-
-        diesel::insert_into(schema_accounts::table)
-            .values(&new_account)
-            .execute(&conn)?;
-
-        // Insert the assigned subaddresses for main and change
-        let main_subaddress_b58 = b58_encode(&main_subaddress)?;
-        let main_subaddress_entry = NewAssignedSubaddress {
-            assigned_subaddress_b58: &main_subaddress_b58,
-            account_id_hex: &account_id.to_string(),
-            address_book_entry: None, // FIXME: Address Book Entry if details provided, or None always for main?
-            public_address: &mc_util_serial::encode(&main_subaddress),
-            subaddress_index: main_subaddress_index as i64,
-            comment: "Main",
-            expected_value: None,
-            subaddress_spend_key: &mc_util_serial::encode(main_subaddress.spend_public_key()),
-        };
-
-        diesel::insert_into(schema_assigned_subaddresses::table)
-            .values(&main_subaddress_entry)
-            .execute(&conn)?;
-
-        let change_subaddress = account_key.subaddress(change_subaddress_index);
-        let change_subaddress_b58 = b58_encode(&change_subaddress)?;
-        let change_subaddress_entry = NewAssignedSubaddress {
-            assigned_subaddress_b58: &change_subaddress_b58,
-            account_id_hex: &account_id.to_string(),
-            address_book_entry: None, // FIXME: Address Book Entry if details provided, or None always for main?
-            public_address: &mc_util_serial::encode(&change_subaddress),
-            subaddress_index: change_subaddress_index as i64,
-            comment: "Change",
-            expected_value: None,
-            subaddress_spend_key: &mc_util_serial::encode(change_subaddress.spend_public_key()),
-        };
-
-        diesel::insert_into(schema_assigned_subaddresses::table)
-            .values(&change_subaddress_entry)
-            .execute(&conn)?;
-
-        Ok((account_id.to_string(), main_subaddress_b58))
     }
 
     /// List all accounts.
@@ -1329,9 +1261,17 @@ mod tests {
         let walletdb = db_test_context.get_db_instance(logger);
 
         let account_key = AccountKey::random(&mut rng);
-        let (account_id_hex, _public_address_b58) = walletdb
-            .create_account(&account_key, 0, 1, 2, 0, 1, "Alice's Main Account")
-            .unwrap();
+        let (account_id_hex, _public_address_b58) = Account::create(
+            &account_key,
+            0,
+            1,
+            2,
+            0,
+            1,
+            "Alice's Main Account",
+            &walletdb.get_conn().unwrap(),
+        )
+        .unwrap();
 
         let res = walletdb.list_accounts().unwrap();
         assert_eq!(res.len(), 1);
@@ -1367,9 +1307,17 @@ mod tests {
 
         // Add another account with no name, scanning from later
         let account_key_secondary = AccountKey::from(&RootIdentity::from_random(&mut rng));
-        let (account_id_hex_secondary, _public_address_b58_secondary) = walletdb
-            .create_account(&account_key_secondary, 0, 1, 2, 50, 51, "")
-            .unwrap();
+        let (account_id_hex_secondary, _public_address_b58_secondary) = Account::create(
+            &account_key_secondary,
+            0,
+            1,
+            2,
+            50,
+            51,
+            "",
+            &walletdb.get_conn().unwrap(),
+        )
+        .unwrap();
         let res = walletdb.list_accounts().unwrap();
         assert_eq!(res.len(), 2);
 
@@ -1420,9 +1368,17 @@ mod tests {
         let walletdb = db_test_context.get_db_instance(logger);
 
         let account_key = AccountKey::random(&mut rng);
-        let (account_id_hex, _public_address_b58) = walletdb
-            .create_account(&account_key, 0, 1, 2, 0, 1, "Alice's Main Account")
-            .unwrap();
+        let (account_id_hex, _public_address_b58) = Account::create(
+            &account_key,
+            0,
+            1,
+            2,
+            0,
+            1,
+            "Alice's Main Account",
+            &walletdb.get_conn().unwrap(),
+        )
+        .unwrap();
 
         // FIXME: get recipient via the assigned subaddresses table, not directly
         let recipient = account_key.subaddress(0);

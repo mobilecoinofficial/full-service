@@ -3,7 +3,9 @@
 //! The implementation of the wallet service methods.
 
 use crate::db::WalletDb;
+use crate::db_models::account::AccountModel;
 use crate::error::WalletServiceError;
+use crate::models::Account;
 use crate::service_decorated_types::{
     JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
     JsonCreateAccountResponse, JsonImportAccountResponse, JsonListTxosResponse, JsonSubmitResponse,
@@ -112,7 +114,9 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         let entropy_str = hex::encode(root_id.root_entropy);
 
         let fb = first_block.unwrap_or(DEFAULT_FIRST_BLOCK);
-        let (account_id, public_address_b58) = self.wallet_db.create_account(
+
+        let conn = self.wallet_db.get_conn()?;
+        let (account_id, public_address_b58) = Account::create(
             &account_key,
             DEFAULT_SUBADDRESS_INDEX,
             DEFAULT_CHANGE_SUBADDRESS_INDEX,
@@ -120,6 +124,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
             fb,
             fb + 1,
             &name.unwrap_or("".to_string()),
+            &conn,
         )?;
 
         Ok(JsonCreateAccountResponse {
@@ -147,7 +152,8 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         let account_key = AccountKey::from(&RootIdentity::from(&RootEntropy::from(&entropy_bytes)));
 
         let fb = first_block.unwrap_or(DEFAULT_FIRST_BLOCK);
-        let (account_id, public_address_b58) = self.wallet_db.create_account(
+        let conn = self.wallet_db.get_conn()?;
+        let (account_id, public_address_b58) = Account::create(
             &account_key,
             DEFAULT_SUBADDRESS_INDEX,
             DEFAULT_CHANGE_SUBADDRESS_INDEX,
@@ -155,6 +161,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
             fb,
             fb + 1,
             &name.unwrap_or("".to_string()),
+            &conn,
         )?;
         Ok(JsonImportAccountResponse {
             public_address_b58,
@@ -604,7 +611,7 @@ mod tests {
         assert_eq!(minted[0].txo_type, "minted");
         assert_eq!(minted[1].txo_type, "minted");
         let minted_value_set = HashSet::from_iter(minted.iter().map(|m| m.value.clone()));
-        assert!(minted_value_set.contains("0"));
+        assert!(minted_value_set.contains("57990000000000"));
         assert!(minted_value_set.contains("42000000000000"));
 
         // Our balance should reflect the various statuses of our txos
@@ -612,7 +619,7 @@ mod tests {
         assert_eq!(balance.unspent, "0");
         assert_eq!(balance.pending, "100000000000000");
         assert_eq!(balance.spent, "0");
-        assert_eq!(balance.secreted, "42000000000000");
+        assert_eq!(balance.secreted, "99990000000000");
         assert_eq!(balance.orphaned, "0");
 
         // FIXME: How to make the transaction actually hit the test ledger?
