@@ -1,20 +1,21 @@
 // Copyright (c) 2020 MobileCoin Inc.
 
-//! DB impl for the Account model
+//! DB impl for the Account model.
 
-use crate::db_models::assigned_subaddress::AssignedSubaddressModel;
-use crate::error::WalletDbError;
-use crate::models::{Account, AssignedSubaddress, NewAccount};
+use crate::{
+    db_models::assigned_subaddress::AssignedSubaddressModel,
+    error::WalletDbError,
+    models::{Account, AssignedSubaddress, NewAccount},
+};
 
 use mc_account_keys::{AccountKey, PublicAddress, DEFAULT_SUBADDRESS_INDEX};
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 
-use diesel::prelude::*;
-use diesel::r2d2::{ConnectionManager, PooledConnection};
-use diesel::RunQueryDsl;
-
-// Schema Tables
-use crate::schema::accounts as schema_accounts;
+use diesel::{
+    prelude::*,
+    r2d2::{ConnectionManager, PooledConnection},
+    RunQueryDsl,
+};
 
 #[derive(Debug)]
 pub struct AccountID(String);
@@ -93,6 +94,8 @@ impl AccountModel for Account {
         name: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(String, String), WalletDbError> {
+        use crate::schema::accounts;
+
         let account_id = AccountID::from(account_key);
 
         let new_account = NewAccount {
@@ -106,7 +109,7 @@ impl AccountModel for Account {
             name,
         };
 
-        diesel::insert_into(schema_accounts::table)
+        diesel::insert_into(accounts::table)
             .values(&new_account)
             .execute(conn)?;
 
@@ -160,9 +163,6 @@ impl AccountModel for Account {
         }
     }
 
-    /// Update an account.
-    /// The only updatable field is the name. Any other desired update requires adding
-    /// a new account, and deleting the existing if desired.
     fn update_name(
         &self,
         new_name: String,
