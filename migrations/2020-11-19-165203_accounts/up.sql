@@ -42,7 +42,6 @@ create TABLE assigned_subaddresses (
   public_address BLOB NOT NULL,
   subaddress_index UNSIGNED BIG INT NOT NULL,
   comment VARCHAR NOT NULL DEFAULT '',
-  expected_value UNSIGNED BIG INT,
   subaddress_spend_key BLOB NOT NULL,
   FOREIGN KEY (account_id_hex) REFERENCES accounts(account_id_hex)
 );

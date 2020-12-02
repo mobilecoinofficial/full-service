@@ -3,6 +3,8 @@
 //! DB Models
 
 use super::db_models::account::AccountModel;
+use super::db_models::assigned_subaddress::AssignedSubaddressModel;
+
 use super::schema::{
     account_txo_statuses, accounts, assigned_subaddresses, transaction_logs, transaction_txo_types,
     txos,
@@ -105,8 +107,7 @@ pub struct AssignedSubaddress {
     pub address_book_entry: Option<i64>,
     pub public_address: Vec<u8>,
     pub subaddress_index: i64,
-    pub comment: String, // empty string for nullable
-    pub expected_value: Option<i64>,
+    pub comment: String,               // empty string for nullable
     pub subaddress_spend_key: Vec<u8>, // FIXME: should we be indexing on this col? We do a lot of lookups by this
 }
 
@@ -119,7 +120,6 @@ pub struct NewAssignedSubaddress<'a> {
     pub public_address: &'a Vec<u8>,
     pub subaddress_index: i64,
     pub comment: &'a str,
-    pub expected_value: Option<i64>,
     pub subaddress_spend_key: &'a Vec<u8>,
 }
 

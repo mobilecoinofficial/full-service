@@ -18,12 +18,10 @@ use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
 use diesel::RunQueryDsl;
 
-use crate::db_models::account::AccountModel;
 use crate::error::WalletDbError;
 use crate::models::{
-    Account, AccountTxoStatus, AssignedSubaddress, NewAccount, NewAccountTxoStatus,
-    NewAssignedSubaddress, NewTransactionLog, NewTransactionTxoType, NewTxo, TransactionLog,
-    TransactionTxoType, Txo,
+    Account, AccountTxoStatus, AssignedSubaddress, NewAccountTxoStatus, NewAssignedSubaddress,
+    NewTransactionLog, NewTransactionTxoType, NewTxo, TransactionLog, TransactionTxoType, Txo,
 };
 // Schema Tables
 use crate::schema::account_txo_statuses as schema_account_txo_statuses;
@@ -237,7 +235,6 @@ impl WalletDb {
             public_address: &mc_util_serial::encode(&subaddress),
             subaddress_index: subaddress_index as i64,
             comment,
-            expected_value: None, // FIXME: rethink if we need this
             subaddress_spend_key: &mc_util_serial::encode(subaddress.spend_public_key()),
         };
 
@@ -1240,6 +1237,7 @@ impl WalletDb {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::db_models::account::AccountModel;
     use crate::test_utils::WalletDbTestContext;
     use mc_account_keys::RootIdentity;
     use mc_common::logger::{test_with_logger, Logger};
@@ -1434,7 +1432,7 @@ mod tests {
         };
         // Verify that the statuses table was updated correctly
         let expected_txo_status = AccountTxoStatus {
-            account_id_hex: account_id_hex.clone(),
+            account_id_hex: account_id_hex.to_string(),
             txo_id_hex: txo_hex,
             txo_status: "unspent".to_string(),
             txo_type: "received".to_string(),
