@@ -2,16 +2,20 @@
 
 //! DB impl for the AssignedSubaddress model
 
-use crate::db::b58_encode;
-use crate::db_models::account::AccountID;
-use crate::error::WalletDbError;
-use crate::models::{AssignedSubaddress, NewAssignedSubaddress};
+use crate::{
+    db::b58_encode,
+    db_models::account::AccountID,
+    error::WalletDbError,
+    models::{AssignedSubaddress, NewAssignedSubaddress},
+};
 
 use mc_account_keys::AccountKey;
 use mc_crypto_keys::RistrettoPublic;
 
-use diesel::prelude::*;
-use diesel::r2d2::{ConnectionManager, PooledConnection};
+use diesel::{
+    prelude::*,
+    r2d2::{ConnectionManager, PooledConnection},
+};
 
 pub trait AssignedSubaddressModel {
     fn create(

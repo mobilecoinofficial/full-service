@@ -713,11 +713,12 @@ mod tests {
                 "value": "42",
             }
         });
+        // We will fail because we cannot afford the fee, which is 100000000000 pMOB (.01 MOB)
         dispatch_expect_error(
             &client,
             body,
             &logger,
-            "{\"error\": \"TransactionBuilder(InsufficientFunds(\"Cannot make change for value 100\"))\"}".to_string(),
+            "{\"error\": \"TransactionBuilder(WalletDb(InsufficientFunds(\"Max spendable value in wallet: 100, but target value: 10000000042\")))\"}".to_string(),
         );
 
         // Add a block with significantly more MOB

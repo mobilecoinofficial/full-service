@@ -15,7 +15,7 @@ use crate::{
 use mc_account_keys::AccountKey;
 use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
-use mc_transaction_core::{ring_signature::KeyImage, tx::TxOut};
+use mc_transaction_core::{constants::MAX_INPUTS, ring_signature::KeyImage, tx::TxOut};
 
 use diesel::{
     prelude::*,
@@ -93,6 +93,13 @@ pub trait TxoModel {
         txo_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(Txo, AccountTxoStatus, Option<AssignedSubaddress>), WalletDbError>;
+
+    fn select_unspent_txos_for_value(
+        account_id_hex: &str,
+        target_value: u64,
+        max_spendable_value: Option<i64>,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<Txo>, WalletDbError>;
 }
 
 impl TxoModel for Txo {
@@ -370,24 +377,145 @@ impl TxoModel for Txo {
 
         Ok((txo, account_txo_status, assigned_subaddress))
     }
+
+    fn select_unspent_txos_for_value(
+        account_id_hex: &str,
+        target_value: u64,
+        max_spendable_value: Option<i64>,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<Txo>, WalletDbError> {
+        use crate::schema::account_txo_statuses;
+        use crate::schema::txos;
+
+        let mut spendable_txos: Vec<Txo> = txos::table
+            .inner_join(
+                account_txo_statuses::table.on(txos::txo_id_hex
+                    .eq(account_txo_statuses::txo_id_hex)
+                    .and(account_txo_statuses::account_id_hex.eq(account_id_hex))
+                    .and(account_txo_statuses::txo_status.eq("unspent"))
+                    .and(txos::subaddress_index.is_not_null())
+                    .and(txos::key_image.is_not_null()) // Could technically recreate with subaddress
+                    .and(txos::value.lt(max_spendable_value.unwrap_or(i64::MAX)))),
+            )
+            .select(txos::all_columns)
+            .order_by(txos::value.desc())
+            .load(conn)?;
+
+        if spendable_txos.is_empty() {
+            return Err(WalletDbError::NoSpendableTxos);
+        }
+
+        // The maximum spendable is limited by the maximal number of inputs we can use. Since
+        // the txos are sorted by decreasing value, this is the maximum value we can possibly spend
+        // in one transaction.
+        let max_spendable_in_wallet = spendable_txos
+            .iter()
+            .take(MAX_INPUTS as usize)
+            .map(|utxo| utxo.value as u64)
+            .sum();
+        if target_value > max_spendable_in_wallet {
+            // See if we merged the UTXOs we would be able to spend this amount.
+            let total_unspent_value_in_wallet: u64 =
+                spendable_txos.iter().map(|utxo| utxo.value as u64).sum();
+            if total_unspent_value_in_wallet >= target_value {
+                return Err(WalletDbError::InsufficientFundsFragmentedTxos);
+            } else {
+                return Err(WalletDbError::InsufficientFunds(format!(
+                    "Max spendable value in wallet: {:?}, but target value: {:?}",
+                    max_spendable_in_wallet, target_value
+                )));
+            }
+        }
+
+        // Select the actual Txos to spend. We want to opportunistically fill up the input slots
+        // with dust, from any subaddress, so we take from the back of the Txo vec. This is
+        // a knapsack problem, and the selection could be improved. For now, we simply move the
+        // window of MAX_INPUTS up from the back of the sorted vector until we have a window with
+        // a large enough sum.
+        let mut selected_utxos: Vec<Txo> = Vec::new();
+        let mut total: u64 = 0;
+        loop {
+            if total >= target_value {
+                break;
+            }
+
+            // Grab the next (smallest) utxo, in order to opportunistically sweep up dust
+            let next_utxo = spendable_txos
+                .pop()
+                .ok_or(WalletDbError::InsufficientFunds(format!(
+                    "Not enough Txos to sum to target value: {:?}",
+                    target_value
+                )))?;
+            selected_utxos.push(next_utxo.clone());
+            total += next_utxo.value as u64;
+
+            // Cap at maximum allowed inputs.
+            if selected_utxos.len() > MAX_INPUTS as usize {
+                // Remove the lowest utxo.
+                selected_utxos.remove(0);
+            }
+        }
+
+        if selected_utxos.is_empty() || selected_utxos.len() > MAX_INPUTS as usize {
+            return Err(WalletDbError::InsufficientFunds(
+                "Logic error. Could not select Txos despite having sufficient funds".to_string(),
+            ));
+        }
+
+        Ok(selected_utxos)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db_models::account::AccountModel;
+    use crate::db::WalletDb;
+    use crate::db_models::account::{AccountID, AccountModel};
     use crate::models::Account;
     use crate::test_utils::WalletDbTestContext;
     use mc_account_keys::AccountKey;
-    use mc_common::logger::{test_with_logger, Logger};
-    use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
+    use mc_common::{
+        logger::{test_with_logger, Logger},
+        HashSet,
+    };
+    use mc_crypto_keys::RistrettoPrivate;
     use mc_transaction_core::encrypted_fog_hint::EncryptedFogHint;
-    use mc_transaction_core::onetime_keys::recover_public_subaddress_spend_key;
     use mc_transaction_core::ring_signature::KeyImage;
     use mc_transaction_core::tx::TxOut;
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
-    use std::convert::TryFrom;
+    use std::iter::FromIterator;
+
+    const MOB: i64 = 1_000_000_000_000;
+
+    fn create_test_received(
+        account_key: &AccountKey,
+        recipient_subaddress_index: u64,
+        value: u64,
+        received_block_height: u64,
+        rng: &mut StdRng,
+        wallet_db: &WalletDb,
+    ) -> (String, TxOut, KeyImage) {
+        let recipient = account_key.subaddress(recipient_subaddress_index);
+        let tx_private_key = RistrettoPrivate::from_random(rng);
+        let hint = EncryptedFogHint::fake_onetime_hint(rng);
+        let txo = TxOut::new(value, &recipient, &tx_private_key, hint).unwrap();
+
+        // Get KeyImage from the onetime private key
+        let key_image = KeyImage::from(&tx_private_key);
+
+        let txo_id_hex = Txo::create_received(
+            txo.clone(),
+            Some(recipient_subaddress_index as i64),
+            Some(key_image),
+            value,
+            received_block_height as i64,
+            &AccountID::from(account_key).to_string(),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        (txo_id_hex, txo, key_image)
+    }
 
     #[test_with_logger]
     fn test_received_tx_lifecycle(logger: Logger) {
@@ -409,54 +537,23 @@ mod tests {
         )
         .unwrap();
 
-        // FIXME: get recipient via the assigned subaddresses table, not directly
-        let recipient = account_key.subaddress(0);
-
         // Create TXO for the account
-        let tx_private_key = RistrettoPrivate::from_random(&mut rng);
-        let hint = EncryptedFogHint::fake_onetime_hint(&mut rng);
-        let value = 10;
-        let txo = TxOut::new(value, &recipient, &tx_private_key, hint).unwrap();
-
-        // Get KeyImage from the onetime private key
-        let key_image = KeyImage::from(&tx_private_key);
-
-        // Sanity check: Ensure that we can recover the subaddress
-        // FIXME: Assert that the public address and the subaddress spend key was added to the
-        //        assigned_subaddresses table
-        let _subaddress_index = recover_public_subaddress_spend_key(
-            account_key.view_private_key(),
-            &RistrettoPublic::try_from(&txo.target_key).unwrap(),
-            &RistrettoPublic::try_from(&txo.public_key).unwrap(),
-        );
-        let subaddress_index = 0;
-
-        let received_block_height = 144;
-
-        let txo_hex = Txo::create_received(
-            txo.clone(),
-            Some(subaddress_index),
-            Some(key_image),
-            value,
-            received_block_height,
-            &account_id_hex,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
+        let (txo_hex, txo, key_image) =
+            create_test_received(&account_key, 0, 10, 144, &mut rng, &wallet_db);
 
         let txos = Txo::list_for_account(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
         assert_eq!(txos.len(), 1);
 
         let expected_txo = Txo {
             txo_id_hex: txo_hex.clone(),
-            value: value as i64,
+            value: 10,
             target_key: mc_util_serial::encode(&txo.target_key),
             public_key: mc_util_serial::encode(&txo.public_key),
             e_fog_hint: mc_util_serial::encode(&txo.e_fog_hint),
             txo: mc_util_serial::encode(&txo),
-            subaddress_index: Some(subaddress_index),
+            subaddress_index: Some(0),
             key_image: Some(mc_util_serial::encode(&key_image)),
-            received_block_height: Some(received_block_height as i64),
+            received_block_height: Some(144),
             spent_tombstone_block_height: None,
             spent_block_height: None,
             proof: None,
@@ -507,5 +604,52 @@ mod tests {
         let balances =
             Txo::list_by_status(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
         assert!(balances["unspent"].is_empty());
+    }
+
+    #[test_with_logger]
+    fn test_select_txos_for_value(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let account_key = AccountKey::random(&mut rng);
+        let (account_id_hex, _public_address_b58) = Account::create(
+            &account_key,
+            0,
+            1,
+            2,
+            0,
+            1,
+            "Alice's Main Account",
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        // Create some TXOs for the account
+        // [100, 200, 300, ... 1000]
+        for i in 1..10 {
+            let (_txo_hex, _txo, _key_image) = create_test_received(
+                &account_key,
+                0,
+                (100 * MOB * i) as u64, // 100.0 MOB * i
+                (144 + i) as u64,
+                &mut rng,
+                &wallet_db,
+            );
+        }
+
+        let txos_for_value = Txo::select_unspent_txos_for_value(
+            &account_id_hex,
+            300 * MOB as u64,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        let result_set = HashSet::from_iter(txos_for_value.iter().map(|t| t.value));
+        assert_eq!(
+            result_set,
+            HashSet::<i64>::from_iter(vec![100 * MOB, 200 * MOB])
+        );
     }
 }

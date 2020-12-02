@@ -7,7 +7,7 @@
 //! This module, on the other hand, builds a transaction within the context of the wallet.
 
 use crate::db::WalletDb;
-use crate::db_models::account::AccountModel;
+use crate::db_models::{account::AccountModel, txo::TxoModel};
 use crate::error::WalletTransactionBuilderError;
 use crate::models::{Account, Txo};
 
@@ -19,7 +19,7 @@ use mc_fog_report_connection::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_mobilecoind::payments::{Outlay, TxProposal};
 use mc_mobilecoind::UnspentTxOut;
-use mc_transaction_core::constants::{MAX_INPUTS, MINIMUM_FEE, RING_SIZE};
+use mc_transaction_core::constants::{MINIMUM_FEE, RING_SIZE};
 use mc_transaction_core::onetime_keys::recover_onetime_private_key;
 use mc_transaction_core::ring_signature::KeyImage;
 use mc_transaction_core::tx::{TxOut, TxOutMembershipProof};
@@ -91,74 +91,15 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
         &mut self,
         max_spendable_value: Option<u64>,
     ) -> Result<(), WalletTransactionBuilderError> {
-        let value = self.outlays.iter().map(|(_r, v)| v).sum();
+        let value =
+            self.outlays.iter().map(|(_r, v)| v).sum::<u64>() + self.transaction_builder.fee;
 
-        // Select utxos for the given value
-        let max_spendable = if let Some(msv) = max_spendable_value {
-            msv as i64
-        } else {
-            i64::MAX
-        };
-        let mut txos: Vec<Txo> = self
-            .wallet_db
-            .select_unspent_txos_for_value(&self.account_id_hex, max_spendable)?;
-        if txos.is_empty() {
-            return Err(WalletTransactionBuilderError::NoSpendableTxos);
-        }
-        // println!("\x1b[1;36m SELECTED THE FOLLOWING TXOS {:?}\x1b[0m", txos);
-
-        // The maximum spendable is limited by the maximal number of inputs we can use.
-        // FIXME: is this really doing what we want? Just because the MAX_INPUTS smallest are < value does
-        //        not mean that the whole wallet is fragmented.
-        let max_spendable_amount = txos
-            .iter()
-            .take(MAX_INPUTS as usize)
-            .map(|utxo| utxo.value as u64)
-            .sum();
-        if value > max_spendable_amount {
-            // See if we merged the UTXOs we would be able to spend this amount.
-            let total_utxos_value: u64 = txos.iter().map(|utxo| utxo.value as u64).sum();
-            if total_utxos_value >= value {
-                return Err(WalletTransactionBuilderError::InsufficientFundsFragmentedTxos);
-            } else {
-                return Err(WalletTransactionBuilderError::InsufficientFunds(format!(
-                    "Max spendable amount: {:?}",
-                    max_spendable_amount
-                )));
-            }
-        }
-
-        // FIXME: can we do this more elegantly with a DB query?
-        // Choose utxos to spend.
-        let mut selected_utxos: Vec<Txo> = Vec::new();
-        let mut total = 0;
-        loop {
-            if total >= value {
-                break;
-            }
-
-            // Grab the next (smallest) utxo, in order to opportunistically sweep up dust
-            let next_utxo = txos
-                .pop()
-                .ok_or(WalletTransactionBuilderError::InsufficientFunds(
-                    "Not enough utxos".to_string(),
-                ))?;
-            selected_utxos.push(next_utxo.clone());
-            total += next_utxo.value as u64;
-
-            // Cap at maximum allowed inputs.
-            if selected_utxos.len() > MAX_INPUTS as usize {
-                // Remove the lowest utxo.
-                selected_utxos.remove(0);
-            }
-        }
-
-        // Sanity.
-        assert!(!selected_utxos.is_empty());
-        assert!(selected_utxos.len() <= MAX_INPUTS as usize);
-
-        // Set our inputs
-        self.inputs = selected_utxos;
+        self.inputs = Txo::select_unspent_txos_for_value(
+            &self.account_id_hex,
+            value,
+            max_spendable_value.map(|v| v as i64),
+            &self.wallet_db.get_conn()?,
+        )?;
 
         Ok(())
     }
@@ -437,11 +378,6 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
                 }
             })
             .collect();
-
-        // println!(
-        //     "\x1b[1;33m About to return with change = {:?} \x1b[0m",
-        //     change
-        // );
 
         Ok(TxProposal {
             utxos: selected_utxos,
