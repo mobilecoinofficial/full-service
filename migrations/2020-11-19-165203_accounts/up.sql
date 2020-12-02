@@ -59,6 +59,7 @@ create TABLE transaction_logs (
     block_height UNSIGNED BIG INT NOT NULL,
     comment TEXT NOT NULL DEFAULT '',
     direction VARCHAR(8) NOT NULL,
+    tx BLOB,
     FOREIGN KEY (account_id_hex) REFERENCES accounts(account_id_hex),
     FOREIGN KEY (assigned_subaddress_b58) REFERENCES assigned_subaddresses(assigned_subaddress_b58)
 );

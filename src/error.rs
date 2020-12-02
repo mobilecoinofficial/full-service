@@ -3,11 +3,6 @@
 //! Errors for the wallet service
 
 use displaydoc::Display;
-use rocket::http::Status;
-use rocket::response::Responder;
-use rocket::response::Response;
-use rocket::Request;
-use std::io::Cursor;
 
 #[derive(Display, Debug)]
 pub enum WalletServiceError {
@@ -43,6 +38,12 @@ pub enum WalletServiceError {
 
     /// Error with LedgerDB {0}
     LedgerDB(mc_ledger_db::Error),
+
+    /// No transaction object associated with this transaction. Note, received transactions do not have transaction objects.
+    NoTxInTransaction,
+
+    /// Error decoding prost {0}
+    ProstDecode(prost::DecodeError),
 }
 
 impl From<WalletDbError> for WalletServiceError {
@@ -84,6 +85,12 @@ impl From<mc_api::ConversionError> for WalletServiceError {
 impl From<mc_ledger_db::Error> for WalletServiceError {
     fn from(src: mc_ledger_db::Error) -> Self {
         Self::LedgerDB(src)
+    }
+}
+
+impl From<prost::DecodeError> for WalletServiceError {
+    fn from(src: prost::DecodeError) -> Self {
+        Self::ProstDecode(src)
     }
 }
 
@@ -150,35 +157,6 @@ impl From<mc_api::display::Error> for WalletDbError {
 impl From<prost::DecodeError> for WalletDbError {
     fn from(src: prost::DecodeError) -> Self {
         Self::ProstDecode(src)
-    }
-}
-
-#[derive(Display, Debug)]
-pub enum WalletAPIError {
-    /// Error Parsing u64
-    U64ParseError,
-
-    /// Error interacting with Wallet Service {0}
-    WalletService(WalletServiceError),
-}
-
-impl Responder<'static> for WalletAPIError {
-    fn respond_to(self, _: &Request) -> Result<Response<'static>, Status> {
-        Response::build()
-            .sized_body(Cursor::new(format!("{:?}", self)))
-            .ok()
-    }
-}
-
-impl From<WalletServiceError> for WalletAPIError {
-    fn from(src: WalletServiceError) -> Self {
-        Self::WalletService(src)
-    }
-}
-
-impl From<std::num::ParseIntError> for WalletAPIError {
-    fn from(_src: std::num::ParseIntError) -> Self {
-        Self::U64ParseError
     }
 }
 
