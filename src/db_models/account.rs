@@ -1,45 +1,22 @@
 // Copyright (c) 2020 MobileCoin Inc.
 
 //! DB impl for the Account model
-//!
 
-use chrono::prelude::Utc;
-use mc_account_keys::{AccountKey, PublicAddress, DEFAULT_SUBADDRESS_INDEX};
-use mc_common::logger::{log, Logger};
-use mc_common::HashMap;
+use crate::db_models::assigned_subaddress::AssignedSubaddressModel;
+use crate::error::WalletDbError;
+use crate::models::{Account, AssignedSubaddress, NewAccount};
+
+use mc_account_keys::AccountKey;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
-use mc_crypto_keys::RistrettoPublic;
-use mc_mobilecoind::payments::TxProposal;
-use mc_transaction_core::ring_signature::KeyImage;
-use mc_transaction_core::tx::{Tx, TxOut};
 use std::iter::FromIterator;
 
 use diesel::prelude::*;
-use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
+use diesel::r2d2::{ConnectionManager, PooledConnection};
 use diesel::RunQueryDsl;
 
-use crate::error::WalletDbError;
-use crate::models::{
-    Account, AccountTxoStatus, AssignedSubaddress, NewAccount, NewAccountTxoStatus,
-    NewAssignedSubaddress, NewTransactionLog, NewTransactionTxoType, NewTxo, TransactionLog,
-    TransactionTxoType, Txo,
-};
 // Schema Tables
-use crate::schema::account_txo_statuses as schema_account_txo_statuses;
 use crate::schema::accounts as schema_accounts;
-use crate::schema::assigned_subaddresses as schema_assigned_subaddresses;
-use crate::schema::transaction_logs as schema_transaction_logs;
-use crate::schema::transaction_txo_types as schema_transaction_txo_types;
-use crate::schema::txos as schema_txos;
 
-// Query Objects
-use crate::schema::account_txo_statuses::dsl::account_txo_statuses as dsl_account_txo_statuses;
-use crate::schema::accounts::dsl::accounts as dsl_accounts;
-use crate::schema::assigned_subaddresses::dsl::assigned_subaddresses as dsl_assigned_subaddresses;
-use crate::schema::transaction_logs::dsl::transaction_logs as dsl_transaction_logs;
-use crate::schema::txos::dsl::txos as dsl_txos;
-
-use crate::db::b58_encode;
 use crate::db::AccountID;
 
 pub trait AccountModel {
@@ -66,7 +43,6 @@ impl AccountModel for Account {
         name: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(String, String), WalletDbError> {
-        let main_subaddress = account_key.subaddress(main_subaddress_index);
         let account_id = AccountID::from(account_key);
 
         // FIXME: It's concerning to lose a bit of precision in casting to i64
@@ -85,39 +61,23 @@ impl AccountModel for Account {
             .values(&new_account)
             .execute(conn)?;
 
-        // Insert the assigned subaddresses for main and change
-        let main_subaddress_b58 = b58_encode(&main_subaddress)?;
-        let main_subaddress_entry = NewAssignedSubaddress {
-            assigned_subaddress_b58: &main_subaddress_b58,
-            account_id_hex: &account_id.to_string(),
-            address_book_entry: None, // FIXME: Address Book Entry if details provided, or None always for main?
-            public_address: &mc_util_serial::encode(&main_subaddress),
-            subaddress_index: main_subaddress_index as i64,
-            comment: "Main",
-            expected_value: None,
-            subaddress_spend_key: &mc_util_serial::encode(main_subaddress.spend_public_key()),
-        };
+        let main_subaddress_b58 = AssignedSubaddress::create(
+            account_key,
+            &account_id.to_string(),
+            None, // FIXME: Address Book Entry if details provided, or None always for main?
+            main_subaddress_index,
+            "Main",
+            &conn,
+        )?;
 
-        diesel::insert_into(schema_assigned_subaddresses::table)
-            .values(&main_subaddress_entry)
-            .execute(conn)?;
-
-        let change_subaddress = account_key.subaddress(change_subaddress_index);
-        let change_subaddress_b58 = b58_encode(&change_subaddress)?;
-        let change_subaddress_entry = NewAssignedSubaddress {
-            assigned_subaddress_b58: &change_subaddress_b58,
-            account_id_hex: &account_id.to_string(),
-            address_book_entry: None, // FIXME: Address Book Entry if details provided, or None always for main?
-            public_address: &mc_util_serial::encode(&change_subaddress),
-            subaddress_index: change_subaddress_index as i64,
-            comment: "Change",
-            expected_value: None,
-            subaddress_spend_key: &mc_util_serial::encode(change_subaddress.spend_public_key()),
-        };
-
-        diesel::insert_into(schema_assigned_subaddresses::table)
-            .values(&change_subaddress_entry)
-            .execute(conn)?;
+        let _change_subaddress_b58 = AssignedSubaddress::create(
+            account_key,
+            &account_id.to_string(),
+            None, // FIXME: Address Book Entry if details provided, or None always for main?
+            change_subaddress_index,
+            "Change",
+            &conn,
+        )?;
 
         Ok((account_id.to_string(), main_subaddress_b58))
     }

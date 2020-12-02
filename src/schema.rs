@@ -28,7 +28,6 @@ table! {
         public_address -> Binary,
         subaddress_index -> BigInt,
         comment -> Text,
-        expected_value -> Nullable<BigInt>,
         subaddress_spend_key -> Binary,
     }
 }
