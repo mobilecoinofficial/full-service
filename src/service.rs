@@ -717,7 +717,7 @@ mod tests {
             &client,
             body,
             &logger,
-            "WalletService(TransactionBuilder(InsufficientFunds(\"Cannot make change for value 100\")))".to_string(),
+            "{\"error\": \"TransactionBuilder(InsufficientFunds(\"Cannot make change for value 100\"))\"}".to_string(),
         );
 
         // Add a block with significantly more MOB

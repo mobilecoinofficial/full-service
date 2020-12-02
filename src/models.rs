@@ -2,10 +2,12 @@
 
 //! DB Models
 
+use super::db_models::account::AccountModel;
 use super::schema::{
     account_txo_statuses, accounts, assigned_subaddresses, transaction_logs, transaction_txo_types,
     txos,
 };
+
 use serde::Serialize;
 
 #[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]

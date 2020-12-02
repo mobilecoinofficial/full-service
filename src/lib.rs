@@ -4,6 +4,7 @@
 
 pub mod config;
 mod db;
+mod db_models;
 mod error;
 pub mod models;
 pub mod schema;
