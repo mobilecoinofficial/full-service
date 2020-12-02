@@ -459,3 +459,4 @@ fn process_txos(
 }
 
 // FIXME: Add tests
+// * test select received txo by value

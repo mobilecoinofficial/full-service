@@ -134,6 +134,15 @@ pub enum WalletDbError {
 
     /// Subaddress on received transaction is null
     NullSubaddressOnReceived,
+
+    /// No unspent Txos in the wallet
+    NoSpendableTxos,
+
+    /// Txos are too fragmented to construct a transaction with MAX_INPUTS. Please combine txos.
+    InsufficientFundsFragmentedTxos,
+
+    /// Insufficient Funds {0}
+    InsufficientFunds(String),
 }
 
 impl From<diesel::result::Error> for WalletDbError {
@@ -222,9 +231,6 @@ pub enum WalletTransactionBuilderError {
     /// Insufficient TxOuts to construct transaction
     InsufficientTxOuts,
 
-    /// Utxos are too fragmented to construct a transaction with MAX_INPUTS. Please combine txos.
-    InsufficientFundsFragmentedTxos,
-
     /// Ring size does not match number of inputs
     RingSizeMismatch,
 
@@ -254,9 +260,6 @@ pub enum WalletTransactionBuilderError {
 
     /// Attmpting to build a transaction from a TXO withou a subaddress
     NullSubaddress(String),
-
-    /// No spendable TXOs in the wallet
-    NoSpendableTxos,
 }
 
 impl From<mc_ledger_db::Error> for WalletTransactionBuilderError {
