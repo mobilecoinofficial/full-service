@@ -403,10 +403,10 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
             tombstone_block,
             max_spendable_value,
         )?;
-        println!(
-            "\x1b[1;36m SENDING TRANSACTION, constructed proposal with change {:?}\x1b[0m",
-            tx_proposal.change_value
-        );
+        // println!(
+        //     "\x1b[1;36m SENDING TRANSACTION, constructed proposal with change {:?}\x1b[0m",
+        //     tx_proposal.change_value
+        // );
         Ok(self.submit_transaction(tx_proposal, comment)?)
     }
 
