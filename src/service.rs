@@ -11,9 +11,11 @@ use mc_connection::UserTxConnection;
 use mc_fog_report_connection::FogPubkeyResolver;
 use mc_fog_report_connection::GrpcFogPubkeyResolver;
 use mc_mobilecoind_json::data_types::JsonTxProposal;
-use rocket::{post, routes};
+use rocket::{get, post, routes};
 use rocket_contrib::json::Json;
 use serde::{Deserialize, Serialize};
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 
 pub struct WalletState<
     T: UserTxConnection + 'static,
@@ -22,7 +24,7 @@ pub struct WalletState<
     pub service: WalletService<T, FPR>,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, EnumIter, Debug)]
 #[serde(tag = "method", content = "params")]
 #[allow(non_camel_case_types)]
 pub enum JsonCommandRequest {
@@ -92,8 +94,12 @@ pub enum JsonCommandRequest {
     get_transaction {
         transaction_id: String,
     },
+    // get_transaction_object {
+    //     transaction_id: String,
+    //     transaction_contents: JsonTx,
+    // }
 }
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 #[serde(tag = "method", content = "result")]
 #[allow(non_camel_case_types)]
 pub enum JsonCommandResponse {
@@ -148,6 +154,15 @@ pub enum JsonCommandResponse {
     get_transaction {
         transaction: JsonTransactionResponse,
     },
+}
+
+#[get("/wallet")]
+fn wallet_help() -> Result<String, String> {
+    let mut help_str = "Please use json data to choose wallet commands. For example, \n\ncurl -s localhost:9090/wallet -d '{\"method\": \"create_account\", \"params\": {\"name\": \"Alice\"}}' -X POST -H 'Content-type: application/json'\n\nAvailable commands are:\n\n".to_owned();
+    for e in JsonCommandRequest::iter() {
+        help_str.push_str(&format!("{:?}\n\n", e));
+    }
+    Ok(help_str.to_string())
 }
 
 #[post("/wallet", format = "json", data = "<command>")]
@@ -296,7 +311,7 @@ pub fn rocket(
     // connections. For now, I am simply not testing the endpoints like submit_transaction,
     // and I am not building test transactions with a fog recipients.
     rocket::custom(rocket_config)
-        .mount("/", routes![wallet_api,])
+        .mount("/", routes![wallet_api, wallet_help])
         .manage(state)
 }
 

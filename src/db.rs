@@ -377,10 +377,10 @@ impl WalletDb {
                 // For TXOs that we sent previously, they are either change, or we sent to ourselves
                 // for some other reason. Their status will be secreted in either case.
                 if account_txo_status.txo_type == "minted" {
-                    println!(
-                        "\x1b[1;34m Received minted at block {:?}\x1b[0m",
-                        received_block_height
-                    );
+                    // println!(
+                    //     "\x1b[1;34m Received minted at block {:?}\x1b[0m",
+                    //     received_block_height
+                    // );
                     // Verify that we have a subaddress, otherwise this transaction will be
                     // unspendable.
                     if subaddress_index.is_none() || key_image.is_none() {
@@ -403,14 +403,14 @@ impl WalletDb {
                         .set(schema_account_txo_statuses::txo_status.eq("unspent"))
                         .execute(&conn)?;
                 } else if account_txo_status.txo_type == "received".to_string() {
-                    println!(
-                        "\x1b[1;34m Received 'received' at block {:?}\x1b[0m",
-                        received_block_height
-                    );
+                    // println!(
+                    //     "\x1b[1;34m Received 'received' at block {:?}\x1b[0m",
+                    //     received_block_height
+                    // );
                     // If the existing Txo subadddress is null and we have the received subaddress
                     // now, then we want to update to received subaddress
                     if let Some(subaddress_i) = subaddress_index {
-                        println!("\x1b[1;37m SUBADDRESS was NULL, updating\x1b[0m");
+                        // println!("\x1b[1;37m SUBADDRESS was NULL, updating\x1b[0m");
                         if txo.subaddress_index.is_none() {
                             diesel::update(dsl_txos.find(&txo_id.to_string()))
                                 .set((schema_txos::subaddress_index.eq(subaddress_i as i64),))
@@ -423,10 +423,10 @@ impl WalletDb {
 
                 // If this Txo was previously orphaned, we can now update it, and make it spendable
                 if account_txo_status.txo_status == "orphaned" {
-                    println!(
-                        "\x1b[1;34m Received orphaned at block {:?}\x1b[0m",
-                        received_block_height
-                    );
+                    // println!(
+                    //     "\x1b[1;34m Received orphaned at block {:?}\x1b[0m",
+                    //     received_block_height
+                    // );
                     let key_image = if let Some(ki) = key_image {
                         mc_util_serial::encode(&ki)
                     } else {
@@ -448,10 +448,10 @@ impl WalletDb {
             }
             // If we don't already have this TXO, create a new entry
             Err(diesel::result::Error::NotFound) => {
-                println!(
-                    "\x1b[1;34m Never saw this txo before, at block height {:?}\x1b[0m",
-                    received_block_height
-                );
+                // println!(
+                //     "\x1b[1;34m Never saw this txo before, at block height {:?}\x1b[0m",
+                //     received_block_height
+                // );
                 let key_image_bytes = key_image.map(|k| mc_util_serial::encode(&k));
                 let new_txo = NewTxo {
                     txo_id_hex: &txo_id.to_string(),
@@ -468,10 +468,10 @@ impl WalletDb {
                     proof: None,
                 };
 
-                println!(
-                    "\x1b[1;34m Inserting new received txo at block height {:?}\x1b[0m",
-                    received_block_height
-                );
+                // println!(
+                //     "\x1b[1;34m Inserting new received txo at block height {:?}\x1b[0m",
+                //     received_block_height
+                // );
                 diesel::insert_into(schema_txos::table)
                     .values(&new_txo)
                     .execute(&conn)?;
@@ -489,10 +489,10 @@ impl WalletDb {
                     txo_type: "received",
                 };
 
-                println!(
-                    "\x1b[1;34m Inserting new status at block {:?}\x1b[0m",
-                    received_block_height
-                );
+                // println!(
+                //     "\x1b[1;34m Inserting new status at block {:?}\x1b[0m",
+                //     received_block_height
+                // );
                 diesel::insert_into(schema_account_txo_statuses::table)
                     .values(&new_account_txo_status)
                     .execute(&conn)?;
@@ -733,7 +733,7 @@ impl WalletDb {
             .order_by(schema_txos::value.desc())
             .load(&conn)?;
 
-        println!("\x1b[1;34mselected the following txos {:?}\x1b[0m", results);
+        // println!("\x1b[1;34mselected the following txos {:?}\x1b[0m", results);
 
         Ok(results)
     }
@@ -1080,10 +1080,10 @@ impl WalletDb {
                     // per transaction, based on how we construct transactions. If we change
                     // how we construct transactions, these assumptions will change, and should be
                     // reflected in the TxProposal.
-                    println!(
-                        "\x1b[1;36m GOT CHANGE with value {:?}\x1b[0m",
-                        tx_proposal.change_value
-                    );
+                    // println!(
+                    //     "\x1b[1;36m GOT CHANGE with value {:?}\x1b[0m",
+                    //     tx_proposal.change_value
+                    // );
                     (tx_proposal.change_value, None, None)
                 };
 
@@ -1108,10 +1108,10 @@ impl WalletDb {
                 let encoded_proof = proof
                     .map(|p| mc_util_serial::encode(&tx_proposal.outlay_confirmation_numbers[p]));
 
-                println!(
-                    "\x1b[1;33m SETTING VALUE FOR THIS OUTPUT TO {:?}\x1b[0m",
-                    value
-                );
+                // println!(
+                //     "\x1b[1;33m SETTING VALUE FOR THIS OUTPUT TO {:?}\x1b[0m",
+                //     value
+                // );
                 let new_txo = NewTxo {
                     txo_id_hex: &txo_id.to_string(),
                     value: value as i64,
