@@ -170,9 +170,8 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
     }
 
     pub fn list_accounts(&self) -> Result<Vec<JsonAccount>, WalletServiceError> {
-        Ok(self
-            .wallet_db
-            .list_accounts()?
+        let conn = self.wallet_db.get_conn()?;
+        Ok(Account::list_accounts(&conn)?
             .iter()
             .map(|a| JsonAccount {
                 account_id: a.account_id_hex.clone(),
@@ -546,6 +545,11 @@ mod tests {
             .create_account(Some("Alice's Main Account".to_string()), None)
             .unwrap();
 
+        println!(
+            "\x1b[1;31m Got public address {:?}\x1b[0m",
+            alice.public_address_b58
+        );
+
         // Add a block with a transaction for this recipient
         // Add a block with a txo for this address (note that value is smaller than MINIMUM_FEE)
         let alice_public_address = b58_decode(&alice.public_address_b58);
@@ -558,7 +562,7 @@ mod tests {
         );
 
         // Sleep to let the sync thread process the txo
-        std::thread::sleep(Duration::from_secs(2));
+        std::thread::sleep(Duration::from_secs(5));
 
         // Verify balance for Alice
         let balance = service.get_balance(&alice.account_id).unwrap();
