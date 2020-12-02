@@ -94,6 +94,11 @@ pub trait TxoModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(Txo, AccountTxoStatus, Option<AssignedSubaddress>), WalletDbError>;
 
+    fn select_by_id(
+        txo_ids: &Vec<String>,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<(Txo, AccountTxoStatus)>, WalletDbError>;
+
     fn select_unspent_txos_for_value(
         account_id_hex: &str,
         target_value: u64,
@@ -378,6 +383,24 @@ impl TxoModel for Txo {
         Ok((txo, account_txo_status, assigned_subaddress))
     }
 
+    fn select_by_id(
+        txo_ids: &Vec<String>,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<(Txo, AccountTxoStatus)>, WalletDbError> {
+        use crate::schema::account_txo_statuses;
+        use crate::schema::txos;
+
+        let txos: Vec<(Txo, AccountTxoStatus)> = txos::table
+            .inner_join(
+                account_txo_statuses::table.on(txos::txo_id_hex
+                    .eq(account_txo_statuses::txo_id_hex)
+                    .and(txos::txo_id_hex.eq_any(txo_ids))),
+            )
+            .select((txos::all_columns, account_txo_statuses::all_columns))
+            .load(conn)?;
+        Ok(txos)
+    }
+
     fn select_unspent_txos_for_value(
         account_id_hex: &str,
         target_value: u64,
@@ -479,9 +502,10 @@ mod tests {
         HashSet,
     };
     use mc_crypto_keys::RistrettoPrivate;
-    use mc_transaction_core::encrypted_fog_hint::EncryptedFogHint;
-    use mc_transaction_core::ring_signature::KeyImage;
-    use mc_transaction_core::tx::TxOut;
+    use mc_transaction_core::{
+        constants::MINIMUM_FEE, encrypted_fog_hint::EncryptedFogHint, ring_signature::KeyImage,
+        tx::TxOut,
+    };
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
     use std::iter::FromIterator;
@@ -627,8 +651,8 @@ mod tests {
         .unwrap();
 
         // Create some TXOs for the account
-        // [100, 200, 300, ... 1000]
-        for i in 1..10 {
+        // [100, 200, 300, ... 2000]
+        for i in 1..20 {
             let (_txo_hex, _txo, _key_image) = create_test_received(
                 &account_key,
                 0,
@@ -639,6 +663,7 @@ mod tests {
             );
         }
 
+        // Greedily take smallest to exact value
         let txos_for_value = Txo::select_unspent_txos_for_value(
             &account_id_hex,
             300 * MOB as u64,
@@ -651,5 +676,115 @@ mod tests {
             result_set,
             HashSet::<i64>::from_iter(vec![100 * MOB, 200 * MOB])
         );
+
+        // Once we include the fee, we need another txo
+        let txos_for_value = Txo::select_unspent_txos_for_value(
+            &account_id_hex,
+            300 * MOB as u64 + MINIMUM_FEE,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        let result_set = HashSet::from_iter(txos_for_value.iter().map(|t| t.value));
+        assert_eq!(
+            result_set,
+            HashSet::<i64>::from_iter(vec![100 * MOB, 200 * MOB, 300 * MOB])
+        );
+
+        // Setting max spendable value gives us insufficient funds - only allows 100
+        let res = Txo::select_unspent_txos_for_value(
+            &account_id_hex,
+            300 * MOB as u64 + MINIMUM_FEE,
+            Some(200 * MOB),
+            &wallet_db.get_conn().unwrap(),
+        );
+        match res {
+            Err(WalletDbError::InsufficientFunds(_)) => {}
+            Ok(_) => panic!("Should error with InsufficientFunds"),
+            Err(_) => panic!("Should error with InsufficientFunds"),
+        }
+
+        // sum(300..1800) to get a window where we had to increase past the smallest txos,
+        // and also fill up all 16 input slots.
+        let txos_for_value = Txo::select_unspent_txos_for_value(
+            &account_id_hex,
+            16800 * MOB as u64,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        let result_set = HashSet::from_iter(txos_for_value.iter().map(|t| t.value));
+        assert_eq!(
+            result_set,
+            HashSet::<i64>::from_iter(vec![
+                300 * MOB,
+                400 * MOB,
+                500 * MOB,
+                600 * MOB,
+                700 * MOB,
+                800 * MOB,
+                900 * MOB,
+                1000 * MOB,
+                1100 * MOB,
+                1200 * MOB,
+                1300 * MOB,
+                1400 * MOB,
+                1500 * MOB,
+                1600 * MOB,
+                1700 * MOB,
+                1800 * MOB
+            ])
+        );
     }
+
+    #[test_with_logger]
+    fn test_select_txos_fragmented(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let account_key = AccountKey::random(&mut rng);
+        let (account_id_hex, _public_address_b58) = Account::create(
+            &account_key,
+            0,
+            1,
+            2,
+            0,
+            1,
+            "Alice's Main Account",
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        // Create some TXOs for the account. Total value is 2000, but max can spend is 1600
+        // [100, 100, ... 100]
+        for i in 1..20 {
+            let (_txo_hex, _txo, _key_image) = create_test_received(
+                &account_key,
+                0,
+                (100 * MOB) as u64,
+                (144 + i) as u64,
+                &mut rng,
+                &wallet_db,
+            );
+        }
+
+        let res = Txo::select_unspent_txos_for_value(
+            &account_id_hex,
+            1800 * MOB as u64,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        );
+        match res {
+            Err(WalletDbError::InsufficientFundsFragmentedTxos) => {}
+            Ok(_) => panic!("Should error with InsufficientFundsFragmentedTxos"),
+            Err(e) => panic!(
+                "Should error with InsufficientFundsFragmentedTxos but got {:?}",
+                e
+            ),
+        }
+    }
+
+    // FIXME: once we have create_spent, then select_txos test with no spendable
 }

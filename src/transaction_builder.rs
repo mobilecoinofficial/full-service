@@ -75,9 +75,7 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
         &mut self,
         input_txo_ids: &Vec<String>,
     ) -> Result<(), WalletTransactionBuilderError> {
-        let txos = self
-            .wallet_db
-            .select_txos_by_id(&self.account_id_hex, input_txo_ids)?;
+        let txos = Txo::select_by_id(input_txo_ids, &self.wallet_db.get_conn()?)?;
         let unspent: Vec<Txo> = txos
             .iter()
             .filter(|(_txo, status)| status.txo_status == "unspent")
