@@ -10,13 +10,16 @@ use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::ring_signature::KeyImage;
-use mc_transaction_core::tx::{Tx, TxOut};
+use mc_transaction_core::tx::Tx;
 use std::iter::FromIterator;
 
-use diesel::prelude::*;
-use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
-use diesel::RunQueryDsl;
+use diesel::{
+    prelude::*,
+    r2d2::{ConnectionManager, Pool, PooledConnection},
+    RunQueryDsl,
+};
 
+use crate::db_models::txos::TxoID;
 use crate::error::WalletDbError;
 use crate::models::{
     Account, AccountTxoStatus, AssignedSubaddress, NewAccountTxoStatus, NewAssignedSubaddress,
@@ -42,28 +45,6 @@ pub fn b58_encode(public_address: &PublicAddress) -> Result<String, WalletDbErro
     let mut wrapper = mc_mobilecoind_api::printable::PrintableWrapper::new();
     wrapper.set_public_address(public_address.into());
     Ok(wrapper.b58_encode()?)
-}
-
-#[derive(Debug)]
-pub struct TxoID(String);
-
-impl From<&TxOut> for TxoID {
-    fn from(src: &TxOut) -> TxoID {
-        /// The txo ID is derived from the contents of the txo
-        #[derive(Digestible)]
-        struct ConstTxoData {
-            pub txo: TxOut,
-        }
-        let const_data = ConstTxoData { txo: src.clone() };
-        let temp: [u8; 32] = const_data.digest32::<MerlinTranscript>(b"txo_data");
-        Self(hex::encode(temp))
-    }
-}
-
-impl TxoID {
-    pub fn to_string(&self) -> String {
-        self.0.clone()
-    }
 }
 
 #[derive(Debug)]
@@ -188,172 +169,6 @@ impl WalletDb {
         // FIXME: When adding multiple addresses for syncing, possibly due to error above, the
         //        syncing stops, and the account is stuck at 0
         Ok((subaddress_b58, subaddress_index))
-    }
-
-    /// Create a TXO entry
-    pub fn create_received_txo(
-        &self,
-        txo: TxOut,
-        subaddress_index: Option<i64>,
-        key_image: Option<KeyImage>,
-        value: u64,
-        received_block_height: i64,
-        account_id_hex: &str,
-    ) -> Result<String, WalletDbError> {
-        let conn = self.pool.get()?;
-
-        let txo_id = TxoID::from(&txo);
-
-        // If we already have this TXO (e.g. from minting in a previous transaction), we need to update it
-        match dsl_txos.find(&txo_id.to_string()).get_result::<Txo>(&conn) {
-            Ok(txo) => {
-                // get the type of this TXO
-                let account_txo_status: AccountTxoStatus = match dsl_account_txo_statuses
-                    .find((account_id_hex, &txo_id.to_string()))
-                    .get_result::<AccountTxoStatus>(&conn)
-                {
-                    Ok(t) => t,
-                    // Match on NotFound to get a more informative NotFound Error
-                    Err(diesel::result::Error::NotFound) => {
-                        return Err(WalletDbError::NotFound(format!(
-                            "{:?}",
-                            (account_id_hex.to_string(), txo_id.to_string())
-                        )));
-                    }
-                    Err(e) => {
-                        return Err(e.into());
-                    }
-                };
-
-                // For TXOs that we sent previously, they are either change, or we sent to ourselves
-                // for some other reason. Their status will be secreted in either case.
-                if account_txo_status.txo_type == "minted" {
-                    // println!(
-                    //     "\x1b[1;34m Received minted at block {:?}\x1b[0m",
-                    //     received_block_height
-                    // );
-                    // Verify that we have a subaddress, otherwise this transaction will be
-                    // unspendable.
-                    if subaddress_index.is_none() || key_image.is_none() {
-                        return Err(WalletDbError::NullSubaddressOnReceived);
-                    }
-
-                    // Update received block height and subaddress index
-                    let encoded_key_image = key_image.map(|k| mc_util_serial::encode(&k));
-                    diesel::update(dsl_txos.find(&txo_id.to_string()))
-                        .set((
-                            schema_txos::received_block_height.eq(Some(received_block_height)),
-                            schema_txos::subaddress_index.eq(subaddress_index),
-                            schema_txos::key_image.eq(encoded_key_image),
-                        ))
-                        .execute(&conn)?;
-
-                    // FIXME: Do we want to set an is_change bool?
-                    // Update the status to unspent - all received TXOs set lifecycle to unspent
-                    diesel::update(&account_txo_status)
-                        .set(schema_account_txo_statuses::txo_status.eq("unspent"))
-                        .execute(&conn)?;
-                } else if account_txo_status.txo_type == "received".to_string() {
-                    // println!(
-                    //     "\x1b[1;34m Received 'received' at block {:?}\x1b[0m",
-                    //     received_block_height
-                    // );
-                    // If the existing Txo subadddress is null and we have the received subaddress
-                    // now, then we want to update to received subaddress
-                    if let Some(subaddress_i) = subaddress_index {
-                        // println!("\x1b[1;37m SUBADDRESS was NULL, updating\x1b[0m");
-                        if txo.subaddress_index.is_none() {
-                            diesel::update(dsl_txos.find(&txo_id.to_string()))
-                                .set((schema_txos::subaddress_index.eq(subaddress_i as i64),))
-                                .execute(&conn)?;
-                        }
-                    }
-                } else {
-                    panic!("New txo_type must be handled");
-                }
-
-                // If this Txo was previously orphaned, we can now update it, and make it spendable
-                if account_txo_status.txo_status == "orphaned" {
-                    // println!(
-                    //     "\x1b[1;34m Received orphaned at block {:?}\x1b[0m",
-                    //     received_block_height
-                    // );
-                    let key_image = if let Some(ki) = key_image {
-                        mc_util_serial::encode(&ki)
-                    } else {
-                        return Err(WalletDbError::MissingKeyImage);
-                    };
-                    diesel::update(dsl_txos.find(&txo_id.to_string()))
-                        .set((
-                            schema_txos::key_image.eq(key_image),
-                            schema_txos::subaddress_index.eq(subaddress_index),
-                        ))
-                        .execute(&conn)?;
-
-                    diesel::update(&account_txo_status)
-                        .set(schema_account_txo_statuses::txo_status.eq("unspent"))
-                        .execute(&conn)?;
-                }
-
-                return Ok(txo_id.to_string());
-            }
-            // If we don't already have this TXO, create a new entry
-            Err(diesel::result::Error::NotFound) => {
-                // println!(
-                //     "\x1b[1;34m Never saw this txo before, at block height {:?}\x1b[0m",
-                //     received_block_height
-                // );
-                let key_image_bytes = key_image.map(|k| mc_util_serial::encode(&k));
-                let new_txo = NewTxo {
-                    txo_id_hex: &txo_id.to_string(),
-                    value: value as i64,
-                    target_key: &mc_util_serial::encode(&txo.target_key),
-                    public_key: &mc_util_serial::encode(&txo.public_key),
-                    e_fog_hint: &mc_util_serial::encode(&txo.e_fog_hint),
-                    txo: &mc_util_serial::encode(&txo),
-                    subaddress_index,
-                    key_image: key_image_bytes.as_ref(),
-                    received_block_height: Some(received_block_height as i64),
-                    spent_tombstone_block_height: None,
-                    spent_block_height: None,
-                    proof: None,
-                };
-
-                // println!(
-                //     "\x1b[1;34m Inserting new received txo at block height {:?}\x1b[0m",
-                //     received_block_height
-                // );
-                diesel::insert_into(schema_txos::table)
-                    .values(&new_txo)
-                    .execute(&conn)?;
-
-                let status = if subaddress_index.is_some() {
-                    "unspent"
-                } else {
-                    // Note: An orphaned Txo cannot be spent until the subaddress is recovered.
-                    "orphaned"
-                };
-                let new_account_txo_status = NewAccountTxoStatus {
-                    account_id_hex: &account_id_hex,
-                    txo_id_hex: &txo_id.to_string(),
-                    txo_status: status,
-                    txo_type: "received",
-                };
-
-                // println!(
-                //     "\x1b[1;34m Inserting new status at block {:?}\x1b[0m",
-                //     received_block_height
-                // );
-                diesel::insert_into(schema_account_txo_statuses::table)
-                    .values(&new_account_txo_status)
-                    .execute(&conn)?;
-            }
-            Err(e) => {
-                return Err(e.into());
-            }
-        };
-
-        Ok(txo_id.to_string())
     }
 
     /// List all txos for a given account.
@@ -1121,138 +936,5 @@ impl WalletDb {
         }
 
         Ok((transaction, inputs, outputs, change))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::db_models::account::AccountModel;
-    use crate::test_utils::WalletDbTestContext;
-    use mc_common::logger::{test_with_logger, Logger};
-    use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
-    use mc_transaction_core::encrypted_fog_hint::EncryptedFogHint;
-    use mc_transaction_core::onetime_keys::recover_public_subaddress_spend_key;
-    use mc_transaction_core::ring_signature::KeyImage;
-    use mc_util_from_random::FromRandom;
-    use rand::{rngs::StdRng, SeedableRng};
-    use std::convert::TryFrom;
-
-    #[test_with_logger]
-    fn test_received_tx_lifecycle(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-
-        let db_test_context = WalletDbTestContext::default();
-        let wallet_db = db_test_context.get_db_instance(logger);
-
-        let account_key = AccountKey::random(&mut rng);
-        let (account_id_hex, _public_address_b58) = Account::create(
-            &account_key,
-            0,
-            1,
-            2,
-            0,
-            1,
-            "Alice's Main Account",
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-
-        // FIXME: get recipient via the assigned subaddresses table, not directly
-        let recipient = account_key.subaddress(0);
-
-        // Create TXO for the account
-        let tx_private_key = RistrettoPrivate::from_random(&mut rng);
-        let hint = EncryptedFogHint::fake_onetime_hint(&mut rng);
-        let value = 10;
-        let txo = TxOut::new(value, &recipient, &tx_private_key, hint).unwrap();
-
-        // Get KeyImage from the onetime private key
-        let key_image = KeyImage::from(&tx_private_key);
-
-        // Sanity check: Ensure that we can recover the subaddress
-        // FIXME: Assert that the public address and the subaddress spend key was added to the
-        //        assigned_subaddresses table
-        let _subaddress_index = recover_public_subaddress_spend_key(
-            account_key.view_private_key(),
-            &RistrettoPublic::try_from(&txo.target_key).unwrap(),
-            &RistrettoPublic::try_from(&txo.public_key).unwrap(),
-        );
-        let subaddress_index = 0;
-
-        let received_block_height = 144;
-
-        let txo_hex = wallet_db
-            .create_received_txo(
-                txo.clone(),
-                Some(subaddress_index),
-                Some(key_image),
-                value,
-                received_block_height,
-                &account_id_hex,
-            )
-            .unwrap();
-
-        let txos = wallet_db.list_txos(&account_id_hex).unwrap();
-        assert_eq!(txos.len(), 1);
-
-        let expected_txo = Txo {
-            txo_id_hex: txo_hex.clone(),
-            value: value as i64,
-            target_key: mc_util_serial::encode(&txo.target_key),
-            public_key: mc_util_serial::encode(&txo.public_key),
-            e_fog_hint: mc_util_serial::encode(&txo.e_fog_hint),
-            txo: mc_util_serial::encode(&txo),
-            subaddress_index: Some(subaddress_index),
-            key_image: Some(mc_util_serial::encode(&key_image)),
-            received_block_height: Some(received_block_height as i64),
-            spent_tombstone_block_height: None,
-            spent_block_height: None,
-            proof: None,
-        };
-        // Verify that the statuses table was updated correctly
-        let expected_txo_status = AccountTxoStatus {
-            account_id_hex: account_id_hex.to_string(),
-            txo_id_hex: txo_hex,
-            txo_status: "unspent".to_string(),
-            txo_type: "received".to_string(),
-        };
-        assert_eq!(txos[0].0, expected_txo);
-        assert_eq!(txos[0].1, expected_txo_status);
-
-        // Verify that the status filter works as well
-        let balances = wallet_db.list_txos_by_status(&account_id_hex).unwrap();
-        assert_eq!(balances["unspent"].len(), 1);
-
-        // Now we'll "spend" the TXO
-        // FIXME TODO: construct transaction proposal to spend it, maybe needs a helper in test_utils
-        // self.update_submitted_transaction(tx_proposal)?;
-
-        // Now we'll process the ledger and verify that the TXO was spent
-        let spent_block_height = 365;
-
-        wallet_db
-            .update_spent_and_increment_next_block(
-                &account_id_hex,
-                spent_block_height,
-                vec![key_image],
-            )
-            .unwrap();
-
-        let txos = wallet_db.list_txos(&account_id_hex).unwrap();
-        assert_eq!(txos.len(), 1);
-        assert_eq!(
-            txos[0].0.spent_block_height.unwrap(),
-            spent_block_height as i64
-        );
-        assert_eq!(txos[0].1.txo_status, "spent".to_string());
-
-        // Verify that the next block height is + 1
-        let account = Account::get(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
-        assert_eq!(account.next_block, spent_block_height + 1);
-
-        // Verify that there are no unspent txos
-        let balances = wallet_db.list_txos_by_status(&account_id_hex).unwrap();
-        assert!(balances["unspent"].is_empty());
     }
 }

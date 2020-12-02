@@ -21,13 +21,15 @@
 //! instead of removing the account id from the hashset, it would be placed back into the queue to
 //! be picked up by the next available worker thread.
 
-use crate::db_models::account::{AccountID, AccountModel};
-use crate::db_models::assigned_subaddress::AssignedSubaddressModel;
+use crate::db_models::{
+    account::{AccountID, AccountModel},
+    assigned_subaddress::AssignedSubaddressModel,
+    txos::TxoModel,
+};
 use crate::{
     db::WalletDb,
     error::{SyncError, WalletDbError},
-    models::Account,
-    models::AssignedSubaddress,
+    models::{Account, AssignedSubaddress, Txo},
 };
 use mc_account_keys::AccountKey;
 use mc_common::{
@@ -431,13 +433,14 @@ fn process_txos(
         };
 
         // Insert received txo
-        let txo_id = wallet_db.create_received_txo(
+        let txo_id = Txo::create_received(
             tx_out.clone(),
             subaddress_index,
             key_image,
             value,
             received_block_index,
             &account_id_hex,
+            &wallet_db.get_conn()?,
         )?;
 
         // If we couldn't find an assigned subaddress for this value, store for -1
