@@ -7,8 +7,10 @@
 //! This module, on the other hand, builds a transaction within the context of the wallet.
 
 use crate::db::WalletDb;
+use crate::db_models::account::AccountModel;
 use crate::error::WalletTransactionBuilderError;
 use crate::models::{Account, Txo};
+
 use mc_account_keys::{AccountKey, PublicAddress};
 use mc_common::logger::{log, Logger};
 use mc_common::{HashMap, HashSet};
@@ -23,6 +25,7 @@ use mc_transaction_core::ring_signature::KeyImage;
 use mc_transaction_core::tx::{TxOut, TxOutMembershipProof};
 use mc_transaction_core::BlockIndex;
 use mc_transaction_std::{InputCredentials, TransactionBuilder};
+
 use rand::Rng;
 use std::convert::TryFrom;
 use std::iter::FromIterator;
@@ -188,7 +191,7 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
 
     /// Consumes self
     pub fn build(mut self) -> Result<TxProposal, WalletTransactionBuilderError> {
-        let account: Account = self.wallet_db.get_account(&self.account_id_hex)?;
+        let account: Account = Account::get(&self.account_id_hex, &self.wallet_db.get_conn()?)?;
         let from_account_key: AccountKey = mc_util_serial::decode(&account.encrypted_account_key)?;
 
         // Get membership proofs for our inputs

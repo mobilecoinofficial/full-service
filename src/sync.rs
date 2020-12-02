@@ -154,7 +154,7 @@ impl SyncThread {
                         let mut message_sent = false;
 
                         // Go over our list of accounts and see which one needs to process these blocks.
-                        for account in Account::list_accounts(
+                        for account in Account::list_all(
                             &wallet_db
                                 .get_conn()
                                 .expect("Could not get connection to DB"),
@@ -301,13 +301,13 @@ fn sync_thread_entry_point(
 fn sync_monitor(
     ledger_db: &LedgerDB,
     wallet_db: &WalletDb,
-    monitor_id: &MonitorId,
+    account_id: &MonitorId,
     logger: &Logger,
 ) -> Result<SyncMonitorOk, SyncError> {
     for _ in 0..MAX_BLOCKS_PROCESSING_CHUNK_SIZE {
         // Get the account data. If it is no longer available, the monitor has been removed and we
         // can simply return. FIXME - verify this works as intended with new data model
-        let account = wallet_db.get_account(monitor_id)?;
+        let account = Account::get(account_id, &wallet_db.get_conn()?)?;
         let block_contents = match ledger_db.get_block_contents(account.next_block as u64) {
             Ok(block_contents) => block_contents,
             Err(mc_ledger_db::Error::NotFound) => {
@@ -324,7 +324,7 @@ fn sync_monitor(
             block_contents.outputs.len(),
             block_contents.key_images.len(),
             account.next_block,
-            monitor_id,
+            account_id,
         );
 
         // Match tx outs into UTXOs.

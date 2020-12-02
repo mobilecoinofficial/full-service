@@ -171,7 +171,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
 
     pub fn list_accounts(&self) -> Result<Vec<JsonAccount>, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        Ok(Account::list_accounts(&conn)?
+        Ok(Account::list_all(&conn)?
             .iter()
             .map(|a| JsonAccount {
                 account_id: a.account_id_hex.clone(),
@@ -182,7 +182,9 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
     }
 
     pub fn get_account(&self, account_id_hex: &str) -> Result<JsonAccount, WalletServiceError> {
-        let account = self.wallet_db.get_account(account_id_hex)?;
+        let conn = self.wallet_db.get_conn()?;
+
+        let account = Account::get(account_id_hex, &conn)?;
         Ok(JsonAccount {
             account_id: account.account_id_hex.clone(),
             name: account.name.clone(),
@@ -195,12 +197,16 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         account_id_hex: &str,
         name: String,
     ) -> Result<(), WalletServiceError> {
-        self.wallet_db.update_account_name(account_id_hex, name)?;
+        let conn = self.wallet_db.get_conn()?;
+
+        Account::get(account_id_hex, &conn)?.update_name(name, &conn)?;
         Ok(())
     }
 
     pub fn delete_account(&self, account_id_hex: &str) -> Result<(), WalletServiceError> {
-        self.wallet_db.delete_account(account_id_hex)?;
+        let conn = self.wallet_db.get_conn()?;
+
+        Account::get(account_id_hex, &conn)?.delete(&conn)?;
         Ok(())
     }
 
@@ -250,7 +256,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
 
         let local_block_height = self.ledger_db.num_blocks()?;
 
-        let account = self.wallet_db.get_account(account_id_hex)?;
+        let account = Account::get(account_id_hex, &self.wallet_db.get_conn()?)?;
 
         // FIXME: probably also want to compare with network height
 
