@@ -7,10 +7,8 @@ use chrono::prelude::Utc;
 use mc_account_keys::{AccountKey, PublicAddress};
 use mc_common::logger::{log, Logger};
 use mc_common::HashMap;
-use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::ring_signature::KeyImage;
-use mc_transaction_core::tx::Tx;
 
 use diesel::{
     prelude::*,
@@ -18,7 +16,10 @@ use diesel::{
     RunQueryDsl,
 };
 
-use crate::db_models::txo::{TxoID, TxoModel};
+use crate::db_models::{
+    transaction_log::{TransactionID, TransactionLogModel},
+    txo::TxoID,
+};
 use crate::error::WalletDbError;
 use crate::models::{
     Account, AssignedSubaddress, NewAccountTxoStatus, NewAssignedSubaddress, NewTransactionLog,
@@ -43,45 +44,6 @@ pub fn b58_encode(public_address: &PublicAddress) -> Result<String, WalletDbErro
     let mut wrapper = mc_mobilecoind_api::printable::PrintableWrapper::new();
     wrapper.set_public_address(public_address.into());
     Ok(wrapper.b58_encode()?)
-}
-
-#[derive(Debug)]
-pub struct TransactionID(String);
-
-// TransactionID is formed from the contents of the transaction when sent
-impl From<&Tx> for TransactionID {
-    fn from(src: &Tx) -> TransactionID {
-        /// The txo ID is derived from the contents of the txo
-        #[derive(Digestible)]
-        struct ConstTransactionData {
-            pub tx: Tx,
-        }
-        let const_data = ConstTransactionData { tx: src.clone() };
-        let temp: [u8; 32] = const_data.digest32::<MerlinTranscript>(b"transaction_data");
-        Self(hex::encode(temp))
-    }
-}
-
-// TransactionID is formed from the received TxoIDs when received
-impl From<&Vec<String>> for TransactionID {
-    fn from(src: &Vec<String>) -> TransactionID {
-        /// The txo ID is derived from the contents of the txo
-        #[derive(Digestible)]
-        struct ConstTransactionData {
-            pub txo_ids: Vec<String>,
-        }
-        let const_data = ConstTransactionData {
-            txo_ids: src.clone(),
-        };
-        let temp: [u8; 32] = const_data.digest32::<MerlinTranscript>(b"transaction_data");
-        Self(hex::encode(temp))
-    }
-}
-
-impl TransactionID {
-    pub fn to_string(&self) -> String {
-        self.0.clone()
-    }
 }
 
 #[derive(Clone)]
@@ -188,6 +150,7 @@ impl WalletDb {
         Ok(results)
     }
 
+    // FIXME: goes on Account
     pub fn update_spent_and_increment_next_block(
         &self,
         account_id_hex: &str,
@@ -233,9 +196,9 @@ impl WalletDb {
 
                 // FIXME: make sure the path for all txo_statuses and txo_types exist and are tested
                 // Update the transaction status if the txos are all spent
-                self.update_transaction_status(
+                TransactionLog::update_transactions_associated_to_txo(
                     &matches[0].txo_id_hex,
-                    spent_block_height as u64,
+                    spent_block_height,
                     &conn,
                 )?;
             }
@@ -243,63 +206,6 @@ impl WalletDb {
         diesel::update(dsl_accounts.find(account_id_hex))
             .set(schema_accounts::next_block.eq(spent_block_height + 1))
             .execute(&conn)?;
-        Ok(())
-    }
-
-    fn update_transaction_status(
-        &self,
-        txo_id_hex: &str,
-        cur_block_height: u64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<(), WalletDbError> {
-        // Get associated transaction IDs from txo - FIXME: make own function on model
-        let associated_transactions: Vec<TransactionLog> = schema_transaction_logs::table
-            .inner_join(
-                schema_transaction_txo_types::table.on(schema_transaction_logs::transaction_id_hex
-                    .eq(schema_transaction_txo_types::transaction_id_hex)
-                    .and(schema_transaction_txo_types::txo_id_hex.eq(txo_id_hex))),
-            )
-            .select(schema_transaction_logs::all_columns)
-            .load(conn)?;
-
-        for transaction in associated_transactions {
-            let (transaction, inputs, _outputs, _change) =
-                self.get_transaction(&transaction.transaction_id_hex, conn)?;
-
-            // Only update if proposed or pending
-            if transaction.status == "succeeded" || transaction.status == "failed" {
-                continue;
-            }
-
-            let num_inputs = inputs.len();
-            let mut spent_count = 0;
-            let mut tombstone_exceeded_count = 0;
-            for input_id in inputs {
-                let (txo, txo_status, _assigned_subaddress) =
-                    Txo::get(&transaction.account_id_hex, &input_id, conn)?;
-                if txo_status.txo_status == "spent" {
-                    spent_count += 1;
-                } else {
-                    if let Some(tombstone) = txo.spent_tombstone_block_height {
-                        if cur_block_height > tombstone as u64 {
-                            tombstone_exceeded_count += 1;
-                        }
-                    }
-                }
-            }
-            if spent_count == num_inputs {
-                // FIXME: Also update the block height where it succeeded
-                diesel::update(dsl_transaction_logs.find(&transaction.transaction_id_hex))
-                    .set(schema_transaction_logs::status.eq("succeeded"))
-                    .execute(conn)?;
-            } else if tombstone_exceeded_count > 0 {
-                // FIXME: Also update the block height where it failed
-                diesel::update(dsl_transaction_logs.find(&transaction.transaction_id_hex))
-                    .set(schema_transaction_logs::status.eq("failed"))
-                    .execute(conn)?;
-            }
-        }
-
         Ok(())
     }
 
@@ -508,10 +414,6 @@ impl WalletDb {
                 let encoded_proof = proof
                     .map(|p| mc_util_serial::encode(&tx_proposal.outlay_confirmation_numbers[p]));
 
-                // println!(
-                //     "\x1b[1;33m SETTING VALUE FOR THIS OUTPUT TO {:?}\x1b[0m",
-                //     value
-                // );
                 let new_txo = NewTxo {
                     txo_id_hex: &txo_id.to_string(),
                     value: value as i64,
@@ -522,7 +424,7 @@ impl WalletDb {
                     subaddress_index: None, // Minted set subaddress_index to None. Once received, overrides.
                     key_image: None,        // Only the recipient can calculate the KeyImage
                     received_block_height: None,
-                    spent_tombstone_block_height: Some(
+                    pending_tombstone_block_height: Some(
                         tx_proposal.tx.prefix.tombstone_block as i64,
                     ),
                     spent_block_height: None,
@@ -657,49 +559,5 @@ impl WalletDb {
             .cloned()
             .map(|t| (t.transaction_log, t.inputs, t.outputs, t.change))
             .collect())
-    }
-
-    // FIXME: DRY - these will be refactored to live on the models
-    /// Returns (Transaction, Inputs, Outputs, Change)
-    pub fn get_transaction(
-        &self,
-        transaction_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<(TransactionLog, Vec<String>, Vec<String>, Vec<String>), WalletDbError> {
-        // FIXME: use group_by rather than the processing below:
-        // https://docs.diesel.rs/diesel/associations/trait.GroupedBy.html
-        let transaction_txos: Vec<(TransactionLog, TransactionTxoType)> =
-            schema_transaction_logs::table
-                .inner_join(
-                    schema_transaction_txo_types::table.on(
-                        schema_transaction_logs::transaction_id_hex
-                            .eq(schema_transaction_txo_types::transaction_id_hex)
-                            .and(
-                                schema_transaction_logs::transaction_id_hex.eq(transaction_id_hex),
-                            ),
-                    ),
-                )
-                .select((
-                    schema_transaction_logs::all_columns,
-                    schema_transaction_txo_types::all_columns,
-                ))
-                .load(conn)?;
-
-        let mut inputs: Vec<String> = Vec::new();
-        let mut outputs: Vec<String> = Vec::new();
-        let mut change: Vec<String> = Vec::new();
-
-        let transaction = transaction_txos[0].0.clone();
-        for (_transaction, transaction_txo_type) in transaction_txos {
-            if transaction_txo_type.transaction_txo_type == "input" {
-                inputs.push(transaction_txo_type.txo_id_hex);
-            } else if transaction_txo_type.transaction_txo_type == "output" {
-                outputs.push(transaction_txo_type.txo_id_hex);
-            } else if transaction_txo_type.transaction_txo_type == "change" {
-                change.push(transaction_txo_type.txo_id_hex);
-            }
-        }
-
-        Ok((transaction, inputs, outputs, change))
     }
 }

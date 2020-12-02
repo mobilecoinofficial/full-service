@@ -99,6 +99,17 @@ pub trait TxoModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<(Txo, AccountTxoStatus)>, WalletDbError>;
 
+    fn are_all_spent(
+        txo_ids: &Vec<String>,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<bool, WalletDbError>;
+
+    fn any_failed(
+        txo_ids: &Vec<String>,
+        block_height: i64,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<bool, WalletDbError>;
+
     fn select_unspent_txos_for_value(
         account_id_hex: &str,
         target_value: u64,
@@ -145,7 +156,7 @@ impl TxoModel for Txo {
                     subaddress_index,
                     key_image: key_image_bytes.as_ref(),
                     received_block_height: Some(received_block_height as i64),
-                    spent_tombstone_block_height: None,
+                    pending_tombstone_block_height: None,
                     spent_block_height: None,
                     proof: None,
                 };
@@ -401,6 +412,49 @@ impl TxoModel for Txo {
         Ok(txos)
     }
 
+    fn are_all_spent(
+        txo_ids: &Vec<String>,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<bool, WalletDbError> {
+        use crate::schema::account_txo_statuses;
+        use crate::schema::txos;
+
+        let txos: Vec<Txo> = txos::table
+            .inner_join(
+                account_txo_statuses::table.on(txos::txo_id_hex
+                    .eq(account_txo_statuses::txo_id_hex)
+                    .and(txos::txo_id_hex.eq_any(txo_ids))
+                    .and(account_txo_statuses::txo_status.eq("spent"))),
+            )
+            .select(txos::all_columns)
+            .load(conn)?;
+
+        Ok(txos.len() == txo_ids.len())
+    }
+
+    fn any_failed(
+        txo_ids: &Vec<String>,
+        block_height: i64,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<bool, WalletDbError> {
+        use crate::schema::account_txo_statuses;
+        use crate::schema::txos;
+
+        let txos: Vec<Txo> = txos::table
+            .inner_join(
+                account_txo_statuses::table.on(txos::txo_id_hex
+                    .eq(account_txo_statuses::txo_id_hex)
+                    .and(txos::txo_id_hex.eq_any(txo_ids))
+                    .and(account_txo_statuses::txo_status.eq_any(vec!["unspent", "pending"]))
+                    .and(txos::pending_tombstone_block_height.gt(Some(block_height)))),
+            )
+            .select(txos::all_columns)
+            .load(conn)?;
+
+        // Report true if any txos have expired
+        Ok(!txos.is_empty())
+    }
+
     fn select_unspent_txos_for_value(
         account_id_hex: &str,
         target_value: u64,
@@ -578,7 +632,7 @@ mod tests {
             subaddress_index: Some(0),
             key_image: Some(mc_util_serial::encode(&key_image)),
             received_block_height: Some(144),
-            spent_tombstone_block_height: None,
+            pending_tombstone_block_height: None,
             spent_block_height: None,
             proof: None,
         };

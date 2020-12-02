@@ -20,7 +20,7 @@ create TABLE txos (
   subaddress_index UNSIGNED BIG INT,
   key_image BLOB,
   received_block_height UNSIGNED BIG INT,
-  spent_tombstone_block_height UNSIGNED BIG INT,
+  pending_tombstone_block_height UNSIGNED BIG INT,
   spent_block_height UNSIGNED BIG INT,
   proof BLOB
 );

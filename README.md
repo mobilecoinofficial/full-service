@@ -278,7 +278,7 @@ curl -s localhost:9090/wallet \
       "txo_type": "received",
       "txo_status": "spent",
       "received_block_height": "27009",
-      "spent_tombstone_block_height": null,
+      "pending_tombstone_block_height": null,
       "spent_block_height": "27010",
       "proof": null
     }
