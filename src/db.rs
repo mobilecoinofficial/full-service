@@ -956,6 +956,7 @@ impl WalletDb {
                 block_height: block_height as i64,
                 comment: "", // NULL for received
                 direction: "received",
+                tx: None, // NULL for received
             };
 
             diesel::insert_into(schema_transaction_logs::table)
@@ -1164,6 +1165,7 @@ impl WalletDb {
                 // update when we see a key_image from this transaction?
                 comment: &comment,
                 direction: "sent",
+                tx: Some(mc_util_serial::encode(&tx_proposal.tx)),
             };
 
             diesel::insert_into(schema_transaction_logs::table)

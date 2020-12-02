@@ -1,6 +1,5 @@
 // Copyright (c) 2020 MobileCoin Inc.
 
-use crate::error::WalletAPIError;
 use crate::service_decorated_types::{
     JsonAccount, JsonAddress, JsonBalanceResponse, JsonListTxosResponse, JsonSubmitResponse,
     JsonTransactionResponse, JsonTxo,
@@ -10,7 +9,7 @@ use mc_connection::ThickClient;
 use mc_connection::UserTxConnection;
 use mc_fog_report_connection::FogPubkeyResolver;
 use mc_fog_report_connection::GrpcFogPubkeyResolver;
-use mc_mobilecoind_json::data_types::JsonTxProposal;
+use mc_mobilecoind_json::data_types::{JsonTx, JsonTxProposal};
 use rocket::{get, post, routes};
 use rocket_contrib::json::Json;
 use serde::{Deserialize, Serialize};
@@ -94,10 +93,9 @@ pub enum JsonCommandRequest {
     get_transaction {
         transaction_id: String,
     },
-    // get_transaction_object {
-    //     transaction_id: String,
-    //     transaction_contents: JsonTx,
-    // }
+    get_transaction_object {
+        transaction_id: String,
+    },
 }
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(tag = "method", content = "result")]
@@ -154,6 +152,9 @@ pub enum JsonCommandResponse {
     get_transaction {
         transaction: JsonTransactionResponse,
     },
+    get_transaction_object {
+        transaction: JsonTx,
+    },
 }
 
 #[get("/wallet")]
@@ -169,16 +170,22 @@ fn wallet_help() -> Result<String, String> {
 fn wallet_api(
     state: rocket::State<WalletState<ThickClient, GrpcFogPubkeyResolver>>,
     command: Json<JsonCommandRequest>,
-) -> Result<Json<JsonCommandResponse>, WalletAPIError> {
+) -> Result<Json<JsonCommandResponse>, String> {
     let result = match command.0 {
         JsonCommandRequest::create_account { name, first_block } => {
             let fb = if let Some(fb) = first_block {
-                Some(fb.parse::<u64>()?)
+                Some(
+                    fb.parse::<u64>()
+                        .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+                )
             } else {
                 None
             };
             // FIXME: better way to convert between the json type and enum
-            let result = state.service.create_account(name, fb)?;
+            let result = state
+                .service
+                .create_account(name, fb)
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             JsonCommandResponse::create_account {
                 public_address: result.public_address_b58,
                 entropy: result.entropy,
@@ -191,39 +198,66 @@ fn wallet_api(
             first_block,
         } => {
             let fb = if let Some(fb) = first_block {
-                Some(fb.parse::<u64>()?)
+                Some(
+                    fb.parse::<u64>()
+                        .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+                )
             } else {
                 None
             };
-            let result = state.service.import_account(entropy, name, fb)?;
+            let result = state
+                .service
+                .import_account(entropy, name, fb)
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             JsonCommandResponse::import_account {
                 public_address: result.public_address_b58,
                 account_id: result.account_id,
             }
         }
         JsonCommandRequest::list_accounts => JsonCommandResponse::list_accounts {
-            accounts: state.service.list_accounts()?,
+            accounts: state
+                .service
+                .list_accounts()
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
         JsonCommandRequest::get_account { account_id } => JsonCommandResponse::get_account {
-            account: state.service.get_account(&account_id)?,
+            account: state
+                .service
+                .get_account(&account_id)
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
         JsonCommandRequest::update_account_name { account_id, name } => {
-            state.service.update_account_name(&account_id, name)?;
+            state
+                .service
+                .update_account_name(&account_id, name)
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             JsonCommandResponse::update_account_name { success: true }
         }
         JsonCommandRequest::delete_account { account_id } => {
-            state.service.delete_account(&account_id)?;
+            state
+                .service
+                .delete_account(&account_id)
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             JsonCommandResponse::delete_account { success: true }
         }
         JsonCommandRequest::list_txos { account_id } => JsonCommandResponse::list_txos {
-            txos: state.service.list_txos(&account_id)?,
+            txos: state
+                .service
+                .list_txos(&account_id)
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
         JsonCommandRequest::get_txo { account_id, txo_id } => {
-            let result = state.service.get_txo(&account_id, &txo_id)?;
+            let result = state
+                .service
+                .get_txo(&account_id, &txo_id)
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             JsonCommandResponse::get_txo { txo: result }
         }
         JsonCommandRequest::get_balance { account_id } => JsonCommandResponse::get_balance {
-            status: state.service.get_balance(&account_id)?,
+            status: state
+                .service
+                .get_balance(&account_id)
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
         JsonCommandRequest::create_address {
             account_id,
@@ -231,10 +265,14 @@ fn wallet_api(
         } => JsonCommandResponse::create_address {
             address: state
                 .service
-                .create_assigned_subaddress(&account_id, comment.as_deref())?,
+                .create_assigned_subaddress(&account_id, comment.as_deref())
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
         JsonCommandRequest::list_addresses { account_id } => JsonCommandResponse::list_addresses {
-            addresses: state.service.list_assigned_subaddresses(&account_id)?,
+            addresses: state
+                .service
+                .list_assigned_subaddresses(&account_id)
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
         JsonCommandRequest::send_transaction {
             account_id,
@@ -246,16 +284,19 @@ fn wallet_api(
             max_spendable_value,
             comment,
         } => {
-            let transaction_details = state.service.send_transaction(
-                &account_id,
-                &recipient_public_address,
-                value,
-                input_txo_ids.as_ref(),
-                fee,
-                tombstone_block,
-                max_spendable_value,
-                comment,
-            )?;
+            let transaction_details = state
+                .service
+                .send_transaction(
+                    &account_id,
+                    &recipient_public_address,
+                    value,
+                    input_txo_ids.as_ref(),
+                    fee,
+                    tombstone_block,
+                    max_spendable_value,
+                    comment,
+                )
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             JsonCommandResponse::send_transaction {
                 transaction: transaction_details,
             }
@@ -269,15 +310,18 @@ fn wallet_api(
             tombstone_block,
             max_spendable_value,
         } => {
-            let tx_proposal = state.service.build_transaction(
-                &account_id,
-                &recipient_public_address,
-                value,
-                input_txo_ids.as_ref(),
-                fee,
-                tombstone_block,
-                max_spendable_value,
-            )?;
+            let tx_proposal = state
+                .service
+                .build_transaction(
+                    &account_id,
+                    &recipient_public_address,
+                    value,
+                    input_txo_ids.as_ref(),
+                    fee,
+                    tombstone_block,
+                    max_spendable_value,
+                )
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             JsonCommandResponse::build_transaction {
                 tx_proposal: tx_proposal.into(),
             }
@@ -286,16 +330,33 @@ fn wallet_api(
             tx_proposal,
             comment,
         } => JsonCommandResponse::submit_transaction {
-            transaction: state.service.submit_transaction(tx_proposal, comment)?,
+            transaction: state
+                .service
+                .submit_transaction(tx_proposal, comment)
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
         JsonCommandRequest::list_transactions { account_id } => {
             JsonCommandResponse::list_transactions {
-                transactions: state.service.list_transactions(&account_id)?,
+                transactions: state
+                    .service
+                    .list_transactions(&account_id)
+                    .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
             }
         }
         JsonCommandRequest::get_transaction { transaction_id } => {
             JsonCommandResponse::get_transaction {
-                transaction: state.service.get_transaction(&transaction_id)?,
+                transaction: state
+                    .service
+                    .get_transaction(&transaction_id)
+                    .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+            }
+        }
+        JsonCommandRequest::get_transaction_object { transaction_id } => {
+            JsonCommandResponse::get_transaction_object {
+                transaction: state
+                    .service
+                    .get_transaction_object(&transaction_id)
+                    .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
             }
         }
     };

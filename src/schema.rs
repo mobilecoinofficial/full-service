@@ -46,6 +46,7 @@ table! {
         block_height -> BigInt,
         comment -> Text,
         direction -> Text,
+        tx -> Nullable<Binary>,
     }
 }
 

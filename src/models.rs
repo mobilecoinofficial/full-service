@@ -140,6 +140,7 @@ pub struct TransactionLog {
     pub comment: String, // empty string for nullable
     // Directions: sent, received
     pub direction: String,
+    pub tx: Option<Vec<u8>>,
 }
 
 #[derive(Insertable)]
@@ -156,6 +157,7 @@ pub struct NewTransactionLog<'a> {
     pub block_height: i64,
     pub comment: &'a str,
     pub direction: &'a str,
+    pub tx: Option<Vec<u8>>,
 }
 
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]

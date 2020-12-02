@@ -20,7 +20,8 @@ use mc_crypto_rand::rand_core::RngCore;
 use mc_fog_report_connection::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_mobilecoind::payments::TxProposal;
-use mc_mobilecoind_json::data_types::JsonTxProposal;
+use mc_mobilecoind_json::data_types::{JsonTx, JsonTxProposal};
+use mc_transaction_core::tx::Tx;
 use mc_util_from_random::FromRandom;
 use std::convert::TryFrom;
 use std::iter::empty;
@@ -443,6 +444,25 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
             &outputs,
             &change,
         ))
+    }
+
+    pub fn get_transaction_object(
+        &self,
+        transaction_id_hex: &str,
+    ) -> Result<JsonTx, WalletServiceError> {
+        // FIXME: hack to get around current db access design
+        let conn = self.wallet_db.get_conn()?;
+        let (transaction, _inputs, _outputs, _change) =
+            self.wallet_db.get_transaction(transaction_id_hex, &conn)?;
+
+        if let Some(tx_bytes) = transaction.tx {
+            let tx: Tx = mc_util_serial::decode(&tx_bytes)?;
+            // Convert to proto
+            let proto_tx = mc_api::external::Tx::from(&tx);
+            Ok(JsonTx::from(&proto_tx))
+        } else {
+            Err(WalletServiceError::NoTxInTransaction)
+        }
     }
 }
 
