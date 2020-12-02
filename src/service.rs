@@ -1,15 +1,15 @@
 // Copyright (c) 2020 MobileCoin Inc.
 
 use crate::service_decorated_types::{
-    JsonAccount, JsonAddress, JsonBalanceResponse, JsonListTxosResponse, JsonSubmitResponse,
-    JsonTransactionResponse, JsonTxo,
+    JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
+    JsonListTxosResponse, JsonSubmitResponse, JsonTransactionResponse, JsonTxo,
 };
 use crate::service_impl::WalletService;
 use mc_connection::ThickClient;
 use mc_connection::UserTxConnection;
 use mc_fog_report_connection::FogPubkeyResolver;
 use mc_fog_report_connection::GrpcFogPubkeyResolver;
-use mc_mobilecoind_json::data_types::{JsonTx, JsonTxProposal};
+use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
 use rocket::{get, post, routes};
 use rocket_contrib::json::Json;
 use serde::{Deserialize, Serialize};
@@ -96,6 +96,13 @@ pub enum JsonCommandRequest {
     get_transaction_object {
         transaction_id: String,
     },
+    get_txo_object {
+        account_id: String,
+        txo_id: String,
+    },
+    get_block_object {
+        block_index: String,
+    },
 }
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(tag = "method", content = "result")]
@@ -154,6 +161,13 @@ pub enum JsonCommandResponse {
     },
     get_transaction_object {
         transaction: JsonTx,
+    },
+    get_txo_object {
+        txo: JsonTxOut,
+    },
+    get_block_object {
+        block: JsonBlock,
+        block_contents: JsonBlockContents,
     },
 }
 
@@ -357,6 +371,28 @@ fn wallet_api(
                     .service
                     .get_transaction_object(&transaction_id)
                     .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+            }
+        }
+        JsonCommandRequest::get_txo_object { account_id, txo_id } => {
+            JsonCommandResponse::get_txo_object {
+                txo: state
+                    .service
+                    .get_txo_object(&account_id, &txo_id)
+                    .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+            }
+        }
+        JsonCommandRequest::get_block_object { block_index } => {
+            let (block, block_contents) = state
+                .service
+                .get_block_object(
+                    block_index
+                        .parse::<u64>()
+                        .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+                )
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+            JsonCommandResponse::get_block_object {
+                block,
+                block_contents,
             }
         }
     };
