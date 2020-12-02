@@ -2,17 +2,19 @@
 
 //! The implementation of the wallet service methods.
 
-use crate::db::WalletDb;
-use crate::db_models::account::AccountModel;
-use crate::error::WalletServiceError;
-use crate::models::Account;
-use crate::service_decorated_types::{
-    JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
-    JsonCreateAccountResponse, JsonImportAccountResponse, JsonListTxosResponse, JsonSubmitResponse,
-    JsonTransactionResponse, JsonTxo,
+use crate::{
+    db::WalletDb,
+    db_models::{account::AccountModel, txo::TxoModel},
+    error::WalletServiceError,
+    models::{Account, Txo},
+    service_decorated_types::{
+        JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
+        JsonCreateAccountResponse, JsonImportAccountResponse, JsonListTxosResponse,
+        JsonSubmitResponse, JsonTransactionResponse, JsonTxo,
+    },
+    sync::SyncThread,
+    transaction_builder::WalletTransactionBuilder,
 };
-use crate::sync::SyncThread;
-use crate::transaction_builder::WalletTransactionBuilder;
 use mc_account_keys::{
     AccountKey, PublicAddress, RootEntropy, RootIdentity, DEFAULT_SUBADDRESS_INDEX,
 };
@@ -215,7 +217,9 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         &self,
         account_id_hex: &str,
     ) -> Result<Vec<JsonListTxosResponse>, WalletServiceError> {
-        let txos = self.wallet_db.list_txos(account_id_hex)?;
+        let conn = self.wallet_db.get_conn()?;
+
+        let txos = Txo::list_for_account(account_id_hex, &conn)?;
         Ok(txos
             .iter()
             .map(|(t, s)| JsonListTxosResponse::new(t, s))
@@ -231,7 +235,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
 
         // FIXME: also add transaction IDs in which this txo was involved
         let (txo, account_txo_status, assigned_subaddress) =
-            self.wallet_db.get_txo(account_id_hex, txo_id_hex, &conn)?;
+            Txo::get(account_id_hex, txo_id_hex, &conn)?;
         Ok(JsonTxo::new(
             &txo,
             &account_txo_status,
@@ -485,7 +489,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         // FIXME: hack to get around current db access design
         let conn = self.wallet_db.get_conn()?;
         let (txo, _account_txo_status, _assigned_subaddress) =
-            self.wallet_db.get_txo(account_id_hex, txo_id_hex, &conn)?;
+            Txo::get(account_id_hex, txo_id_hex, &conn)?;
 
         let txo: TxOut = mc_util_serial::decode(&txo.txo)?;
         // Convert to proto

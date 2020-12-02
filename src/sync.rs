@@ -24,7 +24,7 @@
 use crate::db_models::{
     account::{AccountID, AccountModel},
     assigned_subaddress::AssignedSubaddressModel,
-    txos::TxoModel,
+    txo::TxoModel,
 };
 use crate::{
     db::WalletDb,

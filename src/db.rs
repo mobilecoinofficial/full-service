@@ -19,7 +19,7 @@ use diesel::{
     RunQueryDsl,
 };
 
-use crate::db_models::txos::TxoID;
+use crate::db_models::txo::{TxoID, TxoModel};
 use crate::error::WalletDbError;
 use crate::models::{
     Account, AccountTxoStatus, AssignedSubaddress, NewAccountTxoStatus, NewAssignedSubaddress,
@@ -36,7 +36,6 @@ use crate::schema::txos as schema_txos;
 // Query Objects
 use crate::schema::account_txo_statuses::dsl::account_txo_statuses as dsl_account_txo_statuses;
 use crate::schema::accounts::dsl::accounts as dsl_accounts;
-use crate::schema::assigned_subaddresses::dsl::assigned_subaddresses as dsl_assigned_subaddresses;
 use crate::schema::transaction_logs::dsl::transaction_logs as dsl_transaction_logs;
 use crate::schema::txos::dsl::txos as dsl_txos;
 
@@ -169,104 +168,6 @@ impl WalletDb {
         // FIXME: When adding multiple addresses for syncing, possibly due to error above, the
         //        syncing stops, and the account is stuck at 0
         Ok((subaddress_b58, subaddress_index))
-    }
-
-    /// List all txos for a given account.
-    pub fn list_txos(
-        &self,
-        account_id_hex: &str,
-    ) -> Result<Vec<(Txo, AccountTxoStatus)>, WalletDbError> {
-        let conn = self.pool.get()?;
-
-        // FIXME: join 3 tables to also get AssignedSubaddresses
-        let results: Vec<(Txo, AccountTxoStatus)> = schema_txos::table
-            .inner_join(
-                schema_account_txo_statuses::table.on(schema_txos::txo_id_hex
-                    .eq(schema_account_txo_statuses::txo_id_hex)
-                    .and(schema_account_txo_statuses::account_id_hex.eq(account_id_hex))),
-            )
-            .select((
-                schema_txos::all_columns,
-                schema_account_txo_statuses::all_columns,
-            ))
-            .load(&conn)?;
-        Ok(results)
-    }
-
-    pub fn get_txo(
-        &self,
-        account_id_hex: &str,
-        txo_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<(Txo, AccountTxoStatus, Option<AssignedSubaddress>), WalletDbError> {
-        let txo: Txo = match dsl_txos.find(txo_id_hex).get_result::<Txo>(conn) {
-            Ok(t) => t,
-            // Match on NotFound to get a more informative NotFound Error
-            Err(diesel::result::Error::NotFound) => {
-                return Err(WalletDbError::NotFound(txo_id_hex.to_string()));
-            }
-            Err(e) => {
-                return Err(e.into());
-            }
-        };
-
-        let account_txo_status: AccountTxoStatus = match dsl_account_txo_statuses
-            .find((account_id_hex, txo_id_hex))
-            .get_result::<AccountTxoStatus>(conn)
-        {
-            Ok(t) => t,
-            // Match on NotFound to get a more informative NotFound Error
-            Err(diesel::result::Error::NotFound) => {
-                return Err(WalletDbError::NotFound(format!(
-                    "{:?}",
-                    (account_id_hex.to_string(), txo_id_hex.to_string())
-                )));
-            }
-            Err(e) => {
-                return Err(e.into());
-            }
-        };
-
-        // Get subaddress key from account_key and txo subaddress
-        let account: Account = match dsl_accounts
-            .find(account_id_hex)
-            .get_result::<Account>(conn)
-        {
-            Ok(t) => t,
-            // Match on NotFound to get a more informative NotFound Error
-            Err(diesel::result::Error::NotFound) => {
-                return Err(WalletDbError::NotFound(account_id_hex.to_string()));
-            }
-            Err(e) => {
-                return Err(e.into());
-            }
-        };
-
-        // Get the subaddress details if assigned
-        let assigned_subaddress = if let Some(subaddress_index) = txo.subaddress_index {
-            let account_key: AccountKey = mc_util_serial::decode(&account.encrypted_account_key)?;
-            let subaddress = account_key.subaddress(subaddress_index as u64);
-            let subaddress_b58 = b58_encode(&subaddress)?;
-
-            let assigned_subaddress: AssignedSubaddress = match dsl_assigned_subaddresses
-                .find(&subaddress_b58)
-                .get_result::<AssignedSubaddress>(conn)
-            {
-                Ok(t) => t,
-                // Match on NotFound to get a more informative NotFound Error
-                Err(diesel::result::Error::NotFound) => {
-                    return Err(WalletDbError::NotFound(subaddress_b58));
-                }
-                Err(e) => {
-                    return Err(e.into());
-                }
-            };
-            Some(assigned_subaddress)
-        } else {
-            None
-        };
-
-        Ok((txo, account_txo_status, assigned_subaddress))
     }
 
     pub fn list_txos_by_status(
@@ -511,7 +412,7 @@ impl WalletDb {
             let mut tombstone_exceeded_count = 0;
             for input_id in inputs {
                 let (txo, txo_status, _assigned_subaddress) =
-                    self.get_txo(&transaction.account_id_hex, &input_id, conn)?;
+                    Txo::get(&transaction.account_id_hex, &input_id, conn)?;
                 if txo_status.txo_status == "spent" {
                     spent_count += 1;
                 } else {

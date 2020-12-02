@@ -22,6 +22,11 @@ pub trait AssignedSubaddressModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<String, WalletDbError>;
 
+    fn get(
+        public_addres_b58: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<AssignedSubaddress, WalletDbError>;
+
     fn find_by_subaddress_spend_public_key(
         subaddress_spend_public_key: &RistrettoPublic,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
@@ -57,6 +62,27 @@ impl AssignedSubaddressModel for AssignedSubaddress {
             .execute(conn)?;
 
         Ok(subaddress_b58)
+    }
+
+    fn get(
+        public_address_b58: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<AssignedSubaddress, WalletDbError> {
+        use crate::schema::assigned_subaddresses::dsl::assigned_subaddresses;
+        let assigned_subaddress: AssignedSubaddress = match assigned_subaddresses
+            .find(&public_address_b58)
+            .get_result::<AssignedSubaddress>(conn)
+        {
+            Ok(t) => t,
+            // Match on NotFound to get a more informative NotFound Error
+            Err(diesel::result::Error::NotFound) => {
+                return Err(WalletDbError::NotFound(public_address_b58.to_string()));
+            }
+            Err(e) => {
+                return Err(e.into());
+            }
+        };
+        Ok(assigned_subaddress)
     }
 
     fn find_by_subaddress_spend_public_key(
