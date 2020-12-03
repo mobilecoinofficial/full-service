@@ -36,7 +36,6 @@ use crate::schema::txos as schema_txos;
 // Query Objects
 use crate::schema::account_txo_statuses::dsl::account_txo_statuses as dsl_account_txo_statuses;
 use crate::schema::accounts::dsl::accounts as dsl_accounts;
-use crate::schema::transaction_logs::dsl::transaction_logs as dsl_transaction_logs;
 use crate::schema::txos::dsl::txos as dsl_txos;
 
 // Helper method to use our PrintableWrapper to b58 encode the PublicAddress
@@ -206,81 +205,6 @@ impl WalletDb {
         diesel::update(dsl_accounts.find(account_id_hex))
             .set(schema_accounts::next_block.eq(spent_block_height + 1))
             .execute(&conn)?;
-        Ok(())
-    }
-
-    pub fn log_received_transactions(
-        &self,
-        subaddress_to_output_txo_ids: HashMap<i64, Vec<String>>,
-        account: &Account,
-        block_height: u64,
-    ) -> Result<(), WalletDbError> {
-        let conn = self.pool.get()?;
-
-        for (subaddress_index, output_txo_ids) in subaddress_to_output_txo_ids {
-            let transaction_id = TransactionID::from(&output_txo_ids.to_vec());
-
-            // Check that we haven't already logged this transaction on a previous sync
-            match dsl_transaction_logs
-                .find(&transaction_id.to_string())
-                .first::<TransactionLog>(&conn)
-            {
-                Ok(_) => continue, // We've already processed this transaction on a previous sync
-                Err(diesel::result::Error::NotFound) => {} // Insert below
-                Err(e) => return Err(e.into()),
-            }
-
-            // FIXME: should move onto model
-            let txos = schema_txos::table
-                .select(schema_txos::all_columns)
-                .filter(schema_txos::txo_id_hex.eq_any(output_txo_ids))
-                .load::<Txo>(&conn)?;
-
-            let transaction_value: i64 = txos.iter().map(|t| t.value).sum();
-
-            // Get the public address for the subaddress that received these TXOs
-            let account_key: AccountKey = mc_util_serial::decode(&account.encrypted_account_key)?;
-            let b58_subaddress = if subaddress_index >= 0 {
-                let subaddress = account_key.subaddress(subaddress_index as u64);
-                b58_encode(&subaddress)?
-            } else {
-                // If not matched to an existing subaddress, empty string as NULL
-                "".to_string()
-            };
-
-            // Create a TransactionLogs entry
-            let new_transaction_log = NewTransactionLog {
-                transaction_id_hex: &transaction_id.to_string(),
-                account_id_hex: &account.account_id_hex,
-                recipient_public_address_b58: "", // NULL for received
-                assigned_subaddress_b58: &b58_subaddress,
-                value: transaction_value,
-                fee: None, // Impossible to recover fee from received transaction
-                status: "succeeded",
-                sent_time: "", // NULL for received
-                block_height: block_height as i64,
-                comment: "", // NULL for received
-                direction: "received",
-                tx: None, // NULL for received
-            };
-
-            diesel::insert_into(schema_transaction_logs::table)
-                .values(&new_transaction_log)
-                .execute(&conn)?;
-
-            // Create an entry per TXO for the TransactionTxoTypes
-            for txo in txos {
-                let new_transaction_txo = NewTransactionTxoType {
-                    transaction_id_hex: &transaction_id.to_string(),
-                    txo_id_hex: &txo.txo_id_hex,
-                    transaction_txo_type: "output",
-                };
-                diesel::insert_into(schema_transaction_txo_types::table)
-                    .values(&new_transaction_txo)
-                    .execute(&conn)?;
-            }
-        }
-
         Ok(())
     }
 

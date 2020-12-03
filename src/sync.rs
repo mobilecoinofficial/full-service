@@ -21,15 +21,16 @@
 //! instead of removing the account id from the hashset, it would be placed back into the queue to
 //! be picked up by the next available worker thread.
 
-use crate::db_models::{
-    account::{AccountID, AccountModel},
-    assigned_subaddress::AssignedSubaddressModel,
-    txo::TxoModel,
-};
 use crate::{
     db::WalletDb,
+    db_models::{
+        account::{AccountID, AccountModel},
+        assigned_subaddress::AssignedSubaddressModel,
+        transaction_log::TransactionLogModel,
+        txo::TxoModel,
+    },
     error::{SyncError, WalletDbError},
-    models::{Account, AssignedSubaddress, Txo},
+    models::{Account, AssignedSubaddress, TransactionLog, Txo},
 };
 use mc_account_keys::AccountKey;
 use mc_common::{
@@ -348,7 +349,12 @@ fn sync_monitor(
         )?;
 
         // Add a transaction for the received TXOs
-        wallet_db.log_received_transactions(output_txo_ids, &account, account.next_block as u64)?;
+        TransactionLog::log_received(
+            output_txo_ids,
+            &account,
+            account.next_block as u64,
+            &wallet_db.get_conn()?,
+        )?;
     }
 
     Ok(SyncMonitorOk::MoreBlocksPotentiallyAvailable)
