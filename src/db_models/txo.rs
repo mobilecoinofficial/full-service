@@ -99,6 +99,11 @@ pub trait TxoModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<(Txo, AccountTxoStatus)>, WalletDbError>;
 
+    // fn sum_by_id(
+    //     txo_ids: &Vec<String>,
+    //     conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    // ) -> Result<i64, WalletDbError>;
+
     fn are_all_spent(
         txo_ids: &Vec<String>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
@@ -411,6 +416,20 @@ impl TxoModel for Txo {
             .load(conn)?;
         Ok(txos)
     }
+
+    // fn sum_by_id(
+    //     txo_ids: &Vec<String>,
+    //     conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    // ) -> Result<i64, WalletDbError> {
+    //     use crate::schema::account_txo_statuses;
+    //     use crate::schema::txos::dsl::txos;
+    //
+    //     let value_sum: i64 = txos
+    //         .select(diesel::dsl::sum(crate::schema::txos::value))
+    //         .filter(crate::schema::txos::txo_id_hex.eq_any(txo_ids))
+    //         .load(conn)?;
+    //     Ok(value_sum)
+    // }
 
     fn are_all_spent(
         txo_ids: &Vec<String>,
