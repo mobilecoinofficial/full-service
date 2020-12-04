@@ -4,9 +4,12 @@
 
 use crate::{
     db::WalletDb,
-    db_models::{account::AccountModel, transaction_log::TransactionLogModel, txo::TxoModel},
+    db_models::{
+        account::AccountModel, assigned_subaddress::AssignedSubaddressModel,
+        transaction_log::TransactionLogModel, txo::TxoModel,
+    },
     error::WalletServiceError,
-    models::{Account, TransactionLog, Txo},
+    models::{Account, AssignedSubaddress, TransactionLog, Txo},
     service_decorated_types::{
         JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
         JsonCreateAccountResponse, JsonImportAccountResponse, JsonListTxosResponse,
@@ -282,11 +285,12 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         comment: Option<&str>,
         // FIXME: add "sync from block"
     ) -> Result<JsonAddress, WalletServiceError> {
-        let (public_address_b58, subaddress_index) = self
-            .wallet_db
-            .create_assigned_subaddress(account_id_hex, comment.unwrap_or(""))?;
+        let (public_address_b58, subaddress_index) = AssignedSubaddress::create_next_for_account(
+            account_id_hex,
+            comment.unwrap_or(""),
+            &self.wallet_db.get_conn()?,
+        )?;
 
-        // FIXME: have create_assigned_subaddress return the full object
         Ok(JsonAddress {
             public_address_b58,
             subaddress_index: subaddress_index.to_string(),
