@@ -5,7 +5,6 @@
 
 use mc_account_keys::{AccountKey, PublicAddress};
 use mc_common::logger::{log, Logger};
-use mc_common::HashMap;
 use mc_transaction_core::ring_signature::KeyImage;
 
 use diesel::{
@@ -16,15 +15,11 @@ use diesel::{
 
 use crate::db_models::transaction_log::TransactionLogModel;
 use crate::error::WalletDbError;
-use crate::models::{
-    Account, AssignedSubaddress, NewAssignedSubaddress, TransactionLog, TransactionTxoType, Txo,
-};
+use crate::models::{Account, AssignedSubaddress, NewAssignedSubaddress, TransactionLog, Txo};
 // Schema Tables
 use crate::schema::account_txo_statuses as schema_account_txo_statuses;
 use crate::schema::accounts as schema_accounts;
 use crate::schema::assigned_subaddresses as schema_assigned_subaddresses;
-use crate::schema::transaction_logs as schema_transaction_logs;
-use crate::schema::transaction_txo_types as schema_transaction_txo_types;
 use crate::schema::txos as schema_txos;
 
 // Query Objects
@@ -206,68 +201,5 @@ impl WalletDb {
         &self,
     ) -> Result<PooledConnection<ConnectionManager<SqliteConnection>>, WalletDbError> {
         Ok(self.pool.get()?)
-    }
-
-    /// Returns vector of (Transaction, Inputs, Outputs, Change)
-    pub fn list_transactions(
-        &self,
-        account_id_hex: &str,
-    ) -> Result<Vec<(TransactionLog, Vec<String>, Vec<String>, Vec<String>)>, WalletDbError> {
-        let conn = self.pool.get()?;
-
-        // FIXME: use group_by rather than the processing below:
-        // https://docs.diesel.rs/diesel/associations/trait.GroupedBy.html
-        let transactions: Vec<(TransactionLog, TransactionTxoType)> =
-            schema_transaction_logs::table
-                .inner_join(
-                    schema_transaction_txo_types::table.on(
-                        schema_transaction_logs::transaction_id_hex
-                            .eq(schema_transaction_txo_types::transaction_id_hex)
-                            .and(schema_transaction_logs::account_id_hex.eq(account_id_hex)),
-                    ),
-                )
-                .select((
-                    schema_transaction_logs::all_columns,
-                    schema_transaction_txo_types::all_columns,
-                ))
-                .load(&conn)?;
-
-        #[derive(Clone)]
-        struct TransactionContents {
-            transaction_log: TransactionLog,
-            inputs: Vec<String>,
-            outputs: Vec<String>,
-            change: Vec<String>,
-        }
-        let mut results: HashMap<String, TransactionContents> = HashMap::default();
-        for (transaction, transaction_txo_type) in transactions {
-            if results.get(&transaction.transaction_id_hex).is_none() {
-                results.insert(
-                    transaction.transaction_id_hex.clone(),
-                    TransactionContents {
-                        transaction_log: transaction.clone(),
-                        inputs: Vec::new(),
-                        outputs: Vec::new(),
-                        change: Vec::new(),
-                    },
-                );
-            };
-
-            let mut entry = results.get_mut(&transaction.transaction_id_hex).unwrap();
-
-            entry.transaction_log = transaction;
-            if transaction_txo_type.transaction_txo_type == "input" {
-                entry.inputs.push(transaction_txo_type.txo_id_hex);
-            } else if transaction_txo_type.transaction_txo_type == "output" {
-                entry.outputs.push(transaction_txo_type.txo_id_hex);
-            } else if transaction_txo_type.transaction_txo_type == "change" {
-                entry.change.push(transaction_txo_type.txo_id_hex);
-            }
-        }
-        Ok(results
-            .values()
-            .cloned()
-            .map(|t| (t.transaction_log, t.inputs, t.outputs, t.change))
-            .collect())
     }
 }

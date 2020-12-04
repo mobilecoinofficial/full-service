@@ -430,7 +430,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         &self,
         account_id_hex: &str,
     ) -> Result<Vec<JsonTransactionResponse>, WalletServiceError> {
-        let transactions = self.wallet_db.list_transactions(account_id_hex)?;
+        let transactions = TransactionLog::list_all(account_id_hex, &self.wallet_db.get_conn()?)?;
 
         let mut results: Vec<JsonTransactionResponse> = Vec::new();
         for (transaction, inputs, outputs, change) in transactions.iter() {

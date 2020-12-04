@@ -70,6 +70,11 @@ pub trait TransactionLogModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<TransactionLog>, WalletDbError>;
 
+    fn list_all(
+        account_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<(TransactionLog, Vec<String>, Vec<String>, Vec<String>)>, WalletDbError>;
+
     fn update_transactions_associated_to_txo(
         txo_id_hex: &str,
         cur_block_height: i64,
@@ -171,6 +176,66 @@ impl TransactionLogModel for TransactionLog {
             )
             .select(transaction_logs::all_columns)
             .load(conn)?)
+    }
+
+    fn list_all(
+        account_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<(TransactionLog, Vec<String>, Vec<String>, Vec<String>)>, WalletDbError> {
+        use crate::schema::transaction_logs;
+        use crate::schema::transaction_txo_types;
+
+        // FIXME: use group_by rather than the processing below:
+        // https://docs.diesel.rs/diesel/associations/trait.GroupedBy.html
+        let transactions: Vec<(TransactionLog, TransactionTxoType)> = transaction_logs::table
+            .inner_join(
+                transaction_txo_types::table.on(transaction_logs::transaction_id_hex
+                    .eq(transaction_txo_types::transaction_id_hex)
+                    .and(transaction_logs::account_id_hex.eq(account_id_hex))),
+            )
+            .select((
+                transaction_logs::all_columns,
+                transaction_txo_types::all_columns,
+            ))
+            .load(conn)?;
+
+        #[derive(Clone)]
+        struct TransactionContents {
+            transaction_log: TransactionLog,
+            inputs: Vec<String>,
+            outputs: Vec<String>,
+            change: Vec<String>,
+        }
+        let mut results: HashMap<String, TransactionContents> = HashMap::default();
+        for (transaction, transaction_txo_type) in transactions {
+            if results.get(&transaction.transaction_id_hex).is_none() {
+                results.insert(
+                    transaction.transaction_id_hex.clone(),
+                    TransactionContents {
+                        transaction_log: transaction.clone(),
+                        inputs: Vec::new(),
+                        outputs: Vec::new(),
+                        change: Vec::new(),
+                    },
+                );
+            };
+
+            let mut entry = results.get_mut(&transaction.transaction_id_hex).unwrap();
+
+            entry.transaction_log = transaction;
+            if transaction_txo_type.transaction_txo_type == "input" {
+                entry.inputs.push(transaction_txo_type.txo_id_hex);
+            } else if transaction_txo_type.transaction_txo_type == "output" {
+                entry.outputs.push(transaction_txo_type.txo_id_hex);
+            } else if transaction_txo_type.transaction_txo_type == "change" {
+                entry.change.push(transaction_txo_type.txo_id_hex);
+            }
+        }
+        Ok(results
+            .values()
+            .cloned()
+            .map(|t| (t.transaction_log, t.inputs, t.outputs, t.change))
+            .collect())
     }
 
     // FIXME: We may be doing n^2 work here
