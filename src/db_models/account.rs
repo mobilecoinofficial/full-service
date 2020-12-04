@@ -3,13 +3,16 @@
 //! DB impl for the Account model.
 
 use crate::{
-    db_models::assigned_subaddress::AssignedSubaddressModel,
+    db_models::{
+        assigned_subaddress::AssignedSubaddressModel, transaction_log::TransactionLogModel,
+    },
     error::WalletDbError,
-    models::{Account, AccountTxoStatus, AssignedSubaddress, NewAccount},
+    models::{Account, AccountTxoStatus, AssignedSubaddress, NewAccount, TransactionLog, Txo},
 };
 
 use mc_account_keys::{AccountKey, PublicAddress, DEFAULT_SUBADDRESS_INDEX};
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
+use mc_transaction_core::ring_signature::KeyImage;
 
 use diesel::{
     prelude::*,
@@ -78,6 +81,13 @@ pub trait AccountModel {
     fn update_name(
         &self,
         new_name: String,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError>;
+
+    fn update_spent_and_increment_next_block(
+        &self,
+        spent_block_height: i64,
+        key_images: Vec<KeyImage>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
@@ -202,6 +212,59 @@ impl AccountModel for Account {
 
         diesel::update(accounts.find(&self.account_id_hex))
             .set(crate::schema::accounts::name.eq(new_name))
+            .execute(conn)?;
+        Ok(())
+    }
+
+    fn update_spent_and_increment_next_block(
+        &self,
+        spent_block_height: i64,
+        key_images: Vec<KeyImage>,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError> {
+        use crate::schema::account_txo_statuses::dsl::account_txo_statuses;
+        use crate::schema::accounts::dsl::accounts;
+        use crate::schema::txos::dsl::txos;
+
+        for key_image in key_images {
+            // Get the txo by key_image
+            let matches = crate::schema::txos::table
+                .select(crate::schema::txos::all_columns)
+                .filter(crate::schema::txos::key_image.eq(mc_util_serial::encode(&key_image)))
+                .load::<Txo>(conn)?;
+
+            if matches.len() == 0 {
+                // Not Found is ok - this means it's a key_image not associated with any of our txos
+                continue;
+            } else if matches.len() > 1 {
+                return Err(WalletDbError::DuplicateEntries(format!(
+                    "Key Image: {:?}",
+                    key_image
+                )));
+            } else {
+                // Update the TXO
+                diesel::update(txos.find(&matches[0].txo_id_hex))
+                    .set(crate::schema::txos::spent_block_height.eq(Some(spent_block_height)))
+                    .execute(conn)?;
+
+                // Update the AccountTxoStatus
+                diesel::update(
+                    account_txo_statuses.find((&self.account_id_hex, &matches[0].txo_id_hex)),
+                )
+                .set(crate::schema::account_txo_statuses::txo_status.eq("spent".to_string()))
+                .execute(conn)?;
+
+                // FIXME: make sure the path for all txo_statuses and txo_types exist and are tested
+                // Update the transaction status if the txos are all spent
+                TransactionLog::update_transactions_associated_to_txo(
+                    &matches[0].txo_id_hex,
+                    spent_block_height,
+                    conn,
+                )?;
+            }
+        }
+        diesel::update(accounts.find(&self.account_id_hex))
+            .set(crate::schema::accounts::next_block.eq(spent_block_height + 1))
             .execute(conn)?;
         Ok(())
     }

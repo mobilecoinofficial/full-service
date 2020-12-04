@@ -750,11 +750,12 @@ mod tests {
         // Now we'll process the ledger and verify that the TXO was spent
         let spent_block_height = 365;
 
-        wallet_db
+        let account = Account::get(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
+        account
             .update_spent_and_increment_next_block(
-                &account_id_hex,
                 spent_block_height,
                 vec![key_image],
+                &wallet_db.get_conn().unwrap(),
             )
             .unwrap();
 
