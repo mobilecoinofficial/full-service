@@ -265,7 +265,8 @@ mod tests {
         assert_eq!(expected_account, acc);
 
         // Verify that the subaddress table entries were updated for main and change
-        let subaddresses = wallet_db.list_subaddresses(&account_id_hex).unwrap();
+        let subaddresses =
+            AssignedSubaddress::list_all(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
         assert_eq!(subaddresses.len(), 2);
         let subaddress_indices: HashSet<i64> =
             HashSet::from_iter(subaddresses.iter().map(|s| s.subaddress_index));
