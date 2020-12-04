@@ -86,6 +86,7 @@ pub enum JsonCommandRequest {
     submit_transaction {
         tx_proposal: JsonTxProposal,
         comment: Option<String>,
+        account_id: Option<String>,
     },
     list_transactions {
         account_id: String,
@@ -343,10 +344,11 @@ fn wallet_api(
         JsonCommandRequest::submit_transaction {
             tx_proposal,
             comment,
+            account_id,
         } => JsonCommandResponse::submit_transaction {
             transaction: state
                 .service
-                .submit_transaction(tx_proposal, comment)
+                .submit_transaction(tx_proposal, comment, account_id)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
         JsonCommandRequest::list_transactions { account_id } => {

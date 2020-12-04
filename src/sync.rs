@@ -69,7 +69,7 @@ enum SyncMsg {
 
 /// Possible return values for the `sync_monitor` function.
 #[derive(Debug, Eq, PartialEq)]
-enum SyncMonitorOk {
+pub enum SyncMonitorOk {
     /// No more blocks are currently available for processing.
     NoMoreBlocks,
 
@@ -301,7 +301,7 @@ fn sync_thread_entry_point(
 }
 
 /// Sync a single monitor.
-fn sync_monitor(
+pub fn sync_monitor(
     ledger_db: &LedgerDB,
     wallet_db: &WalletDb,
     account_id: &MonitorId,
@@ -350,7 +350,7 @@ fn sync_monitor(
 
         // Add a transaction for the received TXOs
         TransactionLog::log_received(
-            output_txo_ids,
+            &output_txo_ids,
             &account,
             account.next_block as u64,
             &wallet_db.get_conn()?,

@@ -124,7 +124,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
             DEFAULT_CHANGE_SUBADDRESS_INDEX,
             DEFAULT_NEXT_SUBADDRESS_INDEX,
             fb,
-            fb + 1,
+            fb,
             &name.unwrap_or("".to_string()),
             &conn,
         )?;
@@ -357,6 +357,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         &self,
         tx_proposal: JsonTxProposal,
         comment: Option<String>,
+        account_id_hex: Option<String>,
     ) -> Result<JsonSubmitResponse, WalletServiceError> {
         // Pick a peer to submit to.
         let responder_ids = self.peer_manager.responder_ids();
@@ -389,10 +390,12 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
             block_height
         );
         let converted_proposal = TxProposal::try_from(&tx_proposal_proto)?;
-        let transaction_id = self.wallet_db.log_submitted_transaction(
+        let transaction_id = TransactionLog::log_submitted(
             converted_proposal,
             block_height,
             comment.unwrap_or("".to_string()),
+            account_id_hex.as_deref(),
+            &self.wallet_db.get_conn()?,
         )?;
 
         // Successfully submitted.
@@ -420,7 +423,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
             tombstone_block,
             max_spendable_value,
         )?;
-        Ok(self.submit_transaction(tx_proposal, comment)?)
+        Ok(self.submit_transaction(tx_proposal, comment, Some(account_id_hex.to_string()))?)
     }
 
     pub fn list_transactions(
@@ -594,7 +597,9 @@ mod tests {
                 None,
             )
             .unwrap();
-        let _submitted = service.submit_transaction(tx_proposal, None).unwrap();
+        let _submitted = service
+            .submit_transaction(tx_proposal, None, Some(alice.account_id.clone()))
+            .unwrap();
 
         // We should now have 3 txos - one pending, two minted (one of which will be change)
         let txos = service.list_txos(&alice.account_id).unwrap();
