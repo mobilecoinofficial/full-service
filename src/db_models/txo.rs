@@ -9,12 +9,13 @@ use crate::{
         assigned_subaddress::AssignedSubaddressModel,
     },
     error::WalletDbError,
-    models::{Account, AccountTxoStatus, AssignedSubaddress, NewTxo, Txo},
+    models::{Account, AccountTxoStatus, AssignedSubaddress, NewAccountTxoStatus, NewTxo, Txo},
 };
 
-use mc_account_keys::AccountKey;
+use mc_account_keys::{AccountKey, PublicAddress};
 use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
+use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::{constants::MAX_INPUTS, ring_signature::KeyImage, tx::TxOut};
 
 use diesel::{
@@ -58,6 +59,14 @@ pub trait TxoModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<String, WalletDbError>;
 
+    fn create_minted(
+        account_id_hex: Option<&str>,
+        txo: &TxOut,
+        tx_proposal: &TxProposal,
+        outlay_index: usize,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(Option<PublicAddress>, String, i64, String), WalletDbError>;
+
     /// Update an existing Txo when it is received in the ledger.
     /// A Txo can be created before being received if it is minted, for example.
     fn update_received(
@@ -75,6 +84,12 @@ pub trait TxoModel {
         received_subaddress_index: Option<i64>,
         received_key_image: Option<KeyImage>,
         block_height: i64,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError>;
+
+    /// Update a Txo's status to pending
+    fn update_to_pending(
+        txo_id_hex: &TxoID,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
@@ -98,11 +113,6 @@ pub trait TxoModel {
         txo_ids: &Vec<String>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<(Txo, AccountTxoStatus)>, WalletDbError>;
-
-    // fn sum_by_id(
-    //     txo_ids: &Vec<String>,
-    //     conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    // ) -> Result<i64, WalletDbError>;
 
     fn are_all_spent(
         txo_ids: &Vec<String>,
@@ -192,6 +202,95 @@ impl TxoModel for Txo {
         Ok(txo_id.to_string())
     }
 
+    fn create_minted(
+        account_id_hex: Option<&str>,
+        output: &TxOut,
+        tx_proposal: &TxProposal,
+        output_index: usize,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(Option<PublicAddress>, String, i64, String), WalletDbError> {
+        use crate::schema::account_txo_statuses;
+        use crate::schema::txos;
+
+        let txo_id = TxoID::from(output);
+        let mut value_sum = 0;
+
+        // Determine whether this output is an outlay destination, or change.
+        // FIXME: currently only have the proofs for outlays, not change - we likely don't
+        //        need to prove to ourselves that we sent that change.
+        let (value, proof, outlay_receiver) = if let Some(outlay_index) = tx_proposal
+            .outlay_index_to_tx_out_index
+            .iter()
+            .find_map(|(k, &v)| if v == output_index { Some(k) } else { None })
+        {
+            let outlay = &tx_proposal.outlays[outlay_index.clone()];
+            (
+                outlay.value,
+                Some(outlay_index.clone()),
+                Some(outlay.receiver.clone()),
+            )
+        } else {
+            // This is the change output. Note: there should only be one change output
+            // per transaction, based on how we construct transactions. If we change
+            // how we construct transactions, these assumptions will change, and should be
+            // reflected in the TxProposal.
+            (tx_proposal.change_value, None, None)
+        };
+
+        // Update receiver, transaction_value, and transaction_txo_type, if outlay was found.
+        let transaction_txo_type = if outlay_receiver.is_some() {
+            // Only contribute to the transaction's value sum for outlays
+            value_sum += value;
+            "minted"
+        } else {
+            // If not in an outlay, this output is change, according to how we build transactions.
+            "change"
+        };
+
+        let encoded_proof =
+            proof.map(|p| mc_util_serial::encode(&tx_proposal.outlay_confirmation_numbers[p]));
+
+        let new_txo = NewTxo {
+            txo_id_hex: &txo_id.to_string(),
+            value: value as i64,
+            target_key: &mc_util_serial::encode(&output.target_key),
+            public_key: &mc_util_serial::encode(&output.public_key),
+            e_fog_hint: &mc_util_serial::encode(&output.e_fog_hint),
+            txo: &mc_util_serial::encode(output),
+            subaddress_index: None, // Minted set subaddress_index to None. If later received, updates.
+            key_image: None,        // Only the recipient can calculate the KeyImage
+            received_block_height: None,
+            pending_tombstone_block_height: Some(tx_proposal.tx.prefix.tombstone_block as i64),
+            spent_block_height: None,
+            proof: encoded_proof.as_ref(),
+        };
+
+        diesel::insert_into(txos::table)
+            .values(&new_txo)
+            .execute(conn)?;
+
+        // If account_id is provided, then log a relationship. Also possible to create minted
+        // from a TxProposal not belonging to any existing account.
+        if let Some(account_id_hex) = account_id_hex.as_deref() {
+            let new_account_txo_status = NewAccountTxoStatus {
+                account_id_hex: &account_id_hex,
+                txo_id_hex: &txo_id.to_string(),
+                txo_status: "secreted", // We cannot track spent status for minted TXOs unless change
+                txo_type: "minted",
+            };
+            diesel::insert_into(account_txo_statuses::table)
+                .values(&new_account_txo_status)
+                .execute(conn)?;
+        }
+
+        Ok((
+            outlay_receiver,
+            txo_id.to_string(),
+            value_sum as i64,
+            transaction_txo_type.to_string(),
+        ))
+    }
+
     fn update_received(
         &self,
         account_id_hex: &str,
@@ -269,6 +368,23 @@ impl TxoModel for Txo {
                 subaddress_index.eq(received_subaddress_index),
                 key_image.eq(encoded_key_image),
             ))
+            .execute(conn)?;
+        Ok(())
+    }
+
+    fn update_to_pending(
+        txo_id: &TxoID,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError> {
+        use crate::schema::account_txo_statuses::dsl::account_txo_statuses;
+
+        // Find the account associated with this Txo.
+        // Note: We should only be calling update_to_pending on inputs, which we had to own to spend.
+        let account = Account::get_by_txo_id(&txo_id.to_string(), conn)?;
+
+        // Update the status to pending.
+        diesel::update(account_txo_statuses.find((&account.account_id_hex, &txo_id.to_string())))
+            .set(crate::schema::account_txo_statuses::txo_status.eq("pending".to_string()))
             .execute(conn)?;
         Ok(())
     }
@@ -417,20 +533,6 @@ impl TxoModel for Txo {
         Ok(txos)
     }
 
-    // fn sum_by_id(
-    //     txo_ids: &Vec<String>,
-    //     conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    // ) -> Result<i64, WalletDbError> {
-    //     use crate::schema::account_txo_statuses;
-    //     use crate::schema::txos::dsl::txos;
-    //
-    //     let value_sum: i64 = txos
-    //         .select(diesel::dsl::sum(crate::schema::txos::value))
-    //         .filter(crate::schema::txos::txo_id_hex.eq_any(txo_ids))
-    //         .load(conn)?;
-    //     Ok(value_sum)
-    // }
-
     fn are_all_spent(
         txo_ids: &Vec<String>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
@@ -565,54 +667,25 @@ impl TxoModel for Txo {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::WalletDb;
     use crate::db_models::account::{AccountID, AccountModel};
-    use crate::models::Account;
-    use crate::test_utils::WalletDbTestContext;
-    use mc_account_keys::AccountKey;
+    use crate::{
+        models::Account,
+        sync::sync_monitor,
+        test_utils::{
+            create_test_minted_and_change_txos, create_test_received_txo, get_test_ledger,
+            WalletDbTestContext, MOB,
+        },
+    };
+    use mc_account_keys::{AccountKey, RootIdentity};
     use mc_common::{
         logger::{test_with_logger, Logger},
         HashSet,
     };
-    use mc_crypto_keys::RistrettoPrivate;
-    use mc_transaction_core::{
-        constants::MINIMUM_FEE, encrypted_fog_hint::EncryptedFogHint, ring_signature::KeyImage,
-        tx::TxOut,
-    };
+    use mc_crypto_rand::RngCore;
+    use mc_transaction_core::constants::MINIMUM_FEE;
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
     use std::iter::FromIterator;
-
-    const MOB: i64 = 1_000_000_000_000;
-
-    fn create_test_received(
-        account_key: &AccountKey,
-        recipient_subaddress_index: u64,
-        value: u64,
-        received_block_height: u64,
-        rng: &mut StdRng,
-        wallet_db: &WalletDb,
-    ) -> (String, TxOut, KeyImage) {
-        let recipient = account_key.subaddress(recipient_subaddress_index);
-        let tx_private_key = RistrettoPrivate::from_random(rng);
-        let hint = EncryptedFogHint::fake_onetime_hint(rng);
-        let txo = TxOut::new(value, &recipient, &tx_private_key, hint).unwrap();
-
-        // Get KeyImage from the onetime private key
-        let key_image = KeyImage::from(&tx_private_key);
-
-        let txo_id_hex = Txo::create_received(
-            txo.clone(),
-            Some(recipient_subaddress_index as i64),
-            Some(key_image),
-            value,
-            received_block_height as i64,
-            &AccountID::from(account_key).to_string(),
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-        (txo_id_hex, txo, key_image)
-    }
 
     #[test_with_logger]
     fn test_received_tx_lifecycle(logger: Logger) {
@@ -636,7 +709,7 @@ mod tests {
 
         // Create TXO for the account
         let (txo_hex, txo, key_image) =
-            create_test_received(&account_key, 0, 10, 144, &mut rng, &wallet_db);
+            create_test_received_txo(&account_key, 0, 10, 144, &mut rng, &wallet_db);
 
         let txos = Txo::list_for_account(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
         assert_eq!(txos.len(), 1);
@@ -726,7 +799,7 @@ mod tests {
         // Create some TXOs for the account
         // [100, 200, 300, ... 2000]
         for i in 1..20 {
-            let (_txo_hex, _txo, _key_image) = create_test_received(
+            let (_txo_hex, _txo, _key_image) = create_test_received_txo(
                 &account_key,
                 0,
                 (100 * MOB * i) as u64, // 100.0 MOB * i
@@ -833,7 +906,7 @@ mod tests {
         // Create some TXOs for the account. Total value is 2000, but max can spend is 1600
         // [100, 100, ... 100]
         for i in 1..20 {
-            let (_txo_hex, _txo, _key_image) = create_test_received(
+            let (_txo_hex, _txo, _key_image) = create_test_received_txo(
                 &account_key,
                 0,
                 (100 * MOB) as u64,
@@ -859,5 +932,66 @@ mod tests {
         }
     }
 
-    // FIXME: once we have create_spent, then select_txos test with no spendable
+    #[test_with_logger]
+    fn test_create_minted(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let src_account = AccountKey::from(&RootIdentity::from_random(&mut rng));
+
+        // Seed our ledger with some utxos for the src_account
+        let known_recipients = vec![src_account.subaddress(0)];
+        let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+
+        Account::create(
+            &src_account,
+            0,
+            1,
+            2,
+            0,
+            0,
+            "",
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        // Process the txos in the ledger into the DB
+        sync_monitor(
+            &ledger_db,
+            &wallet_db,
+            &AccountID::from(&src_account).to_string(),
+            &logger,
+        )
+        .unwrap();
+
+        let recipient =
+            AccountKey::from(&RootIdentity::from_random(&mut rng)).subaddress(rng.next_u64());
+
+        let (recipient_opt, txo_id, value, transaction_txo_type) =
+            create_test_minted_and_change_txos(
+                src_account.clone(),
+                recipient,
+                1 * MOB as u64,
+                wallet_db.clone(),
+                ledger_db,
+                logger,
+            );
+
+        assert!(recipient_opt.is_some());
+        assert_eq!(value, 1 * MOB as i64);
+        assert_eq!(transaction_txo_type, "minted");
+        let (minted_txo, minted_account_txo_status, minted_assigned_subaddress) = Txo::get(
+            &AccountID::from(&src_account).to_string(),
+            &txo_id,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(minted_txo.value, value);
+        assert_eq!(minted_account_txo_status.txo_status, "secreted");
+        assert!(minted_assigned_subaddress.is_none());
+    }
+
+    // FIXME: once we have create_minted, then select_txos test with no spendable
 }

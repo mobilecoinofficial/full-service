@@ -5,7 +5,7 @@
 use crate::{
     db_models::assigned_subaddress::AssignedSubaddressModel,
     error::WalletDbError,
-    models::{Account, AssignedSubaddress, NewAccount},
+    models::{Account, AccountTxoStatus, AssignedSubaddress, NewAccount},
 };
 
 use mc_account_keys::{AccountKey, PublicAddress, DEFAULT_SUBADDRESS_INDEX};
@@ -64,6 +64,11 @@ pub trait AccountModel {
     /// Get a specific account.
     fn get(
         account_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Account, WalletDbError>;
+
+    fn get_by_txo_id(
+        txo_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Account, WalletDbError>;
 
@@ -158,6 +163,31 @@ impl AccountModel for Account {
             // Match on NotFound to get a more informative NotFound Error
             Err(diesel::result::Error::NotFound) => {
                 Err(WalletDbError::NotFound(account_id_hex.to_string()))
+            }
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    fn get_by_txo_id(
+        txo_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Account, WalletDbError> {
+        use crate::schema::account_txo_statuses::dsl::account_txo_statuses;
+
+        match account_txo_statuses
+            .select(crate::schema::account_txo_statuses::all_columns)
+            .filter(crate::schema::account_txo_statuses::txo_id_hex.eq(txo_id_hex))
+            .load::<AccountTxoStatus>(conn)
+        {
+            Ok(a) => {
+                if a.len() > 1 {
+                    return Err(WalletDbError::MultipleStatusesForTxo);
+                }
+                Ok(Account::get(&a[0].account_id_hex, conn)?)
+            }
+            // Match on NotFound to get a more informative NotFound Error
+            Err(diesel::result::Error::NotFound) => {
+                Err(WalletDbError::NotFound(txo_id_hex.to_string()))
             }
             Err(e) => Err(e.into()),
         }

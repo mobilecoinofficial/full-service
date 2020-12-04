@@ -1,26 +1,36 @@
 // Copyright (c) 2020 MobileCoin Inc.
 
-use crate::db::WalletDb;
+use crate::{
+    db::WalletDb,
+    db_models::{account::AccountID, txo::TxoModel},
+    models::Txo,
+    transaction_builder::WalletTransactionBuilder,
+};
 use diesel::{prelude::*, SqliteConnection};
 use diesel_migrations::embed_migrations;
-use mc_account_keys::PublicAddress;
+use mc_account_keys::{AccountKey, PublicAddress};
 use mc_attest_core::Verifier;
 use mc_common::logger::Logger;
 use mc_connection::{ConnectionManager, ThickClient};
 use mc_connection_test_utils::{test_client_uri, MockBlockchainConnection};
 use mc_crypto_keys::RistrettoPrivate;
 use mc_crypto_rand::{CryptoRng, RngCore};
+use mc_fog_report_validation::MockFogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_transaction_core::{
-    ring_signature::KeyImage, tx::TxOut, Block, BlockContents, BLOCK_VERSION,
+    encrypted_fog_hint::EncryptedFogHint, ring_signature::KeyImage, tx::TxOut,
 };
+use mc_transaction_core::{Block, BlockContents, BLOCK_VERSION};
 use mc_util_from_random::FromRandom;
+use rand::rngs::StdRng;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tempdir::TempDir;
 
 embed_migrations!("migrations/");
+
+pub const MOB: i64 = 1_000_000_000_000;
 
 /// The amount each recipient gets in the test ledger.
 pub const DEFAULT_PER_RECIPIENT_AMOUNT: u64 = 5_000 * 1_000_000_000_000;
@@ -213,4 +223,75 @@ pub fn setup_grpc_peer_manager(logger: Logger) -> ConnectionManager<ThickClient>
         .collect();
 
     ConnectionManager::new(connected_peers, logger.clone())
+}
+
+pub fn create_test_received_txo(
+    account_key: &AccountKey,
+    recipient_subaddress_index: u64,
+    value: u64,
+    received_block_height: u64,
+    rng: &mut StdRng,
+    wallet_db: &WalletDb,
+) -> (String, TxOut, KeyImage) {
+    let recipient = account_key.subaddress(recipient_subaddress_index);
+    let tx_private_key = RistrettoPrivate::from_random(rng);
+    let hint = EncryptedFogHint::fake_onetime_hint(rng);
+    let txo = TxOut::new(value, &recipient, &tx_private_key, hint).unwrap();
+
+    // Get KeyImage from the onetime private key
+    let key_image = KeyImage::from(&tx_private_key);
+
+    let txo_id_hex = Txo::create_received(
+        txo.clone(),
+        Some(recipient_subaddress_index as i64),
+        Some(key_image),
+        value,
+        received_block_height as i64,
+        &AccountID::from(account_key).to_string(),
+        &wallet_db.get_conn().unwrap(),
+    )
+    .unwrap();
+    (txo_id_hex, txo, key_image)
+}
+
+pub fn create_test_minted_and_change_txos(
+    src_account_key: AccountKey,
+    recipient: PublicAddress,
+    value: u64,
+    wallet_db: WalletDb,
+    ledger_db: LedgerDB,
+    logger: Logger,
+) -> (Option<PublicAddress>, String, i64, String) {
+    // Use the builder to create valid TxOuts for this account
+    let mut builder = WalletTransactionBuilder::<MockFogPubkeyResolver>::new(
+        AccountID::from(&src_account_key).to_string(),
+        wallet_db.clone(),
+        ledger_db,
+        None,
+        logger,
+    );
+
+    builder.add_recipient(recipient, value).unwrap();
+    builder.select_txos(None).unwrap();
+    builder.set_tombstone(0).unwrap();
+    let tx_proposal = builder.build().unwrap();
+
+    // There should be 2 outputs, one to dest and one change
+    assert_eq!(tx_proposal.tx.prefix.outputs.len(), 2);
+
+    // Take the first one (we only construct with one outlay currently, could modify build protocol)
+    assert_eq!(tx_proposal.outlay_index_to_tx_out_index.len(), 1);
+    let outlay_txo_index = tx_proposal.outlay_index_to_tx_out_index[&0];
+
+    let tx_out = tx_proposal.tx.prefix.outputs[outlay_txo_index].clone();
+
+    let res = Txo::create_minted(
+        Some(&AccountID::from(&src_account_key).to_string()),
+        &tx_out,
+        &tx_proposal,
+        outlay_txo_index,
+        &wallet_db.get_conn().unwrap(),
+    );
+
+    res.unwrap()
 }

@@ -143,6 +143,9 @@ pub enum WalletDbError {
 
     /// Insufficient Funds {0}
     InsufficientFunds(String),
+
+    /// Multiple AccountTxoStatus entries for Txo
+    MultipleStatusesForTxo,
 }
 
 impl From<diesel::result::Error> for WalletDbError {
