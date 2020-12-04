@@ -303,12 +303,12 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         &self,
         account_id_hex: &str,
     ) -> Result<Vec<JsonAddress>, WalletServiceError> {
-        Ok(self
-            .wallet_db
-            .list_subaddresses(account_id_hex)?
-            .iter()
-            .map(|a| JsonAddress::new(a))
-            .collect::<Vec<JsonAddress>>())
+        Ok(
+            AssignedSubaddress::list_all(account_id_hex, &self.wallet_db.get_conn()?)?
+                .iter()
+                .map(|a| JsonAddress::new(a))
+                .collect::<Vec<JsonAddress>>(),
+        )
     }
 
     pub fn build_transaction(

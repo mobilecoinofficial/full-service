@@ -483,3 +483,5 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
             }
     }
 }
+
+// FIXME: Test for sending more MOB than fits in a u64

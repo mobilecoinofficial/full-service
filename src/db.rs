@@ -15,11 +15,10 @@ use diesel::{
 
 use crate::db_models::transaction_log::TransactionLogModel;
 use crate::error::WalletDbError;
-use crate::models::{AssignedSubaddress, TransactionLog, Txo};
+use crate::models::{TransactionLog, Txo};
 // Schema Tables
 use crate::schema::account_txo_statuses as schema_account_txo_statuses;
 use crate::schema::accounts as schema_accounts;
-use crate::schema::assigned_subaddresses as schema_assigned_subaddresses;
 use crate::schema::txos as schema_txos;
 
 // Query Objects
@@ -52,25 +51,6 @@ impl WalletDb {
             .test_on_check_out(true)
             .build(manager)?;
         Ok(Self::new(pool, logger))
-    }
-
-    /// List all subaddresses for a given account.
-    pub fn list_subaddresses(
-        &self,
-        account_id_hex: &str,
-    ) -> Result<Vec<AssignedSubaddress>, WalletDbError> {
-        let conn = self.pool.get()?;
-
-        let results: Vec<AssignedSubaddress> = schema_accounts::table
-            .inner_join(
-                schema_assigned_subaddresses::table.on(schema_accounts::account_id_hex
-                    .eq(schema_assigned_subaddresses::account_id_hex)
-                    .and(schema_accounts::account_id_hex.eq(account_id_hex))),
-            )
-            .select(schema_assigned_subaddresses::all_columns)
-            .load(&conn)?;
-
-        Ok(results)
     }
 
     // FIXME: goes on Account

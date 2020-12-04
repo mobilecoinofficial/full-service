@@ -41,6 +41,11 @@ pub trait AssignedSubaddressModel {
         subaddress_spend_public_key: &RistrettoPublic,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(i64, String), WalletDbError>;
+
+    fn list_all(
+        account_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<AssignedSubaddress>, WalletDbError>;
 }
 
 impl AssignedSubaddressModel for AssignedSubaddress {
@@ -165,6 +170,25 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         } else {
             Ok(matches[0].clone())
         }
+    }
+
+    fn list_all(
+        account_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<AssignedSubaddress>, WalletDbError> {
+        use crate::schema::accounts;
+        use crate::schema::assigned_subaddresses;
+
+        let results: Vec<AssignedSubaddress> = accounts::table
+            .inner_join(
+                assigned_subaddresses::table.on(accounts::account_id_hex
+                    .eq(assigned_subaddresses::account_id_hex)
+                    .and(accounts::account_id_hex.eq(account_id_hex))),
+            )
+            .select(assigned_subaddresses::all_columns)
+            .load(conn)?;
+
+        Ok(results)
     }
 }
 
