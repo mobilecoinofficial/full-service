@@ -3,11 +3,12 @@
 //! DB impl for the Account model.
 
 use crate::{
-    db_models::{
-        assigned_subaddress::AssignedSubaddressModel, transaction_log::TransactionLogModel,
+    db::{
+        assigned_subaddress::AssignedSubaddressModel,
+        models::{Account, AccountTxoStatus, AssignedSubaddress, NewAccount, TransactionLog, Txo},
+        transaction_log::TransactionLogModel,
     },
     error::WalletDbError,
-    models::{Account, AccountTxoStatus, AssignedSubaddress, NewAccount, TransactionLog, Txo},
 };
 
 use mc_account_keys::{AccountKey, PublicAddress, DEFAULT_SUBADDRESS_INDEX};
@@ -109,7 +110,7 @@ impl AccountModel for Account {
         name: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(String, String), WalletDbError> {
-        use crate::schema::accounts;
+        use crate::db::schema::accounts;
 
         let account_id = AccountID::from(account_key);
 
@@ -155,7 +156,7 @@ impl AccountModel for Account {
     fn list_all(
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<Account>, WalletDbError> {
-        use crate::schema::accounts;
+        use crate::db::schema::accounts;
 
         Ok(accounts::table
             .select(accounts::all_columns)
@@ -166,7 +167,7 @@ impl AccountModel for Account {
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Account, WalletDbError> {
-        use crate::schema::accounts::dsl::accounts;
+        use crate::db::schema::accounts::dsl::accounts;
 
         match accounts.find(account_id_hex).get_result::<Account>(conn) {
             Ok(a) => Ok(a),
@@ -182,11 +183,11 @@ impl AccountModel for Account {
         txo_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Account, WalletDbError> {
-        use crate::schema::account_txo_statuses::dsl::account_txo_statuses;
+        use crate::db::schema::account_txo_statuses::dsl::account_txo_statuses;
 
         match account_txo_statuses
-            .select(crate::schema::account_txo_statuses::all_columns)
-            .filter(crate::schema::account_txo_statuses::txo_id_hex.eq(txo_id_hex))
+            .select(crate::db::schema::account_txo_statuses::all_columns)
+            .filter(crate::db::schema::account_txo_statuses::txo_id_hex.eq(txo_id_hex))
             .load::<AccountTxoStatus>(conn)
         {
             Ok(a) => {
@@ -208,10 +209,10 @@ impl AccountModel for Account {
         new_name: String,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
-        use crate::schema::accounts::dsl::accounts;
+        use crate::db::schema::accounts::dsl::accounts;
 
         diesel::update(accounts.find(&self.account_id_hex))
-            .set(crate::schema::accounts::name.eq(new_name))
+            .set(crate::db::schema::accounts::name.eq(new_name))
             .execute(conn)?;
         Ok(())
     }
@@ -222,15 +223,15 @@ impl AccountModel for Account {
         key_images: Vec<KeyImage>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
-        use crate::schema::account_txo_statuses::dsl::account_txo_statuses;
-        use crate::schema::accounts::dsl::accounts;
-        use crate::schema::txos::dsl::txos;
+        use crate::db::schema::account_txo_statuses::dsl::account_txo_statuses;
+        use crate::db::schema::accounts::dsl::accounts;
+        use crate::db::schema::txos::dsl::txos;
 
         for key_image in key_images {
             // Get the txo by key_image
-            let matches = crate::schema::txos::table
-                .select(crate::schema::txos::all_columns)
-                .filter(crate::schema::txos::key_image.eq(mc_util_serial::encode(&key_image)))
+            let matches = crate::db::schema::txos::table
+                .select(crate::db::schema::txos::all_columns)
+                .filter(crate::db::schema::txos::key_image.eq(mc_util_serial::encode(&key_image)))
                 .load::<Txo>(conn)?;
 
             if matches.len() == 0 {
@@ -244,14 +245,14 @@ impl AccountModel for Account {
             } else {
                 // Update the TXO
                 diesel::update(txos.find(&matches[0].txo_id_hex))
-                    .set(crate::schema::txos::spent_block_height.eq(Some(spent_block_height)))
+                    .set(crate::db::schema::txos::spent_block_height.eq(Some(spent_block_height)))
                     .execute(conn)?;
 
                 // Update the AccountTxoStatus
                 diesel::update(
                     account_txo_statuses.find((&self.account_id_hex, &matches[0].txo_id_hex)),
                 )
-                .set(crate::schema::account_txo_statuses::txo_status.eq("spent".to_string()))
+                .set(crate::db::schema::account_txo_statuses::txo_status.eq("spent".to_string()))
                 .execute(conn)?;
 
                 // FIXME: make sure the path for all txo_statuses and txo_types exist and are tested
@@ -264,7 +265,7 @@ impl AccountModel for Account {
             }
         }
         diesel::update(accounts.find(&self.account_id_hex))
-            .set(crate::schema::accounts::next_block.eq(spent_block_height + 1))
+            .set(crate::db::schema::accounts::next_block.eq(spent_block_height + 1))
             .execute(conn)?;
         Ok(())
     }
@@ -274,7 +275,7 @@ impl AccountModel for Account {
         self,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
-        use crate::schema::accounts::dsl::accounts;
+        use crate::db::schema::accounts::dsl::accounts;
 
         diesel::delete(accounts.find(self.account_id_hex)).execute(conn)?;
         Ok(())

@@ -22,15 +22,15 @@
 //! be picked up by the next available worker thread.
 
 use crate::{
-    db::WalletDb,
-    db_models::{
+    db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
+        models::{Account, AssignedSubaddress, TransactionLog, Txo},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
+        WalletDb,
     },
     error::{SyncError, WalletDbError},
-    models::{Account, AssignedSubaddress, TransactionLog, Txo},
 };
 use mc_account_keys::AccountKey;
 use mc_common::{

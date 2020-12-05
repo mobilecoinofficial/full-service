@@ -3,12 +3,15 @@
 //! DB impl for the Transaction model.
 
 use crate::{
-    db::b58_encode,
-    db_models::txo::{TxoID, TxoModel},
-    error::WalletDbError,
-    models::{
-        Account, NewTransactionLog, NewTransactionTxoType, TransactionLog, TransactionTxoType, Txo,
+    db::{
+        b58_encode,
+        models::{
+            Account, NewTransactionLog, NewTransactionTxoType, TransactionLog, TransactionTxoType,
+            Txo,
+        },
+        txo::{TxoID, TxoModel},
     },
+    error::WalletDbError,
 };
 
 use mc_account_keys::AccountKey;
@@ -108,7 +111,7 @@ impl TransactionLogModel for TransactionLog {
         transaction_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<TransactionLog, WalletDbError> {
-        use crate::schema::transaction_logs::dsl::transaction_logs;
+        use crate::db::schema::transaction_logs::dsl::transaction_logs;
 
         match transaction_logs
             .find(transaction_id_hex)
@@ -127,8 +130,8 @@ impl TransactionLogModel for TransactionLog {
         &self,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(Vec<String>, Vec<String>, Vec<String>), WalletDbError> {
-        use crate::schema::transaction_logs;
-        use crate::schema::transaction_txo_types;
+        use crate::db::schema::transaction_logs;
+        use crate::db::schema::transaction_txo_types;
 
         // FIXME: use group_by rather than the processing below:
         // https://docs.diesel.rs/diesel/associations/trait.GroupedBy.html
@@ -165,8 +168,8 @@ impl TransactionLogModel for TransactionLog {
         txo_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<TransactionLog>, WalletDbError> {
-        use crate::schema::transaction_logs;
-        use crate::schema::transaction_txo_types;
+        use crate::db::schema::transaction_logs;
+        use crate::db::schema::transaction_txo_types;
 
         Ok(transaction_logs::table
             .inner_join(
@@ -182,8 +185,8 @@ impl TransactionLogModel for TransactionLog {
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<(TransactionLog, Vec<String>, Vec<String>, Vec<String>)>, WalletDbError> {
-        use crate::schema::transaction_logs;
-        use crate::schema::transaction_txo_types;
+        use crate::db::schema::transaction_logs;
+        use crate::db::schema::transaction_txo_types;
 
         // FIXME: use group_by rather than the processing below:
         // https://docs.diesel.rs/diesel/associations/trait.GroupedBy.html
@@ -244,7 +247,7 @@ impl TransactionLogModel for TransactionLog {
         cur_block_height: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
-        use crate::schema::transaction_logs::dsl::transaction_logs;
+        use crate::db::schema::transaction_logs::dsl::transaction_logs;
 
         let associated_transaction_logs = Self::select_for_txo(txo_id_hex, conn)?;
 
@@ -261,14 +264,14 @@ impl TransactionLogModel for TransactionLog {
                 // FIXME: do we want to store "submitted_block_height" to disambiguate block_height?
                 diesel::update(transaction_logs.find(&transaction_log.transaction_id_hex))
                     .set((
-                        crate::schema::transaction_logs::status.eq("succeeded"),
-                        crate::schema::transaction_logs::block_height.eq(cur_block_height),
+                        crate::db::schema::transaction_logs::status.eq("succeeded"),
+                        crate::db::schema::transaction_logs::block_height.eq(cur_block_height),
                     ))
                     .execute(conn)?;
             } else if Txo::any_failed(&inputs, cur_block_height, conn)? {
                 // FIXME: Do we want to store and update the "failed_block_height" as min(tombstones)?
                 diesel::update(transaction_logs.find(&transaction_log.transaction_id_hex))
-                    .set(crate::schema::transaction_logs::status.eq("failed"))
+                    .set(crate::db::schema::transaction_logs::status.eq("failed"))
                     .execute(conn)?;
             }
         }
@@ -282,7 +285,7 @@ impl TransactionLogModel for TransactionLog {
         block_height: u64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
-        use crate::schema::transaction_txo_types;
+        use crate::db::schema::transaction_txo_types;
 
         for (subaddress_index, output_txo_ids) in subaddress_to_output_txo_ids {
             let txos = Txo::select_by_id(&output_txo_ids, conn)?;
@@ -323,7 +326,7 @@ impl TransactionLogModel for TransactionLog {
                     tx: None, // NULL for received
                 };
 
-                diesel::insert_into(crate::schema::transaction_logs::table)
+                diesel::insert_into(crate::db::schema::transaction_logs::table)
                     .values(&new_transaction_log)
                     .execute(conn)?;
 
@@ -412,7 +415,7 @@ impl TransactionLogModel for TransactionLog {
                 tx: Some(mc_util_serial::encode(&tx_proposal.tx)),
             };
 
-            diesel::insert_into(crate::schema::transaction_logs::table)
+            diesel::insert_into(crate::db::schema::transaction_logs::table)
                 .values(&new_transaction_log)
                 .execute(conn)?;
 
@@ -423,7 +426,7 @@ impl TransactionLogModel for TransactionLog {
                     txo_id_hex: &txo_id_hex,
                     transaction_txo_type: &transaction_txo_type,
                 };
-                diesel::insert_into(crate::schema::transaction_txo_types::table)
+                diesel::insert_into(crate::db::schema::transaction_txo_types::table)
                     .values(&new_transaction_txo)
                     .execute(conn)?;
             }
@@ -439,7 +442,7 @@ impl TransactionLogModel for TransactionLog {
 mod tests {
     use super::*;
     use crate::{
-        db_models::account::AccountModel,
+        db::account::AccountModel,
         test_utils::{create_test_received_txo, WalletDbTestContext, MOB},
     };
     use mc_common::logger::{test_with_logger, Logger};

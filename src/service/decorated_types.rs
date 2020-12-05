@@ -2,7 +2,7 @@
 
 //! Decorated types for the service to return, with constructors from the database types.
 
-use crate::models::{AccountTxoStatus, AssignedSubaddress, TransactionLog, Txo};
+use crate::db::models::{AccountTxoStatus, AssignedSubaddress, TransactionLog, Txo};
 use mc_mobilecoind_json::data_types::{JsonTxOut, JsonTxOutMembershipElement};
 use serde_derive::{Deserialize, Serialize};
 

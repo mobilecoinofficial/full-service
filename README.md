@@ -14,7 +14,7 @@ A MobileCoin service for wallet implementations.
 1. Build
 
     ```sh
-    SGX_MODE=HW IAS_MODE=PROD CONSENSUS_ENCLAVE_CSS=$(pwd)/consensus-enclave.css cargo build --release
+    SGX_MODE=HW IAS_MODE=PROD CONSENSUS_ENCLAVE_CSS=$(pwd)/consensus-enclave.css cargo build --release -p mc-wallet-service
     ```
 
 1. Run

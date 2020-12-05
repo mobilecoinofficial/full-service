@@ -1,10 +1,12 @@
 // Copyright (c) 2020 MobileCoin Inc.
 
-use crate::service_decorated_types::{
-    JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
-    JsonListTxosResponse, JsonSubmitResponse, JsonTransactionResponse, JsonTxo,
+use crate::service::{
+    decorated_types::{
+        JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
+        JsonListTxosResponse, JsonSubmitResponse, JsonTransactionResponse, JsonTxo,
+    },
+    wallet_impl::WalletService,
 };
-use crate::service_impl::WalletService;
 use mc_connection::ThickClient;
 use mc_connection::UserTxConnection;
 use mc_fog_report_connection::FogPubkeyResolver;
@@ -417,9 +419,11 @@ pub fn rocket(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::service_impl::b58_decode;
-    use crate::test_utils::{
-        add_block_to_ledger_db, get_test_ledger, setup_grpc_peer_manager, WalletDbTestContext,
+    use crate::{
+        service::wallet_impl::b58_decode,
+        test_utils::{
+            add_block_to_ledger_db, get_test_ledger, setup_grpc_peer_manager, WalletDbTestContext,
+        },
     };
     use mc_account_keys::PublicAddress;
     use mc_common::logger::{log, test_with_logger, Logger};
@@ -432,8 +436,10 @@ mod tests {
         local::Client,
     };
     use rocket_contrib::json::JsonValue;
-    use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
-    use std::time::Duration;
+    use std::{
+        sync::atomic::{AtomicUsize, Ordering::SeqCst},
+        time::Duration,
+    };
 
     fn get_free_port() -> u16 {
         static PORT_NR: AtomicUsize = AtomicUsize::new(0);

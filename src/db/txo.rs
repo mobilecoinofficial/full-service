@@ -3,13 +3,14 @@
 //! DB impl for the Txo model.
 
 use crate::{
-    db::b58_encode,
-    db_models::{
-        account::AccountModel, account_txo_status::AccountTxoStatusModel,
+    db::{
+        account::AccountModel,
+        account_txo_status::AccountTxoStatusModel,
         assigned_subaddress::AssignedSubaddressModel,
+        b58_encode,
+        models::{Account, AccountTxoStatus, AssignedSubaddress, NewAccountTxoStatus, NewTxo, Txo},
     },
     error::WalletDbError,
-    models::{Account, AccountTxoStatus, AssignedSubaddress, NewAccountTxoStatus, NewTxo, Txo},
 };
 
 use mc_account_keys::{AccountKey, PublicAddress};
@@ -143,7 +144,7 @@ impl TxoModel for Txo {
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<String, WalletDbError> {
-        use crate::schema::txos::dsl::txos;
+        use crate::db::schema::txos::dsl::txos;
 
         let txo_id = TxoID::from(&txo);
 
@@ -176,7 +177,7 @@ impl TxoModel for Txo {
                     proof: None,
                 };
 
-                diesel::insert_into(crate::schema::txos::table)
+                diesel::insert_into(crate::db::schema::txos::table)
                     .values(&new_txo)
                     .execute(conn)?;
 
@@ -209,8 +210,8 @@ impl TxoModel for Txo {
         output_index: usize,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(Option<PublicAddress>, String, i64, String), WalletDbError> {
-        use crate::schema::account_txo_statuses;
-        use crate::schema::txos;
+        use crate::db::schema::account_txo_statuses;
+        use crate::db::schema::txos;
 
         let txo_id = TxoID::from(output);
         let mut value_sum = 0;
@@ -353,7 +354,7 @@ impl TxoModel for Txo {
         block_height: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
-        use crate::schema::txos::{key_image, received_block_height, subaddress_index};
+        use crate::db::schema::txos::{key_image, received_block_height, subaddress_index};
 
         // Verify that we have a subaddress, otherwise this transaction will be
         // unspendable.
@@ -376,7 +377,7 @@ impl TxoModel for Txo {
         txo_id: &TxoID,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
-        use crate::schema::account_txo_statuses::dsl::account_txo_statuses;
+        use crate::db::schema::account_txo_statuses::dsl::account_txo_statuses;
 
         // Find the account associated with this Txo.
         // Note: We should only be calling update_to_pending on inputs, which we had to own to spend.
@@ -384,7 +385,7 @@ impl TxoModel for Txo {
 
         // Update the status to pending.
         diesel::update(account_txo_statuses.find((&account.account_id_hex, &txo_id.to_string())))
-            .set(crate::schema::account_txo_statuses::txo_status.eq("pending".to_string()))
+            .set(crate::db::schema::account_txo_statuses::txo_status.eq("pending".to_string()))
             .execute(conn)?;
         Ok(())
     }
@@ -393,8 +394,8 @@ impl TxoModel for Txo {
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<(Txo, AccountTxoStatus)>, WalletDbError> {
-        use crate::schema::account_txo_statuses;
-        use crate::schema::txos;
+        use crate::db::schema::account_txo_statuses;
+        use crate::db::schema::txos;
 
         // FIXME: join 3 tables to also get AssignedSubaddresses
         let results: Vec<(Txo, AccountTxoStatus)> = txos::table
@@ -412,8 +413,8 @@ impl TxoModel for Txo {
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<HashMap<String, Vec<Txo>>, WalletDbError> {
-        use crate::schema::account_txo_statuses;
-        use crate::schema::txos;
+        use crate::db::schema::account_txo_statuses;
+        use crate::db::schema::txos;
 
         // FIXME: don't do 4 queries
         let unspent: Vec<Txo> = txos::table
@@ -482,7 +483,7 @@ impl TxoModel for Txo {
         txo_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(Txo, AccountTxoStatus, Option<AssignedSubaddress>), WalletDbError> {
-        use crate::schema::txos::dsl::txos;
+        use crate::db::schema::txos::dsl::txos;
 
         let txo: Txo = match txos.find(txo_id_hex).get_result::<Txo>(conn) {
             Ok(t) => t,
@@ -519,8 +520,8 @@ impl TxoModel for Txo {
         txo_ids: &Vec<String>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<(Txo, AccountTxoStatus)>, WalletDbError> {
-        use crate::schema::account_txo_statuses;
-        use crate::schema::txos;
+        use crate::db::schema::account_txo_statuses;
+        use crate::db::schema::txos;
 
         let txos: Vec<(Txo, AccountTxoStatus)> = txos::table
             .inner_join(
@@ -537,8 +538,8 @@ impl TxoModel for Txo {
         txo_ids: &Vec<String>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError> {
-        use crate::schema::account_txo_statuses;
-        use crate::schema::txos;
+        use crate::db::schema::account_txo_statuses;
+        use crate::db::schema::txos;
 
         let txos: Vec<Txo> = txos::table
             .inner_join(
@@ -558,8 +559,8 @@ impl TxoModel for Txo {
         block_height: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError> {
-        use crate::schema::account_txo_statuses;
-        use crate::schema::txos;
+        use crate::db::schema::account_txo_statuses;
+        use crate::db::schema::txos;
 
         let txos: Vec<Txo> = txos::table
             .inner_join(
@@ -582,8 +583,8 @@ impl TxoModel for Txo {
         max_spendable_value: Option<i64>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<Txo>, WalletDbError> {
-        use crate::schema::account_txo_statuses;
-        use crate::schema::txos;
+        use crate::db::schema::account_txo_statuses;
+        use crate::db::schema::txos;
 
         let mut spendable_txos: Vec<Txo> = txos::table
             .inner_join(
@@ -667,10 +668,12 @@ impl TxoModel for Txo {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db_models::account::{AccountID, AccountModel};
     use crate::{
-        models::Account,
-        sync::sync_monitor,
+        db::{
+            account::{AccountID, AccountModel},
+            models::Account,
+        },
+        service::sync::sync_monitor,
         test_utils::{
             create_test_minted_and_change_txos, create_test_received_txo, get_test_ledger,
             WalletDbTestContext, MOB,
