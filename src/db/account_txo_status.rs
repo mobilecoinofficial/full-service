@@ -3,8 +3,8 @@
 //! DB impl for the AccountTxoStatus model.
 
 use crate::{
+    db::models::{AccountTxoStatus, NewAccountTxoStatus},
     error::WalletDbError,
-    models::{AccountTxoStatus, NewAccountTxoStatus},
 };
 
 use diesel::{
@@ -42,7 +42,7 @@ impl AccountTxoStatusModel for AccountTxoStatus {
         txo_type: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
-        use crate::schema::account_txo_statuses;
+        use crate::db::schema::account_txo_statuses;
 
         let new_account_txo_status = NewAccountTxoStatus {
             account_id_hex,
@@ -63,7 +63,7 @@ impl AccountTxoStatusModel for AccountTxoStatus {
         txo_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<AccountTxoStatus, WalletDbError> {
-        use crate::schema::account_txo_statuses::dsl::account_txo_statuses;
+        use crate::db::schema::account_txo_statuses::dsl::account_txo_statuses;
 
         match account_txo_statuses
             .find((account_id_hex, &txo_id_hex))
@@ -83,7 +83,7 @@ impl AccountTxoStatusModel for AccountTxoStatus {
         &self,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
-        use crate::schema::account_txo_statuses::txo_status;
+        use crate::db::schema::account_txo_statuses::txo_status;
 
         diesel::update(self)
             .set(txo_status.eq("unspent"))

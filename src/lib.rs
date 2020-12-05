@@ -4,18 +4,11 @@
 
 pub mod config;
 mod db;
-mod db_models;
 mod error;
-pub mod models;
-pub mod schema;
-pub mod service;
-mod service_decorated_types;
-mod service_impl;
-pub mod sync;
-mod transaction_builder;
+mod service;
 
 pub use db::WalletDb;
-pub use service_impl::WalletService;
+pub use service::{wallet, WalletService};
 
 extern crate alloc;
 #[macro_use]

@@ -1,7 +1,14 @@
 // Copyright (c) 2020 MobileCoin Inc.
 
-//! Provides the CRUD implementations for our DB, and converts types to what is expected
-//! by the DB.
+//! Implementations of DB and DB models.
+
+pub mod account;
+pub mod account_txo_status;
+pub mod assigned_subaddress;
+pub mod models;
+pub mod schema;
+pub mod transaction_log;
+pub mod txo;
 
 use mc_account_keys::PublicAddress;
 use mc_common::logger::Logger;

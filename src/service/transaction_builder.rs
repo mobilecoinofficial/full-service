@@ -6,11 +6,14 @@
 //!
 //! This module, on the other hand, builds a transaction within the context of the wallet.
 
-use crate::db::WalletDb;
-use crate::db_models::{account::AccountModel, txo::TxoModel};
-use crate::error::WalletTransactionBuilderError;
-use crate::models::{Account, Txo};
-
+use crate::{
+    db::{
+        models::{Account, Txo},
+        WalletDb,
+        {account::AccountModel, txo::TxoModel},
+    },
+    error::WalletTransactionBuilderError,
+};
 use mc_account_keys::{AccountKey, PublicAddress};
 use mc_common::logger::{log, Logger};
 use mc_common::{HashMap, HashSet};

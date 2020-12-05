@@ -10,7 +10,7 @@ use mc_attest_core::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
 use mc_common::logger::{create_app_logger, log, o};
 use mc_ledger_sync::{LedgerSyncServiceThread, PollingNetworkState, ReqwestTransactionsFetcher};
 use mc_wallet_service::config::APIConfig;
-use mc_wallet_service::service::{rocket, WalletState};
+use mc_wallet_service::wallet::{rocket, WalletState};
 use mc_wallet_service::{WalletDb, WalletService};
 use std::sync::{Arc, RwLock};
 use structopt::StructOpt;

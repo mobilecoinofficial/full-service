@@ -1,10 +1,8 @@
 // Copyright (c) 2020 MobileCoin Inc.
 
 use crate::{
-    db::WalletDb,
-    db_models::{account::AccountID, txo::TxoModel},
-    models::Txo,
-    transaction_builder::WalletTransactionBuilder,
+    db::{account::AccountID, models::Txo, txo::TxoModel, WalletDb},
+    service::transaction_builder::WalletTransactionBuilder,
 };
 use diesel::{prelude::*, SqliteConnection};
 use diesel_migrations::embed_migrations;
@@ -22,10 +20,8 @@ use mc_transaction_core::{
 };
 use mc_transaction_core::{Block, BlockContents, BLOCK_VERSION};
 use mc_util_from_random::FromRandom;
-use rand::rngs::StdRng;
-use rand::{distributions::Alphanumeric, thread_rng, Rng};
-use std::path::PathBuf;
-use std::sync::Arc;
+use rand::{distributions::Alphanumeric, rngs::StdRng, thread_rng, Rng};
+use std::{path::PathBuf, sync::Arc};
 use tempdir::TempDir;
 
 embed_migrations!("migrations/");
@@ -33,7 +29,7 @@ embed_migrations!("migrations/");
 pub const MOB: i64 = 1_000_000_000_000;
 
 /// The amount each recipient gets in the test ledger.
-pub const DEFAULT_PER_RECIPIENT_AMOUNT: u64 = 5_000 * 1_000_000_000_000;
+pub const DEFAULT_PER_RECIPIENT_AMOUNT: u64 = 5_000 * MOB as u64;
 
 pub struct WalletDbTestContext {
     base_url: String,

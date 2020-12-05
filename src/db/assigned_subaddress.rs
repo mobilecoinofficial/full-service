@@ -3,10 +3,12 @@
 //! DB impl for the AssignedSubaddress model
 
 use crate::{
-    db::b58_encode,
-    db_models::account::{AccountID, AccountModel},
+    db::{
+        account::{AccountID, AccountModel},
+        b58_encode,
+        models::{Account, AssignedSubaddress, NewAssignedSubaddress},
+    },
     error::WalletDbError,
-    models::{Account, AssignedSubaddress, NewAssignedSubaddress},
 };
 
 use mc_account_keys::AccountKey;
@@ -56,7 +58,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         comment: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<String, WalletDbError> {
-        use crate::schema::assigned_subaddresses;
+        use crate::db::schema::assigned_subaddresses;
 
         let account_id = AccountID::from(account_key);
 
@@ -84,8 +86,8 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         comment: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(String, i64), WalletDbError> {
-        use crate::schema::accounts::dsl::accounts;
-        use crate::schema::assigned_subaddresses;
+        use crate::db::schema::accounts::dsl::accounts;
+        use crate::db::schema::assigned_subaddresses;
 
         let account = Account::get(account_id_hex, conn)?;
 
@@ -114,8 +116,8 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         let sync_from = 0;
         diesel::update(accounts.find(account_id_hex))
             .set((
-                crate::schema::accounts::next_subaddress_index.eq(subaddress_index + 1),
-                crate::schema::accounts::next_block.eq(sync_from),
+                crate::db::schema::accounts::next_subaddress_index.eq(subaddress_index + 1),
+                crate::db::schema::accounts::next_block.eq(sync_from),
             ))
             .execute(conn)?;
 
@@ -126,7 +128,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         public_address_b58: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<AssignedSubaddress, WalletDbError> {
-        use crate::schema::assigned_subaddresses::dsl::assigned_subaddresses;
+        use crate::db::schema::assigned_subaddresses::dsl::assigned_subaddresses;
         let assigned_subaddress: AssignedSubaddress = match assigned_subaddresses
             .find(&public_address_b58)
             .get_result::<AssignedSubaddress>(conn)
@@ -147,8 +149,8 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         subaddress_spend_public_key: &RistrettoPublic,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(i64, String), WalletDbError> {
-        use crate::schema::assigned_subaddresses::dsl::assigned_subaddresses;
-        use crate::schema::assigned_subaddresses::{
+        use crate::db::schema::assigned_subaddresses::dsl::assigned_subaddresses;
+        use crate::db::schema::assigned_subaddresses::{
             account_id_hex, subaddress_index, subaddress_spend_key,
         };
 
@@ -176,8 +178,8 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<AssignedSubaddress>, WalletDbError> {
-        use crate::schema::accounts;
-        use crate::schema::assigned_subaddresses;
+        use crate::db::schema::accounts;
+        use crate::db::schema::assigned_subaddresses;
 
         let results: Vec<AssignedSubaddress> = accounts::table
             .inner_join(

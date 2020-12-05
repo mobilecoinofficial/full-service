@@ -3,20 +3,22 @@
 //! The implementation of the wallet service methods.
 
 use crate::{
+    db::models::{Account, AssignedSubaddress, TransactionLog, Txo},
     db::WalletDb,
-    db_models::{
+    db::{
         account::AccountModel, assigned_subaddress::AssignedSubaddressModel,
         transaction_log::TransactionLogModel, txo::TxoModel,
     },
     error::WalletServiceError,
-    models::{Account, AssignedSubaddress, TransactionLog, Txo},
-    service_decorated_types::{
-        JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
-        JsonCreateAccountResponse, JsonImportAccountResponse, JsonListTxosResponse,
-        JsonSubmitResponse, JsonTransactionResponse, JsonTxo,
+    service::{
+        decorated_types::{
+            JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
+            JsonCreateAccountResponse, JsonImportAccountResponse, JsonListTxosResponse,
+            JsonSubmitResponse, JsonTransactionResponse, JsonTxo,
+        },
+        sync::SyncThread,
+        transaction_builder::WalletTransactionBuilder,
     },
-    sync::SyncThread,
-    transaction_builder::WalletTransactionBuilder,
 };
 use mc_account_keys::{
     AccountKey, PublicAddress, RootEntropy, RootIdentity, DEFAULT_SUBADDRESS_INDEX,
