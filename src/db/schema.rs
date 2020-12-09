@@ -44,7 +44,7 @@ table! {
         value -> BigInt,
         fee -> Nullable<BigInt>,
         status -> Text,
-        sent_time -> Text,
+        sent_time -> Nullable<BigInt>,
         block_height -> BigInt,
         comment -> Text,
         direction -> Text,

@@ -327,7 +327,7 @@ impl TransactionLogModel for TransactionLog {
                     value: txo.value,
                     fee: None, // Impossible to recover fee from received transaction
                     status: "succeeded",
-                    sent_time: "", // NULL for received
+                    sent_time: None, // NULL for received
                     block_height: block_height as i64,
                     comment: "", // NULL for received
                     direction: "received",
@@ -414,7 +414,7 @@ impl TransactionLogModel for TransactionLog {
                 value: transaction_value as i64,
                 fee: Some(tx_proposal.tx.prefix.fee as i64),
                 status: "pending",
-                sent_time: &Utc::now().to_string(),
+                sent_time: Some(Utc::now().timestamp()),
                 block_height: block_height as i64, // FIXME: is this going to do what we want? It's
                 // submitted block height, but not necessarily when it hits the ledger - would we
                 // update when we see a key_image from this transaction?

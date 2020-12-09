@@ -64,7 +64,7 @@ CREATE TABLE transaction_logs (
     value UNSIGNED BIG INT NOT NULL,
     fee UNSIGNED BIG INT,
     status VARCHAR(8) NOT NULL,
-    sent_time VARCHAR NOT NULL DEFAULT '',
+    sent_time UNSIGNED BIG INT,
     block_height UNSIGNED BIG INT NOT NULL,
     comment TEXT NOT NULL DEFAULT '',
     direction VARCHAR(8) NOT NULL,

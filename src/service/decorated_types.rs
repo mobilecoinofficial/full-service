@@ -3,6 +3,7 @@
 //! Decorated types for the service to return, with constructors from the database types.
 
 use crate::db::models::{AccountTxoStatus, AssignedSubaddress, TransactionLog, Txo};
+use chrono::{TimeZone, Utc};
 use mc_mobilecoind_json::data_types::{JsonTxOut, JsonTxOutMembershipElement};
 use serde_derive::{Deserialize, Serialize};
 
@@ -154,7 +155,10 @@ impl JsonTransactionResponse {
             value: transaction_log.value.to_string(),
             fee: transaction_log.fee.map(|x| x.to_string()),
             status: transaction_log.status.clone(),
-            sent_time: transaction_log.sent_time.clone(),
+            sent_time: transaction_log
+                .sent_time
+                .map(|t| Utc.timestamp(t, 0).to_string())
+                .unwrap_or("".to_string()),
             block_height: transaction_log.block_height.to_string(),
             comment: transaction_log.comment.clone(),
             direction: transaction_log.direction.clone(),

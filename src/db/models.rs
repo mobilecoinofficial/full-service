@@ -138,7 +138,7 @@ pub struct TransactionLog {
     pub fee: Option<i64>,
     // Statuses: proposed, pending, succeeded, failed
     pub status: String,
-    pub sent_time: String, // empty string for nullable
+    pub sent_time: Option<i64>, // empty string for nullable
     pub block_height: i64,
     pub comment: String, // empty string for nullable
     // Directions: sent, received
@@ -156,7 +156,7 @@ pub struct NewTransactionLog<'a> {
     pub value: i64,
     pub fee: Option<i64>,
     pub status: &'a str,
-    pub sent_time: &'a str,
+    pub sent_time: Option<i64>,
     pub block_height: i64,
     pub comment: &'a str,
     pub direction: &'a str,

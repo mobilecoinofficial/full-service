@@ -296,14 +296,9 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
         }
 
         let change = input_value as u64 - total_value - self.transaction_builder.fee;
-        // println!(
-        //     "\x1b[1;31m TRANSACTION BUILDER calcualted change to {:?}\x1b[0m",
-        //     change
-        // );
 
         // If we do, add an output for that as well.
         if change > 0 {
-            // println!("\x1b[1;32m Change > 0 so actually adding output for it \x1b[0m");
             let change_public_address =
                 from_account_key.subaddress(account.change_subaddress_index as u64);
             let main_public_address =
