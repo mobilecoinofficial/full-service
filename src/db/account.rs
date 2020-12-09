@@ -11,7 +11,7 @@ use crate::{
     error::WalletDbError,
 };
 
-use mc_account_keys::{AccountKey, PublicAddress, DEFAULT_SUBADDRESS_INDEX};
+use mc_account_keys::{AccountKey, DEFAULT_SUBADDRESS_INDEX};
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_transaction_core::ring_signature::KeyImage;
 
@@ -27,16 +27,7 @@ pub struct AccountID(String);
 impl From<&AccountKey> for AccountID {
     fn from(src: &AccountKey) -> AccountID {
         let main_subaddress = src.subaddress(DEFAULT_SUBADDRESS_INDEX);
-        /// The account ID is derived from the contents of the account key
-        #[derive(Digestible)]
-        struct ConstAccountData {
-            /// The public address of the main subaddress for this account
-            pub address: PublicAddress,
-        }
-        let const_data = ConstAccountData {
-            address: main_subaddress.clone(),
-        };
-        let temp: [u8; 32] = const_data.digest32::<MerlinTranscript>(b"account_data");
+        let temp: [u8; 32] = main_subaddress.digest32::<MerlinTranscript>(b"account_data");
         Self(hex::encode(temp))
     }
 }

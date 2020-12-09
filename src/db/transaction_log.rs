@@ -33,13 +33,7 @@ pub struct TransactionID(String);
 // TransactionID is formed from the contents of the transaction when sent
 impl From<&Tx> for TransactionID {
     fn from(src: &Tx) -> TransactionID {
-        /// The transaction ID is derived from the contents of the transaction
-        #[derive(Digestible)]
-        struct ConstTransactionData {
-            pub tx: Tx,
-        }
-        let const_data = ConstTransactionData { tx: src.clone() };
-        let temp: [u8; 32] = const_data.digest32::<MerlinTranscript>(b"transaction_data");
+        let temp: [u8; 32] = src.digest32::<MerlinTranscript>(b"transaction_data");
         Self(hex::encode(temp))
     }
 }
