@@ -392,10 +392,10 @@ commands:
             fi
 
 jobs:
-  # A job that builds all the tests in project root (internal stuff), and stores them in a test-bins/ directory.
+  # A job that builds all the tests in project root, and stores them in a test-bins/ directory.
   # This directory then gets uploaded to the CircleCI workflow's workspace to be consumed
   # by the run-parallel-tests jobs
-  build-internal-parallel-tests:
+  build-parallel-tests:
     executor: build-executor
     environment:
       <<: *default-build-environment
@@ -452,7 +452,7 @@ jobs:
           steps: [ save-sccache-cache ]
       - post-build
 
-  run-internal-parallel-tests:
+  run-parallel-tests:
     executor: test-executor
     parallelism: 1
     environment:
@@ -498,7 +498,7 @@ jobs:
       - post-build
 
   # Run tests on a single container
-  run-internal-tests:
+  run-tests:
     executor: build-executor
     parallelism: 1
     environment:
@@ -513,8 +513,8 @@ jobs:
       - post-build
       - post-test
 
-  # Build and lint internal in debug mode
-  build-and-lint-internal-debug:
+  # Build and lint in debug mode
+  build-and-lint-debug:
     executor: build-executor
     environment:
       <<: *default-build-environment
@@ -522,20 +522,20 @@ jobs:
       - prepare-for-build
       - cargo-check
 
-      # The lint and saving of caches happens here since this job is faster than the run-internal-tests job.
+      # The lint and saving of caches happens here since this job is faster than the run-tests job.
       # This results in shorter CI times.
       - lint
       - generate-docs
       - deploy-docs:
-          path: "internal"
+          path: "wallet-service"
       - check-dirty-git
       - when:
           condition: { equal: [ << pipeline.git.branch >>, master ] }
           steps: [ save-cargo-cache, save-sccache-cache ]
       - post-build
 
-  # Build internal in release mode
-  build-internal-release:
+  # Build in release mode
+  build-release:
     executor: build-executor
     environment:
       <<: *default-build-environment
@@ -562,10 +562,10 @@ jobs:
       <<: *default-build-environment
       SCCACHE_CACHE_SIZE: 450M
       RUSTFLAGS: -D warnings -C target-cpu=penryn
-      CONSENSUS_ENCLAVE_CSS: /Users/distiller/project/public/sgx/css/src/valid.css
-      INGEST_ENCLAVE_CSS: /Users/distiller/project/public/sgx/css/src/valid.css
-      LEDGER_ENCLAVE_CSS: /Users/distiller/project/public/sgx/css/src/valid.css
-      VIEW_ENCLAVE_CSS: /Users/distiller/project/public/sgx/css/src/valid.css
+      CONSENSUS_ENCLAVE_CSS: /Users/distiller/project/mobilecoin/sgx/css/src/valid.css
+      INGEST_ENCLAVE_CSS: /Users/distiller/project/mobilecoin/sgx/css/src/valid.css
+      LEDGER_ENCLAVE_CSS: /Users/distiller/project/mobilecoin/sgx/css/src/valid.css
+      VIEW_ENCLAVE_CSS: /Users/distiller/project/mobilecoin/sgx/css/src/valid.css
     steps:
       - prepare-for-build:
           os: macos
@@ -615,14 +615,14 @@ workflows:
   build-and-run-tests:
     jobs:
       # Run tests on a single container
-      - run-internal-tests
+      - run-tests
 
       # Build everything in debug
-      - build-and-lint-internal-debug
+      - build-and-lint-debug
 
       # build everything in release - currently disabled since it's a waste of CPU/$
-      # - build-internal-release
-      # - build-public-release
+      # - build-release
+      # - build-mobilecoin-release
 
       # Build using macOS
       - build-macos:
