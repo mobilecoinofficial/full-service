@@ -10,7 +10,7 @@ CREATE TABLE accounts (
   UNIQUE (account_id_hex)
 );
 
-create TABLE txos (
+CREATE TABLE txos (
   txo_id_hex VARCHAR NOT NULL PRIMARY KEY UNIQUE,
   value UNSIGNED BIG INT NOT NULL,
   target_key BLOB NOT NULL,
@@ -25,7 +25,7 @@ create TABLE txos (
   proof BLOB
 );
 
-create TABLE account_txo_statuses (
+CREATE TABLE account_txo_statuses (
   account_id_hex VARCHAR NOT NULL,
   txo_id_hex VARCHAR NOT NULL,
   txo_status VARCHAR(8) NOT NULL,
@@ -35,10 +35,10 @@ create TABLE account_txo_statuses (
   FOREIGN KEY (txo_id_hex) REFERENCES txos(txo_id_hex)
 );
 
-create TABLE assigned_subaddresses (
+CREATE TABLE assigned_subaddresses (
   assigned_subaddress_b58 VARCHAR NOT NULL PRIMARY KEY,
   account_id_hex VARCHAR NOT NULL,
-  address_book_entry UNSIGNED BIG INT, -- FIXME add foreign key from address book table
+  address_book_entry UNSIGNED BIG INT, -- FIXME add foreign key to address book table
   public_address BLOB NOT NULL,
   subaddress_index UNSIGNED BIG INT NOT NULL,
   comment VARCHAR NOT NULL DEFAULT '',
@@ -46,10 +46,10 @@ create TABLE assigned_subaddresses (
   FOREIGN KEY (account_id_hex) REFERENCES accounts(account_id_hex)
 );
 
-create TABLE transaction_logs (
+CREATE TABLE transaction_logs (
     transaction_id_hex VARCHAR NOT NULL PRIMARY KEY UNIQUE,
     account_id_hex VARCHAR NOT NULL,
-    recipient_public_address_b58 VARCHAR NOT NULL DEFAULT '', -- FIXME add foreign key from recipient public addresses table
+    recipient_public_address_b58 VARCHAR NOT NULL DEFAULT '', -- FIXME add foreign key to recipient public addresses table
     assigned_subaddress_b58 VARCHAR NOT NULL DEFAULT '',
     value UNSIGNED BIG INT NOT NULL,
     fee UNSIGNED BIG INT,
@@ -63,7 +63,7 @@ create TABLE transaction_logs (
     FOREIGN KEY (assigned_subaddress_b58) REFERENCES assigned_subaddresses(assigned_subaddress_b58)
 );
 
-create TABLE transaction_txo_types (
+CREATE TABLE transaction_txo_types (
     transaction_id_hex VARCHAR NOT NULL,
     txo_id_hex VARCHAR NOT NULL,
     transaction_txo_type VARCHAR(6) NOT NULL,
