@@ -31,13 +31,7 @@ pub struct TxoID(String);
 
 impl From<&TxOut> for TxoID {
     fn from(src: &TxOut) -> TxoID {
-        /// The txo ID is derived from the contents of the txo
-        #[derive(Digestible)]
-        struct ConstTxoData {
-            pub txo: TxOut,
-        }
-        let const_data = ConstTxoData { txo: src.clone() };
-        let temp: [u8; 32] = const_data.digest32::<MerlinTranscript>(b"txo_data");
+        let temp: [u8; 32] = src.digest32::<MerlinTranscript>(b"txo_data");
         Self(hex::encode(temp))
     }
 }
