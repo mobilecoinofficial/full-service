@@ -86,7 +86,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         comment: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(String, i64), WalletDbError> {
-        use crate::db::schema::accounts::dsl::accounts;
+        use crate::db::schema::accounts::dsl::{account_id_hex as dsl_account_id_hex, accounts};
         use crate::db::schema::assigned_subaddresses;
 
         let account = Account::get(account_id_hex, conn)?;
@@ -114,7 +114,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         //       ledger for this new subaddress.
         // FIXME: pass in a "sync from" block rather than 0
         let sync_from = 0;
-        diesel::update(accounts.find(account_id_hex))
+        diesel::update(accounts.filter(dsl_account_id_hex.eq(account_id_hex)))
             .set((
                 crate::db::schema::accounts::next_subaddress_index.eq(subaddress_index + 1),
                 crate::db::schema::accounts::next_block.eq(sync_from),
@@ -128,9 +128,12 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         public_address_b58: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<AssignedSubaddress, WalletDbError> {
-        use crate::db::schema::assigned_subaddresses::dsl::assigned_subaddresses;
+        use crate::db::schema::assigned_subaddresses::dsl::{
+            assigned_subaddress_b58, assigned_subaddresses,
+        };
+
         let assigned_subaddress: AssignedSubaddress = match assigned_subaddresses
-            .find(&public_address_b58)
+            .filter(assigned_subaddress_b58.eq(&public_address_b58))
             .get_result::<AssignedSubaddress>(conn)
         {
             Ok(t) => t,

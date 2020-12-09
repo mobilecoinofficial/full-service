@@ -8,7 +8,8 @@ table! {
 }
 
 table! {
-    accounts (account_id_hex) {
+    accounts (id) {
+        id -> Integer,
         account_id_hex -> Text,
         encrypted_account_key -> Binary,
         main_subaddress_index -> BigInt,
@@ -21,7 +22,8 @@ table! {
 }
 
 table! {
-    assigned_subaddresses (assigned_subaddress_b58) {
+    assigned_subaddresses (id) {
+        id -> Integer,
         assigned_subaddress_b58 -> Text,
         account_id_hex -> Text,
         address_book_entry -> Nullable<BigInt>,
@@ -33,7 +35,8 @@ table! {
 }
 
 table! {
-    transaction_logs (transaction_id_hex) {
+    transaction_logs (id) {
+        id -> Integer,
         transaction_id_hex -> Text,
         account_id_hex -> Text,
         recipient_public_address_b58 -> Text,
@@ -58,7 +61,8 @@ table! {
 }
 
 table! {
-    txos (txo_id_hex) {
+    txos (id) {
+        id -> Integer,
         txo_id_hex -> Text,
         value -> BigInt,
         target_key -> Binary,
@@ -73,14 +77,6 @@ table! {
         proof -> Nullable<Binary>,
     }
 }
-
-joinable!(account_txo_statuses -> accounts (account_id_hex));
-joinable!(account_txo_statuses -> txos (txo_id_hex));
-joinable!(assigned_subaddresses -> accounts (account_id_hex));
-joinable!(transaction_logs -> accounts (account_id_hex));
-joinable!(transaction_logs -> assigned_subaddresses (assigned_subaddress_b58));
-joinable!(transaction_txo_types -> transaction_logs (transaction_id_hex));
-joinable!(transaction_txo_types -> txos (txo_id_hex));
 
 allow_tables_to_appear_in_same_query!(
     account_txo_statuses,

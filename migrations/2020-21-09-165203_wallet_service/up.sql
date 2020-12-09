@@ -1,5 +1,6 @@
 CREATE TABLE accounts (
-  account_id_hex VARCHAR NOT NULL PRIMARY KEY,
+  id INTEGER NOT NULL PRIMARY KEY,
+  account_id_hex VARCHAR NOT NULL UNIQUE,
   encrypted_account_key BLOB NOT NULL,
   main_subaddress_index UNSIGNED BIG INT NOT NULL,
   change_subaddress_index UNSIGNED BIG INT NOT NULL,
@@ -10,8 +11,11 @@ CREATE TABLE accounts (
   UNIQUE (account_id_hex)
 );
 
+CREATE UNIQUE INDEX idx_accounts__account_id_hex ON accounts (account_id_hex);
+
 CREATE TABLE txos (
-  txo_id_hex VARCHAR NOT NULL PRIMARY KEY UNIQUE,
+  id INTEGER NOT NULL PRIMARY KEY,
+  txo_id_hex VARCHAR NOT NULL UNIQUE,
   value UNSIGNED BIG INT NOT NULL,
   target_key BLOB NOT NULL,
   public_key BLOB NOT NULL,
@@ -25,6 +29,8 @@ CREATE TABLE txos (
   proof BLOB
 );
 
+CREATE UNIQUE INDEX idx_txos__txo_id_hex ON txos (txo_id_hex);
+
 CREATE TABLE account_txo_statuses (
   account_id_hex VARCHAR NOT NULL,
   txo_id_hex VARCHAR NOT NULL,
@@ -36,7 +42,8 @@ CREATE TABLE account_txo_statuses (
 );
 
 CREATE TABLE assigned_subaddresses (
-  assigned_subaddress_b58 VARCHAR NOT NULL PRIMARY KEY,
+  id INTEGER NOT NULL PRIMARY KEY,
+  assigned_subaddress_b58 VARCHAR NOT NULL UNIQUE,
   account_id_hex VARCHAR NOT NULL,
   address_book_entry UNSIGNED BIG INT, -- FIXME add foreign key to address book table
   public_address BLOB NOT NULL,
@@ -46,8 +53,11 @@ CREATE TABLE assigned_subaddresses (
   FOREIGN KEY (account_id_hex) REFERENCES accounts(account_id_hex)
 );
 
+CREATE UNIQUE INDEX idx_assigned_subaddresses__assigned_subaddress_b58 ON assigned_subaddresses (assigned_subaddress_b58);
+
 CREATE TABLE transaction_logs (
-    transaction_id_hex VARCHAR NOT NULL PRIMARY KEY UNIQUE,
+    id INTEGER NOT NULL PRIMARY KEY,
+    transaction_id_hex VARCHAR NOT NULL UNIQUE,
     account_id_hex VARCHAR NOT NULL,
     recipient_public_address_b58 VARCHAR NOT NULL DEFAULT '', -- FIXME add foreign key to recipient public addresses table
     assigned_subaddress_b58 VARCHAR NOT NULL DEFAULT '',
@@ -62,6 +72,8 @@ CREATE TABLE transaction_logs (
     FOREIGN KEY (account_id_hex) REFERENCES accounts(account_id_hex),
     FOREIGN KEY (assigned_subaddress_b58) REFERENCES assigned_subaddresses(assigned_subaddress_b58)
 );
+
+CREATE UNIQUE INDEX idx_transaction_logs__transaction_id_hex ON transaction_logs (transaction_id_hex);
 
 CREATE TABLE transaction_txo_types (
     transaction_id_hex VARCHAR NOT NULL,

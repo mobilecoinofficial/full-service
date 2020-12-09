@@ -10,8 +10,9 @@ use super::schema::{
 use serde::Serialize;
 
 #[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
-#[primary_key(account_id_hex)]
+#[primary_key(id)]
 pub struct Account {
+    pub id: i32,
     pub account_id_hex: String,
     pub encrypted_account_key: Vec<u8>,
     pub main_subaddress_index: i64,
@@ -38,8 +39,9 @@ pub struct NewAccount<'a> {
 }
 
 #[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
-#[primary_key(txo_id_hex)]
+#[primary_key(id)]
 pub struct Txo {
+    pub id: i32,
     pub txo_id_hex: String,
     pub value: i64,
     pub target_key: Vec<u8>,
@@ -96,9 +98,10 @@ pub struct NewAccountTxoStatus<'a> {
 
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
 #[belongs_to(Account, foreign_key = "account_id_hex")]
-#[primary_key(assigned_subaddress_b58)]
+#[primary_key(id)]
 #[table_name = "assigned_subaddresses"]
 pub struct AssignedSubaddress {
+    pub id: i32,
     pub assigned_subaddress_b58: String,
     pub account_id_hex: String,
     pub address_book_entry: Option<i64>,
@@ -123,9 +126,10 @@ pub struct NewAssignedSubaddress<'a> {
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
 #[belongs_to(Account, foreign_key = "account_id_hex")]
 #[belongs_to(AssignedSubaddress, foreign_key = "assigned_subaddress_b58")]
-#[primary_key(transaction_id_hex)]
+#[primary_key(id)]
 #[table_name = "transaction_logs"]
 pub struct TransactionLog {
+    pub id: i32,
     pub transaction_id_hex: String,
     pub account_id_hex: String,
     pub recipient_public_address_b58: String, // empty string for nullable

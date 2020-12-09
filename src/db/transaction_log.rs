@@ -111,10 +111,12 @@ impl TransactionLogModel for TransactionLog {
         transaction_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<TransactionLog, WalletDbError> {
-        use crate::db::schema::transaction_logs::dsl::transaction_logs;
+        use crate::db::schema::transaction_logs::dsl::{
+            transaction_id_hex as dsl_transaction_id_hex, transaction_logs,
+        };
 
         match transaction_logs
-            .find(transaction_id_hex)
+            .filter(dsl_transaction_id_hex.eq(transaction_id_hex))
             .get_result::<TransactionLog>(conn)
         {
             Ok(a) => Ok(a),
@@ -247,7 +249,7 @@ impl TransactionLogModel for TransactionLog {
         cur_block_height: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::transaction_logs::dsl::transaction_logs;
+        use crate::db::schema::transaction_logs::dsl::{transaction_id_hex, transaction_logs};
 
         let associated_transaction_logs = Self::select_for_txo(txo_id_hex, conn)?;
 
@@ -262,17 +264,23 @@ impl TransactionLogModel for TransactionLog {
             // Check whether all the inputs have been spent or if any failed, and update accordingly
             if Txo::are_all_spent(&inputs, conn)? {
                 // FIXME: do we want to store "submitted_block_height" to disambiguate block_height?
-                diesel::update(transaction_logs.find(&transaction_log.transaction_id_hex))
-                    .set((
-                        crate::db::schema::transaction_logs::status.eq("succeeded"),
-                        crate::db::schema::transaction_logs::block_height.eq(cur_block_height),
-                    ))
-                    .execute(conn)?;
+                diesel::update(
+                    transaction_logs
+                        .filter(transaction_id_hex.eq(&transaction_log.transaction_id_hex)),
+                )
+                .set((
+                    crate::db::schema::transaction_logs::status.eq("succeeded"),
+                    crate::db::schema::transaction_logs::block_height.eq(cur_block_height),
+                ))
+                .execute(conn)?;
             } else if Txo::any_failed(&inputs, cur_block_height, conn)? {
                 // FIXME: Do we want to store and update the "failed_block_height" as min(tombstones)?
-                diesel::update(transaction_logs.find(&transaction_log.transaction_id_hex))
-                    .set(crate::db::schema::transaction_logs::status.eq("failed"))
-                    .execute(conn)?;
+                diesel::update(
+                    transaction_logs
+                        .filter(transaction_id_hex.eq(&transaction_log.transaction_id_hex)),
+                )
+                .set(crate::db::schema::transaction_logs::status.eq("failed"))
+                .execute(conn)?;
             }
         }
 
