@@ -1,6 +1,6 @@
-DROP TABLE accounts;
-DROP TABLE txos;
-DROP TABLE account_txo_statuses;
-DROP TABLE assigned_subaddresses;
-drop TABLE transaction_logs;
 drop TABLE transaction_txo_types;
+drop TABLE transaction_logs;
+DROP TABLE assigned_subaddresses;
+DROP TABLE account_txo_statuses;
+DROP TABLE txos;
+DROP TABLE accounts;

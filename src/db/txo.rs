@@ -673,7 +673,7 @@ mod tests {
             account::{AccountID, AccountModel},
             models::Account,
         },
-        service::sync::sync_monitor,
+        service::sync::sync_account,
         test_utils::{
             create_test_minted_and_change_txos, create_test_received_txo, get_test_ledger,
             WalletDbTestContext, MOB,
@@ -962,7 +962,7 @@ mod tests {
         .unwrap();
 
         // Process the txos in the ledger into the DB
-        sync_monitor(
+        sync_account(
             &ledger_db,
             &wallet_db,
             &AccountID::from(&src_account).to_string(),

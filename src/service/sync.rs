@@ -58,18 +58,18 @@ use std::{
 ///  The maximal number of blocks a worker thread would process at once.
 const MAX_BLOCKS_PROCESSING_CHUNK_SIZE: usize = 5;
 
-/// The MonitorId corresponds to the Account's primary key: account_key_hex.
-pub type MonitorId = String;
+/// The AccountId corresponds to the Account's primary key: account_key_hex.
+pub type AccountId = String;
 
 /// Message type our crossbeam channel uses to communicate with the worker thread pull.
 enum SyncMsg {
-    SyncMonitor(MonitorId),
+    SyncAccount(AccountId),
     Stop,
 }
 
-/// Possible return values for the `sync_monitor` function.
+/// Possible return values for the `sync_account` function.
 #[derive(Debug, Eq, PartialEq)]
-pub enum SyncMonitorOk {
+pub enum SyncAccountOk {
     /// No more blocks are currently available for processing.
     NoMoreBlocks,
 
@@ -96,9 +96,9 @@ impl SyncThread {
         // Queue for sending jobs to our worker threads.
         let (sender, receiver) = crossbeam_channel::unbounded::<SyncMsg>();
 
-        // A hashset to keep track of which MonitorIds were already sent to the queue,
+        // A hashset to keep track of which AccountIds were already sent to the queue,
         // preventing them from being sent again until they are processed.
-        let queued_monitor_ids = Arc::new(Mutex::new(HashSet::<MonitorId>::default()));
+        let queued_account_ids = Arc::new(Mutex::new(HashSet::<AccountId>::default()));
 
         // Create worker threads.
         let mut worker_join_handles = Vec::new();
@@ -108,7 +108,7 @@ impl SyncThread {
             let thread_wallet_db = wallet_db.clone();
             let thread_sender = sender.clone();
             let thread_receiver = receiver.clone();
-            let thread_queued_monitor_ids = queued_monitor_ids.clone();
+            let thread_queued_account_ids = queued_account_ids.clone();
             let thread_logger = logger.clone();
             let join_handle = thread::Builder::new()
                 .name(format!("sync_worker_{}", idx))
@@ -118,7 +118,7 @@ impl SyncThread {
                         thread_wallet_db,
                         thread_sender,
                         thread_receiver,
-                        thread_queued_monitor_ids,
+                        thread_queued_account_ids,
                         thread_logger,
                     );
                 })
@@ -128,7 +128,7 @@ impl SyncThread {
         }
 
         // Start the main sync thread.
-        // This thread constantly monitors the list of monitor ids we are aware of,
+        // This thread constantly accounts the list of account ids we are aware of,
         // and adds new one into our cyclic queue.
         let stop_requested = Arc::new(AtomicBool::new(false));
         let thread_stop_requested = stop_requested.clone();
@@ -152,7 +152,7 @@ impl SyncThread {
 
                         // A flag to track whether we sent a message to our work queue.
                         // If we sent a message, that means new blocks have arrived and we can skip sleeping.
-                        // If no new blocks arrived, and we haven't had to sync any monitors, we can sleep for
+                        // If no new blocks arrived, and we haven't had to sync any accounts, we can sleep for
                         // a bit so that we do not use 100% cpu.
                         let mut message_sent = false;
 
@@ -169,9 +169,9 @@ impl SyncThread {
                                 continue;
                             }
 
-                            let mut queued_monitor_ids =
-                                queued_monitor_ids.lock().expect("mutex poisoned");
-                            if !queued_monitor_ids.insert(account.account_id_hex.clone()) {
+                            let mut queued_account_ids =
+                                queued_account_ids.lock().expect("mutex poisoned");
+                            if !queued_account_ids.insert(account.account_id_hex.clone()) {
                                 // Already queued, no need to add again to queue at this point.
                                 log::trace!(
                                     logger,
@@ -184,11 +184,11 @@ impl SyncThread {
                             // This account has blocks to process, put it in the queue.
                             log::debug!(
                                 logger,
-                                "sync thread noticed monitor {} needs syncing",
+                                "sync thread noticed account {} needs syncing",
                                 account.account_id_hex,
                             );
                             sender
-                                .send(SyncMsg::SyncMonitor(account.account_id_hex))
+                                .send(SyncMsg::SyncAccount(account.account_id_hex))
                                 .expect("failed sending to queue");
                             message_sent = true;
                         }
@@ -251,35 +251,35 @@ fn sync_thread_entry_point(
     wallet_db: WalletDb,
     sender: crossbeam_channel::Sender<SyncMsg>,
     receiver: crossbeam_channel::Receiver<SyncMsg>,
-    queued_monitor_ids: Arc<Mutex<HashSet<MonitorId>>>,
+    queued_account_ids: Arc<Mutex<HashSet<AccountId>>>,
     logger: Logger,
 ) {
     for msg in receiver.iter() {
         match msg {
-            SyncMsg::SyncMonitor(monitor_id) => {
-                match sync_monitor(&ledger_db, &wallet_db, &monitor_id, &logger) {
+            SyncMsg::SyncAccount(account_id) => {
+                match sync_account(&ledger_db, &wallet_db, &account_id, &logger) {
                     // Success - No more blocks are currently available.
-                    Ok(SyncMonitorOk::NoMoreBlocks) => {
-                        // Remove the monitor id from the list of queued ones so that the main thread could
+                    Ok(SyncAccountOk::NoMoreBlocks) => {
+                        // Remove the account id from the list of queued ones so that the main thread could
                         // queue it again if necessary.
-                        log::trace!(logger, "{}: sync_monitor returned NoMoreBlocks", monitor_id);
+                        log::trace!(logger, "{}: sync_account returned NoMoreBlocks", account_id);
 
-                        let mut queued_monitor_ids =
-                            queued_monitor_ids.lock().expect("mutex poisoned");
-                        queued_monitor_ids.remove(&monitor_id);
+                        let mut queued_account_ids =
+                            queued_account_ids.lock().expect("mutex poisoned");
+                        queued_account_ids.remove(&account_id);
                     }
 
                     // Success - more blocks might be available.
-                    Ok(SyncMonitorOk::MoreBlocksPotentiallyAvailable) => {
-                        // Put the monitor id back in the queue for further processing.
+                    Ok(SyncAccountOk::MoreBlocksPotentiallyAvailable) => {
+                        // Put the account id back in the queue for further processing.
                         log::trace!(
                             logger,
-                            "{}: sync_monitor returned MoreBlocksPotentiallyAvailable",
-                            monitor_id,
+                            "{}: sync_account returned MoreBlocksPotentiallyAvailable",
+                            account_id,
                         );
 
                         sender
-                            .send(SyncMsg::SyncMonitor(monitor_id))
+                            .send(SyncMsg::SyncAccount(account_id))
                             .expect("failed sending to channel");
                     }
 
@@ -288,7 +288,7 @@ fn sync_thread_entry_point(
 
                     // Other errors - log.
                     Err(err) => {
-                        log::error!(logger, "error syncing monitor {}: {:?}", monitor_id, err);
+                        log::error!(logger, "error syncing account {}: {:?}", account_id, err);
                     }
                 };
             }
@@ -300,21 +300,21 @@ fn sync_thread_entry_point(
     }
 }
 
-/// Sync a single monitor.
-pub fn sync_monitor(
+/// Sync a single account.
+pub fn sync_account(
     ledger_db: &LedgerDB,
     wallet_db: &WalletDb,
-    account_id: &MonitorId,
+    account_id: &AccountId,
     logger: &Logger,
-) -> Result<SyncMonitorOk, SyncError> {
+) -> Result<SyncAccountOk, SyncError> {
     for _ in 0..MAX_BLOCKS_PROCESSING_CHUNK_SIZE {
-        // Get the account data. If it is no longer available, the monitor has been removed and we
+        // Get the account data. If it is no longer available, the account has been removed and we
         // can simply return. FIXME - verify this works as intended with new data model
         let account = Account::get(account_id, &wallet_db.get_conn()?)?;
         let block_contents = match ledger_db.get_block_contents(account.next_block as u64) {
             Ok(block_contents) => block_contents,
             Err(mc_ledger_db::Error::NotFound) => {
-                return Ok(SyncMonitorOk::NoMoreBlocks);
+                return Ok(SyncAccountOk::NoMoreBlocks);
             }
             Err(err) => {
                 return Err(err.into());
@@ -357,10 +357,10 @@ pub fn sync_monitor(
         )?;
     }
 
-    Ok(SyncMonitorOk::MoreBlocksPotentiallyAvailable)
+    Ok(SyncAccountOk::MoreBlocksPotentiallyAvailable)
 }
 
-/// Helper function for matching a list of TxOuts to a given monitor.
+/// Helper function for matching a list of TxOuts to a given account.
 fn process_txos(
     wallet_db: &WalletDb,
     outputs: &[TxOut],
