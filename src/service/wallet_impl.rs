@@ -557,11 +557,6 @@ mod tests {
             .create_account(Some("Alice's Main Account".to_string()), None)
             .unwrap();
 
-        println!(
-            "\x1b[1;31m Got public address {:?}\x1b[0m",
-            alice.public_address_b58
-        );
-
         // Add a block with a transaction for this recipient
         // Add a block with a txo for this address (note that value is smaller than MINIMUM_FEE)
         let alice_public_address = b58_decode(&alice.public_address_b58);
