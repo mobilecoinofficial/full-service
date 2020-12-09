@@ -144,12 +144,15 @@ impl TxoModel for Txo {
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<String, WalletDbError> {
-        use crate::db::schema::txos::dsl::txos;
+        use crate::db::schema::txos::dsl::{txo_id_hex, txos};
 
         let txo_id = TxoID::from(&txo);
 
         // If we already have this TXO (e.g. from minting in a previous transaction), we need to update it
-        match txos.find(&txo_id.to_string()).get_result::<Txo>(conn) {
+        match txos
+            .filter(txo_id_hex.eq(&txo_id.to_string()))
+            .get_result::<Txo>(conn)
+        {
             Ok(txo) => {
                 txo.update_received(
                     account_id_hex,
@@ -483,9 +486,12 @@ impl TxoModel for Txo {
         txo_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(Txo, AccountTxoStatus, Option<AssignedSubaddress>), WalletDbError> {
-        use crate::db::schema::txos::dsl::txos;
+        use crate::db::schema::txos::dsl::{txo_id_hex as dsl_txo_id_hex, txos};
 
-        let txo: Txo = match txos.find(txo_id_hex).get_result::<Txo>(conn) {
+        let txo: Txo = match txos
+            .filter(dsl_txo_id_hex.eq(txo_id_hex))
+            .get_result::<Txo>(conn)
+        {
             Ok(t) => t,
             // Match on NotFound to get a more informative NotFound Error
             Err(diesel::result::Error::NotFound) => {
@@ -718,6 +724,7 @@ mod tests {
         assert_eq!(txos.len(), 1);
 
         let expected_txo = Txo {
+            id: 1,
             txo_id_hex: txo_hex.clone(),
             value: 10,
             target_key: mc_util_serial::encode(&txo.target_key),

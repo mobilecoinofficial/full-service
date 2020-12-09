@@ -145,11 +145,6 @@ impl AccountModel for Account {
             &conn,
         )?;
 
-        println!(
-            "\x1b[1;32m got main subadddress {:?} and change subaddress {:?}\x1b[0m",
-            main_subaddress_b58, _change_subaddress_b58
-        );
-
         Ok((account_id.to_string(), main_subaddress_b58))
     }
 
@@ -167,9 +162,12 @@ impl AccountModel for Account {
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Account, WalletDbError> {
-        use crate::db::schema::accounts::dsl::accounts;
+        use crate::db::schema::accounts::dsl::{account_id_hex as dsl_account_id_hex, accounts};
 
-        match accounts.find(account_id_hex).get_result::<Account>(conn) {
+        match accounts
+            .filter(dsl_account_id_hex.eq(account_id_hex))
+            .get_result::<Account>(conn)
+        {
             Ok(a) => Ok(a),
             // Match on NotFound to get a more informative NotFound Error
             Err(diesel::result::Error::NotFound) => {
@@ -209,9 +207,9 @@ impl AccountModel for Account {
         new_name: String,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::accounts::dsl::accounts;
+        use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
 
-        diesel::update(accounts.find(&self.account_id_hex))
+        diesel::update(accounts.filter(account_id_hex.eq(&self.account_id_hex)))
             .set(crate::db::schema::accounts::name.eq(new_name))
             .execute(conn)?;
         Ok(())
@@ -224,8 +222,8 @@ impl AccountModel for Account {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::account_txo_statuses::dsl::account_txo_statuses;
-        use crate::db::schema::accounts::dsl::accounts;
-        use crate::db::schema::txos::dsl::txos;
+        use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
+        use crate::db::schema::txos::dsl::{txo_id_hex, txos};
 
         for key_image in key_images {
             // Get the txo by key_image
@@ -244,7 +242,7 @@ impl AccountModel for Account {
                 )));
             } else {
                 // Update the TXO
-                diesel::update(txos.find(&matches[0].txo_id_hex))
+                diesel::update(txos.filter(txo_id_hex.eq(&matches[0].txo_id_hex)))
                     .set(crate::db::schema::txos::spent_block_height.eq(Some(spent_block_height)))
                     .execute(conn)?;
 
@@ -264,7 +262,7 @@ impl AccountModel for Account {
                 )?;
             }
         }
-        diesel::update(accounts.find(&self.account_id_hex))
+        diesel::update(accounts.filter(account_id_hex.eq(&self.account_id_hex)))
             .set(crate::db::schema::accounts::next_block.eq(spent_block_height + 1))
             .execute(conn)?;
         Ok(())
@@ -275,9 +273,9 @@ impl AccountModel for Account {
         self,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::accounts::dsl::accounts;
+        use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
 
-        diesel::delete(accounts.find(self.account_id_hex)).execute(conn)?;
+        diesel::delete(accounts.filter(account_id_hex.eq(self.account_id_hex))).execute(conn)?;
         Ok(())
     }
 }
@@ -317,6 +315,7 @@ mod tests {
 
         let acc = Account::get(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
         let expected_account = Account {
+            id: 1,
             account_id_hex: account_id_hex.clone(),
             encrypted_account_key: mc_util_serial::encode(&account_key),
             main_subaddress_index: 0,
@@ -367,6 +366,7 @@ mod tests {
         let acc_secondary =
             Account::get(&account_id_hex_secondary, &wallet_db.get_conn().unwrap()).unwrap();
         let mut expected_account_secondary = Account {
+            id: 2,
             account_id_hex: account_id_hex_secondary.clone(),
             encrypted_account_key: mc_util_serial::encode(&account_key_secondary),
             main_subaddress_index: 0,
