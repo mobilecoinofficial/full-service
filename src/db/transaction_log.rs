@@ -52,32 +52,44 @@ impl TransactionID {
 }
 
 pub trait TransactionLogModel {
+    /// Get a transaction log from the TransactionId.
     fn get(
         transaction_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<TransactionLog, WalletDbError>;
 
+    /// Get the Txos associated with a given TransactionId, grouped according to their type.
+    ///
+    /// Returns:
+    /// * (inputs, outputs, change)
     fn get_associated_txos(
         &self,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(Vec<String>, Vec<String>, Vec<String>), WalletDbError>;
 
+    /// Select the TransactionLogs associated with a given TxoId.
     fn select_for_txo(
         txo_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<TransactionLog>, WalletDbError>;
 
+    /// List all TransactionLogs and their associated Txos for a given account.
+    ///
+    /// Returns:
+    /// * Vec(TransactionLog, inputs, outputs, change)
     fn list_all(
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<(TransactionLog, Vec<String>, Vec<String>, Vec<String>)>, WalletDbError>;
 
+    /// Update the transactions associated with a Txo for a given blockheight.
     fn update_transactions_associated_to_txo(
         txo_id_hex: &str,
         cur_block_height: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
+    /// Log a received transaction.
     fn log_received(
         subaddress_to_output_txo_ids: &HashMap<i64, Vec<String>>,
         account: &Account,
@@ -85,6 +97,8 @@ pub trait TransactionLogModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
+    /// Log a submitted transaction.
+    ///
     /// When submitting a transaction, we store relevant information to the transaction logs,
     /// and we also track information about each of the txos involved in the transaction.
     ///

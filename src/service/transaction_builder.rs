@@ -10,7 +10,10 @@ use crate::{
     db::{
         models::{Account, Txo},
         WalletDb,
-        {account::AccountModel, txo::TxoModel},
+        {
+            account::{AccountID, AccountModel},
+            txo::TxoModel,
+        },
     },
     error::WalletTransactionBuilderError,
 };
@@ -133,7 +136,10 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
 
     /// Consumes self
     pub fn build(mut self) -> Result<TxProposal, WalletTransactionBuilderError> {
-        let account: Account = Account::get(&self.account_id_hex, &self.wallet_db.get_conn()?)?;
+        let account: Account = Account::get(
+            &AccountID(self.account_id_hex.to_string()),
+            &self.wallet_db.get_conn()?,
+        )?;
         let from_account_key: AccountKey = mc_util_serial::decode(&account.encrypted_account_key)?;
 
         // Get membership proofs for our inputs

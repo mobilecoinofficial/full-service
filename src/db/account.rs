@@ -21,8 +21,8 @@ use diesel::{
     RunQueryDsl,
 };
 
-#[derive(Debug)]
-pub struct AccountID(String);
+#[derive(Debug, Clone)]
+pub struct AccountID(pub String);
 
 impl From<&AccountKey> for AccountID {
     fn from(src: &AccountKey) -> AccountID {
@@ -40,6 +40,9 @@ impl AccountID {
 
 pub trait AccountModel {
     /// Create an account.
+    ///
+    /// Returns:
+    /// * (account_id, main_subaddress_b58)
     fn create(
         account_key: &AccountKey,
         main_subaddress_index: u64,
@@ -49,16 +52,22 @@ pub trait AccountModel {
         next_block: u64,
         name: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<(String, String), WalletDbError>;
+    ) -> Result<(AccountID, String), WalletDbError>;
 
     /// List all accounts.
+    ///
+    /// Returns:
+    /// * Vector of all Accounts in the DB
     fn list_all(
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<Account>, WalletDbError>;
 
     /// Get a specific account.
+    ///
+    /// Returns:
+    /// * Account
     fn get(
-        account_id_hex: &str,
+        account_id_hex: &AccountID,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Account, WalletDbError>;
 
@@ -76,6 +85,7 @@ pub trait AccountModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
+    /// Update all txos associated with this account to spent for a given block height.
     fn update_spent_and_increment_next_block(
         &self,
         spent_block_height: i64,
@@ -100,7 +110,7 @@ impl AccountModel for Account {
         next_block: u64,
         name: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<(String, String), WalletDbError> {
+    ) -> Result<(AccountID, String), WalletDbError> {
         use crate::db::schema::accounts;
 
         let account_id = AccountID::from(account_key);
@@ -136,7 +146,7 @@ impl AccountModel for Account {
             &conn,
         )?;
 
-        Ok((account_id.to_string(), main_subaddress_b58))
+        Ok((account_id, main_subaddress_b58))
     }
 
     fn list_all(
@@ -150,13 +160,13 @@ impl AccountModel for Account {
     }
 
     fn get(
-        account_id_hex: &str,
+        account_id_hex: &AccountID,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Account, WalletDbError> {
         use crate::db::schema::accounts::dsl::{account_id_hex as dsl_account_id_hex, accounts};
 
         match accounts
-            .filter(dsl_account_id_hex.eq(account_id_hex))
+            .filter(dsl_account_id_hex.eq(account_id_hex.to_string()))
             .get_result::<Account>(conn)
         {
             Ok(a) => Ok(a),
@@ -183,7 +193,10 @@ impl AccountModel for Account {
                 if a.len() > 1 {
                     return Err(WalletDbError::MultipleStatusesForTxo);
                 }
-                Ok(Account::get(&a[0].account_id_hex, conn)?)
+                Ok(Account::get(
+                    &AccountID(a[0].account_id_hex.to_string()),
+                    conn,
+                )?)
             }
             // Match on NotFound to get a more informative NotFound Error
             Err(diesel::result::Error::NotFound) => {
@@ -307,7 +320,7 @@ mod tests {
         let acc = Account::get(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
         let expected_account = Account {
             id: 1,
-            account_id_hex: account_id_hex.clone(),
+            account_id_hex: account_id_hex.to_string(),
             encrypted_account_key: mc_util_serial::encode(&account_key),
             main_subaddress_index: 0,
             change_subaddress_index: 1,
@@ -319,8 +332,11 @@ mod tests {
         assert_eq!(expected_account, acc);
 
         // Verify that the subaddress table entries were updated for main and change
-        let subaddresses =
-            AssignedSubaddress::list_all(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
+        let subaddresses = AssignedSubaddress::list_all(
+            &account_id_hex.to_string(),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
         assert_eq!(subaddresses.len(), 2);
         let subaddress_indices: HashSet<i64> =
             HashSet::from_iter(subaddresses.iter().map(|s| s.subaddress_index));
@@ -336,7 +352,7 @@ mod tests {
             )
             .unwrap();
         assert_eq!(retrieved_index, 0);
-        assert_eq!(retrieved_acocunt_id_hex, account_id_hex);
+        assert_eq!(retrieved_acocunt_id_hex, account_id_hex.to_string());
 
         // Add another account with no name, scanning from later
         let account_key_secondary = AccountKey::from(&RootIdentity::from_random(&mut rng));
@@ -358,7 +374,7 @@ mod tests {
             Account::get(&account_id_hex_secondary, &wallet_db.get_conn().unwrap()).unwrap();
         let mut expected_account_secondary = Account {
             id: 2,
-            account_id_hex: account_id_hex_secondary.clone(),
+            account_id_hex: account_id_hex_secondary.to_string(),
             encrypted_account_key: mc_util_serial::encode(&account_key_secondary),
             main_subaddress_index: 0,
             change_subaddress_index: 1,
