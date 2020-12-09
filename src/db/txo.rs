@@ -4,7 +4,7 @@
 
 use crate::{
     db::{
-        account::AccountModel,
+        account::{AccountID, AccountModel},
         account_txo_status::AccountTxoStatusModel,
         assigned_subaddress::AssignedSubaddressModel,
         b58_encode,
@@ -44,6 +44,15 @@ impl TxoID {
 
 pub trait TxoModel {
     /// Create a received Txo.
+    ///
+    /// Note that a received Txo may have a null subaddress_index if the Txo is "orphaned."
+    /// This means that in syncing, the Txo was determined to belong to an account, but the
+    /// subaddress is not yet being tracked, so we were unable to match the subaddress spend
+    /// public key. An orphaned Txo is not spendable until the subaddress to which it belongs
+    /// is added to the assigned_subaddresses table.
+    ///
+    /// Returns:
+    /// * txo_id_hex
     fn create_received(
         txo: TxOut,
         subaddress_index: Option<i64>,
@@ -54,6 +63,10 @@ pub trait TxoModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<String, WalletDbError>;
 
+    /// Create a new minted Txo.
+    ///
+    /// Returns:
+    /// * (public address of the recipient, txo_id_hex, value of the txo, txo type)
     fn create_minted(
         account_id_hex: Option<&str>,
         txo: &TxOut,
@@ -88,38 +101,54 @@ pub trait TxoModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
+    /// Get all Txos associated with a given account.
     fn list_for_account(
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<(Txo, AccountTxoStatus)>, WalletDbError>;
 
+    /// Get a map of txo_status -> Vec<Txo> for all txos in a given account.
     fn list_by_status(
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<HashMap<String, Vec<Txo>>, WalletDbError>;
 
+    /// Get the details for a specific Txo for a given account.
+    ///
+    /// Returns:
+    /// * (Txo, Txo Status, Assigned Subaddress)
     fn get(
-        account_id_hex: &str,
+        account_id_hex: &AccountID,
         txo_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(Txo, AccountTxoStatus, Option<AssignedSubaddress>), WalletDbError>;
 
+    /// Select several Txos by their TxoIds
+    ///
+    /// Returns:
+    /// * Vec<(Txo, TxoStatus)>
     fn select_by_id(
         txo_ids: &Vec<String>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<(Txo, AccountTxoStatus)>, WalletDbError>;
 
+    /// Check whether all of the given Txos are spent.
     fn are_all_spent(
         txo_ids: &Vec<String>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError>;
 
+    /// Check whether any of the given Txos failed.
     fn any_failed(
         txo_ids: &Vec<String>,
         block_height: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError>;
 
+    /// Select a set of unspent Txos to reach a given value.
+    ///
+    /// Returns:
+    /// * Vec<Txo>
     fn select_unspent_txos_for_value(
         account_id_hex: &str,
         target_value: u64,
@@ -302,32 +331,36 @@ impl TxoModel for Txo {
 
         // For TXOs that we sent previously, they are either change, or we sent to ourselves
         // for some other reason. Their status will be "secreted" in either case.
-        if account_txo_status.txo_type == "minted" {
-            // Update received block height and subaddress index
-            self.update_to_spendable(
-                received_subaddress_index,
-                received_key_image,
-                received_block_height,
-                &conn,
-            )?;
-
-            // Update the status to unspent - all TXOs set lifecycle to unspent when first received
-            account_txo_status.set_unspent(&conn)?;
-        } else if account_txo_status.txo_type == "received".to_string() {
-            // If the existing Txo subaddress is null and we have the received subaddress
-            // now, then we want to update to received subaddress. Otherwise, it will remain orphaned.
-            // Do not update to unspent, because this Txo may have already been processed and is
-            // annotated correctly if spent.
-            if received_subaddress_index.is_some() {
+        match account_txo_status.txo_type.as_str() {
+            "minted" => {
+                // Update received block height and subaddress index
                 self.update_to_spendable(
                     received_subaddress_index,
                     received_key_image,
                     received_block_height,
                     &conn,
                 )?;
+
+                // Update the status to unspent - all TXOs set lifecycle to unspent when first received
+                account_txo_status.set_unspent(&conn)?;
             }
-        } else {
-            panic!("New txo_type must be handled");
+            "received" => {
+                // If the existing Txo subaddress is null and we have the received subaddress
+                // now, then we want to update to received subaddress. Otherwise, it will remain orphaned.
+                // Do not update to unspent, because this Txo may have already been processed and is
+                // annotated correctly if spent.
+                if received_subaddress_index.is_some() {
+                    self.update_to_spendable(
+                        received_subaddress_index,
+                        received_key_image,
+                        received_block_height,
+                        &conn,
+                    )?;
+                }
+            }
+            _ => {
+                panic!("New txo_type must be handled");
+            }
         }
 
         // If this Txo was previously orphaned, we can now update it, and make it spendable
@@ -476,7 +509,7 @@ impl TxoModel for Txo {
     }
 
     fn get(
-        account_id_hex: &str,
+        account_id_hex: &AccountID,
         txo_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(Txo, AccountTxoStatus, Option<AssignedSubaddress>), WalletDbError> {
@@ -497,7 +530,7 @@ impl TxoModel for Txo {
         };
 
         let account_txo_status: AccountTxoStatus =
-            AccountTxoStatus::get(account_id_hex, txo_id_hex, conn)?;
+            AccountTxoStatus::get(&account_id_hex.to_string(), txo_id_hex, conn)?;
 
         // Get subaddress key from account_key and txo subaddress
         let account: Account = Account::get(account_id_hex, conn)?;
@@ -714,7 +747,9 @@ mod tests {
         let (txo_hex, txo, key_image) =
             create_test_received_txo(&account_key, 0, 10, 144, &mut rng, &wallet_db);
 
-        let txos = Txo::list_for_account(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
+        let txos =
+            Txo::list_for_account(&account_id_hex.to_string(), &wallet_db.get_conn().unwrap())
+                .unwrap();
         assert_eq!(txos.len(), 1);
 
         let expected_txo = Txo {
@@ -744,7 +779,8 @@ mod tests {
 
         // Verify that the status filter works as well
         let balances =
-            Txo::list_by_status(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
+            Txo::list_by_status(&account_id_hex.to_string(), &wallet_db.get_conn().unwrap())
+                .unwrap();
         assert_eq!(balances["unspent"].len(), 1);
 
         // Now we'll "spend" the TXO
@@ -763,7 +799,9 @@ mod tests {
             )
             .unwrap();
 
-        let txos = Txo::list_for_account(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
+        let txos =
+            Txo::list_for_account(&account_id_hex.to_string(), &wallet_db.get_conn().unwrap())
+                .unwrap();
         assert_eq!(txos.len(), 1);
         assert_eq!(
             txos[0].0.spent_block_height.unwrap(),
@@ -777,7 +815,8 @@ mod tests {
 
         // Verify that there are no unspent txos
         let balances =
-            Txo::list_by_status(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
+            Txo::list_by_status(&account_id_hex.to_string(), &wallet_db.get_conn().unwrap())
+                .unwrap();
         assert!(balances["unspent"].is_empty());
     }
 
@@ -816,7 +855,7 @@ mod tests {
 
         // Greedily take smallest to exact value
         let txos_for_value = Txo::select_unspent_txos_for_value(
-            &account_id_hex,
+            &account_id_hex.to_string(),
             300 * MOB as u64,
             None,
             &wallet_db.get_conn().unwrap(),
@@ -830,7 +869,7 @@ mod tests {
 
         // Once we include the fee, we need another txo
         let txos_for_value = Txo::select_unspent_txos_for_value(
-            &account_id_hex,
+            &account_id_hex.to_string(),
             300 * MOB as u64 + MINIMUM_FEE,
             None,
             &wallet_db.get_conn().unwrap(),
@@ -844,7 +883,7 @@ mod tests {
 
         // Setting max spendable value gives us insufficient funds - only allows 100
         let res = Txo::select_unspent_txos_for_value(
-            &account_id_hex,
+            &account_id_hex.to_string(),
             300 * MOB as u64 + MINIMUM_FEE,
             Some(200 * MOB),
             &wallet_db.get_conn().unwrap(),
@@ -858,7 +897,7 @@ mod tests {
         // sum(300..1800) to get a window where we had to increase past the smallest txos,
         // and also fill up all 16 input slots.
         let txos_for_value = Txo::select_unspent_txos_for_value(
-            &account_id_hex,
+            &account_id_hex.to_string(),
             16800 * MOB as u64,
             None,
             &wallet_db.get_conn().unwrap(),
@@ -922,7 +961,7 @@ mod tests {
         }
 
         let res = Txo::select_unspent_txos_for_value(
-            &account_id_hex,
+            &account_id_hex.to_string(), // FIXME: take AccountID
             1800 * MOB as u64,
             None,
             &wallet_db.get_conn().unwrap(),
@@ -988,7 +1027,7 @@ mod tests {
         assert_eq!(value, 1 * MOB as i64);
         assert_eq!(transaction_txo_type, "minted");
         let (minted_txo, minted_account_txo_status, minted_assigned_subaddress) = Txo::get(
-            &AccountID::from(&src_account).to_string(),
+            &AccountID::from(&src_account),
             &txo_id,
             &wallet_db.get_conn().unwrap(),
         )

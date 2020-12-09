@@ -20,6 +20,10 @@ use diesel::{
 };
 
 pub trait AssignedSubaddressModel {
+    /// Create a new assigned subaddress.
+    ///
+    /// Returns:
+    /// * assigned_subaddress_b58
     fn create(
         public_address: &AccountKey,
         address_book_entry: Option<i64>,
@@ -28,22 +32,32 @@ pub trait AssignedSubaddressModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<String, WalletDbError>;
 
+    /// Create the next subaddress for a given account.
+    ///
+    /// Returns:
+    /// * (assigned_subaddress_b58, subaddress_index)
     fn create_next_for_account(
         account_id_hex: &str,
         comment: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(String, i64), WalletDbError>;
 
+    /// Get the AssignedSubaddress for a given assigned_subaddress_b58
     fn get(
-        public_addres_b58: &str,
+        public_address_b58: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<AssignedSubaddress, WalletDbError>;
 
+    /// Find an AssignedSubaddress by the subaddress spend public key
+    ///
+    /// Returns:
+    /// * (subaddress_index, assigned_subaddress_b58)
     fn find_by_subaddress_spend_public_key(
         subaddress_spend_public_key: &RistrettoPublic,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(i64, String), WalletDbError>;
 
+    /// List all AssignedSubaddresses for a given account.
     fn list_all(
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
@@ -89,7 +103,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         use crate::db::schema::accounts::dsl::{account_id_hex as dsl_account_id_hex, accounts};
         use crate::db::schema::assigned_subaddresses;
 
-        let account = Account::get(account_id_hex, conn)?;
+        let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
         let account_key: AccountKey = mc_util_serial::decode(&account.encrypted_account_key)?;
         let subaddress_index = account.next_subaddress_index;

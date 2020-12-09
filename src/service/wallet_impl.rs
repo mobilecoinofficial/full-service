@@ -6,8 +6,10 @@ use crate::{
     db::models::{Account, AssignedSubaddress, TransactionLog, Txo},
     db::WalletDb,
     db::{
-        account::AccountModel, assigned_subaddress::AssignedSubaddressModel,
-        transaction_log::TransactionLogModel, txo::TxoModel,
+        account::{AccountID, AccountModel},
+        assigned_subaddress::AssignedSubaddressModel,
+        transaction_log::TransactionLogModel,
+        txo::TxoModel,
     },
     error::WalletServiceError,
     service::{
@@ -137,7 +139,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         Ok(JsonCreateAccountResponse {
             entropy: entropy_str.to_string(),
             public_address_b58,
-            account_id,
+            account_id: account_id.to_string(),
         })
     }
 
@@ -172,7 +174,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         )?;
         Ok(JsonImportAccountResponse {
             public_address_b58,
-            account_id,
+            account_id: account_id.to_string(),
         })
     }
 
@@ -191,7 +193,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
     pub fn get_account(&self, account_id_hex: &str) -> Result<JsonAccount, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
-        let account = Account::get(account_id_hex, &conn)?;
+        let account = Account::get(&AccountID(account_id_hex.to_string()), &conn)?;
         Ok(JsonAccount {
             account_id: account.account_id_hex.clone(),
             name: account.name.clone(),
@@ -206,14 +208,14 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
     ) -> Result<(), WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
-        Account::get(account_id_hex, &conn)?.update_name(name, &conn)?;
+        Account::get(&AccountID(account_id_hex.to_string()), &conn)?.update_name(name, &conn)?;
         Ok(())
     }
 
     pub fn delete_account(&self, account_id_hex: &str) -> Result<(), WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
-        Account::get(account_id_hex, &conn)?.delete(&conn)?;
+        Account::get(&AccountID(account_id_hex.to_string()), &conn)?.delete(&conn)?;
         Ok(())
     }
 
@@ -240,7 +242,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
 
         // FIXME: also add transaction IDs in which this txo was involved
         let (txo, account_txo_status, assigned_subaddress) =
-            Txo::get(account_id_hex, txo_id_hex, &conn)?;
+            Txo::get(&AccountID(account_id_hex.to_string()), txo_id_hex, &conn)?;
         Ok(JsonTxo::new(
             &txo,
             &account_txo_status,
@@ -266,7 +268,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         let orphaned: u64 = status_map["orphaned"].iter().map(|t| t.value as u64).sum();
 
         let local_block_height = self.ledger_db.num_blocks()?;
-        let account = Account::get(account_id_hex, &conn)?;
+        let account = Account::get(&AccountID(account_id_hex.to_string()), &conn)?;
 
         // FIXME: probably also want to compare with network height
         // FIXME: add block height info (see also BEAM wallet-status)
@@ -491,7 +493,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
     ) -> Result<JsonTxOut, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
         let (txo, _account_txo_status, _assigned_subaddress) =
-            Txo::get(account_id_hex, txo_id_hex, &conn)?;
+            Txo::get(&AccountID(account_id_hex.to_string()), txo_id_hex, &conn)?;
 
         let txo: TxOut = mc_util_serial::decode(&txo.txo)?;
         // Convert to proto
