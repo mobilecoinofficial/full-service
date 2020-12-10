@@ -426,17 +426,14 @@ fn process_txos(
             }
         };
 
-        let key_image = if let Some(subaddress_i) = subaddress_index {
+        let key_image = subaddress_index.map(|subaddress_i| {
             let onetime_private_key = recover_onetime_private_key(
                 &tx_public_key,
                 account_key.view_private_key(),
                 &account_key.subaddress_spend_private(subaddress_i as u64),
             );
-
-            Some(KeyImage::from(&onetime_private_key))
-        } else {
-            None
-        };
+            KeyImage::from(&onetime_private_key)
+        });
 
         // Insert received txo
         let txo_id = Txo::create_received(

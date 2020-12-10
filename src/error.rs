@@ -44,6 +44,9 @@ pub enum WalletServiceError {
 
     /// Error decoding prost {0}
     ProstDecode(prost::DecodeError),
+
+    /// Error decoding b58: No public address in wrapper.
+    B58Decode,
 }
 
 impl From<WalletDbError> for WalletServiceError {
