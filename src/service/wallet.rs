@@ -190,14 +190,11 @@ fn wallet_api(
 ) -> Result<Json<JsonCommandResponse>, String> {
     let result = match command.0 {
         JsonCommandRequest::create_account { name, first_block } => {
-            let fb = if let Some(fb) = first_block {
-                Some(
-                    fb.parse::<u64>()
-                        .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
-                )
-            } else {
-                None
-            };
+            let fb = first_block
+                .map(|fb| fb.parse::<u64>())
+                .transpose()
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+
             // FIXME: better way to convert between the json type and enum
             let result = state
                 .service
@@ -214,14 +211,10 @@ fn wallet_api(
             name,
             first_block,
         } => {
-            let fb = if let Some(fb) = first_block {
-                Some(
-                    fb.parse::<u64>()
-                        .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
-                )
-            } else {
-                None
-            };
+            let fb = first_block
+                .map(|fb| fb.parse::<u64>())
+                .transpose()
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             let result = state
                 .service
                 .import_account(entropy, name, fb)

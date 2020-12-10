@@ -532,11 +532,9 @@ impl TxoModel for Txo {
         let account_txo_status: AccountTxoStatus =
             AccountTxoStatus::get(&account_id_hex.to_string(), txo_id_hex, conn)?;
 
-        // Get subaddress key from account_key and txo subaddress
-        let account: Account = Account::get(account_id_hex, conn)?;
-
         // Get the subaddress details if assigned
         let assigned_subaddress = if let Some(subaddress_index) = txo.subaddress_index {
+            let account: Account = Account::get(account_id_hex, conn)?;
             let account_key: AccountKey = mc_util_serial::decode(&account.encrypted_account_key)?;
             let subaddress = account_key.subaddress(subaddress_index as u64);
             let subaddress_b58 = b58_encode(&subaddress)?;
