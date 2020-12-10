@@ -72,8 +72,8 @@ impl AccountTxoStatusModel for AccountTxoStatus {
             Ok(t) => Ok(t),
             // Match on NotFound to get a more informative NotFound Error
             Err(diesel::result::Error::NotFound) => Err(WalletDbError::NotFound(format!(
-                "{:?}",
-                (account_id_hex, txo_id_hex)
+                "({}, {})",
+                account_id_hex, txo_id_hex
             ))),
             Err(e) => Err(e.into()),
         }
