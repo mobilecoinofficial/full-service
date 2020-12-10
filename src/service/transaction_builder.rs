@@ -1,7 +1,7 @@
 // Copyright (c) 2020 MobileCoin Inc.
 
 //! A builder for transactions from the wallet. Note that we have a TransactionBuilder
-//! in the MobileCoin transaction crate, but this is a lower level of building, once you
+//! in the MobileCoin transaction crate, but that is a lower level of building, once you
 //! have already obtained all of the materials that go into a transaction.
 //!
 //! This module, on the other hand, builds a transaction within the context of the wallet.

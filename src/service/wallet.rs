@@ -631,7 +631,7 @@ mod tests {
         let result = dispatch(&client, body, &logger);
         let account_id = result.get("account_id").unwrap().as_str().unwrap();
         let b58_public_address = result.get("public_address").unwrap().as_str().unwrap();
-        let public_address = b58_decode(b58_public_address);
+        let public_address = b58_decode(b58_public_address).unwrap();
 
         // Add a block with a txo for this address
         add_block_to_ledger_db(
@@ -691,7 +691,7 @@ mod tests {
         let result = dispatch(&client, body, &logger);
         let account_id = result.get("account_id").unwrap().as_str().unwrap();
         let b58_public_address = result.get("public_address").unwrap().as_str().unwrap();
-        let public_address = b58_decode(b58_public_address);
+        let public_address = b58_decode(b58_public_address).unwrap();
 
         // Add a block with a txo for this address (note that value is smaller than MINIMUM_FEE)
         add_block_to_ledger_db(
@@ -822,7 +822,7 @@ mod tests {
             .unwrap()
             .as_str()
             .unwrap();
-        let from_bob_public_address = b58_decode(b58_public_address);
+        let from_bob_public_address = b58_decode(b58_public_address).unwrap();
 
         // Add a block to the ledger with a transaction "From Bob"
         add_block_to_ledger_db(

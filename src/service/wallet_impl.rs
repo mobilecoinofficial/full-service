@@ -44,7 +44,7 @@ pub const DEFAULT_NEXT_SUBADDRESS_INDEX: u64 = 2;
 pub const DEFAULT_FIRST_BLOCK: u64 = 0;
 
 // FIXME: this will probably live in db or service_impl once we're decoding public addresses
-pub fn b58_decode(b58_public_address: &str) -> PublicAddress {
+pub fn b58_decode(b58_public_address: &str) -> Result<PublicAddress, WalletServiceError> {
     let wrapper =
         mc_mobilecoind_api::printable::PrintableWrapper::b58_decode(b58_public_address.to_string())
             .unwrap();
@@ -54,9 +54,9 @@ pub fn b58_decode(b58_public_address: &str) -> PublicAddress {
     } else if wrapper.has_public_address() {
         wrapper.get_public_address()
     } else {
-        panic!("No public address in wrapper");
+        return Err(WalletServiceError::B58Decode);
     };
-    PublicAddress::try_from(pubaddr_proto).unwrap()
+    Ok(PublicAddress::try_from(pubaddr_proto).unwrap())
 }
 
 /// Service for interacting with the wallet
@@ -332,7 +332,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
             self.fog_pubkey_resolver.clone(),
             self.logger.clone(),
         );
-        let recipient = b58_decode(recipient_public_address);
+        let recipient = b58_decode(recipient_public_address)?;
         builder.add_recipient(recipient, value.parse::<u64>()?)?;
         if let Some(inputs) = input_txo_ids {
             builder.set_txos(inputs)?;
@@ -561,7 +561,7 @@ mod tests {
 
         // Add a block with a transaction for this recipient
         // Add a block with a txo for this address (note that value is smaller than MINIMUM_FEE)
-        let alice_public_address = b58_decode(&alice.public_address_b58);
+        let alice_public_address = b58_decode(&alice.public_address_b58).unwrap();
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![alice_public_address.clone()],
