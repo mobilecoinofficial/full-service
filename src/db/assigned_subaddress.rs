@@ -195,19 +195,17 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<AssignedSubaddress>, WalletDbError> {
-        use crate::db::schema::accounts;
-        use crate::db::schema::assigned_subaddresses;
+        use crate::db::schema::assigned_subaddresses::dsl::assigned_subaddresses;
+        use crate::db::schema::assigned_subaddresses::{
+            account_id_hex as schema_account_id_hex, all_columns,
+        };
 
-        let results: Vec<AssignedSubaddress> = accounts::table
-            .inner_join(
-                assigned_subaddresses::table.on(accounts::account_id_hex
-                    .eq(assigned_subaddresses::account_id_hex)
-                    .and(accounts::account_id_hex.eq(account_id_hex))),
-            )
-            .select(assigned_subaddresses::all_columns)
-            .load(conn)?;
+        let matches: Vec<AssignedSubaddress> = assigned_subaddresses
+            .select(all_columns)
+            .filter(schema_account_id_hex.eq(account_id_hex))
+            .load::<AssignedSubaddress>(conn)?;
 
-        Ok(results)
+        Ok(matches)
     }
 }
 
