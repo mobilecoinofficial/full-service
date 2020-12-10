@@ -329,7 +329,7 @@ commands:
 
 jobs:
   # Run tests on a single container
-  run-internal-tests:
+  run-tests:
     executor: build-executor
     parallelism: 1
     environment:
@@ -344,8 +344,8 @@ jobs:
       - post-build
       - post-test
 
-  # Build and lint internal in debug mode
-  build-and-lint-internal-debug:
+  # Build and lint in debug mode
+  build-and-lint-debug:
     executor: build-executor
     environment:
       <<: *default-build-environment
@@ -353,20 +353,20 @@ jobs:
       - prepare-for-build
       - cargo-check
 
-      # The lint and saving of caches happens here since this job is faster than the run-internal-tests job.
+      # The lint and saving of caches happens here since this job is faster than the run-tests job.
       # This results in shorter CI times.
       - lint
       - generate-docs
       - deploy-docs:
-          path: "internal"
+          path: "wallet-service"
       - check-dirty-git
       - when:
           condition: { equal: [ << pipeline.git.branch >>, master ] }
           steps: [ save-cargo-cache, save-sccache-cache ]
       - post-build
 
-  # Build internal in release mode
-  build-internal-release:
+  # Build in release mode
+  build-release:
     executor: build-executor
     environment:
       <<: *default-build-environment
@@ -386,11 +386,10 @@ workflows:
   build-and-run-tests:
     jobs:
       # Run tests on a single container
-      - run-internal-tests
+      - run-tests
 
       # Build everything in debug
-      - build-and-lint-internal-debug
+      - build-and-lint-debug
 
       # build everything in release - currently disabled since it's a waste of CPU/$
-      # - build-internal-release
-      # - build-public-release
+      # - build-release
