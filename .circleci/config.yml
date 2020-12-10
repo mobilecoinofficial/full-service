@@ -37,18 +37,6 @@ executors:
       - image: *builder-install
     resource_class: large
 
-  macos:
-    parameters:
-      xcode-version:
-        type: string
-        default: *default-xcode-version
-    macos:
-      xcode: << parameters.xcode-version >>
-    environment:
-      HOMEBREW_NO_AUTO_UPDATE: "1"
-      HOMEBREW_NO_INSTALL_CLEANUP: "1"
-      HOMEBREW_BUNDLE_NO_LOCK: "1"
-
 commands:
   print_versions:
     description: Version Info
@@ -549,66 +537,6 @@ jobs:
           steps: [ save-sccache-cache ]
       - post-build
 
-  # Build using macOS
-  build-macos:
-    parameters:
-      xcode-version:
-        type: string
-        default: *default-xcode-version
-    executor:
-      name: macos
-      xcode-version: << parameters.xcode-version >>
-    environment:
-      <<: *default-build-environment
-      SCCACHE_CACHE_SIZE: 450M
-      RUSTFLAGS: -D warnings -C target-cpu=penryn
-      CONSENSUS_ENCLAVE_CSS: /Users/distiller/project/mobilecoin/sgx/css/src/valid.css
-      INGEST_ENCLAVE_CSS: /Users/distiller/project/mobilecoin/sgx/css/src/valid.css
-      LEDGER_ENCLAVE_CSS: /Users/distiller/project/mobilecoin/sgx/css/src/valid.css
-      VIEW_ENCLAVE_CSS: /Users/distiller/project/mobilecoin/sgx/css/src/valid.css
-    steps:
-      - prepare-for-build:
-          os: macos
-      - run:
-          name: Cargo check
-          command: |
-            cargo check --frozen --target "$HOST_TARGET_TRIPLE" --workspace \
-              --exclude mc-attest-untrusted \
-              --exclude mc-consensus-enclave \
-              --exclude mc-consensus-service \
-              --exclude mc-sgx-core-types \
-              --exclude mc-sgx-core-types-sys \
-              --exclude mc-sgx-epid \
-              --exclude mc-sgx-epid-sys \
-              --exclude mc-sgx-epid-types \
-              --exclude mc-sgx-epid-types-sys \
-              --exclude mc-sgx-ias-types \
-              --exclude mc-sgx-report-cache-untrusted \
-              --exclude mc-sgx-urts-sys \
-              --exclude benchmarks \
-              --exclude fog-ingest-enclave \
-              --exclude fog-ingest-server \
-              --exclude fog-load-testing \
-              --exclude fog-ledger-enclave \
-              --exclude fog-ledger-server \
-              --exclude fog-ledger-test-infra \
-              --exclude fog-view-enclave \
-              --exclude fog-view-server
-      - check-dirty-git
-      - run:
-          name: Cargo check libmobilecoin
-          command: |
-            cargo check --frozen --target "$HOST_TARGET_TRIPLE" \
-              -p libmobilecoin
-      - check-dirty-git
-      - when:
-          condition: { equal: [ << pipeline.git.branch >>, master ] }
-          steps: [ save-cargo-cache, save-sccache-cache ]
-      - post-build
-      - when:
-          condition: { equal: [ << pipeline.git.branch >>, master ] }
-          steps: [ save-homebrew-cache ]
-
 workflows:
   version: 2
   # Build and run tests on a single container
@@ -623,10 +551,3 @@ workflows:
       # build everything in release - currently disabled since it's a waste of CPU/$
       # - build-release
       # - build-mobilecoin-release
-
-      # Build using macOS
-      - build-macos:
-          name: build-macos-xcode-<< matrix.xcode-version >>
-          matrix:
-            parameters:
-              xcode-version: ["11.7.0", *default-xcode-version]
