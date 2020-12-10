@@ -29,7 +29,7 @@ mc-sgx-css = { path = "../mobilecoin/sgx/css" }
 mc-transaction-core = { path = "../mobilecoin/transaction/core" }
 mc-transaction-std = { path = "../mobilecoin/transaction/std" }
 mc-util-from-random = { path = "../mobilecoin/util/from-random" }
-mc-util-serial = { path = "../mobilecoin/util/serial", default-feature = false }
+mc-util-serial = { path = "../mobilecoin/util/serial", default-features = false }
 mc-util-uri = { path = "../mobilecoin/util/uri" }
 
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
@@ -39,7 +39,7 @@ diesel_migrations = { version = "1.4.0", features = ["sqlite"] }
 displaydoc = {version = "0.1", default-features = false }
 dotenv = "0.15.0"
 grpcio = "0.6.0"
-hex = {version = "0.4", defaut-features = false }
+hex = {version = "0.4", default-features = false }
 num_cpus = "1.12"
 prost = { version = "0.6.1", default-features = false, features = ["prost-derive"] }
 rand = { version = "0.7", default-features = false }
