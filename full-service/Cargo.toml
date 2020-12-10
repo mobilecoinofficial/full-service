@@ -32,21 +32,21 @@ mc-util-from-random = { path = "../mobilecoin/util/from-random" }
 mc-util-serial = { path = "../mobilecoin/util/serial", default-feature = false }
 mc-util-uri = { path = "../mobilecoin/util/uri" }
 
-chrono = "0.4"
+chrono = { version = "0.4", default-features = false, features = ["alloc"] }
 crossbeam-channel = "0.4"
 diesel = { version = "1.4", features = ["sqlite"] }
 diesel_migrations = { version = "1.4.0", features = ["sqlite"] }
 displaydoc = {version = "0.1", default-features = false }
 dotenv = "0.15.0"
 grpcio = "0.6.0"
-hex = "0.4"
+hex = {version = "0.4", defaut-features = false }
 num_cpus = "1.12"
 prost = { version = "0.6.1", default-features = false, features = ["prost-derive"] }
-rand = "0.7"
+rand = { version = "0.7", default-features = false }
 retry = "0.5"
 rocket = { version = "0.4.5", default-features = false }
 rocket_contrib = { version = "0.4.5", default-features = false, features = ["json", "diesel_sqlite_pool"] }
-serde = { version = "1.0", features = ["derive"] }
+serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }
 serde_json = "1.0"
 serde_derive = "1.0"
 structopt = "0.3"
