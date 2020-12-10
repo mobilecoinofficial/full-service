@@ -236,7 +236,7 @@ impl AccountModel for Account {
                 .filter(crate::db::schema::txos::key_image.eq(mc_util_serial::encode(&key_image)))
                 .load::<Txo>(conn)?;
 
-            if matches.len() == 0 {
+            if matches.is_empty() {
                 // Not Found is ok - this means it's a key_image not associated with any of our txos
                 continue;
             } else if matches.len() > 1 {

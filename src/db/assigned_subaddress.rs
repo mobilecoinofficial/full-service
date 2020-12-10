@@ -176,7 +176,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
             .filter(subaddress_spend_key.eq(mc_util_serial::encode(subaddress_spend_public_key)))
             .load::<(i64, String)>(conn)?;
 
-        if matches.len() == 0 {
+        if matches.is_empty() {
             Err(WalletDbError::NotFound(format!(
                 "{:?}",
                 subaddress_spend_public_key
