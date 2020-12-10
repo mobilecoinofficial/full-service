@@ -394,7 +394,6 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
             tx,
             outlay_index_to_tx_out_index,
             outlay_confirmation_numbers,
-            change_value: change,
         })
     }
 

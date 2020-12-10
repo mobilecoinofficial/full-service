@@ -240,7 +240,10 @@ impl TxoModel for Txo {
         use crate::db::schema::txos;
 
         let txo_id = TxoID::from(output);
-        let mut value_sum = 0;
+
+        let total_input_value: u64 = tx_proposal.utxos.iter().map(|u| u.value).sum();
+        let total_output_value: u64 = tx_proposal.outlays.iter().map(|o| o.value).sum();
+        let change_value: u64 = total_input_value - total_output_value - tx_proposal.fee();
 
         // Determine whether this output is an outlay destination, or change.
         // FIXME: currently only have the proofs for outlays, not change - we likely don't
@@ -261,13 +264,11 @@ impl TxoModel for Txo {
             // per transaction, based on how we construct transactions. If we change
             // how we construct transactions, these assumptions will change, and should be
             // reflected in the TxProposal.
-            (tx_proposal.change_value, None, None)
+            (change_value, None, None)
         };
 
         // Update receiver, transaction_value, and transaction_txo_type, if outlay was found.
         let transaction_txo_type = if outlay_receiver.is_some() {
-            // Only contribute to the transaction's value sum for outlays
-            value_sum += value;
             "minted"
         } else {
             // If not in an outlay, this output is change, according to how we build transactions.
@@ -313,7 +314,7 @@ impl TxoModel for Txo {
         Ok((
             outlay_receiver,
             txo_id.to_string(),
-            value_sum as i64,
+            total_output_value as i64,
             transaction_txo_type.to_string(),
         ))
     }
