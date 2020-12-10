@@ -11,14 +11,14 @@ path = "src/bin/main.rs"
 [dependencies]
 mc-account-keys = { path = "../mobilecoin/account-keys" }
 mc-api = { path = "../mobilecoin/api" }
-mc-attest-core = { path = "../mobilecoin/attest/core" }
+mc-attest-core = { path = "../mobilecoin/attest/core", default-features = false }
 mc-common = { path = "../mobilecoin/common", default-features = false, features = ["loggers"] }
 mc-connection = { path = "../mobilecoin/connection" }
 mc-consensus-enclave-measurement = { path = "../mobilecoin/consensus/enclave/measurement" }
 mc-consensus-scp = { path = "../mobilecoin/consensus/scp" }
 mc-crypto-digestible = { path = "../mobilecoin/crypto/digestible", features = ["derive"] }
-mc-crypto-keys = { path = "../mobilecoin/crypto/keys" }
-mc-crypto-rand = { path = "../mobilecoin/crypto/rand" }
+mc-crypto-keys = { path = "../mobilecoin/crypto/keys", default-features = false }
+mc-crypto-rand = { path = "../mobilecoin/crypto/rand", default-features = false }
 mc-fog-report-connection = { path = "../mobilecoin/fog/report/connection" }
 mc-ledger-db = { path = "../mobilecoin/ledger/db" }
 mc-ledger-sync = { path = "../mobilecoin/ledger/sync" }
@@ -29,7 +29,7 @@ mc-sgx-css = { path = "../mobilecoin/sgx/css" }
 mc-transaction-core = { path = "../mobilecoin/transaction/core" }
 mc-transaction-std = { path = "../mobilecoin/transaction/std" }
 mc-util-from-random = { path = "../mobilecoin/util/from-random" }
-mc-util-serial = { path = "../mobilecoin/util/serial" }
+mc-util-serial = { path = "../mobilecoin/util/serial", default-feature = false }
 mc-util-uri = { path = "../mobilecoin/util/uri" }
 
 chrono = "0.4"
