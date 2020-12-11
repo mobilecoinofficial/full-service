@@ -506,6 +506,7 @@ jobs:
     executor: build-executor
     environment:
       <<: *default-build-environment
+      RUSTFLAGS: -D warnings -C target-cpu=skylake
     steps:
       - prepare-for-build
       - cargo-check
