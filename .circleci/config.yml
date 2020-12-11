@@ -334,6 +334,7 @@ jobs:
     parallelism: 1
     environment:
       <<: *default-build-environment
+      RUSTFLAGS: -D warnings -C target-cpu=skylake
     steps:
       - prepare-for-build
       - run-tests
