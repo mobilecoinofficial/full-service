@@ -375,7 +375,7 @@ impl TxoModel for Txo {
             account_txo_status.set_unspent(conn)?;
         }
 
-        return Ok(());
+        Ok(())
     }
 
     fn update_to_spendable(
