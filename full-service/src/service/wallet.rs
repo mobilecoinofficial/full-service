@@ -642,8 +642,8 @@ mod tests {
             &mut rng,
         );
 
-        // Sleep to let the sync thread process the txo
-        std::thread::sleep(Duration::from_secs(2));
+        // Sleep to let the sync thread process the txo - sometimes fails at 2s
+        std::thread::sleep(Duration::from_secs(4));
 
         let body = json!({
             "method": "list_txos",
@@ -833,8 +833,8 @@ mod tests {
             &mut rng,
         );
 
-        // Sleep to let the sync thread process the txo
-        std::thread::sleep(Duration::from_secs(2));
+        // Sleep to let the sync thread process the txo - sometimes fails at 2s
+        std::thread::sleep(Duration::from_secs(4));
 
         let body = json!({
             "method": "list_txos",
