@@ -2,7 +2,10 @@
 
 //! Decorated types for the service to return, with constructors from the database types.
 
-use crate::db::models::{AccountTxoStatus, AssignedSubaddress, TransactionLog, Txo};
+use crate::db::{
+    models::{AccountTxoStatus, AssignedSubaddress, TransactionLog, Txo},
+    transaction_log::AssociatedTxos,
+};
 use chrono::{TimeZone, Utc};
 use mc_mobilecoind_json::data_types::{JsonTxOut, JsonTxOutMembershipElement};
 use serde_derive::{Deserialize, Serialize};
@@ -80,7 +83,7 @@ impl JsonTxo {
                 .pending_tombstone_block_height
                 .map(|x| x.to_string()),
             spent_block_height: txo.spent_block_height.map(|x| x.to_string()),
-            proof: txo.proof.as_ref().map(|x| hex::encode(x)),
+            proof: txo.proof.as_ref().map(hex::encode),
         }
     }
 }
@@ -141,12 +144,7 @@ pub struct JsonTransactionResponse {
 }
 
 impl JsonTransactionResponse {
-    pub fn new(
-        transaction_log: &TransactionLog,
-        inputs: &Vec<String>,
-        outputs: &Vec<String>,
-        change: &Vec<String>,
-    ) -> Self {
+    pub fn new(transaction_log: &TransactionLog, associated_txos: &AssociatedTxos) -> Self {
         Self {
             transaction_id: transaction_log.transaction_id_hex.clone(),
             account_id: transaction_log.account_id_hex.clone(),
@@ -158,13 +156,13 @@ impl JsonTransactionResponse {
             sent_time: transaction_log
                 .sent_time
                 .map(|t| Utc.timestamp(t, 0).to_string())
-                .unwrap_or("".to_string()),
+                .unwrap_or_else(|| "".to_string()),
             block_height: transaction_log.block_height.to_string(),
             comment: transaction_log.comment.clone(),
             direction: transaction_log.direction.clone(),
-            input_txo_ids: inputs.clone(),
-            output_txo_ids: outputs.clone(),
-            change_txo_ids: change.clone(),
+            input_txo_ids: associated_txos.inputs.clone(),
+            output_txo_ids: associated_txos.outputs.clone(),
+            change_txo_ids: associated_txos.change.clone(),
         }
     }
 }

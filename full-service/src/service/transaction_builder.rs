@@ -79,9 +79,9 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
     /// Sets inputs to the txos associated with the given txo_ids. Only unspent txos are included.
     pub fn set_txos(
         &mut self,
-        input_txo_ids: &Vec<String>,
+        input_txo_ids: &[String],
     ) -> Result<(), WalletTransactionBuilderError> {
-        let txos = Txo::select_by_id(input_txo_ids, &self.wallet_db.get_conn()?)?;
+        let txos = Txo::select_by_id(&input_txo_ids.to_vec(), &self.wallet_db.get_conn()?)?;
         let unspent: Vec<Txo> = txos
             .iter()
             .filter(|(_txo, status)| status.txo_status == "unspent")
@@ -230,10 +230,9 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
             let subaddress_index = if let Some(s) = utxo.subaddress_index {
                 s
             } else {
-                return Err(WalletTransactionBuilderError::NullSubaddress(format!(
-                    "{}",
-                    utxo.txo_id_hex
-                )));
+                return Err(WalletTransactionBuilderError::NullSubaddress(
+                    utxo.txo_id_hex.to_string(),
+                ));
             };
 
             let onetime_private_key = recover_onetime_private_key(

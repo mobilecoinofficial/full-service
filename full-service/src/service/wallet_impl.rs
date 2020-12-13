@@ -119,7 +119,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         // Generate entropy for the account
         let mut rng = rand::thread_rng();
         let root_id = RootIdentity::from_random(&mut rng);
-        let account_key = AccountKey::from(&root_id.clone());
+        let account_key = AccountKey::from(&root_id);
         let entropy_str = hex::encode(root_id.root_entropy);
 
         let fb = first_block.unwrap_or(DEFAULT_FIRST_BLOCK);
@@ -132,12 +132,12 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
             DEFAULT_NEXT_SUBADDRESS_INDEX,
             fb,
             fb,
-            &name.unwrap_or("".to_string()),
+            &name.unwrap_or_else(|| "".to_string()),
             &conn,
         )?;
 
         Ok(JsonCreateAccountResponse {
-            entropy: entropy_str.to_string(),
+            entropy: entropy_str,
             public_address_b58,
             account_id: account_id.to_string(),
         })
@@ -169,7 +169,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
             DEFAULT_NEXT_SUBADDRESS_INDEX,
             fb,
             fb + 1,
-            &name.unwrap_or("".to_string()),
+            &name.unwrap_or_else(|| "".to_string()),
             &conn,
         )?;
         Ok(JsonImportAccountResponse {
@@ -315,6 +315,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn build_transaction(
         &self,
         account_id_hex: &str,
@@ -378,7 +379,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
 
         // FIXME: would prefer not to convert to proto as intermediary
         let tx_proposal_proto = mc_mobilecoind_api::TxProposal::try_from(&tx_proposal)
-            .map_err(|e| WalletServiceError::JsonConversion(e))?;
+            .map_err(WalletServiceError::JsonConversion)?;
 
         // Try and submit.
         let tx = mc_transaction_core::tx::Tx::try_from(tx_proposal_proto.get_tx())
@@ -401,7 +402,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         let transaction_id = TransactionLog::log_submitted(
             converted_proposal,
             block_height,
-            comment.unwrap_or("".to_string()),
+            comment.unwrap_or_else(|| "".to_string()),
             account_id_hex.as_deref(),
             &self.wallet_db.get_conn()?,
         )?;
@@ -411,6 +412,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
     }
 
     /// Convenience method that builds and submits in one go.
+    #[allow(clippy::too_many_arguments)]
     pub fn send_transaction(
         &self,
         account_id_hex: &str,
@@ -441,13 +443,8 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         let transactions = TransactionLog::list_all(account_id_hex, &self.wallet_db.get_conn()?)?;
 
         let mut results: Vec<JsonTransactionResponse> = Vec::new();
-        for (transaction, inputs, outputs, change) in transactions.iter() {
-            results.push(JsonTransactionResponse::new(
-                &transaction,
-                inputs,
-                outputs,
-                change,
-            ));
+        for (transaction, associated_txos) in transactions.iter() {
+            results.push(JsonTransactionResponse::new(&transaction, &associated_txos));
         }
         Ok(results)
     }
@@ -459,14 +456,9 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         let conn = self.wallet_db.get_conn()?;
         let transaction = TransactionLog::get(transaction_id_hex, &conn)?;
 
-        let (inputs, outputs, change) = transaction.get_associated_txos(&conn)?;
+        let associated = transaction.get_associated_txos(&conn)?;
 
-        Ok(JsonTransactionResponse::new(
-            &transaction,
-            &inputs,
-            &outputs,
-            &change,
-        ))
+        Ok(JsonTransactionResponse::new(&transaction, &associated))
     }
 
     pub fn get_transaction_object(

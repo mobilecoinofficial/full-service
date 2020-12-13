@@ -92,8 +92,8 @@ fn main() {
         Some(LedgerSyncServiceThread::new(
             ledger_db.clone(),
             peer_manager.clone(),
-            network_state.clone(),
-            transactions_fetcher.clone(),
+            network_state,
+            transactions_fetcher,
             config.poll_interval,
             logger.clone(),
         ))

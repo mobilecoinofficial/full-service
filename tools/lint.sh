@@ -4,6 +4,10 @@
 
 set -e
 
+: SGX_MODE=${SGX_MODE:-SW}
+: IAS_MODE=${IAS_MODE:-DEV}
+: CONSENSUS_ENCLAVE_CSS=${CONSENSUS_ENCLAVE_CSS:?"Must provide CONSENSUS_ENCLAVE_CSS to bypass enclave build"}
+
 if [[ ! -z "$1" ]]; then
     cd "$1"
 fi

@@ -24,7 +24,7 @@ use diesel::{
     r2d2::{ConnectionManager, PooledConnection},
     RunQueryDsl,
 };
-use std::iter::FromIterator;
+use std::{fmt, iter::FromIterator};
 
 #[derive(Debug)]
 pub struct TxoID(String);
@@ -36,9 +36,9 @@ impl From<&TxOut> for TxoID {
     }
 }
 
-impl TxoID {
-    pub fn to_string(&self) -> String {
-        self.0.clone()
+impl fmt::Display for TxoID {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
@@ -128,19 +128,19 @@ pub trait TxoModel {
     /// Returns:
     /// * Vec<(Txo, TxoStatus)>
     fn select_by_id(
-        txo_ids: &Vec<String>,
+        txo_ids: &[String],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<(Txo, AccountTxoStatus)>, WalletDbError>;
 
     /// Check whether all of the given Txos are spent.
     fn are_all_spent(
-        txo_ids: &Vec<String>,
+        txo_ids: &[String],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError>;
 
     /// Check whether any of the given Txos failed.
     fn any_failed(
-        txo_ids: &Vec<String>,
+        txo_ids: &[String],
         block_height: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError>;
@@ -253,10 +253,10 @@ impl TxoModel for Txo {
             .iter()
             .find_map(|(k, &v)| if v == output_index { Some(k) } else { None })
         {
-            let outlay = &tx_proposal.outlays[outlay_index.clone()];
+            let outlay = &tx_proposal.outlays[*outlay_index];
             (
                 outlay.value,
-                Some(outlay_index.clone()),
+                Some(*outlay_index),
                 Some(outlay.receiver.clone()),
             )
         } else {
@@ -549,7 +549,7 @@ impl TxoModel for Txo {
     }
 
     fn select_by_id(
-        txo_ids: &Vec<String>,
+        txo_ids: &[String],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<(Txo, AccountTxoStatus)>, WalletDbError> {
         use crate::db::schema::account_txo_statuses;
@@ -567,7 +567,7 @@ impl TxoModel for Txo {
     }
 
     fn are_all_spent(
-        txo_ids: &Vec<String>,
+        txo_ids: &[String],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError> {
         use crate::db::schema::account_txo_statuses;
@@ -587,7 +587,7 @@ impl TxoModel for Txo {
     }
 
     fn any_failed(
-        txo_ids: &Vec<String>,
+        txo_ids: &[String],
         block_height: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError> {
@@ -671,12 +671,12 @@ impl TxoModel for Txo {
             }
 
             // Grab the next (smallest) utxo, in order to opportunistically sweep up dust
-            let next_utxo = spendable_txos
-                .pop()
-                .ok_or(WalletDbError::InsufficientFunds(format!(
+            let next_utxo = spendable_txos.pop().ok_or_else(|| {
+                WalletDbError::InsufficientFunds(format!(
                     "Not enough Txos to sum to target value: {:?}",
                     target_value
-                )))?;
+                ))
+            })?;
             selected_utxos.push(next_utxo.clone());
             total += next_utxo.value as u64;
 

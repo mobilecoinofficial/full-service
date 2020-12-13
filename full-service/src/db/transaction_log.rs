@@ -26,6 +26,7 @@ use diesel::{
     r2d2::{ConnectionManager, PooledConnection},
     RunQueryDsl,
 };
+use std::fmt;
 
 #[derive(Debug)]
 pub struct TransactionID(String);
@@ -45,10 +46,16 @@ impl From<String> for TransactionID {
     }
 }
 
-impl TransactionID {
-    pub fn to_string(&self) -> String {
-        self.0.clone()
+impl fmt::Display for TransactionID {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
+}
+
+pub struct AssociatedTxos {
+    pub inputs: Vec<String>,
+    pub outputs: Vec<String>,
+    pub change: Vec<String>,
 }
 
 pub trait TransactionLogModel {
@@ -61,11 +68,11 @@ pub trait TransactionLogModel {
     /// Get the Txos associated with a given TransactionId, grouped according to their type.
     ///
     /// Returns:
-    /// * (inputs, outputs, change)
+    /// * AssoiatedTxos(inputs, outputs, change)
     fn get_associated_txos(
         &self,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<(Vec<String>, Vec<String>, Vec<String>), WalletDbError>;
+    ) -> Result<AssociatedTxos, WalletDbError>;
 
     /// Select the TransactionLogs associated with a given TxoId.
     fn select_for_txo(
@@ -76,11 +83,11 @@ pub trait TransactionLogModel {
     /// List all TransactionLogs and their associated Txos for a given account.
     ///
     /// Returns:
-    /// * Vec(TransactionLog, inputs, outputs, change)
+    /// * Vec(TransactionLog, AssociatedTxos(inputs, outputs, change))
     fn list_all(
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Vec<(TransactionLog, Vec<String>, Vec<String>, Vec<String>)>, WalletDbError>;
+    ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletDbError>;
 
     /// Update the transactions associated with a Txo for a given blockheight.
     fn update_transactions_associated_to_txo(
@@ -139,7 +146,7 @@ impl TransactionLogModel for TransactionLog {
     fn get_associated_txos(
         &self,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<(Vec<String>, Vec<String>, Vec<String>), WalletDbError> {
+    ) -> Result<AssociatedTxos, WalletDbError> {
         use crate::db::schema::transaction_logs;
         use crate::db::schema::transaction_txo_types;
 
@@ -171,7 +178,11 @@ impl TransactionLogModel for TransactionLog {
             }
         }
 
-        Ok((inputs, outputs, change))
+        Ok(AssociatedTxos {
+            inputs,
+            outputs,
+            change,
+        })
     }
 
     fn select_for_txo(
@@ -194,7 +205,7 @@ impl TransactionLogModel for TransactionLog {
     fn list_all(
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Vec<(TransactionLog, Vec<String>, Vec<String>, Vec<String>)>, WalletDbError> {
+    ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletDbError> {
         use crate::db::schema::transaction_logs;
         use crate::db::schema::transaction_txo_types;
 
@@ -247,7 +258,16 @@ impl TransactionLogModel for TransactionLog {
         Ok(results
             .values()
             .cloned()
-            .map(|t| (t.transaction_log, t.inputs, t.outputs, t.change))
+            .map(|t| {
+                (
+                    t.transaction_log,
+                    AssociatedTxos {
+                        inputs: t.inputs,
+                        outputs: t.outputs,
+                        change: t.change,
+                    },
+                )
+            })
             .collect())
     }
 
@@ -262,7 +282,7 @@ impl TransactionLogModel for TransactionLog {
         let associated_transaction_logs = Self::select_for_txo(txo_id_hex, conn)?;
 
         for transaction_log in associated_transaction_logs {
-            let (inputs, _outputs, _change) = transaction_log.get_associated_txos(conn)?;
+            let associated = transaction_log.get_associated_txos(conn)?;
 
             // Only update transaction_log status if proposed or pending
             if transaction_log.status == "succeeded" || transaction_log.status == "failed" {
@@ -270,7 +290,7 @@ impl TransactionLogModel for TransactionLog {
             }
 
             // Check whether all the inputs have been spent or if any failed, and update accordingly
-            if Txo::are_all_spent(&inputs, conn)? {
+            if Txo::are_all_spent(&associated.inputs, conn)? {
                 // FIXME: do we want to store "submitted_block_height" to disambiguate block_height?
                 diesel::update(
                     transaction_logs
@@ -281,7 +301,7 @@ impl TransactionLogModel for TransactionLog {
                     crate::db::schema::transaction_logs::block_height.eq(cur_block_height),
                 ))
                 .execute(conn)?;
-            } else if Txo::any_failed(&inputs, cur_block_height, conn)? {
+            } else if Txo::any_failed(&associated.inputs, cur_block_height, conn)? {
                 // FIXME: Do we want to store and update the "failed_block_height" as min(tombstones)?
                 diesel::update(
                     transaction_logs
@@ -312,7 +332,7 @@ impl TransactionLogModel for TransactionLog {
                 match TransactionLog::get(&transaction_id.to_string(), conn) {
                     Ok(_) => continue, // We've already processed this transaction on a previous sync
                     Err(WalletDbError::NotFound(_)) => {} // Insert below
-                    Err(e) => return Err(e.into()),
+                    Err(e) => return Err(e),
                 }
 
                 // Get the public address for the subaddress that received these TXOs
@@ -520,12 +540,12 @@ mod tests {
                 assert_eq!(transaction_logs[0].value, txo.value);
 
                 // Make the sure the types are correct - all received should be "output"
-                let (inputs, outputs, change) = transaction_logs[0]
+                let associated = transaction_logs[0]
                     .get_associated_txos(&wallet_db.get_conn().unwrap())
                     .unwrap();
-                assert_eq!(inputs.len(), 0);
-                assert_eq!(outputs.len(), 1);
-                assert_eq!(change.len(), 0);
+                assert_eq!(associated.inputs.len(), 0);
+                assert_eq!(associated.outputs.len(), 1);
+                assert_eq!(associated.change.len(), 0);
             }
         }
     }

@@ -180,7 +180,7 @@ fn wallet_help() -> Result<String, String> {
     for e in JsonCommandRequest::iter() {
         help_str.push_str(&format!("{:?}\n\n", e));
     }
-    Ok(help_str.to_string())
+    Ok(help_str)
 }
 
 #[post("/wallet", format = "json", data = "<command>")]
@@ -332,9 +332,7 @@ fn wallet_api(
                     max_spendable_value,
                 )
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
-            JsonCommandResponse::build_transaction {
-                tx_proposal: tx_proposal.into(),
-            }
+            JsonCommandResponse::build_transaction { tx_proposal }
         }
         JsonCommandRequest::submit_transaction {
             tx_proposal,

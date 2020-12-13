@@ -20,6 +20,7 @@ use diesel::{
     r2d2::{ConnectionManager, PooledConnection},
     RunQueryDsl,
 };
+use std::fmt;
 
 #[derive(Debug, Clone)]
 pub struct AccountID(pub String);
@@ -32,9 +33,9 @@ impl From<&AccountKey> for AccountID {
     }
 }
 
-impl AccountID {
-    pub fn to_string(&self) -> String {
-        self.0.clone()
+impl fmt::Display for AccountID {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
@@ -43,6 +44,7 @@ pub trait AccountModel {
     ///
     /// Returns:
     /// * (account_id, main_subaddress_b58)
+    #[allow(clippy::too_many_arguments)]
     fn create(
         account_key: &AccountKey,
         main_subaddress_index: u64,

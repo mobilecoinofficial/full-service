@@ -304,7 +304,7 @@ fn sync_thread_entry_point(
 pub fn sync_account(
     ledger_db: &LedgerDB,
     wallet_db: &WalletDb,
-    account_id: &AccountId,
+    account_id: &str,
     logger: &Logger,
 ) -> Result<SyncAccountOk, SyncError> {
     for _ in 0..MAX_BLOCKS_PROCESSING_CHUNK_SIZE {
