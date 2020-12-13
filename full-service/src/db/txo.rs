@@ -20,6 +20,7 @@ use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::{constants::MAX_INPUTS, ring_signature::KeyImage, tx::TxOut};
 
 use diesel::{
+    connection::TransactionManager,
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},
     RunQueryDsl,
@@ -169,6 +170,7 @@ impl TxoModel for Txo {
     ) -> Result<String, WalletDbError> {
         use crate::db::schema::txos::dsl::{txo_id_hex, txos};
 
+        conn.transaction_manager().begin_transaction(conn)?;
         let txo_id = TxoID::from(&txo);
 
         // If we already have this TXO (e.g. from minting in a previous transaction), we need to update it
@@ -226,6 +228,7 @@ impl TxoModel for Txo {
             }
         };
 
+        conn.transaction_manager().commit_transaction(conn)?;
         Ok(txo_id.to_string())
     }
 
@@ -238,6 +241,8 @@ impl TxoModel for Txo {
     ) -> Result<(Option<PublicAddress>, String, i64, String), WalletDbError> {
         use crate::db::schema::account_txo_statuses;
         use crate::db::schema::txos;
+
+        conn.transaction_manager().begin_transaction(conn)?;
 
         let txo_id = TxoID::from(output);
 
@@ -311,6 +316,7 @@ impl TxoModel for Txo {
                 .execute(conn)?;
         }
 
+        conn.transaction_manager().commit_transaction(conn)?;
         Ok((
             outlay_receiver,
             txo_id.to_string(),
@@ -327,6 +333,8 @@ impl TxoModel for Txo {
         received_block_height: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
+        conn.transaction_manager().begin_transaction(conn)?;
+
         // get the type of this TXO
         let account_txo_status = AccountTxoStatus::get(account_id_hex, &self.txo_id_hex, &conn)?;
 
@@ -375,6 +383,7 @@ impl TxoModel for Txo {
             account_txo_status.set_unspent(conn)?;
         }
 
+        conn.transaction_manager().commit_transaction(conn)?;
         Ok(())
     }
 
@@ -386,6 +395,8 @@ impl TxoModel for Txo {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::txos::{key_image, received_block_height, subaddress_index};
+
+        conn.transaction_manager().begin_transaction(conn)?;
 
         // Verify that we have a subaddress, otherwise this transaction will be
         // unspendable.
@@ -401,6 +412,7 @@ impl TxoModel for Txo {
                 key_image.eq(encoded_key_image),
             ))
             .execute(conn)?;
+        conn.transaction_manager().commit_transaction(conn)?;
         Ok(())
     }
 
@@ -410,6 +422,7 @@ impl TxoModel for Txo {
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::account_txo_statuses::dsl::account_txo_statuses;
 
+        conn.transaction_manager().begin_transaction(conn)?;
         // Find the account associated with this Txo.
         // Note: We should only be calling update_to_pending on inputs, which we had to own to spend.
         let account = Account::get_by_txo_id(&txo_id.to_string(), conn)?;
@@ -418,6 +431,7 @@ impl TxoModel for Txo {
         diesel::update(account_txo_statuses.find((&account.account_id_hex, &txo_id.to_string())))
             .set(crate::db::schema::account_txo_statuses::txo_status.eq("pending".to_string()))
             .execute(conn)?;
+        conn.transaction_manager().commit_transaction(conn)?;
         Ok(())
     }
 
@@ -600,7 +614,7 @@ impl TxoModel for Txo {
                     .eq(account_txo_statuses::txo_id_hex)
                     .and(txos::txo_id_hex.eq_any(txo_ids))
                     .and(account_txo_statuses::txo_status.eq_any(vec!["unspent", "pending"]))
-                    .and(txos::pending_tombstone_block_height.gt(Some(block_height)))),
+                    .and(txos::pending_tombstone_block_height.lt(Some(block_height)))),
             )
             .select(txos::all_columns)
             .load(conn)?;
@@ -626,7 +640,7 @@ impl TxoModel for Txo {
                     .and(account_txo_statuses::txo_status.eq("unspent"))
                     .and(txos::subaddress_index.is_not_null())
                     .and(txos::key_image.is_not_null()) // Could technically recreate with subaddress
-                    .and(txos::value.lt(max_spendable_value.unwrap_or(i64::MAX)))),
+                    .and(txos::value.le(max_spendable_value.unwrap_or(i64::MAX)))),
             )
             .select(txos::all_columns)
             .order_by(txos::value.desc())
@@ -1039,4 +1053,7 @@ mod tests {
     // FIXME: once we have create_minted, then select_txos test with no spendable
     // FIXME: test update txo after tombstone block is exceeded
     // FIXME: test update txo after it has landed via key_image update
+    // FIXME: test any_failed and are_all_spent
+    // FIXME: test max_spendable
+    // FIXME: test for selecting utxos from multiple subaddresses in one account
 }

@@ -15,6 +15,7 @@ use mc_account_keys::AccountKey;
 use mc_crypto_keys::RistrettoPublic;
 
 use diesel::{
+    connection::TransactionManager,
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},
 };
@@ -74,6 +75,8 @@ impl AssignedSubaddressModel for AssignedSubaddress {
     ) -> Result<String, WalletDbError> {
         use crate::db::schema::assigned_subaddresses;
 
+        conn.transaction_manager().begin_transaction(conn)?;
+
         let account_id = AccountID::from(account_key);
 
         let subaddress = account_key.subaddress(subaddress_index);
@@ -91,7 +94,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         diesel::insert_into(assigned_subaddresses::table)
             .values(&subaddress_entry)
             .execute(conn)?;
-
+        conn.transaction_manager().commit_transaction(conn)?;
         Ok(subaddress_b58)
     }
 
@@ -102,6 +105,8 @@ impl AssignedSubaddressModel for AssignedSubaddress {
     ) -> Result<(String, i64), WalletDbError> {
         use crate::db::schema::accounts::dsl::{account_id_hex as dsl_account_id_hex, accounts};
         use crate::db::schema::assigned_subaddresses;
+
+        conn.transaction_manager().begin_transaction(conn)?;
 
         let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
@@ -134,7 +139,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
                 crate::db::schema::accounts::next_block.eq(sync_from),
             ))
             .execute(conn)?;
-
+        conn.transaction_manager().commit_transaction(conn)?;
         Ok((subaddress_b58, subaddress_index))
     }
 

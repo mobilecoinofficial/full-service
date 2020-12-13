@@ -7,7 +7,7 @@ use displaydoc::Display;
 #[derive(Display, Debug)]
 pub enum WalletServiceError {
     /// Error interacting with the DB {0}
-    DBError(WalletDbError),
+    Database(WalletDbError),
 
     /// Error decoding from hex {0}
     HexDecode(hex::FromHexError),
@@ -16,7 +16,7 @@ pub enum WalletServiceError {
     TransactionBuilder(WalletTransactionBuilderError),
 
     /// Error parsing u64
-    U64ParseError,
+    U64Parse,
 
     /// No peers configured
     NoPeersConfigured,
@@ -24,13 +24,13 @@ pub enum WalletServiceError {
     /// Node not found
     NodeNotFound,
 
-    /// Error converting json
+    /// Error converting json {0}
     JsonConversion(String),
 
     /// Connection Error
     Connection(retry::Error<mc_connection::Error>),
 
-    /// Error converting to/from API protos
+    /// Error converting to/from API protos {0}
     ProtoConversion(mc_api::ConversionError),
 
     /// Error Converting Proto but throws convert::Infallible
@@ -51,7 +51,7 @@ pub enum WalletServiceError {
 
 impl From<WalletDbError> for WalletServiceError {
     fn from(src: WalletDbError) -> Self {
-        Self::DBError(src)
+        Self::Database(src)
     }
 }
 
@@ -69,7 +69,7 @@ impl From<WalletTransactionBuilderError> for WalletServiceError {
 
 impl From<std::num::ParseIntError> for WalletServiceError {
     fn from(_src: std::num::ParseIntError) -> Self {
-        Self::U64ParseError
+        Self::U64Parse
     }
 }
 
@@ -100,7 +100,7 @@ impl From<prost::DecodeError> for WalletServiceError {
 #[derive(Display, Debug)]
 pub enum WalletDbError {
     /// Diesel Error: {0}
-    DieselError(diesel::result::Error),
+    Diesel(diesel::result::Error),
 
     /// Error with rocket databases: {0}
     RocketDB(rocket_contrib::databases::r2d2::Error),
@@ -108,11 +108,11 @@ pub enum WalletDbError {
     /// Duplicate entries with the same ID {0}
     DuplicateEntries(String),
 
-    /// Entry not found
+    /// Entry not found {0}
     NotFound(String),
 
     /// Error encoding b58 {0}
-    B58EncodeError(mc_api::display::Error),
+    B58Encode(mc_api::display::Error),
 
     /// Constructed a malformed transaction with multiple account IDs
     MultipleAccountIDsInTransaction,
@@ -159,7 +159,7 @@ pub enum WalletDbError {
 
 impl From<diesel::result::Error> for WalletDbError {
     fn from(src: diesel::result::Error) -> Self {
-        Self::DieselError(src)
+        Self::Diesel(src)
     }
 }
 
@@ -171,7 +171,7 @@ impl From<rocket_contrib::databases::r2d2::Error> for WalletDbError {
 
 impl From<mc_api::display::Error> for WalletDbError {
     fn from(src: mc_api::display::Error) -> Self {
-        Self::B58EncodeError(src)
+        Self::B58Encode(src)
     }
 }
 
@@ -183,14 +183,11 @@ impl From<prost::DecodeError> for WalletDbError {
 
 #[derive(Display, Debug)]
 pub enum SyncError {
-    /// Error downloading blocks
-    DownloadError,
-
     /// Could not find account
     AccountNotFound,
 
     /// Error with WalletDb {0}
-    WalletDb(WalletDbError),
+    Database(WalletDbError),
 
     /// Error with LedgerDB {0}
     LedgerDB(mc_ledger_db::Error),
@@ -207,7 +204,7 @@ pub enum SyncError {
 
 impl From<WalletDbError> for SyncError {
     fn from(src: WalletDbError) -> Self {
-        Self::WalletDb(src)
+        Self::Database(src)
     }
 }
 
@@ -270,7 +267,7 @@ pub enum WalletTransactionBuilderError {
     /// Error interacting with fog {0}
     FogError(String),
 
-    /// Attmpting to build a transaction from a TXO withou a subaddress
+    /// Attempting to build a transaction from a TXO without a subaddress {0}
     NullSubaddress(String),
 }
 

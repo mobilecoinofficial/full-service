@@ -22,6 +22,7 @@ use mc_transaction_core::tx::Tx;
 
 use chrono::Utc;
 use diesel::{
+    connection::TransactionManager,
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},
     RunQueryDsl,
@@ -288,6 +289,7 @@ impl TransactionLogModel for TransactionLog {
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::transaction_logs::dsl::{transaction_id_hex, transaction_logs};
 
+        conn.transaction_manager().begin_transaction(conn)?;
         let associated_transaction_logs = Self::select_for_txo(txo_id_hex, conn)?;
 
         for transaction_log in associated_transaction_logs {
@@ -320,7 +322,7 @@ impl TransactionLogModel for TransactionLog {
                 .execute(conn)?;
             }
         }
-
+        conn.transaction_manager().commit_transaction(conn)?;
         Ok(())
     }
 
@@ -331,6 +333,8 @@ impl TransactionLogModel for TransactionLog {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::transaction_txo_types;
+
+        conn.transaction_manager().begin_transaction(conn)?;
 
         for (subaddress_index, output_txo_ids) in subaddress_to_output_txo_ids {
             let txos = Txo::select_by_id(&output_txo_ids, conn)?;
@@ -387,7 +391,7 @@ impl TransactionLogModel for TransactionLog {
                     .execute(conn)?;
             }
         }
-
+        conn.transaction_manager().commit_transaction(conn)?;
         Ok(())
     }
 
@@ -398,6 +402,8 @@ impl TransactionLogModel for TransactionLog {
         account_id_hex: Option<&str>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<String, WalletDbError> {
+        conn.transaction_manager().begin_transaction(conn)?;
+
         // Store the txo_id -> transaction_txo_type
         let mut txo_ids: Vec<(String, String)> = Vec::new();
 
@@ -475,9 +481,10 @@ impl TransactionLogModel for TransactionLog {
                     .values(&new_transaction_txo)
                     .execute(conn)?;
             }
-
+            conn.transaction_manager().commit_transaction(conn)?;
             Ok(transaction_id.to_string())
         } else {
+            conn.transaction_manager().rollback_transaction(conn)?;
             Err(WalletDbError::TransactionLacksRecipient)
         }
     }

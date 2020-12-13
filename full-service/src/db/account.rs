@@ -16,6 +16,7 @@ use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_transaction_core::ring_signature::KeyImage;
 
 use diesel::{
+    connection::TransactionManager,
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},
     RunQueryDsl,
@@ -115,8 +116,9 @@ impl AccountModel for Account {
     ) -> Result<(AccountID, String), WalletDbError> {
         use crate::db::schema::accounts;
 
-        let account_id = AccountID::from(account_key);
+        conn.transaction_manager().begin_transaction(conn)?;
 
+        let account_id = AccountID::from(account_key);
         let new_account = NewAccount {
             account_id_hex: &account_id.to_string(),
             encrypted_account_key: &mc_util_serial::encode(account_key), // FIXME: add encryption
@@ -148,6 +150,7 @@ impl AccountModel for Account {
             &conn,
         )?;
 
+        conn.transaction_manager().commit_transaction(conn)?;
         Ok((account_id, main_subaddress_b58))
     }
 
@@ -215,9 +218,12 @@ impl AccountModel for Account {
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
 
+        conn.transaction_manager().begin_transaction(conn)?;
         diesel::update(accounts.filter(account_id_hex.eq(&self.account_id_hex)))
             .set(crate::db::schema::accounts::name.eq(new_name))
             .execute(conn)?;
+        conn.transaction_manager().commit_transaction(conn)?;
+
         Ok(())
     }
 
@@ -230,6 +236,8 @@ impl AccountModel for Account {
         use crate::db::schema::account_txo_statuses::dsl::account_txo_statuses;
         use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
         use crate::db::schema::txos::dsl::{txo_id_hex, txos};
+
+        conn.transaction_manager().begin_transaction(conn)?;
 
         for key_image in key_images {
             // Get the txo by key_image
@@ -271,6 +279,7 @@ impl AccountModel for Account {
         diesel::update(accounts.filter(account_id_hex.eq(&self.account_id_hex)))
             .set(crate::db::schema::accounts::next_block.eq(spent_block_height + 1))
             .execute(conn)?;
+        conn.transaction_manager().commit_transaction(conn)?;
         Ok(())
     }
 
@@ -281,7 +290,9 @@ impl AccountModel for Account {
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
 
+        conn.transaction_manager().begin_transaction(conn)?;
         diesel::delete(accounts.filter(account_id_hex.eq(self.account_id_hex))).execute(conn)?;
+        conn.transaction_manager().commit_transaction(conn)?;
         Ok(())
     }
 }
