@@ -123,8 +123,12 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
     }
 
     pub fn set_fee(&mut self, fee: u64) -> Result<(), WalletTransactionBuilderError> {
-        self.transaction_builder
-            .set_fee(std::cmp::min(MINIMUM_FEE, fee));
+        if fee < MINIMUM_FEE {
+            return Err(WalletTransactionBuilderError::InsufficientFee(
+                MINIMUM_FEE.to_string(),
+            ));
+        }
+        self.transaction_builder.set_fee(fee);
         Ok(())
     }
 
@@ -1070,5 +1074,141 @@ mod tests {
         let proposal = builder.build().unwrap();
         assert_eq!(proposal.tx.prefix.tombstone_block, 20);
     }
-    // FIXME: test with fees
+
+    // Test setting and not setting the fee
+    #[test_with_logger]
+    fn test_fee(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        // Start sync thread
+        let _sync_thread =
+            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+
+        let account_key = AccountKey::random(&mut rng);
+        Account::create(
+            &account_key,
+            0,
+            1,
+            2,
+            0,
+            0,
+            "",
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![account_key.subaddress(0)],
+            70 * MOB as u64,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        std::thread::sleep(std::time::Duration::from_secs(4));
+
+        // Make sure we have all our TXOs
+        assert_eq!(
+            Txo::list_for_account(
+                &AccountID::from(&account_key).to_string(),
+                &wallet_db.get_conn().unwrap(),
+            )
+            .unwrap()
+            .len(),
+            1
+        );
+
+        let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
+            WalletTransactionBuilder::new(
+                AccountID::from(&account_key).to_string(),
+                wallet_db.clone(),
+                ledger_db.clone(),
+                Some(Arc::new(MockFogPubkeyResolver::new())),
+                logger.clone(),
+            );
+        let recipient_account_key = AccountKey::random(&mut rng);
+        let recipient = recipient_account_key.subaddress(rng.next_u64());
+        builder
+            .add_recipient(recipient.clone(), 10 * MOB as u64)
+            .unwrap();
+        builder.select_txos(None).unwrap();
+        builder.set_tombstone(0).unwrap();
+
+        // Verify that not setting fee results in default fee
+        let proposal = builder.build().unwrap();
+        assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE);
+
+        // You cannot set fee to 0
+        let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
+            WalletTransactionBuilder::new(
+                AccountID::from(&account_key).to_string(),
+                wallet_db.clone(),
+                ledger_db.clone(),
+                Some(Arc::new(MockFogPubkeyResolver::new())),
+                logger.clone(),
+            );
+        let recipient_account_key = AccountKey::random(&mut rng);
+        let recipient = recipient_account_key.subaddress(rng.next_u64());
+        builder
+            .add_recipient(recipient.clone(), 10 * MOB as u64)
+            .unwrap();
+        builder.select_txos(None).unwrap();
+        builder.set_tombstone(0).unwrap();
+        match builder.set_fee(0) {
+            Ok(_) => panic!("Should not be able to set fee to 0"),
+            Err(WalletTransactionBuilderError::InsufficientFee(_)) => {}
+            Err(e) => panic!("Unexpected error {:?}", e),
+        }
+
+        // Verify that not setting fee results in default fee
+        let proposal = builder.build().unwrap();
+        assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE);
+
+        // Setting fee less than minimum fee should fail
+        let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
+            WalletTransactionBuilder::new(
+                AccountID::from(&account_key).to_string(),
+                wallet_db.clone(),
+                ledger_db.clone(),
+                Some(Arc::new(MockFogPubkeyResolver::new())),
+                logger.clone(),
+            );
+        let recipient_account_key = AccountKey::random(&mut rng);
+        let recipient = recipient_account_key.subaddress(rng.next_u64());
+        builder
+            .add_recipient(recipient.clone(), 10 * MOB as u64)
+            .unwrap();
+        builder.select_txos(None).unwrap();
+        builder.set_tombstone(0).unwrap();
+        match builder.set_fee(0) {
+            Ok(_) => panic!("Should not be able to set fee to 0"),
+            Err(WalletTransactionBuilderError::InsufficientFee(_)) => {}
+            Err(e) => panic!("Unexpected error {:?}", e),
+        }
+
+        // Setting fee greater than MINIMUM_FEE works
+        let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
+            WalletTransactionBuilder::new(
+                AccountID::from(&account_key).to_string(),
+                wallet_db.clone(),
+                ledger_db.clone(),
+                Some(Arc::new(MockFogPubkeyResolver::new())),
+                logger.clone(),
+            );
+        let recipient_account_key = AccountKey::random(&mut rng);
+        let recipient = recipient_account_key.subaddress(rng.next_u64());
+        builder
+            .add_recipient(recipient.clone(), 10 * MOB as u64)
+            .unwrap();
+        builder.select_txos(None).unwrap();
+        builder.set_tombstone(0).unwrap();
+        builder.set_fee(MINIMUM_FEE * 10).unwrap();
+        let proposal = builder.build().unwrap();
+        assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE * 10);
+    }
 }

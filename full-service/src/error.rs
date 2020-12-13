@@ -311,6 +311,9 @@ pub enum WalletTransactionBuilderError {
 
     /// Must set tombstone before building. Setting to 0 picks reasonable default.
     TombstoneNotSet,
+
+    /// Fee must be at least MINIMUM_FEE {0}
+    InsufficientFee(String),
 }
 
 impl From<mc_ledger_db::Error> for WalletTransactionBuilderError {
