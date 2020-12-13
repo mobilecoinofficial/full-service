@@ -144,6 +144,9 @@ pub enum WalletDbError {
     /// Insufficient Funds {0}
     InsufficientFunds(String),
 
+    /// Insufficient funds from Txos under max_spendable_value {0}
+    InsufficientFundsUnderMaxSpendable(String),
+
     /// Multiple AccountTxoStatus entries for Txo
     MultipleStatusesForTxo,
 

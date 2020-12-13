@@ -660,7 +660,7 @@ impl TxoModel for Txo {
             if total_unspent_value_in_wallet >= target_value {
                 return Err(WalletDbError::InsufficientFundsFragmentedTxos);
             } else {
-                return Err(WalletDbError::InsufficientFunds(format!(
+                return Err(WalletDbError::InsufficientFundsUnderMaxSpendable(format!(
                     "Max spendable value in wallet: {:?}, but target value: {:?}",
                     max_spendable_in_wallet, target_value
                 )));
@@ -897,9 +897,9 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         );
         match res {
-            Err(WalletDbError::InsufficientFunds(_)) => {}
-            Ok(_) => panic!("Should error with InsufficientFunds"),
-            Err(_) => panic!("Should error with InsufficientFunds"),
+            Err(WalletDbError::InsufficientFundsUnderMaxSpendable(_)) => {}
+            Ok(_) => panic!("Should error with InsufficientFundsUnderMaxSpendable"),
+            Err(_) => panic!("Should error with InsufficientFundsUnderMaxSpendable"),
         }
 
         // sum(300..1800) to get a window where we had to increase past the smallest txos,

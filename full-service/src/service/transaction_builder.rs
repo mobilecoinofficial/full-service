@@ -504,6 +504,7 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
 mod tests {
     use super::*;
     use crate::{
+        error::WalletDbError,
         service::sync::SyncThread,
         test_utils::{add_block_to_ledger_db, get_test_ledger, WalletDbTestContext, MOB},
     };
@@ -735,8 +736,6 @@ mod tests {
         )
         .unwrap();
 
-        // Give ourselves enough MOB that we have more than u64::MAX, 18_446_745 MOB
-
         // Send 3 transactions for various MOB to ourselves
         add_block_to_ledger_db(
             &mut ledger_db,
@@ -832,8 +831,114 @@ mod tests {
         assert_eq!(proposal.tx.prefix.outputs.len(), 2); // self and change
     }
 
-    // FIXME: Test for setting txos on builder
-    // FIXME: test with max_spendable
+    // Test max_spendable correctly filters out txos above max_spendable
+    #[test_with_logger]
+    fn test_max_spendable(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        // Start sync thread
+        let _sync_thread =
+            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+
+        let account_key = AccountKey::random(&mut rng);
+        Account::create(
+            &account_key,
+            0,
+            1,
+            2,
+            0,
+            0,
+            "",
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        // Send 3 transactions for various MOB to ourselves
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![account_key.subaddress(0)],
+            70 * MOB as u64,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![account_key.subaddress(0)],
+            80 * MOB as u64,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![account_key.subaddress(0)],
+            90 * MOB as u64,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        std::thread::sleep(std::time::Duration::from_secs(4));
+
+        // Make sure we have all our TXOs
+        assert_eq!(
+            Txo::list_for_account(
+                &AccountID::from(&account_key).to_string(),
+                &wallet_db.get_conn().unwrap(),
+            )
+            .unwrap()
+            .len(),
+            3
+        );
+
+        let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
+            WalletTransactionBuilder::new(
+                AccountID::from(&account_key).to_string(),
+                wallet_db.clone(),
+                ledger_db.clone(),
+                Some(Arc::new(MockFogPubkeyResolver::new())),
+                logger.clone(),
+            );
+
+        let recipient_account_key = AccountKey::random(&mut rng);
+        let recipient = recipient_account_key.subaddress(rng.next_u64());
+        // Setting value to exactly the input will fail because you need funds for fee
+        builder
+            .add_recipient(recipient.clone(), 80 * MOB as u64)
+            .unwrap();
+
+        // Test that selecting Txos with max_spendable < all our txo values fails
+        match builder.select_txos(Some(10)) {
+            Ok(_) => panic!("Should not be able to construct tx when max_spendable < all txos"),
+            Err(WalletTransactionBuilderError::WalletDb(WalletDbError::NoSpendableTxos)) => {}
+            Err(e) => panic!("Unexpected error {:?}", e),
+        }
+
+        // We should be able to try again, with max_spendable at 70, but will not hit our outlay target (80 * MOB)
+        match builder.select_txos(Some(70 * MOB as u64)) {
+            Ok(_) => panic!("Should not be able to construct tx when max_spendable < all txos"),
+            Err(WalletTransactionBuilderError::WalletDb(
+                WalletDbError::InsufficientFundsUnderMaxSpendable(_),
+            )) => {}
+            Err(e) => panic!("Unexpected error {:?}", e),
+        }
+
+        // Now, we should succeed if we set max_spendable = 80 * MOB, because we will pick up both 70 and 80
+        builder.select_txos(Some(80 * MOB as u64)).unwrap();
+        let proposal = builder.build().unwrap();
+        assert_eq!(proposal.outlays.len(), 1);
+        assert_eq!(proposal.outlays[0].receiver, recipient);
+        assert_eq!(proposal.outlays[0].value, 80 * MOB as u64);
+        assert_eq!(proposal.tx.prefix.inputs.len(), 2); // uses both 70 and 80
+        assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE);
+        assert_eq!(proposal.tx.prefix.outputs.len(), 2); // self and change
+    }
+
     // FIXME: test with tombstones
     // FIXME: test with fees
 }
