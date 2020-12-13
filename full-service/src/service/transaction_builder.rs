@@ -1211,4 +1211,79 @@ mod tests {
         let proposal = builder.build().unwrap();
         assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE * 10);
     }
+
+    // We should be able to create a transaction without any change outputs
+    #[test_with_logger]
+    fn test_no_change(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        // Start sync thread
+        let _sync_thread =
+            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+
+        let account_key = AccountKey::random(&mut rng);
+        Account::create(
+            &account_key,
+            0,
+            1,
+            2,
+            0,
+            0,
+            "",
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![account_key.subaddress(0)],
+            70 * MOB as u64,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        std::thread::sleep(std::time::Duration::from_secs(4));
+
+        // Make sure we have all our TXOs
+        assert_eq!(
+            Txo::list_for_account(
+                &AccountID::from(&account_key).to_string(),
+                &wallet_db.get_conn().unwrap(),
+            )
+            .unwrap()
+            .len(),
+            1
+        );
+
+        let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
+            WalletTransactionBuilder::new(
+                AccountID::from(&account_key).to_string(),
+                wallet_db.clone(),
+                ledger_db.clone(),
+                Some(Arc::new(MockFogPubkeyResolver::new())),
+                logger.clone(),
+            );
+        let recipient_account_key = AccountKey::random(&mut rng);
+        let recipient = recipient_account_key.subaddress(rng.next_u64());
+
+        // Set value to consume the whole TXO and not produce change
+        let value = 70 * MOB as u64 - MINIMUM_FEE;
+        builder.add_recipient(recipient.clone(), value).unwrap();
+        builder.select_txos(None).unwrap();
+        builder.set_tombstone(0).unwrap();
+
+        // Verify that not setting fee results in default fee
+        let proposal = builder.build().unwrap();
+        assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE);
+        assert_eq!(proposal.outlays.len(), 1);
+        assert_eq!(proposal.outlays[0].receiver, recipient);
+        assert_eq!(proposal.outlays[0].value, value);
+        assert_eq!(proposal.tx.prefix.inputs.len(), 1); // uses just one input
+        assert_eq!(proposal.tx.prefix.outputs.len(), 1); // only one output to self (no change)
+    }
 }
