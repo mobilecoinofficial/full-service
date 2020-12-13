@@ -305,10 +305,13 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
             .iter()
             .fold(0, |acc, (utxo, _proof)| acc + utxo.value);
         if (total_value + self.transaction_builder.fee) > input_value as u64 {
-            return Err(WalletTransactionBuilderError::InsufficientFunds(format!(
-                "Cannot make change for value {:?}",
-                input_value
-            )));
+            return Err(WalletTransactionBuilderError::InsufficientInputFunds(
+                format!(
+                    "Total value required to send transaction {:?}, but only {:?} in inputs",
+                    total_value + self.transaction_builder.fee,
+                    input_value
+                ),
+            ));
         }
 
         let change = input_value as u64 - total_value - self.transaction_builder.fee;
@@ -641,7 +644,7 @@ mod tests {
 
         // Give ourselves enough MOB that we have more than u64::MAX, 18_446_745 MOB
 
-        // Send 3 transactions for 11 MOB to ourselves
+        // Send 3 transactions for 7M MOB to ourselves
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![account_key.subaddress(0)],
@@ -697,7 +700,7 @@ mod tests {
         let value = u64::MAX;
         builder.add_recipient(recipient.clone(), value).unwrap();
 
-        // Select the txos for the recipient
+        // Select the txos for the recipient - should error because > u64::MAX
         match builder.select_txos(None) {
             Ok(_) => panic!("Should not be allowed to construct outbound values > u64::MAX"),
             Err(WalletTransactionBuilderError::OutboundValueTooLarge) => {}
@@ -705,7 +708,130 @@ mod tests {
         }
     }
 
-    // FIXME: Test for sending more MOB than fits in a u64
+    // Users should be able to set the txos specifically that they want to send
+    #[test_with_logger]
+    fn test_setting_txos(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        // Start sync thread
+        let _sync_thread =
+            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+
+        let account_key = AccountKey::random(&mut rng);
+        Account::create(
+            &account_key,
+            0,
+            1,
+            2,
+            0,
+            0,
+            "",
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        // Give ourselves enough MOB that we have more than u64::MAX, 18_446_745 MOB
+
+        // Send 3 transactions for various MOB to ourselves
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![account_key.subaddress(0)],
+            70 * MOB as u64,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![account_key.subaddress(0)],
+            80 * MOB as u64,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![account_key.subaddress(0)],
+            90 * MOB as u64,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        std::thread::sleep(std::time::Duration::from_secs(4));
+
+        // Get our TXO list
+        let txos: Vec<Txo> = Txo::list_for_account(
+            &AccountID::from(&account_key).to_string(),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap()
+        .iter()
+        .map(|(t, _a)| t.clone())
+        .collect();
+
+        // Construct with just the first txo
+        let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
+            WalletTransactionBuilder::new(
+                AccountID::from(&account_key).to_string(),
+                wallet_db.clone(),
+                ledger_db.clone(),
+                Some(Arc::new(MockFogPubkeyResolver::new())),
+                logger.clone(),
+            );
+
+        let recipient_account_key = AccountKey::random(&mut rng);
+        let recipient = recipient_account_key.subaddress(rng.next_u64());
+        // Setting value to exactly the input will fail because you need funds for fee
+        builder
+            .add_recipient(recipient.clone(), txos[0].value as u64)
+            .unwrap();
+
+        builder.set_txos(&vec![txos[0].txo_id_hex.clone()]).unwrap();
+        match builder.build() {
+            Ok(_) => {
+                panic!("Should not be able to construct Tx with > inputs value as output value")
+            }
+            Err(WalletTransactionBuilderError::InsufficientInputFunds(_)) => {}
+            Err(e) => panic!("Unexpected error {:?}", e),
+        }
+
+        // Now build, setting to multiple TXOs
+        let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
+            WalletTransactionBuilder::new(
+                AccountID::from(&account_key).to_string(),
+                wallet_db.clone(),
+                ledger_db.clone(),
+                Some(Arc::new(MockFogPubkeyResolver::new())),
+                logger.clone(),
+            );
+
+        let recipient_account_key = AccountKey::random(&mut rng);
+        let recipient = recipient_account_key.subaddress(rng.next_u64());
+        // Set value to just slightly more than what fits in the one TXO
+        builder
+            .add_recipient(recipient.clone(), txos[0].value as u64 + 10)
+            .unwrap();
+
+        builder
+            .set_txos(&vec![
+                txos[0].txo_id_hex.clone(),
+                txos[1].txo_id_hex.clone(),
+            ])
+            .unwrap();
+        let proposal = builder.build().unwrap();
+        assert_eq!(proposal.outlays.len(), 1);
+        assert_eq!(proposal.outlays[0].receiver, recipient);
+        assert_eq!(proposal.outlays[0].value, txos[0].value as u64 + 10);
+        assert_eq!(proposal.tx.prefix.inputs.len(), 2); // need one more for fee
+        assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE);
+        assert_eq!(proposal.tx.prefix.outputs.len(), 2); // self and change
+    }
+
     // FIXME: Test for setting txos on builder
     // FIXME: test with max_spendable
     // FIXME: test with tombstones

@@ -258,6 +258,9 @@ pub enum WalletTransactionBuilderError {
     /// Insufficient Funds {0}
     InsufficientFunds(String),
 
+    /// Insufficient Funds in inputs to construct transaction {0}
+    InsufficientInputFunds(String),
+
     /// Insufficient TxOuts to construct transaction
     InsufficientTxOuts,
 
