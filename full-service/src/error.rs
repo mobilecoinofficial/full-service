@@ -170,6 +170,9 @@ pub enum WalletDbError {
 
     /// AccountTxoStatus not found {0}
     AccountTxoStatusNotFound(String),
+
+    /// Cannot log a transaction with a value > i64::MAX
+    TransactionValueExceedsMax,
 }
 
 impl From<diesel::result::Error> for WalletDbError {

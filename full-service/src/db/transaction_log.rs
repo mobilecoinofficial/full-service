@@ -422,11 +422,10 @@ impl TransactionLogModel for TransactionLog {
         }
 
         // Next, add all of our minted outputs to the Txo Table
-        let (recipient_address, transaction_value) = {
+        let recipient_address = {
             let mut recipient_address = None;
-            let mut value_sum = 0;
             for (i, output) in tx_proposal.tx.prefix.outputs.iter().enumerate() {
-                let (output_recipient, txo_id, output_value, transaction_txo_type) =
+                let (output_recipient, txo_id, _output_value, transaction_txo_type) =
                     Txo::create_minted(account_id_hex, &output, &tx_proposal, i, conn)?;
 
                 // Currently, the wallet enforces only one recipient per TransactionLog.
@@ -440,11 +439,19 @@ impl TransactionLogModel for TransactionLog {
                     }
                 }
 
-                value_sum += output_value;
                 txo_ids.push((txo_id, transaction_txo_type.to_string()));
             }
-            (recipient_address, value_sum)
+            recipient_address
         };
+
+        let transaction_value = tx_proposal
+            .outlays
+            .iter()
+            .map(|o| o.value as u128)
+            .sum::<u128>();
+        if transaction_value > i64::MAX as u128 {
+            return Err(WalletDbError::TransactionValueExceedsMax);
+        }
 
         if let Some(recipient) = recipient_address {
             let transaction_id = TransactionID::from(&tx_proposal.tx);
@@ -494,7 +501,7 @@ impl TransactionLogModel for TransactionLog {
 mod tests {
     use super::*;
     use crate::{
-        db::account::AccountModel,
+        db::account::{AccountID, AccountModel},
         service::sync::SyncThread,
         test_utils::{
             builder_for_random_recipient, create_test_received_txo, get_test_ledger,
@@ -503,6 +510,8 @@ mod tests {
     };
     use mc_account_keys::PublicAddress;
     use mc_common::logger::{test_with_logger, Logger};
+    use mc_ledger_db::Ledger;
+    use mc_transaction_core::constants::MINIMUM_FEE;
     use rand::{rngs::StdRng, SeedableRng};
 
     #[test_with_logger]
@@ -592,10 +601,51 @@ mod tests {
         );
 
         // Build a transaction
-        let (recipient, builder) =
+        let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+        builder
+            .add_recipient(recipient.clone(), 50 * MOB as u64)
+            .unwrap();
+        builder.set_tombstone(0).unwrap();
+        builder.select_txos(None).unwrap();
+        let tx_proposal = builder.build().unwrap();
+
+        let tx_id = TransactionLog::log_submitted(
+            tx_proposal.clone(),
+            ledger_db.num_blocks().unwrap(),
+            "".to_string(),
+            Some(&AccountID::from(&account_key).to_string()),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        let tx_log = TransactionLog::get(&tx_id, &wallet_db.get_conn().unwrap()).unwrap();
+        assert_eq!(tx_log.transaction_id_hex, tx_id);
+        assert_eq!(
+            tx_log.account_id_hex,
+            AccountID::from(&account_key).to_string()
+        );
+        assert_eq!(
+            tx_log.recipient_public_address_b58,
+            b58_encode(&recipient).unwrap()
+        );
+        // No assigned subaddress for sent
+        assert_eq!(tx_log.assigned_subaddress_b58, "");
+        // Value is the amount sent, not including fee and change
+        assert_eq!(tx_log.value, 50 * MOB);
+        // Fee exists for submitted
+        assert_eq!(tx_log.fee, Some(MINIMUM_FEE as i64));
+        // Created and sent transaction is "pending" until it lands
+        assert_eq!(tx_log.status, "pending");
+        assert!(tx_log.sent_time.unwrap() > 0);
+        assert_eq!(tx_log.block_height, ledger_db.num_blocks().unwrap() as i64);
+        assert_eq!(tx_log.comment, "");
+        assert_eq!(tx_log.direction, "sent");
+        let tx: Tx = mc_util_serial::decode(&tx_log.tx.unwrap()).unwrap();
+        assert_eq!(tx, tx_proposal.tx);
     }
 
+    // FIXME: test log_submitted for transaction value > i64::Max
     // FIXME: test_log_submitted with change and without
     // FIXME: test_log_submitted to self
     // FIXME: test_log_submitted for recovered
