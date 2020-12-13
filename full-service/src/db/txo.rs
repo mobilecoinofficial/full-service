@@ -573,17 +573,17 @@ impl TxoModel for Txo {
         use crate::db::schema::account_txo_statuses;
         use crate::db::schema::txos;
 
-        let txos: Vec<Txo> = txos::table
+        let txos: i64 = txos::table
             .inner_join(
                 account_txo_statuses::table.on(txos::txo_id_hex
                     .eq(account_txo_statuses::txo_id_hex)
                     .and(txos::txo_id_hex.eq_any(txo_ids))
                     .and(account_txo_statuses::txo_status.eq("spent"))),
             )
-            .select(txos::all_columns)
-            .load(conn)?;
+            .select(diesel::dsl::count(txos::txo_id_hex))
+            .first(conn)?;
 
-        Ok(txos.len() == txo_ids.len())
+        Ok(txos == txo_ids.len() as i64)
     }
 
     fn any_failed(
@@ -1037,4 +1037,6 @@ mod tests {
     }
 
     // FIXME: once we have create_minted, then select_txos test with no spendable
+    // FIXME: test update txo after tombstone block is exceeded
+    // FIXME: test update txo after it has landed via key_image update
 }

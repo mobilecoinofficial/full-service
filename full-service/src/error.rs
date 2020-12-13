@@ -1,6 +1,6 @@
 // Copyright (c) 2020 MobileCoin Inc.
 
-//! Errors for the wallet service
+//! Errors for the wallet service.
 
 use displaydoc::Display;
 
@@ -149,6 +149,12 @@ pub enum WalletDbError {
 
     /// Multiple AccountTxoStatus entries for Txo
     MultipleStatusesForTxo,
+
+    /// Unexpected TXO Type {0}
+    UnexpectedTransactionTxoType(String),
+
+    /// Transaction mismatch when retrieving associated Txos
+    TransactionMismatch,
 }
 
 impl From<diesel::result::Error> for WalletDbError {

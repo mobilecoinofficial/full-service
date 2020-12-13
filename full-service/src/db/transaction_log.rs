@@ -169,12 +169,15 @@ impl TransactionLogModel for TransactionLog {
         let mut change: Vec<String> = Vec::new();
 
         for (_transaction, transaction_txo_type) in transaction_txos {
-            if transaction_txo_type.transaction_txo_type == "input" {
-                inputs.push(transaction_txo_type.txo_id_hex);
-            } else if transaction_txo_type.transaction_txo_type == "output" {
-                outputs.push(transaction_txo_type.txo_id_hex);
-            } else if transaction_txo_type.transaction_txo_type == "change" {
-                change.push(transaction_txo_type.txo_id_hex);
+            match transaction_txo_type.transaction_txo_type.as_str() {
+                "input" => inputs.push(transaction_txo_type.txo_id_hex),
+                "output" => outputs.push(transaction_txo_type.txo_id_hex),
+                "change" => change.push(transaction_txo_type.txo_id_hex),
+                _ => {
+                    return Err(WalletDbError::UnexpectedTransactionTxoType(
+                        transaction_txo_type.transaction_txo_type,
+                    ))
+                }
             }
         }
 
@@ -244,15 +247,21 @@ impl TransactionLogModel for TransactionLog {
                 );
             };
 
-            let mut entry = results.get_mut(&transaction.transaction_id_hex).unwrap();
+            let entry = results.get_mut(&transaction.transaction_id_hex).unwrap();
 
-            entry.transaction_log = transaction;
-            if transaction_txo_type.transaction_txo_type == "input" {
-                entry.inputs.push(transaction_txo_type.txo_id_hex);
-            } else if transaction_txo_type.transaction_txo_type == "output" {
-                entry.outputs.push(transaction_txo_type.txo_id_hex);
-            } else if transaction_txo_type.transaction_txo_type == "change" {
-                entry.change.push(transaction_txo_type.txo_id_hex);
+            if entry.transaction_log != transaction {
+                return Err(WalletDbError::TransactionMismatch);
+            }
+
+            match transaction_txo_type.transaction_txo_type.as_str() {
+                "input" => entry.inputs.push(transaction_txo_type.txo_id_hex),
+                "output" => entry.outputs.push(transaction_txo_type.txo_id_hex),
+                "change" => entry.change.push(transaction_txo_type.txo_id_hex),
+                _ => {
+                    return Err(WalletDbError::UnexpectedTransactionTxoType(
+                        transaction_txo_type.transaction_txo_type,
+                    ))
+                }
             }
         }
         Ok(results
@@ -285,7 +294,7 @@ impl TransactionLogModel for TransactionLog {
             let associated = transaction_log.get_associated_txos(conn)?;
 
             // Only update transaction_log status if proposed or pending
-            if transaction_log.status == "succeeded" || transaction_log.status == "failed" {
+            if transaction_log.status != "proposed" && transaction_log.status != "pending" {
                 continue;
             }
 
@@ -394,12 +403,12 @@ impl TransactionLogModel for TransactionLog {
 
         // Verify that the TxProposal is well-formed according to our assumptions about
         // how to store the sent data in our wallet.
-        if tx_proposal.tx.prefix.outputs.len() - 1 != tx_proposal.outlays.len() {
+        if tx_proposal.tx.prefix.outputs.len() - tx_proposal.outlays.len() > 1 {
             return Err(WalletDbError::UnexpectedNumberOfChangeOutputs);
         }
 
         // First update all inputs to "pending." They will remain pending until their key_image
-        // hits the ledger.
+        // hits the ledger or their tombstone block is exceeded.
         for utxo in tx_proposal.utxos.iter() {
             let txo_id = TxoID::from(&utxo.tx_out);
             Txo::update_to_pending(&txo_id, conn)?;
@@ -550,17 +559,7 @@ mod tests {
         }
     }
 
-    // $[test_with_logger]
-    // fn test_log_minted(logger: Logger) {
-    //     let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-    //
-    //     let db_test_context = WalletDbTestContext::default();
-    //     let wallet_db = db_test_context.get_db_instance(logger);
-    //
-    //
-    //     // Random recipient
-    //     let recipient = Accountkey::from(RootIdentity::from_random(rng))
-    //         .account_kehy
-    //         .subaddress(rng.next_u64());
-    // }
+    // FIXME: test_log_submitted with change and without
+    // FIXME: test_log_submitted to self
+    // FIXME: test_log_submitted for recovered
 }
