@@ -7,8 +7,7 @@ CREATE TABLE accounts (
   next_subaddress_index UNSIGNED BIG INT NOT NULL,
   first_block UNSIGNED BIG INT NOT NULL,
   next_block UNSIGNED BIG INT NOT NULL,
-  name VARCHAR NOT NULL DEFAULT '',
-  UNIQUE (account_id_hex)
+  name VARCHAR NOT NULL DEFAULT ''
 );
 
 CREATE UNIQUE INDEX idx_accounts__account_id_hex ON accounts (account_id_hex);

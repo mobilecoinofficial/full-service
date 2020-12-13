@@ -1,7 +1,7 @@
-drop TABLE transaction_txo_types;
+DROP TABLE transaction_txo_types;
 
-drop INDEX idx_transaction_logs__transaction_id_hex;
-drop TABLE transaction_logs;
+DROP INDEX idx_transaction_logs__transaction_id_hex;
+DROP TABLE transaction_logs;
 
 DROP INDEX idx_assigned_subaddresses__assigned_subaddress_b58;
 DROP TABLE assigned_subaddresses;

@@ -87,7 +87,7 @@ pub trait AccountModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
-    /// Update all txos associated with this account to spent for a given block height.
+    /// Update key-image-matching txos associated with this account to spent for a given block height.
     fn update_spent_and_increment_next_block(
         &self,
         spent_block_height: i64,
