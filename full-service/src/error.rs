@@ -269,6 +269,12 @@ pub enum WalletTransactionBuilderError {
 
     /// Attempting to build a transaction from a TXO without a subaddress {0}
     NullSubaddress(String),
+
+    /// Full-service transactions can only have one recipient.
+    MultipleRecipientsInTransaction,
+
+    /// Error executing diesel transaction {0}
+    Diesel(diesel::result::Error),
 }
 
 impl From<mc_ledger_db::Error> for WalletTransactionBuilderError {
@@ -292,5 +298,11 @@ impl From<prost::DecodeError> for WalletTransactionBuilderError {
 impl From<WalletDbError> for WalletTransactionBuilderError {
     fn from(src: WalletDbError) -> Self {
         Self::WalletDb(src)
+    }
+}
+
+impl From<diesel::result::Error> for WalletTransactionBuilderError {
+    fn from(src: diesel::result::Error) -> Self {
+        Self::Diesel(src)
     }
 }

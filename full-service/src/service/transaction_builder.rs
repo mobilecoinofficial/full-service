@@ -32,6 +32,7 @@ use mc_transaction_core::tx::{TxOut, TxOutMembershipProof};
 use mc_transaction_core::BlockIndex;
 use mc_transaction_std::{InputCredentials, TransactionBuilder};
 
+use diesel::{connection::TransactionManager, prelude::*};
 use rand::Rng;
 use std::convert::TryFrom;
 use std::iter::FromIterator;
@@ -136,10 +137,10 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
 
     /// Consumes self
     pub fn build(mut self) -> Result<TxProposal, WalletTransactionBuilderError> {
-        let account: Account = Account::get(
-            &AccountID(self.account_id_hex.to_string()),
-            &self.wallet_db.get_conn()?,
-        )?;
+        let conn = self.wallet_db.get_conn()?;
+        conn.transaction_manager().begin_transaction(&conn)?;
+
+        let account: Account = Account::get(&AccountID(self.account_id_hex.to_string()), &conn)?;
         let from_account_key: AccountKey = mc_util_serial::decode(&account.encrypted_account_key)?;
 
         // Get membership proofs for our inputs
@@ -261,11 +262,17 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
         }
 
         // Add outputs to our destinations.
+        // Note that we make an assumption currently when logging submitted Txos that they were built
+        //  with only one recipient, and one change txo.
         let mut total_value = 0;
         let mut tx_out_to_outlay_index: HashMap<TxOut, usize> = HashMap::default();
         let mut outlay_confirmation_numbers = Vec::default();
         let mut rng = rand::thread_rng();
+        let recip_check = &self.outlays[0].0;
         for (i, (recipient, out_value)) in self.outlays.iter().enumerate() {
+            if recipient != recip_check {
+                return Err(WalletTransactionBuilderError::MultipleRecipientsInTransaction);
+            }
             let target_acct_pubkey = Self::get_fog_pubkey_for_public_address(
                 &recipient,
                 &self.fog_pubkey_resolver,
@@ -380,6 +387,7 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
             })
             .collect();
 
+        conn.transaction_manager().commit_transaction(&conn)?;
         Ok(TxProposal {
             utxos: selected_utxos,
             outlays: self
