@@ -1,7 +1,12 @@
 // Copyright (c) 2020 MobileCoin Inc.
 
 use crate::{
-    db::{account::AccountID, models::Txo, txo::TxoModel, WalletDb},
+    db::{
+        account::{AccountID, AccountModel},
+        models::{Account, Txo},
+        txo::TxoModel,
+        WalletDb,
+    },
     service::transaction_builder::WalletTransactionBuilder,
 };
 use diesel::{prelude::*, SqliteConnection};
@@ -290,4 +295,75 @@ pub fn create_test_minted_and_change_txos(
     );
 
     res.unwrap()
+}
+
+// Seed a local account with some Txos in the ledger
+pub fn random_account_with_seed_values(
+    wallet_db: &WalletDb,
+    mut ledger_db: &mut LedgerDB,
+    seed_values: &[u64],
+    mut rng: &mut StdRng,
+) -> AccountKey {
+    let account_key = AccountKey::random(&mut rng);
+    Account::create(
+        &account_key,
+        0,
+        1,
+        2,
+        0,
+        0,
+        "",
+        &wallet_db.get_conn().unwrap(),
+    )
+    .unwrap();
+
+    for value in seed_values.iter() {
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![account_key.subaddress(0)],
+            *value,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+    }
+
+    std::thread::sleep(std::time::Duration::from_secs(4));
+
+    // Make sure we have all our TXOs
+    assert_eq!(
+        Txo::list_for_account(
+            &AccountID::from(&account_key).to_string(),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap()
+        .len(),
+        seed_values.len(),
+    );
+
+    account_key
+}
+
+pub fn builder_for_random_recipient(
+    account_key: &AccountKey,
+    wallet_db: &WalletDb,
+    ledger_db: &LedgerDB,
+    mut rng: &mut StdRng,
+    logger: &Logger,
+) -> (
+    PublicAddress,
+    WalletTransactionBuilder<MockFogPubkeyResolver>,
+) {
+    // Construct a transaction
+    let builder: WalletTransactionBuilder<MockFogPubkeyResolver> = WalletTransactionBuilder::new(
+        AccountID::from(account_key).to_string(),
+        wallet_db.clone(),
+        ledger_db.clone(),
+        Some(Arc::new(MockFogPubkeyResolver::new())),
+        logger.clone(),
+    );
+
+    let recipient_account_key = AccountKey::random(&mut rng);
+    let recipient = recipient_account_key.subaddress(rng.next_u64());
+
+    (recipient, builder)
 }

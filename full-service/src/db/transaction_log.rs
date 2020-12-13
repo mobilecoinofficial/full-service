@@ -495,8 +495,13 @@ mod tests {
     use super::*;
     use crate::{
         db::account::AccountModel,
-        test_utils::{create_test_received_txo, WalletDbTestContext, MOB},
+        service::sync::SyncThread,
+        test_utils::{
+            builder_for_random_recipient, create_test_received_txo, get_test_ledger,
+            random_account_with_seed_values, WalletDbTestContext, MOB,
+        },
     };
+    use mc_account_keys::PublicAddress;
     use mc_common::logger::{test_with_logger, Logger};
     use rand::{rngs::StdRng, SeedableRng};
 
@@ -564,6 +569,31 @@ mod tests {
                 assert_eq!(associated.change.len(), 0);
             }
         }
+    }
+
+    #[test_with_logger]
+    fn test_log_submitted(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        // Start sync thread
+        let _sync_thread =
+            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
+            &mut ledger_db,
+            &vec![70 * MOB as u64],
+            &mut rng,
+        );
+
+        // Build a transaction
+        let (recipient, builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
     }
 
     // FIXME: test_log_submitted with change and without

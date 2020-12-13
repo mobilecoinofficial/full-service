@@ -514,11 +514,12 @@ mod tests {
     use crate::{
         error::WalletDbError,
         service::sync::SyncThread,
-        test_utils::{add_block_to_ledger_db, get_test_ledger, WalletDbTestContext, MOB},
+        test_utils::{
+            builder_for_random_recipient, get_test_ledger, random_account_with_seed_values,
+            WalletDbTestContext, MOB,
+        },
     };
     use mc_common::logger::{test_with_logger, Logger};
-    use mc_crypto_rand::rand_core::RngCore;
-    use mc_fog_report_validation::MockFogPubkeyResolver;
     use rand::{rngs::StdRng, SeedableRng};
 
     #[test_with_logger]
@@ -534,79 +535,22 @@ mod tests {
         let _sync_thread =
             SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
 
-        let account_key = AccountKey::random(&mut rng);
-        Account::create(
-            &account_key,
-            0,
-            1,
-            2,
-            0,
-            0,
-            "",
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-
-        // Send 3 transactions for 11 MOB to ourselves
-        add_block_to_ledger_db(
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
             &mut ledger_db,
-            &vec![account_key.subaddress(0)],
-            11 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
+            &vec![
+                11 * MOB as u64,
+                11 * MOB as u64,
+                11 * MOB as u64,
+                111111 * MOB as u64,
+            ],
             &mut rng,
-        );
-
-        add_block_to_ledger_db(
-            &mut ledger_db,
-            &vec![account_key.subaddress(0)],
-            11 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
-            &mut rng,
-        );
-
-        add_block_to_ledger_db(
-            &mut ledger_db,
-            &vec![account_key.subaddress(0)],
-            11 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
-            &mut rng,
-        );
-
-        // Add a much larger txo
-        add_block_to_ledger_db(
-            &mut ledger_db,
-            &vec![account_key.subaddress(0)],
-            111111 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
-            &mut rng,
-        );
-
-        // Sleep a bit so we can sync all the Txos
-        std::thread::sleep(std::time::Duration::from_secs(4));
-
-        // Make sure we have all our Txos
-        assert_eq!(
-            Txo::list_for_account(
-                &AccountID::from(&account_key).to_string(),
-                &wallet_db.get_conn().unwrap()
-            )
-            .unwrap()
-            .len(),
-            4
         );
 
         // Construct a transaction
-        let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
-            WalletTransactionBuilder::new(
-                AccountID::from(&account_key).to_string(),
-                wallet_db.clone(),
-                ledger_db.clone(),
-                Some(Arc::new(MockFogPubkeyResolver::new())),
-                logger.clone(),
-            );
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
 
-        let recipient_account_key = AccountKey::random(&mut rng);
-        let recipient = recipient_account_key.subaddress(rng.next_u64());
         // Send value specifically for your smallest Txo size. Should take 2 inputs
         // and also make change.
         let value = 11 * MOB as u64;
@@ -639,47 +583,17 @@ mod tests {
         let _sync_thread =
             SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
 
-        let account_key = AccountKey::random(&mut rng);
-        Account::create(
-            &account_key,
-            0,
-            1,
-            2,
-            0,
-            0,
-            "",
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-
         // Give ourselves enough MOB that we have more than u64::MAX, 18_446_745 MOB
-
-        // Send 3 transactions for 7M MOB to ourselves
-        add_block_to_ledger_db(
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
             &mut ledger_db,
-            &vec![account_key.subaddress(0)],
-            7_000_000 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
+            &vec![
+                7_000_000 * MOB as u64,
+                7_000_000 * MOB as u64,
+                7_000_000 * MOB as u64,
+            ],
             &mut rng,
         );
-
-        add_block_to_ledger_db(
-            &mut ledger_db,
-            &vec![account_key.subaddress(0)],
-            7_000_000 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
-            &mut rng,
-        );
-
-        add_block_to_ledger_db(
-            &mut ledger_db,
-            &vec![account_key.subaddress(0)],
-            7_000_000 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
-            &mut rng,
-        );
-
-        std::thread::sleep(std::time::Duration::from_secs(4));
 
         // Check balance
         let txo_lists = Txo::list_by_status(
@@ -694,19 +608,9 @@ mod tests {
         assert_eq!(balance, 21_000_000 * MOB as u128);
 
         // Now try to send a transaction with a value > u64::MAX
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
 
-        // Construct a transaction
-        let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
-            WalletTransactionBuilder::new(
-                AccountID::from(&account_key).to_string(),
-                wallet_db.clone(),
-                ledger_db.clone(),
-                Some(Arc::new(MockFogPubkeyResolver::new())),
-                logger.clone(),
-            );
-
-        let recipient_account_key = AccountKey::random(&mut rng);
-        let recipient = recipient_account_key.subaddress(rng.next_u64());
         let value = u64::MAX;
         builder.add_recipient(recipient.clone(), value).unwrap();
 
@@ -732,45 +636,12 @@ mod tests {
         let _sync_thread =
             SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
 
-        let account_key = AccountKey::random(&mut rng);
-        Account::create(
-            &account_key,
-            0,
-            1,
-            2,
-            0,
-            0,
-            "",
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-
-        // Send 3 transactions for various MOB to ourselves
-        add_block_to_ledger_db(
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
             &mut ledger_db,
-            &vec![account_key.subaddress(0)],
-            70 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
+            &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
             &mut rng,
         );
-
-        add_block_to_ledger_db(
-            &mut ledger_db,
-            &vec![account_key.subaddress(0)],
-            80 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
-            &mut rng,
-        );
-
-        add_block_to_ledger_db(
-            &mut ledger_db,
-            &vec![account_key.subaddress(0)],
-            90 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
-            &mut rng,
-        );
-
-        std::thread::sleep(std::time::Duration::from_secs(4));
 
         // Get our TXO list
         let txos: Vec<Txo> = Txo::list_for_account(
@@ -782,18 +653,9 @@ mod tests {
         .map(|(t, _a)| t.clone())
         .collect();
 
-        // Construct with just the first txo
-        let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
-            WalletTransactionBuilder::new(
-                AccountID::from(&account_key).to_string(),
-                wallet_db.clone(),
-                ledger_db.clone(),
-                Some(Arc::new(MockFogPubkeyResolver::new())),
-                logger.clone(),
-            );
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
 
-        let recipient_account_key = AccountKey::random(&mut rng);
-        let recipient = recipient_account_key.subaddress(rng.next_u64());
         // Setting value to exactly the input will fail because you need funds for fee
         builder
             .add_recipient(recipient.clone(), txos[0].value as u64)
@@ -810,17 +672,9 @@ mod tests {
         }
 
         // Now build, setting to multiple TXOs
-        let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
-            WalletTransactionBuilder::new(
-                AccountID::from(&account_key).to_string(),
-                wallet_db.clone(),
-                ledger_db.clone(),
-                Some(Arc::new(MockFogPubkeyResolver::new())),
-                logger.clone(),
-            );
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
 
-        let recipient_account_key = AccountKey::random(&mut rng);
-        let recipient = recipient_account_key.subaddress(rng.next_u64());
         // Set value to just slightly more than what fits in the one TXO
         builder
             .add_recipient(recipient.clone(), txos[0].value as u64 + 10)
@@ -856,68 +710,16 @@ mod tests {
         let _sync_thread =
             SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
 
-        let account_key = AccountKey::random(&mut rng);
-        Account::create(
-            &account_key,
-            0,
-            1,
-            2,
-            0,
-            0,
-            "",
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-
-        // Send 3 transactions for various MOB to ourselves
-        add_block_to_ledger_db(
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
             &mut ledger_db,
-            &vec![account_key.subaddress(0)],
-            70 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
+            &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
             &mut rng,
         );
 
-        add_block_to_ledger_db(
-            &mut ledger_db,
-            &vec![account_key.subaddress(0)],
-            80 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
-            &mut rng,
-        );
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
 
-        add_block_to_ledger_db(
-            &mut ledger_db,
-            &vec![account_key.subaddress(0)],
-            90 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
-            &mut rng,
-        );
-
-        std::thread::sleep(std::time::Duration::from_secs(4));
-
-        // Make sure we have all our TXOs
-        assert_eq!(
-            Txo::list_for_account(
-                &AccountID::from(&account_key).to_string(),
-                &wallet_db.get_conn().unwrap(),
-            )
-            .unwrap()
-            .len(),
-            3
-        );
-
-        let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
-            WalletTransactionBuilder::new(
-                AccountID::from(&account_key).to_string(),
-                wallet_db.clone(),
-                ledger_db.clone(),
-                Some(Arc::new(MockFogPubkeyResolver::new())),
-                logger.clone(),
-            );
-
-        let recipient_account_key = AccountKey::random(&mut rng);
-        let recipient = recipient_account_key.subaddress(rng.next_u64());
         // Setting value to exactly the input will fail because you need funds for fee
         builder
             .add_recipient(recipient.clone(), 80 * MOB as u64)
@@ -965,51 +767,16 @@ mod tests {
         let _sync_thread =
             SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
 
-        let account_key = AccountKey::random(&mut rng);
-        Account::create(
-            &account_key,
-            0,
-            1,
-            2,
-            0,
-            0,
-            "",
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-
-        add_block_to_ledger_db(
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
             &mut ledger_db,
-            &vec![account_key.subaddress(0)],
-            70 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
+            &vec![70 * MOB as u64],
             &mut rng,
         );
 
-        std::thread::sleep(std::time::Duration::from_secs(4));
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
 
-        // Make sure we have all our TXOs
-        assert_eq!(
-            Txo::list_for_account(
-                &AccountID::from(&account_key).to_string(),
-                &wallet_db.get_conn().unwrap(),
-            )
-            .unwrap()
-            .len(),
-            1
-        );
-
-        let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
-            WalletTransactionBuilder::new(
-                AccountID::from(&account_key).to_string(),
-                wallet_db.clone(),
-                ledger_db.clone(),
-                Some(Arc::new(MockFogPubkeyResolver::new())),
-                logger.clone(),
-            );
-
-        let recipient_account_key = AccountKey::random(&mut rng);
-        let recipient = recipient_account_key.subaddress(rng.next_u64());
         builder
             .add_recipient(recipient.clone(), 10 * MOB as u64)
             .unwrap();
@@ -1025,18 +792,9 @@ mod tests {
             Err(e) => panic!("Unexpected error {:?}", e),
         }
 
-        // Build another transaction, and this time set the tombstone
-        let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
-            WalletTransactionBuilder::new(
-                AccountID::from(&account_key).to_string(),
-                wallet_db.clone(),
-                ledger_db.clone(),
-                Some(Arc::new(MockFogPubkeyResolver::new())),
-                logger.clone(),
-            );
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
 
-        let recipient_account_key = AccountKey::random(&mut rng);
-        let recipient = recipient_account_key.subaddress(rng.next_u64());
         builder
             .add_recipient(recipient.clone(), 10 * MOB as u64)
             .unwrap();
@@ -1050,18 +808,9 @@ mod tests {
         assert_eq!(proposal.tx.prefix.tombstone_block, 63);
 
         // Build a transaction and explicitly set tombstone
-        // Build another transaction, and this time set the tombstone
-        let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
-            WalletTransactionBuilder::new(
-                AccountID::from(&account_key).to_string(),
-                wallet_db.clone(),
-                ledger_db.clone(),
-                Some(Arc::new(MockFogPubkeyResolver::new())),
-                logger.clone(),
-            );
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
 
-        let recipient_account_key = AccountKey::random(&mut rng);
-        let recipient = recipient_account_key.subaddress(rng.next_u64());
         builder
             .add_recipient(recipient.clone(), 10 * MOB as u64)
             .unwrap();
@@ -1089,50 +838,16 @@ mod tests {
         let _sync_thread =
             SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
 
-        let account_key = AccountKey::random(&mut rng);
-        Account::create(
-            &account_key,
-            0,
-            1,
-            2,
-            0,
-            0,
-            "",
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-
-        add_block_to_ledger_db(
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
             &mut ledger_db,
-            &vec![account_key.subaddress(0)],
-            70 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
+            &vec![70 * MOB as u64],
             &mut rng,
         );
 
-        std::thread::sleep(std::time::Duration::from_secs(4));
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
 
-        // Make sure we have all our TXOs
-        assert_eq!(
-            Txo::list_for_account(
-                &AccountID::from(&account_key).to_string(),
-                &wallet_db.get_conn().unwrap(),
-            )
-            .unwrap()
-            .len(),
-            1
-        );
-
-        let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
-            WalletTransactionBuilder::new(
-                AccountID::from(&account_key).to_string(),
-                wallet_db.clone(),
-                ledger_db.clone(),
-                Some(Arc::new(MockFogPubkeyResolver::new())),
-                logger.clone(),
-            );
-        let recipient_account_key = AccountKey::random(&mut rng);
-        let recipient = recipient_account_key.subaddress(rng.next_u64());
         builder
             .add_recipient(recipient.clone(), 10 * MOB as u64)
             .unwrap();
@@ -1144,16 +859,9 @@ mod tests {
         assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE);
 
         // You cannot set fee to 0
-        let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
-            WalletTransactionBuilder::new(
-                AccountID::from(&account_key).to_string(),
-                wallet_db.clone(),
-                ledger_db.clone(),
-                Some(Arc::new(MockFogPubkeyResolver::new())),
-                logger.clone(),
-            );
-        let recipient_account_key = AccountKey::random(&mut rng);
-        let recipient = recipient_account_key.subaddress(rng.next_u64());
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+
         builder
             .add_recipient(recipient.clone(), 10 * MOB as u64)
             .unwrap();
@@ -1170,16 +878,9 @@ mod tests {
         assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE);
 
         // Setting fee less than minimum fee should fail
-        let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
-            WalletTransactionBuilder::new(
-                AccountID::from(&account_key).to_string(),
-                wallet_db.clone(),
-                ledger_db.clone(),
-                Some(Arc::new(MockFogPubkeyResolver::new())),
-                logger.clone(),
-            );
-        let recipient_account_key = AccountKey::random(&mut rng);
-        let recipient = recipient_account_key.subaddress(rng.next_u64());
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+
         builder
             .add_recipient(recipient.clone(), 10 * MOB as u64)
             .unwrap();
@@ -1192,16 +893,9 @@ mod tests {
         }
 
         // Setting fee greater than MINIMUM_FEE works
-        let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
-            WalletTransactionBuilder::new(
-                AccountID::from(&account_key).to_string(),
-                wallet_db.clone(),
-                ledger_db.clone(),
-                Some(Arc::new(MockFogPubkeyResolver::new())),
-                logger.clone(),
-            );
-        let recipient_account_key = AccountKey::random(&mut rng);
-        let recipient = recipient_account_key.subaddress(rng.next_u64());
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+
         builder
             .add_recipient(recipient.clone(), 10 * MOB as u64)
             .unwrap();
@@ -1226,50 +920,15 @@ mod tests {
         let _sync_thread =
             SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
 
-        let account_key = AccountKey::random(&mut rng);
-        Account::create(
-            &account_key,
-            0,
-            1,
-            2,
-            0,
-            0,
-            "",
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-
-        add_block_to_ledger_db(
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
             &mut ledger_db,
-            &vec![account_key.subaddress(0)],
-            70 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
+            &vec![70 * MOB as u64],
             &mut rng,
         );
 
-        std::thread::sleep(std::time::Duration::from_secs(4));
-
-        // Make sure we have all our TXOs
-        assert_eq!(
-            Txo::list_for_account(
-                &AccountID::from(&account_key).to_string(),
-                &wallet_db.get_conn().unwrap(),
-            )
-            .unwrap()
-            .len(),
-            1
-        );
-
-        let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
-            WalletTransactionBuilder::new(
-                AccountID::from(&account_key).to_string(),
-                wallet_db.clone(),
-                ledger_db.clone(),
-                Some(Arc::new(MockFogPubkeyResolver::new())),
-                logger.clone(),
-            );
-        let recipient_account_key = AccountKey::random(&mut rng);
-        let recipient = recipient_account_key.subaddress(rng.next_u64());
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
 
         // Set value to consume the whole TXO and not produce change
         let value = 70 * MOB as u64 - MINIMUM_FEE;
