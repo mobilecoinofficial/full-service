@@ -255,11 +255,26 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         let conn = self.wallet_db.get_conn()?;
 
         let status_map = Txo::list_by_status(account_id_hex, &conn)?;
-        let unspent: u64 = status_map["unspent"].iter().map(|t| t.value as u64).sum();
-        let pending: u64 = status_map["pending"].iter().map(|t| t.value as u64).sum();
-        let spent: u64 = status_map["spent"].iter().map(|t| t.value as u64).sum();
-        let secreted: u64 = status_map["secreted"].iter().map(|t| t.value as u64).sum();
-        let orphaned: u64 = status_map["orphaned"].iter().map(|t| t.value as u64).sum();
+        let unspent: u128 = status_map["unspent"]
+            .iter()
+            .map(|t| t.value as u128)
+            .sum::<u128>();
+        let pending: u128 = status_map["pending"]
+            .iter()
+            .map(|t| t.value as u128)
+            .sum::<u128>();
+        let spent: u128 = status_map["spent"]
+            .iter()
+            .map(|t| t.value as u128)
+            .sum::<u128>();
+        let secreted: u128 = status_map["secreted"]
+            .iter()
+            .map(|t| t.value as u128)
+            .sum::<u128>();
+        let orphaned: u128 = status_map["orphaned"]
+            .iter()
+            .map(|t| t.value as u128)
+            .sum::<u128>();
 
         let local_block_height = self.ledger_db.num_blocks()?;
         let account = Account::get(&AccountID(account_id_hex.to_string()), &conn)?;
@@ -625,4 +640,6 @@ mod tests {
     }
 
     // FIXME: Test with 0 change transactions
+    // FIXME: Test with balance > u64::max
+    // FIXME: sending a transaction with value > u64::max
 }

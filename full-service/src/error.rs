@@ -299,6 +299,9 @@ pub enum WalletTransactionBuilderError {
 
     /// No inputs selected. Must set or select inputs before building.
     NoInputs,
+
+    /// Outbound value + fee exceeds u64::MAX
+    OutboundValueTooLarge,
 }
 
 impl From<mc_ledger_db::Error> for WalletTransactionBuilderError {
