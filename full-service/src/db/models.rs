@@ -21,8 +21,8 @@ pub struct Account {
     pub first_block: i64,
     pub next_block: i64,
     pub name: String, // empty string for nullable
-                      // FIXME: add import_block to indicate that all data prior to that block was
-                      //        recovered from the ledger and may be missing data
+                      // FIXME: WS-21 - add import_block to indicate that all data prior to that
+                      //        block was recovered from the ledger and may be missing data
 }
 
 #[derive(Insertable)]
@@ -108,7 +108,7 @@ pub struct AssignedSubaddress {
     pub public_address: Vec<u8>,
     pub subaddress_index: i64,
     pub comment: String,               // empty string for nullable
-    pub subaddress_spend_key: Vec<u8>, // FIXME: should we be indexing on this col? We do a lot of lookups by this
+    pub subaddress_spend_key: Vec<u8>, // FIXME: WS-28 - Index on subaddress_spend_key?
 }
 
 #[derive(Insertable)]

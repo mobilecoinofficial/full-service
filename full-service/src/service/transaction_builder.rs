@@ -296,19 +296,11 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
             total_value += *out_value;
         }
 
-        println!(
-            "\x1b[1;36m INPUTS AND PROOFS = {:?}\x1b[0m",
-            inputs_and_proofs
-        );
         // Figure out if we have change.
         let input_value = inputs_and_proofs
             .iter()
             .fold(0, |acc, (utxo, _proof)| acc + utxo.value);
         if (total_value + self.transaction_builder.fee) > input_value as u64 {
-            println!(
-                "\x1b[1;31m Total value ({:?}) + fee ({:?}) > input_value ({:?}) \x1b[0m",
-                total_value, self.transaction_builder.fee, input_value
-            );
             return Err(WalletTransactionBuilderError::InsufficientFunds(format!(
                 "Cannot make change for value {:?}",
                 input_value
@@ -336,7 +328,7 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
                 &change_public_address,
                 target_acct_pubkey.as_ref(),
                 &mut rng,
-            )?; // FIXME: map error to indicate error with change
+            )?; // FIXME: CBB - map error to indicate error with change
         }
 
         // Set tombstone block.
@@ -370,7 +362,7 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
         }
 
         // Make the UnspentTxOut for each Txo
-        // FIXME: I would prefer to provide just the txo_id_hex per txout, but this at last
+        // FIXME: WS-27 - I would prefer to provide just the txo_id_hex per txout, but this at least
         //        preserves some interoperability between mobilecoind and wallet-service.
         //        However, this is pretty clunky and I would rather not expose a storage
         //        type from mobilecoind just to get around having to write a bunch of tedious

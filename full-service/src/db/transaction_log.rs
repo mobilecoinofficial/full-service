@@ -151,7 +151,7 @@ impl TransactionLogModel for TransactionLog {
         use crate::db::schema::transaction_logs;
         use crate::db::schema::transaction_txo_types;
 
-        // FIXME: use group_by rather than the processing below:
+        // FIXME: WS-29 - use group_by rather than the processing below:
         // https://docs.diesel.rs/diesel/associations/trait.GroupedBy.html
         let transaction_txos: Vec<(TransactionLog, TransactionTxoType)> = transaction_logs::table
             .inner_join(
@@ -281,7 +281,7 @@ impl TransactionLogModel for TransactionLog {
             .collect())
     }
 
-    // FIXME: We may be doing n^2 work here
+    // FIXME: WS-30 - We may be doing n^2 work here
     fn update_transactions_associated_to_txo(
         txo_id_hex: &str,
         cur_block_height: i64,
@@ -302,7 +302,7 @@ impl TransactionLogModel for TransactionLog {
 
             // Check whether all the inputs have been spent or if any failed, and update accordingly
             if Txo::are_all_spent(&associated.inputs, conn)? {
-                // FIXME: do we want to store "submitted_block_height" to disambiguate block_height?
+                // FIXME: WS-18 - do we want to store "submitted_block_height" to disambiguate block_height?
                 diesel::update(
                     transaction_logs
                         .filter(transaction_id_hex.eq(&transaction_log.transaction_id_hex)),
@@ -313,7 +313,7 @@ impl TransactionLogModel for TransactionLog {
                 ))
                 .execute(conn)?;
             } else if Txo::any_failed(&associated.inputs, cur_block_height, conn)? {
-                // FIXME: Do we want to store and update the "failed_block_height" as min(tombstones)?
+                // FIXME: WS-18, WS-17 - Do we want to store and update the "failed_block_height" as min(tombstones)?
                 diesel::update(
                     transaction_logs
                         .filter(transaction_id_hex.eq(&transaction_log.transaction_id_hex)),
@@ -458,7 +458,7 @@ impl TransactionLogModel for TransactionLog {
                 fee: Some(tx_proposal.tx.prefix.fee as i64),
                 status: "pending",
                 sent_time: Some(Utc::now().timestamp()),
-                block_height: block_height as i64, // FIXME: is this going to do what we want? It's
+                block_height: block_height as i64, // FIXME: WS-18 - is this going to do what we want? It's
                 // submitted block height, but not necessarily when it hits the ledger - would we
                 // update when we see a key_image from this transaction?
                 comment: &comment,

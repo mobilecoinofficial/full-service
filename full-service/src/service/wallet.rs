@@ -195,7 +195,7 @@ fn wallet_api(
                 .transpose()
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
 
-            // FIXME: better way to convert between the json type and enum
+            // FIXME: WS-13 - better way to convert between the json type and enum
             let result = state
                 .service
                 .create_account(name, fb)
@@ -398,7 +398,7 @@ pub fn rocket(
     rocket_config: rocket::Config,
     state: WalletState<ThickClient, GrpcFogPubkeyResolver>,
 ) -> rocket::Rocket {
-    // FIXME: Note that if state has different type parameters, it throws an error that you are
+    // FIXME: WS-31 - Note that if state has different type parameters, it throws an error that you are
     // requesting unmanaged state. This is an issue in tests, where we want to use mock
     // connections. For now, I am simply not testing the endpoints like submit_transaction,
     // and I am not building test transactions with a fog recipients.
@@ -749,7 +749,7 @@ mod tests {
         // Assert the fee is correct in both places
         let prefix_fee = tx_prefix.get("fee").unwrap().as_str().unwrap();
         let fee = tx_proposal.get("fee").unwrap();
-        // FIXME: Note, minimum fee does not fit into i32 - need to make sure we are not losing
+        // FIXME: WS-9 - Note, minimum fee does not fit into i32 - need to make sure we are not losing
         //        precision with the JsonTxProposal treating Fee as number
         assert_eq!(fee.to_string(), "10000000000");
         assert_eq!(fee.to_string(), prefix_fee);

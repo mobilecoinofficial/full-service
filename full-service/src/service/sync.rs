@@ -318,7 +318,7 @@ pub fn sync_account(
 
     for _ in 0..MAX_BLOCKS_PROCESSING_CHUNK_SIZE {
         // Get the account data. If it is no longer available, the account has been removed and we
-        // can simply return. FIXME - verify this works as intended with new data model
+        // can simply return.
         let account = Account::get(&AccountID(account_id.to_string()), &conn)?;
         let block_contents = match ledger_db.get_block_contents(account.next_block as u64) {
             Ok(block_contents) => block_contents,
@@ -463,4 +463,5 @@ fn process_txos(
     Ok(output_txo_ids)
 }
 
-// FIXME:  test select received txo by value
+// FIXME: test select received txo by value
+// FIXME: test syncing after removing account

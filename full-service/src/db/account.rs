@@ -121,7 +121,7 @@ impl AccountModel for Account {
         let account_id = AccountID::from(account_key);
         let new_account = NewAccount {
             account_id_hex: &account_id.to_string(),
-            encrypted_account_key: &mc_util_serial::encode(account_key), // FIXME: add encryption
+            encrypted_account_key: &mc_util_serial::encode(account_key), // FIXME: WS-6 - add encryption
             main_subaddress_index: main_subaddress_index as i64,
             change_subaddress_index: change_subaddress_index as i64,
             next_subaddress_index: next_subaddress_index as i64,
@@ -136,7 +136,7 @@ impl AccountModel for Account {
 
         let main_subaddress_b58 = AssignedSubaddress::create(
             account_key,
-            None, // FIXME: Address Book Entry if details provided, or None always for main?
+            None, // FIXME: WS-8 - Address Book Entry if details provided, or None always for main?
             main_subaddress_index,
             "Main",
             &conn,
@@ -144,7 +144,7 @@ impl AccountModel for Account {
 
         let _change_subaddress_b58 = AssignedSubaddress::create(
             account_key,
-            None, // FIXME: Address Book Entry if details provided, or None always for main?
+            None, // FIXME: WS-8 - Address Book Entry if details provided, or None always for main?
             change_subaddress_index,
             "Change",
             &conn,
@@ -267,7 +267,7 @@ impl AccountModel for Account {
                 .set(crate::db::schema::account_txo_statuses::txo_status.eq("spent".to_string()))
                 .execute(conn)?;
 
-                // FIXME: make sure the path for all txo_statuses and txo_types exist and are tested
+                // FIXME: WS-13 - make sure the path for all txo_statuses and txo_types exist and are tested
                 // Update the transaction status if the txos are all spent
                 TransactionLog::update_transactions_associated_to_txo(
                     &matches[0].txo_id_hex,

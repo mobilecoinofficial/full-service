@@ -43,7 +43,6 @@ pub const DEFAULT_CHANGE_SUBADDRESS_INDEX: u64 = 1;
 pub const DEFAULT_NEXT_SUBADDRESS_INDEX: u64 = 2;
 pub const DEFAULT_FIRST_BLOCK: u64 = 0;
 
-// FIXME: this will probably live in db or service_impl once we're decoding public addresses
 pub fn b58_decode(b58_public_address: &str) -> Result<PublicAddress, WalletServiceError> {
     let wrapper =
         mc_mobilecoind_api::printable::PrintableWrapper::b58_decode(b58_public_address.to_string())
@@ -219,7 +218,6 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         Ok(())
     }
 
-    // FIXME: Would rather return JsonTxo - need to join with AssignedSubaddresses
     pub fn list_txos(
         &self,
         account_id_hex: &str,
@@ -240,7 +238,6 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
     ) -> Result<JsonTxo, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
-        // FIXME: also add transaction IDs in which this txo was involved
         let (txo, account_txo_status, assigned_subaddress) =
             Txo::get(&AccountID(account_id_hex.to_string()), txo_id_hex, &conn)?;
         Ok(JsonTxo::new(
@@ -251,9 +248,6 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
     }
 
     // Balance consists of the sums of the various txo states in our wallet
-    // FIXME: We can do more interesting logic here, especially once we have proper change accounting
-    // FIXME: Balance for a specific subaddress? Does that need to be exposed? Balance is
-    //        somewhat meaningless per subaddress because funds can be moved around arbitrarily.
     pub fn get_balance(
         &self,
         account_id_hex: &str,
@@ -270,8 +264,6 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         let local_block_height = self.ledger_db.num_blocks()?;
         let account = Account::get(&AccountID(account_id_hex.to_string()), &conn)?;
 
-        // FIXME: probably also want to compare with network height
-        // FIXME: add block height info (see also BEAM wallet-status)
         Ok(JsonBalanceResponse {
             unspent: unspent.to_string(),
             pending: pending.to_string(),
@@ -287,7 +279,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         &self,
         account_id_hex: &str,
         comment: Option<&str>,
-        // FIXME: add "sync from block"
+        // FIXME: WS-32 - add "sync from block"
     ) -> Result<JsonAddress, WalletServiceError> {
         let (public_address_b58, subaddress_index) = AssignedSubaddress::create_next_for_account(
             account_id_hex,
@@ -354,10 +346,10 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
             builder.set_fee(f.parse::<u64>()?)?;
         }
         let tx_proposal = builder.build()?;
-        // FIXME: Would rather not have to convert it to proto first
+        // FIXME: WS-34 - Would rather not have to convert it to proto first
         let proto_tx_proposal = mc_mobilecoind_api::TxProposal::from(&tx_proposal);
 
-        // FIXME: Might be nice to have a tx_proposal table so that you don't have to
+        // FIXME: WS-32 - Might be nice to have a tx_proposal table so that you don't have to
         //        write these out to local files. That's V2, though.
         Ok(JsonTxProposal::from(&proto_tx_proposal))
     }
@@ -377,7 +369,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         let idx = self.submit_node_offset.fetch_add(1, Ordering::SeqCst);
         let responder_id = &responder_ids[idx % responder_ids.len()];
 
-        // FIXME: would prefer not to convert to proto as intermediary
+        // FIXME: WS-34 - would prefer not to convert to proto as intermediary
         let tx_proposal_proto = mc_mobilecoind_api::TxProposal::try_from(&tx_proposal)
             .map_err(WalletServiceError::JsonConversion)?;
 
@@ -631,4 +623,6 @@ mod tests {
 
         // FIXME: How to make the transaction actually hit the test ledger?
     }
+
+    // FIXME: Test with 0 change transactions
 }

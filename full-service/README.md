@@ -828,8 +828,8 @@ To add or edit tables:
 
 ### Running Tests
 
-    FIXME: I'm not sure why we need to provide these vars for cargo test...
-
     ```
     SGX_MODE=HW IAS_MODE=DEV CONSENSUS_ENCLAVE_CSS=$(pwd)/consensus-enclave.css cargo test
     ```
+
+    Note: providinig the CONSENESUS_ENCLAVE_CSS allows us to bypass the enclave build.

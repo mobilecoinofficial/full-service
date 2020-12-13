@@ -251,8 +251,6 @@ impl TxoModel for Txo {
         let change_value: u64 = total_input_value - total_output_value - tx_proposal.fee();
 
         // Determine whether this output is an outlay destination, or change.
-        // FIXME: currently only have the proofs for outlays, not change - we likely don't
-        //        need to prove to ourselves that we sent that change.
         let (value, proof, outlay_receiver) = if let Some(outlay_index) = tx_proposal
             .outlay_index_to_tx_out_index
             .iter()
@@ -442,7 +440,6 @@ impl TxoModel for Txo {
         use crate::db::schema::account_txo_statuses;
         use crate::db::schema::txos;
 
-        // FIXME: join 3 tables to also get AssignedSubaddresses
         let results: Vec<(Txo, AccountTxoStatus)> = txos::table
             .inner_join(
                 account_txo_statuses::table.on(txos::txo_id_hex
@@ -461,7 +458,6 @@ impl TxoModel for Txo {
         use crate::db::schema::account_txo_statuses;
         use crate::db::schema::txos;
 
-        // FIXME: don't do 4 queries
         let unspent: Vec<Txo> = txos::table
             .inner_join(
                 account_txo_statuses::table.on(txos::txo_id_hex
@@ -492,7 +488,6 @@ impl TxoModel for Txo {
             .select(txos::all_columns)
             .load(conn)?;
 
-        // FIXME: Maybe we don't want to expose this in the balance
         let secreted: Vec<Txo> = txos::table
             .inner_join(
                 account_txo_statuses::table.on(txos::txo_id_hex
@@ -797,7 +792,7 @@ mod tests {
         assert_eq!(balances["unspent"].len(), 1);
 
         // Now we'll "spend" the TXO
-        // FIXME TODO: construct transaction proposal to spend it, maybe needs a helper in test_utils
+        // FIXME: TODO: construct transaction proposal to spend it, maybe needs a helper in test_utils
         // self.update_submitted_transaction(tx_proposal)?;
 
         // Now we'll process the ledger and verify that the TXO was spent
@@ -974,7 +969,7 @@ mod tests {
         }
 
         let res = Txo::select_unspent_txos_for_value(
-            &account_id_hex.to_string(), // FIXME: take AccountID
+            &account_id_hex.to_string(), // FIXME: WS-11 - take AccountID
             1800 * MOB as u64,
             None,
             &wallet_db.get_conn().unwrap(),

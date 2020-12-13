@@ -44,7 +44,7 @@ CREATE TABLE assigned_subaddresses (
   id INTEGER NOT NULL PRIMARY KEY,
   assigned_subaddress_b58 VARCHAR NOT NULL UNIQUE,
   account_id_hex VARCHAR NOT NULL,
-  address_book_entry UNSIGNED BIG INT, -- FIXME add foreign key to address book table, also address_book_entry_id
+  address_book_entry UNSIGNED BIG INT, -- FIXME: WS-8 add foreign key to address book table, also address_book_entry_id
   public_address BLOB NOT NULL,
   subaddress_index UNSIGNED BIG INT NOT NULL,
   comment VARCHAR NOT NULL DEFAULT '',
@@ -58,7 +58,7 @@ CREATE TABLE transaction_logs (
     id INTEGER NOT NULL PRIMARY KEY,
     transaction_id_hex VARCHAR NOT NULL UNIQUE,
     account_id_hex VARCHAR NOT NULL,
-    recipient_public_address_b58 VARCHAR NOT NULL DEFAULT '', -- FIXME add foreign key to recipient public addresses table
+    recipient_public_address_b58 VARCHAR NOT NULL DEFAULT '', -- FIXME: WS-23 add foreign key to recipient public addresses table
     assigned_subaddress_b58 VARCHAR NOT NULL DEFAULT '',
     value UNSIGNED BIG INT NOT NULL,
     fee UNSIGNED BIG INT,
