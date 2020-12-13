@@ -701,7 +701,7 @@ mod tests {
         );
 
         // Sleep to let the sync thread process the txo
-        std::thread::sleep(Duration::from_secs(2));
+        std::thread::sleep(Duration::from_secs(4));
 
         // Create a tx proposal to ourselves
         let body = json!({
@@ -730,7 +730,7 @@ mod tests {
         );
 
         // Sleep to let the sync thread process the txo
-        std::thread::sleep(Duration::from_secs(2));
+        std::thread::sleep(Duration::from_secs(4));
 
         // Create a tx proposal to ourselves
         let body = json!({
