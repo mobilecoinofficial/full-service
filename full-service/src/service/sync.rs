@@ -46,6 +46,12 @@ use mc_transaction_core::{
     tx::TxOut,
     AmountError,
 };
+
+use diesel::{
+    connection::TransactionManager,
+    prelude::*,
+    r2d2::{ConnectionManager, PooledConnection},
+};
 use std::{
     convert::TryFrom,
     sync::{
@@ -307,10 +313,13 @@ pub fn sync_account(
     account_id: &str,
     logger: &Logger,
 ) -> Result<SyncAccountOk, SyncError> {
+    let conn = wallet_db.get_conn()?;
+    conn.transaction_manager().begin_transaction(&conn)?;
+
     for _ in 0..MAX_BLOCKS_PROCESSING_CHUNK_SIZE {
         // Get the account data. If it is no longer available, the account has been removed and we
         // can simply return. FIXME - verify this works as intended with new data model
-        let account = Account::get(&AccountID(account_id.to_string()), &wallet_db.get_conn()?)?;
+        let account = Account::get(&AccountID(account_id.to_string()), &conn)?;
         let block_contents = match ledger_db.get_block_contents(account.next_block as u64) {
             Ok(block_contents) => block_contents,
             Err(mc_ledger_db::Error::NotFound) => {
@@ -332,7 +341,7 @@ pub fn sync_account(
 
         // Match tx outs into UTXOs.
         let output_txo_ids = process_txos(
-            &wallet_db,
+            &conn,
             &block_contents.outputs,
             &account,
             account.next_block,
@@ -345,24 +354,19 @@ pub fn sync_account(
         account.update_spent_and_increment_next_block(
             account.next_block,
             block_contents.key_images,
-            &wallet_db.get_conn()?,
+            &conn,
         )?;
 
         // Add a transaction for the received TXOs
-        TransactionLog::log_received(
-            &output_txo_ids,
-            &account,
-            account.next_block as u64,
-            &wallet_db.get_conn()?,
-        )?;
+        TransactionLog::log_received(&output_txo_ids, &account, account.next_block as u64, &conn)?;
     }
-
+    conn.transaction_manager().commit_transaction(&conn)?;
     Ok(SyncAccountOk::MoreBlocksPotentiallyAvailable)
 }
 
 /// Helper function for matching a list of TxOuts to a given account.
 fn process_txos(
-    wallet_db: &WalletDb,
+    conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     outputs: &[TxOut],
     account: &Account,
     received_block_index: i64,
@@ -386,33 +390,31 @@ fn process_txos(
         );
 
         // See if it matches any of our assigned subaddresses.
-        let subaddress_index = match AssignedSubaddress::find_by_subaddress_spend_public_key(
-            &subaddress_spk,
-            &wallet_db.get_conn()?,
-        ) {
-            Ok((index, account_id)) => {
-                log::trace!(
-                    logger,
-                    "matched subaddress index {} for account_id {}",
-                    index,
-                    account_id,
-                );
-                // Sanity - we should only get a match for our own account ID.
-                assert_eq!(account_id, account_id_hex);
-                Some(index)
-            }
-            Err(WalletDbError::NotFound(_)) => {
-                log::trace!(
-                    logger,
-                    "Not tracking this subaddress spend public key for account {}",
-                    account_id_hex
-                );
-                None
-            }
-            Err(err) => {
-                return Err(err.into());
-            }
-        };
+        let subaddress_index =
+            match AssignedSubaddress::find_by_subaddress_spend_public_key(&subaddress_spk, &conn) {
+                Ok((index, account_id)) => {
+                    log::trace!(
+                        logger,
+                        "matched subaddress index {} for account_id {}",
+                        index,
+                        account_id,
+                    );
+                    // Sanity - we should only get a match for our own account ID.
+                    assert_eq!(account_id, account_id_hex);
+                    Some(index)
+                }
+                Err(WalletDbError::AssignedSubaddressNotFound(_)) => {
+                    log::trace!(
+                        logger,
+                        "Not tracking this subaddress spend public key for account {}",
+                        account_id_hex
+                    );
+                    None
+                }
+                Err(err) => {
+                    return Err(err.into());
+                }
+            };
 
         let shared_secret =
             get_tx_out_shared_secret(account_key.view_private_key(), &tx_public_key);
@@ -443,7 +445,7 @@ fn process_txos(
             value,
             received_block_index,
             &account_id_hex,
-            &wallet_db.get_conn()?,
+            &conn,
         )?;
 
         // If we couldn't find an assigned subaddress for this value, store for -1
@@ -461,5 +463,4 @@ fn process_txos(
     Ok(output_txo_ids)
 }
 
-// FIXME: Add tests
-// * test select received txo by value
+// FIXME:  test select received txo by value

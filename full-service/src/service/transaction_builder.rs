@@ -137,6 +137,10 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
 
     /// Consumes self
     pub fn build(mut self) -> Result<TxProposal, WalletTransactionBuilderError> {
+        if self.inputs.is_empty() {
+            return Err(WalletTransactionBuilderError::NoInputs);
+        }
+
         let conn = self.wallet_db.get_conn()?;
         conn.transaction_manager().begin_transaction(&conn)?;
 
@@ -292,15 +296,19 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
             total_value += *out_value;
         }
 
+        println!(
+            "\x1b[1;36m INPUTS AND PROOFS = {:?}\x1b[0m",
+            inputs_and_proofs
+        );
         // Figure out if we have change.
         let input_value = inputs_and_proofs
             .iter()
             .fold(0, |acc, (utxo, _proof)| acc + utxo.value);
-        // FIXME: Can get subtraction overflow in mobilecoind::payments - needs fixing
         if (total_value + self.transaction_builder.fee) > input_value as u64 {
-            // FIXME: Getting this error when I had 3 txos for 11.0 MOB, one for much
-            //        larger and I wanted to send 11.0 - sending a smaller amount got past it,
-            //        but this is a bug in uxo selection or in this calculation.
+            println!(
+                "\x1b[1;31m Total value ({:?}) + fee ({:?}) > input_value ({:?}) \x1b[0m",
+                total_value, self.transaction_builder.fee, input_value
+            );
             return Err(WalletTransactionBuilderError::InsufficientFunds(format!(
                 "Cannot make change for value {:?}",
                 input_value
@@ -317,7 +325,6 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
                 from_account_key.subaddress(account.main_subaddress_index as u64);
 
             // Note: The pubkey still needs to be for the main account
-            // FIXME: Needs fixing in mobilecoind
             let target_acct_pubkey = Self::get_fog_pubkey_for_public_address(
                 &main_public_address,
                 &self.fog_pubkey_resolver,
@@ -494,4 +501,119 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
     }
 }
 
-// FIXME: Test for sending more MOB than fits in a u64
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        service::sync::SyncThread,
+        test_utils::{add_block_to_ledger_db, get_test_ledger, WalletDbTestContext, MOB},
+    };
+    use mc_common::logger::{test_with_logger, Logger};
+    use mc_crypto_rand::rand_core::RngCore;
+    use mc_fog_report_validation::MockFogPubkeyResolver;
+    use rand::{rngs::StdRng, SeedableRng};
+
+    #[test_with_logger]
+    fn test_build_with_utxos(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        // Start sync thread
+        let _sync_thread =
+            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+
+        let account_key = AccountKey::random(&mut rng);
+        Account::create(
+            &account_key,
+            0,
+            1,
+            2,
+            0,
+            0,
+            "",
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        // Send 3 transactions for 11 MOB to ourselves
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![account_key.subaddress(0)],
+            11 * MOB as u64,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![account_key.subaddress(0)],
+            11 * MOB as u64,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![account_key.subaddress(0)],
+            11 * MOB as u64,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        // Add a much larger txo
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![account_key.subaddress(0)],
+            111111 * MOB as u64,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        // Sleep a bit so we can sync all the Txos
+        std::thread::sleep(std::time::Duration::from_secs(4));
+
+        // Make sure we have all our Txos
+        assert_eq!(
+            Txo::list_for_account(
+                &AccountID::from(&account_key).to_string(),
+                &wallet_db.get_conn().unwrap()
+            )
+            .unwrap()
+            .len(),
+            4
+        );
+
+        // Construct a transaction
+        let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
+            WalletTransactionBuilder::new(
+                AccountID::from(&account_key).to_string(),
+                wallet_db.clone(),
+                ledger_db.clone(),
+                Some(Arc::new(MockFogPubkeyResolver::new())),
+                logger.clone(),
+            );
+
+        let recipient_account_key = AccountKey::random(&mut rng);
+        let recipient = recipient_account_key.subaddress(rng.next_u64());
+        // Send value specifically for your smallest Txo size. Should take 2 inputs
+        // and also make change.
+        let value = 11 * MOB as u64;
+        builder.add_recipient(recipient, value).unwrap();
+
+        // Select the txos for the recipient
+        builder.select_txos(None).unwrap();
+
+        let proposal = builder.build().unwrap();
+        assert_eq!(proposal.outlays.len(), 1);
+    }
+
+    // FIXME: Test for sending more MOB than fits in a u64
+    // FIXME: Test for setting txos on builder
+    // FIXME: test with max_spendable
+    // FIXME: test with tombstones
+    // FIXME: test with fees
+}

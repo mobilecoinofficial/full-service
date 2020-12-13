@@ -108,9 +108,6 @@ pub enum WalletDbError {
     /// Duplicate entries with the same ID {0}
     DuplicateEntries(String),
 
-    /// Entry not found {0}
-    NotFound(String),
-
     /// Error encoding b58 {0}
     B58Encode(mc_api::display::Error),
 
@@ -155,6 +152,21 @@ pub enum WalletDbError {
 
     /// Transaction mismatch when retrieving associated Txos
     TransactionMismatch,
+
+    /// Account Not Found {0}
+    AccountNotFound(String),
+
+    /// AssignedSubaddress Not Found {0}
+    AssignedSubaddressNotFound(String),
+
+    /// Txo Not Found {0}
+    TxoNotFound(String),
+
+    /// TransactionLog Not Found {0}
+    TransactionLogNotFound(String),
+
+    /// AccountTxoStatus not found {0}
+    AccountTxoStatusNotFound(String),
 }
 
 impl From<diesel::result::Error> for WalletDbError {
@@ -200,6 +212,9 @@ pub enum SyncError {
 
     /// Error with the Amount {0}
     Amount(mc_transaction_core::AmountError),
+
+    /// Error executing diesel transaction {0}
+    Diesel(diesel::result::Error),
 }
 
 impl From<WalletDbError> for SyncError {
@@ -229,6 +244,12 @@ impl From<prost::DecodeError> for SyncError {
 impl From<mc_transaction_core::AmountError> for SyncError {
     fn from(src: mc_transaction_core::AmountError) -> Self {
         Self::Amount(src)
+    }
+}
+
+impl From<diesel::result::Error> for SyncError {
+    fn from(src: diesel::result::Error) -> Self {
+        Self::Diesel(src)
     }
 }
 
@@ -275,6 +296,9 @@ pub enum WalletTransactionBuilderError {
 
     /// Error executing diesel transaction {0}
     Diesel(diesel::result::Error),
+
+    /// No inputs selected. Must set or select inputs before building.
+    NoInputs,
 }
 
 impl From<mc_ledger_db::Error> for WalletTransactionBuilderError {

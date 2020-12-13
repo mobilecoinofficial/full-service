@@ -158,7 +158,9 @@ impl AssignedSubaddressModel for AssignedSubaddress {
             Ok(t) => t,
             // Match on NotFound to get a more informative NotFound Error
             Err(diesel::result::Error::NotFound) => {
-                return Err(WalletDbError::NotFound(public_address_b58.to_string()));
+                return Err(WalletDbError::AssignedSubaddressNotFound(
+                    public_address_b58.to_string(),
+                ));
             }
             Err(e) => {
                 return Err(e.into());
@@ -182,7 +184,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
             .load::<(i64, String)>(conn)?;
 
         if matches.is_empty() {
-            Err(WalletDbError::NotFound(format!(
+            Err(WalletDbError::AssignedSubaddressNotFound(format!(
                 "{:?}",
                 subaddress_spend_public_key
             )))

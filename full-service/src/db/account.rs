@@ -177,7 +177,7 @@ impl AccountModel for Account {
             Ok(a) => Ok(a),
             // Match on NotFound to get a more informative NotFound Error
             Err(diesel::result::Error::NotFound) => {
-                Err(WalletDbError::NotFound(account_id_hex.to_string()))
+                Err(WalletDbError::AccountNotFound(account_id_hex.to_string()))
             }
             Err(e) => Err(e.into()),
         }
@@ -205,7 +205,7 @@ impl AccountModel for Account {
             }
             // Match on NotFound to get a more informative NotFound Error
             Err(diesel::result::Error::NotFound) => {
-                Err(WalletDbError::NotFound(txo_id_hex.to_string()))
+                Err(WalletDbError::TxoNotFound(txo_id_hex.to_string()))
             }
             Err(e) => Err(e.into()),
         }
@@ -422,7 +422,9 @@ mod tests {
         let res = Account::get(&account_id_hex_secondary, &wallet_db.get_conn().unwrap());
         match res {
             Ok(_) => panic!("Should have deleted account"),
-            Err(WalletDbError::NotFound(s)) => assert_eq!(s, account_id_hex_secondary.to_string()),
+            Err(WalletDbError::AccountNotFound(s)) => {
+                assert_eq!(s, account_id_hex_secondary.to_string())
+            }
             Err(_) => panic!("Should error with NotFound but got {:?}", res),
         }
     }

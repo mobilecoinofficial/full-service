@@ -136,7 +136,7 @@ pub struct TransactionLog {
     pub assigned_subaddress_b58: String,      // empty string for nullable
     pub value: i64,
     pub fee: Option<i64>,
-    // Statuses: proposed, pending, succeeded, failed
+    // Statuses: built, pending, succeeded, failed
     pub status: String,
     pub sent_time: Option<i64>, // empty string for nullable
     pub block_height: i64,

@@ -137,9 +137,9 @@ impl TransactionLogModel for TransactionLog {
         {
             Ok(a) => Ok(a),
             // Match on NotFound to get a more informative NotFound Error
-            Err(diesel::result::Error::NotFound) => {
-                Err(WalletDbError::NotFound(transaction_id_hex.to_string()))
-            }
+            Err(diesel::result::Error::NotFound) => Err(WalletDbError::TransactionLogNotFound(
+                transaction_id_hex.to_string(),
+            )),
             Err(e) => Err(e.into()),
         }
     }
@@ -344,7 +344,7 @@ impl TransactionLogModel for TransactionLog {
                 // Check that we haven't already logged this transaction on a previous sync
                 match TransactionLog::get(&transaction_id.to_string(), conn) {
                     Ok(_) => continue, // We've already processed this transaction on a previous sync
-                    Err(WalletDbError::NotFound(_)) => {} // Insert below
+                    Err(WalletDbError::TransactionLogNotFound(_)) => {} // Insert below
                     Err(e) => return Err(e),
                 }
 

@@ -537,7 +537,7 @@ impl TxoModel for Txo {
             Ok(t) => t,
             // Match on NotFound to get a more informative NotFound Error
             Err(diesel::result::Error::NotFound) => {
-                return Err(WalletDbError::NotFound(txo_id_hex.to_string()));
+                return Err(WalletDbError::TxoNotFound(txo_id_hex.to_string()));
             }
             Err(e) => {
                 return Err(e.into());

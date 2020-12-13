@@ -44,7 +44,7 @@ CREATE TABLE assigned_subaddresses (
   id INTEGER NOT NULL PRIMARY KEY,
   assigned_subaddress_b58 VARCHAR NOT NULL UNIQUE,
   account_id_hex VARCHAR NOT NULL,
-  address_book_entry UNSIGNED BIG INT, -- FIXME add foreign key to address book table
+  address_book_entry UNSIGNED BIG INT, -- FIXME add foreign key to address book table, also address_book_entry_id
   public_address BLOB NOT NULL,
   subaddress_index UNSIGNED BIG INT NOT NULL,
   comment VARCHAR NOT NULL DEFAULT '',
