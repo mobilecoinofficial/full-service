@@ -317,6 +317,9 @@ pub enum WalletTransactionBuilderError {
 
     /// Fee must be at least MINIMUM_FEE {0}
     InsufficientFee(String),
+
+    /// The wallet service only supports transactions with one recipient at this time.
+    MultipleOutgoingRecipients,
 }
 
 impl From<mc_ledger_db::Error> for WalletTransactionBuilderError {

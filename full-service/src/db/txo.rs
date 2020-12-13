@@ -272,7 +272,7 @@ impl TxoModel for Txo {
 
         // Update receiver, transaction_value, and transaction_txo_type, if outlay was found.
         let transaction_txo_type = if outlay_receiver.is_some() {
-            "minted"
+            "output"
         } else {
             // If not in an outlay, this output is change, according to how we build transactions.
             "change"
@@ -1033,7 +1033,7 @@ mod tests {
 
         assert!(recipient_opt.is_some());
         assert_eq!(value, 1 * MOB as i64);
-        assert_eq!(transaction_txo_type, "minted");
+        assert_eq!(transaction_txo_type, "output");
         let (minted_txo, minted_account_txo_status, minted_assigned_subaddress) = Txo::get(
             &AccountID::from(&src_account),
             &txo_id,

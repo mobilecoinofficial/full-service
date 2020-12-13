@@ -641,12 +641,131 @@ mod tests {
         assert_eq!(tx_log.block_height, ledger_db.num_blocks().unwrap() as i64);
         assert_eq!(tx_log.comment, "");
         assert_eq!(tx_log.direction, "sent");
-        let tx: Tx = mc_util_serial::decode(&tx_log.tx.unwrap()).unwrap();
+        let tx: Tx = mc_util_serial::decode(&tx_log.clone().tx.unwrap()).unwrap();
         assert_eq!(tx, tx_proposal.tx);
+
+        // Get associated Txos
+        let associated = tx_log
+            .get_associated_txos(&wallet_db.get_conn().unwrap())
+            .unwrap();
+
+        // Assert inputs are as expected
+        assert_eq!(associated.inputs.len(), 1);
+        let (input, input_status, opt_input_assigned_subaddress) = Txo::get(
+            &AccountID::from(&account_key),
+            &associated.inputs[0],
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(input.value, 70 * MOB);
+        assert_eq!(input_status.txo_status, "pending"); // Should now be pending
+        assert_eq!(input_status.txo_type, "received");
+        assert_eq!(opt_input_assigned_subaddress.unwrap().subaddress_index, 0);
+
+        // Assert outputs are as expected
+        assert_eq!(associated.outputs.len(), 1);
+        let (output, output_status, opt_output_assigned_subaddress) = Txo::get(
+            &AccountID::from(&account_key),
+            &associated.outputs[0],
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(output.value, 50 * MOB);
+        assert_eq!(output_status.txo_status, "secreted");
+        assert_eq!(output_status.txo_type, "minted");
+        assert!(opt_output_assigned_subaddress.is_none());
+
+        // Assert change is as expected
+        assert_eq!(associated.change.len(), 1);
+        let (change, change_status, opt_change_assigned_subaddress) = Txo::get(
+            &AccountID::from(&account_key),
+            &associated.change[0],
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(change.value, 19990000000000); // 19.99 * MOB
+        assert_eq!(change_status.txo_status, "secreted"); // Note, change becomes "unspent" once scanned
+        assert_eq!(change_status.txo_type, "minted"); // Note, becomes "received" once scanned
+        assert!(opt_change_assigned_subaddress.is_none()); // Note, gets filled in once scanned
+
+        // FIXME: add the change txo above to the ledger, and then scan and verify the above statements
     }
 
-    // FIXME: test log_submitted for transaction value > i64::Max
-    // FIXME: test_log_submitted with change and without
-    // FIXME: test_log_submitted to self
+    #[test_with_logger]
+    fn test_log_submitted_no_change(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        // Start sync thread
+        let _sync_thread =
+            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
+            &mut ledger_db,
+            &vec![100 * MOB as u64, 200 * MOB as u64],
+            &mut rng,
+        );
+
+        // Build a transaction
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+        // Add outlays all to the same recipient, so that we exceed u64::MAX in this tx
+        let value = 100 * MOB as u64 - MINIMUM_FEE;
+        builder.add_recipient(recipient.clone(), value).unwrap();
+
+        builder.set_tombstone(0).unwrap();
+        builder.select_txos(None).unwrap();
+        let tx_proposal = builder.build().unwrap();
+
+        let tx_id = TransactionLog::log_submitted(
+            tx_proposal.clone(),
+            ledger_db.num_blocks().unwrap(),
+            "".to_string(),
+            Some(&AccountID::from(&account_key).to_string()),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        let tx_log = TransactionLog::get(&tx_id, &wallet_db.get_conn().unwrap()).unwrap();
+        assert_eq!(tx_log.transaction_id_hex, tx_id);
+        assert_eq!(
+            tx_log.account_id_hex,
+            AccountID::from(&account_key).to_string()
+        );
+        assert_eq!(
+            tx_log.recipient_public_address_b58,
+            b58_encode(&recipient).unwrap()
+        );
+        // No assigned subaddress for sent
+        assert_eq!(tx_log.assigned_subaddress_b58, "");
+        // Value is the amount sent, not including fee and change
+        assert_eq!(tx_log.value, value as i64);
+        // Fee exists for submitted
+        assert_eq!(tx_log.fee, Some(MINIMUM_FEE as i64));
+        // Created and sent transaction is "pending" until it lands
+        assert_eq!(tx_log.status, "pending");
+        assert!(tx_log.sent_time.unwrap() > 0);
+        assert_eq!(tx_log.block_height, ledger_db.num_blocks().unwrap() as i64);
+        assert_eq!(tx_log.comment, "");
+        assert_eq!(tx_log.direction, "sent");
+        let tx: Tx = mc_util_serial::decode(&tx_log.clone().tx.unwrap()).unwrap();
+        assert_eq!(tx, tx_proposal.tx);
+
+        // Get associated Txos
+        let associated = tx_log
+            .get_associated_txos(&wallet_db.get_conn().unwrap())
+            .unwrap();
+        assert_eq!(associated.inputs.len(), 1);
+        assert_eq!(associated.outputs.len(), 1);
+        assert_eq!(associated.change.len(), 0);
+    }
+
+    // FIXME: WS-9 - test log_submitted for transaction value > i64::Max
+    // FIXME: test_log_submitted to self and then scan
     // FIXME: test_log_submitted for recovered
 }

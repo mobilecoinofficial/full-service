@@ -88,6 +88,9 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
             .filter(|(_txo, status)| status.txo_status == "unspent")
             .map(|(t, _s)| t.clone())
             .collect();
+        if unspent.iter().map(|t| t.value as u128).sum::<u128>() > u64::MAX as u128 {
+            return Err(WalletTransactionBuilderError::OutboundValueTooLarge);
+        }
         self.inputs = unspent;
         Ok(())
     }
@@ -96,13 +99,15 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
         &mut self,
         max_spendable_value: Option<u64>,
     ) -> Result<(), WalletTransactionBuilderError> {
-        let outlay_value_sum = self.outlays.iter().map(|(_r, v)| v).sum::<u64>();
+        let outlay_value_sum = self.outlays.iter().map(|(_r, v)| *v as u128).sum::<u128>();
 
-        if outlay_value_sum > u64::MAX - self.transaction_builder.fee {
+        if outlay_value_sum > u64::MAX as u128
+            || outlay_value_sum > u64::MAX as u128 - self.transaction_builder.fee as u128
+        {
             return Err(WalletTransactionBuilderError::OutboundValueTooLarge);
         }
 
-        let total_value = outlay_value_sum + self.transaction_builder.fee;
+        let total_value = outlay_value_sum as u64 + self.transaction_builder.fee;
         self.inputs = Txo::select_unspent_txos_for_value(
             &self.account_id_hex,
             total_value,
@@ -118,6 +123,17 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
         recipient: PublicAddress,
         value: u64,
     ) -> Result<(), WalletTransactionBuilderError> {
+        // This wallet does not support multiple outgoing recipients at this time.
+        if self.outlays.len() > 0 {
+            if recipient != self.outlays[0].0 {
+                return Err(WalletTransactionBuilderError::MultipleOutgoingRecipients);
+            }
+        }
+        // Verify that the maximum output value of this transaction remains under u64::MAX
+        let cur_sum = self.outlays.iter().map(|(_r, v)| *v as u128).sum::<u128>();
+        if cur_sum > u64::MAX as u128 {
+            return Err(WalletTransactionBuilderError::OutboundValueTooLarge);
+        }
         self.outlays.push((recipient, value));
         Ok(())
     }
@@ -286,6 +302,7 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
         let mut rng = rand::thread_rng();
         let recip_check = &self.outlays[0].0;
         for (i, (recipient, out_value)) in self.outlays.iter().enumerate() {
+            // Note: Should not fail this check due to filtering on add_recipient
             if recipient != recip_check {
                 return Err(WalletTransactionBuilderError::MultipleRecipientsInTransaction);
             }
@@ -944,5 +961,144 @@ mod tests {
         assert_eq!(proposal.outlays[0].value, value);
         assert_eq!(proposal.tx.prefix.inputs.len(), 1); // uses just one input
         assert_eq!(proposal.tx.prefix.outputs.len(), 1); // only one output to self (no change)
+    }
+
+    // We should be able to add multiple TxOuts to the same recipient, not to multiple
+    #[test_with_logger]
+    fn test_add_multiple_outputs_to_same_recipient(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        // Start sync thread
+        let _sync_thread =
+            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
+            &mut ledger_db,
+            &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
+            &mut rng,
+        );
+
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+
+        builder
+            .add_recipient(recipient.clone(), 10 * MOB as u64)
+            .unwrap();
+        builder
+            .add_recipient(recipient.clone(), 20 * MOB as u64)
+            .unwrap();
+        builder
+            .add_recipient(recipient.clone(), 30 * MOB as u64)
+            .unwrap();
+        builder
+            .add_recipient(recipient.clone(), 40 * MOB as u64)
+            .unwrap();
+
+        builder.select_txos(None).unwrap();
+        builder.set_tombstone(0).unwrap();
+
+        // Verify that not setting fee results in default fee
+        let proposal = builder.build().unwrap();
+        assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE);
+        assert_eq!(proposal.outlays.len(), 4);
+        assert_eq!(proposal.outlays[0].receiver, recipient);
+        assert_eq!(proposal.outlays[0].value, 10 * MOB as u64);
+        assert_eq!(proposal.outlays[1].receiver, recipient);
+        assert_eq!(proposal.outlays[1].value, 20 * MOB as u64);
+        assert_eq!(proposal.outlays[2].receiver, recipient);
+        assert_eq!(proposal.outlays[2].value, 30 * MOB as u64);
+        assert_eq!(proposal.outlays[3].receiver, recipient);
+        assert_eq!(proposal.outlays[3].value, 40 * MOB as u64);
+        assert_eq!(proposal.tx.prefix.inputs.len(), 2);
+        assert_eq!(proposal.tx.prefix.outputs.len(), 5); // outlays + change
+    }
+
+    // Adding multiple values that exceed u64::MAX should fail
+    #[test_with_logger]
+    fn test_add_multiple_outputs_integer_overflow(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        // Start sync thread
+        let _sync_thread =
+            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
+            &mut ledger_db,
+            &vec![
+                7_000_000 * MOB as u64,
+                7_000_000 * MOB as u64,
+                7_000_000 * MOB as u64,
+                7_000_000 * MOB as u64,
+            ],
+            &mut rng,
+        );
+
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+
+        builder
+            .add_recipient(recipient.clone(), 7_000_000 * MOB as u64)
+            .unwrap();
+        builder
+            .add_recipient(recipient.clone(), 7_000_000 * MOB as u64)
+            .unwrap();
+        builder
+            .add_recipient(recipient.clone(), 7_000_000 * MOB as u64)
+            .unwrap();
+
+        match builder.select_txos(None) {
+            Ok(_) => panic!("Should not be able to select txos with > u64::MAX output value"),
+            Err(WalletTransactionBuilderError::OutboundValueTooLarge) => {}
+            Err(e) => panic!("Unexpected error {:?}", e),
+        }
+    }
+
+    // We should be able to add multiple TxOuts to the same recipient, not to multiple
+    #[test_with_logger]
+    fn test_add_multiple_recipients_fails(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        // Start sync thread
+        let _sync_thread =
+            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
+            &mut ledger_db,
+            &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
+            &mut rng,
+        );
+
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+
+        builder
+            .add_recipient(recipient.clone(), 10 * MOB as u64)
+            .unwrap();
+
+        // Create a new recipient
+        let second_recipient = AccountKey::random(&mut rng).subaddress(0);
+        match builder.add_recipient(second_recipient.clone(), 40 * MOB as u64) {
+            Ok(_) => panic!("Should not be able to add multiple recipients"),
+            Err(WalletTransactionBuilderError::MultipleOutgoingRecipients) => {}
+            Err(e) => panic!("Unexpected error {:?}", e),
+        }
     }
 }
