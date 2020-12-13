@@ -145,6 +145,10 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
             return Err(WalletTransactionBuilderError::NoInputs);
         }
 
+        if self.tombstone == 0 {
+            return Err(WalletTransactionBuilderError::TombstoneNotSet);
+        }
+
         let conn = self.wallet_db.get_conn()?;
         conn.transaction_manager().begin_transaction(&conn)?;
 
@@ -606,6 +610,7 @@ mod tests {
 
         // Select the txos for the recipient
         builder.select_txos(None).unwrap();
+        builder.set_tombstone(0).unwrap();
 
         let proposal = builder.build().unwrap();
         assert_eq!(proposal.outlays.len(), 1);
@@ -791,6 +796,7 @@ mod tests {
             .unwrap();
 
         builder.set_txos(&vec![txos[0].txo_id_hex.clone()]).unwrap();
+        builder.set_tombstone(0).unwrap();
         match builder.build() {
             Ok(_) => {
                 panic!("Should not be able to construct Tx with > inputs value as output value")
@@ -822,6 +828,7 @@ mod tests {
                 txos[1].txo_id_hex.clone(),
             ])
             .unwrap();
+        builder.set_tombstone(0).unwrap();
         let proposal = builder.build().unwrap();
         assert_eq!(proposal.outlays.len(), 1);
         assert_eq!(proposal.outlays[0].receiver, recipient);
@@ -930,6 +937,7 @@ mod tests {
 
         // Now, we should succeed if we set max_spendable = 80 * MOB, because we will pick up both 70 and 80
         builder.select_txos(Some(80 * MOB as u64)).unwrap();
+        builder.set_tombstone(0).unwrap();
         let proposal = builder.build().unwrap();
         assert_eq!(proposal.outlays.len(), 1);
         assert_eq!(proposal.outlays[0].receiver, recipient);
@@ -939,6 +947,128 @@ mod tests {
         assert_eq!(proposal.tx.prefix.outputs.len(), 2); // self and change
     }
 
-    // FIXME: test with tombstones
+    // Test setting and not setting tombstone block
+    #[test_with_logger]
+    fn test_tombstone(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        // Start sync thread
+        let _sync_thread =
+            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+
+        let account_key = AccountKey::random(&mut rng);
+        Account::create(
+            &account_key,
+            0,
+            1,
+            2,
+            0,
+            0,
+            "",
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![account_key.subaddress(0)],
+            70 * MOB as u64,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        std::thread::sleep(std::time::Duration::from_secs(4));
+
+        // Make sure we have all our TXOs
+        assert_eq!(
+            Txo::list_for_account(
+                &AccountID::from(&account_key).to_string(),
+                &wallet_db.get_conn().unwrap(),
+            )
+            .unwrap()
+            .len(),
+            1
+        );
+
+        let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
+            WalletTransactionBuilder::new(
+                AccountID::from(&account_key).to_string(),
+                wallet_db.clone(),
+                ledger_db.clone(),
+                Some(Arc::new(MockFogPubkeyResolver::new())),
+                logger.clone(),
+            );
+
+        let recipient_account_key = AccountKey::random(&mut rng);
+        let recipient = recipient_account_key.subaddress(rng.next_u64());
+        builder
+            .add_recipient(recipient.clone(), 10 * MOB as u64)
+            .unwrap();
+        builder.select_txos(None).unwrap();
+
+        // Sanity check that our ledger is the height we think it is
+        assert_eq!(ledger_db.num_blocks().unwrap(), 13);
+
+        // We must set tombstone block before building
+        match builder.build() {
+            Ok(_) => panic!("Expected TombstoneNotSet error"),
+            Err(WalletTransactionBuilderError::TombstoneNotSet) => {}
+            Err(e) => panic!("Unexpected error {:?}", e),
+        }
+
+        // Build another transaction, and this time set the tombstone
+        let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
+            WalletTransactionBuilder::new(
+                AccountID::from(&account_key).to_string(),
+                wallet_db.clone(),
+                ledger_db.clone(),
+                Some(Arc::new(MockFogPubkeyResolver::new())),
+                logger.clone(),
+            );
+
+        let recipient_account_key = AccountKey::random(&mut rng);
+        let recipient = recipient_account_key.subaddress(rng.next_u64());
+        builder
+            .add_recipient(recipient.clone(), 10 * MOB as u64)
+            .unwrap();
+        builder.select_txos(None).unwrap();
+
+        // Set to default
+        builder.set_tombstone(0).unwrap();
+
+        // Not setting the tombstone results in tombstone = 0. This is an acceptable value,
+        let proposal = builder.build().unwrap();
+        assert_eq!(proposal.tx.prefix.tombstone_block, 63);
+
+        // Build a transaction and explicitly set tombstone
+        // Build another transaction, and this time set the tombstone
+        let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
+            WalletTransactionBuilder::new(
+                AccountID::from(&account_key).to_string(),
+                wallet_db.clone(),
+                ledger_db.clone(),
+                Some(Arc::new(MockFogPubkeyResolver::new())),
+                logger.clone(),
+            );
+
+        let recipient_account_key = AccountKey::random(&mut rng);
+        let recipient = recipient_account_key.subaddress(rng.next_u64());
+        builder
+            .add_recipient(recipient.clone(), 10 * MOB as u64)
+            .unwrap();
+        builder.select_txos(None).unwrap();
+
+        // Set to default
+        builder.set_tombstone(20).unwrap();
+
+        // Not setting the tombstone results in tombstone = 0. This is an acceptable value,
+        let proposal = builder.build().unwrap();
+        assert_eq!(proposal.tx.prefix.tombstone_block, 20);
+    }
     // FIXME: test with fees
 }

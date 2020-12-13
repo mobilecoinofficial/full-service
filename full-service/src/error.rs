@@ -308,6 +308,9 @@ pub enum WalletTransactionBuilderError {
 
     /// Outbound value + fee exceeds u64::MAX
     OutboundValueTooLarge,
+
+    /// Must set tombstone before building. Setting to 0 picks reasonable default.
+    TombstoneNotSet,
 }
 
 impl From<mc_ledger_db::Error> for WalletTransactionBuilderError {
