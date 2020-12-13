@@ -648,6 +648,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "diesel-derive-enum"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "703e71c268ea2d8da9c0ab0b40d8b217179ee622209c170875d24443193a0dfb"
+dependencies = [
+ "heck",
+ "proc-macro2 1.0.24",
+ "quote 1.0.7",
+ "syn 1.0.48",
+]
+
+[[package]]
 name = "diesel_derives"
 version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2532,6 +2544,7 @@ dependencies = [
  "chrono",
  "crossbeam-channel",
  "diesel",
+ "diesel-derive-enum",
  "diesel_migrations",
  "displaydoc",
  "dotenv",

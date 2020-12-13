@@ -299,23 +299,6 @@ commands:
           command: |
             cargo doc --no-deps
 
-  deploy-docs:
-    parameters:
-      path:
-        type: string
-        default: "wallet-service"
-    steps:
-      - run:
-          name: deploy to AWS
-          command: |
-            if [ "${CIRCLE_BRANCH}" = "master" ]; then
-              aws s3 sync target/doc \
-              s3://mobilecoin.docs/master/<< parameters.path >> --delete
-            else
-              aws s3 sync target/doc \
-              s3://mobilecoin.docs/${CIRCLE_PULL_REQUEST##*/}/<< parameters.path >> --delete
-            fi
-
   check-dirty-git:
     steps:
       - run:
@@ -359,8 +342,6 @@ jobs:
       # This results in shorter CI times.
       - lint
       - generate-docs
-      - deploy-docs:
-          path: "wallet-service"
       - check-dirty-git
       - when:
           condition: { equal: [ << pipeline.git.branch >>, master ] }
