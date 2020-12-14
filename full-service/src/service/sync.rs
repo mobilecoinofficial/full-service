@@ -368,9 +368,8 @@ pub fn sync_account(
             Ok(SyncAccountOk::MoreBlocksPotentiallyAvailable)
         })?;
         // Early out of the loop if we hit NoMoreBlocks
-        match sync_status {
-            SyncAccountOk::NoMoreBlocks => return Ok(SyncAccountOk::NoMoreBlocks),
-            _ => {}
+        if let SyncAccountOk::NoMoreBlocks = sync_status {
+            return Ok(SyncAccountOk::NoMoreBlocks);
         }
     }
     Ok(SyncAccountOk::MoreBlocksPotentiallyAvailable)
