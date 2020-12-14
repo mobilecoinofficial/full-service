@@ -135,7 +135,8 @@ pub struct JsonTransactionResponse {
     pub fee: Option<String>,
     pub status: String,
     pub sent_time: String,
-    pub block_height: String,
+    pub submitted_block_height: Option<String>,
+    pub finalized_block_height: Option<String>,
     pub comment: String,
     pub direction: String,
     pub input_txo_ids: Vec<String>,
@@ -157,7 +158,12 @@ impl JsonTransactionResponse {
                 .sent_time
                 .map(|t| Utc.timestamp(t, 0).to_string())
                 .unwrap_or_else(|| "".to_string()),
-            block_height: transaction_log.block_height.to_string(),
+            submitted_block_height: transaction_log
+                .submitted_block_height
+                .map(|b| b.to_string()),
+            finalized_block_height: transaction_log
+                .finalized_block_height
+                .map(|b| b.to_string()),
             comment: transaction_log.comment.clone(),
             direction: transaction_log.direction.clone(),
             input_txo_ids: associated_txos.inputs.clone(),

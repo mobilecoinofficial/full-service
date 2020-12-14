@@ -309,7 +309,8 @@ impl TransactionLogModel for TransactionLog {
                     )
                     .set((
                         crate::db::schema::transaction_logs::status.eq(TX_SUCCEEDED),
-                        crate::db::schema::transaction_logs::block_height.eq(cur_block_height),
+                        crate::db::schema::transaction_logs::finalized_block_height
+                            .eq(Some(cur_block_height)),
                     ))
                     .execute(conn)?;
                 } else if Txo::any_failed(&associated.inputs, cur_block_height, conn)? {
@@ -368,7 +369,8 @@ impl TransactionLogModel for TransactionLog {
                         fee: None, // Impossible to recover fee from received transaction
                         status: TX_SUCCEEDED,
                         sent_time: None, // NULL for received
-                        block_height: block_height as i64,
+                        submitted_block_height: None,
+                        finalized_block_height: Some(block_height as i64),
                         comment: "", // NULL for received
                         direction: TX_DIR_RECEIVED,
                         tx: None, // NULL for received
@@ -463,9 +465,8 @@ impl TransactionLogModel for TransactionLog {
                     fee: Some(tx_proposal.tx.prefix.fee as i64),
                     status: TX_PENDING,
                     sent_time: Some(Utc::now().timestamp()),
-                    block_height: block_height as i64, // FIXME: WS-18 - is this going to do what we want? It's
-                    // submitted block height, but not necessarily when it hits the ledger - would we
-                    // update when we see a key_image from this transaction?
+                    submitted_block_height: Some(block_height as i64),
+                    finalized_block_height: None,
                     comment: &comment,
                     direction: TX_DIR_SENT,
                     tx: Some(mc_util_serial::encode(&tx_proposal.tx)),
@@ -639,7 +640,10 @@ mod tests {
         // Created and sent transaction is "pending" until it lands
         assert_eq!(tx_log.status, TX_PENDING);
         assert!(tx_log.sent_time.unwrap() > 0);
-        assert_eq!(tx_log.block_height, ledger_db.num_blocks().unwrap() as i64);
+        assert_eq!(
+            tx_log.submitted_block_height,
+            Some(ledger_db.num_blocks().unwrap() as i64)
+        );
         assert_eq!(tx_log.comment, "");
         assert_eq!(tx_log.direction, TX_DIR_SENT);
         let tx: Tx = mc_util_serial::decode(&tx_log.clone().tx.unwrap()).unwrap();
@@ -751,7 +755,10 @@ mod tests {
         // Created and sent transaction is "pending" until it lands
         assert_eq!(tx_log.status, TX_PENDING);
         assert!(tx_log.sent_time.unwrap() > 0);
-        assert_eq!(tx_log.block_height, ledger_db.num_blocks().unwrap() as i64);
+        assert_eq!(
+            tx_log.submitted_block_height,
+            Some(ledger_db.num_blocks().unwrap() as i64)
+        );
         assert_eq!(tx_log.comment, "");
         assert_eq!(tx_log.direction, TX_DIR_SENT);
         let tx: Tx = mc_util_serial::decode(&tx_log.clone().tx.unwrap()).unwrap();
