@@ -255,7 +255,7 @@ impl TxoModel for Txo {
                 )?;
             }
             Err(e) => {
-                return Err(e.into());
+                return Err(e);
             }
         };
 
@@ -579,7 +579,7 @@ impl TxoModel for Txo {
                     ));
                 }
                 Err(e) => {
-                    return Err(e.into());
+                    return Err(e);
                 }
             };
 
