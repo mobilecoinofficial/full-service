@@ -717,7 +717,7 @@ mod tests {
             &client,
             body,
             &logger,
-            "{\"error\": \"TransactionBuilder(WalletDb(InsufficientFunds(\"Max spendable value in wallet: 100, but target value: 10000000042\")))\"}".to_string(),
+            "{\"error\": \"TransactionBuilder(WalletDb(InsufficientFundsUnderMaxSpendable(\"Max spendable value in wallet: 100, but target value: 10000000042\")))\"}".to_string(),
         );
 
         // Add a block with significantly more MOB

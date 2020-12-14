@@ -144,6 +144,9 @@ pub enum WalletDbError {
     /// Insufficient Funds {0}
     InsufficientFunds(String),
 
+    /// Insufficient funds from Txos under max_spendable_value {0}
+    InsufficientFundsUnderMaxSpendable(String),
+
     /// Multiple AccountTxoStatus entries for Txo
     MultipleStatusesForTxo,
 
@@ -167,6 +170,9 @@ pub enum WalletDbError {
 
     /// AccountTxoStatus not found {0}
     AccountTxoStatusNotFound(String),
+
+    /// Cannot log a transaction with a value > i64::MAX
+    TransactionValueExceedsMax,
 }
 
 impl From<diesel::result::Error> for WalletDbError {
@@ -258,6 +264,9 @@ pub enum WalletTransactionBuilderError {
     /// Insufficient Funds {0}
     InsufficientFunds(String),
 
+    /// Insufficient Funds in inputs to construct transaction {0}
+    InsufficientInputFunds(String),
+
     /// Insufficient TxOuts to construct transaction
     InsufficientTxOuts,
 
@@ -299,6 +308,18 @@ pub enum WalletTransactionBuilderError {
 
     /// No inputs selected. Must set or select inputs before building.
     NoInputs,
+
+    /// Outbound value + fee exceeds u64::MAX
+    OutboundValueTooLarge,
+
+    /// Must set tombstone before building. Setting to 0 picks reasonable default.
+    TombstoneNotSet,
+
+    /// Fee must be at least MINIMUM_FEE {0}
+    InsufficientFee(String),
+
+    /// The wallet service only supports transactions with one recipient at this time.
+    MultipleOutgoingRecipients,
 }
 
 impl From<mc_ledger_db::Error> for WalletTransactionBuilderError {

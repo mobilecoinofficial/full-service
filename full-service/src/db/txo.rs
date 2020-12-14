@@ -272,7 +272,7 @@ impl TxoModel for Txo {
 
         // Update receiver, transaction_value, and transaction_txo_type, if outlay was found.
         let transaction_txo_type = if outlay_receiver.is_some() {
-            "minted"
+            "output"
         } else {
             // If not in an outlay, this output is change, according to how we build transactions.
             "change"
@@ -660,7 +660,7 @@ impl TxoModel for Txo {
             if total_unspent_value_in_wallet >= target_value {
                 return Err(WalletDbError::InsufficientFundsFragmentedTxos);
             } else {
-                return Err(WalletDbError::InsufficientFunds(format!(
+                return Err(WalletDbError::InsufficientFundsUnderMaxSpendable(format!(
                     "Max spendable value in wallet: {:?}, but target value: {:?}",
                     max_spendable_in_wallet, target_value
                 )));
@@ -897,9 +897,9 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         );
         match res {
-            Err(WalletDbError::InsufficientFunds(_)) => {}
-            Ok(_) => panic!("Should error with InsufficientFunds"),
-            Err(_) => panic!("Should error with InsufficientFunds"),
+            Err(WalletDbError::InsufficientFundsUnderMaxSpendable(_)) => {}
+            Ok(_) => panic!("Should error with InsufficientFundsUnderMaxSpendable"),
+            Err(_) => panic!("Should error with InsufficientFundsUnderMaxSpendable"),
         }
 
         // sum(300..1800) to get a window where we had to increase past the smallest txos,
@@ -1033,7 +1033,7 @@ mod tests {
 
         assert!(recipient_opt.is_some());
         assert_eq!(value, 1 * MOB as i64);
-        assert_eq!(transaction_txo_type, "minted");
+        assert_eq!(transaction_txo_type, "output");
         let (minted_txo, minted_account_txo_status, minted_assigned_subaddress) = Txo::get(
             &AccountID::from(&src_account),
             &txo_id,

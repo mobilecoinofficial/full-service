@@ -88,6 +88,9 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
             .filter(|(_txo, status)| status.txo_status == "unspent")
             .map(|(t, _s)| t.clone())
             .collect();
+        if unspent.iter().map(|t| t.value as u128).sum::<u128>() > u64::MAX as u128 {
+            return Err(WalletTransactionBuilderError::OutboundValueTooLarge);
+        }
         self.inputs = unspent;
         Ok(())
     }
@@ -96,12 +99,18 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
         &mut self,
         max_spendable_value: Option<u64>,
     ) -> Result<(), WalletTransactionBuilderError> {
-        let value =
-            self.outlays.iter().map(|(_r, v)| v).sum::<u64>() + self.transaction_builder.fee;
+        let outlay_value_sum = self.outlays.iter().map(|(_r, v)| *v as u128).sum::<u128>();
 
+        if outlay_value_sum > u64::MAX as u128
+            || outlay_value_sum > u64::MAX as u128 - self.transaction_builder.fee as u128
+        {
+            return Err(WalletTransactionBuilderError::OutboundValueTooLarge);
+        }
+
+        let total_value = outlay_value_sum as u64 + self.transaction_builder.fee;
         self.inputs = Txo::select_unspent_txos_for_value(
             &self.account_id_hex,
-            value,
+            total_value,
             max_spendable_value.map(|v| v as i64),
             &self.wallet_db.get_conn()?,
         )?;
@@ -114,13 +123,26 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
         recipient: PublicAddress,
         value: u64,
     ) -> Result<(), WalletTransactionBuilderError> {
+        // This wallet does not support multiple outgoing recipients at this time.
+        if !self.outlays.is_empty() && recipient != self.outlays[0].0 {
+            return Err(WalletTransactionBuilderError::MultipleOutgoingRecipients);
+        }
+        // Verify that the maximum output value of this transaction remains under u64::MAX
+        let cur_sum = self.outlays.iter().map(|(_r, v)| *v as u128).sum::<u128>();
+        if cur_sum > u64::MAX as u128 {
+            return Err(WalletTransactionBuilderError::OutboundValueTooLarge);
+        }
         self.outlays.push((recipient, value));
         Ok(())
     }
 
     pub fn set_fee(&mut self, fee: u64) -> Result<(), WalletTransactionBuilderError> {
-        self.transaction_builder
-            .set_fee(std::cmp::min(MINIMUM_FEE, fee));
+        if fee < MINIMUM_FEE {
+            return Err(WalletTransactionBuilderError::InsufficientFee(
+                MINIMUM_FEE.to_string(),
+            ));
+        }
+        self.transaction_builder.set_fee(fee);
         Ok(())
     }
 
@@ -139,6 +161,10 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
     pub fn build(mut self) -> Result<TxProposal, WalletTransactionBuilderError> {
         if self.inputs.is_empty() {
             return Err(WalletTransactionBuilderError::NoInputs);
+        }
+
+        if self.tombstone == 0 {
+            return Err(WalletTransactionBuilderError::TombstoneNotSet);
         }
 
         let conn = self.wallet_db.get_conn()?;
@@ -274,6 +300,7 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
         let mut rng = rand::thread_rng();
         let recip_check = &self.outlays[0].0;
         for (i, (recipient, out_value)) in self.outlays.iter().enumerate() {
+            // Note: Should not fail this check due to filtering on add_recipient
             if recipient != recip_check {
                 return Err(WalletTransactionBuilderError::MultipleRecipientsInTransaction);
             }
@@ -301,10 +328,13 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
             .iter()
             .fold(0, |acc, (utxo, _proof)| acc + utxo.value);
         if (total_value + self.transaction_builder.fee) > input_value as u64 {
-            return Err(WalletTransactionBuilderError::InsufficientFunds(format!(
-                "Cannot make change for value {:?}",
-                input_value
-            )));
+            return Err(WalletTransactionBuilderError::InsufficientInputFunds(
+                format!(
+                    "Total value required to send transaction {:?}, but only {:?} in inputs",
+                    total_value + self.transaction_builder.fee,
+                    input_value
+                ),
+            ));
         }
 
         let change = input_value as u64 - total_value - self.transaction_builder.fee;
@@ -497,12 +527,14 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
 mod tests {
     use super::*;
     use crate::{
+        error::WalletDbError,
         service::sync::SyncThread,
-        test_utils::{add_block_to_ledger_db, get_test_ledger, WalletDbTestContext, MOB},
+        test_utils::{
+            builder_for_random_recipient, get_test_ledger, random_account_with_seed_values,
+            WalletDbTestContext, MOB,
+        },
     };
     use mc_common::logger::{test_with_logger, Logger};
-    use mc_crypto_rand::rand_core::RngCore;
-    use mc_fog_report_validation::MockFogPubkeyResolver;
     use rand::{rngs::StdRng, SeedableRng};
 
     #[test_with_logger]
@@ -518,94 +550,553 @@ mod tests {
         let _sync_thread =
             SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
 
-        let account_key = AccountKey::random(&mut rng);
-        Account::create(
-            &account_key,
-            0,
-            1,
-            2,
-            0,
-            0,
-            "",
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-
-        // Send 3 transactions for 11 MOB to ourselves
-        add_block_to_ledger_db(
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
             &mut ledger_db,
-            &vec![account_key.subaddress(0)],
-            11 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
+            &vec![
+                11 * MOB as u64,
+                11 * MOB as u64,
+                11 * MOB as u64,
+                111111 * MOB as u64,
+            ],
             &mut rng,
-        );
-
-        add_block_to_ledger_db(
-            &mut ledger_db,
-            &vec![account_key.subaddress(0)],
-            11 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
-            &mut rng,
-        );
-
-        add_block_to_ledger_db(
-            &mut ledger_db,
-            &vec![account_key.subaddress(0)],
-            11 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
-            &mut rng,
-        );
-
-        // Add a much larger txo
-        add_block_to_ledger_db(
-            &mut ledger_db,
-            &vec![account_key.subaddress(0)],
-            111111 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
-            &mut rng,
-        );
-
-        // Sleep a bit so we can sync all the Txos
-        std::thread::sleep(std::time::Duration::from_secs(4));
-
-        // Make sure we have all our Txos
-        assert_eq!(
-            Txo::list_for_account(
-                &AccountID::from(&account_key).to_string(),
-                &wallet_db.get_conn().unwrap()
-            )
-            .unwrap()
-            .len(),
-            4
         );
 
         // Construct a transaction
-        let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
-            WalletTransactionBuilder::new(
-                AccountID::from(&account_key).to_string(),
-                wallet_db.clone(),
-                ledger_db.clone(),
-                Some(Arc::new(MockFogPubkeyResolver::new())),
-                logger.clone(),
-            );
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
 
-        let recipient_account_key = AccountKey::random(&mut rng);
-        let recipient = recipient_account_key.subaddress(rng.next_u64());
         // Send value specifically for your smallest Txo size. Should take 2 inputs
         // and also make change.
         let value = 11 * MOB as u64;
-        builder.add_recipient(recipient, value).unwrap();
+        builder.add_recipient(recipient.clone(), value).unwrap();
 
         // Select the txos for the recipient
         builder.select_txos(None).unwrap();
+        builder.set_tombstone(0).unwrap();
 
         let proposal = builder.build().unwrap();
         assert_eq!(proposal.outlays.len(), 1);
+        assert_eq!(proposal.outlays[0].receiver, recipient);
+        assert_eq!(proposal.outlays[0].value, value);
+        assert_eq!(proposal.tx.prefix.inputs.len(), 2);
+        assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE);
+        assert_eq!(proposal.tx.prefix.outputs.len(), 2);
     }
 
-    // FIXME: Test for sending more MOB than fits in a u64
-    // FIXME: Test for setting txos on builder
-    // FIXME: test with max_spendable
-    // FIXME: test with tombstones
-    // FIXME: test with fees
+    // Test that large values are handled correctly.
+    #[test_with_logger]
+    fn test_big_values(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        // Start sync thread
+        let _sync_thread =
+            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+
+        // Give ourselves enough MOB that we have more than u64::MAX, 18_446_745 MOB
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
+            &mut ledger_db,
+            &vec![
+                7_000_000 * MOB as u64,
+                7_000_000 * MOB as u64,
+                7_000_000 * MOB as u64,
+            ],
+            &mut rng,
+        );
+
+        // Check balance
+        let txo_lists = Txo::list_by_status(
+            &AccountID::from(&account_key).to_string(),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        let balance: u128 = txo_lists["unspent"]
+            .iter()
+            .map(|t| t.value as u128)
+            .sum::<u128>();
+        assert_eq!(balance, 21_000_000 * MOB as u128);
+
+        // Now try to send a transaction with a value > u64::MAX
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+
+        let value = u64::MAX;
+        builder.add_recipient(recipient.clone(), value).unwrap();
+
+        // Select the txos for the recipient - should error because > u64::MAX
+        match builder.select_txos(None) {
+            Ok(_) => panic!("Should not be allowed to construct outbound values > u64::MAX"),
+            Err(WalletTransactionBuilderError::OutboundValueTooLarge) => {}
+            Err(e) => panic!("Unexpected error {:?}", e),
+        }
+    }
+
+    // Users should be able to set the txos specifically that they want to send
+    #[test_with_logger]
+    fn test_setting_txos(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        // Start sync thread
+        let _sync_thread =
+            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
+            &mut ledger_db,
+            &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
+            &mut rng,
+        );
+
+        // Get our TXO list
+        let txos: Vec<Txo> = Txo::list_for_account(
+            &AccountID::from(&account_key).to_string(),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap()
+        .iter()
+        .map(|(t, _a)| t.clone())
+        .collect();
+
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+
+        // Setting value to exactly the input will fail because you need funds for fee
+        builder
+            .add_recipient(recipient.clone(), txos[0].value as u64)
+            .unwrap();
+
+        builder.set_txos(&vec![txos[0].txo_id_hex.clone()]).unwrap();
+        builder.set_tombstone(0).unwrap();
+        match builder.build() {
+            Ok(_) => {
+                panic!("Should not be able to construct Tx with > inputs value as output value")
+            }
+            Err(WalletTransactionBuilderError::InsufficientInputFunds(_)) => {}
+            Err(e) => panic!("Unexpected error {:?}", e),
+        }
+
+        // Now build, setting to multiple TXOs
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+
+        // Set value to just slightly more than what fits in the one TXO
+        builder
+            .add_recipient(recipient.clone(), txos[0].value as u64 + 10)
+            .unwrap();
+
+        builder
+            .set_txos(&vec![
+                txos[0].txo_id_hex.clone(),
+                txos[1].txo_id_hex.clone(),
+            ])
+            .unwrap();
+        builder.set_tombstone(0).unwrap();
+        let proposal = builder.build().unwrap();
+        assert_eq!(proposal.outlays.len(), 1);
+        assert_eq!(proposal.outlays[0].receiver, recipient);
+        assert_eq!(proposal.outlays[0].value, txos[0].value as u64 + 10);
+        assert_eq!(proposal.tx.prefix.inputs.len(), 2); // need one more for fee
+        assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE);
+        assert_eq!(proposal.tx.prefix.outputs.len(), 2); // self and change
+    }
+
+    // Test max_spendable correctly filters out txos above max_spendable
+    #[test_with_logger]
+    fn test_max_spendable(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        // Start sync thread
+        let _sync_thread =
+            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
+            &mut ledger_db,
+            &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
+            &mut rng,
+        );
+
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+
+        // Setting value to exactly the input will fail because you need funds for fee
+        builder
+            .add_recipient(recipient.clone(), 80 * MOB as u64)
+            .unwrap();
+
+        // Test that selecting Txos with max_spendable < all our txo values fails
+        match builder.select_txos(Some(10)) {
+            Ok(_) => panic!("Should not be able to construct tx when max_spendable < all txos"),
+            Err(WalletTransactionBuilderError::WalletDb(WalletDbError::NoSpendableTxos)) => {}
+            Err(e) => panic!("Unexpected error {:?}", e),
+        }
+
+        // We should be able to try again, with max_spendable at 70, but will not hit our outlay target (80 * MOB)
+        match builder.select_txos(Some(70 * MOB as u64)) {
+            Ok(_) => panic!("Should not be able to construct tx when max_spendable < all txos"),
+            Err(WalletTransactionBuilderError::WalletDb(
+                WalletDbError::InsufficientFundsUnderMaxSpendable(_),
+            )) => {}
+            Err(e) => panic!("Unexpected error {:?}", e),
+        }
+
+        // Now, we should succeed if we set max_spendable = 80 * MOB, because we will pick up both 70 and 80
+        builder.select_txos(Some(80 * MOB as u64)).unwrap();
+        builder.set_tombstone(0).unwrap();
+        let proposal = builder.build().unwrap();
+        assert_eq!(proposal.outlays.len(), 1);
+        assert_eq!(proposal.outlays[0].receiver, recipient);
+        assert_eq!(proposal.outlays[0].value, 80 * MOB as u64);
+        assert_eq!(proposal.tx.prefix.inputs.len(), 2); // uses both 70 and 80
+        assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE);
+        assert_eq!(proposal.tx.prefix.outputs.len(), 2); // self and change
+    }
+
+    // Test setting and not setting tombstone block
+    #[test_with_logger]
+    fn test_tombstone(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        // Start sync thread
+        let _sync_thread =
+            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
+            &mut ledger_db,
+            &vec![70 * MOB as u64],
+            &mut rng,
+        );
+
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+
+        builder
+            .add_recipient(recipient.clone(), 10 * MOB as u64)
+            .unwrap();
+        builder.select_txos(None).unwrap();
+
+        // Sanity check that our ledger is the height we think it is
+        assert_eq!(ledger_db.num_blocks().unwrap(), 13);
+
+        // We must set tombstone block before building
+        match builder.build() {
+            Ok(_) => panic!("Expected TombstoneNotSet error"),
+            Err(WalletTransactionBuilderError::TombstoneNotSet) => {}
+            Err(e) => panic!("Unexpected error {:?}", e),
+        }
+
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+
+        builder
+            .add_recipient(recipient.clone(), 10 * MOB as u64)
+            .unwrap();
+        builder.select_txos(None).unwrap();
+
+        // Set to default
+        builder.set_tombstone(0).unwrap();
+
+        // Not setting the tombstone results in tombstone = 0. This is an acceptable value,
+        let proposal = builder.build().unwrap();
+        assert_eq!(proposal.tx.prefix.tombstone_block, 63);
+
+        // Build a transaction and explicitly set tombstone
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+
+        builder
+            .add_recipient(recipient.clone(), 10 * MOB as u64)
+            .unwrap();
+        builder.select_txos(None).unwrap();
+
+        // Set to default
+        builder.set_tombstone(20).unwrap();
+
+        // Not setting the tombstone results in tombstone = 0. This is an acceptable value,
+        let proposal = builder.build().unwrap();
+        assert_eq!(proposal.tx.prefix.tombstone_block, 20);
+    }
+
+    // Test setting and not setting the fee
+    #[test_with_logger]
+    fn test_fee(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        // Start sync thread
+        let _sync_thread =
+            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
+            &mut ledger_db,
+            &vec![70 * MOB as u64],
+            &mut rng,
+        );
+
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+
+        builder
+            .add_recipient(recipient.clone(), 10 * MOB as u64)
+            .unwrap();
+        builder.select_txos(None).unwrap();
+        builder.set_tombstone(0).unwrap();
+
+        // Verify that not setting fee results in default fee
+        let proposal = builder.build().unwrap();
+        assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE);
+
+        // You cannot set fee to 0
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+
+        builder
+            .add_recipient(recipient.clone(), 10 * MOB as u64)
+            .unwrap();
+        builder.select_txos(None).unwrap();
+        builder.set_tombstone(0).unwrap();
+        match builder.set_fee(0) {
+            Ok(_) => panic!("Should not be able to set fee to 0"),
+            Err(WalletTransactionBuilderError::InsufficientFee(_)) => {}
+            Err(e) => panic!("Unexpected error {:?}", e),
+        }
+
+        // Verify that not setting fee results in default fee
+        let proposal = builder.build().unwrap();
+        assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE);
+
+        // Setting fee less than minimum fee should fail
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+
+        builder
+            .add_recipient(recipient.clone(), 10 * MOB as u64)
+            .unwrap();
+        builder.select_txos(None).unwrap();
+        builder.set_tombstone(0).unwrap();
+        match builder.set_fee(0) {
+            Ok(_) => panic!("Should not be able to set fee to 0"),
+            Err(WalletTransactionBuilderError::InsufficientFee(_)) => {}
+            Err(e) => panic!("Unexpected error {:?}", e),
+        }
+
+        // Setting fee greater than MINIMUM_FEE works
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+
+        builder
+            .add_recipient(recipient.clone(), 10 * MOB as u64)
+            .unwrap();
+        builder.select_txos(None).unwrap();
+        builder.set_tombstone(0).unwrap();
+        builder.set_fee(MINIMUM_FEE * 10).unwrap();
+        let proposal = builder.build().unwrap();
+        assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE * 10);
+    }
+
+    // We should be able to create a transaction without any change outputs
+    #[test_with_logger]
+    fn test_no_change(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        // Start sync thread
+        let _sync_thread =
+            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
+            &mut ledger_db,
+            &vec![70 * MOB as u64],
+            &mut rng,
+        );
+
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+
+        // Set value to consume the whole TXO and not produce change
+        let value = 70 * MOB as u64 - MINIMUM_FEE;
+        builder.add_recipient(recipient.clone(), value).unwrap();
+        builder.select_txos(None).unwrap();
+        builder.set_tombstone(0).unwrap();
+
+        // Verify that not setting fee results in default fee
+        let proposal = builder.build().unwrap();
+        assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE);
+        assert_eq!(proposal.outlays.len(), 1);
+        assert_eq!(proposal.outlays[0].receiver, recipient);
+        assert_eq!(proposal.outlays[0].value, value);
+        assert_eq!(proposal.tx.prefix.inputs.len(), 1); // uses just one input
+        assert_eq!(proposal.tx.prefix.outputs.len(), 1); // only one output to self (no change)
+    }
+
+    // We should be able to add multiple TxOuts to the same recipient, not to multiple
+    #[test_with_logger]
+    fn test_add_multiple_outputs_to_same_recipient(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        // Start sync thread
+        let _sync_thread =
+            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
+            &mut ledger_db,
+            &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
+            &mut rng,
+        );
+
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+
+        builder
+            .add_recipient(recipient.clone(), 10 * MOB as u64)
+            .unwrap();
+        builder
+            .add_recipient(recipient.clone(), 20 * MOB as u64)
+            .unwrap();
+        builder
+            .add_recipient(recipient.clone(), 30 * MOB as u64)
+            .unwrap();
+        builder
+            .add_recipient(recipient.clone(), 40 * MOB as u64)
+            .unwrap();
+
+        builder.select_txos(None).unwrap();
+        builder.set_tombstone(0).unwrap();
+
+        // Verify that not setting fee results in default fee
+        let proposal = builder.build().unwrap();
+        assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE);
+        assert_eq!(proposal.outlays.len(), 4);
+        assert_eq!(proposal.outlays[0].receiver, recipient);
+        assert_eq!(proposal.outlays[0].value, 10 * MOB as u64);
+        assert_eq!(proposal.outlays[1].receiver, recipient);
+        assert_eq!(proposal.outlays[1].value, 20 * MOB as u64);
+        assert_eq!(proposal.outlays[2].receiver, recipient);
+        assert_eq!(proposal.outlays[2].value, 30 * MOB as u64);
+        assert_eq!(proposal.outlays[3].receiver, recipient);
+        assert_eq!(proposal.outlays[3].value, 40 * MOB as u64);
+        assert_eq!(proposal.tx.prefix.inputs.len(), 2);
+        assert_eq!(proposal.tx.prefix.outputs.len(), 5); // outlays + change
+    }
+
+    // Adding multiple values that exceed u64::MAX should fail
+    #[test_with_logger]
+    fn test_add_multiple_outputs_integer_overflow(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        // Start sync thread
+        let _sync_thread =
+            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
+            &mut ledger_db,
+            &vec![
+                7_000_000 * MOB as u64,
+                7_000_000 * MOB as u64,
+                7_000_000 * MOB as u64,
+                7_000_000 * MOB as u64,
+            ],
+            &mut rng,
+        );
+
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+
+        builder
+            .add_recipient(recipient.clone(), 7_000_000 * MOB as u64)
+            .unwrap();
+        builder
+            .add_recipient(recipient.clone(), 7_000_000 * MOB as u64)
+            .unwrap();
+        builder
+            .add_recipient(recipient.clone(), 7_000_000 * MOB as u64)
+            .unwrap();
+
+        match builder.select_txos(None) {
+            Ok(_) => panic!("Should not be able to select txos with > u64::MAX output value"),
+            Err(WalletTransactionBuilderError::OutboundValueTooLarge) => {}
+            Err(e) => panic!("Unexpected error {:?}", e),
+        }
+    }
+
+    // We should be able to add multiple TxOuts to the same recipient, not to multiple
+    #[test_with_logger]
+    fn test_add_multiple_recipients_fails(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        // Start sync thread
+        let _sync_thread =
+            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
+            &mut ledger_db,
+            &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
+            &mut rng,
+        );
+
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+
+        builder
+            .add_recipient(recipient.clone(), 10 * MOB as u64)
+            .unwrap();
+
+        // Create a new recipient
+        let second_recipient = AccountKey::random(&mut rng).subaddress(0);
+        match builder.add_recipient(second_recipient.clone(), 40 * MOB as u64) {
+            Ok(_) => panic!("Should not be able to add multiple recipients"),
+            Err(WalletTransactionBuilderError::MultipleOutgoingRecipients) => {}
+            Err(e) => panic!("Unexpected error {:?}", e),
+        }
+    }
 }
