@@ -430,6 +430,7 @@ pub fn rocket(
 mod tests {
     use super::*;
     use crate::{
+        db::models::{TXO_RECEIVED, TXO_UNSPENT},
         service::wallet_impl::b58_decode,
         test_utils::{
             add_block_to_ledger_db, get_test_ledger, setup_grpc_peer_manager, WalletDbTestContext,
@@ -673,9 +674,9 @@ mod tests {
         assert_eq!(txos.len(), 1);
         let txo = &txos[0];
         let txo_status = txo.get("txo_status").unwrap().as_str().unwrap();
-        assert_eq!(txo_status, "unspent");
+        assert_eq!(txo_status, TXO_UNSPENT);
         let txo_type = txo.get("txo_type").unwrap().as_str().unwrap();
-        assert_eq!(txo_type, "received");
+        assert_eq!(txo_type, TXO_RECEIVED);
         let value = txo.get("value").unwrap().as_str().unwrap();
         assert_eq!(value, "100");
 
@@ -688,7 +689,7 @@ mod tests {
         });
         let result = dispatch(&client, body, &logger);
         let balance_status = result.get("status").unwrap();
-        let unspent = balance_status.get("unspent").unwrap().as_str().unwrap();
+        let unspent = balance_status.get(TXO_UNSPENT).unwrap().as_str().unwrap();
         assert_eq!(unspent, "100");
     }
 
@@ -864,9 +865,9 @@ mod tests {
         assert_eq!(txos.len(), 1);
         let txo = &txos[0];
         let txo_status = txo.get("txo_status").unwrap().as_str().unwrap();
-        assert_eq!(txo_status, "unspent");
+        assert_eq!(txo_status, TXO_UNSPENT);
         let txo_type = txo.get("txo_type").unwrap().as_str().unwrap();
-        assert_eq!(txo_type, "received");
+        assert_eq!(txo_type, TXO_RECEIVED);
         let value = txo.get("value").unwrap().as_str().unwrap();
         assert_eq!(value, "42000000000000");
     }

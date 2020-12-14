@@ -3,7 +3,10 @@
 //! The implementation of the wallet service methods.
 
 use crate::{
-    db::models::{Account, AssignedSubaddress, TransactionLog, Txo},
+    db::models::{
+        Account, AssignedSubaddress, TransactionLog, Txo, TXO_ORPHANED, TXO_PENDING, TXO_SECRETED,
+        TXO_SPENT, TXO_UNSPENT,
+    },
     db::WalletDb,
     db::{
         account::{AccountID, AccountModel},
@@ -257,23 +260,23 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         let conn = self.wallet_db.get_conn()?;
 
         let status_map = Txo::list_by_status(account_id_hex, &conn)?;
-        let unspent: u128 = status_map["unspent"]
+        let unspent: u128 = status_map[TXO_UNSPENT]
             .iter()
             .map(|t| t.value as u128)
             .sum::<u128>();
-        let pending: u128 = status_map["pending"]
+        let pending: u128 = status_map[TXO_PENDING]
             .iter()
             .map(|t| t.value as u128)
             .sum::<u128>();
-        let spent: u128 = status_map["spent"]
+        let spent: u128 = status_map[TXO_SPENT]
             .iter()
             .map(|t| t.value as u128)
             .sum::<u128>();
-        let secreted: u128 = status_map["secreted"]
+        let secreted: u128 = status_map[TXO_SECRETED]
             .iter()
             .map(|t| t.value as u128)
             .sum::<u128>();
-        let orphaned: u128 = status_map["orphaned"]
+        let orphaned: u128 = status_map[TXO_ORPHANED]
             .iter()
             .map(|t| t.value as u128)
             .sum::<u128>();
@@ -534,8 +537,11 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::{
-        add_block_to_ledger_db, get_test_ledger, setup_peer_manager, WalletDbTestContext,
+    use crate::{
+        db::models::{TXO_MINTED, TXO_RECEIVED},
+        test_utils::{
+            add_block_to_ledger_db, get_test_ledger, setup_peer_manager, WalletDbTestContext,
+        },
     };
     use mc_account_keys::PublicAddress;
     use mc_common::logger::{test_with_logger, Logger};
@@ -598,7 +604,7 @@ mod tests {
         // Verify that we have 1 txo
         let txos = service.list_txos(&alice.account_id).unwrap();
         assert_eq!(txos.len(), 1);
-        assert_eq!(txos[0].txo_status, "unspent");
+        assert_eq!(txos[0].txo_status, TXO_UNSPENT);
 
         // Add another account
         let bob = service
@@ -628,20 +634,20 @@ mod tests {
         let pending: Vec<JsonListTxosResponse> = txos
             .iter()
             .cloned()
-            .filter(|t| t.txo_status == "pending")
+            .filter(|t| t.txo_status == TXO_PENDING)
             .collect();
         assert_eq!(pending.len(), 1);
-        assert_eq!(pending[0].txo_type, "received");
+        assert_eq!(pending[0].txo_type, TXO_RECEIVED);
         assert_eq!(pending[0].value, "100000000000000");
         // The Minted have Status "secreted"
         let minted: Vec<JsonListTxosResponse> = txos
             .iter()
             .cloned()
-            .filter(|t| t.txo_status == "secreted")
+            .filter(|t| t.txo_status == TXO_SECRETED)
             .collect();
         assert_eq!(minted.len(), 2);
-        assert_eq!(minted[0].txo_type, "minted");
-        assert_eq!(minted[1].txo_type, "minted");
+        assert_eq!(minted[0].txo_type, TXO_MINTED);
+        assert_eq!(minted[1].txo_type, TXO_MINTED);
         let minted_value_set = HashSet::from_iter(minted.iter().map(|m| m.value.clone()));
         assert!(minted_value_set.contains("57990000000000"));
         assert!(minted_value_set.contains("42000000000000"));

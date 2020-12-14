@@ -7,7 +7,8 @@ use crate::{
         b58_encode,
         models::{
             Account, NewTransactionLog, NewTransactionTxoType, TransactionLog, TransactionTxoType,
-            Txo,
+            Txo, CHANGE, INPUT, OUTPUT, TX_BUILT, TX_DIR_RECEIVED, TX_DIR_SENT, TX_FAILED,
+            TX_PENDING, TX_SUCCEEDED,
         },
         txo::{TxoID, TxoModel},
     },
@@ -170,9 +171,9 @@ impl TransactionLogModel for TransactionLog {
 
         for (_transaction, transaction_txo_type) in transaction_txos {
             match transaction_txo_type.transaction_txo_type.as_str() {
-                "input" => inputs.push(transaction_txo_type.txo_id_hex),
-                "output" => outputs.push(transaction_txo_type.txo_id_hex),
-                "change" => change.push(transaction_txo_type.txo_id_hex),
+                INPUT => inputs.push(transaction_txo_type.txo_id_hex),
+                OUTPUT => outputs.push(transaction_txo_type.txo_id_hex),
+                CHANGE => change.push(transaction_txo_type.txo_id_hex),
                 _ => {
                     return Err(WalletDbError::UnexpectedTransactionTxoType(
                         transaction_txo_type.transaction_txo_type,
@@ -254,9 +255,9 @@ impl TransactionLogModel for TransactionLog {
             }
 
             match transaction_txo_type.transaction_txo_type.as_str() {
-                "input" => entry.inputs.push(transaction_txo_type.txo_id_hex),
-                "output" => entry.outputs.push(transaction_txo_type.txo_id_hex),
-                "change" => entry.change.push(transaction_txo_type.txo_id_hex),
+                INPUT => entry.inputs.push(transaction_txo_type.txo_id_hex),
+                OUTPUT => entry.outputs.push(transaction_txo_type.txo_id_hex),
+                CHANGE => entry.change.push(transaction_txo_type.txo_id_hex),
                 _ => {
                     return Err(WalletDbError::UnexpectedTransactionTxoType(
                         transaction_txo_type.transaction_txo_type,
@@ -294,8 +295,8 @@ impl TransactionLogModel for TransactionLog {
             for transaction_log in associated_transaction_logs {
                 let associated = transaction_log.get_associated_txos(conn)?;
 
-                // Only update transaction_log status if proposed or pending
-                if transaction_log.status != "proposed" && transaction_log.status != "pending" {
+                // Only update transaction_log status if built or pending
+                if transaction_log.status != TX_BUILT && transaction_log.status != TX_PENDING {
                     continue;
                 }
 
@@ -307,7 +308,7 @@ impl TransactionLogModel for TransactionLog {
                             .filter(transaction_id_hex.eq(&transaction_log.transaction_id_hex)),
                     )
                     .set((
-                        crate::db::schema::transaction_logs::status.eq("succeeded"),
+                        crate::db::schema::transaction_logs::status.eq(TX_SUCCEEDED),
                         crate::db::schema::transaction_logs::block_height.eq(cur_block_height),
                     ))
                     .execute(conn)?;
@@ -317,7 +318,7 @@ impl TransactionLogModel for TransactionLog {
                         transaction_logs
                             .filter(transaction_id_hex.eq(&transaction_log.transaction_id_hex)),
                     )
-                    .set(crate::db::schema::transaction_logs::status.eq("failed"))
+                    .set(crate::db::schema::transaction_logs::status.eq(TX_FAILED))
                     .execute(conn)?;
                 }
             }
@@ -365,11 +366,11 @@ impl TransactionLogModel for TransactionLog {
                         assigned_subaddress_b58: &b58_subaddress,
                         value: txo.value,
                         fee: None, // Impossible to recover fee from received transaction
-                        status: "succeeded",
+                        status: TX_SUCCEEDED,
                         sent_time: None, // NULL for received
                         block_height: block_height as i64,
                         comment: "", // NULL for received
-                        direction: "received",
+                        direction: TX_DIR_RECEIVED,
                         tx: None, // NULL for received
                     };
 
@@ -381,7 +382,7 @@ impl TransactionLogModel for TransactionLog {
                     let new_transaction_txo = NewTransactionTxoType {
                         transaction_id_hex: &transaction_id.to_string(),
                         txo_id_hex: &txo.txo_id_hex,
-                        transaction_txo_type: "output",
+                        transaction_txo_type: OUTPUT,
                     };
                     // Note: SQLite backend does not support batch insert, so within iter is fine
                     diesel::insert_into(transaction_txo_types::table)
@@ -415,7 +416,7 @@ impl TransactionLogModel for TransactionLog {
             for utxo in tx_proposal.utxos.iter() {
                 let txo_id = TxoID::from(&utxo.tx_out);
                 Txo::update_to_pending(&txo_id, conn)?;
-                txo_ids.push((txo_id.to_string(), "input".to_string()));
+                txo_ids.push((txo_id.to_string(), INPUT.to_string()));
             }
 
             // Next, add all of our minted outputs to the Txo Table
@@ -460,13 +461,13 @@ impl TransactionLogModel for TransactionLog {
                     assigned_subaddress_b58: "", // NULL for sent
                     value: transaction_value as i64,
                     fee: Some(tx_proposal.tx.prefix.fee as i64),
-                    status: "pending",
+                    status: TX_PENDING,
                     sent_time: Some(Utc::now().timestamp()),
                     block_height: block_height as i64, // FIXME: WS-18 - is this going to do what we want? It's
                     // submitted block height, but not necessarily when it hits the ledger - would we
                     // update when we see a key_image from this transaction?
                     comment: &comment,
-                    direction: "sent",
+                    direction: TX_DIR_SENT,
                     tx: Some(mc_util_serial::encode(&tx_proposal.tx)),
                 };
 
@@ -497,7 +498,10 @@ impl TransactionLogModel for TransactionLog {
 mod tests {
     use super::*;
     use crate::{
-        db::account::{AccountID, AccountModel},
+        db::{
+            account::{AccountID, AccountModel},
+            models::{TXO_MINTED, TXO_PENDING, TXO_RECEIVED, TXO_SECRETED},
+        },
         service::sync::SyncThread,
         test_utils::{
             builder_for_random_recipient, create_test_received_txo, get_test_ledger,
@@ -566,7 +570,7 @@ mod tests {
                     Txo::get(&account_id, txo_id, &wallet_db.get_conn().unwrap()).unwrap();
                 assert_eq!(transaction_logs[0].value, txo.value);
 
-                // Make the sure the types are correct - all received should be "output"
+                // Make the sure the types are correct - all received should be OUTPUT
                 let associated = transaction_logs[0]
                     .get_associated_txos(&wallet_db.get_conn().unwrap())
                     .unwrap();
@@ -633,11 +637,11 @@ mod tests {
         // Fee exists for submitted
         assert_eq!(tx_log.fee, Some(MINIMUM_FEE as i64));
         // Created and sent transaction is "pending" until it lands
-        assert_eq!(tx_log.status, "pending");
+        assert_eq!(tx_log.status, TX_PENDING);
         assert!(tx_log.sent_time.unwrap() > 0);
         assert_eq!(tx_log.block_height, ledger_db.num_blocks().unwrap() as i64);
         assert_eq!(tx_log.comment, "");
-        assert_eq!(tx_log.direction, "sent");
+        assert_eq!(tx_log.direction, TX_DIR_SENT);
         let tx: Tx = mc_util_serial::decode(&tx_log.clone().tx.unwrap()).unwrap();
         assert_eq!(tx, tx_proposal.tx);
 
@@ -655,8 +659,8 @@ mod tests {
         )
         .unwrap();
         assert_eq!(input.value, 70 * MOB);
-        assert_eq!(input_status.txo_status, "pending"); // Should now be pending
-        assert_eq!(input_status.txo_type, "received");
+        assert_eq!(input_status.txo_status, TXO_PENDING); // Should now be pending
+        assert_eq!(input_status.txo_type, TXO_RECEIVED);
         assert_eq!(opt_input_assigned_subaddress.unwrap().subaddress_index, 0);
 
         // Assert outputs are as expected
@@ -668,8 +672,8 @@ mod tests {
         )
         .unwrap();
         assert_eq!(output.value, 50 * MOB);
-        assert_eq!(output_status.txo_status, "secreted");
-        assert_eq!(output_status.txo_type, "minted");
+        assert_eq!(output_status.txo_status, TXO_SECRETED);
+        assert_eq!(output_status.txo_type, TXO_MINTED);
         assert!(opt_output_assigned_subaddress.is_none());
 
         // Assert change is as expected
@@ -681,8 +685,8 @@ mod tests {
         )
         .unwrap();
         assert_eq!(change.value, 19990000000000); // 19.99 * MOB
-        assert_eq!(change_status.txo_status, "secreted"); // Note, change becomes "unspent" once scanned
-        assert_eq!(change_status.txo_type, "minted"); // Note, becomes "received" once scanned
+        assert_eq!(change_status.txo_status, TXO_SECRETED); // Note, change becomes "unspent" once scanned
+        assert_eq!(change_status.txo_type, TXO_MINTED); // Note, becomes "received" once scanned
         assert!(opt_change_assigned_subaddress.is_none()); // Note, gets filled in once scanned
 
         // FIXME: add the change txo above to the ledger, and then scan and verify the above statements
@@ -745,11 +749,11 @@ mod tests {
         // Fee exists for submitted
         assert_eq!(tx_log.fee, Some(MINIMUM_FEE as i64));
         // Created and sent transaction is "pending" until it lands
-        assert_eq!(tx_log.status, "pending");
+        assert_eq!(tx_log.status, TX_PENDING);
         assert!(tx_log.sent_time.unwrap() > 0);
         assert_eq!(tx_log.block_height, ledger_db.num_blocks().unwrap() as i64);
         assert_eq!(tx_log.comment, "");
-        assert_eq!(tx_log.direction, "sent");
+        assert_eq!(tx_log.direction, TX_DIR_SENT);
         let tx: Tx = mc_util_serial::decode(&tx_log.clone().tx.unwrap()).unwrap();
         assert_eq!(tx, tx_proposal.tx);
 

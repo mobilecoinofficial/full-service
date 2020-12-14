@@ -9,6 +9,34 @@ use super::schema::{
 
 use serde::Serialize;
 
+// FIXME: WS-13 - Would be great to get enums to work. Run into several issues when attempting
+//        to use https://github.com/adwhit/diesel-derive-enum for sqlite
+// TxoStatus
+pub const TXO_UNSPENT: &str = "unspent";
+pub const TXO_PENDING: &str = "pending";
+pub const TXO_SPENT: &str = "spent";
+pub const TXO_SECRETED: &str = "secreted";
+pub const TXO_ORPHANED: &str = "orphaned";
+
+// TxoType
+pub const TXO_MINTED: &str = "minted";
+pub const TXO_RECEIVED: &str = "received";
+
+// TransactionStatus
+pub const TX_BUILT: &str = "built";
+pub const TX_PENDING: &str = "pending";
+pub const TX_SUCCEEDED: &str = "succeeded";
+pub const TX_FAILED: &str = "failed";
+
+// Transaction Direction
+pub const TX_DIR_SENT: &str = "sent";
+pub const TX_DIR_RECEIVED: &str = "received";
+
+// Transaction Txo Type
+pub const INPUT: &str = "input";
+pub const OUTPUT: &str = "output";
+pub const CHANGE: &str = "change";
+
 #[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
 #[primary_key(id)]
 pub struct Account {
