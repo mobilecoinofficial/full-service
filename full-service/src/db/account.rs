@@ -52,6 +52,7 @@ pub trait AccountModel {
         next_subaddress_index: u64,
         first_block: u64,
         next_block: u64,
+        import_block: Option<u64>,
         name: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(AccountID, String), WalletDbError>;
@@ -110,6 +111,7 @@ impl AccountModel for Account {
         next_subaddress_index: u64,
         first_block: u64,
         next_block: u64,
+        import_block: Option<u64>,
         name: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(AccountID, String), WalletDbError> {
@@ -126,6 +128,7 @@ impl AccountModel for Account {
                     next_subaddress_index: next_subaddress_index as i64,
                     first_block: first_block as i64,
                     next_block: next_block as i64,
+                    import_block: import_block.map(|i| i as i64),
                     name,
                 };
 
@@ -318,9 +321,18 @@ mod tests {
         let account_key = AccountKey::random(&mut rng);
         let account_id_hex = {
             let conn = wallet_db.get_conn().unwrap();
-            let (account_id_hex, _public_address_b58) =
-                Account::create(&account_key, 0, 1, 2, 0, 1, "Alice's Main Account", &conn)
-                    .unwrap();
+            let (account_id_hex, _public_address_b58) = Account::create(
+                &account_key,
+                0,
+                1,
+                2,
+                0,
+                1,
+                None,
+                "Alice's Main Account",
+                &conn,
+            )
+            .unwrap();
             account_id_hex
         };
 
@@ -340,6 +352,7 @@ mod tests {
             next_subaddress_index: 2,
             first_block: 0,
             next_block: 1,
+            import_block: None,
             name: "Alice's Main Account".to_string(),
         };
         assert_eq!(expected_account, acc);
@@ -376,6 +389,7 @@ mod tests {
             2,
             50,
             51,
+            Some(50),
             "",
             &wallet_db.get_conn().unwrap(),
         )
@@ -394,6 +408,7 @@ mod tests {
             next_subaddress_index: 2,
             first_block: 50,
             next_block: 51,
+            import_block: Some(50),
             name: "".to_string(),
         };
         assert_eq!(expected_account_secondary, acc_secondary);

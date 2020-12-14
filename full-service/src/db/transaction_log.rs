@@ -544,6 +544,7 @@ mod tests {
             2,
             0,
             1,
+            None,
             "",
             &wallet_db.get_conn().unwrap(),
         )

@@ -805,6 +805,7 @@ mod tests {
             2,
             0,
             1,
+            None,
             "Alice's Main Account",
             &wallet_db.get_conn().unwrap(),
         )
@@ -902,6 +903,7 @@ mod tests {
             2,
             0,
             1,
+            None,
             "Alice's Main Account",
             &wallet_db.get_conn().unwrap(),
         )
@@ -1009,6 +1011,7 @@ mod tests {
             2,
             0,
             1,
+            None,
             "Alice's Main Account",
             &wallet_db.get_conn().unwrap(),
         )
@@ -1063,6 +1066,7 @@ mod tests {
             2,
             0,
             0,
+            None,
             "",
             &wallet_db.get_conn().unwrap(),
         )
@@ -1123,6 +1127,7 @@ mod tests {
             2,
             0,
             0,
+            None,
             "",
             &wallet_db.get_conn().unwrap(),
         )
