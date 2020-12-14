@@ -1,3 +1,5 @@
+// Copyright (c) 2020 MobileCoin Inc.
+
 table! {
     account_txo_statuses (account_id_hex, txo_id_hex) {
         account_id_hex -> Text,
