@@ -16,7 +16,6 @@ use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_transaction_core::ring_signature::KeyImage;
 
 use diesel::{
-    connection::TransactionManager,
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},
     RunQueryDsl,
@@ -116,42 +115,42 @@ impl AccountModel for Account {
     ) -> Result<(AccountID, String), WalletDbError> {
         use crate::db::schema::accounts;
 
-        conn.transaction_manager().begin_transaction(conn)?;
-
         let account_id = AccountID::from(account_key);
-        let new_account = NewAccount {
-            account_id_hex: &account_id.to_string(),
-            encrypted_account_key: &mc_util_serial::encode(account_key), // FIXME: WS-6 - add encryption
-            main_subaddress_index: main_subaddress_index as i64,
-            change_subaddress_index: change_subaddress_index as i64,
-            next_subaddress_index: next_subaddress_index as i64,
-            first_block: first_block as i64,
-            next_block: next_block as i64,
-            name,
-        };
+        Ok(
+            conn.transaction::<(AccountID, String), WalletDbError, _>(|| {
+                let new_account = NewAccount {
+                    account_id_hex: &account_id.to_string(),
+                    encrypted_account_key: &mc_util_serial::encode(account_key), // FIXME: WS-6 - add encryption
+                    main_subaddress_index: main_subaddress_index as i64,
+                    change_subaddress_index: change_subaddress_index as i64,
+                    next_subaddress_index: next_subaddress_index as i64,
+                    first_block: first_block as i64,
+                    next_block: next_block as i64,
+                    name,
+                };
 
-        diesel::insert_into(accounts::table)
-            .values(&new_account)
-            .execute(conn)?;
+                diesel::insert_into(accounts::table)
+                    .values(&new_account)
+                    .execute(conn)?;
 
-        let main_subaddress_b58 = AssignedSubaddress::create(
-            account_key,
-            None, // FIXME: WS-8 - Address Book Entry if details provided, or None always for main?
-            main_subaddress_index,
-            "Main",
-            &conn,
-        )?;
+                let main_subaddress_b58 = AssignedSubaddress::create(
+                    account_key,
+                    None, // FIXME: WS-8 - Address Book Entry if details provided, or None always for main?
+                    main_subaddress_index,
+                    "Main",
+                    &conn,
+                )?;
 
-        let _change_subaddress_b58 = AssignedSubaddress::create(
-            account_key,
-            None, // FIXME: WS-8 - Address Book Entry if details provided, or None always for main?
-            change_subaddress_index,
-            "Change",
-            &conn,
-        )?;
-
-        conn.transaction_manager().commit_transaction(conn)?;
-        Ok((account_id, main_subaddress_b58))
+                let _change_subaddress_b58 = AssignedSubaddress::create(
+                    account_key,
+                    None, // FIXME: WS-8 - Address Book Entry if details provided, or None always for main?
+                    change_subaddress_index,
+                    "Change",
+                    &conn,
+                )?;
+                Ok((account_id, main_subaddress_b58))
+            })?,
+        )
     }
 
     fn list_all(
@@ -218,12 +217,9 @@ impl AccountModel for Account {
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
 
-        conn.transaction_manager().begin_transaction(conn)?;
         diesel::update(accounts.filter(account_id_hex.eq(&self.account_id_hex)))
             .set(crate::db::schema::accounts::name.eq(new_name))
             .execute(conn)?;
-        conn.transaction_manager().commit_transaction(conn)?;
-
         Ok(())
     }
 
@@ -237,50 +233,56 @@ impl AccountModel for Account {
         use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
         use crate::db::schema::txos::dsl::{txo_id_hex, txos};
 
-        conn.transaction_manager().begin_transaction(conn)?;
+        Ok(conn.transaction::<(), WalletDbError, _>(|| {
+            for key_image in key_images {
+                // Get the txo by key_image
+                let matches = crate::db::schema::txos::table
+                    .select(crate::db::schema::txos::all_columns)
+                    .filter(
+                        crate::db::schema::txos::key_image.eq(mc_util_serial::encode(&key_image)),
+                    )
+                    .load::<Txo>(conn)?;
 
-        for key_image in key_images {
-            // Get the txo by key_image
-            let matches = crate::db::schema::txos::table
-                .select(crate::db::schema::txos::all_columns)
-                .filter(crate::db::schema::txos::key_image.eq(mc_util_serial::encode(&key_image)))
-                .load::<Txo>(conn)?;
+                if matches.is_empty() {
+                    // Not Found is ok - this means it's a key_image not associated with any of our txos
+                    continue;
+                } else if matches.len() > 1 {
+                    return Err(WalletDbError::DuplicateEntries(format!(
+                        "Key Image: {:?}",
+                        key_image
+                    )));
+                } else {
+                    // Update the TXO
+                    diesel::update(txos.filter(txo_id_hex.eq(&matches[0].txo_id_hex)))
+                        .set(
+                            crate::db::schema::txos::spent_block_height
+                                .eq(Some(spent_block_height)),
+                        )
+                        .execute(conn)?;
 
-            if matches.is_empty() {
-                // Not Found is ok - this means it's a key_image not associated with any of our txos
-                continue;
-            } else if matches.len() > 1 {
-                return Err(WalletDbError::DuplicateEntries(format!(
-                    "Key Image: {:?}",
-                    key_image
-                )));
-            } else {
-                // Update the TXO
-                diesel::update(txos.filter(txo_id_hex.eq(&matches[0].txo_id_hex)))
-                    .set(crate::db::schema::txos::spent_block_height.eq(Some(spent_block_height)))
+                    // Update the AccountTxoStatus
+                    diesel::update(
+                        account_txo_statuses.find((&self.account_id_hex, &matches[0].txo_id_hex)),
+                    )
+                    .set(
+                        crate::db::schema::account_txo_statuses::txo_status.eq("spent".to_string()),
+                    )
                     .execute(conn)?;
 
-                // Update the AccountTxoStatus
-                diesel::update(
-                    account_txo_statuses.find((&self.account_id_hex, &matches[0].txo_id_hex)),
-                )
-                .set(crate::db::schema::account_txo_statuses::txo_status.eq("spent".to_string()))
-                .execute(conn)?;
-
-                // FIXME: WS-13 - make sure the path for all txo_statuses and txo_types exist and are tested
-                // Update the transaction status if the txos are all spent
-                TransactionLog::update_transactions_associated_to_txo(
-                    &matches[0].txo_id_hex,
-                    spent_block_height,
-                    conn,
-                )?;
+                    // FIXME: WS-13 - make sure the path for all txo_statuses and txo_types exist and are tested
+                    // Update the transaction status if the txos are all spent
+                    TransactionLog::update_transactions_associated_to_txo(
+                        &matches[0].txo_id_hex,
+                        spent_block_height,
+                        conn,
+                    )?;
+                }
             }
-        }
-        diesel::update(accounts.filter(account_id_hex.eq(&self.account_id_hex)))
-            .set(crate::db::schema::accounts::next_block.eq(spent_block_height + 1))
-            .execute(conn)?;
-        conn.transaction_manager().commit_transaction(conn)?;
-        Ok(())
+            diesel::update(accounts.filter(account_id_hex.eq(&self.account_id_hex)))
+                .set(crate::db::schema::accounts::next_block.eq(spent_block_height + 1))
+                .execute(conn)?;
+            Ok(())
+        })?)
     }
 
     /// Delete an account.
@@ -290,9 +292,7 @@ impl AccountModel for Account {
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
 
-        conn.transaction_manager().begin_transaction(conn)?;
         diesel::delete(accounts.filter(account_id_hex.eq(self.account_id_hex))).execute(conn)?;
-        conn.transaction_manager().commit_transaction(conn)?;
         Ok(())
     }
 }

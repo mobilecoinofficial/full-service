@@ -15,7 +15,6 @@ use mc_account_keys::AccountKey;
 use mc_crypto_keys::RistrettoPublic;
 
 use diesel::{
-    connection::TransactionManager,
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},
 };
@@ -75,12 +74,11 @@ impl AssignedSubaddressModel for AssignedSubaddress {
     ) -> Result<String, WalletDbError> {
         use crate::db::schema::assigned_subaddresses;
 
-        conn.transaction_manager().begin_transaction(conn)?;
-
         let account_id = AccountID::from(account_key);
 
         let subaddress = account_key.subaddress(subaddress_index);
         let subaddress_b58 = b58_encode(&subaddress)?;
+
         let subaddress_entry = NewAssignedSubaddress {
             assigned_subaddress_b58: &subaddress_b58,
             account_id_hex: &account_id.to_string(),
@@ -94,7 +92,6 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         diesel::insert_into(assigned_subaddresses::table)
             .values(&subaddress_entry)
             .execute(conn)?;
-        conn.transaction_manager().commit_transaction(conn)?;
         Ok(subaddress_b58)
     }
 
@@ -106,41 +103,40 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         use crate::db::schema::accounts::dsl::{account_id_hex as dsl_account_id_hex, accounts};
         use crate::db::schema::assigned_subaddresses;
 
-        conn.transaction_manager().begin_transaction(conn)?;
+        Ok(conn.transaction::<(String, i64), WalletDbError, _>(|| {
+            let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
-        let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
+            let account_key: AccountKey = mc_util_serial::decode(&account.encrypted_account_key)?;
+            let subaddress_index = account.next_subaddress_index;
+            let subaddress = account_key.subaddress(subaddress_index as u64);
 
-        let account_key: AccountKey = mc_util_serial::decode(&account.encrypted_account_key)?;
-        let subaddress_index = account.next_subaddress_index;
-        let subaddress = account_key.subaddress(subaddress_index as u64);
+            let subaddress_b58 = b58_encode(&subaddress)?;
+            let subaddress_entry = NewAssignedSubaddress {
+                assigned_subaddress_b58: &subaddress_b58,
+                account_id_hex,
+                address_book_entry: None, // FIXME: WS-8 - Address Book Entry if details provided, or None always for main?
+                public_address: &mc_util_serial::encode(&subaddress),
+                subaddress_index: subaddress_index as i64,
+                comment,
+                subaddress_spend_key: &mc_util_serial::encode(subaddress.spend_public_key()),
+            };
 
-        let subaddress_b58 = b58_encode(&subaddress)?;
-        let subaddress_entry = NewAssignedSubaddress {
-            assigned_subaddress_b58: &subaddress_b58,
-            account_id_hex,
-            address_book_entry: None, // FIXME: WS-8 - Address Book Entry if details provided, or None always for main?
-            public_address: &mc_util_serial::encode(&subaddress),
-            subaddress_index: subaddress_index as i64,
-            comment,
-            subaddress_spend_key: &mc_util_serial::encode(subaddress.spend_public_key()),
-        };
-
-        diesel::insert_into(assigned_subaddresses::table)
-            .values(&subaddress_entry)
-            .execute(conn)?;
-        // Update the next subaddress index for the account
-        // Note: we also update the first_block back to 0 to scan from the beginning of the
-        //       ledger for this new subaddress.
-        // FIXME: WS-10 - pass in a "sync from" block rather than 0
-        let sync_from = 0;
-        diesel::update(accounts.filter(dsl_account_id_hex.eq(account_id_hex)))
-            .set((
-                crate::db::schema::accounts::next_subaddress_index.eq(subaddress_index + 1),
-                crate::db::schema::accounts::next_block.eq(sync_from),
-            ))
-            .execute(conn)?;
-        conn.transaction_manager().commit_transaction(conn)?;
-        Ok((subaddress_b58, subaddress_index))
+            diesel::insert_into(assigned_subaddresses::table)
+                .values(&subaddress_entry)
+                .execute(conn)?;
+            // Update the next subaddress index for the account
+            // Note: we also update the first_block back to 0 to scan from the beginning of the
+            //       ledger for this new subaddress.
+            // FIXME: WS-10 - pass in a "sync from" block rather than 0
+            let sync_from = 0;
+            diesel::update(accounts.filter(dsl_account_id_hex.eq(account_id_hex)))
+                .set((
+                    crate::db::schema::accounts::next_subaddress_index.eq(subaddress_index + 1),
+                    crate::db::schema::accounts::next_block.eq(sync_from),
+                ))
+                .execute(conn)?;
+            Ok((subaddress_b58, subaddress_index))
+        })?)
     }
 
     fn get(
