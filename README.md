@@ -830,6 +830,8 @@ curl -s localhost:9090/wallet \
 
 ## Contributing
 
+See [CONTRIBUTING](./CONTRIBUTING.md).
+
 ### Database Schema
 
 To add or edit tables:

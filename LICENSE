@@ -1,0 +1,30 @@
+Software License Agreement (GPLv3 License)
+========================================
+
+Copyright (c) 2018-2020 MobileCoin Inc.
+----------------------------------------------------
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+
+Sources of Intellectual Property Included in MobileCoin Wallet-Service Components
+------------------------------------------------------------
+
+MobileCoin components are issued by MobileCoin under the GPL v3 license above.
+Below is a list of certain publicly available software that is the source of
+intellectual property in MobileCoin, along with the licensing terms that pertain
+to those sources of IP. This list is for informational purposes only and is not
+intended to represent an exhaustive list of third party contributions to MobileCoin.
+
+  * **mobilecoin** (https://github.com/mobilecoinfoundation/mobilecoin)
+
+    MobileCoin Wallet Service makes use of the mobilecoinfoundation/mobilecoin repo as a
+    submodule.
