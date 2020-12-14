@@ -33,9 +33,9 @@ pub const TX_DIR_SENT: &str = "sent";
 pub const TX_DIR_RECEIVED: &str = "received";
 
 // Transaction Txo Type
-pub const INPUT: &str = "input";
-pub const OUTPUT: &str = "output";
-pub const CHANGE: &str = "change";
+pub const TXO_INPUT: &str = "input";
+pub const TXO_OUTPUT: &str = "output";
+pub const TXO_CHANGE: &str = "change";
 
 #[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
 #[primary_key(id)]
@@ -80,9 +80,9 @@ pub struct Txo {
     pub txo: Vec<u8>,
     pub subaddress_index: Option<i64>,
     pub key_image: Option<Vec<u8>>,
-    pub received_block_height: Option<i64>,
-    pub pending_tombstone_block_height: Option<i64>,
-    pub spent_block_height: Option<i64>,
+    pub received_block_count: Option<i64>,
+    pub pending_tombstone_block_count: Option<i64>,
+    pub spent_block_count: Option<i64>,
     pub proof: Option<Vec<u8>>,
 }
 
@@ -97,9 +97,9 @@ pub struct NewTxo<'a> {
     pub txo: &'a Vec<u8>,
     pub subaddress_index: Option<i64>,
     pub key_image: Option<&'a Vec<u8>>,
-    pub received_block_height: Option<i64>,
-    pub pending_tombstone_block_height: Option<i64>,
-    pub spent_block_height: Option<i64>,
+    pub received_block_count: Option<i64>,
+    pub pending_tombstone_block_count: Option<i64>,
+    pub spent_block_count: Option<i64>,
     pub proof: Option<&'a Vec<u8>>,
 }
 
@@ -169,8 +169,8 @@ pub struct TransactionLog {
     // Statuses: built, pending, succeeded, failed
     pub status: String,
     pub sent_time: Option<i64>, // empty string for nullable
-    pub submitted_block_height: Option<i64>,
-    pub finalized_block_height: Option<i64>,
+    pub submitted_block_count: Option<i64>,
+    pub finalized_block_count: Option<i64>,
     pub comment: String, // empty string for nullable
     // Directions: sent, received
     pub direction: String,
@@ -188,8 +188,8 @@ pub struct NewTransactionLog<'a> {
     pub fee: Option<i64>,
     pub status: &'a str,
     pub sent_time: Option<i64>,
-    pub submitted_block_height: Option<i64>,
-    pub finalized_block_height: Option<i64>,
+    pub submitted_block_count: Option<i64>,
+    pub finalized_block_count: Option<i64>,
     pub comment: &'a str,
     pub direction: &'a str,
     pub tx: Option<Vec<u8>>,

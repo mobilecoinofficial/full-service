@@ -58,9 +58,9 @@ pub struct JsonTxo {
     pub key_image: Option<String>,
     pub txo_type: String,
     pub txo_status: String,
-    pub received_block_height: Option<String>,
-    pub pending_tombstone_block_height: Option<String>,
-    pub spent_block_height: Option<String>,
+    pub received_block_count: Option<String>,
+    pub pending_tombstone_block_count: Option<String>,
+    pub spent_block_count: Option<String>,
     pub proof: Option<String>,
 }
 
@@ -78,11 +78,9 @@ impl JsonTxo {
             key_image: txo.key_image.as_ref().map(|k| hex::encode(&k)),
             txo_type: account_txo_status.txo_type.clone(),
             txo_status: account_txo_status.txo_status.clone(),
-            received_block_height: txo.received_block_height.map(|x| x.to_string()),
-            pending_tombstone_block_height: txo
-                .pending_tombstone_block_height
-                .map(|x| x.to_string()),
-            spent_block_height: txo.spent_block_height.map(|x| x.to_string()),
+            received_block_count: txo.received_block_count.map(|x| x.to_string()),
+            pending_tombstone_block_count: txo.pending_tombstone_block_count.map(|x| x.to_string()),
+            spent_block_count: txo.spent_block_count.map(|x| x.to_string()),
             proof: txo.proof.as_ref().map(hex::encode),
         }
     }
@@ -95,7 +93,7 @@ pub struct JsonBalanceResponse {
     pub spent: String,
     pub secreted: String,
     pub orphaned: String,
-    pub local_block_height: String,
+    pub local_block_count: String,
     pub synced_blocks: String,
 }
 
@@ -135,8 +133,8 @@ pub struct JsonTransactionResponse {
     pub fee: Option<String>,
     pub status: String,
     pub sent_time: String,
-    pub submitted_block_height: Option<String>,
-    pub finalized_block_height: Option<String>,
+    pub submitted_block_count: Option<String>,
+    pub finalized_block_count: Option<String>,
     pub comment: String,
     pub direction: String,
     pub input_txo_ids: Vec<String>,
@@ -158,12 +156,8 @@ impl JsonTransactionResponse {
                 .sent_time
                 .map(|t| Utc.timestamp(t, 0).to_string())
                 .unwrap_or_else(|| "".to_string()),
-            submitted_block_height: transaction_log
-                .submitted_block_height
-                .map(|b| b.to_string()),
-            finalized_block_height: transaction_log
-                .finalized_block_height
-                .map(|b| b.to_string()),
+            submitted_block_count: transaction_log.submitted_block_count.map(|b| b.to_string()),
+            finalized_block_count: transaction_log.finalized_block_count.map(|b| b.to_string()),
             comment: transaction_log.comment.clone(),
             direction: transaction_log.direction.clone(),
             input_txo_ids: associated_txos.inputs.clone(),

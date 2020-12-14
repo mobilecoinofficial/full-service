@@ -23,9 +23,9 @@ CREATE TABLE txos (
   txo BLOB NOT NULL,
   subaddress_index UNSIGNED BIG INT,
   key_image BLOB,
-  received_block_height UNSIGNED BIG INT,
-  pending_tombstone_block_height UNSIGNED BIG INT,
-  spent_block_height UNSIGNED BIG INT,
+  received_block_count UNSIGNED BIG INT,
+  pending_tombstone_block_count UNSIGNED BIG INT,
+  spent_block_count UNSIGNED BIG INT,
   proof BLOB
 );
 
@@ -65,8 +65,8 @@ CREATE TABLE transaction_logs (
     fee UNSIGNED BIG INT,
     status VARCHAR(8) NOT NULL,
     sent_time UNSIGNED BIG INT,
-    submitted_block_height UNSIGNED BIG INT,
-    finalized_block_height UNSIGNED BIG INT,
+    submitted_block_count UNSIGNED BIG INT,
+    finalized_block_count UNSIGNED BIG INT,
     comment TEXT NOT NULL DEFAULT '',
     direction VARCHAR(8) NOT NULL,
     tx BLOB,

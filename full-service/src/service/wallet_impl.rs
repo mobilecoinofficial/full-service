@@ -281,7 +281,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
             .map(|t| t.value as u128)
             .sum::<u128>();
 
-        let local_block_height = self.ledger_db.num_blocks()?;
+        let local_block_count = self.ledger_db.num_blocks()?;
         let account = Account::get(&AccountID(account_id_hex.to_string()), &conn)?;
 
         Ok(JsonBalanceResponse {
@@ -290,7 +290,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
             spent: spent.to_string(),
             secreted: secreted.to_string(),
             orphaned: orphaned.to_string(),
-            local_block_height: local_block_height.to_string(),
+            local_block_count: local_block_count.to_string(),
             synced_blocks: account.next_block.to_string(),
         })
     }
@@ -397,7 +397,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         let tx = mc_transaction_core::tx::Tx::try_from(tx_proposal_proto.get_tx())
             .map_err(|_| WalletServiceError::ProtoConversionInfallible)?;
 
-        let block_height = self
+        let block_count = self
             .peer_manager
             .conn(responder_id)
             .ok_or(WalletServiceError::NodeNotFound)?
@@ -408,12 +408,12 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
             self.logger,
             "Tx {:?} submitted at block height {}",
             tx,
-            block_height
+            block_count
         );
         let converted_proposal = TxProposal::try_from(&tx_proposal_proto)?;
         let transaction_id = TransactionLog::log_submitted(
             converted_proposal,
-            block_height,
+            block_count,
             comment.unwrap_or_else(|| "".to_string()),
             account_id_hex.as_deref(),
             &self.wallet_db.get_conn()?,
