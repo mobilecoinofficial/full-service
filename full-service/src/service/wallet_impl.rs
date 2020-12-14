@@ -131,6 +131,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
             DEFAULT_NEXT_SUBADDRESS_INDEX,
             fb,
             fb,
+            None,
             &name.unwrap_or_else(|| "".to_string()),
             &conn,
         )?;
@@ -168,6 +169,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
             DEFAULT_NEXT_SUBADDRESS_INDEX,
             fb,
             fb + 1,
+            Some(self.ledger_db.num_blocks()?),
             &name.unwrap_or_else(|| "".to_string()),
             &conn,
         )?;

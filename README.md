@@ -834,9 +834,12 @@ curl -s localhost:9090/wallet \
 
 To add or edit tables:
 
+1. `cd full-service`
 1. Create a migration with `diesel migration generate <migration_name>`
 1. Edit the migrations/<migration_name>/up.sql and down.sql.
-1. Run the migration with `diesel migration run`, and test delete with `diesel migration redo`
+1. Run the migration with `diesel migration run --database-url /tmp/db.db`, and test delete with `diesel migration redo --database-url /tmp/db.db`
+
+Note that full-service/diesel.toml provides the path to the schema.rs which will be updated in a migration.
 
 ### Running Tests
 

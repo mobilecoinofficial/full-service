@@ -20,6 +20,7 @@ pub struct Account {
     pub next_subaddress_index: i64,
     pub first_block: i64,
     pub next_block: i64,
+    pub import_block: Option<i64>,
     pub name: String, // empty string for nullable
                       // FIXME: WS-21 - add import_block to indicate that all data prior to that
                       //        block was recovered from the ledger and may be missing data
@@ -35,6 +36,7 @@ pub struct NewAccount<'a> {
     pub next_subaddress_index: i64,
     pub first_block: i64,
     pub next_block: i64,
+    pub import_block: Option<i64>,
     pub name: &'a str,
 }
 

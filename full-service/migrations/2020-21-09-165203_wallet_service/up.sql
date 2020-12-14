@@ -7,6 +7,7 @@ CREATE TABLE accounts (
   next_subaddress_index UNSIGNED BIG INT NOT NULL,
   first_block UNSIGNED BIG INT NOT NULL,
   next_block UNSIGNED BIG INT NOT NULL,
+  import_block UNSIGNED BIG INT,
   name VARCHAR NOT NULL DEFAULT ''
 );
 
