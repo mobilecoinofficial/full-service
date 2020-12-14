@@ -450,6 +450,18 @@ curl -s localhost:9090/wallet \
 | `max_spendable_value` | The maximum amount for an input TXO selected for this transaction |  |
 | `comment` | Comment to annotate this transaction in the transaction log   | |
 
+##### Troubleshooting
+
+If you get the following error response:
+
+```
+{
+  "error": "Connection(Operation { error: TransactionValidation(ContainsSpentKeyImage), total_delay: 0ns, tries: 1 })"
+}
+```
+
+it may mean that your account is not yet fully synced. Call `check_balance` for the account, and note the `synced_blocks` value. If that value is less than the `local_block_height` value, then your Txos may not all be updated to their spent status.
+
 #### Build Transaction
 
 You can build a transaction to confirm its contents before submitting it to the network.
