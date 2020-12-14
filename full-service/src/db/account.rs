@@ -217,12 +217,10 @@ impl AccountModel for Account {
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
 
-        Ok(conn.transaction::<(), WalletDbError, _>(|| {
-            diesel::update(accounts.filter(account_id_hex.eq(&self.account_id_hex)))
-                .set(crate::db::schema::accounts::name.eq(new_name))
-                .execute(conn)?;
-            Ok(())
-        })?)
+        diesel::update(accounts.filter(account_id_hex.eq(&self.account_id_hex)))
+            .set(crate::db::schema::accounts::name.eq(new_name))
+            .execute(conn)?;
+        Ok(())
     }
 
     fn update_spent_and_increment_next_block(
@@ -294,11 +292,8 @@ impl AccountModel for Account {
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
 
-        Ok(conn.transaction::<(), WalletDbError, _>(|| {
-            diesel::delete(accounts.filter(account_id_hex.eq(self.account_id_hex)))
-                .execute(conn)?;
-            Ok(())
-        })?)
+        diesel::delete(accounts.filter(account_id_hex.eq(self.account_id_hex))).execute(conn)?;
+        Ok(())
     }
 }
 

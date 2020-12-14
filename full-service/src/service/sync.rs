@@ -316,8 +316,8 @@ pub fn sync_account(
     let conn = wallet_db.get_conn()?;
     conn.transaction_manager().begin_transaction(&conn)?;
 
-    Ok(conn.transaction::<SyncAccountOk, SyncError, _>(|| {
-        for _ in 0..MAX_BLOCKS_PROCESSING_CHUNK_SIZE {
+    for _ in 0..MAX_BLOCKS_PROCESSING_CHUNK_SIZE {
+        let sync_status = conn.transaction::<SyncAccountOk, SyncError, _>(|| {
             // Get the account data. If it is no longer available, the account has been removed and we
             // can simply return.
             let account = Account::get(&AccountID(account_id.to_string()), &conn)?;
@@ -365,9 +365,15 @@ pub fn sync_account(
                 account.next_block as u64,
                 &conn,
             )?;
+            Ok(SyncAccountOk::MoreBlocksPotentiallyAvailable)
+        })?;
+        // Early out of the loop if we hit NoMoreBlocks
+        match sync_status {
+            SyncAccountOk::NoMoreBlocks => return Ok(SyncAccountOk::NoMoreBlocks),
+            _ => {}
         }
-        Ok(SyncAccountOk::MoreBlocksPotentiallyAvailable)
-    })?)
+    }
+    Ok(SyncAccountOk::MoreBlocksPotentiallyAvailable)
 }
 
 /// Helper function for matching a list of TxOuts to a given account.

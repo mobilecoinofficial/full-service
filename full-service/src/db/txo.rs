@@ -430,16 +430,13 @@ impl TxoModel for Txo {
 
         let encoded_key_image = received_key_image.map(|k| mc_util_serial::encode(&k));
 
-        conn.transaction::<(), WalletDbError, _>(|| {
-            diesel::update(self)
-                .set((
-                    received_block_height.eq(Some(block_height)),
-                    subaddress_index.eq(received_subaddress_index),
-                    key_image.eq(encoded_key_image),
-                ))
-                .execute(conn)?;
-            Ok(())
-        })?;
+        diesel::update(self)
+            .set((
+                received_block_height.eq(Some(block_height)),
+                subaddress_index.eq(received_subaddress_index),
+                key_image.eq(encoded_key_image),
+            ))
+            .execute(conn)?;
         Ok(())
     }
 

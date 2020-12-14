@@ -79,22 +79,19 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         let subaddress = account_key.subaddress(subaddress_index);
         let subaddress_b58 = b58_encode(&subaddress)?;
 
-        conn.transaction::<(), WalletDbError, _>(|| {
-            let subaddress_entry = NewAssignedSubaddress {
-                assigned_subaddress_b58: &subaddress_b58,
-                account_id_hex: &account_id.to_string(),
-                address_book_entry,
-                public_address: &mc_util_serial::encode(&subaddress),
-                subaddress_index: subaddress_index as i64,
-                comment,
-                subaddress_spend_key: &mc_util_serial::encode(subaddress.spend_public_key()),
-            };
+        let subaddress_entry = NewAssignedSubaddress {
+            assigned_subaddress_b58: &subaddress_b58,
+            account_id_hex: &account_id.to_string(),
+            address_book_entry,
+            public_address: &mc_util_serial::encode(&subaddress),
+            subaddress_index: subaddress_index as i64,
+            comment,
+            subaddress_spend_key: &mc_util_serial::encode(subaddress.spend_public_key()),
+        };
 
-            diesel::insert_into(assigned_subaddresses::table)
-                .values(&subaddress_entry)
-                .execute(conn)?;
-            Ok(())
-        })?;
+        diesel::insert_into(assigned_subaddresses::table)
+            .values(&subaddress_entry)
+            .execute(conn)?;
         Ok(subaddress_b58)
     }
 
