@@ -3,7 +3,7 @@
 //! DB impl for the AccountTxoStatus model.
 
 use crate::{
-    db::models::{AccountTxoStatus, NewAccountTxoStatus},
+    db::models::{AccountTxoStatus, NewAccountTxoStatus, TXO_UNSPENT},
     error::WalletDbError,
 };
 
@@ -85,7 +85,7 @@ impl AccountTxoStatusModel for AccountTxoStatus {
         use crate::db::schema::account_txo_statuses::txo_status;
 
         diesel::update(self)
-            .set(txo_status.eq("unspent"))
+            .set(txo_status.eq(TXO_UNSPENT))
             .execute(conn)?;
         Ok(())
     }

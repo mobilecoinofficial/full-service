@@ -5,7 +5,10 @@
 use crate::{
     db::{
         assigned_subaddress::AssignedSubaddressModel,
-        models::{Account, AccountTxoStatus, AssignedSubaddress, NewAccount, TransactionLog, Txo},
+        models::{
+            Account, AccountTxoStatus, AssignedSubaddress, NewAccount, TransactionLog, Txo,
+            TXO_SPENT,
+        },
         transaction_log::TransactionLogModel,
     },
     error::WalletDbError,
@@ -265,7 +268,8 @@ impl AccountModel for Account {
                         account_txo_statuses.find((&self.account_id_hex, &matches[0].txo_id_hex)),
                     )
                     .set(
-                        crate::db::schema::account_txo_statuses::txo_status.eq("spent".to_string()),
+                        crate::db::schema::account_txo_statuses::txo_status
+                            .eq(TXO_SPENT.to_string()),
                     )
                     .execute(conn)?;
 
