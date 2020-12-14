@@ -106,6 +106,11 @@ pub enum JsonCommandRequest {
     get_block_object {
         block_index: String,
     },
+    verify_proof {
+        account_id: String,
+        txo_id: String,
+        proof: String,
+    },
 }
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(tag = "method", content = "result")]
@@ -171,6 +176,9 @@ pub enum JsonCommandResponse {
     get_block_object {
         block: JsonBlock,
         block_contents: JsonBlockContents,
+    },
+    verify_proof {
+        verified: bool,
     },
 }
 
@@ -389,6 +397,17 @@ fn wallet_api(
                 block,
                 block_contents,
             }
+        }
+        JsonCommandRequest::verify_proof {
+            account_id,
+            txo_id,
+            proof,
+        } => {
+            let result = state
+                .service
+                .verify_proof(&account_id, &txo_id, &proof)
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+            JsonCommandResponse::verify_proof { verified: result }
         }
     };
     Ok(Json(result))
