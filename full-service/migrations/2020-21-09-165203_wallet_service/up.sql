@@ -14,7 +14,7 @@ CREATE UNIQUE INDEX idx_accounts__account_id_hex ON accounts (account_id_hex);
 
 CREATE TABLE txos (
   id INTEGER NOT NULL PRIMARY KEY,
-  txo_id_hex VARCHAR NOT NULL, -- not unique, because you can have multiple accounts with same txo_id_hex
+  txo_id_hex VARCHAR UNIQUE NOT NULL,
   value UNSIGNED BIG INT NOT NULL,
   target_key BLOB NOT NULL,
   public_key BLOB NOT NULL,

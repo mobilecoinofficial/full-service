@@ -187,10 +187,6 @@ impl TxoModel for Txo {
         conn.transaction_manager().begin_transaction(conn)?;
         let txo_id = TxoID::from(&txo);
 
-        println!(
-            "\x1b[1;32m Are we creating received for {:?}?\x1b[0m",
-            account_id_hex
-        );
         // If we already have this TXO for this account (e.g. from minting in a previous transaction), we need to update it
         match Txo::get(
             &AccountID(account_id_hex.to_string()),
@@ -198,12 +194,27 @@ impl TxoModel for Txo {
             conn,
         ) {
             Ok((received_txo, _txo_status, _opt_assigned_subaddress)) => {
-                println!("\x1b[1;36m We are updating because we found that we have this txo");
                 received_txo.update_received(
                     account_id_hex,
                     subaddress_index,
                     key_image,
                     received_block_height,
+                    conn,
+                )?;
+            }
+            Err(WalletDbError::TxoExistsForAnotherAccount(_)) => {
+                // Txo already exists for another account. Update the status with respect to this account
+                let status = if subaddress_index.is_some() {
+                    "unspent"
+                } else {
+                    // Note: An orphaned Txo cannot be spent until the subaddress is recovered.
+                    "orphaned"
+                };
+                AccountTxoStatus::create(
+                    account_id_hex,
+                    &txo_id.to_string(),
+                    status,
+                    "received",
                     conn,
                 )?;
             }
@@ -353,10 +364,6 @@ impl TxoModel for Txo {
     ) -> Result<(), WalletDbError> {
         conn.transaction_manager().begin_transaction(conn)?;
 
-        println!(
-            "\x1b[1;36m Updating received for {:}\x1b[0m",
-            account_id_hex
-        );
         // get the type of this TXO
         let account_txo_status = AccountTxoStatus::get(account_id_hex, &self.txo_id_hex, &conn)?;
 
@@ -562,13 +569,19 @@ impl TxoModel for Txo {
                 return Err(e.into());
             }
         };
-
-        println!(
-            "\x1b[1;33m Getting Txo for account {:?}\x1b[0m",
-            account_id_hex
-        );
         let account_txo_status: AccountTxoStatus =
-            AccountTxoStatus::get(&account_id_hex.to_string(), txo_id_hex, conn)?;
+            match AccountTxoStatus::get(&account_id_hex.to_string(), txo_id_hex, conn) {
+                Ok(txo_status) => txo_status,
+                Err(WalletDbError::AccountTxoStatusNotFound(_)) => {
+                    // In this case, the Txo exists, but for some other account.
+                    return Err(WalletDbError::TxoExistsForAnotherAccount(
+                        txo_id_hex.to_string(),
+                    ));
+                }
+                Err(e) => {
+                    return Err(e.into());
+                }
+            };
 
         // Get the subaddress details if assigned
         let assigned_subaddress = if let Some(subaddress_index) = txo.subaddress_index {
@@ -1117,11 +1130,6 @@ mod tests {
         )
         .unwrap();
 
-        println!(
-            "\x1b[1;31m REcipient account ID: {:?}\x1b[0m",
-            AccountID::from(&recipient_account_key)
-        );
-
         // Start sync thread
         let _sync_thread =
             SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
@@ -1131,10 +1139,6 @@ mod tests {
             &mut ledger_db,
             &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
             &mut rng,
-        );
-        println!(
-            "\x1b[1;31m Sender account ID: {:?}\x1b[0m",
-            AccountID::from(&sender_account_key)
         );
 
         // Create TxProposal from the sender account, which contains the Confirmation Number
@@ -1149,7 +1153,7 @@ mod tests {
         builder
             .add_recipient(recipient_account_key.default_subaddress(), 50 * MOB as u64)
             .unwrap();
-        builder.select_txos(Some(80 * MOB as u64)).unwrap();
+        builder.select_txos(None).unwrap();
         builder.set_tombstone(0).unwrap();
         let proposal = builder.build().unwrap();
 
@@ -1167,7 +1171,7 @@ mod tests {
         add_block_with_tx_proposal(&mut ledger_db, proposal.clone());
 
         // Now let our sync thread catch up for both sender and receiver
-        std::thread::sleep(std::time::Duration::from_secs(6));
+        std::thread::sleep(std::time::Duration::from_secs(4));
 
         // Then let's make sure we received the Txo on the recipient account
         let txos = Txo::list_for_account(
@@ -1177,18 +1181,21 @@ mod tests {
         .unwrap();
         assert_eq!(txos.len(), 1);
 
-        let (txo, _txo_status) = txos[0].clone();
+        let (received_txo, _txo_status) = txos[0].clone();
 
-        // Note: A received Txo does not have a proof
-        assert!(txo.proof.is_none());
+        // Note: Because this txo is both received and sent, between two different accounts,
+        // its proof does get updated. Typically, received txos have None for the proof.
+        assert!(received_txo.proof.is_some());
 
         // Get the txo from the sent perspective
-        let sent_txos = Txo::list_for_account(
+        let sender_txos = Txo::list_for_account(
             &AccountID::from(&sender_account_key).to_string(),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(sent_txos.len(), 4); // We seeded with 3, and we have a change txo as well
+
+        // We seeded with 3 received (70, 80, 90), we have a change txo, and a secreted Txo (50)
+        assert_eq!(sender_txos.len(), 5);
 
         // Get the associated Txos with the transaction log
         let tx_log = TransactionLog::get(&tx_id, &wallet_db.get_conn().unwrap()).unwrap();
@@ -1204,12 +1211,16 @@ mod tests {
         )
         .unwrap();
 
+        // These two txos should actually be the same txo, and the account_txo_status is what
+        // differentiates them.
+        assert_eq!(sent_txo, received_txo);
+
         assert!(sent_txo.proof.is_some());
         let proof: TxOutConfirmationNumber =
             mc_util_serial::decode(&sent_txo.proof.unwrap()).unwrap();
         let verified = Txo::verify_proof(
             &AccountID::from(&recipient_account_key),
-            &txo.txo_id_hex,
+            &received_txo.txo_id_hex,
             &proof,
             &wallet_db.get_conn().unwrap(),
         )

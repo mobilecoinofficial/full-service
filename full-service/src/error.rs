@@ -173,6 +173,9 @@ pub enum WalletDbError {
 
     /// Cannot log a transaction with a value > i64::MAX
     TransactionValueExceedsMax,
+
+    /// The Txo Exists, but for another account {0}
+    TxoExistsForAnotherAccount(String),
 }
 
 impl From<diesel::result::Error> for WalletDbError {
