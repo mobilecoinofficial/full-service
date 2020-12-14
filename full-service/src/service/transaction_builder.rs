@@ -124,10 +124,8 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
         value: u64,
     ) -> Result<(), WalletTransactionBuilderError> {
         // This wallet does not support multiple outgoing recipients at this time.
-        if self.outlays.len() > 0 {
-            if recipient != self.outlays[0].0 {
-                return Err(WalletTransactionBuilderError::MultipleOutgoingRecipients);
-            }
+        if !self.outlays.is_empty() && recipient != self.outlays[0].0 {
+            return Err(WalletTransactionBuilderError::MultipleOutgoingRecipients);
         }
         // Verify that the maximum output value of this transaction remains under u64::MAX
         let cur_sum = self.outlays.iter().map(|(_r, v)| *v as u128).sum::<u128>();
