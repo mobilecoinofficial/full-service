@@ -353,7 +353,7 @@ pub fn random_account_with_seed_values(
         );
     }
 
-    std::thread::sleep(std::time::Duration::from_secs(4));
+    std::thread::sleep(std::time::Duration::from_secs(6));
 
     // Make sure we have all our TXOs
     assert_eq!(
