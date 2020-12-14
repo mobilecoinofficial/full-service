@@ -316,52 +316,58 @@ pub fn sync_account(
     let conn = wallet_db.get_conn()?;
     conn.transaction_manager().begin_transaction(&conn)?;
 
-    for _ in 0..MAX_BLOCKS_PROCESSING_CHUNK_SIZE {
-        // Get the account data. If it is no longer available, the account has been removed and we
-        // can simply return.
-        let account = Account::get(&AccountID(account_id.to_string()), &conn)?;
-        let block_contents = match ledger_db.get_block_contents(account.next_block as u64) {
-            Ok(block_contents) => block_contents,
-            Err(mc_ledger_db::Error::NotFound) => {
-                return Ok(SyncAccountOk::NoMoreBlocks);
-            }
-            Err(err) => {
-                return Err(err.into());
-            }
-        };
+    Ok(conn.transaction::<SyncAccountOk, SyncError, _>(|| {
+        for _ in 0..MAX_BLOCKS_PROCESSING_CHUNK_SIZE {
+            // Get the account data. If it is no longer available, the account has been removed and we
+            // can simply return.
+            let account = Account::get(&AccountID(account_id.to_string()), &conn)?;
+            let block_contents = match ledger_db.get_block_contents(account.next_block as u64) {
+                Ok(block_contents) => block_contents,
+                Err(mc_ledger_db::Error::NotFound) => {
+                    return Ok(SyncAccountOk::NoMoreBlocks);
+                }
+                Err(err) => {
+                    return Err(err.into());
+                }
+            };
 
-        log::trace!(
-            logger,
-            "processing {} outputs and {} key images from block {} for account {}",
-            block_contents.outputs.len(),
-            block_contents.key_images.len(),
-            account.next_block,
-            account_id,
-        );
+            log::trace!(
+                logger,
+                "processing {} outputs and {} key images from block {} for account {}",
+                block_contents.outputs.len(),
+                block_contents.key_images.len(),
+                account.next_block,
+                account_id,
+            );
 
-        // Match tx outs into UTXOs.
-        let output_txo_ids = process_txos(
-            &conn,
-            &block_contents.outputs,
-            &account,
-            account.next_block,
-            logger,
-        )?;
+            // Match tx outs into UTXOs.
+            let output_txo_ids = process_txos(
+                &conn,
+                &block_contents.outputs,
+                &account,
+                account.next_block,
+                logger,
+            )?;
 
-        // Note: Doing this here means we are updating key images multiple times, once per account.
-        //       We do actually want to do it this way, because each account may need to process
-        //       the same block at a different time, depending on when we add it to the DB.
-        account.update_spent_and_increment_next_block(
-            account.next_block,
-            block_contents.key_images,
-            &conn,
-        )?;
+            // Note: Doing this here means we are updating key images multiple times, once per account.
+            //       We do actually want to do it this way, because each account may need to process
+            //       the same block at a different time, depending on when we add it to the DB.
+            account.update_spent_and_increment_next_block(
+                account.next_block,
+                block_contents.key_images,
+                &conn,
+            )?;
 
-        // Add a transaction for the received TXOs
-        TransactionLog::log_received(&output_txo_ids, &account, account.next_block as u64, &conn)?;
-    }
-    conn.transaction_manager().commit_transaction(&conn)?;
-    Ok(SyncAccountOk::MoreBlocksPotentiallyAvailable)
+            // Add a transaction for the received TXOs
+            TransactionLog::log_received(
+                &output_txo_ids,
+                &account,
+                account.next_block as u64,
+                &conn,
+            )?;
+        }
+        Ok(SyncAccountOk::MoreBlocksPotentiallyAvailable)
+    })?)
 }
 
 /// Helper function for matching a list of TxOuts to a given account.

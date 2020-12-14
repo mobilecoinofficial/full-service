@@ -32,7 +32,7 @@ use mc_transaction_core::tx::{TxOut, TxOutMembershipProof};
 use mc_transaction_core::BlockIndex;
 use mc_transaction_std::{InputCredentials, TransactionBuilder};
 
-use diesel::{connection::TransactionManager, prelude::*};
+use diesel::prelude::*;
 use rand::Rng;
 use std::convert::TryFrom;
 use std::iter::FromIterator;
@@ -168,269 +168,272 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
         }
 
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction_manager().begin_transaction(&conn)?;
 
-        let account: Account = Account::get(&AccountID(self.account_id_hex.to_string()), &conn)?;
-        let from_account_key: AccountKey = mc_util_serial::decode(&account.encrypted_account_key)?;
+        Ok(
+            conn.transaction::<TxProposal, WalletTransactionBuilderError, _>(|| {
+                let account: Account =
+                    Account::get(&AccountID(self.account_id_hex.to_string()), &conn)?;
+                let from_account_key: AccountKey =
+                    mc_util_serial::decode(&account.encrypted_account_key)?;
 
-        // Get membership proofs for our inputs
-        let indexes = self
-            .inputs
-            .iter()
-            .map(|utxo| {
-                let txo: TxOut = mc_util_serial::decode(&utxo.txo)?;
-                self.ledger_db.get_tx_out_index_by_hash(&txo.hash())
-            })
-            .collect::<Result<Vec<u64>, mc_ledger_db::Error>>()?;
-        let proofs = self.ledger_db.get_tx_out_proof_of_memberships(&indexes)?;
+                // Get membership proofs for our inputs
+                let indexes = self
+                    .inputs
+                    .iter()
+                    .map(|utxo| {
+                        let txo: TxOut = mc_util_serial::decode(&utxo.txo)?;
+                        self.ledger_db.get_tx_out_index_by_hash(&txo.hash())
+                    })
+                    .collect::<Result<Vec<u64>, mc_ledger_db::Error>>()?;
+                let proofs = self.ledger_db.get_tx_out_proof_of_memberships(&indexes)?;
 
-        let inputs_and_proofs: Vec<(Txo, TxOutMembershipProof)> = self
-            .inputs
-            .clone()
-            .into_iter()
-            .zip(proofs.into_iter())
-            .collect();
+                let inputs_and_proofs: Vec<(Txo, TxOutMembershipProof)> = self
+                    .inputs
+                    .clone()
+                    .into_iter()
+                    .zip(proofs.into_iter())
+                    .collect();
 
-        let excluded_tx_out_indices: Vec<u64> = inputs_and_proofs
-            .iter()
-            .map(|(utxo, _membership_proof)| {
-                let txo: TxOut = mc_util_serial::decode(&utxo.txo)?;
-                self.ledger_db
-                    .get_tx_out_index_by_hash(&txo.hash())
-                    .map_err(WalletTransactionBuilderError::LedgerDB)
-            })
-            .collect::<Result<Vec<u64>, WalletTransactionBuilderError>>()?;
+                let excluded_tx_out_indices: Vec<u64> = inputs_and_proofs
+                    .iter()
+                    .map(|(utxo, _membership_proof)| {
+                        let txo: TxOut = mc_util_serial::decode(&utxo.txo)?;
+                        self.ledger_db
+                            .get_tx_out_index_by_hash(&txo.hash())
+                            .map_err(WalletTransactionBuilderError::LedgerDB)
+                    })
+                    .collect::<Result<Vec<u64>, WalletTransactionBuilderError>>()?;
 
-        let rings = self.get_rings(inputs_and_proofs.len(), &excluded_tx_out_indices)?;
+                let rings = self.get_rings(inputs_and_proofs.len(), &excluded_tx_out_indices)?;
 
-        if rings.len() != inputs_and_proofs.len() {
-            return Err(WalletTransactionBuilderError::RingSizeMismatch);
-        }
-
-        if self.outlays.is_empty() {
-            return Err(WalletTransactionBuilderError::NoRecipient);
-        }
-
-        // Unzip each vec of tuples into a tuple of vecs.
-        let mut rings_and_proofs: Vec<(Vec<TxOut>, Vec<TxOutMembershipProof>)> = rings
-            .into_iter()
-            .map(|tuples| tuples.into_iter().unzip())
-            .collect();
-
-        // Add inputs to the tx.
-        for (utxo, proof) in inputs_and_proofs.iter() {
-            let db_tx_out = mc_util_serial::decode(&utxo.txo)?;
-            let (mut ring, mut membership_proofs) = rings_and_proofs
-                .pop()
-                .ok_or_else(|| WalletTransactionBuilderError::RingsAndProofsEmpty)?;
-            if ring.len() != membership_proofs.len() {
-                return Err(WalletTransactionBuilderError::RingSizeMismatch);
-            }
-
-            // Add the input to the ring.
-            let position_opt = ring.iter().position(|txo| *txo == db_tx_out);
-            let real_key_index = match position_opt {
-                Some(position) => {
-                    // The input is already present in the ring.
-                    // This could happen if ring elements are sampled randomly from the ledger.
-                    position
+                if rings.len() != inputs_and_proofs.len() {
+                    return Err(WalletTransactionBuilderError::RingSizeMismatch);
                 }
-                None => {
-                    // The input is not already in the ring.
-                    if ring.is_empty() {
-                        // Append the input and its proof of membership.
-                        ring.push(db_tx_out.clone());
-                        membership_proofs.push(proof.clone());
-                    } else {
-                        // Replace the first element of the ring.
-                        ring[0] = db_tx_out.clone();
-                        membership_proofs[0] = proof.clone();
+
+                if self.outlays.is_empty() {
+                    return Err(WalletTransactionBuilderError::NoRecipient);
+                }
+
+                // Unzip each vec of tuples into a tuple of vecs.
+                let mut rings_and_proofs: Vec<(Vec<TxOut>, Vec<TxOutMembershipProof>)> = rings
+                    .into_iter()
+                    .map(|tuples| tuples.into_iter().unzip())
+                    .collect();
+
+                // Add inputs to the tx.
+                for (utxo, proof) in inputs_and_proofs.iter() {
+                    let db_tx_out = mc_util_serial::decode(&utxo.txo)?;
+                    let (mut ring, mut membership_proofs) = rings_and_proofs
+                        .pop()
+                        .ok_or_else(|| WalletTransactionBuilderError::RingsAndProofsEmpty)?;
+                    if ring.len() != membership_proofs.len() {
+                        return Err(WalletTransactionBuilderError::RingSizeMismatch);
                     }
-                    // The real input is always the first element. This is safe because TransactionBuilder
-                    // sorts each ring.
-                    0
-                }
-            };
 
-            if ring.len() != membership_proofs.len() {
-                return Err(WalletTransactionBuilderError::RingSizeMismatch);
-            }
+                    // Add the input to the ring.
+                    let position_opt = ring.iter().position(|txo| *txo == db_tx_out);
+                    let real_key_index = match position_opt {
+                        Some(position) => {
+                            // The input is already present in the ring.
+                            // This could happen if ring elements are sampled randomly from the ledger.
+                            position
+                        }
+                        None => {
+                            // The input is not already in the ring.
+                            if ring.is_empty() {
+                                // Append the input and its proof of membership.
+                                ring.push(db_tx_out.clone());
+                                membership_proofs.push(proof.clone());
+                            } else {
+                                // Replace the first element of the ring.
+                                ring[0] = db_tx_out.clone();
+                                membership_proofs[0] = proof.clone();
+                            }
+                            // The real input is always the first element. This is safe because TransactionBuilder
+                            // sorts each ring.
+                            0
+                        }
+                    };
 
-            let public_key = RistrettoPublic::try_from(&db_tx_out.public_key).unwrap();
-
-            let subaddress_index = if let Some(s) = utxo.subaddress_index {
-                s
-            } else {
-                return Err(WalletTransactionBuilderError::NullSubaddress(
-                    utxo.txo_id_hex.to_string(),
-                ));
-            };
-
-            let onetime_private_key = recover_onetime_private_key(
-                &public_key,
-                from_account_key.view_private_key(),
-                &from_account_key.subaddress_spend_private(subaddress_index as u64),
-            );
-
-            let key_image = KeyImage::from(&onetime_private_key);
-            log::debug!(
-                self.logger,
-                "Adding input: ring {:?}, utxo index {:?}, key image {:?}, pubkey {:?}",
-                ring,
-                real_key_index,
-                key_image,
-                public_key
-            );
-
-            self.transaction_builder.add_input(InputCredentials::new(
-                ring,
-                membership_proofs,
-                real_key_index,
-                onetime_private_key,
-                *from_account_key.view_private_key(),
-            )?);
-        }
-
-        // Add outputs to our destinations.
-        // Note that we make an assumption currently when logging submitted Txos that they were built
-        //  with only one recipient, and one change txo.
-        let mut total_value = 0;
-        let mut tx_out_to_outlay_index: HashMap<TxOut, usize> = HashMap::default();
-        let mut outlay_confirmation_numbers = Vec::default();
-        let mut rng = rand::thread_rng();
-        let recip_check = &self.outlays[0].0;
-        for (i, (recipient, out_value)) in self.outlays.iter().enumerate() {
-            // Note: Should not fail this check due to filtering on add_recipient
-            if recipient != recip_check {
-                return Err(WalletTransactionBuilderError::MultipleRecipientsInTransaction);
-            }
-            let target_acct_pubkey = Self::get_fog_pubkey_for_public_address(
-                &recipient,
-                &self.fog_pubkey_resolver,
-                self.tombstone,
-            )?;
-
-            let (tx_out, confirmation_number) = self.transaction_builder.add_output(
-                *out_value as u64,
-                &recipient,
-                target_acct_pubkey.as_ref(),
-                &mut rng,
-            )?;
-
-            tx_out_to_outlay_index.insert(tx_out, i);
-            outlay_confirmation_numbers.push(confirmation_number);
-
-            total_value += *out_value;
-        }
-
-        // Figure out if we have change.
-        let input_value = inputs_and_proofs
-            .iter()
-            .fold(0, |acc, (utxo, _proof)| acc + utxo.value);
-        if (total_value + self.transaction_builder.fee) > input_value as u64 {
-            return Err(WalletTransactionBuilderError::InsufficientInputFunds(
-                format!(
-                    "Total value required to send transaction {:?}, but only {:?} in inputs",
-                    total_value + self.transaction_builder.fee,
-                    input_value
-                ),
-            ));
-        }
-
-        let change = input_value as u64 - total_value - self.transaction_builder.fee;
-
-        // If we do, add an output for that as well.
-        if change > 0 {
-            let change_public_address =
-                from_account_key.subaddress(account.change_subaddress_index as u64);
-            let main_public_address =
-                from_account_key.subaddress(account.main_subaddress_index as u64);
-
-            // Note: The pubkey still needs to be for the main account
-            let target_acct_pubkey = Self::get_fog_pubkey_for_public_address(
-                &main_public_address,
-                &self.fog_pubkey_resolver,
-                self.tombstone,
-            )?;
-
-            self.transaction_builder.add_output(
-                change,
-                &change_public_address,
-                target_acct_pubkey.as_ref(),
-                &mut rng,
-            )?; // FIXME: CBB - map error to indicate error with change
-        }
-
-        // Set tombstone block.
-        self.transaction_builder.set_tombstone_block(self.tombstone);
-
-        // Build tx.
-        let tx = self.transaction_builder.build(&mut rng)?;
-
-        // Map each TxOut in the constructed transaction to its respective outlay.
-        let outlay_index_to_tx_out_index: HashMap<usize, usize> =
-            HashMap::from_iter(tx.prefix.outputs.iter().enumerate().filter_map(
-                |(tx_out_index, tx_out)| {
-                    if let Some(outlay_index) = tx_out_to_outlay_index.get(tx_out) {
-                        Some((*outlay_index, tx_out_index))
-                    } else {
-                        None
+                    if ring.len() != membership_proofs.len() {
+                        return Err(WalletTransactionBuilderError::RingSizeMismatch);
                     }
-                },
-            ));
 
-        // Sanity check: All of our outlays should have a unique index in the map.
-        assert_eq!(outlay_index_to_tx_out_index.len(), self.outlays.len());
-        let mut found_tx_out_indices: HashSet<&usize> = HashSet::default();
-        for i in 0..self.outlays.len() {
-            let tx_out_index = outlay_index_to_tx_out_index
-                .get(&i)
-                .expect("index not in map");
-            if !found_tx_out_indices.insert(tx_out_index) {
-                panic!("duplicate index {} found in map", tx_out_index);
-            }
-        }
+                    let public_key = RistrettoPublic::try_from(&db_tx_out.public_key).unwrap();
 
-        // Make the UnspentTxOut for each Txo
-        // FIXME: WS-27 - I would prefer to provide just the txo_id_hex per txout, but this at least
-        //        preserves some interoperability between mobilecoind and wallet-service.
-        //        However, this is pretty clunky and I would rather not expose a storage
-        //        type from mobilecoind just to get around having to write a bunch of tedious
-        //        json conversions.
-        // Return the TxProposal
-        let selected_utxos = inputs_and_proofs
-            .iter()
-            .map(|(utxo, _membership_proof)| {
-                let decoded_tx_out = mc_util_serial::decode(&utxo.txo).unwrap();
-                let decoded_key_image =
-                    mc_util_serial::decode(&utxo.key_image.clone().unwrap()).unwrap();
+                    let subaddress_index = if let Some(s) = utxo.subaddress_index {
+                        s
+                    } else {
+                        return Err(WalletTransactionBuilderError::NullSubaddress(
+                            utxo.txo_id_hex.to_string(),
+                        ));
+                    };
 
-                UnspentTxOut {
-                    tx_out: decoded_tx_out,
-                    subaddress_index: utxo.subaddress_index.unwrap() as u64, // verified not null earlier
-                    key_image: decoded_key_image,
-                    value: utxo.value as u64,
-                    attempted_spend_height: 0, // NOTE: these are null because not tracked here
-                    attempted_spend_tombstone: 0,
+                    let onetime_private_key = recover_onetime_private_key(
+                        &public_key,
+                        from_account_key.view_private_key(),
+                        &from_account_key.subaddress_spend_private(subaddress_index as u64),
+                    );
+
+                    let key_image = KeyImage::from(&onetime_private_key);
+                    log::debug!(
+                        self.logger,
+                        "Adding input: ring {:?}, utxo index {:?}, key image {:?}, pubkey {:?}",
+                        ring,
+                        real_key_index,
+                        key_image,
+                        public_key
+                    );
+
+                    self.transaction_builder.add_input(InputCredentials::new(
+                        ring,
+                        membership_proofs,
+                        real_key_index,
+                        onetime_private_key,
+                        *from_account_key.view_private_key(),
+                    )?);
                 }
-            })
-            .collect();
 
-        conn.transaction_manager().commit_transaction(&conn)?;
-        Ok(TxProposal {
-            utxos: selected_utxos,
-            outlays: self
-                .outlays
-                .iter()
-                .map(|(recipient, value)| Outlay {
-                    receiver: recipient.clone(),
-                    value: *value,
+                // Add outputs to our destinations.
+                // Note that we make an assumption currently when logging submitted Txos that they were built
+                //  with only one recipient, and one change txo.
+                let mut total_value = 0;
+                let mut tx_out_to_outlay_index: HashMap<TxOut, usize> = HashMap::default();
+                let mut outlay_confirmation_numbers = Vec::default();
+                let mut rng = rand::thread_rng();
+                let recip_check = &self.outlays[0].0;
+                for (i, (recipient, out_value)) in self.outlays.iter().enumerate() {
+                    // Note: Should not fail this check due to filtering on add_recipient
+                    if recipient != recip_check {
+                        return Err(WalletTransactionBuilderError::MultipleRecipientsInTransaction);
+                    }
+                    let target_acct_pubkey = Self::get_fog_pubkey_for_public_address(
+                        &recipient,
+                        &self.fog_pubkey_resolver,
+                        self.tombstone,
+                    )?;
+
+                    let (tx_out, confirmation_number) = self.transaction_builder.add_output(
+                        *out_value as u64,
+                        &recipient,
+                        target_acct_pubkey.as_ref(),
+                        &mut rng,
+                    )?;
+
+                    tx_out_to_outlay_index.insert(tx_out, i);
+                    outlay_confirmation_numbers.push(confirmation_number);
+
+                    total_value += *out_value;
+                }
+
+                // Figure out if we have change.
+                let input_value = inputs_and_proofs
+                    .iter()
+                    .fold(0, |acc, (utxo, _proof)| acc + utxo.value);
+                if (total_value + self.transaction_builder.fee) > input_value as u64 {
+                    return Err(WalletTransactionBuilderError::InsufficientInputFunds(
+                        format!(
+                        "Total value required to send transaction {:?}, but only {:?} in inputs",
+                        total_value + self.transaction_builder.fee,
+                        input_value
+                    ),
+                    ));
+                }
+
+                let change = input_value as u64 - total_value - self.transaction_builder.fee;
+
+                // If we do, add an output for that as well.
+                if change > 0 {
+                    let change_public_address =
+                        from_account_key.subaddress(account.change_subaddress_index as u64);
+                    let main_public_address =
+                        from_account_key.subaddress(account.main_subaddress_index as u64);
+
+                    // Note: The pubkey still needs to be for the main account
+                    let target_acct_pubkey = Self::get_fog_pubkey_for_public_address(
+                        &main_public_address,
+                        &self.fog_pubkey_resolver,
+                        self.tombstone,
+                    )?;
+
+                    self.transaction_builder.add_output(
+                        change,
+                        &change_public_address,
+                        target_acct_pubkey.as_ref(),
+                        &mut rng,
+                    )?; // FIXME: CBB - map error to indicate error with change
+                }
+
+                // Set tombstone block.
+                self.transaction_builder.set_tombstone_block(self.tombstone);
+
+                // Build tx.
+                let tx = self.transaction_builder.build(&mut rng)?;
+
+                // Map each TxOut in the constructed transaction to its respective outlay.
+                let outlay_index_to_tx_out_index: HashMap<usize, usize> =
+                    HashMap::from_iter(tx.prefix.outputs.iter().enumerate().filter_map(
+                        |(tx_out_index, tx_out)| {
+                            if let Some(outlay_index) = tx_out_to_outlay_index.get(tx_out) {
+                                Some((*outlay_index, tx_out_index))
+                            } else {
+                                None
+                            }
+                        },
+                    ));
+
+                // Sanity check: All of our outlays should have a unique index in the map.
+                assert_eq!(outlay_index_to_tx_out_index.len(), self.outlays.len());
+                let mut found_tx_out_indices: HashSet<&usize> = HashSet::default();
+                for i in 0..self.outlays.len() {
+                    let tx_out_index = outlay_index_to_tx_out_index
+                        .get(&i)
+                        .expect("index not in map");
+                    if !found_tx_out_indices.insert(tx_out_index) {
+                        panic!("duplicate index {} found in map", tx_out_index);
+                    }
+                }
+
+                // Make the UnspentTxOut for each Txo
+                // FIXME: WS-27 - I would prefer to provide just the txo_id_hex per txout, but this at least
+                //        preserves some interoperability between mobilecoind and wallet-service.
+                //        However, this is pretty clunky and I would rather not expose a storage
+                //        type from mobilecoind just to get around having to write a bunch of tedious
+                //        json conversions.
+                // Return the TxProposal
+                let selected_utxos = inputs_and_proofs
+                    .iter()
+                    .map(|(utxo, _membership_proof)| {
+                        let decoded_tx_out = mc_util_serial::decode(&utxo.txo).unwrap();
+                        let decoded_key_image =
+                            mc_util_serial::decode(&utxo.key_image.clone().unwrap()).unwrap();
+
+                        UnspentTxOut {
+                            tx_out: decoded_tx_out,
+                            subaddress_index: utxo.subaddress_index.unwrap() as u64, // verified not null earlier
+                            key_image: decoded_key_image,
+                            value: utxo.value as u64,
+                            attempted_spend_height: 0, // NOTE: these are null because not tracked here
+                            attempted_spend_tombstone: 0,
+                        }
+                    })
+                    .collect();
+                Ok(TxProposal {
+                    utxos: selected_utxos,
+                    outlays: self
+                        .outlays
+                        .iter()
+                        .map(|(recipient, value)| Outlay {
+                            receiver: recipient.clone(),
+                            value: *value,
+                        })
+                        .collect::<Vec<Outlay>>(),
+                    tx,
+                    outlay_index_to_tx_out_index,
+                    outlay_confirmation_numbers,
                 })
-                .collect::<Vec<Outlay>>(),
-            tx,
-            outlay_index_to_tx_out_index,
-            outlay_confirmation_numbers,
-        })
+            })?,
+        )
     }
 
     /// Get rings.

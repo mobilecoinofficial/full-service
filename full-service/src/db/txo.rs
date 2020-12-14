@@ -25,7 +25,6 @@ use mc_transaction_core::{
 };
 
 use diesel::{
-    connection::TransactionManager,
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},
     RunQueryDsl,
@@ -184,82 +183,81 @@ impl TxoModel for Txo {
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<String, WalletDbError> {
-        conn.transaction_manager().begin_transaction(conn)?;
         let txo_id = TxoID::from(&txo);
+        conn.transaction::<(), WalletDbError, _>(|| {
+            // If we already have this TXO for this account (e.g. from minting in a previous transaction), we need to update it
+            match Txo::get(
+                &AccountID(account_id_hex.to_string()),
+                &txo_id.to_string(),
+                conn,
+            ) {
+                Ok((received_txo, _txo_status, _opt_assigned_subaddress)) => {
+                    received_txo.update_received(
+                        account_id_hex,
+                        subaddress_index,
+                        key_image,
+                        received_block_height,
+                        conn,
+                    )?;
+                }
+                Err(WalletDbError::TxoExistsForAnotherAccount(_)) => {
+                    // Txo already exists for another account. Update the status with respect to this account
+                    let status = if subaddress_index.is_some() {
+                        "unspent"
+                    } else {
+                        // Note: An orphaned Txo cannot be spent until the subaddress is recovered.
+                        "orphaned"
+                    };
+                    AccountTxoStatus::create(
+                        account_id_hex,
+                        &txo_id.to_string(),
+                        status,
+                        "received",
+                        conn,
+                    )?;
+                }
+                // If we don't already have this TXO, create a new entry
+                Err(WalletDbError::TxoNotFound(_)) => {
+                    let key_image_bytes = key_image.map(|k| mc_util_serial::encode(&k));
+                    let new_txo = NewTxo {
+                        txo_id_hex: &txo_id.to_string(),
+                        value: value as i64,
+                        target_key: &mc_util_serial::encode(&txo.target_key),
+                        public_key: &mc_util_serial::encode(&txo.public_key),
+                        e_fog_hint: &mc_util_serial::encode(&txo.e_fog_hint),
+                        txo: &mc_util_serial::encode(&txo),
+                        subaddress_index,
+                        key_image: key_image_bytes.as_ref(),
+                        received_block_height: Some(received_block_height as i64),
+                        pending_tombstone_block_height: None,
+                        spent_block_height: None,
+                        proof: None,
+                    };
 
-        // If we already have this TXO for this account (e.g. from minting in a previous transaction), we need to update it
-        match Txo::get(
-            &AccountID(account_id_hex.to_string()),
-            &txo_id.to_string(),
-            conn,
-        ) {
-            Ok((received_txo, _txo_status, _opt_assigned_subaddress)) => {
-                received_txo.update_received(
-                    account_id_hex,
-                    subaddress_index,
-                    key_image,
-                    received_block_height,
-                    conn,
-                )?;
-            }
-            Err(WalletDbError::TxoExistsForAnotherAccount(_)) => {
-                // Txo already exists for another account. Update the status with respect to this account
-                let status = if subaddress_index.is_some() {
-                    "unspent"
-                } else {
-                    // Note: An orphaned Txo cannot be spent until the subaddress is recovered.
-                    "orphaned"
-                };
-                AccountTxoStatus::create(
-                    account_id_hex,
-                    &txo_id.to_string(),
-                    status,
-                    "received",
-                    conn,
-                )?;
-            }
-            // If we don't already have this TXO, create a new entry
-            Err(WalletDbError::TxoNotFound(_)) => {
-                let key_image_bytes = key_image.map(|k| mc_util_serial::encode(&k));
-                let new_txo = NewTxo {
-                    txo_id_hex: &txo_id.to_string(),
-                    value: value as i64,
-                    target_key: &mc_util_serial::encode(&txo.target_key),
-                    public_key: &mc_util_serial::encode(&txo.public_key),
-                    e_fog_hint: &mc_util_serial::encode(&txo.e_fog_hint),
-                    txo: &mc_util_serial::encode(&txo),
-                    subaddress_index,
-                    key_image: key_image_bytes.as_ref(),
-                    received_block_height: Some(received_block_height as i64),
-                    pending_tombstone_block_height: None,
-                    spent_block_height: None,
-                    proof: None,
-                };
+                    diesel::insert_into(crate::db::schema::txos::table)
+                        .values(&new_txo)
+                        .execute(conn)?;
 
-                diesel::insert_into(crate::db::schema::txos::table)
-                    .values(&new_txo)
-                    .execute(conn)?;
-
-                let status = if subaddress_index.is_some() {
-                    "unspent"
-                } else {
-                    // Note: An orphaned Txo cannot be spent until the subaddress is recovered.
-                    "orphaned"
-                };
-                AccountTxoStatus::create(
-                    account_id_hex,
-                    &txo_id.to_string(),
-                    status,
-                    "received",
-                    conn,
-                )?;
-            }
-            Err(e) => {
-                return Err(e);
-            }
-        };
-
-        conn.transaction_manager().commit_transaction(conn)?;
+                    let status = if subaddress_index.is_some() {
+                        "unspent"
+                    } else {
+                        // Note: An orphaned Txo cannot be spent until the subaddress is recovered.
+                        "orphaned"
+                    };
+                    AccountTxoStatus::create(
+                        account_id_hex,
+                        &txo_id.to_string(),
+                        status,
+                        "received",
+                        conn,
+                    )?;
+                }
+                Err(e) => {
+                    return Err(e);
+                }
+            };
+            Ok(())
+        })?;
         Ok(txo_id.to_string())
     }
 
@@ -273,14 +271,11 @@ impl TxoModel for Txo {
         use crate::db::schema::account_txo_statuses;
         use crate::db::schema::txos;
 
-        conn.transaction_manager().begin_transaction(conn)?;
-
         let txo_id = TxoID::from(output);
 
         let total_input_value: u64 = tx_proposal.utxos.iter().map(|u| u.value).sum();
         let total_output_value: u64 = tx_proposal.outlays.iter().map(|o| o.value).sum();
         let change_value: u64 = total_input_value - total_output_value - tx_proposal.fee();
-
         // Determine whether this output is an outlay destination, or change.
         let (value, proof, outlay_receiver) = if let Some(outlay_index) = tx_proposal
             .outlay_index_to_tx_out_index
@@ -312,40 +307,42 @@ impl TxoModel for Txo {
         let encoded_proof =
             proof.map(|p| mc_util_serial::encode(&tx_proposal.outlay_confirmation_numbers[p]));
 
-        let new_txo = NewTxo {
-            txo_id_hex: &txo_id.to_string(),
-            value: value as i64,
-            target_key: &mc_util_serial::encode(&output.target_key),
-            public_key: &mc_util_serial::encode(&output.public_key),
-            e_fog_hint: &mc_util_serial::encode(&output.e_fog_hint),
-            txo: &mc_util_serial::encode(output),
-            subaddress_index: None, // Minted set subaddress_index to None. If later received, updates.
-            key_image: None,        // Only the recipient can calculate the KeyImage
-            received_block_height: None,
-            pending_tombstone_block_height: Some(tx_proposal.tx.prefix.tombstone_block as i64),
-            spent_block_height: None,
-            proof: encoded_proof.as_ref(),
-        };
-
-        diesel::insert_into(txos::table)
-            .values(&new_txo)
-            .execute(conn)?;
-
-        // If account_id is provided, then log a relationship. Also possible to create minted
-        // from a TxProposal not belonging to any existing account.
-        if let Some(account_id_hex) = account_id_hex.as_deref() {
-            let new_account_txo_status = NewAccountTxoStatus {
-                account_id_hex: &account_id_hex,
+        conn.transaction::<(), WalletDbError, _>(|| {
+            let new_txo = NewTxo {
                 txo_id_hex: &txo_id.to_string(),
-                txo_status: "secreted", // We cannot track spent status for minted TXOs unless change
-                txo_type: "minted",
+                value: value as i64,
+                target_key: &mc_util_serial::encode(&output.target_key),
+                public_key: &mc_util_serial::encode(&output.public_key),
+                e_fog_hint: &mc_util_serial::encode(&output.e_fog_hint),
+                txo: &mc_util_serial::encode(output),
+                subaddress_index: None, // Minted set subaddress_index to None. If later received, updates.
+                key_image: None,        // Only the recipient can calculate the KeyImage
+                received_block_height: None,
+                pending_tombstone_block_height: Some(tx_proposal.tx.prefix.tombstone_block as i64),
+                spent_block_height: None,
+                proof: encoded_proof.as_ref(),
             };
-            diesel::insert_into(account_txo_statuses::table)
-                .values(&new_account_txo_status)
-                .execute(conn)?;
-        }
 
-        conn.transaction_manager().commit_transaction(conn)?;
+            diesel::insert_into(txos::table)
+                .values(&new_txo)
+                .execute(conn)?;
+
+            // If account_id is provided, then log a relationship. Also possible to create minted
+            // from a TxProposal not belonging to any existing account.
+            if let Some(account_id_hex) = account_id_hex.as_deref() {
+                let new_account_txo_status = NewAccountTxoStatus {
+                    account_id_hex: &account_id_hex,
+                    txo_id_hex: &txo_id.to_string(),
+                    txo_status: "secreted", // We cannot track spent status for minted TXOs unless change
+                    txo_type: "minted",
+                };
+                diesel::insert_into(account_txo_statuses::table)
+                    .values(&new_account_txo_status)
+                    .execute(conn)?;
+            }
+            Ok(())
+        })?;
+
         Ok((
             outlay_receiver,
             txo_id.to_string(),
@@ -362,57 +359,57 @@ impl TxoModel for Txo {
         received_block_height: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
-        conn.transaction_manager().begin_transaction(conn)?;
+        conn.transaction::<(), WalletDbError, _>(|| {
+            // get the type of this TXO
+            let account_txo_status =
+                AccountTxoStatus::get(account_id_hex, &self.txo_id_hex, &conn)?;
 
-        // get the type of this TXO
-        let account_txo_status = AccountTxoStatus::get(account_id_hex, &self.txo_id_hex, &conn)?;
-
-        // For TXOs that we sent previously, they are either change, or we sent to ourselves
-        // for some other reason. Their status will be "secreted" in either case.
-        match account_txo_status.txo_type.as_str() {
-            "minted" => {
-                // Update received block height and subaddress index
-                self.update_to_spendable(
-                    received_subaddress_index,
-                    received_key_image,
-                    received_block_height,
-                    &conn,
-                )?;
-
-                // Update the status to unspent - all TXOs set lifecycle to unspent when first received
-                account_txo_status.set_unspent(&conn)?;
-            }
-            "received" => {
-                // If the existing Txo subaddress is null and we have the received subaddress
-                // now, then we want to update to received subaddress. Otherwise, it will remain orphaned.
-                // Do not update to unspent, because this Txo may have already been processed and is
-                // annotated correctly if spent.
-                if received_subaddress_index.is_some() {
+            // For TXOs that we sent previously, they are either change, or we sent to ourselves
+            // for some other reason. Their status will be "secreted" in either case.
+            match account_txo_status.txo_type.as_str() {
+                "minted" => {
+                    // Update received block height and subaddress index
                     self.update_to_spendable(
                         received_subaddress_index,
                         received_key_image,
                         received_block_height,
                         &conn,
                     )?;
+
+                    // Update the status to unspent - all TXOs set lifecycle to unspent when first received
+                    account_txo_status.set_unspent(&conn)?;
+                }
+                "received" => {
+                    // If the existing Txo subaddress is null and we have the received subaddress
+                    // now, then we want to update to received subaddress. Otherwise, it will remain orphaned.
+                    // Do not update to unspent, because this Txo may have already been processed and is
+                    // annotated correctly if spent.
+                    if received_subaddress_index.is_some() {
+                        self.update_to_spendable(
+                            received_subaddress_index,
+                            received_key_image,
+                            received_block_height,
+                            &conn,
+                        )?;
+                    }
+                }
+                _ => {
+                    panic!("New txo_type must be handled");
                 }
             }
-            _ => {
-                panic!("New txo_type must be handled");
+
+            // If this Txo was previously orphaned, we can now update it, and make it spendable
+            if account_txo_status.txo_status == "orphaned" {
+                self.update_to_spendable(
+                    received_subaddress_index,
+                    received_key_image,
+                    received_block_height,
+                    &conn,
+                )?;
+                account_txo_status.set_unspent(conn)?;
             }
-        }
-
-        // If this Txo was previously orphaned, we can now update it, and make it spendable
-        if account_txo_status.txo_status == "orphaned" {
-            self.update_to_spendable(
-                received_subaddress_index,
-                received_key_image,
-                received_block_height,
-                &conn,
-            )?;
-            account_txo_status.set_unspent(conn)?;
-        }
-
-        conn.transaction_manager().commit_transaction(conn)?;
+            Ok(())
+        })?;
         Ok(())
     }
 
@@ -425,8 +422,6 @@ impl TxoModel for Txo {
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::txos::{key_image, received_block_height, subaddress_index};
 
-        conn.transaction_manager().begin_transaction(conn)?;
-
         // Verify that we have a subaddress, otherwise this transaction will be
         // unspendable.
         if received_subaddress_index.is_none() || received_key_image.is_none() {
@@ -434,14 +429,17 @@ impl TxoModel for Txo {
         }
 
         let encoded_key_image = received_key_image.map(|k| mc_util_serial::encode(&k));
-        diesel::update(self)
-            .set((
-                received_block_height.eq(Some(block_height)),
-                subaddress_index.eq(received_subaddress_index),
-                key_image.eq(encoded_key_image),
-            ))
-            .execute(conn)?;
-        conn.transaction_manager().commit_transaction(conn)?;
+
+        conn.transaction::<(), WalletDbError, _>(|| {
+            diesel::update(self)
+                .set((
+                    received_block_height.eq(Some(block_height)),
+                    subaddress_index.eq(received_subaddress_index),
+                    key_image.eq(encoded_key_image),
+                ))
+                .execute(conn)?;
+            Ok(())
+        })?;
         Ok(())
     }
 
@@ -451,16 +449,19 @@ impl TxoModel for Txo {
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::account_txo_statuses::dsl::account_txo_statuses;
 
-        conn.transaction_manager().begin_transaction(conn)?;
-        // Find the account associated with this Txo.
-        // Note: We should only be calling update_to_pending on inputs, which we had to own to spend.
-        let account = Account::get_by_txo_id(&txo_id.to_string(), conn)?;
+        conn.transaction::<(), WalletDbError, _>(|| {
+            // Find the account associated with this Txo.
+            // Note: We should only be calling update_to_pending on inputs, which we had to own to spend.
+            let account = Account::get_by_txo_id(&txo_id.to_string(), conn)?;
 
-        // Update the status to pending.
-        diesel::update(account_txo_statuses.find((&account.account_id_hex, &txo_id.to_string())))
+            // Update the status to pending.
+            diesel::update(
+                account_txo_statuses.find((&account.account_id_hex, &txo_id.to_string())),
+            )
             .set(crate::db::schema::account_txo_statuses::txo_status.eq("pending".to_string()))
             .execute(conn)?;
-        conn.transaction_manager().commit_transaction(conn)?;
+            Ok(())
+        })?;
         Ok(())
     }
 
