@@ -848,3 +848,9 @@ Note that full-service/diesel.toml provides the path to the schema.rs which will
     ```
 
     Note: providinig the CONSENESUS_ENCLAVE_CSS allows us to bypass the enclave build.
+
+### Linting
+
+    ```
+    RUST_LOG=info SGX_MODE=HW IAS_MODE=DEV CONSENSUS_ENCLAVE_CSS=$(pwd)/consensus-enclave.css cargo clippy --all --all-features
+    ```
