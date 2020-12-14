@@ -20,6 +20,7 @@ use mc_crypto_keys::RistrettoPrivate;
 use mc_crypto_rand::{CryptoRng, RngCore};
 use mc_fog_report_validation::MockFogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
+use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::{
     encrypted_fog_hint::EncryptedFogHint, ring_signature::KeyImage, tx::TxOut,
 };
@@ -177,6 +178,31 @@ pub fn add_block_to_ledger_db(
             Block::new_with_parent(BLOCK_VERSION, &parent, &Default::default(), &block_contents);
     } else {
         new_block = Block::new_origin_block(&outputs);
+    }
+
+    ledger_db
+        .append_block(&new_block, &block_contents, None)
+        .expect("failed writing initial transactions");
+
+    ledger_db.num_blocks().expect("failed to get block height")
+}
+
+pub fn add_block_with_tx_proposal(ledger_db: &mut LedgerDB, tx_proposal: TxProposal) -> u64 {
+    let block_contents = BlockContents::new(
+        tx_proposal.tx.key_images(),
+        tx_proposal.tx.prefix.outputs.clone(),
+    );
+    let num_blocks = ledger_db.num_blocks().expect("failed to get block height");
+
+    let new_block;
+    if num_blocks > 0 {
+        let parent = ledger_db
+            .get_block(num_blocks - 1)
+            .expect("failed to get parent block");
+        new_block =
+            Block::new_with_parent(BLOCK_VERSION, &parent, &Default::default(), &block_contents);
+    } else {
+        new_block = Block::new_origin_block(&block_contents.outputs);
     }
 
     ledger_db

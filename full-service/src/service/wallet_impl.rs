@@ -32,7 +32,7 @@ use mc_fog_report_connection::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_mobilecoind::payments::TxProposal;
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
-use mc_transaction_core::tx::{Tx, TxOut};
+use mc_transaction_core::tx::{Tx, TxOut, TxOutConfirmationNumber};
 use mc_util_from_random::FromRandom;
 use std::convert::TryFrom;
 use std::iter::empty;
@@ -510,6 +510,22 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
             JsonBlock::new(&block),
             JsonBlockContents::new(&block_contents),
         ))
+    }
+
+    pub fn verify_proof(
+        &self,
+        account_id_hex: &str,
+        txo_id_hex: &str,
+        proof_hex: &str,
+    ) -> Result<bool, WalletServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+        let proof: TxOutConfirmationNumber = mc_util_serial::decode(&hex::decode(proof_hex)?)?;
+        Ok(Txo::verify_proof(
+            &AccountID(account_id_hex.to_string()),
+            &txo_id_hex,
+            &proof,
+            &conn,
+        )?)
     }
 }
 
