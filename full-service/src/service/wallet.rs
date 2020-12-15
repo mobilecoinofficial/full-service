@@ -192,11 +192,15 @@ fn wallet_help() -> Result<String, String> {
     Ok(help_str)
 }
 
-#[post("/wallet", format = "json", data = "<command>")]
-fn wallet_api(
-    state: rocket::State<WalletState<ThickClient, GrpcFogPubkeyResolver>>,
+// To deal with the unmanaged state problem.
+fn wallet_api_inner<T, FPR>(
+    service: &WalletService<T, FPR>,
     command: Json<JsonCommandRequest>,
-) -> Result<Json<JsonCommandResponse>, String> {
+) -> Result<Json<JsonCommandResponse>, String>
+where
+    T: BlockchainConnection + UserTxConnection + 'static,
+    FPR: FogPubkeyResolver + Send + Sync + 'static,
+{
     let result = match command.0 {
         JsonCommandRequest::create_account { name, first_block } => {
             let fb = first_block
@@ -204,8 +208,7 @@ fn wallet_api(
                 .transpose()
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
 
-            let result = state
-                .service
+            let result = service
                 .create_account(name, fb)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             JsonCommandResponse::create_account {
@@ -222,54 +225,46 @@ fn wallet_api(
                 .map(|fb| fb.parse::<u64>())
                 .transpose()
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
-            let result = state
-                .service
+            let result = service
                 .import_account(entropy, name, fb)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             JsonCommandResponse::import_account { account: result }
         }
         JsonCommandRequest::list_accounts => JsonCommandResponse::list_accounts {
-            accounts: state
-                .service
+            accounts: service
                 .list_accounts()
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
         JsonCommandRequest::get_account { account_id } => JsonCommandResponse::get_account {
-            account: state
-                .service
+            account: service
                 .get_account(&AccountID(account_id))
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
         JsonCommandRequest::update_account_name { account_id, name } => {
-            state
-                .service
+            service
                 .update_account_name(&account_id, name)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             JsonCommandResponse::update_account_name { success: true }
         }
         JsonCommandRequest::delete_account { account_id } => {
-            state
-                .service
+            service
                 .delete_account(&account_id)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             JsonCommandResponse::delete_account { success: true }
         }
         JsonCommandRequest::list_txos { account_id } => JsonCommandResponse::list_txos {
-            txos: state
-                .service
+            txos: service
                 .list_txos(&account_id)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
         JsonCommandRequest::get_txo { account_id, txo_id } => {
-            let result = state
-                .service
+            let result = service
                 .get_txo(&account_id, &txo_id)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             JsonCommandResponse::get_txo { txo: result }
         }
         JsonCommandRequest::get_balance { account_id } => JsonCommandResponse::get_balance {
-            status: state
-                .service
+            status: service
                 .get_balance(&account_id)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
@@ -277,14 +272,12 @@ fn wallet_api(
             account_id,
             comment,
         } => JsonCommandResponse::create_address {
-            address: state
-                .service
+            address: service
                 .create_assigned_subaddress(&account_id, comment.as_deref())
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
         JsonCommandRequest::list_addresses { account_id } => JsonCommandResponse::list_addresses {
-            addresses: state
-                .service
+            addresses: service
                 .list_assigned_subaddresses(&account_id)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
@@ -298,8 +291,7 @@ fn wallet_api(
             max_spendable_value,
             comment,
         } => {
-            let transaction_details = state
-                .service
+            let transaction_details = service
                 .send_transaction(
                     &account_id,
                     &recipient_public_address,
@@ -324,8 +316,7 @@ fn wallet_api(
             tombstone_block,
             max_spendable_value,
         } => {
-            let tx_proposal = state
-                .service
+            let tx_proposal = service
                 .build_transaction(
                     &account_id,
                     &recipient_public_address,
@@ -343,46 +334,40 @@ fn wallet_api(
             comment,
             account_id,
         } => JsonCommandResponse::submit_transaction {
-            transaction: state
-                .service
+            transaction: service
                 .submit_transaction(tx_proposal, comment, account_id)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
         JsonCommandRequest::list_transactions { account_id } => {
             JsonCommandResponse::list_transactions {
-                transactions: state
-                    .service
+                transactions: service
                     .list_transactions(&account_id)
                     .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
             }
         }
         JsonCommandRequest::get_transaction { transaction_id } => {
             JsonCommandResponse::get_transaction {
-                transaction: state
-                    .service
+                transaction: service
                     .get_transaction(&transaction_id)
                     .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
             }
         }
         JsonCommandRequest::get_transaction_object { transaction_id } => {
             JsonCommandResponse::get_transaction_object {
-                transaction: state
-                    .service
+                transaction: service
                     .get_transaction_object(&transaction_id)
                     .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
             }
         }
         JsonCommandRequest::get_txo_object { account_id, txo_id } => {
             JsonCommandResponse::get_txo_object {
-                txo: state
-                    .service
+                txo: service
                     .get_txo_object(&account_id, &txo_id)
                     .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
             }
         }
         JsonCommandRequest::get_block_object { block_index } => {
-            let (block, block_contents) = state
-                .service
+            let (block, block_contents) = service
                 .get_block_object(
                     block_index
                         .parse::<u64>()
@@ -399,14 +384,21 @@ fn wallet_api(
             txo_id,
             proof,
         } => {
-            let result = state
-                .service
+            let result = service
                 .verify_proof(&account_id, &txo_id, &proof)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             JsonCommandResponse::verify_proof { verified: result }
         }
     };
     Ok(Json(result))
+}
+
+#[post("/wallet", format = "json", data = "<command>")]
+fn wallet_api(
+    state: rocket::State<WalletState<ThickClient, GrpcFogPubkeyResolver>>,
+    command: Json<JsonCommandRequest>,
+) -> Result<Json<JsonCommandResponse>, String> {
+    wallet_api_inner(&state.service, command)
 }
 
 pub fn rocket(
@@ -433,6 +425,7 @@ mod tests {
     use mc_common::logger::{log, test_with_logger, Logger};
     use mc_connection_test_utils::MockBlockchainConnection;
     use mc_crypto_rand::rand_core::RngCore;
+    use mc_fog_report_validation::MockFogPubkeyResolver;
     use mc_ledger_db::LedgerDB;
     use mc_transaction_core::ring_signature::KeyImage;
     use rand::{rngs::StdRng, SeedableRng};
@@ -451,12 +444,21 @@ mod tests {
         PORT_NR.fetch_add(1, SeqCst) as u16 + 30300
     }
 
-    fn test_rocket(
-        rocket_config: rocket::Config,
-        state: WalletState<MockBlockchainConnection<LedgerDB>, GrpcFogPubkeyResolver>,
-    ) -> rocket::Rocket {
+    pub struct TestWalletState {
+        pub service: WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver>,
+    }
+
+    #[post("/wallet", format = "json", data = "<command>")]
+    fn test_wallet_api(
+        state: rocket::State<TestWalletState>,
+        command: Json<JsonCommandRequest>,
+    ) -> Result<Json<JsonCommandResponse>, String> {
+        wallet_api_inner(&state.service, command)
+    }
+
+    fn test_rocket(rocket_config: rocket::Config, state: TestWalletState) -> rocket::Rocket {
         rocket::custom(rocket_config)
-            .mount("/", routes![wallet_api, wallet_help])
+            .mount("/", routes![test_wallet_api, wallet_help])
             .manage(state)
     }
 
@@ -468,21 +470,22 @@ mod tests {
         let (peer_manager, network_state) =
             setup_peer_manager_and_network_state(ledger_db.clone(), logger.clone());
 
-        let service = WalletService::new(
-            wallet_db,
-            ledger_db.clone(),
-            peer_manager,
-            network_state,
-            None,
-            None,
-            logger,
-        );
+        let service: WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> =
+            WalletService::new(
+                wallet_db,
+                ledger_db.clone(),
+                peer_manager,
+                network_state,
+                None,
+                None,
+                logger,
+            );
 
         let rocket_config: rocket::Config =
             rocket::Config::build(rocket::config::Environment::Development)
                 .port(get_free_port())
                 .unwrap();
-        let rocket = test_rocket(rocket_config, WalletState { service });
+        let rocket = test_rocket(rocket_config, TestWalletState { service });
         (
             Client::new(rocket).expect("valid rocket instance"),
             ledger_db,
@@ -652,8 +655,9 @@ mod tests {
             }
         });
         let result = dispatch(&client, body, &logger);
-        let account_id = result.get("account_id").unwrap().as_str().unwrap();
-        let b58_public_address = result.get("public_address").unwrap().as_str().unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
         let public_address = b58_decode(b58_public_address).unwrap();
 
         // Add a block with a txo for this address
