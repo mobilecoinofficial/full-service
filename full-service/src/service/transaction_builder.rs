@@ -666,7 +666,7 @@ mod tests {
         )
         .unwrap()
         .iter()
-        .map(|(t, _a)| t.clone())
+        .map(|t| t.txo.clone())
         .collect();
 
         let (recipient, mut builder) =

@@ -19,8 +19,8 @@ use crate::{
     service::{
         decorated_types::{
             JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
-            JsonCreateAccountResponse, JsonListTxosResponse, JsonSubmitResponse,
-            JsonTransactionLog, JsonTxo, JsonWalletStatus,
+            JsonCreateAccountResponse, JsonSubmitResponse, JsonTransactionLog, JsonTxo,
+            JsonWalletStatus,
         },
         sync::SyncThread,
         transaction_builder::WalletTransactionBuilder,
@@ -240,33 +240,18 @@ impl<
         )?)
     }
 
-    pub fn list_txos(
-        &self,
-        account_id_hex: &str,
-    ) -> Result<Vec<JsonListTxosResponse>, WalletServiceError> {
+    pub fn list_txos(&self, account_id_hex: &str) -> Result<Vec<JsonTxo>, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
         let txos = Txo::list_for_account(account_id_hex, &conn)?;
-        Ok(txos
-            .iter()
-            .map(|(t, s)| JsonListTxosResponse::new(t, s))
-            .collect())
+        Ok(txos.iter().map(|t| JsonTxo::new(t)).collect())
     }
 
-    pub fn get_txo(
-        &self,
-        account_id_hex: &str,
-        txo_id_hex: &str,
-    ) -> Result<JsonTxo, WalletServiceError> {
+    pub fn get_txo(&self, txo_id_hex: &str) -> Result<JsonTxo, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
-        let (txo, account_txo_status, assigned_subaddress) =
-            Txo::get(&AccountID(account_id_hex.to_string()), txo_id_hex, &conn)?;
-        Ok(JsonTxo::new(
-            &txo,
-            &account_txo_status,
-            assigned_subaddress.as_ref(),
-        ))
+        let txo_details = Txo::get(txo_id_hex, &conn)?;
+        Ok(JsonTxo::new(&txo_details))
     }
 
     // Wallet Status is an overview of the wallet's status
@@ -551,16 +536,11 @@ impl<
         }
     }
 
-    pub fn get_txo_object(
-        &self,
-        account_id_hex: &str,
-        txo_id_hex: &str,
-    ) -> Result<JsonTxOut, WalletServiceError> {
+    pub fn get_txo_object(&self, txo_id_hex: &str) -> Result<JsonTxOut, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        let (txo, _account_txo_status, _assigned_subaddress) =
-            Txo::get(&AccountID(account_id_hex.to_string()), txo_id_hex, &conn)?;
+        let txo_details = Txo::get(txo_id_hex, &conn)?;
 
-        let txo: TxOut = mc_util_serial::decode(&txo.txo)?;
+        let txo: TxOut = mc_util_serial::decode(&txo_details.txo.txo)?;
         // Convert to proto
         let proto_txo = mc_api::external::TxOut::from(&txo);
         Ok(JsonTxOut::from(&proto_txo))
@@ -669,7 +649,12 @@ mod tests {
         // Verify that we have 1 txo
         let txos = service.list_txos(&alice.account.account_id).unwrap();
         assert_eq!(txos.len(), 1);
-        assert_eq!(txos[0].txo_status, TXO_UNSPENT);
+        assert_eq!(
+            txos[0].account_status_map[&alice.account.account_id]
+                .get("txo_status")
+                .unwrap(),
+            TXO_UNSPENT
+        );
 
         // Add another account
         let bob = service
@@ -696,24 +681,40 @@ mod tests {
         let txos = service.list_txos(&alice.account.account_id).unwrap();
         assert_eq!(txos.len(), 3);
         // The Pending Tx
-        let pending: Vec<JsonListTxosResponse> = txos
+        let pending: Vec<JsonTxo> = txos
             .iter()
             .cloned()
-            .filter(|t| t.txo_status == TXO_PENDING)
+            .filter(|t| {
+                t.account_status_map[&alice.account.account_id]["txo_status"] == TXO_PENDING
+            })
             .collect();
         assert_eq!(pending.len(), 1);
-        assert_eq!(pending[0].txo_type, TXO_RECEIVED);
-        assert_eq!(pending[0].value, "100000000000000");
-        // The Minted have Status "secreted"
-        let minted: Vec<JsonListTxosResponse> = txos
+        assert_eq!(
+            pending[0].account_status_map[&alice.account.account_id]
+                .get("txo_type")
+                .unwrap(),
+            TXO_RECEIVED
+        );
+        assert_eq!(pending[0].value_pmob, "100000000000000");
+        let minted: Vec<JsonTxo> = txos
             .iter()
             .cloned()
-            .filter(|t| t.txo_status == TXO_SECRETED)
+            .filter(|t| t.minted_account_id.is_some())
             .collect();
         assert_eq!(minted.len(), 2);
-        assert_eq!(minted[0].txo_type, TXO_MINTED);
-        assert_eq!(minted[1].txo_type, TXO_MINTED);
-        let minted_value_set = HashSet::from_iter(minted.iter().map(|m| m.value.clone()));
+        assert_eq!(
+            minted[0].account_status_map[&alice.account.account_id]
+                .get("txo_type")
+                .unwrap(),
+            TXO_MINTED
+        );
+        assert_eq!(
+            minted[1].account_status_map[&alice.account.account_id]
+                .get("txo_type")
+                .unwrap(),
+            TXO_MINTED
+        );
+        let minted_value_set = HashSet::from_iter(minted.iter().map(|m| m.value_pmob.clone()));
         assert!(minted_value_set.contains("57990000000000"));
         assert!(minted_value_set.contains("42000000000000"));
 

@@ -5,8 +5,7 @@ use crate::{
     service::{
         decorated_types::{
             JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
-            JsonListTxosResponse, JsonSubmitResponse, JsonTransactionLog, JsonTxo,
-            JsonWalletStatus,
+            JsonSubmitResponse, JsonTransactionLog, JsonTxo, JsonWalletStatus,
         },
         wallet_impl::WalletService,
     },
@@ -57,7 +56,6 @@ pub enum JsonCommandRequest {
         account_id: String,
     },
     get_txo {
-        account_id: String,
         txo_id: String,
     },
     get_wallet_status,
@@ -105,7 +103,6 @@ pub enum JsonCommandRequest {
         transaction_log_id: String,
     },
     get_txo_object {
-        account_id: String,
         txo_id: String,
     },
     get_block_object {
@@ -141,7 +138,7 @@ pub enum JsonCommandResponse {
         success: bool,
     },
     list_txos {
-        txos: Vec<JsonListTxosResponse>,
+        txos: Vec<JsonTxo>,
     },
     get_txo {
         txo: JsonTxo,
@@ -253,9 +250,9 @@ where
                 .list_txos(&account_id)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
-        JsonCommandRequest::get_txo { account_id, txo_id } => {
+        JsonCommandRequest::get_txo { txo_id } => {
             let result = service
-                .get_txo(&account_id, &txo_id)
+                .get_txo(&txo_id)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             JsonCommandResponse::get_txo { txo: result }
         }
@@ -361,13 +358,11 @@ where
                     .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
             }
         }
-        JsonCommandRequest::get_txo_object { account_id, txo_id } => {
-            JsonCommandResponse::get_txo_object {
-                txo: service
-                    .get_txo_object(&account_id, &txo_id)
-                    .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
-            }
-        }
+        JsonCommandRequest::get_txo_object { txo_id } => JsonCommandResponse::get_txo_object {
+            txo: service
+                .get_txo_object(&txo_id)
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+        },
         JsonCommandRequest::get_block_object { block_index } => {
             let (block, block_contents) = service
                 .get_block_object(
@@ -746,11 +741,26 @@ mod tests {
         let txos = result.get("txos").unwrap().as_array().unwrap();
         assert_eq!(txos.len(), 1);
         let txo = &txos[0];
-        let txo_status = txo.get("txo_status").unwrap().as_str().unwrap();
+        let account_status_map = txo
+            .get("account_status_map")
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .get(account_id)
+            .unwrap();
+        let txo_status = account_status_map
+            .get("txo_status")
+            .unwrap()
+            .as_str()
+            .unwrap();
         assert_eq!(txo_status, TXO_UNSPENT);
-        let txo_type = txo.get("txo_type").unwrap().as_str().unwrap();
+        let txo_type = account_status_map
+            .get("txo_type")
+            .unwrap()
+            .as_str()
+            .unwrap();
         assert_eq!(txo_type, TXO_RECEIVED);
-        let value = txo.get("value").unwrap().as_str().unwrap();
+        let value = txo.get("value_pmob").unwrap().as_str().unwrap();
         assert_eq!(value, "100");
 
         // Check the overall balance for the account
@@ -944,11 +954,18 @@ mod tests {
         let txos = result.get("txos").unwrap().as_array().unwrap();
         assert_eq!(txos.len(), 1);
         let txo = &txos[0];
-        let txo_status = txo.get("txo_status").unwrap().as_str().unwrap();
+        let status_map = txo
+            .get("account_status_map")
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .get(account_id)
+            .unwrap();
+        let txo_status = status_map.get("txo_status").unwrap().as_str().unwrap();
         assert_eq!(txo_status, TXO_UNSPENT);
-        let txo_type = txo.get("txo_type").unwrap().as_str().unwrap();
+        let txo_type = status_map.get("txo_type").unwrap().as_str().unwrap();
         assert_eq!(txo_type, TXO_RECEIVED);
-        let value = txo.get("value").unwrap().as_str().unwrap();
+        let value = txo.get("value_pmob").unwrap().as_str().unwrap();
         assert_eq!(value, "42000000000000");
     }
 }

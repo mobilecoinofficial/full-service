@@ -185,6 +185,9 @@ pub enum WalletDbError {
 
     /// The Txo Exists, but for another account {0}
     TxoExistsForAnotherAccount(String),
+
+    /// The Txo is associated with too many Accounts
+    TxoAssociatedWithTooManyAccounts(String),
 }
 
 impl From<diesel::result::Error> for WalletDbError {

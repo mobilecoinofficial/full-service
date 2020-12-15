@@ -274,29 +274,105 @@ curl -s localhost:9090/wallet \
   "result": {
     "txos": [
       {
-        "txo_id": "000d688cfe28ab128a7514148f700dc6872e97c1498753fdef4fdd8b90601cd1",
-        "value": "97582349900010990",
-        "txo_type": "received",
-        "txo_status": "spent"
+        "object": "txo",
+        "txo_id": "1e998b006940aa6e03fd7cd9b380ff4aa0ada231b9a48d3e29821cd4c03cf313",
+        "value_pmob": "123000000000000",
+        "received_block_height": "75",
+        "spent_block_height": "79",
+        "is_spent_recovered": false,
+        "received_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+        "minted_account_id": null,
+        "account_status_map": {
+          "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10": {
+            "txo_status": "spent",
+            "txo_type": "received"
+          }
+        },
+        "target_key": "0a208ce0b30d404ca6c9395a44414e3a6bb06c34b165da1b885742ecb441cb2fc121",
+        "public_key": "0a20bc1c87db706a8d16121464b85a2d650b8b482a4c1a5594ff967cbdea626d910d",
+        "e_fog_hint": "0a54d9cc931f27c931caa77e16290fc25e34fa1e9f85ba81c0429f4d1343ca86f316bf06f47ffb0bc10503ef6c3383e9e1c3244578f6e35e606f5cabb4f75689a0cb6f4f1afc9106b14e66643ff695b54e6c93f90100",
+        "subaddress_index": "0",
+        "assigned_subaddress": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
+        "key_image": "0a208ecbfe73911f9e8b80399a1909cf04ccaf79df246c0c6e71011807ac96a48c4b",
+        "proof": null,
+        "offset_count": 5
       },
       {
-        "txo_id": "00a92e639f2601e9af3ba796c62087cc1c6b9d1bc7c4921df4b136d134ff4027",
-        "value": "1",
-        "txo_type": "received",
-        "txo_status": "spent"
-      },
+        "object": "txo",
+        "txo_id": "84f30233774d728bb7844bed59d471fe55ee3680ab70ddc312840db0f978f3ba",
+        "value_pmob": "200",
+        "received_block_height": null,
+        "spent_block_height": null,
+        "is_spent_recovered": false,
+        "received_account_id": "36fdf8fbdaa35ad8e661209b8a7c7057f29bf16a1e399a34aa92c3873dfb853c",
+        "minted_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+        "account_status_map": {
+          "36fdf8fbdaa35ad8e661209b8a7c7057f29bf16a1e399a34aa92c3873dfb853c": {
+            "txo_status": "unspent",
+            "txo_type": "received"
+          },
+          "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10": {
+            "txo_status": "secreted",
+            "txo_type": "minted"
+          }
+        },
+        "target_key": "0a20762d8a723aae2aa70cc11c62c91af715f957a7455b695641fe8c94210812cf1b",
+        "public_key": "0a20e6736474f73e440686736bfd045d838c2b3bc056ffc647ad6b1c990f5a46b123",
+        "e_fog_hint": "0a5472b079a520696518cc7d7c3036e855cbbcf1a3e247db32ab2e62e835183077b862ef86ec4963a584650cc028eb645569f9de1392b88f8fd7fa07aa28c4e035fd5f4866f3db3d403a05d2adb5e4f2992c010b0100",
+        "subaddress_index": null,
+        "assigned_subaddress": null,
+        "key_image": null,
+        "proof": "0a204488e153cce1e4bcdd4419eecb778f3d2d2b024b39aaa29532d2e47e238b2e31",
+        "offset_count": 501
+      }
       {
-        "txo_id": "00ae2c1a638296dbfe0514019e4efa03b0c714c45b391f1d2180a2c50a38ffad",
-        "value": "1",
-        "txo_type": "received",
-        "txo_status": "spent"
+        "object": "txo",
+        "txo_id": "58c2c3780792ccf9c51014c7688a71f03732b633f8c5dfa49040fa7f51328280",
+        "value_pmob": "4000000000000",
+        "received_block_height": "79",
+        "spent_block_height": null,
+        "is_spent_recovered": false,
+        "received_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+        "minted_account_id": null,
+        "account_status_map": {
+          "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10": {
+            "txo_status": "unspent",
+            "txo_type": "received"
+          }
+        },
+        "target_key": "0a209abadbfcec6c81b3d184dc104e51cac4c4faa8bab4da21a3714901519810c20d",
+        "public_key": "0a20d803a979c9ec0531f106363a885dde29101fcd70209f9ed686905512dfd14d5f",
+        "e_fog_hint": "0a546f862ccf5e96a89b3ede770a70aa26ce8be704a7e5a73fff02d16ee1f694297b6c17d2e668d6181df047ae68730dfc7913b28aca66450ee1de0ca3b0bedb07664918899848f217bcbbe48be2ef40074ae5dd0100",
+        "subaddress_index": "0",
+        "assigned_subaddress": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
+        "key_image": "0a20784ab38c4541ce23abbec6744431d6ae14101c49c6535b3e9bf3fd728db13848",
+        "proof": null,
+        "offset_count": 8
       },
-      {
-        "txo_id": "00d4f35588ed694edaf58762be9edf3a3cb6941f2a9de3ee779f7c91c3a064a0",
-        "value": "97584329900010990",
-        "txo_type": "received",
-        "txo_status": "spent"
-      },
+     {
+        "object": "txo",
+        "txo_id": "b496f4f3ec3159bf48517aa7d9cda193ef8bfcac343f81eaed0e0a55849e4726",
+        "value_pmob": "980000000000",
+        "received_block_height": null,
+        "spent_block_height": null,
+        "is_spent_recovered": false,
+        "received_account_id": null,
+        "minted_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+        "account_status_map": {
+          "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10": {
+            "txo_status": "secreted",
+            "txo_type": "minted"
+          }
+        },
+        "target_key": "0a208c75723e9b9a4af0c833bfe190c43900c3b41834cf37024f5fecfbe9919dff23",
+        "public_key": "0a209432c589bb4e5101c26e935b70930dfe45c78417527fb994872ebd65fcb9c116",
+        "e_fog_hint": "0a54338fcf8609cf80dfe017bee2339b22b626af2957ef579ae8829f3d8e7fab6c20365b6a99727fcd5e3de7784fca7e1cbb77ec35e7f2c39ea47ef6121716119ba5a67f8a6026a6a6274e7262ea8ea8280782440100",
+        "subaddress_index": null,
+        "assigned_subaddress": null,
+        "key_image": null,
+        "proof": null,
+        "offset_count": 498
+      }
     ]
   }
 }
@@ -325,24 +401,35 @@ curl -s localhost:9090/wallet \
   -d '{
         "method": "get_txo",
         "params": {
-          "account_id": "1916a9b39ed28ab3a6eea69ac364b834ccc35b8e9763e8516d1a1f06aba5fb72",
-          "txo_id": "fff8e8b65e606578a9baeaa3f2919453444fdd9787e3a04ad5667dd248d02aee"}}' \
+          "txo_id": "fff4cae55a74e5ce852b79c31576f4041d510c26e59fec178b3e45705c5b35a7"}}' \
   -X POST -H 'Content-type: application/json' | jq
 
 {
   "method": "get_txo",
   "result": {
     "txo": {
-      "txo_id": "fff8e8b65e606578a9baeaa3f2919453444fdd9787e3a04ad5667dd248d02aee",
-      "value": "659999999999",
-      "assigned_subaddress": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+      "object": "txo",
+      "txo_id": "fff4cae55a74e5ce852b79c31576f4041d510c26e59fec178b3e45705c5b35a7",
+      "value_pmob": "2960000000000",
+      "received_block_height": "8094",
+      "spent_block_height": "8180",
+      "is_spent_recovered": false,
+      "received_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+      "minted_account_id": null,
+      "account_status_map": {
+        "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10": {
+          "txo_status": "spent",
+          "txo_type": "received"
+        }
+      },
+      "target_key": "0a209eefc082a656a34fae5cec81044d1b13bd8963c411afa28aecfce4839fc9f74e",
+      "public_key": "0a20f03f9684e5420d5410fe732f121626352d45e4e799d725432a0c61fa1343ac51",
+      "e_fog_hint": "0a544944e7527b7f09322651b7242663edf17478fd1804aeea24838a35ad3c66d5194763642ae1c1e0cd2bbe2571a97a8c0fb49e346d2fd5262113e7333c7f012e61114bd32d335b1a8183be8e1865b0a10199b60100",
       "subaddress_index": "0",
-      "txo_type": "received",
-      "txo_status": "spent",
-      "received_block_height": "27009",
-      "pending_tombstone_block_height": null,
-      "spent_block_height": "27010",
-      "proof": null
+      "assigned_subaddress": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
+      "key_image": "0a205445b406012d26baebb51cbcaaaceb0d56387a67353637d07265f4e886f33419",
+      "proof": null,
+      "offset_count": 25
     }
   }
 }

@@ -322,23 +322,58 @@ Received and Spent TXO
   "minted_account_id": null,
   "account_status_map": {
     "1916a9b3...": {
-      txo_type: "received",
       txo_status: "spent"
+      txo_type: "received",
     }
   },
   "target_key": "6d6f6f6e...",
   "public_key": "6f20776f...",
   "e_fog_hint": "726c6421...",
   "subaddress_index": "20",
+  "assigned_subaddress": "7BeDc5jpZ...",
   "key_image": "6d6f6269...",
+  "proof": "23fd34a...",
   "offset_count": 284
+}
+```
+
+Txo Spent from One Account to Another in the Same Wallet
+
+```
+{
+  "object": "txo",
+  "txo_id": "84f3023...",
+  "value_pmob": "200",
+  "received_block_height": null,
+  "spent_block_height": null,
+  "is_spent_recovered": false,
+  "received_account_id": "36fdf8...",
+  "minted_account_id": "a4db032...",
+  "account_status_map": {
+    "36fdf8...": {
+      "txo_status": "unspent",
+      "txo_type": "received"
+    },
+    "a4db03...": {
+      "txo_status": "secreted",
+      "txo_type": "minted"
+    }
+  },
+  "target_key": "0a2076...",
+  "public_key": "0a20e6...",
+  "e_fog_hint": "0a5472...",
+  "subaddress_index": null,
+  "assigned_subaddress": null,
+  "key_image": null,
+  "proof": "0a2044...",
+  "offset_count": 501
 }
 ```
 
 #### API Methods Returning Transaction Log Objects
 
-* [list_txos](../README.md#list-transactions)
-* [get_transaction](../README.md#get-transaction)
+* [list_txos](../README.md#list-txos-for-a-given-account)
+* [get_txo](../README.md#get-txo-details)
 
 ## Future API Objects
 
