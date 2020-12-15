@@ -48,7 +48,6 @@ use mc_transaction_core::{
 };
 
 use diesel::{
-    connection::TransactionManager,
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},
 };
@@ -313,10 +312,8 @@ pub fn sync_account(
     account_id: &str,
     logger: &Logger,
 ) -> Result<SyncAccountOk, SyncError> {
-    let conn = wallet_db.get_conn()?;
-    conn.transaction_manager().begin_transaction(&conn)?;
-
     for _ in 0..MAX_BLOCKS_PROCESSING_CHUNK_SIZE {
+        let conn = wallet_db.get_conn()?;
         let sync_status = conn.transaction::<SyncAccountOk, SyncError, _>(|| {
             // Get the account data. If it is no longer available, the account has been removed and we
             // can simply return.
