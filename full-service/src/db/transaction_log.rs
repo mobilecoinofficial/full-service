@@ -7,8 +7,8 @@ use crate::{
         b58_encode,
         models::{
             Account, NewTransactionLog, NewTransactionTxoType, TransactionLog, TransactionTxoType,
-            Txo, CHANGE, INPUT, OUTPUT, TX_BUILT, TX_DIR_RECEIVED, TX_DIR_SENT, TX_FAILED,
-            TX_PENDING, TX_SUCCEEDED,
+            Txo, TXO_CHANGE, TXO_INPUT, TXO_OUTPUT, TX_BUILT, TX_DIR_RECEIVED, TX_DIR_SENT,
+            TX_FAILED, TX_PENDING, TX_SUCCEEDED,
         },
         txo::{TxoID, TxoModel},
     },
@@ -93,7 +93,7 @@ pub trait TransactionLogModel {
     /// Update the transactions associated with a Txo for a given blockheight.
     fn update_transactions_associated_to_txo(
         txo_id_hex: &str,
-        cur_block_height: i64,
+        cur_block_count: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
@@ -101,7 +101,7 @@ pub trait TransactionLogModel {
     fn log_received(
         subaddress_to_output_txo_ids: &HashMap<i64, Vec<String>>,
         account: &Account,
-        block_height: u64,
+        block_count: u64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
@@ -115,7 +115,7 @@ pub trait TransactionLogModel {
     ///       differently, but our TransactionLogs Table assumes this behavior.
     fn log_submitted(
         tx_proposal: TxProposal,
-        block_height: u64,
+        block_count: u64,
         comment: String,
         account_id_hex: Option<&str>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
@@ -171,9 +171,9 @@ impl TransactionLogModel for TransactionLog {
 
         for (_transaction, transaction_txo_type) in transaction_txos {
             match transaction_txo_type.transaction_txo_type.as_str() {
-                INPUT => inputs.push(transaction_txo_type.txo_id_hex),
-                OUTPUT => outputs.push(transaction_txo_type.txo_id_hex),
-                CHANGE => change.push(transaction_txo_type.txo_id_hex),
+                TXO_INPUT => inputs.push(transaction_txo_type.txo_id_hex),
+                TXO_OUTPUT => outputs.push(transaction_txo_type.txo_id_hex),
+                TXO_CHANGE => change.push(transaction_txo_type.txo_id_hex),
                 _ => {
                     return Err(WalletDbError::UnexpectedTransactionTxoType(
                         transaction_txo_type.transaction_txo_type,
@@ -255,9 +255,9 @@ impl TransactionLogModel for TransactionLog {
             }
 
             match transaction_txo_type.transaction_txo_type.as_str() {
-                INPUT => entry.inputs.push(transaction_txo_type.txo_id_hex),
-                OUTPUT => entry.outputs.push(transaction_txo_type.txo_id_hex),
-                CHANGE => entry.change.push(transaction_txo_type.txo_id_hex),
+                TXO_INPUT => entry.inputs.push(transaction_txo_type.txo_id_hex),
+                TXO_OUTPUT => entry.outputs.push(transaction_txo_type.txo_id_hex),
+                TXO_CHANGE => entry.change.push(transaction_txo_type.txo_id_hex),
                 _ => {
                     return Err(WalletDbError::UnexpectedTransactionTxoType(
                         transaction_txo_type.transaction_txo_type,
@@ -284,7 +284,7 @@ impl TransactionLogModel for TransactionLog {
     // FIXME: WS-30 - We may be doing n^2 work here
     fn update_transactions_associated_to_txo(
         txo_id_hex: &str,
-        cur_block_height: i64,
+        cur_block_count: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::transaction_logs::dsl::{transaction_id_hex, transaction_logs};
@@ -302,18 +302,19 @@ impl TransactionLogModel for TransactionLog {
 
                 // Check whether all the inputs have been spent or if any failed, and update accordingly
                 if Txo::are_all_spent(&associated.inputs, conn)? {
-                    // FIXME: WS-18 - do we want to store "submitted_block_height" to disambiguate block_height?
+                    // FIXME: WS-18 - do we want to store "submitted_block_count" to disambiguate block_count?
                     diesel::update(
                         transaction_logs
                             .filter(transaction_id_hex.eq(&transaction_log.transaction_id_hex)),
                     )
                     .set((
                         crate::db::schema::transaction_logs::status.eq(TX_SUCCEEDED),
-                        crate::db::schema::transaction_logs::block_height.eq(cur_block_height),
+                        crate::db::schema::transaction_logs::finalized_block_count
+                            .eq(Some(cur_block_count)),
                     ))
                     .execute(conn)?;
-                } else if Txo::any_failed(&associated.inputs, cur_block_height, conn)? {
-                    // FIXME: WS-18, WS-17 - Do we want to store and update the "failed_block_height" as min(tombstones)?
+                } else if Txo::any_failed(&associated.inputs, cur_block_count, conn)? {
+                    // FIXME: WS-18, WS-17 - Do we want to store and update the "failed_block_count" as min(tombstones)?
                     diesel::update(
                         transaction_logs
                             .filter(transaction_id_hex.eq(&transaction_log.transaction_id_hex)),
@@ -329,7 +330,7 @@ impl TransactionLogModel for TransactionLog {
     fn log_received(
         subaddress_to_output_txo_ids: &HashMap<i64, Vec<String>>,
         account: &Account,
-        block_height: u64,
+        block_count: u64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::transaction_txo_types;
@@ -368,7 +369,8 @@ impl TransactionLogModel for TransactionLog {
                         fee: None, // Impossible to recover fee from received transaction
                         status: TX_SUCCEEDED,
                         sent_time: None, // NULL for received
-                        block_height: block_height as i64,
+                        submitted_block_count: None,
+                        finalized_block_count: Some(block_count as i64),
                         comment: "", // NULL for received
                         direction: TX_DIR_RECEIVED,
                         tx: None, // NULL for received
@@ -382,7 +384,7 @@ impl TransactionLogModel for TransactionLog {
                     let new_transaction_txo = NewTransactionTxoType {
                         transaction_id_hex: &transaction_id.to_string(),
                         txo_id_hex: &txo.txo_id_hex,
-                        transaction_txo_type: OUTPUT,
+                        transaction_txo_type: TXO_OUTPUT,
                     };
                     // Note: SQLite backend does not support batch insert, so within iter is fine
                     diesel::insert_into(transaction_txo_types::table)
@@ -396,7 +398,7 @@ impl TransactionLogModel for TransactionLog {
 
     fn log_submitted(
         tx_proposal: TxProposal,
-        block_height: u64,
+        block_count: u64,
         comment: String,
         account_id_hex: Option<&str>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
@@ -416,7 +418,7 @@ impl TransactionLogModel for TransactionLog {
             for utxo in tx_proposal.utxos.iter() {
                 let txo_id = TxoID::from(&utxo.tx_out);
                 Txo::update_to_pending(&txo_id, conn)?;
-                txo_ids.push((txo_id.to_string(), INPUT.to_string()));
+                txo_ids.push((txo_id.to_string(), TXO_INPUT.to_string()));
             }
 
             // Next, add all of our minted outputs to the Txo Table
@@ -463,9 +465,8 @@ impl TransactionLogModel for TransactionLog {
                     fee: Some(tx_proposal.tx.prefix.fee as i64),
                     status: TX_PENDING,
                     sent_time: Some(Utc::now().timestamp()),
-                    block_height: block_height as i64, // FIXME: WS-18 - is this going to do what we want? It's
-                    // submitted block height, but not necessarily when it hits the ledger - would we
-                    // update when we see a key_image from this transaction?
+                    submitted_block_count: Some(block_count as i64),
+                    finalized_block_count: None,
                     comment: &comment,
                     direction: TX_DIR_SENT,
                     tx: Some(mc_util_serial::encode(&tx_proposal.tx)),
@@ -570,7 +571,7 @@ mod tests {
                     Txo::get(&account_id, txo_id, &wallet_db.get_conn().unwrap()).unwrap();
                 assert_eq!(transaction_logs[0].value, txo.value);
 
-                // Make the sure the types are correct - all received should be OUTPUT
+                // Make the sure the types are correct - all received should be TXO_OUTPUT
                 let associated = transaction_logs[0]
                     .get_associated_txos(&wallet_db.get_conn().unwrap())
                     .unwrap();
@@ -639,7 +640,10 @@ mod tests {
         // Created and sent transaction is "pending" until it lands
         assert_eq!(tx_log.status, TX_PENDING);
         assert!(tx_log.sent_time.unwrap() > 0);
-        assert_eq!(tx_log.block_height, ledger_db.num_blocks().unwrap() as i64);
+        assert_eq!(
+            tx_log.submitted_block_count,
+            Some(ledger_db.num_blocks().unwrap() as i64)
+        );
         assert_eq!(tx_log.comment, "");
         assert_eq!(tx_log.direction, TX_DIR_SENT);
         let tx: Tx = mc_util_serial::decode(&tx_log.clone().tx.unwrap()).unwrap();
@@ -751,7 +755,10 @@ mod tests {
         // Created and sent transaction is "pending" until it lands
         assert_eq!(tx_log.status, TX_PENDING);
         assert!(tx_log.sent_time.unwrap() > 0);
-        assert_eq!(tx_log.block_height, ledger_db.num_blocks().unwrap() as i64);
+        assert_eq!(
+            tx_log.submitted_block_count,
+            Some(ledger_db.num_blocks().unwrap() as i64)
+        );
         assert_eq!(tx_log.comment, "");
         assert_eq!(tx_log.direction, TX_DIR_SENT);
         let tx: Tx = mc_util_serial::decode(&tx_log.clone().tx.unwrap()).unwrap();

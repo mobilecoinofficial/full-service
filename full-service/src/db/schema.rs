@@ -46,7 +46,8 @@ table! {
         fee -> Nullable<BigInt>,
         status -> Text,
         sent_time -> Nullable<BigInt>,
-        block_height -> BigInt,
+        submitted_block_count -> Nullable<BigInt>,
+        finalized_block_count -> Nullable<BigInt>,
         comment -> Text,
         direction -> Text,
         tx -> Nullable<Binary>,
@@ -72,9 +73,9 @@ table! {
         txo -> Binary,
         subaddress_index -> Nullable<BigInt>,
         key_image -> Nullable<Binary>,
-        received_block_height -> Nullable<BigInt>,
-        pending_tombstone_block_height -> Nullable<BigInt>,
-        spent_block_height -> Nullable<BigInt>,
+        received_block_count -> Nullable<BigInt>,
+        pending_tombstone_block_count -> Nullable<BigInt>,
+        spent_block_count -> Nullable<BigInt>,
         proof -> Nullable<Binary>,
     }
 }

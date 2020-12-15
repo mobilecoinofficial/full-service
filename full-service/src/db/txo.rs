@@ -10,8 +10,8 @@ use crate::{
         b58_encode,
         models::{
             Account, AccountTxoStatus, AssignedSubaddress, NewAccountTxoStatus, NewTxo, Txo,
-            CHANGE, OUTPUT, TXO_MINTED, TXO_ORPHANED, TXO_PENDING, TXO_RECEIVED, TXO_SECRETED,
-            TXO_SPENT, TXO_UNSPENT,
+            TXO_CHANGE, TXO_MINTED, TXO_ORPHANED, TXO_OUTPUT, TXO_PENDING, TXO_RECEIVED,
+            TXO_SECRETED, TXO_SPENT, TXO_UNSPENT,
         },
     },
     error::WalletDbError,
@@ -67,7 +67,7 @@ pub trait TxoModel {
         subaddress_index: Option<i64>,
         key_image: Option<KeyImage>,
         value: u64,
-        received_block_height: i64,
+        received_block_count: i64,
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<String, WalletDbError>;
@@ -91,7 +91,7 @@ pub trait TxoModel {
         account_id_hex: &str,
         subaddress_index: Option<i64>,
         key_image: Option<KeyImage>,
-        received_block_height: i64,
+        received_block_count: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
@@ -100,7 +100,7 @@ pub trait TxoModel {
         &self,
         received_subaddress_index: Option<i64>,
         received_key_image: Option<KeyImage>,
-        block_height: i64,
+        block_count: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
@@ -150,7 +150,7 @@ pub trait TxoModel {
     /// Check whether any of the given Txos failed.
     fn any_failed(
         txo_ids: &[String],
-        block_height: i64,
+        block_count: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError>;
 
@@ -183,7 +183,7 @@ impl TxoModel for Txo {
         subaddress_index: Option<i64>,
         key_image: Option<KeyImage>,
         value: u64,
-        received_block_height: i64,
+        received_block_count: i64,
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<String, WalletDbError> {
@@ -200,7 +200,7 @@ impl TxoModel for Txo {
                         account_id_hex,
                         subaddress_index,
                         key_image,
-                        received_block_height,
+                        received_block_count,
                         conn,
                     )?;
                 }
@@ -232,9 +232,9 @@ impl TxoModel for Txo {
                         txo: &mc_util_serial::encode(&txo),
                         subaddress_index,
                         key_image: key_image_bytes.as_ref(),
-                        received_block_height: Some(received_block_height as i64),
-                        pending_tombstone_block_height: None,
-                        spent_block_height: None,
+                        received_block_count: Some(received_block_count as i64),
+                        pending_tombstone_block_count: None,
+                        spent_block_count: None,
                         proof: None,
                     };
 
@@ -302,10 +302,10 @@ impl TxoModel for Txo {
 
         // Update receiver, transaction_value, and transaction_txo_type, if outlay was found.
         let transaction_txo_type = if outlay_receiver.is_some() {
-            OUTPUT
+            TXO_OUTPUT
         } else {
             // If not in an outlay, this output is change, according to how we build transactions.
-            CHANGE
+            TXO_CHANGE
         };
 
         let encoded_proof =
@@ -321,9 +321,9 @@ impl TxoModel for Txo {
                 txo: &mc_util_serial::encode(output),
                 subaddress_index: None, // Minted set subaddress_index to None. If later received, updates.
                 key_image: None,        // Only the recipient can calculate the KeyImage
-                received_block_height: None,
-                pending_tombstone_block_height: Some(tx_proposal.tx.prefix.tombstone_block as i64),
-                spent_block_height: None,
+                received_block_count: None,
+                pending_tombstone_block_count: Some(tx_proposal.tx.prefix.tombstone_block as i64),
+                spent_block_count: None,
                 proof: encoded_proof.as_ref(),
             };
 
@@ -360,7 +360,7 @@ impl TxoModel for Txo {
         account_id_hex: &str,
         received_subaddress_index: Option<i64>,
         received_key_image: Option<KeyImage>,
-        received_block_height: i64,
+        received_block_count: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
         conn.transaction::<(), WalletDbError, _>(|| {
@@ -376,7 +376,7 @@ impl TxoModel for Txo {
                     self.update_to_spendable(
                         received_subaddress_index,
                         received_key_image,
-                        received_block_height,
+                        received_block_count,
                         &conn,
                     )?;
 
@@ -392,7 +392,7 @@ impl TxoModel for Txo {
                         self.update_to_spendable(
                             received_subaddress_index,
                             received_key_image,
-                            received_block_height,
+                            received_block_count,
                             &conn,
                         )?;
                     }
@@ -407,7 +407,7 @@ impl TxoModel for Txo {
                 self.update_to_spendable(
                     received_subaddress_index,
                     received_key_image,
-                    received_block_height,
+                    received_block_count,
                     &conn,
                 )?;
                 account_txo_status.set_unspent(conn)?;
@@ -421,10 +421,10 @@ impl TxoModel for Txo {
         &self,
         received_subaddress_index: Option<i64>,
         received_key_image: Option<KeyImage>,
-        block_height: i64,
+        block_count: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::txos::{key_image, received_block_height, subaddress_index};
+        use crate::db::schema::txos::{key_image, received_block_count, subaddress_index};
 
         // Verify that we have a subaddress, otherwise this transaction will be
         // unspendable.
@@ -436,7 +436,7 @@ impl TxoModel for Txo {
 
         diesel::update(self)
             .set((
-                received_block_height.eq(Some(block_height)),
+                received_block_count.eq(Some(block_count)),
                 subaddress_index.eq(received_subaddress_index),
                 key_image.eq(encoded_key_image),
             ))
@@ -640,7 +640,7 @@ impl TxoModel for Txo {
 
     fn any_failed(
         txo_ids: &[String],
-        block_height: i64,
+        block_count: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError> {
         use crate::db::schema::account_txo_statuses;
@@ -652,7 +652,7 @@ impl TxoModel for Txo {
                     .eq(account_txo_statuses::txo_id_hex)
                     .and(txos::txo_id_hex.eq_any(txo_ids))
                     .and(account_txo_statuses::txo_status.eq_any(vec![TXO_UNSPENT, TXO_PENDING]))
-                    .and(txos::pending_tombstone_block_height.lt(Some(block_height)))),
+                    .and(txos::pending_tombstone_block_count.lt(Some(block_count)))),
             )
             .select(txos::all_columns)
             .load(conn)?;
@@ -834,9 +834,9 @@ mod tests {
             txo: mc_util_serial::encode(&txo),
             subaddress_index: Some(0),
             key_image: Some(mc_util_serial::encode(&key_image)),
-            received_block_height: Some(144),
-            pending_tombstone_block_height: None,
-            spent_block_height: None,
+            received_block_count: Some(144),
+            pending_tombstone_block_count: None,
+            spent_block_count: None,
             proof: None,
         };
         // Verify that the statuses table was updated correctly
@@ -860,12 +860,12 @@ mod tests {
         // self.update_submitted_transaction(tx_proposal)?;
 
         // Now we'll process the ledger and verify that the TXO was spent
-        let spent_block_height = 365;
+        let spent_block_count = 365;
 
         let account = Account::get(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
         account
             .update_spent_and_increment_next_block(
-                spent_block_height,
+                spent_block_count,
                 vec![key_image],
                 &wallet_db.get_conn().unwrap(),
             )
@@ -876,14 +876,14 @@ mod tests {
                 .unwrap();
         assert_eq!(txos.len(), 1);
         assert_eq!(
-            txos[0].0.spent_block_height.unwrap(),
-            spent_block_height as i64
+            txos[0].0.spent_block_count.unwrap(),
+            spent_block_count as i64
         );
         assert_eq!(txos[0].1.txo_status, TXO_SPENT.to_string());
 
         // Verify that the next block height is + 1
         let account = Account::get(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
-        assert_eq!(account.next_block, spent_block_height + 1);
+        assert_eq!(account.next_block, spent_block_count + 1);
 
         // Verify that there are no unspent txos
         let balances =
@@ -1100,7 +1100,7 @@ mod tests {
 
         assert!(recipient_opt.is_some());
         assert_eq!(value, 1 * MOB as i64);
-        assert_eq!(transaction_txo_type, OUTPUT);
+        assert_eq!(transaction_txo_type, TXO_OUTPUT);
         let (minted_txo, minted_account_txo_status, minted_assigned_subaddress) = Txo::get(
             &AccountID::from(&src_account),
             &txo_id,
