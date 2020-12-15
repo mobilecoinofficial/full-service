@@ -188,15 +188,6 @@ pub enum JsonCommandResponse {
     },
 }
 
-#[get("/wallet")]
-fn wallet_help() -> Result<String, String> {
-    let mut help_str = "Please use json data to choose wallet commands. For example, \n\ncurl -s localhost:9090/wallet -d '{\"method\": \"create_account\", \"params\": {\"name\": \"Alice\"}}' -X POST -H 'Content-type: application/json'\n\nAvailable commands are:\n\n".to_owned();
-    for e in JsonCommandRequest::iter() {
-        help_str.push_str(&format!("{:?}\n\n", e));
-    }
-    Ok(help_str)
-}
-
 // To deal with the unmanaged state problem.
 fn wallet_api_inner<T, FPR>(
     service: &WalletService<T, FPR>,
@@ -410,6 +401,15 @@ fn wallet_api(
     command: Json<JsonCommandRequest>,
 ) -> Result<Json<JsonCommandResponse>, String> {
     wallet_api_inner(&state.service, command)
+}
+
+#[get("/wallet")]
+fn wallet_help() -> Result<String, String> {
+    let mut help_str = "Please use json data to choose wallet commands. For example, \n\ncurl -s localhost:9090/wallet -d '{\"method\": \"create_account\", \"params\": {\"name\": \"Alice\"}}' -X POST -H 'Content-type: application/json'\n\nAvailable commands are:\n\n".to_owned();
+    for e in JsonCommandRequest::iter() {
+        help_str.push_str(&format!("{:?}\n\n", e));
+    }
+    Ok(help_str)
 }
 
 pub fn rocket(
@@ -693,7 +693,12 @@ mod tests {
             1
         );
         assert_eq!(
-            status.get("account_map").unwrap().as_map().unwrap().len(),
+            status
+                .get("account_map")
+                .unwrap()
+                .as_object()
+                .unwrap()
+                .len(),
             1
         );
     }
@@ -909,7 +914,7 @@ mod tests {
         let b58_public_address = result
             .get("address")
             .unwrap()
-            .get("public_address_b58")
+            .get("public_address")
             .unwrap()
             .as_str()
             .unwrap();

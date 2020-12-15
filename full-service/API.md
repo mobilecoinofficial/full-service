@@ -57,7 +57,7 @@ The Full Service Wallet API provides several objects that correspond to the data
 * [get_account](../README.md#list-accounts)
 
 
-### The Wallet Status object
+### The Wallet Status Object
 
 #### Attributes
 
@@ -72,9 +72,12 @@ The Full Service Wallet API provides several objects that correspond to the data
 | account_map | hash map | A normalized hash mapping account_id to account objects.
 
 #### More attributes
+
 | *Name* | *Type* | *Description*
 | :--- | :--- | :---
 | object | string, value is "wallet_status" | String representing the object's type. Objects of the same type share the same value.
+
+#### Example Object
 
 ```
 {
@@ -120,66 +123,30 @@ The Full Service Wallet API provides several objects that correspond to the data
 
 * [get_wallet_status](../README.md#get-wallet-status)
 
-# The Recipient Address object
-# Attributes
-# address_id
-# string
-# Unique identifier for the address.
-# public_address
-# string
-# Shareable B58 encoded string that represents this address.
-# address_book_entry_id
-# serialized id
-# The id for an Address Book Entry object if associated to the address.
-# comment
-# string
-# An arbitrary string attached to the object.
-# More attributes
-# object
-# string, value is "address"
-# String representing the object's type. Objects of the same type share the same value.
-# account_id
-# string
-# Unique identifier for the assigned associated account. Only for "assigned" addresses
-# offset_count
-# int
-# The value to offset pagination requests for recipient_address list. Requests will exclude all list items up to and including this object.
-{
-  "object": "recipient_address",
-  "address_id": "42Dik1AA...",
-  "public_address": "42Dik1AA...",
-  "address_book_entry_id": 36,
-  "comment": "This is a receipient addresses",
-  "offset_count": 12
-}
-3:44
-# The Assigned Address object
-# Attributes
-# address_id
-# string
-# Unique identifier for the address.
-# public_address
-# string
-# Shareable B58 encoded string that represents this address.
-# account_id
-# string
-# Unique identifier for the assigned associated account.
-# address_book_entry_id
-# serialized id
-# The id for an Address Book Entry object if associated to the address.
-# comment
-# string
-# An arbitrary string attached to the object.
-# More attributes
-# object
-# string, value is "address"
-# String representing the object's type. Objects of the same type share the same value.
-# subaddress_index
-# string (uint64)
-# The assigned subaddress index on the associated account..
-# offset_count
-# int
-# The value to offset pagination requests for assigned_address list. Requests will exclude all list items up to and including this object.
+
+### The Assigned Address Object
+
+#### Attributes
+
+| *Name* | *Type* | *Description*
+| :--- | :--- | :---
+| address_id | string | Unique identifier for the address.
+| account_id | string | Unique identifier for the assigned associated account.
+| public_address | string | Shareable B58 encoded string that represents this address.
+| address_book_entry_id | serialized id | The id for an Address Book Entry object if associated to the address.
+| comment | string | An arbitrary string attached to the object.
+
+#### More Attributes
+
+| *Name* | *Type* | *Description*
+| :--- | :--- | :---
+| object | string, value is "assigned_address" | String representing the object's type. Objects of the same type share the same value.
+| subaddress_index | string (uint64) | The assigned subaddress index on the associated account..
+| offset_count | int | The value to offset pagination requests for assigned_address list. Requests will exclude all list items up to and including this object.
+
+#### Example Object
+
+```
 {
   "object": "assigned_address",
   "address_id": "HpaL8g88...",
@@ -188,104 +155,75 @@ The Full Service Wallet API provides several objects that correspond to the data
   "address_book_entry_id": 36,
   "comment": "This is an assigned addresses that expects 1.5 MOB"
   "subaddress_index": "20",
-  "offset_count": 20,
+  "offset_count": 21,
 }
-3:45
-# The Address Book Entry
-# Attributes
-# address_book_entry_id
-# int
-# Unique identifier for the address book entry. This value is not associated to the ledger.
-# alias
-# string
-# An arbitrary string attached to the object. Useful as a user-level identifier.
-# comment
-# string
-# An arbitrary string attached to the object.
-# recipient_address_ids
-# list
-# A list of all recipient address_ids associated to this address book entry.
-# assigned_address_ids
-# list
-# A list of all recipient address_ids associated to this address book entry.
-# assigned_address_ids_by_account_map
-# hash map
-# A normalized hash mapping account_id to a list of assigned address_ids.
-# More attributes
-# object
-# string, value is "address_book_entry"
-# String representing the object's type. Objects of the same type share the same value.
-# offset_count
-# int
-# The value to offset pagination requests for address_book_entry list. Requests will exclude all list items up to and including this object.
-{
-  "object": "address_book_entry",
-  "address_book_entry_id": 36,
-  "alias": "Ojo de Tigre",
-  "comment": "Homeboy from way back",
-  "recipient_address_ids": ["42Dik1AA...", "MZ1gUP8E...", "4nZaeNa5..."],
-  "assigned_address_ids": [ "HpaL8g88...", "YuG7Aa82...", "cPTw8yhs...", "6R6JwQAW..."],
-  "assigned_address_ids_by_account_map": {
-    "1916a9b3...": ["HpaL8g88...", "YuG7Aa82...", "cPTw8yhs..."],
-    "9b3ea14b...": ["6R6JwQAW..."],
-  }
-  "offset_count": 36,
-}
-3:45
-# The Transaction Log
-# Attributes
-# transaction_log_id
-# int
-# Unique identifier for the transaction log. This value is not associated to the ledger.
-# direction
-# string
-# A string that identifies if this transaction log was sent or received. Valid values are "sent" or "received".
-# is_sent_recovered
-# boolean
-# Flag that indicates if the sent transaction log was recovered from the ledger. This value is null for "received" transaction logs. If true, some information may not be available on the transaction log and its txos without user input. If true, the fee receipient_address_id, fee, and sent_time will be null without user input.
-# account_id
-# string
-# Unique identifier for the assigned associated account. If the transaction is out-going, this account is from whence the txo came. If received, this is the receiving account.
-# recipent_address_id
-# string
-# Unique identifier for the recipient associated account. Only available if direction is "sent".
-# assigned_address_id
-# string
-# Unique identifier for the assigned associated account. Only available if direction is "received".
-# value_pmob
-# string (uint64)
-# Value in pico MOB associated to this transaction log.
-# fee_pmob
-# string (uint64)
-# Fee in pico MOB associated to this transaction log. Only on outgoing transaction logs. Only available if direction is "sent".
-# block_height
-# string (uint64)
-# The scanned block height that generated this transaction log.
-# status
-# string
-# String representing the transaction log status. On "sent", valid statuses are "built", "pending", "succeded", "failed".  On "received", the status is "succeded".
-# More attributes
-# object
-# string, value is "transaction_log"
-# String representing the object's type. Objects of the same type share the same value.
-# txo_ids
-# list
-# A list of all txo_ids associated with this transaction log.
-# sent_time
-# timestamp
-# Time at which sent transaction log was created. Only available if direction is "sent". This value is null if "received" or if the sent transactions were recovered from the ledger (is_sent_recovered = true).
-# comment
-# string
-# An arbitrary string attached to the object.
-# failure_code
-# int
-# Code representing the cause of "failed" status.
-# failure_message
-# string
-# Human parsible explanation of "failed" status.
-# offset_count
-# int
-# The value to offset pagination requests for transaction_log list. Requests will exclude all list items up to and including this object.
+```
+
+#### API Methods Returning Assigned Address Objects
+
+* [create_address](../README.md#create-assigned-subaddress)
+* [list_addresses](../README.md#list-assigned-subaddresses)
+
+### The Transaction Log Object
+
+#### Attributes
+
+| *Name* | *Type* | *Description*
+| :--- | :--- | :---
+
+| transaction_log_id
+| int
+| Unique identifier for the transaction log. This value is not associated to the ledger.
+| direction
+| string
+| A string that identifies if this transaction log was sent or received. Valid values are "sent" or "received".
+| is_sent_recovered
+| boolean
+| Flag that indicates if the sent transaction log was recovered from the ledger. This value is null for "received" transaction logs. If true, some information may not be available on the transaction log and its txos without user input. If true, the fee receipient_address_id, fee, and sent_time will be null without user input.
+| account_id
+| string
+| Unique identifier for the assigned associated account. If the transaction is out-going, this account is from whence the txo came. If received, this is the receiving account.
+| recipent_address_id
+| string
+| Unique identifier for the recipient associated account. Only available if direction is "sent".
+| assigned_address_id
+| string
+| Unique identifier for the assigned associated account. Only available if direction is "received".
+| value_pmob
+| string (uint64)
+| Value in pico MOB associated to this transaction log.
+| fee_pmob
+| string (uint64)
+| Fee in pico MOB associated to this transaction log. Only on outgoing transaction logs. Only available if direction is "sent".
+| block_height
+| string (uint64)
+| The scanned block height that generated this transaction log.
+| status
+| string
+| String representing the transaction log status. On "sent", valid statuses are "built", "pending", "succeded", "failed".  On "received", the status is "succeded".
+| More attributes
+| object
+| string, value is "transaction_log"
+| String representing the object's type. Objects of the same type share the same value.
+| txo_ids
+| list
+| A list of all txo_ids associated with this transaction log.
+| sent_time
+| timestamp
+| Time at which sent transaction log was created. Only available if direction is "sent". This value is null if "received" or if the sent transactions were recovered from the ledger (is_sent_recovered = true).
+| comment
+| string
+| An arbitrary string attached to the object.
+| failure_code
+| int
+| Code representing the cause of "failed" status.
+| failure_message
+| string
+| Human parsible explanation of "failed" status.
+| offset_count
+| int
+| The value to offset pagination requests for transaction_log list. Requests will exclude all list items up to and including this object.
+
 {
   "object": "transaction_log",
   "transaction_log_id": 1823,
@@ -416,4 +354,84 @@ The Full Service Wallet API provides several objects that correspond to the data
   "subaddress_index": "20",
   "key_image": "6d6f6269...",
   "offset_count": 284
+}
+
+## Future API Objects
+
+
+### The Recipient Address object
+
+(Coming soon!)
+
+#### Attributes
+
+ *Name* | *Type* | *Description*
+| :--- | :--- | :---
+| address_id | string | Unique identifier for the address.
+| public_address | string | Shareable B58 encoded string that represents this address.
+| address_book_entry_id | serialized id | The id for an Address Book Entry object if associated to the address.
+| comment | string | An arbitrary string attached to the object.
+
+#### More attributes
+
+ *Name* | *Type* | *Description*
+| :--- | :--- | :---
+| object | string, value is "address" | String representing the object's type. Objects of the same type share the same value.
+| account_id | string | Unique identifier for the assigned associated account. Only for "assigned" addresses
+| offset_count | int | The value to offset pagination requests for recipient_address list. Requests will exclude all list items up to and including this object.
+
+#### Example Object
+
+```
+{
+  "object": "recipient_address",
+  "address_id": "42Dik1AA...",
+  "public_address": "42Dik1AA...",
+  "address_book_entry_id": 36,
+  "comment": "This is a receipient addresses",
+  "offset_count": 12
+}
+```
+
+
+
+# The Address Book Entry
+# Attributes
+# address_book_entry_id
+# int
+# Unique identifier for the address book entry. This value is not associated to the ledger.
+# alias
+# string
+# An arbitrary string attached to the object. Useful as a user-level identifier.
+# comment
+# string
+# An arbitrary string attached to the object.
+# recipient_address_ids
+# list
+# A list of all recipient address_ids associated to this address book entry.
+# assigned_address_ids
+# list
+# A list of all recipient address_ids associated to this address book entry.
+# assigned_address_ids_by_account_map
+# hash map
+# A normalized hash mapping account_id to a list of assigned address_ids.
+# More attributes
+# object
+# string, value is "address_book_entry"
+# String representing the object's type. Objects of the same type share the same value.
+# offset_count
+# int
+# The value to offset pagination requests for address_book_entry list. Requests will exclude all list items up to and including this object.
+{
+  "object": "address_book_entry",
+  "address_book_entry_id": 36,
+  "alias": "Ojo de Tigre",
+  "comment": "Homeboy from way back",
+  "recipient_address_ids": ["42Dik1AA...", "MZ1gUP8E...", "4nZaeNa5..."],
+  "assigned_address_ids": [ "HpaL8g88...", "YuG7Aa82...", "cPTw8yhs...", "6R6JwQAW..."],
+  "assigned_address_ids_by_account_map": {
+    "1916a9b3...": ["HpaL8g88...", "YuG7Aa82...", "cPTw8yhs..."],
+    "9b3ea14b...": ["6R6JwQAW..."],
+  }
+  "offset_count": 36,
 }

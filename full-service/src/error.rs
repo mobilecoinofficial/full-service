@@ -45,9 +45,6 @@ pub enum WalletServiceError {
     /// Error decoding prost {0}
     ProstDecode(prost::DecodeError),
 
-    /// Error decoding b58: No public address in wrapper.
-    B58Decode,
-
     /// Error serializing json {0}
     SerdeJson(serde_json::Error),
 }
@@ -119,6 +116,9 @@ pub enum WalletDbError {
 
     /// Error encoding b58 {0}
     B58Encode(mc_api::display::Error),
+
+    /// Error decoding b58: No public address in wrapper.
+    B58Decode,
 
     /// Constructed a malformed transaction with multiple account IDs
     MultipleAccountIDsInTransaction,

@@ -2,7 +2,7 @@
 
 //! Implementations of services.
 
-mod decorated_types;
+pub mod decorated_types;
 pub mod sync;
 pub mod transaction_builder;
 pub mod wallet;

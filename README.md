@@ -22,7 +22,7 @@ A MobileCoin service for wallet implementations.
     ```sh
     mkdir /tmp/wallet-db/
 
-    ./target/release/wallet-service \
+    ./target/release/full-service \
         --wallet-db /tmp/wallet-db/wallet.db \
         --ledger-db /tmp/ledger-db/ \
         --peer mc://node1.test.mobilecoin.com/ \
@@ -462,10 +462,14 @@ curl -s localhost:9090/wallet \
   "method": "create_address",
   "result": {
     "address": {
-      "public_address_b58": "84NXhbCHE9hQ6fbioRyZJMhuoz6NJFo43JJqboZa7PtqrQWU5ozBi2Px5shPYAr7PR2ED4EL9BvuT1rqDc289t3rMLUYSyxQZxX6EnskNLz",
-      "subaddress_index": "3",
+      "object": "address",
+      "address_id": "3",
+      "public_address": "3zjsgFjqCjptUD7FYY7bj4qanJWnZjdbVodBkGcBBwx7W4P9GissUvCLx4F4QhVde33Bt75fshEG5A5KRsVCNxhHkHbeS22SXiPDHssmWvL",
+      "account_id": "15893926fd0eaf0055f73fe1246d369db6a55943e77ebf24c955768792050185",
       "address_book_entry_id": null,
-      "comment": "For transactions from Carol"
+      "comment": "For transactions from Frank",
+      "subaddress_index": "2",
+      "offset_count": 0
     }
   }
 }
@@ -496,29 +500,35 @@ curl -s localhost:9090/wallet \
   "result": {
     "addresses": [
       {
-        "public_address_b58": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+        "object": "address",
+        "address_id": "1",
+        "public_address": "3fGctHzq5t23xSE3Vj9Ya6uyE2bHAdrn58KaFVgzb6CUHFwPrV9obmnq3XcewvrmEtyeMTMhGvFNqRyVT5FUsu4SAkQW8D7LHs22TVTBQ6m",
+        "account_id": "15893926fd0eaf0055f73fe1246d369db6a55943e77ebf24c955768792050185",
+        "address_book_entry_id": null,
+        "comment": "Main",
         "subaddress_index": "0",
-        "address_book_entry_id": null,
-        "comment": "Main"
+        "offset_count": 0
       },
       {
-        "public_address_b58": "7xKjiti17VLvkJZT2Wb16QWtQSgmVxVwBjr34btrWRLXNBmavK9LEwovkEhrchdXQGCwjDtFo93qLhaBNoKNSSfRNqA5WhK8XQGmyN6Kntv",
+        "object": "address",
+        "address_id": "2",
+        "public_address": "4JH2kV2ff2EuuY9qQtNtvTknWRG7ga8Bt8zvaYqtoQ7eKUk8VZdMYJ7pGLQjNXCWWuRG1xVnyRh2kuQPcPtUhtXW2pafutHEEgXZYSEvWuE",
+        "account_id": "15893926fd0eaf0055f73fe1246d369db6a55943e77ebf24c955768792050185",
+        "address_book_entry_id": null,
+        "comment": "Change",
         "subaddress_index": "1",
-        "address_book_entry_id": null,
-        "comment": "Change"
+        "offset_count": 0
       },
       {
-        "public_address_b58": "6mWmJtmyuXiB8iBVbTpB3DKKeKM6rdfiGF9SxhKnBqREdHtD3APooCxxFRL8Ga8rQKeo1b3XKPj8sj227tPdkiybBNEaGXXinFGk7XXA7Bu",
+        "object": "address",
+        "address_id": "3",
+        "public_address": "3zjsgFjqCjptUD7FYY7bj4qanJWnZjdbVodBkGcBBwx7W4P9GissUvCLx4F4QhVde33Bt75fshEG5A5KRsVCNxhHkHbeS22SXiPDHssmWvL",
+        "account_id": "15893926fd0eaf0055f73fe1246d369db6a55943e77ebf24c955768792050185",
+        "address_book_entry_id": null,
+        "comment": "For transactions from Frank",
         "subaddress_index": "2",
-        "address_book_entry_id": null,
-        "comment": "For transactions from Bob"
-      },
-      {
-        "public_address_b58": "7uvFzQXBPbKj4K8fndfve7s1wxRKKVogyCnpqepTWkpshk4gRu63fh5G8JD5UagxfLZvtfYfXuazBPcQSkNiwXVAjmWQTcpw3gQahx1cUmM",
-        "subaddress_index": "3",
-        "address_book_entry_id": null,
-        "comment": "For transactions from Carol"
-      },
+        "offset_count": 0
+      }
     ]
   }
 }
