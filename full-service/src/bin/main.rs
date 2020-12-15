@@ -92,7 +92,7 @@ fn main() {
         Some(LedgerSyncServiceThread::new(
             ledger_db.clone(),
             peer_manager.clone(),
-            network_state,
+            network_state.clone(),
             transactions_fetcher,
             config.poll_interval,
             logger.clone(),
@@ -104,6 +104,7 @@ fn main() {
             wallet_db,
             ledger_db,
             peer_manager,
+            network_state,
             config.get_fog_pubkey_resolver(logger.clone()).map(Arc::new),
             config.num_workers,
             logger,

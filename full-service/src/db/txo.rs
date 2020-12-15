@@ -18,7 +18,6 @@ use crate::{
 };
 
 use mc_account_keys::{AccountKey, PublicAddress};
-use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::RistrettoPublic;
 use mc_mobilecoind::payments::TxProposal;
@@ -33,7 +32,7 @@ use diesel::{
     r2d2::{ConnectionManager, PooledConnection},
     RunQueryDsl,
 };
-use std::{fmt, iter::FromIterator};
+use std::fmt;
 
 #[derive(Debug)]
 pub struct TxoID(String);
@@ -119,8 +118,9 @@ pub trait TxoModel {
     /// Get a map of txo_status -> Vec<Txo> for all txos in a given account.
     fn list_by_status(
         account_id_hex: &str,
+        status: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<HashMap<String, Vec<Txo>>, WalletDbError>;
+    ) -> Result<Vec<Txo>, WalletDbError>;
 
     /// Get the details for a specific Txo for a given account.
     ///
@@ -486,68 +486,22 @@ impl TxoModel for Txo {
 
     fn list_by_status(
         account_id_hex: &str,
+        status: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<HashMap<String, Vec<Txo>>, WalletDbError> {
+    ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::account_txo_statuses;
         use crate::db::schema::txos;
 
-        let unspent: Vec<Txo> = txos::table
+        let results: Vec<Txo> = txos::table
             .inner_join(
                 account_txo_statuses::table.on(txos::txo_id_hex
                     .eq(account_txo_statuses::txo_id_hex)
                     .and(account_txo_statuses::account_id_hex.eq(account_id_hex))
-                    .and(account_txo_statuses::txo_status.eq(TXO_UNSPENT))),
+                    .and(account_txo_statuses::txo_status.eq(status))),
             )
             .select(txos::all_columns)
             .load(conn)?;
 
-        let pending: Vec<Txo> = txos::table
-            .inner_join(
-                account_txo_statuses::table.on(txos::txo_id_hex
-                    .eq(account_txo_statuses::txo_id_hex)
-                    .and(account_txo_statuses::account_id_hex.eq(account_id_hex))
-                    .and(account_txo_statuses::txo_status.eq(TXO_PENDING))),
-            )
-            .select(txos::all_columns)
-            .load(conn)?;
-
-        let spent: Vec<Txo> = txos::table
-            .inner_join(
-                account_txo_statuses::table.on(txos::txo_id_hex
-                    .eq(account_txo_statuses::txo_id_hex)
-                    .and(account_txo_statuses::account_id_hex.eq(account_id_hex))
-                    .and(account_txo_statuses::txo_status.eq(TXO_SPENT))),
-            )
-            .select(txos::all_columns)
-            .load(conn)?;
-
-        let secreted: Vec<Txo> = txos::table
-            .inner_join(
-                account_txo_statuses::table.on(txos::txo_id_hex
-                    .eq(account_txo_statuses::txo_id_hex)
-                    .and(account_txo_statuses::account_id_hex.eq(account_id_hex))
-                    .and(account_txo_statuses::txo_status.eq(TXO_SECRETED))),
-            )
-            .select(txos::all_columns)
-            .load(conn)?;
-
-        let orphaned: Vec<Txo> = txos::table
-            .inner_join(
-                account_txo_statuses::table.on(txos::txo_id_hex
-                    .eq(account_txo_statuses::txo_id_hex)
-                    .and(account_txo_statuses::account_id_hex.eq(account_id_hex))
-                    .and(account_txo_statuses::txo_status.eq(TXO_ORPHANED))),
-            )
-            .select(txos::all_columns)
-            .load(conn)?;
-
-        let results = HashMap::from_iter(vec![
-            (TXO_UNSPENT.to_string(), unspent),
-            (TXO_PENDING.to_string(), pending),
-            (TXO_SPENT.to_string(), spent),
-            (TXO_SECRETED.to_string(), secreted),
-            (TXO_ORPHANED.to_string(), orphaned),
-        ]);
         Ok(results)
     }
 
@@ -850,10 +804,13 @@ mod tests {
         assert_eq!(txos[0].1, expected_txo_status);
 
         // Verify that the status filter works as well
-        let balances =
-            Txo::list_by_status(&account_id_hex.to_string(), &wallet_db.get_conn().unwrap())
-                .unwrap();
-        assert_eq!(balances[TXO_UNSPENT].len(), 1);
+        let unspent = Txo::list_by_status(
+            &account_id_hex.to_string(),
+            TXO_UNSPENT,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(unspent.len(), 1);
 
         // Now we'll "spend" the TXO
         // FIXME: TODO: construct transaction proposal to spend it, maybe needs a helper in test_utils
@@ -886,10 +843,13 @@ mod tests {
         assert_eq!(account.next_block, spent_block_count + 1);
 
         // Verify that there are no unspent txos
-        let balances =
-            Txo::list_by_status(&account_id_hex.to_string(), &wallet_db.get_conn().unwrap())
-                .unwrap();
-        assert!(balances[TXO_UNSPENT].is_empty());
+        let unspent = Txo::list_by_status(
+            &account_id_hex.to_string(),
+            TXO_UNSPENT,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        assert!(unspent.is_empty());
     }
 
     #[test_with_logger]

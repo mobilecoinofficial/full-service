@@ -614,15 +614,13 @@ mod tests {
         );
 
         // Check balance
-        let txo_lists = Txo::list_by_status(
+        let unspent = Txo::list_by_status(
             &AccountID::from(&account_key).to_string(),
+            TXO_UNSPENT,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        let balance: u128 = txo_lists[TXO_UNSPENT]
-            .iter()
-            .map(|t| t.value as u128)
-            .sum::<u128>();
+        let balance: u128 = unspent.iter().map(|t| t.value as u128).sum::<u128>();
         assert_eq!(balance, 21_000_000 * MOB as u128);
 
         // Now try to send a transaction with a value > u64::MAX

@@ -13,21 +13,23 @@ use serde_derive::{Deserialize, Serialize};
 #[derive(Deserialize, Serialize, Default, Debug)]
 pub struct JsonCreateAccountResponse {
     pub entropy: String,
-    pub public_address_b58: String,
-    pub account_id: String,
-}
-
-#[derive(Deserialize, Serialize, Default, Debug)]
-pub struct JsonImportAccountResponse {
-    pub public_address_b58: String,
-    pub account_id: String,
+    pub account: JsonAccount,
 }
 
 #[derive(Deserialize, Serialize, Default, Debug)]
 pub struct JsonAccount {
+    pub object: String,
     pub account_id: String,
     pub name: String,
-    pub synced_blocks: String,
+    pub network_height: String,
+    pub local_height: String,
+    pub account_height: String,
+    pub is_synced: bool,
+    pub available_pmob: String,
+    pub pending_pmob: String,
+    pub main_address: String,
+    pub next_subaddress_index: String,
+    pub recovery_mode: bool,
 }
 
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]

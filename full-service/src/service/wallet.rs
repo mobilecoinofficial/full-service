@@ -1,14 +1,17 @@
 // Copyright (c) 2020 MobileCoin Inc.
 
-use crate::service::{
-    decorated_types::{
-        JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
-        JsonListTxosResponse, JsonSubmitResponse, JsonTransactionResponse, JsonTxo,
+use crate::{
+    db::account::AccountID,
+    service::{
+        decorated_types::{
+            JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
+            JsonListTxosResponse, JsonSubmitResponse, JsonTransactionResponse, JsonTxo,
+        },
+        wallet_impl::WalletService,
     },
-    wallet_impl::WalletService,
 };
 use mc_connection::ThickClient;
-use mc_connection::UserTxConnection;
+use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_connection::FogPubkeyResolver;
 use mc_fog_report_connection::GrpcFogPubkeyResolver;
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
@@ -19,7 +22,7 @@ use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 pub struct WalletState<
-    T: UserTxConnection + 'static,
+    T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 > {
     pub service: WalletService<T, FPR>,
@@ -117,13 +120,11 @@ pub enum JsonCommandRequest {
 #[allow(non_camel_case_types)]
 pub enum JsonCommandResponse {
     create_account {
-        public_address: String,
         entropy: String,
-        account_id: String,
+        account: JsonAccount,
     },
     import_account {
-        public_address: String,
-        account_id: String,
+        account: JsonAccount,
     },
     list_accounts {
         accounts: Vec<JsonAccount>,
@@ -203,15 +204,13 @@ fn wallet_api(
                 .transpose()
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
 
-            // FIXME: WS-13 - better way to convert between the json type and enum
             let result = state
                 .service
                 .create_account(name, fb)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             JsonCommandResponse::create_account {
-                public_address: result.public_address_b58,
                 entropy: result.entropy,
-                account_id: result.account_id,
+                account: result.account,
             }
         }
         JsonCommandRequest::import_account {
@@ -227,10 +226,7 @@ fn wallet_api(
                 .service
                 .import_account(entropy, name, fb)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
-            JsonCommandResponse::import_account {
-                public_address: result.public_address_b58,
-                account_id: result.account_id,
-            }
+            JsonCommandResponse::import_account { account: result }
         }
         JsonCommandRequest::list_accounts => JsonCommandResponse::list_accounts {
             accounts: state
@@ -241,7 +237,7 @@ fn wallet_api(
         JsonCommandRequest::get_account { account_id } => JsonCommandResponse::get_account {
             account: state
                 .service
-                .get_account(&account_id)
+                .get_account(&AccountID(account_id))
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
         JsonCommandRequest::update_account_name { account_id, name } => {
@@ -417,10 +413,6 @@ pub fn rocket(
     rocket_config: rocket::Config,
     state: WalletState<ThickClient, GrpcFogPubkeyResolver>,
 ) -> rocket::Rocket {
-    // FIXME: WS-31 - Note that if state has different type parameters, it throws an error that you are
-    // requesting unmanaged state. This is an issue in tests, where we want to use mock
-    // connections. For now, I am simply not testing the endpoints like submit_transaction,
-    // and I am not building test transactions with a fog recipients.
     rocket::custom(rocket_config)
         .mount("/", routes![wallet_api, wallet_help])
         .manage(state)
@@ -433,11 +425,13 @@ mod tests {
         db::models::{TXO_RECEIVED, TXO_UNSPENT},
         service::wallet_impl::b58_decode,
         test_utils::{
-            add_block_to_ledger_db, get_test_ledger, setup_grpc_peer_manager, WalletDbTestContext,
+            add_block_to_ledger_db, get_test_ledger, setup_peer_manager_and_network_state,
+            WalletDbTestContext,
         },
     };
     use mc_account_keys::PublicAddress;
     use mc_common::logger::{log, test_with_logger, Logger};
+    use mc_connection_test_utils::MockBlockchainConnection;
     use mc_crypto_rand::rand_core::RngCore;
     use mc_ledger_db::LedgerDB;
     use mc_transaction_core::ring_signature::KeyImage;
@@ -457,17 +451,28 @@ mod tests {
         PORT_NR.fetch_add(1, SeqCst) as u16 + 30300
     }
 
+    fn test_rocket(
+        rocket_config: rocket::Config,
+        state: WalletState<MockBlockchainConnection<LedgerDB>, GrpcFogPubkeyResolver>,
+    ) -> rocket::Rocket {
+        rocket::custom(rocket_config)
+            .mount("/", routes![wallet_api, wallet_help])
+            .manage(state)
+    }
+
     fn setup(mut rng: &mut StdRng, logger: Logger) -> (Client, LedgerDB) {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger.clone());
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
-        let peer_manager = setup_grpc_peer_manager(logger.clone());
+        let (peer_manager, network_state) =
+            setup_peer_manager_and_network_state(ledger_db.clone(), logger.clone());
 
         let service = WalletService::new(
             wallet_db,
             ledger_db.clone(),
             peer_manager,
+            network_state,
             None,
             None,
             logger,
@@ -477,7 +482,7 @@ mod tests {
             rocket::Config::build(rocket::config::Environment::Development)
                 .port(get_free_port())
                 .unwrap();
-        let rocket = rocket(rocket_config, WalletState { service });
+        let rocket = test_rocket(rocket_config, WalletState { service });
         (
             Client::new(rocket).expect("valid rocket instance"),
             ledger_db,
