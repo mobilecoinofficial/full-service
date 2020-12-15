@@ -536,10 +536,12 @@ mod tests {
             }
         });
         let result = dispatch(&client, body, &logger);
-        assert!(result.get("public_address").is_some());
         assert!(result.get("entropy").is_some());
-        assert!(result.get("account_id").is_some());
-        let account_id = result.get("account_id").unwrap();
+        let account_obj = result.get("account").unwrap();
+        assert!(account_obj.get("main_address").is_some());
+        assert!(account_obj.get("account_id").is_some());
+        assert_eq!(account_obj.get("available_pmob").unwrap(), "0");
+        let account_id = account_obj.get("account_id").unwrap();
 
         // Read Accounts via List, Get
         let body = json!({
@@ -614,9 +616,10 @@ mod tests {
             }
         });
         let result = dispatch(&client, body, &logger);
-        let public_address = result.get("public_address").unwrap().as_str().unwrap();
+        let account_obj = result.get("account").unwrap();
+        let public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
         assert_eq!(public_address, "8JtpPPh9mV2PTLrrDz4f2j4PtUpNWnrRg8HKpnuwkZbj5j8bGqtNMNLC9E3zjzcw456215yMjkCVYK4FPZTX4gijYHiuDT31biNHrHmQmsU");
-        let account_id = result.get("account_id").unwrap().as_str().unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
         assert_eq!(
             account_id,
             "b266572c325f5f0388e4645cfa945d8527e90a11bf2182c28f62090225e73138"
@@ -636,9 +639,10 @@ mod tests {
             }
         });
         let result = dispatch(&client, body, &logger);
-        assert!(result.get("public_address").is_some());
+        let account_obj = result.get("account").unwrap();
+        assert!(account_obj.get("main_address").is_some());
         assert!(result.get("entropy").is_some());
-        assert!(result.get("account_id").is_some());
+        assert!(account_obj.get("account_id").is_some());
     }
 
     #[test_with_logger]
@@ -716,8 +720,9 @@ mod tests {
             }
         });
         let result = dispatch(&client, body, &logger);
-        let account_id = result.get("account_id").unwrap().as_str().unwrap();
-        let b58_public_address = result.get("public_address").unwrap().as_str().unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
         let public_address = b58_decode(b58_public_address).unwrap();
 
         // Add a block with a txo for this address (note that value is smaller than MINIMUM_FEE)
@@ -831,7 +836,13 @@ mod tests {
             }
         });
         let result = dispatch(&client, body, &logger);
-        let account_id = result.get("account_id").unwrap().as_str().unwrap();
+        let account_id = result
+            .get("account")
+            .unwrap()
+            .get("account_id")
+            .unwrap()
+            .as_str()
+            .unwrap();
 
         // Create a subaddress
         let body = json!({
