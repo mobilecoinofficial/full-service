@@ -129,11 +129,11 @@ curl -s localhost:9090/wallet \
 | `name`         | Label for this account   | Can have duplicates (not recommended) |
 | `first_block`  | The block from which to start scanning the ledger |  |
 
-#### List Accounts
+#### Get All Accounts
 
 ```sh
 curl -s localhost:9090/wallet \
-  -d '{"method": "list_accounts"}' \
+  -d '{"method": "get_all_accounts"}' \
   -X POST -H 'Content-type: application/json' | jq
 
       {
@@ -257,12 +257,12 @@ curl -s localhost:9090/wallet \
 
 ### TXOs
 
-#### List TXOs for a given account
+#### Get All TXOs for a given account
 
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "list_txos",
+        "method": "get_all_txos",
         "params": {
           "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
         }
@@ -270,7 +270,7 @@ curl -s localhost:9090/wallet \
   -X POST -H 'Content-type: application/json'  | jq
 
 {
-  "method": "list_txos",
+  "method": "get_all_txos",
   "result": {
     "txos": [
       {
@@ -387,7 +387,7 @@ Note, you may wish to filter TXOs using a tool like jq. For example, to get all 
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "list_txos",
+        "method": "get_all_txos",
         "params": {"account_id": "1916a9b39ed28ab3a6eea69ac364b834ccc35b8e9763e8516d1a1f06aba5fb72"
         }
       }' \
@@ -570,12 +570,12 @@ curl -s localhost:9090/wallet \
 | :------------- | :----------------------- | :------------------------ |
 | `comment`      | Annotation for this subaddress |  |
 
-#### List Assigned Subaddresses
+#### Get All Assigned Subaddresses
 
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "list_addresses",
+        "method": "get_all_addresses",
         "params": {
           "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
         }
@@ -583,7 +583,7 @@ curl -s localhost:9090/wallet \
   -X POST -H 'Content-type: application/json' | jq
 
 {
-  "method": "list_addresses",
+  "method": "get_all_addresses",
   "result": {
     "addresses": [
       {
@@ -661,7 +661,7 @@ curl -s localhost:9090/wallet \
 
 | Optional Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
-| `input_txo_ids` | Specific TXOs to use as inputs to this transaction   | TXO IDs (obtain from `list_txos`) |
+| `input_txo_ids` | Specific TXOs to use as inputs to this transaction   | TXO IDs (obtain from `get_all_txos`) |
 | `fee` | The fee amount to submit with this transaction | If not provided, uses `MINIMUM_FEE` = .01 MOB |
 | `tombstone_block` | The block after which this transaction expires | If not provided, uses `cur_height` + 50 |
 | `max_spendable_value` | The maximum amount for an input TXO selected for this transaction |  |
@@ -888,7 +888,7 @@ curl -s localhost:9090/wallet \
 
 | Optional Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
-| `input_txo_ids` | Specific TXOs to use as inputs to this transaction   | TXO IDs (obtain from `list_txos`) |
+| `input_txo_ids` | Specific TXOs to use as inputs to this transaction   | TXO IDs (obtain from `get_all_txos`) |
 | `fee` | The fee amount to submit with this transaction | If not provided, uses `MINIMUM_FEE` = .01 MOB |
 | `tombstone_block` | The block after which this transaction expires | If not provided, uses `cur_height` + 50 |
 | `max_spendable_value` | The maximum amount for an input TXO selected for this transaction |  |
@@ -938,12 +938,12 @@ curl -s localhost:9090/wallet \
 | :------------- | :----------------------- | :------------------------ |
 | `comment` | Comment to annotate this transaction in the transaction log   | |
 
-#### List Transactions
+#### Get All Transactions
 
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "list_transactions",
+        "method": "get_all_transactions",
         "params": {
           "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10"
         }
@@ -951,7 +951,7 @@ curl -s localhost:9090/wallet \
   -X POST -H 'Content-type: application/json' | jq
 
 {
-  "method": "list_transactions",
+  "method": "get_all_transactions",
   "result": {
     "transactions": [
       {

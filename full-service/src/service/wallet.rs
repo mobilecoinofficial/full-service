@@ -41,7 +41,7 @@ pub enum JsonCommandRequest {
         name: Option<String>,
         first_block: Option<String>,
     },
-    list_accounts,
+    get_all_accounts,
     get_account {
         account_id: String,
     },
@@ -52,7 +52,7 @@ pub enum JsonCommandRequest {
     delete_account {
         account_id: String,
     },
-    list_txos {
+    get_all_txos {
         account_id: String,
     },
     get_txo {
@@ -66,7 +66,7 @@ pub enum JsonCommandRequest {
         account_id: String,
         comment: Option<String>,
     },
-    list_addresses {
+    get_all_addresses {
         account_id: String,
     },
     send_transaction {
@@ -93,7 +93,7 @@ pub enum JsonCommandRequest {
         comment: Option<String>,
         account_id: Option<String>,
     },
-    list_transactions {
+    get_all_transactions {
         account_id: String,
     },
     get_transaction {
@@ -125,7 +125,7 @@ pub enum JsonCommandResponse {
     import_account {
         account: JsonAccount,
     },
-    list_accounts {
+    get_all_accounts {
         accounts: Vec<JsonAccount>,
     },
     get_account {
@@ -137,7 +137,7 @@ pub enum JsonCommandResponse {
     delete_account {
         success: bool,
     },
-    list_txos {
+    get_all_txos {
         txos: Vec<JsonTxo>,
     },
     get_txo {
@@ -152,7 +152,7 @@ pub enum JsonCommandResponse {
     create_address {
         address: JsonAddress,
     },
-    list_addresses {
+    get_all_addresses {
         addresses: Vec<JsonAddress>,
     },
     send_transaction {
@@ -164,7 +164,7 @@ pub enum JsonCommandResponse {
     submit_transaction {
         transaction: JsonSubmitResponse,
     },
-    list_transactions {
+    get_all_transactions {
         transactions: Vec<JsonTransactionLog>,
     },
     get_transaction {
@@ -223,7 +223,7 @@ where
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             JsonCommandResponse::import_account { account: result }
         }
-        JsonCommandRequest::list_accounts => JsonCommandResponse::list_accounts {
+        JsonCommandRequest::get_all_accounts => JsonCommandResponse::get_all_accounts {
             accounts: service
                 .list_accounts()
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
@@ -245,7 +245,7 @@ where
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             JsonCommandResponse::delete_account { success: true }
         }
-        JsonCommandRequest::list_txos { account_id } => JsonCommandResponse::list_txos {
+        JsonCommandRequest::get_all_txos { account_id } => JsonCommandResponse::get_all_txos {
             txos: service
                 .list_txos(&account_id)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
@@ -275,11 +275,13 @@ where
                 .create_assigned_subaddress(&account_id, comment.as_deref())
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
-        JsonCommandRequest::list_addresses { account_id } => JsonCommandResponse::list_addresses {
-            addresses: service
-                .list_assigned_subaddresses(&account_id)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
-        },
+        JsonCommandRequest::get_all_addresses { account_id } => {
+            JsonCommandResponse::get_all_addresses {
+                addresses: service
+                    .list_assigned_subaddresses(&account_id)
+                    .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+            }
+        }
         JsonCommandRequest::send_transaction {
             account_id,
             recipient_public_address,
@@ -337,8 +339,8 @@ where
                 .submit_transaction(tx_proposal, comment, account_id)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
-        JsonCommandRequest::list_transactions { account_id } => {
-            JsonCommandResponse::list_transactions {
+        JsonCommandRequest::get_all_transactions { account_id } => {
+            JsonCommandResponse::get_all_transactions {
                 transactions: service
                     .list_transactions(&account_id)
                     .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
@@ -562,7 +564,7 @@ mod tests {
 
         // Read Accounts via List, Get
         let body = json!({
-            "method": "list_accounts",
+            "method": "get_all_accounts",
         });
         let result = dispatch(&client, body, &logger);
         let accounts = result.get("accounts").unwrap().as_array().unwrap();
@@ -612,7 +614,7 @@ mod tests {
         assert_eq!(result.get("success").unwrap(), true);
 
         let body = json!({
-            "method": "list_accounts",
+            "method": "get_all_accounts",
         });
         let result = dispatch(&client, body, &logger);
         let accounts = result.get("accounts").unwrap().as_array().unwrap();
@@ -701,7 +703,7 @@ mod tests {
     }
 
     #[test_with_logger]
-    fn test_list_txos(logger: Logger) {
+    fn test_get_all_txos(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db) = setup(&mut rng, logger.clone());
 
@@ -732,7 +734,7 @@ mod tests {
         std::thread::sleep(Duration::from_secs(4));
 
         let body = json!({
-            "method": "list_txos",
+            "method": "get_all_txos",
             "params": {
                 "account_id": account_id,
             }
@@ -945,7 +947,7 @@ mod tests {
         std::thread::sleep(Duration::from_secs(4));
 
         let body = json!({
-            "method": "list_txos",
+            "method": "get_all_txos",
             "params": {
                 "account_id": account_id,
             }
