@@ -544,11 +544,7 @@ mod tests {
         // Now we'll ingest them.
         let (account_id, _address) = Account::create(
             &account_key,
-            0,
-            1,
-            2,
-            0,
-            1,
+            Some(0),
             None,
             "",
             &wallet_db.get_conn().unwrap(),

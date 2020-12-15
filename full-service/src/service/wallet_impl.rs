@@ -20,7 +20,7 @@ use crate::{
         decorated_types::{
             JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
             JsonCreateAccountResponse, JsonListTxosResponse, JsonSubmitResponse,
-            JsonTransactionResponse, JsonTxo, JsonWalletStatus,
+            JsonTransactionLog, JsonTxo, JsonWalletStatus,
         },
         sync::SyncThread,
         transaction_builder::WalletTransactionBuilder,
@@ -512,12 +512,12 @@ impl<
     pub fn list_transactions(
         &self,
         account_id_hex: &str,
-    ) -> Result<Vec<JsonTransactionResponse>, WalletServiceError> {
+    ) -> Result<Vec<JsonTransactionLog>, WalletServiceError> {
         let transactions = TransactionLog::list_all(account_id_hex, &self.wallet_db.get_conn()?)?;
 
-        let mut results: Vec<JsonTransactionResponse> = Vec::new();
+        let mut results: Vec<JsonTransactionLog> = Vec::new();
         for (transaction, associated_txos) in transactions.iter() {
-            results.push(JsonTransactionResponse::new(&transaction, &associated_txos));
+            results.push(JsonTransactionLog::new(&transaction, &associated_txos));
         }
         Ok(results)
     }
@@ -525,13 +525,13 @@ impl<
     pub fn get_transaction(
         &self,
         transaction_id_hex: &str,
-    ) -> Result<JsonTransactionResponse, WalletServiceError> {
+    ) -> Result<JsonTransactionLog, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
         let transaction = TransactionLog::get(transaction_id_hex, &conn)?;
 
         let associated = transaction.get_associated_txos(&conn)?;
 
-        Ok(JsonTransactionResponse::new(&transaction, &associated))
+        Ok(JsonTransactionLog::new(&transaction, &associated))
     }
 
     pub fn get_transaction_object(

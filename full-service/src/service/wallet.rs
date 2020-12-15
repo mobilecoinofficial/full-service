@@ -5,7 +5,7 @@ use crate::{
     service::{
         decorated_types::{
             JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
-            JsonListTxosResponse, JsonSubmitResponse, JsonTransactionResponse, JsonTxo,
+            JsonListTxosResponse, JsonSubmitResponse, JsonTransactionLog, JsonTxo,
             JsonWalletStatus,
         },
         wallet_impl::WalletService,
@@ -99,10 +99,10 @@ pub enum JsonCommandRequest {
         account_id: String,
     },
     get_transaction {
-        transaction_id: String,
+        transaction_log_id: String,
     },
     get_transaction_object {
-        transaction_id: String,
+        transaction_log_id: String,
     },
     get_txo_object {
         account_id: String,
@@ -168,10 +168,10 @@ pub enum JsonCommandResponse {
         transaction: JsonSubmitResponse,
     },
     list_transactions {
-        transactions: Vec<JsonTransactionResponse>,
+        transactions: Vec<JsonTransactionLog>,
     },
     get_transaction {
-        transaction: JsonTransactionResponse,
+        transaction: JsonTransactionLog,
     },
     get_transaction_object {
         transaction: JsonTx,
@@ -347,17 +347,17 @@ where
                     .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
             }
         }
-        JsonCommandRequest::get_transaction { transaction_id } => {
+        JsonCommandRequest::get_transaction { transaction_log_id } => {
             JsonCommandResponse::get_transaction {
                 transaction: service
-                    .get_transaction(&transaction_id)
+                    .get_transaction(&transaction_log_id)
                     .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
             }
         }
-        JsonCommandRequest::get_transaction_object { transaction_id } => {
+        JsonCommandRequest::get_transaction_object { transaction_log_id } => {
             JsonCommandResponse::get_transaction_object {
                 transaction: service
-                    .get_transaction_object(&transaction_id)
+                    .get_transaction_object(&transaction_log_id)
                     .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
             }
         }
@@ -425,8 +425,10 @@ pub fn rocket(
 mod tests {
     use super::*;
     use crate::{
-        db::models::{TXO_RECEIVED, TXO_UNSPENT},
-        service::wallet_impl::b58_decode,
+        db::{
+            b58_decode,
+            models::{TXO_RECEIVED, TXO_UNSPENT},
+        },
         test_utils::{
             add_block_to_ledger_db, get_test_ledger, setup_peer_manager_and_network_state,
             WalletDbTestContext,

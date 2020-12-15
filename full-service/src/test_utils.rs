@@ -382,11 +382,7 @@ pub fn random_account_with_seed_values(
     let account_key = AccountKey::random(&mut rng);
     Account::create(
         &account_key,
-        0,
-        1,
-        2,
-        0,
-        0,
+        Some(0),
         None,
         "",
         &wallet_db.get_conn().unwrap(),

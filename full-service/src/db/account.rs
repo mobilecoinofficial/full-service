@@ -22,7 +22,6 @@ use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_transaction_core::ring_signature::KeyImage;
 
 use diesel::{
-    connection::TransactionManager,
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},
     RunQueryDsl,
@@ -164,7 +163,6 @@ impl AccountModel for Account {
                     "Change",
                     &conn,
                 )?;
-                conn.transaction_manager().commit_transaction(conn)?;
                 Ok((account_id, main_subaddress_b58))
             })?,
         )
@@ -371,18 +369,9 @@ mod tests {
         let account_key = AccountKey::random(&mut rng);
         let account_id_hex = {
             let conn = wallet_db.get_conn().unwrap();
-            let (account_id_hex, _public_address_b58) = Account::create(
-                &account_key,
-                0,
-                1,
-                2,
-                0,
-                1,
-                None,
-                "Alice's Main Account",
-                &conn,
-            )
-            .unwrap();
+            let (account_id_hex, _public_address_b58) =
+                Account::create(&account_key, Some(0), None, "Alice's Main Account", &conn)
+                    .unwrap();
             account_id_hex
         };
 
@@ -401,7 +390,7 @@ mod tests {
             change_subaddress_index: 1,
             next_subaddress_index: 2,
             first_block: 0,
-            next_block: 1,
+            next_block: 0,
             import_block: None,
             name: "Alice's Main Account".to_string(),
         };
@@ -434,11 +423,7 @@ mod tests {
         let account_key_secondary = AccountKey::from(&RootIdentity::from_random(&mut rng));
         let (account_id_hex_secondary, _public_address_b58_secondary) = Account::create(
             &account_key_secondary,
-            0,
-            1,
-            2,
-            50,
-            51,
+            Some(51),
             Some(50),
             "",
             &wallet_db.get_conn().unwrap(),
@@ -456,7 +441,7 @@ mod tests {
             main_subaddress_index: 0,
             change_subaddress_index: 1,
             next_subaddress_index: 2,
-            first_block: 50,
+            first_block: 51,
             next_block: 51,
             import_block: Some(50),
             name: "".to_string(),

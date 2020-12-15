@@ -758,11 +758,7 @@ mod tests {
         let account_key = AccountKey::random(&mut rng);
         let (account_id_hex, _public_address_b58) = Account::create(
             &account_key,
-            0,
-            1,
-            2,
-            0,
-            1,
+            Some(1),
             None,
             "Alice's Main Account",
             &wallet_db.get_conn().unwrap(),
@@ -862,11 +858,7 @@ mod tests {
         let account_key = AccountKey::random(&mut rng);
         let (account_id_hex, _public_address_b58) = Account::create(
             &account_key,
-            0,
-            1,
-            2,
-            0,
-            1,
+            Some(1),
             None,
             "Alice's Main Account",
             &wallet_db.get_conn().unwrap(),
@@ -970,11 +962,7 @@ mod tests {
         let account_key = AccountKey::random(&mut rng);
         let (account_id_hex, _public_address_b58) = Account::create(
             &account_key,
-            0,
-            1,
-            2,
-            0,
-            1,
+            Some(0),
             None,
             "Alice's Main Account",
             &wallet_db.get_conn().unwrap(),
@@ -1025,11 +1013,7 @@ mod tests {
 
         Account::create(
             &src_account,
-            0,
-            1,
-            2,
-            0,
-            0,
+            Some(0),
             None,
             "",
             &wallet_db.get_conn().unwrap(),
@@ -1086,11 +1070,7 @@ mod tests {
         let recipient_account_key = AccountKey::random(&mut rng);
         Account::create(
             &recipient_account_key,
-            0,
-            1,
-            2,
-            0,
-            0,
+            Some(0),
             None,
             "",
             &wallet_db.get_conn().unwrap(),

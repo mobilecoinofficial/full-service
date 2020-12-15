@@ -170,63 +170,37 @@ The Full Service Wallet API provides several objects that correspond to the data
 
 | *Name* | *Type* | *Description*
 | :--- | :--- | :---
+| transaction_log_id | int | Unique identifier for the transaction log. This value is not associated to the ledger.
+| direction | string | A string that identifies if this transaction log was sent or received. Valid values are "sent" or "received".
+| is_sent_recovered | boolean | Flag that indicates if the sent transaction log was recovered from the ledger. This value is null for "received" transaction logs. If true, some information may not be available on the transaction log and its txos without user input. If true, the fee receipient_address_id, fee, and sent_time will be null without user input.
+| account_id | string | Unique identifier for the assigned associated account. If the transaction is out-going, this account is from whence the txo came. If received, this is the receiving account.
+| recipent_address_id | string | Unique identifier for the recipient associated account. Only available if direction is "sent".
+| assigned_address_id | string | Unique identifier for the assigned associated account. Only available if direction is "received".
+| value_pmob | string (uint64) | Value in pico MOB associated to this transaction log.
+| fee_pmob | string (uint64) | Fee in pico MOB associated to this transaction log. Only on outgoing transaction logs. Only available if direction is "sent".
+| block_height | string (uint64) | The scanned block height that generated this transaction log.
+| status | string | String representing the transaction log status. On "sent", valid statuses are "built", "pending", "succeded", "failed".  On "received", the status is "succeded".
 
-| transaction_log_id
-| int
-| Unique identifier for the transaction log. This value is not associated to the ledger.
-| direction
-| string
-| A string that identifies if this transaction log was sent or received. Valid values are "sent" or "received".
-| is_sent_recovered
-| boolean
-| Flag that indicates if the sent transaction log was recovered from the ledger. This value is null for "received" transaction logs. If true, some information may not be available on the transaction log and its txos without user input. If true, the fee receipient_address_id, fee, and sent_time will be null without user input.
-| account_id
-| string
-| Unique identifier for the assigned associated account. If the transaction is out-going, this account is from whence the txo came. If received, this is the receiving account.
-| recipent_address_id
-| string
-| Unique identifier for the recipient associated account. Only available if direction is "sent".
-| assigned_address_id
-| string
-| Unique identifier for the assigned associated account. Only available if direction is "received".
-| value_pmob
-| string (uint64)
-| Value in pico MOB associated to this transaction log.
-| fee_pmob
-| string (uint64)
-| Fee in pico MOB associated to this transaction log. Only on outgoing transaction logs. Only available if direction is "sent".
-| block_height
-| string (uint64)
-| The scanned block height that generated this transaction log.
-| status
-| string
-| String representing the transaction log status. On "sent", valid statuses are "built", "pending", "succeded", "failed".  On "received", the status is "succeded".
-| More attributes
-| object
-| string, value is "transaction_log"
-| String representing the object's type. Objects of the same type share the same value.
-| txo_ids
-| list
-| A list of all txo_ids associated with this transaction log.
-| sent_time
-| timestamp
-| Time at which sent transaction log was created. Only available if direction is "sent". This value is null if "received" or if the sent transactions were recovered from the ledger (is_sent_recovered = true).
-| comment
-| string
-| An arbitrary string attached to the object.
-| failure_code
-| int
-| Code representing the cause of "failed" status.
-| failure_message
-| string
-| Human parsible explanation of "failed" status.
-| offset_count
-| int
-| The value to offset pagination requests for transaction_log list. Requests will exclude all list items up to and including this object.
+#### More attributes
 
+| *Name* | *Type* | *Description*
+| :--- | :--- | :---
+| object | string, value is "transaction_log" | String representing the object's type. Objects of the same type share the same value.
+| txo_ids | list | A list of all txo_ids associated with this transaction log.
+| sent_time | timestamp | Time at which sent transaction log was created. Only available if direction is "sent". This value is null if "received" or if the sent transactions were recovered from the ledger (is_sent_recovered = true).
+| comment | string | An arbitrary string attached to the object.
+| failure_code | int | Code representing the cause of "failed" status.
+| failure_message | string | Human parsable explanation of "failed" status.
+| offset_count | int | The value to offset pagination requests for transaction_log list. Requests will exclude all list items up to and including this object.
+
+#### Example Objects
+
+Received:
+
+```
 {
   "object": "transaction_log",
-  "transaction_log_id": 1823,
+  "transaction_log_id": "873dfb8c...",
   "direction": "received",
   "is_sent_recovered": null,
   "account_id": "1916a9b3...",
@@ -234,15 +208,23 @@ The Full Service Wallet API provides several objects that correspond to the data
   "assigned_address_id": "HpaL8g88...",
   "value_pmob": "8500000000000",
   "fee_pmob": null,
-  "block_height": "14152",
-  "status": "succeded",
-  "txo_ids": ["14ad2f88..."],
+  "submitted_block_height": null,
+  "fiunalized_block_height": "14152",
+  "status": "succeeded",
+  "intput_txo_ids": [],
+  "output_txo_ids": ["28f2f033..."],
+  "change_txo_ids": [],
   "sent_time": null,
   "comment": "This is a received tranaction log of 8.5 MOB!",
   "failure_code": null,
   "failure_message:": null
   "offset_count": 1823
 }
+```
+
+Sent - Failed:
+
+```
 {
   "object": "transaction_log",
   "transaction_log_id": 2111,
@@ -253,16 +235,23 @@ The Full Service Wallet API provides several objects that correspond to the data
   "assigned_address_id": null,
   "value_pmob": "1288000000000",
   "fee_pmob": "10000000000",
-  "block_height": "19152",
-  "status": "pending",
-  "txo_ids": ["2bd44ea1..."],
-  "sent_time": 1607816210,
+  "submitted_block_height": "19152",
+  "finalized_block_height": "19152",
+  "status": "failed",
+  "input_txo_ids": ["2bd44ea1..."],
+  "output_txo_ids": ["3ce55d21..."],
+  "change_txo_ids": ["1ac3d0f2..."],
+  "sent_time": "2020-12-15 09:30:04 UTC",
   "comment": "This is an example of a failed sent tranaction log of 1.288 MOB and 0.01 MOB fee!",
   "failure_code": 3,
   "failure_message:": "Contains sent key image."
   "offset_count": 2111
 }
-# Sent - Success, Recovered
+```
+
+Sent - Success, Recovered:
+
+```
 {
   "object": "transaction_log",
   "transaction_log_id": 888,
@@ -282,57 +271,46 @@ The Full Service Wallet API provides several objects that correspond to the data
   "failure_message:": "Contains sent key image."
   "offset_count": 888
 }
-3:45
-# The TXO
-# Attributes
-# value_pmob
-# string (uint64)
-# Available pico MOB for this account at the current account_height. If the account is syncing, this value may change.
-# received_block_height
-# string (uint64)
-# Block height in which the txo was received by an account.
-# spent_block_height
-# string (uint64)
-# Block height in which the txo was spent by an account.
-# is_spent_recovered
-# boolean
-# Flag that indicates if the spent_block_height was recovered from the ledger. This value is null if the txo is unspent. If true, some information may not be available on the txo without user input. If true, the proof will be null without user input.
-# received_account_id
-# string
-# The account_id for the account which has received this TXO. This account has spend authority.
-# minted_account_id
-# string
-# The account_id for the account which minted this TXO.
-# account_status_map
-# hash map
-# A normalized hash mapping account_id to account objects. Keys include "type" and "status".
-# key: txo_type
-# With respect to this account, the TXO may be "minted" or "received".
-# key: txo_status
-# With respect to this account, the TXO may be "unspent", "pending", "spent", "secreted" or "orphaned". For received TXOs received as an assigned address, the lifecycle is "unspent" -> "pending" -> "spent". For outbound, minted TXOs, we cannot monitor its received lifecycle status with respect to the minting account, we note its status as "secreted". If a TXO is received at an address unassigned (likely due to a recovered account or using the account on another client), the TXO is considered "orphaned" until its address is calculated -- in this case, there are manual ways to discover the missing assigned address for orphaned TXOs or to recover an entire account.
-# More attributes
-# object
-# string, value is "txo"
-# String representing the object's type. Objects of the same type share the same value.
-# target_key
-# string (hex)
-# a cryptographic key for your txo
-# public_key
-# string (hex)
-# the public key for this txo, can be used as an identifier to find the txo in the ledger
-# e_fog_hint
-# string (hex)
-# the encrypted fog hint for this txo
-# subaddress_index
-# string (uint64)
-# The assigned subaddress index for this TXO with respect to its received account.
-# key_image (only on pending/spent)
-# string (hex)
-# a fingerprint of the txo derived from your private spend key materials, required to spend a txo
-# offset_count
-# int
-# The value to offset pagination requests. Requests will exclude all list items up to and including this object.
-# Recieved and Spent TXO
+```
+
+#### API Methods Returning Transaction Log Objects
+
+* [list_transactions](../README.md#list-transactions)
+* [get_transaction](../README.md#get-transaction)
+
+### The TXO Object
+
+#### Attributes
+
+| *Name* | *Type* | *Description*
+| :--- | :--- | :---
+| value_pmob | string (uint64) | Available pico MOB for this account at the current account_height. If the account is syncing, this value may change.
+| received_block_height | string (uint64) | Block height in which the txo was received by an account.
+| spent_block_height | string (uint64) | Block height in which the txo was spent by an account.
+| is_spent_recovered | boolean | Flag that indicates if the spent_block_height was recovered from the ledger. This value is null if the txo is unspent. If true, some information may not be available on the txo without user input. If true, the proof will be null without user input.
+| received_account_id | string | The account_id for the account which has received this TXO. This account has spend authority.
+| minted_account_i | string | The account_id for the account which minted this TXO.
+| account_status_map | hash map | A normalized hash mapping account_id to account objects. Keys include "type" and "status".
+| | key: txo_type | With respect to this account, the TXO may be "minted" or "received".
+| | key: txo_status | With respect to this account, the TXO may be "unspent", "pending", "spent", "secreted" or "orphaned". For received TXOs received as an assigned address, the lifecycle is "unspent" -> "pending" -> "spent". For outbound, minted TXOs, we cannot monitor its received lifecycle status with respect to the minting account, we note its status as "secreted". If a TXO is received at an address unassigned (likely due to a recovered account or using the account on another client), the TXO is considered "orphaned" until its address is calculated -- in this case, there are manual ways to discover the missing assigned address for orphaned TXOs or to recover an entire account.
+
+#### More attributes
+
+| *Name* | *Type* | *Description*
+| :--- | :--- | :---
+| object | string, value is "txo" | String representing the object's type. Objects of the same type share the same value.
+| target_key | string (hex) | a cryptographic key for your txo
+| public_key | string (hex) | the public key for this txo, can be used as an identifier to find the txo in the ledger
+| e_fog_hint | string (hex) | the encrypted fog hint for this txo
+| subaddress_index | string (uint64) | The assigned subaddress index for this TXO with respect to its received account.
+| key_image (only on pending/spent) | string (hex) | a fingerprint of the txo derived from your private spend key materials, required to spend a txo
+| offset_count | int | The value to offset pagination requests. Requests will exclude all list items up to and including this object.
+
+#### Example Objects
+
+Received and Spent TXO
+
+```
 {
   "object": "txo",
   "txo_id": "14ad2f88...",
@@ -355,9 +333,14 @@ The Full Service Wallet API provides several objects that correspond to the data
   "key_image": "6d6f6269...",
   "offset_count": 284
 }
+```
+
+#### API Methods Returning Transaction Log Objects
+
+* [list_txos](../README.md#list-transactions)
+* [get_transaction](../README.md#get-transaction)
 
 ## Future API Objects
-
 
 ### The Recipient Address object
 
@@ -365,7 +348,7 @@ The Full Service Wallet API provides several objects that correspond to the data
 
 #### Attributes
 
- *Name* | *Type* | *Description*
+| *Name* | *Type* | *Description*
 | :--- | :--- | :---
 | address_id | string | Unique identifier for the address.
 | public_address | string | Shareable B58 encoded string that represents this address.
@@ -374,7 +357,7 @@ The Full Service Wallet API provides several objects that correspond to the data
 
 #### More attributes
 
- *Name* | *Type* | *Description*
+| *Name* | *Type* | *Description*
 | :--- | :--- | :---
 | object | string, value is "address" | String representing the object's type. Objects of the same type share the same value.
 | account_id | string | Unique identifier for the assigned associated account. Only for "assigned" addresses
@@ -393,35 +376,31 @@ The Full Service Wallet API provides several objects that correspond to the data
 }
 ```
 
+### The Address Book Entry
 
+(Coming soon!)
 
-# The Address Book Entry
-# Attributes
-# address_book_entry_id
-# int
-# Unique identifier for the address book entry. This value is not associated to the ledger.
-# alias
-# string
-# An arbitrary string attached to the object. Useful as a user-level identifier.
-# comment
-# string
-# An arbitrary string attached to the object.
-# recipient_address_ids
-# list
-# A list of all recipient address_ids associated to this address book entry.
-# assigned_address_ids
-# list
-# A list of all recipient address_ids associated to this address book entry.
-# assigned_address_ids_by_account_map
-# hash map
-# A normalized hash mapping account_id to a list of assigned address_ids.
-# More attributes
-# object
-# string, value is "address_book_entry"
-# String representing the object's type. Objects of the same type share the same value.
-# offset_count
-# int
-# The value to offset pagination requests for address_book_entry list. Requests will exclude all list items up to and including this object.
+#### Attributes
+
+| *Name* | *Type* | *Description*
+| :--- | :--- | :---
+| address_book_entry_id | int | Unique identifier for the address book entry. This value is not associated to the ledger.
+| alias | string | An arbitrary string attached to the object. Useful as a user-level identifier.
+| comment | string | An arbitrary string attached to the object.
+| recipient_address_ids | list | A list of all recipient address_ids associated to this address book entry.
+| assigned_address_ids | list | A list of all recipient address_ids associated to this address book entry.
+| assigned_address_ids_by_account_map | hash map | A normalized hash mapping account_id to a list of assigned address_ids.
+
+#### More attributes
+
+| *Name* | *Type* | *Description*
+| :--- | :--- | :---
+| object | string, value is "address_book_entry" | String representing the object's type. Objects of the same type share the same value.
+| offset_count | int | The value to offset pagination requests for address_book_entry list. Requests will exclude all list items up to and including this object.
+
+#### Example Object
+
+```
 {
   "object": "address_book_entry",
   "address_book_entry_id": 36,
@@ -435,3 +414,4 @@ The Full Service Wallet API provides several objects that correspond to the data
   }
   "offset_count": 36,
 }
+```
