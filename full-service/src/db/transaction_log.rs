@@ -349,8 +349,7 @@ impl TransactionLogModel for TransactionLog {
                     }
 
                     // Get the public address for the subaddress that received these TXOs
-                    let account_key: AccountKey =
-                        mc_util_serial::decode(&account.encrypted_account_key)?;
+                    let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
                     let b58_subaddress = if *subaddress_index >= 0 {
                         let subaddress = account_key.subaddress(*subaddress_index as u64);
                         b58_encode(&subaddress)?

@@ -173,8 +173,7 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
             conn.transaction::<TxProposal, WalletTransactionBuilderError, _>(|| {
                 let account: Account =
                     Account::get(&AccountID(self.account_id_hex.to_string()), &conn)?;
-                let from_account_key: AccountKey =
-                    mc_util_serial::decode(&account.encrypted_account_key)?;
+                let from_account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
 
                 // Get membership proofs for our inputs
                 let indexes = self

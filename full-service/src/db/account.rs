@@ -134,7 +134,7 @@ impl AccountModel for Account {
             conn.transaction::<(AccountID, String), WalletDbError, _>(|| {
                 let new_account = NewAccount {
                     account_id_hex: &account_id.to_string(),
-                    encrypted_account_key: &mc_util_serial::encode(account_key), // FIXME: WS-6 - add encryption
+                    account_key: &mc_util_serial::encode(account_key), // FIXME: WS-6 - add encryption
                     main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
                     change_subaddress_index: DEFAULT_CHANGE_SUBADDRESS_INDEX as i64,
                     next_subaddress_index: DEFAULT_NEXT_SUBADDRESS_INDEX as i64,
@@ -215,7 +215,7 @@ impl AccountModel for Account {
                 .map(|t| t.value as u128)
                 .sum::<u128>();
 
-            let account_key: AccountKey = mc_util_serial::decode(&account.encrypted_account_key)?;
+            let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
             let main_subaddress_b58 =
                 b58_encode(&account_key.subaddress(DEFAULT_SUBADDRESS_INDEX))?;
             Ok(JsonAccount {
@@ -385,7 +385,7 @@ mod tests {
         let expected_account = Account {
             id: 1,
             account_id_hex: account_id_hex.to_string(),
-            encrypted_account_key: mc_util_serial::encode(&account_key),
+            account_key: mc_util_serial::encode(&account_key),
             main_subaddress_index: 0,
             change_subaddress_index: 1,
             next_subaddress_index: 2,
@@ -437,7 +437,7 @@ mod tests {
         let mut expected_account_secondary = Account {
             id: 2,
             account_id_hex: account_id_hex_secondary.to_string(),
-            encrypted_account_key: mc_util_serial::encode(&account_key_secondary),
+            account_key: mc_util_serial::encode(&account_key_secondary),
             main_subaddress_index: 0,
             change_subaddress_index: 1,
             next_subaddress_index: 2,

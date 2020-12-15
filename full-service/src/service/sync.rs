@@ -380,7 +380,7 @@ fn process_txos(
     received_block_index: i64,
     logger: &Logger,
 ) -> Result<HashMap<i64, Vec<String>>, SyncError> {
-    let account_key: AccountKey = mc_util_serial::decode(&account.encrypted_account_key)?;
+    let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
     let view_key = account_key.view_key();
     let account_id_hex = AccountID::from(&account_key).to_string();
 

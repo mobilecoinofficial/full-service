@@ -42,7 +42,7 @@ pub const TXO_CHANGE: &str = "change";
 pub struct Account {
     pub id: i32,
     pub account_id_hex: String,
-    pub encrypted_account_key: Vec<u8>,
+    pub account_key: Vec<u8>,
     pub main_subaddress_index: i64,
     pub change_subaddress_index: i64,
     pub next_subaddress_index: i64,
@@ -58,7 +58,7 @@ pub struct Account {
 #[table_name = "accounts"]
 pub struct NewAccount<'a> {
     pub account_id_hex: &'a str,
-    pub encrypted_account_key: &'a Vec<u8>,
+    pub account_key: &'a Vec<u8>,
     pub main_subaddress_index: i64,
     pub change_subaddress_index: i64,
     pub next_subaddress_index: i64,

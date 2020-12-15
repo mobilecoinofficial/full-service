@@ -106,7 +106,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         Ok(conn.transaction::<(String, i64), WalletDbError, _>(|| {
             let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
-            let account_key: AccountKey = mc_util_serial::decode(&account.encrypted_account_key)?;
+            let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
             let subaddress_index = account.next_subaddress_index;
             let subaddress = account_key.subaddress(subaddress_index as u64);
 

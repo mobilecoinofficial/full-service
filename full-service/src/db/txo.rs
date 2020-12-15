@@ -565,8 +565,7 @@ impl TxoModel for Txo {
                     let assigned_subaddress = if let Some(subaddress_index) = txo.subaddress_index {
                         let account: Account =
                             Account::get(&AccountID(account_txo_status.account_id_hex), conn)?;
-                        let account_key: AccountKey =
-                            mc_util_serial::decode(&account.encrypted_account_key)?;
+                        let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
                         let subaddress = account_key.subaddress(subaddress_index as u64);
                         let subaddress_b58 = b58_encode(&subaddress)?;
 
@@ -744,7 +743,7 @@ impl TxoModel for Txo {
         let txo_details = Txo::get(txo_id, conn)?;
         let public_key: RistrettoPublic = mc_util_serial::decode(&txo_details.txo.public_key)?;
         let account = Account::get(account_id, conn)?;
-        let account_key: AccountKey = mc_util_serial::decode(&account.encrypted_account_key)?;
+        let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
         Ok(proof.validate(&public_key, account_key.view_private_key()))
     }
 }
