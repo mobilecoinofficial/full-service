@@ -47,6 +47,9 @@ pub enum WalletServiceError {
 
     /// Error decoding b58: No public address in wrapper.
     B58Decode,
+
+    /// Error serializing json {0}
+    SerdeJson(serde_json::Error),
 }
 
 impl From<WalletDbError> for WalletServiceError {
@@ -94,6 +97,12 @@ impl From<mc_ledger_db::Error> for WalletServiceError {
 impl From<prost::DecodeError> for WalletServiceError {
     fn from(src: prost::DecodeError) -> Self {
         Self::ProstDecode(src)
+    }
+}
+
+impl From<serde_json::Error> for WalletServiceError {
+    fn from(src: serde_json::Error) -> Self {
+        Self::SerdeJson(src)
     }
 }
 

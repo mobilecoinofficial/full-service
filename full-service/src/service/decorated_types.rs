@@ -9,6 +9,7 @@ use crate::db::{
 use chrono::{TimeZone, Utc};
 use mc_mobilecoind_json::data_types::{JsonTxOut, JsonTxOutMembershipElement};
 use serde_derive::{Deserialize, Serialize};
+use serde_json::Map;
 
 #[derive(Deserialize, Serialize, Default, Debug)]
 pub struct JsonCreateAccountResponse {
@@ -16,7 +17,7 @@ pub struct JsonCreateAccountResponse {
     pub account: JsonAccount,
 }
 
-#[derive(Deserialize, Serialize, Default, Debug)]
+#[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct JsonAccount {
     pub object: String,
     pub account_id: String,
@@ -30,6 +31,18 @@ pub struct JsonAccount {
     pub main_address: String,
     pub next_subaddress_index: String,
     pub recovery_mode: bool,
+}
+
+#[derive(Deserialize, Serialize, Default, Debug, Clone)]
+pub struct JsonWalletStatus {
+    pub object: String,
+    pub network_height: String,
+    pub local_height: String,
+    pub is_synced_all: bool,
+    pub total_available_pmob: String,
+    pub total_pending_pmob: String,
+    pub account_ids: Vec<String>,
+    pub account_map: Map<String, serde_json::Value>,
 }
 
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]

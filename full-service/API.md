@@ -76,6 +76,7 @@ The Full Service Wallet API provides several objects that correspond to the data
 | :--- | :--- | :---
 | object | string, value is "wallet_status" | String representing the object's type. Objects of the same type share the same value.
 
+```
 {
   "object": 'wallet_status',
   "network_height": '88888888',
@@ -113,8 +114,13 @@ The Full Service Wallet API provides several objects that correspond to the data
     },
   },
 }
-3:44
-# The Receipient Address object
+```
+
+#### API Methods Returning Wallet Status Objects
+
+* [get_wallet_status](../README.md#get-wallet-status)
+
+# The Recipient Address object
 # Attributes
 # address_id
 # string

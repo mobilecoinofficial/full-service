@@ -6,6 +6,7 @@ use crate::{
         decorated_types::{
             JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
             JsonListTxosResponse, JsonSubmitResponse, JsonTransactionResponse, JsonTxo,
+            JsonWalletStatus,
         },
         wallet_impl::WalletService,
     },
@@ -59,6 +60,7 @@ pub enum JsonCommandRequest {
         account_id: String,
         txo_id: String,
     },
+    get_wallet_status,
     get_balance {
         account_id: String,
     },
@@ -143,6 +145,9 @@ pub enum JsonCommandResponse {
     },
     get_txo {
         txo: JsonTxo,
+    },
+    get_wallet_status {
+        status: JsonWalletStatus,
     },
     get_balance {
         status: JsonBalanceResponse,
@@ -262,6 +267,12 @@ where
                 .get_txo(&account_id, &txo_id)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             JsonCommandResponse::get_txo { txo: result }
+        }
+        JsonCommandRequest::get_wallet_status => {
+            let result = service
+                .get_wallet_status()
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+            JsonCommandResponse::get_wallet_status { status: result }
         }
         JsonCommandRequest::get_balance { account_id } => JsonCommandResponse::get_balance {
             status: service
@@ -545,7 +556,7 @@ mod tests {
         assert_eq!(account_obj.get("account_height").unwrap(), "0");
         assert_eq!(account_obj.get("is_synced").unwrap(), false);
         assert_eq!(account_obj.get("available_pmob").unwrap(), "0");
-        assert_eq!(account_obj.get("pending_pmo b").unwrap(), "0");
+        assert_eq!(account_obj.get("pending_pmob").unwrap(), "0");
         assert!(account_obj.get("main_address").is_some());
         assert_eq!(account_obj.get("next_subaddress_index").unwrap(), "2");
         assert_eq!(account_obj.get("recovery_mode").unwrap(), false);
@@ -652,6 +663,39 @@ mod tests {
         assert!(account_obj.get("main_address").is_some());
         assert!(result.get("entropy").is_some());
         assert!(account_obj.get("account_id").is_some());
+    }
+
+    #[test_with_logger]
+    fn test_wallet_status(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db) = setup(&mut rng, logger.clone());
+
+        let body = json!({
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            }
+        });
+        let _result = dispatch(&client, body, &logger);
+
+        let body = json!({
+            "method": "get_wallet_status",
+        });
+        let result = dispatch(&client, body, &logger);
+        let status = result.get("status").unwrap();
+        assert_eq!(status.get("network_height").unwrap(), "12");
+        assert_eq!(status.get("local_height").unwrap(), "12");
+        assert_eq!(status.get("is_synced_all").unwrap(), false);
+        assert_eq!(status.get("total_available_pmob").unwrap(), "0");
+        assert_eq!(status.get("total_pending_pmob").unwrap(), "0");
+        assert_eq!(
+            status.get("account_ids").unwrap().as_array().unwrap().len(),
+            1
+        );
+        assert_eq!(
+            status.get("account_map").unwrap().as_map().unwrap().len(),
+            1
+        );
     }
 
     #[test_with_logger]

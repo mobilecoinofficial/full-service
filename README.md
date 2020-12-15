@@ -353,6 +353,64 @@ curl -s localhost:9090/wallet \
 | `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
 | `txo_id`   | The txo ID for which to get details  |  |
 
+#### Get Wallet Status
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "get_wallet_status",
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
+
+{
+  "method": "get_wallet_status",
+  "result": {
+    "status": {
+      "object": "wallet_status",
+      "network_height": "152826",
+      "local_height": "152826",
+      "is_synced_all": false,
+      "total_available_pmob": "999699770000000000",
+      "total_pending_pmob": "0",
+      "account_ids": [
+        "15893926fd0eaf0055f73fe1246d369db6a55943e77ebf24c955768792050185",
+        "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10"
+      ],
+      "account_map": {
+        "15893926fd0eaf0055f73fe1246d369db6a55943e77ebf24c955768792050185": {
+          "account_height": "60310",
+          "account_id": "15893926fd0eaf0055f73fe1246d369db6a55943e77ebf24c955768792050185",
+          "available_pmob": "0",
+          "is_synced": false,
+          "local_height": "152826",
+          "main_address": "3fGctHzq5t23xSE3Vj9Ya6uyE2bHAdrn58KaFVgzb6CUHFwPrV9obmnq3XcewvrmEtyeMTMhGvFNqRyVT5FUsu4SAkQW8D7LHs22TVTBQ6m",
+          "name": "Alice",
+          "network_height": "152826",
+          "next_subaddress_index": "2",
+          "object": "account",
+          "pending_pmob": "0",
+          "recovery_mode": false
+        },
+        "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10": {
+          "account_height": "3806",
+          "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+          "available_pmob": "999699770000000000",
+          "is_synced": false,
+          "local_height": "152826",
+          "main_address": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
+          "name": "Bob",
+          "network_height": "152826",
+          "next_subaddress_index": "2",
+          "object": "account",
+          "pending_pmob": "0",
+          "recovery_mode": false
+        }
+      }
+    }
+  }
+}
+```
+
 #### Get Balance for a given account
 
 ```sh
