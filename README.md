@@ -20,6 +20,8 @@ A MobileCoin service for wallet implementations.
 1. Run
 
     ```sh
+    mkdir /tmp/wallet-db/
+
     ./target/release/wallet-service \
         --wallet-db /tmp/wallet-db/wallet.db \
         --ledger-db /tmp/ledger-db/ \
@@ -58,9 +60,21 @@ curl -s localhost:9090/wallet \
 {
   "method": "create_account",
   "result": {
-    "public_address": "8JtpPPh9mV2PTLrrDz4f2j4PtUpNWnrRg8HKpnuwkZbj5j8bGqtNMNLC9E3zjzcw456215yMjkCVYK4FPZTX4gijYHiuDT31biNHrHmQmsU",
-    "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
-    "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
+    "entropy": "c08187899b0ea7272e1371b97c0fdc2aa4cb3983e087ccce4b5fa44fde52b758",
+    "account": {
+      "object": "account",
+      "account_id": "81ca0a6c473ad70199c19033fd6eb3c94b7acfa2ae5f4065c89a4476a9b2345e",
+      "name": "Alice",
+      "network_height": "152826",
+      "local_height": "152826",
+      "account_height": "0",
+      "is_synced": false,
+      "available_pmob": "0",
+      "pending_pmob": "0",
+      "main_address": "2XyzT9mtAyfvnET7QuvBAknEYxZCZ5xgBXrhJpTSFYAU7EYgM2MrMmQtguHKQXX1kKtY328swkdJHi85ak9xKrtkPwHX3mMX616XkhDPiwV",
+      "next_subaddress_index": "2",
+      "recovery_mode": false
+    }
   }
 }
 ```
@@ -80,19 +94,32 @@ curl -s localhost:9090/wallet \
         "method": "import_account",
         "params": {
           "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
-          "name": "Alice"
+          "name": "Bob"
         }
       }' \
    -X POST -H 'Content-type: application/json' | jq
 
 {
- "method": "import_account",
- "result": {
-   "public_address": "8JtpPPh9mV2PTLrrDz4f2j4PtUpNWnrRg8HKpnuwkZbj5j8bGqtNMNLC9E3zjzcw456215yMjkCVYK4FPZTX4gijYHiuDT31biNHrHmQmsU",
-   "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
- }
+  "method": "import_account",
+  "result": {
+    "account": {
+      "object": "account",
+      "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+      "name": "Bob",
+      "network_height": "152826",
+      "local_height": "152826",
+      "account_height": "1",
+      "is_synced": false,
+      "available_pmob": "0",
+      "pending_pmob": "0",
+      "main_address": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
+      "next_subaddress_index": "2",
+      "recovery_mode": false
+    }
+  }
 }
 ```
+
 | Required Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
 | `entropy`      | The secret root entropy  | 32 bytes of randomness, hex-encoded  |
@@ -109,12 +136,34 @@ curl -s localhost:9090/wallet \
   -d '{"method": "list_accounts"}' \
   -X POST -H 'Content-type: application/json' | jq
 
-{
-  "method": "list_accounts",
-  "result": {
-    "accounts": [
-      "c7155cb1660f6dfe778dd52f6381ad3a25f35bd9f502ec337b17478f51abaade",
-      "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
+      {
+        "object": "account",
+        "account_id": "81ca0a6c473ad70199c19033fd6eb3c94b7acfa2ae5f4065c89a4476a9b2345e",
+        "name": "Alice",
+        "network_height": "152826",
+        "local_height": "152826",
+        "account_height": "48630",
+        "is_synced": false,
+        "available_pmob": "0",
+        "pending_pmob": "0",
+        "main_address": "2XyzT9mtAyfvnET7QuvBAknEYxZCZ5xgBXrhJpTSFYAU7EYgM2MrMmQtguHKQXX1kKtY328swkdJHi85ak9xKrtkPwHX3mMX616XkhDPiwV",
+        "next_subaddress_index": "2",
+        "recovery_mode": false
+      },
+      {
+        "object": "account",
+        "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+        "name": "Bob",
+        "network_height": "152826",
+        "local_height": "152826",
+        "account_height": "27601",
+        "is_synced": false,
+        "available_pmob": "994799199999988869",
+        "pending_pmob": "0",
+        "main_address": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
+        "next_subaddress_index": "2",
+        "recovery_mode": false
+      }
     ]
   }
 }
@@ -127,7 +176,7 @@ curl -s localhost:9090/wallet \
   -d '{
         "method": "get_account",
         "params": {
-          "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
+          "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10"
         }
       }' \
   -X POST -H 'Content-type: application/json'  | jq
@@ -135,7 +184,20 @@ curl -s localhost:9090/wallet \
 {
   "method": "get_account",
   "result": {
-    "name": "Alice",
+    "account": {
+      "object": "account",
+      "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+      "name": "Bob",
+      "network_height": "152826",
+      "local_height": "152826",
+      "account_height": "44271",
+      "is_synced": false,
+      "available_pmob": "994100109999988869",
+      "pending_pmob": "0",
+      "main_address": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
+      "next_subaddress_index": "2",
+      "recovery_mode": false
+    }
   }
 }
 ```
@@ -152,7 +214,7 @@ curl -s localhost:9090/wallet \
         "method": "update_account_name",
         "params": {
           "acount_id": "2b2d5cce6e24f4a396402fcf5f036890f9c06660f5d29f8420b8c89ef9074cd6",
-          "name": "Eve"
+          "name": "Carol"
         }
       }' \
   -X POST -H 'Content-type: application/json'  | jq

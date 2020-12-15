@@ -57,33 +57,25 @@ The Full Service Wallet API provides several objects that correspond to the data
 * [get_account](../README.md#list-accounts)
 
 
-# The Wallet Status object
-# Attributes
-# network_height
-# string (uint64)
-# The block height of the MobileCoin ledger. The local_height is synched when it reaches the value.
-# local_height
-# string (uint64)
-# The local block height downloaded from the ledger. The local database will sync up to the network_height. The account_height can only sync up to local_height.
-# is_synced_all
-# boolean
-# Whether ALL accounts is synced with the network_height. Balances may not appear correct if the account is still syncing.
-# total_available_pmob
-# string (uint64)
-# Available pico mob for ALL account at the account_height. If the account is syncing, this value may change.
-# total_pending_pmob
-# string (uint64)
-# Pending out-going pico mob from ALL accounts. Pending pico mobs will clear once the ledger processes the outoing txo. The available_pmob will reflect the change.
-# account_ids
-# list
-# A list of all account_ids imported into the wallet in order of import.
-# account_map
-# hash map
-# A normalized hash mapping account_id to account objects.
-# More attributes
-# object
-# string, value is "wallet_status"
-# String representing the object's type. Objects of the same type share the same value.
+### The Wallet Status object
+
+#### Attributes
+
+| *Name* | *Type* | *Description*
+| :--- | :--- | :---
+| network_height | string (uint64) | The block height of the MobileCoin ledger. The local_height is synched when it reaches the value.
+| local_height | string (uint64) | The local block height downloaded from the ledger. The local database will sync up to the network_height. The account_height can only sync up to local_height.
+| is_synced_all | boolean | Whether ALL accounts is synced with the network_height. Balances may not appear correct if the account is still syncing.
+| total_available_pmob | string (uint64) | Available pico mob for ALL account at the account_height. If the account is syncing, this value may change.
+| total_pending_pmob | string (uint64) | Pending out-going pico mob from ALL accounts. Pending pico mobs will clear once the ledger processes the outoing txo. The available_pmob will reflect the change.
+| account_ids | list | A list of all account_ids imported into the wallet in order of import.
+| account_map | hash map | A normalized hash mapping account_id to account objects.
+
+#### More attributes
+| *Name* | *Type* | *Description*
+| :--- | :--- | :---
+| object | string, value is "wallet_status" | String representing the object's type. Objects of the same type share the same value.
+
 {
   "object": 'wallet_status',
   "network_height": '88888888',

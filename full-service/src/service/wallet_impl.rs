@@ -145,7 +145,6 @@ impl<
         let fb = first_block.unwrap_or(DEFAULT_FIRST_BLOCK);
 
         let conn = self.wallet_db.get_conn()?;
-        println!("\x1b[1;31m NOW CREATING ACCOUNT \x1b[0m");
         let (account_id, _public_address_b58) = Account::create(
             &account_key,
             DEFAULT_SUBADDRESS_INDEX,
@@ -158,10 +157,7 @@ impl<
             &conn,
         )?;
 
-        println!("\x1b[1;31m NOW getting decorated ACCOUNT \x1b[0m");
         let decorated_account = self.get_decorated_account(&account_id, &conn)?;
-
-        println!("\x1b[1;31m NOW returning ACCOUNT \x1b[0m");
 
         Ok(JsonCreateAccountResponse {
             entropy: entropy_str,
@@ -242,18 +238,12 @@ impl<
         account_id_hex: &AccountID,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<JsonAccount, WalletServiceError> {
-        println!("\x1b[1;33m now getting account\x1b[0m");
         let account = Account::get(account_id_hex, conn)?;
-        println!("\x1b[1;33m now getting local height\x1b[0m");
-
         let local_height = self.ledger_db.num_blocks()?;
-
-        println!("\x1b[1;33m now getting network state\x1b[0m");
 
         let network_state = self.network_state.read().expect("lock poisoned");
         // network_height = network_block_index + 1
         let network_height = network_state.highest_block_index_on_network().unwrap_or(0) + 1;
-        println!("\x1b[1;33m now getting unspent and pending\x1b[0m");
 
         let unspent = Txo::list_by_status(&account_id_hex.to_string(), TXO_UNSPENT, conn)?
             .iter()
@@ -263,8 +253,6 @@ impl<
             .iter()
             .map(|t| t.value as u128)
             .sum::<u128>();
-
-        println!("\x1b[1;33m now getting public address from account key\x1b[0m");
 
         let account_key: AccountKey = mc_util_serial::decode(&account.encrypted_account_key)?;
         let main_subaddress_b58 = b58_encode(&account_key.subaddress(DEFAULT_SUBADDRESS_INDEX))?;
