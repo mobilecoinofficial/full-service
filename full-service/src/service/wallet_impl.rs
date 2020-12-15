@@ -177,8 +177,7 @@ impl<
             let network_height = network_state.highest_block_index_on_network().unwrap_or(0) + 1;
 
             let conn = self.wallet_db.get_conn()?;
-            let account = Account::get_decorated(&account_id, local_height, network_height, &conn)?;
-            account
+            Account::get_decorated(&account_id, local_height, network_height, &conn)?
         };
         Ok(account)
     }
@@ -284,7 +283,7 @@ impl<
             );
             total_available_pmob += decorated.available_pmob.parse::<u64>()?;
             total_pending_pmob += decorated.pending_pmob.parse::<u64>()?;
-            is_synced_all = is_synced_all && decorated.is_synced.clone();
+            is_synced_all = is_synced_all && decorated.is_synced;
             account_ids.push(account.account_id_hex.to_string());
         }
 

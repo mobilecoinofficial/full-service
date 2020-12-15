@@ -109,7 +109,7 @@ impl JsonTxo {
             assigned_subaddress: txo_details
                 .received_to_assigned_subaddress
                 .clone()
-                .map(|a| a.assigned_subaddress_b58.clone()),
+                .map(|a| a.assigned_subaddress_b58),
             key_image: txo_details.txo.key_image.as_ref().map(|k| hex::encode(&k)),
             proof: txo_details.txo.proof.as_ref().map(hex::encode),
             offset_count: txo_details.txo.id,
