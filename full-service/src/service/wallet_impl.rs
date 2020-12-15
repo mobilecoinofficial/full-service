@@ -251,7 +251,8 @@ impl<
         println!("\x1b[1;33m now getting network state\x1b[0m");
 
         let network_state = self.network_state.read().expect("lock poisoned");
-        let network_height = network_state.highest_block_index_on_network().unwrap_or(0);
+        // network_height = network_block_index + 1
+        let network_height = network_state.highest_block_index_on_network().unwrap_or(0) + 1;
         println!("\x1b[1;33m now getting unspent and pending\x1b[0m");
 
         let unspent = Txo::list_by_status(&account_id_hex.to_string(), TXO_UNSPENT, conn)?
@@ -274,8 +275,8 @@ impl<
             name: account.name,
             network_height: network_height.to_string(),
             local_height: local_height.to_string(),
-            account_height: (account.next_block - 1).to_string(),
-            is_synced: account.next_block - 1 == network_height as i64,
+            account_height: account.next_block.to_string(),
+            is_synced: account.next_block == network_height as i64,
             available_pmob: unspent.to_string(),
             pending_pmob: pending.to_string(),
             main_address: main_subaddress_b58,
