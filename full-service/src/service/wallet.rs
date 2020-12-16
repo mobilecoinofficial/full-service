@@ -52,7 +52,7 @@ pub enum JsonCommandRequest {
     delete_account {
         account_id: String,
     },
-    get_all_txos {
+    get_all_txos_by_account {
         account_id: String,
     },
     get_txo {
@@ -66,7 +66,7 @@ pub enum JsonCommandRequest {
         account_id: String,
         comment: Option<String>,
     },
-    get_all_addresses {
+    get_all_addresses_by_account {
         account_id: String,
     },
     send_transaction {
@@ -93,7 +93,7 @@ pub enum JsonCommandRequest {
         comment: Option<String>,
         account_id: Option<String>,
     },
-    get_all_transactions {
+    get_all_transactions_by_account {
         account_id: String,
     },
     get_transaction {
@@ -132,12 +132,12 @@ pub enum JsonCommandResponse {
         account: JsonAccount,
     },
     update_account_name {
-        success: bool,
+        account: JsonAccount,
     },
     delete_account {
         success: bool,
     },
-    get_all_txos {
+    get_all_txos_by_account {
         txos: Vec<JsonTxo>,
     },
     get_txo {
@@ -152,7 +152,7 @@ pub enum JsonCommandResponse {
     create_address {
         address: JsonAddress,
     },
-    get_all_addresses {
+    get_all_addresses_by_account {
         addresses: Vec<JsonAddress>,
     },
     send_transaction {
@@ -164,7 +164,7 @@ pub enum JsonCommandResponse {
     submit_transaction {
         transaction: JsonSubmitResponse,
     },
-    get_all_transactions {
+    get_all_transactions_by_account {
         transactions: Vec<JsonTransactionLog>,
     },
     get_transaction {
@@ -238,10 +238,10 @@ where
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
         JsonCommandRequest::update_account_name { account_id, name } => {
-            service
+            let account = service
                 .update_account_name(&account_id, name)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
-            JsonCommandResponse::update_account_name { success: true }
+            JsonCommandResponse::update_account_name { account }
         }
         JsonCommandRequest::delete_account { account_id } => {
             service
@@ -249,11 +249,13 @@ where
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             JsonCommandResponse::delete_account { success: true }
         }
-        JsonCommandRequest::get_all_txos { account_id } => JsonCommandResponse::get_all_txos {
-            txos: service
-                .list_txos(&account_id)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
-        },
+        JsonCommandRequest::get_all_txos_by_account { account_id } => {
+            JsonCommandResponse::get_all_txos_by_account {
+                txos: service
+                    .list_txos(&account_id)
+                    .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+            }
+        }
         JsonCommandRequest::get_txo { txo_id } => {
             let result = service
                 .get_txo(&txo_id)
@@ -279,8 +281,8 @@ where
                 .create_assigned_subaddress(&account_id, comment.as_deref())
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
-        JsonCommandRequest::get_all_addresses { account_id } => {
-            JsonCommandResponse::get_all_addresses {
+        JsonCommandRequest::get_all_addresses_by_account { account_id } => {
+            JsonCommandResponse::get_all_addresses_by_account {
                 addresses: service
                     .list_assigned_subaddresses(&account_id)
                     .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
@@ -343,7 +345,7 @@ where
                 .submit_transaction(tx_proposal, comment, account_id)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
-        JsonCommandRequest::get_all_transactions { account_id } => {
+        JsonCommandRequest::get_all_transactions_by_account { account_id } => {
             JsonCommandResponse::get_all_transactions {
                 transactions: service
                     .list_transactions(&account_id)
@@ -738,7 +740,7 @@ mod tests {
         std::thread::sleep(Duration::from_secs(4));
 
         let body = json!({
-            "method": "get_all_txos",
+            "method": "get_all_txos_by_account",
             "params": {
                 "account_id": account_id,
             }
@@ -951,7 +953,7 @@ mod tests {
         std::thread::sleep(Duration::from_secs(4));
 
         let body = json!({
-            "method": "get_all_txos",
+            "method": "get_all_txos_by_account",
             "params": {
                 "account_id": account_id,
             }
