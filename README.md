@@ -2,6 +2,17 @@
 
 A MobileCoin service for wallet implementations.
 
+* You must read and accept the [Terms of Use for MobileCoins and MobileCoin Wallets](./TERMS-OF-USE.md) to use MobileCoin Software.
+* Please note that currently, the MobileCoin Wallet is not available for download or use by U.S. persons or entities, persons or entities located in the U.S., or persons or entities in other prohibited jurisdictions.
+
+#### Note to Developers
+* MobileCoin Full Service is a prototype. Expect substantial changes before the release.
+* Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for notes on contributing bug reports and code.
+
+##### License
+
+MobileCoin Full Service is available under open-source licenses. Look for the [LICENSE](./LICENSE) file for more information.
+
 ## Build and Run
 
 1. Get the appropriate published enclave measurement, and save to `$(pwd)/consensus-enclave.css`

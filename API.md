@@ -51,11 +51,11 @@ The Full Service Wallet API provides several objects that correspond to the data
 
 #### API Methods Returning Account Objects
 
-* [create_account](../README.md#create-account)
-* [import_account](../README.md#import-account)
-* [get_all_accounts](../README.md#get-all-accounts)
-* [get_account](../README.md#get-account)
-
+* [create_account](./README.md#create-account)
+* [import_account](./README.md#import-account)
+* [get_all_accounts](./README.md#get-all-accounts)
+* [get_account](./README.md#get-account)
+* [update_account_name](./README.md#update-account-name)
 
 ### The Wallet Status Object
 
@@ -275,7 +275,7 @@ Sent - Success, Recovered:
 
 #### API Methods Returning Transaction Log Objects
 
-* [get_all_transactions](./README.md#get_all-transactions)
+* [get_all_transactions_by_account](./README.md#get-all-transactions)
 * [get_transaction](./README.md#get-transaction)
 
 ### The TXO Object
@@ -372,7 +372,7 @@ Txo Spent from One Account to Another in the Same Wallet
 
 #### API Methods Returning Transaction Log Objects
 
-* [get_all_txos](./README.md#get_all-txos-for-a-given-account)
+* [get_all_txos_by_account](./README.md#get-all-txos-for-a-given-account)
 * [get_txo](./README.md#get-txo-details)
 
 ## Future API Objects
