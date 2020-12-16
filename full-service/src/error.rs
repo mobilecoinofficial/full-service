@@ -47,6 +47,9 @@ pub enum WalletServiceError {
 
     /// Error serializing json {0}
     SerdeJson(serde_json::Error),
+
+    /// Diesel Error: {0}
+    Diesel(diesel::result::Error),
 }
 
 impl From<WalletDbError> for WalletServiceError {
@@ -100,6 +103,12 @@ impl From<prost::DecodeError> for WalletServiceError {
 impl From<serde_json::Error> for WalletServiceError {
     fn from(src: serde_json::Error) -> Self {
         Self::SerdeJson(src)
+    }
+}
+
+impl From<diesel::result::Error> for WalletServiceError {
+    fn from(src: diesel::result::Error) -> Self {
+        Self::Diesel(src)
     }
 }
 

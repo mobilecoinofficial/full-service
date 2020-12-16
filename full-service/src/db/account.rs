@@ -185,19 +185,21 @@ impl AccountModel for Account {
         network_height: u64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<JsonAccount, WalletDbError> {
-        let (account_id, _public_address_b58) = Account::create(
-            &account_key,
-            first_block,
-            Some(local_height),
-            &name.unwrap_or_else(|| "".to_string()),
-            conn,
-        )?;
-        Ok(Account::get_decorated(
-            &account_id,
-            local_height,
-            network_height,
-            &conn,
-        )?)
+        Ok(conn.transaction::<JsonAccount, WalletDbError, _>(|| {
+            let (account_id, _public_address_b58) = Account::create(
+                &account_key,
+                first_block,
+                Some(local_height),
+                &name.unwrap_or_else(|| "".to_string()),
+                conn,
+            )?;
+            Ok(Account::get_decorated(
+                &account_id,
+                local_height,
+                network_height,
+                &conn,
+            )?)
+        })?)
     }
 
     fn list_all(
