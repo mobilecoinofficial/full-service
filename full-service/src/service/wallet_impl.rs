@@ -271,40 +271,45 @@ impl<
             .highest_block_index_on_network()
             .map(|v| v + 1)
             .unwrap_or(0);
-        let accounts = Account::list_all(&conn)?;
-        let mut account_map = Map::new();
 
-        let mut total_available_pmob = 0;
-        let mut total_pending_pmob = 0;
-        let mut is_synced_all = true;
-        let mut account_ids = Vec::new();
-        for account in accounts {
-            let decorated = Account::get_decorated(
-                &AccountID(account.account_id_hex.clone()),
-                local_height,
-                network_height,
-                &conn,
-            )?;
-            account_map.insert(
-                account.account_id_hex.clone(),
-                serde_json::to_value(decorated.clone())?,
-            );
-            total_available_pmob += decorated.available_pmob.parse::<u64>()?;
-            total_pending_pmob += decorated.pending_pmob.parse::<u64>()?;
-            is_synced_all = is_synced_all && decorated.is_synced;
-            account_ids.push(account.account_id_hex.to_string());
-        }
+        Ok(
+            conn.transaction::<JsonWalletStatus, WalletServiceError, _>(|| {
+                let accounts = Account::list_all(&conn)?;
+                let mut account_map = Map::new();
 
-        Ok(JsonWalletStatus {
-            object: "wallet_status".to_string(),
-            network_height: network_height.to_string(),
-            local_height: local_height.to_string(),
-            is_synced_all,
-            total_available_pmob: total_available_pmob.to_string(),
-            total_pending_pmob: total_pending_pmob.to_string(),
-            account_ids,
-            account_map,
-        })
+                let mut total_available_pmob = 0;
+                let mut total_pending_pmob = 0;
+                let mut is_synced_all = true;
+                let mut account_ids = Vec::new();
+                for account in accounts {
+                    let decorated = Account::get_decorated(
+                        &AccountID(account.account_id_hex.clone()),
+                        local_height,
+                        network_height,
+                        &conn,
+                    )?;
+                    account_map.insert(
+                        account.account_id_hex.clone(),
+                        serde_json::to_value(decorated.clone())?,
+                    );
+                    total_available_pmob += decorated.available_pmob.parse::<u64>()?;
+                    total_pending_pmob += decorated.pending_pmob.parse::<u64>()?;
+                    is_synced_all = is_synced_all && decorated.is_synced;
+                    account_ids.push(account.account_id_hex.to_string());
+                }
+
+                Ok(JsonWalletStatus {
+                    object: "wallet_status".to_string(),
+                    network_height: network_height.to_string(),
+                    local_height: local_height.to_string(),
+                    is_synced_all,
+                    total_available_pmob: total_available_pmob.to_string(),
+                    total_pending_pmob: total_pending_pmob.to_string(),
+                    account_ids,
+                    account_map,
+                })
+            })?,
+        )
     }
 
     // Balance consists of the sums of the various txo states in our wallet
