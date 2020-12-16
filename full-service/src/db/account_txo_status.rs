@@ -87,16 +87,12 @@ impl AccountTxoStatusModel for AccountTxoStatus {
         txo_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<AccountTxoStatus>, WalletDbError> {
-        use crate::db::schema::account_txo_statuses;
-        use crate::db::schema::txos;
+        use crate::db::schema::account_txo_statuses as cols;
+        use crate::db::schema::account_txo_statuses::dsl::account_txo_statuses;
 
-        let results: Vec<AccountTxoStatus> = txos::table
-            .inner_join(
-                account_txo_statuses::table.on(txos::txo_id_hex
-                    .eq(account_txo_statuses::txo_id_hex)
-                    .and(account_txo_statuses::txo_id_hex.eq(txo_id_hex))),
-            )
-            .select(account_txo_statuses::all_columns)
+        let results: Vec<AccountTxoStatus> = account_txo_statuses
+            .filter(cols::txo_id_hex.eq(txo_id_hex))
+            .select(cols::all_columns)
             .load(conn)?;
 
         Ok(results)
