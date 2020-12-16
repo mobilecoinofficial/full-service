@@ -128,7 +128,7 @@ pub struct JsonBalanceResponse {
     pub synced_blocks: String,
 }
 
-#[derive(Deserialize, Serialize, Default, Debug)]
+#[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct JsonAddress {
     pub object: String,
     pub address_id: String,
@@ -162,7 +162,7 @@ pub struct JsonSubmitResponse {
     pub transaction_id: String,
 }
 
-#[derive(Deserialize, Serialize, Default, Debug)]
+#[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct JsonTransactionLog {
     pub object: String,
     pub transaction_log_id: String,

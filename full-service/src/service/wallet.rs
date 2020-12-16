@@ -324,7 +324,7 @@ where
                     .map(|a| {
                         (
                             a.address_id.clone(),
-                            serde_json::to_value(a.clone()).expect("Could not get json value"),
+                            serde_json::to_value(&(*a).clone()).expect("Could not get json value"),
                         )
                     })
                     .collect::<Vec<(String, serde_json::Value)>>(),
@@ -402,7 +402,7 @@ where
                     .map(|t| {
                         (
                             t.transaction_log_id.clone(),
-                            serde_json::to_value(t.clone()).expect("Could not get json value"),
+                            serde_json::to_value(&(*t).clone()).expect("Could not get json value"),
                         )
                     })
                     .collect::<Vec<(String, serde_json::Value)>>(),
