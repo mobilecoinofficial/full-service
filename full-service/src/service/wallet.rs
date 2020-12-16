@@ -346,7 +346,7 @@ where
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
         JsonCommandRequest::get_all_transactions_by_account { account_id } => {
-            JsonCommandResponse::get_all_transactions {
+            JsonCommandResponse::get_all_transactions_by_account {
                 transactions: service
                     .list_transactions(&account_id)
                     .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
@@ -597,7 +597,10 @@ mod tests {
             }
         });
         let result = dispatch(&client, body, &logger);
-        assert_eq!(result.get("success").unwrap(), true);
+        assert_eq!(
+            result.get("account").unwrap().get("name").unwrap(),
+            "Eve Main Account"
+        );
 
         let body = json!({
             "method": "get_account",

@@ -15,7 +15,7 @@ A MobileCoin service for wallet implementations.
 1. Build
 
     ```sh
-    SGX_MODE=HW IAS_MODE=PROD CONSENSUS_ENCLAVE_CSS=$(pwd)/consensus-enclave.css cargo build --release -p mc-wallet-service
+    SGX_MODE=HW IAS_MODE=PROD CONSENSUS_ENCLAVE_CSS=$(pwd)/consensus-enclave.css cargo build --release -p mc-full-service
     ```
 
 1. Run
@@ -41,6 +41,8 @@ A MobileCoin service for wallet implementations.
 
 
 ## API
+
+The Full Service API methods are outlined below. For a description of the API objects, see [API.md](./API.md).
 
 ### Accounts
 
@@ -137,6 +139,10 @@ curl -s localhost:9090/wallet \
   -d '{"method": "get_all_accounts"}' \
   -X POST -H 'Content-type: application/json' | jq
 
+{
+  "method": "get_all_accounts",
+  "result": {
+    "accounts": [
       {
         "object": "account",
         "account_id": "81ca0a6c473ad70199c19033fd6eb3c94b7acfa2ae5f4065c89a4476a9b2345e",

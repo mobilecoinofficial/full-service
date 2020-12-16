@@ -225,9 +225,13 @@ impl<
                 .highest_block_index_on_network()
                 .map(|v| v + 1)
                 .unwrap_or(0);
-            let decorated_account =
-                Account::get_decorated(&account_id, local_height, network_height, &conn)?;
-            Ok(decorated_account?)
+            let decorated_account = Account::get_decorated(
+                &AccountID(account_id_hex.to_string()),
+                local_height,
+                network_height,
+                &conn,
+            )?;
+            Ok(decorated_account)
         })?)
     }
 
