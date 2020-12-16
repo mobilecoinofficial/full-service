@@ -53,7 +53,7 @@ The Full Service Wallet API provides several objects that correspond to the data
 
 * [create_account](../README.md#create-account)
 * [import_account](../README.md#import-account)
-* [get_all_accounts](../README.md#get_all-accounts)
+* [get_all_accounts](../README.md#get-all-accounts)
 * [get_account](../README.md#get-account)
 
 
@@ -162,7 +162,7 @@ The Full Service Wallet API provides several objects that correspond to the data
 #### API Methods Returning Assigned Address Objects
 
 * [create_address](./README.md#create-assigned-subaddress)
-* [get_all_addresses](./README.md#get_all-assigned-subaddresses)
+* [get_all_addresses](./README.md#get-all-assigned-subaddresses-for-a-given-account)
 
 ### The Transaction Log Object
 

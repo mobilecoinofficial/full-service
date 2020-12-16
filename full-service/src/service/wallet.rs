@@ -10,14 +10,15 @@ use crate::{
         wallet_impl::WalletService,
     },
 };
-use mc_connection::ThickClient;
-use mc_connection::{BlockchainConnection, UserTxConnection};
+use mc_connection::{BlockchainConnection, ThickClient, UserTxConnection};
 use mc_fog_report_connection::FogPubkeyResolver;
 use mc_fog_report_connection::GrpcFogPubkeyResolver;
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
 use rocket::{get, post, routes};
 use rocket_contrib::json::Json;
 use serde::{Deserialize, Serialize};
+use serde_json::Map;
+use std::iter::FromIterator;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
@@ -126,7 +127,8 @@ pub enum JsonCommandResponse {
         account: JsonAccount,
     },
     get_all_accounts {
-        accounts: Vec<JsonAccount>,
+        account_ids: Vec<String>,
+        account_map: Map<String, serde_json::Value>,
     },
     get_account {
         account: JsonAccount,
@@ -138,7 +140,8 @@ pub enum JsonCommandResponse {
         success: bool,
     },
     get_all_txos_by_account {
-        txos: Vec<JsonTxo>,
+        txo_ids: Vec<String>,
+        txo_map: Map<String, serde_json::Value>,
     },
     get_txo {
         txo: JsonTxo,
@@ -153,7 +156,8 @@ pub enum JsonCommandResponse {
         address: JsonAddress,
     },
     get_all_addresses_by_account {
-        addresses: Vec<JsonAddress>,
+        address_ids: Vec<String>,
+        address_map: Map<String, serde_json::Value>,
     },
     send_transaction {
         transaction: JsonSubmitResponse,
@@ -165,7 +169,8 @@ pub enum JsonCommandResponse {
         transaction: JsonSubmitResponse,
     },
     get_all_transactions_by_account {
-        transactions: Vec<JsonTransactionLog>,
+        transaction_log_ids: Vec<String>,
+        transaction_log_map: Map<String, serde_json::Value>,
     },
     get_transaction {
         transaction: JsonTransactionLog,
@@ -227,11 +232,26 @@ where
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             JsonCommandResponse::import_account { account: result }
         }
-        JsonCommandRequest::get_all_accounts => JsonCommandResponse::get_all_accounts {
-            accounts: service
+        JsonCommandRequest::get_all_accounts => {
+            let accounts = service
                 .list_accounts()
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
-        },
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+            let account_map: Map<String, serde_json::Value> = Map::from_iter(
+                accounts
+                    .iter()
+                    .map(|a| {
+                        (
+                            a.account_id.clone(),
+                            serde_json::to_value(a.clone()).expect("Could not get json value"),
+                        )
+                    })
+                    .collect::<Vec<(String, serde_json::Value)>>(),
+            );
+            JsonCommandResponse::get_all_accounts {
+                account_ids: accounts.iter().map(|a| a.account_id.clone()).collect(),
+                account_map,
+            }
+        }
         JsonCommandRequest::get_account { account_id } => JsonCommandResponse::get_account {
             account: service
                 .get_account(&AccountID(account_id))
@@ -250,10 +270,23 @@ where
             JsonCommandResponse::delete_account { success: true }
         }
         JsonCommandRequest::get_all_txos_by_account { account_id } => {
+            let txos = service
+                .list_txos(&account_id)
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+            let txo_map: Map<String, serde_json::Value> = Map::from_iter(
+                txos.iter()
+                    .map(|t| {
+                        (
+                            t.txo_id.clone(),
+                            serde_json::to_value(t.clone()).expect("Could not get json value"),
+                        )
+                    })
+                    .collect::<Vec<(String, serde_json::Value)>>(),
+            );
+
             JsonCommandResponse::get_all_txos_by_account {
-                txos: service
-                    .list_txos(&account_id)
-                    .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+                txo_ids: txos.iter().map(|t| t.txo_id.clone()).collect(),
+                txo_map,
             }
         }
         JsonCommandRequest::get_txo { txo_id } => {
@@ -282,10 +315,24 @@ where
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
         JsonCommandRequest::get_all_addresses_by_account { account_id } => {
+            let addresses = service
+                .list_assigned_subaddresses(&account_id)
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+            let address_map: Map<String, serde_json::Value> = Map::from_iter(
+                addresses
+                    .iter()
+                    .map(|a| {
+                        (
+                            a.address_id.clone(),
+                            serde_json::to_value(a.clone()).expect("Could not get json value"),
+                        )
+                    })
+                    .collect::<Vec<(String, serde_json::Value)>>(),
+            );
+
             JsonCommandResponse::get_all_addresses_by_account {
-                addresses: service
-                    .list_assigned_subaddresses(&account_id)
-                    .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+                address_ids: addresses.iter().map(|a| a.address_id.clone()).collect(),
+                address_map,
             }
         }
         JsonCommandRequest::send_transaction {
@@ -346,10 +393,27 @@ where
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
         JsonCommandRequest::get_all_transactions_by_account { account_id } => {
+            let transactions = service
+                .list_transactions(&account_id)
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+            let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
+                transactions
+                    .iter()
+                    .map(|t| {
+                        (
+                            t.transaction_log_id.clone(),
+                            serde_json::to_value(t.clone()).expect("Could not get json value"),
+                        )
+                    })
+                    .collect::<Vec<(String, serde_json::Value)>>(),
+            );
+
             JsonCommandResponse::get_all_transactions_by_account {
-                transactions: service
-                    .list_transactions(&account_id)
-                    .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+                transaction_log_ids: transactions
+                    .iter()
+                    .map(|t| t.transaction_log_id.clone())
+                    .collect(),
+                transaction_log_map,
             }
         }
         JsonCommandRequest::get_transaction { transaction_log_id } => {
@@ -573,9 +637,17 @@ mod tests {
             "method": "get_all_accounts",
         });
         let result = dispatch(&client, body, &logger);
-        let accounts = result.get("accounts").unwrap().as_array().unwrap();
+        let accounts = result.get("account_ids").unwrap().as_array().unwrap();
         assert_eq!(accounts.len(), 1);
-        assert_eq!(accounts[0].get("account_id").unwrap(), &account_id.clone());
+        let account_map = result.get("account_map").unwrap().as_object().unwrap();
+        assert_eq!(
+            account_map
+                .get(accounts[0].as_str().unwrap())
+                .unwrap()
+                .get("account_id")
+                .unwrap(),
+            &account_id.clone()
+        );
 
         let body = json!({
             "method": "get_account",
@@ -626,7 +698,7 @@ mod tests {
             "method": "get_all_accounts",
         });
         let result = dispatch(&client, body, &logger);
-        let accounts = result.get("accounts").unwrap().as_array().unwrap();
+        let accounts = result.get("account_ids").unwrap().as_array().unwrap();
         assert_eq!(accounts.len(), 0);
     }
 
@@ -749,9 +821,10 @@ mod tests {
             }
         });
         let result = dispatch(&client, body, &logger);
-        let txos = result.get("txos").unwrap().as_array().unwrap();
+        let txos = result.get("txo_ids").unwrap().as_array().unwrap();
         assert_eq!(txos.len(), 1);
-        let txo = &txos[0];
+        let txo_map = result.get("txo_map").unwrap().as_object().unwrap();
+        let txo = txo_map.get(txos[0].as_str().unwrap()).unwrap();
         let account_status_map = txo
             .get("account_status_map")
             .unwrap()
@@ -962,9 +1035,10 @@ mod tests {
             }
         });
         let result = dispatch(&client, body, &logger);
-        let txos = result.get("txos").unwrap().as_array().unwrap();
+        let txos = result.get("txo_ids").unwrap().as_array().unwrap();
         assert_eq!(txos.len(), 1);
-        let txo = &txos[0];
+        let txo_map = result.get("txo_map").unwrap().as_object().unwrap();
+        let txo = &txo_map.get(txos[0].as_str().unwrap()).unwrap();
         let status_map = txo
             .get("account_status_map")
             .unwrap()
