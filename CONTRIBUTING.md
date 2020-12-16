@@ -2,7 +2,7 @@
 
 MobileCoin Wallet Service is a prototype that is being actively developed.
 
-Please report issues to https://github.com/mobilecoinofficial/wallet-service/issues.
+Please report issues to https://github.com/mobilecoinofficial/full-service/issues.
 
 1. Search both open and closed tickets to make sure your bug report is not a duplicate.
 1. Do not use github issues as a forum. To participate in community discussions, please use the community forum at [community.mobilecoin.com](https://community.mobilecoin.com).
@@ -19,4 +19,4 @@ You will need to sign [our CLA](./CLA.md) before your pull request can be merged
 
 ## Get in Touch
 
-We're friendly. Feel free to [ping us](mailto://wallet-service@mobilecoin.com)!
+We're friendly. Feel free to [ping us](mailto://full-service@mobilecoin.com)!

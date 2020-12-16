@@ -482,7 +482,7 @@ impl TxoModel for Txo {
         use crate::db::schema::account_txo_statuses::dsl::account_txo_statuses;
 
         let results: Vec<String> = account_txo_statuses
-            .filter(cols::account_id_hex.eq(account_id_hex))
+            .filter(cols::account_id_hex.eq(account_id_he   x))
             .select(cols::txo_id_hex)
             .load(conn)?;
 

@@ -1,4 +1,5 @@
-# wallet-service
+# Full Service
+
 A MobileCoin service for wallet implementations.
 
 ## Build and Run
