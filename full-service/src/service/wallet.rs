@@ -185,7 +185,11 @@ pub enum JsonCommandResponse {
     },
 }
 
-// To deal with the unmanaged state problem.
+// The Wallet API inner method, which handles switching on the method enum.
+//
+// Note that this is structured this way so that the routes can be defined to take
+// explicit Rocket state, and then pass the service to the inner method. This allows
+// us to properly construct state with Mock Connection Objects in tests.
 fn wallet_api_inner<T, FPR>(
     service: &WalletService<T, FPR>,
     command: Json<JsonCommandRequest>,

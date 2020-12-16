@@ -130,7 +130,10 @@ impl<
         let local_height = self.ledger_db.num_blocks()?;
         let network_state = self.network_state.read().expect("lock poisoned");
         // network_height = network_block_index + 1
-        let network_height = network_state.highest_block_index_on_network().unwrap_or(0) + 1;
+        let network_height = network_state
+            .highest_block_index_on_network()
+            .map(|v| v + 1)
+            .unwrap_or(0);
         let decorated_account =
             Account::get_decorated(&account_id, local_height, network_height, &conn)?;
 
@@ -156,30 +159,22 @@ impl<
         let mut entropy_bytes = [0u8; 32];
         hex::decode_to_slice(entropy, &mut entropy_bytes)?;
         let account_key = AccountKey::from(&RootIdentity::from(&RootEntropy::from(&entropy_bytes)));
-
-        let account_id = {
-            let conn = self.wallet_db.get_conn()?;
-            let (account_id, _public_address_b58) = Account::create(
-                &account_key,
-                first_block,
-                Some(self.ledger_db.num_blocks()?),
-                &name.unwrap_or_else(|| "".to_string()),
-                &conn,
-            )?;
-            account_id
-        };
-        // Use a new conn or else the DB won't submit the previous transaction.
-        let account = {
-            let local_height = self.ledger_db.num_blocks()?;
-
-            let network_state = self.network_state.read().expect("lock poisoned");
-            // network_height = network_block_index + 1
-            let network_height = network_state.highest_block_index_on_network().unwrap_or(0) + 1;
-
-            let conn = self.wallet_db.get_conn()?;
-            Account::get_decorated(&account_id, local_height, network_height, &conn)?
-        };
-        Ok(account)
+        let local_height = self.ledger_db.num_blocks()?;
+        let network_state = self.network_state.read().expect("lock poisoned");
+        // network_height = network_block_index + 1
+        let network_height = network_state
+            .highest_block_index_on_network()
+            .map(|v| v + 1)
+            .unwrap_or(0);
+        let conn = self.wallet_db.get_conn()?;
+        Ok(Account::import(
+            &account_key,
+            name,
+            first_block,
+            local_height,
+            network_height,
+            &conn,
+        )?)
     }
 
     pub fn list_accounts(&self) -> Result<Vec<JsonAccount>, WalletServiceError> {
@@ -188,8 +183,10 @@ impl<
         let local_height = self.ledger_db.num_blocks()?;
         let network_state = self.network_state.read().expect("lock poisoned");
         // network_height = network_block_index + 1
-        let network_height = network_state.highest_block_index_on_network().unwrap_or(0) + 1;
-
+        let network_height = network_state
+            .highest_block_index_on_network()
+            .map(|v| v + 1)
+            .unwrap_or(0);
         accounts
             .iter()
             .map(|a| {
@@ -230,7 +227,10 @@ impl<
         let local_height = self.ledger_db.num_blocks()?;
         let network_state = self.network_state.read().expect("lock poisoned");
         // network_height = network_block_index + 1
-        let network_height = network_state.highest_block_index_on_network().unwrap_or(0) + 1;
+        let network_height = network_state
+            .highest_block_index_on_network()
+            .map(|v| v + 1)
+            .unwrap_or(0);
         Ok(Account::get_decorated(
             &account_id_hex,
             local_height,
@@ -261,8 +261,10 @@ impl<
 
         let network_state = self.network_state.read().expect("lock poisoned");
         // network_height = network_block_index + 1
-        let network_height = network_state.highest_block_index_on_network().unwrap_or(0) + 1;
-
+        let network_height = network_state
+            .highest_block_index_on_network()
+            .map(|v| v + 1)
+            .unwrap_or(0);
         let accounts = Account::list_all(&conn)?;
         let mut account_map = Map::new();
 

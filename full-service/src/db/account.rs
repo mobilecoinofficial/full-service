@@ -54,7 +54,6 @@ pub trait AccountModel {
     ///
     /// Returns:
     /// * (account_id, main_subaddress_b58)
-    #[allow(clippy::too_many_arguments)]
     fn create(
         account_key: &AccountKey,
         first_block: Option<u64>,
@@ -62,6 +61,16 @@ pub trait AccountModel {
         name: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(AccountID, String), WalletDbError>;
+
+    /// Import account.
+    fn import(
+        entropy: &AccountKey,
+        name: Option<String>,
+        first_block: Option<u64>,
+        local_height: u64,
+        network_height: u64,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<JsonAccount, WalletDbError>;
 
     /// List all accounts.
     ///
@@ -166,6 +175,29 @@ impl AccountModel for Account {
                 Ok((account_id, main_subaddress_b58))
             })?,
         )
+    }
+
+    fn import(
+        account_key: &AccountKey,
+        name: Option<String>,
+        first_block: Option<u64>,
+        local_height: u64,
+        network_height: u64,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<JsonAccount, WalletDbError> {
+        let (account_id, _public_address_b58) = Account::create(
+            &account_key,
+            first_block,
+            Some(local_height),
+            &name.unwrap_or_else(|| "".to_string()),
+            conn,
+        )?;
+        Ok(Account::get_decorated(
+            &account_id,
+            local_height,
+            network_height,
+            &conn,
+        )?)
     }
 
     fn list_all(

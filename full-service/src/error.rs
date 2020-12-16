@@ -186,7 +186,7 @@ pub enum WalletDbError {
     /// The Txo Exists, but for another account {0}
     TxoExistsForAnotherAccount(String),
 
-    /// The Txo is associated with too many Accounts
+    /// The Txo is associated with too many Accounts {0}
     TxoAssociatedWithTooManyAccounts(String),
 }
 
