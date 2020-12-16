@@ -361,16 +361,20 @@ impl<
         // FIXME: WS-32 - add "sync from block"
     ) -> Result<JsonAddress, WalletServiceError> {
         let conn = &self.wallet_db.get_conn()?;
-        let (public_address_b58, _subaddress_index) = AssignedSubaddress::create_next_for_account(
-            account_id_hex,
-            comment.unwrap_or(""),
-            &conn,
-        )?;
 
-        Ok(JsonAddress::new(&AssignedSubaddress::get(
-            &public_address_b58,
-            &conn,
-        )?))
+        Ok(conn.transaction::<JsonAddress, WalletServiceError, _>(|| {
+            let (public_address_b58, _subaddress_index) =
+                AssignedSubaddress::create_next_for_account(
+                    account_id_hex,
+                    comment.unwrap_or(""),
+                    &conn,
+                )?;
+
+            Ok(JsonAddress::new(&AssignedSubaddress::get(
+                &public_address_b58,
+                &conn,
+            )?))
+        })?)
     }
 
     pub fn list_assigned_subaddresses(
@@ -524,11 +528,15 @@ impl<
         transaction_id_hex: &str,
     ) -> Result<JsonTransactionLog, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        let transaction = TransactionLog::get(transaction_id_hex, &conn)?;
 
-        let associated = transaction.get_associated_txos(&conn)?;
+        Ok(
+            conn.transaction::<JsonTransactionLog, WalletServiceError, _>(|| {
+                let transaction = TransactionLog::get(transaction_id_hex, &conn)?;
+                let associated = transaction.get_associated_txos(&conn)?;
 
-        Ok(JsonTransactionLog::new(&transaction, &associated))
+                Ok(JsonTransactionLog::new(&transaction, &associated))
+            })?,
+        )
     }
 
     pub fn get_transaction_object(
