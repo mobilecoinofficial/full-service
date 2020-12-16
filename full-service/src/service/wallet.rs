@@ -1,25 +1,29 @@
 // Copyright (c) 2020 MobileCoin Inc.
 
-use crate::service::{
-    decorated_types::{
-        JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
-        JsonListTxosResponse, JsonSubmitResponse, JsonTransactionResponse, JsonTxo,
+use crate::{
+    db::account::AccountID,
+    service::{
+        decorated_types::{
+            JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
+            JsonSubmitResponse, JsonTransactionLog, JsonTxo, JsonWalletStatus,
+        },
+        wallet_impl::WalletService,
     },
-    wallet_impl::WalletService,
 };
-use mc_connection::ThickClient;
-use mc_connection::UserTxConnection;
+use mc_connection::{BlockchainConnection, ThickClient, UserTxConnection};
 use mc_fog_report_connection::FogPubkeyResolver;
 use mc_fog_report_connection::GrpcFogPubkeyResolver;
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
 use rocket::{get, post, routes};
 use rocket_contrib::json::Json;
 use serde::{Deserialize, Serialize};
+use serde_json::Map;
+use std::iter::FromIterator;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 pub struct WalletState<
-    T: UserTxConnection + 'static,
+    T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 > {
     pub service: WalletService<T, FPR>,
@@ -38,7 +42,7 @@ pub enum JsonCommandRequest {
         name: Option<String>,
         first_block: Option<String>,
     },
-    list_accounts,
+    get_all_accounts,
     get_account {
         account_id: String,
     },
@@ -49,13 +53,13 @@ pub enum JsonCommandRequest {
     delete_account {
         account_id: String,
     },
-    list_txos {
+    get_all_txos_by_account {
         account_id: String,
     },
     get_txo {
-        account_id: String,
         txo_id: String,
     },
+    get_wallet_status,
     get_balance {
         account_id: String,
     },
@@ -63,7 +67,7 @@ pub enum JsonCommandRequest {
         account_id: String,
         comment: Option<String>,
     },
-    list_addresses {
+    get_all_addresses_by_account {
         account_id: String,
     },
     send_transaction {
@@ -90,17 +94,16 @@ pub enum JsonCommandRequest {
         comment: Option<String>,
         account_id: Option<String>,
     },
-    list_transactions {
+    get_all_transactions_by_account {
         account_id: String,
     },
     get_transaction {
-        transaction_id: String,
+        transaction_log_id: String,
     },
     get_transaction_object {
-        transaction_id: String,
+        transaction_log_id: String,
     },
     get_txo_object {
-        account_id: String,
         txo_id: String,
     },
     get_block_object {
@@ -117,31 +120,34 @@ pub enum JsonCommandRequest {
 #[allow(non_camel_case_types)]
 pub enum JsonCommandResponse {
     create_account {
-        public_address: String,
         entropy: String,
-        account_id: String,
+        account: JsonAccount,
     },
     import_account {
-        public_address: String,
-        account_id: String,
+        account: JsonAccount,
     },
-    list_accounts {
-        accounts: Vec<JsonAccount>,
+    get_all_accounts {
+        account_ids: Vec<String>,
+        account_map: Map<String, serde_json::Value>,
     },
     get_account {
         account: JsonAccount,
     },
     update_account_name {
-        success: bool,
+        account: JsonAccount,
     },
     delete_account {
         success: bool,
     },
-    list_txos {
-        txos: Vec<JsonListTxosResponse>,
+    get_all_txos_by_account {
+        txo_ids: Vec<String>,
+        txo_map: Map<String, serde_json::Value>,
     },
     get_txo {
         txo: JsonTxo,
+    },
+    get_wallet_status {
+        status: JsonWalletStatus,
     },
     get_balance {
         status: JsonBalanceResponse,
@@ -149,8 +155,9 @@ pub enum JsonCommandResponse {
     create_address {
         address: JsonAddress,
     },
-    list_addresses {
-        addresses: Vec<JsonAddress>,
+    get_all_addresses_by_account {
+        address_ids: Vec<String>,
+        address_map: Map<String, serde_json::Value>,
     },
     send_transaction {
         transaction: JsonSubmitResponse,
@@ -161,11 +168,12 @@ pub enum JsonCommandResponse {
     submit_transaction {
         transaction: JsonSubmitResponse,
     },
-    list_transactions {
-        transactions: Vec<JsonTransactionResponse>,
+    get_all_transactions_by_account {
+        transaction_log_ids: Vec<String>,
+        transaction_log_map: Map<String, serde_json::Value>,
     },
     get_transaction {
-        transaction: JsonTransactionResponse,
+        transaction: JsonTransactionLog,
     },
     get_transaction_object {
         transaction: JsonTx,
@@ -182,20 +190,19 @@ pub enum JsonCommandResponse {
     },
 }
 
-#[get("/wallet")]
-fn wallet_help() -> Result<String, String> {
-    let mut help_str = "Please use json data to choose wallet commands. For example, \n\ncurl -s localhost:9090/wallet -d '{\"method\": \"create_account\", \"params\": {\"name\": \"Alice\"}}' -X POST -H 'Content-type: application/json'\n\nAvailable commands are:\n\n".to_owned();
-    for e in JsonCommandRequest::iter() {
-        help_str.push_str(&format!("{:?}\n\n", e));
-    }
-    Ok(help_str)
-}
-
-#[post("/wallet", format = "json", data = "<command>")]
-fn wallet_api(
-    state: rocket::State<WalletState<ThickClient, GrpcFogPubkeyResolver>>,
+// The Wallet API inner method, which handles switching on the method enum.
+//
+// Note that this is structured this way so that the routes can be defined to take
+// explicit Rocket state, and then pass the service to the inner method. This allows
+// us to properly construct state with Mock Connection Objects in tests.
+fn wallet_api_inner<T, FPR>(
+    service: &WalletService<T, FPR>,
     command: Json<JsonCommandRequest>,
-) -> Result<Json<JsonCommandResponse>, String> {
+) -> Result<Json<JsonCommandResponse>, String>
+where
+    T: BlockchainConnection + UserTxConnection + 'static,
+    FPR: FogPubkeyResolver + Send + Sync + 'static,
+{
     let result = match command.0 {
         JsonCommandRequest::create_account { name, first_block } => {
             let fb = first_block
@@ -203,15 +210,12 @@ fn wallet_api(
                 .transpose()
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
 
-            // FIXME: WS-13 - better way to convert between the json type and enum
-            let result = state
-                .service
+            let result = service
                 .create_account(name, fb)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             JsonCommandResponse::create_account {
-                public_address: result.public_address_b58,
                 entropy: result.entropy,
-                account_id: result.account_id,
+                account: result.account,
             }
         }
         JsonCommandRequest::import_account {
@@ -223,57 +227,82 @@ fn wallet_api(
                 .map(|fb| fb.parse::<u64>())
                 .transpose()
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
-            let result = state
-                .service
+            let result = service
                 .import_account(entropy, name, fb)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
-            JsonCommandResponse::import_account {
-                public_address: result.public_address_b58,
-                account_id: result.account_id,
+            JsonCommandResponse::import_account { account: result }
+        }
+        JsonCommandRequest::get_all_accounts => {
+            let accounts = service
+                .list_accounts()
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+            let account_map: Map<String, serde_json::Value> = Map::from_iter(
+                accounts
+                    .iter()
+                    .map(|a| {
+                        (
+                            a.account_id.clone(),
+                            serde_json::to_value(a.clone()).expect("Could not get json value"),
+                        )
+                    })
+                    .collect::<Vec<(String, serde_json::Value)>>(),
+            );
+            JsonCommandResponse::get_all_accounts {
+                account_ids: accounts.iter().map(|a| a.account_id.clone()).collect(),
+                account_map,
             }
         }
-        JsonCommandRequest::list_accounts => JsonCommandResponse::list_accounts {
-            accounts: state
-                .service
-                .list_accounts()
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
-        },
         JsonCommandRequest::get_account { account_id } => JsonCommandResponse::get_account {
-            account: state
-                .service
-                .get_account(&account_id)
+            account: service
+                .get_account(&AccountID(account_id))
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
         JsonCommandRequest::update_account_name { account_id, name } => {
-            state
-                .service
+            let account = service
                 .update_account_name(&account_id, name)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
-            JsonCommandResponse::update_account_name { success: true }
+            JsonCommandResponse::update_account_name { account }
         }
         JsonCommandRequest::delete_account { account_id } => {
-            state
-                .service
+            service
                 .delete_account(&account_id)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             JsonCommandResponse::delete_account { success: true }
         }
-        JsonCommandRequest::list_txos { account_id } => JsonCommandResponse::list_txos {
-            txos: state
-                .service
+        JsonCommandRequest::get_all_txos_by_account { account_id } => {
+            let txos = service
                 .list_txos(&account_id)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
-        },
-        JsonCommandRequest::get_txo { account_id, txo_id } => {
-            let result = state
-                .service
-                .get_txo(&account_id, &txo_id)
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+            let txo_map: Map<String, serde_json::Value> = Map::from_iter(
+                txos.iter()
+                    .map(|t| {
+                        (
+                            t.txo_id.clone(),
+                            serde_json::to_value(t.clone()).expect("Could not get json value"),
+                        )
+                    })
+                    .collect::<Vec<(String, serde_json::Value)>>(),
+            );
+
+            JsonCommandResponse::get_all_txos_by_account {
+                txo_ids: txos.iter().map(|t| t.txo_id.clone()).collect(),
+                txo_map,
+            }
+        }
+        JsonCommandRequest::get_txo { txo_id } => {
+            let result = service
+                .get_txo(&txo_id)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             JsonCommandResponse::get_txo { txo: result }
         }
+        JsonCommandRequest::get_wallet_status => {
+            let result = service
+                .get_wallet_status()
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+            JsonCommandResponse::get_wallet_status { status: result }
+        }
         JsonCommandRequest::get_balance { account_id } => JsonCommandResponse::get_balance {
-            status: state
-                .service
+            status: service
                 .get_balance(&account_id)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
@@ -281,17 +310,31 @@ fn wallet_api(
             account_id,
             comment,
         } => JsonCommandResponse::create_address {
-            address: state
-                .service
+            address: service
                 .create_assigned_subaddress(&account_id, comment.as_deref())
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
-        JsonCommandRequest::list_addresses { account_id } => JsonCommandResponse::list_addresses {
-            addresses: state
-                .service
+        JsonCommandRequest::get_all_addresses_by_account { account_id } => {
+            let addresses = service
                 .list_assigned_subaddresses(&account_id)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
-        },
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+            let address_map: Map<String, serde_json::Value> = Map::from_iter(
+                addresses
+                    .iter()
+                    .map(|a| {
+                        (
+                            a.address_id.clone(),
+                            serde_json::to_value(&(*a).clone()).expect("Could not get json value"),
+                        )
+                    })
+                    .collect::<Vec<(String, serde_json::Value)>>(),
+            );
+
+            JsonCommandResponse::get_all_addresses_by_account {
+                address_ids: addresses.iter().map(|a| a.address_id.clone()).collect(),
+                address_map,
+            }
+        }
         JsonCommandRequest::send_transaction {
             account_id,
             recipient_public_address,
@@ -302,8 +345,7 @@ fn wallet_api(
             max_spendable_value,
             comment,
         } => {
-            let transaction_details = state
-                .service
+            let transaction_details = service
                 .send_transaction(
                     &account_id,
                     &recipient_public_address,
@@ -328,8 +370,7 @@ fn wallet_api(
             tombstone_block,
             max_spendable_value,
         } => {
-            let tx_proposal = state
-                .service
+            let tx_proposal = service
                 .build_transaction(
                     &account_id,
                     &recipient_public_address,
@@ -347,46 +388,55 @@ fn wallet_api(
             comment,
             account_id,
         } => JsonCommandResponse::submit_transaction {
-            transaction: state
-                .service
+            transaction: service
                 .submit_transaction(tx_proposal, comment, account_id)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
-        JsonCommandRequest::list_transactions { account_id } => {
-            JsonCommandResponse::list_transactions {
-                transactions: state
-                    .service
-                    .list_transactions(&account_id)
-                    .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+        JsonCommandRequest::get_all_transactions_by_account { account_id } => {
+            let transactions = service
+                .list_transactions(&account_id)
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+            let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
+                transactions
+                    .iter()
+                    .map(|t| {
+                        (
+                            t.transaction_log_id.clone(),
+                            serde_json::to_value(&(*t).clone()).expect("Could not get json value"),
+                        )
+                    })
+                    .collect::<Vec<(String, serde_json::Value)>>(),
+            );
+
+            JsonCommandResponse::get_all_transactions_by_account {
+                transaction_log_ids: transactions
+                    .iter()
+                    .map(|t| t.transaction_log_id.clone())
+                    .collect(),
+                transaction_log_map,
             }
         }
-        JsonCommandRequest::get_transaction { transaction_id } => {
+        JsonCommandRequest::get_transaction { transaction_log_id } => {
             JsonCommandResponse::get_transaction {
-                transaction: state
-                    .service
-                    .get_transaction(&transaction_id)
+                transaction: service
+                    .get_transaction(&transaction_log_id)
                     .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
             }
         }
-        JsonCommandRequest::get_transaction_object { transaction_id } => {
+        JsonCommandRequest::get_transaction_object { transaction_log_id } => {
             JsonCommandResponse::get_transaction_object {
-                transaction: state
-                    .service
-                    .get_transaction_object(&transaction_id)
+                transaction: service
+                    .get_transaction_object(&transaction_log_id)
                     .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
             }
         }
-        JsonCommandRequest::get_txo_object { account_id, txo_id } => {
-            JsonCommandResponse::get_txo_object {
-                txo: state
-                    .service
-                    .get_txo_object(&account_id, &txo_id)
-                    .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
-            }
-        }
+        JsonCommandRequest::get_txo_object { txo_id } => JsonCommandResponse::get_txo_object {
+            txo: service
+                .get_txo_object(&txo_id)
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+        },
         JsonCommandRequest::get_block_object { block_index } => {
-            let (block, block_contents) = state
-                .service
+            let (block, block_contents) = service
                 .get_block_object(
                     block_index
                         .parse::<u64>()
@@ -403,8 +453,7 @@ fn wallet_api(
             txo_id,
             proof,
         } => {
-            let result = state
-                .service
+            let result = service
                 .verify_proof(&account_id, &txo_id, &proof)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             JsonCommandResponse::verify_proof { verified: result }
@@ -413,14 +462,27 @@ fn wallet_api(
     Ok(Json(result))
 }
 
+#[post("/wallet", format = "json", data = "<command>")]
+fn wallet_api(
+    state: rocket::State<WalletState<ThickClient, GrpcFogPubkeyResolver>>,
+    command: Json<JsonCommandRequest>,
+) -> Result<Json<JsonCommandResponse>, String> {
+    wallet_api_inner(&state.service, command)
+}
+
+#[get("/wallet")]
+fn wallet_help() -> Result<String, String> {
+    let mut help_str = "Please use json data to choose wallet commands. For example, \n\ncurl -s localhost:9090/wallet -d '{\"method\": \"create_account\", \"params\": {\"name\": \"Alice\"}}' -X POST -H 'Content-type: application/json'\n\nAvailable commands are:\n\n".to_owned();
+    for e in JsonCommandRequest::iter() {
+        help_str.push_str(&format!("{:?}\n\n", e));
+    }
+    Ok(help_str)
+}
+
 pub fn rocket(
     rocket_config: rocket::Config,
     state: WalletState<ThickClient, GrpcFogPubkeyResolver>,
 ) -> rocket::Rocket {
-    // FIXME: WS-31 - Note that if state has different type parameters, it throws an error that you are
-    // requesting unmanaged state. This is an issue in tests, where we want to use mock
-    // connections. For now, I am simply not testing the endpoints like submit_transaction,
-    // and I am not building test transactions with a fog recipients.
     rocket::custom(rocket_config)
         .mount("/", routes![wallet_api, wallet_help])
         .manage(state)
@@ -430,15 +492,20 @@ pub fn rocket(
 mod tests {
     use super::*;
     use crate::{
-        db::models::{TXO_RECEIVED, TXO_UNSPENT},
-        service::wallet_impl::b58_decode,
+        db::{
+            b58_decode,
+            models::{TXO_RECEIVED, TXO_UNSPENT},
+        },
         test_utils::{
-            add_block_to_ledger_db, get_test_ledger, setup_grpc_peer_manager, WalletDbTestContext,
+            add_block_to_ledger_db, get_test_ledger, setup_peer_manager_and_network_state,
+            WalletDbTestContext,
         },
     };
     use mc_account_keys::PublicAddress;
     use mc_common::logger::{log, test_with_logger, Logger};
+    use mc_connection_test_utils::MockBlockchainConnection;
     use mc_crypto_rand::rand_core::RngCore;
+    use mc_fog_report_validation::MockFogPubkeyResolver;
     use mc_ledger_db::LedgerDB;
     use mc_transaction_core::ring_signature::KeyImage;
     use rand::{rngs::StdRng, SeedableRng};
@@ -457,27 +524,48 @@ mod tests {
         PORT_NR.fetch_add(1, SeqCst) as u16 + 30300
     }
 
+    pub struct TestWalletState {
+        pub service: WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver>,
+    }
+
+    #[post("/wallet", format = "json", data = "<command>")]
+    fn test_wallet_api(
+        state: rocket::State<TestWalletState>,
+        command: Json<JsonCommandRequest>,
+    ) -> Result<Json<JsonCommandResponse>, String> {
+        wallet_api_inner(&state.service, command)
+    }
+
+    fn test_rocket(rocket_config: rocket::Config, state: TestWalletState) -> rocket::Rocket {
+        rocket::custom(rocket_config)
+            .mount("/", routes![test_wallet_api, wallet_help])
+            .manage(state)
+    }
+
     fn setup(mut rng: &mut StdRng, logger: Logger) -> (Client, LedgerDB) {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger.clone());
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
-        let peer_manager = setup_grpc_peer_manager(logger.clone());
+        let (peer_manager, network_state) =
+            setup_peer_manager_and_network_state(ledger_db.clone(), logger.clone());
 
-        let service = WalletService::new(
-            wallet_db,
-            ledger_db.clone(),
-            peer_manager,
-            None,
-            None,
-            logger,
-        );
+        let service: WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> =
+            WalletService::new(
+                wallet_db,
+                ledger_db.clone(),
+                peer_manager,
+                network_state,
+                None,
+                None,
+                logger,
+            );
 
         let rocket_config: rocket::Config =
             rocket::Config::build(rocket::config::Environment::Development)
                 .port(get_free_port())
                 .unwrap();
-        let rocket = rocket(rocket_config, WalletState { service });
+        let rocket = test_rocket(rocket_config, TestWalletState { service });
         (
             Client::new(rocket).expect("valid rocket instance"),
             ledger_db,
@@ -528,19 +616,38 @@ mod tests {
             }
         });
         let result = dispatch(&client, body, &logger);
-        assert!(result.get("public_address").is_some());
         assert!(result.get("entropy").is_some());
-        assert!(result.get("account_id").is_some());
-        let account_id = result.get("account_id").unwrap();
+        let account_obj = result.get("account").unwrap();
+        assert!(account_obj.get("account_id").is_some());
+        assert_eq!(account_obj.get("name").unwrap(), "Alice Main Account");
+        assert_eq!(account_obj.get("network_height").unwrap(), "12");
+        assert_eq!(account_obj.get("local_height").unwrap(), "12");
+        assert_eq!(account_obj.get("account_height").unwrap(), "0");
+        assert_eq!(account_obj.get("is_synced").unwrap(), false);
+        assert_eq!(account_obj.get("available_pmob").unwrap(), "0");
+        assert_eq!(account_obj.get("pending_pmob").unwrap(), "0");
+        assert!(account_obj.get("main_address").is_some());
+        assert_eq!(account_obj.get("next_subaddress_index").unwrap(), "2");
+        assert_eq!(account_obj.get("recovery_mode").unwrap(), false);
+
+        let account_id = account_obj.get("account_id").unwrap();
 
         // Read Accounts via List, Get
         let body = json!({
-            "method": "list_accounts",
+            "method": "get_all_accounts",
         });
         let result = dispatch(&client, body, &logger);
-        let accounts = result.get("accounts").unwrap().as_array().unwrap();
+        let accounts = result.get("account_ids").unwrap().as_array().unwrap();
         assert_eq!(accounts.len(), 1);
-        assert_eq!(accounts[0].get("account_id").unwrap(), &account_id.clone());
+        let account_map = result.get("account_map").unwrap().as_object().unwrap();
+        assert_eq!(
+            account_map
+                .get(accounts[0].as_str().unwrap())
+                .unwrap()
+                .get("account_id")
+                .unwrap(),
+            &account_id.clone()
+        );
 
         let body = json!({
             "method": "get_account",
@@ -562,7 +669,10 @@ mod tests {
             }
         });
         let result = dispatch(&client, body, &logger);
-        assert_eq!(result.get("success").unwrap(), true);
+        assert_eq!(
+            result.get("account").unwrap().get("name").unwrap(),
+            "Eve Main Account"
+        );
 
         let body = json!({
             "method": "get_account",
@@ -585,10 +695,10 @@ mod tests {
         assert_eq!(result.get("success").unwrap(), true);
 
         let body = json!({
-            "method": "list_accounts",
+            "method": "get_all_accounts",
         });
         let result = dispatch(&client, body, &logger);
-        let accounts = result.get("accounts").unwrap().as_array().unwrap();
+        let accounts = result.get("account_ids").unwrap().as_array().unwrap();
         assert_eq!(accounts.len(), 0);
     }
 
@@ -606,9 +716,10 @@ mod tests {
             }
         });
         let result = dispatch(&client, body, &logger);
-        let public_address = result.get("public_address").unwrap().as_str().unwrap();
+        let account_obj = result.get("account").unwrap();
+        let public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
         assert_eq!(public_address, "8JtpPPh9mV2PTLrrDz4f2j4PtUpNWnrRg8HKpnuwkZbj5j8bGqtNMNLC9E3zjzcw456215yMjkCVYK4FPZTX4gijYHiuDT31biNHrHmQmsU");
-        let account_id = result.get("account_id").unwrap().as_str().unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
         assert_eq!(
             account_id,
             "b266572c325f5f0388e4645cfa945d8527e90a11bf2182c28f62090225e73138"
@@ -628,13 +739,52 @@ mod tests {
             }
         });
         let result = dispatch(&client, body, &logger);
-        assert!(result.get("public_address").is_some());
+        let account_obj = result.get("account").unwrap();
+        assert!(account_obj.get("main_address").is_some());
         assert!(result.get("entropy").is_some());
-        assert!(result.get("account_id").is_some());
+        assert!(account_obj.get("account_id").is_some());
     }
 
     #[test_with_logger]
-    fn test_list_txos(logger: Logger) {
+    fn test_wallet_status(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db) = setup(&mut rng, logger.clone());
+
+        let body = json!({
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            }
+        });
+        let _result = dispatch(&client, body, &logger);
+
+        let body = json!({
+            "method": "get_wallet_status",
+        });
+        let result = dispatch(&client, body, &logger);
+        let status = result.get("status").unwrap();
+        assert_eq!(status.get("network_height").unwrap(), "12");
+        assert_eq!(status.get("local_height").unwrap(), "12");
+        assert_eq!(status.get("is_synced_all").unwrap(), false);
+        assert_eq!(status.get("total_available_pmob").unwrap(), "0");
+        assert_eq!(status.get("total_pending_pmob").unwrap(), "0");
+        assert_eq!(
+            status.get("account_ids").unwrap().as_array().unwrap().len(),
+            1
+        );
+        assert_eq!(
+            status
+                .get("account_map")
+                .unwrap()
+                .as_object()
+                .unwrap()
+                .len(),
+            1
+        );
+    }
+
+    #[test_with_logger]
+    fn test_get_all_txos(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db) = setup(&mut rng, logger.clone());
 
@@ -647,8 +797,9 @@ mod tests {
             }
         });
         let result = dispatch(&client, body, &logger);
-        let account_id = result.get("account_id").unwrap().as_str().unwrap();
-        let b58_public_address = result.get("public_address").unwrap().as_str().unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
         let public_address = b58_decode(b58_public_address).unwrap();
 
         // Add a block with a txo for this address
@@ -664,20 +815,36 @@ mod tests {
         std::thread::sleep(Duration::from_secs(4));
 
         let body = json!({
-            "method": "list_txos",
+            "method": "get_all_txos_by_account",
             "params": {
                 "account_id": account_id,
             }
         });
         let result = dispatch(&client, body, &logger);
-        let txos = result.get("txos").unwrap().as_array().unwrap();
+        let txos = result.get("txo_ids").unwrap().as_array().unwrap();
         assert_eq!(txos.len(), 1);
-        let txo = &txos[0];
-        let txo_status = txo.get("txo_status").unwrap().as_str().unwrap();
+        let txo_map = result.get("txo_map").unwrap().as_object().unwrap();
+        let txo = txo_map.get(txos[0].as_str().unwrap()).unwrap();
+        let account_status_map = txo
+            .get("account_status_map")
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .get(account_id)
+            .unwrap();
+        let txo_status = account_status_map
+            .get("txo_status")
+            .unwrap()
+            .as_str()
+            .unwrap();
         assert_eq!(txo_status, TXO_UNSPENT);
-        let txo_type = txo.get("txo_type").unwrap().as_str().unwrap();
+        let txo_type = account_status_map
+            .get("txo_type")
+            .unwrap()
+            .as_str()
+            .unwrap();
         assert_eq!(txo_type, TXO_RECEIVED);
-        let value = txo.get("value").unwrap().as_str().unwrap();
+        let value = txo.get("value_pmob").unwrap().as_str().unwrap();
         assert_eq!(value, "100");
 
         // Check the overall balance for the account
@@ -707,8 +874,9 @@ mod tests {
             }
         });
         let result = dispatch(&client, body, &logger);
-        let account_id = result.get("account_id").unwrap().as_str().unwrap();
-        let b58_public_address = result.get("public_address").unwrap().as_str().unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
         let public_address = b58_decode(b58_public_address).unwrap();
 
         // Add a block with a txo for this address (note that value is smaller than MINIMUM_FEE)
@@ -822,7 +990,13 @@ mod tests {
             }
         });
         let result = dispatch(&client, body, &logger);
-        let account_id = result.get("account_id").unwrap().as_str().unwrap();
+        let account_id = result
+            .get("account")
+            .unwrap()
+            .get("account_id")
+            .unwrap()
+            .as_str()
+            .unwrap();
 
         // Create a subaddress
         let body = json!({
@@ -836,7 +1010,7 @@ mod tests {
         let b58_public_address = result
             .get("address")
             .unwrap()
-            .get("public_address_b58")
+            .get("public_address")
             .unwrap()
             .as_str()
             .unwrap();
@@ -855,20 +1029,28 @@ mod tests {
         std::thread::sleep(Duration::from_secs(4));
 
         let body = json!({
-            "method": "list_txos",
+            "method": "get_all_txos_by_account",
             "params": {
                 "account_id": account_id,
             }
         });
         let result = dispatch(&client, body, &logger);
-        let txos = result.get("txos").unwrap().as_array().unwrap();
+        let txos = result.get("txo_ids").unwrap().as_array().unwrap();
         assert_eq!(txos.len(), 1);
-        let txo = &txos[0];
-        let txo_status = txo.get("txo_status").unwrap().as_str().unwrap();
+        let txo_map = result.get("txo_map").unwrap().as_object().unwrap();
+        let txo = &txo_map.get(txos[0].as_str().unwrap()).unwrap();
+        let status_map = txo
+            .get("account_status_map")
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .get(account_id)
+            .unwrap();
+        let txo_status = status_map.get("txo_status").unwrap().as_str().unwrap();
         assert_eq!(txo_status, TXO_UNSPENT);
-        let txo_type = txo.get("txo_type").unwrap().as_str().unwrap();
+        let txo_type = status_map.get("txo_type").unwrap().as_str().unwrap();
         assert_eq!(txo_type, TXO_RECEIVED);
-        let value = txo.get("value").unwrap().as_str().unwrap();
+        let value = txo.get("value_pmob").unwrap().as_str().unwrap();
         assert_eq!(value, "42000000000000");
     }
 }

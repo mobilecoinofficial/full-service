@@ -28,6 +28,11 @@ pub trait AccountTxoStatusModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<AccountTxoStatus, WalletDbError>;
 
+    fn get_all_associated_accounts(
+        txo_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<AccountTxoStatus>, WalletDbError>;
+
     fn set_unspent(
         &self,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
@@ -76,6 +81,21 @@ impl AccountTxoStatusModel for AccountTxoStatus {
             )),
             Err(e) => Err(e.into()),
         }
+    }
+
+    fn get_all_associated_accounts(
+        txo_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<AccountTxoStatus>, WalletDbError> {
+        use crate::db::schema::account_txo_statuses as cols;
+        use crate::db::schema::account_txo_statuses::dsl::account_txo_statuses;
+
+        let results: Vec<AccountTxoStatus> = account_txo_statuses
+            .filter(cols::txo_id_hex.eq(txo_id_hex))
+            .select(cols::all_columns)
+            .load(conn)?;
+
+        Ok(results)
     }
 
     fn set_unspent(

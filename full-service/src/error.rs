@@ -45,8 +45,11 @@ pub enum WalletServiceError {
     /// Error decoding prost {0}
     ProstDecode(prost::DecodeError),
 
-    /// Error decoding b58: No public address in wrapper.
-    B58Decode,
+    /// Error serializing json {0}
+    SerdeJson(serde_json::Error),
+
+    /// Diesel Error: {0}
+    Diesel(diesel::result::Error),
 }
 
 impl From<WalletDbError> for WalletServiceError {
@@ -97,6 +100,18 @@ impl From<prost::DecodeError> for WalletServiceError {
     }
 }
 
+impl From<serde_json::Error> for WalletServiceError {
+    fn from(src: serde_json::Error) -> Self {
+        Self::SerdeJson(src)
+    }
+}
+
+impl From<diesel::result::Error> for WalletServiceError {
+    fn from(src: diesel::result::Error) -> Self {
+        Self::Diesel(src)
+    }
+}
+
 #[derive(Display, Debug)]
 pub enum WalletDbError {
     /// Diesel Error: {0}
@@ -110,6 +125,9 @@ pub enum WalletDbError {
 
     /// Error encoding b58 {0}
     B58Encode(mc_api::display::Error),
+
+    /// Error decoding b58: No public address in wrapper.
+    B58Decode,
 
     /// Constructed a malformed transaction with multiple account IDs
     MultipleAccountIDsInTransaction,
@@ -176,6 +194,9 @@ pub enum WalletDbError {
 
     /// The Txo Exists, but for another account {0}
     TxoExistsForAnotherAccount(String),
+
+    /// The Txo is associated with too many Accounts {0}
+    TxoAssociatedWithTooManyAccounts(String),
 }
 
 impl From<diesel::result::Error> for WalletDbError {

@@ -26,10 +26,7 @@ use structopt::StructOpt;
 
 /// Command line config for the Wallet API
 #[derive(Clone, Debug, StructOpt)]
-#[structopt(
-    name = "wallet-service",
-    about = "An HTTP wallet service for MobileCoin"
-)]
+#[structopt(name = "full-service", about = "An HTTP wallet service for MobileCoin")]
 pub struct APIConfig {
     /// Host to listen on.
     #[structopt(long, default_value = "127.0.0.1")]

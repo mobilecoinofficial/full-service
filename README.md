@@ -1,4 +1,5 @@
-# wallet-service
+# Full Service
+
 A MobileCoin service for wallet implementations.
 
 ## Build and Run
@@ -14,13 +15,15 @@ A MobileCoin service for wallet implementations.
 1. Build
 
     ```sh
-    SGX_MODE=HW IAS_MODE=PROD CONSENSUS_ENCLAVE_CSS=$(pwd)/consensus-enclave.css cargo build --release -p mc-wallet-service
+    SGX_MODE=HW IAS_MODE=PROD CONSENSUS_ENCLAVE_CSS=$(pwd)/consensus-enclave.css cargo build --release -p mc-full-service
     ```
 
 1. Run
 
     ```sh
-    ./target/release/wallet-service \
+    mkdir /tmp/wallet-db/
+
+    ./target/release/full-service \
         --wallet-db /tmp/wallet-db/wallet.db \
         --ledger-db /tmp/ledger-db/ \
         --peer mc://node1.test.mobilecoin.com/ \
@@ -38,6 +41,8 @@ A MobileCoin service for wallet implementations.
 
 
 ## API
+
+The Full Service API methods are outlined below. For a description of the API objects, see [API.md](./API.md).
 
 ### Accounts
 
@@ -58,9 +63,21 @@ curl -s localhost:9090/wallet \
 {
   "method": "create_account",
   "result": {
-    "public_address": "8JtpPPh9mV2PTLrrDz4f2j4PtUpNWnrRg8HKpnuwkZbj5j8bGqtNMNLC9E3zjzcw456215yMjkCVYK4FPZTX4gijYHiuDT31biNHrHmQmsU",
-    "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
-    "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
+    "entropy": "c08187899b0ea7272e1371b97c0fdc2aa4cb3983e087ccce4b5fa44fde52b758",
+    "account": {
+      "object": "account",
+      "account_id": "81ca0a6c473ad70199c19033fd6eb3c94b7acfa2ae5f4065c89a4476a9b2345e",
+      "name": "Alice",
+      "network_height": "152826",
+      "local_height": "152826",
+      "account_height": "0",
+      "is_synced": false,
+      "available_pmob": "0",
+      "pending_pmob": "0",
+      "main_address": "2XyzT9mtAyfvnET7QuvBAknEYxZCZ5xgBXrhJpTSFYAU7EYgM2MrMmQtguHKQXX1kKtY328swkdJHi85ak9xKrtkPwHX3mMX616XkhDPiwV",
+      "next_subaddress_index": "2",
+      "recovery_mode": false
+    }
   }
 }
 ```
@@ -80,19 +97,32 @@ curl -s localhost:9090/wallet \
         "method": "import_account",
         "params": {
           "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
-          "name": "Alice"
+          "name": "Bob"
         }
       }' \
    -X POST -H 'Content-type: application/json' | jq
 
 {
- "method": "import_account",
- "result": {
-   "public_address": "8JtpPPh9mV2PTLrrDz4f2j4PtUpNWnrRg8HKpnuwkZbj5j8bGqtNMNLC9E3zjzcw456215yMjkCVYK4FPZTX4gijYHiuDT31biNHrHmQmsU",
-   "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
- }
+  "method": "import_account",
+  "result": {
+    "account": {
+      "object": "account",
+      "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+      "name": "Bob",
+      "network_height": "152826",
+      "local_height": "152826",
+      "account_height": "1",
+      "is_synced": false,
+      "available_pmob": "0",
+      "pending_pmob": "0",
+      "main_address": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
+      "next_subaddress_index": "2",
+      "recovery_mode": false
+    }
+  }
 }
 ```
+
 | Required Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
 | `entropy`      | The secret root entropy  | 32 bytes of randomness, hex-encoded  |
@@ -102,20 +132,50 @@ curl -s localhost:9090/wallet \
 | `name`         | Label for this account   | Can have duplicates (not recommended) |
 | `first_block`  | The block from which to start scanning the ledger |  |
 
-#### List Accounts
+#### Get All Accounts
 
 ```sh
 curl -s localhost:9090/wallet \
-  -d '{"method": "list_accounts"}' \
+  -d '{"method": "get_all_accounts"}' \
   -X POST -H 'Content-type: application/json' | jq
 
 {
-  "method": "list_accounts",
+  "method": "get_all_accounts",
   "result": {
-    "accounts": [
-      "c7155cb1660f6dfe778dd52f6381ad3a25f35bd9f502ec337b17478f51abaade",
-      "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
-    ]
+    "account_ids": [
+      "81ca0a6c473ad70199c19033fd6eb3c94b7acfa2ae5f4065c89a4476a9b2345e",
+      "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+    ],
+    "account_map": {
+      "81ca0a6c473ad70199c19033fd6eb3c94b7acfa2ae5f4065c89a4476a9b2345e": {
+        "account_height": "48630",
+        "account_id": "81ca0a6c473ad70199c19033fd6eb3c94b7acfa2ae5f4065c89a4476a9b2345e",
+        "available_pmob": "0",
+        "is_synced": false,
+        "local_height": "152826",
+        "main_address": "2XyzT9mtAyfvnET7QuvBAknEYxZCZ5xgBXrhJpTSFYAU7EYgM2MrMmQtguHKQXX1kKtY328swkdJHi85ak9xKrtkPwHX3mMX616XkhDPiwV",
+        "name": "Alice",
+        "network_height": "152826",
+        "next_subaddress_index": "2",
+        "object": "account",
+        "pending_pmob": "0",
+        "recovery_mode": false
+      },
+      "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10":
+        "account_height": "27601",
+        "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+        "available_pmob": "994799199999988869",
+        "is_synced": false,
+        "local_height": "152826",
+        "main_address": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
+        "name": "Bob",
+        "network_height": "152826",
+        "next_subaddress_index": "2",
+        "object": "account",
+        "pending_pmob": "0",
+        "recovery_mode": false
+      }
+    }
   }
 }
 ```
@@ -127,7 +187,7 @@ curl -s localhost:9090/wallet \
   -d '{
         "method": "get_account",
         "params": {
-          "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
+          "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10"
         }
       }' \
   -X POST -H 'Content-type: application/json'  | jq
@@ -135,7 +195,20 @@ curl -s localhost:9090/wallet \
 {
   "method": "get_account",
   "result": {
-    "name": "Alice",
+    "account": {
+      "object": "account",
+      "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+      "name": "Bob",
+      "network_height": "152826",
+      "local_height": "152826",
+      "account_height": "44271",
+      "is_synced": false,
+      "available_pmob": "994100109999988869",
+      "pending_pmob": "0",
+      "main_address": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
+      "next_subaddress_index": "2",
+      "recovery_mode": false
+    }
   }
 }
 ```
@@ -152,7 +225,7 @@ curl -s localhost:9090/wallet \
         "method": "update_account_name",
         "params": {
           "acount_id": "2b2d5cce6e24f4a396402fcf5f036890f9c06660f5d29f8420b8c89ef9074cd6",
-          "name": "Eve"
+          "name": "Carol"
         }
       }' \
   -X POST -H 'Content-type: application/json'  | jq
@@ -195,12 +268,12 @@ curl -s localhost:9090/wallet \
 
 ### TXOs
 
-#### List TXOs for a given account
+#### Get All TXOs for a given account
 
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "list_txos",
+        "method": "get_all_txos_by_account",
         "params": {
           "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
         }
@@ -208,33 +281,115 @@ curl -s localhost:9090/wallet \
   -X POST -H 'Content-type: application/json'  | jq
 
 {
-  "method": "list_txos",
+  "method": "get_all_txos_by_account",
   "result": {
-    "txos": [
-      {
-        "txo_id": "000d688cfe28ab128a7514148f700dc6872e97c1498753fdef4fdd8b90601cd1",
-        "value": "97582349900010990",
-        "txo_type": "received",
-        "txo_status": "spent"
+    "txo_ids": [
+      "001cdcc1f0a22dc0ddcdaac6020cc03d919cbc3c36923f157b4a6bf0dc980167",
+      "00408833347550b046f0996afe92313745f76e307904686e93de5bab3590e9da",
+      "005b41a40be1401426f9a00965cc334e4703e4089adb8fa00616e7b25b92c6e5",
+      ...
+    ],
+    "txo_map": {
+      "001cdcc1f0a22dc0ddcdaac6020cc03d919cbc3c36923f157b4a6bf0dc980167": {
+        "account_status_map": {
+          "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10": {
+            "txo_status": "spent",
+            "txo_type": "received"
+          }
+        },
+        "assigned_subaddress": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
+        "e_fog_hint": "0a54bf0a5f37989b379b9db3e8937387c5033428b399d44ee524c02b53ce8b7fa7ffc7181a854255cefc68704f69eedd43a891d2ed65c9f6e4c0fc645c2bc156278395221100a4fc3a1d617d04f6eca8851e846a0100",
+        "is_spent_recovered": false,
+        "key_image": "0a20f041e3da520a6e3328d43a920b90bf87826a1602c9249cf6591dd32328a4544e",
+        "minted_account_id": null,
+        "object": "txo",
+        "offset_count": 262,
+        "proof": null,
+        "public_key": "0a201a592874a596aeb14cbeb1c7d3449cbd20dc8078ad7fff657e131d619145ef0a",
+        "received_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+        "received_block_height": "128567",
+        "spent_block_height": "128569",
+        "subaddress_index": "0",
+        "target_key": "0a209e1067117870549a77a47de04bd810da052abfc23d60a0c433367bfc689b7428",
+        "txo_id": "001cdcc1f0a22dc0ddcdaac6020cc03d919cbc3c36923f157b4a6bf0dc980167",
+        "value_pmob": "990000000000"
       },
-      {
-        "txo_id": "00a92e639f2601e9af3ba796c62087cc1c6b9d1bc7c4921df4b136d134ff4027",
-        "value": "1",
-        "txo_type": "received",
-        "txo_status": "spent"
+      "84f30233774d728bb7844bed59d471fe55ee3680ab70ddc312840db0f978f3ba": {
+        "account_status_map": {
+          "36fdf8fbdaa35ad8e661209b8a7c7057f29bf16a1e399a34aa92c3873dfb853c": {
+            "txo_status": "unspent",
+            "txo_type": "received"
+          },
+          "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10": {
+            "txo_status": "secreted",
+            "txo_type": "minted"
+          }
+        },
+        "assigned_subaddress": null,
+        "e_fog_hint": "0a5472b079a520696518cc7d7c3036e855cbbcf1a3e247db32ab2e62e835183077b862ef86ec4963a584650cc028eb645569f9de1392b88f8fd7fa07aa28c4e035fd5f4866f3db3d403a05d2adb5e4f2992c010b0100",
+        "is_spent_recovered": false,
+        "key_image": null,
+        "minted_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+        "object": "txo",
+        "offset_count": 501
+        "proof": "0a204488e153cce1e4bcdd4419eecb778f3d2d2b024b39aaa29532d2e47e238b2e31",
+        "public_key": "0a20e6736474f73e440686736bfd045d838c2b3bc056ffc647ad6b1c990f5a46b123",
+        "received_account_id": "36fdf8fbdaa35ad8e661209b8a7c7057f29bf16a1e399a34aa92c3873dfb853c",
+        "received_block_height": null,
+        "spent_block_height": null,
+        "subaddress_index": null,
+        "target_key": "0a20762d8a723aae2aa70cc11c62c91af715f957a7455b695641fe8c94210812cf1b",
+        "txo_id": "84f30233774d728bb7844bed59d471fe55ee3680ab70ddc312840db0f978f3ba",
+        "value_pmob": "200",
       },
-      {
-        "txo_id": "00ae2c1a638296dbfe0514019e4efa03b0c714c45b391f1d2180a2c50a38ffad",
-        "value": "1",
-        "txo_type": "received",
-        "txo_status": "spent"
+      "58c2c3780792ccf9c51014c7688a71f03732b633f8c5dfa49040fa7f51328280": {
+        "account_status_map": {
+          "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10": {
+            "txo_status": "unspent",
+            "txo_type": "received"
+          }
+        },
+        "assigned_subaddress": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
+        "e_fog_hint": "0a546f862ccf5e96a89b3ede770a70aa26ce8be704a7e5a73fff02d16ee1f694297b6c17d2e668d6181df047ae68730dfc7913b28aca66450ee1de0ca3b0bedb07664918899848f217bcbbe48be2ef40074ae5dd0100",
+        "is_spent_recovered": false,
+        "key_image": "0a20784ab38c4541ce23abbec6744431d6ae14101c49c6535b3e9bf3fd728db13848",
+        "minted_account_id": null,
+        "object": "txo",
+        "offset_count": 8
+        "proof": null,
+        "public_key": "0a20d803a979c9ec0531f106363a885dde29101fcd70209f9ed686905512dfd14d5f",
+        "received_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+        "received_block_height": "79",
+        "spent_block_height": null,
+        "subaddress_index": "0",
+        "target_key": "0a209abadbfcec6c81b3d184dc104e51cac4c4faa8bab4da21a3714901519810c20d",
+        "txo_id": "58c2c3780792ccf9c51014c7688a71f03732b633f8c5dfa49040fa7f51328280",
+        "value_pmob": "4000000000000",
       },
-      {
-        "txo_id": "00d4f35588ed694edaf58762be9edf3a3cb6941f2a9de3ee779f7c91c3a064a0",
-        "value": "97584329900010990",
-        "txo_type": "received",
-        "txo_status": "spent"
-      },
+      "b496f4f3ec3159bf48517aa7d9cda193ef8bfcac343f81eaed0e0a55849e4726": {
+        "account_status_map": {
+          "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10": {
+            "txo_status": "secreted",
+            "txo_type": "minted"
+          }
+        },
+        "assigned_subaddress": null,
+        "e_fog_hint": "0a54338fcf8609cf80dfe017bee2339b22b626af2957ef579ae8829f3d8e7fab6c20365b6a99727fcd5e3de7784fca7e1cbb77ec35e7f2c39ea47ef6121716119ba5a67f8a6026a6a6274e7262ea8ea8280782440100",
+        "is_spent_recovered": false,
+        "key_image": null,
+        "minted_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+        "object": "txo",
+        "offset_count": 498
+        "proof": null,
+        "public_key": "0a209432c589bb4e5101c26e935b70930dfe45c78417527fb994872ebd65fcb9c116",
+        "received_account_id": null,
+        "received_block_height": null,
+        "spent_block_height": null,
+        "subaddress_index": null,
+        "target_key": "0a208c75723e9b9a4af0c833bfe190c43900c3b41834cf37024f5fecfbe9919dff23",
+        "txo_id": "b496f4f3ec3159bf48517aa7d9cda193ef8bfcac343f81eaed0e0a55849e4726",
+        "value_pmob": "980000000000",
+      }
     ]
   }
 }
@@ -249,7 +404,7 @@ Note, you may wish to filter TXOs using a tool like jq. For example, to get all 
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "list_txos",
+        "method": "get_all_txos_by_account",
         "params": {"account_id": "1916a9b39ed28ab3a6eea69ac364b834ccc35b8e9763e8516d1a1f06aba5fb72"
         }
       }' \
@@ -263,24 +418,35 @@ curl -s localhost:9090/wallet \
   -d '{
         "method": "get_txo",
         "params": {
-          "account_id": "1916a9b39ed28ab3a6eea69ac364b834ccc35b8e9763e8516d1a1f06aba5fb72",
-          "txo_id": "fff8e8b65e606578a9baeaa3f2919453444fdd9787e3a04ad5667dd248d02aee"}}' \
+          "txo_id": "fff4cae55a74e5ce852b79c31576f4041d510c26e59fec178b3e45705c5b35a7"}}' \
   -X POST -H 'Content-type: application/json' | jq
 
 {
   "method": "get_txo",
   "result": {
     "txo": {
-      "txo_id": "fff8e8b65e606578a9baeaa3f2919453444fdd9787e3a04ad5667dd248d02aee",
-      "value": "659999999999",
-      "assigned_subaddress": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+      "object": "txo",
+      "txo_id": "fff4cae55a74e5ce852b79c31576f4041d510c26e59fec178b3e45705c5b35a7",
+      "value_pmob": "2960000000000",
+      "received_block_height": "8094",
+      "spent_block_height": "8180",
+      "is_spent_recovered": false,
+      "received_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+      "minted_account_id": null,
+      "account_status_map": {
+        "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10": {
+          "txo_status": "spent",
+          "txo_type": "received"
+        }
+      },
+      "target_key": "0a209eefc082a656a34fae5cec81044d1b13bd8963c411afa28aecfce4839fc9f74e",
+      "public_key": "0a20f03f9684e5420d5410fe732f121626352d45e4e799d725432a0c61fa1343ac51",
+      "e_fog_hint": "0a544944e7527b7f09322651b7242663edf17478fd1804aeea24838a35ad3c66d5194763642ae1c1e0cd2bbe2571a97a8c0fb49e346d2fd5262113e7333c7f012e61114bd32d335b1a8183be8e1865b0a10199b60100",
       "subaddress_index": "0",
-      "txo_type": "received",
-      "txo_status": "spent",
-      "received_block_height": "27009",
-      "pending_tombstone_block_height": null,
-      "spent_block_height": "27010",
-      "proof": null
+      "assigned_subaddress": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
+      "key_image": "0a205445b406012d26baebb51cbcaaaceb0d56387a67353637d07265f4e886f33419",
+      "proof": null,
+      "offset_count": 25
     }
   }
 }
@@ -291,7 +457,65 @@ curl -s localhost:9090/wallet \
 | `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
 | `txo_id`   | The txo ID for which to get details  |  |
 
-#### Get Balance for a given account
+#### Get Wallet Status
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "get_wallet_status",
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
+
+{
+  "method": "get_wallet_status",
+  "result": {
+    "status": {
+      "object": "wallet_status",
+      "network_height": "152826",
+      "local_height": "152826",
+      "is_synced_all": false,
+      "total_available_pmob": "999699770000000000",
+      "total_pending_pmob": "0",
+      "account_ids": [
+        "15893926fd0eaf0055f73fe1246d369db6a55943e77ebf24c955768792050185",
+        "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10"
+      ],
+      "account_map": {
+        "15893926fd0eaf0055f73fe1246d369db6a55943e77ebf24c955768792050185": {
+          "account_height": "60310",
+          "account_id": "15893926fd0eaf0055f73fe1246d369db6a55943e77ebf24c955768792050185",
+          "available_pmob": "0",
+          "is_synced": false,
+          "local_height": "152826",
+          "main_address": "3fGctHzq5t23xSE3Vj9Ya6uyE2bHAdrn58KaFVgzb6CUHFwPrV9obmnq3XcewvrmEtyeMTMhGvFNqRyVT5FUsu4SAkQW8D7LHs22TVTBQ6m",
+          "name": "Alice",
+          "network_height": "152826",
+          "next_subaddress_index": "2",
+          "object": "account",
+          "pending_pmob": "0",
+          "recovery_mode": false
+        },
+        "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10": {
+          "account_height": "3806",
+          "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+          "available_pmob": "999699770000000000",
+          "is_synced": false,
+          "local_height": "152826",
+          "main_address": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
+          "name": "Bob",
+          "network_height": "152826",
+          "next_subaddress_index": "2",
+          "object": "account",
+          "pending_pmob": "0",
+          "recovery_mode": false
+        }
+      }
+    }
+  }
+}
+```
+
+#### Get Balance for a Given Account
 
 ```sh
 curl -s localhost:9090/wallet \
@@ -342,10 +566,14 @@ curl -s localhost:9090/wallet \
   "method": "create_address",
   "result": {
     "address": {
-      "public_address_b58": "84NXhbCHE9hQ6fbioRyZJMhuoz6NJFo43JJqboZa7PtqrQWU5ozBi2Px5shPYAr7PR2ED4EL9BvuT1rqDc289t3rMLUYSyxQZxX6EnskNLz",
-      "subaddress_index": "3",
+      "object": "address",
+      "address_id": "3",
+      "public_address": "3zjsgFjqCjptUD7FYY7bj4qanJWnZjdbVodBkGcBBwx7W4P9GissUvCLx4F4QhVde33Bt75fshEG5A5KRsVCNxhHkHbeS22SXiPDHssmWvL",
+      "account_id": "15893926fd0eaf0055f73fe1246d369db6a55943e77ebf24c955768792050185",
       "address_book_entry_id": null,
-      "comment": "For transactions from Carol"
+      "comment": "For transactions from Frank",
+      "subaddress_index": "2",
+      "offset_count": 0
     }
   }
 }
@@ -359,12 +587,12 @@ curl -s localhost:9090/wallet \
 | :------------- | :----------------------- | :------------------------ |
 | `comment`      | Annotation for this subaddress |  |
 
-#### List Assigned Subaddresses
+#### Get All Assigned Subaddresses for a Given Account
 
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "list_addresses",
+        "method": "get_all_addresses_by_account",
         "params": {
           "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
         }
@@ -372,34 +600,45 @@ curl -s localhost:9090/wallet \
   -X POST -H 'Content-type: application/json' | jq
 
 {
-  "method": "list_addresses",
+  "method": "get_all_addresses_by_account",
   "result": {
-    "addresses": [
-      {
-        "public_address_b58": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-        "subaddress_index": "0",
+    "address_ids": [
+      "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
+      "2pW3CcHUmg4cafp9ePCpPg72mowC6NJZ1iHQxpkiAuPJuWDVUC9WEGRxychqFmKXx68VqerFKiHeEATwM5hZcf9SKC9Cub2GyMsztSqYdjY",
+      "8tV9dCdbvmB6mNZyWvz75xdYte38D5qzx2aWv5z85yM7d74NdwbmB7RiFtxHMVknVPfBwYhaPu6M8GuvypPuXk627nW6WzWHMAy2dQJjHGV"
+    ],
+    "address_map": {
+      "2pW3CcHUmg4cafp9ePCpPg72mowC6NJZ1iHQxpkiAuPJuWDVUC9WEGRxychqFmKXx68VqerFKiHeEATwM5hZcf9SKC9Cub2GyMsztSqYdjY": {
+        "account_id": "4e09258a93c1b0cb4acafe42bdfe7868bc428755afeccdc841f15eb7016a74f6",
         "address_book_entry_id": null,
-        "comment": "Main"
+        "address_id": "2pW3CcHUmg4cafp9ePCpPg72mowC6NJZ1iHQxpkiAuPJuWDVUC9WEGRxychqFmKXx68VqerFKiHeEATwM5hZcf9SKC9Cub2GyMsztSqYdjY",
+        "comment": "Change",
+        "object": "assigned_address",
+        "offset_count": 10,
+        "public_address": "2pW3CcHUmg4cafp9ePCpPg72mowC6NJZ1iHQxpkiAuPJuWDVUC9WEGRxychqFmKXx68VqerFKiHeEATwM5hZcf9SKC9Cub2GyMsztSqYdjY",
+        "subaddress_index": "1"
       },
-      {
-        "public_address_b58": "7xKjiti17VLvkJZT2Wb16QWtQSgmVxVwBjr34btrWRLXNBmavK9LEwovkEhrchdXQGCwjDtFo93qLhaBNoKNSSfRNqA5WhK8XQGmyN6Kntv",
-        "subaddress_index": "1",
+      "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav": {
+        "account_id": "4e09258a93c1b0cb4acafe42bdfe7868bc428755afeccdc841f15eb7016a74f6",
         "address_book_entry_id": null,
-        "comment": "Change"
+        "address_id": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
+        "comment": "Main",
+        "object": "assigned_address",
+        "offset_count": 9,
+        "public_address": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
+        "subaddress_index": "0"
       },
-      {
-        "public_address_b58": "6mWmJtmyuXiB8iBVbTpB3DKKeKM6rdfiGF9SxhKnBqREdHtD3APooCxxFRL8Ga8rQKeo1b3XKPj8sj227tPdkiybBNEaGXXinFGk7XXA7Bu",
-        "subaddress_index": "2",
+      "8tV9dCdbvmB6mNZyWvz75xdYte38D5qzx2aWv5z85yM7d74NdwbmB7RiFtxHMVknVPfBwYhaPu6M8GuvypPuXk627nW6WzWHMAy2dQJjHGV": {
+        "account_id": "4e09258a93c1b0cb4acafe42bdfe7868bc428755afeccdc841f15eb7016a74f6",
         "address_book_entry_id": null,
-        "comment": "For transactions from Bob"
-      },
-      {
-        "public_address_b58": "7uvFzQXBPbKj4K8fndfve7s1wxRKKVogyCnpqepTWkpshk4gRu63fh5G8JD5UagxfLZvtfYfXuazBPcQSkNiwXVAjmWQTcpw3gQahx1cUmM",
-        "subaddress_index": "3",
-        "address_book_entry_id": null,
-        "comment": "For transactions from Carol"
-      },
-    ]
+        "address_id": "8tV9dCdbvmB6mNZyWvz75xdYte38D5qzx2aWv5z85yM7d74NdwbmB7RiFtxHMVknVPfBwYhaPu6M8GuvypPuXk627nW6WzWHMAy2dQJjHGV",
+        "comment": "For transactions from Frank",
+        "object": "assigned_address",
+        "offset_count": 11,
+        "public_address": "8tV9dCdbvmB6mNZyWvz75xdYte38D5qzx2aWv5z85yM7d74NdwbmB7RiFtxHMVknVPfBwYhaPu6M8GuvypPuXk627nW6WzWHMAy2dQJjHGV",
+        "subaddress_index": "2"
+      }
+    }
   }
 }
 ```
@@ -430,7 +669,7 @@ curl -s localhost:9090/wallet \
   "method": "submit_transaction",
   "result": {
     "transaction": {
-      "transaction_id": "96df759d272cfc134b71e24374a7b5125fe535f1d00fc44c1f12a91c1f951122"
+      "transaction_log_id": "96df759d272cfc134b71e24374a7b5125fe535f1d00fc44c1f12a91c1f951122"
     }
   }
 }
@@ -444,7 +683,7 @@ curl -s localhost:9090/wallet \
 
 | Optional Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
-| `input_txo_ids` | Specific TXOs to use as inputs to this transaction   | TXO IDs (obtain from `list_txos`) |
+| `input_txo_ids` | Specific TXOs to use as inputs to this transaction   | TXO IDs (obtain from `get_all_txos_by_account`) |
 | `fee` | The fee amount to submit with this transaction | If not provided, uses `MINIMUM_FEE` = .01 MOB |
 | `tombstone_block` | The block after which this transaction expires | If not provided, uses `cur_height` + 50 |
 | `max_spendable_value` | The maximum amount for an input TXO selected for this transaction |  |
@@ -671,7 +910,7 @@ curl -s localhost:9090/wallet \
 
 | Optional Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
-| `input_txo_ids` | Specific TXOs to use as inputs to this transaction   | TXO IDs (obtain from `list_txos`) |
+| `input_txo_ids` | Specific TXOs to use as inputs to this transaction   | TXO IDs (obtain from `get_all_txos_by_account`) |
 | `fee` | The fee amount to submit with this transaction | If not provided, uses `MINIMUM_FEE` = .01 MOB |
 | `tombstone_block` | The block after which this transaction expires | If not provided, uses `cur_height` + 50 |
 | `max_spendable_value` | The maximum amount for an input TXO selected for this transaction |  |
@@ -707,7 +946,7 @@ curl -s localhost:9090/wallet \
   "method": "submit_transaction",
   "result": {
     "transaction": {
-      "transaction_id": "96df759d272cfc134b71e24374a7b5125fe535f1d00fc44c1f12a91c1f951122"
+      "transaction_log_id": "96df759d272cfc134b71e24374a7b5125fe535f1d00fc44c1f12a91c1f951122"
     }
   }
 }
@@ -721,64 +960,81 @@ curl -s localhost:9090/wallet \
 | :------------- | :----------------------- | :------------------------ |
 | `comment` | Comment to annotate this transaction in the transaction log   | |
 
-#### List Transactions
+#### Get All Transactions
 
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "list_transactions",
+        "method": "get_all_transactions_by_account",
         "params": {
-          "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
+          "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10"
         }
       }' \
   -X POST -H 'Content-type: application/json' | jq
 
 {
-  "method": "list_transactions",
+  "method": "get_all_transactions_by_account",
   "result": {
-    "transactions": [
-      {
-        "transaction_id": "96df759d272cfc134b71e24374a7b5125fe535f1d00fc44c1f12a91c1f951122",
-        "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
-        "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-        "assigned_subaddress": "",
-        "value": "1200000000000",
-        "fee": "10000000000",
-        "status": "pending",
-        "sent_time": "",
-        "block_height": "114192",
-        "comment": "",
-        "direction": "sent",
-        "inputs": [
-          "972d1369fbef99653e336de89d55a365db76743f413e8fb07b075f1e72dcb61f"
-        ],
-        "outputs": [
-          "a73d8ace011a745d2e6a3c39c55ccd0cc176462e1af62061b1ce77530e75318a"
-        ],
-        "change": [
-          "7e35f469b60bc41aaeac90b218f02a4b1a5453eefa405a4ae356c9edc1492715"
-        ]
-      },
-      {
-        "transaction_id": "bdc8a8c2c0b259c8b3d3027d4616e681aac937071bb45ff97673b26aa37acd05",
-        "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
-        "recipient_public_address": "",
-        "assigned_subaddress": "PRwfPLTEJQxE5igytABzL1wJ5zujZNsYzfzEewoUsA91AUfpuPyk3QjgrXcwnhv4HVRZvT5MTE8cWyUE8LwkzSwnENuXyFF26kfDUSritG",
-        "value": "111000000000",
-        "fee": null,
-        "status": "succeeded",
-        "sent_time": "",
-        "block_height": "116867",
+    "transaction_log_ids": [
+      "6e51851495c628a3b6eefb3e14ee14bb7a167bba5ce727c8710601ba87f74c4c",
+      "fcd2979f737f213fc327cd79d10c490a9bd4cb163084d4a154585c5e93e8c075",
+    ],
+    "transaction_log_map": {
+      "6e51851495c628a3b6eefb3e14ee14bb7a167bba5ce727c8710601ba87f74c4c": {
+        "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+        "assigned_address_id": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
+        "change_txo_ids": [],
         "comment": "",
         "direction": "received",
+        "failure_code": null,
+        "failure_message": null,
+        "fee_pmob": null,
+        "finalized_block_height": "144965",
         "input_txo_ids": [],
+        "is_sent_recovered": null,
+        "object": "transaction_log",
+        "offset_count": 296
         "output_txo_ids": [
-          "6ab350a4122eb029fe75038cebb16c24576c033088be73c8f113aab539704c91"
+          "6e51851495c628a3b6eefb3e14ee14bb7a167bba5ce727c8710601ba87f74c4c"
         ],
-        "change_txo_ids": []
+        "recipient_address_id": null,
+        "sent_time": null,
+        "status": "succeeded",
+        "submitted_block_height": null,
+        "transaction_log_id": "6e51851495c628a3b6eefb3e14ee14bb7a167bba5ce727c8710601ba87f74c4c",
+        "value_pmob": "443990000000000",
+      },
+      "6e51851495c628a3b6eefb3e14ee14bb7a167bba5ce727c8710601ba87f74c4c": {
+        "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+        "assigned_address_id": null,
+        "change_txo_ids": [
+          "e992e718e1f28b67b0cf200e213af560fc7d5a236b3fec590f225b230f88257f"
+        ],
+        "comment": "",
+        "direction": "sent",
+        "fee_pmob": "10000000000",
+        "failure_code": null,
+        "failure_message": null,
+        "finalized_block_height": "152826",
+        "input_txo_ids": [
+          "3de563a16d2da9656ce6c8aa9b12380b682c2e6aad0011fa8d6528c084078827",
+          "fa242e21e2155e8f257cd75d2d2939000d0926946c2b7b812946e093165acadb"
+        ],
+        "is_sent_recovered": null,
+        "object": "transaction_log",
+        "offset_count": 496
+        "output_txo_ids": [
+          "badf415972dfc2dc6203ed90be132831ff29f394f65b0be5c35c79048d86af5b"
+        ],
+        "recipient_address_id": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
+        "sent_time": "2020-12-15 09:30:04 UTC",
+        "status": "succeeded",
+        "submitted_block_height": "152826",
+        "transaction_log_id": "ead39f2c0dea3004732adf1953dee876b73829768d4877809fe06ee0bfc6bf6d",
+        "value_pmob": "1000000000000",
       }
-      ...
-    ]
+     ...
+    }
   }
 }
 ```
@@ -793,7 +1049,7 @@ curl -s localhost:9090/wallet \
 curl -s localhost:9090/wallet \
   -d '{
         "method": "get_transaction",
-        "params": {"transaction_id": "2b5c7581264583feaac32296b8ade5562f2c1891d3c92ee86e6df0a8746ec9c9"
+        "params": {"transaction_log_id": "ead39f2c0dea3004732adf1953dee876b73829768d4877809fe06ee0bfc6bf6d"
         }
       }' \
   -X POST -H 'Content-type: application/json' | jq
@@ -802,27 +1058,33 @@ curl -s localhost:9090/wallet \
   "method": "get_transaction",
   "result": {
     "transaction": {
-      "transaction_id": "2b5c7581264583feaac32296b8ade5562f2c1891d3c92ee86e6df0a8746ec9c9",
-      "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
-      "recipient_public_address": "84NXhbCHE9hQ6fbioRyZJMhuoz6NJFo43JJqboZa7PtqrQWU5ozBi2Px5shPYAr7PR2ED4EL9BvuT1rqDc289t3rMLUYSyxQZxX6EnskNLz",
-      "assigned_subaddress": "",
-      "value": "12300000000000",
-      "fee": "10000000000",
-      "status": "pending",
-      "sent_time": "",
-      "block_height": "116316",
-      "comment": "",
+      "object": "transaction_log",
+      "transaction_log_id": "ead39f2c0dea3004732adf1953dee876b73829768d4877809fe06ee0bfc6bf6d",
       "direction": "sent",
+      "is_sent_recovered": null,
+      "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+      "recipient_address_id": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
+      "assigned_address_id": null,
+      "value_pmob": "1000000000000",
+      "fee_pmob": "10000000000",
+      "submitted_block_height": "152826",
+      "finalized_block_height": "152826",
+      "status": "succeeded",
       "input_txo_ids": [
-        "352165cb67adc9f840cc2d561bbded01f8aed011c854ff447dc2924fa457d8ca",
-        "72eb5eb66a12dc45e9e01dd60a0555203ddfdc383b18dbd38c82983ca6662408"
+        "3de563a16d2da9656ce6c8aa9b12380b682c2e6aad0011fa8d6528c084078827",
+        "fa242e21e2155e8f257cd75d2d2939000d0926946c2b7b812946e093165acadb"
       ],
       "output_txo_ids": [
-        "871ca6e7e4db3f691349bbacce02774becaf349b7ad87d487d08f48c14c5e1e9"
+        "badf415972dfc2dc6203ed90be132831ff29f394f65b0be5c35c79048d86af5b"
       ],
       "change_txo_ids": [
-        "ed2a2abdf8d126d93782e8f4b1cdb9ee67eead96563ffbab0fe08a6c44d47c9f"
-      ]
+        "e992e718e1f28b67b0cf200e213af560fc7d5a236b3fec590f225b230f88257f"
+      ],
+      "sent_time": "2020-12-15 09:30:04 UTC",
+      "comment": "",
+      "failure_code": null,
+      "failure_message": null,
+      "offset_count": 496
     }
   }
 }

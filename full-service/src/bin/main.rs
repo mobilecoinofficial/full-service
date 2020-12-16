@@ -8,10 +8,12 @@ use diesel_migrations::embed_migrations;
 use dotenv::dotenv;
 use mc_attest_core::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
 use mc_common::logger::{create_app_logger, log, o};
+use mc_full_service::{
+    config::APIConfig,
+    wallet::{rocket, WalletState},
+    WalletDb, WalletService,
+};
 use mc_ledger_sync::{LedgerSyncServiceThread, PollingNetworkState, ReqwestTransactionsFetcher};
-use mc_wallet_service::config::APIConfig;
-use mc_wallet_service::wallet::{rocket, WalletState};
-use mc_wallet_service::{WalletDb, WalletService};
 use std::sync::{Arc, RwLock};
 use structopt::StructOpt;
 
@@ -92,7 +94,7 @@ fn main() {
         Some(LedgerSyncServiceThread::new(
             ledger_db.clone(),
             peer_manager.clone(),
-            network_state,
+            network_state.clone(),
             transactions_fetcher,
             config.poll_interval,
             logger.clone(),
@@ -104,6 +106,7 @@ fn main() {
             wallet_db,
             ledger_db,
             peer_manager,
+            network_state,
             config.get_fog_pubkey_resolver(logger.clone()).map(Arc::new),
             config.num_workers,
             logger,

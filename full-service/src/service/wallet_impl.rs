@@ -2,6 +2,7 @@
 
 //! The implementation of the wallet service methods.
 
+use crate::db::b58_decode;
 use crate::{
     db::models::{
         Account, AssignedSubaddress, TransactionLog, Txo, TXO_ORPHANED, TXO_PENDING, TXO_SECRETED,
@@ -18,57 +19,48 @@ use crate::{
     service::{
         decorated_types::{
             JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
-            JsonCreateAccountResponse, JsonImportAccountResponse, JsonListTxosResponse,
-            JsonSubmitResponse, JsonTransactionResponse, JsonTxo,
+            JsonCreateAccountResponse, JsonSubmitResponse, JsonTransactionLog, JsonTxo,
+            JsonWalletStatus,
         },
         sync::SyncThread,
         transaction_builder::WalletTransactionBuilder,
     },
 };
-use mc_account_keys::{
-    AccountKey, PublicAddress, RootEntropy, RootIdentity, DEFAULT_SUBADDRESS_INDEX,
-};
+use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
 use mc_common::logger::{log, Logger};
-use mc_connection::{ConnectionManager, RetryableUserTxConnection, UserTxConnection};
+use mc_connection::{
+    BlockchainConnection, ConnectionManager as McConnectionManager, RetryableUserTxConnection,
+    UserTxConnection,
+};
 use mc_crypto_rand::rand_core::RngCore;
 use mc_fog_report_connection::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
+use mc_ledger_sync::{NetworkState, PollingNetworkState};
 use mc_mobilecoind::payments::TxProposal;
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
 use mc_transaction_core::tx::{Tx, TxOut, TxOutConfirmationNumber};
 use mc_util_from_random::FromRandom;
-use std::convert::TryFrom;
-use std::iter::empty;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
 
-pub const DEFAULT_CHANGE_SUBADDRESS_INDEX: u64 = 1;
-pub const DEFAULT_NEXT_SUBADDRESS_INDEX: u64 = 2;
-pub const DEFAULT_FIRST_BLOCK: u64 = 0;
-
-pub fn b58_decode(b58_public_address: &str) -> Result<PublicAddress, WalletServiceError> {
-    let wrapper =
-        mc_mobilecoind_api::printable::PrintableWrapper::b58_decode(b58_public_address.to_string())
-            .unwrap();
-    let pubaddr_proto: &mc_api::external::PublicAddress = if wrapper.has_payment_request() {
-        let payment_request = wrapper.get_payment_request();
-        payment_request.get_public_address()
-    } else if wrapper.has_public_address() {
-        wrapper.get_public_address()
-    } else {
-        return Err(WalletServiceError::B58Decode);
-    };
-    Ok(PublicAddress::try_from(pubaddr_proto).unwrap())
-}
+use diesel::prelude::*;
+use serde_json::Map;
+use std::{
+    convert::TryFrom,
+    iter::empty,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc, RwLock,
+    },
+};
 
 /// Service for interacting with the wallet
 pub struct WalletService<
-    T: UserTxConnection + 'static,
+    T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 > {
     wallet_db: WalletDb,
     ledger_db: LedgerDB,
-    peer_manager: ConnectionManager<T>,
+    peer_manager: McConnectionManager<T>,
+    network_state: Arc<RwLock<PollingNetworkState<T>>>,
     fog_pubkey_resolver: Option<Arc<FPR>>,
     _sync_thread: SyncThread,
     /// Monotonically increasing counter. This is used for node round-robin selection.
@@ -76,13 +68,16 @@ pub struct WalletService<
     logger: Logger,
 }
 
-impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'static>
-    WalletService<T, FPR>
+impl<
+        T: BlockchainConnection + UserTxConnection + 'static,
+        FPR: FogPubkeyResolver + Send + Sync + 'static,
+    > WalletService<T, FPR>
 {
     pub fn new(
         wallet_db: WalletDb,
         ledger_db: LedgerDB,
-        peer_manager: ConnectionManager<T>,
+        peer_manager: McConnectionManager<T>,
+        network_state: Arc<RwLock<PollingNetworkState<T>>>,
         fog_pubkey_resolver: Option<Arc<FPR>>,
         num_workers: Option<usize>,
         logger: Logger,
@@ -99,6 +94,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
             wallet_db,
             ledger_db,
             peer_manager,
+            network_state,
             fog_pubkey_resolver,
             _sync_thread: sync_thread,
             submit_node_offset: Arc::new(AtomicUsize::new(rng.next_u64() as usize)),
@@ -124,25 +120,28 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         let account_key = AccountKey::from(&root_id);
         let entropy_str = hex::encode(root_id.root_entropy);
 
-        let fb = first_block.unwrap_or(DEFAULT_FIRST_BLOCK);
-
         let conn = self.wallet_db.get_conn()?;
-        let (account_id, public_address_b58) = Account::create(
+        let (account_id, _public_address_b58) = Account::create(
             &account_key,
-            DEFAULT_SUBADDRESS_INDEX,
-            DEFAULT_CHANGE_SUBADDRESS_INDEX,
-            DEFAULT_NEXT_SUBADDRESS_INDEX,
-            fb,
-            fb,
+            first_block,
             None,
             &name.unwrap_or_else(|| "".to_string()),
             &conn,
         )?;
 
+        let local_height = self.ledger_db.num_blocks()?;
+        let network_state = self.network_state.read().expect("lock poisoned");
+        // network_height = network_block_index + 1
+        let network_height = network_state
+            .highest_block_index_on_network()
+            .map(|v| v + 1)
+            .unwrap_or(0);
+        let decorated_account =
+            Account::get_decorated(&account_id, local_height, network_height, &conn)?;
+
         Ok(JsonCreateAccountResponse {
             entropy: entropy_str,
-            public_address_b58,
-            account_id: account_id.to_string(),
+            account: decorated_account,
         })
     }
 
@@ -151,7 +150,7 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         entropy: String,
         name: Option<String>,
         first_block: Option<u64>,
-    ) -> Result<JsonImportAccountResponse, WalletServiceError> {
+    ) -> Result<JsonAccount, WalletServiceError> {
         log::info!(
             self.logger,
             "Importing account {:?} with first_block: {:?}",
@@ -162,58 +161,78 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         let mut entropy_bytes = [0u8; 32];
         hex::decode_to_slice(entropy, &mut entropy_bytes)?;
         let account_key = AccountKey::from(&RootIdentity::from(&RootEntropy::from(&entropy_bytes)));
-
-        let fb = first_block.unwrap_or(DEFAULT_FIRST_BLOCK);
+        let local_height = self.ledger_db.num_blocks()?;
+        let network_state = self.network_state.read().expect("lock poisoned");
+        // network_height = network_block_index + 1
+        let network_height = network_state
+            .highest_block_index_on_network()
+            .map(|v| v + 1)
+            .unwrap_or(0);
         let conn = self.wallet_db.get_conn()?;
-        let (account_id, public_address_b58) = Account::create(
+        Ok(Account::import(
             &account_key,
-            DEFAULT_SUBADDRESS_INDEX,
-            DEFAULT_CHANGE_SUBADDRESS_INDEX,
-            DEFAULT_NEXT_SUBADDRESS_INDEX,
-            fb,
-            fb + 1,
-            Some(self.ledger_db.num_blocks()?),
-            &name.unwrap_or_else(|| "".to_string()),
+            name,
+            first_block,
+            local_height,
+            network_height,
             &conn,
-        )?;
-        Ok(JsonImportAccountResponse {
-            public_address_b58,
-            account_id: account_id.to_string(),
-        })
+        )?)
     }
 
     pub fn list_accounts(&self) -> Result<Vec<JsonAccount>, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        Ok(Account::list_all(&conn)?
-            .iter()
-            .map(|a| JsonAccount {
-                account_id: a.account_id_hex.clone(),
-                name: a.name.clone(),
-                synced_blocks: a.next_block.to_string(),
-            })
-            .collect())
-    }
-
-    pub fn get_account(&self, account_id_hex: &str) -> Result<JsonAccount, WalletServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-
-        let account = Account::get(&AccountID(account_id_hex.to_string()), &conn)?;
-        Ok(JsonAccount {
-            account_id: account.account_id_hex.clone(),
-            name: account.name.clone(),
-            synced_blocks: account.next_block.to_string(),
-        })
+        Ok(
+            conn.transaction::<Vec<JsonAccount>, WalletServiceError, _>(|| {
+                let accounts = Account::list_all(&conn)?;
+                let local_height = self.ledger_db.num_blocks()?;
+                let network_state = self.network_state.read().expect("lock poisoned");
+                // network_height = network_block_index + 1
+                let network_height = network_state
+                    .highest_block_index_on_network()
+                    .map(|v| v + 1)
+                    .unwrap_or(0);
+                accounts
+                    .iter()
+                    .map(|a| {
+                        Account::get_decorated(
+                            &AccountID(a.account_id_hex.clone()),
+                            local_height,
+                            network_height,
+                            &conn,
+                        )
+                        .map_err(|e| e.into())
+                    })
+                    .collect::<Result<Vec<JsonAccount>, WalletServiceError>>()
+            })?,
+        )
     }
 
     pub fn update_account_name(
         &self,
         account_id_hex: &str,
         name: String,
-    ) -> Result<(), WalletServiceError> {
+    ) -> Result<JsonAccount, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
-        Account::get(&AccountID(account_id_hex.to_string()), &conn)?.update_name(name, &conn)?;
-        Ok(())
+        Ok(conn.transaction::<JsonAccount, WalletServiceError, _>(|| {
+            Account::get(&AccountID(account_id_hex.to_string()), &conn)?
+                .update_name(name, &conn)?;
+
+            let local_height = self.ledger_db.num_blocks()?;
+            let network_state = self.network_state.read().expect("lock poisoned");
+            // network_height = network_block_index + 1
+            let network_height = network_state
+                .highest_block_index_on_network()
+                .map(|v| v + 1)
+                .unwrap_or(0);
+            let decorated_account = Account::get_decorated(
+                &AccountID(account_id_hex.to_string()),
+                local_height,
+                network_height,
+                &conn,
+            )?;
+            Ok(decorated_account)
+        })?)
     }
 
     pub fn delete_account(&self, account_id_hex: &str) -> Result<(), WalletServiceError> {
@@ -223,33 +242,91 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         Ok(())
     }
 
-    pub fn list_txos(
+    pub fn get_account(
         &self,
-        account_id_hex: &str,
-    ) -> Result<Vec<JsonListTxosResponse>, WalletServiceError> {
+        account_id_hex: &AccountID,
+    ) -> Result<JsonAccount, WalletServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+        let local_height = self.ledger_db.num_blocks()?;
+        let network_state = self.network_state.read().expect("lock poisoned");
+        // network_height = network_block_index + 1
+        let network_height = network_state
+            .highest_block_index_on_network()
+            .map(|v| v + 1)
+            .unwrap_or(0);
+        Ok(Account::get_decorated(
+            &account_id_hex,
+            local_height,
+            network_height,
+            &conn,
+        )?)
+    }
+
+    pub fn list_txos(&self, account_id_hex: &str) -> Result<Vec<JsonTxo>, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
         let txos = Txo::list_for_account(account_id_hex, &conn)?;
-        Ok(txos
-            .iter()
-            .map(|(t, s)| JsonListTxosResponse::new(t, s))
-            .collect())
+        Ok(txos.iter().map(|t| JsonTxo::new(t)).collect())
     }
 
-    pub fn get_txo(
-        &self,
-        account_id_hex: &str,
-        txo_id_hex: &str,
-    ) -> Result<JsonTxo, WalletServiceError> {
+    pub fn get_txo(&self, txo_id_hex: &str) -> Result<JsonTxo, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
-        let (txo, account_txo_status, assigned_subaddress) =
-            Txo::get(&AccountID(account_id_hex.to_string()), txo_id_hex, &conn)?;
-        Ok(JsonTxo::new(
-            &txo,
-            &account_txo_status,
-            assigned_subaddress.as_ref(),
-        ))
+        let txo_details = Txo::get(txo_id_hex, &conn)?;
+        Ok(JsonTxo::new(&txo_details))
+    }
+
+    // Wallet Status is an overview of the wallet's status
+    pub fn get_wallet_status(&self) -> Result<JsonWalletStatus, WalletServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+
+        let local_height = self.ledger_db.num_blocks()?;
+
+        let network_state = self.network_state.read().expect("lock poisoned");
+        // network_height = network_block_index + 1
+        let network_height = network_state
+            .highest_block_index_on_network()
+            .map(|v| v + 1)
+            .unwrap_or(0);
+
+        Ok(
+            conn.transaction::<JsonWalletStatus, WalletServiceError, _>(|| {
+                let accounts = Account::list_all(&conn)?;
+                let mut account_map = Map::new();
+
+                let mut total_available_pmob = 0;
+                let mut total_pending_pmob = 0;
+                let mut is_synced_all = true;
+                let mut account_ids = Vec::new();
+                for account in accounts {
+                    let decorated = Account::get_decorated(
+                        &AccountID(account.account_id_hex.clone()),
+                        local_height,
+                        network_height,
+                        &conn,
+                    )?;
+                    account_map.insert(
+                        account.account_id_hex.clone(),
+                        serde_json::to_value(decorated.clone())?,
+                    );
+                    total_available_pmob += decorated.available_pmob.parse::<u64>()?;
+                    total_pending_pmob += decorated.pending_pmob.parse::<u64>()?;
+                    is_synced_all = is_synced_all && decorated.is_synced;
+                    account_ids.push(account.account_id_hex.to_string());
+                }
+
+                Ok(JsonWalletStatus {
+                    object: "wallet_status".to_string(),
+                    network_height: network_height.to_string(),
+                    local_height: local_height.to_string(),
+                    is_synced_all,
+                    total_available_pmob: total_available_pmob.to_string(),
+                    total_pending_pmob: total_pending_pmob.to_string(),
+                    account_ids,
+                    account_map,
+                })
+            })?,
+        )
     }
 
     // Balance consists of the sums of the various txo states in our wallet
@@ -259,24 +336,23 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
     ) -> Result<JsonBalanceResponse, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
-        let status_map = Txo::list_by_status(account_id_hex, &conn)?;
-        let unspent: u128 = status_map[TXO_UNSPENT]
+        let unspent = Txo::list_by_status(account_id_hex, TXO_UNSPENT, &conn)?
             .iter()
             .map(|t| t.value as u128)
             .sum::<u128>();
-        let pending: u128 = status_map[TXO_PENDING]
+        let spent = Txo::list_by_status(account_id_hex, TXO_SPENT, &conn)?
             .iter()
             .map(|t| t.value as u128)
             .sum::<u128>();
-        let spent: u128 = status_map[TXO_SPENT]
+        let secreted = Txo::list_by_status(account_id_hex, TXO_SECRETED, &conn)?
             .iter()
             .map(|t| t.value as u128)
             .sum::<u128>();
-        let secreted: u128 = status_map[TXO_SECRETED]
+        let orphaned = Txo::list_by_status(account_id_hex, TXO_ORPHANED, &conn)?
             .iter()
             .map(|t| t.value as u128)
             .sum::<u128>();
-        let orphaned: u128 = status_map[TXO_ORPHANED]
+        let pending = Txo::list_by_status(account_id_hex, TXO_PENDING, &conn)?
             .iter()
             .map(|t| t.value as u128)
             .sum::<u128>();
@@ -301,18 +377,21 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         comment: Option<&str>,
         // FIXME: WS-32 - add "sync from block"
     ) -> Result<JsonAddress, WalletServiceError> {
-        let (public_address_b58, subaddress_index) = AssignedSubaddress::create_next_for_account(
-            account_id_hex,
-            comment.unwrap_or(""),
-            &self.wallet_db.get_conn()?,
-        )?;
+        let conn = &self.wallet_db.get_conn()?;
 
-        Ok(JsonAddress {
-            public_address_b58,
-            subaddress_index: subaddress_index.to_string(),
-            address_book_entry_id: None,
-            comment: comment.unwrap_or("").to_string(),
-        })
+        Ok(conn.transaction::<JsonAddress, WalletServiceError, _>(|| {
+            let (public_address_b58, _subaddress_index) =
+                AssignedSubaddress::create_next_for_account(
+                    account_id_hex,
+                    comment.unwrap_or(""),
+                    &conn,
+                )?;
+
+            Ok(JsonAddress::new(&AssignedSubaddress::get(
+                &public_address_b58,
+                &conn,
+            )?))
+        })?)
     }
 
     pub fn list_assigned_subaddresses(
@@ -451,12 +530,12 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
     pub fn list_transactions(
         &self,
         account_id_hex: &str,
-    ) -> Result<Vec<JsonTransactionResponse>, WalletServiceError> {
+    ) -> Result<Vec<JsonTransactionLog>, WalletServiceError> {
         let transactions = TransactionLog::list_all(account_id_hex, &self.wallet_db.get_conn()?)?;
 
-        let mut results: Vec<JsonTransactionResponse> = Vec::new();
+        let mut results: Vec<JsonTransactionLog> = Vec::new();
         for (transaction, associated_txos) in transactions.iter() {
-            results.push(JsonTransactionResponse::new(&transaction, &associated_txos));
+            results.push(JsonTransactionLog::new(&transaction, &associated_txos));
         }
         Ok(results)
     }
@@ -464,13 +543,17 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
     pub fn get_transaction(
         &self,
         transaction_id_hex: &str,
-    ) -> Result<JsonTransactionResponse, WalletServiceError> {
+    ) -> Result<JsonTransactionLog, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        let transaction = TransactionLog::get(transaction_id_hex, &conn)?;
 
-        let associated = transaction.get_associated_txos(&conn)?;
+        Ok(
+            conn.transaction::<JsonTransactionLog, WalletServiceError, _>(|| {
+                let transaction = TransactionLog::get(transaction_id_hex, &conn)?;
+                let associated = transaction.get_associated_txos(&conn)?;
 
-        Ok(JsonTransactionResponse::new(&transaction, &associated))
+                Ok(JsonTransactionLog::new(&transaction, &associated))
+            })?,
+        )
     }
 
     pub fn get_transaction_object(
@@ -490,16 +573,11 @@ impl<T: UserTxConnection + 'static, FPR: FogPubkeyResolver + Send + Sync + 'stat
         }
     }
 
-    pub fn get_txo_object(
-        &self,
-        account_id_hex: &str,
-        txo_id_hex: &str,
-    ) -> Result<JsonTxOut, WalletServiceError> {
+    pub fn get_txo_object(&self, txo_id_hex: &str) -> Result<JsonTxOut, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        let (txo, _account_txo_status, _assigned_subaddress) =
-            Txo::get(&AccountID(account_id_hex.to_string()), txo_id_hex, &conn)?;
+        let txo_details = Txo::get(txo_id_hex, &conn)?;
 
-        let txo: TxOut = mc_util_serial::decode(&txo.txo)?;
+        let txo: TxOut = mc_util_serial::decode(&txo_details.txo.txo)?;
         // Convert to proto
         let proto_txo = mc_api::external::TxOut::from(&txo);
         Ok(JsonTxOut::from(&proto_txo))
@@ -540,7 +618,8 @@ mod tests {
     use crate::{
         db::models::{TXO_MINTED, TXO_RECEIVED},
         test_utils::{
-            add_block_to_ledger_db, get_test_ledger, setup_peer_manager, WalletDbTestContext,
+            add_block_to_ledger_db, get_test_ledger, setup_peer_manager_and_network_state,
+            WalletDbTestContext,
         },
     };
     use mc_account_keys::PublicAddress;
@@ -559,11 +638,14 @@ mod tests {
     ) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger.clone());
-        let peer_manager = setup_peer_manager(ledger_db.clone(), logger.clone());
+        let (peer_manager, network_state) =
+            setup_peer_manager_and_network_state(ledger_db.clone(), logger.clone());
+
         WalletService::new(
             wallet_db,
             ledger_db,
             peer_manager,
+            network_state,
             Some(Arc::new(MockFogPubkeyResolver::new())),
             None,
             logger,
@@ -584,7 +666,7 @@ mod tests {
 
         // Add a block with a transaction for this recipient
         // Add a block with a txo for this address (note that value is smaller than MINIMUM_FEE)
-        let alice_public_address = b58_decode(&alice.public_address_b58).unwrap();
+        let alice_public_address = b58_decode(&alice.account.main_address).unwrap();
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![alice_public_address.clone()],
@@ -597,14 +679,19 @@ mod tests {
         std::thread::sleep(Duration::from_secs(5));
 
         // Verify balance for Alice
-        let balance = service.get_balance(&alice.account_id).unwrap();
+        let balance = service.get_balance(&alice.account.account_id).unwrap();
 
         assert_eq!(balance.unspent, "100000000000000");
 
         // Verify that we have 1 txo
-        let txos = service.list_txos(&alice.account_id).unwrap();
+        let txos = service.list_txos(&alice.account.account_id).unwrap();
         assert_eq!(txos.len(), 1);
-        assert_eq!(txos[0].txo_status, TXO_UNSPENT);
+        assert_eq!(
+            txos[0].account_status_map[&alice.account.account_id]
+                .get("txo_status")
+                .unwrap(),
+            TXO_UNSPENT
+        );
 
         // Add another account
         let bob = service
@@ -614,8 +701,8 @@ mod tests {
         // Construct a new transaction to Bob
         let tx_proposal = service
             .build_transaction(
-                &alice.account_id,
-                &bob.public_address_b58,
+                &alice.account.account_id,
+                &bob.account.main_address,
                 "42000000000000".to_string(),
                 None,
                 None,
@@ -624,36 +711,52 @@ mod tests {
             )
             .unwrap();
         let _submitted = service
-            .submit_transaction(tx_proposal, None, Some(alice.account_id.clone()))
+            .submit_transaction(tx_proposal, None, Some(alice.account.account_id.clone()))
             .unwrap();
 
         // We should now have 3 txos - one pending, two minted (one of which will be change)
-        let txos = service.list_txos(&alice.account_id).unwrap();
+        let txos = service.list_txos(&alice.account.account_id).unwrap();
         assert_eq!(txos.len(), 3);
         // The Pending Tx
-        let pending: Vec<JsonListTxosResponse> = txos
+        let pending: Vec<JsonTxo> = txos
             .iter()
             .cloned()
-            .filter(|t| t.txo_status == TXO_PENDING)
+            .filter(|t| {
+                t.account_status_map[&alice.account.account_id]["txo_status"] == TXO_PENDING
+            })
             .collect();
         assert_eq!(pending.len(), 1);
-        assert_eq!(pending[0].txo_type, TXO_RECEIVED);
-        assert_eq!(pending[0].value, "100000000000000");
-        // The Minted have Status "secreted"
-        let minted: Vec<JsonListTxosResponse> = txos
+        assert_eq!(
+            pending[0].account_status_map[&alice.account.account_id]
+                .get("txo_type")
+                .unwrap(),
+            TXO_RECEIVED
+        );
+        assert_eq!(pending[0].value_pmob, "100000000000000");
+        let minted: Vec<JsonTxo> = txos
             .iter()
             .cloned()
-            .filter(|t| t.txo_status == TXO_SECRETED)
+            .filter(|t| t.minted_account_id.is_some())
             .collect();
         assert_eq!(minted.len(), 2);
-        assert_eq!(minted[0].txo_type, TXO_MINTED);
-        assert_eq!(minted[1].txo_type, TXO_MINTED);
-        let minted_value_set = HashSet::from_iter(minted.iter().map(|m| m.value.clone()));
+        assert_eq!(
+            minted[0].account_status_map[&alice.account.account_id]
+                .get("txo_type")
+                .unwrap(),
+            TXO_MINTED
+        );
+        assert_eq!(
+            minted[1].account_status_map[&alice.account.account_id]
+                .get("txo_type")
+                .unwrap(),
+            TXO_MINTED
+        );
+        let minted_value_set = HashSet::from_iter(minted.iter().map(|m| m.value_pmob.clone()));
         assert!(minted_value_set.contains("57990000000000"));
         assert!(minted_value_set.contains("42000000000000"));
 
         // Our balance should reflect the various statuses of our txos
-        let balance = service.get_balance(&alice.account_id).unwrap();
+        let balance = service.get_balance(&alice.account.account_id).unwrap();
         assert_eq!(balance.unspent, "0");
         assert_eq!(balance.pending, "100000000000000");
         assert_eq!(balance.spent, "0");

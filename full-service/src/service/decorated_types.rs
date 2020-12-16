@@ -3,85 +3,116 @@
 //! Decorated types for the service to return, with constructors from the database types.
 
 use crate::db::{
-    models::{AccountTxoStatus, AssignedSubaddress, TransactionLog, Txo},
+    models::{AssignedSubaddress, TransactionLog},
     transaction_log::AssociatedTxos,
+    txo::TxoDetails,
 };
 use chrono::{TimeZone, Utc};
 use mc_mobilecoind_json::data_types::{JsonTxOut, JsonTxOutMembershipElement};
 use serde_derive::{Deserialize, Serialize};
+use serde_json::Map;
 
 #[derive(Deserialize, Serialize, Default, Debug)]
 pub struct JsonCreateAccountResponse {
     pub entropy: String,
-    pub public_address_b58: String,
-    pub account_id: String,
-}
-
-#[derive(Deserialize, Serialize, Default, Debug)]
-pub struct JsonImportAccountResponse {
-    pub public_address_b58: String,
-    pub account_id: String,
-}
-
-#[derive(Deserialize, Serialize, Default, Debug)]
-pub struct JsonAccount {
-    pub account_id: String,
-    pub name: String,
-    pub synced_blocks: String,
+    pub account: JsonAccount,
 }
 
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
-pub struct JsonListTxosResponse {
-    pub txo_id: String,
-    pub value: String,
-    pub txo_type: String,
-    pub txo_status: String,
+pub struct JsonAccount {
+    pub object: String,
+    pub account_id: String,
+    pub name: String,
+    pub network_height: String,
+    pub local_height: String,
+    pub account_height: String,
+    pub is_synced: bool,
+    pub available_pmob: String,
+    pub pending_pmob: String,
+    pub main_address: String,
+    pub next_subaddress_index: String,
+    pub recovery_mode: bool,
 }
 
-impl JsonListTxosResponse {
-    pub fn new(txo: &Txo, account_txo_status: &AccountTxoStatus) -> Self {
-        Self {
-            txo_id: txo.txo_id_hex.clone(),
-            value: txo.value.to_string(),
-            txo_type: account_txo_status.txo_type.clone(),
-            txo_status: account_txo_status.txo_status.clone(),
-        }
-    }
+#[derive(Deserialize, Serialize, Default, Debug, Clone)]
+pub struct JsonWalletStatus {
+    pub object: String,
+    pub network_height: String,
+    pub local_height: String,
+    pub is_synced_all: bool,
+    pub total_available_pmob: String,
+    pub total_pending_pmob: String,
+    pub account_ids: Vec<String>,
+    pub account_map: Map<String, serde_json::Value>,
 }
 
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct JsonTxo {
+    pub object: String,
     pub txo_id: String,
-    pub value: String,
-    pub assigned_subaddress: Option<String>,
+    pub value_pmob: String,
+    pub received_block_height: Option<String>,
+    pub spent_block_height: Option<String>,
+    pub is_spent_recovered: bool, // FIXME: WS-16 is_spent_recovered
+    pub received_account_id: Option<String>,
+    pub minted_account_id: Option<String>,
+    pub account_status_map: Map<String, serde_json::Value>,
+    pub target_key: String,
+    pub public_key: String,
+    pub e_fog_hint: String,
     pub subaddress_index: Option<String>,
+    pub assigned_subaddress: Option<String>,
     pub key_image: Option<String>,
-    pub txo_type: String,
-    pub txo_status: String,
-    pub received_block_count: Option<String>,
-    pub pending_tombstone_block_count: Option<String>,
-    pub spent_block_count: Option<String>,
     pub proof: Option<String>,
+    pub offset_count: i32,
 }
 
 impl JsonTxo {
-    pub fn new(
-        txo: &Txo,
-        account_txo_status: &AccountTxoStatus,
-        assigned_subaddress: Option<&AssignedSubaddress>,
-    ) -> Self {
+    pub fn new(txo_details: &TxoDetails) -> Self {
+        let mut account_status_map: Map<String, serde_json::Value> = Map::new();
+
+        if let Some(received) = txo_details.received_to_account.clone() {
+            account_status_map.insert(
+                received.account_id_hex,
+                json!({"txo_type": received.txo_type, "txo_status": received.txo_status}).into(),
+            );
+        }
+
+        if let Some(spent) = txo_details.spent_from_account.clone() {
+            account_status_map.insert(
+                spent.account_id_hex,
+                json!({"txo_type": spent.txo_type, "txo_status": spent.txo_status}).into(),
+            );
+        }
+
         Self {
-            txo_id: txo.txo_id_hex.clone(),
-            value: txo.value.to_string(),
-            assigned_subaddress: assigned_subaddress.map(|a| a.assigned_subaddress_b58.clone()),
-            subaddress_index: txo.subaddress_index.map(|s| s.to_string()),
-            key_image: txo.key_image.as_ref().map(|k| hex::encode(&k)),
-            txo_type: account_txo_status.txo_type.clone(),
-            txo_status: account_txo_status.txo_status.clone(),
-            received_block_count: txo.received_block_count.map(|x| x.to_string()),
-            pending_tombstone_block_count: txo.pending_tombstone_block_count.map(|x| x.to_string()),
-            spent_block_count: txo.spent_block_count.map(|x| x.to_string()),
-            proof: txo.proof.as_ref().map(hex::encode),
+            object: "txo".to_string(),
+            txo_id: txo_details.txo.txo_id_hex.clone(),
+            value_pmob: txo_details.txo.value.to_string(),
+            received_block_height: txo_details.txo.received_block_count.map(|x| x.to_string()),
+            spent_block_height: txo_details.txo.spent_block_count.map(|x| x.to_string()),
+            is_spent_recovered: false,
+            received_account_id: txo_details
+                .received_to_account
+                .as_ref()
+                .map(|a| a.account_id_hex.clone()),
+            minted_account_id: txo_details
+                .clone()
+                .spent_from_account
+                .as_ref()
+                .map(|a| a.account_id_hex.clone()),
+            account_status_map,
+            target_key: hex::encode(&txo_details.txo.target_key),
+            public_key: hex::encode(&txo_details.txo.public_key),
+            e_fog_hint: hex::encode(&txo_details.txo.e_fog_hint),
+            subaddress_index: txo_details.txo.subaddress_index.map(|s| s.to_string()),
+            assigned_subaddress: txo_details
+                .received_to_assigned_subaddress
+                .clone()
+                .map(|a| a.assigned_subaddress_b58),
+            key_image: txo_details.txo.key_image.as_ref().map(|k| hex::encode(&k)),
+            proof: txo_details.txo.proof.as_ref().map(hex::encode),
+            offset_count: txo_details.txo.id,
         }
     }
 }
@@ -97,23 +128,31 @@ pub struct JsonBalanceResponse {
     pub synced_blocks: String,
 }
 
-#[derive(Deserialize, Serialize, Default, Debug)]
+#[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct JsonAddress {
-    pub public_address_b58: String,
-    pub subaddress_index: String,
+    pub object: String,
+    pub address_id: String,
+    pub public_address: String,
+    pub account_id: String,
     pub address_book_entry_id: Option<String>,
     pub comment: String,
+    pub subaddress_index: String,
+    pub offset_count: i32,
 }
 
 impl JsonAddress {
     pub fn new(assigned_subaddress: &AssignedSubaddress) -> Self {
         Self {
-            public_address_b58: assigned_subaddress.assigned_subaddress_b58.clone(),
-            subaddress_index: assigned_subaddress.subaddress_index.to_string(),
+            object: "assigned_address".to_string(),
+            address_id: assigned_subaddress.assigned_subaddress_b58.clone(),
+            account_id: assigned_subaddress.account_id_hex.to_string(),
+            public_address: assigned_subaddress.assigned_subaddress_b58.clone(),
             address_book_entry_id: assigned_subaddress
                 .address_book_entry
                 .map(|x| x.to_string()),
             comment: assigned_subaddress.comment.clone(),
+            subaddress_index: assigned_subaddress.subaddress_index.to_string(),
+            offset_count: assigned_subaddress.id,
         }
     }
 }
@@ -123,46 +162,65 @@ pub struct JsonSubmitResponse {
     pub transaction_id: String,
 }
 
-#[derive(Deserialize, Serialize, Default, Debug)]
-pub struct JsonTransactionResponse {
-    pub transaction_id: String,
-    pub account_id: String,
-    pub recipient_public_address: String,
-    pub assigned_subaddress: String,
-    pub value: String,
-    pub fee: Option<String>,
-    pub status: String,
-    pub sent_time: String,
-    pub submitted_block_count: Option<String>,
-    pub finalized_block_count: Option<String>,
-    pub comment: String,
+#[derive(Deserialize, Serialize, Default, Debug, Clone)]
+pub struct JsonTransactionLog {
+    pub object: String,
+    pub transaction_log_id: String,
     pub direction: String,
+    pub is_sent_recovered: Option<bool>,
+    pub account_id: String,
+    pub recipient_address_id: Option<String>,
+    pub assigned_address_id: Option<String>,
+    pub value_pmob: String,
+    pub fee_pmob: Option<String>,
+    pub submitted_block_height: Option<String>,
+    pub finalized_block_height: Option<String>,
+    pub status: String,
     pub input_txo_ids: Vec<String>,
     pub output_txo_ids: Vec<String>,
     pub change_txo_ids: Vec<String>,
+    pub sent_time: Option<String>,
+    pub comment: String,
+    pub failure_code: Option<i32>,
+    pub failure_message: Option<String>,
+    pub offset_count: i32,
 }
 
-impl JsonTransactionResponse {
+impl JsonTransactionLog {
     pub fn new(transaction_log: &TransactionLog, associated_txos: &AssociatedTxos) -> Self {
+        let recipient_address_id = transaction_log.recipient_public_address_b58.clone();
+        let assigned_address_id = transaction_log.assigned_subaddress_b58.clone();
         Self {
-            transaction_id: transaction_log.transaction_id_hex.clone(),
-            account_id: transaction_log.account_id_hex.clone(),
-            recipient_public_address: transaction_log.recipient_public_address_b58.clone(),
-            assigned_subaddress: transaction_log.assigned_subaddress_b58.clone(),
-            value: transaction_log.value.to_string(),
-            fee: transaction_log.fee.map(|x| x.to_string()),
-            status: transaction_log.status.clone(),
-            sent_time: transaction_log
-                .sent_time
-                .map(|t| Utc.timestamp(t, 0).to_string())
-                .unwrap_or_else(|| "".to_string()),
-            submitted_block_count: transaction_log.submitted_block_count.map(|b| b.to_string()),
-            finalized_block_count: transaction_log.finalized_block_count.map(|b| b.to_string()),
-            comment: transaction_log.comment.clone(),
+            object: "transaction_log".to_string(),
+            transaction_log_id: transaction_log.transaction_id_hex.clone(),
             direction: transaction_log.direction.clone(),
+            is_sent_recovered: None, // FIXME: WS-16 "Is Sent Recovered"
+            account_id: transaction_log.account_id_hex.clone(),
+            recipient_address_id: if recipient_address_id == "" {
+                None
+            } else {
+                Some(recipient_address_id)
+            },
+            assigned_address_id: if assigned_address_id == "" {
+                None
+            } else {
+                Some(assigned_address_id)
+            },
+            value_pmob: transaction_log.value.to_string(),
+            fee_pmob: transaction_log.fee.map(|x| x.to_string()),
+            submitted_block_height: transaction_log.submitted_block_count.map(|b| b.to_string()),
+            finalized_block_height: transaction_log.finalized_block_count.map(|b| b.to_string()),
+            status: transaction_log.status.clone(),
             input_txo_ids: associated_txos.inputs.clone(),
             output_txo_ids: associated_txos.outputs.clone(),
             change_txo_ids: associated_txos.change.clone(),
+            sent_time: transaction_log
+                .sent_time
+                .map(|t| Utc.timestamp(t, 0).to_string()),
+            comment: transaction_log.comment.clone(),
+            failure_code: None,    // FIXME: WS-17 Failiure code
+            failure_message: None, // FIXME: WS-17 Failure message
+            offset_count: transaction_log.id,
         }
     }
 }

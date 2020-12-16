@@ -1,7 +1,7 @@
 CREATE TABLE accounts (
   id INTEGER NOT NULL PRIMARY KEY,
   account_id_hex VARCHAR NOT NULL UNIQUE,
-  encrypted_account_key BLOB NOT NULL,
+  account_key BLOB NOT NULL,
   main_subaddress_index UNSIGNED BIG INT NOT NULL,
   change_subaddress_index UNSIGNED BIG INT NOT NULL,
   next_subaddress_index UNSIGNED BIG INT NOT NULL,

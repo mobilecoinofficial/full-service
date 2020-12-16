@@ -173,8 +173,7 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
             conn.transaction::<TxProposal, WalletTransactionBuilderError, _>(|| {
                 let account: Account =
                     Account::get(&AccountID(self.account_id_hex.to_string()), &conn)?;
-                let from_account_key: AccountKey =
-                    mc_util_serial::decode(&account.encrypted_account_key)?;
+                let from_account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
 
                 // Get membership proofs for our inputs
                 let indexes = self
@@ -614,15 +613,13 @@ mod tests {
         );
 
         // Check balance
-        let txo_lists = Txo::list_by_status(
+        let unspent = Txo::list_by_status(
             &AccountID::from(&account_key).to_string(),
+            TXO_UNSPENT,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        let balance: u128 = txo_lists[TXO_UNSPENT]
-            .iter()
-            .map(|t| t.value as u128)
-            .sum::<u128>();
+        let balance: u128 = unspent.iter().map(|t| t.value as u128).sum::<u128>();
         assert_eq!(balance, 21_000_000 * MOB as u128);
 
         // Now try to send a transaction with a value > u64::MAX
@@ -668,7 +665,7 @@ mod tests {
         )
         .unwrap()
         .iter()
-        .map(|(t, _a)| t.clone())
+        .map(|t| t.txo.clone())
         .collect();
 
         let (recipient, mut builder) =

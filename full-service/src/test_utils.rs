@@ -9,25 +9,31 @@ use crate::{
     },
     service::transaction_builder::WalletTransactionBuilder,
 };
-use diesel::{prelude::*, SqliteConnection};
+use diesel::{Connection as DSLConnection, SqliteConnection};
 use diesel_migrations::embed_migrations;
 use mc_account_keys::{AccountKey, PublicAddress};
 use mc_attest_core::Verifier;
 use mc_common::logger::Logger;
-use mc_connection::{ConnectionManager, ThickClient};
+use mc_connection::{Connection, ConnectionManager, ThickClient};
 use mc_connection_test_utils::{test_client_uri, MockBlockchainConnection};
+use mc_consensus_scp::QuorumSet;
 use mc_crypto_keys::RistrettoPrivate;
 use mc_crypto_rand::{CryptoRng, RngCore};
 use mc_fog_report_validation::MockFogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
+use mc_ledger_sync::PollingNetworkState;
 use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::{
     encrypted_fog_hint::EncryptedFogHint, ring_signature::KeyImage, tx::TxOut,
 };
 use mc_transaction_core::{Block, BlockContents, BLOCK_VERSION};
 use mc_util_from_random::FromRandom;
+use mc_util_uri::ConnectionUri;
 use rand::{distributions::Alphanumeric, rngs::StdRng, thread_rng, Rng};
-use std::{path::PathBuf, sync::Arc};
+use std::{
+    path::PathBuf,
+    sync::{Arc, RwLock},
+};
 use tempdir::TempDir;
 
 embed_migrations!("migrations/");
@@ -212,20 +218,48 @@ pub fn add_block_with_tx_proposal(ledger_db: &mut LedgerDB, tx_proposal: TxPropo
     ledger_db.num_blocks().expect("failed to get block height")
 }
 
-pub fn setup_peer_manager(
+pub fn setup_peer_manager_and_network_state(
     ledger_db: LedgerDB,
     logger: Logger,
-) -> ConnectionManager<MockBlockchainConnection<LedgerDB>> {
+) -> (
+    ConnectionManager<MockBlockchainConnection<LedgerDB>>,
+    Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
+) {
     let peer1 = MockBlockchainConnection::new(test_client_uri(1), ledger_db.clone(), 0);
     let peer2 = MockBlockchainConnection::new(test_client_uri(2), ledger_db.clone(), 0);
 
-    ConnectionManager::new(vec![peer1, peer2], logger.clone())
+    let peer_manager = ConnectionManager::new(vec![peer1.clone(), peer2.clone()], logger.clone());
+
+    let quorum_set = QuorumSet::new_with_node_ids(
+        2,
+        vec![
+            peer1.uri().responder_id().unwrap(),
+            peer2.uri().responder_id().unwrap(),
+        ],
+    );
+    let network_state = Arc::new(RwLock::new(PollingNetworkState::new(
+        quorum_set,
+        peer_manager.clone(),
+        logger.clone(),
+    )));
+
+    {
+        let mut network_state = network_state.write().unwrap();
+        network_state.poll();
+    }
+
+    (peer_manager, network_state)
 }
 
-pub fn setup_grpc_peer_manager(logger: Logger) -> ConnectionManager<ThickClient> {
+pub fn setup_grpc_peer_manager_and_network_state(
+    logger: Logger,
+) -> (
+    ConnectionManager<ThickClient>,
+    Arc<RwLock<PollingNetworkState<ThickClient>>>,
+) {
     let peer1 = test_client_uri(1);
     let peer2 = test_client_uri(2);
-    let peers = vec![peer1, peer2];
+    let peers = vec![peer1.clone(), peer2.clone()];
 
     let grpc_env = Arc::new(
         grpcio::EnvBuilder::new()
@@ -249,7 +283,22 @@ pub fn setup_grpc_peer_manager(logger: Logger) -> ConnectionManager<ThickClient>
         })
         .collect();
 
-    ConnectionManager::new(connected_peers, logger.clone())
+    let peer_manager = ConnectionManager::new(connected_peers, logger.clone());
+    let quorum_set = QuorumSet::new_with_node_ids(
+        2,
+        vec![peer1.responder_id().unwrap(), peer2.responder_id().unwrap()],
+    );
+    let network_state = Arc::new(RwLock::new(PollingNetworkState::new(
+        quorum_set,
+        peer_manager.clone(),
+        logger.clone(),
+    )));
+
+    {
+        let mut network_state = network_state.write().unwrap();
+        network_state.poll();
+    }
+    (peer_manager, network_state)
 }
 
 pub fn create_test_received_txo(
@@ -333,11 +382,7 @@ pub fn random_account_with_seed_values(
     let account_key = AccountKey::random(&mut rng);
     Account::create(
         &account_key,
-        0,
-        1,
-        2,
-        0,
-        0,
+        Some(0),
         None,
         "",
         &wallet_db.get_conn().unwrap(),

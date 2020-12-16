@@ -5,13 +5,16 @@
 use crate::{
     db::{
         assigned_subaddress::AssignedSubaddressModel,
+        b58_encode,
         models::{
             Account, AccountTxoStatus, AssignedSubaddress, NewAccount, TransactionLog, Txo,
-            TXO_SPENT,
+            TXO_PENDING, TXO_SPENT, TXO_UNSPENT,
         },
         transaction_log::TransactionLogModel,
+        txo::TxoModel,
     },
     error::WalletDbError,
+    service::decorated_types::JsonAccount,
 };
 
 use mc_account_keys::{AccountKey, DEFAULT_SUBADDRESS_INDEX};
@@ -24,6 +27,10 @@ use diesel::{
     RunQueryDsl,
 };
 use std::fmt;
+
+pub const DEFAULT_CHANGE_SUBADDRESS_INDEX: u64 = 1;
+pub const DEFAULT_NEXT_SUBADDRESS_INDEX: u64 = 2;
+pub const DEFAULT_FIRST_BLOCK: u64 = 0;
 
 #[derive(Debug, Clone)]
 pub struct AccountID(pub String);
@@ -47,18 +54,23 @@ pub trait AccountModel {
     ///
     /// Returns:
     /// * (account_id, main_subaddress_b58)
-    #[allow(clippy::too_many_arguments)]
     fn create(
         account_key: &AccountKey,
-        main_subaddress_index: u64,
-        change_subaddress_index: u64,
-        next_subaddress_index: u64,
-        first_block: u64,
-        next_block: u64,
+        first_block: Option<u64>,
         import_block: Option<u64>,
         name: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(AccountID, String), WalletDbError>;
+
+    /// Import account.
+    fn import(
+        entropy: &AccountKey,
+        name: Option<String>,
+        first_block: Option<u64>,
+        local_height: u64,
+        network_height: u64,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<JsonAccount, WalletDbError>;
 
     /// List all accounts.
     ///
@@ -76,6 +88,14 @@ pub trait AccountModel {
         account_id_hex: &AccountID,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Account, WalletDbError>;
+
+    /// Get the API-decorated Account object
+    fn get_decorated(
+        account_id_hex: &AccountID,
+        local_height: u64,
+        network_height: u64,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<JsonAccount, WalletDbError>;
 
     fn get_by_txo_id(
         txo_id_hex: &str,
@@ -109,11 +129,7 @@ pub trait AccountModel {
 impl AccountModel for Account {
     fn create(
         account_key: &AccountKey,
-        main_subaddress_index: u64,
-        change_subaddress_index: u64,
-        next_subaddress_index: u64,
-        first_block: u64,
-        next_block: u64,
+        first_block: Option<u64>,
         import_block: Option<u64>,
         name: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
@@ -121,16 +137,18 @@ impl AccountModel for Account {
         use crate::db::schema::accounts;
 
         let account_id = AccountID::from(account_key);
+        let fb = first_block.unwrap_or(DEFAULT_FIRST_BLOCK);
+
         Ok(
             conn.transaction::<(AccountID, String), WalletDbError, _>(|| {
                 let new_account = NewAccount {
                     account_id_hex: &account_id.to_string(),
-                    encrypted_account_key: &mc_util_serial::encode(account_key), // FIXME: WS-6 - add encryption
-                    main_subaddress_index: main_subaddress_index as i64,
-                    change_subaddress_index: change_subaddress_index as i64,
-                    next_subaddress_index: next_subaddress_index as i64,
-                    first_block: first_block as i64,
-                    next_block: next_block as i64,
+                    account_key: &mc_util_serial::encode(account_key), // FIXME: WS-6 - add encryption
+                    main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
+                    change_subaddress_index: DEFAULT_CHANGE_SUBADDRESS_INDEX as i64,
+                    next_subaddress_index: DEFAULT_NEXT_SUBADDRESS_INDEX as i64,
+                    first_block: fb as i64,
+                    next_block: fb as i64,
                     import_block: import_block.map(|i| i as i64),
                     name,
                 };
@@ -142,7 +160,7 @@ impl AccountModel for Account {
                 let main_subaddress_b58 = AssignedSubaddress::create(
                     account_key,
                     None, // FIXME: WS-8 - Address Book Entry if details provided, or None always for main?
-                    main_subaddress_index,
+                    DEFAULT_SUBADDRESS_INDEX,
                     "Main",
                     &conn,
                 )?;
@@ -150,13 +168,38 @@ impl AccountModel for Account {
                 let _change_subaddress_b58 = AssignedSubaddress::create(
                     account_key,
                     None, // FIXME: WS-8 - Address Book Entry if details provided, or None always for main?
-                    change_subaddress_index,
+                    DEFAULT_CHANGE_SUBADDRESS_INDEX,
                     "Change",
                     &conn,
                 )?;
                 Ok((account_id, main_subaddress_b58))
             })?,
         )
+    }
+
+    fn import(
+        account_key: &AccountKey,
+        name: Option<String>,
+        first_block: Option<u64>,
+        local_height: u64,
+        network_height: u64,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<JsonAccount, WalletDbError> {
+        Ok(conn.transaction::<JsonAccount, WalletDbError, _>(|| {
+            let (account_id, _public_address_b58) = Account::create(
+                &account_key,
+                first_block,
+                Some(local_height),
+                &name.unwrap_or_else(|| "".to_string()),
+                conn,
+            )?;
+            Ok(Account::get_decorated(
+                &account_id,
+                local_height,
+                network_height,
+                &conn,
+            )?)
+        })?)
     }
 
     fn list_all(
@@ -186,6 +229,44 @@ impl AccountModel for Account {
             }
             Err(e) => Err(e.into()),
         }
+    }
+
+    fn get_decorated(
+        account_id_hex: &AccountID,
+        local_height: u64,
+        network_height: u64,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<JsonAccount, WalletDbError> {
+        Ok(conn.transaction::<JsonAccount, WalletDbError, _>(|| {
+            let account = Account::get(account_id_hex, conn)?;
+
+            let unspent = Txo::list_by_status(&account_id_hex.to_string(), TXO_UNSPENT, conn)?
+                .iter()
+                .map(|t| t.value as u128)
+                .sum::<u128>();
+            let pending = Txo::list_by_status(&account_id_hex.to_string(), TXO_PENDING, conn)?
+                .iter()
+                .map(|t| t.value as u128)
+                .sum::<u128>();
+
+            let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+            let main_subaddress_b58 =
+                b58_encode(&account_key.subaddress(DEFAULT_SUBADDRESS_INDEX))?;
+            Ok(JsonAccount {
+                object: "account".to_string(),
+                account_id: account.account_id_hex,
+                name: account.name,
+                network_height: network_height.to_string(),
+                local_height: local_height.to_string(),
+                account_height: account.next_block.to_string(),
+                is_synced: account.next_block == network_height as i64,
+                available_pmob: unspent.to_string(),
+                pending_pmob: pending.to_string(),
+                main_address: main_subaddress_b58,
+                next_subaddress_index: account.next_subaddress_index.to_string(),
+                recovery_mode: false, // FIXME: WS-24 - Recovery mode for account
+            })
+        })?)
     }
 
     fn get_by_txo_id(
@@ -322,18 +403,9 @@ mod tests {
         let account_key = AccountKey::random(&mut rng);
         let account_id_hex = {
             let conn = wallet_db.get_conn().unwrap();
-            let (account_id_hex, _public_address_b58) = Account::create(
-                &account_key,
-                0,
-                1,
-                2,
-                0,
-                1,
-                None,
-                "Alice's Main Account",
-                &conn,
-            )
-            .unwrap();
+            let (account_id_hex, _public_address_b58) =
+                Account::create(&account_key, Some(0), None, "Alice's Main Account", &conn)
+                    .unwrap();
             account_id_hex
         };
 
@@ -347,12 +419,12 @@ mod tests {
         let expected_account = Account {
             id: 1,
             account_id_hex: account_id_hex.to_string(),
-            encrypted_account_key: mc_util_serial::encode(&account_key),
+            account_key: mc_util_serial::encode(&account_key),
             main_subaddress_index: 0,
             change_subaddress_index: 1,
             next_subaddress_index: 2,
             first_block: 0,
-            next_block: 1,
+            next_block: 0,
             import_block: None,
             name: "Alice's Main Account".to_string(),
         };
@@ -385,11 +457,7 @@ mod tests {
         let account_key_secondary = AccountKey::from(&RootIdentity::from_random(&mut rng));
         let (account_id_hex_secondary, _public_address_b58_secondary) = Account::create(
             &account_key_secondary,
-            0,
-            1,
-            2,
-            50,
-            51,
+            Some(51),
             Some(50),
             "",
             &wallet_db.get_conn().unwrap(),
@@ -403,11 +471,11 @@ mod tests {
         let mut expected_account_secondary = Account {
             id: 2,
             account_id_hex: account_id_hex_secondary.to_string(),
-            encrypted_account_key: mc_util_serial::encode(&account_key_secondary),
+            account_key: mc_util_serial::encode(&account_key_secondary),
             main_subaddress_index: 0,
             change_subaddress_index: 1,
             next_subaddress_index: 2,
-            first_block: 50,
+            first_block: 51,
             next_block: 51,
             import_block: Some(50),
             name: "".to_string(),

@@ -349,8 +349,7 @@ impl TransactionLogModel for TransactionLog {
                     }
 
                     // Get the public address for the subaddress that received these TXOs
-                    let account_key: AccountKey =
-                        mc_util_serial::decode(&account.encrypted_account_key)?;
+                    let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
                     let b58_subaddress = if *subaddress_index >= 0 {
                         let subaddress = account_key.subaddress(*subaddress_index as u64);
                         b58_encode(&subaddress)?
@@ -544,11 +543,7 @@ mod tests {
         // Now we'll ingest them.
         let (account_id, _address) = Account::create(
             &account_key,
-            0,
-            1,
-            2,
-            0,
-            1,
+            Some(0),
             None,
             "",
             &wallet_db.get_conn().unwrap(),
@@ -567,9 +562,8 @@ mod tests {
 
                 assert_eq!(&transaction_logs[0].transaction_id_hex, txo_id);
 
-                let (txo, _status, _assigned_subaddress) =
-                    Txo::get(&account_id, txo_id, &wallet_db.get_conn().unwrap()).unwrap();
-                assert_eq!(transaction_logs[0].value, txo.value);
+                let txo_details = Txo::get(txo_id, &wallet_db.get_conn().unwrap()).unwrap();
+                assert_eq!(transaction_logs[0].value, txo_details.txo.value);
 
                 // Make the sure the types are correct - all received should be TXO_OUTPUT
                 let associated = transaction_logs[0]
@@ -656,42 +650,69 @@ mod tests {
 
         // Assert inputs are as expected
         assert_eq!(associated.inputs.len(), 1);
-        let (input, input_status, opt_input_assigned_subaddress) = Txo::get(
-            &AccountID::from(&account_key),
-            &associated.inputs[0],
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-        assert_eq!(input.value, 70 * MOB);
-        assert_eq!(input_status.txo_status, TXO_PENDING); // Should now be pending
-        assert_eq!(input_status.txo_type, TXO_RECEIVED);
-        assert_eq!(opt_input_assigned_subaddress.unwrap().subaddress_index, 0);
+        let input_details =
+            Txo::get(&associated.inputs[0], &wallet_db.get_conn().unwrap()).unwrap();
+        assert_eq!(input_details.txo.value, 70 * MOB);
+        assert_eq!(
+            input_details
+                .received_to_account
+                .clone()
+                .unwrap()
+                .txo_status,
+            TXO_PENDING
+        ); // Should now be pending
+        assert_eq!(
+            input_details.received_to_account.clone().unwrap().txo_type,
+            TXO_RECEIVED
+        );
+        assert_eq!(
+            input_details
+                .received_to_assigned_subaddress
+                .unwrap()
+                .subaddress_index,
+            0
+        );
+        assert!(input_details.spent_from_account.is_none());
 
         // Assert outputs are as expected
         assert_eq!(associated.outputs.len(), 1);
-        let (output, output_status, opt_output_assigned_subaddress) = Txo::get(
-            &AccountID::from(&account_key),
-            &associated.outputs[0],
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-        assert_eq!(output.value, 50 * MOB);
-        assert_eq!(output_status.txo_status, TXO_SECRETED);
-        assert_eq!(output_status.txo_type, TXO_MINTED);
-        assert!(opt_output_assigned_subaddress.is_none());
+        let output_details =
+            Txo::get(&associated.outputs[0], &wallet_db.get_conn().unwrap()).unwrap();
+        assert_eq!(output_details.txo.value, 50 * MOB);
+        assert_eq!(
+            output_details
+                .spent_from_account
+                .clone()
+                .unwrap()
+                .txo_status,
+            TXO_SECRETED
+        );
+        assert_eq!(
+            output_details.spent_from_account.clone().unwrap().txo_type,
+            TXO_MINTED
+        );
+        assert!(output_details.received_to_account.is_none());
+        assert!(output_details.received_to_assigned_subaddress.is_none());
 
         // Assert change is as expected
         assert_eq!(associated.change.len(), 1);
-        let (change, change_status, opt_change_assigned_subaddress) = Txo::get(
-            &AccountID::from(&account_key),
-            &associated.change[0],
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-        assert_eq!(change.value, 19990000000000); // 19.99 * MOB
-        assert_eq!(change_status.txo_status, TXO_SECRETED); // Note, change becomes "unspent" once scanned
-        assert_eq!(change_status.txo_type, TXO_MINTED); // Note, becomes "received" once scanned
-        assert!(opt_change_assigned_subaddress.is_none()); // Note, gets filled in once scanned
+        let change_details =
+            Txo::get(&associated.change[0], &wallet_db.get_conn().unwrap()).unwrap();
+        assert_eq!(change_details.txo.value, 19990000000000); // 19.99 * MOB
+        assert_eq!(
+            change_details
+                .spent_from_account
+                .clone()
+                .unwrap()
+                .txo_status,
+            TXO_SECRETED
+        ); // Note, change becomes "unspent" once scanned
+        assert_eq!(
+            change_details.spent_from_account.clone().unwrap().txo_type,
+            TXO_MINTED
+        ); // Note, becomes "received" once scanned
+        assert!(change_details.received_to_account.is_none()); // Note, gets filled in once scanned
+        assert!(change_details.received_to_assigned_subaddress.is_none()); // Note, gets filled in once scanned
 
         // FIXME: add the change txo above to the ledger, and then scan and verify the above statements
     }

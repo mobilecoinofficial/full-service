@@ -1,5 +1,3 @@
-// Copyright (c) 2020 MobileCoin Inc.
-
 table! {
     account_txo_statuses (account_id_hex, txo_id_hex) {
         account_id_hex -> Text,
@@ -13,7 +11,7 @@ table! {
     accounts (id) {
         id -> Integer,
         account_id_hex -> Text,
-        encrypted_account_key -> Binary,
+        account_key -> Binary,
         main_subaddress_index -> BigInt,
         change_subaddress_index -> BigInt,
         next_subaddress_index -> BigInt,
