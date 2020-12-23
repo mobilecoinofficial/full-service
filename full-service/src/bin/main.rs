@@ -109,6 +109,7 @@ fn main() {
             network_state,
             config.get_fog_pubkey_resolver(logger.clone()).map(Arc::new),
             config.num_workers,
+            config.offline,
             logger,
         ),
     };

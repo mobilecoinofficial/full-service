@@ -65,6 +65,7 @@ pub struct WalletService<
     _sync_thread: SyncThread,
     /// Monotonically increasing counter. This is used for node round-robin selection.
     submit_node_offset: Arc<AtomicUsize>,
+    offline: bool,
     logger: Logger,
 }
 
@@ -80,6 +81,7 @@ impl<
         network_state: Arc<RwLock<PollingNetworkState<T>>>,
         fog_pubkey_resolver: Option<Arc<FPR>>,
         num_workers: Option<usize>,
+        offline: bool,
         logger: Logger,
     ) -> Self {
         log::info!(logger, "Starting Wallet TXO Sync Task Thread");
@@ -98,6 +100,7 @@ impl<
             fog_pubkey_resolver,
             _sync_thread: sync_thread,
             submit_node_offset: Arc::new(AtomicUsize::new(rng.next_u64() as usize)),
+            offline,
             logger,
         }
     }
@@ -459,6 +462,10 @@ impl<
         comment: Option<String>,
         account_id_hex: Option<String>,
     ) -> Result<JsonSubmitResponse, WalletServiceError> {
+        if self.offline {
+            return Err(WalletServiceError::Offline);
+        }
+
         // Pick a peer to submit to.
         let responder_ids = self.peer_manager.responder_ids();
         if responder_ids.is_empty() {
