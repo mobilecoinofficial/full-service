@@ -53,6 +53,12 @@ pub enum WalletServiceError {
 
     /// Txo should contain proof: {0}
     MissingProof(String),
+
+    /// Error decoding b58: No public address in wrapper.
+    B58Decode,
+
+    /// Cannot complete this action in offline mode.
+    Offline,
 }
 
 impl From<WalletDbError> for WalletServiceError {
