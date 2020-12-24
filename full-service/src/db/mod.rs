@@ -5,6 +5,7 @@
 pub mod account;
 pub mod account_txo_status;
 pub mod assigned_subaddress;
+pub mod locked_indicator;
 pub mod models;
 pub mod schema;
 pub mod transaction_log;

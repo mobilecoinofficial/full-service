@@ -36,6 +36,12 @@ table! {
 }
 
 table! {
+    locked_indicators (locked) {
+        locked -> Bool,
+    }
+}
+
+table! {
     transaction_logs (id) {
         id -> Integer,
         transaction_id_hex -> Text,
@@ -84,6 +90,7 @@ allow_tables_to_appear_in_same_query!(
     account_txo_statuses,
     accounts,
     assigned_subaddresses,
+    locked_indicators,
     transaction_logs,
     transaction_txo_types,
     txos,

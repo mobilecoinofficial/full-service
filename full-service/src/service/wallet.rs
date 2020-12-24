@@ -33,6 +33,13 @@ pub struct WalletState<
 #[serde(tag = "method", content = "params")]
 #[allow(non_camel_case_types)]
 pub enum JsonCommandRequest {
+    unlock {
+        password: String,
+    },
+    // change_password {
+    //     old_password: String,
+    //     new_password: String,
+    // },
     create_account {
         name: Option<String>,
         first_block: Option<String>,
@@ -122,6 +129,9 @@ pub enum JsonCommandRequest {
 #[serde(tag = "method", content = "result")]
 #[allow(non_camel_case_types)]
 pub enum JsonCommandResponse {
+    unlock {
+        success: bool,
+    },
     create_account {
         entropy: String,
         account: JsonAccount,
@@ -210,6 +220,12 @@ where
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
     let result = match command.0 {
+        JsonCommandRequest::unlock { password } => {
+            let success = service
+                .unlock(password)
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+            JsonCommandResponse::unlock { success }
+        }
         JsonCommandRequest::create_account { name, first_block } => {
             let fb = first_block
                 .map(|fb| fb.parse::<u64>())
@@ -569,6 +585,7 @@ mod tests {
                 network_state,
                 None,
                 None,
+                false,
                 logger,
             );
 

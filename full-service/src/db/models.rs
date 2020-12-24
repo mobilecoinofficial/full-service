@@ -3,8 +3,8 @@
 //! DB Models
 
 use super::schema::{
-    account_txo_statuses, accounts, assigned_subaddresses, transaction_logs, transaction_txo_types,
-    txos,
+    account_txo_statuses, accounts, assigned_subaddresses, locked_indicators, transaction_logs,
+    transaction_txo_types, txos,
 };
 
 use serde::Serialize;
@@ -213,4 +213,11 @@ pub struct NewTransactionTxoType<'a> {
     pub transaction_id_hex: &'a str,
     pub txo_id_hex: &'a str,
     pub transaction_txo_type: &'a str,
+}
+
+#[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
+#[table_name = "locked_indicators"]
+#[primary_key(locked)]
+pub struct LockedIndicator {
+    pub locked: bool,
 }
