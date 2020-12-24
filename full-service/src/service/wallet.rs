@@ -34,7 +34,7 @@ pub struct WalletState<
 #[allow(non_camel_case_types)]
 pub enum JsonCommandRequest {
     unlock {
-        password: String,
+        password_hash: String,
     },
     // change_password {
     //     old_password: String,
@@ -220,9 +220,11 @@ where
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
     let result = match command.0 {
-        JsonCommandRequest::unlock { password } => {
+        JsonCommandRequest::unlock { password_hash } => {
+            let password_hash_bytes =
+                hex::decode(password_hash).map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             let success = service
-                .unlock(password)
+                .unlock(password_hash_bytes)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             JsonCommandResponse::unlock { success }
         }

@@ -25,7 +25,8 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        models::{Account, AssignedSubaddress, TransactionLog, Txo},
+        locked_indicator::{LockedModel, LockedState},
+        models::{Account, AssignedSubaddress, LockedIndicator, TransactionLog, Txo},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
         WalletDb,
@@ -163,42 +164,52 @@ impl SyncThread {
 
                         // If the DB is locked, we won't be able to get any meaningful info from accounts
                         // FIXME:
-
-                        // Go over our list of accounts and see which one needs to process these blocks.
-                        for account in Account::list_all(
+                        match LockedIndicator::get_locked_state(
                             &wallet_db
                                 .get_conn()
                                 .expect("Could not get connection to DB"),
-                        )
-                        .expect("Failed getting accounts from WalletDb")
-                        {
-                            // If there are no new blocks for this account, don't do anything.
-                            if account.next_block >= num_blocks as i64 {
-                                continue;
-                            }
+                        ) {
+                            Ok(LockedState::Empty) => {}
+                            Ok(LockedState::Locked) => {}
+                            Ok(LockedState::Unlocked) => {
+                                // Go over our list of accounts and see which one needs to process these blocks.
+                                for account in Account::list_all(
+                                    &wallet_db
+                                        .get_conn()
+                                        .expect("Could not get connection to DB"),
+                                )
+                                .expect("Failed getting accounts from WalletDb")
+                                {
+                                    // If there are no new blocks for this account, don't do anything.
+                                    if account.next_block >= num_blocks as i64 {
+                                        continue;
+                                    }
 
-                            let mut queued_account_ids =
-                                queued_account_ids.lock().expect("mutex poisoned");
-                            if !queued_account_ids.insert(account.account_id_hex.clone()) {
-                                // Already queued, no need to add again to queue at this point.
-                                log::trace!(
-                                    logger,
-                                    "{}: skipping, already queued",
-                                    account.account_id_hex
-                                );
-                                continue;
-                            }
+                                    let mut queued_account_ids =
+                                        queued_account_ids.lock().expect("mutex poisoned");
+                                    if !queued_account_ids.insert(account.account_id_hex.clone()) {
+                                        // Already queued, no need to add again to queue at this point.
+                                        log::trace!(
+                                            logger,
+                                            "{}: skipping, already queued",
+                                            account.account_id_hex
+                                        );
+                                        continue;
+                                    }
 
-                            // This account has blocks to process, put it in the queue.
-                            log::debug!(
-                                logger,
-                                "sync thread noticed account {} needs syncing",
-                                account.account_id_hex,
-                            );
-                            sender
-                                .send(SyncMsg::SyncAccount(account.account_id_hex))
-                                .expect("failed sending to queue");
-                            message_sent = true;
+                                    // This account has blocks to process, put it in the queue.
+                                    log::debug!(
+                                        logger,
+                                        "sync thread noticed account {} needs syncing",
+                                        account.account_id_hex,
+                                    );
+                                    sender
+                                        .send(SyncMsg::SyncAccount(account.account_id_hex))
+                                        .expect("failed sending to queue");
+                                    message_sent = true;
+                                }
+                            }
+                            Err(e) => panic!("Could not get locked state {:?}", e),
                         }
 
                         // If we saw no activity, sleep for a bit.
