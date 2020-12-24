@@ -12,7 +12,7 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        locked_indicator::LockedModel,
+        locked_indicator::{LockedModel, LockedState},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
     },
@@ -108,15 +108,28 @@ impl<
     }
 
     /// Unlock the DB
-    pub fn unlock(&self, password: String) -> Result<bool, WalletServiceError> {
+    pub fn unlock(&self, password_hash: Vec<u8>) -> Result<bool, WalletServiceError> {
+        // FIXME: allow password or password_hash
         let conn = self.wallet_db.get_conn()?;
 
-        // Check whether encrypted, and if we successfully unlock, then start the account sync thread
-        // Check lock status of the DB
-        if LockedIndicator::is_locked(&conn)? {
-            println!("DB is locked!");
-        } else {
-            println!("DB is unlocked!");
+        // Check whether encrypted, and if we successfully unlock
+        match LockedIndicator::get_locked_state(&conn)? {
+            LockedState::Empty => {
+                println!("DB is empty!");
+            }
+            LockedState::Unlocked => {
+                println!("DB is already unlocked!");
+            }
+            LockedState::Locked => {
+                println!("DB is locked!");
+                // Attempt to decrypt the test value to confirm if password is correct
+                if LockedIndicator::verify_password(&password_hash, &conn)? {
+                    // Store password hash in memory
+                    self.wallet_db.set_password_hash(&password_hash)?;
+                } else {
+                    return Err(WalletServiceError::PasswordFailed);
+                }
+            }
         }
 
         Ok(true)
@@ -128,6 +141,8 @@ impl<
         name: Option<String>,
         first_block: Option<u64>,
     ) -> Result<JsonCreateAccountResponse, WalletServiceError> {
+        // FIXME: disable services that cannot happen while DB is locked, and add tests
+
         log::info!(
             self.logger,
             "Creating account {:?} with first_block: {:?}",
@@ -812,6 +827,26 @@ mod tests {
         assert_eq!(balance.orphaned, "0");
 
         // FIXME: How to make the transaction actually hit the test ledger?
+    }
+
+    #[test_with_logger]
+    fn test_db_lock_lifecycle(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        let service = setup_service(ledger_db.clone(), logger);
+
+        // Should unlock while DB is empty, and stored password_hash will be empty
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        let res = service.unlock(password_hash.to_vec()).unwrap();
+        assert!(res);
+        assert_eq!(
+            service.wallet_db.get_password_hash().unwrap(),
+            Vec::<u8>::new()
+        );
     }
 
     // FIXME: Test with 0 change transactions

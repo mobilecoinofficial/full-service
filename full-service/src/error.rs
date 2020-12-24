@@ -59,6 +59,9 @@ pub enum WalletServiceError {
 
     /// Cannot complete this action in offline mode.
     Offline,
+
+    /// Password failed
+    PasswordFailed,
 }
 
 impl From<WalletDbError> for WalletServiceError {
@@ -206,6 +209,9 @@ pub enum WalletDbError {
 
     /// The Txo is associated with too many Accounts {0}
     TxoAssociatedWithTooManyAccounts(String),
+
+    /// Mutex Poisoned
+    MutexPoisoned,
 }
 
 impl From<diesel::result::Error> for WalletDbError {
@@ -229,6 +235,12 @@ impl From<mc_api::display::Error> for WalletDbError {
 impl From<prost::DecodeError> for WalletDbError {
     fn from(src: prost::DecodeError) -> Self {
         Self::ProstDecode(src)
+    }
+}
+
+impl<T> From<std::sync::PoisonError<T>> for WalletDbError {
+    fn from(_src: std::sync::PoisonError<T>) -> Self {
+        WalletDbError::MutexPoisoned
     }
 }
 
