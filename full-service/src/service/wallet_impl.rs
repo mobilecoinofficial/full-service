@@ -5,13 +5,14 @@
 use crate::db::b58_decode;
 use crate::{
     db::models::{
-        Account, AssignedSubaddress, TransactionLog, Txo, TXO_ORPHANED, TXO_PENDING, TXO_SECRETED,
-        TXO_SPENT, TXO_UNSPENT,
+        Account, AssignedSubaddress, LockedIndicator, TransactionLog, Txo, TXO_ORPHANED,
+        TXO_PENDING, TXO_SECRETED, TXO_SPENT, TXO_UNSPENT,
     },
     db::WalletDb,
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
+        locked_indicator::LockedModel,
         transaction_log::TransactionLogModel,
         txo::TxoModel,
     },
@@ -84,6 +85,7 @@ impl<
         offline: bool,
         logger: Logger,
     ) -> Self {
+        let mut rng = rand::thread_rng();
         log::info!(logger, "Starting Wallet TXO Sync Task Thread");
         let sync_thread = SyncThread::start(
             ledger_db.clone(),
@@ -91,7 +93,7 @@ impl<
             num_workers,
             logger.clone(),
         );
-        let mut rng = rand::thread_rng();
+
         WalletService {
             wallet_db,
             ledger_db,
@@ -103,6 +105,21 @@ impl<
             offline,
             logger,
         }
+    }
+
+    /// Unlock the DB
+    pub fn unlock(&self, password: String) -> Result<bool, WalletServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+
+        // Check whether encrypted, and if we successfully unlock, then start the account sync thread
+        // Check lock status of the DB
+        if LockedIndicator::is_locked(&conn)? {
+            println!("DB is locked!");
+        } else {
+            println!("DB is unlocked!");
+        }
+
+        Ok(true)
     }
 
     /// Creates a new account with defaults
@@ -678,6 +695,7 @@ mod tests {
             network_state,
             Some(Arc::new(MockFogPubkeyResolver::new())),
             None,
+            false,
             logger,
         )
     }

@@ -161,6 +161,9 @@ impl SyncThread {
                         // a bit so that we do not use 100% cpu.
                         let mut message_sent = false;
 
+                        // If the DB is locked, we won't be able to get any meaningful info from accounts
+                        // FIXME:
+
                         // Go over our list of accounts and see which one needs to process these blocks.
                         for account in Account::list_all(
                             &wallet_db

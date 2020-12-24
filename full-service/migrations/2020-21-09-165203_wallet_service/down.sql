@@ -1,3 +1,5 @@
+DROP TABLE locked_indicators;
+
 DROP TABLE transaction_txo_types;
 
 DROP INDEX idx_transaction_logs__transaction_id_hex;
