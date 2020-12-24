@@ -5,7 +5,7 @@
 pub mod account;
 pub mod account_txo_status;
 pub mod assigned_subaddress;
-pub mod locked_indicator;
+pub mod encryption_indicator;
 pub mod models;
 pub mod schema;
 pub mod transaction_log;
@@ -87,5 +87,9 @@ impl WalletDb {
     pub fn get_password_hash(&self) -> Result<Vec<u8>, WalletDbError> {
         let cur_password_hash = self.password_hash.lock()?;
         Ok(cur_password_hash.clone())
+    }
+
+    pub fn is_unlocked(&self) -> Result<bool, WalletDbError> {
+        Ok(!self.password_hash.lock()?.is_empty())
     }
 }

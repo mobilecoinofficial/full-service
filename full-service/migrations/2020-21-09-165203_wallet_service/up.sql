@@ -85,6 +85,7 @@ CREATE TABLE transaction_txo_types (
     FOREIGN KEY (txo_id_hex) REFERENCES txos(txo_id_hex)
 );
 
-CREATE TABLE locked_indicators (
-    locked BOOLEAN NOT NULL PRIMARY KEY CHECK (locked IN (0,1)) DEFAULT 0
+CREATE TABLE encryption_indicators (
+    encrypted BOOLEAN NOT NULL PRIMARY KEY CHECK (encrypted IN (0,1)) DEFAULT 0,
+    verification_value BLOB
 );

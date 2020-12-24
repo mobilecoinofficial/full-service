@@ -221,6 +221,7 @@ where
 {
     let result = match command.0 {
         JsonCommandRequest::unlock { password_hash } => {
+            // FIXME: allow password or password_hash and do the hashing here
             let password_hash_bytes =
                 hex::decode(password_hash).map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             let success = service

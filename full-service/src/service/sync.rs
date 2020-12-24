@@ -25,8 +25,8 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        locked_indicator::{LockedModel, LockedState},
-        models::{Account, AssignedSubaddress, LockedIndicator, TransactionLog, Txo},
+        encryption_indicator::{EncryptionModel, EncryptionState},
+        models::{Account, AssignedSubaddress, EncryptionIndicator, TransactionLog, Txo},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
         WalletDb,
@@ -164,14 +164,14 @@ impl SyncThread {
 
                         // If the DB is locked, we won't be able to get any meaningful info from accounts
                         // FIXME:
-                        match LockedIndicator::get_locked_state(
+                        match EncryptionIndicator::get_encryption_state(
                             &wallet_db
                                 .get_conn()
                                 .expect("Could not get connection to DB"),
                         ) {
-                            Ok(LockedState::Empty) => {}
-                            Ok(LockedState::Locked) => {}
-                            Ok(LockedState::Unlocked) => {
+                            Ok(EncryptionState::Empty) => {}
+                            Ok(EncryptionState::Unencrypted) => {} // FIXME: should allow path to update?
+                            Ok(EncryptionState::Encrypted) => {
                                 // Go over our list of accounts and see which one needs to process these blocks.
                                 for account in Account::list_all(
                                     &wallet_db

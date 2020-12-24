@@ -5,14 +5,14 @@
 use crate::db::b58_decode;
 use crate::{
     db::models::{
-        Account, AssignedSubaddress, LockedIndicator, TransactionLog, Txo, TXO_ORPHANED,
+        Account, AssignedSubaddress, EncryptionIndicator, TransactionLog, Txo, TXO_ORPHANED,
         TXO_PENDING, TXO_SECRETED, TXO_SPENT, TXO_UNSPENT,
     },
     db::WalletDb,
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        locked_indicator::{LockedModel, LockedState},
+        encryption_indicator::{EncryptionModel, EncryptionState},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
     },
@@ -107,28 +107,76 @@ impl<
         }
     }
 
-    /// Unlock the DB
-    pub fn unlock(&self, password_hash: Vec<u8>) -> Result<bool, WalletServiceError> {
-        // FIXME: allow password or password_hash
+    /// The initial call to set the password for the DB.
+    ///
+    /// Only allowed if LockedState::Empty, otherwise, must use change_password.
+    pub fn set_password(self, password_hash: Vec<u8>) -> Result<bool, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
-        // Check whether encrypted, and if we successfully unlock
-        match LockedIndicator::get_locked_state(&conn)? {
-            LockedState::Empty => {
-                println!("DB is empty!");
+        match EncryptionIndicator::get_encryption_state(&conn)? {
+            EncryptionState::Empty => {
+                // Set the indicator to true for locked
+                EncryptionIndicator::set_password_hash(&password_hash, &conn)?;
+                self.wallet_db.set_password_hash(&password_hash)?;
             }
-            LockedState::Unlocked => {
-                println!("DB is already unlocked!");
+            EncryptionState::Encrypted => {
+                log::info!(
+                    self.logger,
+                    "Database is already encrypted. Please unlock then change password."
+                );
             }
-            LockedState::Locked => {
-                println!("DB is locked!");
+            EncryptionState::Unencrypted => {
+                log::info!(
+                    self.logger,
+                    "Database was not encrypted. Setting password and encrypting all accounts now."
+                );
+                // Set the indicator to true for locked
+                EncryptionIndicator::set_password_hash(&password_hash, &conn)?;
+                self.wallet_db.set_password_hash(&password_hash)?;
+                // FIXME: update all accounts to now be encrypted
+            }
+        }
+        // FIXME: add additional LockedState for a DB that has not had encryption set up yet
+
+        Ok(true)
+    }
+
+    /// Unlock the DB
+    pub fn unlock(&self, password_hash: Vec<u8>) -> Result<bool, WalletServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+
+        // No need to check db state if we're already unlocked
+        if self.wallet_db.is_unlocked()? {
+            // Sanity check that password is correct - FIXME: should we just return Ok since it's unlocked already?
+            if self.wallet_db.get_password_hash()? != password_hash {
+                return Err(WalletServiceError::PasswordFailed);
+            }
+            return Ok(true);
+        }
+
+        // Check whether encrypted, and if so, then attempt to unlock
+        match EncryptionIndicator::get_encryption_state(&conn)? {
+            EncryptionState::Empty => {
+                log::info!(
+                    self.logger,
+                    "DB has never been locked. Please call set_password to enable encryption."
+                );
+            }
+            EncryptionState::Encrypted => {
+                log::debug!(self.logger, "DB is locked. Verifying password.");
                 // Attempt to decrypt the test value to confirm if password is correct
-                if LockedIndicator::verify_password(&password_hash, &conn)? {
+                if EncryptionIndicator::verify_password(&password_hash, &conn)? {
                     // Store password hash in memory
                     self.wallet_db.set_password_hash(&password_hash)?;
                 } else {
                     return Err(WalletServiceError::PasswordFailed);
                 }
+            }
+            EncryptionState::Unencrypted => {
+                log::info!(
+                    self.logger,
+                    "DB is unencrypted. Please call set_password to enable encryption."
+                );
             }
         }
 
