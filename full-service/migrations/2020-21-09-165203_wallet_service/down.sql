@@ -1,4 +1,4 @@
-DROP TABLE locked_indicators;
+DROP TABLE encryption_indicators;
 
 DROP TABLE transaction_txo_types;
 

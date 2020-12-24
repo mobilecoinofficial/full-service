@@ -36,8 +36,9 @@ table! {
 }
 
 table! {
-    locked_indicators (locked) {
-        locked -> Bool,
+    encryption_indicators (encrypted) {
+        encrypted -> Bool,
+        verification_value -> Nullable<Binary>,
     }
 }
 
@@ -90,7 +91,7 @@ allow_tables_to_appear_in_same_query!(
     account_txo_statuses,
     accounts,
     assigned_subaddresses,
-    locked_indicators,
+    encryption_indicators,
     transaction_logs,
     transaction_txo_types,
     txos,

@@ -212,6 +212,12 @@ pub enum WalletDbError {
 
     /// Mutex Poisoned
     MutexPoisoned,
+
+    /// Must set password before verifying
+    SetPassword,
+
+    /// The encryption indicators table is corrupted.
+    BadEncryptionState,
 }
 
 impl From<diesel::result::Error> for WalletDbError {

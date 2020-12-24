@@ -3,7 +3,7 @@
 //! DB Models
 
 use super::schema::{
-    account_txo_statuses, accounts, assigned_subaddresses, locked_indicators, transaction_logs,
+    account_txo_statuses, accounts, assigned_subaddresses, encryption_indicators, transaction_logs,
     transaction_txo_types, txos,
 };
 
@@ -216,8 +216,16 @@ pub struct NewTransactionTxoType<'a> {
 }
 
 #[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
-#[table_name = "locked_indicators"]
-#[primary_key(locked)]
-pub struct LockedIndicator {
-    pub locked: bool,
+#[table_name = "encryption_indicators"]
+#[primary_key(encrypted)]
+pub struct EncryptionIndicator {
+    pub encrypted: bool,
+    pub verification_value: Option<Vec<u8>>,
+}
+
+#[derive(Insertable)]
+#[table_name = "encryption_indicators"]
+pub struct NewEncryptionIndicator<'a> {
+    pub encrypted: bool,
+    pub verification_value: Option<&'a Vec<u8>>,
 }
