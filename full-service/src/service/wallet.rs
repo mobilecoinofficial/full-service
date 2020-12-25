@@ -1400,7 +1400,7 @@ mod tests {
             }
         });
         dispatch_expect_error(
-            &client,
+            &client2,
             body,
             &logger,
             "{\"error\": \"Database(PasswordFailed)\"}".to_string(),
@@ -1413,7 +1413,7 @@ mod tests {
                 "password_hash": hex::encode(&new_password_hash),
             }
         });
-        let result = dispatch(&client, body, &logger);
+        let result = dispatch(&client2, body, &logger);
         assert!(result.get("success").unwrap().as_bool().unwrap());
 
         let body = json!({
@@ -1423,7 +1423,7 @@ mod tests {
                 "comment": "For Carol",
             }
         });
-        let result = dispatch(&client, body, &logger);
+        let result = dispatch(&client2, body, &logger);
         let _b58_public_address = result
             .get("address")
             .unwrap()
@@ -1431,5 +1431,72 @@ mod tests {
             .unwrap()
             .as_str()
             .unwrap();
+
+        // Change password using password, not password_hash
+        let new_password = "TestTest";
+        let body = json!({
+            "method": "change_password",
+            "params": {
+                "old_password_hash": hex::encode(&new_password_hash),
+                "new_password": new_password,
+            }
+        });
+        let result = dispatch(&client2, body, &logger);
+        assert!(result.get("success").unwrap().as_bool().unwrap());
+
+        let body = json!({
+            "method": "create_address",
+            "params": {
+                "account_id": account_id,
+                "comment": "For Dan",
+            }
+        });
+        let result = dispatch(&client2, body, &logger);
+        let _b58_public_address = result
+            .get("address")
+            .unwrap()
+            .get("public_address")
+            .unwrap()
+            .as_str()
+            .unwrap();
+
+        // Finally try unlocking with that password from a new client
+        let wallet_db3 = WalletDb::new_from_url(
+            &format!("{}/{}", db_test_context.base_url, db_test_context.db_name),
+            logger.clone(),
+        )
+        .unwrap();
+
+        let (peer_manager3, network_state3) =
+            setup_peer_manager_and_network_state(ledger_db.clone(), logger.clone());
+
+        let service2: WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> =
+            WalletService::new(
+                wallet_db3,
+                ledger_db.clone(),
+                peer_manager3,
+                network_state3,
+                None,
+                None,
+                false,
+                logger.clone(),
+            );
+
+        let rocket_config3: rocket::Config =
+            rocket::Config::build(rocket::config::Environment::Development)
+                .port(get_free_port())
+                .unwrap();
+        let rocket3 = test_rocket(rocket_config3, TestWalletState { service: service2 });
+        let client3 = Client::new(rocket3).expect("valid rocket instance");
+
+        // Unlocking with the new password should work
+        let body = json!({
+            "method": "unlock",
+            "params": {
+                "password": new_password,
+            }
+        });
+        let result = dispatch(&client3, body, &logger);
+        assert!(result.get("success").unwrap().as_bool().unwrap());
     }
 }
