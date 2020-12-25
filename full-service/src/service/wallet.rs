@@ -33,13 +33,16 @@ pub struct WalletState<
 #[serde(tag = "method", content = "params")]
 #[allow(non_camel_case_types)]
 pub enum JsonCommandRequest {
+    set_password {
+        password_hash: String,
+    },
     unlock {
         password_hash: String,
     },
-    // change_password {
-    //     old_password: String,
-    //     new_password: String,
-    // },
+    change_password {
+        old_password_hash: String,
+        new_password_hash: String,
+    },
     create_account {
         name: Option<String>,
         first_block: Option<String>,
@@ -129,7 +132,13 @@ pub enum JsonCommandRequest {
 #[serde(tag = "method", content = "result")]
 #[allow(non_camel_case_types)]
 pub enum JsonCommandResponse {
+    set_password {
+        success: bool,
+    },
     unlock {
+        success: bool,
+    },
+    change_password {
         success: bool,
     },
     create_account {
@@ -220,14 +229,34 @@ where
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
     let result = match command.0 {
+        JsonCommandRequest::set_password { password_hash } => {
+            let password_hash_bytes =
+                hex::decode(password_hash).map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+            let success = service
+                .set_password(password_hash_bytes)
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+            JsonCommandResponse::set_password { success }
+        }
         JsonCommandRequest::unlock { password_hash } => {
-            // FIXME: allow password or password_hash and do the hashing here
             let password_hash_bytes =
                 hex::decode(password_hash).map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             let success = service
                 .unlock(password_hash_bytes)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             JsonCommandResponse::unlock { success }
+        }
+        JsonCommandRequest::change_password {
+            old_password_hash,
+            new_password_hash,
+        } => {
+            let old_password_hash_bytes = hex::decode(old_password_hash)
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+            let new_password_hash_bytes = hex::decode(new_password_hash)
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+            let success = service
+                .change_password(old_password_hash_bytes, new_password_hash_bytes)
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+            JsonCommandResponse::change_password { success }
         }
         JsonCommandRequest::create_account { name, first_block } => {
             let fb = first_block
@@ -525,6 +554,7 @@ mod tests {
         db::{
             b58_decode,
             models::{TXO_RECEIVED, TXO_UNSPENT},
+            WalletDb,
         },
         test_utils::{
             add_block_to_ledger_db, get_test_ledger, setup_peer_manager_and_network_state,
@@ -572,7 +602,7 @@ mod tests {
             .manage(state)
     }
 
-    fn setup(mut rng: &mut StdRng, logger: Logger) -> (Client, LedgerDB) {
+    fn setup(mut rng: &mut StdRng, logger: Logger) -> (Client, LedgerDB, WalletDbTestContext) {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger.clone());
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -600,44 +630,67 @@ mod tests {
         (
             Client::new(rocket).expect("valid rocket instance"),
             ledger_db,
+            db_test_context,
         )
     }
 
-    fn dispatch(client: &Client, body: JsonValue, logger: &Logger) -> serde_json::Value {
+    fn dispatch(client: &Client, request_body: JsonValue, logger: &Logger) -> serde_json::Value {
         let mut res = client
             .post("/wallet")
             .header(ContentType::JSON)
-            .body(body.to_string())
+            .body(request_body.to_string())
             .dispatch();
         assert_eq!(res.status(), Status::Ok);
-        let body = res.body().unwrap().into_string().unwrap();
-        log::info!(logger, "Attempted dispatch got response {:?}", body);
+        let response_body = res.body().unwrap().into_string().unwrap();
+        log::info!(
+            logger,
+            "Attempted dispatch of {:?} got response {:?}",
+            request_body,
+            response_body
+        );
 
-        let res: JsonValue = serde_json::from_str(&body).unwrap();
+        let res: JsonValue = serde_json::from_str(&response_body).unwrap();
         res.get("result").unwrap().clone()
     }
 
     fn dispatch_expect_error(
         client: &Client,
-        body: JsonValue,
+        request_body: JsonValue,
         logger: &Logger,
         expected_err: String,
     ) {
         let mut res = client
             .post("/wallet")
             .header(ContentType::JSON)
-            .body(body.to_string())
+            .body(request_body.to_string())
             .dispatch();
         assert_eq!(res.status(), Status::Ok);
-        let body = res.body().unwrap().into_string().unwrap();
-        log::info!(logger, "Attempted dispatch got response {:?}", body);
-        assert_eq!(body, expected_err);
+        let response_body = res.body().unwrap().into_string().unwrap();
+        log::info!(
+            logger,
+            "Attempted dispatch of {:?} got response {:?}",
+            request_body,
+            response_body
+        );
+        assert_eq!(response_body, expected_err);
     }
 
     #[test_with_logger]
     fn test_account_crud(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db) = setup(&mut rng, logger.clone());
+        let (client, _ledger_db, _db_ctx) = setup(&mut rng, logger.clone());
+
+        // Set password on new DB
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        let body = json!({
+            "method": "set_password",
+            "params": {
+                "password_hash": hex::encode(&password_hash),
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        assert!(result.get("success").unwrap().as_bool().unwrap());
 
         // Create Account
         let body = json!({
@@ -736,7 +789,19 @@ mod tests {
     #[test_with_logger]
     fn test_import_account(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db) = setup(&mut rng, logger.clone());
+        let (client, _ledger_db, _db_ctx) = setup(&mut rng, logger.clone());
+
+        // Set password on new DB
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        let body = json!({
+            "method": "set_password",
+            "params": {
+                "password_hash": hex::encode(&password_hash),
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        assert!(result.get("success").unwrap().as_bool().unwrap());
 
         let body = json!({
             "method": "import_account",
@@ -760,7 +825,19 @@ mod tests {
     #[test_with_logger]
     fn test_create_account_with_first_block(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db) = setup(&mut rng, logger.clone());
+        let (client, _ledger_db, _db_ctx) = setup(&mut rng, logger.clone());
+
+        // Set password on new DB
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        let body = json!({
+            "method": "set_password",
+            "params": {
+                "password_hash": hex::encode(&password_hash),
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        assert!(result.get("success").unwrap().as_bool().unwrap());
 
         let body = json!({
             "method": "create_account",
@@ -779,7 +856,19 @@ mod tests {
     #[test_with_logger]
     fn test_wallet_status(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db) = setup(&mut rng, logger.clone());
+        let (client, _ledger_db, _db_ctx) = setup(&mut rng, logger.clone());
+
+        // Set password on new DB
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        let body = json!({
+            "method": "set_password",
+            "params": {
+                "password_hash": hex::encode(&password_hash),
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        assert!(result.get("success").unwrap().as_bool().unwrap());
 
         let body = json!({
             "method": "create_account",
@@ -817,7 +906,19 @@ mod tests {
     #[test_with_logger]
     fn test_get_all_txos(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, _db_ctx) = setup(&mut rng, logger.clone());
+
+        // Set password on new DB
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        let body = json!({
+            "method": "set_password",
+            "params": {
+                "password_hash": hex::encode(&password_hash),
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        assert!(result.get("success").unwrap().as_bool().unwrap());
 
         // Add an account
         let body = json!({
@@ -894,7 +995,19 @@ mod tests {
     #[test_with_logger]
     fn test_build_transaction(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, _db_ctx) = setup(&mut rng, logger.clone());
+
+        // Set password on new DB
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        let body = json!({
+            "method": "set_password",
+            "params": {
+                "password_hash": hex::encode(&password_hash),
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        assert!(result.get("success").unwrap().as_bool().unwrap());
 
         // Add an account
         let body = json!({
@@ -1011,7 +1124,19 @@ mod tests {
     #[test_with_logger]
     fn test_create_assigned_subaddress(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, _db_ctx) = setup(&mut rng, logger.clone());
+
+        // Set password on new DB
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        let body = json!({
+            "method": "set_password",
+            "params": {
+                "password_hash": hex::encode(&password_hash),
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        assert!(result.get("success").unwrap().as_bool().unwrap());
 
         // Add an account
         let body = json!({
@@ -1083,5 +1208,219 @@ mod tests {
         assert_eq!(txo_type, TXO_RECEIVED);
         let value = txo.get("value_pmob").unwrap().as_str().unwrap();
         assert_eq!(value, "42000000000000");
+    }
+
+    #[test_with_logger]
+    fn test_database_password_management(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, db_test_context) = setup(&mut rng, logger.clone());
+
+        // Create an account should fail before password is set
+        let body = json!({
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            }
+        });
+        dispatch_expect_error(
+            &client,
+            body,
+            &logger,
+            "{\"error\": \"DatabaseLocked\"}".to_string(),
+        );
+
+        // Unlocking a never-set database should fail
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        let body = json!({
+            "method": "unlock",
+            "params": {
+                "password_hash": hex::encode(&password_hash),
+            }
+        });
+        dispatch_expect_error(
+            &client,
+            body,
+            &logger,
+            "{\"error\": \"Database(SetPassword)\"}".to_string(),
+        );
+
+        // Once we set the password, we should be able to create an account
+        let body = json!({
+            "method": "set_password",
+            "params": {
+                "password_hash": hex::encode(&password_hash),
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        assert!(result.get("success").unwrap().as_bool().unwrap());
+
+        let body = json!({
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        let account_id = result
+            .get("account")
+            .unwrap()
+            .get("account_id")
+            .unwrap()
+            .as_str()
+            .unwrap();
+
+        // Attempting to change password with the wrong password should fail
+        let mut wrong_password_hash = [0u8; 32];
+        rng.fill_bytes(&mut wrong_password_hash);
+        let mut new_password_hash = [0u8; 32];
+        rng.fill_bytes(&mut new_password_hash);
+        let body = json!({
+            "method": "change_password",
+            "params": {
+                "old_password_hash": hex::encode(&wrong_password_hash),
+                "new_password_hash": hex::encode(&new_password_hash),
+            }
+        });
+        dispatch_expect_error(
+            &client,
+            body,
+            &logger,
+            "{\"error\": \"Database(PasswordFailed)\"}".to_string(),
+        );
+
+        // The right old password will change the password
+        let body = json!({
+            "method": "change_password",
+            "params": {
+                "old_password_hash": hex::encode(&password_hash),
+                "new_password_hash": hex::encode(&new_password_hash),
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        assert!(result.get("success").unwrap().as_bool().unwrap());
+
+        // We should be able to continue interacting with our accounts
+        let body = json!({
+            "method": "create_address",
+            "params": {
+                "account_id": account_id,
+                "comment": "For Bob",
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        let b58_public_address = result
+            .get("address")
+            .unwrap()
+            .get("public_address")
+            .unwrap()
+            .as_str()
+            .unwrap();
+        let from_bob_public_address = b58_decode(b58_public_address).unwrap();
+
+        // Add a block to the ledger with a transaction "From Bob"
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![from_bob_public_address],
+            42000000000000,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+        // Sleep to let the sync thread process the txo - sometimes fails at 2s
+        std::thread::sleep(Duration::from_secs(4));
+
+        let body = json!({
+            "method": "get_all_txos_by_account",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        let txos = result.get("txo_ids").unwrap().as_array().unwrap();
+        assert_eq!(txos.len(), 1);
+
+        // Now, if we open up a new connection to the same DB, it should be in a "locked state"
+        // To simulate re-opening the DB, we can use new_from_url
+        let wallet_db2 = WalletDb::new_from_url(
+            &format!("{}/{}", db_test_context.base_url, db_test_context.db_name),
+            logger.clone(),
+        )
+        .unwrap();
+
+        let (peer_manager, network_state) =
+            setup_peer_manager_and_network_state(ledger_db.clone(), logger.clone());
+
+        let service2: WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> =
+            WalletService::new(
+                wallet_db2,
+                ledger_db.clone(),
+                peer_manager,
+                network_state,
+                None,
+                None,
+                false,
+                logger.clone(),
+            );
+
+        let rocket_config: rocket::Config =
+            rocket::Config::build(rocket::config::Environment::Development)
+                .port(get_free_port())
+                .unwrap();
+        let rocket = test_rocket(rocket_config, TestWalletState { service: service2 });
+        let client2 = Client::new(rocket).expect("valid rocket instance");
+
+        let body = json!({
+            "method": "create_address",
+            "params": {
+                "account_id": account_id,
+                "comment": "For Carol",
+            }
+        });
+        dispatch_expect_error(
+            &client2,
+            body,
+            &logger,
+            "{\"error\": \"DatabaseLocked\"}".to_string(),
+        );
+
+        // Unlocking with the old password should fail
+        let body = json!({
+            "method": "unlock",
+            "params": {
+                "password_hash": hex::encode(&password_hash),
+            }
+        });
+        dispatch_expect_error(
+            &client,
+            body,
+            &logger,
+            "{\"error\": \"Database(PasswordFailed)\"}".to_string(),
+        );
+
+        // Unlocking with the new password should work
+        let body = json!({
+            "method": "unlock",
+            "params": {
+                "password_hash": hex::encode(&new_password_hash),
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        assert!(result.get("success").unwrap().as_bool().unwrap());
+
+        let body = json!({
+            "method": "create_address",
+            "params": {
+                "account_id": account_id,
+                "comment": "For Carol",
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        let _b58_public_address = result
+            .get("address")
+            .unwrap()
+            .get("public_address")
+            .unwrap()
+            .as_str()
+            .unwrap();
     }
 }

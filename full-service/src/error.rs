@@ -62,6 +62,9 @@ pub enum WalletServiceError {
 
     /// Cannot set password on encrypted database. Must change_password.
     DatabaseEncrypted,
+
+    /// Cannot perform this action without a set password or while database is locked. Please set_password or unlock first.
+    DatabaseLocked,
 }
 
 impl From<WalletDbError> for WalletServiceError {
@@ -227,6 +230,15 @@ pub enum WalletDbError {
 
     /// Cannot encrypt or decrypt without password
     PasswordRequired,
+
+    /// No accounts in database. Cannot get decrypted account key.
+    NoAccounts,
+
+    /// No decryption key in database.
+    NoDecryptionKey,
+
+    /// Must set password before continuing.
+    SetPassword,
 }
 
 impl From<diesel::result::Error> for WalletDbError {
@@ -287,12 +299,6 @@ pub enum SyncError {
 
     /// Error executing diesel transaction {0}
     Diesel(diesel::result::Error),
-
-    /// No decryption key in database.
-    NoDecryptionKey,
-
-    /// No accounts in database. Cannot process txos.
-    NoAccounts,
 }
 
 impl From<WalletDbError> for SyncError {

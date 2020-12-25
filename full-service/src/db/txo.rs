@@ -76,6 +76,7 @@ pub trait TxoModel {
         value: u64,
         received_block_count: i64,
         account_id_hex: &str,
+        password_hash: &[u8],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<String, WalletDbError>;
 
@@ -120,6 +121,7 @@ pub trait TxoModel {
     /// Get all Txos associated with a given account.
     fn list_for_account(
         account_id_hex: &str,
+        password_hash: &[u8],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<TxoDetails>, WalletDbError>;
 
@@ -136,6 +138,7 @@ pub trait TxoModel {
     /// * TxoDetails
     fn get(
         txo_id_hex: &str,
+        password_hash: &[u8],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<TxoDetails, WalletDbError>;
 
@@ -180,6 +183,7 @@ pub trait TxoModel {
         account_id: &AccountID,
         txo_id: &str,
         proof: &TxOutConfirmationNumber,
+        password_hash: &[u8],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError>;
 }
@@ -192,12 +196,13 @@ impl TxoModel for Txo {
         value: u64,
         received_block_count: i64,
         account_id_hex: &str,
+        password_hash: &[u8],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<String, WalletDbError> {
         let txo_id = TxoID::from(&txo);
         conn.transaction::<(), WalletDbError, _>(|| {
             // If we already have this TXO for this account (e.g. from minting in a previous transaction), we need to update it
-            match Txo::get(&txo_id.to_string(), conn) {
+            match Txo::get(&txo_id.to_string(), password_hash, conn) {
                 Ok(txo_details) => {
                     if txo_details.received_to_account.is_some() {
                         txo_details.txo.update_received(
@@ -476,6 +481,7 @@ impl TxoModel for Txo {
 
     fn list_for_account(
         account_id_hex: &str,
+        password_hash: &[u8],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<TxoDetails>, WalletDbError> {
         use crate::db::schema::account_txo_statuses as cols;
@@ -486,8 +492,10 @@ impl TxoModel for Txo {
             .select(cols::txo_id_hex)
             .load(conn)?;
 
-        let details: Result<Vec<TxoDetails>, WalletDbError> =
-            results.iter().map(|t| Txo::get(t, &conn)).collect();
+        let details: Result<Vec<TxoDetails>, WalletDbError> = results
+            .iter()
+            .map(|t| Txo::get(t, password_hash, &conn))
+            .collect();
         details
     }
 
@@ -514,6 +522,7 @@ impl TxoModel for Txo {
 
     fn get(
         txo_id_hex: &str,
+        password_hash: &[u8],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<TxoDetails, WalletDbError> {
         use crate::db::schema::txos::dsl::{txo_id_hex as dsl_txo_id_hex, txos};
@@ -561,7 +570,8 @@ impl TxoModel for Txo {
                     let assigned_subaddress = if let Some(subaddress_index) = txo.subaddress_index {
                         let account: Account =
                             Account::get(&AccountID(account_txo_status.account_id_hex), conn)?;
-                        let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+                        let account_key: AccountKey =
+                            account.get_decrypted_account_key(password_hash, conn)?;
                         let subaddress = account_key.subaddress(subaddress_index as u64);
                         let subaddress_b58 = b58_encode(&subaddress)?;
 
@@ -734,12 +744,13 @@ impl TxoModel for Txo {
         account_id: &AccountID,
         txo_id: &str,
         proof: &TxOutConfirmationNumber,
+        password_hash: &[u8],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError> {
-        let txo_details = Txo::get(txo_id, conn)?;
+        let txo_details = Txo::get(txo_id, password_hash, conn)?;
         let public_key: RistrettoPublic = mc_util_serial::decode(&txo_details.txo.public_key)?;
         let account = Account::get(account_id, conn)?;
-        let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+        let account_key: AccountKey = account.get_decrypted_account_key(password_hash, conn)?;
         Ok(proof.validate(&public_key, account_key.view_private_key()))
     }
 }
@@ -783,12 +794,19 @@ mod tests {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
 
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        wallet_db
+            .set_password_hash(&password_hash, &wallet_db.get_conn().unwrap())
+            .unwrap();
+
         let account_key = AccountKey::random(&mut rng);
         let (account_id_hex, _public_address_b58) = Account::create(
             &account_key,
             Some(1),
             None,
             "Alice's Main Account",
+            &password_hash,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -797,9 +815,12 @@ mod tests {
         let (txo_hex, txo, key_image) =
             create_test_received_txo(&account_key, 0, 10, 144, &mut rng, &wallet_db);
 
-        let txos =
-            Txo::list_for_account(&account_id_hex.to_string(), &wallet_db.get_conn().unwrap())
-                .unwrap();
+        let txos = Txo::list_for_account(
+            &account_id_hex.to_string(),
+            &wallet_db.get_password_hash().unwrap(),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
         assert_eq!(txos.len(), 1);
 
         let expected_txo = Txo {
@@ -855,9 +876,12 @@ mod tests {
             )
             .unwrap();
 
-        let txos =
-            Txo::list_for_account(&account_id_hex.to_string(), &wallet_db.get_conn().unwrap())
-                .unwrap();
+        let txos = Txo::list_for_account(
+            &account_id_hex.to_string(),
+            &wallet_db.get_password_hash().unwrap(),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
         assert_eq!(txos.len(), 1);
         assert_eq!(
             txos[0].txo.spent_block_count.clone().unwrap(),
@@ -890,12 +914,19 @@ mod tests {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
 
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        wallet_db
+            .set_password_hash(&password_hash, &wallet_db.get_conn().unwrap())
+            .unwrap();
+
         let account_key = AccountKey::random(&mut rng);
         let (account_id_hex, _public_address_b58) = Account::create(
             &account_key,
             Some(1),
             None,
             "Alice's Main Account",
+            &password_hash,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -994,12 +1025,19 @@ mod tests {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
 
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        wallet_db
+            .set_password_hash(&password_hash, &wallet_db.get_conn().unwrap())
+            .unwrap();
+
         let account_key = AccountKey::random(&mut rng);
         let (account_id_hex, _public_address_b58) = Account::create(
             &account_key,
             Some(0),
             None,
             "Alice's Main Account",
+            &password_hash,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1046,11 +1084,18 @@ mod tests {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger.clone());
 
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        wallet_db
+            .set_password_hash(&password_hash, &wallet_db.get_conn().unwrap())
+            .unwrap();
+
         Account::create(
             &src_account,
             Some(0),
             None,
             "",
+            &password_hash,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1080,7 +1125,12 @@ mod tests {
         assert!(recipient_opt.is_some());
         assert_eq!(value, 1 * MOB as i64);
         assert_eq!(transaction_txo_type, TXO_OUTPUT);
-        let minted_txo_details = Txo::get(&txo_id, &wallet_db.get_conn().unwrap()).unwrap();
+        let minted_txo_details = Txo::get(
+            &txo_id,
+            &wallet_db.get_password_hash().unwrap(),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
         assert_eq!(minted_txo_details.txo.value, value);
         assert_eq!(
             minted_txo_details.spent_from_account.unwrap().txo_status,
@@ -1099,6 +1149,12 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        wallet_db
+            .set_password_hash(&password_hash, &wallet_db.get_conn().unwrap())
+            .unwrap();
+
         // The account which will receive the Txo
         let recipient_account_key = AccountKey::random(&mut rng);
         Account::create(
@@ -1106,6 +1162,7 @@ mod tests {
             Some(0),
             None,
             "",
+            &password_hash,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1118,6 +1175,7 @@ mod tests {
             &wallet_db,
             &mut ledger_db,
             &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
+            &password_hash,
             &mut rng,
         );
 
@@ -1135,7 +1193,9 @@ mod tests {
             .unwrap();
         builder.select_txos(None).unwrap();
         builder.set_tombstone(0).unwrap();
-        let proposal = builder.build().unwrap();
+        let proposal = builder
+            .build(&wallet_db.get_password_hash().unwrap())
+            .unwrap();
 
         // Let's log this submitted Tx for the sender, which will create_minted for the sent Txo
         let tx_id = TransactionLog::log_submitted(
@@ -1156,6 +1216,7 @@ mod tests {
         // Then let's make sure we received the Txo on the recipient account
         let txos = Txo::list_for_account(
             &AccountID::from(&recipient_account_key).to_string(),
+            &wallet_db.get_password_hash().unwrap(),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1170,6 +1231,7 @@ mod tests {
         // Get the txo from the sent perspective
         let sender_txos = Txo::list_for_account(
             &AccountID::from(&sender_account_key).to_string(),
+            &wallet_db.get_password_hash().unwrap(),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1184,7 +1246,12 @@ mod tests {
             .unwrap();
         let sent_outputs = associated.outputs;
         assert_eq!(sent_outputs.len(), 1);
-        let sent_txo_details = Txo::get(&sent_outputs[0], &wallet_db.get_conn().unwrap()).unwrap();
+        let sent_txo_details = Txo::get(
+            &sent_outputs[0],
+            &wallet_db.get_password_hash().unwrap(),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
 
         // These two txos should actually be the same txo, and the account_txo_status is what
         // differentiates them.
@@ -1197,6 +1264,7 @@ mod tests {
             &AccountID::from(&recipient_account_key),
             &received_txo.txo.txo_id_hex,
             &proof,
+            &wallet_db.get_password_hash().unwrap(),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();

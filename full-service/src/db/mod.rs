@@ -134,11 +134,11 @@ impl WalletDb {
         // Check whether encrypted, and if so, then attempt to unlock
         match EncryptionIndicator::get_encryption_state(&conn)? {
             EncryptionState::Empty => {
-                // FIXME: move these log messages to service and return errors here
                 log::info!(
                     self.logger,
                     "DB has never been locked. Please call set_password to enable encryption."
                 );
+                return Err(WalletDbError::SetPassword);
             }
             EncryptionState::Encrypted => {
                 log::debug!(self.logger, "DB is locked. Verifying password.");
@@ -179,7 +179,6 @@ impl WalletDb {
             }
             EncryptionState::Encrypted => {
                 log::debug!(self.logger, "Database is locked. Verifying old password.");
-                println!("\x1b[1;36m db locked verifying old password\x1b[0m");
                 // Attempt to decrypt the test value to confirm if password is correct
                 let expected_val = Self::encrypt(ENCRYPTION_VERIFICATION_VAL, old_password_hash)?;
                 if EncryptionIndicator::verify_password(&expected_val, &conn)? {
