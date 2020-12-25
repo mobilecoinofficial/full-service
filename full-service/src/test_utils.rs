@@ -324,6 +324,7 @@ pub fn create_test_received_txo(
         value,
         received_block_count as i64,
         &AccountID::from(account_key).to_string(),
+        &wallet_db.get_password_hash().unwrap(),
         &wallet_db.get_conn().unwrap(),
     )
     .unwrap();
@@ -350,7 +351,9 @@ pub fn create_test_minted_and_change_txos(
     builder.add_recipient(recipient, value).unwrap();
     builder.select_txos(None).unwrap();
     builder.set_tombstone(0).unwrap();
-    let tx_proposal = builder.build().unwrap();
+    let tx_proposal = builder
+        .build(&wallet_db.get_password_hash().unwrap())
+        .unwrap();
 
     // There should be 2 outputs, one to dest and one change
     assert_eq!(tx_proposal.tx.prefix.outputs.len(), 2);
@@ -377,6 +380,7 @@ pub fn random_account_with_seed_values(
     wallet_db: &WalletDb,
     mut ledger_db: &mut LedgerDB,
     seed_values: &[u64],
+    password_hash: &[u8],
     mut rng: &mut StdRng,
 ) -> AccountKey {
     let account_key = AccountKey::random(&mut rng);
@@ -385,6 +389,7 @@ pub fn random_account_with_seed_values(
         Some(0),
         None,
         "",
+        password_hash,
         &wallet_db.get_conn().unwrap(),
     )
     .unwrap();
@@ -405,6 +410,7 @@ pub fn random_account_with_seed_values(
     assert_eq!(
         Txo::list_for_account(
             &AccountID::from(&account_key).to_string(),
+            &wallet_db.get_password_hash().unwrap(),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap()

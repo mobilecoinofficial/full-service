@@ -108,7 +108,7 @@ impl<
     }
 
     /// The initial call to set the password for the DB.
-    pub fn set_password(self, password_hash: Vec<u8>) -> Result<bool, WalletServiceError> {
+    pub fn set_password(&self, password_hash: Vec<u8>) -> Result<bool, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
         // FIXME: logic to convert password to password hash
 
@@ -155,8 +155,23 @@ impl<
         old_password_hash: Vec<u8>,
         new_password_hash: Vec<u8>,
     ) -> Result<bool, WalletServiceError> {
+        // FIXME: logic to convert password to password hash
         self.wallet_db
             .change_password(&old_password_hash, &new_password_hash)?;
+        // Re-encrypt all of our accounts with the new password hash
+        // FIXME: put in db transaction
+        let conn = self.wallet_db.get_conn()?;
+        for account in Account::list_all(&conn)? {
+            let decrypted_account_key =
+                account.get_decrypted_account_key(&old_password_hash, &conn)?;
+
+            let encrypted_account_key = WalletDb::encrypt(
+                &mc_util_serial::encode(&decrypted_account_key),
+                &self.wallet_db.get_password_hash()?,
+            )?;
+            account.update_encrypted_account_key(&encrypted_account_key, &conn)?;
+        }
+
         Ok(true)
     }
 
@@ -166,7 +181,9 @@ impl<
         name: Option<String>,
         first_block: Option<u64>,
     ) -> Result<JsonCreateAccountResponse, WalletServiceError> {
-        // FIXME: disable services that cannot happen while DB is locked, and add tests
+        if !self.wallet_db.is_unlocked()? {
+            return Err(WalletServiceError::DatabaseLocked);
+        }
 
         log::info!(
             self.logger,
@@ -186,6 +203,7 @@ impl<
             first_block,
             None,
             &name.unwrap_or_else(|| "".to_string()),
+            &self.wallet_db.get_password_hash()?,
             &conn,
         )?;
 
@@ -196,8 +214,13 @@ impl<
             .highest_block_index_on_network()
             .map(|v| v + 1)
             .unwrap_or(0);
-        let decorated_account =
-            Account::get_decorated(&account_id, local_height, network_height, &conn)?;
+        let decorated_account = Account::get_decorated(
+            &account_id,
+            local_height,
+            network_height,
+            &self.wallet_db.get_password_hash()?,
+            &conn,
+        )?;
 
         Ok(JsonCreateAccountResponse {
             entropy: entropy_str,
@@ -211,6 +234,9 @@ impl<
         name: Option<String>,
         first_block: Option<u64>,
     ) -> Result<JsonAccount, WalletServiceError> {
+        if !self.wallet_db.is_unlocked()? {
+            return Err(WalletServiceError::DatabaseLocked);
+        }
         log::info!(
             self.logger,
             "Importing account {:?} with first_block: {:?}",
@@ -235,6 +261,7 @@ impl<
             first_block,
             local_height,
             network_height,
+            &self.wallet_db.get_password_hash()?,
             &conn,
         )?)
     }
@@ -258,6 +285,7 @@ impl<
                             &AccountID(a.account_id_hex.clone()),
                             local_height,
                             network_height,
+                            &self.wallet_db.get_password_hash()?,
                             &conn,
                         )
                         .map_err(|e| e.into())
@@ -289,6 +317,7 @@ impl<
                 &AccountID(account_id_hex.to_string()),
                 local_height,
                 network_height,
+                &self.wallet_db.get_password_hash()?,
                 &conn,
             )?;
             Ok(decorated_account)
@@ -318,21 +347,29 @@ impl<
             &account_id_hex,
             local_height,
             network_height,
+            &self.wallet_db.get_password_hash()?,
             &conn,
         )?)
     }
 
     pub fn list_txos(&self, account_id_hex: &str) -> Result<Vec<JsonTxo>, WalletServiceError> {
+        if !self.wallet_db.is_unlocked()? {
+            return Err(WalletServiceError::DatabaseLocked);
+        }
         let conn = self.wallet_db.get_conn()?;
 
-        let txos = Txo::list_for_account(account_id_hex, &conn)?;
+        let txos =
+            Txo::list_for_account(account_id_hex, &self.wallet_db.get_password_hash()?, &conn)?;
         Ok(txos.iter().map(|t| JsonTxo::new(t)).collect())
     }
 
     pub fn get_txo(&self, txo_id_hex: &str) -> Result<JsonTxo, WalletServiceError> {
+        if !self.wallet_db.is_unlocked()? {
+            return Err(WalletServiceError::DatabaseLocked);
+        }
         let conn = self.wallet_db.get_conn()?;
 
-        let txo_details = Txo::get(txo_id_hex, &conn)?;
+        let txo_details = Txo::get(txo_id_hex, &self.wallet_db.get_password_hash()?, &conn)?;
         Ok(JsonTxo::new(&txo_details))
     }
 
@@ -363,6 +400,7 @@ impl<
                         &AccountID(account.account_id_hex.clone()),
                         local_height,
                         network_height,
+                        &self.wallet_db.get_password_hash()?,
                         &conn,
                     )?;
                     account_map.insert(
@@ -437,12 +475,21 @@ impl<
         comment: Option<&str>,
         // FIXME: WS-32 - add "sync from block"
     ) -> Result<JsonAddress, WalletServiceError> {
+        if !self.wallet_db.is_unlocked()? {
+            return Err(WalletServiceError::DatabaseLocked);
+        }
         let conn = &self.wallet_db.get_conn()?;
 
         Ok(conn.transaction::<JsonAddress, WalletServiceError, _>(|| {
+            // Get decrypted account key
+            let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
+            let account_key =
+                account.get_decrypted_account_key(&self.wallet_db.get_password_hash()?, conn)?;
+
             let (public_address_b58, _subaddress_index) =
                 AssignedSubaddress::create_next_for_account(
-                    account_id_hex,
+                    &account,
+                    &account_key,
                     comment.unwrap_or(""),
                     &conn,
                 )?;
@@ -477,6 +524,9 @@ impl<
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
     ) -> Result<JsonTxProposal, WalletServiceError> {
+        if !self.wallet_db.is_unlocked()? {
+            return Err(WalletServiceError::DatabaseLocked);
+        }
         let mut builder = WalletTransactionBuilder::new(
             account_id_hex.to_string(),
             self.wallet_db.clone(),
@@ -504,7 +554,7 @@ impl<
         if let Some(f) = fee {
             builder.set_fee(f.parse::<u64>()?)?;
         }
-        let tx_proposal = builder.build()?;
+        let tx_proposal = builder.build(&self.wallet_db.get_password_hash()?)?;
         // FIXME: WS-34 - Would rather not have to convert it to proto first
         let proto_tx_proposal = mc_mobilecoind_api::TxProposal::from(&tx_proposal);
 
@@ -638,8 +688,11 @@ impl<
     }
 
     pub fn get_txo_object(&self, txo_id_hex: &str) -> Result<JsonTxOut, WalletServiceError> {
+        if !self.wallet_db.is_unlocked()? {
+            return Err(WalletServiceError::DatabaseLocked);
+        }
         let conn = self.wallet_db.get_conn()?;
-        let txo_details = Txo::get(txo_id_hex, &conn)?;
+        let txo_details = Txo::get(txo_id_hex, &self.wallet_db.get_password_hash()?, &conn)?;
 
         let txo: TxOut = mc_util_serial::decode(&txo_details.txo.txo)?;
         // Convert to proto
@@ -688,12 +741,16 @@ impl<
         txo_id_hex: &str,
         proof_hex: &str,
     ) -> Result<bool, WalletServiceError> {
+        if !self.wallet_db.is_unlocked()? {
+            return Err(WalletServiceError::DatabaseLocked);
+        }
         let conn = self.wallet_db.get_conn()?;
         let proof: TxOutConfirmationNumber = mc_util_serial::decode(&hex::decode(proof_hex)?)?;
         Ok(Txo::verify_proof(
             &AccountID(account_id_hex.to_string()),
             &txo_id_hex,
             &proof,
+            &self.wallet_db.get_password_hash()?,
             &conn,
         )?)
     }
@@ -748,6 +805,12 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         let service = setup_service(ledger_db.clone(), logger);
+
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        let res = service.set_password(password_hash.to_vec()).unwrap();
+        assert!(res);
+
         let alice = service
             .create_account(Some("Alice's Main Account".to_string()), None)
             .unwrap();
@@ -855,7 +918,7 @@ mod tests {
     }
 
     #[test_with_logger]
-    fn test_db_lock_lifecycle(logger: Logger) {
+    fn test_db_set_password(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -866,11 +929,11 @@ mod tests {
         // Should unlock while DB is empty, and stored password_hash will be empty
         let mut password_hash = [0u8; 32];
         rng.fill_bytes(&mut password_hash);
-        let res = service.unlock(password_hash.to_vec()).unwrap();
+        let res = service.set_password(password_hash.to_vec()).unwrap();
         assert!(res);
         assert_eq!(
             service.wallet_db.get_password_hash().unwrap(),
-            Vec::<u8>::new()
+            password_hash.to_vec()
         );
     }
 

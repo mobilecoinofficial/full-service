@@ -158,7 +158,10 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
     }
 
     /// Consumes self
-    pub fn build(mut self) -> Result<TxProposal, WalletTransactionBuilderError> {
+    pub fn build(
+        mut self,
+        password_hash: &[u8],
+    ) -> Result<TxProposal, WalletTransactionBuilderError> {
         if self.inputs.is_empty() {
             return Err(WalletTransactionBuilderError::NoInputs);
         }
@@ -173,7 +176,8 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
             conn.transaction::<TxProposal, WalletTransactionBuilderError, _>(|| {
                 let account: Account =
                     Account::get(&AccountID(self.account_id_hex.to_string()), &conn)?;
-                let from_account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+                let from_account_key: AccountKey =
+                    account.get_decrypted_account_key(password_hash, &conn)?;
 
                 // Get membership proofs for our inputs
                 let indexes = self
@@ -537,6 +541,7 @@ mod tests {
         },
     };
     use mc_common::logger::{test_with_logger, Logger};
+    use mc_crypto_rand::rand_core::RngCore;
     use rand::{rngs::StdRng, SeedableRng};
 
     #[test_with_logger]
@@ -547,6 +552,12 @@ mod tests {
         let wallet_db = db_test_context.get_db_instance(logger.clone());
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        wallet_db
+            .set_password_hash(&password_hash, &wallet_db.get_conn().unwrap())
+            .unwrap();
 
         // Start sync thread
         let _sync_thread =
@@ -561,6 +572,7 @@ mod tests {
                 11 * MOB as u64,
                 111111 * MOB as u64,
             ],
+            &password_hash,
             &mut rng,
         );
 
@@ -577,7 +589,9 @@ mod tests {
         builder.select_txos(None).unwrap();
         builder.set_tombstone(0).unwrap();
 
-        let proposal = builder.build().unwrap();
+        let proposal = builder
+            .build(&wallet_db.get_password_hash().unwrap())
+            .unwrap();
         assert_eq!(proposal.outlays.len(), 1);
         assert_eq!(proposal.outlays[0].receiver, recipient);
         assert_eq!(proposal.outlays[0].value, value);
@@ -596,6 +610,12 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        wallet_db
+            .set_password_hash(&password_hash, &wallet_db.get_conn().unwrap())
+            .unwrap();
+
         // Start sync thread
         let _sync_thread =
             SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
@@ -609,6 +629,7 @@ mod tests {
                 7_000_000 * MOB as u64,
                 7_000_000 * MOB as u64,
             ],
+            &password_hash,
             &mut rng,
         );
 
@@ -647,6 +668,12 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        wallet_db
+            .set_password_hash(&password_hash, &wallet_db.get_conn().unwrap())
+            .unwrap();
+
         // Start sync thread
         let _sync_thread =
             SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
@@ -655,12 +682,14 @@ mod tests {
             &wallet_db,
             &mut ledger_db,
             &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
+            &password_hash,
             &mut rng,
         );
 
         // Get our TXO list
         let txos: Vec<Txo> = Txo::list_for_account(
             &AccountID::from(&account_key).to_string(),
+            &password_hash,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap()
@@ -678,7 +707,7 @@ mod tests {
 
         builder.set_txos(&vec![txos[0].txo_id_hex.clone()]).unwrap();
         builder.set_tombstone(0).unwrap();
-        match builder.build() {
+        match builder.build(&wallet_db.get_password_hash().unwrap()) {
             Ok(_) => {
                 panic!("Should not be able to construct Tx with > inputs value as output value")
             }
@@ -702,7 +731,9 @@ mod tests {
             ])
             .unwrap();
         builder.set_tombstone(0).unwrap();
-        let proposal = builder.build().unwrap();
+        let proposal = builder
+            .build(&wallet_db.get_password_hash().unwrap())
+            .unwrap();
         assert_eq!(proposal.outlays.len(), 1);
         assert_eq!(proposal.outlays[0].receiver, recipient);
         assert_eq!(proposal.outlays[0].value, txos[0].value as u64 + 10);
@@ -721,6 +752,12 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        wallet_db
+            .set_password_hash(&password_hash, &wallet_db.get_conn().unwrap())
+            .unwrap();
+
         // Start sync thread
         let _sync_thread =
             SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
@@ -729,6 +766,7 @@ mod tests {
             &wallet_db,
             &mut ledger_db,
             &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
+            &password_hash,
             &mut rng,
         );
 
@@ -759,7 +797,9 @@ mod tests {
         // Now, we should succeed if we set max_spendable = 80 * MOB, because we will pick up both 70 and 80
         builder.select_txos(Some(80 * MOB as u64)).unwrap();
         builder.set_tombstone(0).unwrap();
-        let proposal = builder.build().unwrap();
+        let proposal = builder
+            .build(&wallet_db.get_password_hash().unwrap())
+            .unwrap();
         assert_eq!(proposal.outlays.len(), 1);
         assert_eq!(proposal.outlays[0].receiver, recipient);
         assert_eq!(proposal.outlays[0].value, 80 * MOB as u64);
@@ -778,6 +818,12 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        wallet_db
+            .set_password_hash(&password_hash, &wallet_db.get_conn().unwrap())
+            .unwrap();
+
         // Start sync thread
         let _sync_thread =
             SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
@@ -786,6 +832,7 @@ mod tests {
             &wallet_db,
             &mut ledger_db,
             &vec![70 * MOB as u64],
+            &password_hash,
             &mut rng,
         );
 
@@ -801,7 +848,7 @@ mod tests {
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
 
         // We must set tombstone block before building
-        match builder.build() {
+        match builder.build(&wallet_db.get_password_hash().unwrap()) {
             Ok(_) => panic!("Expected TombstoneNotSet error"),
             Err(WalletTransactionBuilderError::TombstoneNotSet) => {}
             Err(e) => panic!("Unexpected error {:?}", e),
@@ -819,7 +866,9 @@ mod tests {
         builder.set_tombstone(0).unwrap();
 
         // Not setting the tombstone results in tombstone = 0. This is an acceptable value,
-        let proposal = builder.build().unwrap();
+        let proposal = builder
+            .build(&wallet_db.get_password_hash().unwrap())
+            .unwrap();
         assert_eq!(proposal.tx.prefix.tombstone_block, 63);
 
         // Build a transaction and explicitly set tombstone
@@ -835,7 +884,9 @@ mod tests {
         builder.set_tombstone(20).unwrap();
 
         // Not setting the tombstone results in tombstone = 0. This is an acceptable value,
-        let proposal = builder.build().unwrap();
+        let proposal = builder
+            .build(&wallet_db.get_password_hash().unwrap())
+            .unwrap();
         assert_eq!(proposal.tx.prefix.tombstone_block, 20);
     }
 
@@ -849,6 +900,12 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        wallet_db
+            .set_password_hash(&password_hash, &wallet_db.get_conn().unwrap())
+            .unwrap();
+
         // Start sync thread
         let _sync_thread =
             SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
@@ -857,6 +914,7 @@ mod tests {
             &wallet_db,
             &mut ledger_db,
             &vec![70 * MOB as u64],
+            &password_hash,
             &mut rng,
         );
 
@@ -870,7 +928,9 @@ mod tests {
         builder.set_tombstone(0).unwrap();
 
         // Verify that not setting fee results in default fee
-        let proposal = builder.build().unwrap();
+        let proposal = builder
+            .build(&wallet_db.get_password_hash().unwrap())
+            .unwrap();
         assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE);
 
         // You cannot set fee to 0
@@ -889,7 +949,9 @@ mod tests {
         }
 
         // Verify that not setting fee results in default fee
-        let proposal = builder.build().unwrap();
+        let proposal = builder
+            .build(&wallet_db.get_password_hash().unwrap())
+            .unwrap();
         assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE);
 
         // Setting fee less than minimum fee should fail
@@ -917,7 +979,9 @@ mod tests {
         builder.select_txos(None).unwrap();
         builder.set_tombstone(0).unwrap();
         builder.set_fee(MINIMUM_FEE * 10).unwrap();
-        let proposal = builder.build().unwrap();
+        let proposal = builder
+            .build(&wallet_db.get_password_hash().unwrap())
+            .unwrap();
         assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE * 10);
     }
 
@@ -931,6 +995,12 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        wallet_db
+            .set_password_hash(&password_hash, &wallet_db.get_conn().unwrap())
+            .unwrap();
+
         // Start sync thread
         let _sync_thread =
             SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
@@ -939,6 +1009,7 @@ mod tests {
             &wallet_db,
             &mut ledger_db,
             &vec![70 * MOB as u64],
+            &password_hash,
             &mut rng,
         );
 
@@ -952,7 +1023,9 @@ mod tests {
         builder.set_tombstone(0).unwrap();
 
         // Verify that not setting fee results in default fee
-        let proposal = builder.build().unwrap();
+        let proposal = builder
+            .build(&wallet_db.get_password_hash().unwrap())
+            .unwrap();
         assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE);
         assert_eq!(proposal.outlays.len(), 1);
         assert_eq!(proposal.outlays[0].receiver, recipient);
@@ -971,6 +1044,12 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        wallet_db
+            .set_password_hash(&password_hash, &wallet_db.get_conn().unwrap())
+            .unwrap();
+
         // Start sync thread
         let _sync_thread =
             SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
@@ -979,6 +1058,7 @@ mod tests {
             &wallet_db,
             &mut ledger_db,
             &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
+            &password_hash,
             &mut rng,
         );
 
@@ -1002,7 +1082,9 @@ mod tests {
         builder.set_tombstone(0).unwrap();
 
         // Verify that not setting fee results in default fee
-        let proposal = builder.build().unwrap();
+        let proposal = builder
+            .build(&wallet_db.get_password_hash().unwrap())
+            .unwrap();
         assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE);
         assert_eq!(proposal.outlays.len(), 4);
         assert_eq!(proposal.outlays[0].receiver, recipient);
@@ -1027,6 +1109,12 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        wallet_db
+            .set_password_hash(&password_hash, &wallet_db.get_conn().unwrap())
+            .unwrap();
+
         // Start sync thread
         let _sync_thread =
             SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
@@ -1040,6 +1128,7 @@ mod tests {
                 7_000_000 * MOB as u64,
                 7_000_000 * MOB as u64,
             ],
+            &password_hash,
             &mut rng,
         );
 
@@ -1073,6 +1162,12 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        wallet_db
+            .set_password_hash(&password_hash, &wallet_db.get_conn().unwrap())
+            .unwrap();
+
         // Start sync thread
         let _sync_thread =
             SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
@@ -1081,6 +1176,7 @@ mod tests {
             &wallet_db,
             &mut ledger_db,
             &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
+            &password_hash,
             &mut rng,
         );
 

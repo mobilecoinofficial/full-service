@@ -21,6 +21,7 @@ use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::tx::Tx;
 
+use crate::db::account::AccountModel;
 use chrono::Utc;
 use diesel::{
     prelude::*,
@@ -102,6 +103,7 @@ pub trait TransactionLogModel {
         subaddress_to_output_txo_ids: &HashMap<i64, Vec<String>>,
         account: &Account,
         block_count: u64,
+        password_hash: &[u8],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
@@ -331,6 +333,7 @@ impl TransactionLogModel for TransactionLog {
         subaddress_to_output_txo_ids: &HashMap<i64, Vec<String>>,
         account: &Account,
         block_count: u64,
+        password_hash: &[u8],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::transaction_txo_types;
@@ -349,7 +352,8 @@ impl TransactionLogModel for TransactionLog {
                     }
 
                     // Get the public address for the subaddress that received these TXOs
-                    let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+                    let account_key: AccountKey =
+                        account.get_decrypted_account_key(password_hash, conn)?;
                     let b58_subaddress = if *subaddress_index >= 0 {
                         let subaddress = account_key.subaddress(*subaddress_index as u64);
                         b58_encode(&subaddress)?
@@ -510,6 +514,7 @@ mod tests {
     };
     use mc_account_keys::PublicAddress;
     use mc_common::logger::{test_with_logger, Logger};
+    use mc_crypto_rand::rand_core::RngCore;
     use mc_ledger_db::Ledger;
     use mc_transaction_core::constants::MINIMUM_FEE;
     use rand::{rngs::StdRng, SeedableRng};
@@ -520,6 +525,12 @@ mod tests {
 
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
+
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        wallet_db
+            .set_password_hash(&password_hash, &wallet_db.get_conn().unwrap())
+            .unwrap();
 
         let account_key = AccountKey::random(&mut rng);
 
@@ -546,12 +557,19 @@ mod tests {
             Some(0),
             None,
             "",
+            &password_hash,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
         let account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
-        TransactionLog::log_received(&synced, &account, 144, &wallet_db.get_conn().unwrap())
-            .unwrap();
+        TransactionLog::log_received(
+            &synced,
+            &account,
+            144,
+            &wallet_db.get_password_hash().unwrap(),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
 
         for (_subaddress, txos) in synced.iter() {
             for txo_id in txos {
@@ -562,7 +580,12 @@ mod tests {
 
                 assert_eq!(&transaction_logs[0].transaction_id_hex, txo_id);
 
-                let txo_details = Txo::get(txo_id, &wallet_db.get_conn().unwrap()).unwrap();
+                let txo_details = Txo::get(
+                    txo_id,
+                    &wallet_db.get_password_hash().unwrap(),
+                    &wallet_db.get_conn().unwrap(),
+                )
+                .unwrap();
                 assert_eq!(transaction_logs[0].value, txo_details.txo.value);
 
                 // Make the sure the types are correct - all received should be TXO_OUTPUT
@@ -585,6 +608,12 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        wallet_db
+            .set_password_hash(&password_hash, &wallet_db.get_conn().unwrap())
+            .unwrap();
+
         // Start sync thread
         let _sync_thread =
             SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
@@ -593,6 +622,7 @@ mod tests {
             &wallet_db,
             &mut ledger_db,
             &vec![70 * MOB as u64],
+            &password_hash,
             &mut rng,
         );
 
@@ -604,7 +634,9 @@ mod tests {
             .unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(None).unwrap();
-        let tx_proposal = builder.build().unwrap();
+        let tx_proposal = builder
+            .build(&wallet_db.get_password_hash().unwrap())
+            .unwrap();
 
         let tx_id = TransactionLog::log_submitted(
             tx_proposal.clone(),
@@ -650,8 +682,12 @@ mod tests {
 
         // Assert inputs are as expected
         assert_eq!(associated.inputs.len(), 1);
-        let input_details =
-            Txo::get(&associated.inputs[0], &wallet_db.get_conn().unwrap()).unwrap();
+        let input_details = Txo::get(
+            &associated.inputs[0],
+            &wallet_db.get_password_hash().unwrap(),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
         assert_eq!(input_details.txo.value, 70 * MOB);
         assert_eq!(
             input_details
@@ -676,8 +712,12 @@ mod tests {
 
         // Assert outputs are as expected
         assert_eq!(associated.outputs.len(), 1);
-        let output_details =
-            Txo::get(&associated.outputs[0], &wallet_db.get_conn().unwrap()).unwrap();
+        let output_details = Txo::get(
+            &associated.outputs[0],
+            &wallet_db.get_password_hash().unwrap(),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
         assert_eq!(output_details.txo.value, 50 * MOB);
         assert_eq!(
             output_details
@@ -696,8 +736,12 @@ mod tests {
 
         // Assert change is as expected
         assert_eq!(associated.change.len(), 1);
-        let change_details =
-            Txo::get(&associated.change[0], &wallet_db.get_conn().unwrap()).unwrap();
+        let change_details = Txo::get(
+            &associated.change[0],
+            &wallet_db.get_password_hash().unwrap(),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
         assert_eq!(change_details.txo.value, 19990000000000); // 19.99 * MOB
         assert_eq!(
             change_details
@@ -726,6 +770,12 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        wallet_db
+            .set_password_hash(&password_hash, &wallet_db.get_conn().unwrap())
+            .unwrap();
+
         // Start sync thread
         let _sync_thread =
             SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
@@ -734,6 +784,7 @@ mod tests {
             &wallet_db,
             &mut ledger_db,
             &vec![100 * MOB as u64, 200 * MOB as u64],
+            &password_hash,
             &mut rng,
         );
 
@@ -746,7 +797,9 @@ mod tests {
 
         builder.set_tombstone(0).unwrap();
         builder.select_txos(None).unwrap();
-        let tx_proposal = builder.build().unwrap();
+        let tx_proposal = builder
+            .build(&wallet_db.get_password_hash().unwrap())
+            .unwrap();
 
         let tx_id = TransactionLog::log_submitted(
             tx_proposal.clone(),

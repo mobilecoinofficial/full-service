@@ -74,10 +74,6 @@ impl EncryptionModel for EncryptionIndicator {
             let indicator_rows: Vec<EncryptionIndicator> = encryption_indicators::table
                 .select(encryption_indicators::all_columns)
                 .load::<EncryptionIndicator>(conn)?;
-            println!(
-                "\x1b[1;33m Got indicator rows = {:?}\x1b[0m",
-                indicator_rows
-            );
             if indicator_rows.is_empty() {
                 Err(WalletDbError::MissingEncryptionIndicator)
             } else if indicator_rows.len() > 1 {

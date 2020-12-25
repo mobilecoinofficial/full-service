@@ -6,12 +6,14 @@ use crate::{
     db::{
         assigned_subaddress::AssignedSubaddressModel,
         b58_encode,
+        encryption_indicator::{EncryptionModel, EncryptionState},
         models::{
-            Account, AccountTxoStatus, AssignedSubaddress, NewAccount, TransactionLog, Txo,
-            TXO_PENDING, TXO_SPENT, TXO_UNSPENT,
+            Account, AccountTxoStatus, AssignedSubaddress, EncryptionIndicator, NewAccount,
+            TransactionLog, Txo, TXO_PENDING, TXO_SPENT, TXO_UNSPENT,
         },
         transaction_log::TransactionLogModel,
         txo::TxoModel,
+        WalletDb,
     },
     error::WalletDbError,
     service::decorated_types::JsonAccount,
@@ -59,6 +61,7 @@ pub trait AccountModel {
         first_block: Option<u64>,
         import_block: Option<u64>,
         name: &str,
+        password_hash: &[u8],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(AccountID, String), WalletDbError>;
 
@@ -69,6 +72,7 @@ pub trait AccountModel {
         first_block: Option<u64>,
         local_height: u64,
         network_height: u64,
+        password_hash: &[u8],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<JsonAccount, WalletDbError>;
 
@@ -89,11 +93,19 @@ pub trait AccountModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Account, WalletDbError>;
 
+    /// Get the decrypted account key for a given Account.
+    fn get_decrypted_account_key(
+        &self,
+        password_hash: &[u8],
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<AccountKey, WalletDbError>;
+
     /// Get the API-decorated Account object
     fn get_decorated(
         account_id_hex: &AccountID,
         local_height: u64,
         network_height: u64,
+        password_hash: &[u8],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<JsonAccount, WalletDbError>;
 
@@ -139,18 +151,21 @@ impl AccountModel for Account {
         first_block: Option<u64>,
         import_block: Option<u64>,
         name: &str,
+        password_hash: &[u8],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(AccountID, String), WalletDbError> {
         use crate::db::schema::accounts;
 
         let account_id = AccountID::from(account_key);
         let fb = first_block.unwrap_or(DEFAULT_FIRST_BLOCK);
+        let account_key_bytes = mc_util_serial::encode(account_key);
+        let encrypted_account_key = WalletDb::encrypt(&account_key_bytes, password_hash)?;
 
         Ok(
             conn.transaction::<(AccountID, String), WalletDbError, _>(|| {
                 let new_account = NewAccount {
                     account_id_hex: &account_id.to_string(),
-                    account_key: &mc_util_serial::encode(account_key), // FIXME: WS-6 - add encryption
+                    account_key: &encrypted_account_key,
                     main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
                     change_subaddress_index: DEFAULT_CHANGE_SUBADDRESS_INDEX as i64,
                     next_subaddress_index: DEFAULT_NEXT_SUBADDRESS_INDEX as i64,
@@ -190,6 +205,7 @@ impl AccountModel for Account {
         first_block: Option<u64>,
         local_height: u64,
         network_height: u64,
+        password_hash: &[u8],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<JsonAccount, WalletDbError> {
         Ok(conn.transaction::<JsonAccount, WalletDbError, _>(|| {
@@ -198,12 +214,14 @@ impl AccountModel for Account {
                 first_block,
                 Some(local_height),
                 &name.unwrap_or_else(|| "".to_string()),
+                password_hash,
                 conn,
             )?;
             Ok(Account::get_decorated(
                 &account_id,
                 local_height,
                 network_height,
+                password_hash,
                 &conn,
             )?)
         })?)
@@ -238,10 +256,33 @@ impl AccountModel for Account {
         }
     }
 
+    fn get_decrypted_account_key(
+        &self,
+        password_hash: &[u8],
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<AccountKey, WalletDbError> {
+        let account_key: AccountKey = match EncryptionIndicator::get_encryption_state(conn)? {
+            EncryptionState::Empty => {
+                // There are no accounts, we should not get here.
+                return Err(WalletDbError::NoAccounts);
+            }
+            EncryptionState::Unencrypted => mc_util_serial::decode(&self.account_key)?,
+            EncryptionState::Encrypted => {
+                if password_hash.is_empty() {
+                    return Err(WalletDbError::NoDecryptionKey);
+                }
+                let decrypted_account_key = WalletDb::decrypt(&self.account_key, password_hash)?;
+                mc_util_serial::decode(&decrypted_account_key)?
+            }
+        };
+        Ok(account_key)
+    }
+
     fn get_decorated(
         account_id_hex: &AccountID,
         local_height: u64,
         network_height: u64,
+        password_hash: &[u8],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<JsonAccount, WalletDbError> {
         Ok(conn.transaction::<JsonAccount, WalletDbError, _>(|| {
@@ -256,7 +297,7 @@ impl AccountModel for Account {
                 .map(|t| t.value as u128)
                 .sum::<u128>();
 
-            let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+            let account_key: AccountKey = account.get_decrypted_account_key(password_hash, conn)?;
             let main_subaddress_b58 =
                 b58_encode(&account_key.subaddress(DEFAULT_SUBADDRESS_INDEX))?;
             Ok(JsonAccount {
@@ -407,6 +448,7 @@ mod tests {
     use crate::test_utils::WalletDbTestContext;
     use mc_account_keys::RootIdentity;
     use mc_common::logger::{test_with_logger, Logger};
+    use mc_crypto_rand::rand_core::RngCore;
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
     use std::collections::HashSet;
@@ -419,12 +461,24 @@ mod tests {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
 
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        wallet_db
+            .set_password_hash(&password_hash, &wallet_db.get_conn().unwrap())
+            .unwrap();
+
         let account_key = AccountKey::random(&mut rng);
         let account_id_hex = {
             let conn = wallet_db.get_conn().unwrap();
-            let (account_id_hex, _public_address_b58) =
-                Account::create(&account_key, Some(0), None, "Alice's Main Account", &conn)
-                    .unwrap();
+            let (account_id_hex, _public_address_b58) = Account::create(
+                &account_key,
+                Some(0),
+                None,
+                "Alice's Main Account",
+                &password_hash,
+                &conn,
+            )
+            .unwrap();
             account_id_hex
         };
 
@@ -435,10 +489,13 @@ mod tests {
         }
 
         let acc = Account::get(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
+
+        let encrypted_account_key =
+            WalletDb::encrypt(&mc_util_serial::encode(&account_key), &password_hash).unwrap();
         let expected_account = Account {
             id: 1,
             account_id_hex: account_id_hex.to_string(),
-            account_key: mc_util_serial::encode(&account_key),
+            account_key: encrypted_account_key,
             main_subaddress_index: 0,
             change_subaddress_index: 1,
             next_subaddress_index: 2,
@@ -479,6 +536,7 @@ mod tests {
             Some(51),
             Some(50),
             "",
+            &password_hash,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -487,10 +545,17 @@ mod tests {
 
         let acc_secondary =
             Account::get(&account_id_hex_secondary, &wallet_db.get_conn().unwrap()).unwrap();
+
+        let encrypted_account_key_secondary = WalletDb::encrypt(
+            &mc_util_serial::encode(&account_key_secondary),
+            &password_hash,
+        )
+        .unwrap();
+
         let mut expected_account_secondary = Account {
             id: 2,
             account_id_hex: account_id_hex_secondary.to_string(),
-            account_key: mc_util_serial::encode(&account_key_secondary),
+            account_key: encrypted_account_key_secondary,
             main_subaddress_index: 0,
             change_subaddress_index: 1,
             next_subaddress_index: 2,
@@ -530,5 +595,41 @@ mod tests {
             }
             Err(_) => panic!("Should error with NotFound but got {:?}", res),
         }
+    }
+
+    #[test_with_logger]
+    fn test_account_encrypt_decrypt(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        wallet_db
+            .set_password_hash(&password_hash, &wallet_db.get_conn().unwrap())
+            .unwrap();
+
+        let account_key = AccountKey::random(&mut rng);
+        let account_id_hex = {
+            let conn = wallet_db.get_conn().unwrap();
+            let (account_id_hex, _public_address_b58) = Account::create(
+                &account_key,
+                Some(0),
+                None,
+                "Alice's Main Account",
+                &wallet_db.get_password_hash().unwrap(),
+                &conn,
+            )
+            .unwrap();
+            account_id_hex
+        };
+
+        let account = Account::get(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
+        let decrypted = account
+            .get_decrypted_account_key(&password_hash, &wallet_db.get_conn().unwrap())
+            .unwrap();
+
+        assert_eq!(decrypted, account_key);
     }
 }

@@ -25,8 +25,7 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        encryption_indicator::{EncryptionModel, EncryptionState},
-        models::{Account, AssignedSubaddress, EncryptionIndicator, TransactionLog, Txo},
+        models::{Account, AssignedSubaddress, TransactionLog, Txo},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
         WalletDb,
@@ -362,6 +361,7 @@ pub fn sync_account(
                 &output_txo_ids,
                 &account,
                 account.next_block as u64,
+                &wallet_db.get_password_hash()?,
                 &conn,
             )?;
             Ok(SyncAccountOk::MoreBlocksPotentiallyAvailable)
@@ -383,21 +383,7 @@ fn process_txos(
     decryption_key: &[u8],
     logger: &Logger,
 ) -> Result<HashMap<i64, Vec<String>>, SyncError> {
-    let account_key: AccountKey = match EncryptionIndicator::get_encryption_state(conn)? {
-        EncryptionState::Empty => {
-            // There are no accounts, we should not get here.
-            return Err(SyncError::NoAccounts);
-        }
-        EncryptionState::Unencrypted => mc_util_serial::decode(&account.account_key)?,
-        EncryptionState::Encrypted => {
-            if decryption_key.is_empty() {
-                return Err(SyncError::NoDecryptionKey);
-            }
-            let decrypted_account_key = WalletDb::decrypt(&account.account_key, decryption_key)?;
-            mc_util_serial::decode(&decrypted_account_key)?
-        }
-    };
-
+    let account_key: AccountKey = account.get_decrypted_account_key(&decryption_key, conn)?;
     let view_key = account_key.view_key();
     let account_id_hex = AccountID::from(&account_key).to_string();
 
@@ -470,6 +456,7 @@ fn process_txos(
             value,
             received_block_index,
             &account_id_hex,
+            decryption_key,
             &conn,
         )?;
 
