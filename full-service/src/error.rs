@@ -59,6 +59,9 @@ pub enum WalletServiceError {
 
     /// Cannot complete this action in offline mode.
     Offline,
+
+    /// Cannot set password on encrypted database. Must change_password.
+    DatabaseEncrypted,
 }
 
 impl From<WalletDbError> for WalletServiceError {
@@ -284,6 +287,12 @@ pub enum SyncError {
 
     /// Error executing diesel transaction {0}
     Diesel(diesel::result::Error),
+
+    /// No decryption key in database.
+    NoDecryptionKey,
+
+    /// No accounts in database. Cannot process txos.
+    NoAccounts,
 }
 
 impl From<WalletDbError> for SyncError {

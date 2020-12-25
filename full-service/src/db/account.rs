@@ -124,6 +124,13 @@ pub trait AccountModel {
         self,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
+
+    /// Encrypt account key.
+    fn update_encrypted_account_key(
+        &self,
+        encrypted_account_key: &[u8],
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError>;
 }
 
 impl AccountModel for Account {
@@ -370,7 +377,6 @@ impl AccountModel for Account {
         })?)
     }
 
-    /// Delete an account.
     fn delete(
         self,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
@@ -378,6 +384,19 @@ impl AccountModel for Account {
         use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
 
         diesel::delete(accounts.filter(account_id_hex.eq(self.account_id_hex))).execute(conn)?;
+        Ok(())
+    }
+
+    fn update_encrypted_account_key(
+        &self,
+        encrypted_account_key: &[u8],
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
+
+        diesel::update(accounts.filter(account_id_hex.eq(&self.account_id_hex)))
+            .set(crate::db::schema::accounts::account_key.eq(encrypted_account_key))
+            .execute(conn)?;
         Ok(())
     }
 }
