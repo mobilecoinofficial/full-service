@@ -210,9 +210,6 @@ pub enum WalletDbError {
     /// Mutex Poisoned
     MutexPoisoned,
 
-    /// Must set password before verifying, encrypting or decrypting
-    SetPassword,
-
     /// Password cannot be verified because indicator row is not present
     MissingEncryptionIndicator,
 

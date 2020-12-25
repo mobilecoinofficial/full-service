@@ -107,9 +107,8 @@ impl EncryptionModel for EncryptionIndicator {
                 EncryptionState::Encrypted => {
                     log::info!(
                         logger,
-                        "Database is already encrypted. Please unlock then change password."
+                        "Database is encrypted. Changing password."
                     );
-                    return Err(WalletDbError::SetPassword);
                 }
                 EncryptionState::Empty => {
                     log::info!(
