@@ -44,7 +44,7 @@ pub const MOB: i64 = 1_000_000_000_000;
 pub const DEFAULT_PER_RECIPIENT_AMOUNT: u64 = 5_000 * MOB as u64;
 
 pub struct WalletDbTestContext {
-    base_url: String,
+    pub base_url: String,
     pub db_name: String,
 }
 
