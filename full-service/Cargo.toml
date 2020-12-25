@@ -33,6 +33,7 @@ mc-util-serial = { path = "../mobilecoin/util/serial", default-features = false 
 mc-util-uri = { path = "../mobilecoin/util/uri" }
 
 aes-gcm = "0.6"
+bcrypt = "0.9"
 blake2 = { version = "0.9", default-features = false }
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
 crossbeam-channel = "0.4"

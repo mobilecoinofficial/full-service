@@ -34,14 +34,18 @@ pub struct WalletState<
 #[allow(non_camel_case_types)]
 pub enum JsonCommandRequest {
     set_password {
-        password_hash: String,
+        password: Option<String>,
+        password_hash: Option<String>,
     },
     unlock {
-        password_hash: String,
+        password: Option<String>,
+        password_hash: Option<String>,
     },
     change_password {
-        old_password_hash: String,
-        new_password_hash: String,
+        old_password: Option<String>,
+        old_password_hash: Option<String>,
+        new_password: Option<String>,
+        new_password_hash: Option<String>,
     },
     create_account {
         name: Option<String>,
@@ -229,32 +233,37 @@ where
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
     let result = match command.0 {
-        JsonCommandRequest::set_password { password_hash } => {
-            let password_hash_bytes =
-                hex::decode(password_hash).map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+        JsonCommandRequest::set_password {
+            password,
+            password_hash,
+        } => {
             let success = service
-                .set_password(password_hash_bytes)
+                .set_password(password, password_hash)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             JsonCommandResponse::set_password { success }
         }
-        JsonCommandRequest::unlock { password_hash } => {
-            let password_hash_bytes =
-                hex::decode(password_hash).map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+        JsonCommandRequest::unlock {
+            password,
+            password_hash,
+        } => {
             let success = service
-                .unlock(password_hash_bytes)
+                .unlock(password, password_hash)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             JsonCommandResponse::unlock { success }
         }
         JsonCommandRequest::change_password {
+            old_password,
             old_password_hash,
+            new_password,
             new_password_hash,
         } => {
-            let old_password_hash_bytes = hex::decode(old_password_hash)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
-            let new_password_hash_bytes = hex::decode(new_password_hash)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             let success = service
-                .change_password(old_password_hash_bytes, new_password_hash_bytes)
+                .change_password(
+                    old_password,
+                    old_password_hash,
+                    new_password,
+                    new_password_hash,
+                )
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             JsonCommandResponse::change_password { success }
         }
