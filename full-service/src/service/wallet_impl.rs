@@ -42,7 +42,6 @@ use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
 use mc_transaction_core::tx::{Tx, TxOut, TxOutConfirmationNumber};
 use mc_util_from_random::FromRandom;
 
-use bcrypt;
 use diesel::prelude::*;
 use serde_json::Map;
 use std::{
@@ -108,6 +107,7 @@ impl<
         }
     }
 
+    // Helper method to expand password to password hash using bcrypt
     fn get_password_hash(
         &self,
         password: Option<String>,
@@ -119,7 +119,9 @@ impl<
             return Err(WalletServiceError::CannotDisambiguatePassword);
         }
         Ok(if let Some(pw) = password {
-            hex::decode(bcrypt::hash(pw.as_bytes(), bcrypt::DEFAULT_COST)?)?
+            let salt = b"randomsalt"; // FIXME: what should this be? needs to be deterministic and different per user
+            let config = argon2::Config::default();
+            argon2::hash_raw(pw.as_bytes(), salt, &config)?
         } else {
             hex::decode(password_hash.unwrap())?
         })

@@ -69,8 +69,8 @@ pub enum WalletServiceError {
     /// Must provide either password or password hash, not both.
     CannotDisambiguatePassword,
 
-    /// Error hashing password
-    Bcrypt(bcrypt::BcryptError),
+    /// Argon2 Error: {0}
+    Argon2(argon2::Error),
 }
 
 impl From<WalletDbError> for WalletServiceError {
@@ -133,9 +133,9 @@ impl From<diesel::result::Error> for WalletServiceError {
     }
 }
 
-impl From<bcrypt::BcryptError> for WalletServiceError {
-    fn from(src: bcrypt::BcryptError) -> Self {
-        Self::Bcrypt(src)
+impl From<argon2::Error> for WalletServiceError {
+    fn from(src: argon2::Error) -> Self {
+        Self::Argon2(src)
     }
 }
 
