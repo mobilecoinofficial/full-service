@@ -13,8 +13,6 @@ use crate::{
     error::WalletDbError,
 };
 
-use mc_common::logger::{log, Logger};
-
 use diesel::{
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},
@@ -41,7 +39,6 @@ pub trait EncryptionModel {
     fn set_verification_value(
         encrypted_verification_value: &[u8],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-        logger: &Logger,
     ) -> Result<(), WalletDbError>;
 }
 
@@ -98,33 +95,10 @@ impl EncryptionModel for EncryptionIndicator {
     fn set_verification_value(
         encrypted_verification_value: &[u8],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-        logger: &Logger,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::encryption_indicators as encryption_table;
 
         Ok(conn.transaction::<(), WalletDbError, _>(|| {
-            match EncryptionIndicator::get_encryption_state(&conn)? {
-                EncryptionState::Encrypted => {
-                    log::info!(
-                        logger,
-                        "Database is encrypted. Changing password."
-                    );
-                }
-                EncryptionState::Empty => {
-                    log::info!(
-                        logger,
-                        "Database is empty. Setting password to encrypt future added or created accounts."
-                    );
-                }
-                EncryptionState::Unencrypted => {
-                    log::info!(
-                        logger,
-                        "Database was not encrypted. Setting password and encrypting all accounts now."
-                    );
-                    // FIXME: also update all accounts to now be encrypted
-                }
-            }
-
             let verification_val_insertable = encrypted_verification_value.to_vec();
             let new_indicator = NewEncryptionIndicator {
                 encrypted: true,
@@ -169,12 +143,8 @@ mod tests {
         let wallet_db = db_test_context.get_db_instance(logger.clone());
 
         let password_hash = [1u8; 32];
-        EncryptionIndicator::set_verification_value(
-            &password_hash,
-            &wallet_db.get_conn().unwrap(),
-            &logger,
-        )
-        .unwrap();
+        EncryptionIndicator::set_verification_value(&password_hash, &wallet_db.get_conn().unwrap())
+            .unwrap();
         assert!(EncryptionIndicator::verify_password(
             &password_hash,
             &wallet_db.get_conn().unwrap()

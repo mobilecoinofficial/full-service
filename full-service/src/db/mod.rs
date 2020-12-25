@@ -95,8 +95,6 @@ impl WalletDb {
     }
 
     /// Set the password hash for the DB.
-    ///
-    /// Only allowed if LockedState::Empty, otherwise, must use change_password.
     pub fn set_password_hash(
         &self,
         password_hash: &[u8],
@@ -108,7 +106,7 @@ impl WalletDb {
         }
         // Encrypt the verification value and set in the DB
         let verification_value = Self::encrypt(ENCRYPTION_VERIFICATION_VAL, password_hash)?;
-        EncryptionIndicator::set_verification_value(&verification_value, conn, &self.logger)?;
+        EncryptionIndicator::set_verification_value(&verification_value, conn)?;
 
         Ok(())
     }

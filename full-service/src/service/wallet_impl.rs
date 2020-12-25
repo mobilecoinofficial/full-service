@@ -5,13 +5,14 @@
 use crate::db::b58_decode;
 use crate::{
     db::models::{
-        Account, AssignedSubaddress, TransactionLog, Txo, TXO_ORPHANED, TXO_PENDING, TXO_SECRETED,
-        TXO_SPENT, TXO_UNSPENT,
+        Account, AssignedSubaddress, EncryptionIndicator, TransactionLog, Txo, TXO_ORPHANED,
+        TXO_PENDING, TXO_SECRETED, TXO_SPENT, TXO_UNSPENT,
     },
     db::WalletDb,
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
+        encryption_indicator::{EncryptionModel, EncryptionState},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
     },
@@ -109,9 +110,36 @@ impl<
     /// The initial call to set the password for the DB.
     pub fn set_password(self, password_hash: Vec<u8>) -> Result<bool, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
-
         // FIXME: logic to convert password to password hash
-        self.wallet_db.set_password_hash(&password_hash, &conn)?;
+
+        // FIXME: put in db transaction
+
+        match EncryptionIndicator::get_encryption_state(&conn)? {
+            EncryptionState::Empty => {
+                log::info!(
+                    self.logger,
+                    "Database has never been locked and has no accounts. Setting password for future accounts."
+                );
+                self.wallet_db.set_password_hash(&password_hash, &conn)?;
+            }
+            EncryptionState::Encrypted => {
+                return Err(WalletServiceError::DatabaseEncrypted);
+            }
+            EncryptionState::Unencrypted => {
+                log::info!(
+                    self.logger,
+                    "Database is unencrypted. Setting password with new password, and encrypting all accounts."
+                );
+                self.wallet_db.set_password_hash(&password_hash, &conn)?;
+                for account in Account::list_all(&conn)? {
+                    let encrypted_account_key = WalletDb::encrypt(
+                        &account.account_key,
+                        &self.wallet_db.get_password_hash()?,
+                    )?;
+                    account.update_encrypted_account_key(&encrypted_account_key, &conn)?;
+                }
+            }
+        }
         Ok(true)
     }
 

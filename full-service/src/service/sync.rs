@@ -162,54 +162,41 @@ impl SyncThread {
                         // a bit so that we do not use 100% cpu.
                         let mut message_sent = false;
 
-                        // If the DB is locked, we won't be able to get any meaningful info from accounts
-                        // FIXME:
-                        match EncryptionIndicator::get_encryption_state(
+                        // Go over our list of accounts and see which one needs to process these blocks.
+                        for account in Account::list_all(
                             &wallet_db
                                 .get_conn()
                                 .expect("Could not get connection to DB"),
-                        ) {
-                            Ok(EncryptionState::Empty) => {}
-                            Ok(EncryptionState::Unencrypted) => {} // FIXME: should allow path to update?
-                            Ok(EncryptionState::Encrypted) => {
-                                // Go over our list of accounts and see which one needs to process these blocks.
-                                for account in Account::list_all(
-                                    &wallet_db
-                                        .get_conn()
-                                        .expect("Could not get connection to DB"),
-                                )
-                                .expect("Failed getting accounts from WalletDb")
-                                {
-                                    // If there are no new blocks for this account, don't do anything.
-                                    if account.next_block >= num_blocks as i64 {
-                                        continue;
-                                    }
-
-                                    let mut queued_account_ids =
-                                        queued_account_ids.lock().expect("mutex poisoned");
-                                    if !queued_account_ids.insert(account.account_id_hex.clone()) {
-                                        // Already queued, no need to add again to queue at this point.
-                                        log::trace!(
-                                            logger,
-                                            "{}: skipping, already queued",
-                                            account.account_id_hex
-                                        );
-                                        continue;
-                                    }
-
-                                    // This account has blocks to process, put it in the queue.
-                                    log::debug!(
-                                        logger,
-                                        "sync thread noticed account {} needs syncing",
-                                        account.account_id_hex,
-                                    );
-                                    sender
-                                        .send(SyncMsg::SyncAccount(account.account_id_hex))
-                                        .expect("failed sending to queue");
-                                    message_sent = true;
-                                }
+                        )
+                        .expect("Failed getting accounts from WalletDb")
+                        {
+                            // If there are no new blocks for this account, don't do anything.
+                            if account.next_block >= num_blocks as i64 {
+                                continue;
                             }
-                            Err(e) => panic!("Could not get locked state {:?}", e),
+
+                            let mut queued_account_ids =
+                                queued_account_ids.lock().expect("mutex poisoned");
+                            if !queued_account_ids.insert(account.account_id_hex.clone()) {
+                                // Already queued, no need to add again to queue at this point.
+                                log::trace!(
+                                    logger,
+                                    "{}: skipping, already queued",
+                                    account.account_id_hex
+                                );
+                                continue;
+                            }
+
+                            // This account has blocks to process, put it in the queue.
+                            log::debug!(
+                                logger,
+                                "sync thread noticed account {} needs syncing",
+                                account.account_id_hex,
+                            );
+                            sender
+                                .send(SyncMsg::SyncAccount(account.account_id_hex))
+                                .expect("failed sending to queue");
+                            message_sent = true;
                         }
 
                         // If we saw no activity, sleep for a bit.
@@ -357,6 +344,7 @@ pub fn sync_account(
                 &block_contents.outputs,
                 &account,
                 account.next_block,
+                &wallet_db.get_password_hash()?,
                 logger,
             )?;
 
@@ -392,9 +380,24 @@ fn process_txos(
     outputs: &[TxOut],
     account: &Account,
     received_block_index: i64,
+    decryption_key: &[u8],
     logger: &Logger,
 ) -> Result<HashMap<i64, Vec<String>>, SyncError> {
-    let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+    let account_key: AccountKey = match EncryptionIndicator::get_encryption_state(conn)? {
+        EncryptionState::Empty => {
+            // There are no accounts, we should not get here.
+            return Err(SyncError::NoAccounts);
+        }
+        EncryptionState::Unencrypted => mc_util_serial::decode(&account.account_key)?,
+        EncryptionState::Encrypted => {
+            if decryption_key.is_empty() {
+                return Err(SyncError::NoDecryptionKey);
+            }
+            let decrypted_account_key = WalletDb::decrypt(&account.account_key, decryption_key)?;
+            mc_util_serial::decode(&decrypted_account_key)?
+        }
+    };
+
     let view_key = account_key.view_key();
     let account_id_hex = AccountID::from(&account_key).to_string();
 
@@ -487,3 +490,4 @@ fn process_txos(
 
 // FIXME: test select received txo by value
 // FIXME: test syncing after removing account
+// FIXME: test with encrypted and test with non-encrypted accounts
