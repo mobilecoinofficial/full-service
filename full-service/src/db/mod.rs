@@ -97,18 +97,18 @@ impl WalletDb {
     /// Set the password hash for the DB.
     ///
     /// Only allowed if LockedState::Empty, otherwise, must use change_password.
-    pub fn set_password_hash(&self, password_hash: &[u8]) -> Result<(), WalletDbError> {
+    pub fn set_password_hash(
+        &self,
+        password_hash: &[u8],
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError> {
         {
             let mut cur_password_hash = self.password_hash.lock()?;
             *cur_password_hash = password_hash.to_vec();
         }
         // Encrypt the verification value and set in the DB
         let verification_value = Self::encrypt(ENCRYPTION_VERIFICATION_VAL, password_hash)?;
-        EncryptionIndicator::set_verification_value(
-            &verification_value,
-            &self.get_conn()?,
-            &self.logger,
-        )?;
+        EncryptionIndicator::set_verification_value(&verification_value, conn, &self.logger)?;
 
         Ok(())
     }
@@ -159,6 +159,44 @@ impl WalletDb {
                     self.logger,
                     "DB is unencrypted. Please call set_password to enable encryption."
                 );
+            }
+        }
+        Ok(())
+    }
+
+    pub fn change_password(
+        &self,
+        old_password_hash: &[u8],
+        new_password_hash: &[u8],
+    ) -> Result<(), WalletDbError> {
+        let conn = self.get_conn()?;
+        // Check whether encrypted, and if so, then verify old password. For any other state, set_password to new.
+        match EncryptionIndicator::get_encryption_state(&conn)? {
+            EncryptionState::Empty => {
+                log::info!(
+                    self.logger,
+                    "Database has never been locked. Setting password with new password."
+                );
+                self.set_password_hash(new_password_hash, &conn)?;
+            }
+            EncryptionState::Encrypted => {
+                log::debug!(self.logger, "Database is locked. Verifying old password.");
+                println!("\x1b[1;36m db locked verifying old password\x1b[0m");
+                // Attempt to decrypt the test value to confirm if password is correct
+                let expected_val = Self::encrypt(ENCRYPTION_VERIFICATION_VAL, old_password_hash)?;
+                if EncryptionIndicator::verify_password(&expected_val, &conn)? {
+                    // Set password to new password
+                    self.set_password_hash(new_password_hash, &conn)?;
+                } else {
+                    return Err(WalletDbError::PasswordFailed);
+                }
+            }
+            EncryptionState::Unencrypted => {
+                log::info!(
+                    self.logger,
+                    "Database is unencrypted. Setting password with new password."
+                );
+                self.set_password_hash(new_password_hash, &conn)?;
             }
         }
         Ok(())
@@ -241,8 +279,9 @@ mod tests {
         let mut password_hash = [1u8; 32];
         rng.fill_bytes(&mut password_hash);
 
-        println!("\x1b[1;31m now about to set password hash\x1b[0m");
-        wallet_db.set_password_hash(&password_hash).unwrap();
+        wallet_db
+            .set_password_hash(&password_hash, &wallet_db.get_conn().unwrap())
+            .unwrap();
         assert_eq!(wallet_db.get_password_hash().unwrap(), password_hash);
 
         match EncryptionIndicator::get_encryption_state(&wallet_db.get_conn().unwrap()).unwrap() {
@@ -258,7 +297,7 @@ mod tests {
         // To simulate re-opening the DB, we can use new_from_url
         let wallet_db2 = WalletDb::new_from_url(
             &format!("{}/{}", db_test_context.base_url, db_test_context.db_name),
-            logger,
+            logger.clone(),
         )
         .unwrap();
 
@@ -287,6 +326,42 @@ mod tests {
         }
 
         assert!(wallet_db2.is_unlocked().unwrap());
+
+        // Now we'll change the password
+        let mut new_password_hash = [1u8; 32];
+        rng.fill_bytes(&mut new_password_hash);
+
+        wallet_db2
+            .change_password(&password_hash, &new_password_hash)
+            .unwrap();
+
+        // Should still be unlocked
+        assert!(wallet_db2.is_unlocked().unwrap());
+
+        // Open a new db instance
+        let wallet_db3 = WalletDb::new_from_url(
+            &format!("{}/{}", db_test_context.base_url, db_test_context.db_name),
+            logger,
+        )
+        .unwrap();
+
+        // Old password should fail
+        match wallet_db3.unlock(&password_hash) {
+            Err(WalletDbError::PasswordFailed) => {}
+            Ok(_) => panic!("Should not be able to unlock DB with bad password"),
+            Err(e) => panic!("Unexpected error {:?}", e),
+        }
+
+        match wallet_db3.unlock(&new_password_hash) {
+            Ok(_) => {}
+            _ => panic!("Correct password should unlock DB"),
+        }
+
+        // Unlocking twice should no-op
+        match wallet_db3.unlock(&new_password_hash) {
+            Ok(_) => {}
+            _ => panic!("Unlocking an unlocked DB should succeed."),
+        }
     }
 
     // FIXME: test for upgrade path

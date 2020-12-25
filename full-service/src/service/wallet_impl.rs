@@ -108,15 +108,27 @@ impl<
 
     /// The initial call to set the password for the DB.
     pub fn set_password(self, password_hash: Vec<u8>) -> Result<bool, WalletServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+
         // FIXME: logic to convert password to password hash
-        self.wallet_db.set_password_hash(&password_hash)?;
+        self.wallet_db.set_password_hash(&password_hash, &conn)?;
         Ok(true)
     }
 
     /// Unlock the DB
     pub fn unlock(&self, password_hash: Vec<u8>) -> Result<bool, WalletServiceError> {
-        // fixme: logic to convert password to password hash
+        // FIXME: logic to convert password to password hash
         self.wallet_db.unlock(&password_hash)?;
+        Ok(true)
+    }
+
+    pub fn change_password(
+        &self,
+        old_password_hash: Vec<u8>,
+        new_password_hash: Vec<u8>,
+    ) -> Result<bool, WalletServiceError> {
+        self.wallet_db
+            .change_password(&old_password_hash, &new_password_hash)?;
         Ok(true)
     }
 
