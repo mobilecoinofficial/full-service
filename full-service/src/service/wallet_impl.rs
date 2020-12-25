@@ -42,6 +42,7 @@ use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
 use mc_transaction_core::tx::{Tx, TxOut, TxOutConfirmationNumber};
 use mc_util_from_random::FromRandom;
 
+use bcrypt;
 use diesel::prelude::*;
 use serde_json::Map;
 use std::{
@@ -107,13 +108,33 @@ impl<
         }
     }
 
+    fn get_password_hash(
+        &self,
+        password: Option<String>,
+        password_hash: Option<String>,
+    ) -> Result<Vec<u8>, WalletServiceError> {
+        if (password.is_some() && password_hash.is_some())
+            || (password.is_none() && password_hash.is_none())
+        {
+            return Err(WalletServiceError::CannotDisambiguatePassword);
+        }
+        Ok(if let Some(pw) = password {
+            hex::decode(bcrypt::hash(pw.as_bytes(), bcrypt::DEFAULT_COST)?)?
+        } else {
+            hex::decode(password_hash.unwrap())?
+        })
+    }
+
     /// The initial call to set the password for the DB.
-    pub fn set_password(&self, password_hash: Vec<u8>) -> Result<bool, WalletServiceError> {
+    pub fn set_password(
+        &self,
+        password: Option<String>,
+        password_hash: Option<String>,
+    ) -> Result<bool, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        // FIXME: logic to convert password to password hash
+        let password_hash = self.get_password_hash(password, password_hash)?;
 
         // FIXME: put in db transaction
-
         match EncryptionIndicator::get_encryption_state(&conn)? {
             EncryptionState::Empty => {
                 log::info!(
@@ -144,17 +165,27 @@ impl<
     }
 
     /// Unlock the DB
-    pub fn unlock(&self, password_hash: Vec<u8>) -> Result<bool, WalletServiceError> {
-        // FIXME: logic to convert password to password hash
+    pub fn unlock(
+        &self,
+        password: Option<String>,
+        password_hash: Option<String>,
+    ) -> Result<bool, WalletServiceError> {
+        let password_hash = self.get_password_hash(password, password_hash)?;
+
         self.wallet_db.unlock(&password_hash)?;
         Ok(true)
     }
 
     pub fn change_password(
         &self,
-        old_password_hash: Vec<u8>,
-        new_password_hash: Vec<u8>,
+        old_password: Option<String>,
+        old_password_hash: Option<String>,
+        new_password: Option<String>,
+        new_password_hash: Option<String>,
     ) -> Result<bool, WalletServiceError> {
+        let old_password_hash = self.get_password_hash(old_password, old_password_hash)?;
+        let new_password_hash = self.get_password_hash(new_password, new_password_hash)?;
+
         // FIXME: logic to convert password to password hash
         self.wallet_db
             .change_password(&old_password_hash, &new_password_hash)?;
@@ -808,7 +839,9 @@ mod tests {
 
         let mut password_hash = [0u8; 32];
         rng.fill_bytes(&mut password_hash);
-        let res = service.set_password(password_hash.to_vec()).unwrap();
+        let res = service
+            .set_password(None, Some(hex::encode(&password_hash)))
+            .unwrap();
         assert!(res);
 
         let alice = service
@@ -918,7 +951,7 @@ mod tests {
     }
 
     #[test_with_logger]
-    fn test_db_set_password(logger: Logger) {
+    fn test_db_set_password_hash(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -929,7 +962,9 @@ mod tests {
         // Should unlock while DB is empty, and stored password_hash will be empty
         let mut password_hash = [0u8; 32];
         rng.fill_bytes(&mut password_hash);
-        let res = service.set_password(password_hash.to_vec()).unwrap();
+        let res = service
+            .set_password(None, Some(hex::encode(&password_hash)))
+            .unwrap();
         assert!(res);
         assert_eq!(
             service.wallet_db.get_password_hash().unwrap(),

@@ -65,6 +65,12 @@ pub enum WalletServiceError {
 
     /// Cannot perform this action without a set password or while database is locked. Please set_password or unlock first.
     DatabaseLocked,
+
+    /// Must provide either password or password hash, not both.
+    CannotDisambiguatePassword,
+
+    /// Error hashing password
+    Bcrypt(bcrypt::BcryptError),
 }
 
 impl From<WalletDbError> for WalletServiceError {
@@ -124,6 +130,12 @@ impl From<serde_json::Error> for WalletServiceError {
 impl From<diesel::result::Error> for WalletServiceError {
     fn from(src: diesel::result::Error) -> Self {
         Self::Diesel(src)
+    }
+}
+
+impl From<bcrypt::BcryptError> for WalletServiceError {
+    fn from(src: bcrypt::BcryptError) -> Self {
+        Self::Bcrypt(src)
     }
 }
 
