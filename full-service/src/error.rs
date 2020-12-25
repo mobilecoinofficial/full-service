@@ -59,9 +59,6 @@ pub enum WalletServiceError {
 
     /// Cannot complete this action in offline mode.
     Offline,
-
-    /// Password failed
-    PasswordFailed,
 }
 
 impl From<WalletDbError> for WalletServiceError {
@@ -213,11 +210,23 @@ pub enum WalletDbError {
     /// Mutex Poisoned
     MutexPoisoned,
 
-    /// Must set password before verifying
+    /// Must set password before verifying, encrypting or decrypting
     SetPassword,
 
-    /// The encryption indicators table is corrupted.
+    /// Password cannot be verified because indicator row is not present
+    MissingEncryptionIndicator,
+
+    /// Password failed
+    PasswordFailed,
+
+    /// The encryption indicators table is corrupted
     BadEncryptionState,
+
+    /// Error with aead {0}
+    AeadError(aes_gcm::aead::Error),
+
+    /// Cannot encrypt or decrypt without password
+    PasswordRequired,
 }
 
 impl From<diesel::result::Error> for WalletDbError {
@@ -247,6 +256,12 @@ impl From<prost::DecodeError> for WalletDbError {
 impl<T> From<std::sync::PoisonError<T>> for WalletDbError {
     fn from(_src: std::sync::PoisonError<T>) -> Self {
         WalletDbError::MutexPoisoned
+    }
+}
+
+impl From<aes_gcm::aead::Error> for WalletDbError {
+    fn from(src: aes_gcm::aead::Error) -> Self {
+        WalletDbError::AeadError(src)
     }
 }
 

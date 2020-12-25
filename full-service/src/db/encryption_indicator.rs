@@ -8,12 +8,13 @@
 use crate::{
     db::{
         account::AccountModel,
-        models::{Account, EncryptionIndicator},
+        models::{Account, EncryptionIndicator, NewEncryptionIndicator},
     },
     error::WalletDbError,
 };
 
-use crate::db::models::NewEncryptionIndicator;
+use mc_common::logger::{log, Logger};
+
 use diesel::{
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},
@@ -33,13 +34,14 @@ pub trait EncryptionModel {
     ) -> Result<EncryptionState, WalletDbError>;
 
     fn verify_password(
-        password_hash: &[u8],
+        expected_val: &[u8],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError>;
 
-    fn set_password_hash(
-        password_hash: &[u8],
+    fn set_verification_value(
+        encrypted_verification_value: &[u8],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        logger: &Logger,
     ) -> Result<(), WalletDbError>;
 }
 
@@ -66,7 +68,7 @@ impl EncryptionModel for EncryptionIndicator {
     }
 
     fn verify_password(
-        password_hash: &[u8],
+        expected_val: &[u8],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError> {
         use crate::db::schema::encryption_indicators;
@@ -75,13 +77,17 @@ impl EncryptionModel for EncryptionIndicator {
             let indicator_rows: Vec<EncryptionIndicator> = encryption_indicators::table
                 .select(encryption_indicators::all_columns)
                 .load::<EncryptionIndicator>(conn)?;
+            println!(
+                "\x1b[1;33m Got indicator rows = {:?}\x1b[0m",
+                indicator_rows
+            );
             if indicator_rows.is_empty() {
-                Err(WalletDbError::SetPassword)
+                Err(WalletDbError::MissingEncryptionIndicator)
             } else if indicator_rows.len() > 1 {
                 Err(WalletDbError::BadEncryptionState)
             } else {
                 if let Some(hash) = indicator_rows[0].verification_value.clone() {
-                    Ok(hash == password_hash) // FIXME do decryption
+                    Ok(hash == expected_val)
                 } else {
                     Err(WalletDbError::BadEncryptionState)
                 }
@@ -89,18 +95,41 @@ impl EncryptionModel for EncryptionIndicator {
         })?)
     }
 
-    fn set_password_hash(
-        password_hash: &[u8],
+    fn set_verification_value(
+        encrypted_verification_value: &[u8],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        logger: &Logger,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::encryption_indicators as encryption_table;
-        use crate::db::schema::encryption_indicators::dsl::encryption_indicators;
 
         Ok(conn.transaction::<(), WalletDbError, _>(|| {
-            let password_hash_insertable = password_hash.to_vec();
+            match EncryptionIndicator::get_encryption_state(&conn)? {
+                EncryptionState::Encrypted => {
+                    log::info!(
+                        logger,
+                        "Database is already encrypted. Please unlock then change password."
+                    );
+                    return Err(WalletDbError::SetPassword);
+                }
+                EncryptionState::Empty => {
+                    log::info!(
+                        logger,
+                        "Database is empty. Setting password to encrypt future added or created accounts."
+                    );
+                }
+                EncryptionState::Unencrypted => {
+                    log::info!(
+                        logger,
+                        "Database was not encrypted. Setting password and encrypting all accounts now."
+                    );
+                    // FIXME: also update all accounts to now be encrypted
+                }
+            }
+
+            let verification_val_insertable = encrypted_verification_value.to_vec();
             let new_indicator = NewEncryptionIndicator {
                 encrypted: true,
-                verification_value: Some(&password_hash_insertable), // FIXME: do encryption
+                verification_value: Some(&verification_val_insertable),
             };
 
             // Delete the whole table (should only be one row)
@@ -138,11 +167,15 @@ mod tests {
     #[test_with_logger]
     fn test_setting_and_verifying_password(logger: Logger) {
         let db_test_context = WalletDbTestContext::default();
-        let wallet_db = db_test_context.get_db_instance(logger);
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
 
-        let mut password_hash = [1u8; 32];
-        EncryptionIndicator::set_password_hash(&password_hash, &wallet_db.get_conn().unwrap())
-            .unwrap();
+        let password_hash = [1u8; 32];
+        EncryptionIndicator::set_verification_value(
+            &password_hash,
+            &wallet_db.get_conn().unwrap(),
+            &logger,
+        )
+        .unwrap();
         assert!(EncryptionIndicator::verify_password(
             &password_hash,
             &wallet_db.get_conn().unwrap()
