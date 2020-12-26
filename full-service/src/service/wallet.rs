@@ -1185,7 +1185,7 @@ mod tests {
         );
 
         // Sleep to let the sync thread process the txo - sometimes fails at 2s
-        std::thread::sleep(Duration::from_secs(4));
+        std::thread::sleep(Duration::from_secs(6));
 
         let body = json!({
             "method": "get_all_txos_by_account",
