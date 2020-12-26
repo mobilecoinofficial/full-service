@@ -2,6 +2,7 @@
 
 use crate::{
     db::account::AccountID,
+    error::WalletServiceError,
     service::{
         decorated_types::{
             JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents, JsonProof,
@@ -219,6 +220,15 @@ pub enum JsonCommandResponse {
     },
 }
 
+// Helper method to escape quotes for json responses.
+fn format_error(e: WalletServiceError) -> String {
+    format!(
+        "{{\"error\": \"{}\", \"details\": \"{}\"}}",
+        format!("{:?}", e).replace(r#"""#, r#"\""#),
+        e.to_string(),
+    )
+}
+
 // The Wallet API inner method, which handles switching on the method enum.
 //
 // Note that this is structured this way so that the routes can be defined to take
@@ -239,7 +249,7 @@ where
         } => {
             let success = service
                 .set_password(password, password_hash)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+                .map_err(format_error)?;
             JsonCommandResponse::set_password { success }
         }
         JsonCommandRequest::unlock {
@@ -248,7 +258,7 @@ where
         } => {
             let success = service
                 .unlock(password, password_hash)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+                .map_err(format_error)?;
             JsonCommandResponse::unlock { success }
         }
         JsonCommandRequest::change_password {
@@ -264,18 +274,16 @@ where
                     new_password,
                     new_password_hash,
                 )
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+                .map_err(format_error)?;
             JsonCommandResponse::change_password { success }
         }
         JsonCommandRequest::create_account { name, first_block } => {
             let fb = first_block
                 .map(|fb| fb.parse::<u64>())
                 .transpose()
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+                .map_err(|e| format_error(e.into()))?;
 
-            let result = service
-                .create_account(name, fb)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+            let result = service.create_account(name, fb).map_err(format_error)?;
             JsonCommandResponse::create_account {
                 entropy: result.entropy,
                 account: result.account,
@@ -289,16 +297,14 @@ where
             let fb = first_block
                 .map(|fb| fb.parse::<u64>())
                 .transpose()
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+                .map_err(|e| format_error(e.into()))?;
             let result = service
                 .import_account(entropy, name, fb)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+                .map_err(format_error)?;
             JsonCommandResponse::import_account { account: result }
         }
         JsonCommandRequest::get_all_accounts => {
-            let accounts = service
-                .list_accounts()
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+            let accounts = service.list_accounts().map_err(format_error)?;
             let account_map: Map<String, serde_json::Value> = Map::from_iter(
                 accounts
                     .iter()
@@ -318,24 +324,20 @@ where
         JsonCommandRequest::get_account { account_id } => JsonCommandResponse::get_account {
             account: service
                 .get_account(&AccountID(account_id))
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+                .map_err(format_error)?,
         },
         JsonCommandRequest::update_account_name { account_id, name } => {
             let account = service
                 .update_account_name(&account_id, name)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+                .map_err(format_error)?;
             JsonCommandResponse::update_account_name { account }
         }
         JsonCommandRequest::delete_account { account_id } => {
-            service
-                .delete_account(&account_id)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+            service.delete_account(&account_id).map_err(format_error)?;
             JsonCommandResponse::delete_account { success: true }
         }
         JsonCommandRequest::get_all_txos_by_account { account_id } => {
-            let txos = service
-                .list_txos(&account_id)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+            let txos = service.list_txos(&account_id).map_err(format_error)?;
             let txo_map: Map<String, serde_json::Value> = Map::from_iter(
                 txos.iter()
                     .map(|t| {
@@ -353,21 +355,15 @@ where
             }
         }
         JsonCommandRequest::get_txo { txo_id } => {
-            let result = service
-                .get_txo(&txo_id)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+            let result = service.get_txo(&txo_id).map_err(format_error)?;
             JsonCommandResponse::get_txo { txo: result }
         }
         JsonCommandRequest::get_wallet_status => {
-            let result = service
-                .get_wallet_status()
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+            let result = service.get_wallet_status().map_err(format_error)?;
             JsonCommandResponse::get_wallet_status { status: result }
         }
         JsonCommandRequest::get_balance { account_id } => JsonCommandResponse::get_balance {
-            status: service
-                .get_balance(&account_id)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+            status: service.get_balance(&account_id).map_err(format_error)?,
         },
         JsonCommandRequest::create_address {
             account_id,
@@ -375,12 +371,12 @@ where
         } => JsonCommandResponse::create_address {
             address: service
                 .create_assigned_subaddress(&account_id, comment.as_deref())
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+                .map_err(format_error)?,
         },
         JsonCommandRequest::get_all_addresses_by_account { account_id } => {
             let addresses = service
                 .list_assigned_subaddresses(&account_id)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+                .map_err(format_error)?;
             let address_map: Map<String, serde_json::Value> = Map::from_iter(
                 addresses
                     .iter()
@@ -419,7 +415,7 @@ where
                     max_spendable_value,
                     comment,
                 )
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+                .map_err(format_error)?;
             JsonCommandResponse::send_transaction {
                 transaction: transaction_details,
             }
@@ -443,7 +439,7 @@ where
                     tombstone_block,
                     max_spendable_value,
                 )
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+                .map_err(format_error)?;
             JsonCommandResponse::build_transaction { tx_proposal }
         }
         JsonCommandRequest::submit_transaction {
@@ -453,12 +449,12 @@ where
         } => JsonCommandResponse::submit_transaction {
             transaction: service
                 .submit_transaction(tx_proposal, comment, account_id)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+                .map_err(format_error)?,
         },
         JsonCommandRequest::get_all_transactions_by_account { account_id } => {
             let transactions = service
                 .list_transactions(&account_id)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+                .map_err(format_error)?;
             let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
                 transactions
                     .iter()
@@ -483,29 +479,27 @@ where
             JsonCommandResponse::get_transaction {
                 transaction: service
                     .get_transaction(&transaction_log_id)
-                    .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+                    .map_err(format_error)?,
             }
         }
         JsonCommandRequest::get_transaction_object { transaction_log_id } => {
             JsonCommandResponse::get_transaction_object {
                 transaction: service
                     .get_transaction_object(&transaction_log_id)
-                    .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+                    .map_err(format_error)?,
             }
         }
         JsonCommandRequest::get_txo_object { txo_id } => JsonCommandResponse::get_txo_object {
-            txo: service
-                .get_txo_object(&txo_id)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+            txo: service.get_txo_object(&txo_id).map_err(format_error)?,
         },
         JsonCommandRequest::get_block_object { block_index } => {
             let (block, block_contents) = service
                 .get_block_object(
                     block_index
                         .parse::<u64>()
-                        .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+                        .map_err(|e| format_error(e.into()))?,
                 )
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+                .map_err(format_error)?;
             JsonCommandResponse::get_block_object {
                 block,
                 block_contents,
@@ -523,7 +517,7 @@ where
         } => {
             let result = service
                 .verify_proof(&account_id, &txo_id, &proof)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+                .map_err(format_error)?;
             JsonCommandResponse::verify_proof { verified: result }
         }
     };
@@ -1058,7 +1052,7 @@ mod tests {
             &client,
             body,
             &logger,
-            "{\"error\": \"TransactionBuilder(WalletDb(InsufficientFundsUnderMaxSpendable(\"Max spendable value in wallet: 100, but target value: 10000000042\")))\"}".to_string(),
+            "{\"error\": \"TransactionBuilder(WalletDb(InsufficientFundsUnderMaxSpendable(\\\"Max spendable value in wallet: 100, but target value: 10000000042\\\")))\", \"details\": \"Error building transaction: Wallet DB Error: Insufficient funds from Txos under max_spendable_value: Max spendable value in wallet: 100, but target value: 10000000042\"}".to_string()
         );
 
         // Add a block with significantly more MOB
@@ -1235,7 +1229,7 @@ mod tests {
             &client,
             body,
             &logger,
-            "{\"error\": \"DatabaseLocked\"}".to_string(),
+            "{\"error\": \"DatabaseLocked\", \"details\": \"Cannot perform this action without a set password or while database is locked. Please set_password or unlock first.\"}".to_string()
         );
 
         // Unlocking a never-set database should fail
@@ -1251,7 +1245,7 @@ mod tests {
             &client,
             body,
             &logger,
-            "{\"error\": \"Database(SetPassword)\"}".to_string(),
+            "{\"error\": \"Database(SetPassword)\", \"details\": \"Error interacting with the database: Must set password before continuing.\"}".to_string()
         );
 
         // Once we set the password, we should be able to create an account
@@ -1295,7 +1289,7 @@ mod tests {
             &client,
             body,
             &logger,
-            "{\"error\": \"Database(PasswordFailed)\"}".to_string(),
+            "{\"error\": \"Database(PasswordFailed)\", \"details\": \"Error interacting with the database: Password failed\"}".to_string()
         );
 
         // The right old password will change the password
@@ -1389,7 +1383,7 @@ mod tests {
             &client2,
             body,
             &logger,
-            "{\"error\": \"DatabaseLocked\"}".to_string(),
+            "{\"error\": \"DatabaseLocked\", \"details\": \"Cannot perform this action without a set password or while database is locked. Please set_password or unlock first.\"}".to_string()
         );
 
         // Unlocking with the old password should fail
@@ -1403,8 +1397,8 @@ mod tests {
             &client2,
             body,
             &logger,
-            "{\"error\": \"Database(PasswordFailed)\"}".to_string(),
-        );
+            "{\"error\": \"Database(PasswordFailed)\", \"details\": \"Error interacting with the database: Password failed\"}".to_string()
+                );
 
         // Unlocking with the new password should work
         let body = json!({

@@ -78,6 +78,7 @@ impl<
         FPR: FogPubkeyResolver + Send + Sync + 'static,
     > WalletService<T, FPR>
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         wallet_db: WalletDb,
         ledger_db: LedgerDB,

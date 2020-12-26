@@ -63,10 +63,147 @@ MobileCoin Full Service is available under open-source licenses. Look for the [L
    | `peer`           | URI of consensus node. Used to submit <br /> transactions and to check the network <br /> block height. | MC URI format |
    | `tx-source-url`  | S3 location of archived ledger. Used to <br /> sync transactions to the local ledger. | S3 URI format |
 
+   | Opional Param | Purpose                  | Requirements              |
+   | :------------ | :----------------------- | :------------------------ |
+   | `listen-host` | Host to listen on.      | Default: 127.0.0.1 |
+   | `listen-port` | Port to start webserver on. | Default: 9090 |
+   | `ledger-db-bootstrap` | Path to existing ledger_db that contains the origin block, <br /> used when initializing new ledger dbs. |  |
+   | `quorum-set` | Quorum set for ledger syncing. | Default includes all `peers` |
+   | `num-workers` | Number of worker threads to use for view key scanning. | Defaults to number of logical CPU cores. |
+   | `poll-interval` | How many seconds to wait between polling for new blocks. | Default: 5 |
+   | `offline` | Use Full Service in offline mode. This mode does not download new blocks or submit transactions. | |
+   | `fog-ingest-enclave-css` | Path to the Fog ingest enclave sigstruct CSS file. | Needed in order to enable sending transactions to fog addresses. |
 
 ## API
 
 The Full Service API methods are outlined below. For a description of the API objects, see [API.md](./API.md).
+
+### Password Management
+
+#### Set Password
+
+On wallet initialization, you will need to set a password if you wish to store account keys in the database.
+
+Note: You do not need to set a password if you only wish to use the `submit_transaction` functionality, for example, if you are building transactions in offline mode on another machine.
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "set_password",
+        "params": {
+          "password": "TestPassword&"
+        }
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
+
+{
+  "method": "set_password",
+  "result": {
+    "success": true
+  }
+}
+```
+
+Note, you can provide either `password` or `password_hash`, if you wish to manage the password_hash derivation. We use argon2 in Full Service.
+
+| Optional Param  | Purpose                  | Requirements              |
+| :-------------  | :----------------------- | :------------------------ |
+| `password`      | Password for the encrypted materials in the database.   | Must provide either `password` or `password_hash`. |
+| `password_hash` | Password hash for the encrypted materials in the database. | Must provide either `password` or `password_hash`. |
+
+#### Unlock
+
+If your wallet was locked previously via `set_password`, then you will need to unlock it before you can interact with your accounts.
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "unlock",
+        "params": {
+          "password": "TestPassword&"
+        }
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
+
+{
+  "method": "unlock",
+  "result": {
+    "success": true
+  }
+}
+```
+
+| Optional Param  | Purpose                  | Requirements              |
+| :-------------  | :----------------------- | :------------------------ |
+| `password`      | Password for the encrypted materials in the database.   | Must provide either `password` or `password_hash`. |
+| `password_hash` | Password hash for the encrypted materials in the database. | Must provide either `password` or `password_hash`. |
+
+##### Troubleshooting
+
+If you receive the following error, this means you have never set up a password for your wallet. You will need to [`set_password`](#set-password), which will also unlock the database.
+
+```sh
+{
+  "error": "Database(SetPassword)"
+}
+```
+
+If you receive the following error, it means you provided the wrong `password` or `password_hash`:
+
+```sh
+{
+  "error": "Database(PasswordFailed)",
+  "details": "Error interacting with the database: Password failed"
+}
+```
+
+If you receive the following error, it means you are attempting an action that requires the database to be unlocked:
+
+```sh
+{
+  "error": "Database(NoDecryptionKey)",
+  "details": "Error interacting with the database: No decryption key in database."
+}
+```
+
+#### Change Password
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "change_password",
+        "params": {
+          "old_password": "TestPassword&",
+          "new_password": "RotatedPassword@"
+        }
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
+
+{
+  "method": "change_password",
+  "result": {
+    "success": true
+  }
+}
+```
+
+| Optional Param  | Purpose                  | Requirements              |
+| :-------------  | :----------------------- | :------------------------ |
+| `old_password`      | Password for the encrypted materials in the database.   | Must provide either `old_password` or `old_password_hash`. |
+| `new_password`      | Password for the encrypted materials in the database.   | Must provide either `old_password` or `old_password_hash`. |
+| `old_password_hash` | Password hash for the encrypted materials in the database. | Must provide either `new_password` or `new_password_hash`. |
+| `new_password_hash` | Password hash for the encrypted materials in the database. | Must provide either `new_password` or `new_password_hash`. |
+
+##### Troubleshooting
+
+If you receive the below, it means you provided the wrong `old_password` or `old_password_hash`:
+
+```sh
+{
+  "error": "Database(PasswordFailed)",
+  "details": "Error interacting with the database: Password failed"
+}
+```
 
 ### Accounts
 
@@ -106,10 +243,10 @@ curl -s localhost:9090/wallet \
 }
 ```
 
-   | Optional Param | Purpose                  | Requirements              |
-   | :------------- | :----------------------- | :------------------------ |
-   | `name`         | Label for this account   | Can have duplicates (not recommended) |
-   | `first_block`  | The block from which to start scanning the ledger |  |
+| Optional Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `name`         | Label for this account   | Can have duplicates (not recommended) |
+| `first_block`  | The block from which to start scanning the ledger |  |
 
 #### Import Account
 
@@ -155,6 +292,14 @@ curl -s localhost:9090/wallet \
 | :------------- | :----------------------- | :------------------------ |
 | `name`         | Label for this account   | Can have duplicates (not recommended) |
 | `first_block`  | The block from which to start scanning the ledger |  |
+
+##### Troubleshooting
+
+If you receive the following error, it means that you attempted to import an account already in the wallet.
+
+```sh
+{"error": "Database(Diesel(DatabaseError(UniqueViolation, "UNIQUE constraint failed: accounts.account_id_hex")))"}
+```
 
 #### Get All Accounts
 
@@ -240,6 +385,17 @@ curl -s localhost:9090/wallet \
 | Required Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
 | `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
+
+#### Troubleshooting
+
+If you receive the following error, it means that this account is not in the database.
+
+```sh
+{
+  "error": "Database(AccountNotFound(\"a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10\"))",
+  "details": "Error interacting with the database: Account Not Found: a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10"
+}
+```
 
 #### Update Account Name
 
@@ -429,10 +585,11 @@ Note, you may wish to filter TXOs using a tool like jq. For example, to get all 
 curl -s localhost:9090/wallet \
   -d '{
         "method": "get_all_txos_by_account",
-        "params": {"account_id": "1916a9b39ed28ab3a6eea69ac364b834ccc35b8e9763e8516d1a1f06aba5fb72"
+        "params": {"account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10"
         }
       }' \
-  -X POST -H 'Content-type: application/json'  | jq '.result | .txos[] | select(.txo_status | contains("unspent"))'
+  -X POST -H 'Content-type: application/json' \
+  | jq '.result | .txo_map[] | select( . | .account_status_map[].txo_status | contains("unspent"))'
 ```
 
 #### Get TXO Details

@@ -78,12 +78,10 @@ impl EncryptionModel for EncryptionIndicator {
                 Err(WalletDbError::MissingEncryptionIndicator)
             } else if indicator_rows.len() > 1 {
                 Err(WalletDbError::BadEncryptionState)
+            } else if let Some(hash) = indicator_rows[0].verification_value.clone() {
+                Ok(hash == expected_val)
             } else {
-                if let Some(hash) = indicator_rows[0].verification_value.clone() {
-                    Ok(hash == expected_val)
-                } else {
-                    Err(WalletDbError::BadEncryptionState)
-                }
+                Err(WalletDbError::BadEncryptionState)
             }
         })?)
     }
