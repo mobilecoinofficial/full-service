@@ -251,6 +251,9 @@ pub enum WalletDbError {
 
     /// Must set password before continuing.
     SetPassword,
+
+    /// Unexpected AccountTxoStatus for received: {0}
+    UnexpectedAccountTxoStatus(String),
 }
 
 impl From<diesel::result::Error> for WalletDbError {

@@ -217,20 +217,36 @@ impl TxoModel for Txo {
 
                     // FIXME: can both be None?
                     if txo_details.spent_from_account.is_some() {
-                        // Txo already exists for another account. Update the status with respect to this account
+                        // Txo already exists for this or another account. Update the status with respect to this account.
                         let status = if subaddress_index.is_some() {
                             TXO_UNSPENT
                         } else {
                             // Note: An orphaned Txo cannot be spent until the subaddress is recovered.
                             TXO_ORPHANED
                         };
-                        AccountTxoStatus::create(
-                            account_id_hex,
-                            &txo_id.to_string(),
-                            status,
-                            TXO_RECEIVED,
-                            conn,
-                        )?;
+                        // Check if this account/txo pairing already exists for our account
+                        match AccountTxoStatus::get(account_id_hex, &txo_id.to_string(), conn) {
+                            Ok(account_txo_status) => {
+                                // We minted this TXO and sent it to ourselves. It's change that we're now recovering as unspent.
+                                if account_txo_status.txo_status == TXO_SECRETED {
+                                    account_txo_status.set_unspent(conn)?;
+                                } else {
+                                    return Err(WalletDbError::UnexpectedAccountTxoStatus(
+                                        account_txo_status.txo_status,
+                                    ));
+                                }
+                            }
+                            Err(WalletDbError::AccountTxoStatusNotFound(_)) => {
+                                AccountTxoStatus::create(
+                                    account_id_hex,
+                                    &txo_id.to_string(),
+                                    status,
+                                    TXO_RECEIVED,
+                                    conn,
+                                )?;
+                            }
+                            Err(e) => return Err(e),
+                        }
                     }
                 }
 
@@ -262,6 +278,8 @@ impl TxoModel for Txo {
                         // Note: An orphaned Txo cannot be spent until the subaddress is recovered.
                         TXO_ORPHANED
                     };
+
+                    // We should get a unique violation if this AccountTxoStatus already exists.
                     AccountTxoStatus::create(
                         account_id_hex,
                         &txo_id.to_string(),

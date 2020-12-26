@@ -290,22 +290,6 @@ fn sync_thread_entry_point(
 
                     // Errors that are acceptable - nothing to do.
                     Err(SyncError::AccountNotFound) => {}
-                    Err(SyncError::Database(WalletDbError::Diesel(
-                        diesel::result::Error::DatabaseError(
-                            diesel::result::DatabaseErrorKind::UniqueViolation,
-                            e,
-                        ),
-                    ))) => {
-                        log::info!(
-                            logger,
-                            "Found a previously synced txo for account {:?} : {:?}.",
-                            account_id,
-                            e
-                        );
-                        sender
-                            .send(SyncMsg::SyncAccount(account_id))
-                            .expect("failed sending to channel");
-                    }
 
                     Err(SyncError::Database(WalletDbError::NoDecryptionKey)) => {
                         log::trace!(
