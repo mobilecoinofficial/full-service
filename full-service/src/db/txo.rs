@@ -69,6 +69,7 @@ pub trait TxoModel {
     ///
     /// Returns:
     /// * txo_id_hex
+    #[allow(clippy::too_many_arguments)]
     fn create_received(
         txo: TxOut,
         subaddress_index: Option<i64>,

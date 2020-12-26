@@ -63,6 +63,11 @@ pub fn b58_decode(b58_public_address: &str) -> Result<PublicAddress, WalletDbErr
     Ok(PublicAddress::try_from(pubaddr_proto).unwrap())
 }
 
+type ExpandedPassword = (
+    GenericArray<u8, <Aes256Gcm as NewAead>::KeySize>,
+    GenericArray<u8, <Aes256Gcm as AeadInPlace>::NonceSize>,
+);
+
 #[derive(Clone)]
 pub struct WalletDb {
     pool: Pool<ConnectionManager<SqliteConnection>>,
@@ -214,15 +219,7 @@ impl WalletDb {
     }
 
     /// Expands the password into an encryption key and a nonce.
-    fn expand_password(
-        password: &[u8],
-    ) -> Result<
-        (
-            GenericArray<u8, <Aes256Gcm as NewAead>::KeySize>,
-            GenericArray<u8, <Aes256Gcm as AeadInPlace>::NonceSize>,
-        ),
-        WalletDbError,
-    > {
+    fn expand_password(password: &[u8]) -> Result<ExpandedPassword, WalletDbError> {
         // Hash the password hash with Blake2b to get 64 bytes, first 32 for aeskey, second 32 for nonce
         let mut hasher = Blake2b::new();
         hasher.update(&ENCRYPTION_KEY_DOMAIN_TAG);
