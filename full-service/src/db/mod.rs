@@ -128,10 +128,6 @@ impl WalletDb {
     pub fn unlock(&self, password_hash: &[u8]) -> Result<(), WalletDbError> {
         // No need to check db state if we're already unlocked
         if self.is_unlocked()? {
-            // Sanity check that password is correct - FIXME: should we just return Ok since it's unlocked already?
-            if self.get_password_hash()? != password_hash {
-                return Err(WalletDbError::PasswordFailed);
-            }
             return Ok(());
         }
 
@@ -357,6 +353,4 @@ mod tests {
             _ => panic!("Unlocking an unlocked DB should succeed."),
         }
     }
-
-    // FIXME: test for upgrade path
 }
