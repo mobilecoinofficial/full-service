@@ -42,6 +42,7 @@ use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
 use mc_transaction_core::tx::{Tx, TxOut, TxOutConfirmationNumber};
 use mc_util_from_random::FromRandom;
 
+use blake2::{Blake2b, Digest};
 use diesel::prelude::*;
 use serde_json::Map;
 use std::{
@@ -52,6 +53,8 @@ use std::{
         Arc, RwLock,
     },
 };
+
+const SALT_DOMAIN_TAG: &str = "full-service-salt";
 
 /// Service for interacting with the wallet
 pub struct WalletService<
@@ -107,7 +110,7 @@ impl<
         }
     }
 
-    // Helper method to expand password to password hash using bcrypt
+    // Helper method to expand password to password hash using argon2.
     fn get_password_hash(
         &self,
         password: Option<String>,
@@ -119,9 +122,16 @@ impl<
             return Err(WalletServiceError::CannotDisambiguatePassword);
         }
         Ok(if let Some(pw) = password {
-            let salt = b"randomsalt"; // FIXME: what should this be? needs to be deterministic and different per user
+            // Get the salt from password.
+            // Note: We use a deterministic salt so that we can derive the same hash from the same text
+            //       string. This is ok for our use case, see discussion on precomputation attacks:
+            //       https://crypto.stackexchange.com/questions/77549/is-it-safe-to-use-a-deterministic-salt-as-an-input-to-kdf-argon2
+            let mut hasher = Blake2b::new();
+            hasher.update(&SALT_DOMAIN_TAG);
+            hasher.update(&pw);
+            let salt = hasher.finalize();
             let config = argon2::Config::default();
-            argon2::hash_raw(pw.as_bytes(), salt, &config)?
+            argon2::hash_raw(pw.as_bytes(), &salt, &config)?
         } else {
             hex::decode(password_hash.unwrap())?
         })
