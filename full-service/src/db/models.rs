@@ -3,8 +3,8 @@
 //! DB Models
 
 use super::schema::{
-    account_txo_statuses, accounts, assigned_subaddresses, encryption_indicators, transaction_logs,
-    transaction_txo_types, txos,
+    account_txo_statuses, accounts, assigned_subaddresses, encryption_indicators, gift_codes,
+    transaction_logs, transaction_txo_types, txos,
 };
 
 use serde::Serialize;
@@ -228,4 +228,34 @@ pub struct EncryptionIndicator {
 pub struct NewEncryptionIndicator<'a> {
     pub encrypted: bool,
     pub verification_value: Option<&'a [u8]>,
+}
+
+#[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
+#[belongs_to(Account, foreign_key = "id")]
+#[belongs_to(TransactionLog, foreign_key = "id")]
+#[table_name = "gift_codes"]
+#[primary_key(id)]
+pub struct GiftCode {
+    pub id: i32,
+    pub gift_code_b58: String,
+    pub entropy: Vec<u8>,
+    pub txo_public_key: Vec<u8>,
+    pub memo: String,
+    pub account_id: i32,
+    pub build_log_id: Option<i32>,
+    pub consume_log_id: Option<i32>,
+    pub consumed_block: Option<i64>,
+}
+
+#[derive(Insertable)]
+#[table_name = "gift_codes"]
+pub struct NewGiftCode<'a> {
+    pub gift_code_b58: &'a str,
+    pub entropy: &'a Vec<u8>,
+    pub txo_public_key: &'a Vec<u8>,
+    pub memo: &'a str,
+    pub account_id: i32,
+    pub build_log_id: Option<i32>,
+    pub consume_log_id: Option<i32>,
+    pub consumed_block: Option<i64>,
 }

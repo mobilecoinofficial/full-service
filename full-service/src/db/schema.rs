@@ -43,6 +43,20 @@ table! {
 }
 
 table! {
+    gift_codes (id) {
+        id -> Integer,
+        gift_code_b58 -> Text,
+        entropy -> Binary,
+        txo_public_key -> Binary,
+        memo -> Text,
+        account_id -> Nullable<Integer>,
+        build_log_id -> Nullable<Integer>,
+        consume_log_id -> Nullable<Integer>,
+        consumed_block -> Nullable<BigInt>,
+    }
+}
+
+table! {
     transaction_logs (id) {
         id -> Integer,
         transaction_id_hex -> Text,
@@ -87,11 +101,14 @@ table! {
     }
 }
 
+joinable!(gift_codes -> accounts (account_id));
+
 allow_tables_to_appear_in_same_query!(
     account_txo_statuses,
     accounts,
     assigned_subaddresses,
     encryption_indicators,
+    gift_codes,
     transaction_logs,
     transaction_txo_types,
     txos,

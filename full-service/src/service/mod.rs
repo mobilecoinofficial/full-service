@@ -3,6 +3,7 @@
 //! Implementations of services.
 
 pub mod decorated_types;
+mod gift_code;
 mod password_manager;
 pub mod sync;
 pub mod transaction_builder;

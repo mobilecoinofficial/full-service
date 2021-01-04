@@ -1,3 +1,5 @@
+DROP TABLE gift_codes;
+
 DROP TABLE encryption_indicators;
 
 DROP TABLE transaction_txo_types;
