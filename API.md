@@ -29,7 +29,7 @@ The Full Service Wallet API provides several objects that correspond to the data
 | object | string, value is "account" | String representing the object's type. Objects of the same type share the same value
 | next_subaddress_index | string (uint64) | This index represents the next subaddress to be assigned as an address. This is useful information in case the account is imported elsewhere.
 | recovery_mode | boolean | A flag that indicates this imported account is attempting to un-orphan found TXOs. It is recommended to move all MOB to another account after recovery if the user is unsure of the assigned addresses.
-
+| offset_count | int | The value to offset pagination requests for assigned_address list. Requests will exclude all list items up to and including this object.
 
 #### Example Object
 
@@ -45,7 +45,8 @@ The Full Service Wallet API provides several objects that correspond to the data
   "available_pmob": "123000000",
   "pending_pmob": "1000",
   "next_subaddress_index": "128",
-  "recovery_mode": false
+  "recovery_mode": false,
+  "offset_count": 27
 }
 ```
 
@@ -404,6 +405,39 @@ Txo Spent from One Account to Another in the Same Wallet
 
 * [get_proofs](./README.md#get-proofs)
 * [verify_proof](./README.md#verify-proof)
+
+
+### The Gift Code Object
+
+#### Attributes
+
+| *Name* | *Type* | *Description*
+| :--- | :--- | :---
+| gift_code | string | The b58 encoded contents of a gift code. Includes the entropy, the value, and a memo.
+
+#### More attributes
+
+| *Name* | *Type* | *Description*
+| :--- | :--- | :---
+| object | string, value is "gift_code" | String representing the object's type. Objects of the same type share the same value
+
+#### Example Object
+
+```
+{
+  "object": "account",
+  "gift_code": "1916a9b3...",
+  "entropy": "1916a9b3...",
+  "value": "2000000000000",
+  "memo": "Happy Birthday!"
+}
+```
+
+#### API Methods Returning Account Objects
+
+* [build_gift_code](./README.md#build-gift-code)
+* [get_gift_code](./README.md#get-gift-code)
+* [get_all_gift_codes](./README.md#get-all-gift-codes)
 
 ## Future API Objects
 

@@ -204,12 +204,18 @@ impl TxoModel for Txo {
         account_id_hex: &str,
         conn_context: &WalletDbConnContext,
     ) -> Result<String, WalletDbError> {
+        println!(
+            "\x1b[1;33m TXO: NOW CREATING RECEIVED for {:?} with subaddress index {:?}\x1b[0m",
+            account_id_hex, subaddress_index
+        );
+
         let txo_id = TxoID::from(&txo);
         conn_context.conn.transaction::<(), WalletDbError, _>(|| {
             // If we already have this TXO for this account (e.g. from minting in a previous transaction), we need to update it
             match Txo::get(&txo_id.to_string(), conn_context) {
                 Ok(txo_details) => {
                     if txo_details.received_to_account.is_some() {
+                        println!("\x1b[1;31m Account {:?} subaddress {:?} txo has a received_to_account, so updating received\x1b[0m", account_id_hex, subaddress_index);
                         txo_details.txo.update_received(
                             account_id_hex,
                             subaddress_index,
@@ -219,7 +225,6 @@ impl TxoModel for Txo {
                         )?;
                     }
 
-                    // FIXME: can both be None?
                     if txo_details.spent_from_account.is_some() {
                         // Txo already exists for this or another account. Update the status with respect to this account.
                         let status = if subaddress_index.is_some() {
@@ -245,12 +250,20 @@ impl TxoModel for Txo {
                                 }
                             }
                             Err(WalletDbError::AccountTxoStatusNotFound(_)) => {
+                                println!("\x1b[1;33m Account {:?} subaddress {:?} I think we need to update\x1b[0m", account_id_hex, subaddress_index);
                                 AccountTxoStatus::create(
                                     account_id_hex,
                                     &txo_id.to_string(),
                                     status,
                                     TXO_RECEIVED,
                                     &conn_context.conn,
+                                )?;
+                                txo_details.txo.update_received(
+                                    account_id_hex,
+                                    subaddress_index,
+                                    key_image,
+                                    received_block_count,
+                                    conn,
                                 )?;
                             }
                             Err(e) => return Err(e),
@@ -493,14 +506,29 @@ impl TxoModel for Txo {
         conn.transaction::<(), WalletDbError, _>(|| {
             // Find the account associated with this Txo.
             // Note: We should only be calling update_to_pending on inputs, which we had to own to spend.
-            let account = Account::get_by_txo_id(&txo_id.to_string(), conn)?;
+            let accounts = Account::get_by_txo_id(&txo_id.to_string(), conn)?;
 
-            // Update the status to pending.
-            diesel::update(
-                account_txo_statuses.find((&account.account_id_hex, &txo_id.to_string())),
-            )
-            .set(crate::db::schema::account_txo_statuses::txo_status.eq(TXO_PENDING.to_string()))
-            .execute(conn)?;
+            if accounts.len() > 2 {
+                return Err(WalletDbError::UnexpectedNumberOfAccountsAssociatedWithTxo(
+                    accounts.len().to_string(),
+                ));
+            }
+
+            // Update the status to pending. Only unspent can go to pending.
+            for account in accounts {
+                let status =
+                    AccountTxoStatus::get(&account.account_id_hex, &txo_id.to_string(), conn)?;
+                if status.txo_status == TXO_UNSPENT {
+                    diesel::update(
+                        account_txo_statuses.find((&account.account_id_hex, &txo_id.to_string())),
+                    )
+                    .set(
+                        crate::db::schema::account_txo_statuses::txo_status
+                            .eq(TXO_PENDING.to_string()),
+                    )
+                    .execute(conn)?;
+                }
+            }
             Ok(())
         })?;
         Ok(())
@@ -1205,7 +1233,9 @@ mod tests {
         builder
             .add_recipient(recipient_account_key.default_subaddress(), 50 * MOB as u64)
             .unwrap();
-        builder.select_txos(None).unwrap();
+        builder
+            .select_txos(None, &wallet_db.get_conn().unwrap())
+            .unwrap();
         builder.set_tombstone(0).unwrap();
         let proposal = builder.build().unwrap();
 

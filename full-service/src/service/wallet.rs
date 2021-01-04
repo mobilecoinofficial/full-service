@@ -4,9 +4,11 @@ use crate::{
     db::account::AccountID,
     service::{
         decorated_types::{
-            JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents, JsonProof,
-            JsonSubmitResponse, JsonTransactionLog, JsonTxo, JsonWalletStatus,
+            JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
+            JsonGiftCode, JsonProof, JsonSubmitResponse, JsonTransactionLog, JsonTxo,
+            JsonWalletStatus,
         },
+        gift_code::GiftCodeService,
         password_manager::PasswordService,
         wallet_impl::WalletService,
     },
@@ -130,6 +132,20 @@ pub enum JsonCommandRequest {
         txo_id: String,
         proof: String,
     },
+    build_gift_code {
+        account_id: String,
+        value: String,
+        memo: Option<String>,
+        input_txo_ids: Option<Vec<String>>,
+        fee: Option<String>,
+        tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
+        poll_interval: Option<u64>,
+    },
+    get_gift_code {
+        gift_code_b58: String,
+    },
+    get_all_gift_codes,
 }
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(tag = "method", content = "result")]
@@ -219,6 +235,15 @@ pub enum JsonCommandResponse {
     },
     verify_proof {
         verified: bool,
+    },
+    build_gift_code {
+        gift_code: JsonGiftCode,
+    },
+    get_gift_code {
+        gift_code: JsonGiftCode,
+    },
+    get_all_gift_codes {
+        gift_codes: Vec<JsonGiftCode>,
     },
 }
 
@@ -508,6 +533,42 @@ where
                 .map_err(format_error)?;
             JsonCommandResponse::verify_proof { verified: result }
         }
+        JsonCommandRequest::build_gift_code {
+            account_id,
+            value,
+            memo,
+            input_txo_ids,
+            fee,
+            tombstone_block,
+            max_spendable_value,
+            poll_interval,
+        } => {
+            let (submit_response, gift_code_entropy) = service
+                .build_and_submit_gift_code(
+                    account_id,
+                    value,
+                    memo,
+                    input_txo_ids.as_ref(),
+                    fee,
+                    tombstone_block,
+                    max_spendable_value,
+                )
+                .map_err(format_error)?;
+            let gift_code = service
+                .register_gift_code(
+                    submit_response.transaction_id,
+                    gift_code_entropy,
+                    poll_interval,
+                )
+                .map_err(format_error)?;
+            JsonCommandResponse::build_gift_code { gift_code }
+        }
+        JsonCommandRequest::get_gift_code { gift_code_b58 } => JsonCommandResponse::get_gift_code {
+            gift_code: service.get_gift_code(gift_code_b58).map_err(format_error)?,
+        },
+        JsonCommandRequest::get_all_gift_codes {} => JsonCommandResponse::get_all_gift_codes {
+            gift_codes: service.list_gift_codes().map_err(format_error)?,
+        },
     };
     Ok(Json(result))
 }

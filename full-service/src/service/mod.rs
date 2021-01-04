@@ -10,5 +10,6 @@ pub mod transaction_builder;
 pub mod wallet;
 mod wallet_impl;
 
+pub use gift_code::GiftCodeServiceError;
 pub use password_manager::PasswordServiceError;
 pub use wallet_impl::WalletService;

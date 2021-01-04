@@ -32,7 +32,10 @@ use mc_transaction_core::tx::{TxOut, TxOutMembershipProof};
 use mc_transaction_core::BlockIndex;
 use mc_transaction_std::{InputCredentials, TransactionBuilder};
 
-use diesel::prelude::*;
+use diesel::{
+    prelude::*,
+    r2d2::{ConnectionManager, PooledConnection},
+};
 use rand::Rng;
 use std::convert::TryFrom;
 use std::iter::FromIterator;
@@ -82,6 +85,7 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
         &mut self,
         input_txo_ids: &[String],
     ) -> Result<(), WalletTransactionBuilderError> {
+        log::debug!(self.logger, "Setting txos to {:?}", input_txo_ids);
         let txos = Txo::select_by_id(&input_txo_ids.to_vec(), &self.wallet_db.get_conn()?)?;
         let unspent: Vec<Txo> = txos
             .iter()
@@ -98,7 +102,9 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
     pub fn select_txos(
         &mut self,
         max_spendable_value: Option<u64>,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletTransactionBuilderError> {
+        log::debug!(self.logger, "Selecting txos");
         let outlay_value_sum = self.outlays.iter().map(|(_r, v)| *v as u128).sum::<u128>();
 
         if outlay_value_sum > u64::MAX as u128
@@ -112,8 +118,9 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
             &self.account_id_hex,
             total_value,
             max_spendable_value.map(|v| v as i64),
-            &self.wallet_db.get_conn()?,
+            conn,
         )?;
+        log::debug!(self.logger, "Selected txos for inputs {:?}", self.inputs);
 
         Ok(())
     }
@@ -123,6 +130,8 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
         recipient: PublicAddress,
         value: u64,
     ) -> Result<(), WalletTransactionBuilderError> {
+        log::debug!(self.logger, "Adding recipient {:?}", recipient);
+
         // This wallet does not support multiple outgoing recipients at this time.
         if !self.outlays.is_empty() && recipient != self.outlays[0].0 {
             return Err(WalletTransactionBuilderError::MultipleOutgoingRecipients);
@@ -133,6 +142,7 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
             return Err(WalletTransactionBuilderError::OutboundValueTooLarge);
         }
         self.outlays.push((recipient, value));
+        log::trace!(self.logger, "Recipient added. Outlays: {:?}", self.outlays);
         Ok(())
     }
 
@@ -142,6 +152,7 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
                 MINIMUM_FEE.to_string(),
             ));
         }
+        log::debug!(self.logger, "Setting fee {:?}", fee);
         self.transaction_builder.set_fee(fee);
         Ok(())
     }
@@ -153,6 +164,11 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
             let num_blocks_in_ledger = self.ledger_db.num_blocks()?;
             num_blocks_in_ledger + DEFAULT_NEW_TX_BLOCK_ATTEMPTS
         };
+        log::debug!(
+            self.logger,
+            "Setting tombstone block, to {:?}",
+            tombstone_block
+        );
         self.tombstone = tombstone_block;
         Ok(())
     }
@@ -443,6 +459,8 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
         num_rings: usize,
         excluded_tx_out_indices: &[u64],
     ) -> Result<Vec<Vec<(TxOut, TxOutMembershipProof)>>, WalletTransactionBuilderError> {
+        log::debug!(self.logger, "Getting {:?} rings", num_rings);
+
         let num_requested = RING_SIZE * num_rings;
         let num_txos = self.ledger_db.num_txos()?;
 
@@ -503,7 +521,6 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
         if address.fog_report_url().is_none() {
             return Ok(None);
         }
-
         match fog_pubkey_resolver.as_ref() {
             None => Err(WalletTransactionBuilderError::FogError(format!(
                 "{} uses fog but mobilecoind was started without fog support",
@@ -583,7 +600,9 @@ mod tests {
         builder.add_recipient(recipient.clone(), value).unwrap();
 
         // Select the txos for the recipient
-        builder.select_txos(None).unwrap();
+        builder
+            .select_txos(None, &wallet_db.get_conn().unwrap())
+            .unwrap();
         builder.set_tombstone(0).unwrap();
 
         let proposal = builder.build().unwrap();
@@ -645,7 +664,7 @@ mod tests {
         builder.add_recipient(recipient.clone(), value).unwrap();
 
         // Select the txos for the recipient - should error because > u64::MAX
-        match builder.select_txos(None) {
+        match builder.select_txos(None, &wallet_db.get_conn().unwrap()) {
             Ok(_) => panic!("Should not be allowed to construct outbound values > u64::MAX"),
             Err(WalletTransactionBuilderError::OutboundValueTooLarge) => {}
             Err(e) => panic!("Unexpected error {:?}", e),
@@ -768,14 +787,14 @@ mod tests {
             .unwrap();
 
         // Test that selecting Txos with max_spendable < all our txo values fails
-        match builder.select_txos(Some(10)) {
+        match builder.select_txos(Some(10), &wallet_db.get_conn().unwrap()) {
             Ok(_) => panic!("Should not be able to construct tx when max_spendable < all txos"),
             Err(WalletTransactionBuilderError::WalletDb(WalletDbError::NoSpendableTxos)) => {}
             Err(e) => panic!("Unexpected error {:?}", e),
         }
 
         // We should be able to try again, with max_spendable at 70, but will not hit our outlay target (80 * MOB)
-        match builder.select_txos(Some(70 * MOB as u64)) {
+        match builder.select_txos(Some(70 * MOB as u64), &wallet_db.get_conn().unwrap()) {
             Ok(_) => panic!("Should not be able to construct tx when max_spendable < all txos"),
             Err(WalletTransactionBuilderError::WalletDb(
                 WalletDbError::InsufficientFundsUnderMaxSpendable(_),
@@ -784,7 +803,9 @@ mod tests {
         }
 
         // Now, we should succeed if we set max_spendable = 80 * MOB, because we will pick up both 70 and 80
-        builder.select_txos(Some(80 * MOB as u64)).unwrap();
+        builder
+            .select_txos(Some(80 * MOB as u64), &wallet_db.get_conn().unwrap())
+            .unwrap();
         builder.set_tombstone(0).unwrap();
         let proposal = builder.build().unwrap();
         assert_eq!(proposal.outlays.len(), 1);
@@ -828,7 +849,9 @@ mod tests {
         builder
             .add_recipient(recipient.clone(), 10 * MOB as u64)
             .unwrap();
-        builder.select_txos(None).unwrap();
+        builder
+            .select_txos(None, &wallet_db.get_conn().unwrap())
+            .unwrap();
 
         // Sanity check that our ledger is the height we think it is
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
@@ -846,7 +869,9 @@ mod tests {
         builder
             .add_recipient(recipient.clone(), 10 * MOB as u64)
             .unwrap();
-        builder.select_txos(None).unwrap();
+        builder
+            .select_txos(None, &wallet_db.get_conn().unwrap())
+            .unwrap();
 
         // Set to default
         builder.set_tombstone(0).unwrap();
@@ -862,7 +887,9 @@ mod tests {
         builder
             .add_recipient(recipient.clone(), 10 * MOB as u64)
             .unwrap();
-        builder.select_txos(None).unwrap();
+        builder
+            .select_txos(None, &wallet_db.get_conn().unwrap())
+            .unwrap();
 
         // Set to default
         builder.set_tombstone(20).unwrap();
@@ -905,7 +932,9 @@ mod tests {
         builder
             .add_recipient(recipient.clone(), 10 * MOB as u64)
             .unwrap();
-        builder.select_txos(None).unwrap();
+        builder
+            .select_txos(None, &wallet_db.get_conn().unwrap())
+            .unwrap();
         builder.set_tombstone(0).unwrap();
 
         // Verify that not setting fee results in default fee
@@ -919,7 +948,9 @@ mod tests {
         builder
             .add_recipient(recipient.clone(), 10 * MOB as u64)
             .unwrap();
-        builder.select_txos(None).unwrap();
+        builder
+            .select_txos(None, &wallet_db.get_conn().unwrap())
+            .unwrap();
         builder.set_tombstone(0).unwrap();
         match builder.set_fee(0) {
             Ok(_) => panic!("Should not be able to set fee to 0"),
@@ -938,7 +969,9 @@ mod tests {
         builder
             .add_recipient(recipient.clone(), 10 * MOB as u64)
             .unwrap();
-        builder.select_txos(None).unwrap();
+        builder
+            .select_txos(None, &wallet_db.get_conn().unwrap())
+            .unwrap();
         builder.set_tombstone(0).unwrap();
         match builder.set_fee(0) {
             Ok(_) => panic!("Should not be able to set fee to 0"),
@@ -953,7 +986,9 @@ mod tests {
         builder
             .add_recipient(recipient.clone(), 10 * MOB as u64)
             .unwrap();
-        builder.select_txos(None).unwrap();
+        builder
+            .select_txos(None, &wallet_db.get_conn().unwrap())
+            .unwrap();
         builder.set_tombstone(0).unwrap();
         builder.set_fee(MINIMUM_FEE * 10).unwrap();
         let proposal = builder.build().unwrap();
@@ -993,7 +1028,9 @@ mod tests {
         // Set value to consume the whole TXO and not produce change
         let value = 70 * MOB as u64 - MINIMUM_FEE;
         builder.add_recipient(recipient.clone(), value).unwrap();
-        builder.select_txos(None).unwrap();
+        builder
+            .select_txos(None, &wallet_db.get_conn().unwrap())
+            .unwrap();
         builder.set_tombstone(0).unwrap();
 
         // Verify that not setting fee results in default fee
@@ -1049,7 +1086,9 @@ mod tests {
             .add_recipient(recipient.clone(), 40 * MOB as u64)
             .unwrap();
 
-        builder.select_txos(None).unwrap();
+        builder
+            .select_txos(None, &wallet_db.get_conn().unwrap())
+            .unwrap();
         builder.set_tombstone(0).unwrap();
 
         // Verify that not setting fee results in default fee
@@ -1113,7 +1152,7 @@ mod tests {
             .add_recipient(recipient.clone(), 7_000_000 * MOB as u64)
             .unwrap();
 
-        match builder.select_txos(None) {
+        match builder.select_txos(None, &wallet_db.get_conn().unwrap()) {
             Ok(_) => panic!("Should not be able to select txos with > u64::MAX output value"),
             Err(WalletTransactionBuilderError::OutboundValueTooLarge) => {}
             Err(e) => panic!("Unexpected error {:?}", e),

@@ -59,7 +59,7 @@ pub struct WalletService<
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 > {
     pub wallet_db: WalletDb,
-    ledger_db: LedgerDB,
+    pub ledger_db: LedgerDB,
     peer_manager: McConnectionManager<T>,
     network_state: Arc<RwLock<PollingNetworkState<T>>>,
     fog_pubkey_resolver: Option<Arc<FPR>>,
@@ -417,6 +417,12 @@ impl<
     ) -> Result<JsonTxProposal, WalletServiceError> {
         self.verify_unlocked()?;
 
+        log::debug!(
+            self.logger,
+            "Building transaction from {:?} to {:?}",
+            account_id_hex,
+            recipient_public_address
+        );
         let mut builder = WalletTransactionBuilder::new(
             account_id_hex.to_string(),
             self.wallet_db.clone(),
@@ -434,8 +440,9 @@ impl<
             } else {
                 None
             };
-            builder.select_txos(max_spendable)?;
+            builder.select_txos(max_spendable, &self.wallet_db.get_conn()?)?;
         }
+        log::trace!(self.logger, "Done selecting txos");
         if let Some(tombstone) = tombstone_block {
             builder.set_tombstone(tombstone.parse::<u64>()?)?;
         } else {
@@ -445,6 +452,7 @@ impl<
             builder.set_fee(f.parse::<u64>()?)?;
         }
         let tx_proposal = builder.build()?;
+        log::debug!(self.logger, "Creating tx_proposal");
         // FIXME: WS-34 - Would rather not have to convert it to proto first
         let proto_tx_proposal = mc_mobilecoind_api::TxProposal::from(&tx_proposal);
 
@@ -484,8 +492,7 @@ impl<
             .peer_manager
             .conn(responder_id)
             .ok_or(WalletServiceError::NodeNotFound)?
-            .propose_tx(&tx, empty())
-            .map_err(WalletServiceError::from)?;
+            .propose_tx(&tx, empty())?;
 
         log::info!(
             self.logger,
@@ -519,6 +526,7 @@ impl<
         max_spendable_value: Option<String>,
         comment: Option<String>,
     ) -> Result<JsonSubmitResponse, WalletServiceError> {
+        log::debug!(self.logger, "Building transaction");
         let tx_proposal = self.build_transaction(
             account_id_hex,
             recipient_public_address,
@@ -528,6 +536,7 @@ impl<
             tombstone_block,
             max_spendable_value,
         )?;
+        log::debug!(self.logger, "Submitting transaction");
         Ok(self.submit_transaction(tx_proposal, comment, Some(account_id_hex.to_string()))?)
     }
 
@@ -647,8 +656,10 @@ mod tests {
         test_utils::{add_block_to_ledger_db, get_test_ledger, setup_service},
     };
     use mc_account_keys::PublicAddress;
-    use mc_common::logger::{test_with_logger, Logger};
-    use mc_common::HashSet;
+    use mc_common::{
+        logger::{test_with_logger, Logger},
+        HashSet,
+    };
     use mc_transaction_core::ring_signature::KeyImage;
     use rand::{distributions::Alphanumeric, rngs::StdRng, Rng, SeedableRng};
     use std::iter::FromIterator;
@@ -673,7 +684,6 @@ mod tests {
             .create_account(Some("Alice's Main Account".to_string()), None)
             .unwrap();
 
-        // Add a block with a transaction for this recipient
         // Add a block with a txo for this address (note that value is smaller than MINIMUM_FEE)
         let alice_public_address = b58_decode(&alice.account.main_address).unwrap();
         add_block_to_ledger_db(

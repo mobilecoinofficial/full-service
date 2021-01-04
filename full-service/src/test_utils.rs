@@ -3,7 +3,8 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        models::{Account, Txo},
+        models::{Account, TransactionLog, Txo},
+        transaction_log::TransactionLogModel,
         txo::TxoModel,
         WalletDb,
     },
@@ -218,6 +219,79 @@ pub fn add_block_with_tx_proposal(ledger_db: &mut LedgerDB, tx_proposal: TxPropo
     ledger_db.num_blocks().expect("failed to get block height")
 }
 
+pub fn add_block_from_transaction_log(
+    ledger_db: &mut LedgerDB,
+    wallet_db: &WalletDb,
+    transaction_log: &TransactionLog,
+) -> u64 {
+    let associated_txos = transaction_log
+        .get_associated_txos(&wallet_db.get_conn().unwrap())
+        .unwrap();
+
+    let mut output_ids = associated_txos.outputs.clone();
+    output_ids.append(&mut associated_txos.change.clone());
+
+    let output_txos: Vec<Txo> = output_ids
+        .iter()
+        .map(|id| {
+            Txo::get(
+                id,
+                &wallet_db.get_password_hash().unwrap(),
+                &wallet_db.get_conn().unwrap(),
+            )
+            .unwrap()
+            .txo
+        })
+        .collect();
+
+    let outputs: Vec<TxOut> = output_txos
+        .iter()
+        .map(|txo| mc_util_serial::decode(&txo.txo).unwrap())
+        .collect();
+
+    let input_txos: Vec<Txo> = associated_txos
+        .inputs
+        .iter()
+        .map(|id| {
+            Txo::get(
+                id,
+                &wallet_db.get_password_hash().unwrap(),
+                &wallet_db.get_conn().unwrap(),
+            )
+            .unwrap()
+            .txo
+        })
+        .collect();
+
+    let key_images: Vec<KeyImage> = input_txos
+        .iter()
+        .map(|txo| mc_util_serial::decode(&txo.key_image.clone().unwrap()).unwrap())
+        .collect();
+
+    // Note: This block doesn't contain the fee output.
+
+    let block_contents = BlockContents::new(key_images, outputs.clone());
+
+    let num_blocks = ledger_db.num_blocks().expect("failed to get block height");
+
+    let new_block;
+    if num_blocks > 0 {
+        let parent = ledger_db
+            .get_block(num_blocks - 1)
+            .expect("failed to get parent block");
+        new_block =
+            Block::new_with_parent(BLOCK_VERSION, &parent, &Default::default(), &block_contents);
+    } else {
+        new_block = Block::new_origin_block(&outputs);
+    }
+
+    ledger_db
+        .append_block(&new_block, &block_contents, None)
+        .expect("failed writing initial transactions");
+
+    ledger_db.num_blocks().expect("failed to get block height")
+}
+
 pub fn setup_peer_manager_and_network_state(
     ledger_db: LedgerDB,
     logger: Logger,
@@ -301,6 +375,27 @@ pub fn setup_grpc_peer_manager_and_network_state(
     (peer_manager, network_state)
 }
 
+pub fn setup_service(
+    ledger_db: LedgerDB,
+    logger: Logger,
+) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
+    let db_test_context = WalletDbTestContext::default();
+    let wallet_db = db_test_context.get_db_instance(logger.clone());
+    let (peer_manager, network_state) =
+        setup_peer_manager_and_network_state(ledger_db.clone(), logger.clone());
+
+    WalletService::new(
+        wallet_db,
+        ledger_db,
+        peer_manager,
+        network_state,
+        Some(Arc::new(MockFogPubkeyResolver::new())),
+        None,
+        false,
+        logger,
+    )
+}
+
 pub fn create_test_received_txo(
     account_key: &AccountKey,
     recipient_subaddress_index: u64,
@@ -348,7 +443,9 @@ pub fn create_test_minted_and_change_txos(
     );
 
     builder.add_recipient(recipient, value).unwrap();
-    builder.select_txos(None).unwrap();
+    builder
+        .select_txos(None, &wallet_db.get_conn().unwrap())
+        .unwrap();
     builder.set_tombstone(0).unwrap();
     let tx_proposal = builder.build().unwrap();
 
@@ -438,25 +535,4 @@ pub fn builder_for_random_recipient(
     let recipient = recipient_account_key.subaddress(rng.next_u64());
 
     (recipient, builder)
-}
-
-pub fn setup_service(
-    ledger_db: LedgerDB,
-    logger: Logger,
-) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
-    let db_test_context = WalletDbTestContext::default();
-    let wallet_db = db_test_context.get_db_instance(logger.clone());
-    let (peer_manager, network_state) =
-        setup_peer_manager_and_network_state(ledger_db.clone(), logger.clone());
-
-    WalletService::new(
-        wallet_db,
-        ledger_db,
-        peer_manager,
-        network_state,
-        Some(Arc::new(MockFogPubkeyResolver::new())),
-        None,
-        false,
-        logger,
-    )
 }

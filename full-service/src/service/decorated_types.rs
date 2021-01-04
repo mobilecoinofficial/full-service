@@ -32,6 +32,7 @@ pub struct JsonAccount {
     pub main_address: String,
     pub next_subaddress_index: String,
     pub recovery_mode: bool,
+    pub offset_count: i32,
 }
 
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
@@ -283,4 +284,13 @@ pub struct JsonProof {
     pub object: String,
     pub txo_id: String,
     pub proof: String,
+}
+
+#[derive(Deserialize, Serialize, Default, Debug, Eq, PartialEq)]
+pub struct JsonGiftCode {
+    pub object: String,
+    pub gift_code: String,
+    pub entropy: String,
+    pub value: String,
+    pub memo: String,
 }

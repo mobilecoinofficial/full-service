@@ -1343,6 +1343,105 @@ curl -s localhost:9090/wallet \
 | `txo_id`   | The ID of the Txo for which to verify the proof  | Txo must be a received Txo  |
 | `proof`   | The proof to verify  | The proof should be delivered by the sender of the Txo in question |
 
+### Gift Codes
+
+Gift Codes allow transactions to be sent in a way that can be "claimed." The Gift Code is a self-contained account, packaged with a spendable TXO. When constructing the GiftCode, take care to include enough MOB to cover the fee when the recipient wishes to consume the Gift Code.
+
+#### Build Gift Code
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "build_gift_code",
+        "params": {
+          "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+          "value": "2000000000000",
+          "memo": "Happy Birthday!",
+        }
+      }' \
+  -X POST -H 'Content-type: application/json'
+
+{
+  "method": "build_gift_code",
+  "result": {
+    "gift_code": {
+      "object": "gift_code",
+      "gift_code": "az5nDkmFZv767pVpkzwtkrEpag9DRPdCmAHvxa6M2rvq37SntABk95ipy192K1a24Hm2iw8jtCnabkqRrVrUt74ujv7Tr9coGNd3wdSzMQ3DTVLfDW13S9kZQet4kxQ",
+      "entropy": "0eae99b6889f1012092ae869ec8fa6f32cfaf4d0a909ef02d29e44ff75b94d97",
+      "value": "2000000000000",
+      "memo": "Happy Birthday!"
+    }
+  }
+}
+```
+
+| Required Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `account_id`   | Account from which to construct gift code transaction  | |
+| `value`        | The amount of MOB to send in the gift  | Value is in pMOB |
+
+| Optional Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `memo`         | A memo which will be delivered encoded with the gift code  | |
+| `input_txo_ids` | Specific TXOs to use as inputs to this transaction   | TXO IDs (obtain from `get_all_txos_by_account`) |
+| `fee` | The fee amount to submit with this transaction | If not provided, uses `MINIMUM_FEE` = .01 MOB |
+| `tombstone_block` | The block after which this transaction expires | If not provided, uses `cur_height` + 50 |
+| `max_spendable_value` | The maximum amount for an input TXO selected for this transaction |  |
+| `poll_interval` | Duration in seconds to poll for when the gift code is funded and in the ledger. | |
+
+#### Get Gift Code
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "get_gift_code",
+        "params": {
+          "gift_code_b58": "az5nDkmFZv767pVpkzwtkrEpag9DRPdCmAHvxa6M2rvq37SntABk95ipy192K1a24Hm2iw8jtCnabkqRrVrUt74ujv7Tr9coGNd3wdSzMQ3DTVLfDW13S9kZQet4kxQ",
+        }
+      }' \
+  -X POST -H 'Content-type: application/json'
+
+{
+  "method": "get_gift_code",
+  "result": {
+    "gift_code": {
+      "object": "gift_code",
+      "gift_code": "az5nDkmFZv767pVpkzwtkrEpag9DRPdCmAHvxa6M2rvq37SntABk95ipy192K1a24Hm2iw8jtCnabkqRrVrUt74ujv7Tr9coGNd3wdSzMQ3DTVLfDW13S9kZQet4kxQ",
+      "entropy": "0eae99b6889f1012092ae869ec8fa6f32cfaf4d0a909ef02d29e44ff75b94d97",
+      "value": "2000000000000",
+      "memo": "Happy Birthday!"
+    }
+  }
+}
+```
+
+| Required Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `gift_code_b58` | The b58-encoded gift code to get  | |
+
+#### Get All Gift Codes
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{ "method": "get_all_gift_codes" }' \
+  -X POST -H 'Content-type: application/json'
+
+{
+  "method": "get_all_gift_codes",
+  "result": {
+    "gift_codes": [
+      {
+        "object": "gift_code",
+        "gift_code": "az5nDkmFZv767pVpkzwtkrEpag9DRPdCmAHvxa6M2rvq37SntABk95ipy192K1a24Hm2iw8jtCnabkqRrVrUt74ujv7Tr9coGNd3wdSzMQ3DTVLfDW13S9kZQet4kxQ",
+        "entropy": "0eae99b6889f1012092ae869ec8fa6f32cfaf4d0a909ef02d29e44ff75b94d97",
+        "value": "2000000000000",
+        "memo": "Happy Birthday!"
+      }
+    ]
+  }
+}
+```
+
 ## Contributing
 
 See [CONTRIBUTING](./CONTRIBUTING.md).

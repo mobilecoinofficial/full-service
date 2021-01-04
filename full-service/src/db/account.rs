@@ -122,7 +122,7 @@ pub trait AccountModel {
     fn get_by_txo_id(
         txo_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Account, WalletDbError>;
+    ) -> Result<Vec<Account>, WalletDbError>;
 
     /// Update an account.
     /// The only updatable field is the name. Any other desired update requires adding
@@ -313,7 +313,8 @@ impl AccountModel for Account {
                 .map(|t| t.value as u128)
                 .sum::<u128>();
 
-                let account_key: AccountKey = account.get_decrypted_account_key(conn_context)?;
+                let account_key: AccountKey =
+                    account.get_decrypted_account_key(password_hash, conn)?;
                 let main_subaddress_b58 =
                     b58_encode(&account_key.subaddress(DEFAULT_SUBADDRESS_INDEX))?;
                 Ok(JsonAccount {
@@ -329,6 +330,7 @@ impl AccountModel for Account {
                     main_address: main_subaddress_b58,
                     next_subaddress_index: account.next_subaddress_index.to_string(),
                     recovery_mode: false, // FIXME: WS-24 - Recovery mode for account
+                    offset_count: account.id,
                 })
             })?)
     }
@@ -336,7 +338,7 @@ impl AccountModel for Account {
     fn get_by_txo_id(
         txo_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Account, WalletDbError> {
+    ) -> Result<Vec<Account>, WalletDbError> {
         use crate::db::schema::account_txo_statuses::dsl::account_txo_statuses;
 
         match account_txo_statuses
@@ -344,15 +346,10 @@ impl AccountModel for Account {
             .filter(crate::db::schema::account_txo_statuses::txo_id_hex.eq(txo_id_hex))
             .load::<AccountTxoStatus>(conn)
         {
-            Ok(a) => {
-                if a.len() > 1 {
-                    return Err(WalletDbError::MultipleStatusesForTxo);
-                }
-                Ok(Account::get(
-                    &AccountID(a[0].account_id_hex.to_string()),
-                    conn,
-                )?)
-            }
+            Ok(accounts) => Ok(accounts
+                .iter()
+                .map(|a| Account::get(&AccountID(a.account_id_hex.to_string()), conn))
+                .collect::<Result<Vec<Account>, WalletDbError>>()?),
             // Match on NotFound to get a more informative NotFound Error
             Err(diesel::result::Error::NotFound) => {
                 Err(WalletDbError::TxoNotFound(txo_id_hex.to_string()))

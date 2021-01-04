@@ -627,7 +627,9 @@ mod tests {
             .add_recipient(recipient.clone(), 50 * MOB as u64)
             .unwrap();
         builder.set_tombstone(0).unwrap();
-        builder.select_txos(None).unwrap();
+        builder
+            .select_txos(None, &wallet_db.get_conn().unwrap())
+            .unwrap();
         let tx_proposal = builder.build().unwrap();
 
         let tx_id = TransactionLog::log_submitted(
@@ -784,7 +786,9 @@ mod tests {
         builder.add_recipient(recipient.clone(), value).unwrap();
 
         builder.set_tombstone(0).unwrap();
-        builder.select_txos(None).unwrap();
+        builder
+            .select_txos(None, &wallet_db.get_conn().unwrap())
+            .unwrap();
         let tx_proposal = builder.build().unwrap();
 
         let tx_id = TransactionLog::log_submitted(

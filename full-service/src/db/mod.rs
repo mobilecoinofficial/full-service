@@ -34,9 +34,9 @@ pub fn b58_encode(public_address: &PublicAddress) -> Result<String, WalletDbErro
 
 /// Helper method to use our PrintableWrapper when decoding a b58 PublicAddress
 pub fn b58_decode(b58_public_address: &str) -> Result<PublicAddress, WalletDbError> {
-    let wrapper =
-        mc_mobilecoind_api::printable::PrintableWrapper::b58_decode(b58_public_address.to_string())
-            .unwrap();
+    let wrapper = mc_mobilecoind_api::printable::PrintableWrapper::b58_decode(
+        b58_public_address.to_string(),
+    )?;
     let pubaddr_proto: &mc_api::external::PublicAddress = if wrapper.has_payment_request() {
         let payment_request = wrapper.get_payment_request();
         payment_request.get_public_address()

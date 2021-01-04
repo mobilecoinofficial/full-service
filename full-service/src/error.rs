@@ -3,6 +3,7 @@
 //! Errors for the wallet service.
 
 use crate::service::PasswordServiceError;
+use crate::{db::gift_code::GiftCodeDbError, service::GiftCodeServiceError};
 use displaydoc::Display;
 
 #[derive(Display, Debug)]
@@ -63,6 +64,9 @@ pub enum WalletServiceError {
 
     /// Error with the wallet password service: {0}
     PasswordService(PasswordServiceError),
+
+    /// Error with Gift Code Service: {0}
+    GiftCode(GiftCodeServiceError),
 }
 
 impl From<WalletDbError> for WalletServiceError {
@@ -131,6 +135,12 @@ impl From<PasswordServiceError> for WalletServiceError {
     }
 }
 
+impl From<GiftCodeServiceError> for WalletServiceError {
+    fn from(src: GiftCodeServiceError) -> Self {
+        Self::GiftCode(src)
+    }
+}
+
 #[derive(Display, Debug)]
 pub enum WalletDbError {
     /// Diesel Error: {0}
@@ -184,8 +194,8 @@ pub enum WalletDbError {
     /// Insufficient funds from Txos under max_spendable_value: {0}
     InsufficientFundsUnderMaxSpendable(String),
 
-    /// Multiple AccountTxoStatus entries for Txo
-    MultipleStatusesForTxo,
+    /// Unexpected number of accounts associated with Txo: {0}
+    UnexpectedNumberOfAccountsAssociatedWithTxo(String),
 
     /// Unexpected TXO Type: {0}
     UnexpectedTransactionTxoType(String),
@@ -249,6 +259,9 @@ pub enum WalletDbError {
 
     /// Unexpected AccountTxoStatus for received: {0}
     UnexpectedAccountTxoStatus(String),
+
+    /// Gift code error: {0}
+    GiftCode(GiftCodeDbError),
 }
 
 impl From<diesel::result::Error> for WalletDbError {
@@ -284,6 +297,12 @@ impl<T> From<std::sync::PoisonError<T>> for WalletDbError {
 impl From<aes_gcm::aead::Error> for WalletDbError {
     fn from(src: aes_gcm::aead::Error) -> Self {
         WalletDbError::AeadError(src)
+    }
+}
+
+impl From<GiftCodeDbError> for WalletDbError {
+    fn from(src: GiftCodeDbError) -> Self {
+        WalletDbError::GiftCode(src)
     }
 }
 

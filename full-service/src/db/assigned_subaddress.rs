@@ -79,6 +79,12 @@ impl AssignedSubaddressModel for AssignedSubaddress {
 
         let subaddress = account_key.subaddress(subaddress_index);
         let subaddress_b58 = b58_encode(&subaddress)?;
+        println!(
+            "\x1b[1;31m creating subaddress {:?} for account {:?} with spk {:?}\x1b[0m",
+            subaddress_index,
+            account_id,
+            subaddress.spend_public_key()
+        );
 
         let subaddress_entry = NewAssignedSubaddress {
             assigned_subaddress_b58: &subaddress_b58,

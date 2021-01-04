@@ -240,11 +240,11 @@ pub struct GiftCode {
     pub gift_code_b58: String,
     pub entropy: Vec<u8>,
     pub txo_public_key: Vec<u8>,
+    pub value: i64,
     pub memo: String,
     pub account_id: i32,
     pub build_log_id: Option<i32>,
     pub consume_log_id: Option<i32>,
-    pub consumed_block: Option<i64>,
 }
 
 #[derive(Insertable)]
@@ -253,9 +253,9 @@ pub struct NewGiftCode<'a> {
     pub gift_code_b58: &'a str,
     pub entropy: &'a Vec<u8>,
     pub txo_public_key: &'a Vec<u8>,
+    pub value: i64,
     pub memo: &'a str,
     pub account_id: i32,
     pub build_log_id: Option<i32>,
     pub consume_log_id: Option<i32>,
-    pub consumed_block: Option<i64>,
 }

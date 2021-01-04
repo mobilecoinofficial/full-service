@@ -48,11 +48,11 @@ table! {
         gift_code_b58 -> Text,
         entropy -> Binary,
         txo_public_key -> Binary,
+        value -> BigInt,
         memo -> Text,
-        account_id -> Nullable<Integer>,
+        account_id -> Integer,
         build_log_id -> Nullable<Integer>,
         consume_log_id -> Nullable<Integer>,
-        consumed_block -> Nullable<BigInt>,
     }
 }
 
