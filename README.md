@@ -1101,6 +1101,14 @@ curl -s localhost:9090/wallet \
 }
 ```
 
+### Transaction Output Proofs
+
+When constructing a transaction, the wallet produces a "proof" for each Txo minted by the transaction. This proof can be delivered to the recipient to confirm that they received the Txo from the sender.
+
+#### Verify Proof
+
+
+
 ## Contributing
 
 See [CONTRIBUTING](./CONTRIBUTING.md).
