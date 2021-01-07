@@ -19,7 +19,7 @@ use crate::{
     service::{
         decorated_types::{
             JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
-            JsonCreateAccountResponse, JsonSubmitResponse, JsonTransactionLog, JsonTxo,
+            JsonCreateAccountResponse, JsonProof, JsonSubmitResponse, JsonTransactionLog, JsonTxo,
             JsonWalletStatus,
         },
         sync::SyncThread,
@@ -593,6 +593,30 @@ impl<
             JsonBlock::new(&block),
             JsonBlockContents::new(&block_contents),
         ))
+    }
+
+    pub fn get_proofs(
+        &self,
+        transaction_log_id: &str,
+    ) -> Result<Vec<JsonProof>, WalletServiceError> {
+        let transaction_log = self.get_transaction(&transaction_log_id)?;
+        let proofs: Vec<JsonProof> = transaction_log
+            .output_txo_ids
+            .iter()
+            .map(|txo_id| {
+                let proof = self
+                    .get_txo(txo_id)
+                    .expect("Could not get Txo")
+                    .proof
+                    .unwrap();
+                JsonProof {
+                    object: "proof".to_string(),
+                    txo_id: txo_id.clone(),
+                    proof,
+                }
+            })
+            .collect();
+        Ok(proofs)
     }
 
     pub fn verify_proof(

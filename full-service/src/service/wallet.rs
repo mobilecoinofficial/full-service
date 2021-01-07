@@ -4,7 +4,7 @@ use crate::{
     db::account::AccountID,
     service::{
         decorated_types::{
-            JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
+            JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents, JsonProof,
             JsonSubmitResponse, JsonTransactionLog, JsonTxo, JsonWalletStatus,
         },
         wallet_impl::WalletService,
@@ -109,6 +109,9 @@ pub enum JsonCommandRequest {
     get_block_object {
         block_index: String,
     },
+    get_proofs {
+        transaction_log_id: String,
+    },
     verify_proof {
         account_id: String,
         txo_id: String,
@@ -184,6 +187,9 @@ pub enum JsonCommandResponse {
     get_block_object {
         block: JsonBlock,
         block_contents: JsonBlockContents,
+    },
+    get_proofs {
+        proofs: Vec<JsonProof>,
     },
     verify_proof {
         verified: bool,
@@ -448,6 +454,11 @@ where
                 block_contents,
             }
         }
+        JsonCommandRequest::get_proofs { transaction_log_id } => JsonCommandResponse::get_proofs {
+            proofs: service
+                .get_proofs(&transaction_log_id)
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+        },
         JsonCommandRequest::verify_proof {
             account_id,
             txo_id,

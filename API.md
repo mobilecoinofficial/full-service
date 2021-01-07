@@ -375,6 +375,36 @@ Txo Spent from One Account to Another in the Same Wallet
 * [get_all_txos_by_account](./README.md#get-all-txos-for-a-given-account)
 * [get_txo](./README.md#get-txo-details)
 
+### The Proof Object
+
+#### Attributes
+
+| *Name* | *Type* | *Description*
+| :--- | :--- | :---
+| txo_id | string | Unique identifier for the Txo.
+| proof | string | A string with a proof that can be verified to confirm that another party constructed or had knowledge of the construction of the associated Txo.
+
+#### More attributes
+
+| *Name* | *Type* | *Description*
+| :--- | :--- | :---
+| object | string, value is "proof" | String representing the object's type. Objects of the same type share the same value.
+
+#### Example Object
+
+```
+{
+  "object": "proof",
+  "txo_id": "873dfb8c...",
+  "propf": "984eacd...",
+}
+```
+
+#### API Methods Returning Transaction Log Objects
+
+* [get_proofs](./README.md#get-proofs)
+* [verify_proof](./README.md#verify-proof)
+
 ## Future API Objects
 
 ### The Recipient Address object
