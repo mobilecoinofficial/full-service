@@ -604,18 +604,17 @@ impl<
             .output_txo_ids
             .iter()
             .map(|txo_id| {
-                let proof = self
-                    .get_txo(txo_id)
-                    .expect("Could not get Txo")
-                    .proof
-                    .unwrap();
-                JsonProof {
-                    object: "proof".to_string(),
-                    txo_id: txo_id.clone(),
-                    proof,
-                }
+                self.get_txo(txo_id).and_then(|txo| {
+                    txo.proof
+                        .map(|proof| JsonProof {
+                            object: "proof".to_string(),
+                            txo_id: txo_id.clone(),
+                            proof,
+                        })
+                        .ok_or(WalletServiceError::MissingProof(txo_id.to_string()))
+                })
             })
-            .collect();
+            .collect::<Result<Vec<JsonProof>, WalletServiceError>>()?;
         Ok(proofs)
     }
 
