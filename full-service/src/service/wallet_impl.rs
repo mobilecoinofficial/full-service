@@ -611,7 +611,7 @@ impl<
                             txo_id: txo_id.clone(),
                             proof,
                         })
-                        .ok_or(WalletServiceError::MissingProof(txo_id.to_string()))
+                        .ok_or_else(|| WalletServiceError::MissingProof(txo_id.to_string()))
                 })
             })
             .collect::<Result<Vec<JsonProof>, WalletServiceError>>()?;
