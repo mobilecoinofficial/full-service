@@ -44,7 +44,7 @@ hex = {version = "0.4", default-features = false }
 num_cpus = "1.12"
 prost = { version = "0.6.1", default-features = false, features = ["prost-derive"] }
 rand = { version = "0.7", default-features = false }
-retry = "0.5"
+retry = "1.2"
 rocket = { version = "0.4.5", default-features = false }
 rocket_contrib = { version = "0.4.5", default-features = false, features = ["json", "diesel_sqlite_pool"] }
 serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }

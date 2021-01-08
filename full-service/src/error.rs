@@ -50,6 +50,9 @@ pub enum WalletServiceError {
 
     /// Diesel Error: {0}
     Diesel(diesel::result::Error),
+
+    /// Txo should contain proof: {0}
+    MissingProof(String),
 }
 
 impl From<WalletDbError> for WalletServiceError {
