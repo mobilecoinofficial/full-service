@@ -1104,7 +1104,7 @@ curl -s localhost:9090/wallet \
 
 | Required Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
-| `tarnsaction_log_id`   | The transaction log ID for which to get proofs.  | Transaction log must exist in the wallet  |
+| `transaction_log_id`   | The transaction log ID for which to get proofs.  | Transaction log must exist in the wallet  |
 
 ### Transaction Output Proofs
 
@@ -1139,7 +1139,7 @@ curl -s localhost:9090/wallet \
 
 | Required Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
-| `tarnsaction_log_id`   | The transaction log ID for which to get proofs.  | Transaction log must exist in the wallet  |
+| `transaction_log_id`   | The transaction log ID for which to get proofs.  | Transaction log must exist in the wallet  |
 
 #### Verify Proof
 
