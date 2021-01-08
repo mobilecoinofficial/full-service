@@ -570,9 +570,9 @@ dependencies = [
 
 [[package]]
 name = "crypto-mac"
-version = "0.9.1"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "58bcd97a54c7ca5ce2f6eb16f6bede5b0ab5f0055fedc17d2f0b4466e21671ca"
+checksum = "4857fd85a0c34b3c3297875b747c1e02e06b6a0ea32dd892d8192b9ce0813ea6"
 dependencies = [
  "generic-array",
  "subtle",
@@ -1141,12 +1141,6 @@ checksum = "d36fab90f82edc3c747f9d438e06cf0a491055896f2a279638bb5beed6c40177"
 
 [[package]]
 name = "hashbrown"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1de41fb8dba9714efd92241565cdff73f78508c95697dd56787d3cba27e2353"
-
-[[package]]
-name = "hashbrown"
 version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8e6073d0ca812575946eb5f35ff68dbe519907b25c42530389ff946dc84c6ead"
@@ -1213,11 +1207,11 @@ dependencies = [
 
 [[package]]
 name = "hmac"
-version = "0.9.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "deae6d9dbb35ec2c502d62b8f7b1c000a0822c3b0794ba36b3149c0a1c840dff"
+checksum = "c1441c6b1e930e2817404b5046f1f989899143a12bf92de603b69f4e0aee1e15"
 dependencies = [
- "crypto-mac 0.9.1",
+ "crypto-mac 0.10.0",
  "digest",
 ]
 
@@ -1583,15 +1577,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lru"
-version = "0.1.17"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d8f669d42c72d18514dfca8115689c5f6370a17d980cb5bd777a67f404594c8"
-dependencies = [
- "hashbrown 0.5.0",
-]
-
-[[package]]
 name = "maplit"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1645,8 +1630,6 @@ version = "1.0.0"
 dependencies = [
  "blake2",
  "curve25519-dalek",
- "digest",
- "displaydoc",
  "hkdf",
  "mc-crypto-digestible",
  "mc-crypto-hashes",
@@ -1670,7 +1653,6 @@ dependencies = [
  "curve25519-dalek",
  "displaydoc",
  "mc-account-keys",
- "mc-common",
  "mc-crypto-keys",
  "mc-transaction-core",
  "mc-util-build-grpc",
@@ -1690,7 +1672,6 @@ dependencies = [
  "digest",
  "displaydoc",
  "mc-attest-core",
- "mc-common",
  "mc-crypto-keys",
  "mc-crypto-noise",
  "mc-util-build-script",
@@ -1716,7 +1697,6 @@ dependencies = [
  "mc-util-build-grpc",
  "mc-util-build-script",
  "protobuf",
- "serde",
 ]
 
 [[package]]
@@ -1730,7 +1710,6 @@ dependencies = [
  "digest",
  "displaydoc",
  "failure",
- "generic-array",
  "hex_fmt",
  "mbedtls",
  "mbedtls-sys-auto",
@@ -1769,7 +1748,6 @@ dependencies = [
  "cfg-if 0.1.10",
  "chrono",
  "failure",
- "generic-array",
  "hashbrown 0.6.3",
  "hex_fmt",
  "hostname 0.1.5",
@@ -1814,12 +1792,10 @@ dependencies = [
  "mc-crypto-rand",
  "mc-transaction-core",
  "mc-util-grpc",
- "mc-util-host-cert",
  "mc-util-serial",
  "mc-util-uri",
- "retry 0.5.1",
+ "retry",
  "secrecy",
- "serde",
  "sha2",
 ]
 
@@ -1849,26 +1825,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mc-consensus-enclave-api"
-version = "1.0.0"
-dependencies = [
- "cfg-if 0.1.10",
- "failure",
- "mc-attest-ake",
- "mc-attest-core",
- "mc-attest-enclave-api",
- "mc-common",
- "mc-crypto-keys",
- "mc-crypto-message-cipher",
- "mc-crypto-noise",
- "mc-sgx-compat",
- "mc-sgx-report-cache-api",
- "mc-transaction-core",
- "mc-util-serial",
- "serde",
-]
-
-[[package]]
 name = "mc-consensus-enclave-measurement"
 version = "1.0.0"
 dependencies = [
@@ -1890,14 +1846,12 @@ dependencies = [
  "mc-crypto-digestible",
  "mc-crypto-keys",
  "mc-util-from-random",
- "mc-util-metrics",
  "mc-util-serial",
  "mockall",
  "rand 0.7.3",
  "rand_hc 0.2.0",
  "serde",
  "serde_json",
- "sha3",
 ]
 
 [[package]]
@@ -1961,7 +1915,6 @@ name = "mc-crypto-keys"
 version = "1.0.0"
 dependencies = [
  "binascii",
- "cfg-if 0.1.10",
  "curve25519-dalek",
  "digest",
  "ed25519",
@@ -1971,27 +1924,12 @@ dependencies = [
  "mc-crypto-digestible",
  "mc-util-from-random",
  "mc-util-repr-bytes",
- "mc-util-serial",
- "prost",
  "rand_core 0.5.1",
  "serde",
  "sha2",
  "signature",
  "x25519-dalek",
  "zeroize 1.1.1",
-]
-
-[[package]]
-name = "mc-crypto-message-cipher"
-version = "1.0.0"
-dependencies = [
- "aes-gcm",
- "failure",
- "generic-array",
- "mc-util-serial",
- "rand_core 0.5.1",
- "serde",
- "subtle",
 ]
 
 [[package]]
@@ -2006,7 +1944,6 @@ dependencies = [
  "hkdf",
  "mc-crypto-keys",
  "mc-util-from-random",
- "mc-util-repr-bytes",
  "rand_core 0.5.1",
  "secrecy",
  "serde",
@@ -2030,7 +1967,6 @@ dependencies = [
 name = "mc-crypto-sig"
 version = "1.0.0"
 dependencies = [
- "mc-crypto-hashes",
  "mc-crypto-keys",
  "merlin",
  "rand_core 0.5.1",
@@ -2047,7 +1983,6 @@ dependencies = [
  "grpcio",
  "mc-api",
  "mc-attest-api",
- "mc-common",
  "mc-consensus-api",
  "mc-util-build-grpc",
  "mc-util-build-script",
@@ -2063,7 +1998,6 @@ dependencies = [
  "mc-account-keys",
  "mc-attest-core",
  "mc-common",
- "mc-crypto-keys",
  "mc-fog-api",
  "mc-fog-report-validation",
  "mc-util-grpc",
@@ -2080,7 +2014,6 @@ dependencies = [
  "mc-attest-core",
  "mc-crypto-keys",
  "mc-util-encodings",
- "mc-util-serial",
  "mockall",
 ]
 
@@ -2126,7 +2059,7 @@ dependencies = [
  "num_cpus",
  "prost",
  "rand 0.7.3",
- "retry 1.2.0",
+ "retry",
  "rocket",
  "rocket_contrib",
  "rust-argon2",
@@ -2160,7 +2093,6 @@ dependencies = [
  "prost",
  "rand 0.7.3",
  "rand_core 0.5.1",
- "serde",
 ]
 
 [[package]]
@@ -2170,7 +2102,6 @@ dependencies = [
  "crossbeam-channel",
  "failure",
  "grpcio",
- "lazy_static",
  "mc-account-keys",
  "mc-api",
  "mc-attest-core",
@@ -2178,18 +2109,15 @@ dependencies = [
  "mc-connection",
  "mc-consensus-enclave-measurement",
  "mc-consensus-scp",
- "mc-crypto-keys",
  "mc-ledger-db",
- "mc-peers",
  "mc-transaction-core",
  "mc-transaction-core-test-utils",
- "mc-util-metrics",
  "mc-util-uri",
  "mockall",
  "protobuf",
  "rand 0.7.3",
  "reqwest",
- "retry 0.5.1",
+ "retry",
  "serde",
  "tempdir",
  "url 2.2.0",
@@ -2204,12 +2132,10 @@ dependencies = [
  "crossbeam-channel",
  "displaydoc",
  "failure",
- "futures",
  "grpcio",
  "hex_fmt",
  "libz-sys",
  "lmdb-rkv",
- "lru",
  "mc-account-keys",
  "mc-api",
  "mc-attest-core",
@@ -2239,11 +2165,9 @@ dependencies = [
  "prost",
  "protobuf",
  "rand 0.7.3",
- "rand_core 0.5.1",
  "reqwest",
- "retry 0.5.1",
+ "retry",
  "serde_json",
- "sha3",
  "structopt",
  "tempdir",
 ]
@@ -2256,9 +2180,6 @@ dependencies = [
  "futures",
  "grpcio",
  "mc-api",
- "mc-common",
- "mc-crypto-keys",
- "mc-transaction-core",
  "mc-util-build-grpc",
  "mc-util-build-script",
  "mc-util-uri",
@@ -2281,36 +2202,6 @@ dependencies = [
  "serde",
  "serde_derive",
  "structopt",
-]
-
-[[package]]
-name = "mc-peers"
-version = "1.0.0"
-dependencies = [
- "crossbeam-channel",
- "ed25519",
- "failure",
- "grpcio",
- "mc-attest-api",
- "mc-attest-enclave-api",
- "mc-common",
- "mc-connection",
- "mc-consensus-api",
- "mc-consensus-enclave-api",
- "mc-consensus-scp",
- "mc-crypto-digestible",
- "mc-crypto-keys",
- "mc-ledger-db",
- "mc-transaction-core",
- "mc-util-grpc",
- "mc-util-serial",
- "mc-util-uri",
- "mockall",
- "protobuf",
- "retry 0.5.1",
- "serde",
- "sha2",
- "url 2.2.0",
 ]
 
 [[package]]
@@ -2340,17 +2231,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mc-sgx-report-cache-api"
-version = "1.0.0"
-dependencies = [
- "displaydoc",
- "mc-attest-core",
- "mc-attest-enclave-api",
- "mc-util-serial",
- "serde",
-]
-
-[[package]]
 name = "mc-sgx-types"
 version = "1.0.0"
 
@@ -2361,7 +2241,6 @@ dependencies = [
  "blake2",
  "bulletproofs",
  "curve25519-dalek",
- "digest",
  "displaydoc",
  "generic-array",
  "hex_fmt",
@@ -2380,7 +2259,6 @@ dependencies = [
  "prost",
  "rand_core 0.5.1",
  "serde",
- "sha2",
  "subtle",
  "zeroize 1.1.1",
 ]
@@ -2407,10 +2285,7 @@ dependencies = [
  "blake2",
  "curve25519-dalek",
  "failure",
- "hkdf",
  "mc-account-keys",
- "mc-common",
- "mc-crypto-hashes",
  "mc-crypto-keys",
  "mc-transaction-core",
  "mc-util-from-random",
@@ -2418,7 +2293,6 @@ dependencies = [
  "prost",
  "rand 0.7.3",
  "rand_core 0.5.1",
- "serde",
  "zeroize 1.1.1",
 ]
 
@@ -2468,7 +2342,6 @@ dependencies = [
  "cargo-emit",
  "cc",
  "displaydoc",
- "lazy_static",
  "mc-util-build-script",
  "pkg-config",
 ]
@@ -2498,13 +2371,12 @@ version = "1.0.0"
 dependencies = [
  "base64 0.12.3",
  "cookie 0.14.3",
- "digest",
  "displaydoc",
  "futures",
  "grpcio",
  "hex",
  "hex_fmt",
- "hmac 0.9.0",
+ "hmac 0.10.1",
  "lazy_static",
  "mc-common",
  "mc-util-build-grpc",
@@ -2513,7 +2385,6 @@ dependencies = [
  "mc-util-serial",
  "mc-util-uri",
  "prometheus",
- "prost",
  "protobuf",
  "rand 0.6.5",
  "sha2",
@@ -2549,13 +2420,11 @@ name = "mc-util-metrics"
 version = "1.0.0"
 dependencies = [
  "chrono",
- "crossbeam-channel",
  "grpcio",
  "lazy_static",
  "mc-common",
  "prometheus",
  "protobuf",
- "reqwest",
  "serde_json",
 ]
 
@@ -2742,9 +2611,9 @@ dependencies = [
 
 [[package]]
 name = "mockall"
-version = "0.7.2"
+version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "01458f8a19b10cb28195290942e3149161c75acf67ebc8fbf714ab67a2b943bc"
+checksum = "41cabea45a7fc0e37093f4f30a5e2b62602253f91791c057d5f0470c63260c3d"
 dependencies = [
  "cfg-if 0.1.10",
  "downcast",
@@ -2757,9 +2626,9 @@ dependencies = [
 
 [[package]]
 name = "mockall_derive"
-version = "0.7.2"
+version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a673cb441f78cd9af4f5919c28576a3cc325fb6b54e42f7047dacce3c718c17b"
+checksum = "7c461918bf7f59eefb1459252756bf2351a995d6bd510d0b2061bd86bcdabfa6"
 dependencies = [
  "cfg-if 0.1.10",
  "proc-macro2 1.0.24",
@@ -3473,15 +3342,6 @@ dependencies = [
  "web-sys",
  "webpki-roots",
  "winreg",
-]
-
-[[package]]
-name = "retry"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8ac83b31b3831aa4b07608db4170f6555ab12942197037c38570dc4c5ba5028"
-dependencies = [
- "rand 0.6.5",
 ]
 
 [[package]]
