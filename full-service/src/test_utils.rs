@@ -351,9 +351,7 @@ pub fn create_test_minted_and_change_txos(
     builder.add_recipient(recipient, value).unwrap();
     builder.select_txos(None).unwrap();
     builder.set_tombstone(0).unwrap();
-    let tx_proposal = builder
-        .build(&wallet_db.get_password_hash().unwrap())
-        .unwrap();
+    let tx_proposal = builder.build().unwrap();
 
     // There should be 2 outputs, one to dest and one change
     assert_eq!(tx_proposal.tx.prefix.outputs.len(), 2);
