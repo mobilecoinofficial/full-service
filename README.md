@@ -192,6 +192,27 @@ If you receive the below, it means you provided the wrong `old_password` or `old
 }
 ```
 
+#### Is Locked
+
+Check whether the database is currently locked.
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "is_locked",
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
+
+{
+  "method": "is_locked",
+  "result": {
+    "is_locked": true
+  }
+}
+```
+
+Note, the return values are `true`, `false`, and `null`, where `null` indicates that the database has not had a password set.
+
 ### Accounts
 
 #### Create Account

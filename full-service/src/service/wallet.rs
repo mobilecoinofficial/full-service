@@ -48,6 +48,7 @@ pub enum JsonCommandRequest {
         new_password: Option<String>,
         new_password_hash: Option<String>,
     },
+    is_locked,
     create_account {
         name: Option<String>,
         first_block: Option<String>,
@@ -146,6 +147,9 @@ pub enum JsonCommandResponse {
     change_password {
         success: bool,
     },
+    is_locked {
+        is_locked: Option<bool>,
+    },
     create_account {
         entropy: String,
         account: JsonAccount,
@@ -220,10 +224,9 @@ pub enum JsonCommandResponse {
     },
 }
 
-// Helper method to escape quotes for json responses.
+// Helper method to format displaydoc errors in json.
 fn format_error(e: WalletServiceError) -> String {
-    json!({"error": format!("{:?}", e).replace(r#"""#, r#"\""#), "details": e.to_string()})
-        .to_string()
+    json!({"error": format!("{:?}", e), "details": e.to_string()}).to_string()
 }
 
 // The Wallet API inner method, which handles switching on the method enum.
@@ -274,6 +277,9 @@ where
                 .map_err(format_error)?;
             JsonCommandResponse::change_password { success }
         }
+        JsonCommandRequest::is_locked => JsonCommandResponse::is_locked {
+            is_locked: service.is_locked().map_err(format_error)?,
+        },
         JsonCommandRequest::create_account { name, first_block } => {
             let fb = first_block
                 .map(|fb| fb.parse::<u64>())
@@ -672,7 +678,9 @@ mod tests {
             request_body,
             response_body
         );
-        assert_eq!(response_body, expected_err);
+        let response_json: serde_json::Value = serde_json::from_str(&response_body).unwrap();
+        let expected_json: serde_json::Value = serde_json::from_str(&expected_err).unwrap();
+        assert_eq!(response_json, expected_json);
     }
 
     #[test_with_logger]
@@ -1229,6 +1237,13 @@ mod tests {
             "{\"error\": \"DatabaseLocked\", \"details\": \"Cannot perform this action without a set password or while database is locked. Please set_password or unlock first.\"}".to_string()
         );
 
+        // Verify is_locked is Null before a password has been set
+        let body = json!({
+            "method": "is_locked"
+        });
+        let result = dispatch(&client, body, &logger);
+        assert_eq!(result.get("is_locked").unwrap().as_object(), None);
+
         // Unlocking a never-set database should fail
         let mut password_hash = [0u8; 32];
         rng.fill_bytes(&mut password_hash);
@@ -1254,6 +1269,13 @@ mod tests {
         });
         let result = dispatch(&client, body, &logger);
         assert!(result.get("success").unwrap().as_bool().unwrap());
+
+        // Verify is_locked is false once the password has been set
+        let body = json!({
+            "method": "is_locked"
+        });
+        let result = dispatch(&client, body, &logger);
+        assert_eq!(result.get("is_locked").unwrap().as_bool().unwrap(), false);
 
         let body = json!({
             "method": "create_account",
@@ -1326,7 +1348,7 @@ mod tests {
             &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
-        // Sleep to let the sync thread process the txo - sometimes fails at 2s
+        // Sleep to let the sync thread process the txo
         std::thread::sleep(Duration::from_secs(8));
 
         let body = json!({
@@ -1368,6 +1390,13 @@ mod tests {
                 .unwrap();
         let rocket = test_rocket(rocket_config, TestWalletState { service: service2 });
         let client2 = Client::new(rocket).expect("valid rocket instance");
+
+        // Verify is_locked is true for this new connection to the DB
+        let body = json!({
+            "method": "is_locked"
+        });
+        let result = dispatch(&client2, body, &logger);
+        assert_eq!(result.get("is_locked").unwrap().as_bool().unwrap(), true);
 
         let body = json!({
             "method": "create_address",

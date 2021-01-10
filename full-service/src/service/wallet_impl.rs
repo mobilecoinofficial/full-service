@@ -219,6 +219,22 @@ impl<
         Ok(true)
     }
 
+    /// Whether the database is locked.
+    ///
+    /// Returns:
+    /// * Some(true) if database is locked
+    /// * Some(false) if database is unlocked
+    /// * None if database has not yet had a password set up.
+    pub fn is_locked(&self) -> Result<Option<bool>, WalletServiceError> {
+        Ok(
+            match EncryptionIndicator::get_encryption_state(&self.wallet_db.get_conn()?)? {
+                EncryptionState::Empty => None,
+                EncryptionState::Encrypted => Some(!self.wallet_db.is_unlocked()?),
+                EncryptionState::Unencrypted => Some(false),
+            },
+        )
+    }
+
     /// Creates a new account with defaults
     pub fn create_account(
         &self,

@@ -21,8 +21,11 @@ use diesel::{
 
 #[derive(Debug)]
 pub enum EncryptionState {
+    /// Database has never been locked, and set_password should be called.
     Empty,
+    /// Database is encrypted.
     Encrypted,
+    /// Database is unencrypted. This is for databases that existed before we added encryption.
     Unencrypted,
 }
 
