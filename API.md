@@ -396,11 +396,11 @@ Txo Spent from One Account to Another in the Same Wallet
 {
   "object": "proof",
   "txo_id": "873dfb8c...",
-  "propf": "984eacd...",
+  "proof": "984eacd...",
 }
 ```
 
-#### API Methods Returning Transaction Log Objects
+#### API Methods Returning Proof Objects
 
 * [get_proofs](./README.md#get-proofs)
 * [verify_proof](./README.md#verify-proof)
