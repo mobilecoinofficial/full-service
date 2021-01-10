@@ -222,11 +222,8 @@ pub enum JsonCommandResponse {
 
 // Helper method to escape quotes for json responses.
 fn format_error(e: WalletServiceError) -> String {
-    format!(
-        "{{\"error\": \"{}\", \"details\": \"{}\"}}",
-        format!("{:?}", e).replace(r#"""#, r#"\""#),
-        e.to_string(),
-    )
+    json!({"error": format!("{:?}", e).replace(r#"""#, r#"\""#), "details": e.to_string()})
+        .to_string()
 }
 
 // The Wallet API inner method, which handles switching on the method enum.
@@ -1330,7 +1327,7 @@ mod tests {
             &mut rng,
         );
         // Sleep to let the sync thread process the txo - sometimes fails at 2s
-        std::thread::sleep(Duration::from_secs(6));
+        std::thread::sleep(Duration::from_secs(8));
 
         let body = json!({
             "method": "get_all_txos_by_account",
