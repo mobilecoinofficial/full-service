@@ -2,6 +2,7 @@
 
 //! Errors for the wallet service.
 
+use crate::service::PasswordServiceError;
 use displaydoc::Display;
 
 #[derive(Display, Debug)]
@@ -60,17 +61,8 @@ pub enum WalletServiceError {
     /// Cannot complete this action in offline mode.
     Offline,
 
-    /// Cannot set password on encrypted database. Must change_password.
-    DatabaseEncrypted,
-
-    /// Cannot perform this action without a set password or while database is locked. Please set_password or unlock first.
-    DatabaseLocked,
-
-    /// Must provide either password or password hash, not both.
-    CannotDisambiguatePassword,
-
-    /// Argon2 Error: {0}
-    Argon2(argon2::Error),
+    /// Error with the wallet password service: {0}
+    PasswordService(PasswordServiceError),
 }
 
 impl From<WalletDbError> for WalletServiceError {
@@ -133,9 +125,9 @@ impl From<diesel::result::Error> for WalletServiceError {
     }
 }
 
-impl From<argon2::Error> for WalletServiceError {
-    fn from(src: argon2::Error) -> Self {
-        Self::Argon2(src)
+impl From<PasswordServiceError> for WalletServiceError {
+    fn from(src: PasswordServiceError) -> Self {
+        Self::PasswordService(src)
     }
 }
 
