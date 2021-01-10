@@ -45,7 +45,7 @@ The Full Service Wallet API provides several objects that correspond to the data
   "available_pmob": "123000000",
   "pending_pmob": "1000",
   "next_subaddress_index": "128",
-  "recovery_mode": false,
+  "recovery_mode": false
 }
 ```
 
@@ -81,41 +81,41 @@ The Full Service Wallet API provides several objects that correspond to the data
 
 ```json
 {
-  "object": 'wallet_status',
-  "network_height": '88888888',
-  "local_height": '88888888',
+  "object": "wallet_status",
+  "network_height": "88888888",
+  "local_height": "88888888",
   "is_synced_all": false,
-  "total_available_pmob": '123456789',
-  "total_pending_pmob": '1000',
+  "total_available_pmob": "123456789",
+  "total_pending_pmob": "1000",
   "account_ids": ["1916a9b3...", "9b3ea14b..."],
   "account_map": {
     "1916a9b3...": {
       "account_height": "88888888",
       "account_id": "1916a9b3...",
-      "available_pmob": '123000000',
+      "available_pmob": "123000000",
       "is_synced": true,
-      "local_height": '88888888',
+      "local_height": "88888888",
       "name": "I love MobileCoin",
-      "network_height": '88888888',
+      "network_height": "88888888",
       "next_subaddress_index": "128",
       "object": "account",
       "pending_pmob": "1000",
-      "recovery_mode": false,
+      "recovery_mode": false
     },
     "9b3ea14b...": {
       "account_height": "88880000",
       "account_id": "9b3ea14b...",
       "available_pmob": "456789",
       "is_synced": false,
-      "local_height": '88888888',
+      "local_height": "88888888",
       "name": "Joint account with Satoshi",
-      "network_height": '88888888',
+      "network_height": "88888888",
       "next_subaddress_index": "57",
       "object": "account",
       "pending_pmob": "0",
-      "recovery_mode": false,
-    },
-  },
+      "recovery_mode": false
+    }
+  }
 }
 ```
 
@@ -155,7 +155,7 @@ The Full Service Wallet API provides several objects that correspond to the data
   "address_book_entry_id": 36,
   "comment": "This is an assigned addresses that expects 1.5 MOB"
   "subaddress_index": "20",
-  "offset_count": 21,
+  "offset_count": 21
 }
 ```
 
@@ -217,7 +217,7 @@ Received:
   "sent_time": null,
   "comment": "This is a received tranaction log of 8.5 MOB!",
   "failure_code": null,
-  "failure_message:": null
+  "failure_message:": null,
   "offset_count": 1823
 }
 ```
@@ -244,7 +244,7 @@ Sent - Failed:
   "sent_time": "2020-12-15 09:30:04 UTC",
   "comment": "This is an example of a failed sent tranaction log of 1.288 MOB and 0.01 MOB fee!",
   "failure_code": 3,
-  "failure_message:": "Contains sent key image."
+  "failure_message:": "Contains sent key image.",
   "offset_count": 2111
 }
 ```
@@ -268,7 +268,7 @@ Sent - Success, Recovered:
   "sent_time": null,
   "comment": "This is an example of recovered sent tranaction log of 8 MOB and unknown fee!",
   "failure_code": 3,
-  "failure_message:": "Contains sent key image."
+  "failure_message:": "Contains sent key image.",
   "offset_count": 888
 }
 ```
@@ -322,8 +322,8 @@ Received and Spent TXO
   "minted_account_id": null,
   "account_status_map": {
     "1916a9b3...": {
-      txo_status: "spent"
-      txo_type: "received",
+      "txo_status": "spent",
+      "txo_type": "received"
     }
   },
   "target_key": "6d6f6f6e...",
@@ -396,7 +396,7 @@ Txo Spent from One Account to Another in the Same Wallet
 {
   "object": "proof",
   "txo_id": "873dfb8c...",
-  "proof": "984eacd...",
+  "proof": "984eacd..."
 }
 ```
 
@@ -475,8 +475,8 @@ Txo Spent from One Account to Another in the Same Wallet
   "assigned_address_ids": [ "HpaL8g88...", "YuG7Aa82...", "cPTw8yhs...", "6R6JwQAW..."],
   "assigned_address_ids_by_account_map": {
     "1916a9b3...": ["HpaL8g88...", "YuG7Aa82...", "cPTw8yhs..."],
-    "9b3ea14b...": ["6R6JwQAW..."],
-  }
-  "offset_count": 36,
+    "9b3ea14b...": ["6R6JwQAW..."]
+  },
+  "offset_count": 36
 }
 ```
