@@ -634,9 +634,7 @@ mod tests {
             .unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(None).unwrap();
-        let tx_proposal = builder
-            .build(&wallet_db.get_password_hash().unwrap())
-            .unwrap();
+        let tx_proposal = builder.build().unwrap();
 
         let tx_id = TransactionLog::log_submitted(
             tx_proposal.clone(),
@@ -797,9 +795,7 @@ mod tests {
 
         builder.set_tombstone(0).unwrap();
         builder.select_txos(None).unwrap();
-        let tx_proposal = builder
-            .build(&wallet_db.get_password_hash().unwrap())
-            .unwrap();
+        let tx_proposal = builder.build().unwrap();
 
         let tx_id = TransactionLog::log_submitted(
             tx_proposal.clone(),

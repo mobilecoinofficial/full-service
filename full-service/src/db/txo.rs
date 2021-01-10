@@ -1212,9 +1212,7 @@ mod tests {
             .unwrap();
         builder.select_txos(None).unwrap();
         builder.set_tombstone(0).unwrap();
-        let proposal = builder
-            .build(&wallet_db.get_password_hash().unwrap())
-            .unwrap();
+        let proposal = builder.build().unwrap();
 
         // Let's log this submitted Tx for the sender, which will create_minted for the sent Txo
         let tx_id = TransactionLog::log_submitted(

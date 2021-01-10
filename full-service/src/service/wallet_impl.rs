@@ -476,7 +476,7 @@ impl<
         if let Some(f) = fee {
             builder.set_fee(f.parse::<u64>()?)?;
         }
-        let tx_proposal = builder.build(&self.wallet_db.get_password_hash()?)?;
+        let tx_proposal = builder.build()?;
         // FIXME: WS-34 - Would rather not have to convert it to proto first
         let proto_tx_proposal = mc_mobilecoind_api::TxProposal::from(&tx_proposal);
 
