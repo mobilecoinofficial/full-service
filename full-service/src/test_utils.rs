@@ -7,7 +7,7 @@ use crate::{
         txo::TxoModel,
         WalletDb,
     },
-    service::transaction_builder::WalletTransactionBuilder,
+    service::{transaction_builder::WalletTransactionBuilder, WalletService},
 };
 use diesel::{Connection as DSLConnection, SqliteConnection};
 use diesel_migrations::embed_migrations;
@@ -444,4 +444,25 @@ pub fn builder_for_random_recipient(
     let recipient = recipient_account_key.subaddress(rng.next_u64());
 
     (recipient, builder)
+}
+
+pub fn setup_service(
+    ledger_db: LedgerDB,
+    logger: Logger,
+) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
+    let db_test_context = WalletDbTestContext::default();
+    let wallet_db = db_test_context.get_db_instance(logger.clone());
+    let (peer_manager, network_state) =
+        setup_peer_manager_and_network_state(ledger_db.clone(), logger.clone());
+
+    WalletService::new(
+        wallet_db,
+        ledger_db,
+        peer_manager,
+        network_state,
+        Some(Arc::new(MockFogPubkeyResolver::new())),
+        None,
+        false,
+        logger,
+    )
 }

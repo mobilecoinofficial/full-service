@@ -2,12 +2,12 @@
 
 use crate::{
     db::account::AccountID,
-    error::WalletServiceError,
     service::{
         decorated_types::{
             JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents, JsonProof,
             JsonSubmitResponse, JsonTransactionLog, JsonTxo, JsonWalletStatus,
         },
+        password_manager::PasswordService,
         wallet_impl::WalletService,
     },
 };
@@ -15,6 +15,7 @@ use mc_connection::{BlockchainConnection, ThickClient, UserTxConnection};
 use mc_fog_report_connection::FogPubkeyResolver;
 use mc_fog_report_connection::GrpcFogPubkeyResolver;
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
+
 use rocket::{get, post, routes};
 use rocket_contrib::json::Json;
 use serde::{Deserialize, Serialize};
@@ -225,7 +226,7 @@ pub enum JsonCommandResponse {
 }
 
 // Helper method to format displaydoc errors in json.
-fn format_error(e: WalletServiceError) -> String {
+fn format_error<T: std::fmt::Display + std::fmt::Debug>(e: T) -> String {
     json!({"error": format!("{:?}", e), "details": e.to_string()}).to_string()
 }
 
@@ -284,7 +285,7 @@ where
             let fb = first_block
                 .map(|fb| fb.parse::<u64>())
                 .transpose()
-                .map_err(|e| format_error(e.into()))?;
+                .map_err(|e| format_error(e))?;
 
             let result = service.create_account(name, fb).map_err(format_error)?;
             JsonCommandResponse::create_account {
@@ -300,7 +301,7 @@ where
             let fb = first_block
                 .map(|fb| fb.parse::<u64>())
                 .transpose()
-                .map_err(|e| format_error(e.into()))?;
+                .map_err(|e| format_error(e))?;
             let result = service
                 .import_account(entropy, name, fb)
                 .map_err(format_error)?;
@@ -497,11 +498,7 @@ where
         },
         JsonCommandRequest::get_block_object { block_index } => {
             let (block, block_contents) = service
-                .get_block_object(
-                    block_index
-                        .parse::<u64>()
-                        .map_err(|e| format_error(e.into()))?,
-                )
+                .get_block_object(block_index.parse::<u64>().map_err(|e| format_error(e))?)
                 .map_err(format_error)?;
             JsonCommandResponse::get_block_object {
                 block,
@@ -1234,7 +1231,7 @@ mod tests {
             &client,
             body,
             &logger,
-            "{\"error\": \"DatabaseLocked\", \"details\": \"Cannot perform this action without a set password or while database is locked. Please set_password or unlock first.\"}".to_string()
+            "{\"error\": \"PasswordService(DatabaseLocked)\", \"details\": \"Error with the wallet password service: Cannot perform this action without a set password or while database is locked. Please set_password or unlock first.\"}".to_string()
         );
 
         // Verify is_locked is Null before a password has been set
@@ -1409,7 +1406,7 @@ mod tests {
             &client2,
             body,
             &logger,
-            "{\"error\": \"DatabaseLocked\", \"details\": \"Cannot perform this action without a set password or while database is locked. Please set_password or unlock first.\"}".to_string()
+            "{\"error\": \"PasswordService(DatabaseLocked)\", \"details\": \"Error with the wallet password service: Cannot perform this action without a set password or while database is locked. Please set_password or unlock first.\"}".to_string()
         );
 
         // Unlocking with the old password should fail
