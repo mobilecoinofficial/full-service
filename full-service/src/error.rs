@@ -4,7 +4,7 @@
 
 use displaydoc::Display;
 
-#[derive(Display, Debug, Serialize)]
+#[derive(Display, Debug)]
 pub enum WalletServiceError {
     /// Error interacting with the database: {0}
     Database(WalletDbError),

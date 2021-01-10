@@ -297,10 +297,6 @@ fn sync_thread_entry_point(
                             "No decryption key. Cannot sync account {:?} Please unlock database.",
                             account_id,
                         );
-                        // Queue the account again.
-                        sender
-                            .send(SyncMsg::SyncAccount(account_id))
-                            .expect("failed sending to channel");
                     }
 
                     // Other errors - log.
