@@ -33,7 +33,7 @@ The Full Service Wallet API provides several objects that correspond to the data
 
 #### Example Object
 
-```
+```json
 {
   "object": "account",
   "account_id": "1916a9b3...",
@@ -79,7 +79,7 @@ The Full Service Wallet API provides several objects that correspond to the data
 
 #### Example Object
 
-```
+```json
 {
   "object": 'wallet_status',
   "network_height": '88888888',
@@ -146,7 +146,7 @@ The Full Service Wallet API provides several objects that correspond to the data
 
 #### Example Object
 
-```
+```json
 {
   "object": "assigned_address",
   "address_id": "HpaL8g88...",
@@ -197,7 +197,7 @@ The Full Service Wallet API provides several objects that correspond to the data
 
 Received:
 
-```
+```json
 {
   "object": "transaction_log",
   "transaction_log_id": "873dfb8c...",
@@ -224,7 +224,7 @@ Received:
 
 Sent - Failed:
 
-```
+```json
 {
   "object": "transaction_log",
   "transaction_log_id": 2111,
@@ -251,7 +251,7 @@ Sent - Failed:
 
 Sent - Success, Recovered:
 
-```
+```json
 {
   "object": "transaction_log",
   "transaction_log_id": 888,
@@ -310,7 +310,7 @@ Sent - Success, Recovered:
 
 Received and Spent TXO
 
-```
+```json
 {
   "object": "txo",
   "txo_id": "14ad2f88...",
@@ -339,7 +339,7 @@ Received and Spent TXO
 
 Txo Spent from One Account to Another in the Same Wallet
 
-```
+```json
 {
   "object": "txo",
   "txo_id": "84f3023...",
@@ -392,7 +392,7 @@ Txo Spent from One Account to Another in the Same Wallet
 
 #### Example Object
 
-```
+```json
 {
   "object": "proof",
   "txo_id": "873dfb8c...",
@@ -430,7 +430,7 @@ Txo Spent from One Account to Another in the Same Wallet
 
 #### Example Object
 
-```
+```json
 {
   "object": "recipient_address",
   "address_id": "42Dik1AA...",
@@ -465,7 +465,7 @@ Txo Spent from One Account to Another in the Same Wallet
 
 #### Example Object
 
-```
+```json
 {
   "object": "address_book_entry",
   "address_book_entry_id": 36,
