@@ -116,7 +116,7 @@ where
         if (password.is_some() && password_hash.is_some())
             || (password.is_none() && password_hash.is_none())
         {
-            return Err(PasswordServiceError::CannotDisambiguatePassword.into());
+            return Err(PasswordServiceError::CannotDisambiguatePassword);
         }
         Ok(if let Some(pw) = password {
             // Get the salt from password.
@@ -152,7 +152,7 @@ where
                 self.wallet_db.set_password_hash(&password_hash, &conn)?;
             }
             EncryptionState::Encrypted => {
-                return Err(PasswordServiceError::DatabaseEncrypted.into());
+                return Err(PasswordServiceError::DatabaseEncrypted);
             }
             EncryptionState::Unencrypted => {
                 log::info!(
@@ -225,7 +225,7 @@ where
 
     fn verify_unlocked(&self) -> Result<(), PasswordServiceError> {
         if !self.wallet_db.is_unlocked()? {
-            return Err(PasswordServiceError::DatabaseLocked.into());
+            return Err(PasswordServiceError::DatabaseLocked);
         }
         Ok(())
     }
