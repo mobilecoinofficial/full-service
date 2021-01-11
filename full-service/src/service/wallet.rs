@@ -285,7 +285,7 @@ where
             let fb = first_block
                 .map(|fb| fb.parse::<u64>())
                 .transpose()
-                .map_err(|e| format_error(e))?;
+                .map_err(format_error)?;
 
             let result = service.create_account(name, fb).map_err(format_error)?;
             JsonCommandResponse::create_account {
@@ -301,7 +301,7 @@ where
             let fb = first_block
                 .map(|fb| fb.parse::<u64>())
                 .transpose()
-                .map_err(|e| format_error(e))?;
+                .map_err(format_error)?;
             let result = service
                 .import_account(entropy, name, fb)
                 .map_err(format_error)?;
@@ -498,7 +498,7 @@ where
         },
         JsonCommandRequest::get_block_object { block_index } => {
             let (block, block_contents) = service
-                .get_block_object(block_index.parse::<u64>().map_err(|e| format_error(e))?)
+                .get_block_object(block_index.parse::<u64>().map_err(format_error)?)
                 .map_err(format_error)?;
             JsonCommandResponse::get_block_object {
                 block,
