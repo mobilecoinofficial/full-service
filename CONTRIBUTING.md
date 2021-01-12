@@ -1,6 +1,6 @@
 ## Contributing Bug Reports
 
-MobileCoin Wallet Service is a prototype that is being actively developed.
+MobileCoin Full Service is a prototype that is being actively developed.
 
 Please report issues to https://github.com/mobilecoinofficial/full-service/issues.
 
