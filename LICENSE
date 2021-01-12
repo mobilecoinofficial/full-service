@@ -26,5 +26,5 @@ intended to represent an exhaustive list of third party contributions to MobileC
 
   * **mobilecoin** (https://github.com/mobilecoinfoundation/mobilecoin)
 
-    MobileCoin Wallet Service makes use of the mobilecoinfoundation/mobilecoin repo as a
+    MobileCoin Full Service makes use of the mobilecoinfoundation/mobilecoin repo as a
     submodule.
