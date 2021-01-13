@@ -210,20 +210,25 @@ where
             .conn
             .transaction::<(), PasswordServiceError, _>(|| {
                 for account in Account::list_all(&conn_manager.conn)? {
+                    // Get decrypted with current password
                     let decrypted_account_key = account.get_decrypted_account_key(&conn_manager)?;
 
+                    // Encrypt for the new password
                     let encrypted_account_key = EncryptionProvider::encrypt_with_password(
                         &mc_util_serial::encode(&decrypted_account_key),
-                        &self.wallet_db.get_password_hash()?,
+                        &new_password_hash,
                     )?;
                     account
                         .update_encrypted_account_key(&encrypted_account_key, &conn_manager.conn)?;
                 }
+                // Set the new password for the whole DB
+                self.wallet_db.change_password(
+                    &old_password_hash,
+                    &new_password_hash,
+                    &conn_manager.conn,
+                )?;
                 Ok(())
             })?;
-
-        self.wallet_db
-            .change_password(&old_password_hash, &new_password_hash)?;
 
         Ok(true)
     }
@@ -249,20 +254,27 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::{get_test_ledger, setup_service};
-    use mc_account_keys::PublicAddress;
+    use crate::{
+        db::account::AccountID,
+        test_utils::{get_test_ledger, setup_service},
+    };
+    use mc_account_keys::{AccountKey, PublicAddress, RootEntropy, RootIdentity};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
     use rand::{rngs::StdRng, SeedableRng};
 
     #[test_with_logger]
-    fn test_db_set_password_hash(logger: Logger) {
+    fn test_set_password_hash(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         let service = setup_service(ledger_db.clone(), logger);
+
+        // Service should be "never yet locked" on startup
+        assert_eq!(service.is_locked().unwrap(), None);
+        assert!(service.verify_unlocked().is_err());
 
         // Should unlock while DB is empty, and stored password_hash will be empty
         let mut password_hash = [0u8; 32];
@@ -275,5 +287,154 @@ mod tests {
             service.wallet_db.get_password_hash().unwrap(),
             password_hash.to_vec()
         );
+        assert_eq!(service.is_locked().unwrap(), Some(false));
+        assert!(service.verify_unlocked().is_ok());
+    }
+
+    #[test_with_logger]
+    fn test_change_password(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        let service = setup_service(ledger_db.clone(), logger);
+
+        let mut password_hash = [0u8; 32];
+        rng.fill_bytes(&mut password_hash);
+        service
+            .set_password(None, Some(hex::encode(&password_hash)))
+            .unwrap();
+
+        // Create Account
+        let alice_account_resp = service
+            .create_account(Some("Alice's Main Account".to_string()), None)
+            .unwrap();
+
+        // Account key should be encrypted and retrieved with get_decrypted
+        let mut entropy_bytes = [0u8; 32];
+        hex::decode_to_slice(alice_account_resp.entropy, &mut entropy_bytes).unwrap();
+        let alice_account_key =
+            AccountKey::from(&RootIdentity::from(&RootEntropy::from(&entropy_bytes)));
+        let alice_account = Account::get(
+            &AccountID(alice_account_resp.account.account_id.clone()),
+            &service.wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        let alice_decrypted = alice_account
+            .get_decrypted_account_key(&service.wallet_db.get_conn_manager().unwrap())
+            .unwrap();
+        assert_eq!(alice_decrypted, alice_account_key);
+
+        // Change password
+        let mut new_password_hash = [0u8; 32];
+        rng.fill_bytes(&mut new_password_hash);
+        service
+            .change_password(
+                None,
+                Some(hex::encode(password_hash)),
+                None,
+                Some(hex::encode(new_password_hash)),
+            )
+            .unwrap();
+        assert_eq!(
+            service.wallet_db.get_password_hash().unwrap(),
+            new_password_hash
+        );
+
+        // Verify that the newly encrypted account key also decrypts to the same value
+        let alice_account_changed = Account::get(
+            &AccountID(alice_account_resp.account.account_id.clone()),
+            &service.wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        let alice_decrypted_changed = alice_account_changed
+            .get_decrypted_account_key(&service.wallet_db.get_conn_manager().unwrap())
+            .unwrap();
+        assert_eq!(alice_decrypted_changed, alice_account_key);
+
+        // Add a few more accounts, to make sure that we update all accounts in the DB on password change
+        let bob_account_resp = service
+            .create_account(Some("Bob's Main Account".to_string()), None)
+            .unwrap();
+        let carol_account_resp = service
+            .create_account(Some("Carol's Main Account".to_string()), None)
+            .unwrap();
+
+        // Account key should be encrypted and retrieved with get_decrypted
+        let mut entropy_bytes = [0u8; 32];
+        hex::decode_to_slice(bob_account_resp.entropy, &mut entropy_bytes).unwrap();
+        let bob_account_key =
+            AccountKey::from(&RootIdentity::from(&RootEntropy::from(&entropy_bytes)));
+        let bob_account = Account::get(
+            &AccountID(bob_account_resp.account.account_id.clone()),
+            &service.wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        let bob_decrypted = bob_account
+            .get_decrypted_account_key(&service.wallet_db.get_conn_manager().unwrap())
+            .unwrap();
+        assert_eq!(bob_decrypted, bob_account_key);
+
+        let mut entropy_bytes = [0u8; 32];
+        hex::decode_to_slice(carol_account_resp.entropy, &mut entropy_bytes).unwrap();
+        let carol_account_key =
+            AccountKey::from(&RootIdentity::from(&RootEntropy::from(&entropy_bytes)));
+        let carol_account = Account::get(
+            &AccountID(carol_account_resp.account.account_id.clone()),
+            &service.wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        let carol_decrypted = carol_account
+            .get_decrypted_account_key(&service.wallet_db.get_conn_manager().unwrap())
+            .unwrap();
+        assert_eq!(carol_decrypted, carol_account_key);
+
+        // Change password
+        let mut final_password_hash = [0u8; 32];
+        rng.fill_bytes(&mut final_password_hash);
+        service
+            .change_password(
+                None,
+                Some(hex::encode(new_password_hash)),
+                None,
+                Some(hex::encode(final_password_hash)),
+            )
+            .unwrap();
+        assert_eq!(
+            service.wallet_db.get_password_hash().unwrap(),
+            final_password_hash
+        );
+
+        // Verify that all the newly encrypted account keys also decrypt to the same value
+        let alice_account_final = Account::get(
+            &AccountID(alice_account_resp.account.account_id),
+            &service.wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        let alice_decrypted_final = alice_account_final
+            .get_decrypted_account_key(&service.wallet_db.get_conn_manager().unwrap())
+            .unwrap();
+        assert_eq!(alice_decrypted_final, alice_account_key);
+
+        let bob_account_final = Account::get(
+            &AccountID(bob_account_resp.account.account_id),
+            &service.wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        let bob_decrypted_final = bob_account_final
+            .get_decrypted_account_key(&service.wallet_db.get_conn_manager().unwrap())
+            .unwrap();
+        assert_eq!(bob_decrypted_final, bob_account_key);
+
+        let carol_account_final = Account::get(
+            &AccountID(carol_account_resp.account.account_id),
+            &service.wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        let carol_decrypted_final = carol_account_final
+            .get_decrypted_account_key(&service.wallet_db.get_conn_manager().unwrap())
+            .unwrap();
+        assert_eq!(carol_decrypted_final, carol_account_key);
     }
 }
