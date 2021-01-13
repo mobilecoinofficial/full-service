@@ -91,12 +91,9 @@ curl -s localhost:9090/wallet \
 }
 ```
 
-Note, you can provide either `password` or `password_hash`, if you wish to manage the password_hash derivation. We use argon2 in Full Service.
-
 | Optional Param  | Purpose                  | Requirements              |
 | :-------------  | :----------------------- | :------------------------ |
-| `password`      | Password for the encrypted materials in the database.   | Must provide either `password` or `password_hash`. |
-| `password_hash` | Password hash for the encrypted materials in the database. | Must provide either `password` or `password_hash`. |
+| `password`      | Password for the encrypted materials in the database.   |  |
 
 #### Unlock
 
@@ -122,8 +119,7 @@ curl -s localhost:9090/wallet \
 
 | Optional Param  | Purpose                  | Requirements              |
 | :-------------  | :----------------------- | :------------------------ |
-| `password`      | Password for the encrypted materials in the database.   | Must provide either `password` or `password_hash`. |
-| `password_hash` | Password hash for the encrypted materials in the database. | Must provide either `password` or `password_hash`. |
+| `password`      | Password for the encrypted materials in the database.   | |
 
 ##### Troubleshooting
 
@@ -135,7 +131,7 @@ If you receive the following error, this means you have never set up a password 
 }
 ```
 
-If you receive the following error, it means you provided the wrong `password` or `password_hash`:
+If you receive the following error, it means you provided the wrong `password`:
 
 ```sh
 {
@@ -176,14 +172,12 @@ curl -s localhost:9090/wallet \
 
 | Optional Param  | Purpose                  | Requirements              |
 | :-------------  | :----------------------- | :------------------------ |
-| `old_password`      | Password for the encrypted materials in the database.   | Must provide either `old_password` or `old_password_hash`. |
-| `new_password`      | Password for the encrypted materials in the database.   | Must provide either `old_password` or `old_password_hash`. |
-| `old_password_hash` | Password hash for the encrypted materials in the database. | Must provide either `new_password` or `new_password_hash`. |
-| `new_password_hash` | Password hash for the encrypted materials in the database. | Must provide either `new_password` or `new_password_hash`. |
+| `old_password`      | Password for the encrypted materials in the database.   | |
+| `new_password`      | Password for the encrypted materials in the database.   | |
 
 ##### Troubleshooting
 
-If you receive the below, it means you provided the wrong `old_password` or `old_password_hash`:
+If you receive the below, it means you provided the wrong `old_password`:
 
 ```sh
 {

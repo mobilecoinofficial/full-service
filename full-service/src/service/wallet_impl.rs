@@ -670,7 +670,7 @@ mod tests {
     use mc_common::logger::{test_with_logger, Logger};
     use mc_common::HashSet;
     use mc_transaction_core::ring_signature::KeyImage;
-    use rand::{rngs::StdRng, SeedableRng};
+    use rand::{distributions::Alphanumeric, rngs::StdRng, Rng, SeedableRng};
     use std::iter::FromIterator;
     use std::time::Duration;
 
@@ -683,10 +683,9 @@ mod tests {
 
         let service = setup_service(ledger_db.clone(), logger);
 
-        let mut password_hash = [0u8; 32];
-        rng.fill_bytes(&mut password_hash);
+        let pw_rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let res = service
-            .set_password(None, Some(hex::encode(&password_hash)))
+            .set_password(pw_rng.sample_iter(&Alphanumeric).take(7).collect())
             .unwrap();
         assert!(res);
 
