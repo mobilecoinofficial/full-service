@@ -5,8 +5,8 @@
 use crate::{
     db::{
         account::AccountModel,
-        encryption::EncryptionProvider,
         encryption_indicator::{EncryptionModel, EncryptionState},
+        encryption_provider::EncryptionProvider,
         models::{Account, EncryptionIndicator},
     },
     error::WalletDbError,
