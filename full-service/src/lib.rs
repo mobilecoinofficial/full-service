@@ -1,4 +1,4 @@
-// Copyright (c) 2020 MobileCoin Inc.
+// Copyright (c) 2020-2021 MobileCoin Inc.
 
 #![feature(proc_macro_hygiene, decl_macro)]
 // Required because hashbrown is at 0.9.1 and has build issues otherwise
