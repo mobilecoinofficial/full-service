@@ -124,8 +124,8 @@ impl WalletDb {
         &self,
         old_password_hash: &[u8],
         new_password_hash: &[u8],
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
-        let conn = self.get_conn()?;
         Ok(self
             .encryption_provider
             .change_password(old_password_hash, new_password_hash, &conn)?)
@@ -216,7 +216,11 @@ mod tests {
         rng.fill_bytes(&mut new_password_hash);
 
         wallet_db2
-            .change_password(&password_hash, &new_password_hash)
+            .change_password(
+                &password_hash,
+                &new_password_hash,
+                &wallet_db2.get_conn().unwrap(),
+            )
             .unwrap();
 
         // Should still be unlocked
