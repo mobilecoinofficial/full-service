@@ -825,8 +825,7 @@ mod tests {
             Some(1),
             None,
             "Alice's Main Account",
-            &password_hash,
-            &wallet_db.get_conn().unwrap(),
+            &wallet_db.get_conn_manager().unwrap(),
         )
         .unwrap();
 
@@ -945,8 +944,7 @@ mod tests {
             Some(1),
             None,
             "Alice's Main Account",
-            &password_hash,
-            &wallet_db.get_conn().unwrap(),
+            &wallet_db.get_conn_manager().unwrap(),
         )
         .unwrap();
 
@@ -1056,8 +1054,7 @@ mod tests {
             Some(0),
             None,
             "Alice's Main Account",
-            &password_hash,
-            &wallet_db.get_conn().unwrap(),
+            &wallet_db.get_conn_manager().unwrap(),
         )
         .unwrap();
 
@@ -1114,8 +1111,7 @@ mod tests {
             Some(0),
             None,
             "",
-            &password_hash,
-            &wallet_db.get_conn().unwrap(),
+            &wallet_db.get_conn_manager().unwrap(),
         )
         .unwrap();
 
@@ -1181,8 +1177,7 @@ mod tests {
             Some(0),
             None,
             "",
-            &password_hash,
-            &wallet_db.get_conn().unwrap(),
+            &wallet_db.get_conn_manager().unwrap(),
         )
         .unwrap();
 
@@ -1194,7 +1189,6 @@ mod tests {
             &wallet_db,
             &mut ledger_db,
             &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
-            &password_hash,
             &mut rng,
         );
 

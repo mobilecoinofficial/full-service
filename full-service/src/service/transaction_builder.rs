@@ -569,7 +569,6 @@ mod tests {
                 11 * MOB as u64,
                 111111 * MOB as u64,
             ],
-            &password_hash,
             &mut rng,
         );
 
@@ -624,7 +623,6 @@ mod tests {
                 7_000_000 * MOB as u64,
                 7_000_000 * MOB as u64,
             ],
-            &password_hash,
             &mut rng,
         );
 
@@ -677,7 +675,6 @@ mod tests {
             &wallet_db,
             &mut ledger_db,
             &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
-            &password_hash,
             &mut rng,
         );
 
@@ -759,7 +756,6 @@ mod tests {
             &wallet_db,
             &mut ledger_db,
             &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
-            &password_hash,
             &mut rng,
         );
 
@@ -823,7 +819,6 @@ mod tests {
             &wallet_db,
             &mut ledger_db,
             &vec![70 * MOB as u64],
-            &password_hash,
             &mut rng,
         );
 
@@ -901,7 +896,6 @@ mod tests {
             &wallet_db,
             &mut ledger_db,
             &vec![70 * MOB as u64],
-            &password_hash,
             &mut rng,
         );
 
@@ -990,7 +984,6 @@ mod tests {
             &wallet_db,
             &mut ledger_db,
             &vec![70 * MOB as u64],
-            &password_hash,
             &mut rng,
         );
 
@@ -1037,7 +1030,6 @@ mod tests {
             &wallet_db,
             &mut ledger_db,
             &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
-            &password_hash,
             &mut rng,
         );
 
@@ -1105,7 +1097,6 @@ mod tests {
                 7_000_000 * MOB as u64,
                 7_000_000 * MOB as u64,
             ],
-            &password_hash,
             &mut rng,
         );
 
@@ -1153,7 +1144,6 @@ mod tests {
             &wallet_db,
             &mut ledger_db,
             &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
-            &password_hash,
             &mut rng,
         );
 
