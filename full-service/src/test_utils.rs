@@ -324,8 +324,7 @@ pub fn create_test_received_txo(
         value,
         received_block_count as i64,
         &AccountID::from(account_key).to_string(),
-        &wallet_db.get_password_hash().unwrap(),
-        &wallet_db.get_conn().unwrap(),
+        &wallet_db.get_conn_manager().unwrap(),
     )
     .unwrap();
     (txo_id_hex, txo, key_image)
@@ -406,8 +405,7 @@ pub fn random_account_with_seed_values(
     assert_eq!(
         Txo::list_for_account(
             &AccountID::from(&account_key).to_string(),
-            &wallet_db.get_password_hash().unwrap(),
-            &wallet_db.get_conn().unwrap(),
+            &wallet_db.get_conn_manager().unwrap()
         )
         .unwrap()
         .len(),

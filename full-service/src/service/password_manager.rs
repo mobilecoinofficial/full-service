@@ -17,6 +17,7 @@ use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_connection::FogPubkeyResolver;
 
 use blake2::{Blake2b, Digest};
+use diesel::Connection;
 use displaydoc::Display;
 
 const SALT_DOMAIN_TAG: &str = "full-service-salt";
@@ -40,6 +41,9 @@ pub enum PasswordServiceError {
 
     /// Argon2 Error: {0}
     Argon2(argon2::Error),
+
+    /// Diesel Error: {0}
+    Diesel(diesel::result::Error),
 }
 
 impl From<WalletDbError> for PasswordServiceError {
@@ -57,6 +61,12 @@ impl From<hex::FromHexError> for PasswordServiceError {
 impl From<argon2::Error> for PasswordServiceError {
     fn from(src: argon2::Error) -> Self {
         Self::Argon2(src)
+    }
+}
+
+impl From<diesel::result::Error> for PasswordServiceError {
+    fn from(src: diesel::result::Error) -> Self {
+        Self::Diesel(src)
     }
 }
 
@@ -139,36 +149,37 @@ where
         password: Option<String>,
         password_hash: Option<String>,
     ) -> Result<bool, PasswordServiceError> {
-        let conn = self.wallet_db.get_conn()?;
         let password_hash = self.get_password_hash(password, password_hash)?;
 
-        // FIXME: put in db transaction
-        match EncryptionIndicator::get_encryption_state(&conn)? {
-            EncryptionState::Empty => {
-                log::info!(
-                    self.logger,
-                    "Database has never been locked and has no accounts. Setting password for future accounts."
-                );
-                self.wallet_db.set_password_hash(&password_hash, &conn)?;
-            }
-            EncryptionState::Encrypted => {
-                return Err(PasswordServiceError::DatabaseEncrypted);
-            }
-            EncryptionState::Unencrypted => {
-                log::info!(
-                    self.logger,
-                    "Database is unencrypted. Setting password with new password, and encrypting all accounts."
-                );
-                self.wallet_db.set_password_hash(&password_hash, &conn)?;
-                for account in Account::list_all(&conn)? {
-                    let encrypted_account_key = EncryptionProvider::encrypt(
-                        &account.account_key,
-                        &self.wallet_db.get_password_hash()?,
-                    )?;
-                    account.update_encrypted_account_key(&encrypted_account_key, &conn)?;
+        let conn_manager = self.wallet_db.get_conn_manager()?;
+        conn_manager.conn.transaction::<(), PasswordServiceError, _>(|| {
+            match EncryptionIndicator::get_encryption_state(&conn_manager.conn)? {
+                EncryptionState::Empty => {
+                    log::info!(
+                        self.logger,
+                        "Database has never been locked and has no accounts. Setting password for future accounts."
+                    );
+                    self.wallet_db.set_password_hash(&password_hash, &conn_manager.conn)?;
+                }
+                EncryptionState::Encrypted => {
+                    return Err(PasswordServiceError::DatabaseEncrypted);
+                }
+                EncryptionState::Unencrypted => {
+                    log::info!(
+                        self.logger,
+                        "Database is unencrypted. Setting password with new password, and encrypting all accounts."
+                    );
+                    self.wallet_db.set_password_hash(&password_hash, &conn_manager.conn)?;
+                    for account in Account::list_all(&conn_manager.conn)? {
+                        let encrypted_account_key = conn_manager.encryption_provider.encrypt(
+                            &account.account_key,
+                        )?;
+                        account.update_encrypted_account_key(&encrypted_account_key, &conn_manager.conn)?;
+                    }
                 }
             }
-        }
+            Ok(())
+        })?;
         Ok(true)
     }
 
@@ -193,22 +204,26 @@ where
         let old_password_hash = self.get_password_hash(old_password, old_password_hash)?;
         let new_password_hash = self.get_password_hash(new_password, new_password_hash)?;
 
-        // FIXME: logic to convert password to password hash
+        // Re-encrypt all of our accounts with the new password hash
+        let conn_manager = self.wallet_db.get_conn_manager()?;
+        conn_manager
+            .conn
+            .transaction::<(), PasswordServiceError, _>(|| {
+                for account in Account::list_all(&conn_manager.conn)? {
+                    let decrypted_account_key = account.get_decrypted_account_key(&conn_manager)?;
+
+                    let encrypted_account_key = EncryptionProvider::encrypt_with_password(
+                        &mc_util_serial::encode(&decrypted_account_key),
+                        &self.wallet_db.get_password_hash()?,
+                    )?;
+                    account
+                        .update_encrypted_account_key(&encrypted_account_key, &conn_manager.conn)?;
+                }
+                Ok(())
+            })?;
+
         self.wallet_db
             .change_password(&old_password_hash, &new_password_hash)?;
-        // Re-encrypt all of our accounts with the new password hash
-        // FIXME: put in db transaction
-        let conn = self.wallet_db.get_conn()?;
-        for account in Account::list_all(&conn)? {
-            let decrypted_account_key =
-                account.get_decrypted_account_key(&old_password_hash, &conn)?;
-
-            let encrypted_account_key = EncryptionProvider::encrypt(
-                &mc_util_serial::encode(&decrypted_account_key),
-                &self.wallet_db.get_password_hash()?,
-            )?;
-            account.update_encrypted_account_key(&encrypted_account_key, &conn)?;
-        }
 
         Ok(true)
     }

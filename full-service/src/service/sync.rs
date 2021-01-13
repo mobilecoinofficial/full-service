@@ -28,7 +28,7 @@ use crate::{
         models::{Account, AssignedSubaddress, TransactionLog, Txo},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
-        WalletDb,
+        WalletDb, WalletDbConnManager,
     },
     error::{SyncError, WalletDbError},
 };
@@ -47,10 +47,7 @@ use mc_transaction_core::{
     AmountError,
 };
 
-use diesel::{
-    prelude::*,
-    r2d2::{ConnectionManager, PooledConnection},
-};
+use diesel::prelude::*;
 use std::{
     convert::TryFrom,
     sync::{
@@ -321,59 +318,59 @@ pub fn sync_account(
     logger: &Logger,
 ) -> Result<SyncAccountOk, SyncError> {
     for _ in 0..MAX_BLOCKS_PROCESSING_CHUNK_SIZE {
-        let conn = wallet_db.get_conn()?;
-        let sync_status = conn.transaction::<SyncAccountOk, SyncError, _>(|| {
-            // Get the account data. If it is no longer available, the account has been removed and we
-            // can simply return.
-            let account = Account::get(&AccountID(account_id.to_string()), &conn)?;
-            let block_contents = match ledger_db.get_block_contents(account.next_block as u64) {
-                Ok(block_contents) => block_contents,
-                Err(mc_ledger_db::Error::NotFound) => {
-                    return Ok(SyncAccountOk::NoMoreBlocks);
-                }
-                Err(err) => {
-                    return Err(err.into());
-                }
-            };
+        let conn_manager = wallet_db.get_conn_manager()?;
+        let sync_status = conn_manager
+            .conn
+            .transaction::<SyncAccountOk, SyncError, _>(|| {
+                // Get the account data. If it is no longer available, the account has been removed and we
+                // can simply return.
+                let account = Account::get(&AccountID(account_id.to_string()), &conn_manager.conn)?;
+                let block_contents = match ledger_db.get_block_contents(account.next_block as u64) {
+                    Ok(block_contents) => block_contents,
+                    Err(mc_ledger_db::Error::NotFound) => {
+                        return Ok(SyncAccountOk::NoMoreBlocks);
+                    }
+                    Err(err) => {
+                        return Err(err.into());
+                    }
+                };
 
-            log::trace!(
-                logger,
-                "processing {} outputs and {} key images from block {} for account {}",
-                block_contents.outputs.len(),
-                block_contents.key_images.len(),
-                account.next_block,
-                account_id,
-            );
+                log::trace!(
+                    logger,
+                    "processing {} outputs and {} key images from block {} for account {}",
+                    block_contents.outputs.len(),
+                    block_contents.key_images.len(),
+                    account.next_block,
+                    account_id,
+                );
 
-            // Match tx outs into UTXOs.
-            let output_txo_ids = process_txos(
-                &conn,
-                &block_contents.outputs,
-                &account,
-                account.next_block,
-                &wallet_db.get_password_hash()?,
-                logger,
-            )?;
+                // Match tx outs into UTXOs.
+                let output_txo_ids = process_txos(
+                    &conn_manager,
+                    &block_contents.outputs,
+                    &account,
+                    account.next_block,
+                    logger,
+                )?;
 
-            // Note: Doing this here means we are updating key images multiple times, once per account.
-            //       We do actually want to do it this way, because each account may need to process
-            //       the same block at a different time, depending on when we add it to the DB.
-            account.update_spent_and_increment_next_block(
-                account.next_block,
-                block_contents.key_images,
-                &conn,
-            )?;
+                // Note: Doing this here means we are updating key images multiple times, once per account.
+                //       We do actually want to do it this way, because each account may need to process
+                //       the same block at a different time, depending on when we add it to the DB.
+                account.update_spent_and_increment_next_block(
+                    account.next_block,
+                    block_contents.key_images,
+                    &conn_manager.conn,
+                )?;
 
-            // Add a transaction for the received TXOs
-            TransactionLog::log_received(
-                &output_txo_ids,
-                &account,
-                account.next_block as u64,
-                &wallet_db.get_password_hash()?,
-                &conn,
-            )?;
-            Ok(SyncAccountOk::MoreBlocksPotentiallyAvailable)
-        })?;
+                // Add a transaction for the received TXOs
+                TransactionLog::log_received(
+                    &output_txo_ids,
+                    &account,
+                    account.next_block as u64,
+                    &conn_manager,
+                )?;
+                Ok(SyncAccountOk::MoreBlocksPotentiallyAvailable)
+            })?;
         // Early out of the loop if we hit NoMoreBlocks
         if let SyncAccountOk::NoMoreBlocks = sync_status {
             return Ok(SyncAccountOk::NoMoreBlocks);
@@ -384,14 +381,13 @@ pub fn sync_account(
 
 /// Helper function for matching a list of TxOuts to a given account.
 fn process_txos(
-    conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    conn_manager: &WalletDbConnManager,
     outputs: &[TxOut],
     account: &Account,
     received_block_index: i64,
-    decryption_key: &[u8],
     logger: &Logger,
 ) -> Result<HashMap<i64, Vec<String>>, SyncError> {
-    let account_key: AccountKey = account.get_decrypted_account_key(&decryption_key, conn)?;
+    let account_key: AccountKey = account.get_decrypted_account_key(&conn_manager)?;
     let view_key = account_key.view_key();
     let account_id_hex = AccountID::from(&account_key).to_string();
 
@@ -409,31 +405,33 @@ fn process_txos(
         );
 
         // See if it matches any of our assigned subaddresses.
-        let subaddress_index =
-            match AssignedSubaddress::find_by_subaddress_spend_public_key(&subaddress_spk, &conn) {
-                Ok((index, account_id)) => {
-                    log::trace!(
-                        logger,
-                        "matched subaddress index {} for account_id {}",
-                        index,
-                        account_id,
-                    );
-                    // Sanity - we should only get a match for our own account ID.
-                    assert_eq!(account_id, account_id_hex);
-                    Some(index)
-                }
-                Err(WalletDbError::AssignedSubaddressNotFound(_)) => {
-                    log::trace!(
-                        logger,
-                        "Not tracking this subaddress spend public key for account {}",
-                        account_id_hex
-                    );
-                    None
-                }
-                Err(err) => {
-                    return Err(err.into());
-                }
-            };
+        let subaddress_index = match AssignedSubaddress::find_by_subaddress_spend_public_key(
+            &subaddress_spk,
+            &conn_manager.conn,
+        ) {
+            Ok((index, account_id)) => {
+                log::trace!(
+                    logger,
+                    "matched subaddress index {} for account_id {}",
+                    index,
+                    account_id,
+                );
+                // Sanity - we should only get a match for our own account ID.
+                assert_eq!(account_id, account_id_hex);
+                Some(index)
+            }
+            Err(WalletDbError::AssignedSubaddressNotFound(_)) => {
+                log::trace!(
+                    logger,
+                    "Not tracking this subaddress spend public key for account {}",
+                    account_id_hex
+                );
+                None
+            }
+            Err(err) => {
+                return Err(err.into());
+            }
+        };
 
         let shared_secret =
             get_tx_out_shared_secret(account_key.view_private_key(), &tx_public_key);
@@ -464,8 +462,7 @@ fn process_txos(
             value,
             received_block_index,
             &account_id_hex,
-            decryption_key,
-            &conn,
+            &conn_manager,
         )?;
 
         // If we couldn't find an assigned subaddress for this value, store for -1
