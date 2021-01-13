@@ -296,9 +296,13 @@ fn sync_thread_entry_point(
                         );
                     }
 
+                    Err(SyncError::Database(WalletDbError::AeadError(err))) => {
+                        log::error!(logger, "AeadError syncing account {}: {:?}. Password may have changed while syncing. Will try again.", account_id, err);
+                    }
+
                     // Other errors - log.
                     Err(err) => {
-                        log::error!(logger, "error syncing account {}: {:?}", account_id, err);
+                        log::error!(logger, "Error syncing account {}: {:?}", account_id, err);
                     }
                 };
             }
@@ -318,6 +322,7 @@ pub fn sync_account(
     logger: &Logger,
 ) -> Result<SyncAccountOk, SyncError> {
     for _ in 0..MAX_BLOCKS_PROCESSING_CHUNK_SIZE {
+        // Get a new connection manager, which contains a reference to the most current password_hash
         let conn_manager = wallet_db.get_conn_manager()?;
         let sync_status = conn_manager
             .conn

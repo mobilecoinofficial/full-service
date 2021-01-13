@@ -1340,7 +1340,7 @@ mod tests {
         // Add a block to the ledger with a transaction "From Bob"
         add_block_to_ledger_db(
             &mut ledger_db,
-            &vec![from_bob_public_address],
+            &vec![from_bob_public_address.clone()],
             42000000000000,
             &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
@@ -1449,6 +1449,17 @@ mod tests {
             .as_str()
             .unwrap();
 
+        // We should be able to get all of our txos
+        let body = json!({
+            "method": "get_all_txos_by_account",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let result = dispatch(&client2, body, &logger);
+        let txos = result.get("txo_ids").unwrap().as_array().unwrap();
+        assert_eq!(txos.len(), 1);
+
         // Change password using password, not password_hash
         let new_password = "TestTest";
         let body = json!({
@@ -1460,6 +1471,28 @@ mod tests {
         });
         let result = dispatch(&client2, body, &logger);
         assert!(result.get("success").unwrap().as_bool().unwrap());
+
+        // After the password is changed, the sync thread should have the latest password, so we
+        // should be able to get our Txos. Let's add a block to the ledger with a transaction "From Bob"
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![from_bob_public_address.clone()],
+            42000000000000,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+        // Sleep to let the sync thread process the txo with the new password
+        std::thread::sleep(Duration::from_secs(8));
+
+        let body = json!({
+            "method": "get_all_txos_by_account",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let result = dispatch(&client2, body, &logger);
+        let txos = result.get("txo_ids").unwrap().as_array().unwrap();
+        assert_eq!(txos.len(), 2);
 
         let body = json!({
             "method": "create_address",
@@ -1515,5 +1548,26 @@ mod tests {
         });
         let result = dispatch(&client3, body, &logger);
         assert!(result.get("success").unwrap().as_bool().unwrap());
+
+        // Make sure that we got all the Txos we expected, add another block for good measure
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![from_bob_public_address],
+            42000000000000,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+        // Sleep to let the sync thread process the txo with the new password
+        std::thread::sleep(Duration::from_secs(8));
+
+        let body = json!({
+            "method": "get_all_txos_by_account",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let result = dispatch(&client3, body, &logger);
+        let txos = result.get("txo_ids").unwrap().as_array().unwrap();
+        assert_eq!(txos.len(), 3);
     }
 }
