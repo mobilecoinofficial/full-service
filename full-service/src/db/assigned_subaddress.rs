@@ -1,4 +1,4 @@
-// Copyright (c) 2020 MobileCoin Inc.
+// Copyright (c) 2020-2021 MobileCoin Inc.
 
 //! DB impl for the AssignedSubaddress model
 
