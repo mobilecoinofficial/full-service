@@ -1,8 +1,9 @@
 ## Contributor License Agreement
 
-Thank you for your contribution to the MobileCoin Wallet Service project from MoblieCoin Inc. and the MobileCoin Foundation (“MobileCoin”).
+Thank you for your contribution to the MobileCoin Full Service project from MoblieCoin Inc. (“MobileCoin”).
 
-This contributor license agreement documents the rights granted by contributors to MobileCoin. This license is for your protection as a Contributor as well as the protection of MobileCoin, its users, and its licensees; you may still license your own Contributions under other terms.
+This contributor license agreement documents the rights granted by contributors to MobileCoin. This license is for your protection as a Contributor as well as the protection of MobileCoin, its users, and its licensees; you may still license your 
+own Contributions under other terms.
 
 In exchange for the ability to participate in the MobileCoin community and for other good consideration, the receipt of which is hereby acknowledged, you accept and agree to the following terms and conditions for Your present and future Contributions submitted to MobileCoin. Except for the license granted herein to MobileCoin and recipients of software distributed by MobileCoin, You reserve all right, title, and interest in and to Your Contributions.
 
