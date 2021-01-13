@@ -5,14 +5,14 @@
 pub mod account;
 pub mod account_txo_status;
 pub mod assigned_subaddress;
-pub mod encryption;
 pub mod encryption_indicator;
+pub mod encryption_provider;
 pub mod models;
 pub mod schema;
 pub mod transaction_log;
 pub mod txo;
 
-use self::encryption::EncryptionProvider;
+use self::encryption_provider::EncryptionProvider;
 use crate::error::WalletDbError;
 
 use mc_account_keys::PublicAddress;
