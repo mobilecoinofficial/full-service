@@ -36,18 +36,14 @@ pub struct WalletState<
 #[allow(non_camel_case_types)]
 pub enum JsonCommandRequest {
     set_password {
-        password: Option<String>,
-        password_hash: Option<String>,
+        password: String,
     },
     unlock {
-        password: Option<String>,
-        password_hash: Option<String>,
+        password: String,
     },
     change_password {
-        old_password: Option<String>,
-        old_password_hash: Option<String>,
-        new_password: Option<String>,
-        new_password_hash: Option<String>,
+        old_password: String,
+        new_password: String,
     },
     is_locked,
     create_account {
@@ -244,37 +240,20 @@ where
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
     let result = match command.0 {
-        JsonCommandRequest::set_password {
-            password,
-            password_hash,
-        } => {
-            let success = service
-                .set_password(password, password_hash)
-                .map_err(format_error)?;
+        JsonCommandRequest::set_password { password } => {
+            let success = service.set_password(password).map_err(format_error)?;
             JsonCommandResponse::set_password { success }
         }
-        JsonCommandRequest::unlock {
-            password,
-            password_hash,
-        } => {
-            let success = service
-                .unlock(password, password_hash)
-                .map_err(format_error)?;
+        JsonCommandRequest::unlock { password } => {
+            let success = service.unlock(password).map_err(format_error)?;
             JsonCommandResponse::unlock { success }
         }
         JsonCommandRequest::change_password {
             old_password,
-            old_password_hash,
             new_password,
-            new_password_hash,
         } => {
             let success = service
-                .change_password(
-                    old_password,
-                    old_password_hash,
-                    new_password,
-                    new_password_hash,
-                )
+                .change_password(old_password, new_password)
                 .map_err(format_error)?;
             JsonCommandResponse::change_password { success }
         }
@@ -571,7 +550,7 @@ mod tests {
     use mc_fog_report_validation::MockFogPubkeyResolver;
     use mc_ledger_db::LedgerDB;
     use mc_transaction_core::ring_signature::KeyImage;
-    use rand::{rngs::StdRng, SeedableRng};
+    use rand::{distributions::Alphanumeric, rngs::StdRng, Rng, SeedableRng};
     use rocket::{
         http::{ContentType, Status},
         local::Client,
@@ -1242,12 +1221,12 @@ mod tests {
         assert_eq!(result.get("is_locked").unwrap().as_object(), None);
 
         // Unlocking a never-set database should fail
-        let mut password_hash = [0u8; 32];
-        rng.fill_bytes(&mut password_hash);
+        let pw_rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let password: String = pw_rng.sample_iter(&Alphanumeric).take(7).collect();
         let body = json!({
             "method": "unlock",
             "params": {
-                "password_hash": hex::encode(&password_hash),
+                "password": password,
             }
         });
         dispatch_expect_error(
@@ -1261,7 +1240,7 @@ mod tests {
         let body = json!({
             "method": "set_password",
             "params": {
-                "password_hash": hex::encode(&password_hash),
+                "password": password,
             }
         });
         let result = dispatch(&client, body, &logger);
@@ -1290,15 +1269,15 @@ mod tests {
             .unwrap();
 
         // Attempting to change password with the wrong password should fail
-        let mut wrong_password_hash = [0u8; 32];
-        rng.fill_bytes(&mut wrong_password_hash);
-        let mut new_password_hash = [0u8; 32];
-        rng.fill_bytes(&mut new_password_hash);
+        let pw1_rng: StdRng = SeedableRng::from_seed([21u8; 32]);
+        let wrong_password: String = pw1_rng.sample_iter(&Alphanumeric).take(7).collect();
+        let pw2_rng: StdRng = SeedableRng::from_seed([22u8; 32]);
+        let new_password: String = pw2_rng.sample_iter(&Alphanumeric).take(7).collect();
         let body = json!({
             "method": "change_password",
             "params": {
-                "old_password_hash": hex::encode(&wrong_password_hash),
-                "new_password_hash": hex::encode(&new_password_hash),
+                "old_password": wrong_password,
+                "new_password": new_password,
             }
         });
         dispatch_expect_error(
@@ -1312,12 +1291,19 @@ mod tests {
         let body = json!({
             "method": "change_password",
             "params": {
-                "old_password_hash": hex::encode(&password_hash),
-                "new_password_hash": hex::encode(&new_password_hash),
+                "old_password": password,
+                "new_password": new_password,
             }
         });
         let result = dispatch(&client, body, &logger);
         assert!(result.get("success").unwrap().as_bool().unwrap());
+
+        // DB should still be unlocked after password change
+        let body = json!({
+            "method": "is_locked"
+        });
+        let result = dispatch(&client, body, &logger);
+        assert_eq!(result.get("is_locked").unwrap().as_bool().unwrap(), false);
 
         // We should be able to continue interacting with our accounts
         let body = json!({
@@ -1413,7 +1399,7 @@ mod tests {
         let body = json!({
             "method": "unlock",
             "params": {
-                "password_hash": hex::encode(&password_hash),
+                "password": password,
             }
         });
         dispatch_expect_error(
@@ -1427,7 +1413,7 @@ mod tests {
         let body = json!({
             "method": "unlock",
             "params": {
-                "password_hash": hex::encode(&new_password_hash),
+                "password": new_password,
             }
         });
         let result = dispatch(&client2, body, &logger);
@@ -1460,13 +1446,13 @@ mod tests {
         let txos = result.get("txo_ids").unwrap().as_array().unwrap();
         assert_eq!(txos.len(), 1);
 
-        // Change password using password, not password_hash
-        let new_password = "TestTest";
+        // Change password again
+        let newer_password = "TestTest";
         let body = json!({
             "method": "change_password",
             "params": {
-                "old_password_hash": hex::encode(&new_password_hash),
-                "new_password": new_password,
+                "old_password": new_password,
+                "new_password": newer_password,
             }
         });
         let result = dispatch(&client2, body, &logger);

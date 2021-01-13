@@ -36,9 +36,6 @@ pub enum PasswordServiceError {
     /// Cannot perform this action without a set password or while database is locked. Please set_password or unlock first.
     DatabaseLocked,
 
-    /// Must provide either password or password hash, not both.
-    CannotDisambiguatePassword,
-
     /// Argon2 Error: {0}
     Argon2(argon2::Error),
 
@@ -72,33 +69,19 @@ impl From<diesel::result::Error> for PasswordServiceError {
 
 pub trait PasswordService {
     // Helper method to expand password to password hash using argon2.
-    fn get_password_hash(
-        &self,
-        password: Option<String>,
-        password_hash: Option<String>,
-    ) -> Result<Vec<u8>, PasswordServiceError>;
+    fn get_password_hash(&self, password: String) -> Result<Vec<u8>, PasswordServiceError>;
 
     /// The initial call to set the password for the DB.
-    fn set_password(
-        &self,
-        password: Option<String>,
-        password_hash: Option<String>,
-    ) -> Result<bool, PasswordServiceError>;
+    fn set_password(&self, password: String) -> Result<bool, PasswordServiceError>;
 
     /// Unlock the DB.
-    fn unlock(
-        &self,
-        password: Option<String>,
-        password_hash: Option<String>,
-    ) -> Result<bool, PasswordServiceError>;
+    fn unlock(&self, password: String) -> Result<bool, PasswordServiceError>;
 
     /// Change the password for the DB.
     fn change_password(
         &self,
-        old_password: Option<String>,
-        old_password_hash: Option<String>,
-        new_password: Option<String>,
-        new_password_hash: Option<String>,
+        old_password: String,
+        new_password: String,
     ) -> Result<bool, PasswordServiceError>;
 
     /// Whether the database is locked.
@@ -118,38 +101,21 @@ where
     T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
-    fn get_password_hash(
-        &self,
-        password: Option<String>,
-        password_hash: Option<String>,
-    ) -> Result<Vec<u8>, PasswordServiceError> {
-        if (password.is_some() && password_hash.is_some())
-            || (password.is_none() && password_hash.is_none())
-        {
-            return Err(PasswordServiceError::CannotDisambiguatePassword);
-        }
-        Ok(if let Some(pw) = password {
-            // Get the salt from password.
-            // Note: We use a deterministic salt so that we can derive the same hash from the same text
-            //       string. This is ok for our use case, see discussion on precomputation attacks:
-            //       https://crypto.stackexchange.com/questions/77549/is-it-safe-to-use-a-deterministic-salt-as-an-input-to-kdf-argon2
-            let mut hasher = Blake2b::new();
-            hasher.update(&SALT_DOMAIN_TAG);
-            hasher.update(&pw);
-            let salt = hasher.finalize();
-            let config = argon2::Config::default();
-            argon2::hash_raw(pw.as_bytes(), &salt, &config)?
-        } else {
-            hex::decode(password_hash.unwrap())?
-        })
+    fn get_password_hash(&self, password: String) -> Result<Vec<u8>, PasswordServiceError> {
+        // Get the salt from password.
+        // Note: We use a deterministic salt so that we can derive the same hash from the same text
+        //       string. This is ok for our use case, see discussion on precomputation attacks:
+        //       https://crypto.stackexchange.com/questions/77549/is-it-safe-to-use-a-deterministic-salt-as-an-input-to-kdf-argon2
+        let mut hasher = Blake2b::new();
+        hasher.update(&SALT_DOMAIN_TAG);
+        hasher.update(&password);
+        let salt = hasher.finalize();
+        let config = argon2::Config::default();
+        Ok(argon2::hash_raw(password.as_bytes(), &salt, &config)?)
     }
 
-    fn set_password(
-        &self,
-        password: Option<String>,
-        password_hash: Option<String>,
-    ) -> Result<bool, PasswordServiceError> {
-        let password_hash = self.get_password_hash(password, password_hash)?;
+    fn set_password(&self, password: String) -> Result<bool, PasswordServiceError> {
+        let password_hash = self.get_password_hash(password)?;
 
         let conn_manager = self.wallet_db.get_conn_manager()?;
         conn_manager.conn.transaction::<(), PasswordServiceError, _>(|| {
@@ -183,26 +149,19 @@ where
         Ok(true)
     }
 
-    fn unlock(
-        &self,
-        password: Option<String>,
-        password_hash: Option<String>,
-    ) -> Result<bool, PasswordServiceError> {
-        let password_hash = self.get_password_hash(password, password_hash)?;
-
+    fn unlock(&self, password: String) -> Result<bool, PasswordServiceError> {
+        let password_hash = self.get_password_hash(password)?;
         self.wallet_db.unlock(&password_hash)?;
         Ok(true)
     }
 
     fn change_password(
         &self,
-        old_password: Option<String>,
-        old_password_hash: Option<String>,
-        new_password: Option<String>,
-        new_password_hash: Option<String>,
+        old_password: String,
+        new_password: String,
     ) -> Result<bool, PasswordServiceError> {
-        let old_password_hash = self.get_password_hash(old_password, old_password_hash)?;
-        let new_password_hash = self.get_password_hash(new_password, new_password_hash)?;
+        let old_password_hash = self.get_password_hash(old_password)?;
+        let new_password_hash = self.get_password_hash(new_password)?;
 
         // Re-encrypt all of our accounts with the new password hash
         let conn_manager = self.wallet_db.get_conn_manager()?;
@@ -260,8 +219,7 @@ mod tests {
     };
     use mc_account_keys::{AccountKey, PublicAddress, RootEntropy, RootIdentity};
     use mc_common::logger::{test_with_logger, Logger};
-    use mc_crypto_rand::rand_core::RngCore;
-    use rand::{rngs::StdRng, SeedableRng};
+    use rand::{distributions::Alphanumeric, rngs::StdRng, Rng, SeedableRng};
 
     #[test_with_logger]
     fn test_set_password_hash(logger: Logger) {
@@ -277,16 +235,10 @@ mod tests {
         assert!(service.verify_unlocked().is_err());
 
         // Should unlock while DB is empty, and stored password_hash will be empty
-        let mut password_hash = [0u8; 32];
-        rng.fill_bytes(&mut password_hash);
         let res = service
-            .set_password(None, Some(hex::encode(&password_hash)))
+            .set_password(rng.sample_iter(&Alphanumeric).take(7).collect())
             .unwrap();
         assert!(res);
-        assert_eq!(
-            service.wallet_db.get_password_hash().unwrap(),
-            password_hash.to_vec()
-        );
         assert_eq!(service.is_locked().unwrap(), Some(false));
         assert!(service.verify_unlocked().is_ok());
     }
@@ -300,11 +252,10 @@ mod tests {
 
         let service = setup_service(ledger_db.clone(), logger);
 
-        let mut password_hash = [0u8; 32];
-        rng.fill_bytes(&mut password_hash);
-        service
-            .set_password(None, Some(hex::encode(&password_hash)))
-            .unwrap();
+        let pw_rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let password: String = pw_rng.sample_iter(&Alphanumeric).take(7).collect();
+        let res = service.set_password(password.clone()).unwrap();
+        assert!(res);
 
         // Create Account
         let alice_account_resp = service
@@ -327,20 +278,11 @@ mod tests {
         assert_eq!(alice_decrypted, alice_account_key);
 
         // Change password
-        let mut new_password_hash = [0u8; 32];
-        rng.fill_bytes(&mut new_password_hash);
+        let new_rng: StdRng = SeedableRng::from_seed([25u8; 32]);
+        let new_password: String = new_rng.sample_iter(&Alphanumeric).take(7).collect();
         service
-            .change_password(
-                None,
-                Some(hex::encode(password_hash)),
-                None,
-                Some(hex::encode(new_password_hash)),
-            )
+            .change_password(password, new_password.clone())
             .unwrap();
-        assert_eq!(
-            service.wallet_db.get_password_hash().unwrap(),
-            new_password_hash
-        );
 
         // Verify that the newly encrypted account key also decrypts to the same value
         let alice_account_changed = Account::get(
@@ -391,20 +333,11 @@ mod tests {
         assert_eq!(carol_decrypted, carol_account_key);
 
         // Change password
-        let mut final_password_hash = [0u8; 32];
-        rng.fill_bytes(&mut final_password_hash);
+        let final_rng: StdRng = SeedableRng::from_seed([30u8; 32]);
+        let final_password: String = final_rng.sample_iter(&Alphanumeric).take(7).collect();
         service
-            .change_password(
-                None,
-                Some(hex::encode(new_password_hash)),
-                None,
-                Some(hex::encode(final_password_hash)),
-            )
+            .change_password(new_password, final_password)
             .unwrap();
-        assert_eq!(
-            service.wallet_db.get_password_hash().unwrap(),
-            final_password_hash
-        );
 
         // Verify that all the newly encrypted account keys also decrypt to the same value
         let alice_account_final = Account::get(
