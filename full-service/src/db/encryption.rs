@@ -62,7 +62,8 @@ impl EncryptionProvider {
             *cur_password_hash = password_hash.to_vec();
         }
         // Encrypt the verification value and set in the DB
-        let verification_value = Self::encrypt(ENCRYPTION_VERIFICATION_VAL, password_hash)?;
+        let verification_value =
+            Self::encrypt_with_password(ENCRYPTION_VERIFICATION_VAL, password_hash)?;
         EncryptionIndicator::set_verification_value(&verification_value, conn)?;
 
         Ok(())
@@ -99,7 +100,8 @@ impl EncryptionProvider {
             EncryptionState::Encrypted => {
                 log::debug!(self.logger, "DB is locked. Verifying password.");
                 // Attempt to decrypt the test value to confirm if password is correct
-                let expected_val = Self::encrypt(ENCRYPTION_VERIFICATION_VAL, password_hash)?;
+                let expected_val =
+                    Self::encrypt_with_password(ENCRYPTION_VERIFICATION_VAL, password_hash)?;
                 if EncryptionIndicator::verify_password(&expected_val, &conn)? {
                     // Store password hash in memory
                     let mut cur_password_hash = self.password_hash.lock()?;
@@ -136,7 +138,8 @@ impl EncryptionProvider {
             EncryptionState::Encrypted => {
                 log::debug!(self.logger, "Database is locked. Verifying old password.");
                 // Attempt to decrypt the test value to confirm if password is correct
-                let expected_val = Self::encrypt(ENCRYPTION_VERIFICATION_VAL, old_password_hash)?;
+                let expected_val =
+                    Self::encrypt_with_password(ENCRYPTION_VERIFICATION_VAL, old_password_hash)?;
                 if EncryptionIndicator::verify_password(&expected_val, &conn)? {
                     // Set password to new password
                     self.set_password_hash(new_password_hash, &conn)?;
@@ -155,26 +158,46 @@ impl EncryptionProvider {
         Ok(())
     }
 
+    pub fn encrypt(&self, plaintext_bytes: &[u8]) -> Result<Vec<u8>, WalletDbError> {
+        Ok(Self::encrypt_with_password(
+            plaintext_bytes,
+            &self.get_password_hash()?,
+        )?)
+    }
+
+    pub fn decrypt(&self, ciphertext: &[u8]) -> Result<Vec<u8>, WalletDbError> {
+        Ok(Self::decrypt_with_password(
+            ciphertext,
+            &self.get_password_hash()?,
+        )?)
+    }
+
     /// Encrypt data.
-    pub fn encrypt(plaintext_bytes: &[u8], password_hash: &[u8]) -> Result<Vec<u8>, WalletDbError> {
-        let (key, nonce) = Self::expand_password(&password_hash)?;
+    pub fn encrypt_with_password(
+        plaintext_bytes: &[u8],
+        password_hash: &[u8],
+    ) -> Result<Vec<u8>, WalletDbError> {
+        let (key, nonce) = Self::expand_password(password_hash)?;
         let cipher = Aes256Gcm::new(&key);
         Ok(cipher.encrypt(&nonce, &plaintext_bytes[..])?)
     }
 
     /// Decrypt data.
-    pub fn decrypt(ciphertext: &[u8], password_hash: &[u8]) -> Result<Vec<u8>, WalletDbError> {
-        let (key, nonce) = Self::expand_password(&password_hash)?;
+    pub fn decrypt_with_password(
+        ciphertext: &[u8],
+        password_hash: &[u8],
+    ) -> Result<Vec<u8>, WalletDbError> {
+        let (key, nonce) = Self::expand_password(password_hash)?;
         let cipher = Aes256Gcm::new(&key);
         Ok(cipher.decrypt(&nonce, ciphertext)?)
     }
 
     /// Expands the password into an encryption key and a nonce.
-    fn expand_password(password: &[u8]) -> Result<ExpandedPassword, WalletDbError> {
+    fn expand_password(password_hash: &[u8]) -> Result<ExpandedPassword, WalletDbError> {
         // Hash the password hash with Blake2b to get 64 bytes, first 32 for aeskey, second 32 for nonce
         let mut hasher = Blake2b::new();
         hasher.update(&ENCRYPTION_KEY_DOMAIN_TAG);
-        hasher.update(&password);
+        hasher.update(password_hash);
         let result = hasher.finalize();
 
         let (key, remainder) = Split::<u8, <Aes256Gcm as NewAead>::KeySize>::split(result);
@@ -188,6 +211,8 @@ impl EncryptionProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_utils::WalletDbTestContext;
+    use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
     use rand::{rngs::StdRng, SeedableRng};
 
@@ -200,8 +225,32 @@ mod tests {
         rng.fill_bytes(&mut password_hash);
 
         let plaintext = b"test_plaintext";
-        let ciphertext = EncryptionProvider::encrypt(plaintext, &password_hash).unwrap();
-        let decrypted = EncryptionProvider::decrypt(&ciphertext, &password_hash).unwrap();
+        let ciphertext =
+            EncryptionProvider::encrypt_with_password(plaintext, &password_hash).unwrap();
+        let decrypted =
+            EncryptionProvider::decrypt_with_password(&ciphertext, &password_hash).unwrap();
+        assert_eq!(plaintext.to_vec(), decrypted);
+    }
+
+    // Encrypting and decrypting with a set password through the provider should succeed.
+    #[test_with_logger]
+    fn test_basic_encrypt_decrypt_with_encryption_provider(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+
+        let mut password_hash = [1u8; 32];
+        rng.fill_bytes(&mut password_hash);
+
+        let encryption_provider = EncryptionProvider::new(logger);
+        encryption_provider
+            .set_password_hash(&password_hash, &wallet_db.get_conn().unwrap())
+            .unwrap();
+
+        let plaintext = b"test_plaintext";
+        let ciphertext = encryption_provider.encrypt(plaintext).unwrap();
+        let decrypted = encryption_provider.decrypt(&ciphertext).unwrap();
         assert_eq!(plaintext.to_vec(), decrypted);
     }
 }

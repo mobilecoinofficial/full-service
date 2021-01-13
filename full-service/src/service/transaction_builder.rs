@@ -167,14 +167,17 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
             return Err(WalletTransactionBuilderError::TombstoneNotSet);
         }
 
-        let conn = self.wallet_db.get_conn()?;
+        let conn_manager = self.wallet_db.get_conn_manager()?;
 
-        Ok(
-            conn.transaction::<TxProposal, WalletTransactionBuilderError, _>(|| {
-                let account: Account =
-                    Account::get(&AccountID(self.account_id_hex.to_string()), &conn)?;
-                let from_account_key: AccountKey = account
-                    .get_decrypted_account_key(&self.wallet_db.get_password_hash()?, &conn)?;
+        Ok(conn_manager
+            .conn
+            .transaction::<TxProposal, WalletTransactionBuilderError, _>(|| {
+                let account: Account = Account::get(
+                    &AccountID(self.account_id_hex.to_string()),
+                    &conn_manager.conn,
+                )?;
+                let from_account_key: AccountKey =
+                    account.get_decrypted_account_key(&conn_manager)?;
 
                 // Get membership proofs for our inputs
                 let indexes = self
@@ -432,8 +435,7 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
                     outlay_index_to_tx_out_index,
                     outlay_confirmation_numbers,
                 })
-            })?,
-        )
+            })?)
     }
 
     /// Get rings.
@@ -681,8 +683,7 @@ mod tests {
         // Get our TXO list
         let txos: Vec<Txo> = Txo::list_for_account(
             &AccountID::from(&account_key).to_string(),
-            &password_hash,
-            &wallet_db.get_conn().unwrap(),
+            &wallet_db.get_conn_manager().unwrap(),
         )
         .unwrap()
         .iter()
