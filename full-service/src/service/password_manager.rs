@@ -5,9 +5,9 @@
 use crate::{
     db::{
         account::AccountModel,
+        encryption::EncryptionProvider,
         encryption_indicator::{EncryptionModel, EncryptionState},
         models::{Account, EncryptionIndicator},
-        WalletDb,
     },
     error::WalletDbError,
     service::WalletService,
@@ -161,7 +161,7 @@ where
                 );
                 self.wallet_db.set_password_hash(&password_hash, &conn)?;
                 for account in Account::list_all(&conn)? {
-                    let encrypted_account_key = WalletDb::encrypt(
+                    let encrypted_account_key = EncryptionProvider::encrypt(
                         &account.account_key,
                         &self.wallet_db.get_password_hash()?,
                     )?;
@@ -203,7 +203,7 @@ where
             let decrypted_account_key =
                 account.get_decrypted_account_key(&old_password_hash, &conn)?;
 
-            let encrypted_account_key = WalletDb::encrypt(
+            let encrypted_account_key = EncryptionProvider::encrypt(
                 &mc_util_serial::encode(&decrypted_account_key),
                 &self.wallet_db.get_password_hash()?,
             )?;

@@ -6,6 +6,7 @@ use crate::{
     db::{
         assigned_subaddress::AssignedSubaddressModel,
         b58_encode,
+        encryption::EncryptionProvider,
         encryption_indicator::{EncryptionModel, EncryptionState},
         models::{
             Account, AccountTxoStatus, AssignedSubaddress, EncryptionIndicator, NewAccount,
@@ -13,7 +14,6 @@ use crate::{
         },
         transaction_log::TransactionLogModel,
         txo::TxoModel,
-        WalletDb,
     },
     error::WalletDbError,
     service::decorated_types::JsonAccount,
@@ -159,7 +159,7 @@ impl AccountModel for Account {
         let account_id = AccountID::from(account_key);
         let fb = first_block.unwrap_or(DEFAULT_FIRST_BLOCK);
         let account_key_bytes = mc_util_serial::encode(account_key);
-        let encrypted_account_key = WalletDb::encrypt(&account_key_bytes, password_hash)?;
+        let encrypted_account_key = EncryptionProvider::encrypt(&account_key_bytes, password_hash)?;
 
         Ok(
             conn.transaction::<(AccountID, String), WalletDbError, _>(|| {
@@ -271,7 +271,8 @@ impl AccountModel for Account {
                 if password_hash.is_empty() {
                     return Err(WalletDbError::NoDecryptionKey);
                 }
-                let decrypted_account_key = WalletDb::decrypt(&self.account_key, password_hash)?;
+                let decrypted_account_key =
+                    EncryptionProvider::decrypt(&self.account_key, password_hash)?;
                 mc_util_serial::decode(&decrypted_account_key)?
             }
         };
@@ -491,7 +492,8 @@ mod tests {
         let acc = Account::get(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
 
         let encrypted_account_key =
-            WalletDb::encrypt(&mc_util_serial::encode(&account_key), &password_hash).unwrap();
+            EncryptionProvider::encrypt(&mc_util_serial::encode(&account_key), &password_hash)
+                .unwrap();
         let expected_account = Account {
             id: 1,
             account_id_hex: account_id_hex.to_string(),
@@ -546,7 +548,7 @@ mod tests {
         let acc_secondary =
             Account::get(&account_id_hex_secondary, &wallet_db.get_conn().unwrap()).unwrap();
 
-        let encrypted_account_key_secondary = WalletDb::encrypt(
+        let encrypted_account_key_secondary = EncryptionProvider::encrypt(
             &mc_util_serial::encode(&account_key_secondary),
             &password_hash,
         )
