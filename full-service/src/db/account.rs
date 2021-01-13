@@ -14,6 +14,7 @@ use crate::{
         },
         transaction_log::TransactionLogModel,
         txo::TxoModel,
+        WalletDbConnManager,
     },
     error::WalletDbError,
     service::decorated_types::JsonAccount,
@@ -61,8 +62,7 @@ pub trait AccountModel {
         first_block: Option<u64>,
         import_block: Option<u64>,
         name: &str,
-        password_hash: &[u8],
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn_manager: &WalletDbConnManager,
     ) -> Result<(AccountID, String), WalletDbError>;
 
     /// Import account.
@@ -72,8 +72,7 @@ pub trait AccountModel {
         first_block: Option<u64>,
         local_height: u64,
         network_height: u64,
-        password_hash: &[u8],
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn_manager: &WalletDbConnManager,
     ) -> Result<JsonAccount, WalletDbError>;
 
     /// List all accounts.
@@ -151,18 +150,21 @@ impl AccountModel for Account {
         first_block: Option<u64>,
         import_block: Option<u64>,
         name: &str,
-        password_hash: &[u8],
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn_manager: &WalletDbConnManager,
     ) -> Result<(AccountID, String), WalletDbError> {
         use crate::db::schema::accounts;
 
         let account_id = AccountID::from(account_key);
         let fb = first_block.unwrap_or(DEFAULT_FIRST_BLOCK);
         let account_key_bytes = mc_util_serial::encode(account_key);
-        let encrypted_account_key = EncryptionProvider::encrypt(&account_key_bytes, password_hash)?;
+        let encrypted_account_key = EncryptionProvider::encrypt(
+            &account_key_bytes,
+            &conn_manager.encryption_provider.get_password_hash()?,
+        )?;
 
-        Ok(
-            conn.transaction::<(AccountID, String), WalletDbError, _>(|| {
+        Ok(conn_manager
+            .conn
+            .transaction::<(AccountID, String), WalletDbError, _>(|| {
                 let new_account = NewAccount {
                     account_id_hex: &account_id.to_string(),
                     account_key: &encrypted_account_key,
@@ -177,14 +179,14 @@ impl AccountModel for Account {
 
                 diesel::insert_into(accounts::table)
                     .values(&new_account)
-                    .execute(conn)?;
+                    .execute(&conn_manager.conn)?;
 
                 let main_subaddress_b58 = AssignedSubaddress::create(
                     account_key,
                     None, // FIXME: WS-8 - Address Book Entry if details provided, or None always for main?
                     DEFAULT_SUBADDRESS_INDEX,
                     "Main",
-                    &conn,
+                    &conn_manager.conn,
                 )?;
 
                 let _change_subaddress_b58 = AssignedSubaddress::create(
@@ -192,11 +194,10 @@ impl AccountModel for Account {
                     None, // FIXME: WS-8 - Address Book Entry if details provided, or None always for main?
                     DEFAULT_CHANGE_SUBADDRESS_INDEX,
                     "Change",
-                    &conn,
+                    &conn_manager.conn,
                 )?;
                 Ok((account_id, main_subaddress_b58))
-            })?,
-        )
+            })?)
     }
 
     fn import(
@@ -205,26 +206,26 @@ impl AccountModel for Account {
         first_block: Option<u64>,
         local_height: u64,
         network_height: u64,
-        password_hash: &[u8],
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn_manager: &WalletDbConnManager,
     ) -> Result<JsonAccount, WalletDbError> {
-        Ok(conn.transaction::<JsonAccount, WalletDbError, _>(|| {
-            let (account_id, _public_address_b58) = Account::create(
-                &account_key,
-                first_block,
-                Some(local_height),
-                &name.unwrap_or_else(|| "".to_string()),
-                password_hash,
-                conn,
-            )?;
-            Ok(Account::get_decorated(
-                &account_id,
-                local_height,
-                network_height,
-                password_hash,
-                &conn,
-            )?)
-        })?)
+        Ok(conn_manager
+            .conn
+            .transaction::<JsonAccount, WalletDbError, _>(|| {
+                let (account_id, _public_address_b58) = Account::create(
+                    &account_key,
+                    first_block,
+                    Some(local_height),
+                    &name.unwrap_or_else(|| "".to_string()),
+                    conn_manager,
+                )?;
+                Ok(Account::get_decorated(
+                    &account_id,
+                    local_height,
+                    network_height,
+                    &conn_manager.encryption_provider.get_password_hash()?,
+                    &conn_manager.conn,
+                )?)
+            })?)
     }
 
     fn list_all(
@@ -470,14 +471,12 @@ mod tests {
 
         let account_key = AccountKey::random(&mut rng);
         let account_id_hex = {
-            let conn = wallet_db.get_conn().unwrap();
             let (account_id_hex, _public_address_b58) = Account::create(
                 &account_key,
                 Some(0),
                 None,
                 "Alice's Main Account",
-                &password_hash,
-                &conn,
+                &wallet_db.get_conn_manager().unwrap(),
             )
             .unwrap();
             account_id_hex
@@ -538,8 +537,7 @@ mod tests {
             Some(51),
             Some(50),
             "",
-            &password_hash,
-            &wallet_db.get_conn().unwrap(),
+            &wallet_db.get_conn_manager().unwrap(),
         )
         .unwrap();
         let res = Account::list_all(&wallet_db.get_conn().unwrap()).unwrap();
@@ -614,14 +612,12 @@ mod tests {
 
         let account_key = AccountKey::random(&mut rng);
         let account_id_hex = {
-            let conn = wallet_db.get_conn().unwrap();
             let (account_id_hex, _public_address_b58) = Account::create(
                 &account_key,
                 Some(0),
                 None,
                 "Alice's Main Account",
-                &wallet_db.get_password_hash().unwrap(),
-                &conn,
+                &wallet_db.get_conn_manager().unwrap(),
             )
             .unwrap();
             account_id_hex

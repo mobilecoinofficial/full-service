@@ -557,8 +557,7 @@ mod tests {
             Some(0),
             None,
             "",
-            &password_hash,
-            &wallet_db.get_conn().unwrap(),
+            &wallet_db.get_conn_manager().unwrap(),
         )
         .unwrap();
         let account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
@@ -622,7 +621,6 @@ mod tests {
             &wallet_db,
             &mut ledger_db,
             &vec![70 * MOB as u64],
-            &password_hash,
             &mut rng,
         );
 
@@ -782,7 +780,6 @@ mod tests {
             &wallet_db,
             &mut ledger_db,
             &vec![100 * MOB as u64, 200 * MOB as u64],
-            &password_hash,
             &mut rng,
         );
 

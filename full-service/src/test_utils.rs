@@ -378,7 +378,6 @@ pub fn random_account_with_seed_values(
     wallet_db: &WalletDb,
     mut ledger_db: &mut LedgerDB,
     seed_values: &[u64],
-    password_hash: &[u8],
     mut rng: &mut StdRng,
 ) -> AccountKey {
     let account_key = AccountKey::random(&mut rng);
@@ -387,8 +386,7 @@ pub fn random_account_with_seed_values(
         Some(0),
         None,
         "",
-        password_hash,
-        &wallet_db.get_conn().unwrap(),
+        &wallet_db.get_conn_manager().unwrap(),
     )
     .unwrap();
 

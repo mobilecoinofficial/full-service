@@ -128,14 +128,13 @@ impl<
         let account_key = AccountKey::from(&root_id);
         let entropy_str = hex::encode(root_id.root_entropy);
 
-        let conn = self.wallet_db.get_conn()?;
+        let conn_manager = self.wallet_db.get_conn_manager()?;
         let (account_id, _public_address_b58) = Account::create(
             &account_key,
             first_block,
             None,
             &name.unwrap_or_else(|| "".to_string()),
-            &self.wallet_db.get_password_hash()?,
-            &conn,
+            &conn_manager,
         )?;
 
         let local_height = self.ledger_db.num_blocks()?;
@@ -150,7 +149,7 @@ impl<
             local_height,
             network_height,
             &self.wallet_db.get_password_hash()?,
-            &conn,
+            &conn_manager.conn,
         )?;
 
         Ok(JsonCreateAccountResponse {
@@ -183,15 +182,13 @@ impl<
             .highest_block_index_on_network()
             .map(|v| v + 1)
             .unwrap_or(0);
-        let conn = self.wallet_db.get_conn()?;
         Ok(Account::import(
             &account_key,
             name,
             first_block,
             local_height,
             network_height,
-            &self.wallet_db.get_password_hash()?,
-            &conn,
+            &self.wallet_db.get_conn_manager()?,
         )?)
     }
 

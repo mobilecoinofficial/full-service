@@ -49,7 +49,7 @@ pub fn b58_decode(b58_public_address: &str) -> Result<PublicAddress, WalletDbErr
 
 /// A struct encapsulating a single connection, which can also be used for encryption and logging.
 /// Intended to be passed to trait methods in various db::models.
-pub struct WalletDbConn {
+pub struct WalletDbConnManager {
     pub conn: PooledConnection<ConnectionManager<SqliteConnection>>,
     pub encryption_provider: Arc<EncryptionProvider>,
     pub logger: Logger,
@@ -58,7 +58,7 @@ pub struct WalletDbConn {
 #[derive(Clone)]
 pub struct WalletDb {
     pool: Pool<ConnectionManager<SqliteConnection>>,
-    encryption_provider: EncryptionProvider,
+    encryption_provider: Arc<EncryptionProvider>,
     logger: Logger,
 }
 
@@ -66,7 +66,7 @@ impl WalletDb {
     pub fn new(pool: Pool<ConnectionManager<SqliteConnection>>, logger: Logger) -> Self {
         Self {
             pool,
-            encryption_provider: EncryptionProvider::new(logger.clone()),
+            encryption_provider: Arc::new(EncryptionProvider::new(logger.clone())),
             logger,
         }
     }
@@ -84,6 +84,14 @@ impl WalletDb {
         &self,
     ) -> Result<PooledConnection<ConnectionManager<SqliteConnection>>, WalletDbError> {
         Ok(self.pool.get()?)
+    }
+
+    pub fn get_conn_manager(&self) -> Result<WalletDbConnManager, WalletDbError> {
+        Ok(WalletDbConnManager {
+            conn: self.get_conn()?,
+            encryption_provider: self.encryption_provider.clone(),
+            logger: self.logger.clone(),
+        })
     }
 
     /// Set the password hash for the database.
