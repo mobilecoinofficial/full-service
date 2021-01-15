@@ -73,8 +73,10 @@ impl WalletDb {
 
     pub fn new_from_url(database_url: &str, logger: Logger) -> Result<Self, WalletDbError> {
         let manager = ConnectionManager::<SqliteConnection>::new(database_url);
+        // Note: Setting max_size > 1 causes tests to fail. It may be more optimal for non-testing, though.
+        // FIXME: WS-56 Investigate optimal max_size value for service and tests
         let pool = Pool::builder()
-            .max_size(10)
+            .max_size(1)
             .test_on_check_out(true)
             .build(manager)?;
         Ok(Self::new(pool, logger))
@@ -83,11 +85,6 @@ impl WalletDb {
     pub fn get_conn(
         &self,
     ) -> Result<PooledConnection<ConnectionManager<SqliteConnection>>, WalletDbError> {
-        log::info!(
-            self.logger,
-            "\x1b[1;31m GETTING NEW CONNECTION TO DB, current pool state: {:?}\x1b[0m",
-            self.pool.state()
-        );
         Ok(self.pool.get()?)
     }
 
