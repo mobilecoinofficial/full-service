@@ -28,7 +28,7 @@ use crate::{
         models::{Account, AssignedSubaddress, TransactionLog, Txo},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
-        WalletDb, WalletDbConnManager,
+        WalletDb, WalletDbConnContext,
     },
     error::{SyncError, WalletDbError},
 };
@@ -159,10 +159,10 @@ impl SyncThread {
                         let mut message_sent = false;
 
                         // Go over our list of accounts and see which one needs to process these blocks.
-                        let conn_manager = wallet_db
-                            .get_conn_manager()
+                        let conn_context = wallet_db
+                            .get_conn_context()
                             .expect("Could not get connection to DB");
-                        let accounts = match Account::list_all(&conn_manager.conn) {
+                        let accounts = match Account::list_all(&conn_context.conn) {
                             Ok(a) => a,
                             Err(e) => panic!("Failed getting accounts from WalletDb {:?}", e),
                         };
@@ -261,10 +261,10 @@ fn sync_thread_entry_point(
     for msg in receiver.iter() {
         match msg {
             SyncMsg::SyncAccount(account_id) => {
-                let conn_manager = wallet_db
-                    .get_conn_manager()
+                let conn_context = wallet_db
+                    .get_conn_context()
                     .expect("could not get conn manager");
-                match sync_account(&ledger_db, &conn_manager, &account_id, &logger) {
+                match sync_account(&ledger_db, &conn_context, &account_id, &logger) {
                     // Success - No more blocks are currently available.
                     Ok(SyncAccountOk::NoMoreBlocks) => {
                         // Remove the account id from the list of queued ones so that the main thread could
@@ -322,17 +322,17 @@ fn sync_thread_entry_point(
 /// Sync a single account.
 pub fn sync_account(
     ledger_db: &LedgerDB,
-    conn_manager: &WalletDbConnManager,
+    conn_context: &WalletDbConnContext,
     account_id: &str,
     logger: &Logger,
 ) -> Result<SyncAccountOk, SyncError> {
     for _ in 0..MAX_BLOCKS_PROCESSING_CHUNK_SIZE {
-        let sync_status = conn_manager
+        let sync_status = conn_context
             .conn
             .transaction::<SyncAccountOk, SyncError, _>(|| {
                 // Get the account data. If it is no longer available, the account has been removed and we
                 // can simply return.
-                let account = Account::get(&AccountID(account_id.to_string()), &conn_manager.conn)?;
+                let account = Account::get(&AccountID(account_id.to_string()), &conn_context.conn)?;
                 let block_contents = match ledger_db.get_block_contents(account.next_block as u64) {
                     Ok(block_contents) => block_contents,
                     Err(mc_ledger_db::Error::NotFound) => {
@@ -354,7 +354,7 @@ pub fn sync_account(
 
                 // Match tx outs into UTXOs.
                 let output_txo_ids = process_txos(
-                    &conn_manager,
+                    &conn_context,
                     &block_contents.outputs,
                     &account,
                     account.next_block,
@@ -367,7 +367,7 @@ pub fn sync_account(
                 account.update_spent_and_increment_next_block(
                     account.next_block,
                     block_contents.key_images,
-                    &conn_manager.conn,
+                    &conn_context.conn,
                 )?;
 
                 // Add a transaction for the received TXOs
@@ -375,7 +375,7 @@ pub fn sync_account(
                     &output_txo_ids,
                     &account,
                     account.next_block as u64,
-                    &conn_manager,
+                    &conn_context,
                 )?;
                 Ok(SyncAccountOk::MoreBlocksPotentiallyAvailable)
             })?;
@@ -389,13 +389,13 @@ pub fn sync_account(
 
 /// Helper function for matching a list of TxOuts to a given account.
 fn process_txos(
-    conn_manager: &WalletDbConnManager,
+    conn_context: &WalletDbConnContext,
     outputs: &[TxOut],
     account: &Account,
     received_block_index: i64,
     logger: &Logger,
 ) -> Result<HashMap<i64, Vec<String>>, SyncError> {
-    let account_key: AccountKey = account.get_decrypted_account_key(&conn_manager)?;
+    let account_key: AccountKey = account.get_decrypted_account_key(&conn_context)?;
     let view_key = account_key.view_key();
     let account_id_hex = AccountID::from(&account_key).to_string();
 
@@ -415,7 +415,7 @@ fn process_txos(
         // See if it matches any of our assigned subaddresses.
         let subaddress_index = match AssignedSubaddress::find_by_subaddress_spend_public_key(
             &subaddress_spk,
-            &conn_manager.conn,
+            &conn_context.conn,
         ) {
             Ok((index, account_id)) => {
                 log::trace!(
@@ -470,7 +470,7 @@ fn process_txos(
             value,
             received_block_index,
             &account_id_hex,
-            &conn_manager,
+            &conn_context,
         )?;
 
         // If we couldn't find an assigned subaddress for this value, store for -1

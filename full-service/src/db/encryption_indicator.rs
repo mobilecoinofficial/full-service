@@ -30,15 +30,19 @@ pub enum EncryptionState {
 }
 
 pub trait EncryptionModel {
+    /// Gets the current encryption state for the database, as indicated by the indicator table
     fn get_encryption_state(
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<EncryptionState, WalletDbError>;
 
-    fn verify_password(
+    /// Verifies that the encrypted value in the database matches the expected value, which
+    /// should have been obtained by encrypting the indicator value with some password.
+    fn verify_encrypted_value(
         expected_val: &[u8],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError>;
 
+    /// Sets the verification value for the encryption indicator in the database.
     fn set_verification_value(
         encrypted_verification_value: &[u8],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
@@ -67,7 +71,7 @@ impl EncryptionModel for EncryptionIndicator {
         }
     }
 
-    fn verify_password(
+    fn verify_encrypted_value(
         expected_val: &[u8],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError> {
@@ -81,8 +85,8 @@ impl EncryptionModel for EncryptionIndicator {
                 Err(WalletDbError::MissingEncryptionIndicator)
             } else if indicator_rows.len() > 1 {
                 Err(WalletDbError::BadEncryptionState)
-            } else if let Some(hash) = indicator_rows[0].verification_value.clone() {
-                Ok(hash == expected_val)
+            } else if let Some(current_val) = indicator_rows[0].verification_value.clone() {
+                Ok(current_val == expected_val)
             } else {
                 Err(WalletDbError::BadEncryptionState)
             }
@@ -96,10 +100,10 @@ impl EncryptionModel for EncryptionIndicator {
         use crate::db::schema::encryption_indicators as encryption_table;
 
         Ok(conn.transaction::<(), WalletDbError, _>(|| {
-            let verification_val_insertable = encrypted_verification_value.to_vec();
+            let _verification_val_insertable = encrypted_verification_value.to_vec();
             let new_indicator = NewEncryptionIndicator {
                 encrypted: true,
-                verification_value: Some(&verification_val_insertable),
+                verification_value: Some(encrypted_verification_value),
             };
 
             // Delete the whole table (should only be one row)
@@ -133,17 +137,39 @@ mod tests {
         }
     }
 
-    // The set password should verify.
+    // The correct verification value should verify.
     #[test_with_logger]
-    fn test_setting_and_verifying_password(logger: Logger) {
+    fn test_setting_and_verifying_value(logger: Logger) {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger.clone());
 
-        let password_hash = [1u8; 32];
-        EncryptionIndicator::set_verification_value(&password_hash, &wallet_db.get_conn().unwrap())
-            .unwrap();
-        assert!(EncryptionIndicator::verify_password(
-            &password_hash,
+        let encrypted_verification_value = [1u8; 32];
+        EncryptionIndicator::set_verification_value(
+            &encrypted_verification_value,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        assert!(EncryptionIndicator::verify_encrypted_value(
+            &encrypted_verification_value,
+            &wallet_db.get_conn().unwrap()
+        )
+        .unwrap());
+    }
+
+    // An incorrect verification value should fail.
+    #[test_with_logger]
+    fn test_invalid_does_not_verify(logger: Logger) {
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+
+        let encrypted_verification_value = [1u8; 32];
+        EncryptionIndicator::set_verification_value(
+            &encrypted_verification_value,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        assert!(!EncryptionIndicator::verify_encrypted_value(
+            &[2u8; 32],
             &wallet_db.get_conn().unwrap()
         )
         .unwrap());

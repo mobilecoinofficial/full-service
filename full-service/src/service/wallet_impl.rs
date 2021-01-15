@@ -128,13 +128,13 @@ impl<
         let account_key = AccountKey::from(&root_id);
         let entropy_str = hex::encode(root_id.root_entropy);
 
-        let conn_manager = self.wallet_db.get_conn_manager()?;
+        let conn_context = self.wallet_db.get_conn_context()?;
         let (account_id, _public_address_b58) = Account::create(
             &account_key,
             first_block,
             None,
             &name.unwrap_or_else(|| "".to_string()),
-            &conn_manager,
+            &conn_context,
         )?;
 
         let local_height = self.ledger_db.num_blocks()?;
@@ -145,7 +145,7 @@ impl<
             .map(|v| v + 1)
             .unwrap_or(0);
         let decorated_account =
-            Account::get_decorated(&account_id, local_height, network_height, &conn_manager)?;
+            Account::get_decorated(&account_id, local_height, network_height, &conn_context)?;
 
         Ok(JsonCreateAccountResponse {
             entropy: entropy_str,
@@ -184,16 +184,16 @@ impl<
             first_block,
             local_height,
             network_height,
-            &self.wallet_db.get_conn_manager()?,
+            &self.wallet_db.get_conn_context()?,
         )?)
     }
 
     pub fn list_accounts(&self) -> Result<Vec<JsonAccount>, WalletServiceError> {
-        let conn_manager = self.wallet_db.get_conn_manager()?;
-        Ok(conn_manager
+        let conn_context = self.wallet_db.get_conn_context()?;
+        Ok(conn_context
             .conn
             .transaction::<Vec<JsonAccount>, WalletServiceError, _>(|| {
-                let accounts = Account::list_all(&conn_manager.conn)?;
+                let accounts = Account::list_all(&conn_context.conn)?;
                 let local_height = self.ledger_db.num_blocks()?;
                 let network_state = self.network_state.read().expect("lock poisoned");
                 // network_height = network_block_index + 1
@@ -208,7 +208,7 @@ impl<
                             &AccountID(a.account_id_hex.clone()),
                             local_height,
                             network_height,
-                            &conn_manager,
+                            &conn_context,
                         )
                         .map_err(|e| e.into())
                     })
@@ -221,13 +221,13 @@ impl<
         account_id_hex: &str,
         name: String,
     ) -> Result<JsonAccount, WalletServiceError> {
-        let conn_manager = self.wallet_db.get_conn_manager()?;
+        let conn_context = self.wallet_db.get_conn_context()?;
 
-        Ok(conn_manager
+        Ok(conn_context
             .conn
             .transaction::<JsonAccount, WalletServiceError, _>(|| {
-                Account::get(&AccountID(account_id_hex.to_string()), &conn_manager.conn)?
-                    .update_name(name, &conn_manager.conn)?;
+                Account::get(&AccountID(account_id_hex.to_string()), &conn_context.conn)?
+                    .update_name(name, &conn_context.conn)?;
 
                 let local_height = self.ledger_db.num_blocks()?;
                 let network_state = self.network_state.read().expect("lock poisoned");
@@ -240,7 +240,7 @@ impl<
                     &AccountID(account_id_hex.to_string()),
                     local_height,
                     network_height,
-                    &conn_manager,
+                    &conn_context,
                 )?;
                 Ok(decorated_account)
             })?)
@@ -269,26 +269,26 @@ impl<
             &account_id_hex,
             local_height,
             network_height,
-            &self.wallet_db.get_conn_manager()?,
+            &self.wallet_db.get_conn_context()?,
         )?)
     }
 
     pub fn list_txos(&self, account_id_hex: &str) -> Result<Vec<JsonTxo>, WalletServiceError> {
         self.verify_unlocked()?;
-        let txos = Txo::list_for_account(account_id_hex, &self.wallet_db.get_conn_manager()?)?;
+        let txos = Txo::list_for_account(account_id_hex, &self.wallet_db.get_conn_context()?)?;
         Ok(txos.iter().map(|t| JsonTxo::new(t)).collect())
     }
 
     pub fn get_txo(&self, txo_id_hex: &str) -> Result<JsonTxo, WalletServiceError> {
         self.verify_unlocked()?;
-        let txo_details = Txo::get(txo_id_hex, &self.wallet_db.get_conn_manager()?)?;
+        let txo_details = Txo::get(txo_id_hex, &self.wallet_db.get_conn_context()?)?;
         Ok(JsonTxo::new(&txo_details))
     }
 
     // Wallet Status is an overview of the wallet's status
     pub fn get_wallet_status(&self) -> Result<JsonWalletStatus, WalletServiceError> {
         self.verify_unlocked()?;
-        let conn_manager = self.wallet_db.get_conn_manager()?;
+        let conn_context = self.wallet_db.get_conn_context()?;
 
         let local_height = self.ledger_db.num_blocks()?;
 
@@ -299,10 +299,10 @@ impl<
             .map(|v| v + 1)
             .unwrap_or(0);
 
-        Ok(conn_manager
+        Ok(conn_context
             .conn
             .transaction::<JsonWalletStatus, WalletServiceError, _>(|| {
-                let accounts = Account::list_all(&conn_manager.conn)?;
+                let accounts = Account::list_all(&conn_context.conn)?;
                 let mut account_map = Map::new();
 
                 let mut total_available_pmob = 0;
@@ -314,7 +314,7 @@ impl<
                         &AccountID(account.account_id_hex.clone()),
                         local_height,
                         network_height,
-                        &conn_manager,
+                        &conn_context,
                     )?;
                     account_map.insert(
                         account.account_id_hex.clone(),
@@ -388,27 +388,27 @@ impl<
         // FIXME: WS-32 - add "sync from block"
     ) -> Result<JsonAddress, WalletServiceError> {
         self.verify_unlocked()?;
-        let conn_manager = &self.wallet_db.get_conn_manager()?;
+        let conn_context = &self.wallet_db.get_conn_context()?;
 
-        Ok(conn_manager
+        Ok(conn_context
             .conn
             .transaction::<JsonAddress, WalletServiceError, _>(|| {
                 // Get decrypted account key
                 let account =
-                    Account::get(&AccountID(account_id_hex.to_string()), &conn_manager.conn)?;
-                let account_key = account.get_decrypted_account_key(&conn_manager)?;
+                    Account::get(&AccountID(account_id_hex.to_string()), &conn_context.conn)?;
+                let account_key = account.get_decrypted_account_key(&conn_context)?;
 
                 let (public_address_b58, _subaddress_index) =
                     AssignedSubaddress::create_next_for_account(
                         &account,
                         &account_key,
                         comment.unwrap_or(""),
-                        &conn_manager.conn,
+                        &conn_context.conn,
                     )?;
 
                 Ok(JsonAddress::new(&AssignedSubaddress::get(
                     &public_address_b58,
-                    &conn_manager.conn,
+                    &conn_context.conn,
                 )?))
             })?)
     }
@@ -600,7 +600,7 @@ impl<
     pub fn get_txo_object(&self, txo_id_hex: &str) -> Result<JsonTxOut, WalletServiceError> {
         self.verify_unlocked()?;
 
-        let txo_details = Txo::get(txo_id_hex, &self.wallet_db.get_conn_manager()?)?;
+        let txo_details = Txo::get(txo_id_hex, &self.wallet_db.get_conn_context()?)?;
 
         let txo: TxOut = mc_util_serial::decode(&txo_details.txo.txo)?;
         // Convert to proto
@@ -655,7 +655,7 @@ impl<
             &AccountID(account_id_hex.to_string()),
             &txo_id_hex,
             &proof,
-            &self.wallet_db.get_conn_manager()?,
+            &self.wallet_db.get_conn_context()?,
         )?)
     }
 }

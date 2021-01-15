@@ -102,7 +102,7 @@ impl EncryptionProvider {
                 // Attempt to decrypt the test value to confirm if password is correct
                 let expected_val =
                     Self::encrypt_with_password(ENCRYPTION_VERIFICATION_VAL, password_hash)?;
-                if EncryptionIndicator::verify_password(&expected_val, &conn)? {
+                if EncryptionIndicator::verify_encrypted_value(&expected_val, &conn)? {
                     // Store password hash in memory
                     let mut cur_password_hash = self.password_hash.lock()?;
                     *cur_password_hash = password_hash.to_vec();
@@ -140,7 +140,7 @@ impl EncryptionProvider {
                 // Attempt to decrypt the test value to confirm if password is correct
                 let expected_val =
                     Self::encrypt_with_password(ENCRYPTION_VERIFICATION_VAL, old_password_hash)?;
-                if EncryptionIndicator::verify_password(&expected_val, &conn)? {
+                if EncryptionIndicator::verify_encrypted_value(&expected_val, &conn)? {
                     // Set password to new password
                     self.set_password_hash(new_password_hash, &conn)?;
                 } else {

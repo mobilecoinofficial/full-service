@@ -153,7 +153,7 @@ The Full Service Wallet API provides several objects that correspond to the data
   "account_id": "1916a9b3...",
   "public_address": "HpaL8g88...",
   "address_book_entry_id": 36,
-  "comment": "This is an assigned addresses that expects 1.5 MOB"
+  "comment": "This is an assigned addresses that expects 1.5 MOB",
   "subaddress_index": "20",
   "offset_count": 21
 }

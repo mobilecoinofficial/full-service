@@ -227,5 +227,5 @@ pub struct EncryptionIndicator {
 #[table_name = "encryption_indicators"]
 pub struct NewEncryptionIndicator<'a> {
     pub encrypted: bool,
-    pub verification_value: Option<&'a Vec<u8>>,
+    pub verification_value: Option<&'a [u8]>,
 }

@@ -120,15 +120,15 @@ where
     fn set_password(&self, password: String) -> Result<bool, PasswordServiceError> {
         let password_hash = self.get_password_hash(password)?;
 
-        let conn_manager = self.wallet_db.get_conn_manager()?;
-        conn_manager.conn.transaction::<(), PasswordServiceError, _>(|| {
-            match EncryptionIndicator::get_encryption_state(&conn_manager.conn)? {
+        let conn_context = self.wallet_db.get_conn_context()?;
+        conn_context.conn.transaction::<(), PasswordServiceError, _>(|| {
+            match EncryptionIndicator::get_encryption_state(&conn_context.conn)? {
                 EncryptionState::Empty => {
                     log::info!(
                         self.logger,
                         "Database has never been locked and has no accounts. Setting password for future accounts."
                     );
-                    self.wallet_db.set_password_hash(&password_hash, &conn_manager.conn)?;
+                    self.wallet_db.set_password_hash(&password_hash, &conn_context.conn)?;
                 }
                 EncryptionState::Encrypted => {
                     return Err(PasswordServiceError::DatabaseEncrypted);
@@ -138,12 +138,12 @@ where
                         self.logger,
                         "Database is unencrypted. Setting password with new password, and encrypting all accounts."
                     );
-                    self.wallet_db.set_password_hash(&password_hash, &conn_manager.conn)?;
-                    for account in Account::list_all(&conn_manager.conn)? {
-                        let encrypted_account_key = conn_manager.encryption_provider.encrypt(
+                    self.wallet_db.set_password_hash(&password_hash, &conn_context.conn)?;
+                    for account in Account::list_all(&conn_context.conn)? {
+                        let encrypted_account_key = conn_context.encryption_provider.encrypt(
                             &account.account_key,
                         )?;
-                        account.update_encrypted_account_key(&encrypted_account_key, &conn_manager.conn)?;
+                        account.update_encrypted_account_key(&encrypted_account_key, &conn_context.conn)?;
                     }
                 }
             }
@@ -170,13 +170,13 @@ where
         let new_password_hash = self.get_password_hash(new_password)?;
 
         // Re-encrypt all of our accounts with the new password hash
-        let conn_manager = self.wallet_db.get_conn_manager()?;
-        conn_manager
+        let conn_context = self.wallet_db.get_conn_context()?;
+        conn_context
             .conn
             .transaction::<(), PasswordServiceError, _>(|| {
-                for account in Account::list_all(&conn_manager.conn)? {
+                for account in Account::list_all(&conn_context.conn)? {
                     // Get decrypted with current password
-                    let decrypted_account_key = account.get_decrypted_account_key(&conn_manager)?;
+                    let decrypted_account_key = account.get_decrypted_account_key(&conn_context)?;
 
                     // Encrypt for the new password
                     let encrypted_account_key = EncryptionProvider::encrypt_with_password(
@@ -184,13 +184,13 @@ where
                         &new_password_hash,
                     )?;
                     account
-                        .update_encrypted_account_key(&encrypted_account_key, &conn_manager.conn)?;
+                        .update_encrypted_account_key(&encrypted_account_key, &conn_context.conn)?;
                 }
                 // Set the new password for the whole DB
                 self.wallet_db.change_password(
                     &old_password_hash,
                     &new_password_hash,
-                    &conn_manager.conn,
+                    &conn_context.conn,
                 )?;
                 Ok(())
             })?;
@@ -279,7 +279,7 @@ mod tests {
         )
         .unwrap();
         let alice_decrypted = alice_account
-            .get_decrypted_account_key(&service.wallet_db.get_conn_manager().unwrap())
+            .get_decrypted_account_key(&service.wallet_db.get_conn_context().unwrap())
             .unwrap();
         assert_eq!(alice_decrypted, alice_account_key);
 
@@ -297,7 +297,7 @@ mod tests {
         )
         .unwrap();
         let alice_decrypted_changed = alice_account_changed
-            .get_decrypted_account_key(&service.wallet_db.get_conn_manager().unwrap())
+            .get_decrypted_account_key(&service.wallet_db.get_conn_context().unwrap())
             .unwrap();
         assert_eq!(alice_decrypted_changed, alice_account_key);
 
@@ -320,7 +320,7 @@ mod tests {
         )
         .unwrap();
         let bob_decrypted = bob_account
-            .get_decrypted_account_key(&service.wallet_db.get_conn_manager().unwrap())
+            .get_decrypted_account_key(&service.wallet_db.get_conn_context().unwrap())
             .unwrap();
         assert_eq!(bob_decrypted, bob_account_key);
 
@@ -334,7 +334,7 @@ mod tests {
         )
         .unwrap();
         let carol_decrypted = carol_account
-            .get_decrypted_account_key(&service.wallet_db.get_conn_manager().unwrap())
+            .get_decrypted_account_key(&service.wallet_db.get_conn_context().unwrap())
             .unwrap();
         assert_eq!(carol_decrypted, carol_account_key);
 
@@ -352,7 +352,7 @@ mod tests {
         )
         .unwrap();
         let alice_decrypted_final = alice_account_final
-            .get_decrypted_account_key(&service.wallet_db.get_conn_manager().unwrap())
+            .get_decrypted_account_key(&service.wallet_db.get_conn_context().unwrap())
             .unwrap();
         assert_eq!(alice_decrypted_final, alice_account_key);
 
@@ -362,7 +362,7 @@ mod tests {
         )
         .unwrap();
         let bob_decrypted_final = bob_account_final
-            .get_decrypted_account_key(&service.wallet_db.get_conn_manager().unwrap())
+            .get_decrypted_account_key(&service.wallet_db.get_conn_context().unwrap())
             .unwrap();
         assert_eq!(bob_decrypted_final, bob_account_key);
 
@@ -372,7 +372,7 @@ mod tests {
         )
         .unwrap();
         let carol_decrypted_final = carol_account_final
-            .get_decrypted_account_key(&service.wallet_db.get_conn_manager().unwrap())
+            .get_decrypted_account_key(&service.wallet_db.get_conn_context().unwrap())
             .unwrap();
         assert_eq!(carol_decrypted_final, carol_account_key);
     }
