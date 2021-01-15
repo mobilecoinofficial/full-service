@@ -16,7 +16,7 @@ use self::encryption_provider::EncryptionProvider;
 use crate::error::WalletDbError;
 
 use mc_account_keys::PublicAddress;
-use mc_common::logger::{log, Logger};
+use mc_common::logger::Logger;
 
 use diesel::{
     prelude::*,
@@ -49,7 +49,7 @@ pub fn b58_decode(b58_public_address: &str) -> Result<PublicAddress, WalletDbErr
 
 /// A struct encapsulating a single connection, which can also be used for encryption and logging.
 /// Intended to be passed to trait methods in various db::models.
-pub struct WalletDbConnManager {
+pub struct WalletDbConnContext {
     pub conn: PooledConnection<ConnectionManager<SqliteConnection>>,
     pub encryption_provider: Arc<EncryptionProvider>,
     pub logger: Logger,
@@ -88,8 +88,8 @@ impl WalletDb {
         Ok(self.pool.get()?)
     }
 
-    pub fn get_conn_manager(&self) -> Result<WalletDbConnManager, WalletDbError> {
-        Ok(WalletDbConnManager {
+    pub fn get_conn_context(&self) -> Result<WalletDbConnContext, WalletDbError> {
+        Ok(WalletDbConnContext {
             conn: self.get_conn()?,
             encryption_provider: self.encryption_provider.clone(),
             logger: self.logger.clone(),

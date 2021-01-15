@@ -549,7 +549,7 @@ mod tests {
     use mc_crypto_rand::rand_core::RngCore;
     use mc_fog_report_validation::MockFogPubkeyResolver;
     use mc_ledger_db::{Ledger, LedgerDB};
-    use mc_ledger_sync::{NetworkState, PollingNetworkState};
+    use mc_ledger_sync::PollingNetworkState;
     use mc_transaction_core::ring_signature::KeyImage;
     use rand::{distributions::Alphanumeric, rngs::StdRng, Rng, SeedableRng};
     use rocket::{
@@ -1453,7 +1453,7 @@ mod tests {
             )
         };
 
-        let (newer_password, from_carol_public_address, from_dan_public_address) = {
+        let newer_password = {
             // Now, if we open up a new connection to the same DB, it should be in a "locked state"
             // To simulate re-opening the DB, we can use new_from_url
             let wallet_db2 =
@@ -1616,19 +1616,14 @@ mod tests {
                 }
             });
             let result = dispatch(&client2, body, &logger);
-            let b58_public_address = result
+            let _b58_public_address = result
                 .get("address")
                 .unwrap()
                 .get("public_address")
                 .unwrap()
                 .as_str()
                 .unwrap();
-            let from_dan_public_address = b58_decode(b58_public_address).unwrap();
-            (
-                newer_password,
-                from_carol_public_address,
-                from_dan_public_address,
-            )
+            newer_password
         };
 
         {

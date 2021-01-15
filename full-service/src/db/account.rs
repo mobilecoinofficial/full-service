@@ -13,7 +13,7 @@ use crate::{
         },
         transaction_log::TransactionLogModel,
         txo::TxoModel,
-        WalletDbConnManager,
+        WalletDbConnContext,
     },
     error::WalletDbError,
     service::decorated_types::JsonAccount,
@@ -63,7 +63,7 @@ pub trait AccountModel {
         first_block: Option<u64>,
         import_block: Option<u64>,
         name: &str,
-        conn_manager: &WalletDbConnManager,
+        conn_context: &WalletDbConnContext,
     ) -> Result<(AccountID, String), WalletDbError>;
 
     /// Import account.
@@ -78,7 +78,7 @@ pub trait AccountModel {
         first_block: Option<u64>,
         local_height: u64,
         network_height: u64,
-        conn_manager: &WalletDbConnManager,
+        conn_context: &WalletDbConnContext,
     ) -> Result<JsonAccount, WalletDbError>;
 
     /// List all accounts.
@@ -107,7 +107,7 @@ pub trait AccountModel {
     /// Requires password to be set.
     fn get_decrypted_account_key(
         &self,
-        conn_manager: &WalletDbConnManager,
+        conn_context: &WalletDbConnContext,
     ) -> Result<AccountKey, WalletDbError>;
 
     /// Get the API-decorated Account object
@@ -117,7 +117,7 @@ pub trait AccountModel {
         account_id_hex: &AccountID,
         local_height: u64,
         network_height: u64,
-        conn_manager: &WalletDbConnManager,
+        conn_context: &WalletDbConnContext,
     ) -> Result<JsonAccount, WalletDbError>;
 
     fn get_by_txo_id(
@@ -173,18 +173,18 @@ impl AccountModel for Account {
         first_block: Option<u64>,
         import_block: Option<u64>,
         name: &str,
-        conn_manager: &WalletDbConnManager,
+        conn_context: &WalletDbConnContext,
     ) -> Result<(AccountID, String), WalletDbError> {
         use crate::db::schema::accounts;
 
         let account_id = AccountID::from(account_key);
         let fb = first_block.unwrap_or(DEFAULT_FIRST_BLOCK);
         let account_key_bytes = mc_util_serial::encode(account_key);
-        let encrypted_account_key = conn_manager
+        let encrypted_account_key = conn_context
             .encryption_provider
             .encrypt(&account_key_bytes)?;
 
-        Ok(conn_manager
+        Ok(conn_context
             .conn
             .transaction::<(AccountID, String), WalletDbError, _>(|| {
                 let new_account = NewAccount {
@@ -201,14 +201,14 @@ impl AccountModel for Account {
 
                 diesel::insert_into(accounts::table)
                     .values(&new_account)
-                    .execute(&conn_manager.conn)?;
+                    .execute(&conn_context.conn)?;
 
                 let main_subaddress_b58 = AssignedSubaddress::create(
                     account_key,
                     None, // FIXME: WS-8 - Address Book Entry if details provided, or None always for main?
                     DEFAULT_SUBADDRESS_INDEX,
                     "Main",
-                    &conn_manager.conn,
+                    &conn_context.conn,
                 )?;
 
                 let _change_subaddress_b58 = AssignedSubaddress::create(
@@ -216,7 +216,7 @@ impl AccountModel for Account {
                     None, // FIXME: WS-8 - Address Book Entry if details provided, or None always for main?
                     DEFAULT_CHANGE_SUBADDRESS_INDEX,
                     "Change",
-                    &conn_manager.conn,
+                    &conn_context.conn,
                 )?;
                 Ok((account_id, main_subaddress_b58))
             })?)
@@ -228,9 +228,9 @@ impl AccountModel for Account {
         first_block: Option<u64>,
         local_height: u64,
         network_height: u64,
-        conn_manager: &WalletDbConnManager,
+        conn_context: &WalletDbConnContext,
     ) -> Result<JsonAccount, WalletDbError> {
-        Ok(conn_manager
+        Ok(conn_context
             .conn
             .transaction::<JsonAccount, WalletDbError, _>(|| {
                 let (account_id, _public_address_b58) = Account::create(
@@ -238,13 +238,13 @@ impl AccountModel for Account {
                     first_block,
                     Some(local_height),
                     &name.unwrap_or_else(|| "".to_string()),
-                    conn_manager,
+                    conn_context,
                 )?;
                 Ok(Account::get_decorated(
                     &account_id,
                     local_height,
                     network_height,
-                    conn_manager,
+                    conn_context,
                 )?)
             })?)
     }
@@ -280,20 +280,20 @@ impl AccountModel for Account {
 
     fn get_decrypted_account_key(
         &self,
-        conn_manager: &WalletDbConnManager,
+        conn_context: &WalletDbConnContext,
     ) -> Result<AccountKey, WalletDbError> {
         let account_key: AccountKey =
-            match EncryptionIndicator::get_encryption_state(&conn_manager.conn)? {
+            match EncryptionIndicator::get_encryption_state(&conn_context.conn)? {
                 EncryptionState::Empty => {
                     // There are no accounts, we should not get here.
                     return Err(WalletDbError::NoAccounts);
                 }
                 EncryptionState::Unencrypted => mc_util_serial::decode(&self.account_key)?,
                 EncryptionState::Encrypted => {
-                    if !conn_manager.encryption_provider.is_unlocked()? {
+                    if !conn_context.encryption_provider.is_unlocked()? {
                         return Err(WalletDbError::NoDecryptionKey);
                     }
-                    let decrypted_account_key = conn_manager
+                    let decrypted_account_key = conn_context
                         .encryption_provider
                         .decrypt(&self.account_key)?;
                     mc_util_serial::decode(&decrypted_account_key)?
@@ -306,17 +306,17 @@ impl AccountModel for Account {
         account_id_hex: &AccountID,
         local_height: u64,
         network_height: u64,
-        conn_manager: &WalletDbConnManager,
+        conn_context: &WalletDbConnContext,
     ) -> Result<JsonAccount, WalletDbError> {
-        Ok(conn_manager
+        Ok(conn_context
             .conn
             .transaction::<JsonAccount, WalletDbError, _>(|| {
-                let account = Account::get(account_id_hex, &conn_manager.conn)?;
+                let account = Account::get(account_id_hex, &conn_context.conn)?;
 
                 let unspent = Txo::list_by_status(
                     &account_id_hex.to_string(),
                     TXO_UNSPENT,
-                    &conn_manager.conn,
+                    &conn_context.conn,
                 )?
                 .iter()
                 .map(|t| t.value as u128)
@@ -324,13 +324,13 @@ impl AccountModel for Account {
                 let pending = Txo::list_by_status(
                     &account_id_hex.to_string(),
                     TXO_PENDING,
-                    &conn_manager.conn,
+                    &conn_context.conn,
                 )?
                 .iter()
                 .map(|t| t.value as u128)
                 .sum::<u128>();
 
-                let account_key: AccountKey = account.get_decrypted_account_key(conn_manager)?;
+                let account_key: AccountKey = account.get_decrypted_account_key(conn_context)?;
                 let main_subaddress_b58 =
                     b58_encode(&account_key.subaddress(DEFAULT_SUBADDRESS_INDEX))?;
                 Ok(JsonAccount {
@@ -507,7 +507,7 @@ mod tests {
                 Some(0),
                 None,
                 "Alice's Main Account",
-                &wallet_db.get_conn_manager().unwrap(),
+                &wallet_db.get_conn_context().unwrap(),
             )
             .unwrap();
             account_id_hex
@@ -522,7 +522,7 @@ mod tests {
         let acc = Account::get(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
 
         let encrypted_account_key = wallet_db
-            .get_conn_manager()
+            .get_conn_context()
             .unwrap()
             .encryption_provider
             .encrypt(&mc_util_serial::encode(&account_key))
@@ -571,7 +571,7 @@ mod tests {
             Some(51),
             Some(50),
             "",
-            &wallet_db.get_conn_manager().unwrap(),
+            &wallet_db.get_conn_context().unwrap(),
         )
         .unwrap();
         let res = Account::list_all(&wallet_db.get_conn().unwrap()).unwrap();
@@ -581,7 +581,7 @@ mod tests {
             Account::get(&account_id_hex_secondary, &wallet_db.get_conn().unwrap()).unwrap();
 
         let encrypted_account_key_secondary = wallet_db
-            .get_conn_manager()
+            .get_conn_context()
             .unwrap()
             .encryption_provider
             .encrypt(&mc_util_serial::encode(&account_key_secondary))
@@ -652,7 +652,7 @@ mod tests {
                 Some(0),
                 None,
                 "Alice's Main Account",
-                &wallet_db.get_conn_manager().unwrap(),
+                &wallet_db.get_conn_context().unwrap(),
             )
             .unwrap();
             account_id_hex
@@ -660,7 +660,7 @@ mod tests {
 
         let account = Account::get(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
         let decrypted = account
-            .get_decrypted_account_key(&wallet_db.get_conn_manager().unwrap())
+            .get_decrypted_account_key(&wallet_db.get_conn_context().unwrap())
             .unwrap();
 
         assert_eq!(decrypted, account_key);

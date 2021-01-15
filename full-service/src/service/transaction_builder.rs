@@ -167,16 +167,16 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
             return Err(WalletTransactionBuilderError::TombstoneNotSet);
         }
 
-        let conn_manager = self.wallet_db.get_conn_manager()?;
-        Ok(conn_manager
+        let conn_context = self.wallet_db.get_conn_context()?;
+        Ok(conn_context
             .conn
             .transaction::<TxProposal, WalletTransactionBuilderError, _>(|| {
                 let account: Account = Account::get(
                     &AccountID(self.account_id_hex.to_string()),
-                    &conn_manager.conn,
+                    &conn_context.conn,
                 )?;
                 let from_account_key: AccountKey =
-                    account.get_decrypted_account_key(&conn_manager)?;
+                    account.get_decrypted_account_key(&conn_context)?;
 
                 // Get membership proofs for our inputs
                 let indexes = self
@@ -682,7 +682,7 @@ mod tests {
         // Get our TXO list
         let txos: Vec<Txo> = Txo::list_for_account(
             &AccountID::from(&account_key).to_string(),
-            &wallet_db.get_conn_manager().unwrap(),
+            &wallet_db.get_conn_context().unwrap(),
         )
         .unwrap()
         .iter()
