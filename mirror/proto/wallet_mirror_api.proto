@@ -1,0 +1,57 @@
+// Copyright (c) 2018-2020 MobileCoin Inc.
+
+// full service mirror data types and service descriptors.
+
+syntax = "proto3";
+import "google/protobuf/empty.proto";
+
+package wallet_mirror_api;
+
+service WalletServiceMirror {
+    // The periodic poll method that queries for requests and returns replies.
+    // This is sent from the private host to the public host.
+    rpc Poll (PollRequest) returns (PollResponse) {}
+}
+
+// A single query request.
+// When adding request types, remember to add them in `src/private/request.rs` as well.
+message QueryRequest {
+    oneof request {
+        SignedRequest signed_request = 1;
+    }
+}
+
+// A single query response.
+message QueryResponse {
+    oneof response {
+        string error = 1;
+        EncryptedResponse encrypted_response = 2;
+    }
+}
+
+// A polling request (sent from the private side to the public side) includes responses to queries.
+message PollRequest {
+    // Map of query id -> response.
+    map<string, QueryResponse> query_responses = 1;
+}
+
+// A polling response (sent from the public side to the private side) includes queries the public side wants
+// the private side to execute.
+message PollResponse {
+    // Map of query id -> request.
+    map<string, QueryRequest> query_requests = 1;
+}
+
+// A request thas has been signed by the client.
+message SignedRequest {
+    // See private/request.rs for details on the format of this JSON request.
+    string json_request = 1;
+
+    bytes signature = 2;
+}
+
+// A response that has been encrypted, to be handed back to the client.
+message EncryptedResponse {
+    // The encrypted data holds a JSON object.
+    bytes payload = 1;
+}

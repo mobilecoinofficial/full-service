@@ -1,0 +1,71 @@
+cargo-features = ["resolver"]
+
+[package]
+name = "mc-wallet-service-mirror"
+version = "0.6.0-pre1"
+authors = ["MobileCoin"]
+edition = "2018"
+resolver = "2"
+
+[[bin]]
+name = "wallet-service-mirror-private"
+path = "src/private/main.rs"
+
+[[bin]]
+name = "wallet-service-mirror-public"
+path = "src/public/main.rs"
+
+[dependencies]
+mc-api = { path = "../mobilecoin/api" }
+mc-common = { path = "../mobilecoin/common", features = ["loggers"] }
+mc-mobilecoind-json = { path = "../mobilecoin/mobilecoind-json" }
+mc-util-grpc = { path = "../mobilecoin/util/grpc" }
+mc-util-uri = { path = "../mobilecoin/util/uri" }
+
+digest = "0.9.0"
+futures = "0.3"
+generic-array = "0.12"
+grpcio = "0.6.0"
+hex = "0.4"
+pem = "0.8.1"
+protobuf = "2.12"
+rand = "0.7"
+reqwest = { version = "0.10", features = ["rustls-tls"], default_features = false }
+rocket = { version = "0.4.5", default-features = false }
+rocket_contrib = { version = "0.4.5", default-features = false, features = ["json"] }
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
+sha2 = "0.9.1"
+structopt = "0.3"
+
+x509-parser = { version = "0.8", features = ["verify"] }
+
+# We need a specific commit since a version supporting reading PEM files has not been officially released yet.
+rsa = { git = "https://github.com/RustCrypto/RSA", rev = "4274e838d112a0aa194a2102ed4930fd9797f1eb" }
+
+[build-dependencies]
+# Even though this is unused, it needs to be here otherwise Cargo brings in some weird mixture of packages/features that refuses to compile.
+# Go figure ¯\_(ツ)_/¯
+serde = { version = "1", default-features = false, features = ["alloc", "derive"] }
+
+mc-util-build-grpc = { path = "../mobilecoin/util/build/grpc" }
+mc-util-build-script = { path = "../mobilecoin/util/build/script" }
+
+cargo-emit = "0.1.1"
+
+[patch.crates-io]
+prost = { git = "https://github.com/danburkert/prost", rev = "6113789f70b69709820becba4242824b4fb3ffec" }
+prost-derive = { git = "https://github.com/danburkert/prost", rev = "6113789f70b69709820becba4242824b4fb3ffec" }
+
+# slog is patched in order to build in no_std config with dynamic_keys feature on
+# https://github.com/slog-rs/slog/pull/268
+slog = { git = "https://github.com/mobilecoinofficial/slog", rev = "cc1562258b81353426d17a55b7447256fa6eabbf" }
+
+# Patched to depend on crates that depend on digest 0.9
+bulletproofs = { git = "https://github.com/eranrund/bulletproofs", rev = "e8e8ef45ecc6d31f1a9525140edc977351d0f780" }
+# Patched to disable the cpuid instruction because that is incompatible with our sgx builds.
+cpuid-bool = { git = "https://github.com/eranrund/RustCrypto-utils", rev = "e00f5f16e395349c2c2395aac9287da0ac843a73" }
+
+# We need to patch aes-gcm so we can make some fields/functions/structs pub in order to have a constant time decrypt
+aes-gcm = { git = "https://github.com/xoloki/AEADs", rev = "d1a8517d3dd867ed9c5794002add67992a42f6aa" }
