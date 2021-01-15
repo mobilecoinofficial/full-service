@@ -128,10 +128,6 @@ impl<
         let account_key = AccountKey::from(&root_id);
         let entropy_str = hex::encode(root_id.root_entropy);
 
-        log::info!(
-            self.logger,
-            "\x1b[1;36m CreateAccount: GetConnManager\x1b[0m",
-        );
         let conn_manager = self.wallet_db.get_conn_manager()?;
         let (account_id, _public_address_b58) = Account::create(
             &account_key,
@@ -181,10 +177,7 @@ impl<
             .highest_block_index_on_network()
             .map(|v| v + 1)
             .unwrap_or(0);
-        log::info!(
-            self.logger,
-            "\x1b[1;36m ImportAccount: GetConnManager\x1b[0m",
-        );
+
         Ok(Account::import(
             &account_key,
             name,
@@ -196,10 +189,6 @@ impl<
     }
 
     pub fn list_accounts(&self) -> Result<Vec<JsonAccount>, WalletServiceError> {
-        log::info!(
-            self.logger,
-            "\x1b[1;36m ListAccounts: GetConnManager\x1b[0m",
-        );
         let conn_manager = self.wallet_db.get_conn_manager()?;
         Ok(conn_manager
             .conn
@@ -232,10 +221,6 @@ impl<
         account_id_hex: &str,
         name: String,
     ) -> Result<JsonAccount, WalletServiceError> {
-        log::info!(
-            self.logger,
-            "\x1b[1;36m UpdateAccountName: GetConnManager\x1b[0m",
-        );
         let conn_manager = self.wallet_db.get_conn_manager()?;
 
         Ok(conn_manager
@@ -262,7 +247,6 @@ impl<
     }
 
     pub fn delete_account(&self, account_id_hex: &str) -> Result<(), WalletServiceError> {
-        log::info!(self.logger, "\x1b[1;36m DeleteAccount: GetConn\x1b[0m");
         let conn = self.wallet_db.get_conn()?;
 
         Account::get(&AccountID(account_id_hex.to_string()), &conn)?.delete(&conn)?;
@@ -281,10 +265,6 @@ impl<
             .highest_block_index_on_network()
             .map(|v| v + 1)
             .unwrap_or(0);
-        log::info!(
-            self.logger,
-            "\x1b[1;36m GetDecorated: GetConnManager\x1b[0m",
-        );
         Ok(Account::get_decorated(
             &account_id_hex,
             local_height,
@@ -295,14 +275,12 @@ impl<
 
     pub fn list_txos(&self, account_id_hex: &str) -> Result<Vec<JsonTxo>, WalletServiceError> {
         self.verify_unlocked()?;
-        log::info!(self.logger, "\x1b[1;36m ListTxos: GetConnManager\x1b[0m");
         let txos = Txo::list_for_account(account_id_hex, &self.wallet_db.get_conn_manager()?)?;
         Ok(txos.iter().map(|t| JsonTxo::new(t)).collect())
     }
 
     pub fn get_txo(&self, txo_id_hex: &str) -> Result<JsonTxo, WalletServiceError> {
         self.verify_unlocked()?;
-        log::info!(self.logger, "\x1b[1;36m GetTxo: GetConnManager\x1b[0m");
         let txo_details = Txo::get(txo_id_hex, &self.wallet_db.get_conn_manager()?)?;
         Ok(JsonTxo::new(&txo_details))
     }
@@ -310,10 +288,6 @@ impl<
     // Wallet Status is an overview of the wallet's status
     pub fn get_wallet_status(&self) -> Result<JsonWalletStatus, WalletServiceError> {
         self.verify_unlocked()?;
-        log::info!(
-            self.logger,
-            "\x1b[1;36m WalletStatus: GetConnManager\x1b[0m",
-        );
         let conn_manager = self.wallet_db.get_conn_manager()?;
 
         let local_height = self.ledger_db.num_blocks()?;
@@ -370,7 +344,6 @@ impl<
         &self,
         account_id_hex: &str,
     ) -> Result<JsonBalanceResponse, WalletServiceError> {
-        log::info!(self.logger, "\x1b[1;36m GetBalance: GetConn\x1b[0m");
         let conn = self.wallet_db.get_conn()?;
 
         let unspent = Txo::list_by_status(account_id_hex, TXO_UNSPENT, &conn)?
@@ -415,10 +388,6 @@ impl<
         // FIXME: WS-32 - add "sync from block"
     ) -> Result<JsonAddress, WalletServiceError> {
         self.verify_unlocked()?;
-        log::info!(
-            self.logger,
-            "\x1b[1;36m CreateAssignedSubaddress: GetConnManager\x1b[0m",
-        );
         let conn_manager = &self.wallet_db.get_conn_manager()?;
 
         Ok(conn_manager
@@ -448,11 +417,6 @@ impl<
         &self,
         account_id_hex: &str,
     ) -> Result<Vec<JsonAddress>, WalletServiceError> {
-        log::info!(
-            self.logger,
-            "\x1b[1;36m ListAssignedSubaddresses: GetConn\x1b[0m",
-        );
-
         Ok(
             AssignedSubaddress::list_all(account_id_hex, &self.wallet_db.get_conn()?)?
                 .iter()
@@ -551,7 +515,6 @@ impl<
             block_count
         );
         let converted_proposal = TxProposal::try_from(&tx_proposal_proto)?;
-        log::info!(self.logger, "\x1b[1;36m LogSubmitted: GetConn\x1b[0m");
         let transaction_id = TransactionLog::log_submitted(
             converted_proposal,
             block_count,
@@ -593,7 +556,6 @@ impl<
         &self,
         account_id_hex: &str,
     ) -> Result<Vec<JsonTransactionLog>, WalletServiceError> {
-        log::info!(self.logger, "\x1b[1;36m ListTransctionLog: GetConn\x1b[0m");
         let transactions = TransactionLog::list_all(account_id_hex, &self.wallet_db.get_conn()?)?;
 
         let mut results: Vec<JsonTransactionLog> = Vec::new();
@@ -607,9 +569,7 @@ impl<
         &self,
         transaction_id_hex: &str,
     ) -> Result<JsonTransactionLog, WalletServiceError> {
-        log::info!(self.logger, "\x1b[1;36m GetTranxaction: GetConn\x1b[0m");
         let conn = self.wallet_db.get_conn()?;
-
         Ok(
             conn.transaction::<JsonTransactionLog, WalletServiceError, _>(|| {
                 let transaction = TransactionLog::get(transaction_id_hex, &conn)?;
@@ -624,10 +584,6 @@ impl<
         &self,
         transaction_id_hex: &str,
     ) -> Result<JsonTx, WalletServiceError> {
-        log::info!(
-            self.logger,
-            "\x1b[1;36m GetTransactionObject: GetConn\x1b[0m",
-        );
         let conn = self.wallet_db.get_conn()?;
         let transaction = TransactionLog::get(transaction_id_hex, &conn)?;
 
@@ -643,10 +599,7 @@ impl<
 
     pub fn get_txo_object(&self, txo_id_hex: &str) -> Result<JsonTxOut, WalletServiceError> {
         self.verify_unlocked()?;
-        log::info!(
-            self.logger,
-            "\x1b[1;36m GetTxoObject: GetConnManager\x1b[0m",
-        );
+
         let txo_details = Txo::get(txo_id_hex, &self.wallet_db.get_conn_manager()?)?;
 
         let txo: TxOut = mc_util_serial::decode(&txo_details.txo.txo)?;
@@ -698,7 +651,6 @@ impl<
     ) -> Result<bool, WalletServiceError> {
         self.verify_unlocked()?;
         let proof: TxOutConfirmationNumber = mc_util_serial::decode(&hex::decode(proof_hex)?)?;
-        log::info!(self.logger, "\x1b[1;36m VerifyProof: GetConnManager\x1b[0m");
         Ok(Txo::verify_proof(
             &AccountID(account_id_hex.to_string()),
             &txo_id_hex,

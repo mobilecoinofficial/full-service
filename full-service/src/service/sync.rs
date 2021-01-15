@@ -159,7 +159,6 @@ impl SyncThread {
                         let mut message_sent = false;
 
                         // Go over our list of accounts and see which one needs to process these blocks.
-                        log::info!(logger, "\x1b[1;36m SyncAccountListAll: GetConn\x1b[0m");
                         let conn_manager = wallet_db
                             .get_conn_manager()
                             .expect("Could not get connection to DB");
@@ -262,11 +261,6 @@ fn sync_thread_entry_point(
     for msg in receiver.iter() {
         match msg {
             SyncMsg::SyncAccount(account_id) => {
-                log::info!(
-                    logger,
-                    "\x1b[1;36m SyncThreadEntryPoint: SyncAccount queued accounts {:?}\x1b[0m",
-                    queued_account_ids
-                );
                 let conn_manager = wallet_db
                     .get_conn_manager()
                     .expect("could not get conn manager");

@@ -688,11 +688,6 @@ mod tests {
             });
             let result = dispatch(&client, body, &logger);
             let status = result.get("status").unwrap();
-            log::info!(
-                logger,
-                "\x1b[1;33m Waiting for sync - status = {:?}\x1b[0m",
-                status
-            );
 
             // Have to manually call poll() on network state to get it to update for these tests
             network_state.write().unwrap().poll();
