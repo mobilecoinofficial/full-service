@@ -1124,7 +1124,7 @@ mod tests {
         // Process the txos in the ledger into the DB
         sync_account(
             &ledger_db,
-            &wallet_db,
+            &wallet_db.get_conn_manager().unwrap(),
             &AccountID::from(&src_account).to_string(),
             &logger,
         )

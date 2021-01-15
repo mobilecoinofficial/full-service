@@ -82,6 +82,7 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
         &mut self,
         input_txo_ids: &[String],
     ) -> Result<(), WalletTransactionBuilderError> {
+        log::info!(self.logger, "\x1b[1;36m SetTxos: GetConn\x1b[0m");
         let txos = Txo::select_by_id(&input_txo_ids.to_vec(), &self.wallet_db.get_conn()?)?;
         let unspent: Vec<Txo> = txos
             .iter()
@@ -108,6 +109,7 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
         }
 
         let total_value = outlay_value_sum as u64 + self.transaction_builder.fee;
+        log::info!(self.logger, "\x1b[1;36m SelectUnspentTxos: GetConn\x1b[0m");
         self.inputs = Txo::select_unspent_txos_for_value(
             &self.account_id_hex,
             total_value,
@@ -167,6 +169,10 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
             return Err(WalletTransactionBuilderError::TombstoneNotSet);
         }
 
+        log::info!(
+            self.logger,
+            "\x1b[1;36m TransctionBuilderBuild: GetConnManager\x1b[0m"
+        );
         let conn_manager = self.wallet_db.get_conn_manager()?;
 
         Ok(conn_manager

@@ -36,6 +36,9 @@ pub enum PasswordServiceError {
     /// Cannot perform this action without a set password or while database is locked. Please set_password or unlock first.
     DatabaseLocked,
 
+    /// Must set password before continuing.
+    SetPassword,
+
     /// Argon2 Error: {0}
     Argon2(argon2::Error),
 
@@ -117,6 +120,7 @@ where
     fn set_password(&self, password: String) -> Result<bool, PasswordServiceError> {
         let password_hash = self.get_password_hash(password)?;
 
+        log::info!(self.logger, "\x1b[1;36m SetPassword: GetConnManager\x1b[0m");
         let conn_manager = self.wallet_db.get_conn_manager()?;
         conn_manager.conn.transaction::<(), PasswordServiceError, _>(|| {
             match EncryptionIndicator::get_encryption_state(&conn_manager.conn)? {
@@ -160,10 +164,21 @@ where
         old_password: String,
         new_password: String,
     ) -> Result<bool, PasswordServiceError> {
+        // Make sure DB is unlocked to continue.
+        self.unlock(old_password.clone())?;
+
         let old_password_hash = self.get_password_hash(old_password)?;
         let new_password_hash = self.get_password_hash(new_password)?;
 
         // Re-encrypt all of our accounts with the new password hash
+        log::info!(
+            self.logger,
+            "\x1b[1;33mChanging password for all accounts\x1b[0m"
+        );
+        log::info!(
+            self.logger,
+            "\x1b[1;36m ChangePassword: GetConnManager\x1b[0m"
+        );
         let conn_manager = self.wallet_db.get_conn_manager()?;
         conn_manager
             .conn
@@ -180,7 +195,9 @@ where
                     account
                         .update_encrypted_account_key(&encrypted_account_key, &conn_manager.conn)?;
                 }
+                println!("\x1b[1;33m now changing for whole db\x1b[0m");
                 // Set the new password for the whole DB
+                log::info!(self.logger, "\x1b[1;33mChanging password for DB\x1b[0m");
                 self.wallet_db.change_password(
                     &old_password_hash,
                     &new_password_hash,
@@ -193,6 +210,7 @@ where
     }
 
     fn is_locked(&self) -> Result<Option<bool>, PasswordServiceError> {
+        log::info!(self.logger, "\x1b[1;36m IsLocked: GetConn\x1b[0m");
         Ok(
             match EncryptionIndicator::get_encryption_state(&self.wallet_db.get_conn()?)? {
                 EncryptionState::Empty => None,

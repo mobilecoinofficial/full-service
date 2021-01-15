@@ -150,7 +150,7 @@ impl SyncThread {
                         // Get the current number of blocks in ledger.
                         let num_blocks = ledger_db
                             .num_blocks()
-                            .expect("failed getting number of blocks");
+                            .expect("Failed getting number of blocks");
 
                         // A flag to track whether we sent a message to our work queue.
                         // If we sent a message, that means new blocks have arrived and we can skip sleeping.
@@ -159,13 +159,16 @@ impl SyncThread {
                         let mut message_sent = false;
 
                         // Go over our list of accounts and see which one needs to process these blocks.
-                        for account in Account::list_all(
-                            &wallet_db
-                                .get_conn()
-                                .expect("Could not get connection to DB"),
-                        )
-                        .expect("Failed getting accounts from WalletDb")
-                        {
+                        log::info!(logger, "\x1b[1;36m SyncAccountListAll: GetConn\x1b[0m");
+                        let conn_manager = wallet_db
+                            .get_conn_manager()
+                            .expect("Could not get connection to DB");
+                        let accounts = match Account::list_all(&conn_manager.conn) {
+                            Ok(a) => a,
+                            Err(e) => panic!("Failed getting accounts from WalletDb {:?}", e),
+                        };
+
+                        for account in accounts {
                             // If there are no new blocks for this account, don't do anything.
                             if account.next_block >= num_blocks as i64 {
                                 continue;
@@ -259,7 +262,15 @@ fn sync_thread_entry_point(
     for msg in receiver.iter() {
         match msg {
             SyncMsg::SyncAccount(account_id) => {
-                match sync_account(&ledger_db, &wallet_db, &account_id, &logger) {
+                log::info!(
+                    logger,
+                    "\x1b[1;36m SyncThreadEntryPoint: SyncAccount queued accounts {:?}\x1b[0m",
+                    queued_account_ids
+                );
+                let conn_manager = wallet_db
+                    .get_conn_manager()
+                    .expect("could not get conn manager");
+                match sync_account(&ledger_db, &conn_manager, &account_id, &logger) {
                     // Success - No more blocks are currently available.
                     Ok(SyncAccountOk::NoMoreBlocks) => {
                         // Remove the account id from the list of queued ones so that the main thread could
@@ -317,13 +328,11 @@ fn sync_thread_entry_point(
 /// Sync a single account.
 pub fn sync_account(
     ledger_db: &LedgerDB,
-    wallet_db: &WalletDb,
+    conn_manager: &WalletDbConnManager,
     account_id: &str,
     logger: &Logger,
 ) -> Result<SyncAccountOk, SyncError> {
     for _ in 0..MAX_BLOCKS_PROCESSING_CHUNK_SIZE {
-        // Get a new connection manager, which contains a reference to the most current password_hash
-        let conn_manager = wallet_db.get_conn_manager()?;
         let sync_status = conn_manager
             .conn
             .transaction::<SyncAccountOk, SyncError, _>(|| {

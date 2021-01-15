@@ -16,7 +16,7 @@ use self::encryption_provider::EncryptionProvider;
 use crate::error::WalletDbError;
 
 use mc_account_keys::PublicAddress;
-use mc_common::logger::Logger;
+use mc_common::logger::{log, Logger};
 
 use diesel::{
     prelude::*,
@@ -74,7 +74,7 @@ impl WalletDb {
     pub fn new_from_url(database_url: &str, logger: Logger) -> Result<Self, WalletDbError> {
         let manager = ConnectionManager::<SqliteConnection>::new(database_url);
         let pool = Pool::builder()
-            .max_size(1)
+            .max_size(10)
             .test_on_check_out(true)
             .build(manager)?;
         Ok(Self::new(pool, logger))
@@ -83,6 +83,11 @@ impl WalletDb {
     pub fn get_conn(
         &self,
     ) -> Result<PooledConnection<ConnectionManager<SqliteConnection>>, WalletDbError> {
+        log::info!(
+            self.logger,
+            "\x1b[1;31m GETTING NEW CONNECTION TO DB, current pool state: {:?}\x1b[0m",
+            self.pool.state()
+        );
         Ok(self.pool.get()?)
     }
 
