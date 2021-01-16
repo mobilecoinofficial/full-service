@@ -6,10 +6,9 @@ use crate::{
     db::{
         assigned_subaddress::AssignedSubaddressModel,
         b58_encode,
-        encryption_indicator::{EncryptionModel, EncryptionState},
         models::{
-            Account, AccountTxoStatus, AssignedSubaddress, EncryptionIndicator, NewAccount,
-            TransactionLog, Txo, TXO_PENDING, TXO_SPENT, TXO_UNSPENT,
+            Account, AccountTxoStatus, AssignedSubaddress, NewAccount, TransactionLog, Txo,
+            TXO_PENDING, TXO_SPENT, TXO_UNSPENT,
         },
         transaction_log::TransactionLogModel,
         txo::TxoModel,
@@ -282,23 +281,7 @@ impl AccountModel for Account {
         &self,
         conn_context: &WalletDbConnContext,
     ) -> Result<AccountKey, WalletDbError> {
-        let account_key: AccountKey =
-            match EncryptionIndicator::get_encryption_state(&conn_context.conn)? {
-                EncryptionState::Empty => {
-                    // There are no accounts, we should not get here.
-                    return Err(WalletDbError::NoAccounts);
-                }
-                EncryptionState::Unencrypted => mc_util_serial::decode(&self.account_key)?,
-                EncryptionState::Encrypted => {
-                    if !conn_context.encryption_provider.is_unlocked()? {
-                        return Err(WalletDbError::NoDecryptionKey);
-                    }
-                    let decrypted_account_key = conn_context
-                        .encryption_provider
-                        .decrypt(&self.account_key)?;
-                    mc_util_serial::decode(&decrypted_account_key)?
-                }
-            };
+        let account_key: AccountKey = conn_context.decrypt_obj::<AccountKey>(&self.account_key)?;
         Ok(account_key)
     }
 

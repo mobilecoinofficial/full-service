@@ -12,7 +12,7 @@ pub mod schema;
 pub mod transaction_log;
 pub mod txo;
 
-use self::encryption_provider::EncryptionProvider;
+use self::encryption_provider::{EncryptionProvider, LockedStatus};
 use crate::error::WalletDbError;
 
 use mc_account_keys::PublicAddress;
@@ -53,6 +53,26 @@ pub struct WalletDbConnContext {
     pub conn: PooledConnection<ConnectionManager<SqliteConnection>>,
     pub encryption_provider: Arc<EncryptionProvider>,
     pub logger: Logger,
+}
+
+impl WalletDbConnContext {
+    pub fn decrypt_obj<T: prost::Message + Default>(
+        &self,
+        bytes: &[u8],
+    ) -> Result<T, WalletDbError> {
+        match self.encryption_provider.get_locked_status(&self.conn)? {
+            LockedStatus::NeverLocked => {
+                // There are no objects, we should not get here. FIXME rename error
+                Err(WalletDbError::NoAccounts)
+            }
+            LockedStatus::IsLocked => Err(WalletDbError::NoDecryptionKey),
+            LockedStatus::Unlocked => {
+                let decrypted_obj = self.encryption_provider.decrypt(bytes)?;
+                let res: T = mc_util_serial::decode(&decrypted_obj)?;
+                Ok(res)
+            }
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -114,7 +134,14 @@ impl WalletDb {
 
     /// Check whether the database is currently unlocked.
     pub fn is_unlocked(&self) -> Result<bool, WalletDbError> {
-        Ok(self.encryption_provider.is_unlocked()?)
+        Ok(self.encryption_provider.is_locked(&self.get_conn()?)?)
+    }
+
+    /// Get the locked status of the database.
+    pub fn get_locked_status(&self) -> Result<LockedStatus, WalletDbError> {
+        Ok(self
+            .encryption_provider
+            .get_locked_status(&self.get_conn()?)?)
     }
 
     pub fn unlock(&self, password_hash: &[u8]) -> Result<(), WalletDbError> {

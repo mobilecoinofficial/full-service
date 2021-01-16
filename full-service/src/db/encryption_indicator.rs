@@ -25,7 +25,7 @@ pub enum EncryptionState {
     Empty,
     /// Database is encrypted.
     Encrypted,
-    /// Database is unencrypted. This is for databases that existed before we added encryption.
+    /// Database is unencrypted. This is an invalid state where some accounts are not encrypted.
     Unencrypted,
 }
 

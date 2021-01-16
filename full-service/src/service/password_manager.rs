@@ -6,7 +6,7 @@ use crate::{
     db::{
         account::AccountModel,
         encryption_indicator::{EncryptionModel, EncryptionState},
-        encryption_provider::EncryptionProvider,
+        encryption_provider::{EncryptionProvider, LockedStatus},
         models::{Account, EncryptionIndicator},
     },
     error::WalletDbError,
@@ -90,10 +90,8 @@ pub trait PasswordService {
     /// Whether the database is locked.
     ///
     /// Returns:
-    /// * Some(true) if database is locked
-    /// * Some(false) if database is unlocked
-    /// * None if database has not yet had a password set up.
-    fn is_locked(&self) -> Result<Option<bool>, PasswordServiceError>;
+    /// * LockedStatus enum
+    fn get_locked_status(&self) -> Result<LockedStatus, PasswordServiceError>;
 
     /// Utility method to call on service methods which require the database to be unlocked
     fn verify_unlocked(&self) -> Result<(), PasswordServiceError>;
@@ -198,14 +196,8 @@ where
         Ok(true)
     }
 
-    fn is_locked(&self) -> Result<Option<bool>, PasswordServiceError> {
-        Ok(
-            match EncryptionIndicator::get_encryption_state(&self.wallet_db.get_conn()?)? {
-                EncryptionState::Empty => None,
-                EncryptionState::Encrypted => Some(!self.wallet_db.is_unlocked()?),
-                EncryptionState::Unencrypted => Some(false),
-            },
-        )
+    fn get_locked_status(&self) -> Result<LockedStatus, PasswordServiceError> {
+        Ok(self.wallet_db.get_locked_status()?)
     }
 
     fn verify_unlocked(&self) -> Result<(), PasswordServiceError> {
