@@ -229,7 +229,10 @@ mod tests {
         let service = setup_service(ledger_db.clone(), logger);
 
         // Service should be "never yet locked" on startup
-        assert_eq!(service.is_locked().unwrap(), None);
+        match service.get_locked_status().unwrap() {
+            LockedStatus::NeverLocked => {}
+            _ => panic!("Locked status should be NeverLocked on startup"),
+        }
         assert!(service.verify_unlocked().is_err());
 
         // Should unlock while DB is empty, and stored password_hash will be empty
@@ -237,7 +240,10 @@ mod tests {
             .set_password(rng.sample_iter(&Alphanumeric).take(7).collect())
             .unwrap();
         assert!(res);
-        assert_eq!(service.is_locked().unwrap(), Some(false));
+        match service.get_locked_status().unwrap() {
+            LockedStatus::Unlocked => {}
+            _ => panic!("Status should be unlocked after setting password"),
+        }
         assert!(service.verify_unlocked().is_ok());
     }
 
