@@ -5,10 +5,11 @@
 use crate::{
     db::{
         models::{GiftCode, NewGiftCode},
-        WalletDb,
+        WalletDbConnContext,
     },
     error::WalletDbError,
 };
+use mc_account_keys::RootEntropy;
 use mc_crypto_keys::CompressedRistrettoPublic;
 
 use diesel::{
@@ -39,15 +40,14 @@ pub trait GiftCodeModel {
     /// Returns:
     /// * Gift code encoded as b58 string.
     fn create(
-        entropy: &[u8],
+        entropy: &RootEntropy,
         txo_public_key: &CompressedRistrettoPublic,
         value: i64,
         memo: String,
         account_id: i32,
         build_log_id: Option<i32>,
         consume_log_id: Option<i32>,
-        password_hash: &[u8],
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn_context: &WalletDbConnContext,
     ) -> Result<String, WalletDbError>;
 
     /// Get the details of a specific Gift Code.
@@ -57,7 +57,10 @@ pub trait GiftCodeModel {
     ) -> Result<GiftCode, WalletDbError>;
 
     /// Get the decrypted entropy for a given Gift Code.
-    fn get_decrypted_entropy(&self, password_hash: &[u8]) -> Result<Vec<u8>, WalletDbError>;
+    fn get_decrypted_entropy(
+        &self,
+        conn_context: &WalletDbConnContext,
+    ) -> Result<RootEntropy, WalletDbError>;
 
     /// Get all Gift Codes in this wallet.
     fn list_all(
@@ -77,15 +80,14 @@ pub trait GiftCodeModel {
 
 impl GiftCodeModel for GiftCode {
     fn create(
-        entropy: &[u8],
+        entropy: &RootEntropy,
         txo_public_key: &CompressedRistrettoPublic,
         value: i64,
         memo: String,
         account_id: i32,
         build_log_id: Option<i32>,
         consume_log_id: Option<i32>,
-        password_hash: &[u8],
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn_context: &WalletDbConnContext,
     ) -> Result<String, WalletDbError> {
         use crate::db::schema::gift_codes;
 
@@ -93,7 +95,7 @@ impl GiftCodeModel for GiftCode {
 
         // Create the gift_code_b58 using the printable wrapper for a TransferPayload.
         let mut gift_code_payload = mc_mobilecoind_api::printable::TransferPayload::new();
-        gift_code_payload.set_entropy(entropy.to_vec());
+        gift_code_payload.set_entropy(entropy.as_ref().to_vec());
         gift_code_payload.set_tx_out_public_key(proto_tx_pubkey.clone());
         gift_code_payload.set_memo(memo.clone());
 
@@ -102,7 +104,7 @@ impl GiftCodeModel for GiftCode {
 
         let gift_code_b58 = gift_code_wrapper.b58_encode()?;
 
-        let encrypted_entropy = WalletDb::encrypt(&entropy, password_hash)?;
+        let encrypted_entropy = conn_context.encryption_provider.encrypt(entropy.as_ref())?;
 
         // Insert the gift code to our gift code table.
         let new_gift_code = NewGiftCode {
@@ -118,7 +120,7 @@ impl GiftCodeModel for GiftCode {
 
         diesel::insert_into(gift_codes::table)
             .values(&new_gift_code)
-            .execute(conn)?;
+            .execute(&conn_context.conn)?;
 
         Ok(gift_code_b58)
     }
@@ -142,8 +144,15 @@ impl GiftCodeModel for GiftCode {
         }
     }
 
-    fn get_decrypted_entropy(&self, password_hash: &[u8]) -> Result<Vec<u8>, WalletDbError> {
-        Ok(WalletDb::decrypt(&self.entropy, password_hash)?)
+    fn get_decrypted_entropy(
+        &self,
+        conn_context: &WalletDbConnContext,
+    ) -> Result<RootEntropy, WalletDbError> {
+        // FIXME: implement Message on RootEntropy so we can use decrypt_obj
+        let entropy: Vec<u8> = conn_context.encryption_provider.decrypt(&self.entropy)?;
+        let mut entropy_slice = [0u8; 32];
+        entropy_slice.copy_from_slice(&entropy);
+        Ok(RootEntropy::from(&entropy_slice))
     }
 
     fn list_all(
@@ -173,7 +182,7 @@ impl GiftCodeModel for GiftCode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::WalletDbTestContext;
+    use crate::{db::encryption_provider::EncryptionProvider, test_utils::WalletDbTestContext};
     use mc_account_keys::RootIdentity;
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_keys::RistrettoPublic;
@@ -210,15 +219,14 @@ mod tests {
         let build_log_id = 6873;
 
         let gift_code_b58 = GiftCode::create(
-            entropy.as_ref(),
+            &entropy,
             &txo_public_key,
             value as i64,
             memo.clone(),
             account_id,
             Some(build_log_id),
             None,
-            &wallet_db.get_password_hash().unwrap(),
-            &wallet_db.get_conn().unwrap(),
+            &wallet_db.get_conn_context().unwrap(),
         )
         .unwrap();
 
@@ -226,7 +234,8 @@ mod tests {
 
         let gotten = GiftCode::get(&gift_code_b58, &wallet_db.get_conn().unwrap()).unwrap();
 
-        let encrypted_entropy = WalletDb::encrypt(entropy.as_ref(), &password_hash).unwrap();
+        let encrypted_entropy =
+            EncryptionProvider::encrypt_with_password(entropy.as_ref(), &password_hash).unwrap();
         let expected_gift_code = GiftCode {
             id: 1,
             gift_code_b58: gift_code_b58.clone(),
@@ -241,9 +250,9 @@ mod tests {
         assert_eq!(gotten, expected_gift_code);
         assert_eq!(
             gotten
-                .get_decrypted_entropy(&wallet_db.get_password_hash().unwrap())
+                .get_decrypted_entropy(&wallet_db.get_conn_context().unwrap())
                 .unwrap(),
-            entropy.as_ref().to_vec()
+            entropy
         );
 
         let all_gift_codes = GiftCode::list_all(&wallet_db.get_conn().unwrap()).unwrap();

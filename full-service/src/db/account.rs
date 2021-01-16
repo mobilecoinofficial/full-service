@@ -313,8 +313,7 @@ impl AccountModel for Account {
                 .map(|t| t.value as u128)
                 .sum::<u128>();
 
-                let account_key: AccountKey =
-                    account.get_decrypted_account_key(password_hash, conn)?;
+                let account_key: AccountKey = account.get_decrypted_account_key(conn_context)?;
                 let main_subaddress_b58 =
                     b58_encode(&account_key.subaddress(DEFAULT_SUBADDRESS_INDEX))?;
                 Ok(JsonAccount {

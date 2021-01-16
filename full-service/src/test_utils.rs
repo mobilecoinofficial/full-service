@@ -234,13 +234,9 @@ pub fn add_block_from_transaction_log(
     let output_txos: Vec<Txo> = output_ids
         .iter()
         .map(|id| {
-            Txo::get(
-                id,
-                &wallet_db.get_password_hash().unwrap(),
-                &wallet_db.get_conn().unwrap(),
-            )
-            .unwrap()
-            .txo
+            Txo::get(id, &wallet_db.get_conn_context().unwrap())
+                .unwrap()
+                .txo
         })
         .collect();
 
@@ -253,13 +249,9 @@ pub fn add_block_from_transaction_log(
         .inputs
         .iter()
         .map(|id| {
-            Txo::get(
-                id,
-                &wallet_db.get_password_hash().unwrap(),
-                &wallet_db.get_conn().unwrap(),
-            )
-            .unwrap()
-            .txo
+            Txo::get(id, &wallet_db.get_conn_context().unwrap())
+                .unwrap()
+                .txo
         })
         .collect();
 

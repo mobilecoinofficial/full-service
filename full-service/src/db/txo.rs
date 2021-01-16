@@ -263,7 +263,7 @@ impl TxoModel for Txo {
                                     subaddress_index,
                                     key_image,
                                     received_block_count,
-                                    conn,
+                                    &conn_context.conn,
                                 )?;
                             }
                             Err(e) => return Err(e),

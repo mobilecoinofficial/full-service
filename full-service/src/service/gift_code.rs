@@ -27,7 +27,7 @@ use crate::{
         PasswordServiceError, WalletService,
     },
 };
-use mc_account_keys::{AccountKey, RootIdentity};
+use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
@@ -223,7 +223,7 @@ where
                         Account::get(&AccountID(json_account.account_id), &conn)?;
 
                     let gift_code_account_key = gift_code_account
-                        .get_decrypted_account_key(&self.wallet_db.get_password_hash()?, &conn)?;
+                        .get_decrypted_account_key(&self.wallet_db.get_conn_context()?)?;
                     log::debug!(
                         self.logger,
                         "Funding gift code account {:?} from account {:?}",
@@ -304,11 +304,7 @@ where
                 txos.outputs.len(),
             ));
         }
-        let txo = Txo::get(
-            &txos.outputs[0],
-            &self.wallet_db.get_password_hash()?,
-            &conn,
-        )?;
+        let txo = Txo::get(&txos.outputs[0], &self.wallet_db.get_conn_context()?)?;
         let txo_public_key: CompressedRistrettoPublic =
             mc_util_serial::decode(&txo.txo.public_key)?;
 
@@ -320,15 +316,14 @@ where
 
         // Now that the Gift Code is funded, we can add it to our Gift Codes table
         let gift_code = GiftCode::create(
-            &entropy,
+            &RootEntropy::from(&entropy),
             &txo_public_key,
             transaction_log.value,
             transaction_log.comment.clone(),
             gift_code_account.id,
             Some(transaction_log.id),
             None,
-            &self.wallet_db.get_password_hash()?,
-            &conn,
+            &self.wallet_db.get_conn_context()?,
         )?;
 
         Ok(JsonGiftCode {
@@ -351,7 +346,7 @@ where
             object: "gift_code".to_string(),
             gift_code: gift_code_b58,
             entropy: hex::encode(
-                &gift_code.get_decrypted_entropy(&self.wallet_db.get_password_hash()?)?,
+                &gift_code.get_decrypted_entropy(&self.wallet_db.get_conn_context()?)?,
             ),
             value: gift_code.value.to_string(),
             memo: gift_code.memo,
@@ -372,8 +367,8 @@ where
                     &g.get_decrypted_entropy(
                         &self
                             .wallet_db
-                            .get_password_hash()
-                            .expect("Could not get password hash"),
+                            .get_conn_context()
+                            .expect("Could not get conn context"),
                     )
                     .expect("Could not decrypt entropy"),
                 ),
@@ -483,8 +478,7 @@ where
         // Sanity check that our txo is available and spendable from the gift code account
         let txos = Txo::list_for_account(
             &gift_code_account_id_hex,
-            &self.wallet_db.get_password_hash()?,
-            &self.wallet_db.get_conn()?,
+            &self.wallet_db.get_conn_context()?,
         )?;
         if txos.len() != 1 {
             return Err(
@@ -515,8 +509,7 @@ where
             );
             let txos = Txo::list_for_account(
                 &gift_code_account_id_hex,
-                &self.wallet_db.get_password_hash()?,
-                &self.wallet_db.get_conn()?,
+                &self.wallet_db.get_conn_context()?,
             )?;
             txo = txos[0].clone();
             count += 1;
@@ -592,16 +585,16 @@ where
             }
             Err(WalletDbError::GiftCode(GiftCodeDbError::GiftCodeNotFound(_))) => {
                 log::info!(self.logger, "Registering gift code");
+                let entropy: RootEntropy = mc_util_serial::decode(&gift_code_details.root_entropy)?;
                 let _gift_code_b58 = GiftCode::create(
-                    gift_code_details.root_entropy.as_ref(),
+                    &entropy,
                     &gift_code_details.txo_public_key,
                     gift_code_details.value as i64,
                     gift_code_details.memo.to_string(),
                     gift_code_details.account_id,
                     None,
                     Some(transaction_log.id),
-                    &self.wallet_db.get_password_hash()?,
-                    &self.wallet_db.get_conn()?,
+                    &self.wallet_db.get_conn_context()?,
                 )?;
             }
             Err(e) => return Err(e.into()),
@@ -646,9 +639,7 @@ mod tests {
 
         let mut password_hash = [0u8; 32];
         rng.fill_bytes(&mut password_hash);
-        let res = service
-            .set_password(None, Some(hex::encode(&password_hash)))
-            .unwrap();
+        let res = service.set_password(hex::encode(&password_hash)).unwrap();
         assert!(res);
 
         // Create our main account for the wallet
