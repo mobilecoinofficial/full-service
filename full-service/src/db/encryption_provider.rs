@@ -70,13 +70,18 @@ impl EncryptionProvider {
         }
     }
 
+    /// Sets the password hash for the database in local memory.
+    ///
+    /// Only valid if the database is unlocked or has never been locked.
     pub fn set_password_hash(
         &self,
         password_hash: &[u8],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
-        if self.is_locked(conn)? {
-            return Err(WalletDbError::PasswordAlreadySet);
+        match self.get_locked_status(conn)? {
+            LockedStatus::IsLocked => return Err(WalletDbError::PasswordAlreadySet),
+            LockedStatus::NeverLocked => {}
+            LockedStatus::Unlocked => {}
         }
         {
             let mut cur_password_hash = self.password_hash.lock()?;
@@ -95,13 +100,15 @@ impl EncryptionProvider {
         Ok(cur_password_hash.clone())
     }
 
+    /// Never locked is considered true, because some functionality of the wallet is disabled.
     pub fn is_locked(
         &self,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError> {
         match self.get_locked_status(conn)? {
             LockedStatus::IsLocked => Ok(true),
-            _ => Ok(false),
+            LockedStatus::NeverLocked => Ok(true),
+            LockedStatus::Unlocked => Ok(false),
         }
     }
 

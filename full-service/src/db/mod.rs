@@ -134,7 +134,7 @@ impl WalletDb {
 
     /// Check whether the database is currently unlocked.
     pub fn is_unlocked(&self) -> Result<bool, WalletDbError> {
-        Ok(self.encryption_provider.is_locked(&self.get_conn()?)?)
+        Ok(!self.encryption_provider.is_locked(&self.get_conn()?)?)
     }
 
     /// Get the locked status of the database.

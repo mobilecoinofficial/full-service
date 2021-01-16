@@ -1303,12 +1303,15 @@ mod tests {
                 "{\"error\": \"PasswordService(DatabaseLocked)\", \"details\": \"Error with the wallet password service: Cannot perform this action without a set password or while database is locked. Please set_password or unlock first.\"}".to_string()
             );
 
-            // Verify is_locked is Null before a password has been set
+            // Verify locked status is NeverLocked before a password has been set
             let body = json!({
-                "method": "is_locked"
+                "method": "get_locked_status"
             });
             let result = dispatch(&client, body, &logger);
-            assert_eq!(result.get("is_locked").unwrap().as_object(), None);
+            assert_eq!(
+                result.get("status").unwrap().as_str().unwrap(),
+                "NeverLocked"
+            );
 
             // Unlocking a never-set database should fail
             let pw_rng: StdRng = SeedableRng::from_seed([20u8; 32]);
@@ -1338,12 +1341,12 @@ mod tests {
             let result = dispatch(&client, body, &logger);
             assert!(result.get("success").unwrap().as_bool().unwrap());
 
-            // Verify is_locked is false once the password has been set
+            // Verify locked status is Unlocked once a password has been set
             let body = json!({
-                "method": "is_locked"
+                "method": "get_locked_status"
             });
             let result = dispatch(&client, body, &logger);
-            assert_eq!(result.get("is_locked").unwrap().as_bool().unwrap(), false);
+            assert_eq!(result.get("status").unwrap().as_str().unwrap(), "Unlocked");
 
             let body = json!({
                 "method": "create_account",
@@ -1405,10 +1408,10 @@ mod tests {
 
             // DB should still be unlocked after password change
             let body = json!({
-                "method": "is_locked"
+                "method": "get_locked_status"
             });
             let result = dispatch(&client, body, &logger);
-            assert_eq!(result.get("is_locked").unwrap().as_bool().unwrap(), false);
+            assert_eq!(result.get("status").unwrap().as_str().unwrap(), "Unlocked");
 
             // We should be able to continue interacting with our accounts
             let body = json!({
@@ -1491,12 +1494,12 @@ mod tests {
             let rocket = test_rocket(rocket_config, TestWalletState { service: service2 });
             let client2 = Client::new(rocket).expect("valid rocket instance");
 
-            // Verify is_locked is true for this new connection to the DB
+            // Verify database is locked for this new connection to the DB
             let body = json!({
-                "method": "is_locked"
+                "method": "get_locked_status"
             });
             let result = dispatch(&client2, body, &logger);
-            assert_eq!(result.get("is_locked").unwrap().as_bool().unwrap(), true);
+            assert_eq!(result.get("status").unwrap().as_str().unwrap(), "IsLocked");
 
             let body = json!({
                 "method": "create_address",
@@ -1538,11 +1541,12 @@ mod tests {
             let result = dispatch(&client2, body, &logger);
             assert!(result.get("success").unwrap().as_bool().unwrap());
 
+            // Verify locked status is unlocked after unlocking
             let body = json!({
-                "method": "is_locked"
+                "method": "get_locked_status"
             });
             let result = dispatch(&client2, body, &logger);
-            assert_eq!(result.get("is_locked").unwrap().as_bool().unwrap(), false);
+            assert_eq!(result.get("status").unwrap().as_str().unwrap(), "Unlocked");
 
             let body = json!({
                 "method": "create_address",
