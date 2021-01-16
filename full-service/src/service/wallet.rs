@@ -21,7 +21,7 @@ use rocket_contrib::json::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use std::iter::FromIterator;
-use strum::IntoEnumIterator;
+use strum::{EnumMessage, IntoEnumIterator};
 use strum_macros::EnumIter;
 
 pub struct WalletState<
@@ -45,7 +45,7 @@ pub enum JsonCommandRequest {
         old_password: String,
         new_password: String,
     },
-    is_locked,
+    get_locked_status,
     create_account {
         name: Option<String>,
         first_block: Option<String>,
@@ -144,8 +144,9 @@ pub enum JsonCommandResponse {
     change_password {
         success: bool,
     },
-    is_locked {
-        is_locked: Option<bool>,
+    get_locked_status {
+        status: String,
+        details: String,
     },
     create_account {
         entropy: String,
@@ -257,9 +258,17 @@ where
                 .map_err(format_error)?;
             JsonCommandResponse::change_password { success }
         }
-        JsonCommandRequest::is_locked => JsonCommandResponse::is_locked {
-            is_locked: service.is_locked().map_err(format_error)?,
-        },
+        JsonCommandRequest::get_locked_status => {
+            let status = service.get_locked_status().map_err(format_error)?;
+            JsonCommandResponse::get_locked_status {
+                status: format!("{:?}", status),
+                details: format!(
+                    "{} {}",
+                    status.get_message().unwrap(),
+                    status.get_detailed_message().unwrap()
+                ),
+            }
+        }
         JsonCommandRequest::create_account { name, first_block } => {
             let fb = first_block
                 .map(|fb| fb.parse::<u64>())

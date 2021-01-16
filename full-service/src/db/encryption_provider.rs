@@ -25,8 +25,8 @@ use diesel::{
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},
 };
-
 use std::sync::{Arc, Mutex};
+use strum::EnumMessage;
 
 /// Domain tag for database-wide encryption.
 pub const ENCRYPTION_KEY_DOMAIN_TAG: &str = "mc_full_service";
@@ -36,6 +36,24 @@ type ExpandedPassword = (
     GenericArray<u8, <Aes256Gcm as NewAead>::KeySize>,
     GenericArray<u8, <Aes256Gcm as AeadInPlace>::NonceSize>,
 );
+
+/// Possible return values for the get_locked_status endpoint.
+#[derive(EnumMessage, Debug)]
+pub enum LockedStatus {
+    #[strum(message = "The database has never been locked.")]
+    #[strum(
+        detailed_message = "Some operations are still possible. Call set_password to enable encryption and unlock the rest of the wallet functionality."
+    )]
+    NeverLocked,
+    #[strum(message = "The database is locked.")]
+    #[strum(
+        detailed_message = "Some operations are still possible. Call unlock to unlock the full wallet functionality."
+    )]
+    IsLocked,
+    #[strum(message = "The database is unlocked.")]
+    #[strum(detailed_message = "All operations are possible.")]
+    Unlocked,
+}
 
 /// Provides global storage for the password hash, as well as convenience encryption methods.
 #[derive(Clone)]
@@ -57,6 +75,9 @@ impl EncryptionProvider {
         password_hash: &[u8],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
+        if self.is_locked(conn)? {
+            return Err(WalletDbError::PasswordAlreadySet);
+        }
         {
             let mut cur_password_hash = self.password_hash.lock()?;
             *cur_password_hash = password_hash.to_vec();
@@ -74,8 +95,28 @@ impl EncryptionProvider {
         Ok(cur_password_hash.clone())
     }
 
-    pub fn is_unlocked(&self) -> Result<bool, WalletDbError> {
-        Ok(!self.password_hash.lock()?.is_empty())
+    pub fn is_locked(
+        &self,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<bool, WalletDbError> {
+        match self.get_locked_status(conn)? {
+            LockedStatus::IsLocked => Ok(true),
+            _ => Ok(false),
+        }
+    }
+
+    pub fn get_locked_status(
+        &self,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<LockedStatus, WalletDbError> {
+        match EncryptionIndicator::get_encryption_state(conn)? {
+            EncryptionState::Empty => Ok(LockedStatus::NeverLocked),
+            EncryptionState::Encrypted => match self.password_hash.lock()?.is_empty() {
+                true => Ok(LockedStatus::IsLocked),
+                false => Ok(LockedStatus::Unlocked),
+            },
+            EncryptionState::Unencrypted => Err(WalletDbError::BadEncryptionState),
+        }
     }
 
     pub fn unlock(
@@ -84,7 +125,7 @@ impl EncryptionProvider {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
         // No need to check db state if we're already unlocked
-        if self.is_unlocked()? {
+        if !self.is_locked(conn)? {
             return Ok(());
         }
 
@@ -113,8 +154,9 @@ impl EncryptionProvider {
             EncryptionState::Unencrypted => {
                 log::info!(
                     self.logger,
-                    "DB is unencrypted. Please call set_password to enable encryption."
+                    "DB is in a bad state where some accounts are unencrypted. Please run change_password or contact support to run migration tool."
                 );
+                return Err(WalletDbError::BadEncryptionState);
             }
         }
         Ok(())
