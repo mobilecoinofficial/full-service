@@ -428,7 +428,6 @@ pub fn create_test_minted_and_change_txos(
     // Use the builder to create valid TxOuts for this account
     let mut builder = WalletTransactionBuilder::<MockFogPubkeyResolver>::new(
         AccountID::from(&src_account_key).to_string(),
-        wallet_db.clone(),
         ledger_db,
         None,
         logger,
@@ -439,7 +438,9 @@ pub fn create_test_minted_and_change_txos(
         .select_txos(None, &wallet_db.get_conn().unwrap())
         .unwrap();
     builder.set_tombstone(0).unwrap();
-    let tx_proposal = builder.build().unwrap();
+    let tx_proposal = builder
+        .build(&wallet_db.get_conn_context().unwrap())
+        .unwrap();
 
     // There should be 2 outputs, one to dest and one change
     assert_eq!(tx_proposal.tx.prefix.outputs.len(), 2);
@@ -506,7 +507,6 @@ pub fn random_account_with_seed_values(
 
 pub fn builder_for_random_recipient(
     account_key: &AccountKey,
-    wallet_db: &WalletDb,
     ledger_db: &LedgerDB,
     mut rng: &mut StdRng,
     logger: &Logger,
@@ -517,7 +517,6 @@ pub fn builder_for_random_recipient(
     // Construct a transaction
     let builder: WalletTransactionBuilder<MockFogPubkeyResolver> = WalletTransactionBuilder::new(
         AccountID::from(account_key).to_string(),
-        wallet_db.clone(),
         ledger_db.clone(),
         Some(Arc::new(MockFogPubkeyResolver::new())),
         logger.clone(),

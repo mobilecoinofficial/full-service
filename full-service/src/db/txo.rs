@@ -1225,7 +1225,6 @@ mod tests {
         let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
             WalletTransactionBuilder::new(
                 AccountID::from(&sender_account_key).to_string(),
-                wallet_db.clone(),
                 ledger_db.clone(),
                 Some(Arc::new(MockFogPubkeyResolver::new())),
                 logger.clone(),
@@ -1237,7 +1236,9 @@ mod tests {
             .select_txos(None, &wallet_db.get_conn().unwrap())
             .unwrap();
         builder.set_tombstone(0).unwrap();
-        let proposal = builder.build().unwrap();
+        let proposal = builder
+            .build(&wallet_db.get_conn_context().unwrap())
+            .unwrap();
 
         // Let's log this submitted Tx for the sender, which will create_minted for the sent Txo
         let tx_id = TransactionLog::log_submitted(

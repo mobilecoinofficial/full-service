@@ -9,7 +9,7 @@
 use crate::{
     db::{
         models::{Account, Txo, TXO_UNSPENT},
-        WalletDb,
+        WalletDbConnContext,
         {
             account::{AccountID, AccountModel},
             txo::TxoModel,
@@ -47,7 +47,6 @@ pub const DEFAULT_NEW_TX_BLOCK_ATTEMPTS: u64 = 50;
 
 pub struct WalletTransactionBuilder<FPR: FogPubkeyResolver + Send + Sync + 'static> {
     account_id_hex: String,
-    wallet_db: WalletDb,
     ledger_db: LedgerDB,
     transaction_builder: TransactionBuilder,
     inputs: Vec<Txo>,
@@ -61,7 +60,6 @@ pub struct WalletTransactionBuilder<FPR: FogPubkeyResolver + Send + Sync + 'stat
 impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FPR> {
     pub fn new(
         account_id_hex: String,
-        wallet_db: WalletDb,
         ledger_db: LedgerDB,
         fog_pubkey_resolver: Option<Arc<FPR>>,
         logger: Logger,
@@ -69,7 +67,6 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
         let transaction_builder = TransactionBuilder::new();
         WalletTransactionBuilder {
             account_id_hex,
-            wallet_db,
             ledger_db,
             transaction_builder,
             inputs: vec![],
@@ -84,9 +81,10 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
     pub fn set_txos(
         &mut self,
         input_txo_ids: &[String],
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletTransactionBuilderError> {
         log::debug!(self.logger, "Setting txos to {:?}", input_txo_ids);
-        let txos = Txo::select_by_id(&input_txo_ids.to_vec(), &self.wallet_db.get_conn()?)?;
+        let txos = Txo::select_by_id(&input_txo_ids.to_vec(), conn)?;
         let unspent: Vec<Txo> = txos
             .iter()
             .filter(|(_txo, status)| status.txo_status == TXO_UNSPENT)
@@ -104,16 +102,34 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
         max_spendable_value: Option<u64>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletTransactionBuilderError> {
-        log::debug!(self.logger, "Selecting txos");
+        log::debug!(self.logger, "Selecting txos for outlays {:?}", self.outlays);
         let outlay_value_sum = self.outlays.iter().map(|(_r, v)| *v as u128).sum::<u128>();
 
+        log::trace!(
+            self.logger,
+            "Verifying that output value is not too large for {:?} {:?}",
+            outlay_value_sum,
+            self.transaction_builder.fee
+        );
         if outlay_value_sum > u64::MAX as u128
             || outlay_value_sum > u64::MAX as u128 - self.transaction_builder.fee as u128
         {
+            log::error!(self.logger, "Total output value exceeds u64::MAX");
             return Err(WalletTransactionBuilderError::OutboundValueTooLarge);
         }
 
+        log::trace!(
+            self.logger,
+            "Getting total value {:?} + {:?}",
+            outlay_value_sum,
+            self.transaction_builder.fee
+        );
         let total_value = outlay_value_sum as u64 + self.transaction_builder.fee;
+        log::trace!(
+            self.logger,
+            "Selecting unspent txos for value {:?}",
+            total_value
+        );
         self.inputs = Txo::select_unspent_txos_for_value(
             &self.account_id_hex,
             total_value,
@@ -174,7 +190,10 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
     }
 
     /// Consumes self
-    pub fn build(mut self) -> Result<TxProposal, WalletTransactionBuilderError> {
+    pub fn build(
+        mut self,
+        conn_context: &WalletDbConnContext,
+    ) -> Result<TxProposal, WalletTransactionBuilderError> {
         if self.inputs.is_empty() {
             return Err(WalletTransactionBuilderError::NoInputs);
         }
@@ -183,7 +202,6 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
             return Err(WalletTransactionBuilderError::TombstoneNotSet);
         }
 
-        let conn_context = self.wallet_db.get_conn_context()?;
         Ok(conn_context
             .conn
             .transaction::<TxProposal, WalletTransactionBuilderError, _>(|| {
@@ -592,7 +610,7 @@ mod tests {
 
         // Construct a transaction
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         // Send value specifically for your smallest Txo size. Should take 2 inputs
         // and also make change.
@@ -605,7 +623,9 @@ mod tests {
             .unwrap();
         builder.set_tombstone(0).unwrap();
 
-        let proposal = builder.build().unwrap();
+        let proposal = builder
+            .build(&wallet_db.get_conn_context().unwrap())
+            .unwrap();
         assert_eq!(proposal.outlays.len(), 1);
         assert_eq!(proposal.outlays[0].receiver, recipient);
         assert_eq!(proposal.outlays[0].value, value);
@@ -658,13 +678,14 @@ mod tests {
 
         // Now try to send a transaction with a value > u64::MAX
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         let value = u64::MAX;
         builder.add_recipient(recipient.clone(), value).unwrap();
 
         // Select the txos for the recipient - should error because > u64::MAX
-        match builder.select_txos(None, &wallet_db.get_conn().unwrap()) {
+        let conn = wallet_db.get_conn().unwrap();
+        match builder.select_txos(None, &conn) {
             Ok(_) => panic!("Should not be allowed to construct outbound values > u64::MAX"),
             Err(WalletTransactionBuilderError::OutboundValueTooLarge) => {}
             Err(e) => panic!("Unexpected error {:?}", e),
@@ -709,16 +730,21 @@ mod tests {
         .collect();
 
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         // Setting value to exactly the input will fail because you need funds for fee
         builder
             .add_recipient(recipient.clone(), txos[0].value as u64)
             .unwrap();
 
-        builder.set_txos(&vec![txos[0].txo_id_hex.clone()]).unwrap();
+        builder
+            .set_txos(
+                &vec![txos[0].txo_id_hex.clone()],
+                &wallet_db.get_conn().unwrap(),
+            )
+            .unwrap();
         builder.set_tombstone(0).unwrap();
-        match builder.build() {
+        match builder.build(&wallet_db.get_conn_context().unwrap()) {
             Ok(_) => {
                 panic!("Should not be able to construct Tx with > inputs value as output value")
             }
@@ -728,7 +754,7 @@ mod tests {
 
         // Now build, setting to multiple TXOs
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         // Set value to just slightly more than what fits in the one TXO
         builder
@@ -736,13 +762,15 @@ mod tests {
             .unwrap();
 
         builder
-            .set_txos(&vec![
-                txos[0].txo_id_hex.clone(),
-                txos[1].txo_id_hex.clone(),
-            ])
+            .set_txos(
+                &vec![txos[0].txo_id_hex.clone(), txos[1].txo_id_hex.clone()],
+                &wallet_db.get_conn().unwrap(),
+            )
             .unwrap();
         builder.set_tombstone(0).unwrap();
-        let proposal = builder.build().unwrap();
+        let proposal = builder
+            .build(&wallet_db.get_conn_context().unwrap())
+            .unwrap();
         assert_eq!(proposal.outlays.len(), 1);
         assert_eq!(proposal.outlays[0].receiver, recipient);
         assert_eq!(proposal.outlays[0].value, txos[0].value as u64 + 10);
@@ -779,7 +807,7 @@ mod tests {
         );
 
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         // Setting value to exactly the input will fail because you need funds for fee
         builder
@@ -807,7 +835,9 @@ mod tests {
             .select_txos(Some(80 * MOB as u64), &wallet_db.get_conn().unwrap())
             .unwrap();
         builder.set_tombstone(0).unwrap();
-        let proposal = builder.build().unwrap();
+        let proposal = builder
+            .build(&wallet_db.get_conn_context().unwrap())
+            .unwrap();
         assert_eq!(proposal.outlays.len(), 1);
         assert_eq!(proposal.outlays[0].receiver, recipient);
         assert_eq!(proposal.outlays[0].value, 80 * MOB as u64);
@@ -844,7 +874,7 @@ mod tests {
         );
 
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         builder
             .add_recipient(recipient.clone(), 10 * MOB as u64)
@@ -857,14 +887,14 @@ mod tests {
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
 
         // We must set tombstone block before building
-        match builder.build() {
+        match builder.build(&wallet_db.get_conn_context().unwrap()) {
             Ok(_) => panic!("Expected TombstoneNotSet error"),
             Err(WalletTransactionBuilderError::TombstoneNotSet) => {}
             Err(e) => panic!("Unexpected error {:?}", e),
         }
 
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         builder
             .add_recipient(recipient.clone(), 10 * MOB as u64)
@@ -877,12 +907,14 @@ mod tests {
         builder.set_tombstone(0).unwrap();
 
         // Not setting the tombstone results in tombstone = 0. This is an acceptable value,
-        let proposal = builder.build().unwrap();
+        let proposal = builder
+            .build(&wallet_db.get_conn_context().unwrap())
+            .unwrap();
         assert_eq!(proposal.tx.prefix.tombstone_block, 63);
 
         // Build a transaction and explicitly set tombstone
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         builder
             .add_recipient(recipient.clone(), 10 * MOB as u64)
@@ -895,7 +927,9 @@ mod tests {
         builder.set_tombstone(20).unwrap();
 
         // Not setting the tombstone results in tombstone = 0. This is an acceptable value,
-        let proposal = builder.build().unwrap();
+        let proposal = builder
+            .build(&wallet_db.get_conn_context().unwrap())
+            .unwrap();
         assert_eq!(proposal.tx.prefix.tombstone_block, 20);
     }
 
@@ -927,7 +961,7 @@ mod tests {
         );
 
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         builder
             .add_recipient(recipient.clone(), 10 * MOB as u64)
@@ -938,12 +972,14 @@ mod tests {
         builder.set_tombstone(0).unwrap();
 
         // Verify that not setting fee results in default fee
-        let proposal = builder.build().unwrap();
+        let proposal = builder
+            .build(&wallet_db.get_conn_context().unwrap())
+            .unwrap();
         assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE);
 
         // You cannot set fee to 0
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         builder
             .add_recipient(recipient.clone(), 10 * MOB as u64)
@@ -959,12 +995,14 @@ mod tests {
         }
 
         // Verify that not setting fee results in default fee
-        let proposal = builder.build().unwrap();
+        let proposal = builder
+            .build(&wallet_db.get_conn_context().unwrap())
+            .unwrap();
         assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE);
 
         // Setting fee less than minimum fee should fail
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         builder
             .add_recipient(recipient.clone(), 10 * MOB as u64)
@@ -981,7 +1019,7 @@ mod tests {
 
         // Setting fee greater than MINIMUM_FEE works
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         builder
             .add_recipient(recipient.clone(), 10 * MOB as u64)
@@ -991,7 +1029,9 @@ mod tests {
             .unwrap();
         builder.set_tombstone(0).unwrap();
         builder.set_fee(MINIMUM_FEE * 10).unwrap();
-        let proposal = builder.build().unwrap();
+        let proposal = builder
+            .build(&wallet_db.get_conn_context().unwrap())
+            .unwrap();
         assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE * 10);
     }
 
@@ -1023,7 +1063,7 @@ mod tests {
         );
 
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         // Set value to consume the whole TXO and not produce change
         let value = 70 * MOB as u64 - MINIMUM_FEE;
@@ -1034,7 +1074,9 @@ mod tests {
         builder.set_tombstone(0).unwrap();
 
         // Verify that not setting fee results in default fee
-        let proposal = builder.build().unwrap();
+        let proposal = builder
+            .build(&wallet_db.get_conn_context().unwrap())
+            .unwrap();
         assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE);
         assert_eq!(proposal.outlays.len(), 1);
         assert_eq!(proposal.outlays[0].receiver, recipient);
@@ -1043,7 +1085,7 @@ mod tests {
         assert_eq!(proposal.tx.prefix.outputs.len(), 1); // only one output to self (no change)
     }
 
-    // We should be able to add multiple TxOuts to the same recipient, not to multiple
+    // We should be able to add multiple TxOuts to the same recipient, but not to multiple recipients.
     #[test_with_logger]
     fn test_add_multiple_outputs_to_same_recipient(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
@@ -1071,7 +1113,7 @@ mod tests {
         );
 
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         builder
             .add_recipient(recipient.clone(), 10 * MOB as u64)
@@ -1092,7 +1134,9 @@ mod tests {
         builder.set_tombstone(0).unwrap();
 
         // Verify that not setting fee results in default fee
-        let proposal = builder.build().unwrap();
+        let proposal = builder
+            .build(&wallet_db.get_conn_context().unwrap())
+            .unwrap();
         assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE);
         assert_eq!(proposal.outlays.len(), 4);
         assert_eq!(proposal.outlays[0].receiver, recipient);
@@ -1140,7 +1184,7 @@ mod tests {
         );
 
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         builder
             .add_recipient(recipient.clone(), 7_000_000 * MOB as u64)
@@ -1152,7 +1196,8 @@ mod tests {
             .add_recipient(recipient.clone(), 7_000_000 * MOB as u64)
             .unwrap();
 
-        match builder.select_txos(None, &wallet_db.get_conn().unwrap()) {
+        let conn = wallet_db.get_conn().unwrap();
+        match builder.select_txos(None, &conn) {
             Ok(_) => panic!("Should not be able to select txos with > u64::MAX output value"),
             Err(WalletTransactionBuilderError::OutboundValueTooLarge) => {}
             Err(e) => panic!("Unexpected error {:?}", e),
@@ -1187,7 +1232,7 @@ mod tests {
         );
 
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         builder
             .add_recipient(recipient.clone(), 10 * MOB as u64)

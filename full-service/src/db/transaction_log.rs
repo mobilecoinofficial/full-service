@@ -622,7 +622,7 @@ mod tests {
 
         // Build a transaction
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
         builder
             .add_recipient(recipient.clone(), 50 * MOB as u64)
             .unwrap();
@@ -630,7 +630,8 @@ mod tests {
         builder
             .select_txos(None, &wallet_db.get_conn().unwrap())
             .unwrap();
-        let tx_proposal = builder.build().unwrap();
+        let conn_context = wallet_db.get_conn_context().unwrap();
+        let tx_proposal = builder.build(&conn_context).unwrap();
 
         let tx_id = TransactionLog::log_submitted(
             tx_proposal.clone(),
@@ -780,7 +781,7 @@ mod tests {
 
         // Build a transaction
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
         // Add outlays all to the same recipient, so that we exceed u64::MAX in this tx
         let value = 100 * MOB as u64 - MINIMUM_FEE;
         builder.add_recipient(recipient.clone(), value).unwrap();
@@ -789,7 +790,8 @@ mod tests {
         builder
             .select_txos(None, &wallet_db.get_conn().unwrap())
             .unwrap();
-        let tx_proposal = builder.build().unwrap();
+        let conn_context = wallet_db.get_conn_context().unwrap();
+        let tx_proposal = builder.build(&conn_context).unwrap();
 
         let tx_id = TransactionLog::log_submitted(
             tx_proposal.clone(),

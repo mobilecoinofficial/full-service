@@ -425,7 +425,6 @@ impl<
         );
         let mut builder = WalletTransactionBuilder::new(
             account_id_hex.to_string(),
-            self.wallet_db.clone(),
             self.ledger_db.clone(),
             self.fog_pubkey_resolver.clone(),
             self.logger.clone(),
@@ -433,7 +432,7 @@ impl<
         let recipient = b58_decode(recipient_public_address)?;
         builder.add_recipient(recipient, value.parse::<u64>()?)?;
         if let Some(inputs) = input_txo_ids {
-            builder.set_txos(inputs)?;
+            builder.set_txos(inputs, &self.wallet_db.get_conn()?)?;
         } else {
             let max_spendable = if let Some(msv) = max_spendable_value {
                 Some(msv.parse::<u64>()?)
@@ -451,7 +450,7 @@ impl<
         if let Some(f) = fee {
             builder.set_fee(f.parse::<u64>()?)?;
         }
-        let tx_proposal = builder.build()?;
+        let tx_proposal = builder.build(&self.wallet_db.get_conn_context()?)?;
         log::debug!(self.logger, "Creating tx_proposal");
         // FIXME: WS-34 - Would rather not have to convert it to proto first
         let proto_tx_proposal = mc_mobilecoind_api::TxProposal::from(&tx_proposal);
