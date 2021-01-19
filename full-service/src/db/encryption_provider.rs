@@ -49,7 +49,7 @@ pub enum LockedStatus {
     #[strum(
         detailed_message = "Some operations are still possible. Call unlock to unlock the full wallet functionality."
     )]
-    IsLocked,
+    Locked,
     #[strum(message = "The database is unlocked.")]
     #[strum(detailed_message = "All operations are possible.")]
     Unlocked,
@@ -79,7 +79,7 @@ impl EncryptionProvider {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
         match self.get_locked_status(conn)? {
-            LockedStatus::IsLocked => return Err(WalletDbError::PasswordAlreadySet),
+            LockedStatus::Locked => return Err(WalletDbError::PasswordAlreadySet),
             LockedStatus::NeverLocked => {}
             LockedStatus::Unlocked => {}
         }
@@ -106,7 +106,7 @@ impl EncryptionProvider {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError> {
         match self.get_locked_status(conn)? {
-            LockedStatus::IsLocked => Ok(true),
+            LockedStatus::Locked => Ok(true),
             LockedStatus::NeverLocked => Ok(true),
             LockedStatus::Unlocked => Ok(false),
         }
@@ -119,7 +119,7 @@ impl EncryptionProvider {
         match EncryptionIndicator::get_encryption_state(conn)? {
             EncryptionState::Empty => Ok(LockedStatus::NeverLocked),
             EncryptionState::Encrypted => match self.password_hash.lock()?.is_empty() {
-                true => Ok(LockedStatus::IsLocked),
+                true => Ok(LockedStatus::Locked),
                 false => Ok(LockedStatus::Unlocked),
             },
             EncryptionState::Unencrypted => Err(WalletDbError::BadEncryptionState),
