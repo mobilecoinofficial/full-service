@@ -1499,7 +1499,7 @@ mod tests {
                 "method": "get_locked_status"
             });
             let result = dispatch(&client2, body, &logger);
-            assert_eq!(result.get("status").unwrap().as_str().unwrap(), "IsLocked");
+            assert_eq!(result.get("status").unwrap().as_str().unwrap(), "Locked");
 
             let body = json!({
                 "method": "create_address",

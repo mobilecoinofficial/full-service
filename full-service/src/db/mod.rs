@@ -65,7 +65,7 @@ impl WalletDbConnContext {
                 // There are no objects, we should not get here. FIXME rename error
                 Err(WalletDbError::NoAccounts)
             }
-            LockedStatus::IsLocked => Err(WalletDbError::NoDecryptionKey),
+            LockedStatus::Locked => Err(WalletDbError::NoDecryptionKey),
             LockedStatus::Unlocked => {
                 let decrypted_obj = self.encryption_provider.decrypt(bytes)?;
                 let res: T = mc_util_serial::decode(&decrypted_obj)?;
