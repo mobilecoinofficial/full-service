@@ -621,28 +621,33 @@ mod tests {
         );
 
         // Build a transaction
-        let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
-        builder
-            .add_recipient(recipient.clone(), 50 * MOB as u64)
-            .unwrap();
-        builder.set_tombstone(0).unwrap();
-        builder
-            .select_txos(None, &wallet_db.get_conn().unwrap())
-            .unwrap();
+        let (tx_proposal, recipient) = {
+            let conn_context = wallet_db.get_conn_context().unwrap();
+            let (recipient, mut builder) =
+                builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
+            builder
+                .add_recipient(recipient.clone(), 50 * MOB as u64)
+                .unwrap();
+            builder.set_tombstone(0).unwrap();
+            builder.select_txos(None, &conn_context.conn).unwrap();
+            let tx_proposal = builder.build(&conn_context).unwrap();
+            (tx_proposal, recipient)
+        };
+
+        let tx_id = {
+            let conn_context = wallet_db.get_conn_context().unwrap();
+            TransactionLog::log_submitted(
+                tx_proposal.clone(),
+                ledger_db.num_blocks().unwrap(),
+                "".to_string(),
+                Some(&AccountID::from(&account_key).to_string()),
+                &conn_context.conn,
+            )
+            .unwrap()
+        };
+
         let conn_context = wallet_db.get_conn_context().unwrap();
-        let tx_proposal = builder.build(&conn_context).unwrap();
-
-        let tx_id = TransactionLog::log_submitted(
-            tx_proposal.clone(),
-            ledger_db.num_blocks().unwrap(),
-            "".to_string(),
-            Some(&AccountID::from(&account_key).to_string()),
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-
-        let tx_log = TransactionLog::get(&tx_id, &wallet_db.get_conn().unwrap()).unwrap();
+        let tx_log = TransactionLog::get(&tx_id, &conn_context.conn).unwrap();
         assert_eq!(tx_log.transaction_id_hex, tx_id);
         assert_eq!(
             tx_log.account_id_hex,
@@ -671,17 +676,11 @@ mod tests {
         assert_eq!(tx, tx_proposal.tx);
 
         // Get associated Txos
-        let associated = tx_log
-            .get_associated_txos(&wallet_db.get_conn().unwrap())
-            .unwrap();
+        let associated = tx_log.get_associated_txos(&conn_context.conn).unwrap();
 
         // Assert inputs are as expected
         assert_eq!(associated.inputs.len(), 1);
-        let input_details = Txo::get(
-            &associated.inputs[0],
-            &wallet_db.get_conn_context().unwrap(),
-        )
-        .unwrap();
+        let input_details = Txo::get(&associated.inputs[0], &conn_context).unwrap();
         assert_eq!(input_details.txo.value, 70 * MOB);
         assert_eq!(
             input_details
@@ -706,11 +705,7 @@ mod tests {
 
         // Assert outputs are as expected
         assert_eq!(associated.outputs.len(), 1);
-        let output_details = Txo::get(
-            &associated.outputs[0],
-            &wallet_db.get_conn_context().unwrap(),
-        )
-        .unwrap();
+        let output_details = Txo::get(&associated.outputs[0], &conn_context).unwrap();
         assert_eq!(output_details.txo.value, 50 * MOB);
         assert_eq!(
             output_details
@@ -729,11 +724,7 @@ mod tests {
 
         // Assert change is as expected
         assert_eq!(associated.change.len(), 1);
-        let change_details = Txo::get(
-            &associated.change[0],
-            &wallet_db.get_conn_context().unwrap(),
-        )
-        .unwrap();
+        let change_details = Txo::get(&associated.change[0], &conn_context).unwrap();
         assert_eq!(change_details.txo.value, 19990000000000); // 19.99 * MOB
         assert_eq!(
             change_details
@@ -780,29 +771,36 @@ mod tests {
         );
 
         // Build a transaction
-        let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
-        // Add outlays all to the same recipient, so that we exceed u64::MAX in this tx
-        let value = 100 * MOB as u64 - MINIMUM_FEE;
-        builder.add_recipient(recipient.clone(), value).unwrap();
+        let (tx_proposal, recipient, value) = {
+            let (recipient, mut builder) =
+                builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
+            // Add outlays all to the same recipient, so that we exceed u64::MAX in this tx
+            let value = 100 * MOB as u64 - MINIMUM_FEE;
+            builder.add_recipient(recipient.clone(), value).unwrap();
 
-        builder.set_tombstone(0).unwrap();
-        builder
-            .select_txos(None, &wallet_db.get_conn().unwrap())
-            .unwrap();
+            builder.set_tombstone(0).unwrap();
+            builder
+                .select_txos(None, &wallet_db.get_conn().unwrap())
+                .unwrap();
+            let conn_context = wallet_db.get_conn_context().unwrap();
+            let tx_proposal = builder.build(&conn_context).unwrap();
+            (tx_proposal, recipient, value)
+        };
+
+        let tx_id = {
+            let conn_context = wallet_db.get_conn_context().unwrap();
+            TransactionLog::log_submitted(
+                tx_proposal.clone(),
+                ledger_db.num_blocks().unwrap(),
+                "".to_string(),
+                Some(&AccountID::from(&account_key).to_string()),
+                &conn_context.conn,
+            )
+            .unwrap()
+        };
+
         let conn_context = wallet_db.get_conn_context().unwrap();
-        let tx_proposal = builder.build(&conn_context).unwrap();
-
-        let tx_id = TransactionLog::log_submitted(
-            tx_proposal.clone(),
-            ledger_db.num_blocks().unwrap(),
-            "".to_string(),
-            Some(&AccountID::from(&account_key).to_string()),
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-
-        let tx_log = TransactionLog::get(&tx_id, &wallet_db.get_conn().unwrap()).unwrap();
+        let tx_log = TransactionLog::get(&tx_id, &conn_context.conn).unwrap();
         assert_eq!(tx_log.transaction_id_hex, tx_id);
         assert_eq!(
             tx_log.account_id_hex,
@@ -831,9 +829,7 @@ mod tests {
         assert_eq!(tx, tx_proposal.tx);
 
         // Get associated Txos
-        let associated = tx_log
-            .get_associated_txos(&wallet_db.get_conn().unwrap())
-            .unwrap();
+        let associated = tx_log.get_associated_txos(&conn_context.conn).unwrap();
         assert_eq!(associated.inputs.len(), 1);
         assert_eq!(associated.outputs.len(), 1);
         assert_eq!(associated.change.len(), 0);

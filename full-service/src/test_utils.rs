@@ -6,7 +6,7 @@ use crate::{
         models::{Account, TransactionLog, Txo},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
-        WalletDb,
+        WalletDb, WalletDbConnContext,
     },
     service::{transaction_builder::WalletTransactionBuilder, WalletService},
 };
@@ -221,11 +221,11 @@ pub fn add_block_with_tx_proposal(ledger_db: &mut LedgerDB, tx_proposal: TxPropo
 
 pub fn add_block_from_transaction_log(
     ledger_db: &mut LedgerDB,
-    wallet_db: &WalletDb,
+    conn_context: &WalletDbConnContext,
     transaction_log: &TransactionLog,
 ) -> u64 {
     let associated_txos = transaction_log
-        .get_associated_txos(&wallet_db.get_conn().unwrap())
+        .get_associated_txos(&conn_context.conn)
         .unwrap();
 
     let mut output_ids = associated_txos.outputs.clone();
@@ -233,11 +233,7 @@ pub fn add_block_from_transaction_log(
 
     let output_txos: Vec<Txo> = output_ids
         .iter()
-        .map(|id| {
-            Txo::get(id, &wallet_db.get_conn_context().unwrap())
-                .unwrap()
-                .txo
-        })
+        .map(|id| Txo::get(id, &conn_context).unwrap().txo)
         .collect();
 
     let outputs: Vec<TxOut> = output_txos
@@ -248,11 +244,7 @@ pub fn add_block_from_transaction_log(
     let input_txos: Vec<Txo> = associated_txos
         .inputs
         .iter()
-        .map(|id| {
-            Txo::get(id, &wallet_db.get_conn_context().unwrap())
-                .unwrap()
-                .txo
-        })
+        .map(|id| Txo::get(id, &conn_context).unwrap().txo)
         .collect();
 
     let key_images: Vec<KeyImage> = input_txos
