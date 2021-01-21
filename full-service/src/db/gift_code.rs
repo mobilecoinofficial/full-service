@@ -39,6 +39,7 @@ pub trait GiftCodeModel {
     ///
     /// Returns:
     /// * Gift code encoded as b58 string.
+    #[allow(clippy::too_many_arguments)]
     fn create(
         entropy: &RootEntropy,
         txo_public_key: &CompressedRistrettoPublic,
@@ -96,7 +97,7 @@ impl GiftCodeModel for GiftCode {
         // Create the gift_code_b58 using the printable wrapper for a TransferPayload.
         let mut gift_code_payload = mc_mobilecoind_api::printable::TransferPayload::new();
         gift_code_payload.set_entropy(entropy.as_ref().to_vec());
-        gift_code_payload.set_tx_out_public_key(proto_tx_pubkey.clone());
+        gift_code_payload.set_tx_out_public_key(proto_tx_pubkey);
         gift_code_payload.set_memo(memo.clone());
 
         let mut gift_code_wrapper = mc_mobilecoind_api::printable::PrintableWrapper::new();

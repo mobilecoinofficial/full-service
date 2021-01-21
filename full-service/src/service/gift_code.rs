@@ -138,6 +138,7 @@ pub trait GiftCodeService {
     /// Returns:
     /// * JsonSubmitResponse from submitting the gift code transaction to the network
     /// * Entropy of the gift code account, hex encoded
+    #[allow(clippy::too_many_arguments)]
     fn build_and_submit_gift_code(
         &self,
         from_account_id: String,
@@ -407,8 +408,7 @@ where
 
         // Get the components of the gift code from the printable wrapper
         let wrapper =
-            mc_mobilecoind_api::printable::PrintableWrapper::b58_decode(gift_code_b58.clone())
-                .unwrap();
+            mc_mobilecoind_api::printable::PrintableWrapper::b58_decode(gift_code_b58).unwrap();
         let transfer_payload = wrapper.get_transfer_payload();
         let mut root_entropy = [0u8; 32];
         root_entropy.copy_from_slice(transfer_payload.get_entropy());
@@ -573,12 +573,12 @@ where
                     );
                     std::thread::sleep(std::time::Duration::from_secs(poll_interval.unwrap_or(5)))
                 }
-                TX_FAILED => return Err(GiftCodeServiceError::BuildGiftCodeFailed.into()),
+                TX_FAILED => return Err(GiftCodeServiceError::BuildGiftCodeFailed),
                 TX_SUCCEEDED => break transaction_log,
                 _ => {
-                    return Err(
-                        GiftCodeServiceError::UnexpectedTxStatus(transaction_log.status).into(),
-                    )
+                    return Err(GiftCodeServiceError::UnexpectedTxStatus(
+                        transaction_log.status,
+                    ))
                 }
             }
         };
