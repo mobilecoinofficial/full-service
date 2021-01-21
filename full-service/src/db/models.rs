@@ -58,7 +58,7 @@ pub struct Account {
 #[table_name = "accounts"]
 pub struct NewAccount<'a> {
     pub account_id_hex: &'a str,
-    pub account_key: &'a Vec<u8>,
+    pub account_key: &'a [u8],
     pub main_subaddress_index: i64,
     pub change_subaddress_index: i64,
     pub next_subaddress_index: i64,
@@ -91,16 +91,16 @@ pub struct Txo {
 pub struct NewTxo<'a> {
     pub txo_id_hex: &'a str,
     pub value: i64,
-    pub target_key: &'a Vec<u8>,
-    pub public_key: &'a Vec<u8>,
-    pub e_fog_hint: &'a Vec<u8>,
-    pub txo: &'a Vec<u8>,
+    pub target_key: &'a [u8],
+    pub public_key: &'a [u8],
+    pub e_fog_hint: &'a [u8],
+    pub txo: &'a [u8],
     pub subaddress_index: Option<i64>,
-    pub key_image: Option<&'a Vec<u8>>,
+    pub key_image: Option<&'a [u8]>,
     pub received_block_count: Option<i64>,
     pub pending_tombstone_block_count: Option<i64>,
     pub spent_block_count: Option<i64>,
-    pub proof: Option<&'a Vec<u8>>,
+    pub proof: Option<&'a [u8]>,
 }
 
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
@@ -147,10 +147,10 @@ pub struct NewAssignedSubaddress<'a> {
     pub assigned_subaddress_b58: &'a str,
     pub account_id_hex: &'a str,
     pub address_book_entry: Option<i64>,
-    pub public_address: &'a Vec<u8>,
+    pub public_address: &'a [u8],
     pub subaddress_index: i64,
     pub comment: &'a str,
-    pub subaddress_spend_key: &'a Vec<u8>,
+    pub subaddress_spend_key: &'a [u8],
 }
 
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
@@ -192,7 +192,7 @@ pub struct NewTransactionLog<'a> {
     pub finalized_block_count: Option<i64>,
     pub comment: &'a str,
     pub direction: &'a str,
-    pub tx: Option<Vec<u8>>,
+    pub tx: Option<&'a [u8]>,
 }
 
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
