@@ -192,7 +192,6 @@ impl<
                             &AccountID(a.account_id_hex.clone()),
                             &conn_context,
                         )
-                        .map_err(|e| e.into())
                     })
                     .collect::<Result<Vec<JsonAccount>, WalletServiceError>>()
             })?)
