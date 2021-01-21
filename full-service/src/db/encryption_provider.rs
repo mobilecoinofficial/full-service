@@ -83,15 +83,14 @@ impl EncryptionProvider {
             LockedStatus::NeverLocked => {}
             LockedStatus::Unlocked => {}
         }
-        {
-            let mut cur_password_hash = self.password_hash.lock()?;
-            *cur_password_hash = password_hash.to_vec();
-        }
         // Encrypt the verification value and set in the DB
         let verification_value =
             Self::encrypt_with_password(ENCRYPTION_VERIFICATION_VAL, password_hash)?;
         EncryptionIndicator::set_verification_value(&verification_value, conn)?;
-
+        {
+            let mut cur_password_hash = self.password_hash.lock()?;
+            *cur_password_hash = password_hash.to_vec();
+        }
         Ok(())
     }
 
