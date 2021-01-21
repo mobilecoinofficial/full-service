@@ -647,5 +647,11 @@ mod tests {
             .unwrap();
 
         assert_eq!(decrypted, account_key);
+
+        // Get account_key direction from DB and make sure it doesn't deserialize
+        match mc_util_serial::decode::<AccountKey>(&account.account_key) {
+            Ok(_) => panic!("Should not be able to decode encrypted account key"),
+            Err(_) => {}
+        }
     }
 }

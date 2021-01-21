@@ -235,8 +235,8 @@ pub enum WalletDbError {
     /// Cannot encrypt or decrypt without password
     PasswordRequired,
 
-    /// No accounts in database. Cannot get decrypted account key.
-    NoAccounts,
+    /// No relevant objects in database. Cannot get decrypted object.
+    DatabaseEmpty,
 
     /// No decryption key in database.
     NoDecryptionKey,
