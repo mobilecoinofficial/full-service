@@ -56,6 +56,7 @@ pub struct WalletDbConnContext {
 }
 
 impl WalletDbConnContext {
+    /// Decrypt an object with the password hash stored in memory.
     pub fn decrypt_obj<T: prost::Message + Default>(
         &self,
         bytes: &[u8],
@@ -63,7 +64,7 @@ impl WalletDbConnContext {
         match self.encryption_provider.get_locked_status(&self.conn)? {
             LockedStatus::NeverLocked => {
                 // There are no objects, we should not get here. FIXME rename error
-                Err(WalletDbError::NoAccounts)
+                Err(WalletDbError::DatabaseEmpty)
             }
             LockedStatus::Locked => Err(WalletDbError::NoDecryptionKey),
             LockedStatus::Unlocked => {
