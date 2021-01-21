@@ -13,7 +13,7 @@ use crate::{
         },
         transaction_log::TransactionLogModel,
         txo::TxoModel,
-        WalletDb,
+        WalletDb, WalletDbConnContext,
     },
     error::WalletServiceError,
     service::{
@@ -137,16 +137,7 @@ impl<
             &conn_context,
         )?;
 
-        let local_height = self.ledger_db.num_blocks()?;
-        let network_state = self.network_state.read().expect("lock poisoned");
-        // network_height = network_block_index + 1
-        let network_height = network_state
-            .highest_block_index_on_network()
-            .map(|v| v + 1)
-            .unwrap_or(0);
-        let decorated_account =
-            Account::get_decorated(&account_id, local_height, network_height, &conn_context)?;
-
+        let decorated_account = self.get_decorated_account(&account_id, &conn_context)?;
         Ok(JsonCreateAccountResponse {
             entropy: entropy_str,
             account: decorated_account,
@@ -194,20 +185,11 @@ impl<
             .conn
             .transaction::<Vec<JsonAccount>, WalletServiceError, _>(|| {
                 let accounts = Account::list_all(&conn_context.conn)?;
-                let local_height = self.ledger_db.num_blocks()?;
-                let network_state = self.network_state.read().expect("lock poisoned");
-                // network_height = network_block_index + 1
-                let network_height = network_state
-                    .highest_block_index_on_network()
-                    .map(|v| v + 1)
-                    .unwrap_or(0);
                 accounts
                     .iter()
                     .map(|a| {
-                        Account::get_decorated(
+                        self.get_decorated_account(
                             &AccountID(a.account_id_hex.clone()),
-                            local_height,
-                            network_height,
                             &conn_context,
                         )
                         .map_err(|e| e.into())
@@ -226,22 +208,11 @@ impl<
         Ok(conn_context
             .conn
             .transaction::<JsonAccount, WalletServiceError, _>(|| {
-                Account::get(&AccountID(account_id_hex.to_string()), &conn_context.conn)?
+                let account_id = AccountID(account_id_hex.to_string());
+                Account::get(&account_id, &conn_context.conn)?
                     .update_name(name, &conn_context.conn)?;
 
-                let local_height = self.ledger_db.num_blocks()?;
-                let network_state = self.network_state.read().expect("lock poisoned");
-                // network_height = network_block_index + 1
-                let network_height = network_state
-                    .highest_block_index_on_network()
-                    .map(|v| v + 1)
-                    .unwrap_or(0);
-                let decorated_account = Account::get_decorated(
-                    &AccountID(account_id_hex.to_string()),
-                    local_height,
-                    network_height,
-                    &conn_context,
-                )?;
+                let decorated_account = self.get_decorated_account(&account_id, &conn_context)?;
                 Ok(decorated_account)
             })?)
     }
@@ -258,6 +229,15 @@ impl<
         account_id_hex: &AccountID,
     ) -> Result<JsonAccount, WalletServiceError> {
         self.verify_unlocked()?;
+        let conn_context = &self.wallet_db.get_conn_context()?;
+        Ok(self.get_decorated_account(account_id_hex, &conn_context)?)
+    }
+
+    fn get_decorated_account(
+        &self,
+        account_id_hex: &AccountID,
+        conn_context: &WalletDbConnContext,
+    ) -> Result<JsonAccount, WalletServiceError> {
         let local_height = self.ledger_db.num_blocks()?;
         let network_state = self.network_state.read().expect("lock poisoned");
         // network_height = network_block_index + 1
@@ -269,7 +249,7 @@ impl<
             &account_id_hex,
             local_height,
             network_height,
-            &self.wallet_db.get_conn_context()?,
+            conn_context,
         )?)
     }
 
