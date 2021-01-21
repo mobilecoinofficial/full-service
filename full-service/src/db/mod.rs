@@ -209,11 +209,7 @@ mod tests {
         assert!(wallet_db.is_unlocked().unwrap());
 
         // To simulate re-opening the DB, we can use new_from_url
-        let wallet_db2 = WalletDb::new_from_url(
-            &format!("{}/{}", db_test_context.base_url, db_test_context.db_name),
-            logger.clone(),
-        )
-        .unwrap();
+        let wallet_db2 = db_test_context.get_db_instance(logger.clone());
 
         match EncryptionIndicator::get_encryption_state(&wallet_db.get_conn().unwrap()).unwrap() {
             EncryptionState::Encrypted => {}
