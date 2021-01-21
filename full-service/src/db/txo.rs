@@ -19,6 +19,7 @@ use crate::{
 };
 
 use mc_account_keys::{AccountKey, PublicAddress};
+use mc_common::logger::log;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::RistrettoPublic;
 use mc_mobilecoind::payments::TxProposal;
@@ -204,9 +205,11 @@ impl TxoModel for Txo {
         account_id_hex: &str,
         conn_context: &WalletDbConnContext,
     ) -> Result<String, WalletDbError> {
-        println!(
-            "\x1b[1;33m TXO: NOW CREATING RECEIVED for {:?} with subaddress index {:?}\x1b[0m",
-            account_id_hex, subaddress_index
+        log::info!(
+            conn_context.logger,
+            "Creating received Txo for account {:?} with subaddress index {:?}",
+            account_id_hex,
+            subaddress_index
         );
 
         let txo_id = TxoID::from(&txo);
@@ -215,7 +218,6 @@ impl TxoModel for Txo {
             match Txo::get(&txo_id.to_string(), conn_context) {
                 Ok(txo_details) => {
                     if txo_details.received_to_account.is_some() {
-                        println!("\x1b[1;31m Account {:?} subaddress {:?} txo has a received_to_account, so updating received\x1b[0m", account_id_hex, subaddress_index);
                         txo_details.txo.update_received(
                             account_id_hex,
                             subaddress_index,
