@@ -64,6 +64,7 @@ const MAX_BLOCKS_PROCESSING_CHUNK_SIZE: usize = 5;
 pub type AccountId = String;
 
 /// Message type our crossbeam channel uses to communicate with the worker thread pull.
+#[derive(Debug)]
 enum SyncMsg {
     SyncAccount(AccountId),
     Stop,
@@ -259,8 +260,19 @@ fn sync_thread_entry_point(
     logger: Logger,
 ) {
     for msg in receiver.iter() {
+        log::info!(
+            logger,
+            "\x1b[1;33m Processing sync message {:?}. Current queued account IDs = {:?}\x1b[0m",
+            msg,
+            queued_account_ids,
+        );
         match msg {
             SyncMsg::SyncAccount(account_id) => {
+                log::info!(
+                    logger,
+                    "\x1b[1;36m Getting connection context so we can sync the account {:?}\x1b[0m",
+                    account_id
+                );
                 let conn_context = wallet_db
                     .get_conn_context()
                     .expect("could not get conn manager");
@@ -299,6 +311,9 @@ fn sync_thread_entry_point(
                             "No decryption key. Cannot sync account {:?} Please unlock database.",
                             account_id,
                         );
+                        sender
+                            .send(SyncMsg::SyncAccount(account_id))
+                            .expect("failed sending to channel");
                     }
 
                     Err(SyncError::Database(WalletDbError::AeadError(err))) => {
@@ -327,6 +342,11 @@ pub fn sync_account(
     logger: &Logger,
 ) -> Result<SyncAccountOk, SyncError> {
     for _ in 0..MAX_BLOCKS_PROCESSING_CHUNK_SIZE {
+        log::info!(
+            logger,
+            "\x1b[1;33m Syncing account {:?}. About to get sync_status\x1b[0m",
+            account_id
+        );
         let sync_status = conn_context
             .conn
             .transaction::<SyncAccountOk, SyncError, _>(|| {
