@@ -55,6 +55,7 @@ use std::{
         Arc, Mutex,
     },
     thread,
+    time::Instant,
 };
 
 ///  The maximal number of blocks a worker thread would process at once.
@@ -96,6 +97,11 @@ impl SyncThread {
         num_workers: Option<usize>,
         logger: Logger,
     ) -> Self {
+        log::info!(
+            logger,
+            "\x1b[1;34m SyncThread Started at: {:?}\x1b[0m",
+            Instant::now()
+        );
         // Queue for sending jobs to our worker threads.
         let (sender, receiver) = crossbeam_channel::unbounded::<SyncMsg>();
 
@@ -142,7 +148,15 @@ impl SyncThread {
                 .spawn(move || {
                     log::debug!(logger, "Syncthread started.");
 
+                    let mut loop_start = Instant::now();
                     loop {
+                        let prev_loop_start = loop_start;
+                        loop_start = Instant::now();
+                        log::info!(
+                            logger,
+                            "\x1b[1;34m Loop length {:?}\x1b[0m",
+                            loop_start - prev_loop_start
+                        );
                         if thread_stop_requested.load(Ordering::SeqCst) {
                             log::debug!(logger, "SyncThread stop requested.");
                             break;
@@ -260,6 +274,7 @@ fn sync_thread_entry_point(
     logger: Logger,
 ) {
     for msg in receiver.iter() {
+        let start = Instant::now();
         log::info!(
             logger,
             "\x1b[1;33m Processing sync message {:?}. Current queued account IDs = {:?}\x1b[0m",
@@ -331,6 +346,12 @@ fn sync_thread_entry_point(
                 break;
             }
         }
+        let end = Instant::now();
+        log::info!(
+            logger,
+            "\x1b[1;36m Time to process msg = {:?}\x1b[0m",
+            end - start
+        );
     }
 }
 
