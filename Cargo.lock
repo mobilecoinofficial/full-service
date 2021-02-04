@@ -1847,7 +1847,7 @@ dependencies = [
  "mc-crypto-keys",
  "mc-util-from-random",
  "mc-util-serial",
- "mockall",
+ "mockall 0.8.3",
  "rand 0.7.3",
  "rand_hc 0.2.0",
  "serde",
@@ -2014,7 +2014,7 @@ dependencies = [
  "mc-attest-core",
  "mc-crypto-keys",
  "mc-util-encodings",
- "mockall",
+ "mockall 0.8.3",
 ]
 
 [[package]]
@@ -2054,6 +2054,7 @@ dependencies = [
  "mc-util-from-random",
  "mc-util-serial",
  "mc-util-uri",
+ "mockall 0.9.0",
  "num_cpus",
  "prost",
  "rand 0.7.3",
@@ -2086,7 +2087,7 @@ dependencies = [
  "mc-util-lmdb",
  "mc-util-metrics",
  "mc-util-serial",
- "mockall",
+ "mockall 0.8.3",
  "prost",
  "rand 0.7.3",
  "rand_core 0.5.1",
@@ -2110,7 +2111,7 @@ dependencies = [
  "mc-transaction-core",
  "mc-transaction-core-test-utils",
  "mc-util-uri",
- "mockall",
+ "mockall 0.8.3",
  "protobuf",
  "rand 0.7.3",
  "reqwest",
@@ -2616,7 +2617,22 @@ dependencies = [
  "downcast",
  "fragile",
  "lazy_static",
- "mockall_derive",
+ "mockall_derive 0.8.3",
+ "predicates",
+ "predicates-tree",
+]
+
+[[package]]
+name = "mockall"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "619634fd9149c4a06e66d8fd9256e85326d8eeee75abee4565ff76c92e4edfe0"
+dependencies = [
+ "cfg-if 1.0.0",
+ "downcast",
+ "fragile",
+ "lazy_static",
+ "mockall_derive 0.9.0",
  "predicates",
  "predicates-tree",
 ]
@@ -2628,6 +2644,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c461918bf7f59eefb1459252756bf2351a995d6bd510d0b2061bd86bcdabfa6"
 dependencies = [
  "cfg-if 0.1.10",
+ "proc-macro2 1.0.24",
+ "quote 1.0.7",
+ "syn 1.0.48",
+]
+
+[[package]]
+name = "mockall_derive"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "83714c95dbf4c24202f0f1b208f0f248e6bd65abfa8989303611a71c0f781548"
+dependencies = [
+ "cfg-if 1.0.0",
  "proc-macro2 1.0.24",
  "quote 1.0.7",
  "syn 1.0.48",

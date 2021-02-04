@@ -12,7 +12,6 @@ use crate::{
         },
         txo::{TxoID, TxoModel},
     },
-    error::WalletDbError,
 };
 
 use mc_account_keys::AccountKey;
@@ -28,6 +27,7 @@ use diesel::{
     RunQueryDsl,
 };
 use std::fmt;
+use crate::db::WalletDbError;
 
 #[derive(Debug)]
 pub struct TransactionID(String);

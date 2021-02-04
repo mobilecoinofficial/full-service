@@ -6,7 +6,6 @@
 
 pub mod config;
 mod db;
-mod error;
 mod service;
 
 pub use db::WalletDb;

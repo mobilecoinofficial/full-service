@@ -13,7 +13,6 @@ use crate::{
         transaction_log::TransactionLogModel,
         txo::TxoModel,
     },
-    error::WalletDbError,
 };
 
 use mc_account_keys::{AccountKey, DEFAULT_SUBADDRESS_INDEX};
@@ -27,6 +26,7 @@ use diesel::{
 };
 use std::fmt;
 use crate::service::JsonAccount;
+use crate::db::WalletDbError;
 
 pub const DEFAULT_CHANGE_SUBADDRESS_INDEX: u64 = 1;
 pub const DEFAULT_NEXT_SUBADDRESS_INDEX: u64 = 2;

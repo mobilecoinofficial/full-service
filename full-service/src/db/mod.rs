@@ -9,16 +9,15 @@ pub mod models;
 pub mod schema;
 pub mod transaction_log;
 pub mod txo;
+mod wallet_db_error;
 
+pub use wallet_db_error::WalletDbError;
 use mc_account_keys::PublicAddress;
 use mc_common::logger::Logger;
-
-use diesel::{
-    prelude::*,
+use diesel::{prelude::*,
     r2d2::{ConnectionManager, Pool, PooledConnection},
 };
 
-use crate::error::WalletDbError;
 use std::convert::TryFrom;
 
 // Helper method to use our PrintableWrapper to b58 encode the PublicAddress

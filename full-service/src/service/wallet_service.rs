@@ -15,7 +15,6 @@ use crate::{
         transaction_log::TransactionLogModel,
         txo::TxoModel,
     },
-    error::WalletServiceError,
     service::{
         decorated_types::{
             JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
@@ -52,6 +51,7 @@ use std::{
     },
 };
 use crate::service::wallet_trait::Wallet;
+use crate::service::WalletServiceError;
 
 
 /// Service for interacting with the wallet
@@ -382,7 +382,7 @@ impl<
     fn create_assigned_subaddress(
         &self,
         account_id_hex: &str,
-        comment: Option<&str>,
+        comment: Option<String>,
         // FIXME: WS-32 - add "sync from block"
     ) -> Result<JsonAddress, WalletServiceError> {
         let conn = &self.wallet_db.get_conn()?;
@@ -391,7 +391,7 @@ impl<
             let (public_address_b58, _subaddress_index) =
                 AssignedSubaddress::create_next_for_account(
                     account_id_hex,
-                    comment.unwrap_or(""),
+                    comment.unwrap_or(String::from("")).as_str(),
                     &conn,
                 )?;
 
@@ -420,7 +420,7 @@ impl<
         account_id_hex: &str,
         recipient_public_address: &str,
         value: String,
-        input_txo_ids: Option<&Vec<String>>,
+        input_txo_ids: Option<Vec<String>>,
         fee: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
@@ -435,7 +435,7 @@ impl<
         let recipient = b58_decode(recipient_public_address)?;
         builder.add_recipient(recipient, value.parse::<u64>()?)?;
         if let Some(inputs) = input_txo_ids {
-            builder.set_txos(inputs)?;
+            builder.set_txos(&inputs)?;
         } else {
             let max_spendable = if let Some(msv) = max_spendable_value {
                 Some(msv.parse::<u64>()?)
@@ -517,7 +517,7 @@ impl<
         account_id_hex: &str,
         recipient_public_address: &str,
         value: String,
-        input_txo_ids: Option<&Vec<String>>,
+        input_txo_ids: Option<Vec<String>>,
         fee: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,

@@ -14,7 +14,6 @@ use crate::{
             TXO_SECRETED, TXO_SPENT, TXO_UNSPENT,
         },
     },
-    error::WalletDbError,
 };
 
 use mc_account_keys::{AccountKey, PublicAddress};
@@ -33,6 +32,7 @@ use diesel::{
     RunQueryDsl,
 };
 use std::fmt;
+use crate::db::WalletDbError;
 
 #[derive(Debug)]
 pub struct TxoID(String);

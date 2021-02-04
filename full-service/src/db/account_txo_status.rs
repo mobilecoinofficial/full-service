@@ -4,7 +4,6 @@
 
 use crate::{
     db::models::{AccountTxoStatus, NewAccountTxoStatus, TXO_UNSPENT},
-    error::WalletDbError,
 };
 
 use diesel::{
@@ -12,6 +11,7 @@ use diesel::{
     r2d2::{ConnectionManager, PooledConnection},
     RunQueryDsl,
 };
+use crate::db::WalletDbError;
 
 pub trait AccountTxoStatusModel {
     fn create(

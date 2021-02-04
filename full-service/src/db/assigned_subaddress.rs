@@ -8,7 +8,6 @@ use crate::{
         b58_encode,
         models::{Account, AssignedSubaddress, NewAssignedSubaddress},
     },
-    error::WalletDbError,
 };
 
 use mc_account_keys::AccountKey;
@@ -18,6 +17,7 @@ use diesel::{
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},
 };
+use crate::db::WalletDbError;
 
 pub trait AssignedSubaddressModel {
     /// Create a new assigned subaddress.

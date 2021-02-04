@@ -30,7 +30,6 @@ use crate::{
         txo::TxoModel,
         WalletDb,
     },
-    error::{SyncError, WalletDbError},
 };
 use mc_account_keys::AccountKey;
 use mc_common::{
@@ -59,6 +58,8 @@ use std::{
     },
     thread,
 };
+use crate::service::sync_error::SyncError;
+use crate::db::WalletDbError;
 
 ///  The maximal number of blocks a worker thread would process at once.
 const MAX_BLOCKS_PROCESSING_CHUNK_SIZE: usize = 5;

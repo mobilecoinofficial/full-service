@@ -15,7 +15,6 @@ use crate::{
             txo::TxoModel,
         },
     },
-    error::WalletTransactionBuilderError,
 };
 use mc_account_keys::{AccountKey, PublicAddress};
 use mc_common::logger::{log, Logger};
@@ -37,6 +36,7 @@ use rand::Rng;
 use std::convert::TryFrom;
 use std::iter::FromIterator;
 use std::sync::Arc;
+use crate::service::transaction_builder_error::WalletTransactionBuilderError;
 
 /// Default number of blocks used for calculating transaction tombstone block number.
 // TODO support for making this configurable
@@ -529,7 +529,6 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
 mod tests {
     use super::*;
     use crate::{
-        error::WalletDbError,
         service::sync::SyncThread,
         test_utils::{
             builder_for_random_recipient, get_test_ledger, random_account_with_seed_values,
@@ -538,6 +537,7 @@ mod tests {
     };
     use mc_common::logger::{test_with_logger, Logger};
     use rand::{rngs::StdRng, SeedableRng};
+    use crate::db::WalletDbError;
 
     #[test_with_logger]
     fn test_build_with_utxos(logger: Logger) {

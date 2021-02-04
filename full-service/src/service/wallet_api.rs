@@ -326,7 +326,7 @@ where
             comment,
         } => JsonCommandResponse::create_address {
             address: service
-                .create_assigned_subaddress(&account_id, comment.as_deref())
+                .create_assigned_subaddress(&account_id, comment)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
         JsonCommandRequest::get_all_addresses_by_account { account_id } => {
@@ -365,7 +365,7 @@ where
                     &account_id,
                     &recipient_public_address,
                     value,
-                    input_txo_ids.as_ref(),
+                    input_txo_ids,
                     fee,
                     tombstone_block,
                     max_spendable_value,
@@ -390,7 +390,7 @@ where
                     &account_id,
                     &recipient_public_address,
                     value,
-                    input_txo_ids.as_ref(),
+                    input_txo_ids,
                     fee,
                     tombstone_block,
                     max_spendable_value,
