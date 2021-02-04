@@ -2,10 +2,13 @@
 
 //! Implementations of services.
 
-pub mod decorated_types;
+mod decorated_types;
 pub mod sync;
 pub mod transaction_builder;
-pub mod wallet;
-mod wallet_impl;
+mod wallet_trait;
+mod wallet_api;
+mod wallet_service;
 
-pub use wallet_impl::WalletService;
+pub use decorated_types::*;
+pub use wallet_api::{rocket, WalletApiState};
+pub use wallet_service::WalletService;

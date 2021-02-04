@@ -10,7 +10,8 @@ mod error;
 mod service;
 
 pub use db::WalletDb;
-pub use service::{wallet, WalletService};
+pub use service::WalletService;
+pub use service::{WalletApiState, rocket};
 
 extern crate alloc;
 #[macro_use]

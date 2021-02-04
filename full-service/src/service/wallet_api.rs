@@ -1,5 +1,9 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
+//! Wallet API.
+//!
+//! A [JSON RPC 2.0](https://www.jsonrpc.org/specification) API inspired by [Stratum](https://github.com/aeternity/protocol/blob/master/STRATUM.md) .
+
 use crate::{
     db::account::AccountID,
     service::{
@@ -7,7 +11,8 @@ use crate::{
             JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents, JsonProof,
             JsonSubmitResponse, JsonTransactionLog, JsonTxo, JsonWalletStatus,
         },
-        wallet_impl::WalletService,
+        wallet_trait::Wallet,
+        wallet_service::WalletService,
     },
 };
 use mc_connection::{BlockchainConnection, ThickClient, UserTxConnection};
@@ -22,7 +27,8 @@ use std::iter::FromIterator;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
-pub struct WalletState<
+/// Managed state for the Wallet API.
+pub struct WalletApiState<
     T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 > {
@@ -32,6 +38,7 @@ pub struct WalletState<
 #[derive(Deserialize, Serialize, EnumIter, Debug)]
 #[serde(tag = "method", content = "params")]
 #[allow(non_camel_case_types)]
+/// An RPC call to the wallet service is represented by sending a Request to the server.
 pub enum JsonCommandRequest {
     create_account {
         name: Option<String>,
@@ -118,9 +125,11 @@ pub enum JsonCommandRequest {
         proof: String,
     },
 }
+
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(tag = "method", content = "result")]
 #[allow(non_camel_case_types)]
+/// A JSON RPC response.
 pub enum JsonCommandResponse {
     create_account {
         entropy: String,
@@ -475,7 +484,7 @@ where
 
 #[post("/wallet", format = "json", data = "<command>")]
 fn wallet_api(
-    state: rocket::State<WalletState<ThickClient, GrpcFogPubkeyResolver>>,
+    state: rocket::State<WalletApiState<ThickClient, GrpcFogPubkeyResolver>>,
     command: Json<JsonCommandRequest>,
 ) -> Result<Json<JsonCommandResponse>, String> {
     wallet_api_inner(&state.service, command)
@@ -492,7 +501,7 @@ fn wallet_help() -> Result<String, String> {
 
 pub fn rocket(
     rocket_config: rocket::Config,
-    state: WalletState<ThickClient, GrpcFogPubkeyResolver>,
+    state: WalletApiState<ThickClient, GrpcFogPubkeyResolver>,
 ) -> rocket::Rocket {
     rocket::custom(rocket_config)
         .mount("/", routes![wallet_api, wallet_help])

@@ -14,7 +14,6 @@ use crate::{
         txo::TxoModel,
     },
     error::WalletDbError,
-    service::decorated_types::JsonAccount,
 };
 
 use mc_account_keys::{AccountKey, DEFAULT_SUBADDRESS_INDEX};
@@ -27,6 +26,7 @@ use diesel::{
     RunQueryDsl,
 };
 use std::fmt;
+use crate::service::JsonAccount;
 
 pub const DEFAULT_CHANGE_SUBADDRESS_INDEX: u64 = 1;
 pub const DEFAULT_NEXT_SUBADDRESS_INDEX: u64 = 2;
