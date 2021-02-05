@@ -4,198 +4,20 @@
 //!
 //! A [JSON RPC 2.0](https://www.jsonrpc.org/specification) API inspired by [Stratum](https://github.com/aeternity/protocol/blob/master/STRATUM.md) .
 
-use crate::{
-    db::account::AccountID,
-    service::{
-        JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock,
-        JsonBlockContents, JsonProof, JsonSubmitResponse, JsonTransactionLog, JsonTxo,
-        JsonWalletStatus,
-    },
-};
-use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
+use crate::api::json_rpc_request::Request;
+use crate::api::json_rpc_response::Response;
+use crate::db::account::AccountID;
+use crate::service::Wallet;
 use rocket::{get, post, routes};
 use rocket_contrib::json::Json;
-use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use std::iter::FromIterator;
 use std::sync::{Arc, Mutex};
 use strum::IntoEnumIterator;
-use strum_macros::EnumIter;
-use crate::service::Wallet;
 
-/// Managed state for the Wallet API.
+/// Managed state for the Wallet API. This object must be thread-safe.
 pub struct WalletApiState {
     pub service: Arc<Mutex<dyn Wallet + Send + Sync + 'static>>,
-}
-
-#[derive(Deserialize, Serialize, EnumIter, Debug)]
-#[serde(tag = "method", content = "params")]
-#[allow(non_camel_case_types)]
-/// An RPC call to the wallet service is represented by sending a Request to the server.
-pub enum JsonCommandRequest {
-    create_account {
-        name: Option<String>,
-        first_block: Option<String>,
-    },
-    import_account {
-        entropy: String,
-        name: Option<String>,
-        first_block: Option<String>,
-    },
-    get_all_accounts,
-    get_account {
-        account_id: String,
-    },
-    update_account_name {
-        account_id: String,
-        name: String,
-    },
-    delete_account {
-        account_id: String,
-    },
-    get_all_txos_by_account {
-        account_id: String,
-    },
-    get_txo {
-        txo_id: String,
-    },
-    get_wallet_status,
-    get_balance {
-        account_id: String,
-    },
-    create_address {
-        account_id: String,
-        comment: Option<String>,
-    },
-    get_all_addresses_by_account {
-        account_id: String,
-    },
-    send_transaction {
-        account_id: String,
-        recipient_public_address: String,
-        value: String,
-        input_txo_ids: Option<Vec<String>>,
-        fee: Option<String>,
-        tombstone_block: Option<String>,
-        max_spendable_value: Option<String>,
-        comment: Option<String>,
-    },
-    build_transaction {
-        account_id: String,
-        recipient_public_address: String,
-        value: String,
-        input_txo_ids: Option<Vec<String>>,
-        fee: Option<String>,
-        tombstone_block: Option<String>,
-        max_spendable_value: Option<String>,
-    },
-    submit_transaction {
-        tx_proposal: JsonTxProposal,
-        comment: Option<String>,
-        account_id: Option<String>,
-    },
-    get_all_transactions_by_account {
-        account_id: String,
-    },
-    get_transaction {
-        transaction_log_id: String,
-    },
-    get_transaction_object {
-        transaction_log_id: String,
-    },
-    get_txo_object {
-        txo_id: String,
-    },
-    get_block_object {
-        block_index: String,
-    },
-    get_proofs {
-        transaction_log_id: String,
-    },
-    verify_proof {
-        account_id: String,
-        txo_id: String,
-        proof: String,
-    },
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-#[serde(tag = "method", content = "result")]
-#[allow(non_camel_case_types)]
-/// A JSON RPC response.
-pub enum JsonCommandResponse {
-    create_account {
-        entropy: String,
-        account: JsonAccount,
-    },
-    import_account {
-        account: JsonAccount,
-    },
-    get_all_accounts {
-        account_ids: Vec<String>,
-        account_map: Map<String, serde_json::Value>,
-    },
-    get_account {
-        account: JsonAccount,
-    },
-    update_account_name {
-        account: JsonAccount,
-    },
-    delete_account {
-        success: bool,
-    },
-    get_all_txos_by_account {
-        txo_ids: Vec<String>,
-        txo_map: Map<String, serde_json::Value>,
-    },
-    get_txo {
-        txo: JsonTxo,
-    },
-    get_wallet_status {
-        status: JsonWalletStatus,
-    },
-    get_balance {
-        status: JsonBalanceResponse,
-    },
-    create_address {
-        address: JsonAddress,
-    },
-    get_all_addresses_by_account {
-        address_ids: Vec<String>,
-        address_map: Map<String, serde_json::Value>,
-    },
-    send_transaction {
-        transaction: JsonSubmitResponse,
-    },
-    build_transaction {
-        tx_proposal: JsonTxProposal,
-    },
-    submit_transaction {
-        transaction: JsonSubmitResponse,
-    },
-    get_all_transactions_by_account {
-        transaction_log_ids: Vec<String>,
-        transaction_log_map: Map<String, serde_json::Value>,
-    },
-    get_transaction {
-        transaction: JsonTransactionLog,
-    },
-    get_transaction_object {
-        transaction: JsonTx,
-    },
-    get_txo_object {
-        txo: JsonTxOut,
-    },
-    get_block_object {
-        block: JsonBlock,
-        block_contents: JsonBlockContents,
-    },
-    get_proofs {
-        proofs: Vec<JsonProof>,
-    },
-    verify_proof {
-        verified: bool,
-    },
 }
 
 // The Wallet API inner method, which handles switching on the method enum.
@@ -205,12 +27,12 @@ pub enum JsonCommandResponse {
 // us to properly construct state with Mock Connection Objects in tests.
 fn wallet_api_inner(
     service: Arc<Mutex<dyn Wallet>>,
-    command: Json<JsonCommandRequest>,
-) -> Result<Json<JsonCommandResponse>, String> {
+    command: Json<Request>,
+) -> Result<Json<Response>, String> {
     let service = service.lock().unwrap();
 
     let result = match command.0 {
-        JsonCommandRequest::create_account { name, first_block } => {
+        Request::create_account { name, first_block } => {
             let fb = first_block
                 .map(|fb| fb.parse::<u64>())
                 .transpose()
@@ -219,12 +41,12 @@ fn wallet_api_inner(
             let result = service
                 .create_account(name, fb)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
-            JsonCommandResponse::create_account {
+            Response::create_account {
                 entropy: result.entropy,
                 account: result.account,
             }
         }
-        JsonCommandRequest::import_account {
+        Request::import_account {
             entropy,
             name,
             first_block,
@@ -236,9 +58,9 @@ fn wallet_api_inner(
             let result = service
                 .import_account(entropy, name, fb)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
-            JsonCommandResponse::import_account { account: result }
+            Response::import_account { account: result }
         }
-        JsonCommandRequest::get_all_accounts => {
+        Request::get_all_accounts => {
             let accounts = service
                 .list_accounts()
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
@@ -253,29 +75,29 @@ fn wallet_api_inner(
                     })
                     .collect::<Vec<(String, serde_json::Value)>>(),
             );
-            JsonCommandResponse::get_all_accounts {
+            Response::get_all_accounts {
                 account_ids: accounts.iter().map(|a| a.account_id.clone()).collect(),
                 account_map,
             }
         }
-        JsonCommandRequest::get_account { account_id } => JsonCommandResponse::get_account {
+        Request::get_account { account_id } => Response::get_account {
             account: service
                 .get_account(&AccountID(account_id))
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
-        JsonCommandRequest::update_account_name { account_id, name } => {
+        Request::update_account_name { account_id, name } => {
             let account = service
                 .update_account_name(&account_id, name)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
-            JsonCommandResponse::update_account_name { account }
+            Response::update_account_name { account }
         }
-        JsonCommandRequest::delete_account { account_id } => {
+        Request::delete_account { account_id } => {
             service
                 .delete_account(&account_id)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
-            JsonCommandResponse::delete_account { success: true }
+            Response::delete_account { success: true }
         }
-        JsonCommandRequest::get_all_txos_by_account { account_id } => {
+        Request::get_all_txos_by_account { account_id } => {
             let txos = service
                 .list_txos(&account_id)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
@@ -290,37 +112,37 @@ fn wallet_api_inner(
                     .collect::<Vec<(String, serde_json::Value)>>(),
             );
 
-            JsonCommandResponse::get_all_txos_by_account {
+            Response::get_all_txos_by_account {
                 txo_ids: txos.iter().map(|t| t.txo_id.clone()).collect(),
                 txo_map,
             }
         }
-        JsonCommandRequest::get_txo { txo_id } => {
+        Request::get_txo { txo_id } => {
             let result = service
                 .get_txo(&txo_id)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
-            JsonCommandResponse::get_txo { txo: result }
+            Response::get_txo { txo: result }
         }
-        JsonCommandRequest::get_wallet_status => {
+        Request::get_wallet_status => {
             let result = service
                 .get_wallet_status()
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
-            JsonCommandResponse::get_wallet_status { status: result }
+            Response::get_wallet_status { status: result }
         }
-        JsonCommandRequest::get_balance { account_id } => JsonCommandResponse::get_balance {
+        Request::get_balance { account_id } => Response::get_balance {
             status: service
                 .get_balance(&account_id)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
-        JsonCommandRequest::create_address {
+        Request::create_address {
             account_id,
             comment,
-        } => JsonCommandResponse::create_address {
+        } => Response::create_address {
             address: service
                 .create_assigned_subaddress(&account_id, comment)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
-        JsonCommandRequest::get_all_addresses_by_account { account_id } => {
+        Request::get_all_addresses_by_account { account_id } => {
             let addresses = service
                 .list_assigned_subaddresses(&account_id)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
@@ -336,12 +158,12 @@ fn wallet_api_inner(
                     .collect::<Vec<(String, serde_json::Value)>>(),
             );
 
-            JsonCommandResponse::get_all_addresses_by_account {
+            Response::get_all_addresses_by_account {
                 address_ids: addresses.iter().map(|a| a.address_id.clone()).collect(),
                 address_map,
             }
         }
-        JsonCommandRequest::send_transaction {
+        Request::send_transaction {
             account_id,
             recipient_public_address,
             value,
@@ -363,11 +185,11 @@ fn wallet_api_inner(
                     comment,
                 )
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
-            JsonCommandResponse::send_transaction {
+            Response::send_transaction {
                 transaction: transaction_details,
             }
         }
-        JsonCommandRequest::build_transaction {
+        Request::build_transaction {
             account_id,
             recipient_public_address,
             value,
@@ -387,18 +209,18 @@ fn wallet_api_inner(
                     max_spendable_value,
                 )
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
-            JsonCommandResponse::build_transaction { tx_proposal }
+            Response::build_transaction { tx_proposal }
         }
-        JsonCommandRequest::submit_transaction {
+        Request::submit_transaction {
             tx_proposal,
             comment,
             account_id,
-        } => JsonCommandResponse::submit_transaction {
+        } => Response::submit_transaction {
             transaction: service
                 .submit_transaction(tx_proposal, comment, account_id)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
-        JsonCommandRequest::get_all_transactions_by_account { account_id } => {
+        Request::get_all_transactions_by_account { account_id } => {
             let transactions = service
                 .list_transactions(&account_id)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
@@ -414,7 +236,7 @@ fn wallet_api_inner(
                     .collect::<Vec<(String, serde_json::Value)>>(),
             );
 
-            JsonCommandResponse::get_all_transactions_by_account {
+            Response::get_all_transactions_by_account {
                 transaction_log_ids: transactions
                     .iter()
                     .map(|t| t.transaction_log_id.clone())
@@ -422,26 +244,26 @@ fn wallet_api_inner(
                 transaction_log_map,
             }
         }
-        JsonCommandRequest::get_transaction { transaction_log_id } => {
-            JsonCommandResponse::get_transaction {
+        Request::get_transaction { transaction_log_id } => {
+            Response::get_transaction {
                 transaction: service
                     .get_transaction(&transaction_log_id)
                     .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
             }
         }
-        JsonCommandRequest::get_transaction_object { transaction_log_id } => {
-            JsonCommandResponse::get_transaction_object {
+        Request::get_transaction_object { transaction_log_id } => {
+            Response::get_transaction_object {
                 transaction: service
                     .get_transaction_object(&transaction_log_id)
                     .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
             }
         }
-        JsonCommandRequest::get_txo_object { txo_id } => JsonCommandResponse::get_txo_object {
+        Request::get_txo_object { txo_id } => Response::get_txo_object {
             txo: service
                 .get_txo_object(&txo_id)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
-        JsonCommandRequest::get_block_object { block_index } => {
+        Request::get_block_object { block_index } => {
             let (block, block_contents) = service
                 .get_block_object(
                     block_index
@@ -449,17 +271,17 @@ fn wallet_api_inner(
                         .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
                 )
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
-            JsonCommandResponse::get_block_object {
+            Response::get_block_object {
                 block,
                 block_contents,
             }
         }
-        JsonCommandRequest::get_proofs { transaction_log_id } => JsonCommandResponse::get_proofs {
+        Request::get_proofs { transaction_log_id } => Response::get_proofs {
             proofs: service
                 .get_proofs(&transaction_log_id)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
-        JsonCommandRequest::verify_proof {
+        Request::verify_proof {
             account_id,
             txo_id,
             proof,
@@ -467,7 +289,7 @@ fn wallet_api_inner(
             let result = service
                 .verify_proof(&account_id, &txo_id, &proof)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
-            JsonCommandResponse::verify_proof { verified: result }
+            Response::verify_proof { verified: result }
         }
     };
     Ok(Json(result))
@@ -476,15 +298,15 @@ fn wallet_api_inner(
 #[post("/wallet", format = "json", data = "<command>")]
 fn wallet_api(
     state: rocket::State<WalletApiState>,
-    command: Json<JsonCommandRequest>,
-) -> Result<Json<JsonCommandResponse>, String> {
+    command: Json<Request>,
+) -> Result<Json<Response>, String> {
     wallet_api_inner(state.service.clone(), command)
 }
 
 #[get("/wallet")]
 fn wallet_help() -> Result<String, String> {
     let mut help_str = "Please use json data to choose wallet commands. For example, \n\ncurl -s localhost:9090/wallet -d '{\"method\": \"create_account\", \"params\": {\"name\": \"Alice\"}}' -X POST -H 'Content-type: application/json'\n\nAvailable commands are:\n\n".to_owned();
-    for e in JsonCommandRequest::iter() {
+    for e in Request::iter() {
         help_str.push_str(&format!("{:?}\n\n", e));
     }
     Ok(help_str)
@@ -499,28 +321,9 @@ pub fn rocket(rocket_config: rocket::Config, state: WalletApiState) -> rocket::R
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::service::wallet_trait::MockWallet;
-    use crate::service::wallet_trait::Wallet;
-    use crate::service::JsonCreateAccountResponse;
-    use crate::{
-        db::{
-            b58_decode,
-            models::{TXO_RECEIVED, TXO_UNSPENT},
-        },
-        test_utils::{
-            add_block_to_ledger_db, get_test_ledger, setup_peer_manager_and_network_state,
-            WalletDbTestContext,
-        },
-    };
-    use mc_account_keys::PublicAddress;
-    use mc_common::logger::{log, test_with_logger, Logger};
-    use mc_connection_test_utils::MockBlockchainConnection;
-    use mc_crypto_rand::rand_core::RngCore;
-    use mc_fog_report_validation::MockFogPubkeyResolver;
-    use mc_ledger_db::LedgerDB;
-    use mc_mobilecoind_json::data_types::JsonCreateAddressCodeRequest;
-    use mc_transaction_core::ring_signature::KeyImage;
-    use rand::{rngs::StdRng, SeedableRng};
+    use crate::service::MockWallet;
+    use crate::service::{JsonCreateAccountResponse, JsonAccount};
+    use mc_common::logger::{test_with_logger, Logger};
     use rocket::{
         http::{ContentType, Status},
         local::Client,
@@ -528,7 +331,6 @@ mod tests {
     use rocket_contrib::json::JsonValue;
     use std::{
         sync::atomic::{AtomicUsize, Ordering::SeqCst},
-        time::Duration,
     };
 
     fn get_free_port() -> u16 {
@@ -536,55 +338,8 @@ mod tests {
         PORT_NR.fetch_add(1, SeqCst) as u16 + 30300
     }
 
-    // pub struct TestWalletState {
-    //     pub service: WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver>,
-    // }
-    //
-    // #[post("/wallet", format = "json", data = "<command>")]
-    // fn test_wallet_api(
-    //     state: rocket::State<TestWalletState>,
-    //     command: Json<JsonCommandRequest>,
-    // ) -> Result<Json<JsonCommandResponse>, String> {
-    //     wallet_api_inner(state.service.clone(), command)
-    // }
-    //
-    // fn test_rocket(rocket_config: rocket::Config, state: TestWalletState) -> rocket::Rocket {
-    //     rocket::custom(rocket_config)
-    //         .mount("/", routes![test_wallet_api, wallet_help])
-    //         .manage(state)
-    // }
-
-    // fn setup(mut rng: &mut StdRng, logger: Logger) -> (Client, LedgerDB) {
-    //     let db_test_context = WalletDbTestContext::default();
-    //     let wallet_db = db_test_context.get_db_instance(logger.clone());
-    //     let known_recipients: Vec<PublicAddress> = Vec::new();
-    //     let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
-    //     let (peer_manager, network_state) =
-    //         setup_peer_manager_and_network_state(ledger_db.clone(), logger.clone());
-    //
-    //     let service: WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> =
-    //         WalletService::new(
-    //             wallet_db,
-    //             ledger_db.clone(),
-    //             peer_manager,
-    //             network_state,
-    //             None,
-    //             None,
-    //             logger,
-    //         );
-    //
-    //     let rocket_config: rocket::Config =
-    //         rocket::Config::build(rocket::config::Environment::Development)
-    //             .port(get_free_port())
-    //             .unwrap();
-    //     let rocket = test_rocket(rocket_config, TestWalletState { service });
-    //     (
-    //         Client::new(rocket).expect("valid rocket instance"),
-    //         ledger_db,
-    //     )
-    // }
-
-    fn dispatch(client: &Client, body: JsonValue, logger: &Logger) -> serde_json::Value {
+    /// Submit a JSON-RPC request.
+    fn dispatch(client: &Client, body: JsonValue, _logger: &Logger) -> serde_json::Value {
         let mut res = client
             .post("/wallet")
             .header(ContentType::JSON)
@@ -592,28 +347,27 @@ mod tests {
             .dispatch();
         assert_eq!(res.status(), Status::Ok);
         let body = res.body().unwrap().into_string().unwrap();
-        log::info!(logger, "Attempted dispatch got response {:?}", body);
-
+        // log::info!(logger, "Attempted dispatch got response {:?}", body);
         let res: JsonValue = serde_json::from_str(&body).unwrap();
         res.get("result").unwrap().clone()
     }
 
-    fn dispatch_expect_error(
-        client: &Client,
-        body: JsonValue,
-        logger: &Logger,
-        expected_err: String,
-    ) {
-        let mut res = client
-            .post("/wallet")
-            .header(ContentType::JSON)
-            .body(body.to_string())
-            .dispatch();
-        assert_eq!(res.status(), Status::Ok);
-        let body = res.body().unwrap().into_string().unwrap();
-        log::info!(logger, "Attempted dispatch got response {:?}", body);
-        assert_eq!(body, expected_err);
-    }
+    // fn dispatch_expect_error(
+    //     client: &Client,
+    //     body: JsonValue,
+    //     logger: &Logger,
+    //     expected_err: String,
+    // ) {
+    //     let mut res = client
+    //         .post("/wallet")
+    //         .header(ContentType::JSON)
+    //         .body(body.to_string())
+    //         .dispatch();
+    //     assert_eq!(res.status(), Status::Ok);
+    //     let body = res.body().unwrap().into_string().unwrap();
+    //     log::info!(logger, "Attempted dispatch got response {:?}", body);
+    //     assert_eq!(body, expected_err);
+    // }
 
     #[test_with_logger]
     // A create_account RPC should correctly invoke the wallet service's create_account method.

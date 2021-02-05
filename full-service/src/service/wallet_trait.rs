@@ -6,12 +6,10 @@ use crate::service::decorated_types::{
 };
 use crate::service::WalletServiceError;
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
-
-#[cfg(test)]
 use mockall::*;
 
 /// A MobileCoin wallet.
-#[cfg_attr(test, automock)]
+#[automock]
 pub trait Wallet {
     /// An overview of this wallet.
     fn get_wallet_status(&self) -> Result<JsonWalletStatus, WalletServiceError>;

@@ -25,4 +25,5 @@ extern crate rocket_contrib;
 extern crate diesel_migrations;
 
 #[cfg(any(test, feature = "test_utils"))]
+#[allow(dead_code)]
 mod test_utils;
