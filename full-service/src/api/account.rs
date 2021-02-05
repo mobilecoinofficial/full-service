@@ -1,3 +1,5 @@
+// Copyright (c) 2020-2021 MobileCoin Inc.
+
 use serde_derive::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]

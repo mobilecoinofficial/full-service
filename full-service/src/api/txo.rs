@@ -1,3 +1,5 @@
+// Copyright (c) 2020-2021 MobileCoin Inc.
+
 use crate::db::txo::TxoDetails;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Map;

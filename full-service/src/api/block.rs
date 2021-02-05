@@ -1,3 +1,5 @@
+// Copyright (c) 2020-2021 MobileCoin Inc.
+
 use mc_mobilecoind_json::data_types::{JsonTxOut, JsonTxOutMembershipElement};
 use serde_derive::{Deserialize, Serialize};
 
