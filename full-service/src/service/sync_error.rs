@@ -3,9 +3,6 @@ use crate::db::WalletDbError;
 
 #[derive(Display, Debug)]
 pub enum SyncError {
-    /// Could not find account
-    AccountNotFound,
-
     /// Error with WalletDb {0}
     Database(WalletDbError),
 

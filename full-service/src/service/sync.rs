@@ -288,10 +288,7 @@ fn sync_thread_entry_point(
                             .send(SyncMsg::SyncAccount(account_id))
                             .expect("failed sending to channel");
                     }
-
-                    // Errors that are acceptable - nothing to do.
-                    Err(SyncError::AccountNotFound) => {}
-
+                    
                     // Other errors - log.
                     Err(err) => {
                         log::error!(logger, "error syncing account {}: {:?}", account_id, err);
