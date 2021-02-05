@@ -391,7 +391,7 @@ impl<
             let (public_address_b58, _subaddress_index) =
                 AssignedSubaddress::create_next_for_account(
                     account_id_hex,
-                    comment.unwrap_or(String::from("")).as_str(),
+                    comment.unwrap_or_else(|| String::from("")).as_str(),
                     &conn,
                 )?;
 

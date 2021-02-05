@@ -263,7 +263,7 @@ mod tests {
         {
             let expected_status = expected_status.clone();
             mock_wallet.expect_get_wallet_status()
-                .return_once(move || Ok(expected_status.clone()));
+                .return_once(move || Ok(expected_status));
         }
 
 

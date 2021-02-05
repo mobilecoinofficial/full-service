@@ -12,7 +12,7 @@ use mc_mobilecoind_json::data_types::{JsonTxOut, JsonTxOutMembershipElement};
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Map;
 
-#[derive(Deserialize, Serialize, Default, Debug)]
+#[derive(Clone, Deserialize, Serialize, Default, Debug)]
 pub struct JsonCreateAccountResponse {
     pub entropy: String,
     pub account: JsonAccount,

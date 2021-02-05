@@ -10,7 +10,7 @@ use mc_attest_core::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
 use mc_common::logger::{create_app_logger, log, o};
 use mc_full_service::{config::APIConfig, WalletDb, WalletService, WalletApiState, rocket};
 use mc_ledger_sync::{LedgerSyncServiceThread, PollingNetworkState, ReqwestTransactionsFetcher};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, Mutex};
 use structopt::StructOpt;
 
 #[allow(unused_imports)] // Needed for embedded_migrations!
@@ -97,16 +97,18 @@ fn main() {
         ))
     };
 
+    let wallet_service = WalletService::new(
+        wallet_db,
+        ledger_db,
+        peer_manager,
+        network_state,
+        config.get_fog_pubkey_resolver(logger.clone()).map(Arc::new),
+        config.num_workers,
+        logger,
+    );
+
     let state = WalletApiState {
-        service: WalletService::new(
-            wallet_db,
-            ledger_db,
-            peer_manager,
-            network_state,
-            config.get_fog_pubkey_resolver(logger.clone()).map(Arc::new),
-            config.num_workers,
-            logger,
-        ),
+        service: Arc::new(Mutex::new(wallet_service))
     };
 
     let rocket = rocket(rocket_config, state);
