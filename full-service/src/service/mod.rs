@@ -14,4 +14,4 @@ mod wallet_trait;
 pub use decorated_types::*;
 pub use wallet_service::WalletService;
 pub use wallet_service_error::WalletServiceError;
-pub use wallet_trait::{Wallet, MockWallet};
+pub use wallet_trait::{MockWallet, Wallet};

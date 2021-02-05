@@ -244,13 +244,11 @@ fn wallet_api_inner(
                 transaction_log_map,
             }
         }
-        Request::get_transaction { transaction_log_id } => {
-            Response::get_transaction {
-                transaction: service
-                    .get_transaction(&transaction_log_id)
-                    .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
-            }
-        }
+        Request::get_transaction { transaction_log_id } => Response::get_transaction {
+            transaction: service
+                .get_transaction(&transaction_log_id)
+                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+        },
         Request::get_transaction_object { transaction_log_id } => {
             Response::get_transaction_object {
                 transaction: service
@@ -322,16 +320,14 @@ pub fn rocket(rocket_config: rocket::Config, state: WalletApiState) -> rocket::R
 mod tests {
     use super::*;
     use crate::service::MockWallet;
-    use crate::service::{JsonCreateAccountResponse, JsonAccount};
+    use crate::service::{JsonAccount, JsonCreateAccountResponse};
     use mc_common::logger::{test_with_logger, Logger};
     use rocket::{
         http::{ContentType, Status},
         local::Client,
     };
     use rocket_contrib::json::JsonValue;
-    use std::{
-        sync::atomic::{AtomicUsize, Ordering::SeqCst},
-    };
+    use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 
     fn get_free_port() -> u16 {
         static PORT_NR: AtomicUsize = AtomicUsize::new(0);
