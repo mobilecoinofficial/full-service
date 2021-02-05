@@ -11,12 +11,13 @@ pub mod transaction_log;
 pub mod txo;
 mod wallet_db_error;
 
-pub use wallet_db_error::WalletDbError;
-use mc_account_keys::PublicAddress;
-use mc_common::logger::Logger;
-use diesel::{prelude::*,
+use diesel::{
+    prelude::*,
     r2d2::{ConnectionManager, Pool, PooledConnection},
 };
+use mc_account_keys::PublicAddress;
+use mc_common::logger::Logger;
+pub use wallet_db_error::WalletDbError;
 
 use std::convert::TryFrom;
 

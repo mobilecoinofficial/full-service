@@ -8,9 +8,9 @@ use diesel_migrations::embed_migrations;
 use dotenv::dotenv;
 use mc_attest_core::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
 use mc_common::logger::{create_app_logger, log, o};
-use mc_full_service::{config::APIConfig, WalletDb, WalletService, WalletApiState, rocket};
+use mc_full_service::{config::APIConfig, rocket, WalletApiState, WalletDb, WalletService};
 use mc_ledger_sync::{LedgerSyncServiceThread, PollingNetworkState, ReqwestTransactionsFetcher};
-use std::sync::{Arc, RwLock, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use structopt::StructOpt;
 
 #[allow(unused_imports)] // Needed for embedded_migrations!
@@ -108,7 +108,7 @@ fn main() {
     );
 
     let state = WalletApiState {
-        service: Arc::new(Mutex::new(wallet_service))
+        service: Arc::new(Mutex::new(wallet_service)),
     };
 
     let rocket = rocket(rocket_config, state);

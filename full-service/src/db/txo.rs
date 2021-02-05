@@ -2,17 +2,15 @@
 
 //! DB impl for the Txo model.
 
-use crate::{
-    db::{
-        account::{AccountID, AccountModel},
-        account_txo_status::AccountTxoStatusModel,
-        assigned_subaddress::AssignedSubaddressModel,
-        b58_encode,
-        models::{
-            Account, AccountTxoStatus, AssignedSubaddress, NewAccountTxoStatus, NewTxo, Txo,
-            TXO_CHANGE, TXO_MINTED, TXO_ORPHANED, TXO_OUTPUT, TXO_PENDING, TXO_RECEIVED,
-            TXO_SECRETED, TXO_SPENT, TXO_UNSPENT,
-        },
+use crate::db::{
+    account::{AccountID, AccountModel},
+    account_txo_status::AccountTxoStatusModel,
+    assigned_subaddress::AssignedSubaddressModel,
+    b58_encode,
+    models::{
+        Account, AccountTxoStatus, AssignedSubaddress, NewAccountTxoStatus, NewTxo, Txo,
+        TXO_CHANGE, TXO_MINTED, TXO_ORPHANED, TXO_OUTPUT, TXO_PENDING, TXO_RECEIVED, TXO_SECRETED,
+        TXO_SPENT, TXO_UNSPENT,
     },
 };
 
@@ -26,13 +24,13 @@ use mc_transaction_core::{
     tx::{TxOut, TxOutConfirmationNumber},
 };
 
+use crate::db::WalletDbError;
 use diesel::{
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},
     RunQueryDsl,
 };
 use std::fmt;
-use crate::db::WalletDbError;
 
 #[derive(Debug)]
 pub struct TxoID(String);

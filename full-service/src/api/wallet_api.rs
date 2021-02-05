@@ -7,11 +7,9 @@
 use crate::{
     db::account::AccountID,
     service::{
-        decorated_types::{
-            JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents, JsonProof,
-            JsonSubmitResponse, JsonTransactionLog, JsonTxo, JsonWalletStatus,
-        },
-        wallet_trait::Wallet,
+        JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock,
+        JsonBlockContents, JsonProof, JsonSubmitResponse, JsonTransactionLog, JsonTxo,
+        JsonWalletStatus,
     },
 };
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
@@ -20,12 +18,13 @@ use rocket_contrib::json::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use std::iter::FromIterator;
+use std::sync::{Arc, Mutex};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
-use std::sync::{Arc, Mutex};
+use crate::service::Wallet;
 
 /// Managed state for the Wallet API.
-pub struct WalletApiState{
+pub struct WalletApiState {
     pub service: Arc<Mutex<dyn Wallet + Send + Sync + 'static>>,
 }
 
@@ -208,7 +207,6 @@ fn wallet_api_inner(
     service: Arc<Mutex<dyn Wallet>>,
     command: Json<JsonCommandRequest>,
 ) -> Result<Json<JsonCommandResponse>, String> {
-
     let service = service.lock().unwrap();
 
     let result = match command.0 {
@@ -492,10 +490,7 @@ fn wallet_help() -> Result<String, String> {
     Ok(help_str)
 }
 
-pub fn rocket(
-    rocket_config: rocket::Config,
-    state: WalletApiState,
-) -> rocket::Rocket {
+pub fn rocket(rocket_config: rocket::Config, state: WalletApiState) -> rocket::Rocket {
     rocket::custom(rocket_config)
         .mount("/", routes![wallet_api, wallet_help])
         .manage(state)
@@ -504,6 +499,9 @@ pub fn rocket(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::service::wallet_trait::MockWallet;
+    use crate::service::wallet_trait::Wallet;
+    use crate::service::JsonCreateAccountResponse;
     use crate::{
         db::{
             b58_decode,
@@ -514,14 +512,13 @@ mod tests {
             WalletDbTestContext,
         },
     };
-    use crate::service::wallet_trait::Wallet;
-    use crate::service::wallet_trait::MockWallet;
     use mc_account_keys::PublicAddress;
     use mc_common::logger::{log, test_with_logger, Logger};
     use mc_connection_test_utils::MockBlockchainConnection;
     use mc_crypto_rand::rand_core::RngCore;
     use mc_fog_report_validation::MockFogPubkeyResolver;
     use mc_ledger_db::LedgerDB;
+    use mc_mobilecoind_json::data_types::JsonCreateAddressCodeRequest;
     use mc_transaction_core::ring_signature::KeyImage;
     use rand::{rngs::StdRng, SeedableRng};
     use rocket::{
@@ -533,8 +530,6 @@ mod tests {
         sync::atomic::{AtomicUsize, Ordering::SeqCst},
         time::Duration,
     };
-    use mc_mobilecoind_json::data_types::JsonCreateAddressCodeRequest;
-    use crate::service::JsonCreateAccountResponse;
 
     fn get_free_port() -> u16 {
         static PORT_NR: AtomicUsize = AtomicUsize::new(0);
@@ -623,7 +618,9 @@ mod tests {
     #[test_with_logger]
     // A create_account RPC should correctly invoke the wallet service's create_account method.
     fn test_create_account(logger: Logger) {
-        let rocket_config = rocket::Config::build(rocket::config::Environment::Development).port(get_free_port()).unwrap();
+        let rocket_config = rocket::Config::build(rocket::config::Environment::Development)
+            .port(get_free_port())
+            .unwrap();
 
         // Create Account request body.
         let body = json!({
@@ -636,28 +633,40 @@ mod tests {
         let expected_response: JsonCreateAccountResponse = {
             let mut account = JsonAccount::default();
             account.account_id = "123".to_string();
-            JsonCreateAccountResponse{ entropy: "ABC".to_string(), account}
+            JsonCreateAccountResponse {
+                entropy: "ABC".to_string(),
+                account,
+            }
         };
 
         let mut mock_wallet_service = MockWallet::new();
         {
             let expected = expected_response.clone();
             // create_account should be called exactly once.
-            mock_wallet_service.expect_create_account()
+            mock_wallet_service
+                .expect_create_account()
                 .return_once(move |_name, _first_block| Ok(expected));
         }
 
-        let state = WalletApiState{service: Arc::new(Mutex::new(mock_wallet_service))};
+        let state = WalletApiState {
+            service: Arc::new(Mutex::new(mock_wallet_service)),
+        };
         let rocket = rocket(rocket_config, state);
         let client = Client::new(rocket).unwrap();
 
         // The result should be the expected response.
         let result = dispatch(&client, body, &logger);
         assert!(result.get("entropy").is_some());
-        assert_eq!(result.get("entropy").unwrap(), expected_response.entropy.as_str());
+        assert_eq!(
+            result.get("entropy").unwrap(),
+            expected_response.entropy.as_str()
+        );
 
         let account_obj = result.get("account").unwrap();
-        assert_eq!(account_obj.get("account_id").unwrap(), expected_response.account.account_id.as_str());
+        assert_eq!(
+            account_obj.get("account_id").unwrap(),
+            expected_response.account.account_id.as_str()
+        );
     }
 
     // #[test_with_logger]

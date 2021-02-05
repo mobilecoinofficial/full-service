@@ -1,16 +1,18 @@
-use crate::service::decorated_types::{JsonWalletStatus, JsonCreateAccountResponse, JsonAccount, JsonTxo, JsonBalanceResponse, JsonAddress, JsonSubmitResponse, JsonTransactionLog, JsonBlock, JsonBlockContents, JsonProof};
-use crate::service::WalletServiceError;
 use crate::db::account::AccountID;
-use mc_mobilecoind_json::data_types::{JsonTxProposal, JsonTx, JsonTxOut};
+use crate::service::decorated_types::{
+    JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
+    JsonCreateAccountResponse, JsonProof, JsonSubmitResponse, JsonTransactionLog, JsonTxo,
+    JsonWalletStatus,
+};
+use crate::service::WalletServiceError;
+use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
 
 #[cfg(test)]
 use mockall::*;
 
-
 /// A MobileCoin wallet.
 #[cfg_attr(test, automock)]
 pub trait Wallet {
-
     /// An overview of this wallet.
     fn get_wallet_status(&self) -> Result<JsonWalletStatus, WalletServiceError>;
 
@@ -43,10 +45,7 @@ pub trait Wallet {
     /// # Arguments
     /// * `account_id_hex` - ???
     /// * `name` - The new account name.
-    fn get_account(
-        &self,
-        account_id_hex: &AccountID,
-    ) -> Result<JsonAccount, WalletServiceError>;
+    fn get_account(&self, account_id_hex: &AccountID) -> Result<JsonAccount, WalletServiceError>;
 
     /// Get all accounts.
     fn list_accounts(&self) -> Result<Vec<JsonAccount>, WalletServiceError>;
@@ -84,10 +83,7 @@ pub trait Wallet {
     ///
     /// # Arguments
     /// * `account_id_hex` - ???
-    fn get_balance(
-        &self,
-        account_id_hex: &str,
-    ) -> Result<JsonBalanceResponse, WalletServiceError>;
+    fn get_balance(&self, account_id_hex: &str) -> Result<JsonBalanceResponse, WalletServiceError>;
 
     /// ???
     ///
@@ -215,10 +211,7 @@ pub trait Wallet {
     ///
     /// # Arguments
     /// * `transaction_log_id` - ???
-    fn get_proofs(
-        &self,
-        transaction_log_id: &str,
-    ) -> Result<Vec<JsonProof>, WalletServiceError>;
+    fn get_proofs(&self, transaction_log_id: &str) -> Result<Vec<JsonProof>, WalletServiceError>;
 
     /// ???
     ///
@@ -236,8 +229,8 @@ pub trait Wallet {
 
 #[cfg(test)]
 mod tests {
-    use crate::service::wallet_trait::Wallet;
     use crate::service::wallet_trait::MockWallet;
+    use crate::service::wallet_trait::Wallet;
     use crate::service::JsonWalletStatus;
 
     /// Example of creating a mock Wallet
@@ -246,7 +239,7 @@ mod tests {
         let mut mock_wallet = MockWallet::new();
 
         // wallet status, now with more Pinnipeds.
-        let expected_status = JsonWalletStatus{
+        let expected_status = JsonWalletStatus {
             object: "LeopardSeal".to_string(),
             network_height: "GreySeal".to_string(),
             local_height: "HarbourSeal".to_string(),
@@ -254,7 +247,7 @@ mod tests {
             total_available_pmob: "RibbonSeal".to_string(),
             total_pending_pmob: "BeardedSeal".to_string(),
             account_ids: vec![],
-            account_map: Default::default()
+            account_map: Default::default(),
         };
 
         // Configure the mock wallet.
@@ -262,15 +255,15 @@ mod tests {
         // return_once is used instead of return_const because WalletServiceError is note Clone.
         {
             let expected_status = expected_status.clone();
-            mock_wallet.expect_get_wallet_status()
+            mock_wallet
+                .expect_get_wallet_status()
                 .return_once(move || Ok(expected_status));
         }
-
 
         // Query the mock wallet.
         match mock_wallet.get_wallet_status() {
             Ok(status) => assert_eq!(status, expected_status),
-            Err(e) => panic!(format!("Unexpected error {}", e))
+            Err(e) => panic!(format!("Unexpected error {}", e)),
         }
     }
 }

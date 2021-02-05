@@ -2,31 +2,29 @@
 
 //! DB impl for the Account model.
 
-use crate::{
-    db::{
-        assigned_subaddress::AssignedSubaddressModel,
-        b58_encode,
-        models::{
-            Account, AccountTxoStatus, AssignedSubaddress, NewAccount, TransactionLog, Txo,
-            TXO_PENDING, TXO_SPENT, TXO_UNSPENT,
-        },
-        transaction_log::TransactionLogModel,
-        txo::TxoModel,
+use crate::db::{
+    assigned_subaddress::AssignedSubaddressModel,
+    b58_encode,
+    models::{
+        Account, AccountTxoStatus, AssignedSubaddress, NewAccount, TransactionLog, Txo,
+        TXO_PENDING, TXO_SPENT, TXO_UNSPENT,
     },
+    transaction_log::TransactionLogModel,
+    txo::TxoModel,
 };
 
 use mc_account_keys::{AccountKey, DEFAULT_SUBADDRESS_INDEX};
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_transaction_core::ring_signature::KeyImage;
 
+use crate::db::WalletDbError;
+use crate::service::JsonAccount;
 use diesel::{
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},
     RunQueryDsl,
 };
 use std::fmt;
-use crate::service::JsonAccount;
-use crate::db::WalletDbError;
 
 pub const DEFAULT_CHANGE_SUBADDRESS_INDEX: u64 = 1;
 pub const DEFAULT_NEXT_SUBADDRESS_INDEX: u64 = 2;

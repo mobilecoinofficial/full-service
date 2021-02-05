@@ -6,14 +6,12 @@
 //!
 //! This module, on the other hand, builds a transaction within the context of the wallet.
 
-use crate::{
-    db::{
-        models::{Account, Txo, TXO_UNSPENT},
-        WalletDb,
-        {
-            account::{AccountID, AccountModel},
-            txo::TxoModel,
-        },
+use crate::db::{
+    models::{Account, Txo, TXO_UNSPENT},
+    WalletDb,
+    {
+        account::{AccountID, AccountModel},
+        txo::TxoModel,
     },
 };
 use mc_account_keys::{AccountKey, PublicAddress};
@@ -31,12 +29,12 @@ use mc_transaction_core::tx::{TxOut, TxOutMembershipProof};
 use mc_transaction_core::BlockIndex;
 use mc_transaction_std::{InputCredentials, TransactionBuilder};
 
+use crate::service::transaction_builder_error::WalletTransactionBuilderError;
 use diesel::prelude::*;
 use rand::Rng;
 use std::convert::TryFrom;
 use std::iter::FromIterator;
 use std::sync::Arc;
-use crate::service::transaction_builder_error::WalletTransactionBuilderError;
 
 /// Default number of blocks used for calculating transaction tombstone block number.
 // TODO support for making this configurable
@@ -528,6 +526,7 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::db::WalletDbError;
     use crate::{
         service::sync::SyncThread,
         test_utils::{
@@ -537,7 +536,6 @@ mod tests {
     };
     use mc_common::logger::{test_with_logger, Logger};
     use rand::{rngs::StdRng, SeedableRng};
-    use crate::db::WalletDbError;
 
     #[test_with_logger]
     fn test_build_with_utxos(logger: Logger) {

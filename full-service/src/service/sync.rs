@@ -21,15 +21,13 @@
 //! instead of removing the account id from the hashset, it would be placed back into the queue to
 //! be picked up by the next available worker thread.
 
-use crate::{
-    db::{
-        account::{AccountID, AccountModel},
-        assigned_subaddress::AssignedSubaddressModel,
-        models::{Account, AssignedSubaddress, TransactionLog, Txo},
-        transaction_log::TransactionLogModel,
-        txo::TxoModel,
-        WalletDb,
-    },
+use crate::db::{
+    account::{AccountID, AccountModel},
+    assigned_subaddress::AssignedSubaddressModel,
+    models::{Account, AssignedSubaddress, TransactionLog, Txo},
+    transaction_log::TransactionLogModel,
+    txo::TxoModel,
+    WalletDb,
 };
 use mc_account_keys::AccountKey;
 use mc_common::{
@@ -46,6 +44,8 @@ use mc_transaction_core::{
     AmountError,
 };
 
+use crate::db::WalletDbError;
+use crate::service::sync_error::SyncError;
 use diesel::{
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},
@@ -58,8 +58,6 @@ use std::{
     },
     thread,
 };
-use crate::service::sync_error::SyncError;
-use crate::db::WalletDbError;
 
 ///  The maximal number of blocks a worker thread would process at once.
 const MAX_BLOCKS_PROCESSING_CHUNK_SIZE: usize = 5;
@@ -288,7 +286,7 @@ fn sync_thread_entry_point(
                             .send(SyncMsg::SyncAccount(account_id))
                             .expect("failed sending to channel");
                     }
-                    
+
                     // Other errors - log.
                     Err(err) => {
                         log::error!(logger, "error syncing account {}: {:?}", account_id, err);

@@ -40,6 +40,8 @@ use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
 use mc_transaction_core::tx::{Tx, TxOut, TxOutConfirmationNumber};
 use mc_util_from_random::FromRandom;
 
+use crate::service::wallet_trait::Wallet;
+use crate::service::WalletServiceError;
 use diesel::prelude::*;
 use serde_json::Map;
 use std::{
@@ -50,9 +52,6 @@ use std::{
         Arc, RwLock,
     },
 };
-use crate::service::wallet_trait::Wallet;
-use crate::service::WalletServiceError;
-
 
 /// Service for interacting with the wallet
 pub struct WalletService<
@@ -106,10 +105,10 @@ impl<
 }
 
 impl<
-    T: BlockchainConnection + UserTxConnection + 'static,
-    FPR: FogPubkeyResolver + Send + Sync + 'static,
-> Wallet for WalletService<T, FPR> {
-
+        T: BlockchainConnection + UserTxConnection + 'static,
+        FPR: FogPubkeyResolver + Send + Sync + 'static,
+    > Wallet for WalletService<T, FPR>
+{
     // Wallet Status is an overview of the wallet's status
     fn get_wallet_status(&self) -> Result<JsonWalletStatus, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
@@ -240,10 +239,7 @@ impl<
         )?)
     }
 
-    fn get_account(
-        &self,
-        account_id_hex: &AccountID,
-    ) -> Result<JsonAccount, WalletServiceError> {
+    fn get_account(&self, account_id_hex: &AccountID) -> Result<JsonAccount, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
         let local_height = self.ledger_db.num_blocks()?;
         let network_state = self.network_state.read().expect("lock poisoned");
@@ -338,10 +334,7 @@ impl<
     }
 
     // Balance consists of the sums of the various txo states in our wallet
-    fn get_balance(
-        &self,
-        account_id_hex: &str,
-    ) -> Result<JsonBalanceResponse, WalletServiceError> {
+    fn get_balance(&self, account_id_hex: &str) -> Result<JsonBalanceResponse, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
         let unspent = Txo::list_by_status(account_id_hex, TXO_UNSPENT, &conn)?
@@ -603,10 +596,7 @@ impl<
         ))
     }
 
-    fn get_proofs(
-        &self,
-        transaction_log_id: &str,
-    ) -> Result<Vec<JsonProof>, WalletServiceError> {
+    fn get_proofs(&self, transaction_log_id: &str) -> Result<Vec<JsonProof>, WalletServiceError> {
         let transaction_log = self.get_transaction(&transaction_log_id)?;
         let proofs: Vec<JsonProof> = transaction_log
             .output_txo_ids
@@ -801,7 +791,6 @@ mod tests {
     // FIXME: Test with balance > u64::max
     // FIXME: sending a transaction with value > u64::max
 
-
     // TODO: test create_account
     // TODO: test import_account
     // TODO: test get_all_accounts
@@ -824,5 +813,4 @@ mod tests {
     // TODO: test get_block_object
     // TODO: test get_proofs
     // TODO: test verify_proof
-
 }

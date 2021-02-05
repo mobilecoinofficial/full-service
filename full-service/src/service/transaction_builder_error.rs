@@ -1,5 +1,5 @@
-use displaydoc::Display;
 use crate::db::WalletDbError;
+use displaydoc::Display;
 
 #[derive(Display, Debug)]
 pub enum WalletTransactionBuilderError {

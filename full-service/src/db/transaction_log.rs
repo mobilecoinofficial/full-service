@@ -2,16 +2,14 @@
 
 //! DB impl for the Transaction model.
 
-use crate::{
-    db::{
-        b58_encode,
-        models::{
-            Account, NewTransactionLog, NewTransactionTxoType, TransactionLog, TransactionTxoType,
-            Txo, TXO_CHANGE, TXO_INPUT, TXO_OUTPUT, TX_BUILT, TX_DIR_RECEIVED, TX_DIR_SENT,
-            TX_FAILED, TX_PENDING, TX_SUCCEEDED,
-        },
-        txo::{TxoID, TxoModel},
+use crate::db::{
+    b58_encode,
+    models::{
+        Account, NewTransactionLog, NewTransactionTxoType, TransactionLog, TransactionTxoType, Txo,
+        TXO_CHANGE, TXO_INPUT, TXO_OUTPUT, TX_BUILT, TX_DIR_RECEIVED, TX_DIR_SENT, TX_FAILED,
+        TX_PENDING, TX_SUCCEEDED,
     },
+    txo::{TxoID, TxoModel},
 };
 
 use mc_account_keys::AccountKey;
@@ -20,6 +18,7 @@ use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::tx::Tx;
 
+use crate::db::WalletDbError;
 use chrono::Utc;
 use diesel::{
     prelude::*,
@@ -27,7 +26,6 @@ use diesel::{
     RunQueryDsl,
 };
 use std::fmt;
-use crate::db::WalletDbError;
 
 #[derive(Debug)]
 pub struct TransactionID(String);
