@@ -2,6 +2,7 @@
 
 //! MobileCoin FullService Wallet API Layer.
 
+pub mod decorated_types;
 mod json_rpc_request;
 mod json_rpc_response;
 mod wallet_api;

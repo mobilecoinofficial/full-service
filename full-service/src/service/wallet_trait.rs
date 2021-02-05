@@ -1,9 +1,9 @@
-use crate::db::account::AccountID;
-use crate::service::decorated_types::{
+use crate::api::decorated_types::{
     JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
     JsonCreateAccountResponse, JsonProof, JsonSubmitResponse, JsonTransactionLog, JsonTxo,
     JsonWalletStatus,
 };
+use crate::db::account::AccountID;
 use crate::service::WalletServiceError;
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
 use mockall::*;
@@ -227,9 +227,9 @@ pub trait Wallet {
 
 #[cfg(test)]
 mod tests {
+    use crate::api::decorated_types::JsonWalletStatus;
     use crate::service::wallet_trait::MockWallet;
     use crate::service::wallet_trait::Wallet;
-    use crate::service::JsonWalletStatus;
 
     /// Example of creating a mock Wallet
     #[test]

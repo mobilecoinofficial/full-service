@@ -15,15 +15,7 @@ use crate::{
         transaction_log::TransactionLogModel,
         txo::TxoModel,
     },
-    service::{
-        decorated_types::{
-            JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
-            JsonCreateAccountResponse, JsonProof, JsonSubmitResponse, JsonTransactionLog, JsonTxo,
-            JsonWalletStatus,
-        },
-        sync::SyncThread,
-        transaction_builder::WalletTransactionBuilder,
-    },
+    service::{sync::SyncThread, transaction_builder::WalletTransactionBuilder},
 };
 use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
 use mc_common::logger::{log, Logger};
@@ -40,6 +32,11 @@ use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
 use mc_transaction_core::tx::{Tx, TxOut, TxOutConfirmationNumber};
 use mc_util_from_random::FromRandom;
 
+use crate::api::decorated_types::{
+    JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
+    JsonCreateAccountResponse, JsonProof, JsonSubmitResponse, JsonTransactionLog, JsonTxo,
+    JsonWalletStatus,
+};
 use crate::service::wallet_trait::Wallet;
 use crate::service::WalletServiceError;
 use diesel::prelude::*;

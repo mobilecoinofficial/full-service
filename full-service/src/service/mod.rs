@@ -2,7 +2,6 @@
 
 //! Implementations of services.
 
-mod decorated_types;
 pub mod sync;
 pub mod sync_error;
 pub mod transaction_builder;
@@ -11,7 +10,6 @@ mod wallet_service;
 mod wallet_service_error;
 mod wallet_trait;
 
-pub use decorated_types::*;
 pub use wallet_service::WalletService;
 pub use wallet_service_error::WalletServiceError;
 pub use wallet_trait::{MockWallet, Wallet};

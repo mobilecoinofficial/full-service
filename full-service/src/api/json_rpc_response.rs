@@ -2,7 +2,7 @@
 
 //! JSON-RPC Responses from the Wallet API.
 
-use crate::service::{
+use crate::api::decorated_types::{
     JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents, JsonProof,
     JsonSubmitResponse, JsonTransactionLog, JsonTxo, JsonWalletStatus,
 };
