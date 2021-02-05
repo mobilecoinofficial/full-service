@@ -22,12 +22,8 @@
 //! be picked up by the next available worker thread.
 
 use crate::db::{
-    account::{AccountID, AccountModel},
-    assigned_subaddress::AssignedSubaddressModel,
-    models::{Account, AssignedSubaddress, TransactionLog, Txo},
-    transaction_log::TransactionLogModel,
-    txo::TxoModel,
-    WalletDb,
+    Account, AccountID, AccountModel, AssignedSubaddress, TransactionLog, TransactionLogModel, Txo,
+    TxoModel, WalletDb,
 };
 use mc_account_keys::AccountKey;
 use mc_common::{
@@ -44,6 +40,7 @@ use mc_transaction_core::{
     AmountError,
 };
 
+use crate::db::assigned_subaddress::AssignedSubaddressModel;
 use crate::db::WalletDbError;
 use crate::service::sync_error::SyncError;
 use diesel::{

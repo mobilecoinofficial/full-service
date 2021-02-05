@@ -13,17 +13,16 @@ use crate::db::{
     txo::TxoModel,
 };
 
-use mc_account_keys::{AccountKey, DEFAULT_SUBADDRESS_INDEX};
-use mc_crypto_digestible::{Digestible, MerlinTranscript};
-use mc_transaction_core::ring_signature::KeyImage;
-
-use crate::api::JsonAccount; // The DB layer probably shouldn't know about JSON in the API layer...
 use crate::db::WalletDbError;
+use crate::json_rpc;
 use diesel::{
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},
     RunQueryDsl,
 };
+use mc_account_keys::{AccountKey, DEFAULT_SUBADDRESS_INDEX};
+use mc_crypto_digestible::{Digestible, MerlinTranscript};
+use mc_transaction_core::ring_signature::KeyImage;
 use std::fmt;
 
 pub const DEFAULT_CHANGE_SUBADDRESS_INDEX: u64 = 1;
@@ -68,7 +67,7 @@ pub trait AccountModel {
         local_height: u64,
         network_height: u64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<JsonAccount, WalletDbError>;
+    ) -> Result<json_rpc::Account, WalletDbError>;
 
     /// List all accounts.
     ///
@@ -87,13 +86,13 @@ pub trait AccountModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Account, WalletDbError>;
 
-    /// Get the API-decorated Account object
+    /// Get the JSON-RPC Account object.
     fn get_decorated(
         account_id_hex: &AccountID,
         local_height: u64,
         network_height: u64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<JsonAccount, WalletDbError>;
+    ) -> Result<json_rpc::Account, WalletDbError>;
 
     fn get_by_txo_id(
         txo_id_hex: &str,
@@ -182,8 +181,8 @@ impl AccountModel for Account {
         local_height: u64,
         network_height: u64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<JsonAccount, WalletDbError> {
-        Ok(conn.transaction::<JsonAccount, WalletDbError, _>(|| {
+    ) -> Result<json_rpc::Account, WalletDbError> {
+        Ok(conn.transaction::<json_rpc::Account, WalletDbError, _>(|| {
             let (account_id, _public_address_b58) = Account::create(
                 &account_key,
                 first_block,
@@ -234,8 +233,8 @@ impl AccountModel for Account {
         local_height: u64,
         network_height: u64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<JsonAccount, WalletDbError> {
-        Ok(conn.transaction::<JsonAccount, WalletDbError, _>(|| {
+    ) -> Result<json_rpc::Account, WalletDbError> {
+        Ok(conn.transaction::<json_rpc::Account, WalletDbError, _>(|| {
             let account = Account::get(account_id_hex, conn)?;
 
             let unspent = Txo::list_by_status(&account_id_hex.to_string(), TXO_UNSPENT, conn)?
@@ -250,7 +249,7 @@ impl AccountModel for Account {
             let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
             let main_subaddress_b58 =
                 b58_encode(&account_key.subaddress(DEFAULT_SUBADDRESS_INDEX))?;
-            Ok(JsonAccount {
+            Ok(json_rpc::Account {
                 object: "account".to_string(),
                 account_id: account.account_id_hex,
                 name: account.name,

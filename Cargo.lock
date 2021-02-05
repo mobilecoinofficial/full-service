@@ -3028,15 +3028,15 @@ dependencies = [
 
 [[package]]
 name = "protobuf"
-version = "2.18.0"
+version = "2.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d147edb77bcccbfc81fabffdc7bd50c13e103b15ca1e27515fe40de69a5776b"
+checksum = "86473d5f16580f10b131a0bf0afb68f8e029d1835d33a00f37281b05694e5312"
 
 [[package]]
 name = "protobuf-codegen"
-version = "2.18.0"
+version = "2.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e81f70c25aab9506f87253c55f7cdcd8917635d5597382958d20025c211bbbd"
+checksum = "c8b6ba4581fcd9c3ce3576f25e528467b0d3516e332884c0da6f2084fe59045f"
 dependencies = [
  "protobuf",
 ]
@@ -3796,8 +3796,9 @@ checksum = "c111b5bd5695e56cffe5129854aa230b39c93a305372fdbb2668ca2394eea9f8"
 
 [[package]]
 name = "slog"
-version = "2.6.0"
-source = "git+https://github.com/mobilecoinofficial/slog?rev=cc1562258b81353426d17a55b7447256fa6eabbf#cc1562258b81353426d17a55b7447256fa6eabbf"
+version = "2.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8347046d4ebd943127157b94d63abb990fcf729dc4e9978927fdf4ac3c998d06"
 
 [[package]]
 name = "slog-async"
@@ -4776,3 +4777,8 @@ dependencies = [
  "syn 1.0.48",
  "synstructure",
 ]
+
+[[patch.unused]]
+name = "slog"
+version = "2.6.0"
+source = "git+https://github.com/mobilecoinofficial/slog?rev=cc1562258b81353426d17a55b7447256fa6eabbf#cc1562258b81353426d17a55b7447256fa6eabbf"

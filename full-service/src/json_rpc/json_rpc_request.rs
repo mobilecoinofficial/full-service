@@ -2,7 +2,6 @@
 
 //! JSON-RPC Requests to the Wallet API.
 
-use mc_mobilecoind_json::data_types::JsonTxProposal;
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
 
@@ -68,7 +67,7 @@ pub enum Request {
         max_spendable_value: Option<String>,
     },
     submit_transaction {
-        tx_proposal: JsonTxProposal,
+        tx_proposal: mc_mobilecoind_json::data_types::JsonTxProposal,
         comment: Option<String>,
         account_id: Option<String>,
     },

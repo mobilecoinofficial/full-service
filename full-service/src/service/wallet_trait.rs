@@ -1,20 +1,16 @@
 //! A MobileCoin wallet.
 
-use crate::api::{
-    JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
-    JsonCreateAccountResponse, JsonProof, JsonSubmitResponse, JsonTransactionLog, JsonTxo,
-    JsonWalletStatus,
-};
-use crate::db::account::AccountID;
+use crate::db::AccountID;
+use crate::json_rpc;
+use crate::json_rpc::SubmitResponse;
 use crate::service::WalletServiceError;
-use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
 use mockall::*;
 
 /// A MobileCoin wallet.
 #[automock]
 pub trait Wallet {
     /// An overview of this wallet.
-    fn get_wallet_status(&self) -> Result<JsonWalletStatus, WalletServiceError>;
+    fn get_wallet_status(&self) -> Result<json_rpc::WalletStatus, WalletServiceError>;
 
     /// Create a new account.
     ///
@@ -25,7 +21,7 @@ pub trait Wallet {
         &self,
         name: Option<String>,
         first_block: Option<u64>,
-    ) -> Result<JsonCreateAccountResponse, WalletServiceError>;
+    ) -> Result<json_rpc::CreateAccountResponse, WalletServiceError>;
 
     /// Import an existing account into this wallet.
     ///
@@ -38,17 +34,20 @@ pub trait Wallet {
         entropy: String,
         name: Option<String>,
         first_block: Option<u64>,
-    ) -> Result<JsonAccount, WalletServiceError>;
+    ) -> Result<json_rpc::Account, WalletServiceError>;
 
     /// Get an account by ID.
     ///
     /// # Arguments
     /// * `account_id_hex` - ???
     /// * `name` - The new account name.
-    fn get_account(&self, account_id_hex: &AccountID) -> Result<JsonAccount, WalletServiceError>;
+    fn get_account(
+        &self,
+        account_id_hex: &AccountID,
+    ) -> Result<json_rpc::Account, WalletServiceError>;
 
     /// Get all accounts.
-    fn list_accounts(&self) -> Result<Vec<JsonAccount>, WalletServiceError>;
+    fn list_accounts(&self) -> Result<Vec<json_rpc::Account>, WalletServiceError>;
 
     /// Set the account name.
     ///
@@ -59,7 +58,7 @@ pub trait Wallet {
         &self,
         account_id_hex: &str,
         name: String,
-    ) -> Result<JsonAccount, WalletServiceError>;
+    ) -> Result<json_rpc::Account, WalletServiceError>;
 
     /// Deletes an account.
     ///
@@ -71,19 +70,22 @@ pub trait Wallet {
     ///
     /// # Arguments
     /// * `account_id_hex` - ???
-    fn list_txos(&self, account_id_hex: &str) -> Result<Vec<JsonTxo>, WalletServiceError>;
+    fn list_txos(&self, account_id_hex: &str) -> Result<Vec<json_rpc::Txo>, WalletServiceError>;
 
     /// Get a TXO by ID.
     ///
     /// # Arguments
     /// * `txo_id_hex` - ???
-    fn get_txo(&self, txo_id_hex: &str) -> Result<JsonTxo, WalletServiceError>;
+    fn get_txo(&self, txo_id_hex: &str) -> Result<json_rpc::Txo, WalletServiceError>;
 
     /// Get the current balance of the given account.
     ///
     /// # Arguments
     /// * `account_id_hex` - ???
-    fn get_balance(&self, account_id_hex: &str) -> Result<JsonBalanceResponse, WalletServiceError>;
+    fn get_balance(
+        &self,
+        account_id_hex: &str,
+    ) -> Result<json_rpc::BalanceResponse, WalletServiceError>;
 
     /// ???
     ///
@@ -95,7 +97,7 @@ pub trait Wallet {
         account_id_hex: &str,
         comment: Option<String>,
         // FIXME: WS-32 - add "sync from block"
-    ) -> Result<JsonAddress, WalletServiceError>;
+    ) -> Result<json_rpc::Address, WalletServiceError>;
 
     /// ???
     ///
@@ -104,7 +106,7 @@ pub trait Wallet {
     fn list_assigned_subaddresses(
         &self,
         account_id_hex: &str,
-    ) -> Result<Vec<JsonAddress>, WalletServiceError>;
+    ) -> Result<Vec<json_rpc::Address>, WalletServiceError>;
 
     /// Creates a transaction (but does not submit it).
     ///
@@ -126,7 +128,7 @@ pub trait Wallet {
         fee: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
-    ) -> Result<JsonTxProposal, WalletServiceError>;
+    ) -> Result<mc_mobilecoind_json::data_types::JsonTxProposal, WalletServiceError>;
 
     /// Submit a transaction
     ///
@@ -136,10 +138,10 @@ pub trait Wallet {
     /// * `account_id_hex` - ???
     fn submit_transaction(
         &self,
-        tx_proposal: JsonTxProposal,
+        tx_proposal: mc_mobilecoind_json::data_types::JsonTxProposal,
         comment: Option<String>,
         account_id_hex: Option<String>,
-    ) -> Result<JsonSubmitResponse, WalletServiceError>;
+    ) -> Result<SubmitResponse, WalletServiceError>;
 
     /// Convenience method that builds and submits in one go.
     ///
@@ -163,7 +165,7 @@ pub trait Wallet {
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
-    ) -> Result<JsonSubmitResponse, WalletServiceError>;
+    ) -> Result<SubmitResponse, WalletServiceError>;
 
     /// Get all transactions associated with the given account.
     ///
@@ -172,7 +174,7 @@ pub trait Wallet {
     fn list_transactions(
         &self,
         account_id_hex: &str,
-    ) -> Result<Vec<JsonTransactionLog>, WalletServiceError>;
+    ) -> Result<Vec<json_rpc::TransactionLog>, WalletServiceError>;
 
     /// Get a transaction by ID.
     ///
@@ -181,7 +183,7 @@ pub trait Wallet {
     fn get_transaction(
         &self,
         transaction_id_hex: &str,
-    ) -> Result<JsonTransactionLog, WalletServiceError>;
+    ) -> Result<json_rpc::TransactionLog, WalletServiceError>;
 
     /// ???
     ///
@@ -190,13 +192,16 @@ pub trait Wallet {
     fn get_transaction_object(
         &self,
         transaction_id_hex: &str,
-    ) -> Result<JsonTx, WalletServiceError>;
+    ) -> Result<mc_mobilecoind_json::data_types::JsonTx, WalletServiceError>;
 
     /// Get a TXO by ID.
     ///
     /// # Arguments
     /// * `txo_id_hex` - ???
-    fn get_txo_object(&self, txo_id_hex: &str) -> Result<JsonTxOut, WalletServiceError>;
+    fn get_txo_object(
+        &self,
+        txo_id_hex: &str,
+    ) -> Result<mc_mobilecoind_json::data_types::JsonTxOut, WalletServiceError>;
 
     /// Get a block by index.
     ///
@@ -205,13 +210,16 @@ pub trait Wallet {
     fn get_block_object(
         &self,
         block_index: u64,
-    ) -> Result<(JsonBlock, JsonBlockContents), WalletServiceError>;
+    ) -> Result<(json_rpc::Block, json_rpc::BlockContents), WalletServiceError>;
 
     /// ???
     ///
     /// # Arguments
     /// * `transaction_log_id` - ???
-    fn get_proofs(&self, transaction_log_id: &str) -> Result<Vec<JsonProof>, WalletServiceError>;
+    fn get_proofs(
+        &self,
+        transaction_log_id: &str,
+    ) -> Result<Vec<json_rpc::MembershipProof>, WalletServiceError>;
 
     /// ???
     ///
@@ -229,9 +237,8 @@ pub trait Wallet {
 
 #[cfg(test)]
 mod tests {
-    use crate::api::JsonWalletStatus;
-    use crate::service::wallet_trait::MockWallet;
-    use crate::service::wallet_trait::Wallet;
+    use crate::json_rpc;
+    use crate::service::wallet_trait::{MockWallet, Wallet};
 
     /// Example of creating a mock Wallet
     #[test]
@@ -239,7 +246,7 @@ mod tests {
         let mut mock_wallet = MockWallet::new();
 
         // WalletStatus, now with more Pinnipeds!
-        let expected_status = JsonWalletStatus {
+        let expected_status = json_rpc::WalletStatus {
             object: "LeopardSeal".to_string(),
             network_height: "GreySeal".to_string(),
             local_height: "HarbourSeal".to_string(),

@@ -3,7 +3,7 @@
 use serde_derive::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
-pub struct JsonAccount {
+pub struct Account {
     pub object: String,
     pub account_id: String,
     pub name: String,

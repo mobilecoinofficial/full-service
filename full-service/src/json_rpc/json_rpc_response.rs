@@ -2,11 +2,9 @@
 
 //! JSON-RPC Responses from the Wallet API.
 
-use crate::api::{
-    JsonAccount, JsonAddress, JsonBlock, JsonBlockContents, JsonProof, JsonTransactionLog, JsonTxo,
-    JsonWalletStatus,
+use crate::json_rpc::{
+    Account, Address, Block, BlockContents, MembershipProof, TransactionLog, Txo, WalletStatus,
 };
-use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
 
@@ -17,20 +15,20 @@ use serde_json::Map;
 pub enum Response {
     create_account {
         entropy: String,
-        account: JsonAccount,
+        account: Account,
     },
     import_account {
-        account: JsonAccount,
+        account: Account,
     },
     get_all_accounts {
         account_ids: Vec<String>,
         account_map: Map<String, serde_json::Value>,
     },
     get_account {
-        account: JsonAccount,
+        account: Account,
     },
     update_account_name {
-        account: JsonAccount,
+        account: Account,
     },
     delete_account {
         success: bool,
@@ -40,49 +38,49 @@ pub enum Response {
         txo_map: Map<String, serde_json::Value>,
     },
     get_txo {
-        txo: JsonTxo,
+        txo: Txo,
     },
     get_wallet_status {
-        status: JsonWalletStatus,
+        status: WalletStatus,
     },
     get_balance {
-        status: JsonBalanceResponse,
+        status: BalanceResponse,
     },
     create_address {
-        address: JsonAddress,
+        address: Address,
     },
     get_all_addresses_by_account {
         address_ids: Vec<String>,
         address_map: Map<String, serde_json::Value>,
     },
     send_transaction {
-        transaction: JsonSubmitResponse,
+        transaction: SubmitResponse,
     },
     build_transaction {
-        tx_proposal: JsonTxProposal,
+        tx_proposal: mc_mobilecoind_json::data_types::JsonTxProposal,
     },
     submit_transaction {
-        transaction: JsonSubmitResponse,
+        transaction: SubmitResponse,
     },
     get_all_transactions_by_account {
         transaction_log_ids: Vec<String>,
         transaction_log_map: Map<String, serde_json::Value>,
     },
     get_transaction {
-        transaction: JsonTransactionLog,
+        transaction: TransactionLog,
     },
     get_transaction_object {
-        transaction: JsonTx,
+        transaction: mc_mobilecoind_json::data_types::JsonTx,
     },
     get_txo_object {
-        txo: JsonTxOut,
+        txo: mc_mobilecoind_json::data_types::JsonTxOut,
     },
     get_block_object {
-        block: JsonBlock,
-        block_contents: JsonBlockContents,
+        block: Block,
+        block_contents: BlockContents,
     },
     get_proofs {
-        proofs: Vec<JsonProof>,
+        proofs: Vec<MembershipProof>,
     },
     verify_proof {
         verified: bool,
@@ -90,13 +88,13 @@ pub enum Response {
 }
 
 #[derive(Clone, Deserialize, Serialize, Default, Debug)]
-pub struct JsonCreateAccountResponse {
+pub struct CreateAccountResponse {
     pub entropy: String,
-    pub account: JsonAccount,
+    pub account: Account,
 }
 
 #[derive(Deserialize, Serialize, Default, Debug)]
-pub struct JsonBalanceResponse {
+pub struct BalanceResponse {
     pub unspent: String,
     pub pending: String,
     pub spent: String,
@@ -107,6 +105,6 @@ pub struct JsonBalanceResponse {
 }
 
 #[derive(Deserialize, Serialize, Default, Debug)]
-pub struct JsonSubmitResponse {
+pub struct SubmitResponse {
     pub transaction_id: String,
 }

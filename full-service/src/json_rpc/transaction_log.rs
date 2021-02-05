@@ -1,13 +1,14 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
-use crate::db::models::TransactionLog;
-use crate::db::transaction_log::AssociatedTxos;
+// use crate::db::models::TransactionLog;
+// use crate::db::transaction_log::AssociatedTxos;
+use crate::db;
 use chrono::offset::TimeZone;
 use chrono::Utc;
 use serde_derive::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
-pub struct JsonTransactionLog {
+pub struct TransactionLog {
     pub object: String,
     pub transaction_log_id: String,
     pub direction: String,
@@ -30,8 +31,8 @@ pub struct JsonTransactionLog {
     pub offset_count: i32,
 }
 
-impl JsonTransactionLog {
-    pub fn new(transaction_log: &TransactionLog, associated_txos: &AssociatedTxos) -> Self {
+impl TransactionLog {
+    pub fn new(transaction_log: &db::TransactionLog, associated_txos: &db::AssociatedTxos) -> Self {
         let recipient_address_id = transaction_log.recipient_public_address_b58.clone();
         let assigned_address_id = transaction_log.assigned_subaddress_b58.clone();
         Self {

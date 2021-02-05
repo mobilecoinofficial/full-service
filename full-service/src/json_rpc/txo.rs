@@ -1,11 +1,11 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
-use crate::db::txo::TxoDetails;
+use crate::db::TxoDetails;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Map;
 
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
-pub struct JsonTxo {
+pub struct Txo {
     pub object: String,
     pub txo_id: String,
     pub value_pmob: String,
@@ -25,7 +25,7 @@ pub struct JsonTxo {
     pub offset_count: i32,
 }
 
-impl JsonTxo {
+impl Txo {
     pub fn new(txo_details: &TxoDetails) -> Self {
         let mut account_status_map: Map<String, serde_json::Value> = Map::new();
 

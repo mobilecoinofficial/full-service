@@ -2,21 +2,20 @@
 
 //! Application-layer Wallet service.
 
-use crate::db::b58_decode;
+use crate::db::{
+    self, b58_decode, Account, AccountModel, AssignedSubaddress, TransactionLog,
+    TransactionLogModel, Txo, TxoModel, TXO_ORPHANED, TXO_PENDING, TXO_SECRETED, TXO_SPENT,
+    TXO_UNSPENT,
+};
+use crate::json_rpc::{BalanceResponse, MembershipProof};
+use crate::service::wallet_trait::Wallet;
+use crate::service::WalletServiceError;
 use crate::{
-    db::models::{
-        Account, AssignedSubaddress, TransactionLog, Txo, TXO_ORPHANED, TXO_PENDING, TXO_SECRETED,
-        TXO_SPENT, TXO_UNSPENT,
-    },
     db::WalletDb,
-    db::{
-        account::{AccountID, AccountModel},
-        assigned_subaddress::AssignedSubaddressModel,
-        transaction_log::TransactionLogModel,
-        txo::TxoModel,
-    },
+    json_rpc,
     service::{sync::SyncThread, transaction_builder::WalletTransactionBuilder},
 };
+use diesel::prelude::*;
 use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
 use mc_common::logger::{log, Logger};
 use mc_connection::{
@@ -27,19 +26,7 @@ use mc_crypto_rand::rand_core::RngCore;
 use mc_fog_report_connection::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::{NetworkState, PollingNetworkState};
-use mc_mobilecoind::payments::TxProposal;
-use mc_transaction_core::tx::{Tx, TxOut, TxOutConfirmationNumber};
 use mc_util_from_random::FromRandom;
-
-use crate::api::{
-    JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
-    JsonCreateAccountResponse, JsonProof, JsonSubmitResponse, JsonTransactionLog, JsonTxo,
-    JsonWalletStatus,
-};
-use crate::service::wallet_trait::Wallet;
-use crate::service::WalletServiceError;
-use diesel::prelude::*;
-use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
 use serde_json::Map;
 use std::{
     convert::TryFrom,
@@ -49,6 +36,9 @@ use std::{
         Arc, RwLock,
     },
 };
+
+use crate::db::assigned_subaddress::AssignedSubaddressModel;
+use mc_transaction_core::tx::{Tx, TxOut, TxOutConfirmationNumber};
 
 /// Service for interacting with the wallet
 pub struct WalletService<
@@ -107,7 +97,7 @@ impl<
     > Wallet for WalletService<T, FPR>
 {
     // Wallet Status is an overview of the wallet's status
-    fn get_wallet_status(&self) -> Result<JsonWalletStatus, WalletServiceError> {
+    fn get_wallet_status(&self) -> Result<json_rpc::WalletStatus, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
         let local_height = self.ledger_db.num_blocks()?;
@@ -120,8 +110,8 @@ impl<
             .unwrap_or(0);
 
         Ok(
-            conn.transaction::<JsonWalletStatus, WalletServiceError, _>(|| {
-                let accounts = Account::list_all(&conn)?;
+            conn.transaction::<json_rpc::WalletStatus, WalletServiceError, _>(|| {
+                let accounts = db::Account::list_all(&conn)?;
                 let mut account_map = Map::new();
 
                 let mut total_available_pmob = 0;
@@ -129,8 +119,8 @@ impl<
                 let mut is_synced_all = true;
                 let mut account_ids = Vec::new();
                 for account in accounts {
-                    let decorated = Account::get_decorated(
-                        &AccountID(account.account_id_hex.clone()),
+                    let decorated = db::Account::get_decorated(
+                        &db::AccountID(account.account_id_hex.clone()),
                         local_height,
                         network_height,
                         &conn,
@@ -145,7 +135,7 @@ impl<
                     account_ids.push(account.account_id_hex.to_string());
                 }
 
-                Ok(JsonWalletStatus {
+                Ok(json_rpc::WalletStatus {
                     object: "wallet_status".to_string(),
                     network_height: network_height.to_string(),
                     local_height: local_height.to_string(),
@@ -164,7 +154,7 @@ impl<
         &self,
         name: Option<String>,
         first_block: Option<u64>,
-    ) -> Result<JsonCreateAccountResponse, WalletServiceError> {
+    ) -> Result<json_rpc::CreateAccountResponse, WalletServiceError> {
         log::info!(
             self.logger,
             "Creating account {:?} with first_block: {:?}",
@@ -178,7 +168,7 @@ impl<
         let entropy_str = hex::encode(root_id.root_entropy);
 
         let conn = self.wallet_db.get_conn()?;
-        let (account_id, _public_address_b58) = Account::create(
+        let (account_id, _public_address_b58) = db::Account::create(
             &account_key,
             first_block,
             None,
@@ -193,10 +183,10 @@ impl<
             .highest_block_index_on_network()
             .map(|v| v + 1)
             .unwrap_or(0);
-        let decorated_account =
-            Account::get_decorated(&account_id, local_height, network_height, &conn)?;
+        let decorated_account: json_rpc::Account =
+            db::Account::get_decorated(&account_id, local_height, network_height, &conn)?;
 
-        Ok(JsonCreateAccountResponse {
+        Ok(json_rpc::CreateAccountResponse {
             entropy: entropy_str,
             account: decorated_account,
         })
@@ -207,7 +197,7 @@ impl<
         entropy: String,
         name: Option<String>,
         first_block: Option<u64>,
-    ) -> Result<JsonAccount, WalletServiceError> {
+    ) -> Result<json_rpc::Account, WalletServiceError> {
         log::info!(
             self.logger,
             "Importing account {:?} with first_block: {:?}",
@@ -236,7 +226,10 @@ impl<
         )?)
     }
 
-    fn get_account(&self, account_id_hex: &AccountID) -> Result<JsonAccount, WalletServiceError> {
+    fn get_account(
+        &self,
+        account_id_hex: &db::AccountID,
+    ) -> Result<json_rpc::Account, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
         let local_height = self.ledger_db.num_blocks()?;
         let network_state = self.network_state.read().expect("lock poisoned");
@@ -245,7 +238,7 @@ impl<
             .highest_block_index_on_network()
             .map(|v| v + 1)
             .unwrap_or(0);
-        Ok(Account::get_decorated(
+        Ok(db::Account::get_decorated(
             &account_id_hex,
             local_height,
             network_height,
@@ -253,10 +246,10 @@ impl<
         )?)
     }
 
-    fn list_accounts(&self) -> Result<Vec<JsonAccount>, WalletServiceError> {
+    fn list_accounts(&self) -> Result<Vec<json_rpc::Account>, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
         Ok(
-            conn.transaction::<Vec<JsonAccount>, WalletServiceError, _>(|| {
+            conn.transaction::<Vec<json_rpc::Account>, WalletServiceError, _>(|| {
                 let accounts = Account::list_all(&conn)?;
                 let local_height = self.ledger_db.num_blocks()?;
                 let network_state = self.network_state.read().expect("lock poisoned");
@@ -268,15 +261,15 @@ impl<
                 accounts
                     .iter()
                     .map(|a| {
-                        Account::get_decorated(
-                            &AccountID(a.account_id_hex.clone()),
+                        db::Account::get_decorated(
+                            &db::AccountID(a.account_id_hex.clone()),
                             local_height,
                             network_height,
                             &conn,
                         )
                         .map_err(|e| e.into())
                     })
-                    .collect::<Result<Vec<JsonAccount>, WalletServiceError>>()
+                    .collect::<Result<Vec<_>, WalletServiceError>>()
             })?,
         )
     }
@@ -285,53 +278,53 @@ impl<
         &self,
         account_id_hex: &str,
         name: String,
-    ) -> Result<JsonAccount, WalletServiceError> {
+    ) -> Result<json_rpc::Account, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
-        Ok(conn.transaction::<JsonAccount, WalletServiceError, _>(|| {
-            Account::get(&AccountID(account_id_hex.to_string()), &conn)?
-                .update_name(name, &conn)?;
+        Ok(
+            conn.transaction::<json_rpc::Account, WalletServiceError, _>(|| {
+                Account::get(&db::AccountID(account_id_hex.to_string()), &conn)?
+                    .update_name(name, &conn)?;
 
-            let local_height = self.ledger_db.num_blocks()?;
-            let network_state = self.network_state.read().expect("lock poisoned");
-            // network_height = network_block_index + 1
-            let network_height = network_state
-                .highest_block_index_on_network()
-                .map(|v| v + 1)
-                .unwrap_or(0);
-            let decorated_account = Account::get_decorated(
-                &AccountID(account_id_hex.to_string()),
-                local_height,
-                network_height,
-                &conn,
-            )?;
-            Ok(decorated_account)
-        })?)
+                let local_height = self.ledger_db.num_blocks()?;
+                let network_state = self.network_state.read().expect("lock poisoned");
+                // network_height = network_block_index + 1
+                let network_height = network_state
+                    .highest_block_index_on_network()
+                    .map(|v| v + 1)
+                    .unwrap_or(0);
+                let decorated_account = Account::get_decorated(
+                    &db::AccountID(account_id_hex.to_string()),
+                    local_height,
+                    network_height,
+                    &conn,
+                )?;
+                Ok(decorated_account)
+            })?,
+        )
     }
 
     fn delete_account(&self, account_id_hex: &str) -> Result<(), WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
-
-        Account::get(&AccountID(account_id_hex.to_string()), &conn)?.delete(&conn)?;
+        db::Account::get(&db::AccountID(account_id_hex.to_string()), &conn)
+            .and_then(|account| account.delete(&conn))?;
         Ok(())
     }
 
-    fn list_txos(&self, account_id_hex: &str) -> Result<Vec<JsonTxo>, WalletServiceError> {
+    fn list_txos(&self, account_id_hex: &str) -> Result<Vec<json_rpc::Txo>, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
-
         let txos = Txo::list_for_account(account_id_hex, &conn)?;
-        Ok(txos.iter().map(|t| JsonTxo::new(t)).collect())
+        Ok(txos.iter().map(|t| json_rpc::Txo::new(t)).collect())
     }
 
-    fn get_txo(&self, txo_id_hex: &str) -> Result<JsonTxo, WalletServiceError> {
+    fn get_txo(&self, txo_id_hex: &str) -> Result<json_rpc::Txo, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
-
         let txo_details = Txo::get(txo_id_hex, &conn)?;
-        Ok(JsonTxo::new(&txo_details))
+        Ok(json_rpc::Txo::new(&txo_details))
     }
 
     // Balance consists of the sums of the various txo states in our wallet
-    fn get_balance(&self, account_id_hex: &str) -> Result<JsonBalanceResponse, WalletServiceError> {
+    fn get_balance(&self, account_id_hex: &str) -> Result<BalanceResponse, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
         let unspent = Txo::list_by_status(account_id_hex, TXO_UNSPENT, &conn)?
@@ -356,9 +349,9 @@ impl<
             .sum::<u128>();
 
         let local_block_count = self.ledger_db.num_blocks()?;
-        let account = Account::get(&AccountID(account_id_hex.to_string()), &conn)?;
+        let account = Account::get(&db::AccountID(account_id_hex.to_string()), &conn)?;
 
-        Ok(JsonBalanceResponse {
+        Ok(BalanceResponse {
             unspent: unspent.to_string(),
             pending: pending.to_string(),
             spent: spent.to_string(),
@@ -374,33 +367,35 @@ impl<
         account_id_hex: &str,
         comment: Option<String>,
         // FIXME: WS-32 - add "sync from block"
-    ) -> Result<JsonAddress, WalletServiceError> {
+    ) -> Result<json_rpc::Address, WalletServiceError> {
         let conn = &self.wallet_db.get_conn()?;
 
-        Ok(conn.transaction::<JsonAddress, WalletServiceError, _>(|| {
-            let (public_address_b58, _subaddress_index) =
-                AssignedSubaddress::create_next_for_account(
-                    account_id_hex,
-                    comment.unwrap_or_else(|| String::from("")).as_str(),
-                    &conn,
-                )?;
+        Ok(
+            conn.transaction::<json_rpc::Address, WalletServiceError, _>(|| {
+                let (public_address_b58, _subaddress_index) =
+                    AssignedSubaddress::create_next_for_account(
+                        account_id_hex,
+                        comment.unwrap_or_else(|| String::from("")).as_str(),
+                        &conn,
+                    )?;
 
-            Ok(JsonAddress::new(&AssignedSubaddress::get(
-                &public_address_b58,
-                &conn,
-            )?))
-        })?)
+                Ok(json_rpc::Address::new(&AssignedSubaddress::get(
+                    &public_address_b58,
+                    &conn,
+                )?))
+            })?,
+        )
     }
 
     fn list_assigned_subaddresses(
         &self,
         account_id_hex: &str,
-    ) -> Result<Vec<JsonAddress>, WalletServiceError> {
+    ) -> Result<Vec<json_rpc::Address>, WalletServiceError> {
         Ok(
             AssignedSubaddress::list_all(account_id_hex, &self.wallet_db.get_conn()?)?
                 .iter()
-                .map(|a| JsonAddress::new(a))
-                .collect::<Vec<JsonAddress>>(),
+                .map(|a| json_rpc::Address::new(a))
+                .collect::<Vec<json_rpc::Address>>(),
         )
     }
 
@@ -414,7 +409,7 @@ impl<
         fee: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
-    ) -> Result<JsonTxProposal, WalletServiceError> {
+    ) -> Result<mc_mobilecoind_json::data_types::JsonTxProposal, WalletServiceError> {
         let mut builder = WalletTransactionBuilder::new(
             account_id_hex.to_string(),
             self.wallet_db.clone(),
@@ -448,15 +443,17 @@ impl<
 
         // FIXME: WS-32 - Might be nice to have a tx_proposal table so that you don't have to
         //        write these out to local files. That's V2, though.
-        Ok(JsonTxProposal::from(&proto_tx_proposal))
+        Ok(mc_mobilecoind_json::data_types::JsonTxProposal::from(
+            &proto_tx_proposal,
+        ))
     }
 
     fn submit_transaction(
         &self,
-        tx_proposal: JsonTxProposal,
+        tx_proposal: mc_mobilecoind_json::data_types::JsonTxProposal,
         comment: Option<String>,
         account_id_hex: Option<String>,
-    ) -> Result<JsonSubmitResponse, WalletServiceError> {
+    ) -> Result<json_rpc::SubmitResponse, WalletServiceError> {
         // Pick a peer to submit to.
         let responder_ids = self.peer_manager.responder_ids();
         if responder_ids.is_empty() {
@@ -487,8 +484,9 @@ impl<
             tx,
             block_count
         );
-        let converted_proposal = TxProposal::try_from(&tx_proposal_proto)?; // Look here
-        let transaction_id = TransactionLog::log_submitted(
+        let converted_proposal =
+            mc_mobilecoind::payments::TxProposal::try_from(&tx_proposal_proto)?; // Look here
+        let transaction_id = db::TransactionLog::log_submitted(
             converted_proposal,
             block_count,
             comment.unwrap_or_else(|| "".to_string()),
@@ -497,7 +495,7 @@ impl<
         )?;
 
         // Successfully submitted.
-        Ok(JsonSubmitResponse { transaction_id })
+        Ok(json_rpc::SubmitResponse { transaction_id })
     }
 
     /// Convenience method that builds and submits in one go.
@@ -512,7 +510,7 @@ impl<
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
-    ) -> Result<JsonSubmitResponse, WalletServiceError> {
+    ) -> Result<json_rpc::SubmitResponse, WalletServiceError> {
         let tx_proposal = self.build_transaction(
             account_id_hex,
             recipient_public_address,
@@ -528,12 +526,15 @@ impl<
     fn list_transactions(
         &self,
         account_id_hex: &str,
-    ) -> Result<Vec<JsonTransactionLog>, WalletServiceError> {
+    ) -> Result<Vec<json_rpc::TransactionLog>, WalletServiceError> {
         let transactions = TransactionLog::list_all(account_id_hex, &self.wallet_db.get_conn()?)?;
 
-        let mut results: Vec<JsonTransactionLog> = Vec::new();
+        let mut results: Vec<json_rpc::TransactionLog> = Vec::new();
         for (transaction, associated_txos) in transactions.iter() {
-            results.push(JsonTransactionLog::new(&transaction, &associated_txos));
+            results.push(json_rpc::TransactionLog::new(
+                &transaction,
+                &associated_txos,
+            ));
         }
         Ok(results)
     }
@@ -541,15 +542,15 @@ impl<
     fn get_transaction(
         &self,
         transaction_id_hex: &str,
-    ) -> Result<JsonTransactionLog, WalletServiceError> {
+    ) -> Result<json_rpc::TransactionLog, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
         Ok(
-            conn.transaction::<JsonTransactionLog, WalletServiceError, _>(|| {
+            conn.transaction::<json_rpc::TransactionLog, WalletServiceError, _>(|| {
                 let transaction = TransactionLog::get(transaction_id_hex, &conn)?;
                 let associated = transaction.get_associated_txos(&conn)?;
 
-                Ok(JsonTransactionLog::new(&transaction, &associated))
+                Ok(json_rpc::TransactionLog::new(&transaction, &associated))
             })?,
         )
     }
@@ -557,21 +558,23 @@ impl<
     fn get_transaction_object(
         &self,
         transaction_id_hex: &str,
-    ) -> Result<JsonTx, WalletServiceError> {
+    ) -> Result<mc_mobilecoind_json::data_types::JsonTx, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
         let transaction = TransactionLog::get(transaction_id_hex, &conn)?;
 
         if let Some(tx_bytes) = transaction.tx {
             let tx: Tx = mc_util_serial::decode(&tx_bytes)?;
             // Convert to proto
-            let proto_tx = mc_api::external::Tx::from(&tx);
-            Ok(JsonTx::from(&proto_tx))
+            let proto_tx = mc_api::external::Tx::from(&tx); // TODO: ???
+            Ok(mc_mobilecoind_json::data_types::JsonTx::from(&proto_tx))
         } else {
             Err(WalletServiceError::NoTxInTransaction)
         }
     }
 
-    fn get_txo_object(&self, txo_id_hex: &str) -> Result<JsonTxOut, WalletServiceError> {
+    /*
+
+    pub fn get_txo_object(&self, txo_id_hex: &str) -> Result<JsonTxOut, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
         let txo_details = Txo::get(txo_id_hex, &conn)?;
 
@@ -580,28 +583,45 @@ impl<
         let proto_txo = mc_api::external::TxOut::from(&txo);
         Ok(JsonTxOut::from(&proto_txo))
     }
+     */
+
+    fn get_txo_object(
+        &self,
+        txo_id_hex: &str,
+    ) -> Result<mc_mobilecoind_json::data_types::JsonTxOut, WalletServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+        let txo_details = Txo::get(txo_id_hex, &conn)?;
+
+        let tx_out: TxOut = mc_util_serial::decode(&txo_details.txo.txo)?;
+        // Convert to proto
+        let proto_txo = mc_api::external::TxOut::from(&tx_out);
+        Ok(mc_mobilecoind_json::data_types::JsonTxOut::from(&proto_txo))
+    }
 
     fn get_block_object(
         &self,
         block_index: u64,
-    ) -> Result<(JsonBlock, JsonBlockContents), WalletServiceError> {
+    ) -> Result<(json_rpc::Block, json_rpc::BlockContents), WalletServiceError> {
         let block = self.ledger_db.get_block(block_index)?;
         let block_contents = self.ledger_db.get_block_contents(block_index)?;
         Ok((
-            JsonBlock::new(&block),
-            JsonBlockContents::new(&block_contents),
+            json_rpc::Block::new(&block),
+            json_rpc::BlockContents::new(&block_contents),
         ))
     }
 
-    fn get_proofs(&self, transaction_log_id: &str) -> Result<Vec<JsonProof>, WalletServiceError> {
+    fn get_proofs(
+        &self,
+        transaction_log_id: &str,
+    ) -> Result<Vec<MembershipProof>, WalletServiceError> {
         let transaction_log = self.get_transaction(&transaction_log_id)?;
-        let proofs: Vec<JsonProof> = transaction_log
+        let proofs: Vec<MembershipProof> = transaction_log
             .output_txo_ids
             .iter()
             .map(|txo_id| {
                 self.get_txo(txo_id).and_then(|txo| {
                     txo.proof
-                        .map(|proof| JsonProof {
+                        .map(|proof| MembershipProof {
                             object: "proof".to_string(),
                             txo_id: txo_id.clone(),
                             proof,
@@ -609,7 +629,7 @@ impl<
                         .ok_or_else(|| WalletServiceError::MissingProof(txo_id.to_string()))
                 })
             })
-            .collect::<Result<Vec<JsonProof>, WalletServiceError>>()?;
+            .collect::<Result<Vec<MembershipProof>, WalletServiceError>>()?;
         Ok(proofs)
     }
 
@@ -622,7 +642,7 @@ impl<
         let conn = self.wallet_db.get_conn()?;
         let proof: TxOutConfirmationNumber = mc_util_serial::decode(&hex::decode(proof_hex)?)?;
         Ok(Txo::verify_proof(
-            &AccountID(account_id_hex.to_string()),
+            &db::AccountID(account_id_hex.to_string()),
             &txo_id_hex,
             &proof,
             &conn,
@@ -633,12 +653,10 @@ impl<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        db::models::{TXO_MINTED, TXO_RECEIVED},
-        test_utils::{
-            add_block_to_ledger_db, get_test_ledger, setup_peer_manager_and_network_state,
-            WalletDbTestContext,
-        },
+    use crate::db::{TXO_MINTED, TXO_RECEIVED};
+    use crate::test_utils::{
+        add_block_to_ledger_db, get_test_ledger, setup_peer_manager_and_network_state,
+        WalletDbTestContext,
     };
     use mc_account_keys::PublicAddress;
     use mc_common::logger::{test_with_logger, Logger};
@@ -736,7 +754,7 @@ mod tests {
         let txos = service.list_txos(&alice.account.account_id).unwrap();
         assert_eq!(txos.len(), 3);
         // The Pending Tx
-        let pending: Vec<JsonTxo> = txos
+        let pending: Vec<json_rpc::Txo> = txos
             .iter()
             .cloned()
             .filter(|t| {
@@ -751,7 +769,7 @@ mod tests {
             TXO_RECEIVED
         );
         assert_eq!(pending[0].value_pmob, "100000000000000");
-        let minted: Vec<JsonTxo> = txos
+        let minted: Vec<json_rpc::Txo> = txos
             .iter()
             .cloned()
             .filter(|t| t.minted_account_id.is_some())

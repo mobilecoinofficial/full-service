@@ -4,13 +4,13 @@
 // Required because hashbrown is at 0.9.1 and has build issues otherwise
 #![feature(ptr_offset_from)]
 
-mod api;
 pub mod config;
 mod db;
+mod json_rpc;
 mod service;
 
-pub use api::{rocket, WalletApiState};
 pub use db::WalletDb;
+pub use json_rpc::{rocket, WalletApiState};
 pub use service::WalletService;
 
 extern crate alloc;

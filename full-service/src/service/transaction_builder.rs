@@ -6,14 +6,6 @@
 //!
 //! This module, on the other hand, builds a transaction within the context of the wallet.
 
-use crate::db::{
-    models::{Account, Txo, TXO_UNSPENT},
-    WalletDb,
-    {
-        account::{AccountID, AccountModel},
-        txo::TxoModel,
-    },
-};
 use mc_account_keys::{AccountKey, PublicAddress};
 use mc_common::logger::{log, Logger};
 use mc_common::{HashMap, HashSet};
@@ -29,7 +21,9 @@ use mc_transaction_core::tx::{TxOut, TxOutMembershipProof};
 use mc_transaction_core::BlockIndex;
 use mc_transaction_std::{InputCredentials, TransactionBuilder};
 
+use crate::db::{Account, AccountID, AccountModel, Txo, TxoModel, TXO_UNSPENT};
 use crate::service::transaction_builder_error::WalletTransactionBuilderError;
+use crate::WalletDb;
 use diesel::prelude::*;
 use rand::Rng;
 use std::convert::TryFrom;
@@ -169,8 +163,7 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
 
         Ok(
             conn.transaction::<TxProposal, WalletTransactionBuilderError, _>(|| {
-                let account: Account =
-                    Account::get(&AccountID(self.account_id_hex.to_string()), &conn)?;
+                let account = Account::get(&AccountID(self.account_id_hex.to_string()), &conn)?;
                 let from_account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
 
                 // Get membership proofs for our inputs

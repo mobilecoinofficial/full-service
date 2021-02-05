@@ -1,10 +1,10 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
-use crate::db::models::AssignedSubaddress;
+use crate::db::AssignedSubaddress;
 use serde_derive::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
-pub struct JsonAddress {
+pub struct Address {
     pub object: String,
     pub address_id: String,
     pub public_address: String,
@@ -15,7 +15,7 @@ pub struct JsonAddress {
     pub offset_count: i32,
 }
 
-impl JsonAddress {
+impl Address {
     pub fn new(assigned_subaddress: &AssignedSubaddress) -> Self {
         Self {
             object: "assigned_address".to_string(),

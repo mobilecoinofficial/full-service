@@ -4,9 +4,8 @@
 //!
 //! A [JSON RPC 2.0](https://www.jsonrpc.org/specification) API inspired by [Stratum](https://github.com/aeternity/protocol/blob/master/STRATUM.md) .
 
-use crate::api::json_rpc_request::Request;
-use crate::api::json_rpc_response::Response;
-use crate::db::account::AccountID;
+use crate::db::AccountID;
+use crate::json_rpc::{self, Request, Response};
 use crate::service::Wallet;
 use rocket::{get, post, routes};
 use rocket_contrib::json::Json;
@@ -55,7 +54,7 @@ fn wallet_api_inner(
                 .map(|fb| fb.parse::<u64>())
                 .transpose()
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
-            let result = service
+            let result: json_rpc::Account = service
                 .import_account(entropy, name, fb)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
             Response::import_account { account: result }
@@ -319,7 +318,7 @@ pub fn rocket(rocket_config: rocket::Config, state: WalletApiState) -> rocket::R
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::{JsonAccount, JsonCreateAccountResponse};
+    use crate::json_rpc;
     use crate::service::MockWallet;
     use mc_common::logger::{test_with_logger, Logger};
     use rocket::{
@@ -380,10 +379,10 @@ mod tests {
             }
         });
 
-        let expected_response: JsonCreateAccountResponse = {
-            let mut account = JsonAccount::default();
+        let expected_response: json_rpc::CreateAccountResponse = {
+            let mut account = json_rpc::Account::default();
             account.account_id = "123".to_string();
-            JsonCreateAccountResponse {
+            json_rpc::CreateAccountResponse {
                 entropy: "ABC".to_string(),
                 account,
             }

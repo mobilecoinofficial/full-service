@@ -3,7 +3,7 @@ use serde_derive::{Deserialize, Serialize};
 use serde_json::Map;
 
 #[derive(Eq, PartialEq, Deserialize, Serialize, Default, Debug, Clone)]
-pub struct JsonWalletStatus {
+pub struct WalletStatus {
     pub object: String,
     pub network_height: String,
     pub local_height: String,
