@@ -236,32 +236,41 @@ pub trait Wallet {
 
 #[cfg(test)]
 mod tests {
-
+    use crate::service::wallet_trait::Wallet;
     use crate::service::wallet_trait::MockWallet;
     use crate::service::JsonWalletStatus;
 
-    // /// Example of creating a mock Wallet
-    // #[test]
-    // fn mock_wallet_example() {
-    //     let mut mock_wallet = MockWallet::new();
-    //
-    //     // wallet status, now with more Pinnipeds.
-    //     let expected_status = JsonWalletStatus{
-    //         object: "LeopardSeal".to_string(),
-    //         network_height: "GreySeal".to_string(),
-    //         local_height: "HarbourSeal".to_string(),
-    //         is_synced_all: false,
-    //         total_available_pmob: "RibbonSeal".to_string(),
-    //         total_pending_pmob: "BeardedSeal".to_string(),
-    //         account_ids: vec![],
-    //         account_map: Default::default()
-    //     };
-    //
-    //     // get_wallet_status should be called once, and should return `expected_status`.
-    //     mock_wallet.expect_get_wallet_status()
-    //         .times(1)
-    //         .return_const(Ok(expected_status.clone()));
-    //
-    //     assert_eq!(mock_wallet.get_wallet_status(), Ok(expected_status));
-    // }
+    /// Example of creating a mock Wallet
+    #[test]
+    fn mock_wallet_example() {
+        let mut mock_wallet = MockWallet::new();
+
+        // wallet status, now with more Pinnipeds.
+        let expected_status = JsonWalletStatus{
+            object: "LeopardSeal".to_string(),
+            network_height: "GreySeal".to_string(),
+            local_height: "HarbourSeal".to_string(),
+            is_synced_all: false,
+            total_available_pmob: "RibbonSeal".to_string(),
+            total_pending_pmob: "BeardedSeal".to_string(),
+            account_ids: vec![],
+            account_map: Default::default()
+        };
+
+        // Configure the mock wallet.
+        // get_wallet_status should be called once and should return `expected_status`.
+        // return_once is used instead of return_const because WalletServiceError is note Clone.
+        {
+            let expected_status = expected_status.clone();
+            mock_wallet.expect_get_wallet_status()
+                .return_once(move || Ok(expected_status.clone()));
+        }
+
+
+        // Query the mock wallet.
+        match mock_wallet.get_wallet_status() {
+            Ok(status) => assert_eq!(status, expected_status),
+            Err(e) => panic!(format!("Unexpected error {}", e))
+        }
+    }
 }

@@ -34,7 +34,7 @@ pub struct JsonAccount {
     pub recovery_mode: bool,
 }
 
-#[derive(Deserialize, Serialize, Default, Debug, Clone)]
+#[derive(Eq, PartialEq, Deserialize, Serialize, Default, Debug, Clone)]
 pub struct JsonWalletStatus {
     pub object: String,
     pub network_height: String,
