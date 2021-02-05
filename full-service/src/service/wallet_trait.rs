@@ -1,4 +1,6 @@
-use crate::api::decorated_types::{
+//! A MobileCoin wallet.
+
+use crate::api::{
     JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
     JsonCreateAccountResponse, JsonProof, JsonSubmitResponse, JsonTransactionLog, JsonTxo,
     JsonWalletStatus,
@@ -227,7 +229,7 @@ pub trait Wallet {
 
 #[cfg(test)]
 mod tests {
-    use crate::api::decorated_types::JsonWalletStatus;
+    use crate::api::JsonWalletStatus;
     use crate::service::wallet_trait::MockWallet;
     use crate::service::wallet_trait::Wallet;
 
@@ -236,7 +238,7 @@ mod tests {
     fn mock_wallet_example() {
         let mut mock_wallet = MockWallet::new();
 
-        // wallet status, now with more Pinnipeds.
+        // WalletStatus, now with more Pinnipeds!
         let expected_status = JsonWalletStatus {
             object: "LeopardSeal".to_string(),
             network_height: "GreySeal".to_string(),

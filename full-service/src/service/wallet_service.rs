@@ -28,11 +28,10 @@ use mc_fog_report_connection::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::{NetworkState, PollingNetworkState};
 use mc_mobilecoind::payments::TxProposal;
-use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
 use mc_transaction_core::tx::{Tx, TxOut, TxOutConfirmationNumber};
 use mc_util_from_random::FromRandom;
 
-use crate::api::decorated_types::{
+use crate::api::{
     JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
     JsonCreateAccountResponse, JsonProof, JsonSubmitResponse, JsonTransactionLog, JsonTxo,
     JsonWalletStatus,
@@ -40,6 +39,7 @@ use crate::api::decorated_types::{
 use crate::service::wallet_trait::Wallet;
 use crate::service::WalletServiceError;
 use diesel::prelude::*;
+use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
 use serde_json::Map;
 use std::{
     convert::TryFrom,
@@ -487,7 +487,7 @@ impl<
             tx,
             block_count
         );
-        let converted_proposal = TxProposal::try_from(&tx_proposal_proto)?;
+        let converted_proposal = TxProposal::try_from(&tx_proposal_proto)?; // Look here
         let transaction_id = TransactionLog::log_submitted(
             converted_proposal,
             block_count,

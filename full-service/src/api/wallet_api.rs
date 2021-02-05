@@ -319,7 +319,7 @@ pub fn rocket(rocket_config: rocket::Config, state: WalletApiState) -> rocket::R
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::decorated_types::{JsonAccount, JsonCreateAccountResponse};
+    use crate::api::{JsonAccount, JsonCreateAccountResponse};
     use crate::service::MockWallet;
     use mc_common::logger::{test_with_logger, Logger};
     use rocket::{

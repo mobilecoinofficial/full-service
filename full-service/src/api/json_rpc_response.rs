@@ -2,9 +2,9 @@
 
 //! JSON-RPC Responses from the Wallet API.
 
-use crate::api::decorated_types::{
-    JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents, JsonProof,
-    JsonSubmitResponse, JsonTransactionLog, JsonTxo, JsonWalletStatus,
+use crate::api::{
+    JsonAccount, JsonAddress, JsonBlock, JsonBlockContents, JsonProof, JsonTransactionLog, JsonTxo,
+    JsonWalletStatus,
 };
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
 use serde::{Deserialize, Serialize};
@@ -87,4 +87,26 @@ pub enum Response {
     verify_proof {
         verified: bool,
     },
+}
+
+#[derive(Clone, Deserialize, Serialize, Default, Debug)]
+pub struct JsonCreateAccountResponse {
+    pub entropy: String,
+    pub account: JsonAccount,
+}
+
+#[derive(Deserialize, Serialize, Default, Debug)]
+pub struct JsonBalanceResponse {
+    pub unspent: String,
+    pub pending: String,
+    pub spent: String,
+    pub secreted: String,
+    pub orphaned: String,
+    pub local_block_count: String,
+    pub synced_blocks: String,
+}
+
+#[derive(Deserialize, Serialize, Default, Debug)]
+pub struct JsonSubmitResponse {
+    pub transaction_id: String,
 }
