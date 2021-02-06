@@ -15,7 +15,14 @@ MobileCoin Full Service is available under open-source licenses. Look for the [L
 
 ## Build and Run
 
+1. Install dependencies.
+
+    ```sh
+    sudo apt install cmake protobuf-compiler
+    ```
+
 1. Pull submodule.
+
     ```sh
     git submodule init
     git submodule update
