@@ -56,12 +56,12 @@ MobileCoin Full Service is available under open-source licenses. Look for the [L
         --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/
     ```
 
-   | Param         | Purpose                  | Requirements              |
-   | :------------ | :----------------------- | :------------------------ |
-   | `wallet-db`   | Path to wallet file      | Created if does not exist |
-   | `ledger-db`   | Path to ledger directory | Created if does not exist |
-   | `peer`        | URI of consensus node. Used to submit <br /> transactions and to check the network <br /> block height. | MC URI format |
-   | `tx-src-urrl` | S3 location of archived ledger. Used to <br /> sync transactions to the local ledger. | S3 URI format |
+   | Param            | Purpose                  | Requirements              |
+   | :--------------- | :----------------------- | :------------------------ |
+   | `wallet-db`      | Path to wallet file      | Created if does not exist |
+   | `ledger-db`      | Path to ledger directory | Created if does not exist |
+   | `peer`           | URI of consensus node. Used to submit <br /> transactions and to check the network <br /> block height. | MC URI format |
+   | `tx-source-url`  | S3 location of archived ledger. Used to <br /> sync transactions to the local ledger. | S3 URI format |
 
 
 ## API
@@ -1205,7 +1205,7 @@ Note that full-service/diesel.toml provides the path to the schema.rs which will
     SGX_MODE=HW IAS_MODE=DEV CONSENSUS_ENCLAVE_CSS=$(pwd)/consensus-enclave.css cargo test
     ```
 
-    Note: providinig the CONSENESUS_ENCLAVE_CSS allows us to bypass the enclave build.
+    Note: providing the CONSENESUS_ENCLAVE_CSS allows us to bypass the enclave build.
 
 ### Linting
 
