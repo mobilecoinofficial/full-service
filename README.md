@@ -15,6 +15,12 @@ MobileCoin Full Service is available under open-source licenses. Look for the [L
 
 ## Build and Run
 
+1. Pull submodule.
+    ```sh
+    git submodule init
+    git submodule update
+    ```
+
 1. Get the appropriate published enclave measurement, and save to `$(pwd)/consensus-enclave.css`
 
     ```sh
