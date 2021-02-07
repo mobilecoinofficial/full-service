@@ -1124,7 +1124,7 @@ mod tests {
         // Process the txos in the ledger into the DB
         sync_account(
             &ledger_db,
-            &wallet_db.get_conn_context().unwrap(),
+            &wallet_db,
             &AccountID::from(&src_account).to_string(),
             &logger,
         )
@@ -1173,7 +1173,7 @@ mod tests {
 
         // The account which will receive the Txo
         let recipient_account_key = AccountKey::random(&mut rng);
-        Account::create(
+        let (recipient_account_id, _pub_addr) = Account::create(
             &recipient_account_key,
             Some(0),
             None,
@@ -1182,15 +1182,12 @@ mod tests {
         )
         .unwrap();
 
-        // Start sync thread
-        let _sync_thread =
-            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
-
         let sender_account_key = random_account_with_seed_values(
             &wallet_db,
             &mut ledger_db,
             &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
             &mut rng,
+            &logger,
         );
 
         // Create TxProposal from the sender account, which contains the Confirmation Number
@@ -1222,8 +1219,18 @@ mod tests {
         // Now we need to let this txo hit the ledger, which will update sender and receiver
         add_block_with_tx_proposal(&mut ledger_db, proposal.clone());
 
-        // Now let our sync thread catch up for both sender and receiver
-        std::thread::sleep(std::time::Duration::from_secs(4));
+        let mut account =
+            Account::get(&recipient_account_id, &wallet_db.get_conn().unwrap()).unwrap();
+        while (account.next_block as u64) < ledger_db.num_blocks().unwrap() {
+            sync_account(
+                &ledger_db,
+                &wallet_db,
+                &recipient_account_id.to_string(),
+                &logger,
+            )
+            .unwrap();
+            account = Account::get(&recipient_account_id, &wallet_db.get_conn().unwrap()).unwrap();
+        }
 
         // Then let's make sure we received the Txo on the recipient account
         let txos = Txo::list_for_account(

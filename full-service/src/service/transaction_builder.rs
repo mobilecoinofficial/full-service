@@ -571,6 +571,7 @@ mod tests {
                 111111 * MOB as u64,
             ],
             &mut rng,
+            &logger,
         );
 
         // Construct a transaction
@@ -625,6 +626,7 @@ mod tests {
                 7_000_000 * MOB as u64,
             ],
             &mut rng,
+            &logger,
         );
 
         // Check balance
@@ -677,6 +679,7 @@ mod tests {
             &mut ledger_db,
             &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
             &mut rng,
+            &logger,
         );
 
         // Get our TXO list
@@ -757,6 +760,7 @@ mod tests {
             &mut ledger_db,
             &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
             &mut rng,
+            &logger,
         );
 
         let (recipient, mut builder) =
@@ -820,6 +824,7 @@ mod tests {
             &mut ledger_db,
             &vec![70 * MOB as u64],
             &mut rng,
+            &logger,
         );
 
         let (recipient, mut builder) =
@@ -897,6 +902,7 @@ mod tests {
             &mut ledger_db,
             &vec![70 * MOB as u64],
             &mut rng,
+            &logger,
         );
 
         let (recipient, mut builder) =
@@ -985,6 +991,7 @@ mod tests {
             &mut ledger_db,
             &vec![70 * MOB as u64],
             &mut rng,
+            &logger,
         );
 
         let (recipient, mut builder) =
@@ -1031,6 +1038,7 @@ mod tests {
             &mut ledger_db,
             &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
             &mut rng,
+            &logger,
         );
 
         let (recipient, mut builder) =
@@ -1098,6 +1106,7 @@ mod tests {
                 7_000_000 * MOB as u64,
             ],
             &mut rng,
+            &logger,
         );
 
         let (recipient, mut builder) =
@@ -1145,6 +1154,7 @@ mod tests {
             &mut ledger_db,
             &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
             &mut rng,
+            &logger,
         );
 
         let (recipient, mut builder) =

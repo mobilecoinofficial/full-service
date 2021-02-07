@@ -689,7 +689,7 @@ mod tests {
     ) {
         let mut count = 0;
         loop {
-            // Sleep to let the sync thread process the txos with the new password
+            // Sleep to let the sync thread process the txos
             std::thread::sleep(Duration::from_secs(1));
             // Check that syncing is working
             let body = json!({

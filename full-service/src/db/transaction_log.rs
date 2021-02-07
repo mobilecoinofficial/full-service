@@ -618,6 +618,7 @@ mod tests {
             &mut ledger_db,
             &vec![70 * MOB as u64],
             &mut rng,
+            &logger,
         );
 
         // Build a transaction
@@ -774,6 +775,7 @@ mod tests {
             &mut ledger_db,
             &vec![100 * MOB as u64, 200 * MOB as u64],
             &mut rng,
+            &logger,
         );
 
         // Build a transaction

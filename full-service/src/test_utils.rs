@@ -7,13 +7,13 @@ use crate::{
         txo::TxoModel,
         WalletDb,
     },
-    service::{transaction_builder::WalletTransactionBuilder, WalletService},
+    service::{sync::sync_account, transaction_builder::WalletTransactionBuilder, WalletService},
 };
 use diesel::{Connection as DSLConnection, SqliteConnection};
 use diesel_migrations::embed_migrations;
 use mc_account_keys::{AccountKey, PublicAddress};
 use mc_attest_core::Verifier;
-use mc_common::logger::Logger;
+use mc_common::logger::{log, Logger};
 use mc_connection::{Connection, ConnectionManager, ThickClient};
 use mc_connection_test_utils::{test_client_uri, MockBlockchainConnection};
 use mc_consensus_scp::QuorumSet;
@@ -378,9 +378,10 @@ pub fn random_account_with_seed_values(
     mut ledger_db: &mut LedgerDB,
     seed_values: &[u64],
     mut rng: &mut StdRng,
+    logger: &Logger,
 ) -> AccountKey {
     let account_key = AccountKey::random(&mut rng);
-    Account::create(
+    let (account_id, _public_address_b58) = Account::create(
         &account_key,
         Some(0),
         None,
@@ -388,6 +389,12 @@ pub fn random_account_with_seed_values(
         &wallet_db.get_conn_context().unwrap(),
     )
     .unwrap();
+
+    log::info!(
+        logger,
+        "\x1b[1;31m before adding blocks block height= {:?}\x1b[0m",
+        ledger_db.num_blocks().unwrap()
+    );
 
     for value in seed_values.iter() {
         add_block_to_ledger_db(
@@ -399,7 +406,18 @@ pub fn random_account_with_seed_values(
         );
     }
 
-    std::thread::sleep(std::time::Duration::from_secs(6));
+    log::info!(
+        logger,
+        "\x1b[1;31m after adding blocks: block height= {:?}\x1b[0m",
+        ledger_db.num_blocks().unwrap()
+    );
+
+    // Process the block added to the ledger_db
+    let mut account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
+    while (account.next_block as u64) < ledger_db.num_blocks().unwrap() {
+        sync_account(ledger_db, wallet_db, &account_id.to_string(), logger).unwrap();
+        account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
+    }
 
     // Make sure we have all our TXOs
     assert_eq!(

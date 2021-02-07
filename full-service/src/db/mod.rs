@@ -97,7 +97,7 @@ impl WalletDb {
         // Note: Setting max_size > 1 causes tests to fail. It may be more optimal for non-testing, though.
         // FIXME: WS-56 Investigate optimal max_size value for service and tests
         let pool = Pool::builder()
-            .max_size(1)
+            .max_size(10)
             .test_on_check_out(true)
             .build(manager)?;
         Ok(Self::new(pool, logger))

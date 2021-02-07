@@ -288,15 +288,28 @@ fn sync_thread_entry_point(
                     "\x1b[1;36m Getting connection context so we can sync the account {:?}\x1b[0m",
                     account_id
                 );
-                let conn_context = wallet_db
-                    .get_conn_context()
-                    .expect("could not get conn manager");
-                match sync_account(&ledger_db, &conn_context, &account_id, &logger) {
+                let conn_start = Instant::now();
+                // Note: This takes up to a second
+                // let conn_context = wallet_db
+                //     .get_conn_context()
+                //     .expect("could not get conn manager");
+                let conn_end = Instant::now();
+                log::info!(
+                    logger,
+                    "\x1b[1;32m Time to get conn before sync account {:?}\x1b[0m",
+                    conn_end - conn_start
+                );
+                match sync_account(&ledger_db, &wallet_db, &account_id, &logger) {
                     // Success - No more blocks are currently available.
                     Ok(SyncAccountOk::NoMoreBlocks) => {
                         // Remove the account id from the list of queued ones so that the main thread could
                         // queue it again if necessary.
                         log::trace!(logger, "{}: sync_account returned NoMoreBlocks", account_id);
+                        log::info!(
+                            logger,
+                            "\x1b[1;31m{}: sync_account returned NoMoreBlocks\x1b[0m",
+                            account_id
+                        );
 
                         let mut queued_account_ids =
                             queued_account_ids.lock().expect("mutex poisoned");
@@ -358,28 +371,74 @@ fn sync_thread_entry_point(
 /// Sync a single account.
 pub fn sync_account(
     ledger_db: &LedgerDB,
-    conn_context: &WalletDbConnContext,
+    wallet_db: &WalletDb,
     account_id: &str,
     logger: &Logger,
 ) -> Result<SyncAccountOk, SyncError> {
+    let outer_start = Instant::now();
+    log::info!(
+        logger,
+        "\x1b[1;31m in sync acccount: block height= {:?}\x1b[0m",
+        ledger_db.num_blocks()?
+    );
     for _ in 0..MAX_BLOCKS_PROCESSING_CHUNK_SIZE {
         log::info!(
             logger,
             "\x1b[1;33m Syncing account {:?}. About to get sync_status\x1b[0m",
             account_id
         );
+        let start = Instant::now();
+        let conn_context = wallet_db.get_conn_context()?;
         let sync_status = conn_context
             .conn
             .transaction::<SyncAccountOk, SyncError, _>(|| {
                 // Get the account data. If it is no longer available, the account has been removed and we
                 // can simply return.
+                let conn_end = Instant::now();
+                log::info!(
+                    logger,
+                    "\x1b[1;32m Time to get transaction {:?}\x1b[0m",
+                    conn_end - start
+                );
                 let account = Account::get(&AccountID(account_id.to_string()), &conn_context.conn)?;
+                let account_end = Instant::now();
+                log::info!(
+                    logger,
+                    "\x1b[1;32m Time to get account {:?}\x1b[0m",
+                    account_end - conn_end
+                );
+                log::info!(
+                    logger,
+                    "\x1b[1;31m Getting block contents for {:?}\x1b[0m",
+                    account.next_block
+                );
+
                 let block_contents = match ledger_db.get_block_contents(account.next_block as u64) {
-                    Ok(block_contents) => block_contents,
+                    Ok(block_contents) => {
+                        let block_end = Instant::now();
+                        log::info!(
+                            logger,
+                            "\x1b[1;32m Time to get block contents {:?}\x1b[0m",
+                            block_end - account_end
+                        );
+                        block_contents
+                    }
                     Err(mc_ledger_db::Error::NotFound) => {
+                        let block_end = Instant::now();
+                        log::info!(
+                            logger,
+                            "\x1b[1;32m Time to get block contents (no more blocks) {:?}\x1b[0m",
+                            block_end - account_end
+                        );
                         return Ok(SyncAccountOk::NoMoreBlocks);
                     }
                     Err(err) => {
+                        let block_end = Instant::now();
+                        log::info!(
+                            logger,
+                            "\x1b[1;32m Time to get block contents (error) {:?}\x1b[0m",
+                            block_end - account_end
+                        );
                         return Err(err.into());
                     }
                 };
@@ -393,6 +452,7 @@ pub fn sync_account(
                     account_id,
                 );
 
+                let process_start = Instant::now();
                 // Match tx outs into UTXOs.
                 let output_txo_ids = process_txos(
                     &conn_context,
@@ -401,7 +461,14 @@ pub fn sync_account(
                     account.next_block,
                     logger,
                 )?;
+                let process_end = Instant::now();
+                log::info!(
+                    logger,
+                    "\x1b[1;32m Time to process txos {:?}\x1b[0m",
+                    process_end - process_start
+                );
 
+                let update_start = Instant::now();
                 // Note: Doing this here means we are updating key images multiple times, once per account.
                 //       We do actually want to do it this way, because each account may need to process
                 //       the same block at a different time, depending on when we add it to the DB.
@@ -410,7 +477,14 @@ pub fn sync_account(
                     block_contents.key_images,
                     &conn_context.conn,
                 )?;
+                let update_end = Instant::now();
+                log::info!(
+                    logger,
+                    "\x1b[1;32m Time to update spent {:?}\x1b[0m",
+                    update_end - update_start
+                );
 
+                let log_start = Instant::now();
                 // Add a transaction for the received TXOs
                 TransactionLog::log_received(
                     &output_txo_ids,
@@ -418,6 +492,12 @@ pub fn sync_account(
                     account.next_block as u64,
                     &conn_context,
                 )?;
+                let log_end = Instant::now();
+                log::info!(
+                    logger,
+                    "\x1b[1;32m Time to log received {:?}\x1b[0m",
+                    log_end - log_start
+                );
                 Ok(SyncAccountOk::MoreBlocksPotentiallyAvailable)
             })?;
         // Early out of the loop if we hit NoMoreBlocks
@@ -425,6 +505,12 @@ pub fn sync_account(
             return Ok(SyncAccountOk::NoMoreBlocks);
         }
     }
+    let outer_end = Instant::now();
+    log::info!(
+        logger,
+        "\x1b[1;32m Time to complete outer loop {:?}\x1b[0m",
+        outer_end - outer_start
+    );
     Ok(SyncAccountOk::MoreBlocksPotentiallyAvailable)
 }
 
