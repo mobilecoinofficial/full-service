@@ -21,7 +21,12 @@ MobileCoin Full Service is available under open-source licenses. Look for the [L
 
     On Ubuntu:
     ```sh
-    sudo apt install build-essential cmake protobuf-compiler llvm libclang-dev libsqlite3-dev
+    sudo apt install build-essential cmake protobuf-compiler llvm libclang-dev libsqlite3-dev libssl1.1
+    ```
+
+    On Mac:
+    ```sh
+    brew bundle
     ```
 
 1. Pull submodule.
