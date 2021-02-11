@@ -6,6 +6,7 @@ use crate::{
         decorated_types::{
             JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents, JsonProof,
             JsonSubmitResponse, JsonTransactionLog, JsonTxo, JsonWalletStatus,
+            StringifiedJsonTxProposal,
         },
         wallet_impl::WalletService,
     },
@@ -89,7 +90,7 @@ pub enum JsonCommandRequest {
         max_spendable_value: Option<String>,
     },
     submit_transaction {
-        tx_proposal: JsonTxProposal,
+        tx_proposal: StringifiedJsonTxProposal,
         comment: Option<String>,
         account_id: Option<String>,
     },
@@ -165,7 +166,7 @@ pub enum JsonCommandResponse {
         transaction: JsonSubmitResponse,
     },
     build_transaction {
-        tx_proposal: JsonTxProposal,
+        tx_proposal: StringifiedJsonTxProposal,
     },
     submit_transaction {
         transaction: JsonSubmitResponse,
@@ -387,7 +388,9 @@ where
                     max_spendable_value,
                 )
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
-            JsonCommandResponse::build_transaction { tx_proposal }
+            JsonCommandResponse::build_transaction {
+                tx_proposal: StringifiedJsonTxProposal::from(&tx_proposal),
+            }
         }
         JsonCommandRequest::submit_transaction {
             tx_proposal,
@@ -395,7 +398,7 @@ where
             account_id,
         } => JsonCommandResponse::submit_transaction {
             transaction: service
-                .submit_transaction(tx_proposal, comment, account_id)
+                .submit_transaction(JsonTxProposal::from(&tx_proposal), comment, account_id)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
         JsonCommandRequest::get_all_transactions_by_account { account_id } => {
@@ -951,10 +954,9 @@ mod tests {
         let prefix_fee = tx_prefix.get("fee").unwrap().as_str().unwrap();
         let fee = tx_proposal.get("fee").unwrap();
         // FIXME: WS-9 - Note, minimum fee does not fit into i32 - need to make sure we
-        // are not losing        precision with the JsonTxProposal treating Fee
-        // as number
-        assert_eq!(fee.to_string(), "10000000000");
-        assert_eq!(fee.to_string(), prefix_fee);
+        // are not losing precision with the JsonTxProposal treating Fee as number
+        assert_eq!(fee, "10000000000");
+        assert_eq!(fee, prefix_fee);
 
         // Transaction builder attempts to use as many inputs as we have txos
         let inputs = tx_proposal.get("input_list").unwrap().as_array().unwrap();

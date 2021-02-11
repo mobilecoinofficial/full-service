@@ -9,7 +9,9 @@ use crate::db::{
     txo::TxoDetails,
 };
 use chrono::{TimeZone, Utc};
-use mc_mobilecoind_json::data_types::{JsonTxOut, JsonTxOutMembershipElement};
+use mc_mobilecoind_json::data_types::{
+    JsonOutlay, JsonTx, JsonTxOut, JsonTxOutMembershipElement, JsonTxProposal, JsonUnspentTxOut,
+};
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Map;
 
@@ -284,4 +286,93 @@ pub struct JsonProof {
     pub object: String,
     pub txo_id: String,
     pub proof: String,
+}
+
+#[derive(Deserialize, Serialize, Default, Debug)]
+pub struct StringifiedJsonUnspentTxOut {
+    pub tx_out: JsonTxOut,
+    pub subaddress_index: String,
+    pub key_image: String,
+    pub value: String,
+    pub attempted_spend_height: String,
+    pub attempted_spend_tombstone: String,
+    pub monitor_id: String,
+}
+
+impl From<&JsonUnspentTxOut> for StringifiedJsonUnspentTxOut {
+    fn from(src: &JsonUnspentTxOut) -> Self {
+        Self {
+            tx_out: src.tx_out.clone(),
+            subaddress_index: src.subaddress_index.to_string(),
+            key_image: src.key_image.clone(),
+            value: src.value.clone(),
+            attempted_spend_height: src.attempted_spend_height.to_string(),
+            attempted_spend_tombstone: src.attempted_spend_tombstone.to_string(),
+            monitor_id: src.monitor_id.clone(),
+        }
+    }
+}
+
+impl From<&StringifiedJsonUnspentTxOut> for JsonUnspentTxOut {
+    fn from(src: &StringifiedJsonUnspentTxOut) -> Self {
+        Self {
+            tx_out: src.tx_out.clone(),
+            subaddress_index: src.subaddress_index.parse::<u64>().unwrap(),
+            key_image: src.key_image.clone(),
+            value: src.value.clone(),
+            attempted_spend_height: src.attempted_spend_height.parse::<u64>().unwrap(),
+            attempted_spend_tombstone: src.attempted_spend_tombstone.parse::<u64>().unwrap(),
+            monitor_id: src.monitor_id.clone(),
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize, Default, Debug)]
+pub struct StringifiedJsonTxProposal {
+    pub input_list: Vec<StringifiedJsonUnspentTxOut>,
+    pub outlay_list: Vec<JsonOutlay>,
+    pub tx: JsonTx,
+    pub fee: String,
+    pub outlay_index_to_tx_out_index: Vec<(String, String)>,
+    pub outlay_confirmation_numbers: Vec<Vec<u8>>,
+}
+
+impl From<&JsonTxProposal> for StringifiedJsonTxProposal {
+    fn from(src: &JsonTxProposal) -> Self {
+        let outlay_map: Vec<(String, String)> = src
+            .outlay_index_to_tx_out_index
+            .iter()
+            .map(|(key, val)| (key.to_string(), val.to_string()))
+            .collect();
+        Self {
+            input_list: src
+                .input_list
+                .iter()
+                .map(StringifiedJsonUnspentTxOut::from)
+                .collect(),
+            outlay_list: src.outlay_list.clone(),
+            tx: src.tx.clone(),
+            fee: src.fee.to_string(),
+            outlay_index_to_tx_out_index: outlay_map,
+            outlay_confirmation_numbers: src.outlay_confirmation_numbers.clone(),
+        }
+    }
+}
+
+impl From<&StringifiedJsonTxProposal> for JsonTxProposal {
+    fn from(src: &StringifiedJsonTxProposal) -> Self {
+        let outlay_map: Vec<(u64, u64)> = src
+            .outlay_index_to_tx_out_index
+            .iter()
+            .map(|(key, val)| (key.parse::<u64>().unwrap(), val.parse::<u64>().unwrap()))
+            .collect();
+        Self {
+            input_list: src.input_list.iter().map(JsonUnspentTxOut::from).collect(),
+            outlay_list: src.outlay_list.clone(),
+            tx: src.tx.clone(),
+            fee: src.fee.parse::<u64>().unwrap(),
+            outlay_index_to_tx_out_index: outlay_map,
+            outlay_confirmation_numbers: src.outlay_confirmation_numbers.clone(),
+        }
+    }
 }
