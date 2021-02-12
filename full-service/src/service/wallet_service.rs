@@ -572,19 +572,6 @@ impl<
         }
     }
 
-    /*
-
-    pub fn get_txo_object(&self, txo_id_hex: &str) -> Result<JsonTxOut, WalletServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-        let txo_details = Txo::get(txo_id_hex, &conn)?;
-
-        let txo: TxOut = mc_util_serial::decode(&txo_details.txo.txo)?;
-        // Convert to proto
-        let proto_txo = mc_api::external::TxOut::from(&txo);
-        Ok(JsonTxOut::from(&proto_txo))
-    }
-     */
-
     fn get_txo_object(
         &self,
         txo_id_hex: &str,
