@@ -1,0 +1,5 @@
+merge_imports = true
+
+ignore = [
+    "mobilecoin",   # The mobilecoin submodule is a dependency of this project.
+]

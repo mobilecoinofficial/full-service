@@ -4,14 +4,18 @@
 //!
 //! A [JSON RPC 2.0](https://www.jsonrpc.org/specification) API inspired by [Stratum](https://github.com/aeternity/protocol/blob/master/STRATUM.md) .
 
-use crate::db::AccountID;
-use crate::json_rpc::{self, Request, Response};
-use crate::service::Wallet;
+use crate::{
+    db::AccountID,
+    json_rpc::{self, Request, Response},
+    service::Wallet,
+};
 use rocket::{get, post, routes};
 use rocket_contrib::json::Json;
 use serde_json::Map;
-use std::iter::FromIterator;
-use std::sync::{Arc, Mutex};
+use std::{
+    iter::FromIterator,
+    sync::{Arc, Mutex},
+};
 use strum::IntoEnumIterator;
 
 /// Managed state for the Wallet API. This object must be thread-safe.
@@ -318,8 +322,7 @@ pub fn rocket(rocket_config: rocket::Config, state: WalletApiState) -> rocket::R
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::json_rpc;
-    use crate::service::MockWallet;
+    use crate::{json_rpc, service::MockWallet};
     use mc_common::logger::{test_with_logger, Logger};
     use rocket::{
         http::{ContentType, Status},

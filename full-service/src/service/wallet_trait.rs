@@ -1,9 +1,6 @@
 //! A MobileCoin wallet.
 
-use crate::db::AccountID;
-use crate::json_rpc;
-use crate::json_rpc::SubmitResponse;
-use crate::service::WalletServiceError;
+use crate::{db::AccountID, json_rpc, json_rpc::SubmitResponse, service::WalletServiceError};
 use mockall::*;
 
 /// A MobileCoin wallet.
@@ -240,8 +237,10 @@ pub trait Wallet {
 
 #[cfg(test)]
 mod tests {
-    use crate::json_rpc;
-    use crate::service::wallet_trait::{MockWallet, Wallet};
+    use crate::{
+        json_rpc,
+        service::wallet_trait::{MockWallet, Wallet},
+    };
 
     /// Example of creating a mock Wallet
     #[test]

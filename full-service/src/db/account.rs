@@ -13,8 +13,7 @@ use crate::db::{
     txo::TxoModel,
 };
 
-use crate::db::WalletDbError;
-use crate::json_rpc;
+use crate::{db::WalletDbError, json_rpc};
 use diesel::{
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},
@@ -313,9 +312,11 @@ impl AccountModel for Account {
         key_images: Vec<KeyImage>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::account_txo_statuses::dsl::account_txo_statuses;
-        use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
-        use crate::db::schema::txos::dsl::{txo_id_hex, txos};
+        use crate::db::schema::{
+            account_txo_statuses::dsl::account_txo_statuses,
+            accounts::dsl::{account_id_hex, accounts},
+            txos::dsl::{txo_id_hex, txos},
+        };
 
         Ok(conn.transaction::<(), WalletDbError, _>(|| {
             for key_image in key_images {
@@ -387,8 +388,7 @@ mod tests {
     use mc_common::logger::{test_with_logger, Logger};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
-    use std::collections::HashSet;
-    use std::iter::FromIterator;
+    use std::{collections::HashSet, iter::FromIterator};
 
     #[test_with_logger]
     fn test_account_crud(logger: Logger) {

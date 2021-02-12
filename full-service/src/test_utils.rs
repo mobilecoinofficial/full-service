@@ -24,9 +24,9 @@ use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::PollingNetworkState;
 use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::{
-    encrypted_fog_hint::EncryptedFogHint, ring_signature::KeyImage, tx::TxOut,
+    encrypted_fog_hint::EncryptedFogHint, ring_signature::KeyImage, tx::TxOut, Block,
+    BlockContents, BLOCK_VERSION,
 };
-use mc_transaction_core::{Block, BlockContents, BLOCK_VERSION};
 use mc_util_from_random::FromRandom;
 use mc_util_uri::ConnectionUri;
 use rand::{distributions::Alphanumeric, rngs::StdRng, thread_rng, Rng};

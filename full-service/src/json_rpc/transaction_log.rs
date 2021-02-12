@@ -1,8 +1,7 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
 use crate::db;
-use chrono::offset::TimeZone;
-use chrono::Utc;
+use chrono::{offset::TimeZone, Utc};
 use serde_derive::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]

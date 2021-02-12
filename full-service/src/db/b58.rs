@@ -33,8 +33,7 @@ pub fn b58_decode(b58_public_address: &str) -> Result<PublicAddress, WalletDbErr
 mod tests {
     use crate::db::{b58_decode, b58_encode};
     use mc_account_keys::{AccountKey, PublicAddress};
-    use rand::rngs::StdRng;
-    use rand::{CryptoRng, RngCore, SeedableRng};
+    use rand::{rngs::StdRng, CryptoRng, RngCore, SeedableRng};
 
     fn get_public_address<T: RngCore + CryptoRng>(rng: &mut T) -> PublicAddress {
         let account_key = AccountKey::random(rng);

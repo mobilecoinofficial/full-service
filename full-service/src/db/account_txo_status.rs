@@ -85,8 +85,9 @@ impl AccountTxoStatusModel for AccountTxoStatus {
         txo_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<AccountTxoStatus>, WalletDbError> {
-        use crate::db::schema::account_txo_statuses as cols;
-        use crate::db::schema::account_txo_statuses::dsl::account_txo_statuses;
+        use crate::db::schema::{
+            account_txo_statuses as cols, account_txo_statuses::dsl::account_txo_statuses,
+        };
 
         let results: Vec<AccountTxoStatus> = account_txo_statuses
             .filter(cols::txo_id_hex.eq(txo_id_hex))

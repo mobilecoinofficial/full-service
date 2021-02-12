@@ -1,5 +1,4 @@
-use crate::db::WalletDbError;
-use crate::service::transaction_builder_error::WalletTransactionBuilderError;
+use crate::{db::WalletDbError, service::transaction_builder_error::WalletTransactionBuilderError};
 use displaydoc::Display;
 
 #[derive(Display, Debug)]

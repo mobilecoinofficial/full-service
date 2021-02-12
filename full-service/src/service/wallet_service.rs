@@ -2,18 +2,18 @@
 
 //! Application-layer Wallet service.
 
-use crate::db::{
-    self, b58_decode, Account, AccountModel, AssignedSubaddress, TransactionLog,
-    TransactionLogModel, Txo, TxoModel, TXO_ORPHANED, TXO_PENDING, TXO_SECRETED, TXO_SPENT,
-    TXO_UNSPENT,
-};
-use crate::json_rpc::{BalanceResponse, MembershipProof};
-use crate::service::wallet_trait::Wallet;
-use crate::service::WalletServiceError;
 use crate::{
-    db::WalletDb,
+    db::{
+        self, b58_decode, Account, AccountModel, AssignedSubaddress, TransactionLog,
+        TransactionLogModel, Txo, TxoModel, WalletDb, TXO_ORPHANED, TXO_PENDING, TXO_SECRETED,
+        TXO_SPENT, TXO_UNSPENT,
+    },
     json_rpc,
-    service::{sync::SyncThread, transaction_builder::WalletTransactionBuilder},
+    json_rpc::{BalanceResponse, MembershipProof},
+    service::{
+        sync::SyncThread, transaction_builder::WalletTransactionBuilder, wallet_trait::Wallet,
+        WalletServiceError,
+    },
 };
 use diesel::prelude::*;
 use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
@@ -653,20 +653,23 @@ impl<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::{TXO_MINTED, TXO_RECEIVED};
-    use crate::test_utils::{
-        add_block_to_ledger_db, get_test_ledger, setup_peer_manager_and_network_state,
-        WalletDbTestContext,
+    use crate::{
+        db::{TXO_MINTED, TXO_RECEIVED},
+        test_utils::{
+            add_block_to_ledger_db, get_test_ledger, setup_peer_manager_and_network_state,
+            WalletDbTestContext,
+        },
     };
     use mc_account_keys::PublicAddress;
-    use mc_common::logger::{test_with_logger, Logger};
-    use mc_common::HashSet;
+    use mc_common::{
+        logger::{test_with_logger, Logger},
+        HashSet,
+    };
     use mc_connection_test_utils::MockBlockchainConnection;
     use mc_fog_report_validation::MockFogPubkeyResolver;
     use mc_transaction_core::ring_signature::KeyImage;
     use rand::{rngs::StdRng, SeedableRng};
-    use std::iter::FromIterator;
-    use std::time::Duration;
+    use std::{iter::FromIterator, time::Duration};
 
     fn setup_service(
         ledger_db: LedgerDB,

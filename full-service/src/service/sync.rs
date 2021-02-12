@@ -40,9 +40,10 @@ use mc_transaction_core::{
     AmountError,
 };
 
-use crate::db::assigned_subaddress::AssignedSubaddressModel;
-use crate::db::WalletDbError;
-use crate::service::sync_error::SyncError;
+use crate::{
+    db::{assigned_subaddress::AssignedSubaddressModel, WalletDbError},
+    service::sync_error::SyncError,
+};
 use diesel::{
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},

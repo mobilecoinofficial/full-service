@@ -7,28 +7,34 @@
 //! This module, on the other hand, builds a transaction within the context of the wallet.
 
 use mc_account_keys::{AccountKey, PublicAddress};
-use mc_common::logger::{log, Logger};
-use mc_common::{HashMap, HashSet};
+use mc_common::{
+    logger::{log, Logger},
+    HashMap, HashSet,
+};
 use mc_crypto_keys::RistrettoPublic;
 use mc_fog_report_connection::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
-use mc_mobilecoind::payments::{Outlay, TxProposal};
-use mc_mobilecoind::UnspentTxOut;
-use mc_transaction_core::constants::{MINIMUM_FEE, RING_SIZE};
-use mc_transaction_core::onetime_keys::recover_onetime_private_key;
-use mc_transaction_core::ring_signature::KeyImage;
-use mc_transaction_core::tx::{TxOut, TxOutMembershipProof};
-use mc_transaction_core::BlockIndex;
+use mc_mobilecoind::{
+    payments::{Outlay, TxProposal},
+    UnspentTxOut,
+};
+use mc_transaction_core::{
+    constants::{MINIMUM_FEE, RING_SIZE},
+    onetime_keys::recover_onetime_private_key,
+    ring_signature::KeyImage,
+    tx::{TxOut, TxOutMembershipProof},
+    BlockIndex,
+};
 use mc_transaction_std::{InputCredentials, TransactionBuilder};
 
-use crate::db::{Account, AccountID, AccountModel, Txo, TxoModel, TXO_UNSPENT};
-use crate::service::transaction_builder_error::WalletTransactionBuilderError;
-use crate::WalletDb;
+use crate::{
+    db::{Account, AccountID, AccountModel, Txo, TxoModel, TXO_UNSPENT},
+    service::transaction_builder_error::WalletTransactionBuilderError,
+    WalletDb,
+};
 use diesel::prelude::*;
 use rand::Rng;
-use std::convert::TryFrom;
-use std::iter::FromIterator;
-use std::sync::Arc;
+use std::{convert::TryFrom, iter::FromIterator, sync::Arc};
 
 /// Default number of blocks used for calculating transaction tombstone block number.
 // TODO support for making this configurable
@@ -519,8 +525,8 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::WalletDbError;
     use crate::{
+        db::WalletDbError,
         service::sync::SyncThread,
         test_utils::{
             builder_for_random_recipient, get_test_ledger, random_account_with_seed_values,
