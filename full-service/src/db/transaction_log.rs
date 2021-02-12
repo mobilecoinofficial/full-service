@@ -148,8 +148,7 @@ impl TransactionLogModel for TransactionLog {
         &self,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<AssociatedTxos, WalletDbError> {
-        use crate::db::schema::transaction_logs;
-        use crate::db::schema::transaction_txo_types;
+        use crate::db::schema::{transaction_logs, transaction_txo_types};
 
         // FIXME: WS-29 - use group_by rather than the processing below:
         // https://docs.diesel.rs/diesel/associations/trait.GroupedBy.html
@@ -193,8 +192,7 @@ impl TransactionLogModel for TransactionLog {
         txo_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<TransactionLog>, WalletDbError> {
-        use crate::db::schema::transaction_logs;
-        use crate::db::schema::transaction_txo_types;
+        use crate::db::schema::{transaction_logs, transaction_txo_types};
 
         Ok(transaction_logs::table
             .inner_join(
@@ -210,8 +208,7 @@ impl TransactionLogModel for TransactionLog {
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletDbError> {
-        use crate::db::schema::transaction_logs;
-        use crate::db::schema::transaction_txo_types;
+        use crate::db::schema::{transaction_logs, transaction_txo_types};
 
         // FIXME: use group_by rather than the processing below:
         // https://docs.diesel.rs/diesel/associations/trait.GroupedBy.html

@@ -11,8 +11,7 @@ use crate::{
     },
 };
 use mc_connection::{BlockchainConnection, ThickClient, UserTxConnection};
-use mc_fog_report_connection::FogPubkeyResolver;
-use mc_fog_report_connection::GrpcFogPubkeyResolver;
+use mc_fog_report_connection::{FogPubkeyResolver, GrpcFogPubkeyResolver};
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
 use rocket::{get, post, routes};
 use rocket_contrib::json::Json;

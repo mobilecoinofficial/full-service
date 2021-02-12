@@ -2,18 +2,18 @@
 
 //! The implementation of the wallet service methods.
 
-use crate::db::b58_decode;
 use crate::{
-    db::models::{
-        Account, AssignedSubaddress, TransactionLog, Txo, TXO_ORPHANED, TXO_PENDING, TXO_SECRETED,
-        TXO_SPENT, TXO_UNSPENT,
-    },
-    db::WalletDb,
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
+        b58_decode,
+        models::{
+            Account, AssignedSubaddress, TransactionLog, Txo, TXO_ORPHANED, TXO_PENDING,
+            TXO_SECRETED, TXO_SPENT, TXO_UNSPENT,
+        },
         transaction_log::TransactionLogModel,
         txo::TxoModel,
+        WalletDb,
     },
     error::WalletServiceError,
     service::{
@@ -646,14 +646,15 @@ mod tests {
         },
     };
     use mc_account_keys::PublicAddress;
-    use mc_common::logger::{test_with_logger, Logger};
-    use mc_common::HashSet;
+    use mc_common::{
+        logger::{test_with_logger, Logger},
+        HashSet,
+    };
     use mc_connection_test_utils::MockBlockchainConnection;
     use mc_fog_report_validation::MockFogPubkeyResolver;
     use mc_transaction_core::ring_signature::KeyImage;
     use rand::{rngs::StdRng, SeedableRng};
-    use std::iter::FromIterator;
-    use std::time::Duration;
+    use std::{iter::FromIterator, time::Duration};
 
     fn setup_service(
         ledger_db: LedgerDB,

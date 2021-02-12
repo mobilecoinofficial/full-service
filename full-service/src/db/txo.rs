@@ -280,8 +280,7 @@ impl TxoModel for Txo {
         output_index: usize,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(Option<PublicAddress>, String, i64, String), WalletDbError> {
-        use crate::db::schema::account_txo_statuses;
-        use crate::db::schema::txos;
+        use crate::db::schema::{account_txo_statuses, txos};
 
         let txo_id = TxoID::from(output);
 
@@ -478,8 +477,9 @@ impl TxoModel for Txo {
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<TxoDetails>, WalletDbError> {
-        use crate::db::schema::account_txo_statuses as cols;
-        use crate::db::schema::account_txo_statuses::dsl::account_txo_statuses;
+        use crate::db::schema::{
+            account_txo_statuses as cols, account_txo_statuses::dsl::account_txo_statuses,
+        };
 
         let results: Vec<String> = account_txo_statuses
             .filter(cols::account_id_hex.eq(account_id_hex))
@@ -496,8 +496,7 @@ impl TxoModel for Txo {
         status: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<Txo>, WalletDbError> {
-        use crate::db::schema::account_txo_statuses;
-        use crate::db::schema::txos;
+        use crate::db::schema::{account_txo_statuses, txos};
 
         let results: Vec<Txo> = txos::table
             .inner_join(
@@ -586,8 +585,7 @@ impl TxoModel for Txo {
         txo_ids: &[String],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<(Txo, AccountTxoStatus)>, WalletDbError> {
-        use crate::db::schema::account_txo_statuses;
-        use crate::db::schema::txos;
+        use crate::db::schema::{account_txo_statuses, txos};
 
         let txos: Vec<(Txo, AccountTxoStatus)> = txos::table
             .inner_join(
@@ -604,8 +602,7 @@ impl TxoModel for Txo {
         txo_ids: &[String],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError> {
-        use crate::db::schema::account_txo_statuses;
-        use crate::db::schema::txos;
+        use crate::db::schema::{account_txo_statuses, txos};
 
         let txos: i64 = txos::table
             .inner_join(
@@ -625,8 +622,7 @@ impl TxoModel for Txo {
         block_count: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError> {
-        use crate::db::schema::account_txo_statuses;
-        use crate::db::schema::txos;
+        use crate::db::schema::{account_txo_statuses, txos};
 
         let txos: Vec<Txo> = txos::table
             .inner_join(
@@ -649,8 +645,7 @@ impl TxoModel for Txo {
         max_spendable_value: Option<i64>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<Txo>, WalletDbError> {
-        use crate::db::schema::account_txo_statuses;
-        use crate::db::schema::txos;
+        use crate::db::schema::{account_txo_statuses, txos};
 
         let mut spendable_txos: Vec<Txo> = txos::table
             .inner_join(

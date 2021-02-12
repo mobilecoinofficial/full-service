@@ -8,35 +8,37 @@
 
 use crate::{
     db::{
+        account::{AccountID, AccountModel},
         models::{Account, Txo, TXO_UNSPENT},
+        txo::TxoModel,
         WalletDb,
-        {
-            account::{AccountID, AccountModel},
-            txo::TxoModel,
-        },
     },
     error::WalletTransactionBuilderError,
 };
 use mc_account_keys::{AccountKey, PublicAddress};
-use mc_common::logger::{log, Logger};
-use mc_common::{HashMap, HashSet};
+use mc_common::{
+    logger::{log, Logger},
+    HashMap, HashSet,
+};
 use mc_crypto_keys::RistrettoPublic;
 use mc_fog_report_connection::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
-use mc_mobilecoind::payments::{Outlay, TxProposal};
-use mc_mobilecoind::UnspentTxOut;
-use mc_transaction_core::constants::{MINIMUM_FEE, RING_SIZE};
-use mc_transaction_core::onetime_keys::recover_onetime_private_key;
-use mc_transaction_core::ring_signature::KeyImage;
-use mc_transaction_core::tx::{TxOut, TxOutMembershipProof};
-use mc_transaction_core::BlockIndex;
+use mc_mobilecoind::{
+    payments::{Outlay, TxProposal},
+    UnspentTxOut,
+};
+use mc_transaction_core::{
+    constants::{MINIMUM_FEE, RING_SIZE},
+    onetime_keys::recover_onetime_private_key,
+    ring_signature::KeyImage,
+    tx::{TxOut, TxOutMembershipProof},
+    BlockIndex,
+};
 use mc_transaction_std::{InputCredentials, TransactionBuilder};
 
 use diesel::prelude::*;
 use rand::Rng;
-use std::convert::TryFrom;
-use std::iter::FromIterator;
-use std::sync::Arc;
+use std::{convert::TryFrom, iter::FromIterator, sync::Arc};
 
 /// Default number of blocks used for calculating transaction tombstone block number.
 // TODO support for making this configurable
