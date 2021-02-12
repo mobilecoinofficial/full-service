@@ -61,10 +61,11 @@ pub struct TxoDetails {
 pub trait TxoModel {
     /// Create a received Txo.
     ///
-    /// Note that a received Txo may have a null subaddress_index if the Txo is "orphaned."
-    /// This means that in syncing, the Txo was determined to belong to an account, but the
-    /// subaddress is not yet being tracked, so we were unable to match the subaddress spend
-    /// public key. An orphaned Txo is not spendable until the subaddress to which it belongs
+    /// Note that a received Txo may have a null subaddress_index if the Txo is
+    /// "orphaned." This means that in syncing, the Txo was determined to
+    /// belong to an account, but the subaddress is not yet being tracked,
+    /// so we were unable to match the subaddress spend public key. An
+    /// orphaned Txo is not spendable until the subaddress to which it belongs
     /// is added to the assigned_subaddresses table.
     ///
     /// Returns:
@@ -82,7 +83,8 @@ pub trait TxoModel {
     /// Create a new minted Txo.
     ///
     /// Returns:
-    /// * (public address of the recipient, txo_id_hex, value of the txo, txo type)
+    /// * (public address of the recipient, txo_id_hex, value of the txo, txo
+    ///   type)
     fn create_minted(
         account_id_hex: Option<&str>,
         txo: &TxOut,
@@ -102,7 +104,8 @@ pub trait TxoModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
-    /// Update an existing Txo to spendable by including its subaddress_index and key_image.
+    /// Update an existing Txo to spendable by including its subaddress_index
+    /// and key_image.
     fn update_to_spendable(
         &self,
         received_subaddress_index: Option<i64>,
@@ -196,7 +199,8 @@ impl TxoModel for Txo {
     ) -> Result<String, WalletDbError> {
         let txo_id = TxoID::from(&txo);
         conn.transaction::<(), WalletDbError, _>(|| {
-            // If we already have this TXO for this account (e.g. from minting in a previous transaction), we need to update it
+            // If we already have this TXO for this account (e.g. from minting in a previous
+            // transaction), we need to update it
             match Txo::get(&txo_id.to_string(), conn) {
                 Ok(txo_details) => {
                     if txo_details.received_to_account.is_some() {
@@ -211,11 +215,13 @@ impl TxoModel for Txo {
 
                     // FIXME: can both be None?
                     if txo_details.spent_from_account.is_some() {
-                        // Txo already exists for another account. Update the status with respect to this account
+                        // Txo already exists for another account. Update the status with respect to
+                        // this account
                         let status = if subaddress_index.is_some() {
                             TXO_UNSPENT
                         } else {
-                            // Note: An orphaned Txo cannot be spent until the subaddress is recovered.
+                            // Note: An orphaned Txo cannot be spent until the subaddress is
+                            // recovered.
                             TXO_ORPHANED
                         };
                         AccountTxoStatus::create(
@@ -280,8 +286,7 @@ impl TxoModel for Txo {
         output_index: usize,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(Option<PublicAddress>, String, i64, String), WalletDbError> {
-        use crate::db::schema::account_txo_statuses;
-        use crate::db::schema::txos;
+        use crate::db::schema::{account_txo_statuses, txos};
 
         let txo_id = TxoID::from(output);
 
@@ -308,11 +313,13 @@ impl TxoModel for Txo {
             (change_value, None, None)
         };
 
-        // Update receiver, transaction_value, and transaction_txo_type, if outlay was found.
+        // Update receiver, transaction_value, and transaction_txo_type, if outlay was
+        // found.
         let transaction_txo_type = if outlay_receiver.is_some() {
             TXO_OUTPUT
         } else {
-            // If not in an outlay, this output is change, according to how we build transactions.
+            // If not in an outlay, this output is change, according to how we build
+            // transactions.
             TXO_CHANGE
         };
 
@@ -327,8 +334,9 @@ impl TxoModel for Txo {
                 public_key: &mc_util_serial::encode(&output.public_key),
                 e_fog_hint: &mc_util_serial::encode(&output.e_fog_hint),
                 txo: &mc_util_serial::encode(output),
-                subaddress_index: None, // Minted set subaddress_index to None. If later received, updates.
-                key_image: None,        // Only the recipient can calculate the KeyImage
+                subaddress_index: None, /* Minted set subaddress_index to None. If later
+                                         * received, updates. */
+                key_image: None, // Only the recipient can calculate the KeyImage
                 received_block_count: None,
                 pending_tombstone_block_count: Some(tx_proposal.tx.prefix.tombstone_block as i64),
                 spent_block_count: None,
@@ -339,13 +347,14 @@ impl TxoModel for Txo {
                 .values(&new_txo)
                 .execute(conn)?;
 
-            // If account_id is provided, then log a relationship. Also possible to create minted
-            // from a TxProposal not belonging to any existing account.
+            // If account_id is provided, then log a relationship. Also possible to create
+            // minted from a TxProposal not belonging to any existing account.
             if let Some(account_id_hex) = account_id_hex.as_deref() {
                 let new_account_txo_status = NewAccountTxoStatus {
                     account_id_hex: &account_id_hex,
                     txo_id_hex: &txo_id.to_string(),
-                    txo_status: TXO_SECRETED, // We cannot track spent status for minted TXOs unless change
+                    txo_status: TXO_SECRETED, /* We cannot track spent status for minted TXOs
+                                               * unless change */
                     txo_type: TXO_MINTED,
                 };
                 diesel::insert_into(account_txo_statuses::table)
@@ -376,8 +385,9 @@ impl TxoModel for Txo {
             let account_txo_status =
                 AccountTxoStatus::get(account_id_hex, &self.txo_id_hex, &conn)?;
 
-            // For TXOs that we sent previously, they are either change, or we sent to ourselves
-            // for some other reason. Their status will be "secreted" in either case.
+            // For TXOs that we sent previously, they are either change, or we sent to
+            // ourselves for some other reason. Their status will be "secreted"
+            // in either case.
             match account_txo_status.txo_type.as_str() {
                 TXO_MINTED => {
                     // Update received block height and subaddress index
@@ -388,14 +398,16 @@ impl TxoModel for Txo {
                         &conn,
                     )?;
 
-                    // Update the status to unspent - all TXOs set lifecycle to unspent when first received
+                    // Update the status to unspent - all TXOs set lifecycle to unspent when first
+                    // received
                     account_txo_status.set_unspent(&conn)?;
                 }
                 TXO_RECEIVED => {
                     // If the existing Txo subaddress is null and we have the received subaddress
-                    // now, then we want to update to received subaddress. Otherwise, it will remain orphaned.
-                    // Do not update to unspent, because this Txo may have already been processed and is
-                    // annotated correctly if spent.
+                    // now, then we want to update to received subaddress. Otherwise, it will remain
+                    // orphaned. Do not update to unspent, because this Txo may
+                    // have already been processed and is annotated correctly if
+                    // spent.
                     if received_subaddress_index.is_some() {
                         self.update_to_spendable(
                             received_subaddress_index,
@@ -410,7 +422,8 @@ impl TxoModel for Txo {
                 }
             }
 
-            // If this Txo was previously orphaned, we can now update it, and make it spendable
+            // If this Txo was previously orphaned, we can now update it, and make it
+            // spendable
             if account_txo_status.txo_status == TXO_ORPHANED {
                 self.update_to_spendable(
                     received_subaddress_index,
@@ -460,7 +473,8 @@ impl TxoModel for Txo {
 
         conn.transaction::<(), WalletDbError, _>(|| {
             // Find the account associated with this Txo.
-            // Note: We should only be calling update_to_pending on inputs, which we had to own to spend.
+            // Note: We should only be calling update_to_pending on inputs, which we had to
+            // own to spend.
             let account = Account::get_by_txo_id(&txo_id.to_string(), conn)?;
 
             // Update the status to pending.
@@ -478,8 +492,9 @@ impl TxoModel for Txo {
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<TxoDetails>, WalletDbError> {
-        use crate::db::schema::account_txo_statuses as cols;
-        use crate::db::schema::account_txo_statuses::dsl::account_txo_statuses;
+        use crate::db::schema::{
+            account_txo_statuses as cols, account_txo_statuses::dsl::account_txo_statuses,
+        };
 
         let results: Vec<String> = account_txo_statuses
             .filter(cols::account_id_hex.eq(account_id_hex))
@@ -496,8 +511,7 @@ impl TxoModel for Txo {
         status: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<Txo>, WalletDbError> {
-        use crate::db::schema::account_txo_statuses;
-        use crate::db::schema::txos;
+        use crate::db::schema::{account_txo_statuses, txos};
 
         let results: Vec<Txo> = txos::table
             .inner_join(
@@ -586,8 +600,7 @@ impl TxoModel for Txo {
         txo_ids: &[String],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<(Txo, AccountTxoStatus)>, WalletDbError> {
-        use crate::db::schema::account_txo_statuses;
-        use crate::db::schema::txos;
+        use crate::db::schema::{account_txo_statuses, txos};
 
         let txos: Vec<(Txo, AccountTxoStatus)> = txos::table
             .inner_join(
@@ -604,8 +617,7 @@ impl TxoModel for Txo {
         txo_ids: &[String],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError> {
-        use crate::db::schema::account_txo_statuses;
-        use crate::db::schema::txos;
+        use crate::db::schema::{account_txo_statuses, txos};
 
         let txos: i64 = txos::table
             .inner_join(
@@ -625,8 +637,7 @@ impl TxoModel for Txo {
         block_count: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError> {
-        use crate::db::schema::account_txo_statuses;
-        use crate::db::schema::txos;
+        use crate::db::schema::{account_txo_statuses, txos};
 
         let txos: Vec<Txo> = txos::table
             .inner_join(
@@ -649,8 +660,7 @@ impl TxoModel for Txo {
         max_spendable_value: Option<i64>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<Txo>, WalletDbError> {
-        use crate::db::schema::account_txo_statuses;
-        use crate::db::schema::txos;
+        use crate::db::schema::{account_txo_statuses, txos};
 
         let mut spendable_txos: Vec<Txo> = txos::table
             .inner_join(
@@ -670,9 +680,9 @@ impl TxoModel for Txo {
             return Err(WalletDbError::NoSpendableTxos);
         }
 
-        // The maximum spendable is limited by the maximal number of inputs we can use. Since
-        // the txos are sorted by decreasing value, this is the maximum value we can possibly spend
-        // in one transaction.
+        // The maximum spendable is limited by the maximal number of inputs we can use.
+        // Since the txos are sorted by decreasing value, this is the maximum
+        // value we can possibly spend in one transaction.
         let max_spendable_in_wallet = spendable_txos
             .iter()
             .take(MAX_INPUTS as usize)
@@ -692,10 +702,11 @@ impl TxoModel for Txo {
             }
         }
 
-        // Select the actual Txos to spend. We want to opportunistically fill up the input slots
-        // with dust, from any subaddress, so we take from the back of the Txo vec. This is
-        // a knapsack problem, and the selection could be improved. For now, we simply move the
-        // window of MAX_INPUTS up from the back of the sorted vector until we have a window with
+        // Select the actual Txos to spend. We want to opportunistically fill up the
+        // input slots with dust, from any subaddress, so we take from the back
+        // of the Txo vec. This is a knapsack problem, and the selection could
+        // be improved. For now, we simply move the window of MAX_INPUTS up from
+        // the back of the sorted vector until we have a window with
         // a large enough sum.
         let mut selected_utxos: Vec<Txo> = Vec::new();
         let mut total: u64 = 0;
@@ -840,8 +851,8 @@ mod tests {
         assert_eq!(unspent.len(), 1);
 
         // Now we'll "spend" the TXO
-        // FIXME: TODO: construct transaction proposal to spend it, maybe needs a helper in test_utils
-        // self.update_submitted_transaction(tx_proposal)?;
+        // FIXME: TODO: construct transaction proposal to spend it, maybe needs a helper
+        // in test_utils self.update_submitted_transaction(tx_proposal)?;
 
         // Now we'll process the ledger and verify that the TXO was spent
         let spent_block_count = 365;
@@ -954,8 +965,8 @@ mod tests {
             Err(_) => panic!("Should error with InsufficientFundsUnderMaxSpendable"),
         }
 
-        // sum(300..1800) to get a window where we had to increase past the smallest txos,
-        // and also fill up all 16 input slots.
+        // sum(300..1800) to get a window where we had to increase past the smallest
+        // txos, and also fill up all 16 input slots.
         let txos_for_value = Txo::select_unspent_txos_for_value(
             &account_id_hex.to_string(),
             16800 * MOB as u64,
@@ -1004,8 +1015,8 @@ mod tests {
         )
         .unwrap();
 
-        // Create some TXOs for the account. Total value is 2000, but max can spend is 1600
-        // [100, 100, ... 100]
+        // Create some TXOs for the account. Total value is 2000, but max can spend is
+        // 1600 [100, 100, ... 100]
         for i in 1..20 {
             let (_txo_hex, _txo, _key_image) = create_test_received_txo(
                 &account_key,
@@ -1121,7 +1132,8 @@ mod tests {
             &mut rng,
         );
 
-        // Create TxProposal from the sender account, which contains the Confirmation Number
+        // Create TxProposal from the sender account, which contains the Confirmation
+        // Number
         let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
             WalletTransactionBuilder::new(
                 AccountID::from(&sender_account_key).to_string(),
@@ -1137,7 +1149,8 @@ mod tests {
         builder.set_tombstone(0).unwrap();
         let proposal = builder.build().unwrap();
 
-        // Let's log this submitted Tx for the sender, which will create_minted for the sent Txo
+        // Let's log this submitted Tx for the sender, which will create_minted for the
+        // sent Txo
         let tx_id = TransactionLog::log_submitted(
             proposal.clone(),
             ledger_db.num_blocks().unwrap(),
@@ -1147,7 +1160,8 @@ mod tests {
         )
         .unwrap();
 
-        // Now we need to let this txo hit the ledger, which will update sender and receiver
+        // Now we need to let this txo hit the ledger, which will update sender and
+        // receiver
         add_block_with_tx_proposal(&mut ledger_db, proposal.clone());
 
         // Now let our sync thread catch up for both sender and receiver
@@ -1163,8 +1177,9 @@ mod tests {
 
         let received_txo = txos[0].clone();
 
-        // Note: Because this txo is both received and sent, between two different accounts,
-        // its proof does get updated. Typically, received txos have None for the proof.
+        // Note: Because this txo is both received and sent, between two different
+        // accounts, its proof does get updated. Typically, received txos have
+        // None for the proof.
         assert!(received_txo.txo.proof.is_some());
 
         // Get the txo from the sent perspective
@@ -1174,7 +1189,8 @@ mod tests {
         )
         .unwrap();
 
-        // We seeded with 3 received (70, 80, 90), we have a change txo, and a secreted Txo (50)
+        // We seeded with 3 received (70, 80, 90), we have a change txo, and a secreted
+        // Txo (50)
         assert_eq!(sender_txos.len(), 5);
 
         // Get the associated Txos with the transaction log
@@ -1186,8 +1202,8 @@ mod tests {
         assert_eq!(sent_outputs.len(), 1);
         let sent_txo_details = Txo::get(&sent_outputs[0], &wallet_db.get_conn().unwrap()).unwrap();
 
-        // These two txos should actually be the same txo, and the account_txo_status is what
-        // differentiates them.
+        // These two txos should actually be the same txo, and the account_txo_status is
+        // what differentiates them.
         assert_eq!(sent_txo_details.txo, received_txo.txo);
 
         assert!(sent_txo_details.txo.proof.is_some());
@@ -1203,8 +1219,8 @@ mod tests {
         assert!(verified);
     }
 
-    // FIXME: once we have create_minted, then select_txos test with no spendable
-    // FIXME: test update txo after tombstone block is exceeded
+    // FIXME: once we have create_minted, then select_txos test with no
+    // spendable FIXME: test update txo after tombstone block is exceeded
     // FIXME: test update txo after it has landed via key_image update
     // FIXME: test any_failed and are_all_spent
     // FIXME: test max_spendable

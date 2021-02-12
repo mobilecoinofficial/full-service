@@ -11,8 +11,7 @@ use crate::{
     },
 };
 use mc_connection::{BlockchainConnection, ThickClient, UserTxConnection};
-use mc_fog_report_connection::FogPubkeyResolver;
-use mc_fog_report_connection::GrpcFogPubkeyResolver;
+use mc_fog_report_connection::{FogPubkeyResolver, GrpcFogPubkeyResolver};
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
 use rocket::{get, post, routes};
 use rocket_contrib::json::Json;
@@ -198,9 +197,10 @@ pub enum JsonCommandResponse {
 
 // The Wallet API inner method, which handles switching on the method enum.
 //
-// Note that this is structured this way so that the routes can be defined to take
-// explicit Rocket state, and then pass the service to the inner method. This allows
-// us to properly construct state with Mock Connection Objects in tests.
+// Note that this is structured this way so that the routes can be defined to
+// take explicit Rocket state, and then pass the service to the inner method.
+// This allows us to properly construct state with Mock Connection Objects in
+// tests.
 fn wallet_api_inner<T, FPR>(
     service: &WalletService<T, FPR>,
     command: Json<JsonCommandRequest>,
@@ -890,7 +890,8 @@ mod tests {
         let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
         let public_address = b58_decode(b58_public_address).unwrap();
 
-        // Add a block with a txo for this address (note that value is smaller than MINIMUM_FEE)
+        // Add a block with a txo for this address (note that value is smaller than
+        // MINIMUM_FEE)
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![public_address.clone()],
@@ -911,7 +912,8 @@ mod tests {
                 "value": "42",
             }
         });
-        // We will fail because we cannot afford the fee, which is 100000000000 pMOB (.01 MOB)
+        // We will fail because we cannot afford the fee, which is 100000000000 pMOB
+        // (.01 MOB)
         dispatch_expect_error(
             &client,
             body,
@@ -948,8 +950,9 @@ mod tests {
         // Assert the fee is correct in both places
         let prefix_fee = tx_prefix.get("fee").unwrap().as_str().unwrap();
         let fee = tx_proposal.get("fee").unwrap();
-        // FIXME: WS-9 - Note, minimum fee does not fit into i32 - need to make sure we are not losing
-        //        precision with the JsonTxProposal treating Fee as number
+        // FIXME: WS-9 - Note, minimum fee does not fit into i32 - need to make sure we
+        // are not losing        precision with the JsonTxProposal treating Fee
+        // as number
         assert_eq!(fee.to_string(), "10000000000");
         assert_eq!(fee.to_string(), prefix_fee);
 
@@ -983,7 +986,8 @@ mod tests {
             .unwrap();
         assert_eq!(outlay_confirmation_numbers.len(), 1);
 
-        // Tombstone block = ledger height (12 to start + 2 new blocks + 50 default tombstone)
+        // Tombstone block = ledger height (12 to start + 2 new blocks + 50 default
+        // tombstone)
         let prefix_tombstone = tx_prefix.get("tombstone_block").unwrap();
         assert_eq!(prefix_tombstone, "64");
     }

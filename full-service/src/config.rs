@@ -44,17 +44,20 @@ pub struct APIConfig {
     #[structopt(long, parse(from_os_str))]
     pub ledger_db: PathBuf,
 
-    /// Path to existing ledger db that contains the origin block, used when initializing new ledger dbs.
+    /// Path to existing ledger db that contains the origin block, used when
+    /// initializing new ledger dbs.
     #[structopt(long)]
     pub ledger_db_bootstrap: Option<String>,
 
     #[structopt(flatten)]
     pub peers_config: PeersConfig,
 
-    /// Quorum set for ledger syncing. By default, the quorum set would include all peers.
+    /// Quorum set for ledger syncing. By default, the quorum set would include
+    /// all peers.
     ///
     /// The quorum set is represented in JSON. For example:
-    /// {"threshold":1,"members":[{"type":"Node","args":"node2.test.mobilecoin.com:443"},{"type":"Node","args":"node3.test.mobilecoin.com:443"}]}
+    /// {"threshold":1,"members":[{"type":"Node","args":"node2.test.mobilecoin.
+    /// com:443"},{"type":"Node","args":"node3.test.mobilecoin.com:443"}]}
     #[structopt(long, parse(try_from_str=parse_quorum_set_from_json))]
     quorum_set: Option<QuorumSet<ResponderId>>,
 
@@ -77,8 +80,8 @@ pub struct APIConfig {
     #[structopt(long)]
     pub offline: bool,
 
-    /// Fog ingest enclave CSS file (needed in order to enable sending transactions to fog
-    /// recipients).
+    /// Fog ingest enclave CSS file (needed in order to enable sending
+    /// transactions to fog recipients).
     #[structopt(long, parse(try_from_str=load_css_file))]
     pub fog_ingest_enclave_css: Option<Signature>,
 }
@@ -183,7 +186,8 @@ impl APIConfig {
             }
         }
 
-        // Ledger doesn't exist, or is empty. Copy a bootstrapped ledger or try and get it from the network.
+        // Ledger doesn't exist, or is empty. Copy a bootstrapped ledger or try and get
+        // it from the network.
         let ledger_db_file = Path::new(&self.ledger_db).join("data.mdb");
         match &self.ledger_db_bootstrap {
             Some(ledger_db_bootstrap) => {
@@ -194,8 +198,8 @@ impl APIConfig {
                     ledger_db_bootstrap
                 );
 
-                // Try and create directory in case it doesn't exist. We need it to exist before we
-                // can copy the data.mdb file.
+                // Try and create directory in case it doesn't exist. We need it to exist before
+                // we can copy the data.mdb file.
                 if !Path::new(&self.ledger_db).exists() {
                     std::fs::create_dir_all(self.ledger_db.clone()).unwrap_or_else(|_| {
                         panic!("Failed creating directory {:?}", self.ledger_db)

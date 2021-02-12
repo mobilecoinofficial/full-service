@@ -103,15 +103,16 @@ pub trait AccountModel {
     ) -> Result<Account, WalletDbError>;
 
     /// Update an account.
-    /// The only updatable field is the name. Any other desired update requires adding
-    /// a new account, and deleting the existing if desired.
+    /// The only updatable field is the name. Any other desired update requires
+    /// adding a new account, and deleting the existing if desired.
     fn update_name(
         &self,
         new_name: String,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
-    /// Update key-image-matching txos associated with this account to spent for a given block height.
+    /// Update key-image-matching txos associated with this account to spent for
+    /// a given block height.
     fn update_spent_and_increment_next_block(
         &self,
         spent_block_count: i64,
@@ -143,7 +144,8 @@ impl AccountModel for Account {
             conn.transaction::<(AccountID, String), WalletDbError, _>(|| {
                 let new_account = NewAccount {
                     account_id_hex: &account_id.to_string(),
-                    account_key: &mc_util_serial::encode(account_key), // FIXME: WS-6 - add encryption
+                    account_key: &mc_util_serial::encode(account_key), /* FIXME: WS-6 - add
+                                                                        * encryption */
                     main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
                     change_subaddress_index: DEFAULT_CHANGE_SUBADDRESS_INDEX as i64,
                     next_subaddress_index: DEFAULT_NEXT_SUBADDRESS_INDEX as i64,
@@ -159,7 +161,8 @@ impl AccountModel for Account {
 
                 let main_subaddress_b58 = AssignedSubaddress::create(
                     account_key,
-                    None, // FIXME: WS-8 - Address Book Entry if details provided, or None always for main?
+                    None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
+                           * always for main? */
                     DEFAULT_SUBADDRESS_INDEX,
                     "Main",
                     &conn,
@@ -167,7 +170,8 @@ impl AccountModel for Account {
 
                 let _change_subaddress_b58 = AssignedSubaddress::create(
                     account_key,
-                    None, // FIXME: WS-8 - Address Book Entry if details provided, or None always for main?
+                    None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
+                           * always for main? */
                     DEFAULT_CHANGE_SUBADDRESS_INDEX,
                     "Change",
                     &conn,
@@ -316,9 +320,11 @@ impl AccountModel for Account {
         key_images: Vec<KeyImage>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::account_txo_statuses::dsl::account_txo_statuses;
-        use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
-        use crate::db::schema::txos::dsl::{txo_id_hex, txos};
+        use crate::db::schema::{
+            account_txo_statuses::dsl::account_txo_statuses,
+            accounts::dsl::{account_id_hex, accounts},
+            txos::dsl::{txo_id_hex, txos},
+        };
 
         Ok(conn.transaction::<(), WalletDbError, _>(|| {
             for key_image in key_images {
@@ -331,7 +337,8 @@ impl AccountModel for Account {
                     .load::<Txo>(conn)?;
 
                 if matches.is_empty() {
-                    // Not Found is ok - this means it's a key_image not associated with any of our txos
+                    // Not Found is ok - this means it's a key_image not associated with any of our
+                    // txos
                     continue;
                 } else if matches.len() > 1 {
                     return Err(WalletDbError::DuplicateEntries(format!(
@@ -354,8 +361,9 @@ impl AccountModel for Account {
                     )
                     .execute(conn)?;
 
-                    // FIXME: WS-13 - make sure the path for all txo_statuses and txo_types exist and are tested
-                    // Update the transaction status if the txos are all spent
+                    // FIXME: WS-13 - make sure the path for all txo_statuses and txo_types exist
+                    // and are tested Update the transaction status if the txos
+                    // are all spent
                     TransactionLog::update_transactions_associated_to_txo(
                         &matches[0].txo_id_hex,
                         spent_block_count,
@@ -390,8 +398,7 @@ mod tests {
     use mc_common::logger::{test_with_logger, Logger};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
-    use std::collections::HashSet;
-    use std::iter::FromIterator;
+    use std::{collections::HashSet, iter::FromIterator};
 
     #[test_with_logger]
     fn test_account_crud(logger: Logger) {

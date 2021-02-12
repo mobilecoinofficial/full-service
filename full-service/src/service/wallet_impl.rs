@@ -2,18 +2,18 @@
 
 //! The implementation of the wallet service methods.
 
-use crate::db::b58_decode;
 use crate::{
-    db::models::{
-        Account, AssignedSubaddress, TransactionLog, Txo, TXO_ORPHANED, TXO_PENDING, TXO_SECRETED,
-        TXO_SPENT, TXO_UNSPENT,
-    },
-    db::WalletDb,
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
+        b58_decode,
+        models::{
+            Account, AssignedSubaddress, TransactionLog, Txo, TXO_ORPHANED, TXO_PENDING,
+            TXO_SECRETED, TXO_SPENT, TXO_UNSPENT,
+        },
         transaction_log::TransactionLogModel,
         txo::TxoModel,
+        WalletDb,
     },
     error::WalletServiceError,
     service::{
@@ -63,7 +63,8 @@ pub struct WalletService<
     network_state: Arc<RwLock<PollingNetworkState<T>>>,
     fog_pubkey_resolver: Option<Arc<FPR>>,
     _sync_thread: SyncThread,
-    /// Monotonically increasing counter. This is used for node round-robin selection.
+    /// Monotonically increasing counter. This is used for node round-robin
+    /// selection.
     submit_node_offset: Arc<AtomicUsize>,
     logger: Logger,
 }
@@ -448,8 +449,8 @@ impl<
         // FIXME: WS-34 - Would rather not have to convert it to proto first
         let proto_tx_proposal = mc_mobilecoind_api::TxProposal::from(&tx_proposal);
 
-        // FIXME: WS-32 - Might be nice to have a tx_proposal table so that you don't have to
-        //        write these out to local files. That's V2, though.
+        // FIXME: WS-32 - Might be nice to have a tx_proposal table so that you don't
+        // have to        write these out to local files. That's V2, though.
         Ok(JsonTxProposal::from(&proto_tx_proposal))
     }
 
@@ -646,14 +647,15 @@ mod tests {
         },
     };
     use mc_account_keys::PublicAddress;
-    use mc_common::logger::{test_with_logger, Logger};
-    use mc_common::HashSet;
+    use mc_common::{
+        logger::{test_with_logger, Logger},
+        HashSet,
+    };
     use mc_connection_test_utils::MockBlockchainConnection;
     use mc_fog_report_validation::MockFogPubkeyResolver;
     use mc_transaction_core::ring_signature::KeyImage;
     use rand::{rngs::StdRng, SeedableRng};
-    use std::iter::FromIterator;
-    use std::time::Duration;
+    use std::{iter::FromIterator, time::Duration};
 
     fn setup_service(
         ledger_db: LedgerDB,
@@ -688,7 +690,8 @@ mod tests {
             .unwrap();
 
         // Add a block with a transaction for this recipient
-        // Add a block with a txo for this address (note that value is smaller than MINIMUM_FEE)
+        // Add a block with a txo for this address (note that value is smaller than
+        // MINIMUM_FEE)
         let alice_public_address = b58_decode(&alice.account.main_address).unwrap();
         add_block_to_ledger_db(
             &mut ledger_db,
@@ -737,7 +740,8 @@ mod tests {
             .submit_transaction(tx_proposal, None, Some(alice.account.account_id.clone()))
             .unwrap();
 
-        // We should now have 3 txos - one pending, two minted (one of which will be change)
+        // We should now have 3 txos - one pending, two minted (one of which will be
+        // change)
         let txos = service.list_txos(&alice.account.account_id).unwrap();
         assert_eq!(txos.len(), 3);
         // The Pending Tx

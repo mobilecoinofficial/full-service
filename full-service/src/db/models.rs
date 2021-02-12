@@ -9,8 +9,8 @@ use super::schema::{
 
 use serde::Serialize;
 
-// FIXME: WS-13 - Would be great to get enums to work. Run into several issues when attempting
-//        to use https://github.com/adwhit/diesel-derive-enum for sqlite
+// FIXME: WS-13 - Would be great to get enums to work. Run into several issues
+// when attempting        to use https://github.com/adwhit/diesel-derive-enum for sqlite
 // TxoStatus
 pub const TXO_UNSPENT: &str = "unspent";
 pub const TXO_PENDING: &str = "pending";
@@ -49,9 +49,9 @@ pub struct Account {
     pub first_block: i64,
     pub next_block: i64,
     pub import_block: Option<i64>,
-    pub name: String, // empty string for nullable
-                      // FIXME: WS-21 - add import_block to indicate that all data prior to that
-                      //        block was recovered from the ledger and may be missing data
+    pub name: String, /* empty string for nullable
+                       * FIXME: WS-21 - add import_block to indicate that all data prior to that
+                       *        block was recovered from the ledger and may be missing data */
 }
 
 #[derive(Insertable)]
