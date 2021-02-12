@@ -16,7 +16,7 @@ pub trait Wallet {
     ///
     /// # Arguments
     /// * `name` - The name of the account.
-    /// * `first_block` - ???
+    /// * `first_block` - Previous blocks will be ignored when updating the balance for this account.
     fn create_account(
         &self,
         name: Option<String>,
@@ -27,8 +27,8 @@ pub trait Wallet {
     ///
     /// # Arguments
     /// * `entropy` - ???
-    /// * `name` - ???
-    /// * `first_block` - ???
+    /// * `name` - The name for this account.
+    /// * `first_block` - Previous blocks will be ignored when updating the balance for this account.
     fn import_account(
         &self,
         entropy: String,
@@ -39,8 +39,7 @@ pub trait Wallet {
     /// Get an account by ID.
     ///
     /// # Arguments
-    /// * `account_id_hex` - ???
-    /// * `name` - The new account name.
+    /// * `account_id_hex` - Unique account identifier.
     fn get_account(
         &self,
         account_id_hex: &AccountID,
@@ -52,7 +51,7 @@ pub trait Wallet {
     /// Set the account name.
     ///
     /// # Arguments
-    /// * `account_id_hex` - ???
+    /// * `account_id_hex` - Unique account identifier.
     /// * `name` - The new account name.
     fn update_account_name(
         &self,
@@ -63,13 +62,13 @@ pub trait Wallet {
     /// Deletes an account.
     ///
     /// # Arguments
-    /// * `account_id_hex` - ???
+    /// * `account_id_hex` - Unique account identifier.
     fn delete_account(&self, account_id_hex: &str) -> Result<(), WalletServiceError>;
 
     /// Get all TXOs associated with the given account.
     ///
     /// # Arguments
-    /// * `account_id_hex` - ???
+    /// * `account_id_hex` - Unique account identifier.
     fn list_txos(&self, account_id_hex: &str) -> Result<Vec<json_rpc::Txo>, WalletServiceError>;
 
     /// Get a TXO by ID.
@@ -81,7 +80,7 @@ pub trait Wallet {
     /// Get the current balance of the given account.
     ///
     /// # Arguments
-    /// * `account_id_hex` - ???
+    /// * `account_id_hex` - Unique account identifier.
     fn get_balance(
         &self,
         account_id_hex: &str,
@@ -90,7 +89,7 @@ pub trait Wallet {
     /// ???
     ///
     /// # Arguments
-    /// * `account_id_hex` - ???
+    /// * `account_id_hex` - Unique account identifier.
     /// * `comment` - ???
     fn create_assigned_subaddress(
         &self,
@@ -102,7 +101,7 @@ pub trait Wallet {
     /// ???
     ///
     /// # Arguments
-    /// * `account_id_hex` - ???
+    /// * `account_id_hex` - Unique account identifier.
     fn list_assigned_subaddresses(
         &self,
         account_id_hex: &str,
@@ -110,12 +109,14 @@ pub trait Wallet {
 
     /// Creates a transaction (but does not submit it).
     ///
+    /// The transaction sends `value` to a single recipient.
+    ///
     /// # Arguments
-    /// * `account_id_hex` - ???
-    /// * `recipient_public_address` - ???
-    /// * `value` - ???
+    /// * `account_id_hex` - Unique account identifier.
+    /// * `recipient_public_address` - The recipient of the transaction.
+    /// * `value` - The value (excluding fee) sent by this transaction, denominated in picoMOB.
     /// * `input_txo_ids` - ???
-    /// * `fee` - ???
+    /// * `fee` - Transaction fee, denominated in picoMOB.
     /// * `tombstone_block` - ???
     /// * `max_spendable_value` - ???
     #[allow(clippy::too_many_arguments)]
@@ -135,7 +136,7 @@ pub trait Wallet {
     /// # Arguments
     /// * `tx_proposal` - The transaction to submit.
     /// * `comment` - ???
-    /// * `account_id_hex` - ???
+    /// * `account_id_hex` - Unique account identifier.
     fn submit_transaction(
         &self,
         tx_proposal: mc_mobilecoind_json::data_types::JsonTxProposal,
@@ -145,12 +146,14 @@ pub trait Wallet {
 
     /// Convenience method that builds and submits in one go.
     ///
+    /// The transaction sends `value` to a single recipient.
+    ///
     /// # Arguments
-    /// * `account_id_hex` - ???
-    /// * `recipient_public_address` - ???
-    /// * `value` - ???
+    /// * `account_id_hex` - Unique account identifier.
+    /// * `recipient_public_address` - The recipient of the transaction.
+    /// * `value` - The value (excluding fee) sent by this transaction, denominated in picoMOB.
     /// * `input_txo_ids` - ???
-    /// * `fee` - ???
+    /// * `fee` - Transaction fee, denominated in picoMOB.
     /// * `tombstone_block` - ???
     /// * `max_spendable_value` - ???
     /// * `comment` - ???
@@ -170,7 +173,7 @@ pub trait Wallet {
     /// Get all transactions associated with the given account.
     ///
     /// # Arguments
-    /// * `account_id_hex` - ???
+    /// * `account_id_hex` - Unique account identifier.
     fn list_transactions(
         &self,
         account_id_hex: &str,
@@ -224,7 +227,7 @@ pub trait Wallet {
     /// ???
     ///
     /// # Arguments
-    /// * `account_id_hex` - ???
+    /// * `account_id_hex` - Unique account identifier.
     /// * `txo_id_hex` - ???
     /// * `proof_hex` - ???
     fn verify_proof(
