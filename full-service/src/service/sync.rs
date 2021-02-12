@@ -2,24 +2,27 @@
 
 //! Manages ledger block scanning for wallet accounts..
 //!
-//! Note: Copied and reworked from mobilecoin/mobilecoind/src/sync.rs. Future work is to figure out
-//!       how to better share this code.
+//! Note: Copied and reworked from mobilecoin/mobilecoind/src/sync.rs. Future
+//! work is to figure out       how to better share this code.
 //!
-//! The sync code creates a pool of worker threads, and a main thread to hand off tasks to the
-//! worker threads over a crossbeam channel. Each task is a request to sync block data for a given
-//! account id. Each task is limited to a pre-defined amount of blocks - this is useful when the
-//! amount of accounts exceeds the amount of working threads as it ensures accounts are processed
+//! The sync code creates a pool of worker threads, and a main thread to hand
+//! off tasks to the worker threads over a crossbeam channel. Each task is a
+//! request to sync block data for a given account id. Each task is limited to a
+//! pre-defined amount of blocks - this is useful when the amount of accounts
+//! exceeds the amount of working threads as it ensures accounts are processed
 //! concurrently.
 //!
-//! The main thread periodically queries the database for all currently known account ids, and
-//! submits new jobs into the queue for each account not currently queued. In order to prevent
-//! duplicate queueing, the code also keeps track of the list of already-queued account ids inside
-//! a hashset that is shared with the worker threads. When a worker thread is finished with a given
-//! account id, it removes it from the hashset, which in turns allows the main thread to queue it
-//! again once the polling interval is exceeded. Since the worker thread processes blocks in
-//! chunks, it is possible that not all available blocks gets processed at once. When that happens,
-//! instead of removing the account id from the hashset, it would be placed back into the queue to
-//! be picked up by the next available worker thread.
+//! The main thread periodically queries the database for all currently known
+//! account ids, and submits new jobs into the queue for each account not
+//! currently queued. In order to prevent duplicate queueing, the code also
+//! keeps track of the list of already-queued account ids inside a hashset that
+//! is shared with the worker threads. When a worker thread is finished with a
+//! given account id, it removes it from the hashset, which in turns allows the
+//! main thread to queue it again once the polling interval is exceeded. Since
+//! the worker thread processes blocks in chunks, it is possible that not all
+//! available blocks gets processed at once. When that happens, instead of
+//! removing the account id from the hashset, it would be placed back into the
+//! queue to be picked up by the next available worker thread.
 
 use crate::{
     db::{
@@ -66,7 +69,8 @@ const MAX_BLOCKS_PROCESSING_CHUNK_SIZE: usize = 5;
 /// The AccountId corresponds to the Account's primary key: account_key_hex.
 pub type AccountId = String;
 
-/// Message type our crossbeam channel uses to communicate with the worker thread pull.
+/// Message type our crossbeam channel uses to communicate with the worker
+/// thread pull.
 enum SyncMsg {
     SyncAccount(AccountId),
     Stop,
@@ -156,12 +160,14 @@ impl SyncThread {
                             .expect("failed getting number of blocks");
 
                         // A flag to track whether we sent a message to our work queue.
-                        // If we sent a message, that means new blocks have arrived and we can skip sleeping.
-                        // If no new blocks arrived, and we haven't had to sync any accounts, we can sleep for
+                        // If we sent a message, that means new blocks have arrived and we can skip
+                        // sleeping. If no new blocks arrived, and we
+                        // haven't had to sync any accounts, we can sleep for
                         // a bit so that we do not use 100% cpu.
                         let mut message_sent = false;
 
-                        // Go over our list of accounts and see which one needs to process these blocks.
+                        // Go over our list of accounts and see which one needs to process these
+                        // blocks.
                         for account in Account::list_all(
                             &wallet_db
                                 .get_conn()
@@ -265,8 +271,8 @@ fn sync_thread_entry_point(
                 match sync_account(&ledger_db, &wallet_db, &account_id, &logger) {
                     // Success - No more blocks are currently available.
                     Ok(SyncAccountOk::NoMoreBlocks) => {
-                        // Remove the account id from the list of queued ones so that the main thread could
-                        // queue it again if necessary.
+                        // Remove the account id from the list of queued ones so that the main
+                        // thread could queue it again if necessary.
                         log::trace!(logger, "{}: sync_account returned NoMoreBlocks", account_id);
 
                         let mut queued_account_ids =
@@ -315,8 +321,8 @@ pub fn sync_account(
     for _ in 0..MAX_BLOCKS_PROCESSING_CHUNK_SIZE {
         let conn = wallet_db.get_conn()?;
         let sync_status = conn.transaction::<SyncAccountOk, SyncError, _>(|| {
-            // Get the account data. If it is no longer available, the account has been removed and we
-            // can simply return.
+            // Get the account data. If it is no longer available, the account has been
+            // removed and we can simply return.
             let account = Account::get(&AccountID(account_id.to_string()), &conn)?;
             let block_contents = match ledger_db.get_block_contents(account.next_block as u64) {
                 Ok(block_contents) => block_contents,
@@ -346,9 +352,10 @@ pub fn sync_account(
                 logger,
             )?;
 
-            // Note: Doing this here means we are updating key images multiple times, once per account.
-            //       We do actually want to do it this way, because each account may need to process
-            //       the same block at a different time, depending on when we add it to the DB.
+            // Note: Doing this here means we are updating key images multiple times, once
+            // per account.       We do actually want to do it this way, because
+            // each account may need to process       the same block at a
+            // different time, depending on when we add it to the DB.
             account.update_spent_and_increment_next_block(
                 account.next_block,
                 block_contents.key_images,
@@ -431,7 +438,8 @@ fn process_txos(
             Ok((v, _blinding)) => v,
             Err(AmountError::InconsistentCommitment) => {
                 // Assume this is not a transaction that belongs to us. We go this far because
-                // we are trying to match txos even if we did not preemptively store a subaddress spk.
+                // we are trying to match txos even if we did not preemptively store a
+                // subaddress spk.
                 continue;
             }
         };

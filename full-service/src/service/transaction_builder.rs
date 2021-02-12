@@ -1,10 +1,12 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
-//! A builder for transactions from the wallet. Note that we have a TransactionBuilder
-//! in the MobileCoin transaction crate, but that is a lower level of building, once you
-//! have already obtained all of the materials that go into a transaction.
+//! A builder for transactions from the wallet. Note that we have a
+//! TransactionBuilder in the MobileCoin transaction crate, but that is a lower
+//! level of building, once you have already obtained all of the materials that
+//! go into a transaction.
 //!
-//! This module, on the other hand, builds a transaction within the context of the wallet.
+//! This module, on the other hand, builds a transaction within the context of
+//! the wallet.
 
 use crate::{
     db::{
@@ -40,7 +42,8 @@ use diesel::prelude::*;
 use rand::Rng;
 use std::{convert::TryFrom, iter::FromIterator, sync::Arc};
 
-/// Default number of blocks used for calculating transaction tombstone block number.
+/// Default number of blocks used for calculating transaction tombstone block
+/// number.
 // TODO support for making this configurable
 pub const DEFAULT_NEW_TX_BLOCK_ATTEMPTS: u64 = 50;
 
@@ -79,7 +82,8 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
         }
     }
 
-    /// Sets inputs to the txos associated with the given txo_ids. Only unspent txos are included.
+    /// Sets inputs to the txos associated with the given txo_ids. Only unspent
+    /// txos are included.
     pub fn set_txos(
         &mut self,
         input_txo_ids: &[String],
@@ -129,7 +133,8 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
         if !self.outlays.is_empty() && recipient != self.outlays[0].0 {
             return Err(WalletTransactionBuilderError::MultipleOutgoingRecipients);
         }
-        // Verify that the maximum output value of this transaction remains under u64::MAX
+        // Verify that the maximum output value of this transaction remains under
+        // u64::MAX
         let cur_sum = self.outlays.iter().map(|(_r, v)| *v as u128).sum::<u128>();
         if cur_sum > u64::MAX as u128 {
             return Err(WalletTransactionBuilderError::OutboundValueTooLarge);
@@ -236,7 +241,8 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
                     let real_key_index = match position_opt {
                         Some(position) => {
                             // The input is already present in the ring.
-                            // This could happen if ring elements are sampled randomly from the ledger.
+                            // This could happen if ring elements are sampled randomly from the
+                            // ledger.
                             position
                         }
                         None => {
@@ -250,8 +256,8 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
                                 ring[0] = db_tx_out.clone();
                                 membership_proofs[0] = proof.clone();
                             }
-                            // The real input is always the first element. This is safe because TransactionBuilder
-                            // sorts each ring.
+                            // The real input is always the first element. This is safe because
+                            // TransactionBuilder sorts each ring.
                             0
                         }
                     };
@@ -296,8 +302,8 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
                 }
 
                 // Add outputs to our destinations.
-                // Note that we make an assumption currently when logging submitted Txos that they were built
-                //  with only one recipient, and one change txo.
+                // Note that we make an assumption currently when logging submitted Txos that
+                // they were built  with only one recipient, and one change txo.
                 let mut total_value = 0;
                 let mut tx_out_to_outlay_index: HashMap<TxOut, usize> = HashMap::default();
                 let mut outlay_confirmation_numbers = Vec::default();
@@ -396,11 +402,12 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
                 }
 
                 // Make the UnspentTxOut for each Txo
-                // FIXME: WS-27 - I would prefer to provide just the txo_id_hex per txout, but this at least
-                //        preserves some interoperability between mobilecoind and wallet-service.
-                //        However, this is pretty clunky and I would rather not expose a storage
-                //        type from mobilecoind just to get around having to write a bunch of tedious
-                //        json conversions.
+                // FIXME: WS-27 - I would prefer to provide just the txo_id_hex per txout, but
+                // this at least        preserves some interoperability between
+                // mobilecoind and wallet-service.        However, this is
+                // pretty clunky and I would rather not expose a storage
+                //        type from mobilecoind just to get around having to write a bunch of
+                // tedious        json conversions.
                 // Return the TxProposal
                 let selected_utxos = inputs_and_proofs
                     .iter()
@@ -457,7 +464,8 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
             return Err(WalletTransactionBuilderError::InsufficientTxOuts);
         }
 
-        // Randomly sample `num_requested` TxOuts, without replacement and convert into a Vec<u64>
+        // Randomly sample `num_requested` TxOuts, without replacement and convert into
+        // a Vec<u64>
         let mut rng = rand::thread_rng();
         let mut sampled_indices: HashSet<u64> = HashSet::default();
         while sampled_indices.len() < num_requested {
@@ -749,7 +757,8 @@ mod tests {
             Err(e) => panic!("Unexpected error {:?}", e),
         }
 
-        // We should be able to try again, with max_spendable at 70, but will not hit our outlay target (80 * MOB)
+        // We should be able to try again, with max_spendable at 70, but will not hit
+        // our outlay target (80 * MOB)
         match builder.select_txos(Some(70 * MOB as u64)) {
             Ok(_) => panic!("Should not be able to construct tx when max_spendable < all txos"),
             Err(WalletTransactionBuilderError::WalletDb(
@@ -758,7 +767,8 @@ mod tests {
             Err(e) => panic!("Unexpected error {:?}", e),
         }
 
-        // Now, we should succeed if we set max_spendable = 80 * MOB, because we will pick up both 70 and 80
+        // Now, we should succeed if we set max_spendable = 80 * MOB, because we will
+        // pick up both 70 and 80
         builder.select_txos(Some(80 * MOB as u64)).unwrap();
         builder.set_tombstone(0).unwrap();
         let proposal = builder.build().unwrap();
@@ -820,7 +830,8 @@ mod tests {
         // Set to default
         builder.set_tombstone(0).unwrap();
 
-        // Not setting the tombstone results in tombstone = 0. This is an acceptable value,
+        // Not setting the tombstone results in tombstone = 0. This is an acceptable
+        // value,
         let proposal = builder.build().unwrap();
         assert_eq!(proposal.tx.prefix.tombstone_block, 63);
 
@@ -836,7 +847,8 @@ mod tests {
         // Set to default
         builder.set_tombstone(20).unwrap();
 
-        // Not setting the tombstone results in tombstone = 0. This is an acceptable value,
+        // Not setting the tombstone results in tombstone = 0. This is an acceptable
+        // value,
         let proposal = builder.build().unwrap();
         assert_eq!(proposal.tx.prefix.tombstone_block, 20);
     }
@@ -960,10 +972,12 @@ mod tests {
         assert_eq!(proposal.outlays[0].receiver, recipient);
         assert_eq!(proposal.outlays[0].value, value);
         assert_eq!(proposal.tx.prefix.inputs.len(), 1); // uses just one input
-        assert_eq!(proposal.tx.prefix.outputs.len(), 1); // only one output to self (no change)
+        assert_eq!(proposal.tx.prefix.outputs.len(), 1); // only one output to
+                                                         // self (no change)
     }
 
-    // We should be able to add multiple TxOuts to the same recipient, not to multiple
+    // We should be able to add multiple TxOuts to the same recipient, not to
+    // multiple
     #[test_with_logger]
     fn test_add_multiple_outputs_to_same_recipient(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
@@ -1065,7 +1079,8 @@ mod tests {
         }
     }
 
-    // We should be able to add multiple TxOuts to the same recipient, not to multiple
+    // We should be able to add multiple TxOuts to the same recipient, not to
+    // multiple
     #[test_with_logger]
     fn test_add_multiple_recipients_fails(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);

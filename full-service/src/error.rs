@@ -39,7 +39,8 @@ pub enum WalletServiceError {
     /// Error with LedgerDB {0}
     LedgerDB(mc_ledger_db::Error),
 
-    /// No transaction object associated with this transaction. Note, received transactions do not have transaction objects.
+    /// No transaction object associated with this transaction. Note, received
+    /// transactions do not have transaction objects.
     NoTxInTransaction,
 
     /// Error decoding prost {0}
@@ -135,13 +136,15 @@ pub enum WalletDbError {
     /// Constructed a malformed transaction with multiple account IDs
     MultipleAccountIDsInTransaction,
 
-    /// Constructed a transaction with multiple recipients (not currently supported for transaction logs)
+    /// Constructed a transaction with multiple recipients (not currently
+    /// supported for transaction logs)
     MultipleRecipientsInTransaction,
 
     /// Constructed a transaction with no recipient
     TransactionLacksRecipient,
 
-    /// Constructed a transaction that is not linked to any account in the wallet
+    /// Constructed a transaction that is not linked to any account in the
+    /// wallet
     TransactionLacksAccount,
 
     /// Error decoding prost {0}
@@ -159,7 +162,8 @@ pub enum WalletDbError {
     /// No unspent Txos in the wallet
     NoSpendableTxos,
 
-    /// Txos are too fragmented to construct a transaction with MAX_INPUTS. Please combine txos.
+    /// Txos are too fragmented to construct a transaction with MAX_INPUTS.
+    /// Please combine txos.
     InsufficientFundsFragmentedTxos,
 
     /// Insufficient Funds {0}
@@ -339,13 +343,15 @@ pub enum WalletTransactionBuilderError {
     /// Outbound value + fee exceeds u64::MAX
     OutboundValueTooLarge,
 
-    /// Must set tombstone before building. Setting to 0 picks reasonable default.
+    /// Must set tombstone before building. Setting to 0 picks reasonable
+    /// default.
     TombstoneNotSet,
 
     /// Fee must be at least MINIMUM_FEE {0}
     InsufficientFee(String),
 
-    /// The wallet service only supports transactions with one recipient at this time.
+    /// The wallet service only supports transactions with one recipient at this
+    /// time.
     MultipleOutgoingRecipients,
 }
 

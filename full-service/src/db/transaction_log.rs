@@ -66,7 +66,8 @@ pub trait TransactionLogModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<TransactionLog, WalletDbError>;
 
-    /// Get the Txos associated with a given TransactionId, grouped according to their type.
+    /// Get the Txos associated with a given TransactionId, grouped according to
+    /// their type.
     ///
     /// Returns:
     /// * AssoiatedTxos(inputs, outputs, change)
@@ -107,12 +108,14 @@ pub trait TransactionLogModel {
 
     /// Log a submitted transaction.
     ///
-    /// When submitting a transaction, we store relevant information to the transaction logs,
-    /// and we also track information about each of the txos involved in the transaction.
+    /// When submitting a transaction, we store relevant information to the
+    /// transaction logs, and we also track information about each of the
+    /// txos involved in the transaction.
     ///
-    /// Note: We expect transactions created with this wallet to have one recipient, with the
-    ///       rest of the minted txos designated as change. Other wallets may choose to behave
-    ///       differently, but our TransactionLogs Table assumes this behavior.
+    /// Note: We expect transactions created with this wallet to have one
+    /// recipient, with the       rest of the minted txos designated as
+    /// change. Other wallets may choose to behave       differently, but
+    /// our TransactionLogs Table assumes this behavior.
     fn log_submitted(
         tx_proposal: TxProposal,
         block_count: u64,
@@ -297,9 +300,11 @@ impl TransactionLogModel for TransactionLog {
                     continue;
                 }
 
-                // Check whether all the inputs have been spent or if any failed, and update accordingly
+                // Check whether all the inputs have been spent or if any failed, and update
+                // accordingly
                 if Txo::are_all_spent(&associated.inputs, conn)? {
-                    // FIXME: WS-18 - do we want to store "submitted_block_count" to disambiguate block_count?
+                    // FIXME: WS-18 - do we want to store "submitted_block_count" to disambiguate
+                    // block_count?
                     diesel::update(
                         transaction_logs
                             .filter(transaction_id_hex.eq(&transaction_log.transaction_id_hex)),
@@ -311,7 +316,8 @@ impl TransactionLogModel for TransactionLog {
                     ))
                     .execute(conn)?;
                 } else if Txo::any_failed(&associated.inputs, cur_block_count, conn)? {
-                    // FIXME: WS-18, WS-17 - Do we want to store and update the "failed_block_count" as min(tombstones)?
+                    // FIXME: WS-18, WS-17 - Do we want to store and update the "failed_block_count"
+                    // as min(tombstones)?
                     diesel::update(
                         transaction_logs
                             .filter(transaction_id_hex.eq(&transaction_log.transaction_id_hex)),
@@ -340,7 +346,8 @@ impl TransactionLogModel for TransactionLog {
 
                     // Check that we haven't already logged this transaction on a previous sync
                     match TransactionLog::get(&transaction_id.to_string(), conn) {
-                        Ok(_) => continue, // We've already processed this transaction on a previous sync
+                        Ok(_) => continue, /* We've already processed this transaction on a
+                                             * previous sync */
                         Err(WalletDbError::TransactionLogNotFound(_)) => {} // Insert below
                         Err(e) => return Err(e),
                     }
@@ -409,8 +416,8 @@ impl TransactionLogModel for TransactionLog {
                 return Err(WalletDbError::UnexpectedNumberOfChangeOutputs);
             }
 
-            // First update all inputs to "pending." They will remain pending until their key_image
-            // hits the ledger or their tombstone block is exceeded.
+            // First update all inputs to "pending." They will remain pending until their
+            // key_image hits the ledger or their tombstone block is exceeded.
             for utxo in tx_proposal.utxos.iter() {
                 let txo_id = TxoID::from(&utxo.tx_out);
                 Txo::update_to_pending(&txo_id, conn)?;
@@ -454,7 +461,9 @@ impl TransactionLogModel for TransactionLog {
                 // Create a TransactionLogs entry
                 let new_transaction_log = NewTransactionLog {
                     transaction_id_hex: &transaction_id.to_string(),
-                    account_id_hex: &account_id_hex.unwrap_or(""), // Can be empty str if submitting an "unowned" proposal
+                    account_id_hex: &account_id_hex.unwrap_or(""), /* Can be empty str if
+                                                                    * submitting an "unowned"
+                                                                    * proposal */
                     recipient_public_address_b58: &b58_encode(&recipient)?,
                     assigned_subaddress_b58: "", // NULL for sent
                     value: transaction_value as i64,
@@ -711,7 +720,8 @@ mod tests {
         assert!(change_details.received_to_account.is_none()); // Note, gets filled in once scanned
         assert!(change_details.received_to_assigned_subaddress.is_none()); // Note, gets filled in once scanned
 
-        // FIXME: add the change txo above to the ledger, and then scan and verify the above statements
+        // FIXME: add the change txo above to the ledger, and then scan and
+        // verify the above statements
     }
 
     #[test_with_logger]

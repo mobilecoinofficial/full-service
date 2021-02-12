@@ -116,7 +116,8 @@ impl AssignedSubaddressModel for AssignedSubaddress {
             let subaddress_entry = NewAssignedSubaddress {
                 assigned_subaddress_b58: &subaddress_b58,
                 account_id_hex,
-                address_book_entry: None, // FIXME: WS-8 - Address Book Entry if details provided, or None always for main?
+                address_book_entry: None, /* FIXME: WS-8 - Address Book Entry if details
+                                           * provided, or None always for main? */
                 public_address: &mc_util_serial::encode(&subaddress),
                 subaddress_index: subaddress_index as i64,
                 comment,
@@ -127,8 +128,8 @@ impl AssignedSubaddressModel for AssignedSubaddress {
                 .values(&subaddress_entry)
                 .execute(conn)?;
             // Update the next subaddress index for the account
-            // Note: we also update the first_block back to 0 to scan from the beginning of the
-            //       ledger for this new subaddress.
+            // Note: we also update the first_block back to 0 to scan from the beginning of
+            // the       ledger for this new subaddress.
             // FIXME: WS-10 - pass in a "sync from" block rather than 0
             let sync_from = 0;
             diesel::update(accounts.filter(dsl_account_id_hex.eq(account_id_hex)))

@@ -89,7 +89,8 @@ impl WalletDbTestContext {
 /// * `num_blocks` - Number of blocks to create in the ledger_db.
 /// * `rng`
 ///
-/// Note that all txos will be controlled by the subindex DEFAULT_SUBADDRESS_INDEX
+/// Note that all txos will be controlled by the subindex
+/// DEFAULT_SUBADDRESS_INDEX
 pub fn get_test_ledger(
     num_random_recipients: u32,
     known_recipients: &[PublicAddress],
@@ -133,7 +134,8 @@ pub fn get_test_ledger(
 /// Creates an empty LedgerDB.
 ///
 /// # Arguments
-/// * `path` - Path to the ledger's data.mdb file. If such a file exists, it will be replaced.
+/// * `path` - Path to the ledger's data.mdb file. If such a file exists, it
+///   will be replaced.
 fn generate_ledger_db(path: &str) -> LedgerDB {
     // DELETE the old database if it already exists.
     let _ = std::fs::remove_file(format!("{}/data.mdb", path));
@@ -142,7 +144,8 @@ fn generate_ledger_db(path: &str) -> LedgerDB {
     db
 }
 
-/// Adds a block containing one txo for each provided recipient and returns new block height.
+/// Adds a block containing one txo for each provided recipient and returns new
+/// block height.
 ///
 /// # Arguments
 /// * `ledger_db` - Ledger database instance.
@@ -355,7 +358,8 @@ pub fn create_test_minted_and_change_txos(
     // There should be 2 outputs, one to dest and one change
     assert_eq!(tx_proposal.tx.prefix.outputs.len(), 2);
 
-    // Take the first one (we only construct with one outlay currently, could modify build protocol)
+    // Take the first one (we only construct with one outlay currently, could modify
+    // build protocol)
     assert_eq!(tx_proposal.outlay_index_to_tx_out_index.len(), 1);
     let outlay_txo_index = tx_proposal.outlay_index_to_tx_out_index[&0];
 
