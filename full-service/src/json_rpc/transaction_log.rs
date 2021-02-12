@@ -1,7 +1,5 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
-// use crate::db::models::TransactionLog;
-// use crate::db::transaction_log::AssociatedTxos;
 use crate::db;
 use chrono::offset::TimeZone;
 use chrono::Utc;
