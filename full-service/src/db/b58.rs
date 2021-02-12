@@ -11,8 +11,9 @@ pub fn b58_encode(public_address: &PublicAddress) -> Result<String, WalletDbErro
 }
 
 pub fn b58_decode(b58_public_address: &str) -> Result<PublicAddress, WalletDbError> {
-    let wrapper =
-        mc_mobilecoind_api::printable::PrintableWrapper::b58_decode(b58_public_address.to_string())?;
+    let wrapper = mc_mobilecoind_api::printable::PrintableWrapper::b58_decode(
+        b58_public_address.to_string(),
+    )?;
 
     let pubaddr_proto: &mc_api::external::PublicAddress = if wrapper.has_payment_request() {
         let payment_request = wrapper.get_payment_request();
@@ -23,17 +24,17 @@ pub fn b58_decode(b58_public_address: &str) -> Result<PublicAddress, WalletDbErr
         return Err(WalletDbError::B58Decode);
     };
 
-    let public_address = PublicAddress::try_from(pubaddr_proto)
-        .map_err(|_e| WalletDbError::B58Decode)?;
+    let public_address =
+        PublicAddress::try_from(pubaddr_proto).map_err(|_e| WalletDbError::B58Decode)?;
     Ok(public_address)
 }
 
 #[cfg(test)]
 mod tests {
-    use mc_account_keys::{PublicAddress, AccountKey};
+    use crate::db::{b58_decode, b58_encode};
+    use mc_account_keys::{AccountKey, PublicAddress};
     use rand::rngs::StdRng;
-    use rand::{SeedableRng, RngCore, CryptoRng};
-    use crate::db::{b58_encode, b58_decode};
+    use rand::{CryptoRng, RngCore, SeedableRng};
 
     fn get_public_address<T: RngCore + CryptoRng>(rng: &mut T) -> PublicAddress {
         let account_key = AccountKey::random(rng);
@@ -69,7 +70,6 @@ mod tests {
         assert_eq!(public_address, decoded);
     }
 
-
     #[test]
     #[ignore]
     /// Attempting to decode invalid data should return a reasonable Error.
@@ -77,6 +77,4 @@ mod tests {
         // TODO
         unimplemented!()
     }
-
-
 }
