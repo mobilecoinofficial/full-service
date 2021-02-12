@@ -346,8 +346,7 @@ impl TransactionLogModel for TransactionLog {
 
                     // Check that we haven't already logged this transaction on a previous sync
                     match TransactionLog::get(&transaction_id.to_string(), conn) {
-                        Ok(_) => continue, /* We've already processed this transaction on a
-                                             * previous sync */
+                        Ok(_) => continue, // Processed this transaction on a previous sync.
                         Err(WalletDbError::TransactionLogNotFound(_)) => {} // Insert below
                         Err(e) => return Err(e),
                     }
