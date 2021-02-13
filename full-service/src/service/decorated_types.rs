@@ -361,10 +361,10 @@ impl From<&JsonTxProposal> for StringifiedJsonTxProposal {
 
 impl From<&StringifiedJsonTxProposal> for JsonTxProposal {
     fn from(src: &StringifiedJsonTxProposal) -> Self {
-        let outlay_map: Vec<(u64, u64)> = src
+        let outlay_map: Vec<(usize, usize)> = src
             .outlay_index_to_tx_out_index
             .iter()
-            .map(|(key, val)| (key.parse::<u64>().unwrap(), val.parse::<u64>().unwrap()))
+            .map(|(key, val)| (key.parse::<usize>().unwrap(), val.parse::<usize>().unwrap()))
             .collect();
         Self {
             input_list: src.input_list.iter().map(JsonUnspentTxOut::from).collect(),
