@@ -15,10 +15,18 @@ MobileCoin Full Service is available under open-source licenses. Look for the [L
 
 ## Build and Run
 
+1. Install Rust from https://www.rust-lang.org/tools/install
+
 1. Install dependencies.
 
+    On Ubuntu:
     ```sh
-    sudo apt install cmake protobuf-compiler
+    sudo apt install build-essential cmake protobuf-compiler llvm libclang-dev libsqlite3-dev libssl1.1
+    ```
+
+    On Mac:
+    ```sh
+    brew bundle
     ```
 
 1. Pull submodule.
@@ -45,8 +53,7 @@ MobileCoin Full Service is available under open-source licenses. Look for the [L
 1. Run
 
     ```sh
-    mkdir /tmp/wallet-db/
-
+    mkdir -p /tmp/wallet-db/
     ./target/release/full-service \
         --wallet-db /tmp/wallet-db/wallet.db \
         --ledger-db /tmp/ledger-db/ \
