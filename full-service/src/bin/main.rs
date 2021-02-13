@@ -107,7 +107,7 @@ fn main() {
             ledger_db,
             peer_manager,
             network_state,
-            config.get_fog_pubkey_resolver(logger.clone()).map(Arc::new),
+            config.get_fog_pubkey_resolver_factory(logger.clone()),
             config.num_workers,
             logger,
         ),

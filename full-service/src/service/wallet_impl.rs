@@ -33,13 +33,14 @@ use mc_connection::{
     UserTxConnection,
 };
 use mc_crypto_rand::rand_core::RngCore;
-use mc_fog_report_connection::FogPubkeyResolver;
+use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::{NetworkState, PollingNetworkState};
 use mc_mobilecoind::payments::TxProposal;
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
 use mc_transaction_core::tx::{Tx, TxOut, TxOutConfirmationNumber};
 use mc_util_from_random::FromRandom;
+use mc_util_uri::FogUri;
 
 use diesel::prelude::*;
 use serde_json::Map;
@@ -61,7 +62,7 @@ pub struct WalletService<
     ledger_db: LedgerDB,
     peer_manager: McConnectionManager<T>,
     network_state: Arc<RwLock<PollingNetworkState<T>>>,
-    fog_pubkey_resolver: Option<Arc<FPR>>,
+    fog_resolver_factory: Arc<dyn Fn(&[FogUri]) -> Result<FPR, String> + Send + Sync>,
     _sync_thread: SyncThread,
     /// Monotonically increasing counter. This is used for node round-robin
     /// selection.
@@ -79,7 +80,7 @@ impl<
         ledger_db: LedgerDB,
         peer_manager: McConnectionManager<T>,
         network_state: Arc<RwLock<PollingNetworkState<T>>>,
-        fog_pubkey_resolver: Option<Arc<FPR>>,
+        fog_resolver_factory: Arc<dyn Fn(&[FogUri]) -> Result<FPR, String> + Send + Sync>,
         num_workers: Option<usize>,
         logger: Logger,
     ) -> Self {
@@ -96,7 +97,7 @@ impl<
             ledger_db,
             peer_manager,
             network_state,
-            fog_pubkey_resolver,
+            fog_resolver_factory,
             _sync_thread: sync_thread,
             submit_node_offset: Arc::new(AtomicUsize::new(rng.next_u64() as usize)),
             logger,
