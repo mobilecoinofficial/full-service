@@ -221,7 +221,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                         .map_err(WalletTransactionBuilderError::FogPubkeyResolver)?
                 };
 
-                // Create tx_builder.
+                // Create transaction builder.
                 let mut transaction_builder = TransactionBuilder::new(fog_resolver);
                 transaction_builder.set_fee(self.fee.unwrap_or(MINIMUM_FEE));
 
@@ -429,7 +429,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 // mobilecoind and wallet-service. However, this is
                 // pretty clunky and I would rather not expose a storage
                 // type from mobilecoind just to get around having to write a bunch of
-                // tedious        json conversions.
+                // tedious json conversions.
                 // Return the TxProposal
                 let selected_utxos = inputs_and_proofs
                     .iter()

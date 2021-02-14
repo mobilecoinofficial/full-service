@@ -354,7 +354,7 @@ pub enum WalletTransactionBuilderError {
     /// time.
     MultipleOutgoingRecipients,
 
-    /// Error parsing UR {0}
+    /// Error parsing URI {0}
     UriParse(mc_util_uri::UriParseError),
 
     /// Error generating FogPubkeyResolver {0}
