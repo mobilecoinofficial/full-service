@@ -5,6 +5,7 @@
 use displaydoc::Display;
 
 #[derive(Display, Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum WalletServiceError {
     /// Error interacting with the DB {0}
     Database(WalletDbError),
@@ -291,6 +292,7 @@ impl From<diesel::result::Error> for SyncError {
 }
 
 #[derive(Display, Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum WalletTransactionBuilderError {
     /// Insufficient Funds {0}
     InsufficientFunds(String),
