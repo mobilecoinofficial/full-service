@@ -423,7 +423,7 @@ impl<
             account_id_hex.to_string(),
             self.wallet_db.clone(),
             self.ledger_db.clone(),
-            self.fog_pubkey_resolver.clone(),
+            self.fog_resolver_factory.clone(),
             self.logger.clone(),
         );
         let recipient = b58_decode(recipient_public_address)?;
@@ -643,8 +643,8 @@ mod tests {
     use crate::{
         db::models::{TXO_MINTED, TXO_RECEIVED},
         test_utils::{
-            add_block_to_ledger_db, get_test_ledger, setup_peer_manager_and_network_state,
-            WalletDbTestContext,
+            add_block_to_ledger_db, get_resolver_factory, get_test_ledger,
+            setup_peer_manager_and_network_state, WalletDbTestContext,
         },
     };
     use mc_account_keys::PublicAddress;
@@ -662,6 +662,8 @@ mod tests {
         ledger_db: LedgerDB,
         logger: Logger,
     ) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger.clone());
         let (peer_manager, network_state) =
@@ -672,7 +674,7 @@ mod tests {
             ledger_db,
             peer_manager,
             network_state,
-            Some(Arc::new(MockFogPubkeyResolver::new())),
+            get_resolver_factory(&mut rng).unwrap(),
             None,
             logger,
         )

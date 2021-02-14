@@ -770,8 +770,8 @@ mod tests {
         },
         test_utils::{
             add_block_with_tx_proposal, create_test_minted_and_change_txos,
-            create_test_received_txo, get_test_ledger, random_account_with_seed_values,
-            WalletDbTestContext, MOB,
+            create_test_received_txo, get_resolver_factory, get_test_ledger,
+            random_account_with_seed_values, WalletDbTestContext, MOB,
         },
     };
     use mc_account_keys::{AccountKey, RootIdentity};
@@ -785,7 +785,7 @@ mod tests {
     use mc_transaction_core::constants::MINIMUM_FEE;
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
-    use std::{iter::FromIterator, sync::Arc};
+    use std::iter::FromIterator;
 
     #[test_with_logger]
     fn test_received_tx_lifecycle(logger: Logger) {
@@ -1139,7 +1139,7 @@ mod tests {
                 AccountID::from(&sender_account_key).to_string(),
                 wallet_db.clone(),
                 ledger_db.clone(),
-                Some(Arc::new(MockFogPubkeyResolver::new())),
+                get_resolver_factory(&mut rng).unwrap(),
                 logger.clone(),
             );
         builder

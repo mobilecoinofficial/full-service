@@ -178,15 +178,15 @@ dependencies = [
 
 [[package]]
 name = "base64"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b41b7ea54a0c9d92199de89e20e58d49f02f8e699814ef3fdf266f6f748d15c7"
-
-[[package]]
-name = "base64"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3441f0f7b02788e948e47f457ca01f1d7e6d92c693bc132c22b087d3141c03ff"
+
+[[package]]
+name = "base64"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
 
 [[package]]
 name = "bigint"
@@ -537,8 +537,18 @@ version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b153fe7cbef478c567df0f972e02e6d736db11affe43dfc9c56a9374d1adfb87"
 dependencies = [
- "crossbeam-utils",
+ "crossbeam-utils 0.7.2",
  "maybe-uninit",
+]
+
+[[package]]
+name = "crossbeam-channel"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dca26ee1f8d361640700bde38b2c37d8c22b3ce2d360e1fc1c74ea4b0aa7d775"
+dependencies = [
+ "cfg-if 1.0.0",
+ "crossbeam-utils 0.8.1",
 ]
 
 [[package]]
@@ -549,6 +559,17 @@ checksum = "c3c7c73a2d1e9fc0886a08b93e98eb643461230d5f1925e4036204d5f2e261a8"
 dependencies = [
  "autocfg 1.0.1",
  "cfg-if 0.1.10",
+ "lazy_static",
+]
+
+[[package]]
+name = "crossbeam-utils"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "02d96d1e189ef58269ebe5b97953da3274d83a93af647c2ddd6f9dab28cedb8d"
+dependencies = [
+ "autocfg 1.0.1",
+ "cfg-if 1.0.0",
  "lazy_static",
 ]
 
@@ -590,7 +611,7 @@ dependencies = [
  "rand_core 0.5.1",
  "serde",
  "subtle",
- "zeroize 1.1.1",
+ "zeroize",
 ]
 
 [[package]]
@@ -773,7 +794,7 @@ dependencies = [
  "serde",
  "serde_bytes",
  "sha2",
- "zeroize 1.1.1",
+ "zeroize",
 ]
 
 [[package]]
@@ -1634,13 +1655,13 @@ dependencies = [
  "mc-crypto-digestible",
  "mc-crypto-hashes",
  "mc-crypto-keys",
- "mc-crypto-sig",
+ "mc-fog-sig-authority",
  "mc-util-from-random",
  "mc-util-repr-bytes",
  "mc-util-serial",
  "prost",
  "rand_core 0.5.1",
- "zeroize 1.1.1",
+ "zeroize",
 ]
 
 [[package]]
@@ -1653,6 +1674,7 @@ dependencies = [
  "curve25519-dalek",
  "displaydoc",
  "mc-account-keys",
+ "mc-attest-core",
  "mc-crypto-keys",
  "mc-transaction-core",
  "mc-util-build-grpc",
@@ -1714,6 +1736,7 @@ dependencies = [
  "mbedtls",
  "mbedtls-sys-auto",
  "mc-common",
+ "mc-crypto-digestible",
  "mc-crypto-rand",
  "mc-sgx-build",
  "mc-sgx-css",
@@ -1858,7 +1881,6 @@ dependencies = [
 name = "mc-crypto-box"
 version = "1.0.0"
 dependencies = [
- "aead",
  "aes-gcm",
  "blake2",
  "digest",
@@ -1902,6 +1924,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "mc-crypto-digestible-signature"
+version = "1.0.0"
+dependencies = [
+ "mc-crypto-digestible",
+ "schnorrkel",
+ "signature",
+]
+
+[[package]]
 name = "mc-crypto-hashes"
 version = "1.0.0"
 dependencies = [
@@ -1922,14 +1953,17 @@ dependencies = [
  "failure",
  "hex_fmt",
  "mc-crypto-digestible",
+ "mc-crypto-digestible-signature",
  "mc-util-from-random",
  "mc-util-repr-bytes",
  "rand_core 0.5.1",
+ "rand_hc 0.2.0",
+ "schnorrkel",
  "serde",
  "sha2",
  "signature",
  "x25519-dalek",
- "zeroize 1.1.1",
+ "zeroize",
 ]
 
 [[package]]
@@ -1949,7 +1983,7 @@ dependencies = [
  "serde",
  "sha2",
  "subtle",
- "zeroize 0.10.1",
+ "zeroize",
 ]
 
 [[package]]
@@ -1964,14 +1998,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "mc-crypto-sig"
+name = "mc-crypto-x509-utils"
 version = "1.0.0"
 dependencies = [
+ "displaydoc",
  "mc-crypto-keys",
- "merlin",
- "rand_core 0.5.1",
- "rand_hc 0.2.0",
- "schnorrkel",
+ "pem",
+ "x509-signature",
 ]
 
 [[package]]
@@ -1984,6 +2017,7 @@ dependencies = [
  "mc-api",
  "mc-attest-api",
  "mc-consensus-api",
+ "mc-fog-types",
  "mc-util-build-grpc",
  "mc-util-build-script",
  "protobuf",
@@ -2000,6 +2034,7 @@ dependencies = [
  "mc-common",
  "mc-fog-api",
  "mc-fog-report-validation",
+ "mc-fog-types",
  "mc-util-grpc",
  "mc-util-serial",
  "mc-util-uri",
@@ -2013,8 +2048,66 @@ dependencies = [
  "mc-account-keys",
  "mc-attest-core",
  "mc-crypto-keys",
+ "mc-fog-sig",
+ "mc-fog-types",
  "mc-util-encodings",
+ "mc-util-serial",
+ "mc-util-uri",
  "mockall",
+]
+
+[[package]]
+name = "mc-fog-report-validation-test-utils"
+version = "1.0.0"
+dependencies = [
+ "mc-account-keys",
+ "mc-fog-report-validation",
+]
+
+[[package]]
+name = "mc-fog-sig"
+version = "1.0.0"
+dependencies = [
+ "displaydoc",
+ "mc-account-keys",
+ "mc-crypto-keys",
+ "mc-crypto-x509-utils",
+ "mc-fog-sig-authority",
+ "mc-fog-sig-report",
+ "mc-fog-types",
+ "pem",
+ "signature",
+ "x509-signature",
+]
+
+[[package]]
+name = "mc-fog-sig-authority"
+version = "1.0.0"
+dependencies = [
+ "mc-crypto-keys",
+ "signature",
+]
+
+[[package]]
+name = "mc-fog-sig-report"
+version = "1.0.0"
+dependencies = [
+ "displaydoc",
+ "mc-attest-core",
+ "mc-crypto-digestible-signature",
+ "mc-crypto-keys",
+ "mc-fog-types",
+ "signature",
+]
+
+[[package]]
+name = "mc-fog-types"
+version = "0.10.0"
+dependencies = [
+ "mc-attest-core",
+ "mc-crypto-digestible",
+ "prost",
+ "serde",
 ]
 
 [[package]]
@@ -2022,7 +2115,7 @@ name = "mc-full-service"
 version = "0.1.0"
 dependencies = [
  "chrono",
- "crossbeam-channel",
+ "crossbeam-channel 0.4.4",
  "diesel",
  "diesel-derive-enum",
  "diesel_migrations",
@@ -2043,6 +2136,7 @@ dependencies = [
  "mc-crypto-rand",
  "mc-fog-report-connection",
  "mc-fog-report-validation",
+ "mc-fog-report-validation-test-utils",
  "mc-ledger-db",
  "mc-ledger-sync",
  "mc-mobilecoind",
@@ -2096,7 +2190,7 @@ dependencies = [
 name = "mc-ledger-sync"
 version = "1.0.0"
 dependencies = [
- "crossbeam-channel",
+ "crossbeam-channel 0.5.0",
  "failure",
  "grpcio",
  "mc-account-keys",
@@ -2126,7 +2220,7 @@ version = "1.0.0"
 dependencies = [
  "aes-gcm",
  "blake2",
- "crossbeam-channel",
+ "crossbeam-channel 0.5.0",
  "displaydoc",
  "failure",
  "grpcio",
@@ -2145,6 +2239,7 @@ dependencies = [
  "mc-crypto-keys",
  "mc-crypto-rand",
  "mc-fog-report-connection",
+ "mc-fog-report-validation",
  "mc-ledger-db",
  "mc-ledger-sync",
  "mc-mobilecoind-api",
@@ -2248,7 +2343,6 @@ dependencies = [
  "mc-crypto-digestible",
  "mc-crypto-hashes",
  "mc-crypto-keys",
- "mc-crypto-rand",
  "mc-util-from-random",
  "mc-util-repr-bytes",
  "mc-util-serial",
@@ -2257,7 +2351,7 @@ dependencies = [
  "rand_core 0.5.1",
  "serde",
  "subtle",
- "zeroize 1.1.1",
+ "zeroize",
 ]
 
 [[package]]
@@ -2267,6 +2361,7 @@ dependencies = [
  "mc-account-keys",
  "mc-crypto-keys",
  "mc-crypto-rand",
+ "mc-fog-report-validation-test-utils",
  "mc-ledger-db",
  "mc-transaction-core",
  "mc-transaction-std",
@@ -2284,13 +2379,14 @@ dependencies = [
  "failure",
  "mc-account-keys",
  "mc-crypto-keys",
+ "mc-fog-report-validation",
  "mc-transaction-core",
  "mc-util-from-random",
  "mc-util-serial",
  "prost",
  "rand 0.7.3",
  "rand_core 0.5.1",
- "zeroize 1.1.1",
+ "zeroize",
 ]
 
 [[package]]
@@ -2386,7 +2482,7 @@ dependencies = [
  "rand 0.6.5",
  "sha2",
  "subtle",
- "zeroize 1.1.1",
+ "zeroize",
 ]
 
 [[package]]
@@ -2447,7 +2543,7 @@ dependencies = [
 name = "mc-util-uri"
 version = "1.0.0"
 dependencies = [
- "base64 0.11.0",
+ "base64 0.12.3",
  "displaydoc",
  "ed25519",
  "hex",
@@ -2463,10 +2559,15 @@ dependencies = [
 name = "mc-watcher"
 version = "1.0.0"
 dependencies = [
- "failure",
+ "displaydoc",
+ "grpcio",
+ "hex",
  "lmdb-rkv",
  "mc-api",
+ "mc-attest-core",
  "mc-common",
+ "mc-connection",
+ "mc-crypto-digestible",
  "mc-crypto-keys",
  "mc-ledger-db",
  "mc-ledger-sync",
@@ -2474,10 +2575,14 @@ dependencies = [
  "mc-transaction-core-test-utils",
  "mc-util-from-random",
  "mc-util-lmdb",
+ "mc-util-repr-bytes",
  "mc-util-serial",
+ "mc-util-uri",
  "mc-watcher-api",
  "prost",
+ "serde",
  "structopt",
+ "toml 0.5.8",
  "url 2.2.0",
 ]
 
@@ -2504,7 +2609,7 @@ dependencies = [
  "byteorder",
  "keccak",
  "rand_core 0.5.1",
- "zeroize 1.1.1",
+ "zeroize",
 ]
 
 [[package]]
@@ -2795,6 +2900,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "19b17cddbe7ec3f8bc800887bab5e717348c95ea2ca0b1bf0837fb964dc67099"
 
 [[package]]
+name = "pem"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f4c220d01f863d13d96ca82359d1e81e64a7c6bf0637bcde7b2349630addf0c6"
+dependencies = [
+ "base64 0.13.0",
+ "once_cell",
+ "regex",
+]
+
+[[package]]
 name = "percent-encoding"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3000,15 +3116,15 @@ dependencies = [
 
 [[package]]
 name = "protobuf"
-version = "2.18.0"
+version = "2.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d147edb77bcccbfc81fabffdc7bd50c13e103b15ca1e27515fe40de69a5776b"
+checksum = "73f72884896d22e0da0e5b266cb9a780b791f6c3b2f5beab6368d6cd4f0dbb86"
 
 [[package]]
 name = "protobuf-codegen"
-version = "2.18.0"
+version = "2.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e81f70c25aab9506f87253c55f7cdcd8917635d5597382958d20025c211bbbd"
+checksum = "e8217a1652dbc91d19c509c558234145faed729191a966896414e5889f62d543"
 dependencies = [
  "protobuf",
 ]
@@ -3387,7 +3503,7 @@ dependencies = [
  "rocket_http",
  "state",
  "time 0.1.44",
- "toml",
+ "toml 0.4.10",
  "version_check 0.9.2",
  "yansi",
 ]
@@ -3461,7 +3577,7 @@ dependencies = [
  "base64 0.12.3",
  "blake2b_simd",
  "constant_time_eq",
- "crossbeam-utils",
+ "crossbeam-utils 0.7.2",
 ]
 
 [[package]]
@@ -3540,7 +3656,7 @@ dependencies = [
  "rand_core 0.5.1",
  "sha2",
  "subtle",
- "zeroize 1.1.1",
+ "zeroize",
 ]
 
 [[package]]
@@ -3565,7 +3681,7 @@ version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9eb052cf770a381fa9a6ee63038ff9a0b11d30abb53be970672e950649ff0bfb"
 dependencies = [
- "zeroize 1.1.1",
+ "zeroize",
 ]
 
 [[package]]
@@ -3768,8 +3884,9 @@ checksum = "c111b5bd5695e56cffe5129854aa230b39c93a305372fdbb2668ca2394eea9f8"
 
 [[package]]
 name = "slog"
-version = "2.6.0"
-source = "git+https://github.com/mobilecoinofficial/slog?rev=cc1562258b81353426d17a55b7447256fa6eabbf#cc1562258b81353426d17a55b7447256fa6eabbf"
+version = "2.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8347046d4ebd943127157b94d63abb990fcf729dc4e9978927fdf4ac3c998d06"
 
 [[package]]
 name = "slog-async"
@@ -3777,7 +3894,7 @@ version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "51b3336ce47ce2f96673499fc07eb85e3472727b9a7a2959964b002c2ce8fbbb"
 dependencies = [
- "crossbeam-channel",
+ "crossbeam-channel 0.4.4",
  "slog",
  "take_mut",
  "thread_local",
@@ -4254,6 +4371,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "toml"
+version = "0.5.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a31142970826733df8241ef35dc040ef98c679ab14d7c3e54d827099b3acecaa"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "tower-service"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4707,7 +4833,17 @@ checksum = "bc614d95359fd7afc321b66d2107ede58b246b844cf5d8a0adcca413e439f088"
 dependencies = [
  "curve25519-dalek",
  "rand_core 0.5.1",
- "zeroize 1.1.1",
+ "zeroize",
+]
+
+[[package]]
+name = "x509-signature"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9fb2bc2a902d992cd5f471ee3ab0ffd6603047a4207384562755b9d6de977518"
+dependencies = [
+ "ring",
+ "untrusted",
 ]
 
 [[package]]
@@ -4721,12 +4857,6 @@ name = "yasna"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79af3189e6b0484c9fd54208f8eeb8818cadee00ec81438b67a64c8e6f2f3694"
-
-[[package]]
-name = "zeroize"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4090487fa66630f7b166fba2bbb525e247a5449f41c468cc1d98f8ae6ac03120"
 
 [[package]]
 name = "zeroize"

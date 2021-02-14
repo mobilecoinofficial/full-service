@@ -137,6 +137,25 @@ impl APIConfig {
         QuorumSet::new_with_node_ids(node_ids.len() as u32, node_ids)
     }
 
+    /// Get the attestation verifier used to verify fog reports when sending to fog recipients
+    pub fn get_fog_ingest_verifier(&self) -> Option<Verifier> {
+        self.fog_ingest_enclave_css.as_ref().map(|signature| {
+            let mr_signer_verifier = {
+                let mut mr_signer_verifier = MrSignerVerifier::new(
+                    signature.mrsigner().into(),
+                    signature.product_id(),
+                    signature.version(),
+                );
+                mr_signer_verifier.allow_hardening_advisories(&["INTEL-SA-00334"]);
+                mr_signer_verifier
+            };
+
+            let mut verifier = Verifier::default();
+            verifier.debug(DEBUG_ENCLAVE).mr_signer(mr_signer_verifier);
+            verifier
+        })
+    }
+
     /// Get the function which creates FogResolver given a list of recipient addresses
     /// The string error should be mapped by invoker of this factory to Error::FogError
     pub fn get_fog_resolver_factory(

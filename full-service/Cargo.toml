@@ -20,6 +20,7 @@ mc-crypto-digestible = { path = "../mobilecoin/crypto/digestible", features = ["
 mc-crypto-keys = { path = "../mobilecoin/crypto/keys", default-features = false }
 mc-crypto-rand = { path = "../mobilecoin/crypto/rand", default-features = false }
 mc-fog-report-connection = { path = "../mobilecoin/fog/report/connection" }
+mc-fog-report-validation = { path = "../mobilecoin/fog/report/validation" }
 mc-ledger-db = { path = "../mobilecoin/ledger/db" }
 mc-ledger-sync = { path = "../mobilecoin/ledger/sync" }
 mc-mobilecoind = { path = "../mobilecoin/mobilecoind" }
@@ -58,6 +59,7 @@ uuid = { version = "0.7", features = ["serde", "v4"] }
 [dev-dependencies]
 mc-connection-test-utils = { path = "../mobilecoin/connection/test-utils" }
 mc-fog-report-validation = { path = "../mobilecoin/fog/report/validation", features = ["automock"] }
+mc-fog-report-validation-test-utils = { path = "../mobilecoin/fog/report/validation/test-utils"}
 tempdir = "0.3"
 
 [build-dependencies]
