@@ -9,11 +9,12 @@ use mc_common::{
 };
 use mc_connection::{ConnectionManager, ThickClient};
 use mc_consensus_scp::QuorumSet;
-use mc_fog_report_connection::GrpcFogPubkeyResolver;
+use mc_fog_report_connection::GrpcFogReportConnection;
+use mc_fog_report_validation::FogResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::ReqwestTransactionsFetcher;
 use mc_sgx_css::Signature;
-use mc_util_uri::{ConnectionUri, ConsensusClientUri};
+use mc_util_uri::{ConnectionUri, ConsensusClientUri, FogUri};
 use std::{
     convert::TryFrom,
     fs,
@@ -136,7 +137,9 @@ impl APIConfig {
         QuorumSet::new_with_node_ids(node_ids.len() as u32, node_ids)
     }
 
-    pub fn get_fog_pubkey_resolver(&self, logger: Logger) -> Option<GrpcFogPubkeyResolver> {
+    /// Get the attestation verifier used to verify fog reports when sending to
+    /// fog recipients.
+    pub fn get_fog_ingest_verifier(&self) -> Option<Verifier> {
         self.fog_ingest_enclave_css.as_ref().map(|signature| {
             let mr_signer_verifier = {
                 let mut mr_signer_verifier = MrSignerVerifier::new(
@@ -148,19 +151,45 @@ impl APIConfig {
                 mr_signer_verifier
             };
 
-            let report_verifier = {
-                let mut verifier = Verifier::default();
-                verifier.debug(DEBUG_ENCLAVE).mr_signer(mr_signer_verifier);
-                verifier
-            };
+            let mut verifier = Verifier::default();
+            verifier.debug(DEBUG_ENCLAVE).mr_signer(mr_signer_verifier);
+            verifier
+        })
+    }
 
-            let env = Arc::new(
-                grpcio::EnvBuilder::new()
-                    .name_prefix("FogPubkeyResolver-RPC".to_string())
-                    .build(),
-            );
+    /// Get the function which creates FogResolver given a list of recipient
+    /// addresses.
+    ///
+    /// The string error should be mapped by invoker of this factory to
+    /// Error::FogError.
+    pub fn get_fog_resolver_factory(
+        &self,
+        logger: Logger,
+    ) -> Arc<dyn Fn(&[FogUri]) -> Result<FogResolver, String> + Send + Sync> {
+        let env = Arc::new(
+            grpcio::EnvBuilder::new()
+                .name_prefix("FogPubkeyResolver-RPC".to_string())
+                .build(),
+        );
 
-            GrpcFogPubkeyResolver::new(&report_verifier, env, logger)
+        let conn = GrpcFogReportConnection::new(env, logger);
+
+        let verifier = self.get_fog_ingest_verifier();
+
+        Arc::new(move |fog_uris| -> Result<FogResolver, String> {
+            if fog_uris.is_empty() {
+                Ok(Default::default())
+            } else if let Some(verifier) = verifier.as_ref() {
+                let report_responses = conn
+                    .fetch_fog_reports(fog_uris.iter().cloned())
+                    .map_err(|err| format!("Failed fetching fog reports: {}", err))?;
+                Ok(FogResolver::new(report_responses, verifier))
+            } else {
+                Err(
+                    "Some recipients have fog, but no fog ingest report verifier was configured"
+                        .to_string(),
+                )
+            }
         })
     }
 

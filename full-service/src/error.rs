@@ -5,6 +5,7 @@
 use displaydoc::Display;
 
 #[derive(Display, Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum WalletServiceError {
     /// Error interacting with the DB {0}
     Database(WalletDbError),
@@ -291,6 +292,7 @@ impl From<diesel::result::Error> for SyncError {
 }
 
 #[derive(Display, Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum WalletTransactionBuilderError {
     /// Insufficient Funds {0}
     InsufficientFunds(String),
@@ -353,6 +355,12 @@ pub enum WalletTransactionBuilderError {
     /// The wallet service only supports transactions with one recipient at this
     /// time.
     MultipleOutgoingRecipients,
+
+    /// Error parsing URI {0}
+    UriParse(mc_util_uri::UriParseError),
+
+    /// Error generating FogPubkeyResolver {0}
+    FogPubkeyResolver(String),
 }
 
 impl From<mc_ledger_db::Error> for WalletTransactionBuilderError {
@@ -382,5 +390,11 @@ impl From<WalletDbError> for WalletTransactionBuilderError {
 impl From<diesel::result::Error> for WalletTransactionBuilderError {
     fn from(src: diesel::result::Error) -> Self {
         Self::Diesel(src)
+    }
+}
+
+impl From<mc_util_uri::UriParseError> for WalletTransactionBuilderError {
+    fn from(src: mc_util_uri::UriParseError) -> Self {
+        Self::UriParse(src)
     }
 }

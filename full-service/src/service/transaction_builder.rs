@@ -23,7 +23,7 @@ use mc_common::{
     HashMap, HashSet,
 };
 use mc_crypto_keys::RistrettoPublic;
-use mc_fog_report_connection::FogPubkeyResolver;
+use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_mobilecoind::{
     payments::{Outlay, TxProposal},
@@ -34,50 +34,69 @@ use mc_transaction_core::{
     onetime_keys::recover_onetime_private_key,
     ring_signature::KeyImage,
     tx::{TxOut, TxOutMembershipProof},
-    BlockIndex,
 };
 use mc_transaction_std::{InputCredentials, TransactionBuilder};
+use mc_util_uri::FogUri;
 
 use diesel::prelude::*;
 use rand::Rng;
-use std::{convert::TryFrom, iter::FromIterator, sync::Arc};
+use std::{convert::TryFrom, iter::FromIterator, str::FromStr, sync::Arc};
 
 /// Default number of blocks used for calculating transaction tombstone block
 /// number.
 // TODO support for making this configurable
 pub const DEFAULT_NEW_TX_BLOCK_ATTEMPTS: u64 = 50;
 
-pub struct WalletTransactionBuilder<FPR: FogPubkeyResolver + Send + Sync + 'static> {
+/// A builder of transactions constructed from this wallet.
+pub struct WalletTransactionBuilder<FPR: FogPubkeyResolver + 'static> {
+    /// Account ID (hex-encoded) from which to construct a transaction.
     account_id_hex: String,
+
+    /// The wallet DB.
     wallet_db: WalletDb,
+
+    /// The ledger DB.
     ledger_db: LedgerDB,
-    transaction_builder: TransactionBuilder,
+
+    /// Optional inputs specified to use to construct the transaction.
     inputs: Vec<Txo>,
+
+    /// Vector of (PublicAddress, Amounts) for the recipients of this
+    /// transaction.
     outlays: Vec<(PublicAddress, u64)>,
+
+    /// The block after which this transaction is invalid.
     tombstone: u64,
-    /// Fog pub key resolver, used when constructing outputs to fog recipients.
-    fog_pubkey_resolver: Option<Arc<FPR>>,
+
+    /// The fee for the transaction.
+    fee: Option<u64>,
+
+    /// Fog resolver maker, used when constructing outputs to fog recipients.
+    /// This is abstracted because in tests, we don't want to form grpc
+    /// connections to fog.
+    fog_resolver_factory: Arc<dyn Fn(&[FogUri]) -> Result<FPR, String> + Send + Sync>,
+
+    /// Logger.
     logger: Logger,
 }
 
-impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FPR> {
+impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
     pub fn new(
         account_id_hex: String,
         wallet_db: WalletDb,
         ledger_db: LedgerDB,
-        fog_pubkey_resolver: Option<Arc<FPR>>,
+        fog_resolver_factory: Arc<dyn Fn(&[FogUri]) -> Result<FPR, String> + Send + Sync + 'static>,
         logger: Logger,
     ) -> Self {
-        let transaction_builder = TransactionBuilder::new();
         WalletTransactionBuilder {
             account_id_hex,
             wallet_db,
             ledger_db,
-            transaction_builder,
             inputs: vec![],
             outlays: vec![],
             tombstone: 0,
-            fog_pubkey_resolver,
+            fee: None,
+            fog_resolver_factory,
             logger,
         }
     }
@@ -101,19 +120,25 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
         Ok(())
     }
 
+    /// Selects Txos from the account.
     pub fn select_txos(
         &mut self,
         max_spendable_value: Option<u64>,
     ) -> Result<(), WalletTransactionBuilderError> {
         let outlay_value_sum = self.outlays.iter().map(|(_r, v)| *v as u128).sum::<u128>();
 
-        if outlay_value_sum > u64::MAX as u128
-            || outlay_value_sum > u64::MAX as u128 - self.transaction_builder.fee as u128
+        let fee = self.fee.unwrap_or(MINIMUM_FEE);
+        if outlay_value_sum > u64::MAX as u128 || outlay_value_sum > u64::MAX as u128 - fee as u128
         {
             return Err(WalletTransactionBuilderError::OutboundValueTooLarge);
         }
-
-        let total_value = outlay_value_sum as u64 + self.transaction_builder.fee;
+        log::info!(
+            self.logger,
+            "Selecting Txos for value {:?} with fee {:?}",
+            outlay_value_sum,
+            fee
+        );
+        let total_value = outlay_value_sum as u64 + fee;
         self.inputs = Txo::select_unspent_txos_for_value(
             &self.account_id_hex,
             total_value,
@@ -149,7 +174,7 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
                 MINIMUM_FEE.to_string(),
             ));
         }
-        self.transaction_builder.set_fee(fee);
+        self.fee = Some(fee);
         Ok(())
     }
 
@@ -165,7 +190,7 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
     }
 
     /// Consumes self
-    pub fn build(mut self) -> Result<TxProposal, WalletTransactionBuilderError> {
+    pub fn build(&self) -> Result<TxProposal, WalletTransactionBuilderError> {
         if self.inputs.is_empty() {
             return Err(WalletTransactionBuilderError::NoInputs);
         }
@@ -181,6 +206,24 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
                 let account: Account =
                     Account::get(&AccountID(self.account_id_hex.to_string()), &conn)?;
                 let from_account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+
+                // Collect all required FogUris from public addresses, then pass to resolver
+                // factory
+                let fog_resolver = {
+                    let change_address =
+                        from_account_key.subaddress(account.change_subaddress_index as u64);
+                    let fog_uris = core::slice::from_ref(&change_address)
+                        .iter()
+                        .chain(self.outlays.iter().map(|(receiver, _amount)| receiver))
+                        .filter_map(|x| extract_fog_uri(x).transpose())
+                        .collect::<Result<Vec<_>, _>>()?;
+                    (self.fog_resolver_factory)(&fog_uris)
+                        .map_err(WalletTransactionBuilderError::FogPubkeyResolver)?
+                };
+
+                // Create transaction builder.
+                let mut transaction_builder = TransactionBuilder::new(fog_resolver);
+                transaction_builder.set_fee(self.fee.unwrap_or(MINIMUM_FEE));
 
                 // Get membership proofs for our inputs
                 let indexes = self
@@ -228,7 +271,7 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
 
                 // Add inputs to the tx.
                 for (utxo, proof) in inputs_and_proofs.iter() {
-                    let db_tx_out = mc_util_serial::decode(&utxo.txo)?;
+                    let db_tx_out: TxOut = mc_util_serial::decode(&utxo.txo)?;
                     let (mut ring, mut membership_proofs) = rings_and_proofs
                         .pop()
                         .ok_or_else(|| WalletTransactionBuilderError::RingsAndProofsEmpty)?;
@@ -292,7 +335,7 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
                         public_key
                     );
 
-                    self.transaction_builder.add_input(InputCredentials::new(
+                    transaction_builder.add_input(InputCredentials::new(
                         ring,
                         membership_proofs,
                         real_key_index,
@@ -314,18 +357,9 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
                     if recipient != recip_check {
                         return Err(WalletTransactionBuilderError::MultipleRecipientsInTransaction);
                     }
-                    let target_acct_pubkey = Self::get_fog_pubkey_for_public_address(
-                        &recipient,
-                        &self.fog_pubkey_resolver,
-                        self.tombstone,
-                    )?;
 
-                    let (tx_out, confirmation_number) = self.transaction_builder.add_output(
-                        *out_value as u64,
-                        &recipient,
-                        target_acct_pubkey.as_ref(),
-                        &mut rng,
-                    )?;
+                    let (tx_out, confirmation_number) =
+                        transaction_builder.add_output(*out_value as u64, &recipient, &mut rng)?;
 
                     tx_out_to_outlay_index.insert(tx_out, i);
                     outlay_confirmation_numbers.push(confirmation_number);
@@ -337,45 +371,33 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
                 let input_value = inputs_and_proofs
                     .iter()
                     .fold(0, |acc, (utxo, _proof)| acc + utxo.value);
-                if (total_value + self.transaction_builder.fee) > input_value as u64 {
+                if (total_value + transaction_builder.fee) > input_value as u64 {
                     return Err(WalletTransactionBuilderError::InsufficientInputFunds(
                         format!(
                         "Total value required to send transaction {:?}, but only {:?} in inputs",
-                        total_value + self.transaction_builder.fee,
+                        total_value + transaction_builder.fee,
                         input_value
                     ),
                     ));
                 }
 
-                let change = input_value as u64 - total_value - self.transaction_builder.fee;
+                let change = input_value as u64 - total_value - transaction_builder.fee;
 
                 // If we do, add an output for that as well.
                 if change > 0 {
                     let change_public_address =
                         from_account_key.subaddress(account.change_subaddress_index as u64);
-                    let main_public_address =
-                        from_account_key.subaddress(account.main_subaddress_index as u64);
-
-                    // Note: The pubkey still needs to be for the main account
-                    let target_acct_pubkey = Self::get_fog_pubkey_for_public_address(
-                        &main_public_address,
-                        &self.fog_pubkey_resolver,
-                        self.tombstone,
-                    )?;
-
-                    self.transaction_builder.add_output(
-                        change,
-                        &change_public_address,
-                        target_acct_pubkey.as_ref(),
-                        &mut rng,
-                    )?; // FIXME: CBB - map error to indicate error with change
+                    // FIXME: verify that fog resolver knows to send change with hint encrypted to
+                    // the main public address
+                    transaction_builder.add_output(change, &change_public_address, &mut rng)?;
+                    // FIXME: CBB - map error to indicate error with change
                 }
 
                 // Set tombstone block.
-                self.transaction_builder.set_tombstone_block(self.tombstone);
+                transaction_builder.set_tombstone_block(self.tombstone);
 
                 // Build tx.
-                let tx = self.transaction_builder.build(&mut rng)?;
+                let tx = transaction_builder.build(&mut rng)?;
 
                 // Map each TxOut in the constructed transaction to its respective outlay.
                 let outlay_index_to_tx_out_index: HashMap<usize, usize> =
@@ -403,11 +425,11 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
 
                 // Make the UnspentTxOut for each Txo
                 // FIXME: WS-27 - I would prefer to provide just the txo_id_hex per txout, but
-                // this at least        preserves some interoperability between
-                // mobilecoind and wallet-service.        However, this is
+                // this at least preserves some interoperability between
+                // mobilecoind and wallet-service. However, this is
                 // pretty clunky and I would rather not expose a storage
-                //        type from mobilecoind just to get around having to write a bunch of
-                // tedious        json conversions.
+                // type from mobilecoind just to get around having to write a bunch of
+                // tedious json conversions.
                 // Return the TxProposal
                 let selected_utxos = inputs_and_proofs
                     .iter()
@@ -502,36 +524,15 @@ impl<FPR: FogPubkeyResolver + Send + Sync + 'static> WalletTransactionBuilder<FP
 
         Ok(rings_with_proofs)
     }
+}
 
-    fn get_fog_pubkey_for_public_address(
-        address: &PublicAddress,
-        fog_pubkey_resolver: &Option<Arc<FPR>>,
-        tombstone_block: BlockIndex,
-    ) -> Result<Option<RistrettoPublic>, WalletTransactionBuilderError> {
-        if address.fog_report_url().is_none() {
-            return Ok(None);
-        }
-
-        match fog_pubkey_resolver.as_ref() {
-            None => Err(WalletTransactionBuilderError::FogError(format!(
-                "{} uses fog but mobilecoind was started without fog support",
-                address,
-            ))),
-            Some(resolver) => resolver
-                .get_fog_pubkey(address)
-                .map_err(|err| {
-                    WalletTransactionBuilderError::FogError(format!(
-                        "Failed getting fog public key for{}: {}",
-                        address, err
-                    ))
-                })
-                .and_then(|result| {
-                    if tombstone_block > result.pubkey_expiry {
-                        return Err(WalletTransactionBuilderError::FogError(format!("{} fog public key expiry block ({}) is lower than the provided tombstone block ({})", address, result.pubkey_expiry, tombstone_block)));
-                    }
-                    Ok(Some(result.pubkey))
-                }),
-            }
+// Helper which extracts FogUri from PublicAddress or returns None, or returns
+// an error
+fn extract_fog_uri(addr: &PublicAddress) -> Result<Option<FogUri>, WalletTransactionBuilderError> {
+    if let Some(string) = addr.fog_report_url() {
+        Ok(Some(FogUri::from_str(string)?))
+    } else {
+        Ok(None)
     }
 }
 

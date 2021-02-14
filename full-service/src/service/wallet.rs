@@ -11,7 +11,7 @@ use crate::{
     },
 };
 use mc_connection::{BlockchainConnection, ThickClient, UserTxConnection};
-use mc_fog_report_connection::{FogPubkeyResolver, GrpcFogPubkeyResolver};
+use mc_fog_report_validation::{FogPubkeyResolver, FogResolver};
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
 use rocket::{get, post, routes};
 use rocket_contrib::json::Json;
@@ -475,7 +475,7 @@ where
 
 #[post("/wallet", format = "json", data = "<command>")]
 fn wallet_api(
-    state: rocket::State<WalletState<ThickClient, GrpcFogPubkeyResolver>>,
+    state: rocket::State<WalletState<ThickClient, FogResolver>>,
     command: Json<JsonCommandRequest>,
 ) -> Result<Json<JsonCommandResponse>, String> {
     wallet_api_inner(&state.service, command)
@@ -492,7 +492,7 @@ fn wallet_help() -> Result<String, String> {
 
 pub fn rocket(
     rocket_config: rocket::Config,
-    state: WalletState<ThickClient, GrpcFogPubkeyResolver>,
+    state: WalletState<ThickClient, FogResolver>,
 ) -> rocket::Rocket {
     rocket::custom(rocket_config)
         .mount("/", routes![wallet_api, wallet_help])
@@ -508,8 +508,8 @@ mod tests {
             models::{TXO_RECEIVED, TXO_UNSPENT},
         },
         test_utils::{
-            add_block_to_ledger_db, get_test_ledger, setup_peer_manager_and_network_state,
-            WalletDbTestContext,
+            add_block_to_ledger_db, get_resolver_factory, get_test_ledger,
+            setup_peer_manager_and_network_state, WalletDbTestContext,
         },
     };
     use mc_account_keys::PublicAddress;
@@ -567,7 +567,7 @@ mod tests {
                 ledger_db.clone(),
                 peer_manager,
                 network_state,
-                None,
+                get_resolver_factory(&mut rng).unwrap(),
                 None,
                 logger,
             );
@@ -733,7 +733,7 @@ mod tests {
         let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
         assert_eq!(
             account_id,
-            "b266572c325f5f0388e4645cfa945d8527e90a11bf2182c28f62090225e73138"
+            "f9957a9d050ef8dff9d8ef6f66daa608081e631b2d918988311613343827b779"
         );
     }
 

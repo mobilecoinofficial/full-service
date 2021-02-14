@@ -33,13 +33,14 @@ use mc_connection::{
     UserTxConnection,
 };
 use mc_crypto_rand::rand_core::RngCore;
-use mc_fog_report_connection::FogPubkeyResolver;
+use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::{NetworkState, PollingNetworkState};
 use mc_mobilecoind::payments::TxProposal;
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
 use mc_transaction_core::tx::{Tx, TxOut, TxOutConfirmationNumber};
 use mc_util_from_random::FromRandom;
+use mc_util_uri::FogUri;
 
 use diesel::prelude::*;
 use serde_json::Map;
@@ -61,7 +62,7 @@ pub struct WalletService<
     ledger_db: LedgerDB,
     peer_manager: McConnectionManager<T>,
     network_state: Arc<RwLock<PollingNetworkState<T>>>,
-    fog_pubkey_resolver: Option<Arc<FPR>>,
+    fog_resolver_factory: Arc<dyn Fn(&[FogUri]) -> Result<FPR, String> + Send + Sync>,
     _sync_thread: SyncThread,
     /// Monotonically increasing counter. This is used for node round-robin
     /// selection.
@@ -79,7 +80,7 @@ impl<
         ledger_db: LedgerDB,
         peer_manager: McConnectionManager<T>,
         network_state: Arc<RwLock<PollingNetworkState<T>>>,
-        fog_pubkey_resolver: Option<Arc<FPR>>,
+        fog_resolver_factory: Arc<dyn Fn(&[FogUri]) -> Result<FPR, String> + Send + Sync>,
         num_workers: Option<usize>,
         logger: Logger,
     ) -> Self {
@@ -96,7 +97,7 @@ impl<
             ledger_db,
             peer_manager,
             network_state,
-            fog_pubkey_resolver,
+            fog_resolver_factory,
             _sync_thread: sync_thread,
             submit_node_offset: Arc::new(AtomicUsize::new(rng.next_u64() as usize)),
             logger,
@@ -422,7 +423,7 @@ impl<
             account_id_hex.to_string(),
             self.wallet_db.clone(),
             self.ledger_db.clone(),
-            self.fog_pubkey_resolver.clone(),
+            self.fog_resolver_factory.clone(),
             self.logger.clone(),
         );
         let recipient = b58_decode(recipient_public_address)?;
@@ -642,8 +643,8 @@ mod tests {
     use crate::{
         db::models::{TXO_MINTED, TXO_RECEIVED},
         test_utils::{
-            add_block_to_ledger_db, get_test_ledger, setup_peer_manager_and_network_state,
-            WalletDbTestContext,
+            add_block_to_ledger_db, get_resolver_factory, get_test_ledger,
+            setup_peer_manager_and_network_state, WalletDbTestContext,
         },
     };
     use mc_account_keys::PublicAddress;
@@ -661,6 +662,8 @@ mod tests {
         ledger_db: LedgerDB,
         logger: Logger,
     ) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger.clone());
         let (peer_manager, network_state) =
@@ -671,7 +674,7 @@ mod tests {
             ledger_db,
             peer_manager,
             network_state,
-            Some(Arc::new(MockFogPubkeyResolver::new())),
+            get_resolver_factory(&mut rng).unwrap(),
             None,
             logger,
         )

@@ -17,9 +17,9 @@ use mc_common::logger::Logger;
 use mc_connection::{Connection, ConnectionManager, ThickClient};
 use mc_connection_test_utils::{test_client_uri, MockBlockchainConnection};
 use mc_consensus_scp::QuorumSet;
-use mc_crypto_keys::RistrettoPrivate;
+use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_crypto_rand::{CryptoRng, RngCore};
-use mc_fog_report_validation::MockFogPubkeyResolver;
+use mc_fog_report_validation::{FullyValidatedFogPubkey, MockFogPubkeyResolver};
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::PollingNetworkState;
 use mc_mobilecoind::payments::TxProposal;
@@ -28,8 +28,8 @@ use mc_transaction_core::{
     BlockContents, BLOCK_VERSION,
 };
 use mc_util_from_random::FromRandom;
-use mc_util_uri::ConnectionUri;
-use rand::{distributions::Alphanumeric, rngs::StdRng, thread_rng, Rng};
+use mc_util_uri::{ConnectionUri, FogUri};
+use rand::{distributions::Alphanumeric, rngs::StdRng, thread_rng, Rng, SeedableRng};
 use std::{
     path::PathBuf,
     sync::{Arc, RwLock},
@@ -341,12 +341,14 @@ pub fn create_test_minted_and_change_txos(
     ledger_db: LedgerDB,
     logger: Logger,
 ) -> (Option<PublicAddress>, String, i64, String) {
+    let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
     // Use the builder to create valid TxOuts for this account
     let mut builder = WalletTransactionBuilder::<MockFogPubkeyResolver>::new(
         AccountID::from(&src_account_key).to_string(),
         wallet_db.clone(),
         ledger_db,
-        None,
+        get_resolver_factory(&mut rng).unwrap(),
         logger,
     );
 
@@ -434,7 +436,7 @@ pub fn builder_for_random_recipient(
         AccountID::from(account_key).to_string(),
         wallet_db.clone(),
         ledger_db.clone(),
-        Some(Arc::new(MockFogPubkeyResolver::new())),
+        get_resolver_factory(&mut rng).unwrap(),
         logger.clone(),
     );
 
@@ -442,4 +444,26 @@ pub fn builder_for_random_recipient(
     let recipient = recipient_account_key.subaddress(rng.next_u64());
 
     (recipient, builder)
+}
+
+pub fn get_resolver_factory(
+    mut rng: &mut StdRng,
+) -> Result<Arc<dyn Fn(&[FogUri]) -> Result<MockFogPubkeyResolver, String> + Send + Sync>, ()> {
+    let fog_private_key = RistrettoPrivate::from_random(&mut rng);
+    let fog_pubkey_resolver_factory: Arc<
+        dyn Fn(&[FogUri]) -> Result<MockFogPubkeyResolver, String> + Send + Sync,
+    > = Arc::new(move |_| -> Result<MockFogPubkeyResolver, String> {
+        let mut fog_pubkey_resolver = MockFogPubkeyResolver::new();
+        let pubkey = RistrettoPublic::from(&fog_private_key);
+        fog_pubkey_resolver
+            .expect_get_fog_pubkey()
+            .return_once(move |_recipient| {
+                Ok(FullyValidatedFogPubkey {
+                    pubkey,
+                    pubkey_expiry: 10000,
+                })
+            });
+        Ok(fog_pubkey_resolver)
+    });
+    Ok(fog_pubkey_resolver_factory)
 }
