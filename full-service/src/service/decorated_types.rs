@@ -14,6 +14,7 @@ use mc_mobilecoind_json::data_types::{
 };
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Map;
+use std::convert::TryFrom;
 
 #[derive(Deserialize, Serialize, Default, Debug)]
 pub struct JsonCreateAccountResponse {
@@ -313,17 +314,31 @@ impl From<&JsonUnspentTxOut> for StringifiedJsonUnspentTxOut {
     }
 }
 
-impl From<&StringifiedJsonUnspentTxOut> for JsonUnspentTxOut {
-    fn from(src: &StringifiedJsonUnspentTxOut) -> Self {
-        Self {
+impl TryFrom<&StringifiedJsonUnspentTxOut> for JsonUnspentTxOut {
+    type Error = String;
+
+    fn try_from(src: &StringifiedJsonUnspentTxOut) -> Result<JsonUnspentTxOut, String> {
+        Ok(Self {
             tx_out: src.tx_out.clone(),
-            subaddress_index: src.subaddress_index.parse::<u64>().unwrap(),
+            subaddress_index: src
+                .subaddress_index
+                .parse::<u64>()
+                .map_err(|err| format!("Failed to parse u64 from subaddress_index: {}", err))?,
             key_image: src.key_image.clone(),
             value: src.value.clone(),
-            attempted_spend_height: src.attempted_spend_height.parse::<u64>().unwrap(),
-            attempted_spend_tombstone: src.attempted_spend_tombstone.parse::<u64>().unwrap(),
+            attempted_spend_height: src.attempted_spend_height.parse::<u64>().map_err(|err| {
+                format!("Failed to parse u64 from attempted_spend_height: {}", err)
+            })?,
+            attempted_spend_tombstone: src.attempted_spend_tombstone.parse::<u64>().map_err(
+                |err| {
+                    format!(
+                        "Failed to parse u64 from attempted_spend_tombstone: {}",
+                        err
+                    )
+                },
+            )?,
             monitor_id: src.monitor_id.clone(),
-        }
+        })
     }
 }
 
@@ -359,20 +374,33 @@ impl From<&JsonTxProposal> for StringifiedJsonTxProposal {
     }
 }
 
-impl From<&StringifiedJsonTxProposal> for JsonTxProposal {
-    fn from(src: &StringifiedJsonTxProposal) -> Self {
+impl TryFrom<&StringifiedJsonTxProposal> for JsonTxProposal {
+    type Error = String;
+
+    fn try_from(src: &StringifiedJsonTxProposal) -> Result<JsonTxProposal, String> {
         let outlay_map: Vec<(usize, usize)> = src
             .outlay_index_to_tx_out_index
             .iter()
-            .map(|(key, val)| (key.parse::<usize>().unwrap(), val.parse::<usize>().unwrap()))
-            .collect();
-        Self {
-            input_list: src.input_list.iter().map(JsonUnspentTxOut::from).collect(),
+            .map(|(key, val)| {
+                key.parse::<usize>()
+                    .and_then(|k| val.parse::<usize>().and_then(|v| Ok((k, v))))
+                    .map_err(|err| format!("Failed to parse u64 from outlay_map: {}", err))
+            })
+            .collect::<Result<Vec<(usize, usize)>, String>>()?;
+        Ok(Self {
+            input_list: src
+                .input_list
+                .iter()
+                .map(JsonUnspentTxOut::try_from)
+                .collect::<Result<Vec<JsonUnspentTxOut>, String>>()?,
             outlay_list: src.outlay_list.clone(),
             tx: src.tx.clone(),
-            fee: src.fee.parse::<u64>().unwrap(),
+            fee: src
+                .fee
+                .parse::<u64>()
+                .map_err(|err| format!("Failed to parse u64 from fee: {}", err))?,
             outlay_index_to_tx_out_index: outlay_map,
             outlay_confirmation_numbers: src.outlay_confirmation_numbers.clone(),
-        }
+        })
     }
 }

@@ -18,7 +18,7 @@ use rocket::{get, post, routes};
 use rocket_contrib::json::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
-use std::iter::FromIterator;
+use std::{convert::TryFrom, iter::FromIterator};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
@@ -398,7 +398,7 @@ where
             account_id,
         } => JsonCommandResponse::submit_transaction {
             transaction: service
-                .submit_transaction(JsonTxProposal::from(&tx_proposal), comment, account_id)
+                .submit_transaction(JsonTxProposal::try_from(&tx_proposal)?, comment, account_id)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
         JsonCommandRequest::get_all_transactions_by_account { account_id } => {
