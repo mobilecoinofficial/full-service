@@ -377,6 +377,7 @@ impl From<&JsonTxProposal> for StringifiedJsonTxProposal {
 impl TryFrom<&StringifiedJsonTxProposal> for JsonTxProposal {
     type Error = String;
 
+    #[allow(clippy::bind_instead_of_map)]
     fn try_from(src: &StringifiedJsonTxProposal) -> Result<JsonTxProposal, String> {
         let outlay_map: Vec<(usize, usize)> = src
             .outlay_index_to_tx_out_index
