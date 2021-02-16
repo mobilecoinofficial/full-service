@@ -6,6 +6,7 @@ use crate::{
         decorated_types::{
             JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents, JsonProof,
             JsonSubmitResponse, JsonTransactionLog, JsonTxo, JsonWalletStatus,
+            StringifiedJsonTxProposal,
         },
         wallet_impl::WalletService,
     },
@@ -17,7 +18,7 @@ use rocket::{get, post, routes};
 use rocket_contrib::json::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
-use std::iter::FromIterator;
+use std::{convert::TryFrom, iter::FromIterator};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
@@ -89,7 +90,7 @@ pub enum JsonCommandRequest {
         max_spendable_value: Option<String>,
     },
     submit_transaction {
-        tx_proposal: JsonTxProposal,
+        tx_proposal: StringifiedJsonTxProposal,
         comment: Option<String>,
         account_id: Option<String>,
     },
@@ -165,7 +166,7 @@ pub enum JsonCommandResponse {
         transaction: JsonSubmitResponse,
     },
     build_transaction {
-        tx_proposal: JsonTxProposal,
+        tx_proposal: StringifiedJsonTxProposal,
     },
     submit_transaction {
         transaction: JsonSubmitResponse,
@@ -387,7 +388,9 @@ where
                     max_spendable_value,
                 )
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
-            JsonCommandResponse::build_transaction { tx_proposal }
+            JsonCommandResponse::build_transaction {
+                tx_proposal: StringifiedJsonTxProposal::from(&tx_proposal),
+            }
         }
         JsonCommandRequest::submit_transaction {
             tx_proposal,
@@ -395,7 +398,7 @@ where
             account_id,
         } => JsonCommandResponse::submit_transaction {
             transaction: service
-                .submit_transaction(tx_proposal, comment, account_id)
+                .submit_transaction(JsonTxProposal::try_from(&tx_proposal)?, comment, account_id)
                 .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
         },
         JsonCommandRequest::get_all_transactions_by_account { account_id } => {
@@ -505,7 +508,7 @@ mod tests {
     use crate::{
         db::{
             b58_decode,
-            models::{TXO_RECEIVED, TXO_UNSPENT},
+            models::{TXO_PENDING, TXO_RECEIVED, TXO_SECRETED, TXO_SPENT, TXO_UNSPENT},
         },
         test_utils::{
             add_block_to_ledger_db, get_resolver_factory, get_test_ledger,
@@ -731,6 +734,8 @@ mod tests {
         let public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
         assert_eq!(public_address, "8JtpPPh9mV2PTLrrDz4f2j4PtUpNWnrRg8HKpnuwkZbj5j8bGqtNMNLC9E3zjzcw456215yMjkCVYK4FPZTX4gijYHiuDT31biNHrHmQmsU");
         let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        // Catches if a change results in changed accounts_ids, which should always be
+        // made to be backward compatible.
         assert_eq!(
             account_id,
             "f9957a9d050ef8dff9d8ef6f66daa608081e631b2d918988311613343827b779"
@@ -872,7 +877,7 @@ mod tests {
     }
 
     #[test_with_logger]
-    fn test_build_transaction(logger: Logger) {
+    fn test_build_and_submit_transaction(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db) = setup(&mut rng, logger.clone());
 
@@ -951,10 +956,9 @@ mod tests {
         let prefix_fee = tx_prefix.get("fee").unwrap().as_str().unwrap();
         let fee = tx_proposal.get("fee").unwrap();
         // FIXME: WS-9 - Note, minimum fee does not fit into i32 - need to make sure we
-        // are not losing        precision with the JsonTxProposal treating Fee
-        // as number
-        assert_eq!(fee.to_string(), "10000000000");
-        assert_eq!(fee.to_string(), prefix_fee);
+        // are not losing precision with the JsonTxProposal treating Fee as number
+        assert_eq!(fee, "10000000000");
+        assert_eq!(fee, prefix_fee);
 
         // Transaction builder attempts to use as many inputs as we have txos
         let inputs = tx_proposal.get("input_list").unwrap().as_array().unwrap();
@@ -990,6 +994,113 @@ mod tests {
         // tombstone)
         let prefix_tombstone = tx_prefix.get("tombstone_block").unwrap();
         assert_eq!(prefix_tombstone, "64");
+
+        // Get current balance
+        let body = json!({
+            "method": "get_balance",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        let balance_status = result.get("status").unwrap();
+        let unspent = balance_status.get(TXO_UNSPENT).unwrap().as_str().unwrap();
+        assert_eq!(unspent, "100000000000100");
+
+        // Submit the tx_proposal
+        let body = json!({
+            "method": "submit_transaction",
+            "params": {
+                "tx_proposal": tx_proposal,
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        let transaction_id = result
+            .get("transaction")
+            .unwrap()
+            .get("transaction_id")
+            .unwrap()
+            .as_str()
+            .unwrap();
+        // Note - we cannot test here that the transaction ID is consistent, because
+        // there is randomness in the transaction creation.
+
+        // Wait for the transaction to hit the ledger
+        std::thread::sleep(Duration::from_secs(4));
+
+        // Get balance after submission
+        let body = json!({
+            "method": "get_balance",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        let balance_status = result.get("status").unwrap();
+        let unspent = balance_status.get(TXO_UNSPENT).unwrap().as_str().unwrap();
+        let pending = balance_status.get(TXO_PENDING).unwrap().as_str().unwrap();
+        let spent = balance_status.get(TXO_SPENT).unwrap().as_str().unwrap();
+        let secreted = balance_status.get(TXO_SECRETED).unwrap().as_str().unwrap();
+        assert_eq!(unspent, "0");
+        assert_eq!(pending, "100000000000100");
+        assert_eq!(spent, "0");
+        assert_eq!(secreted, "0");
+
+        // FIXME: FS-93 Increment ledger manually so tx lands.
+
+        // Get the transaction_id and verify it contains what we expect
+        let body = json!({
+            "method": "get_transaction",
+            "params": {
+                "transaction_log_id": transaction_id,
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        let transaction_log = result.get("transaction").unwrap();
+        assert_eq!(
+            transaction_log.get("direction").unwrap().as_str().unwrap(),
+            "sent"
+        );
+        assert_eq!(
+            transaction_log.get("value_pmob").unwrap().as_str().unwrap(),
+            "42000000000000"
+        );
+        assert_eq!(
+            transaction_log
+                .get("recipient_address_id")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            b58_public_address
+        );
+        assert_eq!(
+            transaction_log.get("account_id").unwrap().as_str().unwrap(),
+            ""
+        );
+        assert_eq!(
+            transaction_log.get("fee_pmob").unwrap().as_str().unwrap(),
+            "10000000000"
+        );
+        assert_eq!(
+            transaction_log.get("status").unwrap().as_str().unwrap(),
+            "pending"
+        );
+        assert_eq!(
+            transaction_log
+                .get("submitted_block_height")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            "14"
+        );
+        assert_eq!(
+            transaction_log
+                .get("transaction_log_id")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            transaction_id
+        );
     }
 
     #[test_with_logger]
