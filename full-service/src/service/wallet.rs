@@ -11,7 +11,9 @@ use crate::{
         wallet_impl::WalletService,
     },
 };
-use mc_connection::{BlockchainConnection, ThickClient, UserTxConnection};
+use mc_connection::{
+    BlockchainConnection, HardcodedCredentialsProvider, ThickClient, UserTxConnection,
+};
 use mc_fog_report_validation::{FogPubkeyResolver, FogResolver};
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
 use rocket::{get, post, routes};
@@ -463,7 +465,7 @@ where
 
 #[post("/wallet", format = "json", data = "<command>")]
 fn wallet_api(
-    state: rocket::State<WalletState<ThickClient, FogResolver>>,
+    state: rocket::State<WalletState<ThickClient<HardcodedCredentialsProvider>, FogResolver>>,
     command: Json<JsonCommandRequest>,
 ) -> Result<Json<JsonCommandResponse>, String> {
     wallet_api_inner(&state.service, command)
@@ -480,7 +482,7 @@ fn wallet_help() -> Result<String, String> {
 
 pub fn rocket(
     rocket_config: rocket::Config,
-    state: WalletState<ThickClient, FogResolver>,
+    state: WalletState<ThickClient<HardcodedCredentialsProvider>, FogResolver>,
 ) -> rocket::Rocket {
     rocket::custom(rocket_config)
         .mount("/", routes![wallet_api, wallet_help])
