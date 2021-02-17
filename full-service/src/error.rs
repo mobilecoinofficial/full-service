@@ -231,18 +231,6 @@ impl From<prost::DecodeError> for WalletDbError {
     }
 }
 
-impl<T> From<std::sync::PoisonError<T>> for WalletDbError {
-    fn from(_src: std::sync::PoisonError<T>) -> Self {
-        WalletDbError::MutexPoisoned
-    }
-}
-
-impl From<aes_gcm::aead::Error> for WalletDbError {
-    fn from(src: aes_gcm::aead::Error) -> Self {
-        WalletDbError::AeadError(src)
-    }
-}
-
 #[derive(Display, Debug)]
 pub enum SyncError {
     /// Could not find account
