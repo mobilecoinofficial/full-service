@@ -7,13 +7,13 @@ use displaydoc::Display;
 #[derive(Display, Debug)]
 #[allow(clippy::large_enum_variant)]
 pub enum WalletServiceError {
-    /// Error interacting with the DB {0}
+    /// Error interacting with the database: {0}
     Database(WalletDbError),
 
-    /// Error decoding from hex {0}
+    /// Error decoding from hex: {0}
     HexDecode(hex::FromHexError),
 
-    /// Error building transaction {0}
+    /// Error building transaction: {0}
     TransactionBuilder(WalletTransactionBuilderError),
 
     /// Error parsing u64
@@ -25,29 +25,29 @@ pub enum WalletServiceError {
     /// Node not found
     NodeNotFound,
 
-    /// Error converting json {0}
+    /// Error converting json: {0}
     JsonConversion(String),
 
     /// Connection Error
     Connection(retry::Error<mc_connection::Error>),
 
-    /// Error converting to/from API protos {0}
+    /// Error converting to/from API protos: {0}
     ProtoConversion(mc_api::ConversionError),
 
     /// Error Converting Proto but throws convert::Infallible
     ProtoConversionInfallible,
 
-    /// Error with LedgerDB {0}
+    /// Error with LedgerDB: {0}
     LedgerDB(mc_ledger_db::Error),
 
     /// No transaction object associated with this transaction. Note, received
     /// transactions do not have transaction objects.
     NoTxInTransaction,
 
-    /// Error decoding prost {0}
+    /// Error decoding prost: {0}
     ProstDecode(prost::DecodeError),
 
-    /// Error serializing json {0}
+    /// Error serializing json: {0}
     SerdeJson(serde_json::Error),
 
     /// Diesel Error: {0}
@@ -125,10 +125,10 @@ pub enum WalletDbError {
     /// Error with rocket databases: {0}
     RocketDB(rocket_contrib::databases::r2d2::Error),
 
-    /// Duplicate entries with the same ID {0}
+    /// Duplicate entries with the same ID: {0}
     DuplicateEntries(String),
 
-    /// Error encoding b58 {0}
+    /// Error encoding b58: {0}
     B58Encode(mc_api::display::Error),
 
     /// Error decoding b58: No public address in wrapper.
@@ -148,7 +148,7 @@ pub enum WalletDbError {
     /// wallet
     TransactionLacksAccount,
 
-    /// Error decoding prost {0}
+    /// Error decoding prost: {0}
     ProstDecode(prost::DecodeError),
 
     /// We expect one change output per TxProposal
@@ -167,43 +167,43 @@ pub enum WalletDbError {
     /// Please combine txos.
     InsufficientFundsFragmentedTxos,
 
-    /// Insufficient Funds {0}
+    /// Insufficient Funds: {0}
     InsufficientFunds(String),
 
-    /// Insufficient funds from Txos under max_spendable_value {0}
+    /// Insufficient funds from Txos under max_spendable_value: {0}
     InsufficientFundsUnderMaxSpendable(String),
 
     /// Multiple AccountTxoStatus entries for Txo
     MultipleStatusesForTxo,
 
-    /// Unexpected TXO Type {0}
+    /// Unexpected TXO Type: {0}
     UnexpectedTransactionTxoType(String),
 
     /// Transaction mismatch when retrieving associated Txos
     TransactionMismatch,
 
-    /// Account Not Found {0}
+    /// Account Not Found: {0}
     AccountNotFound(String),
 
-    /// AssignedSubaddress Not Found {0}
+    /// AssignedSubaddress Not Found: {0}
     AssignedSubaddressNotFound(String),
 
-    /// Txo Not Found {0}
+    /// Txo Not Found: {0}
     TxoNotFound(String),
 
-    /// TransactionLog Not Found {0}
+    /// TransactionLog Not Found: {0}
     TransactionLogNotFound(String),
 
-    /// AccountTxoStatus not found {0}
+    /// AccountTxoStatus not found: {0}
     AccountTxoStatusNotFound(String),
 
     /// Cannot log a transaction with a value > i64::MAX
     TransactionValueExceedsMax,
 
-    /// The Txo Exists, but for another account {0}
+    /// The Txo Exists, but for another account: {0}
     TxoExistsForAnotherAccount(String),
 
-    /// The Txo is associated with too many Accounts {0}
+    /// The Txo is associated with too many Accounts: {0}
     TxoAssociatedWithTooManyAccounts(String),
 }
 
@@ -236,22 +236,22 @@ pub enum SyncError {
     /// Could not find account
     AccountNotFound,
 
-    /// Error with WalletDb {0}
+    /// Error with WalletDb: {0}
     Database(WalletDbError),
 
-    /// Error with LedgerDB {0}
+    /// Error with LedgerDB: {0}
     LedgerDB(mc_ledger_db::Error),
 
-    /// Error with Keys {0}
+    /// Error with Keys: {0}
     CryptoKey(mc_crypto_keys::KeyError),
 
-    /// Error decoding prost {0}
+    /// Error decoding prost: {0}
     ProstDecode(prost::DecodeError),
 
-    /// Error with the Amount {0}
+    /// Error with the Amount: {0}
     Amount(mc_transaction_core::AmountError),
 
-    /// Error executing diesel transaction {0}
+    /// Error executing diesel transaction: {0}
     Diesel(diesel::result::Error),
 }
 
@@ -294,10 +294,10 @@ impl From<diesel::result::Error> for SyncError {
 #[derive(Display, Debug)]
 #[allow(clippy::large_enum_variant)]
 pub enum WalletTransactionBuilderError {
-    /// Insufficient Funds {0}
+    /// Insufficient Funds: {0}
     InsufficientFunds(String),
 
-    /// Insufficient Funds in inputs to construct transaction {0}
+    /// Insufficient Funds in inputs to construct transaction: {0}
     InsufficientInputFunds(String),
 
     /// Insufficient TxOuts to construct transaction
@@ -312,31 +312,31 @@ pub enum WalletTransactionBuilderError {
     /// Not enough Rings and Proofs
     RingsAndProofsEmpty,
 
-    /// Error with LedgerDB {0}
+    /// Error with LedgerDB: {0}
     LedgerDB(mc_ledger_db::Error),
 
-    /// Tx Builder Error {0}
+    /// Tx Builder Error: {0}
     TxBuilder(mc_transaction_std::TxBuilderError),
 
-    /// Invalid Argument {0}
+    /// Invalid Argument: {0}
     InvalidArgument(String),
 
-    /// Prost decode failed {0}
+    /// Prost decode failed: {0}
     ProstDecode(prost::DecodeError),
 
-    /// Wallet DB Error {0}
+    /// Wallet DB Error: {0}
     WalletDb(WalletDbError),
 
-    /// Error interacting with fog {0}
+    /// Error interacting with fog: {0}
     FogError(String),
 
-    /// Attempting to build a transaction from a TXO without a subaddress {0}
+    /// Attempting to build a transaction from a TXO without a subaddress: {0}
     NullSubaddress(String),
 
     /// Full-service transactions can only have one recipient.
     MultipleRecipientsInTransaction,
 
-    /// Error executing diesel transaction {0}
+    /// Error executing diesel transaction: {0}
     Diesel(diesel::result::Error),
 
     /// No inputs selected. Must set or select inputs before building.
@@ -349,7 +349,7 @@ pub enum WalletTransactionBuilderError {
     /// default.
     TombstoneNotSet,
 
-    /// Fee must be at least MINIMUM_FEE {0}
+    /// Fee must be at least MINIMUM_FEE: {0}
     InsufficientFee(String),
 
     /// The wallet service only supports transactions with one recipient at this
