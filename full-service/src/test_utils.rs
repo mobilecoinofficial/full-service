@@ -14,7 +14,7 @@ use diesel_migrations::embed_migrations;
 use mc_account_keys::{AccountKey, PublicAddress};
 use mc_attest_core::Verifier;
 use mc_common::logger::Logger;
-use mc_connection::{Connection, ConnectionManager, ThickClient};
+use mc_connection::{Connection, ConnectionManager, HardcodedCredentialsProvider, ThickClient};
 use mc_connection_test_utils::{test_client_uri, MockBlockchainConnection};
 use mc_consensus_scp::QuorumSet;
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
@@ -257,8 +257,8 @@ pub fn setup_peer_manager_and_network_state(
 pub fn setup_grpc_peer_manager_and_network_state(
     logger: Logger,
 ) -> (
-    ConnectionManager<ThickClient>,
-    Arc<RwLock<PollingNetworkState<ThickClient>>>,
+    ConnectionManager<ThickClient<HardcodedCredentialsProvider>>,
+    Arc<RwLock<PollingNetworkState<ThickClient<HardcodedCredentialsProvider>>>>,
 ) {
     let peer1 = test_client_uri(1);
     let peer2 = test_client_uri(2);
@@ -280,6 +280,7 @@ pub fn setup_grpc_peer_manager_and_network_state(
                 client_uri.clone(),
                 verifier.clone(),
                 grpc_env.clone(),
+                HardcodedCredentialsProvider::from(client_uri),
                 logger.clone(),
             )
             .expect("Could not create thick client.")
