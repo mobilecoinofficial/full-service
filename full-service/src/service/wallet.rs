@@ -904,12 +904,7 @@ mod tests {
         });
         // We will fail because we cannot afford the fee, which is 100000000000 pMOB
         // (.01 MOB)
-        dispatch_expect_error(
-            &client,
-            body,
-            &logger,
-            "{\"error\": \"TransactionBuilder(WalletDb(InsufficientFundsUnderMaxSpendable(\"Max spendable value in wallet: 100, but target value: 10000000042\")))\"}".to_string(),
-        );
+        dispatch_expect_error(&client, body, &logger, "{\"details\":\"Error building transaction: Wallet DB Error: Insufficient funds from Txos under max_spendable_value: Max spendable value in wallet: 100, but target value: 10000000042\",\"error\":\"TransactionBuilder(WalletDb(InsufficientFundsUnderMaxSpendable(\\\"Max spendable value in wallet: 100, but target value: 10000000042\\\")))\"}".to_string());
 
         // Add a block with significantly more MOB
         add_block_to_ledger_db(
