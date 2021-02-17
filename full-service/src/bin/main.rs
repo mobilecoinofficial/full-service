@@ -109,6 +109,7 @@ fn main() {
             network_state,
             config.get_fog_resolver_factory(logger.clone()),
             config.num_workers,
+            config.offline,
             logger,
         ),
     };

@@ -55,6 +55,9 @@ pub enum WalletServiceError {
 
     /// Txo should contain proof: {0}
     MissingProof(String),
+
+    /// Cannot complete this action in offline mode.
+    Offline,
 }
 
 impl From<WalletDbError> for WalletServiceError {
