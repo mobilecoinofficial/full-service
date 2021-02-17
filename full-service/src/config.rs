@@ -7,13 +7,14 @@ use mc_common::{
     logger::{log, Logger},
     ResponderId,
 };
-use mc_connection::{ConnectionManager, ThickClient};
+use mc_connection::{ConnectionManager, HardcodedCredentialsProvider, ThickClient};
 use mc_consensus_scp::QuorumSet;
-use mc_fog_report_connection::GrpcFogPubkeyResolver;
+use mc_fog_report_connection::GrpcFogReportConnection;
+use mc_fog_report_validation::FogResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::ReqwestTransactionsFetcher;
 use mc_sgx_css::Signature;
-use mc_util_uri::{ConnectionUri, ConsensusClientUri};
+use mc_util_uri::{ConnectionUri, ConsensusClientUri, FogUri};
 use std::{
     convert::TryFrom,
     fs,
@@ -44,17 +45,20 @@ pub struct APIConfig {
     #[structopt(long, parse(from_os_str))]
     pub ledger_db: PathBuf,
 
-    /// Path to existing ledger db that contains the origin block, used when initializing new ledger dbs.
+    /// Path to existing ledger db that contains the origin block, used when
+    /// initializing new ledger dbs.
     #[structopt(long)]
     pub ledger_db_bootstrap: Option<String>,
 
     #[structopt(flatten)]
     pub peers_config: PeersConfig,
 
-    /// Quorum set for ledger syncing. By default, the quorum set would include all peers.
+    /// Quorum set for ledger syncing. By default, the quorum set would include
+    /// all peers.
     ///
     /// The quorum set is represented in JSON. For example:
-    /// {"threshold":1,"members":[{"type":"Node","args":"node2.test.mobilecoin.com:443"},{"type":"Node","args":"node3.test.mobilecoin.com:443"}]}
+    /// {"threshold":1,"members":[{"type":"Node","args":"node2.test.mobilecoin.
+    /// com:443"},{"type":"Node","args":"node3.test.mobilecoin.com:443"}]}
     #[structopt(long, parse(try_from_str=parse_quorum_set_from_json))]
     quorum_set: Option<QuorumSet<ResponderId>>,
 
@@ -77,8 +81,8 @@ pub struct APIConfig {
     #[structopt(long)]
     pub offline: bool,
 
-    /// Fog ingest enclave CSS file (needed in order to enable sending transactions to fog
-    /// recipients).
+    /// Fog ingest enclave CSS file (needed in order to enable sending
+    /// transactions to fog recipients).
     #[structopt(long, parse(try_from_str=load_css_file))]
     pub fog_ingest_enclave_css: Option<Signature>,
 }
@@ -133,7 +137,9 @@ impl APIConfig {
         QuorumSet::new_with_node_ids(node_ids.len() as u32, node_ids)
     }
 
-    pub fn get_fog_pubkey_resolver(&self, logger: Logger) -> Option<GrpcFogPubkeyResolver> {
+    /// Get the attestation verifier used to verify fog reports when sending to
+    /// fog recipients.
+    pub fn get_fog_ingest_verifier(&self) -> Option<Verifier> {
         self.fog_ingest_enclave_css.as_ref().map(|signature| {
             let mr_signer_verifier = {
                 let mut mr_signer_verifier = MrSignerVerifier::new(
@@ -145,19 +151,45 @@ impl APIConfig {
                 mr_signer_verifier
             };
 
-            let report_verifier = {
-                let mut verifier = Verifier::default();
-                verifier.debug(DEBUG_ENCLAVE).mr_signer(mr_signer_verifier);
-                verifier
-            };
+            let mut verifier = Verifier::default();
+            verifier.debug(DEBUG_ENCLAVE).mr_signer(mr_signer_verifier);
+            verifier
+        })
+    }
 
-            let env = Arc::new(
-                grpcio::EnvBuilder::new()
-                    .name_prefix("FogPubkeyResolver-RPC".to_string())
-                    .build(),
-            );
+    /// Get the function which creates FogResolver given a list of recipient
+    /// addresses.
+    ///
+    /// The string error should be mapped by invoker of this factory to
+    /// Error::FogError.
+    pub fn get_fog_resolver_factory(
+        &self,
+        logger: Logger,
+    ) -> Arc<dyn Fn(&[FogUri]) -> Result<FogResolver, String> + Send + Sync> {
+        let env = Arc::new(
+            grpcio::EnvBuilder::new()
+                .name_prefix("FogPubkeyResolver-RPC".to_string())
+                .build(),
+        );
 
-            GrpcFogPubkeyResolver::new(&report_verifier, env, logger)
+        let conn = GrpcFogReportConnection::new(env, logger);
+
+        let verifier = self.get_fog_ingest_verifier();
+
+        Arc::new(move |fog_uris| -> Result<FogResolver, String> {
+            if fog_uris.is_empty() {
+                Ok(Default::default())
+            } else if let Some(verifier) = verifier.as_ref() {
+                let report_responses = conn
+                    .fetch_fog_reports(fog_uris.iter().cloned())
+                    .map_err(|err| format!("Failed fetching fog reports: {}", err))?;
+                Ok(FogResolver::new(report_responses, verifier))
+            } else {
+                Err(
+                    "Some recipients have fog, but no fog ingest report verifier was configured"
+                        .to_string(),
+                )
+            }
         })
     }
 
@@ -183,7 +215,8 @@ impl APIConfig {
             }
         }
 
-        // Ledger doesn't exist, or is empty. Copy a bootstrapped ledger or try and get it from the network.
+        // Ledger doesn't exist, or is empty. Copy a bootstrapped ledger or try and get
+        // it from the network.
         let ledger_db_file = Path::new(&self.ledger_db).join("data.mdb");
         match &self.ledger_db_bootstrap {
             Some(ledger_db_bootstrap) => {
@@ -194,8 +227,8 @@ impl APIConfig {
                     ledger_db_bootstrap
                 );
 
-                // Try and create directory in case it doesn't exist. We need it to exist before we
-                // can copy the data.mdb file.
+                // Try and create directory in case it doesn't exist. We need it to exist before
+                // we can copy the data.mdb file.
                 if !Path::new(&self.ledger_db).exists() {
                     std::fs::create_dir_all(self.ledger_db.clone()).unwrap_or_else(|_| {
                         panic!("Failed creating directory {:?}", self.ledger_db)
@@ -285,7 +318,7 @@ impl PeersConfig {
         verifier: Verifier,
         grpc_env: Arc<grpcio::Environment>,
         logger: Logger,
-    ) -> Vec<ThickClient> {
+    ) -> Vec<ThickClient<HardcodedCredentialsProvider>> {
         self.peers
             .clone()
             .unwrap_or_default()
@@ -295,6 +328,7 @@ impl PeersConfig {
                     client_uri.clone(),
                     verifier.clone(),
                     grpc_env.clone(),
+                    HardcodedCredentialsProvider::from(client_uri),
                     logger.clone(),
                 )
                 .expect("Could not create thick client.")
@@ -306,7 +340,7 @@ impl PeersConfig {
         &self,
         verifier: Verifier,
         logger: &Logger,
-    ) -> ConnectionManager<ThickClient> {
+    ) -> ConnectionManager<ThickClient<HardcodedCredentialsProvider>> {
         let grpc_env = Arc::new(
             grpcio::EnvBuilder::new()
                 .cq_count(1)

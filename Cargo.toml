@@ -24,10 +24,6 @@ overflow-checks = false
 prost = { git = "https://github.com/danburkert/prost", rev = "6113789f70b69709820becba4242824b4fb3ffec" }
 prost-derive = { git = "https://github.com/danburkert/prost", rev = "6113789f70b69709820becba4242824b4fb3ffec" }
 
-# slog is patched in order to build in no_std config with dynamic_keys feature on
-# https://github.com/slog-rs/slog/pull/268
-slog = { git = "https://github.com/mobilecoinofficial/slog", rev = "cc1562258b81353426d17a55b7447256fa6eabbf" }
-
 # Patched to depend on crates that depend on digest 0.9
 bulletproofs = { git = "https://github.com/eranrund/bulletproofs", rev = "e8e8ef45ecc6d31f1a9525140edc977351d0f780" }
 

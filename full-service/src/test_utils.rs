@@ -14,22 +14,22 @@ use diesel_migrations::embed_migrations;
 use mc_account_keys::{AccountKey, PublicAddress};
 use mc_attest_core::Verifier;
 use mc_common::logger::Logger;
-use mc_connection::{Connection, ConnectionManager, ThickClient};
+use mc_connection::{Connection, ConnectionManager, HardcodedCredentialsProvider, ThickClient};
 use mc_connection_test_utils::{test_client_uri, MockBlockchainConnection};
 use mc_consensus_scp::QuorumSet;
-use mc_crypto_keys::RistrettoPrivate;
+use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_crypto_rand::{CryptoRng, RngCore};
-use mc_fog_report_validation::MockFogPubkeyResolver;
+use mc_fog_report_validation::{FullyValidatedFogPubkey, MockFogPubkeyResolver};
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::PollingNetworkState;
 use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::{
-    encrypted_fog_hint::EncryptedFogHint, ring_signature::KeyImage, tx::TxOut,
+    encrypted_fog_hint::EncryptedFogHint, ring_signature::KeyImage, tx::TxOut, Block,
+    BlockContents, BLOCK_VERSION,
 };
-use mc_transaction_core::{Block, BlockContents, BLOCK_VERSION};
 use mc_util_from_random::FromRandom;
-use mc_util_uri::ConnectionUri;
-use rand::{distributions::Alphanumeric, rngs::StdRng, thread_rng, Rng};
+use mc_util_uri::{ConnectionUri, FogUri};
+use rand::{distributions::Alphanumeric, rngs::StdRng, thread_rng, Rng, SeedableRng};
 use std::{
     path::PathBuf,
     sync::{Arc, RwLock},
@@ -89,7 +89,8 @@ impl WalletDbTestContext {
 /// * `num_blocks` - Number of blocks to create in the ledger_db.
 /// * `rng`
 ///
-/// Note that all txos will be controlled by the subindex DEFAULT_SUBADDRESS_INDEX
+/// Note that all txos will be controlled by the subindex
+/// DEFAULT_SUBADDRESS_INDEX
 pub fn get_test_ledger(
     num_random_recipients: u32,
     known_recipients: &[PublicAddress],
@@ -133,7 +134,8 @@ pub fn get_test_ledger(
 /// Creates an empty LedgerDB.
 ///
 /// # Arguments
-/// * `path` - Path to the ledger's data.mdb file. If such a file exists, it will be replaced.
+/// * `path` - Path to the ledger's data.mdb file. If such a file exists, it
+///   will be replaced.
 fn generate_ledger_db(path: &str) -> LedgerDB {
     // DELETE the old database if it already exists.
     let _ = std::fs::remove_file(format!("{}/data.mdb", path));
@@ -142,7 +144,8 @@ fn generate_ledger_db(path: &str) -> LedgerDB {
     db
 }
 
-/// Adds a block containing one txo for each provided recipient and returns new block height.
+/// Adds a block containing one txo for each provided recipient and returns new
+/// block height.
 ///
 /// # Arguments
 /// * `ledger_db` - Ledger database instance.
@@ -254,8 +257,8 @@ pub fn setup_peer_manager_and_network_state(
 pub fn setup_grpc_peer_manager_and_network_state(
     logger: Logger,
 ) -> (
-    ConnectionManager<ThickClient>,
-    Arc<RwLock<PollingNetworkState<ThickClient>>>,
+    ConnectionManager<ThickClient<HardcodedCredentialsProvider>>,
+    Arc<RwLock<PollingNetworkState<ThickClient<HardcodedCredentialsProvider>>>>,
 ) {
     let peer1 = test_client_uri(1);
     let peer2 = test_client_uri(2);
@@ -277,6 +280,7 @@ pub fn setup_grpc_peer_manager_and_network_state(
                 client_uri.clone(),
                 verifier.clone(),
                 grpc_env.clone(),
+                HardcodedCredentialsProvider::from(client_uri),
                 logger.clone(),
             )
             .expect("Could not create thick client.")
@@ -338,12 +342,14 @@ pub fn create_test_minted_and_change_txos(
     ledger_db: LedgerDB,
     logger: Logger,
 ) -> (Option<PublicAddress>, String, i64, String) {
+    let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
     // Use the builder to create valid TxOuts for this account
     let mut builder = WalletTransactionBuilder::<MockFogPubkeyResolver>::new(
         AccountID::from(&src_account_key).to_string(),
         wallet_db.clone(),
         ledger_db,
-        None,
+        get_resolver_factory(&mut rng).unwrap(),
         logger,
     );
 
@@ -355,7 +361,8 @@ pub fn create_test_minted_and_change_txos(
     // There should be 2 outputs, one to dest and one change
     assert_eq!(tx_proposal.tx.prefix.outputs.len(), 2);
 
-    // Take the first one (we only construct with one outlay currently, could modify build protocol)
+    // Take the first one (we only construct with one outlay currently, could modify
+    // build protocol)
     assert_eq!(tx_proposal.outlay_index_to_tx_out_index.len(), 1);
     let outlay_txo_index = tx_proposal.outlay_index_to_tx_out_index[&0];
 
@@ -430,7 +437,7 @@ pub fn builder_for_random_recipient(
         AccountID::from(account_key).to_string(),
         wallet_db.clone(),
         ledger_db.clone(),
-        Some(Arc::new(MockFogPubkeyResolver::new())),
+        get_resolver_factory(&mut rng).unwrap(),
         logger.clone(),
     );
 
@@ -438,4 +445,26 @@ pub fn builder_for_random_recipient(
     let recipient = recipient_account_key.subaddress(rng.next_u64());
 
     (recipient, builder)
+}
+
+pub fn get_resolver_factory(
+    mut rng: &mut StdRng,
+) -> Result<Arc<dyn Fn(&[FogUri]) -> Result<MockFogPubkeyResolver, String> + Send + Sync>, ()> {
+    let fog_private_key = RistrettoPrivate::from_random(&mut rng);
+    let fog_pubkey_resolver_factory: Arc<
+        dyn Fn(&[FogUri]) -> Result<MockFogPubkeyResolver, String> + Send + Sync,
+    > = Arc::new(move |_| -> Result<MockFogPubkeyResolver, String> {
+        let mut fog_pubkey_resolver = MockFogPubkeyResolver::new();
+        let pubkey = RistrettoPublic::from(&fog_private_key);
+        fog_pubkey_resolver
+            .expect_get_fog_pubkey()
+            .return_once(move |_recipient| {
+                Ok(FullyValidatedFogPubkey {
+                    pubkey,
+                    pubkey_expiry: 10000,
+                })
+            });
+        Ok(fog_pubkey_resolver)
+    });
+    Ok(fog_pubkey_resolver_factory)
 }

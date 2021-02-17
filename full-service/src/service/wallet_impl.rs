@@ -2,18 +2,18 @@
 
 //! The implementation of the wallet service methods.
 
-use crate::db::b58_decode;
 use crate::{
-    db::models::{
-        Account, AssignedSubaddress, TransactionLog, Txo, TXO_ORPHANED, TXO_PENDING, TXO_SECRETED,
-        TXO_SPENT, TXO_UNSPENT,
-    },
-    db::WalletDb,
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
+        b58_decode,
+        models::{
+            Account, AssignedSubaddress, TransactionLog, Txo, TXO_ORPHANED, TXO_PENDING,
+            TXO_SECRETED, TXO_SPENT, TXO_UNSPENT,
+        },
         transaction_log::TransactionLogModel,
         txo::TxoModel,
+        WalletDb,
     },
     error::WalletServiceError,
     service::{
@@ -33,13 +33,14 @@ use mc_connection::{
     UserTxConnection,
 };
 use mc_crypto_rand::rand_core::RngCore;
-use mc_fog_report_connection::FogPubkeyResolver;
+use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::{NetworkState, PollingNetworkState};
 use mc_mobilecoind::payments::TxProposal;
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
 use mc_transaction_core::tx::{Tx, TxOut, TxOutConfirmationNumber};
 use mc_util_from_random::FromRandom;
+use mc_util_uri::FogUri;
 
 use diesel::prelude::*;
 use serde_json::Map;
@@ -61,9 +62,10 @@ pub struct WalletService<
     ledger_db: LedgerDB,
     peer_manager: McConnectionManager<T>,
     network_state: Arc<RwLock<PollingNetworkState<T>>>,
-    fog_pubkey_resolver: Option<Arc<FPR>>,
+    fog_resolver_factory: Arc<dyn Fn(&[FogUri]) -> Result<FPR, String> + Send + Sync>,
     _sync_thread: SyncThread,
-    /// Monotonically increasing counter. This is used for node round-robin selection.
+    /// Monotonically increasing counter. This is used for node round-robin
+    /// selection.
     submit_node_offset: Arc<AtomicUsize>,
     logger: Logger,
 }
@@ -78,7 +80,7 @@ impl<
         ledger_db: LedgerDB,
         peer_manager: McConnectionManager<T>,
         network_state: Arc<RwLock<PollingNetworkState<T>>>,
-        fog_pubkey_resolver: Option<Arc<FPR>>,
+        fog_resolver_factory: Arc<dyn Fn(&[FogUri]) -> Result<FPR, String> + Send + Sync>,
         num_workers: Option<usize>,
         logger: Logger,
     ) -> Self {
@@ -95,7 +97,7 @@ impl<
             ledger_db,
             peer_manager,
             network_state,
-            fog_pubkey_resolver,
+            fog_resolver_factory,
             _sync_thread: sync_thread,
             submit_node_offset: Arc::new(AtomicUsize::new(rng.next_u64() as usize)),
             logger,
@@ -421,7 +423,7 @@ impl<
             account_id_hex.to_string(),
             self.wallet_db.clone(),
             self.ledger_db.clone(),
-            self.fog_pubkey_resolver.clone(),
+            self.fog_resolver_factory.clone(),
             self.logger.clone(),
         );
         let recipient = b58_decode(recipient_public_address)?;
@@ -448,8 +450,8 @@ impl<
         // FIXME: WS-34 - Would rather not have to convert it to proto first
         let proto_tx_proposal = mc_mobilecoind_api::TxProposal::from(&tx_proposal);
 
-        // FIXME: WS-32 - Might be nice to have a tx_proposal table so that you don't have to
-        //        write these out to local files. That's V2, though.
+        // FIXME: WS-32 - Might be nice to have a tx_proposal table so that you don't
+        // have to        write these out to local files. That's V2, though.
         Ok(JsonTxProposal::from(&proto_tx_proposal))
     }
 
@@ -641,24 +643,27 @@ mod tests {
     use crate::{
         db::models::{TXO_MINTED, TXO_RECEIVED},
         test_utils::{
-            add_block_to_ledger_db, get_test_ledger, setup_peer_manager_and_network_state,
-            WalletDbTestContext,
+            add_block_to_ledger_db, get_resolver_factory, get_test_ledger,
+            setup_peer_manager_and_network_state, WalletDbTestContext,
         },
     };
     use mc_account_keys::PublicAddress;
-    use mc_common::logger::{test_with_logger, Logger};
-    use mc_common::HashSet;
+    use mc_common::{
+        logger::{test_with_logger, Logger},
+        HashSet,
+    };
     use mc_connection_test_utils::MockBlockchainConnection;
     use mc_fog_report_validation::MockFogPubkeyResolver;
     use mc_transaction_core::ring_signature::KeyImage;
     use rand::{rngs::StdRng, SeedableRng};
-    use std::iter::FromIterator;
-    use std::time::Duration;
+    use std::{iter::FromIterator, time::Duration};
 
     fn setup_service(
         ledger_db: LedgerDB,
         logger: Logger,
     ) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger.clone());
         let (peer_manager, network_state) =
@@ -669,7 +674,7 @@ mod tests {
             ledger_db,
             peer_manager,
             network_state,
-            Some(Arc::new(MockFogPubkeyResolver::new())),
+            get_resolver_factory(&mut rng).unwrap(),
             None,
             logger,
         )
@@ -688,7 +693,8 @@ mod tests {
             .unwrap();
 
         // Add a block with a transaction for this recipient
-        // Add a block with a txo for this address (note that value is smaller than MINIMUM_FEE)
+        // Add a block with a txo for this address (note that value is smaller than
+        // MINIMUM_FEE)
         let alice_public_address = b58_decode(&alice.account.main_address).unwrap();
         add_block_to_ledger_db(
             &mut ledger_db,
@@ -737,7 +743,8 @@ mod tests {
             .submit_transaction(tx_proposal, None, Some(alice.account.account_id.clone()))
             .unwrap();
 
-        // We should now have 3 txos - one pending, two minted (one of which will be change)
+        // We should now have 3 txos - one pending, two minted (one of which will be
+        // change)
         let txos = service.list_txos(&alice.account.account_id).unwrap();
         assert_eq!(txos.len(), 3);
         // The Pending Tx

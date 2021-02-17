@@ -70,6 +70,16 @@ MobileCoin Full Service is available under open-source licenses. Look for the [L
    | `peer`           | URI of consensus node. Used to submit <br /> transactions and to check the network <br /> block height. | MC URI format |
    | `tx-source-url`  | S3 location of archived ledger. Used to <br /> sync transactions to the local ledger. | S3 URI format |
 
+   | Opional Param | Purpose                  | Requirements              |
+   | :------------ | :----------------------- | :------------------------ |
+   | `listen-host` | Host to listen on.      | Default: 127.0.0.1 |
+   | `listen-port` | Port to start webserver on. | Default: 9090 |
+   | `ledger-db-bootstrap` | Path to existing ledger_db that contains the origin block, <br /> used when initializing new ledger dbs. |  |
+   | `quorum-set` | Quorum set for ledger syncing. | Default includes all `peers` |
+   | `num-workers` | Number of worker threads to use for view key scanning. | Defaults to number of logical CPU cores. |
+   | `poll-interval` | How many seconds to wait between polling for new blocks. | Default: 5 |
+   | `offline` | Use Full Service in offline mode. This mode does not download new blocks or submit transactions. | |
+   | `fog-ingest-enclave-css` | Path to the Fog ingest enclave sigstruct CSS file. | Needed in order to enable sending transactions to fog addresses. |
 
 ## API
 
@@ -113,10 +123,10 @@ curl -s localhost:9090/wallet \
 }
 ```
 
-   | Optional Param | Purpose                  | Requirements              |
-   | :------------- | :----------------------- | :------------------------ |
-   | `name`         | Label for this account   | Can have duplicates (not recommended) |
-   | `first_block`  | The block from which to start scanning the ledger |  |
+| Optional Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `name`         | Label for this account   | Can have duplicates (not recommended) |
+| `first_block`  | The block from which to start scanning the ledger |  |
 
 #### Import Account
 
@@ -162,6 +172,14 @@ curl -s localhost:9090/wallet \
 | :------------- | :----------------------- | :------------------------ |
 | `name`         | Label for this account   | Can have duplicates (not recommended) |
 | `first_block`  | The block from which to start scanning the ledger |  |
+
+##### Troubleshooting
+
+If you receive the following error, it means that you attempted to import an account already in the wallet.
+
+```sh
+{"error": "Database(Diesel(DatabaseError(UniqueViolation, "UNIQUE constraint failed: accounts.account_id_hex")))"}
+```
 
 #### Get All Accounts
 
@@ -247,6 +265,17 @@ curl -s localhost:9090/wallet \
 | Required Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
 | `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
+
+#### Troubleshooting
+
+If you receive the following error, it means that this account is not in the database.
+
+```sh
+{
+  "error": "Database(AccountNotFound(\"a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10\"))",
+  "details": "Error interacting with the database: Account Not Found: a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10"
+}
+```
 
 #### Update Account Name
 
@@ -436,10 +465,11 @@ Note, you may wish to filter TXOs using a tool like jq. For example, to get all 
 curl -s localhost:9090/wallet \
   -d '{
         "method": "get_all_txos_by_account",
-        "params": {"account_id": "1916a9b39ed28ab3a6eea69ac364b834ccc35b8e9763e8516d1a1f06aba5fb72"
+        "params": {"account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10"
         }
       }' \
-  -X POST -H 'Content-type: application/json'  | jq '.result | .txos[] | select(.txo_status | contains("unspent"))'
+  -X POST -H 'Content-type: application/json' \
+  | jq '.result | .txo_map[] | select( . | .account_status_map[].txo_status | contains("unspent"))'
 ```
 
 #### Get TXO Details
