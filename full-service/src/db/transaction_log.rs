@@ -457,6 +457,7 @@ impl TransactionLogModel for TransactionLog {
 
             if let Some(recipient) = recipient_address {
                 let transaction_id = TransactionID::from(&tx_proposal.tx);
+                let tx = mc_util_serial::encode(&tx_proposal.tx);
                 // Create a TransactionLogs entry
                 let new_transaction_log = NewTransactionLog {
                     transaction_id_hex: &transaction_id.to_string(),
@@ -473,7 +474,7 @@ impl TransactionLogModel for TransactionLog {
                     finalized_block_count: None,
                     comment: &comment,
                     direction: TX_DIR_SENT,
-                    tx: Some(mc_util_serial::encode(&tx_proposal.tx)),
+                    tx: Some(&tx),
                 };
 
                 diesel::insert_into(crate::db::schema::transaction_logs::table)

@@ -245,7 +245,7 @@ impl TxoModel for Txo {
                         e_fog_hint: &mc_util_serial::encode(&txo.e_fog_hint),
                         txo: &mc_util_serial::encode(&txo),
                         subaddress_index,
-                        key_image: key_image_bytes.as_ref(),
+                        key_image: key_image_bytes.as_deref(),
                         received_block_count: Some(received_block_count as i64),
                         pending_tombstone_block_count: None,
                         spent_block_count: None,
@@ -340,7 +340,7 @@ impl TxoModel for Txo {
                 received_block_count: None,
                 pending_tombstone_block_count: Some(tx_proposal.tx.prefix.tombstone_block as i64),
                 spent_block_count: None,
-                proof: encoded_proof.as_ref(),
+                proof: encoded_proof.as_deref(),
             };
 
             diesel::insert_into(txos::table)
