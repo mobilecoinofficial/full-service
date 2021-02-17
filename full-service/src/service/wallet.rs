@@ -196,6 +196,11 @@ pub enum JsonCommandResponse {
     },
 }
 
+// Helper method to format displaydoc errors in json.
+fn format_error<T: std::fmt::Display + std::fmt::Debug>(e: T) -> String {
+    json!({"error": format!("{:?}", e), "details": e.to_string()}).to_string()
+}
+
 // The Wallet API inner method, which handles switching on the method enum.
 //
 // Note that this is structured this way so that the routes can be defined to
@@ -215,11 +220,9 @@ where
             let fb = first_block
                 .map(|fb| fb.parse::<u64>())
                 .transpose()
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+                .map_err(format_error)?;
 
-            let result = service
-                .create_account(name, fb)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+            let result = service.create_account(name, fb).map_err(format_error)?;
             JsonCommandResponse::create_account {
                 entropy: result.entropy,
                 account: result.account,
@@ -233,16 +236,14 @@ where
             let fb = first_block
                 .map(|fb| fb.parse::<u64>())
                 .transpose()
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+                .map_err(format_error)?;
             let result = service
                 .import_account(entropy, name, fb)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+                .map_err(format_error)?;
             JsonCommandResponse::import_account { account: result }
         }
         JsonCommandRequest::get_all_accounts => {
-            let accounts = service
-                .list_accounts()
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+            let accounts = service.list_accounts().map_err(format_error)?;
             let account_map: Map<String, serde_json::Value> = Map::from_iter(
                 accounts
                     .iter()
@@ -262,24 +263,20 @@ where
         JsonCommandRequest::get_account { account_id } => JsonCommandResponse::get_account {
             account: service
                 .get_account(&AccountID(account_id))
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+                .map_err(format_error)?,
         },
         JsonCommandRequest::update_account_name { account_id, name } => {
             let account = service
                 .update_account_name(&account_id, name)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+                .map_err(format_error)?;
             JsonCommandResponse::update_account_name { account }
         }
         JsonCommandRequest::delete_account { account_id } => {
-            service
-                .delete_account(&account_id)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+            service.delete_account(&account_id).map_err(format_error)?;
             JsonCommandResponse::delete_account { success: true }
         }
         JsonCommandRequest::get_all_txos_by_account { account_id } => {
-            let txos = service
-                .list_txos(&account_id)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+            let txos = service.list_txos(&account_id).map_err(format_error)?;
             let txo_map: Map<String, serde_json::Value> = Map::from_iter(
                 txos.iter()
                     .map(|t| {
@@ -297,21 +294,15 @@ where
             }
         }
         JsonCommandRequest::get_txo { txo_id } => {
-            let result = service
-                .get_txo(&txo_id)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+            let result = service.get_txo(&txo_id).map_err(format_error)?;
             JsonCommandResponse::get_txo { txo: result }
         }
         JsonCommandRequest::get_wallet_status => {
-            let result = service
-                .get_wallet_status()
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+            let result = service.get_wallet_status().map_err(format_error)?;
             JsonCommandResponse::get_wallet_status { status: result }
         }
         JsonCommandRequest::get_balance { account_id } => JsonCommandResponse::get_balance {
-            status: service
-                .get_balance(&account_id)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+            status: service.get_balance(&account_id).map_err(format_error)?,
         },
         JsonCommandRequest::create_address {
             account_id,
@@ -319,12 +310,12 @@ where
         } => JsonCommandResponse::create_address {
             address: service
                 .create_assigned_subaddress(&account_id, comment.as_deref())
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+                .map_err(format_error)?,
         },
         JsonCommandRequest::get_all_addresses_by_account { account_id } => {
             let addresses = service
                 .list_assigned_subaddresses(&account_id)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+                .map_err(format_error)?;
             let address_map: Map<String, serde_json::Value> = Map::from_iter(
                 addresses
                     .iter()
@@ -363,7 +354,7 @@ where
                     max_spendable_value,
                     comment,
                 )
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+                .map_err(format_error)?;
             JsonCommandResponse::send_transaction {
                 transaction: transaction_details,
             }
@@ -387,7 +378,7 @@ where
                     tombstone_block,
                     max_spendable_value,
                 )
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+                .map_err(format_error)?;
             JsonCommandResponse::build_transaction {
                 tx_proposal: StringifiedJsonTxProposal::from(&tx_proposal),
             }
@@ -399,12 +390,12 @@ where
         } => JsonCommandResponse::submit_transaction {
             transaction: service
                 .submit_transaction(JsonTxProposal::try_from(&tx_proposal)?, comment, account_id)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+                .map_err(format_error)?,
         },
         JsonCommandRequest::get_all_transactions_by_account { account_id } => {
             let transactions = service
                 .list_transactions(&account_id)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+                .map_err(format_error)?;
             let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
                 transactions
                     .iter()
@@ -429,29 +420,23 @@ where
             JsonCommandResponse::get_transaction {
                 transaction: service
                     .get_transaction(&transaction_log_id)
-                    .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+                    .map_err(format_error)?,
             }
         }
         JsonCommandRequest::get_transaction_object { transaction_log_id } => {
             JsonCommandResponse::get_transaction_object {
                 transaction: service
                     .get_transaction_object(&transaction_log_id)
-                    .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+                    .map_err(format_error)?,
             }
         }
         JsonCommandRequest::get_txo_object { txo_id } => JsonCommandResponse::get_txo_object {
-            txo: service
-                .get_txo_object(&txo_id)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+            txo: service.get_txo_object(&txo_id).map_err(format_error)?,
         },
         JsonCommandRequest::get_block_object { block_index } => {
             let (block, block_contents) = service
-                .get_block_object(
-                    block_index
-                        .parse::<u64>()
-                        .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
-                )
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+                .get_block_object(block_index.parse::<u64>().map_err(format_error)?)
+                .map_err(format_error)?;
             JsonCommandResponse::get_block_object {
                 block,
                 block_contents,
@@ -460,7 +445,7 @@ where
         JsonCommandRequest::get_proofs { transaction_log_id } => JsonCommandResponse::get_proofs {
             proofs: service
                 .get_proofs(&transaction_log_id)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?,
+                .map_err(format_error)?,
         },
         JsonCommandRequest::verify_proof {
             account_id,
@@ -469,7 +454,7 @@ where
         } => {
             let result = service
                 .verify_proof(&account_id, &txo_id, &proof)
-                .map_err(|e| format!("{{\"error\": \"{:?}\"}}", e))?;
+                .map_err(format_error)?;
             JsonCommandResponse::verify_proof { verified: result }
         }
     };
