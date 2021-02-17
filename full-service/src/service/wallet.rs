@@ -505,7 +505,8 @@ mod tests {
     use mc_connection_test_utils::MockBlockchainConnection;
     use mc_crypto_rand::rand_core::RngCore;
     use mc_fog_report_validation::MockFogPubkeyResolver;
-    use mc_ledger_db::LedgerDB;
+    use mc_ledger_db::{Ledger, LedgerDB};
+    use mc_ledger_sync::PollingNetworkState;
     use mc_transaction_core::ring_signature::KeyImage;
     use rand::{rngs::StdRng, SeedableRng};
     use rocket::{
@@ -514,7 +515,10 @@ mod tests {
     };
     use rocket_contrib::json::JsonValue;
     use std::{
-        sync::atomic::{AtomicUsize, Ordering::SeqCst},
+        sync::{
+            atomic::{AtomicUsize, Ordering::SeqCst},
+            Arc, RwLock,
+        },
         time::Duration,
     };
 
@@ -541,7 +545,15 @@ mod tests {
             .manage(state)
     }
 
-    fn setup(mut rng: &mut StdRng, logger: Logger) -> (Client, LedgerDB) {
+    fn setup(
+        mut rng: &mut StdRng,
+        logger: Logger,
+    ) -> (
+        Client,
+        LedgerDB,
+        WalletDbTestContext,
+        Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
+    ) {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger.clone());
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -554,7 +566,7 @@ mod tests {
                 wallet_db,
                 ledger_db.clone(),
                 peer_manager,
-                network_state,
+                network_state.clone(),
                 get_resolver_factory(&mut rng).unwrap(),
                 None,
                 logger,
@@ -568,44 +580,108 @@ mod tests {
         (
             Client::new(rocket).expect("valid rocket instance"),
             ledger_db,
+            db_test_context,
+            network_state,
         )
     }
 
-    fn dispatch(client: &Client, body: JsonValue, logger: &Logger) -> serde_json::Value {
+    fn dispatch(client: &Client, request_body: JsonValue, logger: &Logger) -> serde_json::Value {
         let mut res = client
             .post("/wallet")
             .header(ContentType::JSON)
-            .body(body.to_string())
+            .body(request_body.to_string())
             .dispatch();
         assert_eq!(res.status(), Status::Ok);
-        let body = res.body().unwrap().into_string().unwrap();
-        log::info!(logger, "Attempted dispatch got response {:?}", body);
+        let response_body = res.body().unwrap().into_string().unwrap();
+        log::info!(
+            logger,
+            "Attempted dispatch of {:?} got response {:?}",
+            request_body,
+            response_body
+        );
 
-        let res: JsonValue = serde_json::from_str(&body).unwrap();
+        let res: JsonValue = serde_json::from_str(&response_body).unwrap();
         res.get("result").unwrap().clone()
     }
 
     fn dispatch_expect_error(
         client: &Client,
-        body: JsonValue,
+        request_body: JsonValue,
         logger: &Logger,
         expected_err: String,
     ) {
         let mut res = client
             .post("/wallet")
             .header(ContentType::JSON)
-            .body(body.to_string())
+            .body(request_body.to_string())
             .dispatch();
         assert_eq!(res.status(), Status::Ok);
-        let body = res.body().unwrap().into_string().unwrap();
-        log::info!(logger, "Attempted dispatch got response {:?}", body);
-        assert_eq!(body, expected_err);
+        let response_body = res.body().unwrap().into_string().unwrap();
+        log::info!(
+            logger,
+            "Attempted dispatch of {:?} got response {:?}",
+            request_body,
+            response_body
+        );
+        let response_json: serde_json::Value = serde_json::from_str(&response_body).unwrap();
+        let expected_json: serde_json::Value = serde_json::from_str(&expected_err).unwrap();
+        assert_eq!(response_json, expected_json);
+    }
+
+    fn wait_for_sync(
+        client: &Client,
+        ledger_db: &LedgerDB,
+        network_state: &Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
+        logger: &Logger,
+    ) {
+        let mut count = 0;
+        loop {
+            // Sleep to let the sync thread process the txos
+            std::thread::sleep(Duration::from_secs(1));
+            // Check that syncing is working
+            let body = json!({
+                "method": "get_wallet_status",
+            });
+            let result = dispatch(&client, body, &logger);
+            let status = result.get("status").unwrap();
+
+            // Have to manually call poll() on network state to get it to update for these
+            // tests
+            network_state.write().unwrap().poll();
+
+            let is_synced_all = status.get("is_synced_all").unwrap().as_bool().unwrap();
+            if is_synced_all {
+                let local_height = status
+                    .get("local_height")
+                    .unwrap()
+                    .as_str()
+                    .unwrap()
+                    .parse::<u64>()
+                    .unwrap();
+                assert_eq!(local_height, ledger_db.num_blocks().unwrap());
+                assert_eq!(
+                    status
+                        .get("network_height")
+                        .unwrap()
+                        .as_str()
+                        .unwrap()
+                        .parse::<u64>()
+                        .unwrap(),
+                    local_height
+                );
+                break;
+            }
+            count += 1;
+            if count > 10 {
+                panic!("Service did not sync after 10 iterations");
+            }
+        }
     }
 
     #[test_with_logger]
     fn test_account_crud(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db) = setup(&mut rng, logger.clone());
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         // Create Account
         let body = json!({
@@ -704,7 +780,7 @@ mod tests {
     #[test_with_logger]
     fn test_import_account(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db) = setup(&mut rng, logger.clone());
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         let body = json!({
             "method": "import_account",
@@ -730,7 +806,7 @@ mod tests {
     #[test_with_logger]
     fn test_create_account_with_first_block(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db) = setup(&mut rng, logger.clone());
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         let body = json!({
             "method": "create_account",
@@ -749,7 +825,7 @@ mod tests {
     #[test_with_logger]
     fn test_wallet_status(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db) = setup(&mut rng, logger.clone());
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         let body = json!({
             "method": "create_account",
@@ -787,7 +863,7 @@ mod tests {
     #[test_with_logger]
     fn test_get_all_txos(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -812,8 +888,7 @@ mod tests {
             &mut rng,
         );
 
-        // Sleep to let the sync thread process the txo - sometimes fails at 2s
-        std::thread::sleep(Duration::from_secs(4));
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
 
         let body = json!({
             "method": "get_all_txos_by_account",
@@ -864,7 +939,7 @@ mod tests {
     #[test_with_logger]
     fn test_build_and_submit_transaction(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -890,8 +965,7 @@ mod tests {
             &mut rng,
         );
 
-        // Sleep to let the sync thread process the txo
-        std::thread::sleep(Duration::from_secs(4));
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
 
         // Create a tx proposal to ourselves
         let body = json!({
@@ -915,8 +989,7 @@ mod tests {
             &mut rng,
         );
 
-        // Sleep to let the sync thread process the txo
-        std::thread::sleep(Duration::from_secs(4));
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
 
         // Create a tx proposal to ourselves
         let body = json!({
@@ -1005,8 +1078,7 @@ mod tests {
         // Note - we cannot test here that the transaction ID is consistent, because
         // there is randomness in the transaction creation.
 
-        // Wait for the transaction to hit the ledger
-        std::thread::sleep(Duration::from_secs(4));
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
 
         // Get balance after submission
         let body = json!({
@@ -1086,7 +1158,7 @@ mod tests {
     #[test_with_logger]
     fn test_create_assigned_subaddress(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -1131,8 +1203,7 @@ mod tests {
             &mut rng,
         );
 
-        // Sleep to let the sync thread process the txo - sometimes fails at 2s
-        std::thread::sleep(Duration::from_secs(4));
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
 
         let body = json!({
             "method": "get_all_txos_by_account",
