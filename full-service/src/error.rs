@@ -179,6 +179,9 @@ pub enum WalletDbError {
     /// Unexpected TXO Type: {0}
     UnexpectedTransactionTxoType(String),
 
+    /// Unexpected AccountTxoStatus: {0}
+    UnexpectedAccountTxoStatus(String),
+
     /// Transaction mismatch when retrieving associated Txos
     TransactionMismatch,
 
@@ -205,6 +208,9 @@ pub enum WalletDbError {
 
     /// The Txo is associated with too many Accounts: {0}
     TxoAssociatedWithTooManyAccounts(String),
+
+    /// The Txo has neither received_to nor spent_from specified.
+    MalformedTxoDatabaseEntry,
 }
 
 impl From<diesel::result::Error> for WalletDbError {

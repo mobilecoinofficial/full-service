@@ -82,7 +82,7 @@ impl JsonTxo {
             );
         }
 
-        if let Some(spent) = txo_details.spent_from_account.clone() {
+        if let Some(spent) = txo_details.secreted_from_account.clone() {
             account_status_map.insert(
                 spent.account_id_hex,
                 json!({"txo_type": spent.txo_type, "txo_status": spent.txo_status}).into(),
@@ -102,7 +102,7 @@ impl JsonTxo {
                 .map(|a| a.account_id_hex.clone()),
             minted_account_id: txo_details
                 .clone()
-                .spent_from_account
+                .secreted_from_account
                 .as_ref()
                 .map(|a| a.account_id_hex.clone()),
             account_status_map,

@@ -353,9 +353,9 @@ pub fn sync_account(
             )?;
 
             // Note: Doing this here means we are updating key images multiple times, once
-            // per account.       We do actually want to do it this way, because
-            // each account may need to process       the same block at a
-            // different time, depending on when we add it to the DB.
+            // per account. We do actually want to do it this way, because each account may
+            // need to process the same block at a different time, depending on when we add
+            // it to the DB.
             account.update_spent_and_increment_next_block(
                 account.next_block,
                 block_contents.key_images,
@@ -380,7 +380,7 @@ pub fn sync_account(
 }
 
 /// Helper function for matching a list of TxOuts to a given account.
-fn process_txos(
+pub fn process_txos(
     conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     outputs: &[TxOut],
     account: &Account,
