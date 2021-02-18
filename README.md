@@ -192,7 +192,7 @@ Note that full-service/diesel.toml provides the path to the schema.rs which will
     SGX_MODE=HW IAS_MODE=DEV CONSENSUS_ENCLAVE_CSS=$(pwd)/consensus-enclave.css cargo test
     ```
 
-    Note: providing the CONSENESUS_ENCLAVE_CSS allows us to bypass the enclave build.
+    Note: providing the `CONSENSUS_ENCLAVE_CSS` allows us to bypass the enclave build.
 
 ### Linting
 
