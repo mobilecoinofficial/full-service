@@ -634,7 +634,7 @@ impl TxoModel for Txo {
                     txo_details.secreted_from_account = Some(account_txo_status.clone());
                     // Note: Minted & Unspent means that this Txo was also
                     // received, and is either change, or a
-                    // Txo that we went to ourselves.
+                    // Txo that we sent to ourselves.
                 }
                 TXO_RECEIVED => {
                     txo_details.received_to_account = Some(account_txo_status.clone());
