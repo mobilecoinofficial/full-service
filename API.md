@@ -1298,11 +1298,11 @@ The Full Service Wallet API provides several objects that correspond to the data
 
 #### API Methods Returning Account Objects
 
-* [create_account](./README.md#create-account)
-* [import_account](./README.md#import-account)
-* [get_all_accounts](./README.md#get-all-accounts)
-* [get_account](./README.md#get-account)
-* [update_account_name](./README.md#update-account-name)
+* [create_account](#create-account)
+* [import_account](#import-account)
+* [get_all_accounts](#get-all-accounts)
+* [get_account](#get-account)
+* [update_account_name](#update-account-name)
 
 ### The Wallet Status Object
 
@@ -1368,7 +1368,7 @@ The Full Service Wallet API provides several objects that correspond to the data
 
 #### API Methods Returning Wallet Status Objects
 
-* [get_wallet_status](./README.md#get-wallet-status)
+* [get_wallet_status](#get-wallet-status)
 
 
 ### The Assigned Address Object
@@ -1408,8 +1408,8 @@ The Full Service Wallet API provides several objects that correspond to the data
 
 #### API Methods Returning Assigned Address Objects
 
-* [create_address](./README.md#create-assigned-subaddress)
-* [get_all_addresses](./README.md#get-all-assigned-subaddresses-for-a-given-account)
+* [create_address](#create-assigned-subaddress)
+* [get_all_addresses](#get-all-assigned-subaddresses-for-a-given-account)
 
 ### The Transaction Log Object
 
@@ -1522,8 +1522,8 @@ Sent - Success, Recovered:
 
 #### API Methods Returning Transaction Log Objects
 
-* [get_all_transactions_by_account](./README.md#get-all-transactions)
-* [get_transaction](./README.md#get-transaction)
+* [get_all_transactions_by_account](#get-all-transactions)
+* [get_transaction](#get-transaction)
 
 ### The TXO Object
 
@@ -1619,8 +1619,8 @@ Txo Spent from One Account to Another in the Same Wallet
 
 #### API Methods Returning Transaction Log Objects
 
-* [get_all_txos_by_account](./README.md#get-all-txos-for-a-given-account)
-* [get_txo](./README.md#get-txo-details)
+* [get_all_txos_by_account](#get-all-txos-for-a-given-account)
+* [get_txo](#get-txo-details)
 
 ### The Proof Object
 
@@ -1649,8 +1649,8 @@ Txo Spent from One Account to Another in the Same Wallet
 
 #### API Methods Returning Proof Objects
 
-* [get_proofs](./README.md#get-proofs)
-* [verify_proof](./README.md#verify-proof)
+* [get_proofs](#get-proofs)
+* [verify_proof](#verify-proof)
 
 ### Future API Objects
 
