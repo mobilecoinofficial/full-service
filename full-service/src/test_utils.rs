@@ -3,7 +3,7 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        models::{Account, Txo},
+        models::{Account, Txo, TXO_CHANGE, TXO_OUTPUT},
         txo::TxoModel,
         WalletDb,
     },
@@ -144,6 +144,27 @@ fn generate_ledger_db(path: &str) -> LedgerDB {
     db
 }
 
+fn append_test_block(ledger_db: &mut LedgerDB, block_contents: BlockContents) -> u64 {
+    let num_blocks = ledger_db.num_blocks().expect("failed to get block height");
+
+    let new_block;
+    if num_blocks > 0 {
+        let parent = ledger_db
+            .get_block(num_blocks - 1)
+            .expect("failed to get parent block");
+        new_block =
+            Block::new_with_parent(BLOCK_VERSION, &parent, &Default::default(), &block_contents);
+    } else {
+        new_block = Block::new_origin_block(&block_contents.outputs);
+    }
+
+    ledger_db
+        .append_block(&new_block, &block_contents, None)
+        .expect("failed writing initial transactions");
+
+    ledger_db.num_blocks().expect("failed to get block height")
+}
+
 /// Adds a block containing one txo for each provided recipient and returns new
 /// block height.
 ///
@@ -175,25 +196,7 @@ pub fn add_block_to_ledger_db(
         .collect();
 
     let block_contents = BlockContents::new(key_images.to_vec(), outputs.clone());
-
-    let num_blocks = ledger_db.num_blocks().expect("failed to get block height");
-
-    let new_block;
-    if num_blocks > 0 {
-        let parent = ledger_db
-            .get_block(num_blocks - 1)
-            .expect("failed to get parent block");
-        new_block =
-            Block::new_with_parent(BLOCK_VERSION, &parent, &Default::default(), &block_contents);
-    } else {
-        new_block = Block::new_origin_block(&outputs);
-    }
-
-    ledger_db
-        .append_block(&new_block, &block_contents, None)
-        .expect("failed writing initial transactions");
-
-    ledger_db.num_blocks().expect("failed to get block height")
+    append_test_block(ledger_db, block_contents)
 }
 
 pub fn add_block_with_tx_proposal(ledger_db: &mut LedgerDB, tx_proposal: TxProposal) -> u64 {
@@ -201,24 +204,16 @@ pub fn add_block_with_tx_proposal(ledger_db: &mut LedgerDB, tx_proposal: TxPropo
         tx_proposal.tx.key_images(),
         tx_proposal.tx.prefix.outputs.clone(),
     );
-    let num_blocks = ledger_db.num_blocks().expect("failed to get block height");
+    append_test_block(ledger_db, block_contents)
+}
 
-    let new_block;
-    if num_blocks > 0 {
-        let parent = ledger_db
-            .get_block(num_blocks - 1)
-            .expect("failed to get parent block");
-        new_block =
-            Block::new_with_parent(BLOCK_VERSION, &parent, &Default::default(), &block_contents);
-    } else {
-        new_block = Block::new_origin_block(&block_contents.outputs);
-    }
-
-    ledger_db
-        .append_block(&new_block, &block_contents, None)
-        .expect("failed writing initial transactions");
-
-    ledger_db.num_blocks().expect("failed to get block height")
+pub fn add_block_with_tx_outs(
+    ledger_db: &mut LedgerDB,
+    outputs: &[TxOut],
+    key_images: &[KeyImage],
+) -> u64 {
+    let block_contents = BlockContents::new(key_images.to_vec(), outputs.to_vec());
+    append_test_block(ledger_db, block_contents)
 }
 
 pub fn setup_peer_manager_and_network_state(
@@ -334,6 +329,9 @@ pub fn create_test_received_txo(
     (txo_id_hex, txo, key_image)
 }
 
+/// Creates a test minted and change txo.
+///
+/// Returns ((output_txo_id, value), (change_txo_id, value))
 pub fn create_test_minted_and_change_txos(
     src_account_key: AccountKey,
     recipient: PublicAddress,
@@ -341,7 +339,7 @@ pub fn create_test_minted_and_change_txos(
     wallet_db: WalletDb,
     ledger_db: LedgerDB,
     logger: Logger,
-) -> (Option<PublicAddress>, String, i64, String) {
+) -> ((String, i64), (String, i64)) {
     let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
     // Use the builder to create valid TxOuts for this account
@@ -361,22 +359,39 @@ pub fn create_test_minted_and_change_txos(
     // There should be 2 outputs, one to dest and one change
     assert_eq!(tx_proposal.tx.prefix.outputs.len(), 2);
 
-    // Take the first one (we only construct with one outlay currently, could modify
-    // build protocol)
+    // Create minted for the destination output.
     assert_eq!(tx_proposal.outlay_index_to_tx_out_index.len(), 1);
     let outlay_txo_index = tx_proposal.outlay_index_to_tx_out_index[&0];
-
     let tx_out = tx_proposal.tx.prefix.outputs[outlay_txo_index].clone();
-
-    let res = Txo::create_minted(
+    let processed_output = Txo::create_minted(
         Some(&AccountID::from(&src_account_key).to_string()),
         &tx_out,
         &tx_proposal,
         outlay_txo_index,
         &wallet_db.get_conn().unwrap(),
-    );
+    )
+    .unwrap();
+    assert!(processed_output.recipient.is_some());
+    assert_eq!(processed_output.txo_type, TXO_OUTPUT);
 
-    res.unwrap()
+    // Create minted for the change output.
+    let change_txo_index = if outlay_txo_index == 0 { 1 } else { 0 };
+    let change_tx_out = tx_proposal.tx.prefix.outputs[change_txo_index].clone();
+    let processed_change = Txo::create_minted(
+        Some(&AccountID::from(&src_account_key).to_string()),
+        &change_tx_out,
+        &tx_proposal,
+        change_txo_index,
+        &wallet_db.get_conn().unwrap(),
+    )
+    .unwrap();
+    assert_eq!(processed_change.recipient, None,);
+    // Change starts as an output, and is updated to change when scanned.
+    assert_eq!(processed_change.txo_type, TXO_CHANGE);
+    (
+        (processed_output.txo_id, processed_output.value),
+        (processed_change.txo_id, processed_change.value),
+    )
 }
 
 // Seed a local account with some Txos in the ledger

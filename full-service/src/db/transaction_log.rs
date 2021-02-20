@@ -113,9 +113,9 @@ pub trait TransactionLogModel {
     /// txos involved in the transaction.
     ///
     /// Note: We expect transactions created with this wallet to have one
-    /// recipient, with the       rest of the minted txos designated as
-    /// change. Other wallets may choose to behave       differently, but
-    /// our TransactionLogs Table assumes this behavior.
+    /// recipient, with the rest of the minted txos designated as change. Other
+    /// wallets may choose to behave differently, but our TransactionLogs Table
+    /// assumes this behavior.
     fn log_submitted(
         tx_proposal: TxProposal,
         block_count: u64,
@@ -427,11 +427,11 @@ impl TransactionLogModel for TransactionLog {
             let recipient_address = {
                 let mut recipient_address = None;
                 for (i, output) in tx_proposal.tx.prefix.outputs.iter().enumerate() {
-                    let (output_recipient, txo_id, _output_value, transaction_txo_type) =
+                    let processed_output =
                         Txo::create_minted(account_id_hex, &output, &tx_proposal, i, conn)?;
 
                     // Currently, the wallet enforces only one recipient per TransactionLog.
-                    if let Some(found_recipient) = output_recipient {
+                    if let Some(found_recipient) = processed_output.recipient {
                         if let Some(cur_recipient) = recipient_address.clone() {
                             if found_recipient != cur_recipient {
                                 return Err(WalletDbError::MultipleRecipientsInTransaction);
@@ -441,7 +441,10 @@ impl TransactionLogModel for TransactionLog {
                         }
                     }
 
-                    txo_ids.push((txo_id, transaction_txo_type.to_string()));
+                    txo_ids.push((
+                        processed_output.txo_id,
+                        processed_output.txo_type.to_string(),
+                    ));
                 }
                 recipient_address
             };
@@ -678,7 +681,7 @@ mod tests {
                 .subaddress_index,
             0
         );
-        assert!(input_details.spent_from_account.is_none());
+        assert!(input_details.secreted_from_account.is_none());
 
         // Assert outputs are as expected
         assert_eq!(associated.outputs.len(), 1);
@@ -687,14 +690,18 @@ mod tests {
         assert_eq!(output_details.txo.value, 50 * MOB);
         assert_eq!(
             output_details
-                .spent_from_account
+                .secreted_from_account
                 .clone()
                 .unwrap()
                 .txo_status,
             TXO_SECRETED
         );
         assert_eq!(
-            output_details.spent_from_account.clone().unwrap().txo_type,
+            output_details
+                .secreted_from_account
+                .clone()
+                .unwrap()
+                .txo_type,
             TXO_MINTED
         );
         assert!(output_details.received_to_account.is_none());
@@ -707,14 +714,18 @@ mod tests {
         assert_eq!(change_details.txo.value, 19990000000000); // 19.99 * MOB
         assert_eq!(
             change_details
-                .spent_from_account
+                .secreted_from_account
                 .clone()
                 .unwrap()
                 .txo_status,
             TXO_SECRETED
         ); // Note, change becomes "unspent" once scanned
         assert_eq!(
-            change_details.spent_from_account.clone().unwrap().txo_type,
+            change_details
+                .secreted_from_account
+                .clone()
+                .unwrap()
+                .txo_type,
             TXO_MINTED
         ); // Note, becomes "received" once scanned
         assert!(change_details.received_to_account.is_none()); // Note, gets filled in once scanned
