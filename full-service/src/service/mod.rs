@@ -11,3 +11,6 @@ pub mod wallet;
 mod wallet_impl;
 
 pub use wallet_impl::WalletService;
+
+#[cfg(any(test, feature = "test_utils"))]
+mod api_test_utils;
