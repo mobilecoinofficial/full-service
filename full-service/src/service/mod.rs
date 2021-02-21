@@ -2,6 +2,8 @@
 
 //! Implementations of services.
 
+mod api_v1;
+mod api_v2;
 pub mod decorated_types;
 pub mod sync;
 pub mod transaction_builder;
