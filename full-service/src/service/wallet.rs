@@ -1233,4 +1233,50 @@ mod tests {
         let value = txo.get("value_pmob").unwrap().as_str().unwrap();
         assert_eq!(value, "42000000000000");
     }
+
+    #[test_with_logger]
+    fn test_offline_workflow(logger: Logger) {
+        //  Start up the "offline" machine
+        let offline_ledger_db_tmp =
+            TempDir::new("offline_ledger_db").expect("Could not make tempdir for ledger db");
+        let offline_ledger_db_path = offline_ledger_db_tmp
+            .path()
+            .to_str()
+            .expect("Could not get path as string");
+
+        let offline_wallet_db =
+            WalletDb::new_from_url(&format!("{}/{}", base_url, db_name), logger.clone()).unwrap();
+
+        let (offline_peer_manager, offline_network_state) =
+            setup_peer_manager_and_network_state(ledger_db.clone(), logger.clone());
+
+        let service2: WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> =
+            WalletService::new(
+                wallet_db2,
+                ledger_db.clone(),
+                peer_manager2,
+                network_state2.clone(),
+                None,
+                Some(1),
+                false,
+                logger.clone(),
+            );
+
+        // Start up "online" machine
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
+
+        // Add a block with a txo for the address on the offline wallet
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![public_address.clone()],
+            100 * MOB,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+
+        // Now the user copies the ledger to the offline machine
+    }
 }

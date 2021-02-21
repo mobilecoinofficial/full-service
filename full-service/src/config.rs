@@ -245,26 +245,28 @@ impl APIConfig {
                 });
             }
             None => {
-                log::info!(
-                    logger,
-                    "Ledger DB {:?} does not exist, bootstrapping from peer, this may take a few minutes",
-                    self.ledger_db
-                );
-                std::fs::create_dir_all(self.ledger_db.clone())
-                    .expect("Could not create ledger dir");
-                LedgerDB::create(self.ledger_db.clone()).expect("Could not create ledger_db");
-                let block_data = transactions_fetcher
-                    .get_origin_block_and_transactions()
-                    .expect("Failed to download initial transactions");
-                let mut db =
-                    LedgerDB::open(self.ledger_db.clone()).expect("Could not open ledger_db");
-                db.append_block(
-                    block_data.block(),
-                    block_data.contents(),
-                    block_data.signature().clone(),
-                )
-                .expect("Failed to appened initial transactions");
-                log::info!(logger, "Bootstrapping completed!");
+                if !self.offline {
+                    log::info!(
+                        logger,
+                        "Ledger DB {:?} does not exist, bootstrapping from peer, this may take a few minutes",
+                        self.ledger_db
+                    );
+                    std::fs::create_dir_all(self.ledger_db.clone())
+                        .expect("Could not create ledger dir");
+                    LedgerDB::create(self.ledger_db.clone()).expect("Could not create ledger_db");
+                    let block_data = transactions_fetcher
+                        .get_origin_block_and_transactions()
+                        .expect("Failed to download initial transactions");
+                    let mut db =
+                        LedgerDB::open(self.ledger_db.clone()).expect("Could not open ledger_db");
+                    db.append_block(
+                        block_data.block(),
+                        block_data.contents(),
+                        block_data.signature().clone(),
+                    )
+                    .expect("Failed to appened initial transactions");
+                    log::info!(logger, "Bootstrapping completed!");
+                }
             }
         }
 
@@ -277,7 +279,7 @@ impl APIConfig {
             .num_blocks()
             .expect("Failed getting number of blocks");
         if num_blocks == 0 {
-            panic!("Ledger DB is empty :(");
+            log::info!("Ledger DB is empty. You can still perform some wallet actions, such as creating addresses, but you will not be able to sync Txos.");
         }
 
         log::info!(
