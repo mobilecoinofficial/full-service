@@ -2,8 +2,6 @@
 
 //! Implementations of services.
 
-#![warn(missing_docs)]
-
 pub mod account;
 pub mod balance;
 pub mod sync;
