@@ -159,10 +159,10 @@ pub enum JsonCommandResponseV2 {
     update_account_name {
         account: Account,
     },
-    /*
     delete_account {
-        success: bool,
+        account: Account,
     },
+    /*
     get_account_status {
         account: Account,
         balance: Balance,

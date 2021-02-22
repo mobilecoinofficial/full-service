@@ -50,11 +50,15 @@ pub trait AccountService {
     /// Get an account in the wallet.
     fn get_account(&self, account_id: &AccountID) -> Result<Account, WalletServiceError>;
 
+    /// Update the name for an account.
     fn update_account_name(
         &self,
         account_id: &AccountID,
         name: String,
     ) -> Result<Account, WalletServiceError>;
+
+    /// Delete an account from the wallet.
+    fn delete_account(&self, account_id: &AccountID) -> Result<Account, WalletServiceError>;
 }
 
 impl<T, FPR> AccountService for WalletService<T, FPR>
@@ -140,5 +144,14 @@ where
             Account::get(&account_id, &conn)?.update_name(name, &conn)?;
             Ok(Account::get(&account_id, &conn)?)
         })?)
+    }
+
+    fn delete_account(&self, account_id: &AccountID) -> Result<Account, WalletServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+
+        let account = Account::get(account_id, &conn)?;
+        let deleted = account.clone();
+        account.delete(&conn)?;
+        Ok(deleted)
     }
 }

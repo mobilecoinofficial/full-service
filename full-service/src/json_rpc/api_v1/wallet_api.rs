@@ -356,7 +356,9 @@ where
             JsonCommandResponseV1::update_account_name { account }
         }
         JsonCommandRequestV1::delete_account { account_id } => {
-            service.delete_account(&account_id).map_err(format_error)?;
+            service
+                .delete_account(&AccountID(account_id))
+                .map_err(format_error)?;
             JsonCommandResponseV1::delete_account { success: true }
         }
         JsonCommandRequestV1::get_all_txos_by_account { account_id } => {

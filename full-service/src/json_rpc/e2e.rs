@@ -115,27 +115,33 @@ mod e2e {
         let name = result.get("account").unwrap().get("name").unwrap();
         assert_eq!("Eve Main Account", name.as_str().unwrap());
 
-        /*
-               // Delete Account
-               let body = json!({
-                   "method": "delete_account",
-                   "params": {
-                       "account_id": *account_id,
-                   }
-               });
-               let res = dispatch(&client, body, &logger);
-               let result = res.get("result").unwrap();
-               assert_eq!(result.get("success").unwrap(), true);
+        // Delete Account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 2,
+            "method": "delete_account",
+            "params": {
+                "account_id": *account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        assert_eq!(
+            result.get("account").unwrap().get("account_id").unwrap(),
+            account_id
+        );
 
-               let body = json!({
-                   "method": "get_all_accounts",
-               });
-               let res = dispatch(&client, body, &logger);
-               let result = res.get("result").unwrap();
-               let accounts = result.get("account_ids").unwrap().as_array().unwrap();
-               assert_eq!(accounts.len(), 0);
-
-        */
+        let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 2,
+            "method": "get_all_accounts",
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let accounts = result.get("account_ids").unwrap().as_array().unwrap();
+        assert_eq!(accounts.len(), 0);
     }
 
     #[test_with_logger]

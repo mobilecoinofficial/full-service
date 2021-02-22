@@ -91,10 +91,10 @@ pub enum JsonCommandRequestV2 {
         account_id: String,
         name: String,
     },
-    /*
     delete_account {
         account_id: String,
     },
+    /*
     get_all_txos_by_account {
         account_id: String,
     },

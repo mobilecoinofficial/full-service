@@ -158,6 +158,16 @@ where
                 .map_err(format_error)?,
             }
         }
+        JsonCommandRequestV2::delete_account { account_id } => {
+            JsonCommandResponseV2::delete_account {
+                account: json_rpc::account::Account::try_from(
+                    &service
+                        .delete_account(&AccountID(account_id))
+                        .map_err(format_error)?,
+                )
+                .map_err(format_error)?,
+            }
+        }
     };
     let response = Json(JsonRPCResponse::from(result));
     Ok(response)

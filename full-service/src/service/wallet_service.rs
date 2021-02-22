@@ -123,13 +123,6 @@ impl<
         }
     }
 
-    pub fn delete_account(&self, account_id_hex: &str) -> Result<(), WalletServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-
-        Account::get(&AccountID(account_id_hex.to_string()), &conn)?.delete(&conn)?;
-        Ok(())
-    }
-
     pub fn list_txos(&self, account_id_hex: &str) -> Result<Vec<JsonTxo>, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
