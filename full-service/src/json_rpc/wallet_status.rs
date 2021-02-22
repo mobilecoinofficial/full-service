@@ -2,7 +2,6 @@
 
 //! API definition for the Wallet Status object.
 
-use crate::json_rpc::balance::Balance;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Map;
 

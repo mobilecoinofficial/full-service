@@ -17,9 +17,8 @@ use crate::{
     },
     error::WalletServiceError,
     json_rpc::api_v1::decorated_types::{
-        JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
-        JsonCreateAccountResponse, JsonProof, JsonSubmitResponse, JsonTransactionLog, JsonTxo,
-        JsonWalletStatus,
+        JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents, JsonProof,
+        JsonSubmitResponse, JsonTransactionLog, JsonTxo, JsonWalletStatus,
     },
     service::{
         account::AccountService, sync::SyncThread, transaction_builder::WalletTransactionBuilder,
@@ -160,34 +159,6 @@ impl<
         )?)
     }
 
-    pub fn list_accounts(&self) -> Result<Vec<JsonAccount>, WalletServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-        Ok(
-            conn.transaction::<Vec<JsonAccount>, WalletServiceError, _>(|| {
-                let accounts = Account::list_all(&conn)?;
-                let local_height = self.ledger_db.num_blocks()?;
-                let network_state = self.network_state.read().expect("lock poisoned");
-                // network_height = network_block_index + 1
-                let network_height = network_state
-                    .highest_block_index_on_network()
-                    .map(|v| v + 1)
-                    .unwrap_or(0);
-                accounts
-                    .iter()
-                    .map(|a| {
-                        Account::get_decorated(
-                            &AccountID(a.account_id_hex.clone()),
-                            local_height,
-                            network_height,
-                            &conn,
-                        )
-                        .map_err(|e| e.into())
-                    })
-                    .collect::<Result<Vec<JsonAccount>, WalletServiceError>>()
-            })?,
-        )
-    }
-
     pub fn update_account_name(
         &self,
         account_id_hex: &str,
@@ -221,26 +192,6 @@ impl<
 
         Account::get(&AccountID(account_id_hex.to_string()), &conn)?.delete(&conn)?;
         Ok(())
-    }
-
-    pub fn get_account(
-        &self,
-        account_id_hex: &AccountID,
-    ) -> Result<JsonAccount, WalletServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-        let local_height = self.ledger_db.num_blocks()?;
-        let network_state = self.network_state.read().expect("lock poisoned");
-        // network_height = network_block_index + 1
-        let network_height = network_state
-            .highest_block_index_on_network()
-            .map(|v| v + 1)
-            .unwrap_or(0);
-        Ok(Account::get_decorated(
-            &account_id_hex,
-            local_height,
-            network_height,
-            &conn,
-        )?)
     }
 
     pub fn list_txos(&self, account_id_hex: &str) -> Result<Vec<JsonTxo>, WalletServiceError> {

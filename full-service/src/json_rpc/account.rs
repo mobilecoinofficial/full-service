@@ -56,7 +56,7 @@ impl TryFrom<&db::models::Account> for Account {
             .map_err(|e| format!("Could not decode account key: {:?}", e))?;
         let main_address =
             db::b58_encode(&account_key.subaddress(src.main_subaddress_index as u64))
-                .map_err(|e| format!("Could not b58 encode public address"))?;
+                .map_err(|e| format!("Could not b58 encode public address {:?}", e))?;
 
         Ok(Account {
             object: "account".to_string(),

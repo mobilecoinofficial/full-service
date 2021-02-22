@@ -14,13 +14,14 @@ use crate::{
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
-use mc_ledger_sync::{NetworkState, PollingNetworkState};
+use mc_ledger_sync::NetworkState;
 
+/*
 use displaydoc::Display;
-
 /// Errors for the Balance Service.
 #[derive(Display, Debug)]
 pub enum BalanceServiceError {}
+*/
 
 /// The balance object returned by balance services.
 ///

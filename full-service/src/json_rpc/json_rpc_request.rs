@@ -78,4 +78,5 @@ pub enum JsonCommandRequestV2 {
         name: Option<String>,
         first_block: Option<String>,
     },
+    get_all_accounts,
 }

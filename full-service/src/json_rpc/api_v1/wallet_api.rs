@@ -265,8 +265,28 @@ where
         }
         JsonCommandRequestV1::get_all_accounts => {
             let accounts = service.list_accounts().map_err(format_error)?;
+            let local_height = service.ledger_db.num_blocks().map_err(format_error)?;
+            let network_state = service.network_state.read().map_err(format_error)?;
+            // network_height = network_block_index + 1
+            let network_height = network_state
+                .highest_block_index_on_network()
+                .map(|v| v + 1)
+                .unwrap_or(0);
+            let json_accounts: Vec<JsonAccount> = accounts
+                .iter()
+                .map(|a| {
+                    Account::get_decorated(
+                        &AccountID(a.account_id_hex.clone()),
+                        local_height,
+                        network_height,
+                        &service.wallet_db.get_conn().map_err(format_error)?,
+                    )
+                    .map_err(format_error)
+                })
+                .collect::<Result<Vec<JsonAccount>, String>>()?;
+
             let account_map: Map<String, serde_json::Value> = Map::from_iter(
-                accounts
+                json_accounts
                     .iter()
                     .map(|a| {
                         (
@@ -276,16 +296,26 @@ where
                     })
                     .collect::<Vec<(String, serde_json::Value)>>(),
             );
+
             JsonCommandResponseV1::get_all_accounts {
-                account_ids: accounts.iter().map(|a| a.account_id.clone()).collect(),
+                account_ids: json_accounts.iter().map(|a| a.account_id.clone()).collect(),
                 account_map,
             }
         }
-        JsonCommandRequestV1::get_account { account_id } => JsonCommandResponseV1::get_account {
-            account: service
-                .get_account(&AccountID(account_id))
-                .map_err(format_error)?,
-        },
+        JsonCommandRequestV1::get_account { account_id } => {
+            let conn = service.wallet_db.get_conn().map_err(format_error)?;
+            let local_height = service.ledger_db.num_blocks().map_err(format_error)?;
+            let network_state = service.network_state.read().map_err(format_error)?;
+            // network_height = network_block_index + 1
+            let network_height = network_state
+                .highest_block_index_on_network()
+                .map(|v| v + 1)
+                .unwrap_or(0);
+            let account =
+                Account::get_decorated(&AccountID(account_id), local_height, network_height, &conn)
+                    .map_err(format_error)?;
+            JsonCommandResponseV1::get_account { account }
+        }
         JsonCommandRequestV1::update_account_name { account_id, name } => {
             let account = service
                 .update_account_name(&account_id, name)
@@ -495,7 +525,7 @@ where
 }
 
 #[cfg(test)]
-mod tests {
+mod e2e {
     use crate::{
         db::{
             b58_decode,

@@ -8,7 +8,7 @@ use crate::{
         api_v1::wallet_api::{help_str_v1, wallet_api_inner_v1, JsonCommandRequestV1},
         json_rpc_request::{help_str_v2, JsonCommandRequest, JsonCommandRequestV2},
         json_rpc_response::{
-            format_error, JsonCommandResponse, JsonCommandResponseV2, JsonRPCError, JsonRPCResponse,
+            format_error, JsonCommandResponse, JsonCommandResponseV2, JsonRPCResponse,
         },
     },
     service::{account::AccountService, WalletService},
@@ -19,8 +19,8 @@ use mc_connection::{
 use mc_fog_report_validation::{FogPubkeyResolver, FogResolver};
 use rocket::{get, post, routes};
 use rocket_contrib::json::Json;
-use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
+use serde_json::Map;
+use std::{convert::TryFrom, iter::FromIterator};
 
 /// State managed by rocket.
 pub struct WalletState<
@@ -99,6 +99,24 @@ where
             JsonCommandResponseV2::create_account {
                 account: json_rpc::account::Account::try_from(&account)
                     .map_err(|e| format!("Could not get RPC Account from DB Account {:?}", e))?,
+            }
+        }
+        JsonCommandRequestV2::get_all_accounts => {
+            let accounts = service.list_accounts().map_err(format_error)?;
+            let json_accounts: Vec<(String, serde_json::Value)> = accounts
+                .iter()
+                .map(|a| {
+                    json_rpc::account::Account::try_from(a).and_then(|v| {
+                        serde_json::to_value(v)
+                            .and_then(|v| Ok((a.account_id_hex.clone(), v)))
+                            .map_err(format_error)
+                    })
+                })
+                .collect::<Result<Vec<(String, serde_json::Value)>, String>>()?;
+            let account_map: Map<String, serde_json::Value> = Map::from_iter(json_accounts);
+            JsonCommandResponseV2::get_all_accounts {
+                account_ids: accounts.iter().map(|a| a.account_id_hex.clone()).collect(),
+                account_map,
             }
         }
     };

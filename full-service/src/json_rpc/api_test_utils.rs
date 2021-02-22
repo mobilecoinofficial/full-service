@@ -257,7 +257,13 @@ mod tests {
             "api_version": "2",
         });
         let result = dispatch(&client, body, &logger);
-        assert!(result.get("result").unwrap().get("entropy").is_some());
+        assert!(result
+            .get("result")
+            .unwrap()
+            .get("account")
+            .unwrap()
+            .get("entropy")
+            .is_some());
         assert_eq!(result.get("jsonrpc").unwrap(), "2.0");
     }
 }

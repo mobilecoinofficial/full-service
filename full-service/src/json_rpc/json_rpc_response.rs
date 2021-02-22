@@ -4,8 +4,10 @@
 //!
 //! API v2
 
-use crate::json_rpc::account::Account;
+use crate::{json_rpc, json_rpc::account::Account};
+
 use serde::{Deserialize, Serialize};
+use serde_json::Map;
 
 /// A JSON RPC Response.
 #[derive(Deserialize, Serialize, Debug)]
@@ -133,5 +135,11 @@ pub fn format_error<T: std::fmt::Display + std::fmt::Debug>(e: T) -> String {
 #[serde(tag = "method", content = "result")]
 #[allow(non_camel_case_types)]
 pub enum JsonCommandResponseV2 {
-    create_account { account: Account },
+    create_account {
+        account: Account,
+    },
+    get_all_accounts {
+        account_ids: Vec<String>,
+        account_map: Map<String, serde_json::Value>,
+    },
 }

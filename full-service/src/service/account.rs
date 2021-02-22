@@ -3,21 +3,25 @@
 //! Service for managing accounts.
 
 use crate::{
-    db::{account::AccountModel, models::Account},
+    db::{
+        account::{AccountID, AccountModel},
+        models::Account,
+    },
     error::WalletServiceError,
     service::WalletService,
 };
-use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
+use mc_account_keys::RootEntropy;
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_util_from_random::FromRandom;
 
+/*
 use displaydoc::Display;
-
 /// Errors for the Account Service.
 #[derive(Display, Debug)]
 pub enum AccountServiceError {}
+*/
 
 /// Trait defining the ways in which the wallet can interact with and manage
 /// accounts.
@@ -28,6 +32,10 @@ pub trait AccountService {
         name: Option<String>,
         first_block: Option<u64>,
     ) -> Result<Account, WalletServiceError>;
+
+    fn list_accounts(&self) -> Result<Vec<Account>, WalletServiceError>;
+
+    fn get_account(&self, account_id: &AccountID) -> Result<Account, WalletServiceError>;
 }
 
 impl<T, FPR> AccountService for WalletService<T, FPR>
@@ -62,5 +70,15 @@ where
 
         let account = Account::get(&account_id, &conn)?;
         Ok(account)
+    }
+
+    fn list_accounts(&self) -> Result<Vec<Account>, WalletServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+        Ok(Account::list_all(&conn)?)
+    }
+
+    fn get_account(&self, account_id: &AccountID) -> Result<Account, WalletServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+        Ok(Account::get(&account_id, &conn)?)
     }
 }
