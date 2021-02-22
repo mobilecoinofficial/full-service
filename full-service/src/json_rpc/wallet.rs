@@ -3,15 +3,15 @@
 //! Entrypoint for Wallet API.
 
 use crate::{
+    db, json_rpc,
     json_rpc::{
-        api_v1::{
-            decorated_types::JsonCreateAccountResponse,
-            wallet_api::{help_str_v1, wallet_api_inner_v1, JsonCommandRequestV1},
+        api_v1::wallet_api::{help_str_v1, wallet_api_inner_v1, JsonCommandRequestV1},
+        json_rpc_request::{help_str_v2, JsonCommandRequest, JsonCommandRequestV2},
+        json_rpc_response::{
+            format_error, JsonCommandResponse, JsonCommandResponseV2, JsonRPCError, JsonRPCResponse,
         },
-        json_rpc_request::{help_str_v2, JsonCommandRequestV2},
-        json_rpc_response::{format_error, JsonCommandResponseV2, JsonRPCError, JsonRPCResponse},
     },
-    service::WalletService,
+    service::{account::AccountService, WalletService},
 };
 use mc_connection::{
     BlockchainConnection, HardcodedCredentialsProvider, ThickClient, UserTxConnection,
@@ -29,86 +29,6 @@ pub struct WalletState<
 > {
     /// The Wallet Service implementation.
     pub service: WalletService<T, FPR>,
-}
-
-/// JSON RPC 2.0 Request.
-#[derive(Deserialize, Serialize, Debug, Clone)]
-#[allow(non_camel_case_types)]
-pub struct JsonCommandRequest {
-    /// The method to be invoked on the server.
-    pub method: String,
-
-    /// The parameters to be provided to the method.
-    ///
-    /// Optional, as some methods do not take parameters.
-    pub params: Option<serde_json::Value>,
-
-    /// The JSON RPC Version (Should always be 2.0)
-    ///
-    /// Optional for backwards compatibility because the previous version of
-    /// this API (v1) did not require the jsonrpc parameter.
-    pub jsonrpc: Option<String>,
-
-    /// The ID to be associated with this request.
-    ///
-    /// Optional because a "notify" method does not need to correlate an ID on
-    /// the response.
-    pub id: Option<String>,
-
-    /// The Full Service Wallet API version.
-    ///
-    /// Optional: If omitted, assumes V1.
-    pub api_version: Option<String>,
-}
-
-impl TryFrom<&JsonCommandRequest> for JsonCommandRequestV1 {
-    type Error = String;
-
-    fn try_from(src: &JsonCommandRequest) -> Result<JsonCommandRequestV1, String> {
-        let src_json: serde_json::Value = serde_json::json!(src);
-        Ok(serde_json::from_value(src_json).map_err(|e| format!("Could not get value {:?}", e))?)
-    }
-}
-
-impl TryFrom<&JsonCommandRequest> for JsonCommandRequestV2 {
-    type Error = String;
-
-    fn try_from(src: &JsonCommandRequest) -> Result<JsonCommandRequestV2, String> {
-        let src_json: serde_json::Value = serde_json::json!(src);
-        Ok(serde_json::from_value(src_json).map_err(|e| format!("Could not get value {:?}", e))?)
-    }
-}
-
-/// JSON RPC 2.0 Response.
-#[derive(Deserialize, Serialize, Debug)]
-#[allow(non_camel_case_types)]
-pub struct JsonCommandResponse {
-    /// The method which was invoked on the server.
-    ///
-    /// Optional because JSON RPC does not require returning the method invoked,
-    /// as that can be determined by the id. We return it as a convenience.
-    pub method: Option<String>,
-
-    /// The result of invoking the method on the server.
-    ///
-    /// Optional: if error occurs, result is not returned.
-    pub result: Option<serde_json::Value>,
-
-    /// The error that occurred when invoking the method on the server.
-    ///
-    /// Optional: if method was successful, error is not returned.
-    pub error: Option<JsonRPCError>,
-
-    /// The JSON RPC version. Should always be 2.0.
-    pub jsonrpc: Option<String>,
-
-    /// The id of the Request object to which this response corresponds.
-    pub id: Option<String>,
-
-    /// The Full Service Wallet API version.
-    ///
-    /// Optional: If omitted, assumes V1.
-    pub api_version: Option<String>,
 }
 
 /// The route for the Full Service Wallet API.
@@ -173,12 +93,12 @@ where
                 .transpose()
                 .map_err(format_error)?;
 
-            let result: JsonCreateAccountResponse =
+            let account: db::models::Account =
                 service.create_account(name, fb).map_err(format_error)?;
 
             JsonCommandResponseV2::create_account {
-                entropy: result.entropy,
-                account: result.account,
+                account: json_rpc::account::Account::try_from(&account)
+                    .map_err(|e| format!("Could not get RPC Account from DB Account {:?}", e))?,
             }
         }
     };

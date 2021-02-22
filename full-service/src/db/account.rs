@@ -17,7 +17,7 @@ use crate::{
     json_rpc::api_v1::decorated_types::JsonAccount,
 };
 
-use mc_account_keys::{AccountKey, DEFAULT_SUBADDRESS_INDEX};
+use mc_account_keys::{AccountKey, RootEntropy, RootIdentity, DEFAULT_SUBADDRESS_INDEX};
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_transaction_core::ring_signature::KeyImage;
 
@@ -55,7 +55,7 @@ pub trait AccountModel {
     /// Returns:
     /// * (account_id, main_subaddress_b58)
     fn create(
-        account_key: &AccountKey,
+        entropy: &RootEntropy,
         first_block: Option<u64>,
         import_block: Option<u64>,
         name: &str,
@@ -64,7 +64,7 @@ pub trait AccountModel {
 
     /// Import account.
     fn import(
-        entropy: &AccountKey,
+        entropy: &RootEntropy,
         name: Option<String>,
         first_block: Option<u64>,
         local_height: u64,
@@ -129,7 +129,7 @@ pub trait AccountModel {
 
 impl AccountModel for Account {
     fn create(
-        account_key: &AccountKey,
+        entropy: &RootEntropy,
         first_block: Option<u64>,
         import_block: Option<u64>,
         name: &str,
@@ -137,15 +137,18 @@ impl AccountModel for Account {
     ) -> Result<(AccountID, String), WalletDbError> {
         use crate::db::schema::accounts;
 
-        let account_id = AccountID::from(account_key);
+        let root_id = RootIdentity::from(entropy);
+        let account_key = AccountKey::from(&root_id);
+        let account_id = AccountID::from(&account_key);
         let fb = first_block.unwrap_or(DEFAULT_FIRST_BLOCK);
 
         Ok(
             conn.transaction::<(AccountID, String), WalletDbError, _>(|| {
                 let new_account = NewAccount {
                     account_id_hex: &account_id.to_string(),
-                    account_key: &mc_util_serial::encode(account_key), /* FIXME: WS-6 - add
-                                                                        * encryption */
+                    account_key: &mc_util_serial::encode(&account_key), /* FIXME: WS-6 - add
+                                                                         * encryption */
+                    entropy: &entropy.bytes,
                     main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
                     change_subaddress_index: DEFAULT_CHANGE_SUBADDRESS_INDEX as i64,
                     next_subaddress_index: DEFAULT_NEXT_SUBADDRESS_INDEX as i64,
@@ -160,7 +163,7 @@ impl AccountModel for Account {
                     .execute(conn)?;
 
                 let main_subaddress_b58 = AssignedSubaddress::create(
-                    account_key,
+                    &account_key,
                     None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
                            * always for main? */
                     DEFAULT_SUBADDRESS_INDEX,
@@ -169,7 +172,7 @@ impl AccountModel for Account {
                 )?;
 
                 let _change_subaddress_b58 = AssignedSubaddress::create(
-                    account_key,
+                    &account_key,
                     None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
                            * always for main? */
                     DEFAULT_CHANGE_SUBADDRESS_INDEX,
@@ -182,7 +185,7 @@ impl AccountModel for Account {
     }
 
     fn import(
-        account_key: &AccountKey,
+        entropy: &RootEntropy,
         name: Option<String>,
         first_block: Option<u64>,
         local_height: u64,
@@ -191,7 +194,7 @@ impl AccountModel for Account {
     ) -> Result<JsonAccount, WalletDbError> {
         Ok(conn.transaction::<JsonAccount, WalletDbError, _>(|| {
             let (account_id, _public_address_b58) = Account::create(
-                &account_key,
+                &entropy,
                 first_block,
                 Some(local_height),
                 &name.unwrap_or_else(|| "".to_string()),
@@ -404,12 +407,18 @@ mod tests {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
 
-        let account_key = AccountKey::random(&mut rng);
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
         let account_id_hex = {
             let conn = wallet_db.get_conn().unwrap();
-            let (account_id_hex, _public_address_b58) =
-                Account::create(&account_key, Some(0), None, "Alice's Main Account", &conn)
-                    .unwrap();
+            let (account_id_hex, _public_address_b58) = Account::create(
+                &root_id.root_entropy,
+                Some(0),
+                None,
+                "Alice's Main Account",
+                &conn,
+            )
+            .unwrap();
             account_id_hex
         };
 
@@ -424,6 +433,7 @@ mod tests {
             id: 1,
             account_id_hex: account_id_hex.to_string(),
             account_key: mc_util_serial::encode(&account_key),
+            entropy: root_id.root_entropy.bytes.to_vec(),
             main_subaddress_index: 0,
             change_subaddress_index: 1,
             next_subaddress_index: 2,
@@ -458,9 +468,10 @@ mod tests {
         assert_eq!(retrieved_acocunt_id_hex, account_id_hex.to_string());
 
         // Add another account with no name, scanning from later
-        let account_key_secondary = AccountKey::from(&RootIdentity::from_random(&mut rng));
+        let root_id_secondary = RootIdentity::from_random(&mut rng);
+        let account_key_secondary = AccountKey::from(&root_id_secondary);
         let (account_id_hex_secondary, _public_address_b58_secondary) = Account::create(
-            &account_key_secondary,
+            &root_id_secondary.root_entropy,
             Some(51),
             Some(50),
             "",
@@ -476,6 +487,7 @@ mod tests {
             id: 2,
             account_id_hex: account_id_hex_secondary.to_string(),
             account_key: mc_util_serial::encode(&account_key_secondary),
+            entropy: root_id_secondary.root_entropy.bytes.to_vec(),
             main_subaddress_index: 0,
             change_subaddress_index: 1,
             next_subaddress_index: 2,

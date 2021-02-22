@@ -2,7 +2,7 @@
 
 use crate::{
     json_rpc::{
-        api_v1::wallet_api::{wallet_api_inner_v1, JsonCommandRequestV1, JsonCommandResponseV1},
+        api_v1::wallet_api::{wallet_api_inner_v1, JsonCommandRequestV1},
         json_rpc_request::JsonCommandRequestV2,
         wallet::{wallet_api_inner_v2, JsonCommandRequest, JsonCommandResponse},
     },

@@ -36,12 +36,6 @@ fn test_account_crud(logger: Logger) {
     let account_obj = result.get("account").unwrap();
     assert!(account_obj.get("account_id").is_some());
     assert_eq!(account_obj.get("name").unwrap(), "Alice Main Account");
-    assert_eq!(account_obj.get("network_height").unwrap(), "12");
-    assert_eq!(account_obj.get("local_height").unwrap(), "12");
-    assert_eq!(account_obj.get("account_height").unwrap(), "0");
-    assert_eq!(account_obj.get("is_synced").unwrap(), false);
-    assert_eq!(account_obj.get("available_pmob").unwrap(), "0");
-    assert_eq!(account_obj.get("pending_pmob").unwrap(), "0");
     assert!(account_obj.get("main_address").is_some());
     assert_eq!(account_obj.get("next_subaddress_index").unwrap(), "2");
     assert_eq!(account_obj.get("recovery_mode").unwrap(), false);

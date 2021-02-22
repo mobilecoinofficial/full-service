@@ -2,8 +2,9 @@
 
 //! API definition for the Account object.
 
-use crate::json_rpc::{account_key::AccountKey, balance::Balance};
+use crate::{db, json_rpc};
 use serde_derive::{Deserialize, Serialize};
+use std::convert::TryFrom;
 
 /// An account in the wallet.
 ///
@@ -21,9 +22,6 @@ pub struct Account {
 
     /// Display name for the account.
     pub name: String,
-
-    /// Balance information for this account.
-    pub balance: Balance,
 
     /// B58 Address Code for the account's main address. The main address is
     /// determined by the seed subaddress. It is not assigned to a single
@@ -47,5 +45,31 @@ pub struct Account {
     /// The account key for this account. The account_key is derived from
     /// the entropy. Optional because only calls that specifically need to
     /// return the account key should do so. Otherwise, it should be None.
-    pub account_key: Option<AccountKey>,
+    pub account_key: Option<json_rpc::account_key::AccountKey>,
+}
+
+impl TryFrom<&db::models::Account> for Account {
+    type Error = String;
+
+    fn try_from(src: &db::models::Account) -> Result<Account, String> {
+        let account_key: mc_account_keys::AccountKey = mc_util_serial::decode(&src.account_key)
+            .map_err(|e| format!("Could not decode account key: {:?}", e))?;
+        let main_address =
+            db::b58_encode(&account_key.subaddress(src.main_subaddress_index as u64))
+                .map_err(|e| format!("Could not b58 encode public address"))?;
+
+        Ok(Account {
+            object: "account".to_string(),
+            account_id: src.account_id_hex.clone(),
+            name: src.name.clone(),
+            main_address,
+            next_subaddress_index: src.next_subaddress_index.to_string(),
+            recovery_mode: false,
+            entropy: Some(hex::encode(&src.entropy)),
+            account_key: Some(
+                json_rpc::account_key::AccountKey::try_from(&account_key)
+                    .map_err(|e| format!("Could not get json_rpc::AccountKey: {:?}", e))?,
+            ),
+        })
+    }
 }

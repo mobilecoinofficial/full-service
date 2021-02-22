@@ -1267,7 +1267,7 @@ The Full Service Wallet API provides several objects that correspond to the data
 | is_synced | boolean | Whether the account is synced with the network_height. Balances may not appear correct if the account is still syncing.
 | available_pmob | string (uint64) | Available pico MOB for this account at the current account_height. If the account is syncing, this value may change.
 | pending_pmob | string (uint64) | Pending, out-going pico MOB. The pending value will clear once the ledger processes the outgoing txos. The available_pmob will reflect the change.
-| main_address | string | B58 Address Code for the account's main address. The main address is determined by the seed subaddress. It is not assigned to a single recipient, and should be consider a free-for-all address.
+| main_address | string | B58 Address Code for the account's main address. The main address is determined by the seed subaddress. It is not assigned to a single recipient, and should be considered a free-for-all address.
 
 #### More attributes
 

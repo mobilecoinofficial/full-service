@@ -903,9 +903,10 @@ mod tests {
         let wallet_db = db_test_context.get_db_instance(logger.clone());
         let mut ledger_db = get_test_ledger(5, &[], 12, &mut rng);
 
-        let alice_account_key = AccountKey::random(&mut rng);
+        let root_id = RootIdentity::from_random(&mut rng);
+        let alice_account_key = AccountKey::from(&root_id);
         let (alice_account_id, _public_address_b58) = Account::create(
-            &alice_account_key,
+            &root_id.root_entropy,
             Some(1),
             None,
             "Alice's Main Account",
@@ -1217,9 +1218,10 @@ mod tests {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
 
-        let account_key = AccountKey::random(&mut rng);
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
         let (account_id_hex, _public_address_b58) = Account::create(
-            &account_key,
+            &root_id.root_entropy,
             Some(1),
             None,
             "Alice's Main Account",
@@ -1321,9 +1323,10 @@ mod tests {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
 
-        let account_key = AccountKey::random(&mut rng);
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
         let (account_id_hex, _public_address_b58) = Account::create(
-            &account_key,
+            &root_id.root_entropy,
             Some(0),
             None,
             "Alice's Main Account",
@@ -1364,7 +1367,8 @@ mod tests {
     fn test_create_minted(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
-        let src_account = AccountKey::from(&RootIdentity::from_random(&mut rng));
+        let root_id = RootIdentity::from_random(&mut rng);
+        let src_account = AccountKey::from(&root_id);
 
         // Seed our ledger with some utxos for the src_account
         let known_recipients = vec![src_account.subaddress(0)];
@@ -1374,7 +1378,7 @@ mod tests {
         let wallet_db = db_test_context.get_db_instance(logger.clone());
 
         Account::create(
-            &src_account,
+            &root_id.root_entropy,
             Some(0),
             None,
             "",
@@ -1434,9 +1438,10 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // The account which will receive the Txo
-        let recipient_account_key = AccountKey::random(&mut rng);
+        let root_id = RootIdentity::from_random(&mut rng);
+        let recipient_account_key = AccountKey::from(&root_id);
         Account::create(
-            &recipient_account_key,
+            &root_id.root_entropy,
             Some(0),
             None,
             "",

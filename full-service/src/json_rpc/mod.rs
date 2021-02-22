@@ -2,7 +2,7 @@
 
 //! JSON RPC 2.0 API specification for the Full Service wallet.
 
-#![deny(missing_docs)]
+#![warn(missing_docs)]
 
 mod account;
 mod account_key;

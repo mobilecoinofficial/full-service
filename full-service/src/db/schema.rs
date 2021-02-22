@@ -12,6 +12,7 @@ table! {
         id -> Integer,
         account_id_hex -> Text,
         account_key -> Binary,
+        entropy -> Binary,
         main_subaddress_index -> BigInt,
         change_subaddress_index -> BigInt,
         next_subaddress_index -> BigInt,

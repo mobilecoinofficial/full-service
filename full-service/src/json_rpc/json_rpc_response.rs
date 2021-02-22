@@ -4,16 +4,8 @@
 //!
 //! API v2
 
-use crate::{
-    json_rpc::{account::Account, api_v1::decorated_types::JsonAccount},
-    service::WalletService,
-};
-use mc_connection::{BlockchainConnection, UserTxConnection};
-use mc_fog_report_validation::FogPubkeyResolver;
-use rocket_contrib::json::Json;
+use crate::json_rpc::account::Account;
 use serde::{Deserialize, Serialize};
-use strum::IntoEnumIterator;
-use strum_macros::EnumIter;
 
 /// A JSON RPC Response.
 #[derive(Deserialize, Serialize, Debug)]
@@ -38,7 +30,7 @@ pub struct JsonRPCResponse {
     pub jsonrpc: String,
 
     /// The id of the Request object to which this response corresponds.
-    pub id: String,
+    pub id: u32,
 }
 
 impl From<JsonCommandResponseV2> for JsonRPCResponse {
@@ -49,9 +41,41 @@ impl From<JsonCommandResponseV2> for JsonRPCResponse {
             result: Some(json_response.get("result").unwrap().clone()),
             error: None,
             jsonrpc: "2.0".to_string(),
-            id: "1".to_string(),
+            id: 1, // FIXME: must be the same as the request that was passed in
         }
     }
+}
+
+/// JSON RPC 2.0 Response.
+#[derive(Deserialize, Serialize, Debug)]
+#[allow(non_camel_case_types)]
+pub struct JsonCommandResponse {
+    /// The method which was invoked on the server.
+    ///
+    /// Optional because JSON RPC does not require returning the method invoked,
+    /// as that can be determined by the id. We return it as a convenience.
+    pub method: Option<String>,
+
+    /// The result of invoking the method on the server.
+    ///
+    /// Optional: if error occurs, result is not returned.
+    pub result: Option<serde_json::Value>,
+
+    /// The error that occurred when invoking the method on the server.
+    ///
+    /// Optional: if method was successful, error is not returned.
+    pub error: Option<JsonRPCError>,
+
+    /// The JSON RPC version. Should always be 2.0.
+    pub jsonrpc: Option<String>,
+
+    /// The id of the Request object to which this response corresponds.
+    pub id: Option<u32>,
+
+    /// The Full Service Wallet API version.
+    ///
+    /// Optional: If omitted, assumes V1.
+    pub api_version: Option<String>,
 }
 
 /// A JSON RPC Error.

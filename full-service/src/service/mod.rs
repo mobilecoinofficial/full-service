@@ -2,8 +2,12 @@
 
 //! Implementations of services.
 
-pub use wallet_impl::WalletService;
+#![warn(missing_docs)]
 
+pub mod account;
+pub mod balance;
 pub mod sync;
 pub mod transaction_builder;
-mod wallet_impl;
+mod wallet_service;
+
+pub use wallet_service::WalletService;

@@ -51,10 +51,13 @@ Create a new account in the wallet.
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
+        "jsonrpc": "2.0",
+        "api_version": "2",
         "method": "create_account",
         "params": {
           "name": "Alice"
-        }
+        },
+        "id": 1,
       }' \
   -X POST -H 'Content-type: application/json' | jq
 
@@ -1266,7 +1269,7 @@ An Account is associated with one AccountKey, containing a View keypair and a Sp
 | object | string, value is "account" | String representing the object's type. Objects of the same type share the same value
 | account_id | string | Unique identifier for the account.
 | name | string | Display name for the account.
-| main_address | string | B58 Address Code for the account's main address. The main address is determined by the seed subaddress. It is not assigned to a single recipient, and should be consider a free-for-all address.
+| main_address | string | B58 Address Code for the account's main address. The main address is determined by the seed subaddress. It is not assigned to a single recipient, and should be considered a free-for-all address.
 | next_subaddress_index | string (uint64) | This index represents the next subaddress to be assigned as an address. This is useful information in case the account is imported elsewhere.
 | recovery_mode | boolean | A flag that indicates this imported account is attempting to un-orphan found TXOs. It is recommended to move all MOB to another account after recovery if the user is unsure of the assigned addresses.
 

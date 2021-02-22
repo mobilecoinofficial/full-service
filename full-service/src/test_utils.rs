@@ -15,7 +15,7 @@ use diesel::{
     Connection as DSLConnection, SqliteConnection,
 };
 use diesel_migrations::embed_migrations;
-use mc_account_keys::{AccountKey, PublicAddress};
+use mc_account_keys::{AccountKey, PublicAddress, RootIdentity};
 use mc_attest_core::Verifier;
 use mc_common::logger::Logger;
 use mc_connection::{Connection, ConnectionManager, HardcodedCredentialsProvider, ThickClient};
@@ -511,9 +511,10 @@ pub fn random_account_with_seed_values(
     seed_values: &[u64],
     mut rng: &mut StdRng,
 ) -> AccountKey {
-    let account_key = AccountKey::random(&mut rng);
+    let root_id = RootIdentity::from_random(&mut rng);
+    let account_key = AccountKey::from(&root_id);
     Account::create(
-        &account_key,
+        &root_id.root_entropy,
         Some(0),
         None,
         "",
