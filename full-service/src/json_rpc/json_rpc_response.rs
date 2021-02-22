@@ -4,7 +4,7 @@
 //!
 //! API v2
 
-use crate::{json_rpc, json_rpc::account::Account};
+use crate::json_rpc::account::Account;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
@@ -35,13 +35,21 @@ pub struct JsonRPCResponse {
     pub id: u32,
 }
 
+// FIXME: unwraps -> TryFrom
 impl From<JsonCommandResponseV2> for JsonRPCResponse {
     fn from(src: JsonCommandResponseV2) -> JsonRPCResponse {
         let json_response = json!(src);
         JsonRPCResponse {
-            method: Some(json_response.get("method").unwrap().to_string()),
+            method: Some(
+                json_response
+                    .get("method")
+                    .unwrap()
+                    .as_str()
+                    .unwrap()
+                    .to_string(),
+            ),
             result: Some(json_response.get("result").unwrap().clone()),
-            error: None,
+            error: None, // FIXME: currently returning "error: null" but should be omitted
             jsonrpc: "2.0".to_string(),
             id: 1, // FIXME: must be the same as the request that was passed in
         }

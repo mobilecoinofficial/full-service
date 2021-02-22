@@ -51,34 +51,41 @@ Create a new account in the wallet.
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "jsonrpc": "2.0",
-        "api_version": "2",
         "method": "create_account",
         "params": {
           "name": "Alice"
         },
-        "id": 1,
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
 
 {
   "method": "create_account",
   "result": {
-    "entropy": "c08187899b0ea7272e1371b97c0fdc2aa4cb3983e087ccce4b5fa44fde52b758",
     "account": {
-      "object": "account",
-      "account_id": "81ca0a6c473ad70199c19033fd6eb3c94b7acfa2ae5f4065c89a4476a9b2345e",
+      "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
+      "account_key": {
+        "fog_authority_spki": "",
+        "fog_report_id": "",
+        "fog_report_url": "",
+        "object": "account_key",
+        "spend_private_key": "0a200c68151e777324da47a1e3a4f8b57e7d94d59084d4a343e1c600c1e4f66fc20d",
+        "view_private_key": "0a20765d49c5a524ddd4d9e96278b17eccd7b33e6bc071c5bc91dcd29435ce478a0d"
+      },
+      "entropy": "856fcacf2a819a065a9376fcdce0ff8dbe14f8b8d6118ef3a194f9e678ade0e0",
+      "main_address": "4bgkVAH1hs55dwLTGVpZER8ZayhqXbYqfuyisoRrmQPXoWcYQ3SQRTjsAytCiAgk21CRrVNysVw5qwzweURzDK9HL3rGXFmAAahb364kYe3",
       "name": "Alice",
-      "network_block_count": "152826",
-      "local_block_count": "152826",
-      "account_block_count": "0",
-      "is_synced": false,
-      "available_pmob": "0",
-      "pending_pmob": "0",
-      "main_address": "2XyzT9mtAyfvnET7QuvBAknEYxZCZ5xgBXrhJpTSFYAU7EYgM2MrMmQtguHKQXX1kKtY328swkdJHi85ak9xKrtkPwHX3mMX616XkhDPiwV",
       "next_subaddress_index": "2",
+      "object": "account",
       "recovery_mode": false
     }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+  "api_version": "2"
   }
 }
 ```
@@ -99,7 +106,10 @@ curl -s localhost:9090/wallet \
         "params": {
           "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
           "name": "Bob"
-        }
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
       }' \
    -X POST -H 'Content-type: application/json' | jq
 
@@ -145,47 +155,62 @@ If you receive the following error, it means that you attempted to import an acc
 
 ```sh
 curl -s localhost:9090/wallet \
-  -d '{"method": "get_all_accounts"}' \
+  -d '{
+        "method": "get_all_accounts",
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
+      }' \
   -X POST -H 'Content-type: application/json' | jq
 
 {
   "method": "get_all_accounts",
   "result": {
     "account_ids": [
-      "81ca0a6c473ad70199c19033fd6eb3c94b7acfa2ae5f4065c89a4476a9b2345e",
-      "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+      "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
+      "b6c9f6f779372ae25e93d68a79d725d71f3767d1bfd1c5fe155f948a2cc5c0a0"
     ],
     "account_map": {
-      "81ca0a6c473ad70199c19033fd6eb3c94b7acfa2ae5f4065c89a4476a9b2345e": {
-        "account_block_count": "48630",
-        "account_id": "81ca0a6c473ad70199c19033fd6eb3c94b7acfa2ae5f4065c89a4476a9b2345e",
-        "available_pmob": "0",
-        "is_synced": false,
-        "local_block_count": "152826",
-        "main_address": "2XyzT9mtAyfvnET7QuvBAknEYxZCZ5xgBXrhJpTSFYAU7EYgM2MrMmQtguHKQXX1kKtY328swkdJHi85ak9xKrtkPwHX3mMX616XkhDPiwV",
+      "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52": {
+        "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
+        "account_key": {
+          "fog_authority_spki": "",
+          "fog_report_id": "",
+          "fog_report_url": "",
+          "object": "account_key",
+          "spend_private_key": "0a200c68151e777324da47a1e3a4f8b57e7d94d59084d4a343e1c600c1e4f66fc20d",
+          "view_private_key": "0a20765d49c5a524ddd4d9e96278b17eccd7b33e6bc071c5bc91dcd29435ce478a0d"
+        },
+        "entropy": "856fcacf2a819a065a9376fcdce0ff8dbe14f8b8d6118ef3a194f9e678ade0e0",
+        "main_address": "4bgkVAH1hs55dwLTGVpZER8ZayhqXbYqfuyisoRrmQPXoWcYQ3SQRTjsAytCiAgk21CRrVNysVw5qwzweURzDK9HL3rGXFmAAahb364kYe3",
         "name": "Alice",
-        "network_block_count": "152826",
         "next_subaddress_index": "2",
         "object": "account",
-        "pending_pmob": "0",
         "recovery_mode": false
       },
-      "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10":
-        "account_block_count": "27601",
-        "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
-        "available_pmob": "994799199999988869",
-        "is_synced": false,
-        "local_block_count": "152826",
-        "main_address": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
-        "name": "Bob",
-        "network_block_count": "152826",
+      "b6c9f6f779372ae25e93d68a79d725d71f3767d1bfd1c5fe155f948a2cc5c0a0": {
+        "account_id": "b6c9f6f779372ae25e93d68a79d725d71f3767d1bfd1c5fe155f948a2cc5c0a0",
+        "account_key": {
+          "fog_authority_spki": "",
+          "fog_report_id": "",
+          "fog_report_url": "",
+          "object": "account_key",
+          "spend_private_key": "0a209e3776c4380148e5a6658a19b99ece5951fb30f6be5505e9e4406aa50a120b01",
+          "view_private_key": "0a20177a364e523a5fffd171701e27cc99c636f4c2d4d6cd064dd24f7f2be6fd9c0c"
+        },
+        "entropy": "9a7ae6067025f4e4f7a9271d2c47bd489d5c320c59ec2fb3fcf9bd43e151f58f",
+        "main_address": "7EqduSDpM1R5AfQejbjAqFxpuCoh6zJECtvJB9AZFwjK13dCzZgYbyfLf4TfHcE8LVPjzDdpcxYLkdMBh694mHfftJmsFZuz6xUeRtmsUdc",
+        "name": "Alice",
         "next_subaddress_index": "2",
         "object": "account",
-        "pending_pmob": "0",
         "recovery_mode": false
       }
     }
-  }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+  "api_version": "2"
 }
 ```
 
@@ -197,7 +222,10 @@ curl -s localhost:9090/wallet \
         "method": "get_account",
         "params": {
           "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10"
-        }
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
       }' \
   -X POST -H 'Content-type: application/json'  | jq
 
@@ -246,7 +274,10 @@ curl -s localhost:9090/wallet \
         "params": {
           "acount_id": "2b2d5cce6e24f4a396402fcf5f036890f9c06660f5d29f8420b8c89ef9074cd6",
           "name": "Carol"
-        }
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
       }' \
   -X POST -H 'Content-type: application/json'  | jq
 {
@@ -270,7 +301,10 @@ curl -s localhost:9090/wallet \
         "method": "delete_account",
         "params": {
           "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
-        }
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
 
@@ -296,7 +330,10 @@ curl -s localhost:9090/wallet \
         "method": "get_all_txos_by_account",
         "params": {
           "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
-        }
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
       }' \
   -X POST -H 'Content-type: application/json'  | jq
 
@@ -425,8 +462,12 @@ Note, you may wish to filter TXOs using a tool like jq. For example, to get all 
 curl -s localhost:9090/wallet \
   -d '{
         "method": "get_all_txos_by_account",
-        "params": {"account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10"
-        }
+        "params": {
+          "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10"
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1,
       }' \
   -X POST -H 'Content-type: application/json' \
   | jq '.result | .txo_map[] | select( . | .account_status_map[].txo_status | contains("unspent"))'
@@ -439,7 +480,12 @@ curl -s localhost:9090/wallet \
   -d '{
         "method": "get_txo",
         "params": {
-          "txo_id": "fff4cae55a74e5ce852b79c31576f4041d510c26e59fec178b3e45705c5b35a7"}}' \
+          "txo_id": "fff4cae55a74e5ce852b79c31576f4041d510c26e59fec178b3e45705c5b35a7"
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
+      }' \
   -X POST -H 'Content-type: application/json' | jq
 
 {
@@ -484,6 +530,9 @@ curl -s localhost:9090/wallet \
 curl -s localhost:9090/wallet \
   -d '{
         "method": "get_wallet_status",
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
 
@@ -544,7 +593,10 @@ curl -s localhost:9090/wallet \
         "method": "get_balance",
         "params": {
            "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
-        }
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
 
@@ -579,7 +631,10 @@ curl -s localhost:9090/wallet \
         "params": {
           "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
           "comment": "For transactions from Carol"
-        }
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
 
@@ -616,7 +671,10 @@ curl -s localhost:9090/wallet \
         "method": "get_all_addresses_by_account",
         "params": {
           "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
-        }
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
 
@@ -674,7 +732,7 @@ curl -s localhost:9090/wallet \
 
 Sending a transaction is a convenience method that first builds and then submits a transaction.
 
-```
+```sh
 curl -s localhost:9090/wallet \
   -d '{
         "method": "send_transaction",
@@ -682,7 +740,10 @@ curl -s localhost:9090/wallet \
           "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
           "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
           "value": "42000000000000"
-        }
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
 
@@ -726,7 +787,7 @@ it may mean that your account is not yet fully synced. Call `check_balance` for 
 
 You can build a transaction to confirm its contents before submitting it to the network.
 
-```
+```sh
 curl -s localhost:9090/wallet \
   -d '{
         "method": "build_transaction",
@@ -734,7 +795,10 @@ curl -s localhost:9090/wallet \
           "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
           "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
           "value": "42000000000000"
-        }
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
 
@@ -946,7 +1010,10 @@ curl -s localhost:9090/wallet \
           "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
           "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
           "value": "42000000000000"
-        }
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq -c '.result | .tx_proposal' > test-tx-proposal.json
 ```
@@ -959,7 +1026,10 @@ curl -s localhost:9090/wallet \
         "method": "submit_transaction",
         "params": {
           "tx_proposal": '$(cat test-tx-proposal.json)'
-        }
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
       }' \
   -X POST -H 'Content-type: application/json'
 
@@ -989,7 +1059,10 @@ curl -s localhost:9090/wallet \
         "method": "get_all_transactions_by_account",
         "params": {
           "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10"
-        }
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
 
@@ -1072,7 +1145,10 @@ curl -s localhost:9090/wallet \
         "method": "get_transaction",
         "params": {
           "transaction_log_id": "ead39f2c0dea3004732adf1953dee876b73829768d4877809fe06ee0bfc6bf6d"
-        }
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
 
@@ -1130,7 +1206,10 @@ curl -s localhost:9090/wallet \
         "method": "get_proofs",
         "params": {
           "transaction_log_id": "0db5ac892ed796bb11e52d3842f83c05f4993f2f9d7da5fc9f40c8628c7859a4"
-        }
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
 {
@@ -1163,7 +1242,10 @@ curl -s localhost:9090/wallet \
           "account_id": "4b4fd11738c03bf5179781aeb27d725002fb67d8a99992920d3654ac00ee1a2c",
           "txo_id": "bbee8b70e80837fc3e10bde47f63de41768ee036263907325ef9a8d45d851f15",
           "proof": "0a2005ba1d9d871c7fb0d5ba7df17391a1e14aad1b4aa2319c997538f8e338a670bb"
-        }
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
 
@@ -1195,7 +1277,10 @@ curl -s localhost:9090/wallet \
         "method": "get_transaction_object",
         "params": {
           "transaction_log_id": "4b4fd11738c03bf5179781aeb27d725002fb67d8a99992920d3654ac00ee1a2c",
-        }
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
 
@@ -1217,7 +1302,10 @@ curl -s localhost:9090/wallet \
         "method": "get_txo_object",
         "params": {
           "txo_id": "4b4fd11738c03bf5179781aeb27d725002fb67d8a99992920d3654ac00ee1a2c",
-        }
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
 
@@ -1239,7 +1327,10 @@ curl -s localhost:9090/wallet \
         "method": "get_block_object",
         "params": {
           "block_index": "3204",
-        }
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
 

@@ -62,7 +62,6 @@ mod e2e {
         let accounts = result.get("account_ids").unwrap().as_array().unwrap();
         assert_eq!(accounts.len(), 1);
         let account_map = result.get("account_map").unwrap().as_object().unwrap();
-        println!("\x1b[1;31m account map = {:?}\x1b[0m", account_map);
         assert_eq!(
             account_map
                 .get(accounts[0].as_str().unwrap())

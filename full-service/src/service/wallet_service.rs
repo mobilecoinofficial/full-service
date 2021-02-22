@@ -6,7 +6,7 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        b58_decode, b58_encode,
+        b58_decode,
         models::{
             Account, AssignedSubaddress, TransactionLog, Txo, TXO_STATUS_ORPHANED,
             TXO_STATUS_PENDING, TXO_STATUS_SECRETED, TXO_STATUS_SPENT, TXO_STATUS_UNSPENT,
@@ -20,11 +20,9 @@ use crate::{
         JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents, JsonProof,
         JsonSubmitResponse, JsonTransactionLog, JsonTxo, JsonWalletStatus,
     },
-    service::{
-        account::AccountService, sync::SyncThread, transaction_builder::WalletTransactionBuilder,
-    },
+    service::{sync::SyncThread, transaction_builder::WalletTransactionBuilder},
 };
-use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
+use mc_account_keys::RootEntropy;
 use mc_common::logger::{log, Logger};
 use mc_connection::{
     BlockchainConnection, ConnectionManager as McConnectionManager, RetryableUserTxConnection,
