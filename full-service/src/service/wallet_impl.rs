@@ -16,15 +16,12 @@ use crate::{
         WalletDb,
     },
     error::WalletServiceError,
-    service::{
-        decorated_types::{
-            JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
-            JsonCreateAccountResponse, JsonProof, JsonSubmitResponse, JsonTransactionLog, JsonTxo,
-            JsonWalletStatus,
-        },
-        sync::SyncThread,
-        transaction_builder::WalletTransactionBuilder,
+    json_rpc::api_v1::decorated_types::{
+        JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
+        JsonCreateAccountResponse, JsonProof, JsonSubmitResponse, JsonTransactionLog, JsonTxo,
+        JsonWalletStatus,
     },
+    service::{sync::SyncThread, transaction_builder::WalletTransactionBuilder},
 };
 use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
 use mc_common::logger::{log, Logger};

@@ -66,9 +66,9 @@ curl -s localhost:9090/wallet \
       "object": "account",
       "account_id": "81ca0a6c473ad70199c19033fd6eb3c94b7acfa2ae5f4065c89a4476a9b2345e",
       "name": "Alice",
-      "network_height": "152826",
-      "local_height": "152826",
-      "account_height": "0",
+      "network_block_count": "152826",
+      "local_block_count": "152826",
+      "account_block_count": "0",
       "is_synced": false,
       "available_pmob": "0",
       "pending_pmob": "0",
@@ -107,9 +107,9 @@ curl -s localhost:9090/wallet \
       "object": "account",
       "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
       "name": "Bob",
-      "network_height": "152826",
-      "local_height": "152826",
-      "account_height": "1",
+      "network_block_count": "152826",
+      "local_block_count": "152826",
+      "account_block_count": "1",
       "is_synced": false,
       "available_pmob": "0",
       "pending_pmob": "0",
@@ -154,28 +154,28 @@ curl -s localhost:9090/wallet \
     ],
     "account_map": {
       "81ca0a6c473ad70199c19033fd6eb3c94b7acfa2ae5f4065c89a4476a9b2345e": {
-        "account_height": "48630",
+        "account_block_count": "48630",
         "account_id": "81ca0a6c473ad70199c19033fd6eb3c94b7acfa2ae5f4065c89a4476a9b2345e",
         "available_pmob": "0",
         "is_synced": false,
-        "local_height": "152826",
+        "local_block_count": "152826",
         "main_address": "2XyzT9mtAyfvnET7QuvBAknEYxZCZ5xgBXrhJpTSFYAU7EYgM2MrMmQtguHKQXX1kKtY328swkdJHi85ak9xKrtkPwHX3mMX616XkhDPiwV",
         "name": "Alice",
-        "network_height": "152826",
+        "network_block_count": "152826",
         "next_subaddress_index": "2",
         "object": "account",
         "pending_pmob": "0",
         "recovery_mode": false
       },
       "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10":
-        "account_height": "27601",
+        "account_block_count": "27601",
         "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
         "available_pmob": "994799199999988869",
         "is_synced": false,
-        "local_height": "152826",
+        "local_block_count": "152826",
         "main_address": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
         "name": "Bob",
-        "network_height": "152826",
+        "network_block_count": "152826",
         "next_subaddress_index": "2",
         "object": "account",
         "pending_pmob": "0",
@@ -205,9 +205,9 @@ curl -s localhost:9090/wallet \
       "object": "account",
       "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
       "name": "Bob",
-      "network_height": "152826",
-      "local_height": "152826",
-      "account_height": "44271",
+      "network_block_count": "152826",
+      "local_block_count": "152826",
+      "account_block_count": "44271",
       "is_synced": false,
       "available_pmob": "994100109999988869",
       "pending_pmob": "0",
@@ -1255,28 +1255,27 @@ The Full Service Wallet API provides several objects that correspond to the data
 
 ### The Account Object
 
+An account in the wallet.
+
+An Account is associated with one AccountKey, containing a View keypair and a Spend keypair.
+
 #### Attributes
 
 | *Name* | *Type* | *Description*
 | :--- | :--- | :---
+| object | string, value is "account" | String representing the object's type. Objects of the same type share the same value
 | account_id | string | Unique identifier for the account.
 | name | string | Display name for the account.
-| network_height | string (uint64) | The block height of MobileCoin's distributed ledger. The local_height is synced when it reaches the network_height.
-| local_height | string (uint64) | The local block height downloaded from the ledger. The local database will sync up to the network_height. The account_height can only sync up to local_height.
-| account_height| string (uint64) | The scanned local block height for this account. This value will never be greater than the local_height. At fully synced, it will match network_height.
-| is_synced | boolean | Whether the account is synced with the network_height. Balances may not appear correct if the account is still syncing.
-| available_pmob | string (uint64) | Available pico MOB for this account at the current account_height. If the account is syncing, this value may change.
-| pending_pmob | string (uint64) | Pending, out-going pico MOB. The pending value will clear once the ledger processes the outgoing txos. The available_pmob will reflect the change.
 | main_address | string | B58 Address Code for the account's main address. The main address is determined by the seed subaddress. It is not assigned to a single recipient, and should be consider a free-for-all address.
-
-#### More attributes
-
-| *Name* | *Type* | *Description*
-| :--- | :--- | :---
-| object | string, value is "account" | String representing the object's type. Objects of the same type share the same value
 | next_subaddress_index | string (uint64) | This index represents the next subaddress to be assigned as an address. This is useful information in case the account is imported elsewhere.
 | recovery_mode | boolean | A flag that indicates this imported account is attempting to un-orphan found TXOs. It is recommended to move all MOB to another account after recovery if the user is unsure of the assigned addresses.
 
+#### Optional attributes
+
+| *Name* | *Type* | *Description*
+| :--- | :--- | :---
+| entropy | string | The root entropy for this account. The account_keys are derived from this entropy. Optional because only calls that specifically need to return entropy should do so. Otherwise, it should be None.
+| account_key | string | The root entropy for this account. The account_key is derived from the entropy. Optional because only calls that specifically need to return the account key should do so. Otherwise, it should be None.
 
 #### Example Object
 
@@ -1285,12 +1284,14 @@ The Full Service Wallet API provides several objects that correspond to the data
   "object": "account",
   "account_id": "1916a9b3...",
   "name": "I love MobileCoin",
-  "network_height": "88888888",
-  "local_height": "88888888",
-  "account_height": "88888888",
-  "is_synced": true,
-  "available_pmob": "123000000",
-  "pending_pmob": "1000",
+  "balance": {
+    "network_block_count": "88888888",
+    "local_block_count": "88888888",
+    "account_block_count": "88888888",
+    "is_synced": true,
+    "unspent_pmob": "123000000",
+    "pending_pmob": "1000"
+  },
   "next_subaddress_index": "128",
   "recovery_mode": false
 }
@@ -1304,16 +1305,52 @@ The Full Service Wallet API provides several objects that correspond to the data
 * [get_account](#get-account)
 * [update_account_name](#update-account-name)
 
+### The Balance Object
+
+The balance for an account, as well as some information about syncing status needed to interpret the balance correctly.
+
+#### Attributes
+
+| *Name* | *Type* | *Description*
+| :--- | :--- | :---
+| object | string, value is "balance" | String representing the object's type. Objects of the same type share the same value
+| network_block_count | string (uint64) | The block height of MobileCoin's distributed ledger. The local_block_count is synced when it reaches the network_block_count.
+| local_block_count | string (uint64) | The local block height downloaded from the ledger. The local database will sync up to the network_block_count. The account_block_count can only sync up to local_block_count.
+| account_block_count| string (uint64) | The scanned local block height for this account. This value will never be greater than the local_block_count. At fully synced, it will match network_block_count.
+| is_synced | boolean | Whether the account is synced with the network_block_count. Balances may not appear correct if the account is still syncing.
+| unspent_pmob | string (uint64) | Unspent pico MOB for this account at the current account_block_count. If the account is syncing, this value may change.
+| pending_pmob | string (uint64) | Pending, out-going pico MOB. The pending value will clear once the ledger processes the outgoing txos. The available_pmob will reflect the change.
+
+#### Example Object
+
+```json
+{
+  "object": "balance",
+  "network_block_count": "88888888",
+  "local_block_count": "88888888",
+  "account_block_count": "88888888",
+  "is_synced": true,
+  "unspent_pmob": "123000000",
+  "pending_pmob": "1000"
+}
+```
+
+#### API Methods Returning Balance Objects
+
+* Account methods (see [The Account Object](#the-account-object))
+* [get_balance](#get-balance-for-a-given-account)
+* [get_wallet_status](#get-wallet-status)
+
 ### The Wallet Status Object
 
 #### Attributes
 
 | *Name* | *Type* | *Description*
 | :--- | :--- | :---
-| network_height | string (uint64) | The block height of the MobileCoin ledger. The local_height is synced when it reaches the value.
-| local_height | string (uint64) | The local block height downloaded from the ledger. The local database will sync up to the network_height. The account_height can only sync up to local_height.
-| is_synced_all | boolean | Whether ALL accounts are synced with the network_height. Balances may not appear correct if the account is still syncing.
-| total_available_pmob | string (uint64) | Available pico mob for ALL account at the account_height. If the account is syncing, this value may change.
+| network_block_count | string (uint64) | The block height of the MobileCoin ledger. The local_block_count is synced when it reaches the value.
+| local_block_count | string (uint64) | The local block height downloaded from the ledger. The local database will sync up to the network_block_count. The account_block_count can only sync up to local_block_count.
+| is_synced_all | boolean | Whether ALL accounts are synced with the network_block_count. Balances may not appear correct if any account is still syncing.
+| total_unspent_pmob | string (uint64) | Unspent pico mob for ALL accounts at the account_block_count. If the account is syncing, this value may change.
 | total_pending_pmob | string (uint64) | Pending out-going pico mob from ALL accounts. Pending pico mobs will clear once the ledger processes the outoing txo. The available_pmob will reflect the change.
 | account_ids | list | A list of all account_ids imported into the wallet in order of import.
 | account_map | hash map | A normalized hash mapping account_id to account objects.
@@ -1329,34 +1366,34 @@ The Full Service Wallet API provides several objects that correspond to the data
 ```json
 {
   "object": "wallet_status",
-  "network_height": "88888888",
-  "local_height": "88888888",
+  "network_block_count": "88888888",
+  "local_block_count": "88888888",
   "is_synced_all": false,
   "total_available_pmob": "123456789",
   "total_pending_pmob": "1000",
   "account_ids": ["1916a9b3...", "9b3ea14b..."],
   "account_map": {
     "1916a9b3...": {
-      "account_height": "88888888",
+      "account_block_count": "88888888",
       "account_id": "1916a9b3...",
       "available_pmob": "123000000",
       "is_synced": true,
-      "local_height": "88888888",
+      "local_block_count": "88888888",
       "name": "I love MobileCoin",
-      "network_height": "88888888",
+      "network_block_count": "88888888",
       "next_subaddress_index": "128",
       "object": "account",
       "pending_pmob": "1000",
       "recovery_mode": false
     },
     "9b3ea14b...": {
-      "account_height": "88880000",
+      "account_block_count": "88880000",
       "account_id": "9b3ea14b...",
       "available_pmob": "456789",
       "is_synced": false,
-      "local_height": "88888888",
+      "local_block_count": "88888888",
       "name": "Joint account with Satoshi",
-      "network_height": "88888888",
+      "network_block_count": "88888888",
       "next_subaddress_index": "57",
       "object": "account",
       "pending_pmob": "0",
@@ -1369,7 +1406,6 @@ The Full Service Wallet API provides several objects that correspond to the data
 #### API Methods Returning Wallet Status Objects
 
 * [get_wallet_status](#get-wallet-status)
-
 
 ### The Assigned Address Object
 
@@ -1455,8 +1491,8 @@ Received:
   "assigned_address_id": "HpaL8g88...",
   "value_pmob": "8500000000000",
   "fee_pmob": null,
-  "submitted_block_height": null,
-  "finalized_block_height": "14152",
+  "submitted_block_block_count": null,
+  "finalized_block_block_count": "14152",
   "status": "succeeded",
   "input_txo_ids": [],
   "output_txo_ids": ["28f2f033..."],
@@ -1482,8 +1518,8 @@ Sent - Failed:
   "assigned_address_id": null,
   "value_pmob": "1288000000000",
   "fee_pmob": "10000000000",
-  "submitted_block_height": "19152",
-  "finalized_block_height": "19152",
+  "submitted_block_block_count": "19152",
+  "finalized_block_block_count": "19152",
   "status": "failed",
   "input_txo_ids": ["2bd44ea1..."],
   "output_txo_ids": ["3ce55d21..."],
@@ -1509,7 +1545,7 @@ Sent - Success, Recovered:
   "assigned_address_id": null,
   "value_pmob": "8000000000000",
   "fee_pmob": null,
-  "block_height": "8504",
+  "block_block_count": "8504",
   "status": "success",
   "txo_ids": ["fa1b94fa..."],
   "sent_time": null,
@@ -1531,7 +1567,7 @@ Sent - Success, Recovered:
 
 | *Name* | *Type* | *Description*
 | :--- | :--- | :---
-| value_pmob | string (uint64) | Available pico MOB for this account at the current account_height. If the account is syncing, this value may change.
+| value_pmob | string (uint64) | Available pico MOB for this account at the current account_block_count. If the account is syncing, this value may change.
 | received_block_height | string (uint64) | Block height in which the txo was received by an account.
 | spent_block_height | string (uint64) | Block height in which the txo was spent by an account.
 | is_spent_recovered | boolean | Flag that indicates if the spent_block_height was recovered from the ledger. This value is null if the txo is unspent. If true, some information may not be available on the txo without user input. If true, the proof will be null without user input.

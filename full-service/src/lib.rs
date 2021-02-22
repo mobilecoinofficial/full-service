@@ -7,10 +7,12 @@
 pub mod config;
 mod db;
 mod error;
+mod json_rpc;
 mod service;
 
 pub use db::WalletDb;
-pub use service::{wallet, WalletService};
+pub use json_rpc::wallet;
+pub use service::WalletService;
 
 extern crate alloc;
 #[macro_use]
