@@ -378,7 +378,11 @@ impl AccountModel for Account {
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
 
-        diesel::delete(accounts.filter(account_id_hex.eq(self.account_id_hex))).execute(conn)?;
+        diesel::delete(accounts.filter(account_id_hex.eq(&self.account_id_hex))).execute(conn)?;
+
+        // Also delete the associated assigned subaddresses
+        AssignedSubaddress::delete_all(&self.account_id_hex, conn)?;
+
         Ok(())
     }
 }

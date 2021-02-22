@@ -13,7 +13,7 @@ use crate::{
             format_error, JsonCommandResponse, JsonCommandResponseV2, JsonRPCResponse,
         },
     },
-    service::{account::AccountService, WalletService},
+    service::{account::AccountService, balance::BalanceService, WalletService},
 };
 use mc_connection::{
     BlockchainConnection, HardcodedCredentialsProvider, ThickClient, UserTxConnection,
@@ -168,6 +168,13 @@ where
                 .map_err(format_error)?,
             }
         }
+        JsonCommandRequestV2::get_balance { account_id } => JsonCommandResponseV2::get_balance {
+            balance: json_rpc::balance::Balance::from(
+                &service
+                    .get_balance(&AccountID(account_id))
+                    .map_err(format_error)?,
+            ),
+        },
     };
     let response = Json(JsonRPCResponse::from(result));
     Ok(response)

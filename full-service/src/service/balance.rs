@@ -44,7 +44,7 @@ pub trait BalanceService {
     /// Gets the balance for a given account.
     ///
     /// Balance consists of the sums of the various txo states in our wallet
-    fn get_balance(&self, account_id_hex: &str) -> Result<Balance, WalletServiceError>;
+    fn get_balance(&self, account_id: &AccountID) -> Result<Balance, WalletServiceError>;
 }
 
 impl<T, FPR> BalanceService for WalletService<T, FPR>
@@ -52,8 +52,9 @@ where
     T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
-    fn get_balance(&self, account_id_hex: &str) -> Result<Balance, WalletServiceError> {
+    fn get_balance(&self, account_id: &AccountID) -> Result<Balance, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
+        let account_id_hex = &account_id.to_string();
 
         let unspent = Txo::list_by_status(account_id_hex, TXO_UNSPENT, &conn)?
             .iter()
@@ -84,7 +85,7 @@ where
             .unwrap_or(0);
 
         let local_block_count = self.ledger_db.num_blocks()?;
-        let account = Account::get(&AccountID(account_id_hex.to_string()), &conn)?;
+        let account = Account::get(account_id, &conn)?;
 
         Ok(Balance {
             unspent: unspent as u64,

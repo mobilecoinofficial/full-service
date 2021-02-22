@@ -12,7 +12,7 @@ use crate::{
         JsonSubmitResponse, JsonTransactionLog, JsonTxo, JsonWalletStatus,
         StringifiedJsonTxProposal,
     },
-    service::{account::AccountService, WalletService},
+    service::{account::AccountService, balance::BalanceService, WalletService},
 };
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
@@ -388,7 +388,9 @@ where
             JsonCommandResponseV1::get_wallet_status { status: result }
         }
         JsonCommandRequestV1::get_balance { account_id } => {
-            let balance = service.get_balance(&account_id).map_err(format_error)?;
+            let balance = service
+                .get_balance(&AccountID(account_id))
+                .map_err(format_error)?;
             let status = JsonBalanceResponse {
                 unspent: balance.unspent.to_string(),
                 pending: balance.pending.to_string(),

@@ -94,6 +94,9 @@ pub enum JsonCommandRequestV2 {
     delete_account {
         account_id: String,
     },
+    get_balance {
+        account_id: String,
+    },
     /*
     get_all_txos_by_account {
         account_id: String,
@@ -102,9 +105,7 @@ pub enum JsonCommandRequestV2 {
         txo_id: String,
     },
     get_wallet_status,
-    get_balance {
-        account_id: String,
-    },
+
     create_address {
         account_id: String,
         comment: Option<String>,

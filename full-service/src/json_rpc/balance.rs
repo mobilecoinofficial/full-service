@@ -2,6 +2,8 @@
 
 //! API definition for the Balance object.
 
+use crate::service;
+
 use serde_derive::{Deserialize, Serialize};
 
 /// The balance for an account, as well as some information about syncing status
@@ -38,4 +40,34 @@ pub struct Balance {
     /// ledger processes the outgoing txos. The available_pmob will reflect the
     /// change.
     pub pending_pmob: String,
+
+    /// Spent pico MOB. This is the sum of all the Txos in the wallet which have
+    /// been spent.
+    pub spent_pmob: String,
+
+    /// Secreted (minted) pico MOB. This is the sum of all the Txos which have
+    /// been created in the wallet for outgoing transactions.
+    pub secreted_pmob: String,
+
+    /// Orphaned pico MOB. The orphaned value represents the Txos which were
+    /// view-key matched, but which can not be spent until their subaddress
+    /// index is recovered.
+    pub orphaned_pmob: String,
+}
+
+impl From<&service::balance::Balance> for Balance {
+    fn from(src: &service::balance::Balance) -> Balance {
+        Balance {
+            object: "balance".to_string(),
+            network_block_count: src.network_block_count.to_string(),
+            local_block_count: src.local_block_count.to_string(),
+            account_block_count: src.synced_blocks.to_string(),
+            is_synced: src.synced_blocks == src.network_block_count,
+            unspent_pmob: src.unspent.to_string(),
+            pending_pmob: src.pending.to_string(),
+            spent_pmob: src.spent.to_string(),
+            secreted_pmob: src.secreted.to_string(),
+            orphaned_pmob: src.orphaned.to_string(),
+        }
+    }
 }

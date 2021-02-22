@@ -190,48 +190,6 @@ impl<
         )
     }
 
-    // Balance consists of the sums of the various txo states in our wallet
-    pub fn get_balance(
-        &self,
-        account_id_hex: &str,
-    ) -> Result<JsonBalanceResponse, WalletServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-
-        let unspent = Txo::list_by_status(account_id_hex, TXO_STATUS_UNSPENT, &conn)?
-            .iter()
-            .map(|t| t.value as u128)
-            .sum::<u128>();
-        let spent = Txo::list_by_status(account_id_hex, TXO_STATUS_SPENT, &conn)?
-            .iter()
-            .map(|t| t.value as u128)
-            .sum::<u128>();
-        let secreted = Txo::list_by_status(account_id_hex, TXO_STATUS_SECRETED, &conn)?
-            .iter()
-            .map(|t| t.value as u128)
-            .sum::<u128>();
-        let orphaned = Txo::list_by_status(account_id_hex, TXO_STATUS_ORPHANED, &conn)?
-            .iter()
-            .map(|t| t.value as u128)
-            .sum::<u128>();
-        let pending = Txo::list_by_status(account_id_hex, TXO_STATUS_PENDING, &conn)?
-            .iter()
-            .map(|t| t.value as u128)
-            .sum::<u128>();
-
-        let local_block_count = self.ledger_db.num_blocks()?;
-        let account = Account::get(&AccountID(account_id_hex.to_string()), &conn)?;
-
-        Ok(JsonBalanceResponse {
-            unspent: unspent.to_string(),
-            pending: pending.to_string(),
-            spent: spent.to_string(),
-            secreted: secreted.to_string(),
-            orphaned: orphaned.to_string(),
-            local_block_count: local_block_count.to_string(),
-            synced_blocks: account.next_block.to_string(),
-        })
-    }
-
     pub fn create_assigned_subaddress(
         &self,
         account_id_hex: &str,
@@ -513,9 +471,10 @@ mod tests {
             models::{TXO_TYPE_MINTED, TXO_TYPE_RECEIVED},
             txo::TxoDetails,
         },
+        service::{account::AccountService, balance::BalanceService},
         test_utils::{
-            add_block_from_transaction_log, add_block_to_ledger_db, get_resolver_factory,
-            get_test_ledger, setup_peer_manager_and_network_state, WalletDbTestContext, MOB,
+            add_block_to_ledger_db, get_resolver_factory, get_test_ledger,
+            setup_peer_manager_and_network_state, WalletDbTestContext, MOB,
         },
     };
     use mc_account_keys::{AccountKey, PublicAddress};
@@ -572,7 +531,7 @@ mod tests {
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![alice_public_address.clone()],
-            100000000000000, // 100.0 MOB
+            100 * MOB as u64,
             &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
@@ -581,9 +540,11 @@ mod tests {
         std::thread::sleep(Duration::from_secs(5));
 
         // Verify balance for Alice
-        let balance = service.get_balance(&alice.account_id_hex).unwrap();
+        let balance = service
+            .get_balance(&AccountID(alice.account_id_hex.clone()))
+            .unwrap();
 
-        assert_eq!(balance.unspent, "100000000000000");
+        assert_eq!(balance.unspent, 100 * MOB as u64);
 
         // Verify that we have 1 txo
         let txos = service.list_txos(&alice.account_id_hex).unwrap();
@@ -658,12 +619,14 @@ mod tests {
         assert!(minted_value_set.contains("42000000000000"));
 
         // Our balance should reflect the various statuses of our txos
-        let balance = service.get_balance(&alice.account_id_hex).unwrap();
-        assert_eq!(balance.unspent, "0");
-        assert_eq!(balance.pending, "100000000000000");
-        assert_eq!(balance.spent, "0");
-        assert_eq!(balance.secreted, "99990000000000");
-        assert_eq!(balance.orphaned, "0");
+        let balance = service
+            .get_balance(&AccountID(alice.account_id_hex))
+            .unwrap();
+        assert_eq!(balance.unspent, 0);
+        assert_eq!(balance.pending, 100000000000000);
+        assert_eq!(balance.spent, 0);
+        assert_eq!(balance.secreted, 99990000000000);
+        assert_eq!(balance.orphaned, 0);
 
         // FIXME: How to make the transaction actually hit the test ledger?
     }

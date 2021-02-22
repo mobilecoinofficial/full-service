@@ -5,8 +5,9 @@
 #[cfg(test)]
 mod e2e {
     use crate::{
+        db::b58_decode,
         json_rpc::api_test_utils::{dispatch, dispatch_expect_error, setup, wait_for_sync},
-        test_utils::add_block_to_ledger_db,
+        test_utils::{add_block_to_ledger_db, MOB},
     };
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
@@ -174,13 +175,80 @@ mod e2e {
         );
     }
 
-    /*
+    #[test_with_logger]
+    fn test_e2e_import_delete_import(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 1,
+            "method": "import_account",
+            "params": {
+                "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
+                "name": "Alice Main Account",
+                "first_block": "200",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+        assert_eq!(public_address, "8JtpPPh9mV2PTLrrDz4f2j4PtUpNWnrRg8HKpnuwkZbj5j8bGqtNMNLC9E3zjzcw456215yMjkCVYK4FPZTX4gijYHiuDT31biNHrHmQmsU");
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        // Catches if a change results in changed accounts_ids, which should always be
+        // made to be backward compatible.
+        assert_eq!(
+            account_id,
+            "f9957a9d050ef8dff9d8ef6f66daa608081e631b2d918988311613343827b779"
+        );
+
+        // Delete Account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 2,
+            "method": "delete_account",
+            "params": {
+                "account_id": *account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        assert_eq!(
+            result.get("account").unwrap().get("account_id").unwrap(),
+            account_id
+        );
+
+        // Import it again - should succeed.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 1,
+            "method": "import_account",
+            "params": {
+                "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
+                "name": "Alice Main Account",
+                "first_block": "200",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+        assert_eq!(public_address, "8JtpPPh9mV2PTLrrDz4f2j4PtUpNWnrRg8HKpnuwkZbj5j8bGqtNMNLC9E3zjzcw456215yMjkCVYK4FPZTX4gijYHiuDT31biNHrHmQmsU");
+    }
+
     #[test_with_logger]
     fn test_create_account_with_first_block(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 1,
             "method": "create_account",
             "params": {
                 "name": "Alice Main Account",
@@ -194,6 +262,65 @@ mod e2e {
         assert!(result.get("entropy").is_some());
         assert!(account_obj.get("account_id").is_some());
     }
+
+    #[test_with_logger]
+    fn test_e2e_get_balance(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+        let public_address = b58_decode(b58_public_address).unwrap();
+
+        // Add a block with a txo for this address
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![public_address],
+            42 * MOB as u64,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 1,
+            "method": "get_balance",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance = result.get("balance").unwrap();
+        assert_eq!(
+            balance
+                .get("unspent_pmob")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_string(),
+            (42 * MOB).to_string()
+        );
+    }
+
+    /*
+
 
     #[test_with_logger]
     fn test_wallet_status(logger: Logger) {

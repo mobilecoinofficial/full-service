@@ -4,7 +4,7 @@
 //!
 //! API v2
 
-use crate::json_rpc::account::Account;
+use crate::json_rpc::{account::Account, balance::Balance};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
@@ -162,6 +162,9 @@ pub enum JsonCommandResponseV2 {
     delete_account {
         account: Account,
     },
+    get_balance {
+        balance: Balance,
+    },
     /*
     get_account_status {
         account: Account,
@@ -177,9 +180,7 @@ pub enum JsonCommandResponseV2 {
     get_wallet_status {
         status: JsonWalletStatus,
     },
-    get_balance {
-        status: JsonBalanceResponse,
-    },
+
     create_address {
         address: JsonAddress,
     },
