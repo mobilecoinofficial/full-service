@@ -17,6 +17,8 @@ use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_util_from_random::FromRandom;
 
+use diesel::Connection;
+
 /*
 use displaydoc::Display;
 /// Errors for the Account Service.
@@ -47,6 +49,12 @@ pub trait AccountService {
 
     /// Get an account in the wallet.
     fn get_account(&self, account_id: &AccountID) -> Result<Account, WalletServiceError>;
+
+    fn update_account_name(
+        &self,
+        account_id: &AccountID,
+        name: String,
+    ) -> Result<Account, WalletServiceError>;
 }
 
 impl<T, FPR> AccountService for WalletService<T, FPR>
@@ -119,5 +127,18 @@ where
     fn get_account(&self, account_id: &AccountID) -> Result<Account, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
         Ok(Account::get(&account_id, &conn)?)
+    }
+
+    fn update_account_name(
+        &self,
+        account_id: &AccountID,
+        name: String,
+    ) -> Result<Account, WalletServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+
+        Ok(conn.transaction::<Account, WalletServiceError, _>(|| {
+            Account::get(&account_id, &conn)?.update_name(name, &conn)?;
+            Ok(Account::get(&account_id, &conn)?)
+        })?)
     }
 }

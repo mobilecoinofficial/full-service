@@ -83,33 +83,39 @@ mod e2e {
 
         // FIXME: assert balance
 
+        // Update Account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 2,
+            "method": "update_account_name",
+            "params": {
+                "account_id": *account_id,
+                "name": "Eve Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        assert_eq!(
+            result.get("account").unwrap().get("name").unwrap(),
+            "Eve Main Account"
+        );
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 2,
+            "method": "get_account",
+            "params": {
+                "account_id": *account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let name = result.get("account").unwrap().get("name").unwrap();
+        assert_eq!("Eve Main Account", name.as_str().unwrap());
+
         /*
-               // Update Account
-               let body = json!({
-                   "method": "update_account_name",
-                   "params": {
-                       "account_id": *account_id,
-                       "name": "Eve Main Account",
-                   }
-               });
-               let res = dispatch(&client, body, &logger);
-               let result = res.get("result").unwrap();
-               assert_eq!(
-                   result.get("account").unwrap().get("name").unwrap(),
-                   "Eve Main Account"
-               );
-
-               let body = json!({
-                   "method": "get_account",
-                   "params": {
-                       "account_id": *account_id,
-                   }
-               });
-               let res = dispatch(&client, body, &logger);
-               let result = res.get("result").unwrap();
-               let name = result.get("account").unwrap().get("name").unwrap();
-               assert_eq!("Eve Main Account", name.as_str().unwrap());
-
                // Delete Account
                let body = json!({
                    "method": "delete_account",

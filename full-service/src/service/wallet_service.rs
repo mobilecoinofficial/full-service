@@ -17,7 +17,7 @@ use crate::{
     },
     error::WalletServiceError,
     json_rpc::api_v1::decorated_types::{
-        JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents, JsonProof,
+        JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents, JsonProof,
         JsonSubmitResponse, JsonTransactionLog, JsonTxo, JsonWalletStatus,
     },
     service::{sync::SyncThread, transaction_builder::WalletTransactionBuilder},
@@ -121,34 +121,6 @@ impl<
             offline,
             logger,
         }
-    }
-
-    pub fn update_account_name(
-        &self,
-        account_id_hex: &str,
-        name: String,
-    ) -> Result<JsonAccount, WalletServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-
-        Ok(conn.transaction::<JsonAccount, WalletServiceError, _>(|| {
-            Account::get(&AccountID(account_id_hex.to_string()), &conn)?
-                .update_name(name, &conn)?;
-
-            let local_height = self.ledger_db.num_blocks()?;
-            let network_state = self.network_state.read().expect("lock poisoned");
-            // network_height = network_block_index + 1
-            let network_height = network_state
-                .highest_block_index_on_network()
-                .map(|v| v + 1)
-                .unwrap_or(0);
-            let decorated_account = Account::get_decorated(
-                &AccountID(account_id_hex.to_string()),
-                local_height,
-                network_height,
-                &conn,
-            )?;
-            Ok(decorated_account)
-        })?)
     }
 
     pub fn delete_account(&self, account_id_hex: &str) -> Result<(), WalletServiceError> {

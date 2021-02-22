@@ -294,11 +294,32 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json'  | jq
+
 {
   "method": "update_account_name",
   "result": {
-    "success": true
-  }
+    "account": {
+      "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
+      "account_key": {
+        "fog_authority_spki": "",
+        "fog_report_id": "",
+        "fog_report_url": "",
+        "object": "account_key",
+        "spend_private_key": "0a200c68151e777324da47a1e3a4f8b57e7d94d59084d4a343e1c600c1e4f66fc20d",
+        "view_private_key": "0a20765d49c5a524ddd4d9e96278b17eccd7b33e6bc071c5bc91dcd29435ce478a0d"
+      },
+      "entropy": "856fcacf2a819a065a9376fcdce0ff8dbe14f8b8d6118ef3a194f9e678ade0e0",
+      "main_address": "4bgkVAH1hs55dwLTGVpZER8ZayhqXbYqfuyisoRrmQPXoWcYQ3SQRTjsAytCiAgk21CRrVNysVw5qwzweURzDK9HL3rGXFmAAahb364kYe3",
+      "name": "Carol",
+      "next_subaddress_index": "2",
+      "object": "account",
+      "recovery_mode": false
+    }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+  "api_version": "2"
 }
 ```
 

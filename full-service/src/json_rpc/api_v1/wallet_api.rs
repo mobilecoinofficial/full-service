@@ -336,9 +336,23 @@ where
             JsonCommandResponseV1::get_account { account }
         }
         JsonCommandRequestV1::update_account_name { account_id, name } => {
-            let account = service
-                .update_account_name(&account_id, name)
+            let _account = service
+                .update_account_name(&AccountID(account_id.clone()), name)
                 .map_err(format_error)?;
+            let local_height = service.ledger_db.num_blocks().map_err(format_error)?;
+            let network_state = service.network_state.read().map_err(format_error)?;
+            // network_height = network_block_index + 1
+            let network_height = network_state
+                .highest_block_index_on_network()
+                .map(|v| v + 1)
+                .unwrap_or(0);
+            let account = Account::get_decorated(
+                &AccountID(account_id),
+                local_height,
+                network_height,
+                &service.wallet_db.get_conn().map_err(format_error)?,
+            )
+            .map_err(format_error)?;
             JsonCommandResponseV1::update_account_name { account }
         }
         JsonCommandRequestV1::delete_account { account_id } => {

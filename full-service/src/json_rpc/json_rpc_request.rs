@@ -87,11 +87,11 @@ pub enum JsonCommandRequestV2 {
     get_account {
         account_id: String,
     },
-    /*
     update_account_name {
         account_id: String,
         name: String,
     },
+    /*
     delete_account {
         account_id: String,
     },

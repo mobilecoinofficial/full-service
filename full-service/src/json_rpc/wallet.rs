@@ -148,6 +148,16 @@ where
             )
             .map_err(format_error)?,
         },
+        JsonCommandRequestV2::update_account_name { account_id, name } => {
+            JsonCommandResponseV2::update_account_name {
+                account: json_rpc::account::Account::try_from(
+                    &service
+                        .update_account_name(&AccountID(account_id), name)
+                        .map_err(format_error)?,
+                )
+                .map_err(format_error)?,
+            }
+        }
     };
     let response = Json(JsonRPCResponse::from(result));
     Ok(response)

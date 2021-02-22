@@ -156,10 +156,10 @@ pub enum JsonCommandResponseV2 {
     get_account {
         account: Account,
     },
-    /*
     update_account_name {
-        account: JsonAccount,
+        account: Account,
     },
+    /*
     delete_account {
         success: bool,
     },
