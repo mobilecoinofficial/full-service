@@ -3,7 +3,9 @@
 //! Entrypoint for Wallet API.
 
 use crate::{
-    db, json_rpc,
+    db,
+    db::account::AccountID,
+    json_rpc,
     json_rpc::{
         api_v1::wallet_api::{help_str_v1, wallet_api_inner_v1, JsonCommandRequestV1},
         json_rpc_request::{help_str_v2, JsonCommandRequest, JsonCommandRequestV2},
@@ -138,6 +140,14 @@ where
                 account_map,
             }
         }
+        JsonCommandRequestV2::get_account { account_id } => JsonCommandResponseV2::get_account {
+            account: json_rpc::account::Account::try_from(
+                &service
+                    .get_account(&AccountID(account_id))
+                    .map_err(format_error)?,
+            )
+            .map_err(format_error)?,
+        },
     };
     let response = Json(JsonRPCResponse::from(result));
     Ok(response)

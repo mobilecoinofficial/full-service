@@ -84,10 +84,10 @@ pub enum JsonCommandRequestV2 {
         first_block: Option<String>,
     },
     get_all_accounts,
-    /*
     get_account {
         account_id: String,
     },
+    /*
     update_account_name {
         account_id: String,
         name: String,

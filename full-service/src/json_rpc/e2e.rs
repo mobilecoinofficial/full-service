@@ -5,7 +5,6 @@
 #[cfg(test)]
 mod e2e {
     use crate::{
-        self,
         json_rpc::api_test_utils::{dispatch, dispatch_expect_error, setup, wait_for_sync},
         test_utils::add_block_to_ledger_db,
     };
@@ -68,8 +67,10 @@ mod e2e {
             &account_id.clone()
         );
 
-        /*
         let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 2,
             "method": "get_account",
             "params": {
                 "account_id": *account_id,
@@ -80,7 +81,6 @@ mod e2e {
         let name = result.get("account").unwrap().get("name").unwrap();
         assert_eq!("Alice Main Account", name.as_str().unwrap());
 
-         */
         // FIXME: assert balance
 
         /*

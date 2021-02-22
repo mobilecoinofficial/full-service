@@ -153,15 +153,19 @@ pub enum JsonCommandResponseV2 {
         account_ids: Vec<String>,
         account_map: Map<String, serde_json::Value>,
     },
-    /*
     get_account {
-        account: JsonAccount,
+        account: Account,
     },
+    /*
     update_account_name {
         account: JsonAccount,
     },
     delete_account {
         success: bool,
+    },
+    get_account_status {
+        account: Account,
+        balance: Balance,
     },
     get_all_txos_by_account {
         txo_ids: Vec<String>,
