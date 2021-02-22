@@ -101,6 +101,25 @@ where
                     .map_err(|e| format!("Could not get RPC Account from DB Account {:?}", e))?,
             }
         }
+        JsonCommandRequestV2::import_account {
+            entropy,
+            name,
+            first_block,
+        } => {
+            let fb = first_block
+                .map(|fb| fb.parse::<u64>())
+                .transpose()
+                .map_err(format_error)?;
+
+            JsonCommandResponseV2::import_account {
+                account: json_rpc::account::Account::try_from(
+                    &service
+                        .import_account(entropy, name, fb)
+                        .map_err(format_error)?,
+                )
+                .map_err(format_error)?,
+            }
+        }
         JsonCommandRequestV2::get_all_accounts => {
             let accounts = service.list_accounts().map_err(format_error)?;
             let json_accounts: Vec<(String, serde_json::Value)> = accounts

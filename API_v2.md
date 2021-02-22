@@ -117,20 +117,27 @@ curl -s localhost:9090/wallet \
   "method": "import_account",
   "result": {
     "account": {
-      "object": "account",
-      "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+      "account_id": "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470",
+      "account_key": {
+        "fog_authority_spki": "",
+        "fog_report_id": "",
+        "fog_report_url": "",
+        "object": "account_key",
+        "spend_private_key": "0a2011035ae05a302e883af00f788cd7486f8f7445503187b080545c16c37056900e",
+        "view_private_key": "0a20e1d5a0622906afa27d87ab9f900e6099ce778d173b22068ce948832b549d2002"
+      },
+      "entropy": "ed62ae3259992ec31dc9fe08be1b9964327e0c4846be99a975397a32099b9860",
+      "main_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
       "name": "Bob",
-      "network_block_count": "152826",
-      "local_block_count": "152826",
-      "account_block_count": "1",
-      "is_synced": false,
-      "available_pmob": "0",
-      "pending_pmob": "0",
-      "main_address": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
       "next_subaddress_index": "2",
+      "object": "account",
       "recovery_mode": false
     }
-  }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+  "api_version": "2"
 }
 ```
 

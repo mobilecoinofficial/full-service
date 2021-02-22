@@ -66,11 +66,10 @@ pub trait AccountModel {
     fn import(
         entropy: &RootEntropy,
         name: Option<String>,
+        import_block: u64,
         first_block: Option<u64>,
-        local_height: u64,
-        network_height: u64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<JsonAccount, WalletDbError>;
+    ) -> Result<Account, WalletDbError>;
 
     /// List all accounts.
     ///
@@ -187,25 +186,19 @@ impl AccountModel for Account {
     fn import(
         entropy: &RootEntropy,
         name: Option<String>,
+        import_block: u64,
         first_block: Option<u64>,
-        local_height: u64,
-        network_height: u64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<JsonAccount, WalletDbError> {
-        Ok(conn.transaction::<JsonAccount, WalletDbError, _>(|| {
+    ) -> Result<Account, WalletDbError> {
+        Ok(conn.transaction::<Account, WalletDbError, _>(|| {
             let (account_id, _public_address_b58) = Account::create(
                 &entropy,
                 first_block,
-                Some(local_height),
+                Some(import_block),
                 &name.unwrap_or_else(|| "".to_string()),
                 conn,
             )?;
-            Ok(Account::get_decorated(
-                &account_id,
-                local_height,
-                network_height,
-                &conn,
-            )?)
+            Ok(Account::get(&account_id, &conn)?)
         })?)
     }
 

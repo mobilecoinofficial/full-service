@@ -14,6 +14,7 @@ use mc_account_keys::RootEntropy;
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
+use mc_ledger_db::Ledger;
 use mc_util_from_random::FromRandom;
 
 /*
@@ -33,8 +34,18 @@ pub trait AccountService {
         first_block: Option<u64>,
     ) -> Result<Account, WalletServiceError>;
 
+    /// Import an existing account to the wallet.
+    fn import_account(
+        &self,
+        entropy: String,
+        name: Option<String>,
+        first_block: Option<u64>,
+    ) -> Result<Account, WalletServiceError>;
+
+    /// List accounts in the wallet.
     fn list_accounts(&self) -> Result<Vec<Account>, WalletServiceError>;
 
+    /// Get an account in the wallet.
     fn get_account(&self, account_id: &AccountID) -> Result<Account, WalletServiceError>;
 }
 
@@ -70,6 +81,34 @@ where
 
         let account = Account::get(&account_id, &conn)?;
         Ok(account)
+    }
+
+    fn import_account(
+        &self,
+        entropy: String,
+        name: Option<String>,
+        first_block: Option<u64>,
+    ) -> Result<Account, WalletServiceError> {
+        log::info!(
+            self.logger,
+            "Importing account {:?} with first_block: {:?}",
+            name,
+            first_block,
+        );
+        // Get account key from entropy
+        let mut entropy_bytes = [0u8; 32];
+        hex::decode_to_slice(entropy, &mut entropy_bytes)?;
+
+        let import_block = self.ledger_db.num_blocks()? - 1;
+
+        let conn = self.wallet_db.get_conn()?;
+        Ok(Account::import(
+            &RootEntropy::from(&entropy_bytes),
+            name,
+            import_block,
+            first_block,
+            &conn,
+        )?)
     }
 
     fn list_accounts(&self) -> Result<Vec<Account>, WalletServiceError> {

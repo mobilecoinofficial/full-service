@@ -22,7 +22,6 @@ use crate::{
     },
     service::{sync::SyncThread, transaction_builder::WalletTransactionBuilder},
 };
-use mc_account_keys::RootEntropy;
 use mc_common::logger::{log, Logger};
 use mc_connection::{
     BlockchainConnection, ConnectionManager as McConnectionManager, RetryableUserTxConnection,
@@ -122,39 +121,6 @@ impl<
             offline,
             logger,
         }
-    }
-
-    pub fn import_account(
-        &self,
-        entropy: String,
-        name: Option<String>,
-        first_block: Option<u64>,
-    ) -> Result<JsonAccount, WalletServiceError> {
-        log::info!(
-            self.logger,
-            "Importing account {:?} with first_block: {:?}",
-            name,
-            first_block,
-        );
-        // Get account key from entropy
-        let mut entropy_bytes = [0u8; 32];
-        hex::decode_to_slice(entropy, &mut entropy_bytes)?;
-        let local_height = self.ledger_db.num_blocks()?;
-        let network_state = self.network_state.read().expect("lock poisoned");
-        // network_height = network_block_index + 1
-        let network_height = network_state
-            .highest_block_index_on_network()
-            .map(|v| v + 1)
-            .unwrap_or(0);
-        let conn = self.wallet_db.get_conn()?;
-        Ok(Account::import(
-            &RootEntropy::from(&entropy_bytes),
-            name,
-            first_block,
-            local_height,
-            network_height,
-            &conn,
-        )?)
     }
 
     pub fn update_account_name(
@@ -587,7 +553,7 @@ mod tests {
             get_test_ledger, setup_peer_manager_and_network_state, WalletDbTestContext, MOB,
         },
     };
-    use mc_account_keys::PublicAddress;
+    use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::{
         logger::{test_with_logger, Logger},
         HashSet,

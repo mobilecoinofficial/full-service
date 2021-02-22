@@ -258,10 +258,29 @@ where
                 .map(|fb| fb.parse::<u64>())
                 .transpose()
                 .map_err(format_error)?;
+
             let result = service
                 .import_account(entropy, name, fb)
                 .map_err(format_error)?;
-            JsonCommandResponseV1::import_account { account: result }
+
+            let local_height = service.ledger_db.num_blocks().map_err(format_error)?;
+            let network_state = service.network_state.read().map_err(format_error)?;
+            // network_height = network_block_index + 1
+            let network_height = network_state
+                .highest_block_index_on_network()
+                .map(|v| v + 1)
+                .unwrap_or(0);
+            let decorated_account = Account::get_decorated(
+                &AccountID(result.account_id_hex),
+                local_height,
+                network_height,
+                &service.wallet_db.get_conn().map_err(format_error)?,
+            )
+            .map_err(format_error)?;
+
+            JsonCommandResponseV1::import_account {
+                account: decorated_account,
+            }
         }
         JsonCommandRequestV1::get_all_accounts => {
             let accounts = service.list_accounts().map_err(format_error)?;

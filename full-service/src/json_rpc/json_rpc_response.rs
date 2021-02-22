@@ -146,8 +146,73 @@ pub enum JsonCommandResponseV2 {
     create_account {
         account: Account,
     },
+    import_account {
+        account: Account,
+    },
     get_all_accounts {
         account_ids: Vec<String>,
         account_map: Map<String, serde_json::Value>,
     },
+    /*
+    get_account {
+        account: JsonAccount,
+    },
+    update_account_name {
+        account: JsonAccount,
+    },
+    delete_account {
+        success: bool,
+    },
+    get_all_txos_by_account {
+        txo_ids: Vec<String>,
+        txo_map: Map<String, serde_json::Value>,
+    },
+    get_txo {
+        txo: JsonTxo,
+    },
+    get_wallet_status {
+        status: JsonWalletStatus,
+    },
+    get_balance {
+        status: JsonBalanceResponse,
+    },
+    create_address {
+        address: JsonAddress,
+    },
+    get_all_addresses_by_account {
+        address_ids: Vec<String>,
+        address_map: Map<String, serde_json::Value>,
+    },
+    send_transaction {
+        transaction: JsonSubmitResponse,
+    },
+    build_transaction {
+        tx_proposal: StringifiedJsonTxProposal,
+    },
+    submit_transaction {
+        transaction: JsonSubmitResponse,
+    },
+    get_all_transactions_by_account {
+        transaction_log_ids: Vec<String>,
+        transaction_log_map: Map<String, serde_json::Value>,
+    },
+    get_transaction {
+        transaction: JsonTransactionLog,
+    },
+    get_transaction_object {
+        transaction: JsonTx,
+    },
+    get_txo_object {
+        txo: JsonTxOut,
+    },
+    get_block_object {
+        block: JsonBlock,
+        block_contents: JsonBlockContents,
+    },
+    get_proofs {
+        proofs: Vec<JsonProof>,
+    },
+    verify_proof {
+        verified: bool,
+    },*/
 }
