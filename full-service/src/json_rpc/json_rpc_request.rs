@@ -99,8 +99,7 @@ pub enum JsonCommandRequestV2 {
     },
     /*
     get_balance_for_subaddress {
-        account_id: String,
-        subaddress_index: String,
+        address: String,
     },*/
     get_wallet_status,
     get_account_status {
@@ -109,6 +108,9 @@ pub enum JsonCommandRequestV2 {
     /*
     get_all_txos_by_account {
         account_id: String,
+    },
+    get_all_txos_by_subadress {
+        address: String,
     },
     get_txo {
         txo_id: String,
