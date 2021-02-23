@@ -1074,6 +1074,7 @@ mod tests {
             "method": "submit_transaction",
             "params": {
                 "tx_proposal": tx_proposal,
+                "account_id": account_id,
             }
         });
         let result = dispatch(&client, body, &logger);
@@ -1101,11 +1102,13 @@ mod tests {
         let unspent = balance_status.get(TXO_UNSPENT).unwrap().as_str().unwrap();
         let pending = balance_status.get(TXO_PENDING).unwrap().as_str().unwrap();
         let spent = balance_status.get(TXO_SPENT).unwrap().as_str().unwrap();
+        let orphaned = balance_status.get(TXO_ORPHANED).unwrap().as_str().unwrap();
         let secreted = balance_status.get(TXO_SECRETED).unwrap().as_str().unwrap();
         assert_eq!(unspent, "0");
         assert_eq!(pending, "100000000000100");
         assert_eq!(spent, "0");
-        assert_eq!(secreted, "0");
+        assert_eq!(orphaned, "0");
+        assert_eq!(secreted, "99990000000100");
 
         // FIXME: FS-93 Increment ledger manually so tx lands.
 
@@ -1134,9 +1137,14 @@ mod tests {
                 .unwrap(),
             b58_public_address
         );
-        assert_eq!(
-            transaction_log.get("account_id").unwrap().as_str().unwrap(),
-            ""
+        assert!(
+            transaction_log
+                .get("account_id")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .len()
+                == 64,
         );
         assert_eq!(
             transaction_log.get("fee_pmob").unwrap().as_str().unwrap(),
