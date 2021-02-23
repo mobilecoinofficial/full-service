@@ -245,15 +245,15 @@ impl APIConfig {
                 });
             }
             None => {
+                std::fs::create_dir_all(self.ledger_db.clone())
+                    .expect("Could not create ledger dir");
+                LedgerDB::create(self.ledger_db.clone()).expect("Could not create ledger_db");
                 if !self.offline {
                     log::info!(
                         logger,
                         "Ledger DB {:?} does not exist, bootstrapping from peer, this may take a few minutes",
                         self.ledger_db
                     );
-                    std::fs::create_dir_all(self.ledger_db.clone())
-                        .expect("Could not create ledger dir");
-                    LedgerDB::create(self.ledger_db.clone()).expect("Could not create ledger_db");
                     let block_data = transactions_fetcher
                         .get_origin_block_and_transactions()
                         .expect("Failed to download initial transactions");
@@ -266,9 +266,6 @@ impl APIConfig {
                     )
                     .expect("Failed to appened initial transactions");
                     log::info!(logger, "Bootstrapping completed!");
-                } else {
-                    // Allow opening an empty ledger in offline mode
-                    LedgerDB::create(self.ledger_db.clone()).expect("Could not create ledger_db");
                 }
             }
         }
