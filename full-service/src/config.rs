@@ -266,6 +266,9 @@ impl APIConfig {
                     )
                     .expect("Failed to appened initial transactions");
                     log::info!(logger, "Bootstrapping completed!");
+                } else {
+                    // Allow opening an empty ledger in offline mode
+                    LedgerDB::create(self.ledger_db.clone()).expect("Could not create ledger_db");
                 }
             }
         }

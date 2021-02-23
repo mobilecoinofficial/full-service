@@ -113,9 +113,9 @@ pub trait TransactionLogModel {
     /// txos involved in the transaction.
     ///
     /// Note: We expect transactions created with this wallet to have one
-    /// recipient, with the rest of the minted txos designated as change. Other
-    /// wallets may choose to behave differently, but our TransactionLogs Table
-    /// assumes this behavior.
+    /// recipient, with the rest of the minted txos designated as
+    /// change. Other wallets may choose to behave differently, but
+    /// our TransactionLogs Table assumes this behavior.
     fn log_submitted(
         tx_proposal: TxProposal,
         block_count: u64,

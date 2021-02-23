@@ -500,13 +500,18 @@ impl<
             block_count
         );
         let converted_proposal = TxProposal::try_from(&tx_proposal_proto)?;
-        let transaction_id = TransactionLog::log_submitted(
-            converted_proposal,
-            block_count,
-            comment.unwrap_or_else(|| "".to_string()),
-            account_id_hex.as_deref(),
-            &self.wallet_db.get_conn()?,
-        )?;
+
+        let transaction_id = account_id_hex
+            .map(|a| {
+                TransactionLog::log_submitted(
+                    converted_proposal,
+                    block_count,
+                    comment.unwrap_or_else(|| "".to_string()),
+                    Some(&a),
+                    &self.wallet_db.get_conn()?,
+                )
+            })
+            .map_or(Ok(None), |v| v.map(Some))?;
 
         // Successfully submitted.
         Ok(JsonSubmitResponse { transaction_id })

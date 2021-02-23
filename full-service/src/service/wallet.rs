@@ -495,16 +495,20 @@ mod tests {
     use crate::{
         db::{
             b58_decode,
-            models::{TXO_PENDING, TXO_RECEIVED, TXO_SECRETED, TXO_SPENT, TXO_UNSPENT},
+            models::{
+                TXO_ORPHANED, TXO_PENDING, TXO_RECEIVED, TXO_SECRETED, TXO_SPENT, TXO_UNSPENT,
+            },
         },
         test_utils::{
-            add_block_to_ledger_db, get_resolver_factory, get_test_ledger,
-            setup_peer_manager_and_network_state, WalletDbTestContext,
+            add_block_to_ledger_db, add_block_with_tx_proposal, get_resolver_factory,
+            get_test_ledger, setup_peer_manager_and_network_state, WalletDbTestContext, MOB,
         },
     };
     use mc_account_keys::PublicAddress;
     use mc_common::logger::{log, test_with_logger, Logger};
+    use mc_connection::ConnectionManager;
     use mc_connection_test_utils::MockBlockchainConnection;
+    use mc_consensus_scp::QuorumSet;
     use mc_crypto_rand::rand_core::RngCore;
     use mc_fog_report_validation::MockFogPubkeyResolver;
     use mc_ledger_db::{Ledger, LedgerDB};
@@ -651,6 +655,8 @@ mod tests {
             // Have to manually call poll() on network state to get it to update for these
             // tests
             network_state.write().unwrap().poll();
+
+            // FIXME: does not work for offline mode because network_height is always 0
 
             let is_synced_all = status.get("is_synced_all").unwrap().as_bool().unwrap();
             if is_synced_all {
@@ -1236,47 +1242,179 @@ mod tests {
 
     #[test_with_logger]
     fn test_offline_workflow(logger: Logger) {
-        //  Start up the "offline" machine
-        let offline_ledger_db_tmp =
-            TempDir::new("offline_ledger_db").expect("Could not make tempdir for ledger db");
-        let offline_ledger_db_path = offline_ledger_db_tmp
-            .path()
-            .to_str()
-            .expect("Could not get path as string");
-
-        let offline_wallet_db =
-            WalletDb::new_from_url(&format!("{}/{}", base_url, db_name), logger.clone()).unwrap();
-
-        let (offline_peer_manager, offline_network_state) =
-            setup_peer_manager_and_network_state(ledger_db.clone(), logger.clone());
-
-        let service2: WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> =
-            WalletService::new(
-                wallet_db2,
-                ledger_db.clone(),
-                peer_manager2,
-                network_state2.clone(),
-                None,
-                Some(1),
-                false,
-                logger.clone(),
-            );
-
-        // Start up "online" machine
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
 
-        // Add a block with a txo for the address on the offline wallet
+        //  Start up the "offline" machine
+        let mut offline_ledger_db = get_test_ledger(23, &[], 12, &mut rng);
+        let db_test_context = WalletDbTestContext::default();
+        let offline_wallet_db = db_test_context.get_db_instance(logger.clone());
+        let offline_peer_manager = ConnectionManager::new(vec![], logger.clone());
+        let offline_network_state = Arc::new(RwLock::new(PollingNetworkState::new(
+            QuorumSet::new_with_node_ids(0, vec![]),
+            offline_peer_manager.clone(),
+            logger.clone(),
+        )));
+        let offline_service: WalletService<
+            MockBlockchainConnection<LedgerDB>,
+            MockFogPubkeyResolver,
+        > = WalletService::new(
+            offline_wallet_db,
+            offline_ledger_db.clone(),
+            offline_peer_manager,
+            offline_network_state.clone(),
+            get_resolver_factory(&mut rng).unwrap(),
+            Some(1),
+            true,
+            logger.clone(),
+        );
+        let offline_rocket_config: rocket::Config =
+            rocket::Config::build(rocket::config::Environment::Development)
+                .port(get_free_port())
+                .unwrap();
+        let offline_rocket = test_rocket(
+            offline_rocket_config,
+            TestWalletState {
+                service: offline_service,
+            },
+        );
+        let offline_client = Client::new(offline_rocket).expect("valid rocket instance");
+
+        // Add account to offline machine, and get public address
+        let body = json!({
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            }
+        });
+        let result = dispatch(&offline_client, body, &logger);
+        let account_id = result
+            .get("account")
+            .unwrap()
+            .get("account_id")
+            .unwrap()
+            .as_str()
+            .unwrap();
+
+        // Create a subaddress
+        let body = json!({
+            "method": "create_address",
+            "params": {
+                "account_id": account_id,
+                "comment": "For Bob",
+            }
+        });
+        let result = dispatch(&offline_client, body, &logger);
+        let b58_public_address = result
+            .get("address")
+            .unwrap()
+            .get("public_address")
+            .unwrap()
+            .as_str()
+            .unwrap();
+        let from_bob_public_address = b58_decode(b58_public_address).unwrap();
+
+        // Add a block to the offline ledger - this is equivalent to having synced the
+        // ledger on the online machine, then copied it over.
         add_block_to_ledger_db(
-            &mut ledger_db,
-            &vec![public_address.clone()],
-            100 * MOB,
+            &mut offline_ledger_db,
+            &vec![from_bob_public_address],
+            42 * MOB as u64,
             &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
 
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        // Wait for sync - FIXME: wait_for_sync does not work in offline mode due to
+        // network height = 0
+        loop {
+            let body = json!({
+                "method": "get_account",
+                "params": {
+                    "account_id": account_id,
+                }
+            });
+            let result = dispatch(&offline_client, body, &logger);
+            let account_height = result
+                .get("account")
+                .unwrap()
+                .get("account_height")
+                .unwrap()
+                .as_str()
+                .unwrap();
+            if account_height.parse::<u64>().unwrap() == 13 {
+                break;
+            }
+        }
 
-        // Now the user copies the ledger to the offline machine
+        // Get balance after block added
+        let body = json!({
+            "method": "get_balance",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let result = dispatch(&offline_client, body, &logger);
+        let balance_status = result.get("status").unwrap();
+        let unspent = balance_status.get(TXO_UNSPENT).unwrap().as_str().unwrap();
+        assert_eq!(unspent.parse::<i64>().unwrap(), 42 * MOB);
+
+        // Build a transaction
+        // Create a tx proposal to ourselves
+        let body = json!({
+            "method": "build_transaction",
+            "params": {
+                "account_id": account_id,
+                "recipient_public_address": b58_public_address,
+                "value": "30000000000",
+            }
+        });
+        let result = dispatch(&offline_client, body, &logger);
+        let tx_proposal = result.get("tx_proposal").unwrap();
+
+        // Now we would copy this tx_proposal to the online machine to submit.
+
+        // Start up "online" machine and submit the tx_proposal to the network.
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        let body = json!({
+            "method": "submit_transaction",
+            "params": {
+                "tx_proposal": tx_proposal,
+            }
+        });
+        let result = dispatch(&client, body, &logger);
+        let _transaction_id = result
+            .get("transaction")
+            .unwrap()
+            .get("transaction_id")
+            .unwrap();
+
+        let string_json_tx_proposal: StringifiedJsonTxProposal =
+            serde_json::from_value(tx_proposal.clone()).unwrap();
+        let json_tx_proposal = JsonTxProposal::try_from(&string_json_tx_proposal).unwrap();
+        let proto_tx_proposal =
+            mc_mobilecoind_api::TxProposal::try_from(&json_tx_proposal).unwrap();
+        let rust_tx_proposal =
+            mc_mobilecoind::payments::TxProposal::try_from(&proto_tx_proposal).unwrap();
+        add_block_with_tx_proposal(&mut offline_ledger_db, rust_tx_proposal);
+
+        // Get balance after submission
+        let body = json!({
+            "method": "get_balance",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let result = dispatch(&offline_client, body, &logger);
+        let balance_status = result.get("status").unwrap();
+        let unspent = balance_status.get(TXO_UNSPENT).unwrap().as_str().unwrap();
+        let pending = balance_status.get(TXO_PENDING).unwrap().as_str().unwrap();
+        let spent = balance_status.get(TXO_SPENT).unwrap().as_str().unwrap();
+        let orphaned = balance_status.get(TXO_ORPHANED).unwrap().as_str().unwrap();
+        let secreted = balance_status.get(TXO_SECRETED).unwrap().as_str().unwrap();
+        assert_eq!(unspent.parse::<i64>().unwrap(), 42 * MOB);
+        assert_eq!(pending.parse::<i64>().unwrap(), 0);
+        assert_eq!(spent.parse::<i64>().unwrap(), 0);
+        assert_eq!(orphaned.parse::<i64>().unwrap(), 0);
+        assert_eq!(secreted.parse::<i64>().unwrap(), 0);
     }
 }

@@ -136,7 +136,7 @@ pub fn get_test_ledger(
 /// # Arguments
 /// * `path` - Path to the ledger's data.mdb file. If such a file exists, it
 ///   will be replaced.
-fn generate_ledger_db(path: &str) -> LedgerDB {
+pub fn generate_ledger_db(path: &str) -> LedgerDB {
     // DELETE the old database if it already exists.
     let _ = std::fs::remove_file(format!("{}/data.mdb", path));
     LedgerDB::create(PathBuf::from(path)).expect("Could not create ledger_db");
