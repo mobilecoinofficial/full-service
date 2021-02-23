@@ -279,7 +279,7 @@ impl APIConfig {
             .num_blocks()
             .expect("Failed getting number of blocks");
         if num_blocks == 0 {
-            log::info!("Ledger DB is empty. You can still perform some wallet actions, such as creating addresses, but you will not be able to sync Txos.");
+            log::info!(logger, "Ledger DB is empty. You can still perform some wallet actions, such as creating addresses, but you will not be able to sync Txos.");
         }
 
         log::info!(
