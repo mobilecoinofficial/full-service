@@ -228,7 +228,10 @@ impl TxoModel for Txo {
                     }
 
                     if txo_details.secreted_from_account.is_some() {
-                        // Check if this account/txo pairing already exists for our account.
+                        // Txo already exists for this or another account. Update the status
+                        // with respect to this account.
+
+                        // Check if this txo/pairing already exists for this account.
                         match AccountTxoStatus::get(account_id_hex, &txo_id.to_string(), conn) {
                             Ok(account_txo_status) => {
                                 // We minted this TXO and sent it to ourselves. It's either change
@@ -250,8 +253,6 @@ impl TxoModel for Txo {
                                 }
                             }
                             Err(WalletDbError::AccountTxoStatusNotFound(_)) => {
-                                // Txo already exists for this or another account. Update the status
-                                // with respect to this account.
                                 let status = if subaddress_index.is_some() {
                                     TXO_UNSPENT
                                 } else {
@@ -264,6 +265,13 @@ impl TxoModel for Txo {
                                     &txo_id.to_string(),
                                     status,
                                     TXO_RECEIVED,
+                                    conn,
+                                )?;
+                                txo_details.txo.update_received(
+                                    account_id_hex,
+                                    subaddress_index,
+                                    key_image,
+                                    received_block_count,
                                     conn,
                                 )?;
                             }
@@ -517,14 +525,30 @@ impl TxoModel for Txo {
             // Find the account associated with this Txo.
             // Note: We should only be calling update_to_pending on inputs, which we had to
             // own to spend.
-            let account = Account::get_by_txo_id(&txo_id.to_string(), conn)?;
+            let accounts = Account::get_by_txo_id(&txo_id.to_string(), conn)?;
 
             // Update the status to pending.
-            diesel::update(
-                account_txo_statuses.find((&account.account_id_hex, &txo_id.to_string())),
-            )
-            .set(crate::db::schema::account_txo_statuses::txo_status.eq(TXO_PENDING.to_string()))
-            .execute(conn)?;
+            if accounts.len() > 2 {
+                return Err(WalletDbError::UnexpectedNumberOfAccountsAssociatedWithTxo(
+                    accounts.len().to_string(),
+                ));
+            }
+
+            // Update the status to pending. Only unspent can go to pending.
+            for account in accounts {
+                let status =
+                    AccountTxoStatus::get(&account.account_id_hex, &txo_id.to_string(), conn)?;
+                if status.txo_status == TXO_UNSPENT {
+                    diesel::update(
+                        account_txo_statuses.find((&account.account_id_hex, &txo_id.to_string())),
+                    )
+                    .set(
+                        crate::db::schema::account_txo_statuses::txo_status
+                            .eq(TXO_PENDING.to_string()),
+                    )
+                    .execute(conn)?;
+                }
+            }
             Ok(())
         })?;
         Ok(())
@@ -636,6 +660,18 @@ impl TxoModel for Txo {
                 }
                 TXO_RECEIVED => {
                     txo_details.received_to_account = Some(account_txo_status.clone());
+                    // Get the subaddress details if assigned
+                    let assigned_subaddress = if let Some(subaddress_index) = txo.subaddress_index {
+                        let account: Account =
+                            Account::get(&AccountID(account_txo_status.account_id_hex), conn)?;
+                        let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+                        let subaddress = account_key.subaddress(subaddress_index as u64);
+                        let subaddress_b58 = b58_encode(&subaddress)?;
+                        Some(AssignedSubaddress::get(&subaddress_b58, conn)?)
+                    } else {
+                        None
+                    };
+                    txo_details.received_to_assigned_subaddress = assigned_subaddress;
                 }
                 _ => {
                     return Err(WalletDbError::UnexpectedTransactionTxoType(
@@ -643,19 +679,6 @@ impl TxoModel for Txo {
                     ))
                 }
             }
-            // Get the subaddress details if assigned
-            let assigned_subaddress = if let Some(subaddress_index) = txo.subaddress_index {
-                let account: Account =
-                    Account::get(&AccountID(account_txo_status.account_id_hex), conn)?;
-                let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
-                let subaddress = account_key.subaddress(subaddress_index as u64);
-                let subaddress_b58 = b58_encode(&subaddress)?;
-
-                Some(AssignedSubaddress::get(&subaddress_b58, conn)?)
-            } else {
-                None
-            };
-            txo_details.received_to_assigned_subaddress = assigned_subaddress;
         }
 
         Ok(txo_details)
@@ -940,7 +963,7 @@ mod tests {
                 account_key.subaddress(4),
                 33 * MOB as u64,
                 wallet_db.clone(),
-                ledger_db,
+                ledger_db.clone(),
                 logger.clone(),
             );
         // Note: we don't actually have to add these to the ledger for this test, as we
@@ -1003,7 +1026,7 @@ mod tests {
         .unwrap();
         assert_eq!(secreted.len(), 2);
 
-        // After minting the coins, their type shoudl be "Minted"
+        // After minting the coins, their type should be "Minted"
         let minted = Txo::list_by_type(
             &account_id_hex.to_string(),
             TXO_MINTED,
@@ -1042,6 +1065,7 @@ mod tests {
         assert!(subaddress_to_output_txo_ids.contains_key(&(4 as i64)));
         assert!(subaddress_to_output_txo_ids.contains_key(&(1 as i64))); // Change
 
+        /*
         // Then we log_received FIXME: should we actually have to do this?
         TransactionLog::log_received(
             &subaddress_to_output_txo_ids,
@@ -1050,6 +1074,7 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
+         */
 
         // Verify that there are two unspent txos - the one we just sent to self, and
         // change.
@@ -1086,6 +1111,73 @@ mod tests {
             })
             .collect();
         assert_eq!(change.len(), 1);
+
+        // Create a new account and send some MOB to it
+        let bob_account_key = AccountKey::random(&mut rng);
+        let (_bob_account_id_hex, _public_address_b58) = Account::create(
+            &bob_account_key,
+            Some(1),
+            None,
+            "Bob's Main Account",
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        let ((output_txo_id, output_value), (_change_txo_id, change_value)) =
+            create_test_minted_and_change_txos(
+                account_key.clone(),
+                bob_account_key.subaddress(0),
+                72 * MOB as u64,
+                wallet_db.clone(),
+                ledger_db,
+                logger.clone(),
+            );
+        assert_eq!(output_value, 72 * MOB);
+        assert_eq!(change_value, (966.99 * (MOB as f64)) as i64);
+
+        let for_bob_txo = Txo::get(&output_txo_id, &wallet_db.get_conn().unwrap()).unwrap();
+        let for_bob_key_image: KeyImage =
+            mc_util_serial::decode(&for_bob_txo.txo.key_image.clone().unwrap()).unwrap();
+        let spent_block_count = 368;
+        let account = Account::get(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
+        account
+            .update_spent_and_increment_next_block(
+                spent_block_count,
+                vec![for_bob_key_image],
+                &wallet_db.get_conn().unwrap(),
+            )
+            .unwrap();
+
+        let for_bob_tx_out: TxOut = mc_util_serial::decode(&for_bob_txo.txo.txo).unwrap();
+        let bob_account = Account::get(
+            &AccountID::from(&bob_account_key),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        let received_block_count = 400;
+        let _subaddress_to_output_txo_ids = process_txos(
+            &wallet_db.get_conn().unwrap(),
+            &[for_bob_tx_out],
+            &bob_account,
+            received_block_count,
+            &logger,
+        )
+        .unwrap();
+
+        // We should now have 1 txos in Bob's account.
+        let txos = Txo::list_for_account(
+            &AccountID::from(&bob_account_key).to_string(),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(txos.len(), 1);
+
+        let bob_txo = txos[0].clone();
+        assert_eq!(bob_txo.txo.subaddress_index.unwrap(), 0);
+        assert_eq!(
+            bob_txo.txo.key_image.unwrap(),
+            for_bob_txo.txo.key_image.unwrap()
+        );
     }
 
     #[test_with_logger]

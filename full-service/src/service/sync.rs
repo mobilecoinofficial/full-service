@@ -323,6 +323,7 @@ pub fn sync_account(
         let sync_status = conn.transaction::<SyncAccountOk, SyncError, _>(|| {
             // Get the account data. If it is no longer available, the account has been
             // removed and we can simply return.
+            log::info!(logger, "Getting account {:?}", account_id);
             let account = Account::get(&AccountID(account_id.to_string()), &conn)?;
             let block_contents = match ledger_db.get_block_contents(account.next_block as u64) {
                 Ok(block_contents) => block_contents,

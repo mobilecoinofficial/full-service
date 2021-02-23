@@ -3,13 +3,17 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        models::{Account, Txo, TXO_CHANGE, TXO_OUTPUT},
+        models::{Account, TransactionLog, Txo, TXO_CHANGE, TXO_OUTPUT},
+        transaction_log::TransactionLogModel,
         txo::TxoModel,
         WalletDb,
     },
     service::transaction_builder::WalletTransactionBuilder,
 };
-use diesel::{Connection as DSLConnection, SqliteConnection};
+use diesel::{
+    r2d2::{ConnectionManager as CM, PooledConnection},
+    Connection as DSLConnection, SqliteConnection,
+};
 use diesel_migrations::embed_migrations;
 use mc_account_keys::{AccountKey, PublicAddress};
 use mc_attest_core::Verifier;
@@ -204,6 +208,44 @@ pub fn add_block_with_tx_proposal(ledger_db: &mut LedgerDB, tx_proposal: TxPropo
         tx_proposal.tx.key_images(),
         tx_proposal.tx.prefix.outputs.clone(),
     );
+    append_test_block(ledger_db, block_contents)
+}
+
+pub fn add_block_from_transaction_log(
+    ledger_db: &mut LedgerDB,
+    conn: &PooledConnection<CM<SqliteConnection>>,
+    transaction_log: &TransactionLog,
+) -> u64 {
+    let associated_txos = transaction_log.get_associated_txos(conn).unwrap();
+
+    let mut output_ids = associated_txos.outputs.clone();
+    output_ids.append(&mut associated_txos.change.clone());
+
+    let output_txos: Vec<Txo> = output_ids
+        .iter()
+        .map(|id| Txo::get(id, conn).unwrap().txo)
+        .collect();
+
+    let outputs: Vec<TxOut> = output_txos
+        .iter()
+        .map(|txo| mc_util_serial::decode(&txo.txo).unwrap())
+        .collect();
+
+    let input_txos: Vec<Txo> = associated_txos
+        .inputs
+        .iter()
+        .map(|id| Txo::get(id, conn).unwrap().txo)
+        .collect();
+
+    let key_images: Vec<KeyImage> = input_txos
+        .iter()
+        .map(|txo| mc_util_serial::decode(&txo.key_image.clone().unwrap()).unwrap())
+        .collect();
+
+    // Note: This block doesn't contain the fee output.
+
+    let block_contents = BlockContents::new(key_images, outputs.clone());
+
     append_test_block(ledger_db, block_contents)
 }
 
