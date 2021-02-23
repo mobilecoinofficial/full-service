@@ -813,6 +813,7 @@ mod tests {
         // FIXME: How to make the transaction actually hit the test ledger?
     }
 
+    // Test sending a transaction from Alice -> Bob, and then from Bob -> Alice
     #[test_with_logger]
     fn test_send_transaction(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
