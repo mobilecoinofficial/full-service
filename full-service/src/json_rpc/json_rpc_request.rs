@@ -94,7 +94,16 @@ pub enum JsonCommandRequestV2 {
     delete_account {
         account_id: String,
     },
-    get_balance {
+    get_balance_for_account {
+        account_id: String,
+    },
+    /*
+    get_balance_for_subaddress {
+        account_id: String,
+        subaddress_index: String,
+    },*/
+    get_wallet_status,
+    get_account_status {
         account_id: String,
     },
     /*
@@ -104,8 +113,6 @@ pub enum JsonCommandRequestV2 {
     get_txo {
         txo_id: String,
     },
-    get_wallet_status,
-
     create_address {
         account_id: String,
         comment: Option<String>,

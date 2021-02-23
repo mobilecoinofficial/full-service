@@ -168,13 +168,35 @@ where
                 .map_err(format_error)?,
             }
         }
-        JsonCommandRequestV2::get_balance { account_id } => JsonCommandResponseV2::get_balance {
-            balance: json_rpc::balance::Balance::from(
-                &service
-                    .get_balance(&AccountID(account_id))
-                    .map_err(format_error)?,
-            ),
+        JsonCommandRequestV2::get_balance_for_account { account_id } => {
+            JsonCommandResponseV2::get_balance_for_account {
+                balance: json_rpc::balance::Balance::from(
+                    &service
+                        .get_balance_for_account(&AccountID(account_id))
+                        .map_err(format_error)?,
+                ),
+            }
+        }
+        JsonCommandRequestV2::get_wallet_status => JsonCommandResponseV2::get_wallet_status {
+            wallet_status: json_rpc::wallet_status::WalletStatus::try_from(
+                &service.get_wallet_status().map_err(format_error)?,
+            )
+            .map_err(format_error)?,
         },
+        JsonCommandRequestV2::get_account_status { account_id } => {
+            let account = json_rpc::account::Account::try_from(
+                &service
+                    .get_account(&AccountID(account_id.clone()))
+                    .map_err(format_error)?,
+            )
+            .map_err(format_error)?;
+            let balance = json_rpc::balance::Balance::from(
+                &service
+                    .get_balance_for_account(&AccountID(account_id))
+                    .map_err(format_error)?,
+            );
+            JsonCommandResponseV2::get_account_status { account, balance }
+        }
     };
     let response = Json(JsonRPCResponse::from(result));
     Ok(response)

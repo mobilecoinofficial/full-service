@@ -594,49 +594,62 @@ curl -s localhost:9090/wallet \
 {
   "method": "get_wallet_status",
   "result": {
-    "status": {
-      "object": "wallet_status",
-      "network_height": "152826",
-      "local_height": "152826",
-      "is_synced_all": false,
-      "total_available_pmob": "999699770000000000",
-      "total_pending_pmob": "0",
+    "wallet_status": {
       "account_ids": [
-        "15893926fd0eaf0055f73fe1246d369db6a55943e77ebf24c955768792050185",
-        "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10"
+        "b0be5377a2f45b1573586ed530b2901a559d9952ea8a02f8c2dbb033a935ac17",
+        "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470"
       ],
       "account_map": {
-        "15893926fd0eaf0055f73fe1246d369db6a55943e77ebf24c955768792050185": {
-          "account_height": "60310",
-          "account_id": "15893926fd0eaf0055f73fe1246d369db6a55943e77ebf24c955768792050185",
-          "available_pmob": "0",
-          "is_synced": false,
-          "local_height": "152826",
-          "main_address": "3fGctHzq5t23xSE3Vj9Ya6uyE2bHAdrn58KaFVgzb6CUHFwPrV9obmnq3XcewvrmEtyeMTMhGvFNqRyVT5FUsu4SAkQW8D7LHs22TVTBQ6m",
-          "name": "Alice",
-          "network_height": "152826",
+        "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470": {
+          "account_id": "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470",
+          "account_key": {
+            "fog_authority_spki": "",
+            "fog_report_id": "",
+            "fog_report_url": "",
+            "object": "account_key",
+            "spend_private_key": "0a2011035ae05a302e883af00f788cd7486f8f7445503187b080545c16c37056900e",
+            "view_private_key": "0a20e1d5a0622906afa27d87ab9f900e6099ce778d173b22068ce948832b549d2002"
+          },
+          "entropy": "ed62ae3259992ec31dc9fe08be1b9964327e0c4846be99a975397a32099b9860",
+          "main_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+          "name": "Bob",
           "next_subaddress_index": "2",
           "object": "account",
-          "pending_pmob": "0",
           "recovery_mode": false
         },
-        "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10": {
-          "account_height": "3806",
-          "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
-          "available_pmob": "999699770000000000",
-          "is_synced": false,
-          "local_height": "152826",
-          "main_address": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
-          "name": "Bob",
-          "network_height": "152826",
+        "b0be5377a2f45b1573586ed530b2901a559d9952ea8a02f8c2dbb033a935ac17": {
+          "account_id": "b0be5377a2f45b1573586ed530b2901a559d9952ea8a02f8c2dbb033a935ac17",
+          "account_key": {
+            "fog_authority_spki": "",
+            "fog_report_id": "",
+            "fog_report_url": "",
+            "object": "account_key",
+            "spend_private_key": "0a2050360c6aca46928214485da8d8369538325c6fc533745ac116763e95377b8300",
+            "view_private_key": "0a20c9e699562e8ac60401ba86720c032462f5dc00bbca8854d3475eae0ae8003b0e"
+          },
+          "entropy": "fb9a980d3709dd9febf1389ebaad53bd5fec4d0218fd1e4ee90aa85e5cf804d0",
+          "main_address": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
+          "name": "Carol",
           "next_subaddress_index": "2",
           "object": "account",
-          "pending_pmob": "0",
           "recovery_mode": false
         }
-      }
+      },
+      "is_synced_all": false,
+      "local_block_count": "152918",
+      "network_block_count": "152918",
+      "object": "wallet_status",
+      "total_orphaned_pmob": "0",
+      "total_pending_pmob": "70148220000000000",
+      "total_secreted_pmob": "0",
+      "total_spent_pmob": "0",
+      "total_unspent_pmob": "220588320000000000"
     }
-  }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+  "api_version": "2"
 }
 ```
 
@@ -658,22 +671,87 @@ curl -s localhost:9090/wallet \
 {
   "method": "get_balance",
   "result": {
-    "status": {
-      "unspent": "97580439900010991",
-      "pending": "0",
-      "spent": "18135938351572161289",
-      "secreted": "0",
-      "orphaned": "0",
-      "local_block_height": "116504",
-      "synced_blocks": "116504"
+    "balance": {
+      "account_block_count": "152003",
+      "is_synced": false,
+      "local_block_count": "152918",
+      "network_block_count": "152918",
+      "object": "balance",
+      "orphaned_pmob": "0",
+      "pending_pmob": "0",
+      "secreted_pmob": "0",
+      "spent_pmob": "0",
+      "unspent_pmob": "110000000000000000"
     }
-  }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+  "api_version": "2"
 }
 ```
 
 | Required Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
 | `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
+
+#### Get Account Status for a Given Account
+
+The account status includes both the account object and the balance object.
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "get_account_status",
+        "params": {
+           "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
+
+{
+  "method": "get_account_status",
+  "result": {
+    "account": {
+      "account_id": "b0be5377a2f45b1573586ed530b2901a559d9952ea8a02f8c2dbb033a935ac17",
+      "account_key": {
+        "fog_authority_spki": "",
+        "fog_report_id": "",
+        "fog_report_url": "",
+        "object": "account_key",
+        "spend_private_key": "0a2050360c6aca46928214485da8d8369538325c6fc533745ac116763e95377b8300",
+        "view_private_key": "0a20c9e699562e8ac60401ba86720c032462f5dc00bbca8854d3475eae0ae8003b0e"
+      },
+      "entropy": "fb9a980d3709dd9febf1389ebaad53bd5fec4d0218fd1e4ee90aa85e5cf804d0",
+      "main_address": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
+      "name": "Brady",
+      "next_subaddress_index": "2",
+      "object": "account",
+      "recovery_mode": false
+    },
+    "balance": {
+      "account_block_count": "152918",
+      "is_synced": true,
+      "local_block_count": "152918",
+      "network_block_count": "152918",
+      "object": "balance",
+      "orphaned_pmob": "0",
+      "pending_pmob": "2040016523222112112",
+      "secreted_pmob": "204273415999956272",
+      "spent_pmob": "0",
+      "unspent_pmob": "51080511222211091"
+    }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+  "api_version": "2"
+}
+
+```
 
 ### Addresses
 
@@ -1468,27 +1546,31 @@ The balance for an account, as well as some information about syncing status nee
 | account_block_count| string (uint64) | The scanned local block height for this account. This value will never be greater than the local_block_count. At fully synced, it will match network_block_count.
 | is_synced | boolean | Whether the account is synced with the network_block_count. Balances may not appear correct if the account is still syncing.
 | unspent_pmob | string (uint64) | Unspent pico MOB for this account at the current account_block_count. If the account is syncing, this value may change.
-| pending_pmob | string (uint64) | Pending, out-going pico MOB. The pending value will clear once the ledger processes the outgoing txos. The available_pmob will reflect the change.
+| pending_pmob | string (uint64) | Pending, out-going pico MOB. The pending value will clear once the ledger processes the outgoing txos. The pending_pmob will reflect the change.
+| spent_pmob | string (uint64) | Spent pico MOB. This is the sum of all the Txos in the wallet which have been spent.
+| secreted_pmob | string (uint64) | Secreted (minted) pico MOB. This is the sum of all the Txos which have been created in the wallet for outgoing transactions.
+| orphaned_pmob | string (uint64) | Orphaned pico MOB. The orphaned value represents the Txos which were view-key matched, but which can not be spent until their subaddress index is recovered.
 
 #### Example Object
 
 ```json
 {
+  "account_block_count": "152003",
+  "is_synced": false,
+  "local_block_count": "152918",
+  "network_block_count": "152918",
   "object": "balance",
-  "network_block_count": "88888888",
-  "local_block_count": "88888888",
-  "account_block_count": "88888888",
-  "is_synced": true,
-  "unspent_pmob": "123000000",
-  "pending_pmob": "1000"
+  "orphaned_pmob": "0",
+  "pending_pmob": "0",
+  "secreted_pmob": "0",
+  "spent_pmob": "0",
+  "unspent_pmob": "110000000000000000"
 }
 ```
 
 #### API Methods Returning Balance Objects
 
-* Account methods (see [The Account Object](#the-account-object))
 * [get_balance](#get-balance-for-a-given-account)
-* [get_wallet_status](#get-wallet-status)
 
 ### The Wallet Status Object
 
@@ -1500,7 +1582,10 @@ The balance for an account, as well as some information about syncing status nee
 | local_block_count | string (uint64) | The local block height downloaded from the ledger. The local database will sync up to the network_block_count. The account_block_count can only sync up to local_block_count.
 | is_synced_all | boolean | Whether ALL accounts are synced with the network_block_count. Balances may not appear correct if any account is still syncing.
 | total_unspent_pmob | string (uint64) | Unspent pico mob for ALL accounts at the account_block_count. If the account is syncing, this value may change.
-| total_pending_pmob | string (uint64) | Pending out-going pico mob from ALL accounts. Pending pico mobs will clear once the ledger processes the outoing txo. The available_pmob will reflect the change.
+| total_pending_pmob | string (uint64) | Pending outgoing pico mob from ALL accounts. Pending pico mobs will clear once the ledger processes the outgoing txo. The available_pmob will reflect the change.
+| total_spent_pmob | string (uint64) | Spent pico MOB. This is the sum of all the Txos in the wallet which have been spent.
+| total_secreted_pmob | string (uint64) | Secreted (minted) pico MOB. This is the sum of all the Txos which have been created in the wallet for outgoing transactions.
+| total_orphaned_pmob | string (uint64) | Orphaned pico MOB. The orphaned value represents the Txos which were view-key matched, but which can not be spent until their subaddress index is recovered.
 | account_ids | list | A list of all account_ids imported into the wallet in order of import.
 | account_map | hash map | A normalized hash mapping account_id to account objects.
 
@@ -1514,41 +1599,56 @@ The balance for an account, as well as some information about syncing status nee
 
 ```json
 {
-  "object": "wallet_status",
-  "network_block_count": "88888888",
-  "local_block_count": "88888888",
-  "is_synced_all": false,
-  "total_available_pmob": "123456789",
-  "total_pending_pmob": "1000",
-  "account_ids": ["1916a9b3...", "9b3ea14b..."],
+"wallet_status": {
+  "account_ids": [
+    "b0be5377a2f45b1573586ed530b2901a559d9952ea8a02f8c2dbb033a935ac17",
+    "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470"
+  ],
   "account_map": {
-    "1916a9b3...": {
-      "account_block_count": "88888888",
-      "account_id": "1916a9b3...",
-      "available_pmob": "123000000",
-      "is_synced": true,
-      "local_block_count": "88888888",
-      "name": "I love MobileCoin",
-      "network_block_count": "88888888",
-      "next_subaddress_index": "128",
+    "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470": {
+      "account_id": "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470",
+      "account_key": {
+        "fog_authority_spki": "",
+        "fog_report_id": "",
+        "fog_report_url": "",
+        "object": "account_key",
+        "spend_private_key": "0a2011035ae05a302e883af00f788cd7486f8f7445503187b080545c16c37056900e",
+        "view_private_key": "0a20e1d5a0622906afa27d87ab9f900e6099ce778d173b22068ce948832b549d2002"
+      },
+      "entropy": "ed62ae3259992ec31dc9fe08be1b9964327e0c4846be99a975397a32099b9860",
+      "main_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+      "name": "Bob",
+      "next_subaddress_index": "2",
       "object": "account",
-      "pending_pmob": "1000",
       "recovery_mode": false
     },
-    "9b3ea14b...": {
-      "account_block_count": "88880000",
-      "account_id": "9b3ea14b...",
-      "available_pmob": "456789",
-      "is_synced": false,
-      "local_block_count": "88888888",
-      "name": "Joint account with Satoshi",
-      "network_block_count": "88888888",
-      "next_subaddress_index": "57",
+    "b0be5377a2f45b1573586ed530b2901a559d9952ea8a02f8c2dbb033a935ac17": {
+      "account_id": "b0be5377a2f45b1573586ed530b2901a559d9952ea8a02f8c2dbb033a935ac17",
+      "account_key": {
+        "fog_authority_spki": "",
+        "fog_report_id": "",
+        "fog_report_url": "",
+        "object": "account_key",
+        "spend_private_key": "0a2050360c6aca46928214485da8d8369538325c6fc533745ac116763e95377b8300",
+        "view_private_key": "0a20c9e699562e8ac60401ba86720c032462f5dc00bbca8854d3475eae0ae8003b0e"
+      },
+      "entropy": "fb9a980d3709dd9febf1389ebaad53bd5fec4d0218fd1e4ee90aa85e5cf804d0",
+      "main_address": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
+      "name": "Brady",
+      "next_subaddress_index": "2",
       "object": "account",
-      "pending_pmob": "0",
       "recovery_mode": false
     }
-  }
+  },
+  "is_synced_all": false,
+  "local_block_count": "152918",
+  "network_block_count": "152918",
+  "object": "wallet_status",
+  "total_orphaned_pmob": "0",
+  "total_pending_pmob": "70148220000000000",
+  "total_secreted_pmob": "0",
+  "total_spent_pmob": "0",
+  "total_unspent_pmob": "220588320000000000"
 }
 ```
 
@@ -1605,7 +1705,7 @@ The balance for an account, as well as some information about syncing status nee
 | transaction_log_id | int | Unique identifier for the transaction log. This value is not associated to the ledger.
 | direction | string | A string that identifies if this transaction log was sent or received. Valid values are "sent" or "received".
 | is_sent_recovered | boolean | Flag that indicates if the sent transaction log was recovered from the ledger. This value is null for "received" transaction logs. If true, some information may not be available on the transaction log and its txos without user input. If true, the fee receipient_address_id, fee, and sent_time will be null without user input.
-| account_id | string | Unique identifier for the assigned associated account. If the transaction is out-going, this account is from whence the txo came. If received, this is the receiving account.
+| account_id | string | Unique identifier for the assigned associated account. If the transaction is outgoing, this account is from whence the txo came. If received, this is the receiving account.
 | recipient_address_id | string | Unique identifier for the recipient associated account. Only available if direction is "sent".
 | assigned_address_id | string | Unique identifier for the assigned associated account. Only available if direction is "received".
 | value_pmob | string (uint64) | Value in pico MOB associated to this transaction log.

@@ -7,6 +7,7 @@ use crate::{
         account::{AccountID, AccountModel},
         models::Account,
     },
+    json_rpc,
     json_rpc::api_v1::decorated_types::{
         JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents, JsonProof,
         JsonSubmitResponse, JsonTransactionLog, JsonTxo, JsonWalletStatus,
@@ -385,11 +386,33 @@ where
         }
         JsonCommandRequestV1::get_wallet_status => {
             let result = service.get_wallet_status().map_err(format_error)?;
-            JsonCommandResponseV1::get_wallet_status { status: result }
+            let account_mapped: Vec<(String, serde_json::Value)> = result
+                .account_map
+                .iter()
+                .map(|(i, a)| {
+                    json_rpc::account::Account::try_from(a).and_then(|a| {
+                        serde_json::to_value(a)
+                            .and_then(|v| Ok((i.to_string(), v)))
+                            .map_err(|e| format!("Could not convert account map: {:?}", e))
+                    })
+                })
+                .collect::<Result<Vec<(String, serde_json::Value)>, String>>()?;
+            JsonCommandResponseV1::get_wallet_status {
+                status: JsonWalletStatus {
+                    object: "wallet_status".to_string(),
+                    network_height: result.network_block_count.to_string(),
+                    local_height: result.local_block_count.to_string(),
+                    is_synced_all: result.min_synced_block == result.network_block_count,
+                    total_available_pmob: result.unspent.to_string(),
+                    total_pending_pmob: result.pending.to_string(),
+                    account_ids: result.account_ids.iter().map(|a| a.to_string()).collect(),
+                    account_map: Map::from_iter(account_mapped),
+                },
+            }
         }
         JsonCommandRequestV1::get_balance { account_id } => {
             let balance = service
-                .get_balance(&AccountID(account_id))
+                .get_balance_for_account(&AccountID(account_id))
                 .map_err(format_error)?;
             let status = JsonBalanceResponse {
                 unspent: balance.unspent.to_string(),

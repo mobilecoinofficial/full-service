@@ -135,6 +135,11 @@ pub trait TxoModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<TxoDetails>, WalletDbError>;
 
+    fn list_for_address(
+        assigned_subaddress_b58: String,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<TxoDetails>, WalletDbError>;
+
     /// Get a Vec<Txo> for all txos in a given account with a given txo_status.
     fn list_by_status(
         account_id_hex: &str,
@@ -573,6 +578,40 @@ impl TxoModel for Txo {
         details
     }
 
+    fn list_for_address(
+        assigned_subaddress_b58: String,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<TxoDetails>, WalletDbError> {
+        use crate::db::schema::{account_txo_statuses, txos};
+        let subaddress = AssignedSubaddress::get(&assigned_subaddress_b58, conn)?;
+
+        println!(
+            "\x1b[1;34m Listing for address {:?}, whicch got assigned subaddress {:?}\x1b[0m",
+            assigned_subaddress_b58, subaddress,
+        );
+
+        // Note: The Same Txo may be referenced in the account_txo_statuses multiple
+        // times due to its relationship with multiple accounts or serving
+        // multiple roles within payments (for example, change - minted,
+        // received, unspent, spent).
+        let results: Vec<Txo> = txos::table
+            .left_outer_join(
+                account_txo_statuses::table
+                    .on(account_txo_statuses::account_id_hex.eq(subaddress.account_id_hex)),
+            )
+            .select(txos::all_columns)
+            .filter(txos::subaddress_index.eq(subaddress.subaddress_index))
+            .distinct()
+            .load(conn)?;
+
+        let details: Result<Vec<TxoDetails>, WalletDbError> = results
+            .iter()
+            .map(|t| Txo::get(&t.txo_id_hex, &conn))
+            .collect();
+        println!("\x1b[1;36m \n\n Got txos {:?}\x1b[0m", details);
+        details
+    }
+
     fn list_by_status(
         account_id_hex: &str,
         status: &str,
@@ -896,7 +935,7 @@ mod tests {
     // Note: This is not a replacement for a service-level test, but instead tests
     // basic assumptions after common DB operations with the Txo.
     #[test_with_logger]
-    fn test_received_tx_lifecycle(logger: Logger) {
+    fn test_received_txo_lifecycle(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -1146,6 +1185,9 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
+
+        // There are now 3 total Txos for our account
+        assert_eq!(updated_txos.len(), 3);
 
         // Verify that there is one change Txo in our current Txos
         let change: Vec<&TxoDetails> = updated_txos

@@ -259,7 +259,7 @@ mod e2e {
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         assert!(account_obj.get("main_address").is_some());
-        assert!(result.get("entropy").is_some());
+        assert!(account_obj.get("entropy").is_some());
         assert!(account_obj.get("account_id").is_some());
     }
 
@@ -319,15 +319,15 @@ mod e2e {
         );
     }
 
-    /*
-
-
     #[test_with_logger]
     fn test_wallet_status(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 1,
             "method": "create_account",
             "params": {
                 "name": "Alice Main Account",
@@ -336,11 +336,14 @@ mod e2e {
         let _result = dispatch(&client, body, &logger).get("result").unwrap();
 
         let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 1,
             "method": "get_wallet_status",
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let status = result.get("status").unwrap();
+        let status = result.get("wallet_status").unwrap();
         assert_eq!(status.get("network_height").unwrap(), "12");
         assert_eq!(status.get("local_height").unwrap(), "12");
         assert_eq!(status.get("is_synced_all").unwrap(), false);
@@ -361,6 +364,60 @@ mod e2e {
         );
     }
 
+    #[test_with_logger]
+    fn test_account_status(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+        let public_address = b58_decode(b58_public_address).unwrap();
+
+        // Add a block with a txo for this address
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![public_address],
+            42 * MOB as u64,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 1,
+            "method": "get_account_status",
+            "account_id": *account_id,
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance = result.get("balance").unwrap();
+        assert_eq!(
+            balance
+                .get("unspent_pmob")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_string(),
+            (42 * MOB).to_string()
+        );
+        let account = result.get("account").unwrap();
+    }
+
+    /*
     #[test_with_logger]
     fn test_get_all_txos(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
