@@ -5,43 +5,19 @@
 pub mod account;
 pub mod account_txo_status;
 pub mod assigned_subaddress;
+mod b58;
 pub mod models;
 pub mod schema;
 pub mod transaction_log;
 pub mod txo;
 
-use mc_account_keys::PublicAddress;
-use mc_common::logger::Logger;
-
+use crate::error::WalletDbError;
+pub use b58::{b58_decode, b58_encode};
 use diesel::{
     prelude::*,
     r2d2::{ConnectionManager, Pool, PooledConnection},
 };
-
-use crate::error::WalletDbError;
-use std::convert::TryFrom;
-
-// Helper method to use our PrintableWrapper to b58 encode the PublicAddress
-pub fn b58_encode(public_address: &PublicAddress) -> Result<String, WalletDbError> {
-    let mut wrapper = mc_mobilecoind_api::printable::PrintableWrapper::new();
-    wrapper.set_public_address(public_address.into());
-    Ok(wrapper.b58_encode()?)
-}
-
-pub fn b58_decode(b58_public_address: &str) -> Result<PublicAddress, WalletDbError> {
-    let wrapper =
-        mc_mobilecoind_api::printable::PrintableWrapper::b58_decode(b58_public_address.to_string())
-            .unwrap();
-    let pubaddr_proto: &mc_api::external::PublicAddress = if wrapper.has_payment_request() {
-        let payment_request = wrapper.get_payment_request();
-        payment_request.get_public_address()
-    } else if wrapper.has_public_address() {
-        wrapper.get_public_address()
-    } else {
-        return Err(WalletDbError::B58Decode);
-    };
-    Ok(PublicAddress::try_from(pubaddr_proto).unwrap())
-}
+use mc_common::logger::Logger;
 
 #[derive(Clone)]
 pub struct WalletDb {
