@@ -540,7 +540,7 @@ fn extract_fog_uri(addr: &PublicAddress) -> Result<Option<FogUri>, WalletTransac
 mod tests {
     use super::*;
     use crate::{
-        error::WalletDbError,
+        db::WalletDbError,
         service::sync::SyncThread,
         test_utils::{
             builder_for_random_recipient, get_test_ledger, random_account_with_seed_values,
