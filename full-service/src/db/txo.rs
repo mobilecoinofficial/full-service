@@ -660,18 +660,6 @@ impl TxoModel for Txo {
                 }
                 TXO_RECEIVED => {
                     txo_details.received_to_account = Some(account_txo_status.clone());
-                    // Get the subaddress details if assigned
-                    let assigned_subaddress = if let Some(subaddress_index) = txo.subaddress_index {
-                        let account: Account =
-                            Account::get(&AccountID(account_txo_status.account_id_hex), conn)?;
-                        let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
-                        let subaddress = account_key.subaddress(subaddress_index as u64);
-                        let subaddress_b58 = b58_encode(&subaddress)?;
-                        Some(AssignedSubaddress::get(&subaddress_b58, conn)?)
-                    } else {
-                        None
-                    };
-                    txo_details.received_to_assigned_subaddress = assigned_subaddress;
                 }
                 _ => {
                     return Err(WalletDbError::UnexpectedTransactionTxoType(
@@ -679,6 +667,18 @@ impl TxoModel for Txo {
                     ))
                 }
             }
+            // Get the subaddress details if assigned
+            let assigned_subaddress = if let Some(subaddress_index) = txo.subaddress_index {
+                let account: Account =
+                    Account::get(&AccountID(account_txo_status.account_id_hex), conn)?;
+                let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+                let subaddress = account_key.subaddress(subaddress_index as u64);
+                let subaddress_b58 = b58_encode(&subaddress)?;
+                Some(AssignedSubaddress::get(&subaddress_b58, conn)?)
+            } else {
+                None
+            };
+            txo_details.received_to_assigned_subaddress = assigned_subaddress;
         }
 
         Ok(txo_details)
@@ -1065,8 +1065,7 @@ mod tests {
         assert!(subaddress_to_output_txo_ids.contains_key(&(4 as i64)));
         assert!(subaddress_to_output_txo_ids.contains_key(&(1 as i64))); // Change
 
-        /*
-        // Then we log_received FIXME: should we actually have to do this?
+        // Then we log_received
         TransactionLog::log_received(
             &subaddress_to_output_txo_ids,
             &account,
@@ -1074,7 +1073,12 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-         */
+
+        // Check that a transaction log entry was created for each TxOut
+        let transaction_logs =
+            TransactionLog::list_all(&account_id_hex.to_string(), &wallet_db.get_conn().unwrap())
+                .unwrap();
+        assert_eq!(transaction_logs.len(), 2);
 
         // Verify that there are two unspent txos - the one we just sent to self, and
         // change.
@@ -1087,17 +1091,19 @@ mod tests {
         assert_eq!(unspent.len(), 2);
 
         // The type should still be "minted"
-        let unspent = Txo::list_by_type(
+        let minted = Txo::list_by_type(
             &account_id_hex.to_string(),
             TXO_MINTED,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(unspent.len(), 2);
+        assert_eq!(minted.len(), 2);
 
         let updated_txos =
             Txo::list_for_account(&account_id_hex.to_string(), &wallet_db.get_conn().unwrap())
                 .unwrap();
+
+        println!("\x1b[1;31m Got Txos = {:?}\x1b[0m", updated_txos);
 
         // Verify that there is one change Txo in our current Txos
         let change: Vec<&TxoDetails> = updated_txos

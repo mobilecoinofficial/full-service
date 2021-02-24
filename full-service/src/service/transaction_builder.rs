@@ -226,14 +226,21 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 transaction_builder.set_fee(self.fee.unwrap_or(MINIMUM_FEE));
 
                 // Get membership proofs for our inputs
+                println!("\x1b[1;36m Gettnig txo out index by hash \x1b[0m");
                 let indexes = self
                     .inputs
                     .iter()
                     .map(|utxo| {
                         let txo: TxOut = mc_util_serial::decode(&utxo.txo)?;
+                        println!(
+                            "\x1b[1;34m \t\tGot Txo {:?} with hash {:?}\x1b[0m",
+                            txo,
+                            txo.hash()
+                        );
                         self.ledger_db.get_tx_out_index_by_hash(&txo.hash())
                     })
                     .collect::<Result<Vec<u64>, mc_ledger_db::Error>>()?;
+                println!("\x1b[1;36m Gettnig prroof of membership \x1b[0m");
                 let proofs = self.ledger_db.get_tx_out_proof_of_memberships(&indexes)?;
 
                 let inputs_and_proofs: Vec<(Txo, TxOutMembershipProof)> = self
@@ -243,6 +250,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                     .zip(proofs.into_iter())
                     .collect();
 
+                println!("\x1b[1;36m Gettnig excluded tx out indices \x1b[0m");
                 let excluded_tx_out_indices: Vec<u64> = inputs_and_proofs
                     .iter()
                     .map(|(utxo, _membership_proof)| {
@@ -472,6 +480,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         num_rings: usize,
         excluded_tx_out_indices: &[u64],
     ) -> Result<Vec<Vec<(TxOut, TxOutMembershipProof)>>, WalletTransactionBuilderError> {
+        println!("\x1b[1;32 now getting rings\x1b[0m");
         let num_requested = RING_SIZE * num_rings;
         let num_txos = self.ledger_db.num_txos()?;
 
