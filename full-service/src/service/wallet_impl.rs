@@ -67,6 +67,7 @@ pub struct WalletService<
     /// Monotonically increasing counter. This is used for node round-robin
     /// selection.
     submit_node_offset: Arc<AtomicUsize>,
+    offline: bool,
     logger: Logger,
 }
 
@@ -75,6 +76,7 @@ impl<
         FPR: FogPubkeyResolver + Send + Sync + 'static,
     > WalletService<T, FPR>
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         wallet_db: WalletDb,
         ledger_db: LedgerDB,
@@ -82,6 +84,7 @@ impl<
         network_state: Arc<RwLock<PollingNetworkState<T>>>,
         fog_resolver_factory: Arc<dyn Fn(&[FogUri]) -> Result<FPR, String> + Send + Sync>,
         num_workers: Option<usize>,
+        offline: bool,
         logger: Logger,
     ) -> Self {
         log::info!(logger, "Starting Wallet TXO Sync Task Thread");
@@ -100,6 +103,7 @@ impl<
             fog_resolver_factory,
             _sync_thread: sync_thread,
             submit_node_offset: Arc::new(AtomicUsize::new(rng.next_u64() as usize)),
+            offline,
             logger,
         }
     }
@@ -461,6 +465,10 @@ impl<
         comment: Option<String>,
         account_id_hex: Option<String>,
     ) -> Result<JsonSubmitResponse, WalletServiceError> {
+        if self.offline {
+            return Err(WalletServiceError::Offline);
+        }
+
         // Pick a peer to submit to.
         let responder_ids = self.peer_manager.responder_ids();
         if responder_ids.is_empty() {
@@ -492,13 +500,18 @@ impl<
             block_count
         );
         let converted_proposal = TxProposal::try_from(&tx_proposal_proto)?;
-        let transaction_id = TransactionLog::log_submitted(
-            converted_proposal,
-            block_count,
-            comment.unwrap_or_else(|| "".to_string()),
-            account_id_hex.as_deref(),
-            &self.wallet_db.get_conn()?,
-        )?;
+
+        let transaction_id = account_id_hex
+            .map(|a| {
+                TransactionLog::log_submitted(
+                    converted_proposal,
+                    block_count,
+                    comment.unwrap_or_else(|| "".to_string()),
+                    Some(&a),
+                    &self.wallet_db.get_conn()?,
+                )
+            })
+            .map_or(Ok(None), |v| v.map(Some))?;
 
         // Successfully submitted.
         Ok(JsonSubmitResponse { transaction_id })
@@ -676,6 +689,7 @@ mod tests {
             network_state,
             get_resolver_factory(&mut rng).unwrap(),
             None,
+            false,
             logger,
         )
     }

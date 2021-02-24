@@ -85,6 +85,92 @@ MobileCoin Full Service is available under open-source licenses. Look for the [L
 
 For usage and API specification, see [API_v1.md](./API_v1.md).
 
+### Offline (Cold-Wallet) Transaction Flow
+
+Full Service supports offline transactions. This flow is recommended to keep an account key on an air-gapped machine which has never connected to the internet.
+
+The recommended flow to get balance and submit transaction is the following:
+
+1. *ONLINE MACHINE*: Sync ledger by running full service.
+
+    ```sh
+    ./target/release/full-service \
+        --wallet-db /tmp/wallet-db/wallet.db \
+        --ledger-db /tmp/ledger-db/ \
+        --peer mc://node1.test.mobilecoin.com/ \
+        --peer mc://node2.test.mobilecoin.com/ \
+        --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
+        --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/
+    ```
+
+1. *ONLINE MACHINE and USB*: Copy the ledger and the full-service binary to USB.
+
+    ```sh
+    cp -r /tmp/ledger-db /media/
+    cp ./target/release/full-service /media/
+    ```
+
+1. *OFFLINE MACHINE*: Create a ramdisk to store sensitive material.
+
+    * Linux: The following will create a 512 MB ramdisk located at `/keyfs`.
+
+        ```sh
+        sudo swapoff -a
+        sudo mkdir /keyfs
+        sudo mount -t tmpfs -o size=512m tmpfs /keyfs
+        ```
+
+    * MacOS: The following will create a 512 MB ramdisk located at `/Volumes/KeyFS`.
+
+        ```sh
+        diskutil erasevolume HFS+ 'KeyFS' `hdiutil attach -nomount ram://1048576`
+        ```
+
+        For the remaining instructions, we will refer to `/keyfs` as the ramdisk location, so if on MacOS, know that this maps to `/Volumes/KeyFS`.
+
+1. *OFFLINE MACHINE and USB*: Copy the ledger and the full-service binary to the Offline Machine.
+
+    ```sh
+    cp /media/ledger-db /keyfs/ledger-db
+    cp /media/full-service /keyfs/full-service
+    ```
+
+1. *OFFLINE MACHINE*: Run full service in offline mode.
+
+    ```sh
+    ./target/release/full-service \
+        --wallet-db /keyfs/wallet.db \
+        --ledger-db /keyfs/ledger-db/ \
+        --offline
+    ```
+
+1. *OFFLINE MACHINE*: You can now [create](#create-account) or [import](#import-account) your account, [check your balance](#get-balance-for-a-given-account), [create assigned subaddresses](#create-assigned-subaddress), and [construct transactions](#build-transaction), as outlined in the docs above. Note that your entropy, account key, and wallet.db should always remain only on the ramdisk.
+
+1. *OFFLINE MACHINE and USB*: To send a transaction, you will a Construct a TxProposal using the [`build_transaction`](#build-transaction) endpoint. The output of this call can be written to a file, such as tx_proposal.json, and then copied to the USB.
+
+    ```sh
+    curl -s localhost:9090/wallet \
+    -d '{
+    "method": "build_transaction",
+    "params": {
+    "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
+    "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+    "value": "42000000000000"
+    }
+    }' \
+    -X POST -H 'Content-type: application/json' | jq '.result' > /keyfs/tx_proposal.json
+
+    cp /keyfs/tx_proposal.json /media/
+    ```
+
+1. *ONLINE MACHINE and USB*: Copy the tx_proposal to the online machine.
+
+    ```sh
+    cp /media/tx_proposal.json ./
+    ```
+
+1. *ONLINE MACHINE*: Submit transaction to consensus, using the [`submit_transaction`](#submit-transaction) endpoint.
+
 ## Contributing
 
 See [CONTRIBUTING](./CONTRIBUTING.md).
@@ -106,7 +192,7 @@ Note that full-service/diesel.toml provides the path to the schema.rs which will
     SGX_MODE=HW IAS_MODE=DEV CONSENSUS_ENCLAVE_CSS=$(pwd)/consensus-enclave.css cargo test
     ```
 
-    Note: providing the CONSENESUS_ENCLAVE_CSS allows us to bypass the enclave build.
+    Note: providing the `CONSENSUS_ENCLAVE_CSS` allows us to bypass the enclave build.
 
 ### Linting
 
