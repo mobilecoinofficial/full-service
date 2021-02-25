@@ -2,11 +2,9 @@
 
 //! DB impl for the AccountTxoStatus model.
 
-use crate::{
-    db::models::{AccountTxoStatus, NewAccountTxoStatus, TXO_UNSPENT},
-    error::WalletDbError,
-};
+use crate::db::models::{AccountTxoStatus, NewAccountTxoStatus, TXO_UNSPENT};
 
+use crate::db::WalletDbError;
 use diesel::{
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},

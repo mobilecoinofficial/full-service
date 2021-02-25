@@ -13,7 +13,6 @@ use crate::{
         transaction_log::TransactionLogModel,
         txo::TxoModel,
     },
-    error::WalletDbError,
     service::decorated_types::JsonAccount,
 };
 
@@ -21,6 +20,7 @@ use mc_account_keys::{AccountKey, DEFAULT_SUBADDRESS_INDEX};
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_transaction_core::ring_signature::KeyImage;
 
+use crate::db::WalletDbError;
 use diesel::{
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},

@@ -2,18 +2,16 @@
 
 //! DB impl for the AssignedSubaddress model
 
-use crate::{
-    db::{
-        account::{AccountID, AccountModel},
-        b58_encode,
-        models::{Account, AssignedSubaddress, NewAssignedSubaddress},
-    },
-    error::WalletDbError,
+use crate::db::{
+    account::{AccountID, AccountModel},
+    b58_encode,
+    models::{Account, AssignedSubaddress, NewAssignedSubaddress},
 };
 
 use mc_account_keys::AccountKey;
 use mc_crypto_keys::RistrettoPublic;
 
+use crate::db::WalletDbError;
 use diesel::{
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},

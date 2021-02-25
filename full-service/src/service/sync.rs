@@ -31,9 +31,9 @@ use crate::{
         models::{Account, AssignedSubaddress, TransactionLog, Txo},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
-        WalletDb,
+        WalletDb, WalletDbError,
     },
-    error::{SyncError, WalletDbError},
+    error::SyncError,
 };
 use mc_account_keys::AccountKey;
 use mc_common::{
