@@ -37,23 +37,40 @@ pub const TXO_INPUT: &str = "input";
 pub const TXO_OUTPUT: &str = "output";
 pub const TXO_CHANGE: &str = "change";
 
+/// An Account entity.
+///
+/// Contains the account private keys, subaddress configuration, and ...
 #[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
 #[primary_key(id)]
 pub struct Account {
+    /// Primary key
     pub id: i32,
+    /// ???
     pub account_id_hex: String,
+    /// Private keys for viewing and spending the MobileCoin belonging to an
+    /// account.
     pub account_key: Vec<u8>,
+    /// Default subadress that is given out to refer to this account.
     pub main_subaddress_index: i64,
+    /// Subaddress used to return transaction "change" to self.
     pub change_subaddress_index: i64,
+    /// The next unused subaddress index. (Assumes indices are used sequentially
+    /// from 0).
     pub next_subaddress_index: i64,
+    /// Index of the first block where this account may have held funds.
     pub first_block: i64,
+    /// TODO: ???
     pub next_block: i64,
+    /// If the account was imported, account history prior to this block index
+    /// is derived from the public ledger, and does not reflect client-side
+    /// user events.
     pub import_block: Option<i64>,
-    pub name: String, /* empty string for nullable
-                       * FIXME: WS-21 - add import_block to indicate that all data prior to that
-                       *        block was recovered from the ledger and may be missing data */
+    /// Name of this account.
+    pub name: String, /* empty string for nullable */
 }
 
+/// A structure that can be inserted to create a new entity in the `accounts`
+/// table.
 #[derive(Insertable)]
 #[table_name = "accounts"]
 pub struct NewAccount<'a> {
@@ -68,24 +85,38 @@ pub struct NewAccount<'a> {
     pub name: &'a str,
 }
 
+/// A received transaction output entity that belongs to a an Account in this
+/// wallet. Also maybe a transaction output that hasn't been sent yet?
 #[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
 #[primary_key(id)]
 pub struct Txo {
+    /// Primary key
     pub id: i32,
+    /// ???
     pub txo_id_hex: String,
+    /// The value of this transaction output, in picoMob.
     pub value: i64,
+    /// The serialized target_key of the TxOut.
     pub target_key: Vec<u8>,
+    /// The serialized public_key of the TxOut.
     pub public_key: Vec<u8>,
+    /// The serialized e_fog_hint of the TxOut.
     pub e_fog_hint: Vec<u8>,
+    /// The serialized TxOut.
     pub txo: Vec<u8>,
+    /// The receiving subaddress, if known.
     pub subaddress_index: Option<i64>,
+    /// TODO: why is this optional? Denoting if the Txo has subsequently been
+    /// spent?
     pub key_image: Option<Vec<u8>>,
+    /// Block index containing this Txo.
     pub received_block_count: Option<i64>,
     pub pending_tombstone_block_count: Option<i64>,
     pub spent_block_count: Option<i64>,
     pub proof: Option<Vec<u8>>,
 }
 
+/// A structure that can be inserted to create a new entity in the `txos` table.
 #[derive(Insertable)]
 #[table_name = "txos"]
 pub struct NewTxo<'a> {
@@ -126,6 +157,8 @@ pub struct NewAccountTxoStatus<'a> {
     pub txo_type: &'a str,
 }
 
+/// A subaddress given to a particular contact, for the purpose of tracking
+/// funds received from that contact.
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
 #[belongs_to(Account, foreign_key = "account_id_hex")]
 #[primary_key(id)]
@@ -141,6 +174,7 @@ pub struct AssignedSubaddress {
     pub subaddress_spend_key: Vec<u8>, // FIXME: WS-28 - Index on subaddress_spend_key?
 }
 
+/// A structure that can be inserted to create a new AssignedSubaddress entity.
 #[derive(Insertable)]
 #[table_name = "assigned_subaddresses"]
 pub struct NewAssignedSubaddress<'a> {
@@ -153,6 +187,7 @@ pub struct NewAssignedSubaddress<'a> {
     pub subaddress_spend_key: &'a [u8],
 }
 
+/// The status of a sent transaction OR a received transaction output.
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
 #[belongs_to(Account, foreign_key = "account_id_hex")]
 #[belongs_to(AssignedSubaddress, foreign_key = "assigned_subaddress_b58")]
@@ -177,6 +212,7 @@ pub struct TransactionLog {
     pub tx: Option<Vec<u8>>,
 }
 
+/// A structure that can be inserted to create a new TransactionLog entity.
 #[derive(Insertable)]
 #[table_name = "transaction_logs"]
 pub struct NewTransactionLog<'a> {
