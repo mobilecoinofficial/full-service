@@ -9,14 +9,21 @@ use super::schema::{
 
 use serde::Serialize;
 
-// FIXME: WS-13 - Would be great to get enums to work. Run into several issues
-// when attempting        to use https://github.com/adwhit/diesel-derive-enum for sqlite
-// TxoStatus
-pub const TXO_UNSPENT: &str = "unspent";
-pub const TXO_PENDING: &str = "pending";
-pub const TXO_SPENT: &str = "spent";
-pub const TXO_SECRETED: &str = "secreted";
-pub const TXO_ORPHANED: &str = "orphaned";
+/// A TXO owned by this wallet that has not yet been spent.
+pub const TXO_STATUS_UNSPENT: &str = "txo_status_unspent";
+
+/// A TXO owned by this wallet that is used by a pending transaction.
+pub const TXO_STATUS_PENDING: &str = "txo_status_pending";
+
+/// A TXO owned by this wallet that has been spent.
+pub const TXO_STATUS_SPENT: &str = "txo_status_spent";
+
+/// TODO: ???
+pub const TXO_STATUS_SECRETED: &str = "txo_status_secreted";
+
+/// The TXO is owned by this wallet, but not yet spendable (i.e., receiving
+/// subaddress is unknown).
+pub const TXO_STATUS_ORPHANED: &str = "txo_status_orphaned";
 
 // TxoType
 pub const TXO_MINTED: &str = "minted";

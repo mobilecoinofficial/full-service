@@ -495,9 +495,7 @@ mod tests {
     use crate::{
         db::{
             b58_decode,
-            models::{
-                TXO_ORPHANED, TXO_PENDING, TXO_RECEIVED, TXO_SECRETED, TXO_SPENT, TXO_UNSPENT,
-            },
+            models::{TXO_RECEIVED, TXO_STATUS_UNSPENT},
         },
         test_utils::{
             add_block_to_ledger_db, add_block_with_tx_proposal, get_resolver_factory,
@@ -922,7 +920,7 @@ mod tests {
             .unwrap()
             .as_str()
             .unwrap();
-        assert_eq!(txo_status, TXO_UNSPENT);
+        assert_eq!(txo_status, TXO_STATUS_UNSPENT);
         let txo_type = account_status_map
             .get("txo_type")
             .unwrap()
@@ -941,7 +939,7 @@ mod tests {
         });
         let result = dispatch(&client, body, &logger);
         let balance_status = result.get("status").unwrap();
-        let unspent = balance_status.get(TXO_UNSPENT).unwrap().as_str().unwrap();
+        let unspent = balance_status.get("unspent").unwrap().as_str().unwrap();
         assert_eq!(unspent, "100");
     }
 
@@ -1066,7 +1064,7 @@ mod tests {
         });
         let result = dispatch(&client, body, &logger);
         let balance_status = result.get("status").unwrap();
-        let unspent = balance_status.get(TXO_UNSPENT).unwrap().as_str().unwrap();
+        let unspent = balance_status.get("unspent").unwrap().as_str().unwrap();
         assert_eq!(unspent, "100000000000100");
 
         // Submit the tx_proposal
@@ -1099,11 +1097,11 @@ mod tests {
         });
         let result = dispatch(&client, body, &logger);
         let balance_status = result.get("status").unwrap();
-        let unspent = balance_status.get(TXO_UNSPENT).unwrap().as_str().unwrap();
-        let pending = balance_status.get(TXO_PENDING).unwrap().as_str().unwrap();
-        let spent = balance_status.get(TXO_SPENT).unwrap().as_str().unwrap();
-        let orphaned = balance_status.get(TXO_ORPHANED).unwrap().as_str().unwrap();
-        let secreted = balance_status.get(TXO_SECRETED).unwrap().as_str().unwrap();
+        let unspent = balance_status.get("unspent").unwrap().as_str().unwrap();
+        let pending = balance_status.get("pending").unwrap().as_str().unwrap();
+        let spent = balance_status.get("spent").unwrap().as_str().unwrap();
+        let orphaned = balance_status.get("orphaned").unwrap().as_str().unwrap();
+        let secreted = balance_status.get("secreted").unwrap().as_str().unwrap();
         assert_eq!(unspent, "0");
         assert_eq!(pending, "100000000000100");
         assert_eq!(spent, "0");
@@ -1241,7 +1239,7 @@ mod tests {
             .get(account_id)
             .unwrap();
         let txo_status = status_map.get("txo_status").unwrap().as_str().unwrap();
-        assert_eq!(txo_status, TXO_UNSPENT);
+        assert_eq!(txo_status, TXO_STATUS_UNSPENT);
         let txo_type = status_map.get("txo_type").unwrap().as_str().unwrap();
         assert_eq!(txo_type, TXO_RECEIVED);
         let value = txo.get("value_pmob").unwrap().as_str().unwrap();
@@ -1362,7 +1360,7 @@ mod tests {
         });
         let result = dispatch(&offline_client, body, &logger);
         let balance_status = result.get("status").unwrap();
-        let unspent = balance_status.get(TXO_UNSPENT).unwrap().as_str().unwrap();
+        let unspent = balance_status.get("unspent").unwrap().as_str().unwrap();
         assert_eq!(unspent.parse::<i64>().unwrap(), 42 * MOB);
 
         // Build a transaction
@@ -1414,11 +1412,11 @@ mod tests {
         });
         let result = dispatch(&offline_client, body, &logger);
         let balance_status = result.get("status").unwrap();
-        let unspent = balance_status.get(TXO_UNSPENT).unwrap().as_str().unwrap();
-        let pending = balance_status.get(TXO_PENDING).unwrap().as_str().unwrap();
-        let spent = balance_status.get(TXO_SPENT).unwrap().as_str().unwrap();
-        let orphaned = balance_status.get(TXO_ORPHANED).unwrap().as_str().unwrap();
-        let secreted = balance_status.get(TXO_SECRETED).unwrap().as_str().unwrap();
+        let unspent = balance_status.get("unspent").unwrap().as_str().unwrap();
+        let pending = balance_status.get("pending").unwrap().as_str().unwrap();
+        let spent = balance_status.get("spent").unwrap().as_str().unwrap();
+        let orphaned = balance_status.get("orphaned").unwrap().as_str().unwrap();
+        let secreted = balance_status.get("secreted").unwrap().as_str().unwrap();
         assert_eq!(unspent.parse::<i64>().unwrap(), 42 * MOB);
         assert_eq!(pending.parse::<i64>().unwrap(), 0);
         assert_eq!(spent.parse::<i64>().unwrap(), 0);

@@ -8,7 +8,7 @@ use crate::{
         b58_encode,
         models::{
             Account, AccountTxoStatus, AssignedSubaddress, NewAccount, TransactionLog, Txo,
-            TXO_PENDING, TXO_SPENT, TXO_UNSPENT,
+            TXO_STATUS_PENDING, TXO_STATUS_SPENT, TXO_STATUS_UNSPENT,
         },
         transaction_log::TransactionLogModel,
         txo::TxoModel,
@@ -244,14 +244,16 @@ impl AccountModel for Account {
         Ok(conn.transaction::<JsonAccount, WalletDbError, _>(|| {
             let account = Account::get(account_id_hex, conn)?;
 
-            let unspent = Txo::list_by_status(&account_id_hex.to_string(), TXO_UNSPENT, conn)?
-                .iter()
-                .map(|t| t.value as u128)
-                .sum::<u128>();
-            let pending = Txo::list_by_status(&account_id_hex.to_string(), TXO_PENDING, conn)?
-                .iter()
-                .map(|t| t.value as u128)
-                .sum::<u128>();
+            let unspent =
+                Txo::list_by_status(&account_id_hex.to_string(), TXO_STATUS_UNSPENT, conn)?
+                    .iter()
+                    .map(|t| t.value as u128)
+                    .sum::<u128>();
+            let pending =
+                Txo::list_by_status(&account_id_hex.to_string(), TXO_STATUS_PENDING, conn)?
+                    .iter()
+                    .map(|t| t.value as u128)
+                    .sum::<u128>();
 
             let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
             let main_subaddress_b58 =
@@ -357,7 +359,7 @@ impl AccountModel for Account {
                     )
                     .set(
                         crate::db::schema::account_txo_statuses::txo_status
-                            .eq(TXO_SPENT.to_string()),
+                            .eq(TXO_STATUS_SPENT.to_string()),
                     )
                     .execute(conn)?;
 

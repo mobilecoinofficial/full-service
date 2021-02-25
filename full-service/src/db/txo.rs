@@ -9,8 +9,8 @@ use crate::db::{
     b58_encode,
     models::{
         Account, AccountTxoStatus, AssignedSubaddress, NewAccountTxoStatus, NewTxo, Txo,
-        TXO_CHANGE, TXO_MINTED, TXO_ORPHANED, TXO_OUTPUT, TXO_PENDING, TXO_RECEIVED, TXO_SECRETED,
-        TXO_SPENT, TXO_UNSPENT,
+        TXO_CHANGE, TXO_MINTED, TXO_OUTPUT, TXO_RECEIVED, TXO_STATUS_ORPHANED, TXO_STATUS_PENDING,
+        TXO_STATUS_SECRETED, TXO_STATUS_SPENT, TXO_STATUS_UNSPENT,
     },
 };
 
@@ -234,7 +234,7 @@ impl TxoModel for Txo {
                                 // We minted this TXO and sent it to ourselves. It's either change
                                 // that we're now recovering as
                                 // unspent, or it's a new Txo that we sent to ourselves.
-                                if account_txo_status.txo_status == TXO_SECRETED {
+                                if account_txo_status.txo_status == TXO_STATUS_SECRETED {
                                     txo_details.txo.update_received(
                                         account_id_hex,
                                         subaddress_index,
@@ -253,11 +253,11 @@ impl TxoModel for Txo {
                                 // Txo already exists for this or another account. Update the status
                                 // with respect to this account.
                                 let status = if subaddress_index.is_some() {
-                                    TXO_UNSPENT
+                                    TXO_STATUS_UNSPENT
                                 } else {
                                     // Note: An orphaned Txo cannot be spent until the subaddress is
                                     // recovered.
-                                    TXO_ORPHANED
+                                    TXO_STATUS_ORPHANED
                                 };
                                 AccountTxoStatus::create(
                                     account_id_hex,
@@ -297,10 +297,10 @@ impl TxoModel for Txo {
                         .execute(conn)?;
 
                     let status = if subaddress_index.is_some() {
-                        TXO_UNSPENT
+                        TXO_STATUS_UNSPENT
                     } else {
                         // Note: An orphaned Txo cannot be spent until the subaddress is recovered.
-                        TXO_ORPHANED
+                        TXO_STATUS_ORPHANED
                     };
 
                     // We should get a unique violation if this AccountTxoStatus already exists.
@@ -395,8 +395,9 @@ impl TxoModel for Txo {
                 let new_account_txo_status = NewAccountTxoStatus {
                     account_id_hex: &account_id_hex,
                     txo_id_hex: &txo_id.to_string(),
-                    txo_status: TXO_SECRETED, /* We cannot track spent status for minted TXOs
-                                               * unless change */
+                    txo_status: TXO_STATUS_SECRETED, /* We cannot track spent status for minted
+                                                      * TXOs
+                                                      * unless change */
                     txo_type: TXO_MINTED,
                 };
                 diesel::insert_into(account_txo_statuses::table)
@@ -466,7 +467,7 @@ impl TxoModel for Txo {
 
             // If this Txo was previously orphaned, we can now update it, and make it
             // spendable
-            if account_txo_status.txo_status == TXO_ORPHANED {
+            if account_txo_status.txo_status == TXO_STATUS_ORPHANED {
                 self.update_to_spendable(
                     received_subaddress_index,
                     received_key_image,
@@ -523,7 +524,10 @@ impl TxoModel for Txo {
             diesel::update(
                 account_txo_statuses.find((&account.account_id_hex, &txo_id.to_string())),
             )
-            .set(crate::db::schema::account_txo_statuses::txo_status.eq(TXO_PENDING.to_string()))
+            .set(
+                crate::db::schema::account_txo_statuses::txo_status
+                    .eq(TXO_STATUS_PENDING.to_string()),
+            )
             .execute(conn)?;
             Ok(())
         })?;
@@ -689,7 +693,7 @@ impl TxoModel for Txo {
                 account_txo_statuses::table.on(txos::txo_id_hex
                     .eq(account_txo_statuses::txo_id_hex)
                     .and(txos::txo_id_hex.eq_any(txo_ids))
-                    .and(account_txo_statuses::txo_status.eq(TXO_SPENT))),
+                    .and(account_txo_statuses::txo_status.eq(TXO_STATUS_SPENT))),
             )
             .select(diesel::dsl::count(txos::txo_id_hex))
             .first(conn)?;
@@ -709,7 +713,10 @@ impl TxoModel for Txo {
                 account_txo_statuses::table.on(txos::txo_id_hex
                     .eq(account_txo_statuses::txo_id_hex)
                     .and(txos::txo_id_hex.eq_any(txo_ids))
-                    .and(account_txo_statuses::txo_status.eq_any(vec![TXO_UNSPENT, TXO_PENDING]))
+                    .and(
+                        account_txo_statuses::txo_status
+                            .eq_any(vec![TXO_STATUS_UNSPENT, TXO_STATUS_PENDING]),
+                    )
                     .and(txos::pending_tombstone_block_count.lt(Some(block_count)))),
             )
             .select(txos::all_columns)
@@ -732,7 +739,7 @@ impl TxoModel for Txo {
                 account_txo_statuses::table.on(txos::txo_id_hex
                     .eq(account_txo_statuses::txo_id_hex)
                     .and(account_txo_statuses::account_id_hex.eq(account_id_hex))
-                    .and(account_txo_statuses::txo_status.eq(TXO_UNSPENT))
+                    .and(account_txo_statuses::txo_status.eq(TXO_STATUS_UNSPENT))
                     .and(txos::subaddress_index.is_not_null())
                     .and(txos::key_image.is_not_null()) // Could technically recreate with subaddress
                     .and(txos::value.le(max_spendable_value.unwrap_or(i64::MAX)))),
@@ -913,7 +920,7 @@ mod tests {
         let expected_txo_status = AccountTxoStatus {
             account_id_hex: account_id_hex.to_string(),
             txo_id_hex: txo_hex,
-            txo_status: TXO_UNSPENT.to_string(),
+            txo_status: TXO_STATUS_UNSPENT.to_string(),
             txo_type: TXO_RECEIVED.to_string(),
         };
         assert_eq!(txos[0].txo, expected_txo);
@@ -925,7 +932,7 @@ mod tests {
         // Verify that the status filter works as well
         let unspent = Txo::list_by_status(
             &account_id_hex.to_string(),
-            TXO_UNSPENT,
+            TXO_STATUS_UNSPENT,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -987,7 +994,7 @@ mod tests {
         );
         assert_eq!(
             spent[0].received_to_account.clone().unwrap().txo_status,
-            TXO_SPENT
+            TXO_STATUS_SPENT
         );
 
         // Verify that the next block height is + 1
@@ -997,7 +1004,7 @@ mod tests {
         // After minting the coins, their status should be "Secreted"
         let secreted = Txo::list_by_status(
             &account_id_hex.to_string(),
-            TXO_SECRETED,
+            TXO_STATUS_SECRETED,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1055,7 +1062,7 @@ mod tests {
         // change.
         let unspent = Txo::list_by_status(
             &account_id_hex.to_string(),
-            TXO_UNSPENT,
+            TXO_STATUS_UNSPENT,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1287,7 +1294,7 @@ mod tests {
         assert_eq!(minted_txo_details.txo.value, output_value);
         assert_eq!(
             minted_txo_details.secreted_from_account.unwrap().txo_status,
-            TXO_SECRETED
+            TXO_STATUS_SECRETED
         );
         assert!(minted_txo_details.received_to_assigned_subaddress.is_none());
 
@@ -1296,7 +1303,7 @@ mod tests {
         assert_eq!(change_txo_details.txo.value, change_value);
         assert_eq!(
             change_txo_details.secreted_from_account.unwrap().txo_status,
-            TXO_SECRETED
+            TXO_STATUS_SECRETED
         );
         assert!(change_txo_details.received_to_assigned_subaddress.is_none()); // Note: This gets updated on sync
     }
