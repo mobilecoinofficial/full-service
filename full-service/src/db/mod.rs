@@ -12,7 +12,6 @@ pub mod txo;
 mod wallet_db;
 mod wallet_db_error;
 
-
 pub use b58::{b58_decode, b58_encode};
 pub use wallet_db::WalletDb;
 pub use wallet_db_error::WalletDbError;
