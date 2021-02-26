@@ -6,7 +6,7 @@
 mod e2e {
     use crate::{
         db::b58_decode,
-        json_rpc::api_test_utils::{dispatch, dispatch_expect_error, setup, wait_for_sync},
+        json_rpc::api_test_utils::{dispatch, setup, wait_for_sync},
         test_utils::{add_block_to_ledger_db, MOB},
     };
     use mc_common::logger::{test_with_logger, Logger};
@@ -414,10 +414,13 @@ mod e2e {
                 .to_string(),
             (42 * MOB).to_string()
         );
-        let account = result.get("account").unwrap();
+        let _account = result.get("account").unwrap();
     }
 
     /*
+    TESTS BELOW THIS LINE COPY-PASTED FROM API_V1/wallet_api.rs. They will each be updated
+    as the API continues to be updated.
+
     #[test_with_logger]
     fn test_get_all_txos(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);

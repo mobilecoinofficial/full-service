@@ -4,7 +4,7 @@
 
 use crate::{
     db::{
-        account::{AccountID, AccountModel},
+        account::AccountID,
         assigned_subaddress::AssignedSubaddressModel,
         b58_decode,
         models::{
@@ -17,8 +17,8 @@ use crate::{
     },
     error::WalletServiceError,
     json_rpc::api_v1::decorated_types::{
-        JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents, JsonProof,
-        JsonSubmitResponse, JsonTransactionLog, JsonTxo, JsonWalletStatus,
+        JsonAddress, JsonBlock, JsonBlockContents, JsonProof, JsonSubmitResponse,
+        JsonTransactionLog, JsonTxo,
     },
     service::{sync::SyncThread, transaction_builder::WalletTransactionBuilder},
 };
@@ -30,14 +30,13 @@ use mc_connection::{
 use mc_crypto_rand::rand_core::RngCore;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
-use mc_ledger_sync::{NetworkState, PollingNetworkState};
+use mc_ledger_sync::PollingNetworkState;
 use mc_mobilecoind::payments::TxProposal;
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
 use mc_transaction_core::tx::{Tx, TxOut, TxOutConfirmationNumber};
 use mc_util_uri::FogUri;
 
 use diesel::prelude::*;
-use serde_json::Map;
 use std::{
     convert::TryFrom,
     iter::empty,
@@ -261,7 +260,7 @@ impl<
         );
         let converted_proposal = TxProposal::try_from(&tx_proposal_proto)?;
 
-        let transaction_id = account_id_hex
+        let transaction_id: Option<String> = account_id_hex
             .map(|a| {
                 TransactionLog::log_submitted(
                     converted_proposal,
@@ -274,7 +273,9 @@ impl<
             .map_or(Ok(None), |v| v.map(Some))?;
 
         // Successfully submitted.
-        Ok(JsonSubmitResponse { transaction_id })
+        Ok(JsonSubmitResponse {
+            transaction_id: transaction_id.unwrap(),
+        })
     }
 
     /// Convenience method that builds and submits in one go.
@@ -415,8 +416,8 @@ mod tests {
     use super::*;
     use crate::{
         db::{
-            models::{TXO_TYPE_MINTED, TXO_TYPE_RECEIVED},
-            txo::TxoDetails,
+            b58_encode,
+            models::{TXO_MINTED, TXO_PENDING, TXO_RECEIVED, TXO_UNSPENT},
         },
         service::{account::AccountService, balance::BalanceService},
         test_utils::{

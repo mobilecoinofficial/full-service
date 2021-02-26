@@ -116,6 +116,7 @@ pub fn setup(
             network_state.clone(),
             get_resolver_factory(&mut rng).unwrap(),
             None,
+            false,
             logger,
         );
 
