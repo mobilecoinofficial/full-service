@@ -32,13 +32,14 @@ use diesel::{
 };
 use std::fmt;
 
+/// A unique ID derived from a TxOut in the ledger.
 #[derive(Debug)]
 pub struct TxoID(String);
 
 impl From<&TxOut> for TxoID {
     fn from(src: &TxOut) -> TxoID {
-        let temp: [u8; 32] = src.digest32::<MerlinTranscript>(b"txo_data");
-        Self(hex::encode(temp))
+        let digest: [u8; 32] = src.digest32::<MerlinTranscript>(b"txo_data");
+        Self(hex::encode(digest))
     }
 }
 
@@ -66,19 +67,24 @@ pub struct ProcessedTxProposalOutput {
 }
 
 pub trait TxoModel {
-    /// Create a received Txo.
+    /// Upserts a received Txo.
     ///
-    /// Note that a received Txo may have a null subaddress_index if the Txo is
-    /// "orphaned." This means that in syncing, the Txo was determined to
-    /// belong to an account, but the subaddress is not yet being tracked,
-    /// so we were unable to match the subaddress spend public key. An
-    /// orphaned Txo is not spendable until the subaddress to which it belongs
-    /// is added to the assigned_subaddresses table.
+    /// # Arguments
+    /// * `txo` - a TxOut contained in the ledger.
+    /// * `subaddress_index` - The receiving subaddress index, if known.
+    /// * `key_image` -
+    /// * `value` - The value of the output, in picoMob.
+    /// * `received_block_count` - ???
+    /// * `account_id_hex` - ???
+    /// * `conn` - Sqlite database connection.
     ///
-    /// Returns:
+    /// The subaddress_index may be None, and the Txo is said to be "orphaned",
+    /// if the subaddress is not yet being tracked by the wallet.
+    ///
+    /// # Returns
     /// * txo_id_hex
     fn create_received(
-        txo: TxOut,
+        tx_out: TxOut,
         subaddress_index: Option<i64>,
         key_image: Option<KeyImage>,
         value: u64,

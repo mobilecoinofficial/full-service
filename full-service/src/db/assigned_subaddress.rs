@@ -1,6 +1,7 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
-//! DB impl for the AssignedSubaddress model
+//! A subaddress assigned to a particular contact for the purpose of tracking
+//! funds received from that contact.
 
 use crate::db::{
     account::{AccountID, AccountModel},
@@ -18,12 +19,21 @@ use diesel::{
 };
 
 pub trait AssignedSubaddressModel {
-    /// Create a new assigned subaddress.
+    /// Assign a subaddress to a contact.
     ///
-    /// Returns:
+    /// Inserts (upserts?) an AssignedSubaddress to the DB.
+    ///
+    /// # Arguments
+    /// * `account_key` - An account's private keys.
+    /// * `address_book_entry` -
+    /// * `subaddress_index` -
+    /// * `comment` -
+    /// * `conn` -
+    ///
+    /// # Returns
     /// * assigned_subaddress_b58
     fn create(
-        public_address: &AccountKey,
+        account_key: &AccountKey,
         address_book_entry: Option<i64>,
         subaddress_index: u64,
         comment: &str,

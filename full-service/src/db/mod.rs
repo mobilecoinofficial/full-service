@@ -1,6 +1,8 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
-//! Implementations of DB and DB models.
+//! Persistence layer for wallet data types (as opposed to the blockchain which
+//! is stored in LMDB).
+
 pub mod account;
 pub mod account_txo_status;
 pub mod assigned_subaddress;
