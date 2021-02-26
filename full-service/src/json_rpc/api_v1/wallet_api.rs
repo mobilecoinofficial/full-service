@@ -588,10 +588,7 @@ where
 #[cfg(test)]
 mod e2e {
     use crate::{
-        db::{
-            b58_decode,
-            models::{TXO_PENDING, TXO_RECEIVED, TXO_SECRETED, TXO_SPENT, TXO_UNSPENT},
-        },
+        db::b58_decode,
         json_rpc::api_test_utils::{dispatch, dispatch_expect_error, setup, wait_for_sync},
         test_utils::add_block_to_ledger_db,
     };
@@ -847,13 +844,13 @@ mod e2e {
             .unwrap()
             .as_str()
             .unwrap();
-        assert_eq!(txo_status, TXO_UNSPENT);
+        assert_eq!(txo_status, "txo_status_unspent");
         let txo_type = account_status_map
             .get("txo_type")
             .unwrap()
             .as_str()
             .unwrap();
-        assert_eq!(txo_type, TXO_RECEIVED);
+        assert_eq!(txo_type, "txo_type_received");
         let value = txo.get("value_pmob").unwrap().as_str().unwrap();
         assert_eq!(value, "100");
 
@@ -867,7 +864,7 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let balance_status = result.get("status").unwrap();
-        let unspent = balance_status.get(TXO_UNSPENT).unwrap().as_str().unwrap();
+        let unspent = balance_status.get("unspent").unwrap().as_str().unwrap();
         assert_eq!(unspent, "100");
     }
 
@@ -995,7 +992,7 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let balance_status = result.get("status").unwrap();
-        let unspent = balance_status.get(TXO_UNSPENT).unwrap().as_str().unwrap();
+        let unspent = balance_status.get("unspent").unwrap().as_str().unwrap();
         assert_eq!(unspent, "100000000000100");
 
         // Submit the tx_proposal
@@ -1030,10 +1027,10 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let balance_status = result.get("status").unwrap();
-        let unspent = balance_status.get(TXO_UNSPENT).unwrap().as_str().unwrap();
-        let pending = balance_status.get(TXO_PENDING).unwrap().as_str().unwrap();
-        let spent = balance_status.get(TXO_SPENT).unwrap().as_str().unwrap();
-        let secreted = balance_status.get(TXO_SECRETED).unwrap().as_str().unwrap();
+        let unspent = balance_status.get("unspent").unwrap().as_str().unwrap();
+        let pending = balance_status.get("pending").unwrap().as_str().unwrap();
+        let spent = balance_status.get("spent").unwrap().as_str().unwrap();
+        let secreted = balance_status.get("secreted").unwrap().as_str().unwrap();
         assert_eq!(unspent, "0");
         assert_eq!(pending, "0");
         assert_eq!(spent, "99990000000100");
@@ -1053,7 +1050,7 @@ mod e2e {
         let transaction_log = result.get("transaction").unwrap();
         assert_eq!(
             transaction_log.get("direction").unwrap().as_str().unwrap(),
-            "sent"
+            "tx_direction_sent"
         );
         assert_eq!(
             transaction_log.get("value_pmob").unwrap().as_str().unwrap(),
@@ -1074,7 +1071,7 @@ mod e2e {
         );
         assert_eq!(
             transaction_log.get("status").unwrap().as_str().unwrap(),
-            "pending"
+            "tx_status_pending"
         );
         assert_eq!(
             transaction_log
@@ -1166,9 +1163,9 @@ mod e2e {
             .get(account_id)
             .unwrap();
         let txo_status = status_map.get("txo_status").unwrap().as_str().unwrap();
-        assert_eq!(txo_status, TXO_UNSPENT);
+        assert_eq!(txo_status, "txo_status_unspent");
         let txo_type = status_map.get("txo_type").unwrap().as_str().unwrap();
-        assert_eq!(txo_type, TXO_RECEIVED);
+        assert_eq!(txo_type, "txo_type_received");
         let value = txo.get("value_pmob").unwrap().as_str().unwrap();
         assert_eq!(value, "42000000000000");
     }

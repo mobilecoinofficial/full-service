@@ -7,10 +7,7 @@ use crate::{
         account::AccountID,
         assigned_subaddress::AssignedSubaddressModel,
         b58_decode,
-        models::{
-            Account, AssignedSubaddress, TransactionLog, Txo, TXO_STATUS_ORPHANED,
-            TXO_STATUS_PENDING, TXO_STATUS_SECRETED, TXO_STATUS_SPENT, TXO_STATUS_UNSPENT,
-        },
+        models::{AssignedSubaddress, TransactionLog, Txo},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
         WalletDb,
@@ -415,7 +412,7 @@ mod tests {
     use crate::{
         db::{
             b58_encode,
-            models::{TXO_MINTED, TXO_PENDING, TXO_RECEIVED, TXO_UNSPENT},
+            models::{TXO_STATUS_PENDING, TXO_STATUS_UNSPENT, TXO_TYPE_MINTED, TXO_TYPE_RECEIVED},
             txo::TxoDetails,
         },
         service::{account::AccountService, balance::BalanceService},
@@ -533,7 +530,9 @@ mod tests {
         let pending: Vec<JsonTxo> = txos
             .iter()
             .cloned()
-            .filter(|t| t.account_status_map[&alice.account_id_hex]["txo_status"] == TXO_PENDING)
+            .filter(|t| {
+                t.account_status_map[&alice.account_id_hex]["txo_status"] == TXO_STATUS_PENDING
+            })
             .collect();
         assert_eq!(pending.len(), 1);
         assert_eq!(

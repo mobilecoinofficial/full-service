@@ -5,7 +5,10 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        models::{Account, Txo, TXO_ORPHANED, TXO_PENDING, TXO_SECRETED, TXO_SPENT, TXO_UNSPENT},
+        models::{
+            Account, Txo, TXO_STATUS_ORPHANED, TXO_STATUS_PENDING, TXO_STATUS_SECRETED,
+            TXO_STATUS_SPENT, TXO_STATUS_UNSPENT,
+        },
         txo::TxoModel,
     },
     error::WalletServiceError,
@@ -201,23 +204,23 @@ where
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(u64, u64, u64, u64, u64), WalletServiceError> {
-        let unspent = Txo::list_by_status(account_id_hex, TXO_UNSPENT, &conn)?
+        let unspent = Txo::list_by_status(account_id_hex, TXO_STATUS_UNSPENT, &conn)?
             .iter()
             .map(|t| t.value as u128)
             .sum::<u128>();
-        let spent = Txo::list_by_status(account_id_hex, TXO_SPENT, &conn)?
+        let spent = Txo::list_by_status(account_id_hex, TXO_STATUS_SPENT, &conn)?
             .iter()
             .map(|t| t.value as u128)
             .sum::<u128>();
-        let secreted = Txo::list_by_status(account_id_hex, TXO_SECRETED, &conn)?
+        let secreted = Txo::list_by_status(account_id_hex, TXO_STATUS_SECRETED, &conn)?
             .iter()
             .map(|t| t.value as u128)
             .sum::<u128>();
-        let orphaned = Txo::list_by_status(account_id_hex, TXO_ORPHANED, &conn)?
+        let orphaned = Txo::list_by_status(account_id_hex, TXO_STATUS_ORPHANED, &conn)?
             .iter()
             .map(|t| t.value as u128)
             .sum::<u128>();
-        let pending = Txo::list_by_status(account_id_hex, TXO_PENDING, &conn)?
+        let pending = Txo::list_by_status(account_id_hex, TXO_STATUS_PENDING, &conn)?
             .iter()
             .map(|t| t.value as u128)
             .sum::<u128>();
