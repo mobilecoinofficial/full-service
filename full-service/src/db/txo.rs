@@ -657,18 +657,6 @@ impl TxoModel for Txo {
                 }
                 TXO_RECEIVED => {
                     txo_details.received_to_account = Some(account_txo_status.clone());
-                    // Get the subaddress details if assigned
-                    let assigned_subaddress = if let Some(subaddress_index) = txo.subaddress_index {
-                        let account: Account =
-                            Account::get(&AccountID(account_txo_status.account_id_hex), conn)?;
-                        let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
-                        let subaddress = account_key.subaddress(subaddress_index as u64);
-                        let subaddress_b58 = b58_encode(&subaddress)?;
-                        Some(AssignedSubaddress::get(&subaddress_b58, conn)?)
-                    } else {
-                        None
-                    };
-                    txo_details.received_to_assigned_subaddress = assigned_subaddress;
                 }
                 _ => {
                     return Err(WalletDbError::UnexpectedTransactionTxoType(
@@ -676,6 +664,24 @@ impl TxoModel for Txo {
                     ))
                 }
             }
+            // Get the subaddress details if assigned
+            let assigned_subaddress = if let Some(subaddress_index) = txo.subaddress_index {
+                let account: Account =
+                    Account::get(&AccountID(account_txo_status.account_id_hex), conn)?;
+                let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+                let subaddress = account_key.subaddress(subaddress_index as u64);
+                let subaddress_b58 = b58_encode(&subaddress)?;
+                match AssignedSubaddress::get(&subaddress_b58, conn) {
+                    Ok(a) => Some(a),
+                    Err(WalletDbError::AssignedSubaddressNotFound(_s)) => None,
+                    Err(e) => {
+                        return Err(e);
+                    }
+                }
+            } else {
+                None
+            };
+            txo_details.received_to_assigned_subaddress = assigned_subaddress;
         }
 
         Ok(txo_details)
