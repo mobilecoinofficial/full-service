@@ -163,7 +163,7 @@ impl JsonAddress {
 
 #[derive(Deserialize, Serialize, Default, Debug)]
 pub struct JsonSubmitResponse {
-    pub transaction_id: String,
+    pub transaction_id: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]

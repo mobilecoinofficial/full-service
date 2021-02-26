@@ -60,7 +60,7 @@ pub struct WalletStatus {
     pub orphaned: u64,
     pub network_block_count: u64,
     pub local_block_count: u64,
-    pub min_synced_block: u64,
+    pub min_synced_block_index: u64,
     pub account_ids: Vec<AccountID>,
     pub account_map: HashMap<AccountID, Account>,
 }
@@ -155,7 +155,7 @@ where
             let mut secreted = 0;
             let mut orphaned = 0;
 
-            let mut min_synced_block = network_height;
+            let mut min_synced_block_index = network_height;
             let mut account_ids = Vec::new();
             for account in accounts {
                 let account_id = AccountID(account.account_id_hex.clone());
@@ -167,8 +167,11 @@ where
                 secreted += balance.3;
                 orphaned += balance.4;
 
-                // FIXME: off by one?
-                min_synced_block = std::cmp::min(min_synced_block, account.next_block as u64);
+                // account.next_block is an index in range [0..ledger_db.num_blocks()]
+                min_synced_block_index = std::cmp::min(
+                    min_synced_block_index,
+                    (account.next_block as u64).saturating_sub(1),
+                );
 
                 account_ids.push(account_id);
             }
@@ -181,7 +184,7 @@ where
                 orphaned: orphaned as u64,
                 network_block_count: network_height,
                 local_block_count: self.ledger_db.num_blocks()?,
-                min_synced_block: min_synced_block as u64,
+                min_synced_block_index: min_synced_block_index as u64,
                 account_ids,
                 account_map,
             })

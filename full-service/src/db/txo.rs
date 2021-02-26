@@ -585,11 +585,6 @@ impl TxoModel for Txo {
         use crate::db::schema::{account_txo_statuses, txos};
         let subaddress = AssignedSubaddress::get(&assigned_subaddress_b58, conn)?;
 
-        println!(
-            "\x1b[1;34m Listing for address {:?}, whicch got assigned subaddress {:?}\x1b[0m",
-            assigned_subaddress_b58, subaddress,
-        );
-
         // Note: The Same Txo may be referenced in the account_txo_statuses multiple
         // times due to its relationship with multiple accounts or serving
         // multiple roles within payments (for example, change - minted,
@@ -608,7 +603,6 @@ impl TxoModel for Txo {
             .iter()
             .map(|t| Txo::get(&t.txo_id_hex, &conn))
             .collect();
-        println!("\x1b[1;36m \n\n Got txos {:?}\x1b[0m", details);
         details
     }
 

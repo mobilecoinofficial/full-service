@@ -274,7 +274,7 @@ impl<
 
         // Successfully submitted.
         Ok(JsonSubmitResponse {
-            transaction_id: transaction_id.unwrap(),
+            transaction_id: transaction_id,
         })
     }
 
@@ -572,10 +572,11 @@ mod tests {
             .get_balance_for_account(&AccountID(alice.account_id_hex))
             .unwrap();
         assert_eq!(balance.unspent, 0);
-        assert_eq!(balance.pending, 100000000000000);
-        assert_eq!(balance.spent, 0);
-        assert_eq!(balance.secreted, 99990000000000);
-        assert_eq!(balance.orphaned, 0);
+        assert_eq!(balance.pending, 0);
+        assert_eq!(balance.spent, 99990000000000);
+        assert_eq!(balance.secreted, 0);
+        assert_eq!(balance.orphaned, 100000000000000); // FIXME: Should not be
+                                                       // orphaned?
 
         // FIXME: How to make the transaction actually hit the test ledger?
     }
@@ -641,7 +642,7 @@ mod tests {
         log::info!(logger, "Built and submitted transaction from Alice");
 
         let json_transaction_log = service
-            .get_transaction(&submit_response.transaction_id)
+            .get_transaction(&submit_response.transaction_id.unwrap())
             .unwrap();
 
         // NOTE: Submitting to the test ledger via propose_tx doesn't actually add the
@@ -716,7 +717,7 @@ mod tests {
             .unwrap();
 
         let json_transaction_log = service
-            .get_transaction(&submit_response.transaction_id)
+            .get_transaction(&submit_response.transaction_id.unwrap())
             .unwrap();
 
         // NOTE: Submitting to the test ledger via propose_tx doesn't actually add the

@@ -188,10 +188,12 @@ pub fn wait_for_sync(
         std::thread::sleep(Duration::from_secs(1));
         // Check that syncing is working
         let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
             "method": "get_wallet_status",
         });
-        let result = dispatch(&client, body, &logger);
-        let status = result.get("result").unwrap().get("status").unwrap();
+        let res = dispatch(&client, body, &logger);
+        let status = res.get("result").unwrap().get("wallet_status").unwrap();
 
         // Have to manually call poll() on network state to get it to update for these
         // tests
@@ -200,7 +202,7 @@ pub fn wait_for_sync(
         let is_synced_all = status.get("is_synced_all").unwrap().as_bool().unwrap();
         if is_synced_all {
             let local_height = status
-                .get("local_height")
+                .get("local_block_count")
                 .unwrap()
                 .as_str()
                 .unwrap()
@@ -209,7 +211,7 @@ pub fn wait_for_sync(
             assert_eq!(local_height, ledger_db.num_blocks().unwrap());
             assert_eq!(
                 status
-                    .get("network_height")
+                    .get("network_block_count")
                     .unwrap()
                     .as_str()
                     .unwrap()

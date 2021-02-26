@@ -300,7 +300,7 @@ mod e2e {
             "jsonrpc": "2.0",
             "api_version": "2",
             "id": 1,
-            "method": "get_balance",
+            "method": "get_balance_for_account",
             "params": {
                 "account_id": account_id,
             }
@@ -344,11 +344,14 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let status = result.get("wallet_status").unwrap();
-        assert_eq!(status.get("network_height").unwrap(), "12");
-        assert_eq!(status.get("local_height").unwrap(), "12");
-        assert_eq!(status.get("is_synced_all").unwrap(), false);
-        assert_eq!(status.get("total_available_pmob").unwrap(), "0");
+        assert_eq!(status.get("network_block_count").unwrap(), "12");
+        assert_eq!(status.get("local_block_count").unwrap(), "12");
+        assert_eq!(status.get("min_synced_block_index").unwrap(), "0");
+        assert_eq!(status.get("total_unspent_pmob").unwrap(), "0");
         assert_eq!(status.get("total_pending_pmob").unwrap(), "0");
+        assert_eq!(status.get("total_spent_pmob").unwrap(), "0");
+        assert_eq!(status.get("total_orphaned_pmob").unwrap(), "0");
+        assert_eq!(status.get("total_secreted_pmob").unwrap(), "0");
         assert_eq!(
             status.get("account_ids").unwrap().as_array().unwrap().len(),
             1
@@ -395,12 +398,15 @@ mod e2e {
         );
 
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+
         let body = json!({
             "jsonrpc": "2.0",
             "api_version": "2",
             "id": 1,
             "method": "get_account_status",
-            "account_id": *account_id,
+            "params": {
+                "account_id": account_id,
+            }
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();

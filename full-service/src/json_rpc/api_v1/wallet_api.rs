@@ -402,7 +402,7 @@ where
                     object: "wallet_status".to_string(),
                     network_height: result.network_block_count.to_string(),
                     local_height: result.local_block_count.to_string(),
-                    is_synced_all: result.min_synced_block == result.network_block_count,
+                    is_synced_all: result.min_synced_block_index == result.network_block_count - 1,
                     total_available_pmob: result.unspent.to_string(),
                     total_pending_pmob: result.pending.to_string(),
                     account_ids: result.account_ids.iter().map(|a| a.to_string()).collect(),
@@ -1002,6 +1002,7 @@ mod e2e {
             "method": "submit_transaction",
             "params": {
                 "tx_proposal": tx_proposal,
+                "account_id": account_id,
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -1033,8 +1034,8 @@ mod e2e {
         let spent = balance_status.get(TXO_SPENT).unwrap().as_str().unwrap();
         let secreted = balance_status.get(TXO_SECRETED).unwrap().as_str().unwrap();
         assert_eq!(unspent, "0");
-        assert_eq!(pending, "100000000000100");
-        assert_eq!(spent, "0");
+        assert_eq!(pending, "0");
+        assert_eq!(spent, "99990000000100");
         assert_eq!(secreted, "0");
 
         // FIXME: FS-93 Increment ledger manually so tx lands.
@@ -1065,10 +1066,7 @@ mod e2e {
                 .unwrap(),
             b58_public_address
         );
-        assert_eq!(
-            transaction_log.get("account_id").unwrap().as_str().unwrap(),
-            ""
-        );
+        transaction_log.get("account_id").unwrap().as_str().unwrap();
         assert_eq!(
             transaction_log.get("fee_pmob").unwrap().as_str().unwrap(),
             "10000000000"
