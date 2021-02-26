@@ -53,13 +53,13 @@ pub const TX_DIRECTION_SENT: &str = "tx_direction_sent";
 pub const TX_DIRECTION_RECEIVED: &str = "tx_direction_received";
 
 /// A transaction output that is used as an input to a new transaction.
-pub const TXO_USED_AS_INPUT: &str = "input";
+pub const TXO_USED_AS_INPUT: &str = "txo_used_as_input";
 
 /// A transaction output that is used as an output of a new transaction.
-pub const TXO_USED_AS_OUTPUT: &str = "output";
+pub const TXO_USED_AS_OUTPUT: &str = "txo_used_as_output";
 
 /// A transaction output used as a change output of a new transaction.
-pub const TXO_USED_AS_CHANGE: &str = "change";
+pub const TXO_USED_AS_CHANGE: &str = "txo_used_as_change";
 
 /// An Account entity.
 ///
