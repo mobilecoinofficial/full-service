@@ -45,31 +45,31 @@ fn wallet_api(
             &state.service,
             Json(JsonCommandRequestV2::try_from(&req).map_err(|e| e)?),
         )
-        .and_then(|res| {
-            Ok(Json(JsonCommandResponse {
+        .map(|res| {
+            Json(JsonCommandResponse {
                 method: res.0.method,
                 result: res.0.result,
                 error: res.0.error,
                 jsonrpc: Some("2.0".to_string()),
                 id: command.0.id,
                 api_version: Some(version),
-            }))
+            })
         })
     } else {
         wallet_api_inner_v1(
             &state.service,
             Json(JsonCommandRequestV1::try_from(&req).map_err(|e| e)?),
         )
-        .and_then(|res| {
+        .map(|res| {
             let json_response: serde_json::Value = serde_json::json!(res.0);
-            Ok(Json(JsonCommandResponse {
+            Json(JsonCommandResponse {
                 method: Some(json_response.get("method").unwrap().to_string()),
                 result: Some(json_response.get("result").unwrap().clone()),
                 error: None,
                 jsonrpc: None,
                 id: None,
                 api_version: None,
-            }))
+            })
         })
     }
 }
@@ -129,7 +129,7 @@ where
                 .map(|a| {
                     json_rpc::account::Account::try_from(a).and_then(|v| {
                         serde_json::to_value(v)
-                            .and_then(|v| Ok((a.account_id_hex.clone(), v)))
+                            .map(|v| (a.account_id_hex.clone(), v))
                             .map_err(format_error)
                     })
                 })

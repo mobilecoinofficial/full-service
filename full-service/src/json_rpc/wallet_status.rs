@@ -71,7 +71,7 @@ impl TryFrom<&service::balance::WalletStatus> for WalletStatus {
             .map(|(i, a)| {
                 json_rpc::account::Account::try_from(a).and_then(|a| {
                     serde_json::to_value(a)
-                        .and_then(|v| Ok((i.to_string(), v)))
+                        .map(|v| (i.to_string(), v))
                         .map_err(|e| format!("Could not convert account map: {:?}", e))
                 })
             })

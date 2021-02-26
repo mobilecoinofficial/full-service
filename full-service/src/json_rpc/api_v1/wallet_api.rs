@@ -213,6 +213,7 @@ pub enum JsonCommandResponseV1 {
 // take explicit Rocket state, and then pass the service to the inner method.
 // This allows us to properly construct state with Mock Connection Objects in
 // tests. This also allows us to version the overall API easily.
+#[allow(clippy::bind_instead_of_map)]
 pub fn wallet_api_inner_v1<T, FPR>(
     service: &WalletService<T, FPR>,
     command: Json<JsonCommandRequestV1>,

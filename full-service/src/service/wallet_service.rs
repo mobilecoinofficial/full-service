@@ -273,9 +273,7 @@ impl<
             .map_or(Ok(None), |v| v.map(Some))?;
 
         // Successfully submitted.
-        Ok(JsonSubmitResponse {
-            transaction_id: transaction_id,
-        })
+        Ok(JsonSubmitResponse { transaction_id })
     }
 
     /// Convenience method that builds and submits in one go.
