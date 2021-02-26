@@ -379,21 +379,22 @@ pub fn sync_account(
     Ok(SyncAccountOk::MoreBlocksPotentiallyAvailable)
 }
 
-/// Identify TxOuts owned by a particular account... and writes them to...?
+/// TODO: What does this do?
 ///
 /// # Arguments
-/// * `outputs` -
-/// * `received_block_index` -
-/// * `account` -
-/// * `conn` -
-/// * `logger` -
+/// * `outputs` - Outputs from a single block that belong to the given account.
+/// * `block_index` - Index of the block containing the outputs.
+/// * `account` - The recipient of the outputs.
+/// * `conn` - Database connection.
+/// * `logger` - Logger.
 ///
 /// # Returns
-/// Mapping of subaddress index ---> txo_id.
-/// A key of -1 indicates ???
+/// Mapping of assigned subaddress index ---> txo_ids
+/// A key of -1 indicates that the output was not sent to an assigned
+/// subaddress.
 pub fn process_txos(
     outputs: &[TxOut],
-    received_block_index: i64,
+    block_index: i64,
     account: &Account,
     conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     logger: &Logger,
@@ -402,9 +403,7 @@ pub fn process_txos(
     let view_key = account_key.view_key();
     let account_id_hex = AccountID::from(&account_key).to_string();
 
-    // This will be the final result.
-    // subaddress --> ???
-    // A key of -1 indicates ...?
+    // Mapping of assigned subaddress index (or -1) to txo_ids.
     let mut output_txo_ids: HashMap<i64, Vec<String>> = HashMap::default();
 
     for tx_out in outputs {
@@ -418,7 +417,7 @@ pub fn process_txos(
             &tx_public_key,
         );
 
-        // See if it matches any of our assigned subaddresses.
+        // The assigned subaddress, if any, that this output was sent to.
         let subaddress_index =
             match AssignedSubaddress::find_by_subaddress_spend_public_key(&subaddress_spk, &conn) {
                 Ok((index, account_id)) => {
@@ -445,8 +444,7 @@ pub fn process_txos(
                 }
             };
 
-        let shared_secret =
-            get_tx_out_shared_secret(&view_key.view_private_key, &tx_public_key);
+        let shared_secret = get_tx_out_shared_secret(&view_key.view_private_key, &tx_public_key);
 
         let value = match tx_out.amount.get_value(&shared_secret) {
             Ok((v, _blinding)) => v,
@@ -467,26 +465,25 @@ pub fn process_txos(
             KeyImage::from(&onetime_private_key)
         });
 
-        // Insert received txo
+        // Insert received txo into the database.
         let txo_id = Txo::create_received(
             tx_out.clone(),
             subaddress_index,
             key_image,
             value,
-            received_block_index,
+            block_index,
             &account_id_hex,
             &conn,
         )?;
 
-        // If we couldn't find an assigned subaddress for this value, store for -1
+        // A key of -1 indicates that the output was not sent to an assigned subaddress
+        // of this account.
         let subaddress_key: i64 = subaddress_index.unwrap_or(-1) as i64;
-        if output_txo_ids.get(&(subaddress_key)).is_none() {
-            output_txo_ids.insert(subaddress_key, Vec::new());
-        }
 
+        // Upsert the txo_id.
         output_txo_ids
-            .get_mut(&(subaddress_key))
-            .unwrap() // We know the key exists because we inserted above
+            .entry(subaddress_key)
+            .or_insert_with(Vec::new)
             .push(txo_id);
     }
 
