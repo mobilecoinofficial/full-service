@@ -2,10 +2,10 @@
 
 //! Implementations of services.
 
-pub mod decorated_types;
+pub mod account;
+pub mod balance;
 pub mod sync;
 pub mod transaction_builder;
-pub mod wallet;
-mod wallet_impl;
+mod wallet_service;
 
-pub use wallet_impl::WalletService;
+pub use wallet_service::WalletService;

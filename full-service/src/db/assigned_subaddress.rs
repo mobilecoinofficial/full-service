@@ -70,6 +70,12 @@ pub trait AssignedSubaddressModel {
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<AssignedSubaddress>, WalletDbError>;
+
+    /// Delete all AssignedSubaddresses for a given account.
+    fn delete_all(
+        account_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError>;
 }
 
 impl AssignedSubaddressModel for AssignedSubaddress {
@@ -218,6 +224,19 @@ impl AssignedSubaddressModel for AssignedSubaddress {
             .load::<AssignedSubaddress>(conn)?;
 
         Ok(matches)
+    }
+
+    fn delete_all(
+        account_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::assigned_subaddresses::dsl::{
+            account_id_hex as schema_account_id_hex, assigned_subaddresses,
+        };
+
+        diesel::delete(assigned_subaddresses.filter(schema_account_id_hex.eq(account_id_hex)))
+            .execute(conn)?;
+        Ok(())
     }
 }
 

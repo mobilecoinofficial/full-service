@@ -518,10 +518,11 @@ mod tests {
             random_account_with_seed_values, WalletDbTestContext, MOB,
         },
     };
-    use mc_account_keys::PublicAddress;
+    use mc_account_keys::{PublicAddress, RootIdentity};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_ledger_db::Ledger;
     use mc_transaction_core::constants::MINIMUM_FEE;
+    use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
     #[test_with_logger]
@@ -531,7 +532,8 @@ mod tests {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
 
-        let account_key = AccountKey::random(&mut rng);
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
 
         // Populate our DB with some received txos in the same block
         let mut synced: HashMap<i64, Vec<String>> = HashMap::default();
@@ -552,7 +554,7 @@ mod tests {
 
         // Now we'll ingest them.
         let (account_id, _address) = Account::create(
-            &account_key,
+            &root_id.root_entropy,
             Some(0),
             None,
             "",

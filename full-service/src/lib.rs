@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
+//! Full Service Wallet.
+
 #![feature(proc_macro_hygiene, decl_macro)]
 // Required because hashbrown is at 0.9.1 and has build issues otherwise
 #![feature(ptr_offset_from)]
@@ -7,10 +9,12 @@
 pub mod config;
 mod db;
 mod error;
+mod json_rpc;
 mod service;
 
 pub use db::WalletDb;
-pub use service::{wallet, WalletService};
+pub use json_rpc::wallet;
+pub use service::WalletService;
 
 extern crate alloc;
 #[macro_use]

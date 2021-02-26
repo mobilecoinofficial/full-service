@@ -1,22 +1,25 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
+//! The Wallet API for Full Service. Version 1.
+
 use crate::{
-    db::account::AccountID,
-    service::{
-        decorated_types::{
-            JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents, JsonProof,
-            JsonSubmitResponse, JsonTransactionLog, JsonTxo, JsonWalletStatus,
-            StringifiedJsonTxProposal,
-        },
-        wallet_impl::WalletService,
+    db::{
+        account::{AccountID, AccountModel},
+        models::Account,
     },
+    json_rpc,
+    json_rpc::api_v1::decorated_types::{
+        JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents, JsonProof,
+        JsonSubmitResponse, JsonTransactionLog, JsonTxo, JsonWalletStatus,
+        StringifiedJsonTxProposal,
+    },
+    service::{account::AccountService, balance::BalanceService, WalletService},
 };
-use mc_connection::{
-    BlockchainConnection, HardcodedCredentialsProvider, ThickClient, UserTxConnection,
-};
-use mc_fog_report_validation::{FogPubkeyResolver, FogResolver};
+use mc_connection::{BlockchainConnection, UserTxConnection};
+use mc_fog_report_validation::FogPubkeyResolver;
+use mc_ledger_db::Ledger;
+use mc_ledger_sync::NetworkState;
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
-use rocket::{get, post, routes};
 use rocket_contrib::json::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
@@ -24,17 +27,23 @@ use std::{convert::TryFrom, iter::FromIterator};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
-pub struct WalletState<
-    T: BlockchainConnection + UserTxConnection + 'static,
-    FPR: FogPubkeyResolver + Send + Sync + 'static,
-> {
-    pub service: WalletService<T, FPR>,
+// Helper method to format displaydoc errors in json.
+fn format_error<T: std::fmt::Display + std::fmt::Debug>(e: T) -> String {
+    json!({"error": format!("{:?}", e), "details": e.to_string()}).to_string()
+}
+
+pub fn help_str_v1() -> String {
+    let mut help_str = "Please use json data to choose wallet commands. For example, \n\ncurl -s localhost:9090/wallet -d '{\"method\": \"create_account\", \"params\": {\"name\": \"Alice\"}}' -X POST -H 'Content-type: application/json'\n\nAvailable commands are:\n\n".to_owned();
+    for e in JsonCommandRequestV1::iter() {
+        help_str.push_str(&format!("{:?}\n\n", e));
+    }
+    help_str
 }
 
 #[derive(Deserialize, Serialize, EnumIter, Debug)]
 #[serde(tag = "method", content = "params")]
 #[allow(non_camel_case_types)]
-pub enum JsonCommandRequest {
+pub enum JsonCommandRequestV1 {
     create_account {
         name: Option<String>,
         first_block: Option<String>,
@@ -123,7 +132,7 @@ pub enum JsonCommandRequest {
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(tag = "method", content = "result")]
 #[allow(non_camel_case_types)]
-pub enum JsonCommandResponse {
+pub enum JsonCommandResponseV1 {
     create_account {
         entropy: String,
         account: JsonAccount,
@@ -198,39 +207,51 @@ pub enum JsonCommandResponse {
     },
 }
 
-// Helper method to format displaydoc errors in json.
-fn format_error<T: std::fmt::Display + std::fmt::Debug>(e: T) -> String {
-    json!({"error": format!("{:?}", e), "details": e.to_string()}).to_string()
-}
-
 // The Wallet API inner method, which handles switching on the method enum.
 //
 // Note that this is structured this way so that the routes can be defined to
 // take explicit Rocket state, and then pass the service to the inner method.
 // This allows us to properly construct state with Mock Connection Objects in
-// tests.
-fn wallet_api_inner<T, FPR>(
+// tests. This also allows us to version the overall API easily.
+#[allow(clippy::bind_instead_of_map)]
+pub fn wallet_api_inner_v1<T, FPR>(
     service: &WalletService<T, FPR>,
-    command: Json<JsonCommandRequest>,
-) -> Result<Json<JsonCommandResponse>, String>
+    command: Json<JsonCommandRequestV1>,
+) -> Result<Json<JsonCommandResponseV1>, String>
 where
     T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
     let result = match command.0 {
-        JsonCommandRequest::create_account { name, first_block } => {
+        JsonCommandRequestV1::create_account { name, first_block } => {
             let fb = first_block
                 .map(|fb| fb.parse::<u64>())
                 .transpose()
                 .map_err(format_error)?;
 
             let result = service.create_account(name, fb).map_err(format_error)?;
-            JsonCommandResponse::create_account {
-                entropy: result.entropy,
-                account: result.account,
+
+            let local_height = service.ledger_db.num_blocks().map_err(format_error)?;
+            let network_state = service.network_state.read().map_err(format_error)?;
+            // network_height = network_block_index + 1
+            let network_height = network_state
+                .highest_block_index_on_network()
+                .map(|v| v + 1)
+                .unwrap_or(0);
+            let decorated_account = Account::get_decorated(
+                &AccountID(result.account_id_hex),
+                local_height,
+                network_height,
+                &service.wallet_db.get_conn().map_err(format_error)?,
+            )
+            .map_err(format_error)?;
+
+            JsonCommandResponseV1::create_account {
+                entropy: hex::encode(&result.entropy),
+                account: decorated_account,
             }
         }
-        JsonCommandRequest::import_account {
+        JsonCommandRequestV1::import_account {
             entropy,
             name,
             first_block,
@@ -239,15 +260,54 @@ where
                 .map(|fb| fb.parse::<u64>())
                 .transpose()
                 .map_err(format_error)?;
+
             let result = service
                 .import_account(entropy, name, fb)
                 .map_err(format_error)?;
-            JsonCommandResponse::import_account { account: result }
+
+            let local_height = service.ledger_db.num_blocks().map_err(format_error)?;
+            let network_state = service.network_state.read().map_err(format_error)?;
+            // network_height = network_block_index + 1
+            let network_height = network_state
+                .highest_block_index_on_network()
+                .map(|v| v + 1)
+                .unwrap_or(0);
+            let decorated_account = Account::get_decorated(
+                &AccountID(result.account_id_hex),
+                local_height,
+                network_height,
+                &service.wallet_db.get_conn().map_err(format_error)?,
+            )
+            .map_err(format_error)?;
+
+            JsonCommandResponseV1::import_account {
+                account: decorated_account,
+            }
         }
-        JsonCommandRequest::get_all_accounts => {
+        JsonCommandRequestV1::get_all_accounts => {
             let accounts = service.list_accounts().map_err(format_error)?;
+            let local_height = service.ledger_db.num_blocks().map_err(format_error)?;
+            let network_state = service.network_state.read().map_err(format_error)?;
+            // network_height = network_block_index + 1
+            let network_height = network_state
+                .highest_block_index_on_network()
+                .map(|v| v + 1)
+                .unwrap_or(0);
+            let json_accounts: Vec<JsonAccount> = accounts
+                .iter()
+                .map(|a| {
+                    Account::get_decorated(
+                        &AccountID(a.account_id_hex.clone()),
+                        local_height,
+                        network_height,
+                        &service.wallet_db.get_conn().map_err(format_error)?,
+                    )
+                    .map_err(format_error)
+                })
+                .collect::<Result<Vec<JsonAccount>, String>>()?;
+
             let account_map: Map<String, serde_json::Value> = Map::from_iter(
-                accounts
+                json_accounts
                     .iter()
                     .map(|a| {
                         (
@@ -257,27 +317,53 @@ where
                     })
                     .collect::<Vec<(String, serde_json::Value)>>(),
             );
-            JsonCommandResponse::get_all_accounts {
-                account_ids: accounts.iter().map(|a| a.account_id.clone()).collect(),
+
+            JsonCommandResponseV1::get_all_accounts {
+                account_ids: json_accounts.iter().map(|a| a.account_id.clone()).collect(),
                 account_map,
             }
         }
-        JsonCommandRequest::get_account { account_id } => JsonCommandResponse::get_account {
-            account: service
-                .get_account(&AccountID(account_id))
-                .map_err(format_error)?,
-        },
-        JsonCommandRequest::update_account_name { account_id, name } => {
-            let account = service
-                .update_account_name(&account_id, name)
+        JsonCommandRequestV1::get_account { account_id } => {
+            let conn = service.wallet_db.get_conn().map_err(format_error)?;
+            let local_height = service.ledger_db.num_blocks().map_err(format_error)?;
+            let network_state = service.network_state.read().map_err(format_error)?;
+            // network_height = network_block_index + 1
+            let network_height = network_state
+                .highest_block_index_on_network()
+                .map(|v| v + 1)
+                .unwrap_or(0);
+            let account =
+                Account::get_decorated(&AccountID(account_id), local_height, network_height, &conn)
+                    .map_err(format_error)?;
+            JsonCommandResponseV1::get_account { account }
+        }
+        JsonCommandRequestV1::update_account_name { account_id, name } => {
+            let _account = service
+                .update_account_name(&AccountID(account_id.clone()), name)
                 .map_err(format_error)?;
-            JsonCommandResponse::update_account_name { account }
+            let local_height = service.ledger_db.num_blocks().map_err(format_error)?;
+            let network_state = service.network_state.read().map_err(format_error)?;
+            // network_height = network_block_index + 1
+            let network_height = network_state
+                .highest_block_index_on_network()
+                .map(|v| v + 1)
+                .unwrap_or(0);
+            let account = Account::get_decorated(
+                &AccountID(account_id),
+                local_height,
+                network_height,
+                &service.wallet_db.get_conn().map_err(format_error)?,
+            )
+            .map_err(format_error)?;
+            JsonCommandResponseV1::update_account_name { account }
         }
-        JsonCommandRequest::delete_account { account_id } => {
-            service.delete_account(&account_id).map_err(format_error)?;
-            JsonCommandResponse::delete_account { success: true }
+        JsonCommandRequestV1::delete_account { account_id } => {
+            service
+                .delete_account(&AccountID(account_id))
+                .map_err(format_error)?;
+            JsonCommandResponseV1::delete_account { success: true }
         }
-        JsonCommandRequest::get_all_txos_by_account { account_id } => {
+        JsonCommandRequestV1::get_all_txos_by_account { account_id } => {
             let txos = service.list_txos(&account_id).map_err(format_error)?;
             let txo_map: Map<String, serde_json::Value> = Map::from_iter(
                 txos.iter()
@@ -290,31 +376,65 @@ where
                     .collect::<Vec<(String, serde_json::Value)>>(),
             );
 
-            JsonCommandResponse::get_all_txos_by_account {
+            JsonCommandResponseV1::get_all_txos_by_account {
                 txo_ids: txos.iter().map(|t| t.txo_id.clone()).collect(),
                 txo_map,
             }
         }
-        JsonCommandRequest::get_txo { txo_id } => {
+        JsonCommandRequestV1::get_txo { txo_id } => {
             let result = service.get_txo(&txo_id).map_err(format_error)?;
-            JsonCommandResponse::get_txo { txo: result }
+            JsonCommandResponseV1::get_txo { txo: result }
         }
-        JsonCommandRequest::get_wallet_status => {
+        JsonCommandRequestV1::get_wallet_status => {
             let result = service.get_wallet_status().map_err(format_error)?;
-            JsonCommandResponse::get_wallet_status { status: result }
+            let account_mapped: Vec<(String, serde_json::Value)> = result
+                .account_map
+                .iter()
+                .map(|(i, a)| {
+                    json_rpc::account::Account::try_from(a).and_then(|a| {
+                        serde_json::to_value(a)
+                            .and_then(|v| Ok((i.to_string(), v)))
+                            .map_err(|e| format!("Could not convert account map: {:?}", e))
+                    })
+                })
+                .collect::<Result<Vec<(String, serde_json::Value)>, String>>()?;
+            JsonCommandResponseV1::get_wallet_status {
+                status: JsonWalletStatus {
+                    object: "wallet_status".to_string(),
+                    network_height: result.network_block_count.to_string(),
+                    local_height: result.local_block_count.to_string(),
+                    is_synced_all: result.min_synced_block_index == result.network_block_count - 1,
+                    total_available_pmob: result.unspent.to_string(),
+                    total_pending_pmob: result.pending.to_string(),
+                    account_ids: result.account_ids.iter().map(|a| a.to_string()).collect(),
+                    account_map: Map::from_iter(account_mapped),
+                },
+            }
         }
-        JsonCommandRequest::get_balance { account_id } => JsonCommandResponse::get_balance {
-            status: service.get_balance(&account_id).map_err(format_error)?,
-        },
-        JsonCommandRequest::create_address {
+        JsonCommandRequestV1::get_balance { account_id } => {
+            let balance = service
+                .get_balance_for_account(&AccountID(account_id))
+                .map_err(format_error)?;
+            let status = JsonBalanceResponse {
+                unspent: balance.unspent.to_string(),
+                pending: balance.pending.to_string(),
+                spent: balance.spent.to_string(),
+                secreted: balance.secreted.to_string(),
+                orphaned: balance.orphaned.to_string(),
+                local_block_count: balance.local_block_count.to_string(),
+                synced_blocks: balance.synced_blocks.to_string(),
+            };
+            JsonCommandResponseV1::get_balance { status }
+        }
+        JsonCommandRequestV1::create_address {
             account_id,
             comment,
-        } => JsonCommandResponse::create_address {
+        } => JsonCommandResponseV1::create_address {
             address: service
                 .create_assigned_subaddress(&account_id, comment.as_deref())
                 .map_err(format_error)?,
         },
-        JsonCommandRequest::get_all_addresses_by_account { account_id } => {
+        JsonCommandRequestV1::get_all_addresses_by_account { account_id } => {
             let addresses = service
                 .list_assigned_subaddresses(&account_id)
                 .map_err(format_error)?;
@@ -330,12 +450,12 @@ where
                     .collect::<Vec<(String, serde_json::Value)>>(),
             );
 
-            JsonCommandResponse::get_all_addresses_by_account {
+            JsonCommandResponseV1::get_all_addresses_by_account {
                 address_ids: addresses.iter().map(|a| a.address_id.clone()).collect(),
                 address_map,
             }
         }
-        JsonCommandRequest::send_transaction {
+        JsonCommandRequestV1::send_transaction {
             account_id,
             recipient_public_address,
             value,
@@ -357,11 +477,11 @@ where
                     comment,
                 )
                 .map_err(format_error)?;
-            JsonCommandResponse::send_transaction {
+            JsonCommandResponseV1::send_transaction {
                 transaction: transaction_details,
             }
         }
-        JsonCommandRequest::build_transaction {
+        JsonCommandRequestV1::build_transaction {
             account_id,
             recipient_public_address,
             value,
@@ -381,20 +501,20 @@ where
                     max_spendable_value,
                 )
                 .map_err(format_error)?;
-            JsonCommandResponse::build_transaction {
+            JsonCommandResponseV1::build_transaction {
                 tx_proposal: StringifiedJsonTxProposal::from(&tx_proposal),
             }
         }
-        JsonCommandRequest::submit_transaction {
+        JsonCommandRequestV1::submit_transaction {
             tx_proposal,
             comment,
             account_id,
-        } => JsonCommandResponse::submit_transaction {
+        } => JsonCommandResponseV1::submit_transaction {
             transaction: service
                 .submit_transaction(JsonTxProposal::try_from(&tx_proposal)?, comment, account_id)
                 .map_err(format_error)?,
         },
-        JsonCommandRequest::get_all_transactions_by_account { account_id } => {
+        JsonCommandRequestV1::get_all_transactions_by_account { account_id } => {
             let transactions = service
                 .list_transactions(&account_id)
                 .map_err(format_error)?;
@@ -410,7 +530,7 @@ where
                     .collect::<Vec<(String, serde_json::Value)>>(),
             );
 
-            JsonCommandResponse::get_all_transactions_by_account {
+            JsonCommandResponseV1::get_all_transactions_by_account {
                 transaction_log_ids: transactions
                     .iter()
                     .map(|t| t.transaction_log_id.clone())
@@ -418,38 +538,40 @@ where
                 transaction_log_map,
             }
         }
-        JsonCommandRequest::get_transaction { transaction_log_id } => {
-            JsonCommandResponse::get_transaction {
+        JsonCommandRequestV1::get_transaction { transaction_log_id } => {
+            JsonCommandResponseV1::get_transaction {
                 transaction: service
                     .get_transaction(&transaction_log_id)
                     .map_err(format_error)?,
             }
         }
-        JsonCommandRequest::get_transaction_object { transaction_log_id } => {
-            JsonCommandResponse::get_transaction_object {
+        JsonCommandRequestV1::get_transaction_object { transaction_log_id } => {
+            JsonCommandResponseV1::get_transaction_object {
                 transaction: service
                     .get_transaction_object(&transaction_log_id)
                     .map_err(format_error)?,
             }
         }
-        JsonCommandRequest::get_txo_object { txo_id } => JsonCommandResponse::get_txo_object {
+        JsonCommandRequestV1::get_txo_object { txo_id } => JsonCommandResponseV1::get_txo_object {
             txo: service.get_txo_object(&txo_id).map_err(format_error)?,
         },
-        JsonCommandRequest::get_block_object { block_index } => {
+        JsonCommandRequestV1::get_block_object { block_index } => {
             let (block, block_contents) = service
                 .get_block_object(block_index.parse::<u64>().map_err(format_error)?)
                 .map_err(format_error)?;
-            JsonCommandResponse::get_block_object {
+            JsonCommandResponseV1::get_block_object {
                 block,
                 block_contents,
             }
         }
-        JsonCommandRequest::get_proofs { transaction_log_id } => JsonCommandResponse::get_proofs {
-            proofs: service
-                .get_proofs(&transaction_log_id)
-                .map_err(format_error)?,
-        },
-        JsonCommandRequest::verify_proof {
+        JsonCommandRequestV1::get_proofs { transaction_log_id } => {
+            JsonCommandResponseV1::get_proofs {
+                proofs: service
+                    .get_proofs(&transaction_log_id)
+                    .map_err(format_error)?,
+            }
+        }
+        JsonCommandRequestV1::verify_proof {
             account_id,
             txo_id,
             proof,
@@ -457,233 +579,23 @@ where
             let result = service
                 .verify_proof(&account_id, &txo_id, &proof)
                 .map_err(format_error)?;
-            JsonCommandResponse::verify_proof { verified: result }
+            JsonCommandResponseV1::verify_proof { verified: result }
         }
     };
     Ok(Json(result))
 }
 
-#[post("/wallet", format = "json", data = "<command>")]
-fn wallet_api(
-    state: rocket::State<WalletState<ThickClient<HardcodedCredentialsProvider>, FogResolver>>,
-    command: Json<JsonCommandRequest>,
-) -> Result<Json<JsonCommandResponse>, String> {
-    wallet_api_inner(&state.service, command)
-}
-
-#[get("/wallet")]
-fn wallet_help() -> Result<String, String> {
-    let mut help_str = "Please use json data to choose wallet commands. For example, \n\ncurl -s localhost:9090/wallet -d '{\"method\": \"create_account\", \"params\": {\"name\": \"Alice\"}}' -X POST -H 'Content-type: application/json'\n\nAvailable commands are:\n\n".to_owned();
-    for e in JsonCommandRequest::iter() {
-        help_str.push_str(&format!("{:?}\n\n", e));
-    }
-    Ok(help_str)
-}
-
-pub fn rocket(
-    rocket_config: rocket::Config,
-    state: WalletState<ThickClient<HardcodedCredentialsProvider>, FogResolver>,
-) -> rocket::Rocket {
-    rocket::custom(rocket_config)
-        .mount("/", routes![wallet_api, wallet_help])
-        .manage(state)
-}
-
 #[cfg(test)]
-mod tests {
-    use super::*;
+mod e2e {
     use crate::{
-        db::{
-            b58_decode,
-            models::{TXO_STATUS_UNSPENT, TXO_TYPE_RECEIVED, TX_DIRECTION_SENT, TX_STATUS_PENDING},
-        },
-        test_utils::{
-            add_block_to_ledger_db, add_block_with_tx_proposal, get_resolver_factory,
-            get_test_ledger, setup_peer_manager_and_network_state, WalletDbTestContext, MOB,
-        },
+        db::b58_decode,
+        json_rpc::api_test_utils::{dispatch, dispatch_expect_error, setup, wait_for_sync},
+        test_utils::add_block_to_ledger_db,
     };
-    use mc_account_keys::PublicAddress;
-    use mc_common::logger::{log, test_with_logger, Logger};
-    use mc_connection::ConnectionManager;
-    use mc_connection_test_utils::MockBlockchainConnection;
-    use mc_consensus_scp::QuorumSet;
+    use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
-    use mc_fog_report_validation::MockFogPubkeyResolver;
-    use mc_ledger_db::{Ledger, LedgerDB};
-    use mc_ledger_sync::PollingNetworkState;
     use mc_transaction_core::ring_signature::KeyImage;
     use rand::{rngs::StdRng, SeedableRng};
-    use rocket::{
-        http::{ContentType, Status},
-        local::Client,
-    };
-    use rocket_contrib::json::JsonValue;
-    use std::{
-        sync::{
-            atomic::{AtomicUsize, Ordering::SeqCst},
-            Arc, RwLock,
-        },
-        time::Duration,
-    };
-
-    fn get_free_port() -> u16 {
-        static PORT_NR: AtomicUsize = AtomicUsize::new(0);
-        PORT_NR.fetch_add(1, SeqCst) as u16 + 30300
-    }
-
-    pub struct TestWalletState {
-        pub service: WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver>,
-    }
-
-    #[post("/wallet", format = "json", data = "<command>")]
-    fn test_wallet_api(
-        state: rocket::State<TestWalletState>,
-        command: Json<JsonCommandRequest>,
-    ) -> Result<Json<JsonCommandResponse>, String> {
-        wallet_api_inner(&state.service, command)
-    }
-
-    fn test_rocket(rocket_config: rocket::Config, state: TestWalletState) -> rocket::Rocket {
-        rocket::custom(rocket_config)
-            .mount("/", routes![test_wallet_api, wallet_help])
-            .manage(state)
-    }
-
-    fn setup(
-        mut rng: &mut StdRng,
-        logger: Logger,
-    ) -> (
-        Client,
-        LedgerDB,
-        WalletDbTestContext,
-        Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
-    ) {
-        let db_test_context = WalletDbTestContext::default();
-        let wallet_db = db_test_context.get_db_instance(logger.clone());
-        let known_recipients: Vec<PublicAddress> = Vec::new();
-        let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
-        let (peer_manager, network_state) =
-            setup_peer_manager_and_network_state(ledger_db.clone(), logger.clone());
-
-        let service: WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> =
-            WalletService::new(
-                wallet_db,
-                ledger_db.clone(),
-                peer_manager,
-                network_state.clone(),
-                get_resolver_factory(&mut rng).unwrap(),
-                None,
-                false,
-                logger,
-            );
-
-        let rocket_config: rocket::Config =
-            rocket::Config::build(rocket::config::Environment::Development)
-                .port(get_free_port())
-                .unwrap();
-        let rocket = test_rocket(rocket_config, TestWalletState { service });
-        (
-            Client::new(rocket).expect("valid rocket instance"),
-            ledger_db,
-            db_test_context,
-            network_state,
-        )
-    }
-
-    fn dispatch(client: &Client, request_body: JsonValue, logger: &Logger) -> serde_json::Value {
-        let mut res = client
-            .post("/wallet")
-            .header(ContentType::JSON)
-            .body(request_body.to_string())
-            .dispatch();
-        assert_eq!(res.status(), Status::Ok);
-        let response_body = res.body().unwrap().into_string().unwrap();
-        log::info!(
-            logger,
-            "Attempted dispatch of {:?} got response {:?}",
-            request_body,
-            response_body
-        );
-
-        let res: JsonValue = serde_json::from_str(&response_body).unwrap();
-        res.get("result").unwrap().clone()
-    }
-
-    fn dispatch_expect_error(
-        client: &Client,
-        request_body: JsonValue,
-        logger: &Logger,
-        expected_err: String,
-    ) {
-        let mut res = client
-            .post("/wallet")
-            .header(ContentType::JSON)
-            .body(request_body.to_string())
-            .dispatch();
-        assert_eq!(res.status(), Status::Ok);
-        let response_body = res.body().unwrap().into_string().unwrap();
-        log::info!(
-            logger,
-            "Attempted dispatch of {:?} got response {:?}",
-            request_body,
-            response_body
-        );
-        let response_json: serde_json::Value = serde_json::from_str(&response_body).unwrap();
-        let expected_json: serde_json::Value = serde_json::from_str(&expected_err).unwrap();
-        assert_eq!(response_json, expected_json);
-    }
-
-    fn wait_for_sync(
-        client: &Client,
-        ledger_db: &LedgerDB,
-        network_state: &Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
-        logger: &Logger,
-    ) {
-        let mut count = 0;
-        loop {
-            // Sleep to let the sync thread process the txos
-            std::thread::sleep(Duration::from_secs(1));
-            // Check that syncing is working
-            let body = json!({
-                "method": "get_wallet_status",
-            });
-            let result = dispatch(&client, body, &logger);
-            let status = result.get("status").unwrap();
-
-            // Have to manually call poll() on network state to get it to update for these
-            // tests
-            network_state.write().unwrap().poll();
-
-            // FIXME: does not work for offline mode because network_height is always 0
-
-            let is_synced_all = status.get("is_synced_all").unwrap().as_bool().unwrap();
-            if is_synced_all {
-                let local_height = status
-                    .get("local_height")
-                    .unwrap()
-                    .as_str()
-                    .unwrap()
-                    .parse::<u64>()
-                    .unwrap();
-                assert_eq!(local_height, ledger_db.num_blocks().unwrap());
-                assert_eq!(
-                    status
-                        .get("network_height")
-                        .unwrap()
-                        .as_str()
-                        .unwrap()
-                        .parse::<u64>()
-                        .unwrap(),
-                    local_height
-                );
-                break;
-            }
-            count += 1;
-            if count > 10 {
-                panic!("Service did not sync after 10 iterations");
-            }
-        }
-    }
 
     #[test_with_logger]
     fn test_account_crud(logger: Logger) {
@@ -697,7 +609,8 @@ mod tests {
                 "name": "Alice Main Account",
             }
         });
-        let result = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
         assert!(result.get("entropy").is_some());
         let account_obj = result.get("account").unwrap();
         assert!(account_obj.get("account_id").is_some());
@@ -718,7 +631,8 @@ mod tests {
         let body = json!({
             "method": "get_all_accounts",
         });
-        let result = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
         let accounts = result.get("account_ids").unwrap().as_array().unwrap();
         assert_eq!(accounts.len(), 1);
         let account_map = result.get("account_map").unwrap().as_object().unwrap();
@@ -737,7 +651,8 @@ mod tests {
                 "account_id": *account_id,
             }
         });
-        let result = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
         let name = result.get("account").unwrap().get("name").unwrap();
         assert_eq!("Alice Main Account", name.as_str().unwrap());
         // FIXME: assert balance
@@ -750,7 +665,8 @@ mod tests {
                 "name": "Eve Main Account",
             }
         });
-        let result = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
         assert_eq!(
             result.get("account").unwrap().get("name").unwrap(),
             "Eve Main Account"
@@ -762,7 +678,8 @@ mod tests {
                 "account_id": *account_id,
             }
         });
-        let result = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
         let name = result.get("account").unwrap().get("name").unwrap();
         assert_eq!("Eve Main Account", name.as_str().unwrap());
 
@@ -773,13 +690,15 @@ mod tests {
                 "account_id": *account_id,
             }
         });
-        let result = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
         assert_eq!(result.get("success").unwrap(), true);
 
         let body = json!({
             "method": "get_all_accounts",
         });
-        let result = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
         let accounts = result.get("account_ids").unwrap().as_array().unwrap();
         assert_eq!(accounts.len(), 0);
     }
@@ -797,7 +716,8 @@ mod tests {
                 "first_block": "200",
             }
         });
-        let result = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
         assert_eq!(public_address, "8JtpPPh9mV2PTLrrDz4f2j4PtUpNWnrRg8HKpnuwkZbj5j8bGqtNMNLC9E3zjzcw456215yMjkCVYK4FPZTX4gijYHiuDT31biNHrHmQmsU");
@@ -822,7 +742,8 @@ mod tests {
                 "first_block": "200",
             }
         });
-        let result = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         assert!(account_obj.get("main_address").is_some());
         assert!(result.get("entropy").is_some());
@@ -840,12 +761,13 @@ mod tests {
                 "name": "Alice Main Account",
             }
         });
-        let _result = dispatch(&client, body, &logger);
+        let _result = dispatch(&client, body, &logger).get("result").unwrap();
 
         let body = json!({
             "method": "get_wallet_status",
         });
-        let result = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
         let status = result.get("status").unwrap();
         assert_eq!(status.get("network_height").unwrap(), "12");
         assert_eq!(status.get("local_height").unwrap(), "12");
@@ -880,7 +802,8 @@ mod tests {
                 "first_block": "0",
             }
         });
-        let result = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
         let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
@@ -903,7 +826,8 @@ mod tests {
                 "account_id": account_id,
             }
         });
-        let result = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
         let txos = result.get("txo_ids").unwrap().as_array().unwrap();
         assert_eq!(txos.len(), 1);
         let txo_map = result.get("txo_map").unwrap().as_object().unwrap();
@@ -920,13 +844,13 @@ mod tests {
             .unwrap()
             .as_str()
             .unwrap();
-        assert_eq!(txo_status, TXO_STATUS_UNSPENT);
+        assert_eq!(txo_status, "txo_status_unspent");
         let txo_type = account_status_map
             .get("txo_type")
             .unwrap()
             .as_str()
             .unwrap();
-        assert_eq!(txo_type, TXO_TYPE_RECEIVED);
+        assert_eq!(txo_type, "txo_type_received");
         let value = txo.get("value_pmob").unwrap().as_str().unwrap();
         assert_eq!(value, "100");
 
@@ -937,7 +861,8 @@ mod tests {
                 "account_id": account_id,
             }
         });
-        let result = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
         let balance_status = result.get("status").unwrap();
         let unspent = balance_status.get("unspent").unwrap().as_str().unwrap();
         assert_eq!(unspent, "100");
@@ -956,7 +881,8 @@ mod tests {
                 "first_block": "0",
             }
         });
-        let result = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
         let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
@@ -1007,7 +933,8 @@ mod tests {
                 "value": "42000000000000", // 42.0 MOB
             }
         });
-        let result = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
         let tx_proposal = result.get("tx_proposal").unwrap();
         let tx = tx_proposal.get("tx").unwrap();
         let tx_prefix = tx.get("prefix").unwrap();
@@ -1062,7 +989,8 @@ mod tests {
                 "account_id": account_id,
             }
         });
-        let result = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
         let balance_status = result.get("status").unwrap();
         let unspent = balance_status.get("unspent").unwrap().as_str().unwrap();
         assert_eq!(unspent, "100000000000100");
@@ -1075,7 +1003,8 @@ mod tests {
                 "account_id": account_id,
             }
         });
-        let result = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
         let transaction_id = result
             .get("transaction")
             .unwrap()
@@ -1095,18 +1024,17 @@ mod tests {
                 "account_id": account_id,
             }
         });
-        let result = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
         let balance_status = result.get("status").unwrap();
         let unspent = balance_status.get("unspent").unwrap().as_str().unwrap();
         let pending = balance_status.get("pending").unwrap().as_str().unwrap();
         let spent = balance_status.get("spent").unwrap().as_str().unwrap();
-        let orphaned = balance_status.get("orphaned").unwrap().as_str().unwrap();
         let secreted = balance_status.get("secreted").unwrap().as_str().unwrap();
         assert_eq!(unspent, "0");
-        assert_eq!(pending, "100000000000100");
-        assert_eq!(spent, "0");
-        assert_eq!(orphaned, "0");
-        assert_eq!(secreted, "99990000000100");
+        assert_eq!(pending, "0");
+        assert_eq!(spent, "99990000000100");
+        assert_eq!(secreted, "0");
 
         // FIXME: FS-93 Increment ledger manually so tx lands.
 
@@ -1117,11 +1045,12 @@ mod tests {
                 "transaction_log_id": transaction_id,
             }
         });
-        let result = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
         let transaction_log = result.get("transaction").unwrap();
         assert_eq!(
             transaction_log.get("direction").unwrap().as_str().unwrap(),
-            TX_DIRECTION_SENT
+            "tx_direction_sent"
         );
         assert_eq!(
             transaction_log.get("value_pmob").unwrap().as_str().unwrap(),
@@ -1135,22 +1064,14 @@ mod tests {
                 .unwrap(),
             b58_public_address
         );
-        assert!(
-            transaction_log
-                .get("account_id")
-                .unwrap()
-                .as_str()
-                .unwrap()
-                .len()
-                == 64,
-        );
+        transaction_log.get("account_id").unwrap().as_str().unwrap();
         assert_eq!(
             transaction_log.get("fee_pmob").unwrap().as_str().unwrap(),
             "10000000000"
         );
         assert_eq!(
             transaction_log.get("status").unwrap().as_str().unwrap(),
-            TX_STATUS_PENDING
+            "tx_status_pending"
         );
         assert_eq!(
             transaction_log
@@ -1182,7 +1103,8 @@ mod tests {
                 "name": "Alice Main Account",
             }
         });
-        let result = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
         let account_id = result
             .get("account")
             .unwrap()
@@ -1199,7 +1121,8 @@ mod tests {
                 "comment": "For Bob",
             }
         });
-        let result = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
         let b58_public_address = result
             .get("address")
             .unwrap()
@@ -1226,7 +1149,8 @@ mod tests {
                 "account_id": account_id,
             }
         });
-        let result = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
         let txos = result.get("txo_ids").unwrap().as_array().unwrap();
         assert_eq!(txos.len(), 1);
         let txo_map = result.get("txo_map").unwrap().as_object().unwrap();
@@ -1239,188 +1163,10 @@ mod tests {
             .get(account_id)
             .unwrap();
         let txo_status = status_map.get("txo_status").unwrap().as_str().unwrap();
-        assert_eq!(txo_status, TXO_STATUS_UNSPENT);
+        assert_eq!(txo_status, "txo_status_unspent");
         let txo_type = status_map.get("txo_type").unwrap().as_str().unwrap();
-        assert_eq!(txo_type, TXO_TYPE_RECEIVED);
+        assert_eq!(txo_type, "txo_type_received");
         let value = txo.get("value_pmob").unwrap().as_str().unwrap();
         assert_eq!(value, "42000000000000");
-    }
-
-    #[test_with_logger]
-    fn test_offline_workflow(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-
-        //  Start up the "offline" machine
-        let mut offline_ledger_db = get_test_ledger(23, &[], 12, &mut rng);
-        let db_test_context = WalletDbTestContext::default();
-        let offline_wallet_db = db_test_context.get_db_instance(logger.clone());
-        let offline_peer_manager = ConnectionManager::new(vec![], logger.clone());
-        let offline_network_state = Arc::new(RwLock::new(PollingNetworkState::new(
-            QuorumSet::new_with_node_ids(0, vec![]),
-            offline_peer_manager.clone(),
-            logger.clone(),
-        )));
-        let offline_service: WalletService<
-            MockBlockchainConnection<LedgerDB>,
-            MockFogPubkeyResolver,
-        > = WalletService::new(
-            offline_wallet_db,
-            offline_ledger_db.clone(),
-            offline_peer_manager,
-            offline_network_state.clone(),
-            get_resolver_factory(&mut rng).unwrap(),
-            Some(1),
-            true,
-            logger.clone(),
-        );
-        let offline_rocket_config: rocket::Config =
-            rocket::Config::build(rocket::config::Environment::Development)
-                .port(get_free_port())
-                .unwrap();
-        let offline_rocket = test_rocket(
-            offline_rocket_config,
-            TestWalletState {
-                service: offline_service,
-            },
-        );
-        let offline_client = Client::new(offline_rocket).expect("valid rocket instance");
-
-        // Add account to offline machine, and get public address
-        let body = json!({
-            "method": "create_account",
-            "params": {
-                "name": "Alice Main Account",
-            }
-        });
-        let result = dispatch(&offline_client, body, &logger);
-        let account_id = result
-            .get("account")
-            .unwrap()
-            .get("account_id")
-            .unwrap()
-            .as_str()
-            .unwrap();
-
-        // Create a subaddress
-        let body = json!({
-            "method": "create_address",
-            "params": {
-                "account_id": account_id,
-                "comment": "For Bob",
-            }
-        });
-        let result = dispatch(&offline_client, body, &logger);
-        let b58_public_address = result
-            .get("address")
-            .unwrap()
-            .get("public_address")
-            .unwrap()
-            .as_str()
-            .unwrap();
-        let from_bob_public_address = b58_decode(b58_public_address).unwrap();
-
-        // Add a block to the offline ledger - this is equivalent to having synced the
-        // ledger on the online machine, then copied it over.
-        add_block_to_ledger_db(
-            &mut offline_ledger_db,
-            &vec![from_bob_public_address],
-            42 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
-            &mut rng,
-        );
-
-        // Wait for sync - FIXME: wait_for_sync does not work in offline mode due to
-        // network height = 0
-        loop {
-            let body = json!({
-                "method": "get_account",
-                "params": {
-                    "account_id": account_id,
-                }
-            });
-            let result = dispatch(&offline_client, body, &logger);
-            let account_height = result
-                .get("account")
-                .unwrap()
-                .get("account_height")
-                .unwrap()
-                .as_str()
-                .unwrap();
-            if account_height.parse::<u64>().unwrap() == 13 {
-                break;
-            }
-        }
-
-        // Get balance after block added
-        let body = json!({
-            "method": "get_balance",
-            "params": {
-                "account_id": account_id,
-            }
-        });
-        let result = dispatch(&offline_client, body, &logger);
-        let balance_status = result.get("status").unwrap();
-        let unspent = balance_status.get("unspent").unwrap().as_str().unwrap();
-        assert_eq!(unspent.parse::<i64>().unwrap(), 42 * MOB);
-
-        // Build a transaction
-        // Create a tx proposal to ourselves
-        let body = json!({
-            "method": "build_transaction",
-            "params": {
-                "account_id": account_id,
-                "recipient_public_address": b58_public_address,
-                "value": "30000000000",
-            }
-        });
-        let result = dispatch(&offline_client, body, &logger);
-        let tx_proposal = result.get("tx_proposal").unwrap();
-
-        // Now we would copy this tx_proposal to the online machine to submit.
-
-        // Start up "online" machine and submit the tx_proposal to the network.
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
-
-        let body = json!({
-            "method": "submit_transaction",
-            "params": {
-                "tx_proposal": tx_proposal,
-            }
-        });
-        let result = dispatch(&client, body, &logger);
-        let _transaction_id = result
-            .get("transaction")
-            .unwrap()
-            .get("transaction_id")
-            .unwrap();
-
-        let string_json_tx_proposal: StringifiedJsonTxProposal =
-            serde_json::from_value(tx_proposal.clone()).unwrap();
-        let json_tx_proposal = JsonTxProposal::try_from(&string_json_tx_proposal).unwrap();
-        let proto_tx_proposal =
-            mc_mobilecoind_api::TxProposal::try_from(&json_tx_proposal).unwrap();
-        let rust_tx_proposal =
-            mc_mobilecoind::payments::TxProposal::try_from(&proto_tx_proposal).unwrap();
-        add_block_with_tx_proposal(&mut offline_ledger_db, rust_tx_proposal);
-
-        // Get balance after submission
-        let body = json!({
-            "method": "get_balance",
-            "params": {
-                "account_id": account_id,
-            }
-        });
-        let result = dispatch(&offline_client, body, &logger);
-        let balance_status = result.get("status").unwrap();
-        let unspent = balance_status.get("unspent").unwrap().as_str().unwrap();
-        let pending = balance_status.get("pending").unwrap().as_str().unwrap();
-        let spent = balance_status.get("spent").unwrap().as_str().unwrap();
-        let orphaned = balance_status.get("orphaned").unwrap().as_str().unwrap();
-        let secreted = balance_status.get("secreted").unwrap().as_str().unwrap();
-        assert_eq!(unspent.parse::<i64>().unwrap(), 42 * MOB);
-        assert_eq!(pending.parse::<i64>().unwrap(), 0);
-        assert_eq!(spent.parse::<i64>().unwrap(), 0);
-        assert_eq!(orphaned.parse::<i64>().unwrap(), 0);
-        assert_eq!(secreted.parse::<i64>().unwrap(), 0);
     }
 }

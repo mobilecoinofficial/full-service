@@ -135,6 +135,11 @@ pub trait TxoModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<TxoDetails>, WalletDbError>;
 
+    fn list_for_address(
+        assigned_subaddress_b58: String,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<TxoDetails>, WalletDbError>;
+
     /// Get a Vec<Txo> for all txos in a given account with a given txo_status.
     fn list_by_status(
         account_id_hex: &str,
@@ -573,6 +578,34 @@ impl TxoModel for Txo {
         details
     }
 
+    fn list_for_address(
+        assigned_subaddress_b58: String,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<TxoDetails>, WalletDbError> {
+        use crate::db::schema::{account_txo_statuses, txos};
+        let subaddress = AssignedSubaddress::get(&assigned_subaddress_b58, conn)?;
+
+        // Note: The Same Txo may be referenced in the account_txo_statuses multiple
+        // times due to its relationship with multiple accounts or serving
+        // multiple roles within payments (for example, change - minted,
+        // received, unspent, spent).
+        let results: Vec<Txo> = txos::table
+            .left_outer_join(
+                account_txo_statuses::table
+                    .on(account_txo_statuses::account_id_hex.eq(subaddress.account_id_hex)),
+            )
+            .select(txos::all_columns)
+            .filter(txos::subaddress_index.eq(subaddress.subaddress_index))
+            .distinct()
+            .load(conn)?;
+
+        let details: Result<Vec<TxoDetails>, WalletDbError> = results
+            .iter()
+            .map(|t| Txo::get(&t.txo_id_hex, &conn))
+            .collect();
+        details
+    }
+
     fn list_by_status(
         account_id_hex: &str,
         status: &str,
@@ -896,16 +929,17 @@ mod tests {
     // Note: This is not a replacement for a service-level test, but instead tests
     // basic assumptions after common DB operations with the Txo.
     #[test_with_logger]
-    fn test_received_tx_lifecycle(logger: Logger) {
+    fn test_received_txo_lifecycle(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger.clone());
         let mut ledger_db = get_test_ledger(5, &[], 12, &mut rng);
 
-        let alice_account_key = AccountKey::random(&mut rng);
+        let root_id = RootIdentity::from_random(&mut rng);
+        let alice_account_key = AccountKey::from(&root_id);
         let (alice_account_id, _public_address_b58) = Account::create(
-            &alice_account_key,
+            &root_id.root_entropy,
             Some(1),
             None,
             "Alice's Main Account",
@@ -1146,6 +1180,9 @@ mod tests {
         )
         .unwrap();
 
+        // There are now 3 total Txos for our account
+        assert_eq!(updated_txos.len(), 3);
+
         // Verify that there is one change Txo in our current Txos
         let change: Vec<&TxoDetails> = updated_txos
             .iter()
@@ -1160,9 +1197,10 @@ mod tests {
         assert_eq!(change.len(), 1);
 
         // Create a new account and send some MOB to it
-        let bob_account_key = AccountKey::random(&mut rng);
+        let bob_root_id = RootIdentity::from_random(&mut rng);
+        let bob_account_key = AccountKey::from(&bob_root_id);
         let (bob_account_id, _public_address_b58) = Account::create(
-            &bob_account_key,
+            &bob_root_id.root_entropy,
             Some(1),
             None,
             "Bob's Main Account",
@@ -1217,9 +1255,10 @@ mod tests {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
 
-        let account_key = AccountKey::random(&mut rng);
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
         let (account_id_hex, _public_address_b58) = Account::create(
-            &account_key,
+            &root_id.root_entropy,
             Some(1),
             None,
             "Alice's Main Account",
@@ -1321,9 +1360,10 @@ mod tests {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
 
-        let account_key = AccountKey::random(&mut rng);
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
         let (account_id_hex, _public_address_b58) = Account::create(
-            &account_key,
+            &root_id.root_entropy,
             Some(0),
             None,
             "Alice's Main Account",
@@ -1364,7 +1404,8 @@ mod tests {
     fn test_create_minted(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
-        let src_account = AccountKey::from(&RootIdentity::from_random(&mut rng));
+        let root_id = RootIdentity::from_random(&mut rng);
+        let src_account = AccountKey::from(&root_id);
 
         // Seed our ledger with some utxos for the src_account
         let known_recipients = vec![src_account.subaddress(0)];
@@ -1374,7 +1415,7 @@ mod tests {
         let wallet_db = db_test_context.get_db_instance(logger.clone());
 
         Account::create(
-            &src_account,
+            &root_id.root_entropy,
             Some(0),
             None,
             "",
@@ -1434,9 +1475,10 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // The account which will receive the Txo
-        let recipient_account_key = AccountKey::random(&mut rng);
+        let root_id = RootIdentity::from_random(&mut rng);
+        let recipient_account_key = AccountKey::from(&root_id);
         Account::create(
-            &recipient_account_key,
+            &root_id.root_entropy,
             Some(0),
             None,
             "",

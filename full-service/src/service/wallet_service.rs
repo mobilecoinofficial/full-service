@@ -1,32 +1,24 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
-//! The implementation of the wallet service methods.
+//! The Wallet Service for interacting with the wallet.
 
 use crate::{
     db::{
-        account::{AccountID, AccountModel},
+        account::AccountID,
         assigned_subaddress::AssignedSubaddressModel,
         b58_decode,
-        models::{
-            Account, AssignedSubaddress, TransactionLog, Txo, TXO_STATUS_ORPHANED,
-            TXO_STATUS_PENDING, TXO_STATUS_SECRETED, TXO_STATUS_SPENT, TXO_STATUS_UNSPENT,
-        },
+        models::{AssignedSubaddress, TransactionLog, Txo},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
         WalletDb,
     },
     error::WalletServiceError,
-    service::{
-        decorated_types::{
-            JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents,
-            JsonCreateAccountResponse, JsonProof, JsonSubmitResponse, JsonTransactionLog, JsonTxo,
-            JsonWalletStatus,
-        },
-        sync::SyncThread,
-        transaction_builder::WalletTransactionBuilder,
+    json_rpc::api_v1::decorated_types::{
+        JsonAddress, JsonBlock, JsonBlockContents, JsonProof, JsonSubmitResponse,
+        JsonTransactionLog, JsonTxo,
     },
+    service::{sync::SyncThread, transaction_builder::WalletTransactionBuilder},
 };
-use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
 use mc_common::logger::{log, Logger};
 use mc_connection::{
     BlockchainConnection, ConnectionManager as McConnectionManager, RetryableUserTxConnection,
@@ -35,15 +27,13 @@ use mc_connection::{
 use mc_crypto_rand::rand_core::RngCore;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
-use mc_ledger_sync::{NetworkState, PollingNetworkState};
+use mc_ledger_sync::PollingNetworkState;
 use mc_mobilecoind::payments::TxProposal;
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
 use mc_transaction_core::tx::{Tx, TxOut, TxOutConfirmationNumber};
-use mc_util_from_random::FromRandom;
 use mc_util_uri::FogUri;
 
 use diesel::prelude::*;
-use serde_json::Map;
 use std::{
     convert::TryFrom,
     iter::empty,
@@ -54,21 +44,42 @@ use std::{
 };
 
 /// Service for interacting with the wallet
+///
+/// Note that some fields need to be pub in order to be used in trait
+/// implementations, as Rust sees those as separate modules when they are in
+/// separate files.
 pub struct WalletService<
     T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 > {
-    wallet_db: WalletDb,
-    ledger_db: LedgerDB,
+    /// Wallet database handle.
+    pub wallet_db: WalletDb,
+
+    /// Ledger database.
+    pub ledger_db: LedgerDB,
+
+    /// Peer manager for consensus validators to query for network height.
     peer_manager: McConnectionManager<T>,
-    network_state: Arc<RwLock<PollingNetworkState<T>>>,
+
+    /// Representation of the current network state.
+    pub network_state: Arc<RwLock<PollingNetworkState<T>>>,
+
+    /// Fog resolver factory to obtain the public key of the ingest enclave from
+    /// a fog address.
     fog_resolver_factory: Arc<dyn Fn(&[FogUri]) -> Result<FPR, String> + Send + Sync>,
+
+    /// Background ledger sync thread.
     _sync_thread: SyncThread,
+
     /// Monotonically increasing counter. This is used for node round-robin
     /// selection.
     submit_node_offset: Arc<AtomicUsize>,
+
+    /// Whether the service should run in offline mode.
     offline: bool,
-    logger: Logger,
+
+    /// Logger.
+    pub logger: Logger,
 }
 
 impl<
@@ -108,166 +119,6 @@ impl<
         }
     }
 
-    /// Creates a new account with defaults
-    pub fn create_account(
-        &self,
-        name: Option<String>,
-        first_block: Option<u64>,
-    ) -> Result<JsonCreateAccountResponse, WalletServiceError> {
-        log::info!(
-            self.logger,
-            "Creating account {:?} with first_block: {:?}",
-            name,
-            first_block,
-        );
-        // Generate entropy for the account
-        let mut rng = rand::thread_rng();
-        let root_id = RootIdentity::from_random(&mut rng);
-        let account_key = AccountKey::from(&root_id);
-        let entropy_str = hex::encode(root_id.root_entropy);
-
-        let conn = self.wallet_db.get_conn()?;
-        let (account_id, _public_address_b58) = Account::create(
-            &account_key,
-            first_block,
-            None,
-            &name.unwrap_or_else(|| "".to_string()),
-            &conn,
-        )?;
-
-        let local_height = self.ledger_db.num_blocks()?;
-        let network_state = self.network_state.read().expect("lock poisoned");
-        // network_height = network_block_index + 1
-        let network_height = network_state
-            .highest_block_index_on_network()
-            .map(|v| v + 1)
-            .unwrap_or(0);
-        let decorated_account =
-            Account::get_decorated(&account_id, local_height, network_height, &conn)?;
-
-        Ok(JsonCreateAccountResponse {
-            entropy: entropy_str,
-            account: decorated_account,
-        })
-    }
-
-    pub fn import_account(
-        &self,
-        entropy: String,
-        name: Option<String>,
-        first_block: Option<u64>,
-    ) -> Result<JsonAccount, WalletServiceError> {
-        log::info!(
-            self.logger,
-            "Importing account {:?} with first_block: {:?}",
-            name,
-            first_block,
-        );
-        // Get account key from entropy
-        let mut entropy_bytes = [0u8; 32];
-        hex::decode_to_slice(entropy, &mut entropy_bytes)?;
-        let account_key = AccountKey::from(&RootIdentity::from(&RootEntropy::from(&entropy_bytes)));
-        let local_height = self.ledger_db.num_blocks()?;
-        let network_state = self.network_state.read().expect("lock poisoned");
-        // network_height = network_block_index + 1
-        let network_height = network_state
-            .highest_block_index_on_network()
-            .map(|v| v + 1)
-            .unwrap_or(0);
-        let conn = self.wallet_db.get_conn()?;
-        Ok(Account::import(
-            &account_key,
-            name,
-            first_block,
-            local_height,
-            network_height,
-            &conn,
-        )?)
-    }
-
-    pub fn list_accounts(&self) -> Result<Vec<JsonAccount>, WalletServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-        Ok(
-            conn.transaction::<Vec<JsonAccount>, WalletServiceError, _>(|| {
-                let accounts = Account::list_all(&conn)?;
-                let local_height = self.ledger_db.num_blocks()?;
-                let network_state = self.network_state.read().expect("lock poisoned");
-                // network_height = network_block_index + 1
-                let network_height = network_state
-                    .highest_block_index_on_network()
-                    .map(|v| v + 1)
-                    .unwrap_or(0);
-                accounts
-                    .iter()
-                    .map(|a| {
-                        Account::get_decorated(
-                            &AccountID(a.account_id_hex.clone()),
-                            local_height,
-                            network_height,
-                            &conn,
-                        )
-                        .map_err(|e| e.into())
-                    })
-                    .collect::<Result<Vec<JsonAccount>, WalletServiceError>>()
-            })?,
-        )
-    }
-
-    pub fn update_account_name(
-        &self,
-        account_id_hex: &str,
-        name: String,
-    ) -> Result<JsonAccount, WalletServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-
-        Ok(conn.transaction::<JsonAccount, WalletServiceError, _>(|| {
-            Account::get(&AccountID(account_id_hex.to_string()), &conn)?
-                .update_name(name, &conn)?;
-
-            let local_height = self.ledger_db.num_blocks()?;
-            let network_state = self.network_state.read().expect("lock poisoned");
-            // network_height = network_block_index + 1
-            let network_height = network_state
-                .highest_block_index_on_network()
-                .map(|v| v + 1)
-                .unwrap_or(0);
-            let decorated_account = Account::get_decorated(
-                &AccountID(account_id_hex.to_string()),
-                local_height,
-                network_height,
-                &conn,
-            )?;
-            Ok(decorated_account)
-        })?)
-    }
-
-    pub fn delete_account(&self, account_id_hex: &str) -> Result<(), WalletServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-
-        Account::get(&AccountID(account_id_hex.to_string()), &conn)?.delete(&conn)?;
-        Ok(())
-    }
-
-    pub fn get_account(
-        &self,
-        account_id_hex: &AccountID,
-    ) -> Result<JsonAccount, WalletServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-        let local_height = self.ledger_db.num_blocks()?;
-        let network_state = self.network_state.read().expect("lock poisoned");
-        // network_height = network_block_index + 1
-        let network_height = network_state
-            .highest_block_index_on_network()
-            .map(|v| v + 1)
-            .unwrap_or(0);
-        Ok(Account::get_decorated(
-            &account_id_hex,
-            local_height,
-            network_height,
-            &conn,
-        )?)
-    }
-
     pub fn list_txos(&self, account_id_hex: &str) -> Result<Vec<JsonTxo>, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
@@ -280,101 +131,6 @@ impl<
 
         let txo_details = Txo::get(txo_id_hex, &conn)?;
         Ok(JsonTxo::new(&txo_details))
-    }
-
-    // Wallet Status is an overview of the wallet's status
-    pub fn get_wallet_status(&self) -> Result<JsonWalletStatus, WalletServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-
-        let local_height = self.ledger_db.num_blocks()?;
-
-        let network_state = self.network_state.read().expect("lock poisoned");
-        // network_height = network_block_index + 1
-        let network_height = network_state
-            .highest_block_index_on_network()
-            .map(|v| v + 1)
-            .unwrap_or(0);
-
-        Ok(
-            conn.transaction::<JsonWalletStatus, WalletServiceError, _>(|| {
-                let accounts = Account::list_all(&conn)?;
-                let mut account_map = Map::new();
-
-                let mut total_available_pmob = 0;
-                let mut total_pending_pmob = 0;
-                let mut is_synced_all = true;
-                let mut account_ids = Vec::new();
-                for account in accounts {
-                    let decorated = Account::get_decorated(
-                        &AccountID(account.account_id_hex.clone()),
-                        local_height,
-                        network_height,
-                        &conn,
-                    )?;
-                    account_map.insert(
-                        account.account_id_hex.clone(),
-                        serde_json::to_value(decorated.clone())?,
-                    );
-                    total_available_pmob += decorated.available_pmob.parse::<u64>()?;
-                    total_pending_pmob += decorated.pending_pmob.parse::<u64>()?;
-                    is_synced_all = is_synced_all && decorated.is_synced;
-                    account_ids.push(account.account_id_hex.to_string());
-                }
-
-                Ok(JsonWalletStatus {
-                    object: "wallet_status".to_string(),
-                    network_height: network_height.to_string(),
-                    local_height: local_height.to_string(),
-                    is_synced_all,
-                    total_available_pmob: total_available_pmob.to_string(),
-                    total_pending_pmob: total_pending_pmob.to_string(),
-                    account_ids,
-                    account_map,
-                })
-            })?,
-        )
-    }
-
-    // Balance consists of the sums of the various txo states in our wallet
-    pub fn get_balance(
-        &self,
-        account_id_hex: &str,
-    ) -> Result<JsonBalanceResponse, WalletServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-
-        let unspent = Txo::list_by_status(account_id_hex, TXO_STATUS_UNSPENT, &conn)?
-            .iter()
-            .map(|t| t.value as u128)
-            .sum::<u128>();
-        let spent = Txo::list_by_status(account_id_hex, TXO_STATUS_SPENT, &conn)?
-            .iter()
-            .map(|t| t.value as u128)
-            .sum::<u128>();
-        let secreted = Txo::list_by_status(account_id_hex, TXO_STATUS_SECRETED, &conn)?
-            .iter()
-            .map(|t| t.value as u128)
-            .sum::<u128>();
-        let orphaned = Txo::list_by_status(account_id_hex, TXO_STATUS_ORPHANED, &conn)?
-            .iter()
-            .map(|t| t.value as u128)
-            .sum::<u128>();
-        let pending = Txo::list_by_status(account_id_hex, TXO_STATUS_PENDING, &conn)?
-            .iter()
-            .map(|t| t.value as u128)
-            .sum::<u128>();
-
-        let local_block_count = self.ledger_db.num_blocks()?;
-        let account = Account::get(&AccountID(account_id_hex.to_string()), &conn)?;
-
-        Ok(JsonBalanceResponse {
-            unspent: unspent.to_string(),
-            pending: pending.to_string(),
-            spent: spent.to_string(),
-            secreted: secreted.to_string(),
-            orphaned: orphaned.to_string(),
-            local_block_count: local_block_count.to_string(),
-            synced_blocks: account.next_block.to_string(),
-        })
     }
 
     pub fn create_assigned_subaddress(
@@ -501,7 +257,7 @@ impl<
         );
         let converted_proposal = TxProposal::try_from(&tx_proposal_proto)?;
 
-        let transaction_id = account_id_hex
+        let transaction_id: Option<String> = account_id_hex
             .map(|a| {
                 TransactionLog::log_submitted(
                     converted_proposal,
@@ -655,15 +411,17 @@ mod tests {
     use super::*;
     use crate::{
         db::{
-            models::{TXO_TYPE_MINTED, TXO_TYPE_RECEIVED},
+            b58_encode,
+            models::{TXO_STATUS_PENDING, TXO_STATUS_UNSPENT, TXO_TYPE_MINTED, TXO_TYPE_RECEIVED},
             txo::TxoDetails,
         },
+        service::{account::AccountService, balance::BalanceService},
         test_utils::{
             add_block_from_transaction_log, add_block_to_ledger_db, get_resolver_factory,
             get_test_ledger, setup_peer_manager_and_network_state, WalletDbTestContext, MOB,
         },
     };
-    use mc_account_keys::PublicAddress;
+    use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::{
         logger::{test_with_logger, Logger},
         HashSet,
@@ -712,11 +470,12 @@ mod tests {
         // Add a block with a transaction for this recipient
         // Add a block with a txo for this address (note that value is smaller than
         // MINIMUM_FEE)
-        let alice_public_address = b58_decode(&alice.account.main_address).unwrap();
+        let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
+        let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![alice_public_address.clone()],
-            100000000000000, // 100.0 MOB
+            100 * MOB as u64,
             &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
@@ -725,15 +484,17 @@ mod tests {
         std::thread::sleep(Duration::from_secs(5));
 
         // Verify balance for Alice
-        let balance = service.get_balance(&alice.account.account_id).unwrap();
+        let balance = service
+            .get_balance_for_account(&AccountID(alice.account_id_hex.clone()))
+            .unwrap();
 
-        assert_eq!(balance.unspent, "100000000000000");
+        assert_eq!(balance.unspent, 100 * MOB as u64);
 
         // Verify that we have 1 txo
-        let txos = service.list_txos(&alice.account.account_id).unwrap();
+        let txos = service.list_txos(&alice.account_id_hex).unwrap();
         assert_eq!(txos.len(), 1);
         assert_eq!(
-            txos[0].account_status_map[&alice.account.account_id]
+            txos[0].account_status_map[&alice.account_id_hex]
                 .get("txo_status")
                 .unwrap(),
             TXO_STATUS_UNSPENT
@@ -745,10 +506,11 @@ mod tests {
             .unwrap();
 
         // Construct a new transaction to Bob
+        let bob_account_key: AccountKey = mc_util_serial::decode(&bob.account_key).unwrap();
         let tx_proposal = service
             .build_transaction(
-                &alice.account.account_id,
-                &bob.account.main_address,
+                &alice.account_id_hex,
+                &b58_encode(&bob_account_key.subaddress(bob.main_subaddress_index as u64)).unwrap(),
                 "42000000000000".to_string(),
                 None,
                 None,
@@ -757,24 +519,24 @@ mod tests {
             )
             .unwrap();
         let _submitted = service
-            .submit_transaction(tx_proposal, None, Some(alice.account.account_id.clone()))
+            .submit_transaction(tx_proposal, None, Some(alice.account_id_hex.clone()))
             .unwrap();
 
         // We should now have 3 txos - one pending, two minted (one of which will be
         // change)
-        let txos = service.list_txos(&alice.account.account_id).unwrap();
+        let txos = service.list_txos(&alice.account_id_hex).unwrap();
         assert_eq!(txos.len(), 3);
         // The Pending Tx
         let pending: Vec<JsonTxo> = txos
             .iter()
             .cloned()
             .filter(|t| {
-                t.account_status_map[&alice.account.account_id]["txo_status"] == TXO_STATUS_PENDING
+                t.account_status_map[&alice.account_id_hex]["txo_status"] == TXO_STATUS_PENDING
             })
             .collect();
         assert_eq!(pending.len(), 1);
         assert_eq!(
-            pending[0].account_status_map[&alice.account.account_id]
+            pending[0].account_status_map[&alice.account_id_hex]
                 .get("txo_type")
                 .unwrap(),
             TXO_TYPE_RECEIVED
@@ -787,13 +549,13 @@ mod tests {
             .collect();
         assert_eq!(minted.len(), 2);
         assert_eq!(
-            minted[0].account_status_map[&alice.account.account_id]
+            minted[0].account_status_map[&alice.account_id_hex]
                 .get("txo_type")
                 .unwrap(),
             TXO_TYPE_MINTED
         );
         assert_eq!(
-            minted[1].account_status_map[&alice.account.account_id]
+            minted[1].account_status_map[&alice.account_id_hex]
                 .get("txo_type")
                 .unwrap(),
             TXO_TYPE_MINTED
@@ -803,12 +565,15 @@ mod tests {
         assert!(minted_value_set.contains("42000000000000"));
 
         // Our balance should reflect the various statuses of our txos
-        let balance = service.get_balance(&alice.account.account_id).unwrap();
-        assert_eq!(balance.unspent, "0");
-        assert_eq!(balance.pending, "100000000000000");
-        assert_eq!(balance.spent, "0");
-        assert_eq!(balance.secreted, "99990000000000");
-        assert_eq!(balance.orphaned, "0");
+        let balance = service
+            .get_balance_for_account(&AccountID(alice.account_id_hex))
+            .unwrap();
+        assert_eq!(balance.unspent, 0);
+        assert_eq!(balance.pending, 0);
+        assert_eq!(balance.spent, 99990000000000);
+        assert_eq!(balance.secreted, 0);
+        assert_eq!(balance.orphaned, 100000000000000); // FIXME: Should not be
+                                                       // orphaned?
 
         // FIXME: How to make the transaction actually hit the test ledger?
     }
@@ -829,7 +594,8 @@ mod tests {
             .unwrap();
 
         // Add a block with a transaction for Alice
-        let alice_public_address = b58_decode(&alice.account.main_address).unwrap();
+        let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
+        let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![alice_public_address.clone()],
@@ -842,8 +608,10 @@ mod tests {
         std::thread::sleep(Duration::from_secs(8));
 
         // Verify balance for Alice
-        let balance = service.get_balance(&alice.account.account_id).unwrap();
-        assert_eq!(balance.unspent.parse::<i64>().unwrap(), 100 * MOB);
+        let balance = service
+            .get_balance_for_account(&AccountID(alice.account_id_hex.clone()))
+            .unwrap();
+        assert_eq!(balance.unspent, 100 * MOB as u64);
 
         // Add an account for Bob
         let bob = service
@@ -852,13 +620,13 @@ mod tests {
 
         // Create an assigned subaddress for Bob
         let bob_address_from_alice = service
-            .create_assigned_subaddress(&bob.account.account_id, Some("From Alice"))
+            .create_assigned_subaddress(&bob.account_id_hex, Some("From Alice"))
             .unwrap();
 
         // Send a transaction from Alice to Bob
         let submit_response = service
             .send_transaction(
-                &alice.account.account_id,
+                &alice.account_id_hex,
                 &bob_address_from_alice.public_address,
                 (42 * MOB).to_string(),
                 None,
@@ -920,18 +688,22 @@ mod tests {
         assert_eq!(inputs[0].txo.value, 100 * MOB);
 
         // Verify balance for Alice = original balance - fee - txo_value
-        let balance = service.get_balance(&alice.account.account_id).unwrap();
-        assert_eq!(balance.unspent, "57990000000000");
+        let balance = service
+            .get_balance_for_account(&AccountID(alice.account_id_hex.clone()))
+            .unwrap();
+        assert_eq!(balance.unspent, 57990000000000);
 
         // Bob's balance should be = output_txo_value
-        let bob_balance = service.get_balance(&bob.account.account_id).unwrap();
-        assert_eq!(bob_balance.unspent, "42000000000000");
+        let bob_balance = service
+            .get_balance_for_account(&AccountID(bob.account_id_hex.clone()))
+            .unwrap();
+        assert_eq!(bob_balance.unspent, 42000000000000);
 
         // Bob should now be able to send to Alice
         let submit_response = service
             .send_transaction(
-                &bob.account.account_id,
-                &alice.account.main_address,
+                &bob.account_id_hex,
+                &b58_encode(&alice_public_address).unwrap(),
                 (8 * MOB).to_string(),
                 None,
                 None,
@@ -962,12 +734,16 @@ mod tests {
 
         std::thread::sleep(Duration::from_secs(8));
 
-        let alice_balance = service.get_balance(&alice.account.account_id).unwrap();
-        assert_eq!(alice_balance.unspent, "65990000000000");
+        let alice_balance = service
+            .get_balance_for_account(&AccountID(alice.account_id_hex))
+            .unwrap();
+        assert_eq!(alice_balance.unspent, 65990000000000);
 
         // Bob's balance should be = output_txo_value
-        let bob_balance = service.get_balance(&bob.account.account_id).unwrap();
-        assert_eq!(bob_balance.unspent, "33990000000000");
+        let bob_balance = service
+            .get_balance_for_account(&AccountID(bob.account_id_hex))
+            .unwrap();
+        assert_eq!(bob_balance.unspent, 33990000000000);
     }
 
     // FIXME: Test with 0 change transactions
