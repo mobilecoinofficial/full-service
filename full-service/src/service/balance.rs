@@ -167,7 +167,8 @@ where
                 secreted += balance.3;
                 orphaned += balance.4;
 
-                min_synced_block = std::cmp::min(min_synced_block, account.next_block as u64 - 1);
+                // FIXME: off by one?
+                min_synced_block = std::cmp::min(min_synced_block, account.next_block as u64);
 
                 account_ids.push(account_id);
             }
