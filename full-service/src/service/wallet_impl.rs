@@ -871,7 +871,7 @@ mod tests {
         log::info!(logger, "Built and submitted transaction from Alice");
 
         let json_transaction_log = service
-            .get_transaction(&submit_response.transaction_id)
+            .get_transaction(&submit_response.transaction_id.unwrap())
             .unwrap();
 
         // NOTE: Submitting to the test ledger via propose_tx doesn't actually add the
@@ -942,7 +942,7 @@ mod tests {
             .unwrap();
 
         let json_transaction_log = service
-            .get_transaction(&submit_response.transaction_id)
+            .get_transaction(&submit_response.transaction_id.unwrap())
             .unwrap();
 
         // NOTE: Submitting to the test ledger via propose_tx doesn't actually add the

@@ -8,7 +8,7 @@ use crate::{
         txo::TxoModel,
         WalletDb,
     },
-    service::transaction_builder::WalletTransactionBuilder,
+    service::{sync::sync_account, transaction_builder::WalletTransactionBuilder},
 };
 use diesel::{
     r2d2::{ConnectionManager as CM, PooledConnection},
@@ -28,13 +28,17 @@ use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::PollingNetworkState;
 use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::{
-    encrypted_fog_hint::EncryptedFogHint, ring_signature::KeyImage, tx::TxOut, Block,
-    BlockContents, BLOCK_VERSION,
+    encrypted_fog_hint::EncryptedFogHint,
+    onetime_keys::{create_onetime_public_key, recover_onetime_private_key},
+    ring_signature::KeyImage,
+    tx::TxOut,
+    Block, BlockContents, BLOCK_VERSION,
 };
 use mc_util_from_random::FromRandom;
 use mc_util_uri::{ConnectionUri, FogUri};
 use rand::{distributions::Alphanumeric, rngs::StdRng, thread_rng, Rng, SeedableRng};
 use std::{
+    convert::TryFrom,
     path::PathBuf,
     sync::{Arc, RwLock},
 };
@@ -291,6 +295,47 @@ pub fn setup_peer_manager_and_network_state(
     (peer_manager, network_state)
 }
 
+pub fn add_block_with_db_txos(
+    ledger_db: &mut LedgerDB,
+    wallet_db: &WalletDb,
+    output_txo_ids: &[String],
+    key_images: &[KeyImage],
+) -> u64 {
+    let outputs: Vec<TxOut> = output_txo_ids
+        .iter()
+        .map(|txo_id| {
+            mc_util_serial::decode(
+                &Txo::get(&txo_id.to_string(), &wallet_db.get_conn().unwrap())
+                    .unwrap()
+                    .txo
+                    .txo,
+            )
+            .unwrap()
+        })
+        .collect();
+
+    add_block_with_tx_outs(ledger_db, &outputs, key_images)
+}
+
+pub fn manually_sync_account(
+    ledger_db: &LedgerDB,
+    wallet_db: &WalletDb,
+    account_id: &AccountID,
+    target_block_count: u64,
+    logger: &Logger,
+) -> Account {
+    let mut account: Account;
+    loop {
+        sync_account(&ledger_db, &wallet_db, &account_id.to_string(), &logger).unwrap();
+        account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
+        if account.next_block as u64 == ledger_db.num_blocks().unwrap() {
+            break;
+        }
+    }
+    assert_eq!(account.next_block as u64, target_block_count);
+    account
+}
+
 pub fn setup_grpc_peer_manager_and_network_state(
     logger: Logger,
 ) -> (
@@ -342,6 +387,34 @@ pub fn setup_grpc_peer_manager_and_network_state(
     (peer_manager, network_state)
 }
 
+pub fn create_test_txo_for_recipient(
+    recipient_account_key: &AccountKey,
+    recipient_subaddress_index: u64,
+    value: u64,
+    rng: &mut StdRng,
+) -> (TxOut, KeyImage) {
+    let recipient = recipient_account_key.subaddress(recipient_subaddress_index);
+    let tx_private_key = RistrettoPrivate::from_random(rng);
+    let hint = EncryptedFogHint::fake_onetime_hint(rng);
+    let tx_out = TxOut::new(value, &recipient, &tx_private_key, hint).unwrap();
+
+    // Calculate KeyImage - note you cannot use KeyImage::from(tx_private_key)
+    // because the calculation must be done with CryptoNote math (see
+    // create_onetime_public_key and recover_onetime_private_key)
+    let onetime_private_key = recover_onetime_private_key(
+        &RistrettoPublic::try_from(&tx_out.public_key).unwrap(),
+        recipient_account_key.view_private_key(),
+        &recipient_account_key.subaddress_spend_private(recipient_subaddress_index),
+    );
+    assert_eq!(
+        create_onetime_public_key(&tx_private_key, &recipient),
+        RistrettoPublic::from(&onetime_private_key)
+    );
+
+    let key_image = KeyImage::from(&onetime_private_key);
+    (tx_out, key_image)
+}
+
 pub fn create_test_received_txo(
     account_key: &AccountKey,
     recipient_subaddress_index: u64,
@@ -350,13 +423,8 @@ pub fn create_test_received_txo(
     rng: &mut StdRng,
     wallet_db: &WalletDb,
 ) -> (String, TxOut, KeyImage) {
-    let recipient = account_key.subaddress(recipient_subaddress_index);
-    let tx_private_key = RistrettoPrivate::from_random(rng);
-    let hint = EncryptedFogHint::fake_onetime_hint(rng);
-    let txo = TxOut::new(value, &recipient, &tx_private_key, hint).unwrap();
-
-    // Get KeyImage from the onetime private key
-    let key_image = KeyImage::from(&tx_private_key);
+    let (txo, key_image) =
+        create_test_txo_for_recipient(account_key, recipient_subaddress_index, value, rng);
 
     let txo_id_hex = Txo::create_received(
         txo.clone(),

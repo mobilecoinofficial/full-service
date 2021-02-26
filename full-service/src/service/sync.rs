@@ -450,7 +450,12 @@ pub fn process_txos(
                 account_key.view_private_key(),
                 &account_key.subaddress_spend_private(subaddress_i as u64),
             );
-            KeyImage::from(&onetime_private_key)
+            let key_image = KeyImage::from(&onetime_private_key);
+            println!(
+                "\x1b[1;33m Got onetime private key = {:?}, and key_image = {:?}\x1b",
+                onetime_private_key, key_image
+            );
+            key_image
         });
 
         // Insert received txo
