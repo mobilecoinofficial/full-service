@@ -28,10 +28,10 @@ pub const TXO_STATUS_SECRETED: &str = "txo_status_secreted";
 pub const TXO_STATUS_ORPHANED: &str = "txo_status_orphaned";
 
 /// A Txo that has been created locally, but is not yet in the ledger.
-pub const TXO_TYPE_MINTED: &str = "minted";
+pub const TXO_TYPE_MINTED: &str = "txo_type_minted";
 
 /// A Txo in the ledger that belongs to an account in this wallet.
-pub const TXO_TYPE_RECEIVED: &str = "received";
+pub const TXO_TYPE_RECEIVED: &str = "txo_type_received";
 
 /// A transaction that has been built locally.
 pub const TX_STATUS_BUILT: &str = "built";
