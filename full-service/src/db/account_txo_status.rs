@@ -73,7 +73,6 @@ impl AccountTxoStatusModel for AccountTxoStatus {
     ) -> Result<AccountTxoStatus, WalletDbError> {
         use crate::db::schema::account_txo_statuses::dsl::account_txo_statuses;
 
-        println!("\x1b[1;31m Attempting to get account txo status\x1b[0m");
         match account_txo_statuses
             .find((account_id_hex, &txo_id_hex))
             .get_result::<AccountTxoStatus>(conn)
