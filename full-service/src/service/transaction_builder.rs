@@ -11,7 +11,7 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        models::{Account, Txo, TXO_UNSPENT},
+        models::{Account, Txo, TXO_STATUS_UNSPENT},
         txo::TxoModel,
         WalletDb,
     },
@@ -110,7 +110,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let txos = Txo::select_by_id(&input_txo_ids.to_vec(), &self.wallet_db.get_conn()?)?;
         let unspent: Vec<Txo> = txos
             .iter()
-            .filter(|(_txo, status)| status.txo_status == TXO_UNSPENT)
+            .filter(|(_txo, status)| status.txo_status == TXO_STATUS_UNSPENT)
             .map(|(t, _s)| t.clone())
             .collect();
         if unspent.iter().map(|t| t.value as u128).sum::<u128>() > u64::MAX as u128 {
@@ -626,7 +626,7 @@ mod tests {
         // Check balance
         let unspent = Txo::list_by_status(
             &AccountID::from(&account_key).to_string(),
-            TXO_UNSPENT,
+            TXO_STATUS_UNSPENT,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();

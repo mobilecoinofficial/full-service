@@ -2,7 +2,9 @@
 
 //! DB impl for the AccountTxoStatus model.
 
-use crate::db::models::{AccountTxoStatus, NewAccountTxoStatus, TXO_ORPHANED, TXO_UNSPENT};
+use crate::db::models::{
+    AccountTxoStatus, NewAccountTxoStatus, TXO_STATUS_ORPHANED, TXO_STATUS_UNSPENT,
+};
 
 use crate::db::WalletDbError;
 use diesel::{
@@ -109,7 +111,7 @@ impl AccountTxoStatusModel for AccountTxoStatus {
         use crate::db::schema::account_txo_statuses::txo_status;
 
         diesel::update(self)
-            .set(txo_status.eq(TXO_UNSPENT))
+            .set(txo_status.eq(TXO_STATUS_UNSPENT))
             .execute(conn)?;
         Ok(())
     }
@@ -121,7 +123,7 @@ impl AccountTxoStatusModel for AccountTxoStatus {
         use crate::db::schema::account_txo_statuses::txo_status;
 
         diesel::update(self)
-            .set(txo_status.eq(TXO_ORPHANED))
+            .set(txo_status.eq(TXO_STATUS_ORPHANED))
             .execute(conn)?;
         Ok(())
     }

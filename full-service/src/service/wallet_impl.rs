@@ -8,8 +8,8 @@ use crate::{
         assigned_subaddress::AssignedSubaddressModel,
         b58_decode,
         models::{
-            Account, AssignedSubaddress, TransactionLog, Txo, TXO_ORPHANED, TXO_PENDING,
-            TXO_SECRETED, TXO_SPENT, TXO_UNSPENT,
+            Account, AssignedSubaddress, TransactionLog, Txo, TXO_STATUS_ORPHANED,
+            TXO_STATUS_PENDING, TXO_STATUS_SECRETED, TXO_STATUS_SPENT, TXO_STATUS_UNSPENT,
         },
         transaction_log::TransactionLogModel,
         txo::TxoModel,
@@ -342,23 +342,23 @@ impl<
     ) -> Result<JsonBalanceResponse, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
-        let unspent = Txo::list_by_status(account_id_hex, TXO_UNSPENT, &conn)?
+        let unspent = Txo::list_by_status(account_id_hex, TXO_STATUS_UNSPENT, &conn)?
             .iter()
             .map(|t| t.value as u128)
             .sum::<u128>();
-        let spent = Txo::list_by_status(account_id_hex, TXO_SPENT, &conn)?
+        let spent = Txo::list_by_status(account_id_hex, TXO_STATUS_SPENT, &conn)?
             .iter()
             .map(|t| t.value as u128)
             .sum::<u128>();
-        let secreted = Txo::list_by_status(account_id_hex, TXO_SECRETED, &conn)?
+        let secreted = Txo::list_by_status(account_id_hex, TXO_STATUS_SECRETED, &conn)?
             .iter()
             .map(|t| t.value as u128)
             .sum::<u128>();
-        let orphaned = Txo::list_by_status(account_id_hex, TXO_ORPHANED, &conn)?
+        let orphaned = Txo::list_by_status(account_id_hex, TXO_STATUS_ORPHANED, &conn)?
             .iter()
             .map(|t| t.value as u128)
             .sum::<u128>();
-        let pending = Txo::list_by_status(account_id_hex, TXO_PENDING, &conn)?
+        let pending = Txo::list_by_status(account_id_hex, TXO_STATUS_PENDING, &conn)?
             .iter()
             .map(|t| t.value as u128)
             .sum::<u128>();
@@ -655,7 +655,7 @@ mod tests {
     use super::*;
     use crate::{
         db::{
-            models::{TXO_MINTED, TXO_RECEIVED},
+            models::{TXO_TYPE_MINTED, TXO_TYPE_RECEIVED},
             txo::TxoDetails,
         },
         test_utils::{
@@ -736,7 +736,7 @@ mod tests {
             txos[0].account_status_map[&alice.account.account_id]
                 .get("txo_status")
                 .unwrap(),
-            TXO_UNSPENT
+            TXO_STATUS_UNSPENT
         );
 
         // Add another account
@@ -769,7 +769,7 @@ mod tests {
             .iter()
             .cloned()
             .filter(|t| {
-                t.account_status_map[&alice.account.account_id]["txo_status"] == TXO_PENDING
+                t.account_status_map[&alice.account.account_id]["txo_status"] == TXO_STATUS_PENDING
             })
             .collect();
         assert_eq!(pending.len(), 1);
@@ -777,7 +777,7 @@ mod tests {
             pending[0].account_status_map[&alice.account.account_id]
                 .get("txo_type")
                 .unwrap(),
-            TXO_RECEIVED
+            TXO_TYPE_RECEIVED
         );
         assert_eq!(pending[0].value_pmob, "100000000000000");
         let minted: Vec<JsonTxo> = txos
@@ -790,13 +790,13 @@ mod tests {
             minted[0].account_status_map[&alice.account.account_id]
                 .get("txo_type")
                 .unwrap(),
-            TXO_MINTED
+            TXO_TYPE_MINTED
         );
         assert_eq!(
             minted[1].account_status_map[&alice.account.account_id]
                 .get("txo_type")
                 .unwrap(),
-            TXO_MINTED
+            TXO_TYPE_MINTED
         );
         let minted_value_set = HashSet::from_iter(minted.iter().map(|m| m.value_pmob.clone()));
         assert!(minted_value_set.contains("57990000000000"));
