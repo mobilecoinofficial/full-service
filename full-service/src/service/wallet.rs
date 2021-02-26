@@ -495,7 +495,7 @@ mod tests {
     use crate::{
         db::{
             b58_decode,
-            models::{TXO_STATUS_UNSPENT, TXO_TYPE_RECEIVED, TX_STATUS_PENDING},
+            models::{TXO_STATUS_UNSPENT, TXO_TYPE_RECEIVED, TX_DIRECTION_SENT, TX_STATUS_PENDING},
         },
         test_utils::{
             add_block_to_ledger_db, add_block_with_tx_proposal, get_resolver_factory,
@@ -1121,7 +1121,7 @@ mod tests {
         let transaction_log = result.get("transaction").unwrap();
         assert_eq!(
             transaction_log.get("direction").unwrap().as_str().unwrap(),
-            "sent"
+            TX_DIRECTION_SENT
         );
         assert_eq!(
             transaction_log.get("value_pmob").unwrap().as_str().unwrap(),

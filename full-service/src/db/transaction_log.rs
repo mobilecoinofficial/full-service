@@ -6,8 +6,9 @@ use crate::db::{
     b58_encode,
     models::{
         Account, NewTransactionLog, NewTransactionTxoType, TransactionLog, TransactionTxoType, Txo,
-        TXO_USED_AS_CHANGE, TXO_USED_AS_INPUT, TXO_USED_AS_OUTPUT, TX_DIR_RECEIVED, TX_DIR_SENT,
-        TX_STATUS_BUILT, TX_STATUS_FAILED, TX_STATUS_PENDING, TX_STATUS_SUCCEEDED,
+        TXO_USED_AS_CHANGE, TXO_USED_AS_INPUT, TXO_USED_AS_OUTPUT, TX_DIRECTION_RECEIVED,
+        TX_DIRECTION_SENT, TX_STATUS_BUILT, TX_STATUS_FAILED, TX_STATUS_PENDING,
+        TX_STATUS_SUCCEEDED,
     },
     txo::{TxoID, TxoModel},
 };
@@ -374,7 +375,7 @@ impl TransactionLogModel for TransactionLog {
                         submitted_block_count: None,
                         finalized_block_count: Some(block_count as i64),
                         comment: "", // NULL for received
-                        direction: TX_DIR_RECEIVED,
+                        direction: TX_DIRECTION_RECEIVED,
                         tx: None, // NULL for received
                     };
 
@@ -476,7 +477,7 @@ impl TransactionLogModel for TransactionLog {
                     submitted_block_count: Some(block_count as i64),
                     finalized_block_count: None,
                     comment: &comment,
-                    direction: TX_DIR_SENT,
+                    direction: TX_DIRECTION_SENT,
                     tx: Some(&tx),
                 };
 
@@ -648,7 +649,7 @@ mod tests {
             Some(ledger_db.num_blocks().unwrap() as i64)
         );
         assert_eq!(tx_log.comment, "");
-        assert_eq!(tx_log.direction, TX_DIR_SENT);
+        assert_eq!(tx_log.direction, TX_DIRECTION_SENT);
         let tx: Tx = mc_util_serial::decode(&tx_log.clone().tx.unwrap()).unwrap();
         assert_eq!(tx, tx_proposal.tx);
 
@@ -799,7 +800,7 @@ mod tests {
             Some(ledger_db.num_blocks().unwrap() as i64)
         );
         assert_eq!(tx_log.comment, "");
-        assert_eq!(tx_log.direction, TX_DIR_SENT);
+        assert_eq!(tx_log.direction, TX_DIRECTION_SENT);
         let tx: Tx = mc_util_serial::decode(&tx_log.clone().tx.unwrap()).unwrap();
         assert_eq!(tx, tx_proposal.tx);
 

@@ -47,10 +47,10 @@ pub const TX_STATUS_SUCCEEDED: &str = "tx_status_succeeded";
 pub const TX_STATUS_FAILED: &str = "tx_status_failed";
 
 /// A transaction created by an account in this wallet.
-pub const TX_DIR_SENT: &str = "sent";
+pub const TX_DIRECTION_SENT: &str = "tx_direction_sent";
 
 /// A TxOut received by an account in this wallet.
-pub const TX_DIR_RECEIVED: &str = "received";
+pub const TX_DIRECTION_RECEIVED: &str = "tx_direction_received";
 
 /// A transaction output that is used as an input to a new transaction.
 pub const TXO_USED_AS_INPUT: &str = "input";
