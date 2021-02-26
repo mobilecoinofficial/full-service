@@ -15,7 +15,7 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 * [get_all_txos_by_account](#get-all-txos-for-a-given-account)
 * [get_txo](#get-txo-details)
 * [get_wallet_status](#get-wallet-status)
-* [get_balance](#get-balance-for-a-given-account)
+* [get_balance_for_account](#get-balance-for-a-given-account)
 * [create_address](#create-assigned-subaddress)
 * [get_all_addresses_by_account](#get-all-assigned-subaddresses-for-a-given-account)
 * [send_transaction](#send-transaction)
@@ -658,7 +658,7 @@ curl -s localhost:9090/wallet \
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "get_balance",
+        "method": "get_balance_for_account",
         "params": {
            "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
         },
@@ -669,7 +669,7 @@ curl -s localhost:9090/wallet \
   -X POST -H 'Content-type: application/json' | jq
 
 {
-  "method": "get_balance",
+  "method": "get_balance_for_account",
   "result": {
     "balance": {
       "account_block_count": "152003",
@@ -1570,7 +1570,7 @@ The balance for an account, as well as some information about syncing status nee
 
 #### API Methods Returning Balance Objects
 
-* [get_balance](#get-balance-for-a-given-account)
+* [get_balance_for_account](#get-balance-for-a-given-account)
 
 ### The Wallet Status Object
 
