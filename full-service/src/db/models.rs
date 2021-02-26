@@ -59,7 +59,8 @@ pub struct Account {
     pub next_subaddress_index: i64,
     /// Index of the first block where this account may have held funds.
     pub first_block: i64,
-    /// Index of the next block to inspect for transactions related to this account.
+    /// Index of the next block to inspect for transactions related to this
+    /// account.
     pub next_block: i64,
     /// If the account was imported, account history prior to this block index
     /// is derived from the public ledger, and does not reflect client-side
