@@ -231,10 +231,10 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::assigned_subaddresses::dsl::{
-            account_id_hex as account_id_hex_col, assigned_subaddresses,
+            account_id_hex as schema_account_id_hex, assigned_subaddresses,
         };
 
-        diesel::delete(assigned_subaddresses.filter(account_id_hex_col.eq(account_id_hex)))
+        diesel::delete(assigned_subaddresses.filter(schema_account_id_hex.eq(account_id_hex)))
             .execute(conn)?;
         Ok(())
     }
