@@ -91,7 +91,7 @@ pub struct SyncThread {
     /// The main sync thread handle.
     join_handle: Option<thread::JoinHandle<()>>,
 
-    /// Stop trigger, used to signal the thread to reminate.
+    /// Stop trigger, used to signal the thread to terminate.
     stop_requested: Arc<AtomicBool>,
 }
 
@@ -345,10 +345,10 @@ pub fn sync_account(
 
             // Match tx outs into UTXOs.
             let output_txo_ids = process_txos(
-                &conn,
                 &block_contents.outputs,
-                &account,
                 account.next_block,
+                &account,
+                &conn,
                 logger,
             )?;
 
@@ -379,18 +379,32 @@ pub fn sync_account(
     Ok(SyncAccountOk::MoreBlocksPotentiallyAvailable)
 }
 
-/// Helper function for matching a list of TxOuts to a given account.
+/// Identify TxOuts owned by a particular account... and writes them to...?
+///
+/// # Arguments
+/// * `outputs` -
+/// * `received_block_index` -
+/// * `account` -
+/// * `conn` -
+/// * `logger` -
+///
+/// # Returns
+/// Mapping of subaddress index ---> txo_id.
+/// A key of -1 indicates ???
 pub fn process_txos(
-    conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     outputs: &[TxOut],
-    account: &Account,
     received_block_index: i64,
+    account: &Account,
+    conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     logger: &Logger,
 ) -> Result<HashMap<i64, Vec<String>>, SyncError> {
     let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
     let view_key = account_key.view_key();
     let account_id_hex = AccountID::from(&account_key).to_string();
 
+    // This will be the final result.
+    // subaddress --> ???
+    // A key of -1 indicates ...?
     let mut output_txo_ids: HashMap<i64, Vec<String>> = HashMap::default();
 
     for tx_out in outputs {
@@ -432,7 +446,7 @@ pub fn process_txos(
             };
 
         let shared_secret =
-            get_tx_out_shared_secret(account_key.view_private_key(), &tx_public_key);
+            get_tx_out_shared_secret(&view_key.view_private_key, &tx_public_key);
 
         let value = match tx_out.amount.get_value(&shared_secret) {
             Ok((v, _blinding)) => v,
@@ -447,7 +461,7 @@ pub fn process_txos(
         let key_image = subaddress_index.map(|subaddress_i| {
             let onetime_private_key = recover_onetime_private_key(
                 &tx_public_key,
-                account_key.view_private_key(),
+                &view_key.view_private_key,
                 &account_key.subaddress_spend_private(subaddress_i as u64),
             );
             KeyImage::from(&onetime_private_key)
