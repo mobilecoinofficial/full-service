@@ -33,7 +33,7 @@ pub trait AccountService {
     fn create_account(
         &self,
         name: Option<String>,
-        first_block: Option<u64>,
+        first_block_index: Option<u64>,
     ) -> Result<Account, WalletServiceError>;
 
     /// Import an existing account to the wallet.
@@ -41,7 +41,7 @@ pub trait AccountService {
         &self,
         entropy: String,
         name: Option<String>,
-        first_block: Option<u64>,
+        first_block_index: Option<u64>,
     ) -> Result<Account, WalletServiceError>;
 
     /// List accounts in the wallet.
@@ -69,13 +69,13 @@ where
     fn create_account(
         &self,
         name: Option<String>,
-        first_block: Option<u64>,
+        first_block_index: Option<u64>,
     ) -> Result<Account, WalletServiceError> {
         log::info!(
             self.logger,
-            "Creating account {:?} with first_block: {:?}",
+            "Creating account {:?} with first block: {:?}",
             name,
-            first_block,
+            first_block_index,
         );
 
         // Generate entropy for the account
@@ -85,7 +85,7 @@ where
         let conn = self.wallet_db.get_conn()?;
         let (account_id, _public_address_b58) = Account::create(
             &entropy,
-            first_block,
+            first_block_index,
             None,
             &name.unwrap_or_else(|| "".to_string()),
             &conn,
@@ -99,13 +99,13 @@ where
         &self,
         entropy: String,
         name: Option<String>,
-        first_block: Option<u64>,
+        first_block_index: Option<u64>,
     ) -> Result<Account, WalletServiceError> {
         log::info!(
             self.logger,
-            "Importing account {:?} with first_block: {:?}",
+            "Importing account {:?} with first block: {:?}",
             name,
-            first_block,
+            first_block_index,
         );
         // Get account key from entropy
         let mut entropy_bytes = [0u8; 32];
@@ -118,7 +118,7 @@ where
             &RootEntropy::from(&entropy_bytes),
             name,
             import_block,
-            first_block,
+            first_block_index,
             &conn,
         )?)
     }
@@ -147,6 +147,12 @@ where
     }
 
     fn delete_account(&self, account_id: &AccountID) -> Result<Account, WalletServiceError> {
+        log::info!(
+            self.logger,
+            "Deleting account {}",
+            account_id,
+        );
+
         let conn = self.wallet_db.get_conn()?;
 
         let account = Account::get(account_id, &conn)?;

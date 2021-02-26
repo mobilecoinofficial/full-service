@@ -76,12 +76,12 @@ impl TryFrom<&JsonCommandRequest> for JsonCommandRequestV2 {
 pub enum JsonCommandRequestV2 {
     create_account {
         name: Option<String>,
-        first_block: Option<String>,
+        first_block_index: Option<String>,
     },
     import_account {
         entropy: String,
         name: Option<String>,
-        first_block: Option<String>,
+        first_block_index: Option<String>,
     },
     get_all_accounts,
     get_account {
