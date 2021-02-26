@@ -10,22 +10,22 @@ use super::schema::{
 use serde::Serialize;
 
 /// A TXO owned by an account in this wallet that has not yet been spent.
-pub const TXO_STATUS_UNSPENT: &str = "unspent";
+pub const TXO_STATUS_UNSPENT: &str = "txo_status_unspent";
 
 /// A TXO owned by an account in this wallet that is used by a pending
 /// transaction.
-pub const TXO_STATUS_PENDING: &str = "pending";
+pub const TXO_STATUS_PENDING: &str = "txo_status_pending";
 
 /// A TXO owned by an account in this wallet that has been spent.
-pub const TXO_STATUS_SPENT: &str = "spent";
+pub const TXO_STATUS_SPENT: &str = "txo_status_spent";
 
 /// A TXO created by an account in this wallet for use as an output in an
 /// outgoing transaction.
-pub const TXO_STATUS_SECRETED: &str = "secreted";
+pub const TXO_STATUS_SECRETED: &str = "txo_status_secreted";
 
 /// The TXO is owned by this wallet, but not yet spendable (i.e., receiving
 /// subaddress is unknown).
-pub const TXO_STATUS_ORPHANED: &str = "orphaned";
+pub const TXO_STATUS_ORPHANED: &str = "txo_status_orphaned";
 
 /// A Txo that has been created locally, but is not yet in the ledger.
 pub const TXO_TYPE_MINTED: &str = "minted";
