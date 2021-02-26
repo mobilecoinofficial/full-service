@@ -9,8 +9,9 @@ use crate::db::{
     b58_encode,
     models::{
         Account, AccountTxoStatus, AssignedSubaddress, NewAccountTxoStatus, NewTxo, Txo,
-        TXO_CHANGE, TXO_MINTED, TXO_ORPHANED, TXO_OUTPUT, TXO_PENDING, TXO_RECEIVED, TXO_SECRETED,
-        TXO_SPENT, TXO_UNSPENT,
+        TXO_STATUS_ORPHANED, TXO_STATUS_PENDING, TXO_STATUS_SECRETED, TXO_STATUS_SPENT,
+        TXO_STATUS_UNSPENT, TXO_TYPE_MINTED, TXO_TYPE_RECEIVED, TXO_USED_AS_CHANGE,
+        TXO_USED_AS_OUTPUT,
     },
 };
 
@@ -228,12 +229,12 @@ impl TxoModel for Txo {
                             // The txo/pairing exists for this account in this wallet.
                             Ok(account_txo_status) => {
                                 match account_txo_status.txo_status.as_str() {
-                                    TXO_SECRETED => {
+                                    TXO_STATUS_SECRETED => {
                                         match account_txo_status.txo_type.as_str() {
                                             // We minted this TXO and sent it to ourselves. It's
                                             // either change that we're now recovering as unspent,
                                             // or it's a new Txo that we sent to ourselves.
-                                            TXO_MINTED => {
+                                            TXO_TYPE_MINTED => {
                                                 if subaddress_index.is_some() {
                                                     // Transition from [Minted, Secreted] ->
                                                     // [Minted,
@@ -271,7 +272,7 @@ impl TxoModel for Txo {
                                             }
                                         }
                                     }
-                                    TXO_ORPHANED => {
+                                    TXO_STATUS_ORPHANED => {
                                         // If we have a subaddress for this account and this Txo, we
                                         // can update to spendable. True for [Minted, Orphaned] and
                                         // [Received, Orphaned]
@@ -285,9 +286,9 @@ impl TxoModel for Txo {
                                             account_txo_status.set_unspent(conn)?;
                                         }
                                     }
-                                    TXO_UNSPENT => {}
-                                    TXO_PENDING => {}
-                                    TXO_SPENT => {}
+                                    TXO_STATUS_UNSPENT => {}
+                                    TXO_STATUS_PENDING => {}
+                                    TXO_STATUS_SPENT => {}
                                     _ => {
                                         return Err(WalletDbError::UnexpectedAccountTxoStatus(
                                             account_txo_status.txo_status,
@@ -309,20 +310,20 @@ impl TxoModel for Txo {
                                         received_block_count,
                                         &conn,
                                     )?;
-                                    TXO_UNSPENT
+                                    TXO_STATUS_UNSPENT
                                 } else {
                                     // Note: An orphaned Txo cannot be spent until the subaddress is
                                     // recovered.
                                     txo_details
                                         .txo
                                         .update_received_block_count(received_block_count, conn)?;
-                                    TXO_ORPHANED
+                                    TXO_STATUS_ORPHANED
                                 };
                                 AccountTxoStatus::create(
                                     account_id_hex,
                                     &txo_id.to_string(),
                                     status,
-                                    TXO_RECEIVED,
+                                    TXO_TYPE_RECEIVED,
                                     conn,
                                 )?;
                             }
@@ -357,10 +358,10 @@ impl TxoModel for Txo {
                         .execute(conn)?;
 
                     let status = if subaddress_index.is_some() {
-                        TXO_UNSPENT
+                        TXO_STATUS_UNSPENT
                     } else {
                         // Note: An orphaned Txo cannot be spent until the subaddress is recovered.
-                        TXO_ORPHANED
+                        TXO_STATUS_ORPHANED
                     };
 
                     // We should get a unique violation if this AccountTxoStatus already exists.
@@ -368,7 +369,7 @@ impl TxoModel for Txo {
                         account_id_hex,
                         &txo_id.to_string(),
                         status,
-                        TXO_RECEIVED,
+                        TXO_TYPE_RECEIVED,
                         conn,
                     )?;
                 }
@@ -418,11 +419,11 @@ impl TxoModel for Txo {
         // Update receiver, transaction_value, and transaction_txo_type, if outlay was
         // found.
         let (transaction_txo_type, log_value) = if outlay_receiver.is_some() {
-            (TXO_OUTPUT, total_output_value)
+            (TXO_USED_AS_OUTPUT, total_output_value)
         } else {
             // If not in an outlay, this output is change, according to how we build
             // transactions.
-            (TXO_CHANGE, change_value)
+            (TXO_USED_AS_CHANGE, change_value)
         };
 
         let encoded_proof =
@@ -455,9 +456,10 @@ impl TxoModel for Txo {
                 let new_account_txo_status = NewAccountTxoStatus {
                     account_id_hex: &account_id_hex,
                     txo_id_hex: &txo_id.to_string(),
-                    txo_status: TXO_SECRETED, /* We cannot track spent status for minted TXOs
-                                               * unless change */
-                    txo_type: TXO_MINTED,
+                    txo_status: TXO_STATUS_SECRETED, /* We cannot track spent status for minted
+                                                      * TXOs
+                                                      * unless change */
+                    txo_type: TXO_TYPE_MINTED,
                 };
                 diesel::insert_into(account_txo_statuses::table)
                     .values(&new_account_txo_status)
@@ -537,13 +539,13 @@ impl TxoModel for Txo {
             for account in accounts {
                 let status =
                     AccountTxoStatus::get(&account.account_id_hex, &txo_id.to_string(), conn)?;
-                if status.txo_status == TXO_UNSPENT {
+                if status.txo_status == TXO_STATUS_UNSPENT {
                     diesel::update(
                         account_txo_statuses.find((&account.account_id_hex, &txo_id.to_string())),
                     )
                     .set(
                         crate::db::schema::account_txo_statuses::txo_status
-                            .eq(TXO_PENDING.to_string()),
+                            .eq(TXO_STATUS_PENDING.to_string()),
                     )
                     .execute(conn)?;
                 }
@@ -651,17 +653,17 @@ impl TxoModel for Txo {
 
         for account_txo_status in account_txo_statuses {
             match account_txo_status.txo_type.as_str() {
-                TXO_MINTED => {
+                TXO_TYPE_MINTED => {
                     txo_details.secreted_from_account = Some(account_txo_status.clone());
                     // Note: Minted & Unspent/Pending/Spent means that this Txo was also
                     // received, and is either change, or a Txo that we sent to ourselves.
                     match account_txo_status.txo_status.as_str() {
-                        TXO_SECRETED => {}
+                        TXO_STATUS_SECRETED => {}
                         // TXO_UNSPENT, TXO_PENDING, TXO_SPENT, TXO_ORPHANED
                         _ => txo_details.received_to_account = Some(account_txo_status.clone()),
                     }
                 }
-                TXO_RECEIVED => {
+                TXO_TYPE_RECEIVED => {
                     txo_details.received_to_account = Some(account_txo_status.clone());
                 }
                 _ => {
@@ -721,7 +723,7 @@ impl TxoModel for Txo {
                 account_txo_statuses::table.on(txos::txo_id_hex
                     .eq(account_txo_statuses::txo_id_hex)
                     .and(txos::txo_id_hex.eq_any(txo_ids))
-                    .and(account_txo_statuses::txo_status.eq(TXO_SPENT))),
+                    .and(account_txo_statuses::txo_status.eq(TXO_STATUS_SPENT))),
             )
             .select(diesel::dsl::count(txos::txo_id_hex))
             .first(conn)?;
@@ -741,7 +743,10 @@ impl TxoModel for Txo {
                 account_txo_statuses::table.on(txos::txo_id_hex
                     .eq(account_txo_statuses::txo_id_hex)
                     .and(txos::txo_id_hex.eq_any(txo_ids))
-                    .and(account_txo_statuses::txo_status.eq_any(vec![TXO_UNSPENT, TXO_PENDING]))
+                    .and(
+                        account_txo_statuses::txo_status
+                            .eq_any(vec![TXO_STATUS_UNSPENT, TXO_STATUS_PENDING]),
+                    )
                     .and(txos::pending_tombstone_block_count.lt(Some(block_count)))),
             )
             .select(txos::all_columns)
@@ -764,7 +769,7 @@ impl TxoModel for Txo {
                 account_txo_statuses::table.on(txos::txo_id_hex
                     .eq(account_txo_statuses::txo_id_hex)
                     .and(account_txo_statuses::account_id_hex.eq(account_id_hex))
-                    .and(account_txo_statuses::txo_status.eq(TXO_UNSPENT))
+                    .and(account_txo_statuses::txo_status.eq(TXO_STATUS_UNSPENT))
                     .and(txos::subaddress_index.is_not_null())
                     .and(txos::key_image.is_not_null()) // Could technically recreate with subaddress
                     .and(txos::value.le(max_spendable_value.unwrap_or(i64::MAX)))),
@@ -950,8 +955,8 @@ mod tests {
         let expected_txo_status = AccountTxoStatus {
             account_id_hex: alice_account_id.to_string(),
             txo_id_hex: TxoID::from(&for_alice_txo).to_string(),
-            txo_status: TXO_UNSPENT.to_string(),
-            txo_type: TXO_RECEIVED.to_string(),
+            txo_status: TXO_STATUS_UNSPENT.to_string(),
+            txo_type: TXO_TYPE_RECEIVED.to_string(),
         };
         assert_eq!(txos[0].txo, expected_txo);
         assert_eq!(
@@ -962,7 +967,7 @@ mod tests {
         // Verify that the status filter works as well
         let unspent = Txo::list_by_status(
             &alice_account_id.to_string(),
-            TXO_UNSPENT,
+            TXO_STATUS_UNSPENT,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1016,7 +1021,7 @@ mod tests {
             .iter()
             .filter_map(|f| {
                 f.received_to_account.clone().map(|a| {
-                    if a.txo_status == TXO_SPENT {
+                    if a.txo_status == TXO_STATUS_SPENT {
                         Some(f)
                     } else {
                         None
@@ -1037,11 +1042,11 @@ mod tests {
         assert!(spent[0].secreted_from_account.clone().is_none(),);
         assert_eq!(
             spent[0].received_to_account.clone().unwrap().txo_type,
-            TXO_RECEIVED
+            TXO_TYPE_RECEIVED
         );
         assert_eq!(
             spent[0].received_to_account.clone().unwrap().txo_status,
-            TXO_SPENT
+            TXO_STATUS_SPENT
         );
 
         // Check that we have one orphaned - went from [Minted, Secreted] -> [Minted,
@@ -1050,7 +1055,7 @@ mod tests {
             .iter()
             .filter_map(|f| {
                 f.secreted_from_account.clone().map(|a| {
-                    if a.txo_status == TXO_ORPHANED {
+                    if a.txo_status == TXO_STATUS_ORPHANED {
                         Some(f)
                     } else {
                         None
@@ -1071,7 +1076,7 @@ mod tests {
             .iter()
             .filter_map(|f| {
                 f.secreted_from_account.clone().map(|a| {
-                    if a.txo_status == TXO_UNSPENT {
+                    if a.txo_status == TXO_STATUS_UNSPENT {
                         Some(f)
                     } else {
                         None
@@ -1120,7 +1125,7 @@ mod tests {
         // orphaned, and change.
         let unspent = Txo::list_by_status(
             &alice_account_id.to_string(),
-            TXO_UNSPENT,
+            TXO_STATUS_UNSPENT,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1129,7 +1134,7 @@ mod tests {
         // The type should still be "minted"
         let minted = Txo::list_by_type(
             &alice_account_id.to_string(),
-            TXO_MINTED,
+            TXO_TYPE_MINTED,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1404,7 +1409,7 @@ mod tests {
         assert_eq!(minted_txo_details.txo.value, output_value);
         assert_eq!(
             minted_txo_details.secreted_from_account.unwrap().txo_status,
-            TXO_SECRETED
+            TXO_STATUS_SECRETED
         );
         assert!(minted_txo_details.received_to_assigned_subaddress.is_none());
 
@@ -1413,7 +1418,7 @@ mod tests {
         assert_eq!(change_txo_details.txo.value, change_value);
         assert_eq!(
             change_txo_details.secreted_from_account.unwrap().txo_status,
-            TXO_SECRETED
+            TXO_STATUS_SECRETED
         );
         assert!(change_txo_details.received_to_assigned_subaddress.is_none()); // Note: This gets updated on sync
     }

@@ -9,33 +9,57 @@ use super::schema::{
 
 use serde::Serialize;
 
-// FIXME: WS-13 - Would be great to get enums to work. Run into several issues
-// when attempting        to use https://github.com/adwhit/diesel-derive-enum for sqlite
-// TxoStatus
-pub const TXO_UNSPENT: &str = "unspent";
-pub const TXO_PENDING: &str = "pending";
-pub const TXO_SPENT: &str = "spent";
-pub const TXO_SECRETED: &str = "secreted";
-pub const TXO_ORPHANED: &str = "orphaned";
+/// A TXO owned by an account in this wallet that has not yet been spent.
+pub const TXO_STATUS_UNSPENT: &str = "txo_status_unspent";
 
-// TxoType
-pub const TXO_MINTED: &str = "minted";
-pub const TXO_RECEIVED: &str = "received";
+/// A TXO owned by an account in this wallet that is used by a pending
+/// transaction.
+pub const TXO_STATUS_PENDING: &str = "txo_status_pending";
 
-// TransactionStatus
-pub const TX_BUILT: &str = "built";
-pub const TX_PENDING: &str = "pending";
-pub const TX_SUCCEEDED: &str = "succeeded";
-pub const TX_FAILED: &str = "failed";
+/// A TXO owned by an account in this wallet that has been spent.
+pub const TXO_STATUS_SPENT: &str = "txo_status_spent";
 
-// Transaction Direction
-pub const TX_DIR_SENT: &str = "sent";
-pub const TX_DIR_RECEIVED: &str = "received";
+/// A TXO created by an account in this wallet for use as an output in an
+/// outgoing transaction.
+pub const TXO_STATUS_SECRETED: &str = "txo_status_secreted";
 
-// Transaction Txo Type
-pub const TXO_INPUT: &str = "input";
-pub const TXO_OUTPUT: &str = "output";
-pub const TXO_CHANGE: &str = "change";
+/// The TXO is owned by this wallet, but not yet spendable (i.e., receiving
+/// subaddress is unknown).
+pub const TXO_STATUS_ORPHANED: &str = "txo_status_orphaned";
+
+/// A Txo that has been created locally, but is not yet in the ledger.
+pub const TXO_TYPE_MINTED: &str = "txo_type_minted";
+
+/// A Txo in the ledger that belongs to an account in this wallet.
+pub const TXO_TYPE_RECEIVED: &str = "txo_type_received";
+
+/// A transaction that has been built locally.
+pub const TX_STATUS_BUILT: &str = "tx_status_built";
+
+/// A transaction that has been submitted to the MobileCoin network.
+pub const TX_STATUS_PENDING: &str = "tx_status_pending";
+
+/// A transaction that appears to have been processed by the MobileCoin network.
+pub const TX_STATUS_SUCCEEDED: &str = "tx_status_succeeded";
+
+/// A transaction that was rejected by the MobileCoin network, or that expired
+/// before it could be processed.
+pub const TX_STATUS_FAILED: &str = "tx_status_failed";
+
+/// A transaction created by an account in this wallet.
+pub const TX_DIRECTION_SENT: &str = "tx_direction_sent";
+
+/// A TxOut received by an account in this wallet.
+pub const TX_DIRECTION_RECEIVED: &str = "tx_direction_received";
+
+/// A transaction output that is used as an input to a new transaction.
+pub const TXO_USED_AS_INPUT: &str = "txo_used_as_input";
+
+/// A transaction output that is used as an output of a new transaction.
+pub const TXO_USED_AS_OUTPUT: &str = "txo_used_as_output";
+
+/// A transaction output used as a change output of a new transaction.
+pub const TXO_USED_AS_CHANGE: &str = "txo_used_as_change";
 
 /// An Account entity.
 ///

@@ -3,7 +3,7 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        models::{Account, TransactionLog, Txo, TXO_CHANGE, TXO_OUTPUT},
+        models::{Account, TransactionLog, Txo, TXO_USED_AS_CHANGE, TXO_USED_AS_OUTPUT},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
         WalletDb,
@@ -482,7 +482,7 @@ pub fn create_test_minted_and_change_txos(
     )
     .unwrap();
     assert!(processed_output.recipient.is_some());
-    assert_eq!(processed_output.txo_type, TXO_OUTPUT);
+    assert_eq!(processed_output.txo_type, TXO_USED_AS_OUTPUT);
 
     // Create minted for the change output.
     let change_txo_index = if outlay_txo_index == 0 { 1 } else { 0 };
@@ -497,7 +497,7 @@ pub fn create_test_minted_and_change_txos(
     .unwrap();
     assert_eq!(processed_change.recipient, None,);
     // Change starts as an output, and is updated to change when scanned.
-    assert_eq!(processed_change.txo_type, TXO_CHANGE);
+    assert_eq!(processed_change.txo_type, TXO_USED_AS_CHANGE);
     (
         (processed_output.txo_id, processed_output.value),
         (processed_change.txo_id, processed_change.value),

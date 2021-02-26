@@ -6,8 +6,9 @@ use crate::db::{
     b58_encode,
     models::{
         Account, NewTransactionLog, NewTransactionTxoType, TransactionLog, TransactionTxoType, Txo,
-        TXO_CHANGE, TXO_INPUT, TXO_OUTPUT, TX_BUILT, TX_DIR_RECEIVED, TX_DIR_SENT, TX_FAILED,
-        TX_PENDING, TX_SUCCEEDED,
+        TXO_USED_AS_CHANGE, TXO_USED_AS_INPUT, TXO_USED_AS_OUTPUT, TX_DIRECTION_RECEIVED,
+        TX_DIRECTION_SENT, TX_STATUS_BUILT, TX_STATUS_FAILED, TX_STATUS_PENDING,
+        TX_STATUS_SUCCEEDED,
     },
     txo::{TxoID, TxoModel},
 };
@@ -171,9 +172,9 @@ impl TransactionLogModel for TransactionLog {
 
         for (_transaction, transaction_txo_type) in transaction_txos {
             match transaction_txo_type.transaction_txo_type.as_str() {
-                TXO_INPUT => inputs.push(transaction_txo_type.txo_id_hex),
-                TXO_OUTPUT => outputs.push(transaction_txo_type.txo_id_hex),
-                TXO_CHANGE => change.push(transaction_txo_type.txo_id_hex),
+                TXO_USED_AS_INPUT => inputs.push(transaction_txo_type.txo_id_hex),
+                TXO_USED_AS_OUTPUT => outputs.push(transaction_txo_type.txo_id_hex),
+                TXO_USED_AS_CHANGE => change.push(transaction_txo_type.txo_id_hex),
                 _ => {
                     return Err(WalletDbError::UnexpectedTransactionTxoType(
                         transaction_txo_type.transaction_txo_type,
@@ -253,9 +254,9 @@ impl TransactionLogModel for TransactionLog {
             }
 
             match transaction_txo_type.transaction_txo_type.as_str() {
-                TXO_INPUT => entry.inputs.push(transaction_txo_type.txo_id_hex),
-                TXO_OUTPUT => entry.outputs.push(transaction_txo_type.txo_id_hex),
-                TXO_CHANGE => entry.change.push(transaction_txo_type.txo_id_hex),
+                TXO_USED_AS_INPUT => entry.inputs.push(transaction_txo_type.txo_id_hex),
+                TXO_USED_AS_OUTPUT => entry.outputs.push(transaction_txo_type.txo_id_hex),
+                TXO_USED_AS_CHANGE => entry.change.push(transaction_txo_type.txo_id_hex),
                 _ => {
                     return Err(WalletDbError::UnexpectedTransactionTxoType(
                         transaction_txo_type.transaction_txo_type,
@@ -294,7 +295,9 @@ impl TransactionLogModel for TransactionLog {
                 let associated = transaction_log.get_associated_txos(conn)?;
 
                 // Only update transaction_log status if built or pending
-                if transaction_log.status != TX_BUILT && transaction_log.status != TX_PENDING {
+                if transaction_log.status != TX_STATUS_BUILT
+                    && transaction_log.status != TX_STATUS_PENDING
+                {
                     continue;
                 }
 
@@ -308,7 +311,7 @@ impl TransactionLogModel for TransactionLog {
                             .filter(transaction_id_hex.eq(&transaction_log.transaction_id_hex)),
                     )
                     .set((
-                        crate::db::schema::transaction_logs::status.eq(TX_SUCCEEDED),
+                        crate::db::schema::transaction_logs::status.eq(TX_STATUS_SUCCEEDED),
                         crate::db::schema::transaction_logs::finalized_block_count
                             .eq(Some(cur_block_count)),
                     ))
@@ -320,7 +323,7 @@ impl TransactionLogModel for TransactionLog {
                         transaction_logs
                             .filter(transaction_id_hex.eq(&transaction_log.transaction_id_hex)),
                     )
-                    .set(crate::db::schema::transaction_logs::status.eq(TX_FAILED))
+                    .set(crate::db::schema::transaction_logs::status.eq(TX_STATUS_FAILED))
                     .execute(conn)?;
                 }
             }
@@ -367,12 +370,12 @@ impl TransactionLogModel for TransactionLog {
                         assigned_subaddress_b58: &b58_subaddress,
                         value: txo.value,
                         fee: None, // Impossible to recover fee from received transaction
-                        status: TX_SUCCEEDED,
+                        status: TX_STATUS_SUCCEEDED,
                         sent_time: None, // NULL for received
                         submitted_block_count: None,
                         finalized_block_count: Some(block_count as i64),
                         comment: "", // NULL for received
-                        direction: TX_DIR_RECEIVED,
+                        direction: TX_DIRECTION_RECEIVED,
                         tx: None, // NULL for received
                     };
 
@@ -384,7 +387,7 @@ impl TransactionLogModel for TransactionLog {
                     let new_transaction_txo = NewTransactionTxoType {
                         transaction_id_hex: &transaction_id.to_string(),
                         txo_id_hex: &txo.txo_id_hex,
-                        transaction_txo_type: TXO_OUTPUT,
+                        transaction_txo_type: TXO_USED_AS_OUTPUT,
                     };
                     // Note: SQLite backend does not support batch insert, so within iter is fine
                     diesel::insert_into(transaction_txo_types::table)
@@ -418,7 +421,7 @@ impl TransactionLogModel for TransactionLog {
             for utxo in tx_proposal.utxos.iter() {
                 let txo_id = TxoID::from(&utxo.tx_out);
                 Txo::update_to_pending(&txo_id, conn)?;
-                txo_ids.push((txo_id.to_string(), TXO_INPUT.to_string()));
+                txo_ids.push((txo_id.to_string(), TXO_USED_AS_INPUT.to_string()));
             }
 
             // Next, add all of our minted outputs to the Txo Table
@@ -469,12 +472,12 @@ impl TransactionLogModel for TransactionLog {
                     assigned_subaddress_b58: "", // NULL for sent
                     value: transaction_value as i64,
                     fee: Some(tx_proposal.tx.prefix.fee as i64),
-                    status: TX_PENDING,
+                    status: TX_STATUS_PENDING,
                     sent_time: Some(Utc::now().timestamp()),
                     submitted_block_count: Some(block_count as i64),
                     finalized_block_count: None,
                     comment: &comment,
-                    direction: TX_DIR_SENT,
+                    direction: TX_DIRECTION_SENT,
                     tx: Some(&tx),
                 };
 
@@ -507,7 +510,7 @@ mod tests {
     use crate::{
         db::{
             account::{AccountID, AccountModel},
-            models::{TXO_MINTED, TXO_PENDING, TXO_RECEIVED, TXO_SECRETED},
+            models::{TXO_STATUS_PENDING, TXO_STATUS_SECRETED, TXO_TYPE_MINTED, TXO_TYPE_RECEIVED},
         },
         service::sync::SyncThread,
         test_utils::{
@@ -639,14 +642,14 @@ mod tests {
         // Fee exists for submitted
         assert_eq!(tx_log.fee, Some(MINIMUM_FEE as i64));
         // Created and sent transaction is "pending" until it lands
-        assert_eq!(tx_log.status, TX_PENDING);
+        assert_eq!(tx_log.status, TX_STATUS_PENDING);
         assert!(tx_log.sent_time.unwrap() > 0);
         assert_eq!(
             tx_log.submitted_block_count,
             Some(ledger_db.num_blocks().unwrap() as i64)
         );
         assert_eq!(tx_log.comment, "");
-        assert_eq!(tx_log.direction, TX_DIR_SENT);
+        assert_eq!(tx_log.direction, TX_DIRECTION_SENT);
         let tx: Tx = mc_util_serial::decode(&tx_log.clone().tx.unwrap()).unwrap();
         assert_eq!(tx, tx_proposal.tx);
 
@@ -666,11 +669,11 @@ mod tests {
                 .clone()
                 .unwrap()
                 .txo_status,
-            TXO_PENDING
+            TXO_STATUS_PENDING
         ); // Should now be pending
         assert_eq!(
             input_details.received_to_account.clone().unwrap().txo_type,
-            TXO_RECEIVED
+            TXO_TYPE_RECEIVED
         );
         assert_eq!(
             input_details
@@ -692,7 +695,7 @@ mod tests {
                 .clone()
                 .unwrap()
                 .txo_status,
-            TXO_SECRETED
+            TXO_STATUS_SECRETED
         );
         assert_eq!(
             output_details
@@ -700,7 +703,7 @@ mod tests {
                 .clone()
                 .unwrap()
                 .txo_type,
-            TXO_MINTED
+            TXO_TYPE_MINTED
         );
         assert!(output_details.received_to_account.is_none());
         assert!(output_details.received_to_assigned_subaddress.is_none());
@@ -716,7 +719,7 @@ mod tests {
                 .clone()
                 .unwrap()
                 .txo_status,
-            TXO_SECRETED
+            TXO_STATUS_SECRETED
         ); // Note, change becomes "unspent" once scanned
         assert_eq!(
             change_details
@@ -724,7 +727,7 @@ mod tests {
                 .clone()
                 .unwrap()
                 .txo_type,
-            TXO_MINTED
+            TXO_TYPE_MINTED
         ); // Note, becomes "received" once scanned
         assert!(change_details.received_to_account.is_none()); // Note, gets filled in once scanned
         assert!(change_details.received_to_assigned_subaddress.is_none()); // Note, gets filled in once scanned
@@ -790,14 +793,14 @@ mod tests {
         // Fee exists for submitted
         assert_eq!(tx_log.fee, Some(MINIMUM_FEE as i64));
         // Created and sent transaction is "pending" until it lands
-        assert_eq!(tx_log.status, TX_PENDING);
+        assert_eq!(tx_log.status, TX_STATUS_PENDING);
         assert!(tx_log.sent_time.unwrap() > 0);
         assert_eq!(
             tx_log.submitted_block_count,
             Some(ledger_db.num_blocks().unwrap() as i64)
         );
         assert_eq!(tx_log.comment, "");
-        assert_eq!(tx_log.direction, TX_DIR_SENT);
+        assert_eq!(tx_log.direction, TX_DIRECTION_SENT);
         let tx: Tx = mc_util_serial::decode(&tx_log.clone().tx.unwrap()).unwrap();
         assert_eq!(tx, tx_proposal.tx);
 
