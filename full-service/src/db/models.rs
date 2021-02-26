@@ -34,17 +34,17 @@ pub const TXO_TYPE_MINTED: &str = "txo_type_minted";
 pub const TXO_TYPE_RECEIVED: &str = "txo_type_received";
 
 /// A transaction that has been built locally.
-pub const TX_STATUS_BUILT: &str = "built";
+pub const TX_STATUS_BUILT: &str = "tx_status_built";
 
 /// A transaction that has been submitted to the MobileCoin network.
-pub const TX_STATUS_PENDING: &str = "pending";
+pub const TX_STATUS_PENDING: &str = "tx_status_pending";
 
 /// A transaction that appears to have been processed by the MobileCoin network.
-pub const TX_STATUS_SUCCEEDED: &str = "succeeded";
+pub const TX_STATUS_SUCCEEDED: &str = "tx_status_succeeded";
 
 /// A transaction that was rejected by the MobileCoin network, or that expired
 /// before it could be processed.
-pub const TX_STATUS_FAILED: &str = "failed";
+pub const TX_STATUS_FAILED: &str = "tx_status_failed";
 
 /// A transaction created by an account in this wallet.
 pub const TX_DIR_SENT: &str = "sent";

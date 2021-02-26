@@ -495,7 +495,7 @@ mod tests {
     use crate::{
         db::{
             b58_decode,
-            models::{TXO_STATUS_UNSPENT, TXO_TYPE_RECEIVED},
+            models::{TXO_STATUS_UNSPENT, TXO_TYPE_RECEIVED, TX_STATUS_PENDING},
         },
         test_utils::{
             add_block_to_ledger_db, add_block_with_tx_proposal, get_resolver_factory,
@@ -1150,7 +1150,7 @@ mod tests {
         );
         assert_eq!(
             transaction_log.get("status").unwrap().as_str().unwrap(),
-            "pending"
+            TX_STATUS_PENDING
         );
         assert_eq!(
             transaction_log
@@ -1360,11 +1360,7 @@ mod tests {
         });
         let result = dispatch(&offline_client, body, &logger);
         let balance_status = result.get("status").unwrap();
-        let unspent = balance_status
-            .get("unspent")
-            .unwrap()
-            .as_str()
-            .unwrap();
+        let unspent = balance_status.get("unspent").unwrap().as_str().unwrap();
         assert_eq!(unspent.parse::<i64>().unwrap(), 42 * MOB);
 
         // Build a transaction
