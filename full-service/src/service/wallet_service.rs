@@ -418,11 +418,12 @@ mod tests {
         db::{
             b58_encode,
             models::{TXO_MINTED, TXO_PENDING, TXO_RECEIVED, TXO_UNSPENT},
+            txo::TxoDetails,
         },
         service::{account::AccountService, balance::BalanceService},
         test_utils::{
-            add_block_to_ledger_db, get_resolver_factory, get_test_ledger,
-            setup_peer_manager_and_network_state, WalletDbTestContext, MOB,
+            add_block_from_transaction_log, add_block_to_ledger_db, get_resolver_factory,
+            get_test_ledger, setup_peer_manager_and_network_state, WalletDbTestContext, MOB,
         },
     };
     use mc_account_keys::{AccountKey, PublicAddress};
@@ -595,7 +596,8 @@ mod tests {
             .unwrap();
 
         // Add a block with a transaction for Alice
-        let alice_public_address = b58_decode(&alice.account.main_address).unwrap();
+        let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
+        let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![alice_public_address.clone()],
@@ -608,8 +610,10 @@ mod tests {
         std::thread::sleep(Duration::from_secs(8));
 
         // Verify balance for Alice
-        let balance = service.get_balance(&alice.account.account_id).unwrap();
-        assert_eq!(balance.unspent.parse::<i64>().unwrap(), 100 * MOB);
+        let balance = service
+            .get_balance_for_account(&AccountID(alice.account_id_hex.clone()))
+            .unwrap();
+        assert_eq!(balance.unspent, 100 * MOB as u64);
 
         // Add an account for Bob
         let bob = service
@@ -618,13 +622,13 @@ mod tests {
 
         // Create an assigned subaddress for Bob
         let bob_address_from_alice = service
-            .create_assigned_subaddress(&bob.account.account_id, Some("From Alice"))
+            .create_assigned_subaddress(&bob.account_id_hex, Some("From Alice"))
             .unwrap();
 
         // Send a transaction from Alice to Bob
         let submit_response = service
             .send_transaction(
-                &alice.account.account_id,
+                &alice.account_id_hex,
                 &bob_address_from_alice.public_address,
                 (42 * MOB).to_string(),
                 None,
@@ -637,7 +641,7 @@ mod tests {
         log::info!(logger, "Built and submitted transaction from Alice");
 
         let json_transaction_log = service
-            .get_transaction(&submit_response.transaction_id.unwrap())
+            .get_transaction(&submit_response.transaction_id)
             .unwrap();
 
         // NOTE: Submitting to the test ledger via propose_tx doesn't actually add the
@@ -686,18 +690,22 @@ mod tests {
         assert_eq!(inputs[0].txo.value, 100 * MOB);
 
         // Verify balance for Alice = original balance - fee - txo_value
-        let balance = service.get_balance(&alice.account.account_id).unwrap();
-        assert_eq!(balance.unspent, "57990000000000");
+        let balance = service
+            .get_balance_for_account(&AccountID(alice.account_id_hex.clone()))
+            .unwrap();
+        assert_eq!(balance.unspent, 57990000000000);
 
         // Bob's balance should be = output_txo_value
-        let bob_balance = service.get_balance(&bob.account.account_id).unwrap();
-        assert_eq!(bob_balance.unspent, "42000000000000");
+        let bob_balance = service
+            .get_balance_for_account(&AccountID(bob.account_id_hex.clone()))
+            .unwrap();
+        assert_eq!(bob_balance.unspent, 42000000000000);
 
         // Bob should now be able to send to Alice
         let submit_response = service
             .send_transaction(
-                &bob.account.account_id,
-                &alice.account.main_address,
+                &bob.account_id_hex,
+                &b58_encode(&alice_public_address).unwrap(),
                 (8 * MOB).to_string(),
                 None,
                 None,
@@ -708,7 +716,7 @@ mod tests {
             .unwrap();
 
         let json_transaction_log = service
-            .get_transaction(&submit_response.transaction_id.unwrap())
+            .get_transaction(&submit_response.transaction_id)
             .unwrap();
 
         // NOTE: Submitting to the test ledger via propose_tx doesn't actually add the
@@ -728,12 +736,16 @@ mod tests {
 
         std::thread::sleep(Duration::from_secs(8));
 
-        let alice_balance = service.get_balance(&alice.account.account_id).unwrap();
-        assert_eq!(alice_balance.unspent, "65990000000000");
+        let alice_balance = service
+            .get_balance_for_account(&AccountID(alice.account_id_hex))
+            .unwrap();
+        assert_eq!(alice_balance.unspent, 65990000000000);
 
         // Bob's balance should be = output_txo_value
-        let bob_balance = service.get_balance(&bob.account.account_id).unwrap();
-        assert_eq!(bob_balance.unspent, "33990000000000");
+        let bob_balance = service
+            .get_balance_for_account(&AccountID(bob.account_id_hex))
+            .unwrap();
+        assert_eq!(bob_balance.unspent, 33990000000000);
     }
 
     // FIXME: Test with 0 change transactions

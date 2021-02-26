@@ -1203,9 +1203,10 @@ mod tests {
         assert_eq!(change.len(), 1);
 
         // Create a new account and send some MOB to it
-        let bob_account_key = AccountKey::random(&mut rng);
+        let bob_root_id = RootIdentity::from_random(&mut rng);
+        let bob_account_key = AccountKey::from(&bob_root_id);
         let (bob_account_id, _public_address_b58) = Account::create(
-            &bob_account_key,
+            &bob_root_id.root_entropy,
             Some(1),
             None,
             "Bob's Main Account",
