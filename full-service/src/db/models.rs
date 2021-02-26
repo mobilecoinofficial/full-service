@@ -18,9 +18,10 @@ pub const TXO_SPENT: &str = "spent";
 pub const TXO_SECRETED: &str = "secreted";
 pub const TXO_ORPHANED: &str = "orphaned";
 
-// TxoType
-pub const TXO_MINTED: &str = "minted";
-pub const TXO_RECEIVED: &str = "received";
+/// A Txo that has been created locally, but is not yet in the ledger.
+pub const TXO_TYPE_MINTED: &str = "minted";
+/// A Txo in the ledger that belongs to an account in this wallet.
+pub const TXO_TYPE_RECEIVED: &str = "received";
 
 // TransactionStatus
 pub const TX_BUILT: &str = "built";

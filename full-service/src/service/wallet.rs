@@ -496,7 +496,7 @@ mod tests {
         db::{
             b58_decode,
             models::{
-                TXO_ORPHANED, TXO_PENDING, TXO_RECEIVED, TXO_SECRETED, TXO_SPENT, TXO_UNSPENT,
+                TXO_ORPHANED, TXO_PENDING, TXO_SECRETED, TXO_SPENT, TXO_TYPE_RECEIVED, TXO_UNSPENT,
             },
         },
         test_utils::{
@@ -928,7 +928,7 @@ mod tests {
             .unwrap()
             .as_str()
             .unwrap();
-        assert_eq!(txo_type, TXO_RECEIVED);
+        assert_eq!(txo_type, TXO_TYPE_RECEIVED);
         let value = txo.get("value_pmob").unwrap().as_str().unwrap();
         assert_eq!(value, "100");
 
@@ -1243,7 +1243,7 @@ mod tests {
         let txo_status = status_map.get("txo_status").unwrap().as_str().unwrap();
         assert_eq!(txo_status, TXO_UNSPENT);
         let txo_type = status_map.get("txo_type").unwrap().as_str().unwrap();
-        assert_eq!(txo_type, TXO_RECEIVED);
+        assert_eq!(txo_type, TXO_TYPE_RECEIVED);
         let value = txo.get("value_pmob").unwrap().as_str().unwrap();
         assert_eq!(value, "42000000000000");
     }

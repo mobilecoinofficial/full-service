@@ -654,7 +654,7 @@ impl<
 mod tests {
     use super::*;
     use crate::{
-        db::models::{TXO_MINTED, TXO_RECEIVED},
+        db::models::{TXO_TYPE_MINTED, TXO_TYPE_RECEIVED},
         test_utils::{
             add_block_to_ledger_db, get_resolver_factory, get_test_ledger,
             setup_peer_manager_and_network_state, WalletDbTestContext,
@@ -774,7 +774,7 @@ mod tests {
             pending[0].account_status_map[&alice.account.account_id]
                 .get("txo_type")
                 .unwrap(),
-            TXO_RECEIVED
+            TXO_TYPE_RECEIVED
         );
         assert_eq!(pending[0].value_pmob, "100000000000000");
         let minted: Vec<JsonTxo> = txos
@@ -787,13 +787,13 @@ mod tests {
             minted[0].account_status_map[&alice.account.account_id]
                 .get("txo_type")
                 .unwrap(),
-            TXO_MINTED
+            TXO_TYPE_MINTED
         );
         assert_eq!(
             minted[1].account_status_map[&alice.account.account_id]
                 .get("txo_type")
                 .unwrap(),
-            TXO_MINTED
+            TXO_TYPE_MINTED
         );
         let minted_value_set = HashSet::from_iter(minted.iter().map(|m| m.value_pmob.clone()));
         assert!(minted_value_set.contains("57990000000000"));

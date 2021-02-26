@@ -507,7 +507,7 @@ mod tests {
     use crate::{
         db::{
             account::{AccountID, AccountModel},
-            models::{TXO_MINTED, TXO_PENDING, TXO_RECEIVED, TXO_SECRETED},
+            models::{TXO_PENDING, TXO_SECRETED, TXO_TYPE_MINTED, TXO_TYPE_RECEIVED},
         },
         service::sync::SyncThread,
         test_utils::{
@@ -670,7 +670,7 @@ mod tests {
         ); // Should now be pending
         assert_eq!(
             input_details.received_to_account.clone().unwrap().txo_type,
-            TXO_RECEIVED
+            TXO_TYPE_RECEIVED
         );
         assert_eq!(
             input_details
@@ -700,7 +700,7 @@ mod tests {
                 .clone()
                 .unwrap()
                 .txo_type,
-            TXO_MINTED
+            TXO_TYPE_MINTED
         );
         assert!(output_details.received_to_account.is_none());
         assert!(output_details.received_to_assigned_subaddress.is_none());
@@ -724,7 +724,7 @@ mod tests {
                 .clone()
                 .unwrap()
                 .txo_type,
-            TXO_MINTED
+            TXO_TYPE_MINTED
         ); // Note, becomes "received" once scanned
         assert!(change_details.received_to_account.is_none()); // Note, gets filled in once scanned
         assert!(change_details.received_to_assigned_subaddress.is_none()); // Note, gets filled in once scanned

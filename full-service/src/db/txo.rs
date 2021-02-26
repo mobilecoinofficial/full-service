@@ -9,8 +9,8 @@ use crate::db::{
     b58_encode,
     models::{
         Account, AccountTxoStatus, AssignedSubaddress, NewAccountTxoStatus, NewTxo, Txo,
-        TXO_CHANGE, TXO_MINTED, TXO_ORPHANED, TXO_OUTPUT, TXO_PENDING, TXO_RECEIVED, TXO_SECRETED,
-        TXO_SPENT, TXO_UNSPENT,
+        TXO_CHANGE, TXO_ORPHANED, TXO_OUTPUT, TXO_PENDING, TXO_SECRETED, TXO_SPENT,
+        TXO_TYPE_MINTED, TXO_TYPE_RECEIVED, TXO_UNSPENT,
     },
 };
 
@@ -263,7 +263,7 @@ impl TxoModel for Txo {
                                     account_id_hex,
                                     &txo_id.to_string(),
                                     status,
-                                    TXO_RECEIVED,
+                                    TXO_TYPE_RECEIVED,
                                     conn,
                                 )?;
                             }
@@ -308,7 +308,7 @@ impl TxoModel for Txo {
                         account_id_hex,
                         &txo_id.to_string(),
                         status,
-                        TXO_RECEIVED,
+                        TXO_TYPE_RECEIVED,
                         conn,
                     )?;
                 }
@@ -397,7 +397,7 @@ impl TxoModel for Txo {
                     txo_id_hex: &txo_id.to_string(),
                     txo_status: TXO_SECRETED, /* We cannot track spent status for minted TXOs
                                                * unless change */
-                    txo_type: TXO_MINTED,
+                    txo_type: TXO_TYPE_MINTED,
                 };
                 diesel::insert_into(account_txo_statuses::table)
                     .values(&new_account_txo_status)
@@ -431,7 +431,7 @@ impl TxoModel for Txo {
             // ourselves for some other reason. Their status will be "secreted"
             // in either case.
             match account_txo_status.txo_type.as_str() {
-                TXO_MINTED => {
+                TXO_TYPE_MINTED => {
                     // Update received block height and subaddress index
                     self.update_to_spendable(
                         received_subaddress_index,
@@ -444,7 +444,7 @@ impl TxoModel for Txo {
                     // received
                     account_txo_status.set_unspent(&conn)?;
                 }
-                TXO_RECEIVED => {
+                TXO_TYPE_RECEIVED => {
                     // If the existing Txo subaddress is null and we have the received subaddress
                     // now, then we want to update to received subaddress. Otherwise, it will remain
                     // orphaned. Do not update to unspent, because this Txo may
@@ -628,13 +628,13 @@ impl TxoModel for Txo {
 
         for account_txo_status in account_txo_statuses {
             match account_txo_status.txo_type.as_str() {
-                TXO_MINTED => {
+                TXO_TYPE_MINTED => {
                     txo_details.secreted_from_account = Some(account_txo_status.clone());
                     // Note: Minted & Unspent means that this Txo was also
                     // received, and is either change, or a
                     // Txo that we sent to ourselves.
                 }
-                TXO_RECEIVED => {
+                TXO_TYPE_RECEIVED => {
                     txo_details.received_to_account = Some(account_txo_status.clone());
                 }
                 _ => {
@@ -914,7 +914,7 @@ mod tests {
             account_id_hex: account_id_hex.to_string(),
             txo_id_hex: txo_hex,
             txo_status: TXO_UNSPENT.to_string(),
-            txo_type: TXO_RECEIVED.to_string(),
+            txo_type: TXO_TYPE_RECEIVED.to_string(),
         };
         assert_eq!(txos[0].txo, expected_txo);
         assert_eq!(
@@ -983,7 +983,7 @@ mod tests {
         assert!(spent[0].secreted_from_account.clone().is_none(),);
         assert_eq!(
             spent[0].received_to_account.clone().unwrap().txo_type,
-            TXO_RECEIVED
+            TXO_TYPE_RECEIVED
         );
         assert_eq!(
             spent[0].received_to_account.clone().unwrap().txo_status,
@@ -1006,7 +1006,7 @@ mod tests {
         // After minting the coins, their type shoudl be "Minted"
         let minted = Txo::list_by_type(
             &account_id_hex.to_string(),
-            TXO_MINTED,
+            TXO_TYPE_MINTED,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1064,7 +1064,7 @@ mod tests {
         // The type should still be "minted"
         let unspent = Txo::list_by_type(
             &account_id_hex.to_string(),
-            TXO_MINTED,
+            TXO_TYPE_MINTED,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
