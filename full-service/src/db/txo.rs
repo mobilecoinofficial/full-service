@@ -99,23 +99,19 @@ pub trait TxoModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<ProcessedTxProposalOutput, WalletDbError>;
 
-    /// Update an existing Txo when it is received in the ledger.
-    /// A Txo can be created before being received if it is minted, for example.
-    fn update_received(
-        &self,
-        account_id_hex: &str,
-        subaddress_index: Option<i64>,
-        key_image: Option<KeyImage>,
-        received_block_count: i64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<(), WalletDbError>;
-
     /// Update an existing Txo to spendable by including its subaddress_index
     /// and key_image.
     fn update_to_spendable(
         &self,
         received_subaddress_index: Option<i64>,
         received_key_image: Option<KeyImage>,
+        block_count: i64,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError>;
+
+    /// Update a Txo's received block count.
+    fn update_received_block_count(
+        &self,
         block_count: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
@@ -216,47 +212,104 @@ impl TxoModel for Txo {
                 // If we already have this TXO for this account (e.g. from minting in a previous
                 // transaction), we need to update it
                 Ok(txo_details) => {
-                    // If we've already processed this Txo as received, we can update it harmlessly.
-                    if txo_details.received_to_account.is_some() {
-                        txo_details.txo.update_received(
-                            account_id_hex,
-                            subaddress_index,
-                            key_image,
-                            received_block_count,
-                            conn,
-                        )?;
-                    }
-
-                    if txo_details.secreted_from_account.is_some() {
-                        // Check if this account/txo pairing already exists for our account.
+                    // If the Txo already exists for this or another account, update the status
+                    // with respect to this account.
+                    if txo_details.secreted_from_account.is_some()
+                        || txo_details.received_to_account.is_some()
+                    {
+                        // Check if this txo/pairing already exists for this account.
                         match AccountTxoStatus::get(account_id_hex, &txo_id.to_string(), conn) {
+                            // The txo/pairing exists for this account in this wallet.
                             Ok(account_txo_status) => {
-                                // We minted this TXO and sent it to ourselves. It's either change
-                                // that we're now recovering as
-                                // unspent, or it's a new Txo that we sent to ourselves.
-                                if account_txo_status.txo_status == TXO_SECRETED {
-                                    txo_details.txo.update_received(
-                                        account_id_hex,
+                                match account_txo_status.txo_status.as_str() {
+                                    TXO_SECRETED => {
+                                        match account_txo_status.txo_type.as_str() {
+                                            // We minted this TXO and sent it to ourselves. It's
+                                            // either change that we're now recovering as unspent,
+                                            // or it's a new Txo that we sent to ourselves.
+                                            TXO_MINTED => {
+                                                if subaddress_index.is_some() {
+                                                    // Transition from [Minted, Secreted] ->
+                                                    // [Minted,
+                                                    // Unspent]
+                                                    // This occurs when an account receives a
+                                                    // transaction from itself at a subaddress.
+                                                    txo_details.txo.update_to_spendable(
+                                                        subaddress_index,
+                                                        key_image,
+                                                        received_block_count,
+                                                        &conn,
+                                                    )?;
+                                                    account_txo_status.set_unspent(conn)?;
+                                                } else {
+                                                    // Transition from [Minted, Secreted] ->
+                                                    // [Minted,
+                                                    // Orphaned]
+                                                    // This occurs when an account receives a
+                                                    // transaction from itself at an unknown
+                                                    // subaddress.
+                                                    txo_details.txo.update_received_block_count(
+                                                        received_block_count,
+                                                        conn,
+                                                    )?;
+                                                    account_txo_status.set_orphaned(conn)?;
+                                                }
+                                            }
+                                            // Should not get [Received, Secreted]
+                                            _ => {
+                                                return Err(
+                                                    WalletDbError::UnexpectedAccountTxoStatus(
+                                                        account_txo_status.txo_status,
+                                                    ),
+                                                );
+                                            }
+                                        }
+                                    }
+                                    TXO_ORPHANED => {
+                                        // If we have a subaddress for this account and this Txo, we
+                                        // can update to spendable. True for [Minted, Orphaned] and
+                                        // [Received, Orphaned]
+                                        if subaddress_index.is_some() {
+                                            txo_details.txo.update_to_spendable(
+                                                subaddress_index,
+                                                key_image,
+                                                received_block_count,
+                                                &conn,
+                                            )?;
+                                            account_txo_status.set_unspent(conn)?;
+                                        }
+                                    }
+                                    TXO_UNSPENT => {}
+                                    TXO_PENDING => {}
+                                    TXO_SPENT => {}
+                                    _ => {
+                                        return Err(WalletDbError::UnexpectedAccountTxoStatus(
+                                            account_txo_status.txo_status,
+                                        ));
+                                    }
+                                }
+                            }
+                            // The txo/pairing exists for another account currently in the wallet.
+                            // We also want to set it as unspent, but we need to create a new
+                            // AccountTxoStatus entry.
+                            Err(WalletDbError::AccountTxoStatusNotFound(_)) => {
+                                let status = if subaddress_index.is_some() {
+                                    // If the Txo was already in the DB, but not for this account,
+                                    // we need to update to spendable with the subaddress and
+                                    // key_image
+                                    txo_details.txo.update_to_spendable(
                                         subaddress_index,
                                         key_image,
                                         received_block_count,
-                                        conn,
+                                        &conn,
                                     )?;
-                                    account_txo_status.set_unspent(conn)?;
-                                } else {
-                                    return Err(WalletDbError::UnexpectedAccountTxoStatus(
-                                        account_txo_status.txo_status,
-                                    ));
-                                }
-                            }
-                            Err(WalletDbError::AccountTxoStatusNotFound(_)) => {
-                                // Txo already exists for this or another account. Update the status
-                                // with respect to this account.
-                                let status = if subaddress_index.is_some() {
                                     TXO_UNSPENT
                                 } else {
                                     // Note: An orphaned Txo cannot be spent until the subaddress is
                                     // recovered.
+                                    txo_details
+                                        .txo
+                                        .update_received_block_count(received_block_count, conn)?;
                                     TXO_ORPHANED
                                 };
                                 AccountTxoStatus::create(
@@ -270,6 +323,7 @@ impl TxoModel for Txo {
                             Err(e) => return Err(e),
                         }
                     } else {
+                        // The Txo should be either secreted from or received to this account.
                         return Err(WalletDbError::MalformedTxoDatabaseEntry);
                     }
                 }
@@ -414,72 +468,6 @@ impl TxoModel for Txo {
         })
     }
 
-    fn update_received(
-        &self,
-        account_id_hex: &str,
-        received_subaddress_index: Option<i64>,
-        received_key_image: Option<KeyImage>,
-        received_block_count: i64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<(), WalletDbError> {
-        conn.transaction::<(), WalletDbError, _>(|| {
-            // get the type of this TXO
-            let account_txo_status =
-                AccountTxoStatus::get(account_id_hex, &self.txo_id_hex, &conn)?;
-
-            // For TXOs that we sent previously, they are either change, or we sent to
-            // ourselves for some other reason. Their status will be "secreted"
-            // in either case.
-            match account_txo_status.txo_type.as_str() {
-                TXO_MINTED => {
-                    // Update received block height and subaddress index
-                    self.update_to_spendable(
-                        received_subaddress_index,
-                        received_key_image,
-                        received_block_count,
-                        &conn,
-                    )?;
-
-                    // Update the status to unspent - all TXOs set lifecycle to unspent when first
-                    // received
-                    account_txo_status.set_unspent(&conn)?;
-                }
-                TXO_RECEIVED => {
-                    // If the existing Txo subaddress is null and we have the received subaddress
-                    // now, then we want to update to received subaddress. Otherwise, it will remain
-                    // orphaned. Do not update to unspent, because this Txo may
-                    // have already been processed and is annotated correctly if
-                    // spent.
-                    if received_subaddress_index.is_some() {
-                        self.update_to_spendable(
-                            received_subaddress_index,
-                            received_key_image,
-                            received_block_count,
-                            &conn,
-                        )?;
-                    }
-                }
-                _ => {
-                    panic!("New txo_type must be handled");
-                }
-            }
-
-            // If this Txo was previously orphaned, we can now update it, and make it
-            // spendable
-            if account_txo_status.txo_status == TXO_ORPHANED {
-                self.update_to_spendable(
-                    received_subaddress_index,
-                    received_key_image,
-                    received_block_count,
-                    &conn,
-                )?;
-                account_txo_status.set_unspent(conn)?;
-            }
-            Ok(())
-        })?;
-        Ok(())
-    }
-
     fn update_to_spendable(
         &self,
         received_subaddress_index: Option<i64>,
@@ -507,6 +495,19 @@ impl TxoModel for Txo {
         Ok(())
     }
 
+    fn update_received_block_count(
+        &self,
+        block_count: i64,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::txos::received_block_count;
+
+        diesel::update(self)
+            .set((received_block_count.eq(Some(block_count)),))
+            .execute(conn)?;
+        Ok(())
+    }
+
     fn update_to_pending(
         txo_id: &TxoID,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
@@ -517,14 +518,30 @@ impl TxoModel for Txo {
             // Find the account associated with this Txo.
             // Note: We should only be calling update_to_pending on inputs, which we had to
             // own to spend.
-            let account = Account::get_by_txo_id(&txo_id.to_string(), conn)?;
+            let accounts = Account::get_by_txo_id(&txo_id.to_string(), conn)?;
 
             // Update the status to pending.
-            diesel::update(
-                account_txo_statuses.find((&account.account_id_hex, &txo_id.to_string())),
-            )
-            .set(crate::db::schema::account_txo_statuses::txo_status.eq(TXO_PENDING.to_string()))
-            .execute(conn)?;
+            if accounts.len() > 2 {
+                return Err(WalletDbError::UnexpectedNumberOfAccountsAssociatedWithTxo(
+                    accounts.len().to_string(),
+                ));
+            }
+
+            // Update the status to pending. Only unspent can go to pending.
+            for account in accounts {
+                let status =
+                    AccountTxoStatus::get(&account.account_id_hex, &txo_id.to_string(), conn)?;
+                if status.txo_status == TXO_UNSPENT {
+                    diesel::update(
+                        account_txo_statuses.find((&account.account_id_hex, &txo_id.to_string())),
+                    )
+                    .set(
+                        crate::db::schema::account_txo_statuses::txo_status
+                            .eq(TXO_PENDING.to_string()),
+                    )
+                    .execute(conn)?;
+                }
+            }
             Ok(())
         })?;
         Ok(())
@@ -630,9 +647,13 @@ impl TxoModel for Txo {
             match account_txo_status.txo_type.as_str() {
                 TXO_MINTED => {
                     txo_details.secreted_from_account = Some(account_txo_status.clone());
-                    // Note: Minted & Unspent means that this Txo was also
-                    // received, and is either change, or a
-                    // Txo that we sent to ourselves.
+                    // Note: Minted & Unspent/Pending/Spent means that this Txo was also
+                    // received, and is either change, or a Txo that we sent to ourselves.
+                    match account_txo_status.txo_status.as_str() {
+                        TXO_SECRETED => {}
+                        // TXO_UNSPENT, TXO_PENDING, TXO_SPENT, TXO_ORPHANED
+                        _ => txo_details.received_to_account = Some(account_txo_status.clone()),
+                    }
                 }
                 TXO_RECEIVED => {
                     txo_details.received_to_account = Some(account_txo_status.clone());
@@ -650,8 +671,13 @@ impl TxoModel for Txo {
                 let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
                 let subaddress = account_key.subaddress(subaddress_index as u64);
                 let subaddress_b58 = b58_encode(&subaddress)?;
-
-                Some(AssignedSubaddress::get(&subaddress_b58, conn)?)
+                match AssignedSubaddress::get(&subaddress_b58, conn) {
+                    Ok(a) => Some(a),
+                    Err(WalletDbError::AssignedSubaddressNotFound(_s)) => None,
+                    Err(e) => {
+                        return Err(e);
+                    }
+                }
             } else {
                 None
             };
@@ -830,13 +856,14 @@ mod tests {
             transaction_log::TransactionLogModel,
         },
         service::{
-            sync::{process_txos, sync_account, SyncThread},
+            sync::{sync_account, SyncThread},
             transaction_builder::WalletTransactionBuilder,
         },
         test_utils::{
-            add_block_with_tx_outs, add_block_with_tx_proposal, create_test_minted_and_change_txos,
-            create_test_received_txo, get_resolver_factory, get_test_ledger,
-            random_account_with_seed_values, WalletDbTestContext, MOB,
+            add_block_with_db_txos, add_block_with_tx_outs, add_block_with_tx_proposal,
+            create_test_minted_and_change_txos, create_test_received_txo,
+            create_test_txo_for_recipient, get_resolver_factory, get_test_ledger,
+            manually_sync_account, random_account_with_seed_values, WalletDbTestContext, MOB,
         },
     };
     use mc_account_keys::{AccountKey, RootIdentity};
@@ -852,16 +879,22 @@ mod tests {
     use rand::{rngs::StdRng, SeedableRng};
     use std::iter::FromIterator;
 
+    // The narrative for this test is that Alice receives a Txo, then sends a
+    // transaction to Bob. We verify expected qualities of the Txos involved at
+    // each step of the lifecycle.
+    // Note: This is not a replacement for a service-level test, but instead tests
+    // basic assumptions after common DB operations with the Txo.
     #[test_with_logger]
     fn test_received_tx_lifecycle(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let mut ledger_db = get_test_ledger(5, &[], 12, &mut rng);
 
-        let account_key = AccountKey::random(&mut rng);
-        let (account_id_hex, _public_address_b58) = Account::create(
-            &account_key,
+        let alice_account_key = AccountKey::random(&mut rng);
+        let (alice_account_id, _public_address_b58) = Account::create(
+            &alice_account_key,
             Some(1),
             None,
             "Alice's Main Account",
@@ -869,50 +902,48 @@ mod tests {
         )
         .unwrap();
 
-        // Need ledger_db for constructing a transaction below
-        let mut ledger_db = get_test_ledger(5, &[], 12, &mut rng);
-
-        // Create TXO for the account
-        let (txo_hex, txo, key_image) = create_test_received_txo(
-            &account_key,
-            0,
-            1000 * MOB as u64,
-            144,
-            &mut rng,
-            &wallet_db,
-        );
+        // Create TXO for Alice
+        let (for_alice_txo, for_alice_key_image) =
+            create_test_txo_for_recipient(&alice_account_key, 0, 1000 * MOB as u64, &mut rng);
 
         // Let's add this txo to the ledger
         add_block_with_tx_outs(
             &mut ledger_db,
-            &[txo.clone()],
+            &[for_alice_txo.clone()],
             &[KeyImage::from(rng.next_u64())],
         );
+        assert_eq!(ledger_db.num_blocks().unwrap(), 13);
 
-        let txos =
-            Txo::list_for_account(&account_id_hex.to_string(), &wallet_db.get_conn().unwrap())
-                .unwrap();
+        let _alice_account =
+            manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, 13, &logger);
+
+        let txos = Txo::list_for_account(
+            &alice_account_id.to_string(),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
         assert_eq!(txos.len(), 1);
 
+        // Verify that the Txo is what we expect
         let expected_txo = Txo {
             id: 1,
-            txo_id_hex: txo_hex.clone(),
+            txo_id_hex: TxoID::from(&for_alice_txo).to_string(),
             value: 1000 * MOB,
-            target_key: mc_util_serial::encode(&txo.target_key),
-            public_key: mc_util_serial::encode(&txo.public_key),
-            e_fog_hint: mc_util_serial::encode(&txo.e_fog_hint),
-            txo: mc_util_serial::encode(&txo),
+            target_key: mc_util_serial::encode(&for_alice_txo.target_key),
+            public_key: mc_util_serial::encode(&for_alice_txo.public_key),
+            e_fog_hint: mc_util_serial::encode(&for_alice_txo.e_fog_hint),
+            txo: mc_util_serial::encode(&for_alice_txo),
             subaddress_index: Some(0),
-            key_image: Some(mc_util_serial::encode(&key_image)),
-            received_block_count: Some(144),
+            key_image: Some(mc_util_serial::encode(&for_alice_key_image)),
+            received_block_count: Some(12),
             pending_tombstone_block_count: None,
             spent_block_count: None,
             proof: None,
         };
         // Verify that the statuses table was updated correctly
         let expected_txo_status = AccountTxoStatus {
-            account_id_hex: account_id_hex.to_string(),
-            txo_id_hex: txo_hex,
+            account_id_hex: alice_account_id.to_string(),
+            txo_id_hex: TxoID::from(&for_alice_txo).to_string(),
             txo_status: TXO_UNSPENT.to_string(),
             txo_type: TXO_RECEIVED.to_string(),
         };
@@ -924,60 +955,77 @@ mod tests {
 
         // Verify that the status filter works as well
         let unspent = Txo::list_by_status(
-            &account_id_hex.to_string(),
+            &alice_account_id.to_string(),
             TXO_UNSPENT,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
         assert_eq!(unspent.len(), 1);
 
-        // Now we'll "spend" the TXO by sending it to ourselves. At the DB layer, we
-        // accomplish this by constructing the output txos, then logging sent
-        // and received for this account.
-        let ((_output_txo_id, output_value), (_change_txo_id, change_value)) =
+        // Now we'll "spend" the TXO by sending it to ourselves, but at a subaddress we
+        // have not yet assigned. At the DB layer, we accomplish this by
+        // constructing the output txos, then logging sent and received for this
+        // account.
+        let ((output_txo_id, output_value), (change_txo_id, change_value)) =
             create_test_minted_and_change_txos(
-                account_key.clone(),
-                account_key.subaddress(4),
+                alice_account_key.clone(),
+                alice_account_key.subaddress(4),
                 33 * MOB as u64,
                 wallet_db.clone(),
-                ledger_db,
+                ledger_db.clone(),
                 logger.clone(),
             );
-        // Note: we don't actually have to add these to the ledger for this test, as we
-        // are not testing sync, but rather the DB state after calling Txo DB methods.
         assert_eq!(output_value, 33 * MOB);
         assert_eq!(change_value, (966.99 * (MOB as f64)) as i64);
 
-        // Now we'll process these Txos and verify that the TXO was "spent."
-        let spent_block_count = 365;
+        add_block_with_db_txos(
+            &mut ledger_db,
+            &wallet_db,
+            &[output_txo_id, change_txo_id],
+            &[KeyImage::from(for_alice_key_image)],
+        );
+        assert_eq!(ledger_db.num_blocks().unwrap(), 14);
 
-        let account = Account::get(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
-        account
-            .update_spent_and_increment_next_block(
-                spent_block_count,
-                vec![key_image],
-                &wallet_db.get_conn().unwrap(),
-            )
-            .unwrap();
+        // Now we'll process these Txos and verify that the TXO was "spent."
+        let _alice_account =
+            manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, 14, &logger);
 
         // We should now have 3 txos for this account - one spent, one change (minted),
-        // and one minted, destined for ourselves.
-        let txos =
-            Txo::list_for_account(&account_id_hex.to_string(), &wallet_db.get_conn().unwrap())
-                .unwrap();
+        // and one minted (destined for alice).
+        let txos = Txo::list_for_account(
+            &alice_account_id.to_string(),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
         assert_eq!(txos.len(), 3);
 
-        let spent: Vec<&TxoDetails> = txos.iter().filter(|f| f.txo.key_image.is_some()).collect();
+        // Check that we have 2 spendable (1 is orphaned)
+        let spendable: Vec<&TxoDetails> =
+            txos.iter().filter(|f| f.txo.key_image.is_some()).collect();
+        assert_eq!(spendable.len(), 2);
+
+        // Check that we have one spent - went from [Received, Unspent] -> [Received,
+        // Spent]
+        let spent: Vec<&TxoDetails> = txos
+            .iter()
+            .filter_map(|f| {
+                f.received_to_account.clone().map(|a| {
+                    if a.txo_status == TXO_SPENT {
+                        Some(f)
+                    } else {
+                        None
+                    }
+                })
+            })
+            .filter_map(|t| t)
+            .collect();
         assert_eq!(spent.len(), 1);
         assert_eq!(
             spent[0].txo.key_image,
-            Some(mc_util_serial::encode(&key_image))
+            Some(mc_util_serial::encode(&for_alice_key_image))
         );
-        assert_eq!(
-            spent[0].txo.spent_block_count.clone().unwrap(),
-            spent_block_count as i64
-        );
-
+        assert_eq!(spent[0].txo.spent_block_count.clone().unwrap(), 13);
+        assert_eq!(spent[0].secreted_from_account, None);
         // The spent Txo was not secreted from any account in this wallet - it should be
         // received to the account in this wallet.
         assert!(spent[0].secreted_from_account.clone().is_none(),);
@@ -990,71 +1038,82 @@ mod tests {
             TXO_SPENT
         );
 
-        // Verify that the next block height is + 1
-        let account = Account::get(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
-        assert_eq!(account.next_block, spent_block_count + 1);
+        // Check that we have one orphaned - went from [Minted, Secreted] -> [Minted,
+        // Orphaned]
+        let orphaned: Vec<&TxoDetails> = txos
+            .iter()
+            .filter_map(|f| {
+                f.secreted_from_account.clone().map(|a| {
+                    if a.txo_status == TXO_ORPHANED {
+                        Some(f)
+                    } else {
+                        None
+                    }
+                })
+            })
+            .filter_map(|t| t)
+            .collect();
+        assert_eq!(orphaned.len(), 1);
+        assert!(orphaned[0].txo.key_image.is_none());
+        assert_eq!(orphaned[0].txo.received_block_count.clone().unwrap(), 13);
+        assert!(orphaned[0].secreted_from_account.is_some());
+        assert!(orphaned[0].received_to_account.is_some());
 
-        // After minting the coins, their status should be "Secreted"
-        let secreted = Txo::list_by_status(
-            &account_id_hex.to_string(),
-            TXO_SECRETED,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-        assert_eq!(secreted.len(), 2);
-
-        // After minting the coins, their type shoudl be "Minted"
-        let minted = Txo::list_by_type(
-            &account_id_hex.to_string(),
-            TXO_MINTED,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-        assert_eq!(minted.len(), 2);
-
-        // Now, receive those Txos as from scanning, where the sync code calls
-        // TransactionLog::log_received. Note: In scanning the subaddress and
-        // key_image is determined from CryptoNote math based on the current
-        // subaddress public spend keys in the wallet.
-        let received_block_count = 400;
+        // Check that we have one unspent (change) - went from [Minted, Secreted] ->
+        // [Minted, Unspent]
+        let unspent: Vec<&TxoDetails> = txos
+            .iter()
+            .filter_map(|f| {
+                f.secreted_from_account.clone().map(|a| {
+                    if a.txo_status == TXO_UNSPENT {
+                        Some(f)
+                    } else {
+                        None
+                    }
+                })
+            })
+            .filter_map(|t| t)
+            .collect();
+        assert_eq!(unspent.len(), 1);
+        assert_eq!(unspent[0].txo.received_block_count.clone().unwrap(), 13);
+        // Store the key image for when we spend this Txo below
+        let for_bob_key_image: KeyImage =
+            mc_util_serial::decode(&unspent[0].txo.key_image.clone().unwrap()).unwrap();
 
         // Note: To receive at Subaddress 4, we need to add an assigned subaddress
-        // (otherwise this Txo will be orphaned)
-        AssignedSubaddress::create(&account_key, None, 4, "", &wallet_db.get_conn().unwrap())
+        // (currently this Txo is be orphaned). We add thrice, because currently
+        // assigned subaddress is at 1.
+        for _ in 0..3 {
+            AssignedSubaddress::create_next_for_account(
+                &alice_account_id.to_string(),
+                "",
+                &wallet_db.get_conn().unwrap(),
+            )
             .unwrap();
+        }
 
-        // First, we insert received txo, as done in sync::process_txos - note, we would
-        // determine the subaddress and subsequently the KeyImage via CryptoNote
-        // math.
-        let secreted_tx_outs: Vec<TxOut> = secreted
-            .iter()
-            .map(|t| mc_util_serial::decode(&t.txo).unwrap())
-            .collect();
-        let subaddress_to_output_txo_ids = process_txos(
-            &wallet_db.get_conn().unwrap(),
-            &secreted_tx_outs,
-            &account,
-            received_block_count,
-            &logger,
-        )
-        .unwrap();
+        let alice_account =
+            Account::get(&alice_account_id, &wallet_db.get_conn().unwrap()).unwrap();
+        assert_eq!(alice_account.next_block, 0);
+        assert_eq!(alice_account.next_subaddress_index, 5);
 
-        assert!(subaddress_to_output_txo_ids.contains_key(&(4 as i64)));
-        assert!(subaddress_to_output_txo_ids.contains_key(&(1 as i64))); // Change
+        // Scan for alice to pick up the orphaned Txo
+        let _alice_account =
+            manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, 14, &logger);
 
-        // Then we log_received FIXME: should we actually have to do this?
-        TransactionLog::log_received(
-            &subaddress_to_output_txo_ids,
-            &account,
-            received_block_count as u64,
+        // Check that a transaction log entry was created for each received TxOut (note:
+        // we are not creating submit logs in this test)
+        let transaction_logs = TransactionLog::list_all(
+            &alice_account_id.to_string(),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
+        assert_eq!(transaction_logs.len(), 3);
 
-        // Verify that there are two unspent txos - the one we just sent to self, and
-        // change.
+        // Verify that there are two unspent txos - the one that was previously
+        // orphaned, and change.
         let unspent = Txo::list_by_status(
-            &account_id_hex.to_string(),
+            &alice_account_id.to_string(),
             TXO_UNSPENT,
             &wallet_db.get_conn().unwrap(),
         )
@@ -1062,17 +1121,19 @@ mod tests {
         assert_eq!(unspent.len(), 2);
 
         // The type should still be "minted"
-        let unspent = Txo::list_by_type(
-            &account_id_hex.to_string(),
+        let minted = Txo::list_by_type(
+            &alice_account_id.to_string(),
             TXO_MINTED,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(unspent.len(), 2);
+        assert_eq!(minted.len(), 2);
 
-        let updated_txos =
-            Txo::list_for_account(&account_id_hex.to_string(), &wallet_db.get_conn().unwrap())
-                .unwrap();
+        let updated_txos = Txo::list_for_account(
+            &alice_account_id.to_string(),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
 
         // Verify that there is one change Txo in our current Txos
         let change: Vec<&TxoDetails> = updated_txos
@@ -1086,6 +1147,56 @@ mod tests {
             })
             .collect();
         assert_eq!(change.len(), 1);
+
+        // Create a new account and send some MOB to it
+        let bob_account_key = AccountKey::random(&mut rng);
+        let (bob_account_id, _public_address_b58) = Account::create(
+            &bob_account_key,
+            Some(1),
+            None,
+            "Bob's Main Account",
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        let ((output_txo_id, output_value), (change_txo_id, change_value)) =
+            create_test_minted_and_change_txos(
+                alice_account_key.clone(),
+                bob_account_key.subaddress(0),
+                72 * MOB as u64,
+                wallet_db.clone(),
+                ledger_db.clone(),
+                logger.clone(),
+            );
+        assert_eq!(output_value, 72 * MOB);
+        assert_eq!(change_value, (927.98 * (MOB as f64)) as i64);
+
+        // Add the minted Txos to the ledger
+        add_block_with_db_txos(
+            &mut ledger_db,
+            &wallet_db,
+            &[output_txo_id, change_txo_id],
+            &[KeyImage::from(for_bob_key_image)],
+        );
+
+        // Process the latest block for Bob (note, Bob is starting to sync from block 0)
+        let _bob_account =
+            manually_sync_account(&ledger_db, &wallet_db, &bob_account_id, 15, &logger);
+        // Process the latest block for Alice
+        let _alice_account =
+            manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, 15, &logger);
+
+        // We should now have 1 txo in Bob's account.
+        let txos = Txo::list_for_account(
+            &AccountID::from(&bob_account_key).to_string(),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(txos.len(), 1);
+
+        let bob_txo = txos[0].clone();
+        assert_eq!(bob_txo.txo.subaddress_index.unwrap(), 0);
+        assert!(bob_txo.txo.key_image.is_some());
     }
 
     #[test_with_logger]

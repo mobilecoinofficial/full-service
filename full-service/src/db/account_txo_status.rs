@@ -2,7 +2,7 @@
 
 //! DB impl for the AccountTxoStatus model.
 
-use crate::db::models::{AccountTxoStatus, NewAccountTxoStatus, TXO_UNSPENT};
+use crate::db::models::{AccountTxoStatus, NewAccountTxoStatus, TXO_ORPHANED, TXO_UNSPENT};
 
 use crate::db::WalletDbError;
 use diesel::{
@@ -32,6 +32,11 @@ pub trait AccountTxoStatusModel {
     ) -> Result<Vec<AccountTxoStatus>, WalletDbError>;
 
     fn set_unspent(
+        &self,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError>;
+
+    fn set_orphaned(
         &self,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
@@ -105,6 +110,18 @@ impl AccountTxoStatusModel for AccountTxoStatus {
 
         diesel::update(self)
             .set(txo_status.eq(TXO_UNSPENT))
+            .execute(conn)?;
+        Ok(())
+    }
+
+    fn set_orphaned(
+        &self,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::account_txo_statuses::txo_status;
+
+        diesel::update(self)
+            .set(txo_status.eq(TXO_ORPHANED))
             .execute(conn)?;
         Ok(())
     }

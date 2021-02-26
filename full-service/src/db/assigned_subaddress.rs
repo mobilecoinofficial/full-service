@@ -127,7 +127,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
                 .execute(conn)?;
             // Update the next subaddress index for the account
             // Note: we also update the first_block back to 0 to scan from the beginning of
-            // the       ledger for this new subaddress.
+            // the ledger for this new subaddress.
             // FIXME: WS-10 - pass in a "sync from" block rather than 0
             let sync_from = 0;
             diesel::update(accounts.filter(dsl_account_id_hex.eq(account_id_hex)))

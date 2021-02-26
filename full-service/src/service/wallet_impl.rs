@@ -654,10 +654,13 @@ impl<
 mod tests {
     use super::*;
     use crate::{
-        db::models::{TXO_MINTED, TXO_RECEIVED},
+        db::{
+            models::{TXO_MINTED, TXO_RECEIVED},
+            txo::TxoDetails,
+        },
         test_utils::{
-            add_block_to_ledger_db, get_resolver_factory, get_test_ledger,
-            setup_peer_manager_and_network_state, WalletDbTestContext,
+            add_block_from_transaction_log, add_block_to_ledger_db, get_resolver_factory,
+            get_test_ledger, setup_peer_manager_and_network_state, WalletDbTestContext, MOB,
         },
     };
     use mc_account_keys::PublicAddress;
@@ -808,6 +811,163 @@ mod tests {
         assert_eq!(balance.orphaned, "0");
 
         // FIXME: How to make the transaction actually hit the test ledger?
+    }
+
+    // Test sending a transaction from Alice -> Bob, and then from Bob -> Alice
+    #[test_with_logger]
+    fn test_send_transaction(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        let service = setup_service(ledger_db.clone(), logger.clone());
+
+        // Create our main account for the wallet
+        let alice = service
+            .create_account(Some("Alice's Main Account".to_string()), None)
+            .unwrap();
+
+        // Add a block with a transaction for Alice
+        let alice_public_address = b58_decode(&alice.account.main_address).unwrap();
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![alice_public_address.clone()],
+            100 * MOB as u64,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        // Sleep to let the sync thread process the txo - FIXME poll instead of sleep
+        std::thread::sleep(Duration::from_secs(8));
+
+        // Verify balance for Alice
+        let balance = service.get_balance(&alice.account.account_id).unwrap();
+        assert_eq!(balance.unspent.parse::<i64>().unwrap(), 100 * MOB);
+
+        // Add an account for Bob
+        let bob = service
+            .create_account(Some("Bob's Main Account".to_string()), None)
+            .unwrap();
+
+        // Create an assigned subaddress for Bob
+        let bob_address_from_alice = service
+            .create_assigned_subaddress(&bob.account.account_id, Some("From Alice"))
+            .unwrap();
+
+        // Send a transaction from Alice to Bob
+        let submit_response = service
+            .send_transaction(
+                &alice.account.account_id,
+                &bob_address_from_alice.public_address,
+                (42 * MOB).to_string(),
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+        log::info!(logger, "Built and submitted transaction from Alice");
+
+        let json_transaction_log = service
+            .get_transaction(&submit_response.transaction_id.unwrap())
+            .unwrap();
+
+        // NOTE: Submitting to the test ledger via propose_tx doesn't actually add the
+        // block to the ledger, because no consensus is occurring, so this is the
+        // workaround.
+        let transaction_log = {
+            let conn = service.wallet_db.get_conn().unwrap();
+
+            TransactionLog::get(&json_transaction_log.transaction_log_id, &conn).unwrap()
+        };
+
+        {
+            log::info!(logger, "Adding block from transaction log");
+            let conn = service.wallet_db.get_conn().unwrap();
+            add_block_from_transaction_log(&mut ledger_db, &conn, &transaction_log);
+        }
+
+        std::thread::sleep(Duration::from_secs(8));
+
+        // Get the Txos from the transaction log
+        let transaction_txos = transaction_log
+            .get_associated_txos(&service.wallet_db.get_conn().unwrap())
+            .unwrap();
+        let secreted = transaction_txos
+            .outputs
+            .iter()
+            .map(|t| Txo::get(t, &service.wallet_db.get_conn().unwrap()).unwrap())
+            .collect::<Vec<TxoDetails>>();
+        assert_eq!(secreted.len(), 1);
+        assert_eq!(secreted[0].txo.value, 42 * MOB);
+
+        let change = transaction_txos
+            .change
+            .iter()
+            .map(|t| Txo::get(t, &service.wallet_db.get_conn().unwrap()).unwrap())
+            .collect::<Vec<TxoDetails>>();
+        assert_eq!(change.len(), 1);
+        assert_eq!(change[0].txo.value, (57.99 * MOB as f64) as i64);
+
+        let inputs = transaction_txos
+            .inputs
+            .iter()
+            .map(|t| Txo::get(t, &service.wallet_db.get_conn().unwrap()).unwrap())
+            .collect::<Vec<TxoDetails>>();
+        assert_eq!(inputs.len(), 1);
+        assert_eq!(inputs[0].txo.value, 100 * MOB);
+
+        // Verify balance for Alice = original balance - fee - txo_value
+        let balance = service.get_balance(&alice.account.account_id).unwrap();
+        assert_eq!(balance.unspent, "57990000000000");
+
+        // Bob's balance should be = output_txo_value
+        let bob_balance = service.get_balance(&bob.account.account_id).unwrap();
+        assert_eq!(bob_balance.unspent, "42000000000000");
+
+        // Bob should now be able to send to Alice
+        let submit_response = service
+            .send_transaction(
+                &bob.account.account_id,
+                &alice.account.main_address,
+                (8 * MOB).to_string(),
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+
+        let json_transaction_log = service
+            .get_transaction(&submit_response.transaction_id.unwrap())
+            .unwrap();
+
+        // NOTE: Submitting to the test ledger via propose_tx doesn't actually add the
+        // block to the ledger, because no consensus is occurring, so this is the
+        // workaround.
+        let transaction_log = {
+            let conn = service.wallet_db.get_conn().unwrap();
+
+            TransactionLog::get(&json_transaction_log.transaction_log_id, &conn).unwrap()
+        };
+
+        {
+            log::info!(logger, "Adding block from transaction log");
+            let conn = service.wallet_db.get_conn().unwrap();
+            add_block_from_transaction_log(&mut ledger_db, &conn, &transaction_log);
+        }
+
+        std::thread::sleep(Duration::from_secs(8));
+
+        let alice_balance = service.get_balance(&alice.account.account_id).unwrap();
+        assert_eq!(alice_balance.unspent, "65990000000000");
+
+        // Bob's balance should be = output_txo_value
+        let bob_balance = service.get_balance(&bob.account.account_id).unwrap();
+        assert_eq!(bob_balance.unspent, "33990000000000");
     }
 
     // FIXME: Test with 0 change transactions

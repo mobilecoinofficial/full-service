@@ -65,6 +65,9 @@ pub enum WalletDbError {
     /// Unexpected AccountTxoStatus: {0}
     UnexpectedAccountTxoStatus(String),
 
+    /// Unexpected number of accounts associated with Txo: {0}
+    UnexpectedNumberOfAccountsAssociatedWithTxo(String),
+
     /// Transaction mismatch when retrieving associated Txos
     TransactionMismatch,
 
