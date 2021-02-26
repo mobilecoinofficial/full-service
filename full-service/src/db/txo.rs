@@ -9,8 +9,8 @@ use crate::db::{
     b58_encode,
     models::{
         Account, AccountTxoStatus, AssignedSubaddress, NewAccountTxoStatus, NewTxo, Txo,
-        TXO_CHANGE, TXO_MINTED, TXO_ORPHANED, TXO_OUTPUT, TXO_PENDING, TXO_RECEIVED, TXO_SECRETED,
-        TXO_SPENT, TXO_UNSPENT,
+        TXO_MINTED, TXO_ORPHANED, TXO_PENDING, TXO_RECEIVED, TXO_SECRETED, TXO_SPENT, TXO_UNSPENT,
+        TXO_USED_AS_CHANGE, TXO_USED_AS_OUTPUT,
     },
 };
 
@@ -358,11 +358,11 @@ impl TxoModel for Txo {
         // Update receiver, transaction_value, and transaction_txo_type, if outlay was
         // found.
         let (transaction_txo_type, log_value) = if outlay_receiver.is_some() {
-            (TXO_OUTPUT, total_output_value)
+            (TXO_USED_AS_OUTPUT, total_output_value)
         } else {
             // If not in an outlay, this output is change, according to how we build
             // transactions.
-            (TXO_CHANGE, change_value)
+            (TXO_USED_AS_CHANGE, change_value)
         };
 
         let encoded_proof =

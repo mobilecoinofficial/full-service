@@ -497,6 +497,7 @@ mod tests {
             b58_decode,
             models::{
                 TXO_ORPHANED, TXO_PENDING, TXO_RECEIVED, TXO_SECRETED, TXO_SPENT, TXO_UNSPENT,
+                TX_DIRECTION_SENT, TX_STATUS_PENDING,
             },
         },
         test_utils::{
@@ -1123,7 +1124,7 @@ mod tests {
         let transaction_log = result.get("transaction").unwrap();
         assert_eq!(
             transaction_log.get("direction").unwrap().as_str().unwrap(),
-            "sent"
+            TX_DIRECTION_SENT
         );
         assert_eq!(
             transaction_log.get("value_pmob").unwrap().as_str().unwrap(),
@@ -1152,7 +1153,7 @@ mod tests {
         );
         assert_eq!(
             transaction_log.get("status").unwrap().as_str().unwrap(),
-            "pending"
+            TX_STATUS_PENDING
         );
         assert_eq!(
             transaction_log

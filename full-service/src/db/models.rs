@@ -22,20 +22,33 @@ pub const TXO_ORPHANED: &str = "orphaned";
 pub const TXO_MINTED: &str = "minted";
 pub const TXO_RECEIVED: &str = "received";
 
-// TransactionStatus
-pub const TX_BUILT: &str = "built";
-pub const TX_PENDING: &str = "pending";
-pub const TX_SUCCEEDED: &str = "succeeded";
-pub const TX_FAILED: &str = "failed";
+/// A transaction output used as an input to a new transaction.
+pub const TXO_USED_AS_INPUT: &str = "txo_used_as_input";
 
-// Transaction Direction
-pub const TX_DIR_SENT: &str = "sent";
-pub const TX_DIR_RECEIVED: &str = "received";
+/// A transaction output used as an output of a new transaction.
+pub const TXO_USED_AS_OUTPUT: &str = "txo_used_as_output";
 
-// Transaction Txo Type
-pub const TXO_INPUT: &str = "input";
-pub const TXO_OUTPUT: &str = "output";
-pub const TXO_CHANGE: &str = "change";
+/// A transaction output used as a change output of a new transaction.
+pub const TXO_USED_AS_CHANGE: &str = "txo_used_as_change";
+
+/// A transaction that has been built locally.
+pub const TX_STATUS_BUILT: &str = "tx_status_built";
+
+/// A transaction that has been submitted to the MobileCoin network.
+pub const TX_STATUS_PENDING: &str = "tx_status_pending";
+
+/// A transaction that appears to have been processed by the MobileCoin network.
+pub const TX_STATUS_SUCCEEDED: &str = "tx_status_succeeded";
+
+/// A transaction that was rejected by the MobileCoin network, or that expired
+/// before it could be processed.
+pub const TX_STATUS_FAILED: &str = "tx_status_failed";
+
+/// A transaction created by this wallet.
+pub const TX_DIRECTION_SENT: &str = "tx_direction_sent";
+
+/// ???
+pub const TX_DIRECTION_RECEIVED: &str = "tx_direction_received";
 
 #[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
 #[primary_key(id)]
