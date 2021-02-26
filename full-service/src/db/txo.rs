@@ -659,17 +659,8 @@ impl TxoModel for Txo {
                     txo_details.received_to_account = Some(account_txo_status.clone());
                     // Get the subaddress details if assigned
                     let assigned_subaddress = if let Some(subaddress_index) = txo.subaddress_index {
-                        println!(
-                            "\x1b[1;32m We somehow have a subaddresss but not assigned in db? {:?}\x1b[0m",
-                            subaddress_index
-                        );
-
                         let account: Account =
                             Account::get(&AccountID(account_txo_status.account_id_hex), conn)?;
-                        println!(
-                            "\x1b[1;36m what are all our subaddresses? {:?}\x1b[0m",
-                            AssignedSubaddress::list_all(&account.account_id_hex, conn)?
-                        );
                         let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
                         let subaddress = account_key.subaddress(subaddress_index as u64);
                         let subaddress_b58 = b58_encode(&subaddress)?;
