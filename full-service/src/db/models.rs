@@ -45,7 +45,7 @@ pub const TXO_CHANGE: &str = "change";
 pub struct Account {
     /// Primary key
     pub id: i32,
-    /// ???
+    /// An additional ID, derived from the account data.
     pub account_id_hex: String,
     /// Private keys for viewing and spending the MobileCoin belonging to an
     /// account.
@@ -59,7 +59,7 @@ pub struct Account {
     pub next_subaddress_index: i64,
     /// Index of the first block where this account may have held funds.
     pub first_block: i64,
-    /// TODO: ???
+    /// Index of the next block to inspect for transactions related to this account.
     pub next_block: i64,
     /// If the account was imported, account history prior to this block index
     /// is derived from the public ledger, and does not reflect client-side
@@ -92,7 +92,7 @@ pub struct NewAccount<'a> {
 pub struct Txo {
     /// Primary key
     pub id: i32,
-    /// ???
+    /// An additional ID derived from the contents of the ledger TxOut.
     pub txo_id_hex: String,
     /// The value of this transaction output, in picoMob.
     pub value: i64,
@@ -106,8 +106,7 @@ pub struct Txo {
     pub txo: Vec<u8>,
     /// The receiving subaddress, if known.
     pub subaddress_index: Option<i64>,
-    /// TODO: why is this optional? Denoting if the Txo has subsequently been
-    /// spent?
+    /// Pre-computed key image for this Txo, or None if the Txo is orphaned.
     pub key_image: Option<Vec<u8>>,
     /// Block index containing this Txo.
     pub received_block_count: Option<i64>,

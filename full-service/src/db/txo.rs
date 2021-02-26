@@ -67,7 +67,7 @@ pub struct ProcessedTxProposalOutput {
 }
 
 pub trait TxoModel {
-    /// Create (upsert?) a received Txo.
+    /// Upserts a received Txo.
     ///
     /// # Arguments
     /// * `txo` - a TxOut contained in the ledger.
