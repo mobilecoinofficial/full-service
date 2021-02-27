@@ -147,11 +147,7 @@ where
     }
 
     fn delete_account(&self, account_id: &AccountID) -> Result<Account, WalletServiceError> {
-        log::info!(
-            self.logger,
-            "Deleting account {}",
-            account_id,
-        );
+        log::info!(self.logger, "Deleting account {}", account_id,);
 
         let conn = self.wallet_db.get_conn()?;
 

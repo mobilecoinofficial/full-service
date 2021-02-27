@@ -41,13 +41,13 @@ fn wallet_api(
     command: Json<JsonCommandRequest>,
 ) -> Result<Json<JsonCommandResponse>, String> {
     let req: JsonCommandRequest = command.0.clone();
-    let parsed_req: Json<JsonCommandRequestV2> = Json(JsonCommandRequestV2::try_from(&req).map_err(|e| e)?);
+    let parsed_req: Json<JsonCommandRequestV2> =
+        Json(JsonCommandRequestV2::try_from(&req).map_err(|e| e)?);
 
     global_log::trace!("Running command {:?}", parsed_req);
 
     if let Some(version) = command.0.api_version.clone() {
-        wallet_api_inner_v2(&state.service, parsed_req)
-        .map(|res| {
+        wallet_api_inner_v2(&state.service, parsed_req).map(|res| {
             Json(JsonCommandResponse {
                 method: res.0.method,
                 result: res.0.result,
@@ -91,7 +91,10 @@ where
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
     let result: JsonCommandResponseV2 = match command.0 {
-        JsonCommandRequestV2::create_account { name, first_block_index } => {
+        JsonCommandRequestV2::create_account {
+            name,
+            first_block_index,
+        } => {
             let fb = first_block_index
                 .map(|fb| fb.parse::<u64>())
                 .transpose()
