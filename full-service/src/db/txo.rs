@@ -1522,7 +1522,7 @@ mod tests {
 
         // Let's log this submitted Tx for the sender, which will create_minted for the
         // sent Txo
-        let tx_id = TransactionLog::log_submitted(
+        let tx_log = TransactionLog::log_submitted(
             proposal.clone(),
             ledger_db.num_blocks().unwrap(),
             "".to_string(),
@@ -1565,7 +1565,6 @@ mod tests {
         assert_eq!(sender_txos.len(), 5);
 
         // Get the associated Txos with the transaction log
-        let tx_log = TransactionLog::get(&tx_id, &wallet_db.get_conn().unwrap()).unwrap();
         let associated = tx_log
             .get_associated_txos(&wallet_db.get_conn().unwrap())
             .unwrap();

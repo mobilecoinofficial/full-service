@@ -121,7 +121,7 @@ pub trait TransactionLogModel {
         comment: String,
         account_id_hex: Option<&str>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<String, WalletDbError>;
+    ) -> Result<TransactionLog, WalletDbError>;
 }
 
 impl TransactionLogModel for TransactionLog {
@@ -405,8 +405,8 @@ impl TransactionLogModel for TransactionLog {
         comment: String,
         account_id_hex: Option<&str>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<String, WalletDbError> {
-        Ok(conn.transaction::<String, WalletDbError, _>(|| {
+    ) -> Result<TransactionLog, WalletDbError> {
+        let transaction_log_id = conn.transaction::<String, WalletDbError, _>(|| {
             // Store the txo_id -> transaction_txo_type
             let mut txo_ids: Vec<(String, String)> = Vec::new();
 
@@ -500,7 +500,8 @@ impl TransactionLogModel for TransactionLog {
             } else {
                 Err(WalletDbError::TransactionLacksRecipient)
             }
-        })?)
+        })?;
+        Ok(TransactionLog::get(&transaction_log_id, conn)?)
     }
 }
 
@@ -619,7 +620,7 @@ mod tests {
         builder.select_txos(None).unwrap();
         let tx_proposal = builder.build().unwrap();
 
-        let tx_id = TransactionLog::log_submitted(
+        let tx_log = TransactionLog::log_submitted(
             tx_proposal.clone(),
             ledger_db.num_blocks().unwrap(),
             "".to_string(),
@@ -628,8 +629,6 @@ mod tests {
         )
         .unwrap();
 
-        let tx_log = TransactionLog::get(&tx_id, &wallet_db.get_conn().unwrap()).unwrap();
-        assert_eq!(tx_log.transaction_id_hex, tx_id);
         assert_eq!(
             tx_log.account_id_hex,
             AccountID::from(&account_key).to_string()
@@ -770,7 +769,7 @@ mod tests {
         builder.select_txos(None).unwrap();
         let tx_proposal = builder.build().unwrap();
 
-        let tx_id = TransactionLog::log_submitted(
+        let tx_log = TransactionLog::log_submitted(
             tx_proposal.clone(),
             ledger_db.num_blocks().unwrap(),
             "".to_string(),
@@ -779,8 +778,6 @@ mod tests {
         )
         .unwrap();
 
-        let tx_log = TransactionLog::get(&tx_id, &wallet_db.get_conn().unwrap()).unwrap();
-        assert_eq!(tx_log.transaction_id_hex, tx_id);
         assert_eq!(
             tx_log.account_id_hex,
             AccountID::from(&account_key).to_string()

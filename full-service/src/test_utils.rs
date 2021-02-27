@@ -9,6 +9,7 @@ use crate::{
         WalletDb,
     },
     service::{sync::sync_account, transaction_builder::WalletTransactionBuilder},
+    WalletService,
 };
 use diesel::{
     r2d2::{ConnectionManager as CM, PooledConnection},
@@ -594,4 +595,27 @@ pub fn get_resolver_factory(
         Ok(fog_pubkey_resolver)
     });
     Ok(fog_pubkey_resolver_factory)
+}
+
+pub fn setup_wallet_service(
+    ledger_db: LedgerDB,
+    logger: Logger,
+) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
+    let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+    let db_test_context = WalletDbTestContext::default();
+    let wallet_db = db_test_context.get_db_instance(logger.clone());
+    let (peer_manager, network_state) =
+        setup_peer_manager_and_network_state(ledger_db.clone(), logger.clone());
+
+    WalletService::new(
+        wallet_db,
+        ledger_db,
+        peer_manager,
+        network_state,
+        get_resolver_factory(&mut rng).unwrap(),
+        None,
+        false,
+        logger,
+    )
 }

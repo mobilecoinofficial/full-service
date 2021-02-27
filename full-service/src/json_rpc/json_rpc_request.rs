@@ -4,7 +4,9 @@
 //!
 //! API v2
 
-use crate::json_rpc::{account_key::AccountKey, api_v1::wallet_api::JsonCommandRequestV1};
+use crate::json_rpc::{
+    account_key::AccountKey, api_v1::wallet_api::JsonCommandRequestV1, tx_proposal::TxProposal,
+};
 
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -105,6 +107,30 @@ pub enum JsonCommandRequestV2 {
     get_balance_for_account {
         account_id: String,
     },
+    send_transaction {
+        account_id: String,
+        recipient_public_address: String,
+        value: String,
+        input_txo_ids: Option<Vec<String>>,
+        fee: Option<String>,
+        tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
+        comment: Option<String>,
+    },
+    build_transaction {
+        account_id: String,
+        recipient_public_address: String,
+        value: String,
+        input_txo_ids: Option<Vec<String>>,
+        fee: Option<String>,
+        tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
+    },
+    submit_transaction {
+        tx_proposal: TxProposal,
+        comment: Option<String>,
+        account_id: Option<String>,
+    },
     /*
     get_balance_for_subaddress {
         address: String,
@@ -130,30 +156,7 @@ pub enum JsonCommandRequestV2 {
     get_all_addresses_by_account {
         account_id: String,
     },
-    send_transaction {
-        account_id: String,
-        recipient_public_address: String,
-        value: String,
-        input_txo_ids: Option<Vec<String>>,
-        fee: Option<String>,
-        tombstone_block: Option<String>,
-        max_spendable_value: Option<String>,
-        comment: Option<String>,
-    },
-    build_transaction {
-        account_id: String,
-        recipient_public_address: String,
-        value: String,
-        input_txo_ids: Option<Vec<String>>,
-        fee: Option<String>,
-        tombstone_block: Option<String>,
-        max_spendable_value: Option<String>,
-    },
-    submit_transaction {
-        tx_proposal: StringifiedJsonTxProposal,
-        comment: Option<String>,
-        account_id: Option<String>,
-    },
+
     get_all_transactions_by_account {
         account_id: String,
     },
