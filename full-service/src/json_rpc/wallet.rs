@@ -15,6 +15,7 @@ use crate::{
     },
     service::{account::AccountService, balance::BalanceService, WalletService},
 };
+use mc_common::logger::global_log;
 use mc_connection::{
     BlockchainConnection, HardcodedCredentialsProvider, ThickClient, UserTxConnection,
 };
@@ -40,12 +41,13 @@ fn wallet_api(
     command: Json<JsonCommandRequest>,
 ) -> Result<Json<JsonCommandResponse>, String> {
     let req: JsonCommandRequest = command.0.clone();
+    let parsed_req: Json<JsonCommandRequestV2> =
+        Json(JsonCommandRequestV2::try_from(&req).map_err(|e| e)?);
+
+    global_log::trace!("Running command {:?}", parsed_req);
+
     if let Some(version) = command.0.api_version.clone() {
-        wallet_api_inner_v2(
-            &state.service,
-            Json(JsonCommandRequestV2::try_from(&req).map_err(|e| e)?),
-        )
-        .map(|res| {
+        wallet_api_inner_v2(&state.service, parsed_req).map(|res| {
             Json(JsonCommandResponse {
                 method: res.0.method,
                 result: res.0.result,
@@ -89,8 +91,11 @@ where
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
     let result: JsonCommandResponseV2 = match command.0 {
-        JsonCommandRequestV2::create_account { name, first_block } => {
-            let fb = first_block
+        JsonCommandRequestV2::create_account {
+            name,
+            first_block_index,
+        } => {
+            let fb = first_block_index
                 .map(|fb| fb.parse::<u64>())
                 .transpose()
                 .map_err(format_error)?;
@@ -106,9 +111,9 @@ where
         JsonCommandRequestV2::import_account {
             entropy,
             name,
-            first_block,
+            first_block_index,
         } => {
-            let fb = first_block
+            let fb = first_block_index
                 .map(|fb| fb.parse::<u64>())
                 .transpose()
                 .map_err(format_error)?;
