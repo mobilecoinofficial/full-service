@@ -22,6 +22,7 @@ use std::{convert::TryFrom, iter::empty, sync::atomic::Ordering};
 
 /// Errors for the Transaction Service.
 #[derive(Display, Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum TransactionServiceError {
     /// Error interacting with the database: {0}
     Database(WalletDbError),
