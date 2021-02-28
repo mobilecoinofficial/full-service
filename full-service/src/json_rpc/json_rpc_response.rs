@@ -148,7 +148,10 @@ pub enum JsonCommandResponseV2 {
     create_account {
         account: Account,
     },
-    import_account {
+    import_account_by_entropy {
+        account: Account,
+    },
+    import_account_by_account_key {
         account: Account,
     },
     export_account_secrets {

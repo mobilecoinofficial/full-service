@@ -4,7 +4,7 @@
 //!
 //! API v2
 
-use crate::json_rpc::api_v1::wallet_api::JsonCommandRequestV1;
+use crate::json_rpc::{account_key::AccountKey, api_v1::wallet_api::JsonCommandRequestV1};
 
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -78,8 +78,13 @@ pub enum JsonCommandRequestV2 {
         name: Option<String>,
         first_block_index: Option<String>,
     },
-    import_account {
+    import_account_by_entropy {
         entropy: String,
+        name: Option<String>,
+        first_block_index: Option<String>,
+    },
+    import_account_by_account_key {
+        account_key: AccountKey,
         name: Option<String>,
         first_block_index: Option<String>,
     },

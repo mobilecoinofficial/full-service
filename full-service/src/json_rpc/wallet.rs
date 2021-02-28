@@ -113,7 +113,7 @@ where
                     .map_err(|e| format!("Could not get RPC Account from DB Account {:?}", e))?,
             }
         }
-        JsonCommandRequestV2::import_account {
+        JsonCommandRequestV2::import_account_by_entropy {
             entropy,
             name,
             first_block_index,
@@ -123,10 +123,34 @@ where
                 .transpose()
                 .map_err(format_error)?;
 
-            JsonCommandResponseV2::import_account {
+            JsonCommandResponseV2::import_account_by_entropy {
                 account: json_rpc::account::Account::try_from(
                     &service
                         .import_account_entropy(entropy, name, fb)
+                        .map_err(format_error)?,
+                )
+                .map_err(format_error)?,
+            }
+        }
+        JsonCommandRequestV2::import_account_by_account_key {
+            account_key,
+            name,
+            first_block_index,
+        } => {
+            let fb = first_block_index
+                .map(|fb| fb.parse::<u64>())
+                .transpose()
+                .map_err(format_error)?;
+
+            JsonCommandResponseV2::import_account_by_account_key {
+                account: json_rpc::account::Account::try_from(
+                    &service
+                        .import_account_key(
+                            mc_account_keys::AccountKey::try_from(&account_key)
+                                .map_err(format_error)?,
+                            name,
+                            fb,
+                        )
                         .map_err(format_error)?,
                 )
                 .map_err(format_error)?,
