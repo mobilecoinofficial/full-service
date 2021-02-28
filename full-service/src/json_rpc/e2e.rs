@@ -396,7 +396,9 @@ mod e2e {
         let status = result.get("wallet_status").unwrap();
         assert_eq!(status.get("network_block_count").unwrap(), "12");
         assert_eq!(status.get("local_block_count").unwrap(), "12");
-        assert_eq!(status.get("min_synced_block_index").unwrap(), "0");
+        // Syncing will have already started, so we can't determine what the min synced
+        // index is.
+        assert!(status.get("min_synced_block_index").is_some());
         assert_eq!(status.get("total_unspent_pmob").unwrap(), "0");
         assert_eq!(status.get("total_pending_pmob").unwrap(), "0");
         assert_eq!(status.get("total_spent_pmob").unwrap(), "0");
