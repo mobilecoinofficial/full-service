@@ -365,7 +365,7 @@ mod tests {
     use mc_common::logger::{test_with_logger, Logger};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
-    use std::{collections::HashSet, iter::FromIterator};
+    use std::{collections::HashSet, convert::TryFrom, iter::FromIterator};
 
     #[test_with_logger]
     fn test_account_crud(logger: Logger) {
@@ -523,8 +523,7 @@ mod tests {
             account_id_hex
         };
         let account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
-        let decoded_entropy: RootEntropy =
-            mc_util_serial::decode(&account.entropy.unwrap()).unwrap();
+        let decoded_entropy = RootEntropy::try_from(account.entropy.unwrap().as_slice()).unwrap();
         assert_eq!(decoded_entropy, root_id.root_entropy);
         let decoded_account_key: AccountKey = mc_util_serial::decode(&account.account_key).unwrap();
         assert_eq!(decoded_account_key, account_key);
@@ -584,8 +583,7 @@ mod tests {
             account_id_hex
         };
         let account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
-        let decoded_entropy: RootEntropy =
-            mc_util_serial::decode(&account.entropy.unwrap()).unwrap();
+        let decoded_entropy = RootEntropy::try_from(account.entropy.unwrap().as_slice()).unwrap();
         assert_eq!(decoded_entropy, root_id.root_entropy);
         let decoded_account_key: AccountKey = mc_util_serial::decode(&account.account_key).unwrap();
         assert_eq!(decoded_account_key, account_key);

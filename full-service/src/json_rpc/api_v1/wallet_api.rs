@@ -429,15 +429,19 @@ mod e2e {
         // Check the overall balance for the account
         let body = json!({
             "api_version": "2",
-            "method": "get_balance",
+            "method": "get_balance_for_account",
             "params": {
                 "account_id": account_id,
             }
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let balance_status = result.get("status").unwrap();
-        let unspent = balance_status.get("unspent").unwrap().as_str().unwrap();
+        let balance_status = result.get("balance").unwrap();
+        let unspent = balance_status
+            .get("unspent_pmob")
+            .unwrap()
+            .as_str()
+            .unwrap();
         assert_eq!(unspent, "100");
     }
 
@@ -558,15 +562,20 @@ mod e2e {
 
         // Get current balance
         let body = json!({
-            "method": "get_balance",
+            "api_version": "2",
+            "method": "get_balance_for_account",
             "params": {
                 "account_id": account_id,
             }
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let balance_status = result.get("status").unwrap();
-        let unspent = balance_status.get("unspent").unwrap().as_str().unwrap();
+        let balance_status = result.get("balance").unwrap();
+        let unspent = balance_status
+            .get("unspent_pmob")
+            .unwrap()
+            .as_str()
+            .unwrap();
         assert_eq!(unspent, "100000000000100");
 
         // Submit the tx_proposal
@@ -593,18 +602,31 @@ mod e2e {
 
         // Get balance after submission
         let body = json!({
-            "method": "get_balance",
+            "api_version": "2",
+            "method": "get_balance_for_account",
             "params": {
                 "account_id": account_id,
             }
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let balance_status = result.get("status").unwrap();
-        let unspent = balance_status.get("unspent").unwrap().as_str().unwrap();
-        let pending = balance_status.get("pending").unwrap().as_str().unwrap();
-        let spent = balance_status.get("spent").unwrap().as_str().unwrap();
-        let secreted = balance_status.get("secreted").unwrap().as_str().unwrap();
+        let balance_status = result.get("balance").unwrap();
+        let unspent = balance_status
+            .get("unspent_pmob")
+            .unwrap()
+            .as_str()
+            .unwrap();
+        let pending = balance_status
+            .get("pending_pmob")
+            .unwrap()
+            .as_str()
+            .unwrap();
+        let spent = balance_status.get("spent_pmob").unwrap().as_str().unwrap();
+        let secreted = balance_status
+            .get("secreted_pmob")
+            .unwrap()
+            .as_str()
+            .unwrap();
         assert_eq!(unspent, "0");
         assert_eq!(pending, "0");
         assert_eq!(spent, "99990000000100");
