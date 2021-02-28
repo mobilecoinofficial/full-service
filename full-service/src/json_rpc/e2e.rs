@@ -6,13 +6,16 @@
 mod e2e {
     use crate::{
         db::b58_decode,
+        json_rpc,
         json_rpc::api_test_utils::{dispatch, setup, wait_for_sync},
         test_utils::{add_block_to_ledger_db, MOB},
     };
+    use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
     use mc_transaction_core::ring_signature::KeyImage;
     use rand::{rngs::StdRng, SeedableRng};
+    use std::convert::TryFrom;
 
     #[test_with_logger]
     fn test_e2e_account_crud(logger: Logger) {
@@ -261,6 +264,53 @@ mod e2e {
         assert!(account_obj.get("main_address").is_some());
         assert!(account_obj.get("entropy").is_some());
         assert!(account_obj.get("account_id").is_some());
+    }
+
+    #[test_with_logger]
+    fn test_export_account_secrets(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+                "first_block": "200",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let account_obj = res["result"]["account"].clone();
+        let account_id = account_obj["account_id"].clone();
+        let entropy = account_obj["entropy"].clone();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 1,
+            "method": "export_account_secrets",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let secrets = result.get("account_secrets").unwrap();
+
+        assert_eq!(secrets["account_id"], serde_json::json!(account_id));
+        assert_eq!(secrets["entropy"], serde_json::json!(entropy));
+
+        // Test that the account_key serializes correctly back to an AccountKey object
+        let mut entropy_slice = [0u8; 32];
+        entropy_slice[0..32]
+            .copy_from_slice(&hex::decode(&entropy.as_str().unwrap()).unwrap().as_slice());
+        let account_key = AccountKey::from(&RootIdentity::from(&RootEntropy::from(&entropy_slice)));
+        assert_eq!(
+            serde_json::json!(json_rpc::account_key::AccountKey::try_from(&account_key).unwrap()),
+            secrets["account_key"]
+        );
     }
 
     #[test_with_logger]

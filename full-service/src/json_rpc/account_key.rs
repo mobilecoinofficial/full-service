@@ -13,10 +13,10 @@ pub struct AccountKey {
     /// the same value.
     pub object: String,
 
-    ///  Private key used for view-key matching.
+    ///  Private key used for view-key matching, hex-encoded Ristretto bytes.
     pub view_private_key: String,
 
-    /// Private key used for spending.
+    /// Private key used for spending, hex-encoded Ristretto bytes.
     pub spend_private_key: String,
 
     /// Fog Report server url (if user has Fog service), empty string otherwise.

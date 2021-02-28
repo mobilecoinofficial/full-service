@@ -264,7 +264,7 @@ where
                 .map_err(format_error)?;
 
             let result = service
-                .import_account(entropy, name, fb)
+                .import_account_entropy(entropy, name, fb)
                 .map_err(format_error)?;
 
             let local_height = service.ledger_db.num_blocks().map_err(format_error)?;

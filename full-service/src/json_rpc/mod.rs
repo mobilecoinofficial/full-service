@@ -4,6 +4,7 @@
 
 mod account;
 mod account_key;
+pub mod account_secrets;
 pub mod api_v1;
 mod balance;
 pub mod json_rpc_request;

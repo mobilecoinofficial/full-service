@@ -7,11 +7,14 @@ use crate::{
     db::account::AccountID,
     json_rpc,
     json_rpc::{
+        account_secrets::AccountSecrets,
         api_v1::wallet_api::{help_str_v1, wallet_api_inner_v1, JsonCommandRequestV1},
+        balance::Balance,
         json_rpc_request::{help_str_v2, JsonCommandRequest, JsonCommandRequestV2},
         json_rpc_response::{
             format_error, JsonCommandResponse, JsonCommandResponseV2, JsonRPCResponse,
         },
+        wallet_status::WalletStatus,
     },
     service::{account::AccountService, balance::BalanceService, WalletService},
 };
@@ -123,10 +126,18 @@ where
             JsonCommandResponseV2::import_account {
                 account: json_rpc::account::Account::try_from(
                     &service
-                        .import_account(entropy, name, fb)
+                        .import_account_entropy(entropy, name, fb)
                         .map_err(format_error)?,
                 )
                 .map_err(format_error)?,
+            }
+        }
+        JsonCommandRequestV2::export_account_secrets { account_id } => {
+            let account = service
+                .get_account(&AccountID(account_id))
+                .map_err(format_error)?;
+            JsonCommandResponseV2::export_account_secrets {
+                account_secrets: AccountSecrets::try_from(&account).map_err(format_error)?,
             }
         }
         JsonCommandRequestV2::get_all_accounts => {
@@ -177,7 +188,7 @@ where
         }
         JsonCommandRequestV2::get_balance_for_account { account_id } => {
             JsonCommandResponseV2::get_balance_for_account {
-                balance: json_rpc::balance::Balance::from(
+                balance: Balance::from(
                     &service
                         .get_balance_for_account(&AccountID(account_id))
                         .map_err(format_error)?,
@@ -185,7 +196,7 @@ where
             }
         }
         JsonCommandRequestV2::get_wallet_status => JsonCommandResponseV2::get_wallet_status {
-            wallet_status: json_rpc::wallet_status::WalletStatus::try_from(
+            wallet_status: WalletStatus::try_from(
                 &service.get_wallet_status().map_err(format_error)?,
             )
             .map_err(format_error)?,
@@ -197,7 +208,7 @@ where
                     .map_err(format_error)?,
             )
             .map_err(format_error)?;
-            let balance = json_rpc::balance::Balance::from(
+            let balance = Balance::from(
                 &service
                     .get_balance_for_account(&AccountID(account_id))
                     .map_err(format_error)?,

@@ -37,7 +37,7 @@ pub trait AccountService {
     ) -> Result<Account, WalletServiceError>;
 
     /// Import an existing account to the wallet.
-    fn import_account(
+    fn import_account_entropy(
         &self,
         entropy: String,
         name: Option<String>,
@@ -95,7 +95,7 @@ where
         Ok(account)
     }
 
-    fn import_account(
+    fn import_account_entropy(
         &self,
         entropy: String,
         name: Option<String>,
