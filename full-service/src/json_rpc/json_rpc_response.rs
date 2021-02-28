@@ -181,7 +181,7 @@ pub enum JsonCommandResponseV2 {
     get_balance_for_account {
         balance: Balance,
     },
-    send_transaction {
+    build_and_submit_transaction {
         transaction_log: TransactionLog,
     },
     build_transaction {

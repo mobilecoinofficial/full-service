@@ -232,8 +232,8 @@ pub struct TransactionLog {
     // Statuses: built, pending, succeeded, failed
     pub status: String,
     pub sent_time: Option<i64>, // empty string for nullable
-    pub submitted_block_count: Option<i64>,
-    pub finalized_block_count: Option<i64>,
+    pub submitted_block_index: Option<i64>,
+    pub finalized_block_index: Option<i64>,
     pub comment: String, // empty string for nullable
     // Directions: sent, received
     pub direction: String,
@@ -252,8 +252,8 @@ pub struct NewTransactionLog<'a> {
     pub fee: Option<i64>,
     pub status: &'a str,
     pub sent_time: Option<i64>,
-    pub submitted_block_count: Option<i64>,
-    pub finalized_block_count: Option<i64>,
+    pub submitted_block_index: Option<i64>,
+    pub finalized_block_index: Option<i64>,
     pub comment: &'a str,
     pub direction: &'a str,
     pub tx: Option<&'a [u8]>,

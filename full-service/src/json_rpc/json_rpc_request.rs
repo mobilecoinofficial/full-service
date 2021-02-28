@@ -107,7 +107,7 @@ pub enum JsonCommandRequestV2 {
     get_balance_for_account {
         account_id: String,
     },
-    send_transaction {
+    build_and_submit_transaction {
         account_id: String,
         recipient_public_address: String,
         value: String,

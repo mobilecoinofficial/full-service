@@ -242,7 +242,7 @@ where
             );
             JsonCommandResponseV2::get_account_status { account, balance }
         }
-        JsonCommandRequestV2::send_transaction {
+        JsonCommandRequestV2::build_and_submit_transaction {
             account_id,
             recipient_public_address,
             value,
@@ -253,7 +253,7 @@ where
             comment,
         } => {
             let (transaction_log, associated_txos) = service
-                .send_transaction(
+                .build_and_submit(
                     &account_id,
                     &recipient_public_address,
                     value,
@@ -264,7 +264,7 @@ where
                     comment,
                 )
                 .map_err(format_error)?;
-            JsonCommandResponseV2::send_transaction {
+            JsonCommandResponseV2::build_and_submit_transaction {
                 transaction_log: json_rpc::transaction_log::TransactionLog::new(
                     &transaction_log,
                     &associated_txos,

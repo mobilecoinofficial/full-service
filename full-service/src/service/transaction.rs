@@ -111,7 +111,7 @@ pub trait TransactionService {
 
     /// Convenience method that builds and submits in one go.
     #[allow(clippy::too_many_arguments)]
-    fn send_transaction(
+    fn build_and_submit(
         &self,
         account_id_hex: &str,
         recipient_public_address: &str,
@@ -231,7 +231,7 @@ where
         }
     }
 
-    fn send_transaction(
+    fn build_and_submit(
         &self,
         account_id_hex: &str,
         recipient_public_address: &str,
@@ -331,7 +331,7 @@ mod tests {
 
         // Send a transaction from Alice to Bob
         let (transaction_log, _associated_txos) = service
-            .send_transaction(
+            .build_and_submit(
                 &alice.account_id_hex,
                 &bob_address_from_alice.public_address,
                 (42 * MOB).to_string(),
@@ -397,7 +397,7 @@ mod tests {
 
         // Bob should now be able to send to Alice
         let (transaction_log, _associated_txos) = service
-            .send_transaction(
+            .build_and_submit(
                 &bob.account_id_hex,
                 &b58_encode(&alice_public_address).unwrap(),
                 (8 * MOB).to_string(),

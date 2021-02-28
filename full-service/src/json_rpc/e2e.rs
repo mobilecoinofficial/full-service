@@ -533,7 +533,7 @@ mod e2e {
     }
 
     #[test_with_logger]
-    fn test_build_and_submit_transaction(logger: Logger) {
+    fn test_build_then_submit_transaction(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
 
