@@ -185,14 +185,13 @@ pub enum JsonCommandResponseV2 {
     submit_transaction {
         transaction_log: Option<TransactionLog>,
     },
-    /*
-    get_balance_for_subaddress {
-        balance: Balance,
-    },*/
-    /* get_txos_for_subaddress {
-
-    }
-     */
+    get_all_transaction_logs_for_account {
+        transaction_log_ids: Vec<String>,
+        transaction_log_map: Map<String, serde_json::Value>,
+    },
+    get_transaction_log {
+        transaction_log: TransactionLog,
+    },
     get_wallet_status {
         wallet_status: WalletStatus,
     },
@@ -201,6 +200,12 @@ pub enum JsonCommandResponseV2 {
         balance: Balance,
     },
     /*
+    get_balance_for_subaddress {
+        balance: Balance,
+    },
+    get_txos_for_subaddress {
+
+    }
     get_all_txos_by_account {
         txo_ids: Vec<String>,
         txo_map: Map<String, serde_json::Value>,
@@ -215,13 +220,6 @@ pub enum JsonCommandResponseV2 {
     get_all_addresses_by_account {
         address_ids: Vec<String>,
         address_map: Map<String, serde_json::Value>,
-    },
-    get_all_transactions_by_account {
-        transaction_log_ids: Vec<String>,
-        transaction_log_map: Map<String, serde_json::Value>,
-    },
-    get_transaction {
-        transaction: JsonTransactionLog,
     },
     get_transaction_object {
         transaction: JsonTx,

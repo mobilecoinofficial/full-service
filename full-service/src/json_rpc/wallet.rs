@@ -18,7 +18,7 @@ use crate::{
     },
     service::{
         account::AccountService, balance::BalanceService, transaction::TransactionService,
-        WalletService,
+        transaction_log::TransactionLogService, WalletService,
     },
 };
 use mc_common::logger::global_log;
@@ -316,6 +316,41 @@ where
                 });
             JsonCommandResponseV2::submit_transaction {
                 transaction_log: result,
+            }
+        }
+        JsonCommandRequestV2::get_all_transaction_logs_for_account { account_id } => {
+            let transaction_logs_and_txos = service
+                .list_transactions(&account_id)
+                .map_err(format_error)?;
+            let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
+                transaction_logs_and_txos
+                    .iter()
+                    .map(|(t, a)| {
+                        (
+                            t.transaction_id_hex.clone(),
+                            serde_json::json!(json_rpc::transaction_log::TransactionLog::new(t, a)),
+                        )
+                    })
+                    .collect::<Vec<(String, serde_json::Value)>>(),
+            );
+
+            JsonCommandResponseV2::get_all_transaction_logs_for_account {
+                transaction_log_ids: transaction_logs_and_txos
+                    .iter()
+                    .map(|(t, _a)| t.transaction_id_hex.to_string())
+                    .collect(),
+                transaction_log_map,
+            }
+        }
+        JsonCommandRequestV2::get_transaction_log { transaction_log_id } => {
+            let (transaction_log, associated_txos) = service
+                .get_transaction(&transaction_log_id)
+                .map_err(format_error)?;
+            JsonCommandResponseV2::get_transaction_log {
+                transaction_log: json_rpc::transaction_log::TransactionLog::new(
+                    &transaction_log,
+                    &associated_txos,
+                ),
             }
         }
     };

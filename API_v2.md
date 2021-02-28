@@ -22,8 +22,8 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 * [build_and_submit_transaction](#build-and-submit-transaction)
 * [build_transaction](#build-transaction)
 * [submit_transaction](#submit-transaction)
-* [get_all_transactions_by_account](#get-all-transactions)
-* [get_transaction](#get-transaction)
+* [get_all_transaction_logs_for_account](#get-all-transaction-logs-for-account)
+* [get_transaction_log](#get-transaction-log)
 * [get_proofs](#get-proofs)
 * [verify_proof](#verify-proof)
 * [get_txo_object](#get-txo-object)
@@ -1381,12 +1381,12 @@ curl -s localhost:9090/wallet \
 | `account_id` | Account ID for which to log the transaction. If omitted, the transaction is not logged.   | |
 | `comment` | Comment to annotate this transaction in the transaction log   | |
 
-#### Get All Transactions
+#### Get All Transaction Logs For Account
 
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "get_all_transactions_by_account",
+        "method": "get_all_transaction_logs_for_account",
         "params": {
           "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10"
         },
@@ -1399,68 +1399,72 @@ curl -s localhost:9090/wallet \
 
 ```json
 {
-  "method": "get_all_transactions_by_account",
+  "method": "get_all_transaction_logs_for_account",
   "result": {
     "transaction_log_ids": [
-      "6e51851495c628a3b6eefb3e14ee14bb7a167bba5ce727c8710601ba87f74c4c",
-      "fcd2979f737f213fc327cd79d10c490a9bd4cb163084d4a154585c5e93e8c075"
+      "49da8168e26331fc9bc109d1e59f7ed572b453f232591de4196f9cefb381c3f4",
+      "ff1c85e7a488c2821110597ba75db30d913bb1595de549f83c6e8c56b06d70d1"
     ],
     "transaction_log_map": {
-      "6e51851495c628a3b6eefb3e14ee14bb7a167bba5ce727c8710601ba87f74c4c": {
-        "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
-        "assigned_address_id": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
-        "change_txo_ids": [],
-        "comment": "",
-        "direction": "received",
-        "failure_code": null,
-        "failure_message": null,
-        "fee_pmob": null,
-        "finalized_block_height": "144965",
-        "input_txo_ids": [],
-        "is_sent_recovered": null,
+      "49da8168e26331fc9bc109d1e59f7ed572b453f232591de4196f9cefb381c3f4": {
         "object": "transaction_log",
-        "offset_count": 296,
-        "output_txo_ids": [
-          "6e51851495c628a3b6eefb3e14ee14bb7a167bba5ce727c8710601ba87f74c4c"
-        ],
+        "transaction_log_id": "49da8168e26331fc9bc109d1e59f7ed572b453f232591de4196f9cefb381c3f4",
+        "direction": "tx_direction_received",
+        "is_sent_recovered": null,
+        "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
         "recipient_address_id": null,
-        "sent_time": null,
-        "status": "succeeded",
-        "submitted_block_height": null,
-        "transaction_log_id": "6e51851495c628a3b6eefb3e14ee14bb7a167bba5ce727c8710601ba87f74c4c",
-        "value_pmob": "443990000000000"
-      },
-      "6e51851495c628a3b6eefb3e14ee14bb7a167bba5ce727c8710601ba87f74c4c": {
-        "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
-        "assigned_address_id": null,
-        "change_txo_ids": [
-          "e992e718e1f28b67b0cf200e213af560fc7d5a236b3fec590f225b230f88257f"
+        "assigned_address_id": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
+        "value_pmob": "8199980000000000",
+        "fee_pmob": null,
+        "submitted_block_index": null,
+        "finalized_block_index": "130689",
+        "status": "tx_status_succeeded",
+        "input_txo_ids": [],
+        "output_txo_ids": [
+          "49da8168e26331fc9bc109d1e59f7ed572b453f232591de4196f9cefb381c3f4"
         ],
+        "change_txo_ids": [],
+        "sent_time": null,
         "comment": "",
-        "direction": "sent",
-        "fee_pmob": "10000000000",
         "failure_code": null,
         "failure_message": null,
-        "finalized_block_height": "152826",
-        "input_txo_ids": [
-          "3de563a16d2da9656ce6c8aa9b12380b682c2e6aad0011fa8d6528c084078827",
-          "fa242e21e2155e8f257cd75d2d2939000d0926946c2b7b812946e093165acadb"
-        ],
-        "is_sent_recovered": null,
+        "offset_count": 4
+      },
+      "ff1c85e7a488c2821110597ba75db30d913bb1595de549f83c6e8c56b06d70d1": {
         "object": "transaction_log",
-        "offset_count": 496,
-        "output_txo_ids": [
-          "badf415972dfc2dc6203ed90be132831ff29f394f65b0be5c35c79048d86af5b"
+        "transaction_log_id": "ff1c85e7a488c2821110597ba75db30d913bb1595de549f83c6e8c56b06d70d1",
+        "direction": "tx_direction_sent",
+        "is_sent_recovered": null,
+        "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+        "recipient_address_id": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
+        "assigned_address_id": null,
+        "value_pmob": "8000000000008",
+        "fee_pmob": "10000000000",
+        "submitted_block_index": "152951",
+        "finalized_block_index": "152951",
+        "status": "tx_status_succeeded",
+        "input_txo_ids": [
+          "135c3861be4034fccb8d0b329f86124cb6e2404cd4debf52a3c3a10cb4a7bdfb",
+          "c91b5f27e28460ef6c4f33229e70c4cfe6dc4bc1517a22122a86df9fb8e40815"
         ],
-        "recipient_address_id": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
-        "sent_time": "2020-12-15 09:30:04 UTC",
-        "status": "succeeded",
-        "submitted_block_height": "152826",
-        "transaction_log_id": "ead39f2c0dea3004732adf1953dee876b73829768d4877809fe06ee0bfc6bf6d",
-        "value_pmob": "1000000000000"
+        "output_txo_ids": [
+          "243494a0030bcbac40e87670b9288834047ef0727bcc6630a2fe2799439879ab"
+        ],
+        "change_txo_ids": [
+          "58729797de0929eed37acb45225d3631235933b709c00015f46bfc002d5754fc"
+        ],
+        "sent_time": "2021-02-28 03:05:11 UTC",
+        "comment": "",
+        "failure_code": null,
+        "failure_message": null,
+        "offset_count": 53
       }
     }
-  }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+  "api_version": "2"
 }
 ```
 
@@ -1468,14 +1472,14 @@ curl -s localhost:9090/wallet \
 | :------------- | :----------------------- | :------------------------ |
 | `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
 
-#### Get Transaction
+#### Get Transaction Log
 
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "get_transaction",
+        "method": "get_transaction_log",
         "params": {
-          "transaction_log_id": "ead39f2c0dea3004732adf1953dee876b73829768d4877809fe06ee0bfc6bf6d"
+          "transaction_log_id": "914e703b5b7bc44b61bb3657b4ee8a184d00e87a728e2fe6754a77a38598a800"
         },
         "jsonrpc": "2.0",
         "api_version": "2",
@@ -1486,38 +1490,37 @@ curl -s localhost:9090/wallet \
 
 ```json
 {
-  "method": "get_transaction",
+  "method": "get_transaction_log",
   "result": {
-    "transaction": {
+    "transaction_log": {
       "object": "transaction_log",
-      "transaction_log_id": "ead39f2c0dea3004732adf1953dee876b73829768d4877809fe06ee0bfc6bf6d",
-      "direction": "sent",
+      "transaction_log_id": "914e703b5b7bc44b61bb3657b4ee8a184d00e87a728e2fe6754a77a38598a800",
+      "direction": "tx_direction_received",
       "is_sent_recovered": null,
-      "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
-      "recipient_address_id": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
+      "account_id": "b0be5377a2f45b1573586ed530b2901a559d9952ea8a02f8c2dbb033a935ac17",
+      "recipient_address_id": null,
       "assigned_address_id": null,
-      "value_pmob": "1000000000000",
-      "fee_pmob": "10000000000",
-      "submitted_block_height": "152826",
-      "finalized_block_height": "152826",
-      "status": "succeeded",
-      "input_txo_ids": [
-        "3de563a16d2da9656ce6c8aa9b12380b682c2e6aad0011fa8d6528c084078827",
-        "fa242e21e2155e8f257cd75d2d2939000d0926946c2b7b812946e093165acadb"
-      ],
+      "value_pmob": "51068338999989068",
+      "fee_pmob": null,
+      "submitted_block_index": null,
+      "finalized_block_index": "152905",
+      "status": "tx_status_succeeded",
+      "input_txo_ids": [],
       "output_txo_ids": [
-        "badf415972dfc2dc6203ed90be132831ff29f394f65b0be5c35c79048d86af5b"
+        "914e703b5b7bc44b61bb3657b4ee8a184d00e87a728e2fe6754a77a38598a800"
       ],
-      "change_txo_ids": [
-        "e992e718e1f28b67b0cf200e213af560fc7d5a236b3fec590f225b230f88257f"
-      ],
-      "sent_time": "2020-12-15 09:30:04 UTC",
+      "change_txo_ids": [],
+      "sent_time": null,
       "comment": "",
       "failure_code": null,
       "failure_message": null,
-      "offset_count": 496
+      "offset_count": 37
     }
-  }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+  "api_version": "2"
 }
 ```
 
@@ -1913,6 +1916,7 @@ The balance for an account, as well as some information about syncing status nee
 
 | *Name* | *Type* | *Description*
 | :--- | :--- | :---
+| object | string, value is "transaction_log" | String representing the object's type. Objects of the same type share the same value.
 | transaction_log_id | int | Unique identifier for the transaction log. This value is not associated to the ledger.
 | direction | string | A string that identifies if this transaction log was sent or received. Valid values are "sent" or "received".
 | is_sent_recovered | boolean | Flag that indicates if the sent transaction log was recovered from the ledger. This value is null for "received" transaction logs. If true, some information may not be available on the transaction log and its txos without user input. If true, the fee receipient_address_id, fee, and sent_time will be null without user input.
@@ -1923,13 +1927,7 @@ The balance for an account, as well as some information about syncing status nee
 | fee_pmob | string (uint64) | Fee in pico MOB associated to this transaction log. Only on outgoing transaction logs. Only available if direction is "sent".
 | submitted_block_index | string (uint64) | The block index of the highest block on the network at the time the transaction was submitted.
 | finalized_block_index | string (uint64) | The scanned block block index in which this transaction occurred.
-| status | string | String representing the transaction log status. On "sent", valid statuses are "built", "pending", "succeeded", "failed".  On "received", the status is "succeded".
-
-#### More attributes
-
-| *Name* | *Type* | *Description*
-| :--- | :--- | :---
-| object | string, value is "transaction_log" | String representing the object's type. Objects of the same type share the same value.
+| status | string | String representing the transaction log status. On "sent", valid statuses are "built", "pending", "succeeded", "failed".  On "received", the status is "succeeded".
 | input_txo_ids | list | A list of the IDs of the Txos which were inputs to this transaction.
 | output_txo_ids | list | A list of the IDs of the Txos which were outputs of this transaction.
 | change_txo_ids | list | A list of the IDs of the Txos which were change in this transaction.
@@ -2042,8 +2040,8 @@ Sent - Success, Recovered:
 
 #### API Methods Returning Transaction Log Objects
 
-* [get_all_transactions_by_account](#get-all-transactions)
-* [get_transaction](#get-transaction)
+* [get_all_transaction_logs_for_account](#get-all-transaction-logs-for-account)
+* [get_transaction_log](#get-transaction-log)
 * [build_and_submit_transaction](#build-and-submit-transaction)
 * [submit_transaction](#submit-transaction)
 
