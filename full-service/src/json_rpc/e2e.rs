@@ -808,7 +808,7 @@ mod e2e {
                 .unwrap()
                 .as_str()
                 .unwrap(),
-            "13"
+            "14"
         );
         assert_eq!(
             transaction_log

@@ -354,7 +354,7 @@ impl TransactionLogModel for TransactionLog {
                     .set((
                         crate::db::schema::transaction_logs::status.eq(TX_STATUS_SUCCEEDED),
                         crate::db::schema::transaction_logs::finalized_block_index
-                            .eq(Some(cur_block_count - 1)),
+                            .eq(Some(cur_block_count)),
                     ))
                     .execute(conn)?;
                 } else if Txo::any_failed(&associated.inputs, cur_block_count, conn)? {
@@ -414,7 +414,7 @@ impl TransactionLogModel for TransactionLog {
                         status: TX_STATUS_SUCCEEDED,
                         sent_time: None, // NULL for received
                         submitted_block_index: None,
-                        finalized_block_index: Some((block_count - 1) as i64),
+                        finalized_block_index: Some(block_count as i64),
                         comment: "", // NULL for received
                         direction: TX_DIRECTION_RECEIVED,
                         tx: None, // NULL for received
@@ -515,7 +515,7 @@ impl TransactionLogModel for TransactionLog {
                     fee: Some(tx_proposal.tx.prefix.fee as i64),
                     status: TX_STATUS_PENDING,
                     sent_time: Some(Utc::now().timestamp()),
-                    submitted_block_index: Some((block_count - 1) as i64),
+                    submitted_block_index: Some(block_count as i64),
                     finalized_block_index: None,
                     comment: &comment,
                     direction: TX_DIRECTION_SENT,
