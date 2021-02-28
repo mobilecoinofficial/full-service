@@ -7,7 +7,8 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 ### Methods Overview
 
 * [create_account](#create-account)
-* [import_account](#import-account)
+* [import_account_by_entropy](#import-account-by-entropy)
+* [import_account_by_account_key](#import-account-by-account-key)
 * [get_all_accounts](#get-all-accounts)
 * [get_account](#get-account)
 * [update_account_name](#update-account-name)
@@ -34,6 +35,7 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 The methods above return data representations of wallet contents. The Full Service API Data types are as follows:
 
 * [account](#the-account-object)
+* [balance](#the-balance-object)
 * [wallet_status](#the-wallet-status-object)
 * [assigned_address](#the-assigned-address-object)
 * [transaction_log](#the-transaction-log-object)
@@ -61,26 +63,28 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
 
+```json
 {
   "method": "create_account",
   "result": {
     "account": {
-      "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
-      "account_key": {
-        "fog_authority_spki": "",
-        "fog_report_id": "",
-        "fog_report_url": "",
-        "object": "account_key",
-        "spend_private_key": "0a200c68151e777324da47a1e3a4f8b57e7d94d59084d4a343e1c600c1e4f66fc20d",
-        "view_private_key": "0a20765d49c5a524ddd4d9e96278b17eccd7b33e6bc071c5bc91dcd29435ce478a0d"
-      },
-      "entropy": "856fcacf2a819a065a9376fcdce0ff8dbe14f8b8d6118ef3a194f9e678ade0e0",
-      "main_address": "4bgkVAH1hs55dwLTGVpZER8ZayhqXbYqfuyisoRrmQPXoWcYQ3SQRTjsAytCiAgk21CRrVNysVw5qwzweURzDK9HL3rGXFmAAahb364kYe3",
-      "name": "Alice",
-      "next_subaddress_index": "2",
       "object": "account",
-      "recovery_mode": false
+      "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
+      "name": "Alice",
+      "main_address": "4bgkVAH1hs55dwLTGVpZER8ZayhqXbYqfuyisoRrmQPXoWcYQ3SQRTjsAytCiAgk21CRrVNysVw5qwzweURzDK9HL3rGXFmAAahb364kYe3",
+      "next_subaddress_index": "2",
+      "recovery_mode": false,
+      "entropy": "856fcacf2a819a065a9376fcdce0ff8dbe14f8b8d6118ef3a194f9e678ade0e0",
+      "account_key": {
+        "object": "account_key",
+        "view_private_key": "0a20765d49c5a524ddd4d9e96278b17eccd7b33e6bc071c5bc91dcd29435ce478a0d",
+        "spend_private_key": "0a200c68151e777324da47a1e3a4f8b57e7d94d59084d4a343e1c600c1e4f66fc20d",
+        "fog_report_url": "",
+        "fog_report_id": "",
+        "fog_authority_spki": ""
+      }
     }
   },
   "error": null,
@@ -96,14 +100,14 @@ curl -s localhost:9090/wallet \
 | `name`         | Label for this account   | Can have duplicates (not recommended) |
 | `first_block`  | The block from which to start scanning the ledger |  |
 
-#### Import Account
+#### Import Account by Entropy
 
 Import an existing account from the secret entropy.
 
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "import_account",
+        "method": "import_account_by_entropy",
         "params": {
           "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
           "name": "Bob"
@@ -114,26 +118,28 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
    -X POST -H 'Content-type: application/json' | jq
+```
 
+```json
 {
-  "method": "import_account",
+  "method": "import_account_by_entropy",
   "result": {
     "account": {
-      "account_id": "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470",
-      "account_key": {
-        "fog_authority_spki": "",
-        "fog_report_id": "",
-        "fog_report_url": "",
-        "object": "account_key",
-        "spend_private_key": "0a2011035ae05a302e883af00f788cd7486f8f7445503187b080545c16c37056900e",
-        "view_private_key": "0a20e1d5a0622906afa27d87ab9f900e6099ce778d173b22068ce948832b549d2002"
-      },
-      "entropy": "ed62ae3259992ec31dc9fe08be1b9964327e0c4846be99a975397a32099b9860",
-      "main_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-      "name": "Bob",
-      "next_subaddress_index": "2",
       "object": "account",
-      "recovery_mode": false
+      "account_id": "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470",
+      "name": "Bob",
+      "main_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+      "next_subaddress_index": "2",
+      "recovery_mode": false,
+      "entropy": "ed62ae3259992ec31dc9fe08be1b9964327e0c4846be99a975397a32099b9860",
+      "account_key": {
+        "object": "account_key",
+        "view_private_key": "0a20e1d5a0622906afa27d87ab9f900e6099ce778d173b22068ce948832b549d2002",
+        "spend_private_key": "0a2011035ae05a302e883af00f788cd7486f8f7445503187b080545c16c37056900e",
+        "fog_report_url": "",
+        "fog_report_id": "",
+        "fog_authority_spki": ""
+      }
     }
   },
   "error": null,
@@ -160,6 +166,79 @@ If you receive the following error, it means that you attempted to import an acc
 {"error": "Database(Diesel(DatabaseError(UniqueViolation, "UNIQUE constraint failed: accounts.account_id_hex")))"}
 ```
 
+#### Import Account by Account Key
+
+Import an existing account from the secret account key.
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "import_account_by_account_key",
+        "params": {
+          "account_key": {
+            "object": "account_key",
+            "view_private_key": "0a20765d49c5a524ddd4d9e96278b17eccd7b33e6bc071c5bc91dcd29435ce478a0d"
+            "spend_private_key": "0a200c68151e777324da47a1e3a4f8b57e7d94d59084d4a343e1c600c1e4f66fc20d",
+            "fog_report_url": "",
+            "fog_report_id": "",
+            "fog_authority_spki": "",
+            },
+          "name": "Bob"
+          "first_block_index": 3500,
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
+      }' \
+   -X POST -H 'Content-type: application/json' | jq
+```
+
+```json
+{
+  "method": "import_account_by_account_key",
+  "result": {
+    "account": {
+      "object": "account",
+      "account_id": "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470",
+      "main_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+      "name": "Bob",
+      "next_subaddress_index": "2",
+      "recovery_mode": false,
+      "entropy": null,
+      "account_key": {
+        "object": "account_key",
+        "view_private_key": "0a20e1d5a0622906afa27d87ab9f900e6099ce778d173b22068ce948832b549d2002",
+        "spend_private_key": "0a2011035ae05a302e883af00f788cd7486f8f7445503187b080545c16c37056900e",
+        "fog_report_url": "",
+        "fog_report_id": "",
+        "fog_authority_spki": ""
+      }
+    }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+  "api_version": "2"
+}
+```
+
+| Required Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `account_key`  | The secret account key   | A valid account key       |
+
+| Optional Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `name`         | Label for this account   | Can have duplicates (not recommended) |
+| `first_block`  | The block from which to start scanning the ledger |  |
+
+##### Troubleshooting
+
+If you receive the following error, it means that you attempted to import an account already in the wallet.
+
+```sh
+{"error": "Database(Diesel(DatabaseError(UniqueViolation, "UNIQUE constraint failed: accounts.account_id_hex")))"}
+```
+
 #### Get All Accounts
 
 ```sh
@@ -171,7 +250,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
 
+```json
 {
   "method": "get_all_accounts",
   "result": {
@@ -237,7 +318,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json'  | jq
+```
 
+```json
 {
   "method": "get_account",
   "result": {
@@ -296,7 +379,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json'  | jq
+```
 
+```json
 {
   "method": "update_account_name",
   "result": {
@@ -344,7 +429,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
 
+```json
 {
   "method": "delete_account",
   "result": {
@@ -393,7 +480,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json'  | jq
+```
 
+```json
 {
   "method": "get_all_txos_by_account",
   "result": {
@@ -469,7 +558,7 @@ curl -s localhost:9090/wallet \
         "key_image": "0a20784ab38c4541ce23abbec6744431d6ae14101c49c6535b3e9bf3fd728db13848",
         "minted_account_id": null,
         "object": "txo",
-        "offset_count": 8
+        "offset_count": 8,
         "proof": null,
         "public_key": "0a20d803a979c9ec0531f106363a885dde29101fcd70209f9ed686905512dfd14d5f",
         "received_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
@@ -478,7 +567,7 @@ curl -s localhost:9090/wallet \
         "subaddress_index": "0",
         "target_key": "0a209abadbfcec6c81b3d184dc104e51cac4c4faa8bab4da21a3714901519810c20d",
         "txo_id": "58c2c3780792ccf9c51014c7688a71f03732b633f8c5dfa49040fa7f51328280",
-        "value_pmob": "4000000000000",
+        "value_pmob": "4000000000000"
       },
       "b496f4f3ec3159bf48517aa7d9cda193ef8bfcac343f81eaed0e0a55849e4726": {
         "account_status_map": {
@@ -493,7 +582,7 @@ curl -s localhost:9090/wallet \
         "key_image": null,
         "minted_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
         "object": "txo",
-        "offset_count": 498
+        "offset_count": 498,
         "proof": null,
         "public_key": "0a209432c589bb4e5101c26e935b70930dfe45c78417527fb994872ebd65fcb9c116",
         "received_account_id": null,
@@ -502,7 +591,7 @@ curl -s localhost:9090/wallet \
         "subaddress_index": null,
         "target_key": "0a208c75723e9b9a4af0c833bfe190c43900c3b41834cf37024f5fecfbe9919dff23",
         "txo_id": "b496f4f3ec3159bf48517aa7d9cda193ef8bfcac343f81eaed0e0a55849e4726",
-        "value_pmob": "980000000000",
+        "value_pmob": "980000000000"
       }
     ]
   }
@@ -544,7 +633,8 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
-
+```
+```json
 {
   "method": "get_txo",
   "result": {
@@ -592,7 +682,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
 
+```json
 {
   "method": "get_wallet_status",
   "result": {
@@ -669,7 +761,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
 
+```json
 {
   "method": "get_balance_for_account",
   "result": {
@@ -713,7 +807,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
 
+```json
 {
   "method": "get_account_status",
   "result": {
@@ -772,7 +868,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
 
+```json
 {
   "method": "create_address",
   "result": {
@@ -812,7 +910,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
 
+```json
 {
   "method": "get_all_addresses_by_account",
   "result": {
@@ -881,7 +981,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
-
+```
+`
+```json
 {
   "method": "send_transaction",
   "result": {
@@ -936,7 +1038,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
 
+```
 {
   "method": "build_transaction",
   "result": {
@@ -1167,7 +1271,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json'
+```
 
+```json
 {
   "method": "submit_transaction",
   "result": {
@@ -1200,13 +1306,15 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
 
+```json
 {
   "method": "get_all_transactions_by_account",
   "result": {
     "transaction_log_ids": [
       "6e51851495c628a3b6eefb3e14ee14bb7a167bba5ce727c8710601ba87f74c4c",
-      "fcd2979f737f213fc327cd79d10c490a9bd4cb163084d4a154585c5e93e8c075",
+      "fcd2979f737f213fc327cd79d10c490a9bd4cb163084d4a154585c5e93e8c075"
     ],
     "transaction_log_map": {
       "6e51851495c628a3b6eefb3e14ee14bb7a167bba5ce727c8710601ba87f74c4c": {
@@ -1222,7 +1330,7 @@ curl -s localhost:9090/wallet \
         "input_txo_ids": [],
         "is_sent_recovered": null,
         "object": "transaction_log",
-        "offset_count": 296
+        "offset_count": 296,
         "output_txo_ids": [
           "6e51851495c628a3b6eefb3e14ee14bb7a167bba5ce727c8710601ba87f74c4c"
         ],
@@ -1231,7 +1339,7 @@ curl -s localhost:9090/wallet \
         "status": "succeeded",
         "submitted_block_height": null,
         "transaction_log_id": "6e51851495c628a3b6eefb3e14ee14bb7a167bba5ce727c8710601ba87f74c4c",
-        "value_pmob": "443990000000000",
+        "value_pmob": "443990000000000"
       },
       "6e51851495c628a3b6eefb3e14ee14bb7a167bba5ce727c8710601ba87f74c4c": {
         "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
@@ -1251,7 +1359,7 @@ curl -s localhost:9090/wallet \
         ],
         "is_sent_recovered": null,
         "object": "transaction_log",
-        "offset_count": 496
+        "offset_count": 496,
         "output_txo_ids": [
           "badf415972dfc2dc6203ed90be132831ff29f394f65b0be5c35c79048d86af5b"
         ],
@@ -1260,9 +1368,8 @@ curl -s localhost:9090/wallet \
         "status": "succeeded",
         "submitted_block_height": "152826",
         "transaction_log_id": "ead39f2c0dea3004732adf1953dee876b73829768d4877809fe06ee0bfc6bf6d",
-        "value_pmob": "1000000000000",
+        "value_pmob": "1000000000000"
       }
-     ...
     }
   }
 }
@@ -1286,7 +1393,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
 
+```json
 {
   "method": "get_transaction",
   "result": {
@@ -1347,6 +1456,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
+
+```json
 {
   "method": "get_proofs",
   "result": {
@@ -1383,7 +1495,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
 
+```json
 {
   "method": "verify_proof",
   "result": {
@@ -1418,7 +1532,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
 
+```json
 {
   "method": "get_transaction_object",
   "result": {
@@ -1443,7 +1559,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
 
+```json
 {
   "method": "get_txo_object",
   "result": {
@@ -1468,7 +1586,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
 
+```json
 {
   "method": "get_block_object",
   "result": {
