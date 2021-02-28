@@ -63,8 +63,8 @@ impl TryFrom<&AccountKey> for mc_account_keys::AccountKey {
         let fog_authority_spki = hex::decode(&src.fog_authority_spki)
             .map_err(|err| format!("Could not hex decode fog_authority_spki: {:?}", err))?;
         Ok(mc_account_keys::AccountKey::new_with_fog(
-            &spend_private_key.into(),
-            &view_private_key.into(),
+            &spend_private_key,
+            &view_private_key,
             src.fog_report_url.clone(),
             src.fog_report_id.clone(),
             fog_authority_spki,

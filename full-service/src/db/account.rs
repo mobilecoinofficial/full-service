@@ -129,20 +129,20 @@ impl AccountModel for Account {
 
         let account_key_to_create = if let Some(a) = account_key {
             a.clone()
+        } else if let Some(e) = entropy {
+            let root_id = RootIdentity::from(e);
+            AccountKey::from(&root_id)
         } else {
-            if let Some(e) = entropy {
-                let root_id = RootIdentity::from(e);
-                AccountKey::from(&root_id)
-            } else {
-                return Err(WalletDbError::InsufficientSecretsToCreateAccount);
-            }
+            return Err(WalletDbError::InsufficientSecretsToCreateAccount);
         };
 
         // Sanity check that the secrets match the same account in case both were
         // provided.
-        if account_key.is_some() && entropy.is_some() {
-            if &AccountKey::from(&RootIdentity::from(entropy.unwrap())) != account_key.unwrap() {
-                return Err(WalletDbError::AccountSecretsDoNotMatch);
+        if let Some(a) = account_key {
+            if let Some(e) = entropy {
+                if &AccountKey::from(&RootIdentity::from(e)) != a {
+                    return Err(WalletDbError::AccountSecretsDoNotMatch);
+                }
             }
         }
 
