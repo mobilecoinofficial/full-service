@@ -121,10 +121,7 @@ impl<
 
     pub fn get_network_block_index(&self) -> Result<u64, WalletServiceError> {
         let network_state = self.network_state.read().expect("lock poisoned");
-        Ok(network_state
-            .highest_block_index_on_network()
-            .map(|v| v + 1)
-            .unwrap_or(0))
+        Ok(network_state.highest_block_index_on_network().unwrap_or(0))
     }
 
     pub fn list_txos(&self, account_id_hex: &str) -> Result<Vec<JsonTxo>, WalletServiceError> {

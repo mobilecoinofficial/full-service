@@ -25,13 +25,6 @@ use diesel::{
     Connection,
 };
 
-/*
-use displaydoc::Display;
-/// Errors for the Balance Service.
-#[derive(Display, Debug)]
-pub enum BalanceServiceError {}
-*/
-
 /// The balance object returned by balance services.
 ///
 /// This must be a service object because there is no "Balance" table in our
@@ -115,7 +108,7 @@ where
             spent,
             secreted,
             orphaned,
-            network_block_count: network_block_count,
+            network_block_count,
             local_block_count,
             synced_blocks: account.next_block as u64,
         })
@@ -163,6 +156,7 @@ where
                     min_synced_block_index,
                     (account.next_block as u64).saturating_sub(1),
                 );
+                println!("\x1b[1;33m For account {:?} got network block index = {:?}, local_ledger_block_count {:?}, and account.next_block {:?}", account_id, network_block_index, self.ledger_db.num_blocks().unwrap(), account.next_block);
 
                 account_ids.push(account_id);
             }
