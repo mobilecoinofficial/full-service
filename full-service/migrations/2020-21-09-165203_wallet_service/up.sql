@@ -76,6 +76,7 @@ CREATE TABLE transaction_logs (
 );
 
 CREATE UNIQUE INDEX idx_transaction_logs__transaction_id_hex ON transaction_logs (transaction_id_hex);
+CREATE UNIQUE INDEX idx_transaction_logs__finzlied_block_index ON transaction_logs (finalized_block_index);
 
 CREATE TABLE transaction_txo_types (
     transaction_id_hex VARCHAR NOT NULL,

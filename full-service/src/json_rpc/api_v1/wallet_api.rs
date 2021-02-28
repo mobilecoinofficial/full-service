@@ -16,21 +16,13 @@ use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use rocket_contrib::json::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
-use std::iter::FromIterator;
+use std::{convert::TryFrom, iter::FromIterator};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 // Helper method to format displaydoc errors in json.
 fn format_error<T: std::fmt::Display + std::fmt::Debug>(e: T) -> String {
     json!({"error": format!("{:?}", e), "details": e.to_string()}).to_string()
-}
-
-pub fn help_str_v1() -> String {
-    let mut help_str = "Please use json data to choose wallet commands. For example, \n\ncurl -s localhost:9090/wallet -d '{\"method\": \"create_account\", \"params\": {\"name\": \"Alice\"}}' -X POST -H 'Content-type: application/json'\n\nAvailable commands are:\n\n".to_owned();
-    for e in JsonCommandRequestV1::iter() {
-        help_str.push_str(&format!("{:?}\n\n", e));
-    }
-    help_str
 }
 
 #[derive(Deserialize, Serialize, EnumIter, Debug)]

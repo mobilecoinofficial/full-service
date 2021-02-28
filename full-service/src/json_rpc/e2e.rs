@@ -8,11 +8,12 @@ mod e2e {
         db::b58_decode,
         json_rpc,
         json_rpc::api_test_utils::{dispatch, dispatch_expect_error, setup, wait_for_sync},
-        test_utils::{add_block_to_ledger_db, MOB},
+        test_utils::{add_block_to_ledger_db, add_block_with_tx_proposal, MOB},
     };
     use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
+    use mc_ledger_db::Ledger;
     use mc_transaction_core::ring_signature::KeyImage;
     use rand::{rngs::StdRng, SeedableRng};
     use std::convert::TryFrom;
@@ -556,7 +557,8 @@ mod e2e {
         let public_address = b58_decode(b58_public_address).unwrap();
 
         // Add a block with a txo for this address (note that value is smaller than
-        // MINIMUM_FEE)
+        // MINIMUM_FEE, so it is a "dust" TxOut that should get opportunistically swept
+        // up when we construct the transaction)
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![public_address.clone()],
@@ -566,6 +568,7 @@ mod e2e {
         );
 
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        assert_eq!(ledger_db.num_blocks().unwrap(), 13);
 
         // Create a tx proposal to ourselves
         let body = json!({
@@ -605,6 +608,7 @@ mod e2e {
         );
 
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        assert_eq!(ledger_db.num_blocks().unwrap(), 14);
 
         // Create a tx proposal to ourselves
         let body = json!({
@@ -668,6 +672,7 @@ mod e2e {
         assert_eq!(prefix_tombstone, "64");
 
         // Get current balance
+        assert_eq!(ledger_db.num_blocks().unwrap(), 14);
         let body = json!({
             "jsonrpc": "2.0",
             "api_version": "2",
@@ -710,7 +715,18 @@ mod e2e {
         // Note - we cannot test here that the transaction ID is consistent, because
         // there is randomness in the transaction creation.
 
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        let json_tx_proposal: json_rpc::tx_proposal::TxProposal =
+            serde_json::from_value(tx_proposal.clone()).unwrap();
+        let payments_tx_proposal =
+            mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
+
+        // The MockBlockchainConnection does not write to the ledger_db
+        add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
+
+        // FIXME: Why after submit is the network_block_count off-by-one in
+        // wait-for-sync?
+        // wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        assert_eq!(ledger_db.num_blocks().unwrap(), 15);
 
         // Get balance after submission
         let body = json!({
@@ -792,7 +808,7 @@ mod e2e {
                 .unwrap()
                 .as_str()
                 .unwrap(),
-            "14"
+            "13"
         );
         assert_eq!(
             transaction_log
@@ -815,7 +831,74 @@ mod e2e {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let transaction_log_ids = result.get("transaction_log_ids").unwrap();
+        let transaction_log_ids = result
+            .get("transaction_log_ids")
+            .unwrap()
+            .as_array()
+            .unwrap();
+        // We have a transaction log for each of the received, as well as the sent.
+        assert_eq!(transaction_log_ids.len(), 3);
+
+        // Check the contents of the transaction log associated txos
+        let transaction_log_map = result.get("transaction_log_map").unwrap();
+        let transaction_log = transaction_log_map.get(transaction_id).unwrap();
+        assert_eq!(
+            transaction_log
+                .get("output_txo_ids")
+                .unwrap()
+                .as_array()
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(
+            transaction_log
+                .get("input_txo_ids")
+                .unwrap()
+                .as_array()
+                .unwrap()
+                .len(),
+            2
+        );
+        assert_eq!(
+            transaction_log
+                .get("change_txo_ids")
+                .unwrap()
+                .as_array()
+                .unwrap()
+                .len(),
+            1
+        );
+
+        // The transaction log is pending
+        assert_eq!(
+            transaction_log.get("status").unwrap().as_str().unwrap(),
+            "tx_status_pending"
+        );
+
+        // FIXME: need to figure out how to get the transaction to hit the
+        // ledger after submit and get picked up
+        // assert_eq!(transaction_log.get("finalized_block_index").unwrap(),
+        // "14");
+
+        // Get all Transaction Logs for a given Block
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 1,
+            "method": "get_all_transaction_logs_ordered_by_block",
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let transaction_log_map = result
+            .get("transaction_log_map")
+            .unwrap()
+            .as_object()
+            .unwrap();
+        assert_eq!(transaction_log_map.len(), 3);
+        // FIXME: Once finalized_block_index is working, assert that they are
+        // presented in ascending order of block_index
     }
 
     /*

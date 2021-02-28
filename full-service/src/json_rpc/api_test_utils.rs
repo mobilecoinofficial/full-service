@@ -187,10 +187,6 @@ pub fn wait_for_sync(
         // Sleep to let the sync thread process the txos
         std::thread::sleep(Duration::from_secs(1));
 
-        // Have to manually call poll() on network state to get it to update for these
-        // tests
-        network_state.write().unwrap().poll();
-
         // Check that syncing is working
         let body = json!({
             "jsonrpc": "2.0",
@@ -222,6 +218,9 @@ pub fn wait_for_sync(
             );
             break;
         }
+        // Have to manually call poll() on network state to get it to update for these
+        // tests
+        network_state.write().unwrap().poll();
 
         count += 1;
         if count > 10 {

@@ -137,6 +137,10 @@ pub enum JsonCommandRequestV2 {
     get_transaction_log {
         transaction_log_id: String,
     },
+    get_all_transaction_logs_for_block {
+        block_index: String,
+    },
+    get_all_transaction_logs_ordered_by_block,
     get_wallet_status,
     get_account_status {
         account_id: String,

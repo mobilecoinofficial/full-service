@@ -192,6 +192,13 @@ pub enum JsonCommandResponseV2 {
     get_transaction_log {
         transaction_log: TransactionLog,
     },
+    get_all_transaction_logs_for_block {
+        transaction_log_ids: Vec<String>,
+        transaction_log_map: Map<String, serde_json::Value>,
+    },
+    get_all_transaction_logs_ordered_by_block {
+        transaction_log_map: Map<String, serde_json::Value>,
+    },
     get_wallet_status {
         wallet_status: WalletStatus,
     },

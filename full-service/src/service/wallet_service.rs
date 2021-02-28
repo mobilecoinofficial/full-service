@@ -206,7 +206,7 @@ impl<
         &self,
         transaction_log_id: &str,
     ) -> Result<Vec<JsonProof>, WalletServiceError> {
-        let (_transaction_log, associated_txos) = self.get_transaction(&transaction_log_id)?;
+        let (_transaction_log, associated_txos) = self.get_transaction_log(&transaction_log_id)?;
         let proofs: Vec<JsonProof> = associated_txos
             .outputs
             .iter()

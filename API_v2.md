@@ -24,6 +24,8 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 * [submit_transaction](#submit-transaction)
 * [get_all_transaction_logs_for_account](#get-all-transaction-logs-for-account)
 * [get_transaction_log](#get-transaction-log)
+* [get_all_transaction_logs_for_block](#get-all-transaction-logs-for-block)
+* [get_all_transaction_logs_ordered_by_block](#get-all-transaction-logs-ordered-by-block)
 * [get_proofs](#get-proofs)
 * [verify_proof](#verify-proof)
 * [get_txo_object](#get-txo-object)
@@ -1497,7 +1499,7 @@ curl -s localhost:9090/wallet \
       "transaction_log_id": "914e703b5b7bc44b61bb3657b4ee8a184d00e87a728e2fe6754a77a38598a800",
       "direction": "tx_direction_received",
       "is_sent_recovered": null,
-      "account_id": "b0be5377a2f45b1573586ed530b2901a559d9952ea8a02f8c2dbb033a935ac17",
+      "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
       "recipient_address_id": null,
       "assigned_address_id": null,
       "value_pmob": "51068338999989068",
@@ -1527,6 +1529,223 @@ curl -s localhost:9090/wallet \
 | Required Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
 | `transaction_log_id`   | The transaction log ID for which to get proofs.  | Transaction log must exist in the wallet  |
+
+#### Get All Transaction Logs for Block
+
+Get the transaction logs in a given block. In the below example, the account in the wallet sent a transaction to itself. Therefore, there is one sent transaction_log in the block, and two received (one for the change, and one for the output txo sent to the same account that constructed the transaction).
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "get_all_transaction_logs_for_block",
+        "params": {
+          "block_index": "152951"
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
+
+{
+  "method": "get_all_transaction_logs_for_block",
+  "result": {
+    "transaction_log_ids": [
+      "ff1c85e7a488c2821110597ba75db30d913bb1595de549f83c6e8c56b06d70d1",
+      "58729797de0929eed37acb45225d3631235933b709c00015f46bfc002d5754fc",
+      "243494a0030bcbac40e87670b9288834047ef0727bcc6630a2fe2799439879ab"
+    ],
+    "transaction_log_map": {
+      "ff1c85e7a488c2821110597ba75db30d913bb1595de549f83c6e8c56b06d70d1": {
+        "object": "transaction_log",
+        "transaction_log_id": "ff1c85e7a488c2821110597ba75db30d913bb1595de549f83c6e8c56b06d70d1",
+        "direction": "tx_direction_sent",
+        "is_sent_recovered": null,
+        "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+        "recipient_address_id": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
+        "assigned_address_id": null,
+        "value_pmob": "8000000000008",
+        "fee_pmob": "10000000000",
+        "submitted_block_index": "152951",
+        "finalized_block_index": "152951",
+        "status": "tx_status_succeeded",
+        "input_txo_ids": [
+          "135c3861be4034fccb8d0b329f86124cb6e2404cd4debf52a3c3a10cb4a7bdfb",
+          "c91b5f27e28460ef6c4f33229e70c4cfe6dc4bc1517a22122a86df9fb8e40815"
+        ],
+        "output_txo_ids": [
+          "243494a0030bcbac40e87670b9288834047ef0727bcc6630a2fe2799439879ab"
+        ],
+        "change_txo_ids": [
+          "58729797de0929eed37acb45225d3631235933b709c00015f46bfc002d5754fc"
+        ],
+        "sent_time": "2021-02-28 03:05:11 UTC",
+        "comment": "",
+        "failure_code": null,
+        "failure_message": null,
+        "offset_count": 53
+      },
+      "58729797de0929eed37acb45225d3631235933b709c00015f46bfc002d5754fc": {
+        "object": "transaction_log",
+        "transaction_log_id": "58729797de0929eed37acb45225d3631235933b709c00015f46bfc002d5754fc",
+        "direction": "tx_direction_received",
+        "is_sent_recovered": null,
+        "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+        "recipient_address_id": null,
+        "assigned_address_id": "2pW3CcHUmg4cafp9ePCpPg72mowC6NJZ1iHQxpkiAuPJuWDVUC9WEGRxychqFmKXx68VqerFKiHeEATwM5hZcf9SKC9Cub2GyMsztSqYdjY",
+        "value_pmob": "11891402222024",
+        "fee_pmob": null,
+        "submitted_block_index": null,
+        "finalized_block_index": "152951",
+        "status": "tx_status_succeeded",
+        "input_txo_ids": [],
+        "output_txo_ids": [
+          "58729797de0929eed37acb45225d3631235933b709c00015f46bfc002d5754fc"
+        ],
+        "change_txo_ids": [],
+        "sent_time": null,
+        "comment": "",
+        "failure_code": null,
+        "failure_message": null,
+        "offset_count": 54
+      },
+      "243494a0030bcbac40e87670b9288834047ef0727bcc6630a2fe2799439879ab": {
+        "object": "transaction_log",
+        "transaction_log_id": "243494a0030bcbac40e87670b9288834047ef0727bcc6630a2fe2799439879ab",
+        "direction": "tx_direction_received",
+        "is_sent_recovered": null,
+        "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+        "recipient_address_id": null,
+        "assigned_address_id": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
+        "value_pmob": "8000000000008",
+        "fee_pmob": null,
+        "submitted_block_index": null,
+        "finalized_block_index": "152951",
+        "status": "tx_status_succeeded",
+        "input_txo_ids": [],
+        "output_txo_ids": [
+          "243494a0030bcbac40e87670b9288834047ef0727bcc6630a2fe2799439879ab"
+        ],
+        "change_txo_ids": [],
+        "sent_time": null,
+        "comment": "",
+        "failure_code": null,
+        "failure_message": null,
+        "offset_count": 55
+      }
+    }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+  "api_version": "2"
+}
+```
+
+#### Get All Transaction Logs Ordered By Block
+
+Get the transaction logs, grouped by the `finalized_block_index`, in ascending order.
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "get_all_transaction_logs_ordered_by_block",
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
+
+{
+  "method": "get_all_transaction_logs_ordered_by_block",
+  "result": {
+    "transaction_log_map": {
+      "c91b5f27e28460ef6c4f33229e70c4cfe6dc4bc1517a22122a86df9fb8e40815": {
+        "object": "transaction_log",
+        "transaction_log_id": "c91b5f27e28460ef6c4f33229e70c4cfe6dc4bc1517a22122a86df9fb8e40815",
+        "direction": "tx_direction_received",
+        "is_sent_recovered": null,
+        "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+        "recipient_address_id": null,
+        "assigned_address_id": "2pW3CcHUmg4cafp9ePCpPg72mowC6NJZ1iHQxpkiAuPJuWDVUC9WEGRxychqFmKXx68VqerFKiHeEATwM5hZcf9SKC9Cub2GyMsztSqYdjY",
+        "value_pmob": "11901402222024",
+        "fee_pmob": null,
+        "submitted_block_index": null,
+        "finalized_block_index": "152923",
+        "status": "tx_status_succeeded",
+        "input_txo_ids": [],
+        "output_txo_ids": [
+          "c91b5f27e28460ef6c4f33229e70c4cfe6dc4bc1517a22122a86df9fb8e40815"
+        ],
+        "change_txo_ids": [],
+        "sent_time": null,
+        "comment": "",
+        "failure_code": null,
+        "failure_message": null,
+        "offset_count": 51
+      },
+      "135c3861be4034fccb8d0b329f86124cb6e2404cd4debf52a3c3a10cb4a7bdfb": {
+        "object": "transaction_log",
+        "transaction_log_id": "135c3861be4034fccb8d0b329f86124cb6e2404cd4debf52a3c3a10cb4a7bdfb",
+        "direction": "tx_direction_received",
+        "is_sent_recovered": null,
+        "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+        "recipient_address_id": null,
+        "assigned_address_id": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
+        "value_pmob": "8000000000008",
+        "fee_pmob": null,
+        "submitted_block_index": null,
+        "finalized_block_index": "152948",
+        "status": "tx_status_succeeded",
+        "input_txo_ids": [],
+        "output_txo_ids": [
+          "135c3861be4034fccb8d0b329f86124cb6e2404cd4debf52a3c3a10cb4a7bdfb"
+        ],
+        "change_txo_ids": [],
+        "sent_time": null,
+        "comment": "",
+        "failure_code": null,
+        "failure_message": null,
+        "offset_count": 52
+      },
+      "ff1c85e7a488c2821110597ba75db30d913bb1595de549f83c6e8c56b06d70d1": {
+        "object": "transaction_log",
+        "transaction_log_id": "ff1c85e7a488c2821110597ba75db30d913bb1595de549f83c6e8c56b06d70d1",
+        "direction": "tx_direction_sent",
+        "is_sent_recovered": null,
+        "account_id": "b0be5377a2f45b1573586ed530b2901a559d9952ea8a02f8c2dbb033a935ac17",
+        "recipient_address_id": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
+        "assigned_address_id": null,
+        "value_pmob": "8000000000008",
+        "fee_pmob": "10000000000",
+        "submitted_block_index": "152951",
+        "finalized_block_index": "152951",
+        "status": "tx_status_succeeded",
+        "input_txo_ids": [
+          "135c3861be4034fccb8d0b329f86124cb6e2404cd4debf52a3c3a10cb4a7bdfb",
+          "c91b5f27e28460ef6c4f33229e70c4cfe6dc4bc1517a22122a86df9fb8e40815"
+        ],
+        "output_txo_ids": [
+          "243494a0030bcbac40e87670b9288834047ef0727bcc6630a2fe2799439879ab"
+        ],
+        "change_txo_ids": [
+          "58729797de0929eed37acb45225d3631235933b709c00015f46bfc002d5754fc"
+        ],
+        "sent_time": "2021-02-28 03:05:11 UTC",
+        "comment": "",
+        "failure_code": null,
+        "failure_message": null,
+        "offset_count": 53
+      }
+    }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+  "api_version": "2"
+}
+
+```
 
 ### Transaction Output Proofs
 
@@ -2042,6 +2261,8 @@ Sent - Success, Recovered:
 
 * [get_all_transaction_logs_for_account](#get-all-transaction-logs-for-account)
 * [get_transaction_log](#get-transaction-log)
+* [get_all_transaction_logs_for_block](#get-all-transaction-logs-for-block)
+* [get_all_transaction_logs_ordered_by_block](#get-all-transaction-logs-ordered-by-block)
 * [build_and_submit_transaction](#build-and-submit-transaction)
 * [submit_transaction](#submit-transaction)
 
