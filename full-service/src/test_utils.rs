@@ -514,7 +514,8 @@ pub fn random_account_with_seed_values(
     let root_id = RootIdentity::from_random(&mut rng);
     let account_key = AccountKey::from(&root_id);
     Account::create(
-        &root_id.root_entropy,
+        None,
+        Some(&root_id.root_entropy),
         Some(0),
         None,
         "",

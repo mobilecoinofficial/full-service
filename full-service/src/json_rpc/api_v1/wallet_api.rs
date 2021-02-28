@@ -3,23 +3,15 @@
 //! The Wallet API for Full Service. Version 1.
 
 use crate::{
-    db::{
-        account::{AccountID, AccountModel},
-        models::Account,
-    },
-    json_rpc,
     json_rpc::api_v1::decorated_types::{
-        JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents, JsonProof,
-        JsonSubmitResponse, JsonTransactionLog, JsonTxo, JsonWalletStatus,
-        StringifiedJsonTxProposal,
+        JsonAddress, JsonBlock, JsonBlockContents, JsonProof, JsonSubmitResponse,
+        JsonTransactionLog, JsonTxo, StringifiedJsonTxProposal,
     },
-    service::{account::AccountService, balance::BalanceService, WalletService},
+    service::WalletService,
 };
 use mc_common::logger::global_log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_ledger_db::Ledger;
-use mc_ledger_sync::NetworkState;
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
 use rocket_contrib::json::Json;
 use serde::{Deserialize, Serialize};
@@ -45,35 +37,11 @@ pub fn help_str_v1() -> String {
 #[serde(tag = "method", content = "params")]
 #[allow(non_camel_case_types)]
 pub enum JsonCommandRequestV1 {
-    create_account {
-        name: Option<String>,
-        first_block: Option<String>,
-    },
-    import_account {
-        entropy: String,
-        name: Option<String>,
-        first_block: Option<String>,
-    },
-    get_all_accounts,
-    get_account {
-        account_id: String,
-    },
-    update_account_name {
-        account_id: String,
-        name: String,
-    },
-    delete_account {
-        account_id: String,
-    },
     get_all_txos_by_account {
         account_id: String,
     },
     get_txo {
         txo_id: String,
-    },
-    get_wallet_status,
-    get_balance {
-        account_id: String,
     },
     create_address {
         account_id: String,
@@ -134,38 +102,12 @@ pub enum JsonCommandRequestV1 {
 #[serde(tag = "method", content = "result")]
 #[allow(non_camel_case_types)]
 pub enum JsonCommandResponseV1 {
-    create_account {
-        entropy: String,
-        account: JsonAccount,
-    },
-    import_account {
-        account: JsonAccount,
-    },
-    get_all_accounts {
-        account_ids: Vec<String>,
-        account_map: Map<String, serde_json::Value>,
-    },
-    get_account {
-        account: JsonAccount,
-    },
-    update_account_name {
-        account: JsonAccount,
-    },
-    delete_account {
-        success: bool,
-    },
     get_all_txos_by_account {
         txo_ids: Vec<String>,
         txo_map: Map<String, serde_json::Value>,
     },
     get_txo {
         txo: JsonTxo,
-    },
-    get_wallet_status {
-        status: JsonWalletStatus,
-    },
-    get_balance {
-        status: JsonBalanceResponse,
     },
     create_address {
         address: JsonAddress,
@@ -225,146 +167,6 @@ where
 {
     global_log::trace!("Running command {:?}", command);
     let result = match command.0 {
-        JsonCommandRequestV1::create_account { name, first_block } => {
-            let fb = first_block
-                .map(|fb| fb.parse::<u64>())
-                .transpose()
-                .map_err(format_error)?;
-
-            let result = service.create_account(name, fb).map_err(format_error)?;
-
-            let local_height = service.ledger_db.num_blocks().map_err(format_error)?;
-            let network_state = service.network_state.read().map_err(format_error)?;
-            // network_height = network_block_index + 1
-            let network_height = network_state
-                .highest_block_index_on_network()
-                .map(|v| v + 1)
-                .unwrap_or(0);
-            let decorated_account = Account::get_decorated(
-                &AccountID(result.account_id_hex),
-                local_height,
-                network_height,
-                &service.wallet_db.get_conn().map_err(format_error)?,
-            )
-            .map_err(format_error)?;
-
-            JsonCommandResponseV1::create_account {
-                entropy: hex::encode(&result.entropy),
-                account: decorated_account,
-            }
-        }
-        JsonCommandRequestV1::import_account {
-            entropy,
-            name,
-            first_block,
-        } => {
-            let fb = first_block
-                .map(|fb| fb.parse::<u64>())
-                .transpose()
-                .map_err(format_error)?;
-
-            let result = service
-                .import_account_entropy(entropy, name, fb)
-                .map_err(format_error)?;
-
-            let local_height = service.ledger_db.num_blocks().map_err(format_error)?;
-            let network_state = service.network_state.read().map_err(format_error)?;
-            // network_height = network_block_index + 1
-            let network_height = network_state
-                .highest_block_index_on_network()
-                .map(|v| v + 1)
-                .unwrap_or(0);
-            let decorated_account = Account::get_decorated(
-                &AccountID(result.account_id_hex),
-                local_height,
-                network_height,
-                &service.wallet_db.get_conn().map_err(format_error)?,
-            )
-            .map_err(format_error)?;
-
-            JsonCommandResponseV1::import_account {
-                account: decorated_account,
-            }
-        }
-        JsonCommandRequestV1::get_all_accounts => {
-            let accounts = service.list_accounts().map_err(format_error)?;
-            let local_height = service.ledger_db.num_blocks().map_err(format_error)?;
-            let network_state = service.network_state.read().map_err(format_error)?;
-            // network_height = network_block_index + 1
-            let network_height = network_state
-                .highest_block_index_on_network()
-                .map(|v| v + 1)
-                .unwrap_or(0);
-            let json_accounts: Vec<JsonAccount> = accounts
-                .iter()
-                .map(|a| {
-                    Account::get_decorated(
-                        &AccountID(a.account_id_hex.clone()),
-                        local_height,
-                        network_height,
-                        &service.wallet_db.get_conn().map_err(format_error)?,
-                    )
-                    .map_err(format_error)
-                })
-                .collect::<Result<Vec<JsonAccount>, String>>()?;
-
-            let account_map: Map<String, serde_json::Value> = Map::from_iter(
-                json_accounts
-                    .iter()
-                    .map(|a| {
-                        (
-                            a.account_id.clone(),
-                            serde_json::to_value(a.clone()).expect("Could not get json value"),
-                        )
-                    })
-                    .collect::<Vec<(String, serde_json::Value)>>(),
-            );
-
-            JsonCommandResponseV1::get_all_accounts {
-                account_ids: json_accounts.iter().map(|a| a.account_id.clone()).collect(),
-                account_map,
-            }
-        }
-        JsonCommandRequestV1::get_account { account_id } => {
-            let conn = service.wallet_db.get_conn().map_err(format_error)?;
-            let local_height = service.ledger_db.num_blocks().map_err(format_error)?;
-            let network_state = service.network_state.read().map_err(format_error)?;
-            // network_height = network_block_index + 1
-            let network_height = network_state
-                .highest_block_index_on_network()
-                .map(|v| v + 1)
-                .unwrap_or(0);
-            let account =
-                Account::get_decorated(&AccountID(account_id), local_height, network_height, &conn)
-                    .map_err(format_error)?;
-            JsonCommandResponseV1::get_account { account }
-        }
-        JsonCommandRequestV1::update_account_name { account_id, name } => {
-            let _account = service
-                .update_account_name(&AccountID(account_id.clone()), name)
-                .map_err(format_error)?;
-            let local_height = service.ledger_db.num_blocks().map_err(format_error)?;
-            let network_state = service.network_state.read().map_err(format_error)?;
-            // network_height = network_block_index + 1
-            let network_height = network_state
-                .highest_block_index_on_network()
-                .map(|v| v + 1)
-                .unwrap_or(0);
-            let account = Account::get_decorated(
-                &AccountID(account_id),
-                local_height,
-                network_height,
-                &service.wallet_db.get_conn().map_err(format_error)?,
-            )
-            .map_err(format_error)?;
-            JsonCommandResponseV1::update_account_name { account }
-        }
-        JsonCommandRequestV1::delete_account { account_id } => {
-            service
-                .delete_account(&AccountID(account_id))
-                .map_err(format_error)?;
-            JsonCommandResponseV1::delete_account { success: true }
-        }
         JsonCommandRequestV1::get_all_txos_by_account { account_id } => {
             let txos = service.list_txos(&account_id).map_err(format_error)?;
             let txo_map: Map<String, serde_json::Value> = Map::from_iter(
@@ -386,47 +188,6 @@ where
         JsonCommandRequestV1::get_txo { txo_id } => {
             let result = service.get_txo(&txo_id).map_err(format_error)?;
             JsonCommandResponseV1::get_txo { txo: result }
-        }
-        JsonCommandRequestV1::get_wallet_status => {
-            let result = service.get_wallet_status().map_err(format_error)?;
-            let account_mapped: Vec<(String, serde_json::Value)> = result
-                .account_map
-                .iter()
-                .map(|(i, a)| {
-                    json_rpc::account::Account::try_from(a).and_then(|a| {
-                        serde_json::to_value(a)
-                            .and_then(|v| Ok((i.to_string(), v)))
-                            .map_err(|e| format!("Could not convert account map: {:?}", e))
-                    })
-                })
-                .collect::<Result<Vec<(String, serde_json::Value)>, String>>()?;
-            JsonCommandResponseV1::get_wallet_status {
-                status: JsonWalletStatus {
-                    object: "wallet_status".to_string(),
-                    network_height: result.network_block_count.to_string(),
-                    local_height: result.local_block_count.to_string(),
-                    is_synced_all: result.min_synced_block_index == result.network_block_count - 1,
-                    total_available_pmob: result.unspent.to_string(),
-                    total_pending_pmob: result.pending.to_string(),
-                    account_ids: result.account_ids.iter().map(|a| a.to_string()).collect(),
-                    account_map: Map::from_iter(account_mapped),
-                },
-            }
-        }
-        JsonCommandRequestV1::get_balance { account_id } => {
-            let balance = service
-                .get_balance_for_account(&AccountID(account_id))
-                .map_err(format_error)?;
-            let status = JsonBalanceResponse {
-                unspent: balance.unspent.to_string(),
-                pending: balance.pending.to_string(),
-                spent: balance.spent.to_string(),
-                secreted: balance.secreted.to_string(),
-                orphaned: balance.orphaned.to_string(),
-                local_block_count: balance.local_block_count.to_string(),
-                synced_blocks: balance.synced_blocks.to_string(),
-            };
-            JsonCommandResponseV1::get_balance { status }
         }
         JsonCommandRequestV1::create_address {
             account_id,
@@ -600,204 +361,13 @@ mod e2e {
     use rand::{rngs::StdRng, SeedableRng};
 
     #[test_with_logger]
-    fn test_account_crud(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
-
-        // Create Account
-        let body = json!({
-            "method": "create_account",
-            "params": {
-                "name": "Alice Main Account",
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        assert!(result.get("entropy").is_some());
-        let account_obj = result.get("account").unwrap();
-        assert!(account_obj.get("account_id").is_some());
-        assert_eq!(account_obj.get("name").unwrap(), "Alice Main Account");
-        assert_eq!(account_obj.get("network_height").unwrap(), "12");
-        assert_eq!(account_obj.get("local_height").unwrap(), "12");
-        assert_eq!(account_obj.get("account_height").unwrap(), "0");
-        assert_eq!(account_obj.get("is_synced").unwrap(), false);
-        assert_eq!(account_obj.get("available_pmob").unwrap(), "0");
-        assert_eq!(account_obj.get("pending_pmob").unwrap(), "0");
-        assert!(account_obj.get("main_address").is_some());
-        assert_eq!(account_obj.get("next_subaddress_index").unwrap(), "2");
-        assert_eq!(account_obj.get("recovery_mode").unwrap(), false);
-
-        let account_id = account_obj.get("account_id").unwrap();
-
-        // Read Accounts via List, Get
-        let body = json!({
-            "method": "get_all_accounts",
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let accounts = result.get("account_ids").unwrap().as_array().unwrap();
-        assert_eq!(accounts.len(), 1);
-        let account_map = result.get("account_map").unwrap().as_object().unwrap();
-        assert_eq!(
-            account_map
-                .get(accounts[0].as_str().unwrap())
-                .unwrap()
-                .get("account_id")
-                .unwrap(),
-            &account_id.clone()
-        );
-
-        let body = json!({
-            "method": "get_account",
-            "params": {
-                "account_id": *account_id,
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let name = result.get("account").unwrap().get("name").unwrap();
-        assert_eq!("Alice Main Account", name.as_str().unwrap());
-        // FIXME: assert balance
-
-        // Update Account
-        let body = json!({
-            "method": "update_account_name",
-            "params": {
-                "account_id": *account_id,
-                "name": "Eve Main Account",
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        assert_eq!(
-            result.get("account").unwrap().get("name").unwrap(),
-            "Eve Main Account"
-        );
-
-        let body = json!({
-            "method": "get_account",
-            "params": {
-                "account_id": *account_id,
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let name = result.get("account").unwrap().get("name").unwrap();
-        assert_eq!("Eve Main Account", name.as_str().unwrap());
-
-        // Delete Account
-        let body = json!({
-            "method": "delete_account",
-            "params": {
-                "account_id": *account_id,
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        assert_eq!(result.get("success").unwrap(), true);
-
-        let body = json!({
-            "method": "get_all_accounts",
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let accounts = result.get("account_ids").unwrap().as_array().unwrap();
-        assert_eq!(accounts.len(), 0);
-    }
-
-    #[test_with_logger]
-    fn test_import_account(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
-
-        let body = json!({
-            "method": "import_account",
-            "params": {
-                "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
-                "name": "Alice Main Account",
-                "first_block": "200",
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let account_obj = result.get("account").unwrap();
-        let public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
-        assert_eq!(public_address, "8JtpPPh9mV2PTLrrDz4f2j4PtUpNWnrRg8HKpnuwkZbj5j8bGqtNMNLC9E3zjzcw456215yMjkCVYK4FPZTX4gijYHiuDT31biNHrHmQmsU");
-        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
-        // Catches if a change results in changed accounts_ids, which should always be
-        // made to be backward compatible.
-        assert_eq!(
-            account_id,
-            "f9957a9d050ef8dff9d8ef6f66daa608081e631b2d918988311613343827b779"
-        );
-    }
-
-    #[test_with_logger]
-    fn test_create_account_with_first_block(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
-
-        let body = json!({
-            "method": "create_account",
-            "params": {
-                "name": "Alice Main Account",
-                "first_block": "200",
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let account_obj = result.get("account").unwrap();
-        assert!(account_obj.get("main_address").is_some());
-        assert!(result.get("entropy").is_some());
-        assert!(account_obj.get("account_id").is_some());
-    }
-
-    #[test_with_logger]
-    fn test_wallet_status(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
-
-        let body = json!({
-            "method": "create_account",
-            "params": {
-                "name": "Alice Main Account",
-            }
-        });
-        let _result = dispatch(&client, body, &logger).get("result").unwrap();
-
-        let body = json!({
-            "method": "get_wallet_status",
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let status = result.get("status").unwrap();
-        assert_eq!(status.get("network_height").unwrap(), "12");
-        assert_eq!(status.get("local_height").unwrap(), "12");
-        assert_eq!(status.get("is_synced_all").unwrap(), false);
-        assert_eq!(status.get("total_available_pmob").unwrap(), "0");
-        assert_eq!(status.get("total_pending_pmob").unwrap(), "0");
-        assert_eq!(
-            status.get("account_ids").unwrap().as_array().unwrap().len(),
-            1
-        );
-        assert_eq!(
-            status
-                .get("account_map")
-                .unwrap()
-                .as_object()
-                .unwrap()
-                .len(),
-            1
-        );
-    }
-
-    #[test_with_logger]
     fn test_get_all_txos(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
+            "api_version": "2",
             "method": "create_account",
             "params": {
                 "name": "Alice Main Account",
@@ -858,6 +428,7 @@ mod e2e {
 
         // Check the overall balance for the account
         let body = json!({
+            "api_version": "2",
             "method": "get_balance",
             "params": {
                 "account_id": account_id,
@@ -877,6 +448,7 @@ mod e2e {
 
         // Add an account
         let body = json!({
+            "api_version": "2",
             "method": "create_account",
             "params": {
                 "name": "Alice Main Account",
@@ -1100,6 +672,7 @@ mod e2e {
 
         // Add an account
         let body = json!({
+            "api_version": "2",
             "method": "create_account",
             "params": {
                 "name": "Alice Main Account",

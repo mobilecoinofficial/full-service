@@ -97,6 +97,13 @@ pub enum WalletDbError {
 
     /// The Txo has neither received_to nor spent_from specified.
     MalformedTxoDatabaseEntry,
+
+    /// The account key and the entropy provided to create account do not match.
+    AccountSecretsDoNotMatch,
+
+    /// The account cannot be created without either an entropy or an account
+    /// key.
+    InsufficientSecretsToCreateAccount,
 }
 
 impl From<diesel::result::Error> for WalletDbError {

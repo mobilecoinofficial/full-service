@@ -554,7 +554,8 @@ mod tests {
 
         // Now we'll ingest them.
         let (account_id, _address) = Account::create(
-            &root_id.root_entropy,
+            None,
+            Some(&root_id.root_entropy),
             Some(0),
             None,
             "",

@@ -10,7 +10,7 @@ use crate::{
     error::WalletServiceError,
     service::WalletService,
 };
-use mc_account_keys::RootEntropy;
+use mc_account_keys::{AccountKey, RootEntropy};
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
@@ -36,10 +36,18 @@ pub trait AccountService {
         first_block_index: Option<u64>,
     ) -> Result<Account, WalletServiceError>;
 
-    /// Import an existing account to the wallet.
+    /// Import an existing account to the wallet using the entropy.
     fn import_account_entropy(
         &self,
         entropy: String,
+        name: Option<String>,
+        first_block_index: Option<u64>,
+    ) -> Result<Account, WalletServiceError>;
+
+    /// Import an existing account to the wallet using the account key.
+    fn import_account_key(
+        &self,
+        account_key: AccountKey,
         name: Option<String>,
         first_block_index: Option<u64>,
     ) -> Result<Account, WalletServiceError>;
@@ -82,11 +90,21 @@ where
         let mut rng = rand::thread_rng();
         let entropy = RootEntropy::from_random(&mut rng);
 
+        // Since we are creating the account from randomness, it is highly unlikely that
+        // it would have collided with another account that already received funds. For
+        // this reason, start scanning at the current network block index.
+        let first_block = first_block_index.unwrap_or(self.get_network_block_index()?);
+
+        // The earliest we could start scanning is the current highest block index of
+        // the local ledger.
+        let import_block_index = self.ledger_db.num_blocks()? - 1;
+
         let conn = self.wallet_db.get_conn()?;
         let (account_id, _public_address_b58) = Account::create(
-            &entropy,
-            first_block_index,
             None,
+            Some(&entropy),
+            Some(first_block),
+            Some(import_block_index),
             &name.unwrap_or_else(|| "".to_string()),
             &conn,
         )?;
@@ -111,11 +129,42 @@ where
         let mut entropy_bytes = [0u8; 32];
         hex::decode_to_slice(entropy, &mut entropy_bytes)?;
 
+        // We record the local highest block index because that is the earliest we could
+        // start scanning.
         let import_block = self.ledger_db.num_blocks()? - 1;
 
         let conn = self.wallet_db.get_conn()?;
         Ok(Account::import(
-            &RootEntropy::from(&entropy_bytes),
+            None,
+            Some(&RootEntropy::from(&entropy_bytes)),
+            name,
+            import_block,
+            first_block_index,
+            &conn,
+        )?)
+    }
+
+    fn import_account_key(
+        &self,
+        account_key: AccountKey,
+        name: Option<String>,
+        first_block_index: Option<u64>,
+    ) -> Result<Account, WalletServiceError> {
+        log::info!(
+            self.logger,
+            "Importing account {:?} with first block: {:?}",
+            name,
+            first_block_index,
+        );
+
+        // We record the local highest block index because that is the earliest we could
+        // start scanning.
+        let import_block = self.ledger_db.num_blocks()? - 1;
+
+        let conn = self.wallet_db.get_conn()?;
+        Ok(Account::import(
+            Some(&account_key),
+            None,
             name,
             import_block,
             first_block_index,

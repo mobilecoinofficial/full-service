@@ -16,40 +16,6 @@ use serde_derive::{Deserialize, Serialize};
 use serde_json::Map;
 use std::convert::TryFrom;
 
-#[derive(Deserialize, Serialize, Default, Debug)]
-pub struct JsonCreateAccountResponse {
-    pub entropy: String,
-    pub account: JsonAccount,
-}
-
-#[derive(Deserialize, Serialize, Default, Debug, Clone)]
-pub struct JsonAccount {
-    pub object: String,
-    pub account_id: String,
-    pub name: String,
-    pub network_height: String,
-    pub local_height: String,
-    pub account_height: String,
-    pub is_synced: bool,
-    pub available_pmob: String,
-    pub pending_pmob: String,
-    pub main_address: String,
-    pub next_subaddress_index: String,
-    pub recovery_mode: bool,
-}
-
-#[derive(Deserialize, Serialize, Default, Debug, Clone)]
-pub struct JsonWalletStatus {
-    pub object: String,
-    pub network_height: String,
-    pub local_height: String,
-    pub is_synced_all: bool,
-    pub total_available_pmob: String,
-    pub total_pending_pmob: String,
-    pub account_ids: Vec<String>,
-    pub account_map: Map<String, serde_json::Value>,
-}
-
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct JsonTxo {
     pub object: String,
@@ -119,17 +85,6 @@ impl JsonTxo {
             offset_count: txo_details.txo.id,
         }
     }
-}
-
-#[derive(Deserialize, Serialize, Default, Debug)]
-pub struct JsonBalanceResponse {
-    pub unspent: String,
-    pub pending: String,
-    pub spent: String,
-    pub secreted: String,
-    pub orphaned: String,
-    pub local_block_count: String,
-    pub synced_blocks: String,
 }
 
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
