@@ -56,12 +56,6 @@ pub trait GiftCodeModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<GiftCode, WalletDbError>;
 
-    /// Get the decrypted entropy for a given Gift Code.
-    fn get_decrypted_entropy(
-        &self,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<RootEntropy, WalletDbError>;
-
     /// Get all Gift Codes in this wallet.
     fn list_all(
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
@@ -143,17 +137,6 @@ impl GiftCodeModel for GiftCode {
         }
     }
 
-    fn get_decrypted_entropy(
-        &self,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<RootEntropy, WalletDbError> {
-        // FIXME: implement Message on RootEntropy so we can use decrypt_obj
-        let entropy: Vec<u8> = conn.encryption_provider.decrypt(&self.entropy)?;
-        let mut entropy_slice = [0u8; 32];
-        entropy_slice.copy_from_slice(&entropy);
-        Ok(RootEntropy::from(&entropy_slice))
-    }
-
     fn list_all(
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<GiftCode>, WalletDbError> {
@@ -204,7 +187,7 @@ mod tests {
         let txo_public_key: CompressedRistrettoPublic =
             RistrettoPublic::from_random(&mut rng).into();
         // Note: This value isn't actually associated with the txo_public_key, but is
-        // sufficient       for this test to merely log a value.
+        // sufficient for this test to merely log a value.
         let value = rng.next_u64();
 
         let memo = "Test".to_string();
@@ -225,14 +208,13 @@ mod tests {
 
         assert_eq!(gift_code_b58, "9tzLePjpd9wDmk6a2ek7pg9UPGgSbBp6QaSiyqghUvPX54iiwV8XkNUkBvWmrRkA5CSDtif9jyoNN4ruAaVNKsssXASWsFpGVTiEX3mngspUqx67");
 
-        let gotten = GiftCode::get(&gift_code_b58, &wallet_db.get_conn().unwrap()).unwrap();
+        let gotten =
+            GiftCode::get(&gift_code.gift_code_b58, &wallet_db.get_conn().unwrap()).unwrap();
 
-        let encrypted_entropy =
-            EncryptionProvider::encrypt_with_password(entropy.as_ref(), &password_hash).unwrap();
         let expected_gift_code = GiftCode {
             id: 1,
-            gift_code_b58: gift_code_b58.clone(),
-            entropy: encrypted_entropy,
+            gift_code_b58: gift_code.gift_code_b58.clone(),
+            entropy: entropy.bytes.to_vec(),
             txo_public_key: txo_public_key.as_bytes().to_vec(),
             value: value as i64,
             memo,
@@ -242,9 +224,7 @@ mod tests {
         };
         assert_eq!(gotten, expected_gift_code);
         assert_eq!(
-            gotten
-                .get_decrypted_entropy(&wallet_db.get_conn().unwrap())
-                .unwrap(),
+            gotten.entropy
             entropy
         );
 

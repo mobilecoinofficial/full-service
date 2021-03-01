@@ -38,6 +38,7 @@ use mc_ledger_db::Ledger;
 use mc_transaction_core::{constants::MINIMUM_FEE, get_tx_out_shared_secret};
 use mc_util_from_random::FromRandom;
 
+use crate::service::transaction::TransactionService;
 use diesel::prelude::*;
 use displaydoc::Display;
 use mc_fog_report_validation::FogPubkeyResolver;
@@ -191,9 +192,9 @@ pub trait GiftCodeService {
     fn consume_gift_code(
         &self,
         gift_code_b58: &EncodedGiftCode,
-        account_id_hex: &AccountID,
+        account_id: &AccountID,
         assigned_subaddress_b58: Option<String>,
-    ) -> Result<(TransactionLog, GiftCode), WalletServiceError>;
+    ) -> Result<(TransactionLog, GiftCodeDetails), WalletServiceError>;
     // FIXME: Once we've refactored transaction building to its own service, this
     // can return GiftCodeError
 
@@ -201,7 +202,7 @@ pub trait GiftCodeService {
     fn register_consumed(
         &self,
         gift_code_b58: &EncodedGiftCode,
-        gift_code_details: &GiftCode,
+        gift_code_details: &GiftCodeDetails,
         transaction_log_id: String,
         poll_interval: Option<u64>,
     ) -> Result<GiftCode, GiftCodeServiceError>;
@@ -405,9 +406,9 @@ where
     fn consume_gift_code(
         &self,
         gift_code_b58: &EncodedGiftCode,
-        account_id_hex: &AccountID,
+        account_id: &AccountID,
         assigned_subaddress_b58: Option<String>,
-    ) -> Result<(TransactionLog, GiftCode), WalletServiceError> {
+    ) -> Result<(TransactionLog, GiftCodeDetails), WalletServiceError> {
         log::info!(
             self.logger,
             "Consuming gift code {:?} to account_id {:?} at address {:?}",
@@ -452,9 +453,9 @@ where
         ) {
             // The account may already be in the wallet if we constructed this gift code in this
             // wallet.
-            Ok(account) => (account.account_id_hex, account.id),
+            Ok(account) => (account.account_id_hex.to_string(), account.id),
             Err(WalletDbError::AccountNotFound(_)) => {
-                let json_gift_code_account = self.import_account(
+                let account = self.import_account(
                     hex::encode(root_entropy),
                     Some(format!("Gift Code: {}", memo)),
                     Some(scan_block),
@@ -462,12 +463,9 @@ where
                 log::info!(
                     self.logger,
                     "Imported gift code account {:?}.",
-                    json_gift_code_account.account_id
+                    account.account_id_hex
                 );
-                (
-                    json_gift_code_account.account_id,
-                    json_gift_code_account.offset_count,
-                )
+                (account.account_id_hex, account.id)
             }
             Err(e) => return Err(e.into()),
         };
@@ -476,7 +474,10 @@ where
         // account.
         let destination_address = assigned_subaddress_b58.unwrap_or_else(|| {
             let json_address = self
-                .create_assigned_subaddress(&account_id_hex, Some(&format!("Gift Code: {}", memo)))
+                .create_assigned_subaddress(
+                    &account_id.to_string(),
+                    Some(&format!("Gift Code: {}", memo)),
+                )
                 .unwrap();
             json_address.public_address
         });
@@ -524,7 +525,7 @@ where
             log::info!(
                 self.logger,
                 "\x1b[1;36m Not yet spendable for account {:?}. Txo = {:?}\x1b[0m",
-                gift_code_account_id_hex,
+                gift_code_account_id_hex.to_string(),
                 txo
             );
             let txos =
@@ -537,7 +538,7 @@ where
 
         // We go with all the defaults because there is only one TXO in this account to
         // spend.
-        let submit_response = self.send_transaction(
+        let (transaction_log, _associated_txos) = self.build_and_submit(
             &gift_code_account_id_hex,
             &destination_address,
             (value - MINIMUM_FEE).to_string(),
@@ -550,7 +551,7 @@ where
         log::info!(
             self.logger,
             "Submitted transaction to consume gift code with id {:?}",
-            submit_response.transaction_id
+            transaction_log.transaction_id_hex
         );
         let details = GiftCodeDetails {
             root_entropy: root_entropy.to_vec(),
@@ -559,13 +560,13 @@ where
             memo: memo.to_string(),
             account_id: gift_code_account_id,
         };
-        Ok((submit_response, details))
+        Ok((transaction_log, details))
     }
 
     fn register_consumed(
         &self,
-        gift_code_b58: String,
-        gift_code_details: GiftCode,
+        gift_code_b58: &EncodedGiftCode,
+        gift_code_details: &GiftCodeDetails,
         transaction_log_id: String,
         poll_interval: Option<u64>,
     ) -> Result<GiftCode, GiftCodeServiceError> {
@@ -667,9 +668,9 @@ mod tests {
 
         // Add a block with a transaction for Alice
         let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
-        let alice_public_address = &alice_account_key
-            .subaddress(alice.main_subaddress_index as u64)
-            .unwrap();
+        let alice_public_address =
+            &alice_account_key.subaddress(alice.main_subaddress_index as u64);
+
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![alice_public_address.clone()],
@@ -701,7 +702,7 @@ mod tests {
             .unwrap();
         log::info!(logger, "Built and submitted gift code transaction");
 
-        let json_transaction_log = service
+        let (transaction_log, _associated_txos) = service
             .get_transaction_log(&submit_response.transaction_id_hex)
             .unwrap();
         let gift_code_public_address =
@@ -710,11 +711,6 @@ mod tests {
         // NOTE: Submitting to the test ledger via propose_tx doesn't actually add the
         // block to the ledger, because no consensus is occurring, so this is the
         // workaround.
-        let (transaction_log, _associated_txos) = {
-            let conn = service.wallet_db.get_conn().unwrap();
-            TransactionLog::get(&json_transaction_log.transaction_log_id, &conn).unwrap()
-        };
-
         {
             log::info!(logger, "Adding block from transaction log");
             let conn = service.wallet_db.get_conn().unwrap();
@@ -727,7 +723,7 @@ mod tests {
             .unwrap();
         assert_eq!(
             gift_code_entropy,
-            EncodedGiftCode(hex::encode(gift_code.entropy))
+            GiftCodeEntropy(hex::encode(gift_code.entropy))
         );
 
         // Get the components of the gift code from the printable wrapper
