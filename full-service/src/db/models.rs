@@ -278,3 +278,33 @@ pub struct NewTransactionTxoType<'a> {
     pub txo_id_hex: &'a str,
     pub transaction_txo_type: &'a str,
 }
+
+#[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
+#[belongs_to(Account, foreign_key = "id")]
+#[belongs_to(TransactionLog, foreign_key = "id")]
+#[table_name = "gift_codes"]
+#[primary_key(id)]
+pub struct GiftCode {
+    pub id: i32,
+    pub gift_code_b58: String,
+    pub entropy: Vec<u8>,
+    pub txo_public_key: Vec<u8>,
+    pub value: i64,
+    pub memo: String,
+    pub account_id: i32,
+    pub build_log_id: Option<i32>,
+    pub consume_log_id: Option<i32>,
+}
+
+#[derive(Insertable)]
+#[table_name = "gift_codes"]
+pub struct NewGiftCode<'a> {
+    pub gift_code_b58: &'a str,
+    pub entropy: &'a Vec<u8>,
+    pub txo_public_key: &'a Vec<u8>,
+    pub value: i64,
+    pub memo: &'a str,
+    pub account_id: i32,
+    pub build_log_id: Option<i32>,
+    pub consume_log_id: Option<i32>,
+}

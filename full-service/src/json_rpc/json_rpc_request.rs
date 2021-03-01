@@ -70,9 +70,6 @@ pub enum JsonCommandRequestV2 {
         name: Option<String>,
         first_block_index: Option<String>,
     },
-    export_account_secrets {
-        account_id: String,
-    },
     get_all_accounts,
     get_account {
         account_id: String,
@@ -172,4 +169,18 @@ pub enum JsonCommandRequestV2 {
     create_receiver_receipts {
         tx_proposal: TxProposal,
     },
+    build_gift_code {
+        account_id: String,
+        value: String,
+        memo: Option<String>,
+        input_txo_ids: Option<Vec<String>>,
+        fee: Option<String>,
+        tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
+        poll_interval: Option<u64>,
+    },
+    get_gift_code {
+        gift_code_b58: String,
+    },
+    get_all_gift_codes,
 }

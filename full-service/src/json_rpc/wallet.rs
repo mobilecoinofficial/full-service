@@ -23,9 +23,9 @@ use crate::{
     service,
     service::{
         account::AccountService, address::AddressService, balance::BalanceService,
-        ledger::LedgerService, proof::ProofService, receipt::ReceiptService,
-        transaction::TransactionService, transaction_log::TransactionLogService, txo::TxoService,
-        WalletService,
+        gift_code::GiftCodeService, ledger::LedgerService, proof::ProofService,
+        receipt::ReceiptService, transaction::TransactionService,
+        transaction_log::TransactionLogService, txo::TxoService, WalletService,
     },
 };
 use mc_common::logger::global_log;
@@ -535,6 +535,44 @@ where
                 receiver_receipts: json_receipts,
             }
         }
+        JsonCommandRequestV2::build_gift_code {
+            account_id,
+            value,
+            memo,
+            input_txo_ids,
+            fee,
+            tombstone_block,
+            max_spendable_value,
+            poll_interval,
+        } => {
+            let (submit_response, gift_code_entropy) = service
+                .build_and_submit_gift_code(
+                    account_id,
+                    value,
+                    memo,
+                    input_txo_ids.as_ref(),
+                    fee,
+                    tombstone_block,
+                    max_spendable_value,
+                )
+                .map_err(format_error)?;
+            let gift_code = service
+                .register_gift_code(
+                    submit_response.transaction_id,
+                    gift_code_entropy,
+                    poll_interval,
+                )
+                .map_err(format_error)?;
+            JsonCommandResponseV2::build_gift_code { gift_code }
+        }
+        JsonCommandRequestV2::get_gift_code { gift_code_b58 } => {
+            JsonCommandResponseV2::get_gift_code {
+                gift_code: service.get_gift_code(gift_code_b58).map_err(format_error)?,
+            }
+        }
+        JsonCommandRequestV2::get_all_gift_codes {} => JsonCommandResponseV2::get_all_gift_codes {
+            gift_codes: service.list_gift_codes().map_err(format_error)?,
+        },
     };
     let response = Json(JsonRPCResponse::from(result));
     Ok(response)

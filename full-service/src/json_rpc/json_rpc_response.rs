@@ -257,4 +257,13 @@ pub enum JsonCommandResponseV2 {
     create_receiver_receipts {
         receiver_receipts: Vec<ReceiverReceipt>,
     },
+    build_gift_code {
+        gift_code: JsonGiftCode,
+    },
+    get_gift_code {
+        gift_code: JsonGiftCode,
+    },
+    get_all_gift_codes {
+        gift_codes: Vec<JsonGiftCode>,
+    },
 }
