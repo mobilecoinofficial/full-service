@@ -39,7 +39,13 @@ use mc_common::{
 };
 use mc_crypto_keys::RistrettoPublic;
 use mc_ledger_db::{Ledger, LedgerDB};
-use mc_transaction_core::{get_tx_out_shared_secret, onetime_keys::{recover_onetime_private_key, recover_public_subaddress_spend_key}, ring_signature::KeyImage, tx::TxOut, AmountError};
+use mc_transaction_core::{
+    get_tx_out_shared_secret,
+    onetime_keys::{recover_onetime_private_key, recover_public_subaddress_spend_key},
+    ring_signature::KeyImage,
+    tx::TxOut,
+    AmountError,
+};
 
 use crate::service::SyncError;
 use diesel::{
@@ -317,7 +323,8 @@ pub fn incrementally_sync_account(
 
     let conn = wallet_db.get_conn()?;
     for _ in 0..BLOCKS_PER_ACCOUNT_UPDATE {
-        // Update the account w.r.t. this block. Database operations should be transactional.
+        // Update the account w.r.t. this block. Database operations should be
+        // transactional.
         let sync_status = conn.transaction::<AccountSyncStatus, SyncError, _>(|| {
             let account = Account::get(&AccountID(account_id.to_string()), &conn)?;
             let block_index = account.next_block as u64;
@@ -336,8 +343,8 @@ pub fn incrementally_sync_account(
                 logger,
             )?;
 
-            // Key images spent in this block that correspond to prior TXOs owned by `account`.
-            // This also updates account.next_block in the DB.
+            // Key images spent in this block that correspond to prior TXOs owned by
+            // `account`. This also updates account.next_block in the DB.
             account.update_spent_and_increment_next_block(
                 account.next_block,
                 block_contents.key_images,
@@ -345,12 +352,7 @@ pub fn incrementally_sync_account(
             )?;
 
             // Include received TXOs in the TransactionLog.
-            TransactionLog::log_received(
-                &output_txo_ids,
-                &account,
-                block_index,
-                &conn,
-            )?;
+            TransactionLog::log_received(&output_txo_ids, &account, block_index, &conn)?;
             Ok(AccountSyncStatus::MoreBlocksPotentiallyAvailable)
         })?;
 
@@ -361,7 +363,6 @@ pub fn incrementally_sync_account(
     }
     Ok(AccountSyncStatus::MoreBlocksPotentiallyAvailable)
 }
-
 
 /// TODO: What does this do?
 ///
