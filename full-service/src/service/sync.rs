@@ -318,21 +318,21 @@ pub fn incrementally_sync_account(
     account_id: &str,
     logger: &Logger,
 ) -> Result<AccountSyncStatus, SyncError> {
+    // Index of the last block currently in the ledger.
+    let final_block_index = ledger_db.num_blocks()? - 1;
+
     for _ in 0..BLOCKS_PER_ACCOUNT_UPDATE {
+        // TODO: why does this need to be opened inside the for loop?
         let conn = wallet_db.get_conn()?;
         let sync_status = conn.transaction::<AccountSyncStatus, SyncError, _>(|| {
-            // Get the account data. If it is no longer available, the account has been
-            // removed and we can simply return.
             let account = Account::get(&AccountID(account_id.to_string()), &conn)?;
-            let block_contents = match ledger_db.get_block_contents(account.next_block as u64) {
-                Ok(block_contents) => block_contents,
-                Err(mc_ledger_db::Error::NotFound) => {
-                    return Ok(AccountSyncStatus::Synced);
-                }
-                Err(err) => {
-                    return Err(err.into());
-                }
-            };
+            let block_index = account.next_block as u64;
+            if block_index > final_block_index {
+                // This account has been synced with all blocks currently in the ledger.
+                return Ok(AccountSyncStatus::Synced);
+            }
+
+            let block_contents = ledger_db.get_block_contents(account.next_block as u64)?;
 
             log::trace!(
                 logger,
