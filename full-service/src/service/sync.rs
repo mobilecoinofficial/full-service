@@ -371,8 +371,9 @@ pub fn incrementally_sync_account(
             )?;
             Ok(AccountSyncStatus::MoreBlocksPotentiallyAvailable)
         })?;
-        // Early out of the loop if we hit Synced
-        if let AccountSyncStatus::Synced = sync_status {
+
+        // Early exit.
+        if sync_status == AccountSyncStatus::Synced {
             return Ok(AccountSyncStatus::Synced);
         }
     }
