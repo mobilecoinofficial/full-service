@@ -900,7 +900,7 @@ mod tests {
             transaction_log::TransactionLogModel,
         },
         service::{
-            sync::{sync_account, SyncThread},
+            sync::{incrementally_sync_account, SyncThread},
             transaction_builder::WalletTransactionBuilder,
         },
         test_utils::{
@@ -1424,7 +1424,7 @@ mod tests {
         .unwrap();
 
         // Process the txos in the ledger into the DB
-        sync_account(
+        incrementally_sync_account(
             &ledger_db,
             &wallet_db,
             &AccountID::from(&src_account).to_string(),

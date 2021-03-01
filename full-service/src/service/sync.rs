@@ -24,16 +24,13 @@
 //! removing the account id from the hashset, it would be placed back into the
 //! queue to be picked up by the next available worker thread.
 
-use crate::{
-    db::{
-        account::{AccountID, AccountModel},
-        assigned_subaddress::AssignedSubaddressModel,
-        models::{Account, AssignedSubaddress, TransactionLog, Txo},
-        transaction_log::TransactionLogModel,
-        txo::TxoModel,
-        WalletDb, WalletDbError,
-    },
-    error::SyncError,
+use crate::db::{
+    account::{AccountID, AccountModel},
+    assigned_subaddress::AssignedSubaddressModel,
+    models::{Account, AssignedSubaddress, TransactionLog, Txo},
+    transaction_log::TransactionLogModel,
+    txo::TxoModel,
+    WalletDb, WalletDbError,
 };
 use mc_account_keys::AccountKey;
 use mc_common::{
@@ -50,6 +47,7 @@ use mc_transaction_core::{
     AmountError,
 };
 
+use crate::service::SyncError;
 use diesel::{
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},
@@ -63,24 +61,27 @@ use std::{
     thread,
 };
 
-///  The maximal number of blocks a worker thread would process at once.
-const MAX_BLOCKS_PROCESSING_CHUNK_SIZE: usize = 5;
+///  The number of blocks processed by a worker when incrementally updating an
+/// account.
+const BLOCKS_PER_ACCOUNT_UPDATE: u64 = 5;
 
 /// The AccountId corresponds to the Account's primary key: account_key_hex.
 pub type AccountId = String;
 
-/// Message type our crossbeam channel uses to communicate with the worker
-/// thread pull.
+/// Commands for the Sync worker.
 enum SyncMsg {
+    /// ???
     SyncAccount(AccountId),
+    /// The worker should shut down gracefully.
     Stop,
 }
 
 /// Possible return values for the `sync_account` function.
 #[derive(Debug, Eq, PartialEq)]
-pub enum SyncAccountOk {
-    /// No more blocks are currently available for processing.
-    NoMoreBlocks,
+pub enum AccountSyncStatus {
+    /// The account has been updated against all available blocks.
+    /// TODO: include the last block index that was processed.
+    Synced,
 
     /// More blocks might be available.
     MoreBlocksPotentiallyAvailable,
@@ -96,39 +97,46 @@ pub struct SyncThread {
 }
 
 impl SyncThread {
+    /// Dispatches account sync tasks to workers.
+    ///
+    /// # Arguments
+    /// * `ledger_db` - Local instance of the MobileCoin ledger.
+    /// * `wallet_db` - The wallet database.
+    /// * `num_workers` - Number of worker threads. Defaults to num_cpus.
+    /// * `logger` - Logger.
     pub fn start(
         ledger_db: LedgerDB,
         wallet_db: WalletDb,
         num_workers: Option<usize>,
         logger: Logger,
     ) -> Self {
-        // Queue for sending jobs to our worker threads.
+        // Worker task queue.
         let (sender, receiver) = crossbeam_channel::unbounded::<SyncMsg>();
 
-        // A hashset to keep track of which AccountIds were already sent to the queue,
-        // preventing them from being sent again until they are processed.
+        // AccountIds that have been added to the queue, but have not yet been
+        // processed.
         let queued_account_ids = Arc::new(Mutex::new(HashSet::<AccountId>::default()));
 
         // Create worker threads.
         let mut worker_join_handles = Vec::new();
 
-        for idx in 0..num_workers.unwrap_or_else(num_cpus::get) {
-            let thread_ledger_db = ledger_db.clone();
-            let thread_wallet_db = wallet_db.clone();
-            let thread_sender = sender.clone();
-            let thread_receiver = receiver.clone();
-            let thread_queued_account_ids = queued_account_ids.clone();
-            let thread_logger = logger.clone();
+        for worker_index in 0..num_workers.unwrap_or_else(num_cpus::get) {
+            let ledger_db = ledger_db.clone();
+            let wallet_db = wallet_db.clone();
+            let sender = sender.clone();
+            let receiver = receiver.clone();
+            let queued_account_ids = queued_account_ids.clone();
+            let logger = logger.clone();
             let join_handle = thread::Builder::new()
-                .name(format!("sync_worker_{}", idx))
+                .name(format!("sync_worker_{}", worker_index))
                 .spawn(move || {
                     sync_thread_entry_point(
-                        thread_ledger_db,
-                        thread_wallet_db,
-                        thread_sender,
-                        thread_receiver,
-                        thread_queued_account_ids,
-                        thread_logger,
+                        ledger_db,
+                        wallet_db,
+                        sender,
+                        receiver,
+                        queued_account_ids,
+                        logger,
                     );
                 })
                 .expect("failed starting sync worker thread");
@@ -137,7 +145,7 @@ impl SyncThread {
         }
 
         // Start the main sync thread.
-        // This thread constantly accounts the list of account ids we are aware of,
+        // This thread constantly updates the list of account ids we are aware of,
         // and adds new one into our cyclic queue.
         let stop_requested = Arc::new(AtomicBool::new(false));
         let thread_stop_requested = stop_requested.clone();
@@ -154,10 +162,7 @@ impl SyncThread {
                             break;
                         }
 
-                        // Get the current number of blocks in ledger.
-                        let num_blocks = ledger_db
-                            .num_blocks()
-                            .expect("failed getting number of blocks");
+                        let num_blocks = ledger_db.num_blocks().unwrap(); // TODO: handle unwrap
 
                         // A flag to track whether we sent a message to our work queue.
                         // If we sent a message, that means new blocks have arrived and we can skip
@@ -171,9 +176,9 @@ impl SyncThread {
                         for account in Account::list_all(
                             &wallet_db
                                 .get_conn()
-                                .expect("Could not get connection to DB"),
+                                .expect("Could not get WalletDB connection."),
                         )
-                        .expect("Failed getting accounts from WalletDb")
+                        .expect("Failed getting accounts from WalletDb.")
                         {
                             // If there are no new blocks for this account, don't do anything.
                             if account.next_block >= num_blocks as i64 {
@@ -195,7 +200,7 @@ impl SyncThread {
                             // This account has blocks to process, put it in the queue.
                             log::debug!(
                                 logger,
-                                "sync thread noticed account {} needs syncing",
+                                "Sync thread noticed account {} needs syncing",
                                 account.account_id_hex,
                             );
                             sender
@@ -217,7 +222,7 @@ impl SyncThread {
                     for _ in 0..worker_join_handles.len() {
                         sender
                             .send(SyncMsg::Stop)
-                            .expect("failed sending stop message");
+                            .expect("Failed sending stop message");
                     }
 
                     let num_workers = worker_join_handles.len();
@@ -234,7 +239,7 @@ impl SyncThread {
 
                     log::debug!(logger, "SyncThread stopped.");
                 })
-                .expect("failed starting main sync thread"),
+                .expect("Failed starting main sync thread"),
         );
 
         Self {
@@ -268,38 +273,33 @@ fn sync_thread_entry_point(
     for msg in receiver.iter() {
         match msg {
             SyncMsg::SyncAccount(account_id) => {
-                match sync_account(&ledger_db, &wallet_db, &account_id, &logger) {
+                match incrementally_sync_account(&ledger_db, &wallet_db, &account_id, &logger) {
                     // Success - No more blocks are currently available.
-                    Ok(SyncAccountOk::NoMoreBlocks) => {
+                    Ok(AccountSyncStatus::Synced) => {
                         // Remove the account id from the list of queued ones so that the main
                         // thread could queue it again if necessary.
-                        log::trace!(logger, "{}: sync_account returned NoMoreBlocks", account_id);
-
                         let mut queued_account_ids =
                             queued_account_ids.lock().expect("mutex poisoned");
                         queued_account_ids.remove(&account_id);
                     }
 
                     // Success - more blocks might be available.
-                    Ok(SyncAccountOk::MoreBlocksPotentiallyAvailable) => {
+                    Ok(AccountSyncStatus::MoreBlocksPotentiallyAvailable) => {
                         // Put the account id back in the queue for further processing.
-                        log::trace!(
-                            logger,
-                            "{}: sync_account returned MoreBlocksPotentiallyAvailable",
-                            account_id,
-                        );
-
                         sender
                             .send(SyncMsg::SyncAccount(account_id))
-                            .expect("failed sending to channel");
+                            .expect("Failed sending to channel");
                     }
 
-                    // Errors that are acceptable - nothing to do.
-                    Err(SyncError::AccountNotFound) => {}
+                    // Account not found. Do nothing.
+                    Err(SyncError::AccountNotFound) => {
+                        // This may mean that an account was recently deleted.
+                        log::warn!(logger, "Account not found: {}", account_id);
+                    }
 
-                    // Other errors - log.
+                    // Other errors.
                     Err(err) => {
-                        log::error!(logger, "error syncing account {}: {:?}", account_id, err);
+                        log::error!(logger, "Error syncing account {}: {:?}", account_id, err);
                     }
                 };
             }
@@ -312,22 +312,22 @@ fn sync_thread_entry_point(
 }
 
 /// Sync a single account.
-pub fn sync_account(
+pub fn incrementally_sync_account(
     ledger_db: &LedgerDB,
     wallet_db: &WalletDb,
     account_id: &str,
     logger: &Logger,
-) -> Result<SyncAccountOk, SyncError> {
-    for _ in 0..MAX_BLOCKS_PROCESSING_CHUNK_SIZE {
+) -> Result<AccountSyncStatus, SyncError> {
+    for _ in 0..BLOCKS_PER_ACCOUNT_UPDATE {
         let conn = wallet_db.get_conn()?;
-        let sync_status = conn.transaction::<SyncAccountOk, SyncError, _>(|| {
+        let sync_status = conn.transaction::<AccountSyncStatus, SyncError, _>(|| {
             // Get the account data. If it is no longer available, the account has been
             // removed and we can simply return.
             let account = Account::get(&AccountID(account_id.to_string()), &conn)?;
             let block_contents = match ledger_db.get_block_contents(account.next_block as u64) {
                 Ok(block_contents) => block_contents,
                 Err(mc_ledger_db::Error::NotFound) => {
-                    return Ok(SyncAccountOk::NoMoreBlocks);
+                    return Ok(AccountSyncStatus::Synced);
                 }
                 Err(err) => {
                     return Err(err.into());
@@ -346,7 +346,7 @@ pub fn sync_account(
             // Match tx outs into UTXOs.
             let output_txo_ids = process_txos(
                 &block_contents.outputs,
-                account.next_block,
+                account.next_block as u64,
                 &account,
                 &conn,
                 logger,
@@ -369,15 +369,82 @@ pub fn sync_account(
                 account.next_block as u64,
                 &conn,
             )?;
-            Ok(SyncAccountOk::MoreBlocksPotentiallyAvailable)
+            Ok(AccountSyncStatus::MoreBlocksPotentiallyAvailable)
         })?;
-        // Early out of the loop if we hit NoMoreBlocks
-        if let SyncAccountOk::NoMoreBlocks = sync_status {
-            return Ok(SyncAccountOk::NoMoreBlocks);
+        // Early out of the loop if we hit Synced
+        if let AccountSyncStatus::Synced = sync_status {
+            return Ok(AccountSyncStatus::Synced);
         }
     }
-    Ok(SyncAccountOk::MoreBlocksPotentiallyAvailable)
+    Ok(AccountSyncStatus::MoreBlocksPotentiallyAvailable)
 }
+
+// /// Updates an Account to reflect the next interval of blocks.
+// ///
+// ///
+// /// # Arguments
+// /// * `ledger_db` -
+// /// * `wallet_db` - TODO: pass the connection instead?
+// /// * `account_id` - TODO: pass Account, or just the view key instead?
+// /// * `logger` - Logger.
+// pub fn incrementally_sync_account(
+//     ledger_db: &LedgerDB,
+//     wallet_db: &WalletDb,
+//     account_id: &str,
+//     logger: &Logger,
+// ) -> Result<AccountSyncStatus, SyncError> {
+//     // Index of the last block in the ledger.
+//     let final_block_index = ledger_db.num_blocks()? - 1;
+//
+//     let conn = wallet_db.get_conn()?;
+//     let account = Account::get(&AccountID(account_id.to_string()), &conn)?;
+//     let start_index = account.next_block as u64;
+//     let end_index = cmp::min(final_block_index, start_index +
+// BLOCKS_PER_ACCOUNT_UPDATE);
+//
+//     // Apply the account to each block in the interval [start_index,
+// end_index].     for block_index in start_index..end_index {
+//         let block_contents = ledger_db.get_block_contents(account.next_block
+// as u64)?;
+//
+//         // Update the account w.r.t. this block. Database operations should
+// be transactional.         let _ = conn.transaction::<(), SyncError, _>(|| {
+//
+//             // Process transaction outputs in this block?
+//             let output_txo_ids = process_txos(
+//                 &block_contents.outputs,
+//                 block_index,
+//                 &account,
+//                 &conn,
+//                 logger,
+//             )?;
+//
+//             // Process key images in this block?
+//             account.update_spent_and_increment_next_block(
+//                 block_index as i64,
+//                 block_contents.key_images,
+//                 &conn,
+//             )?;
+//
+//             // Update the TransactionLog
+//             TransactionLog::log_received(
+//                 &output_txo_ids,
+//                 &account,
+//                 block_index,
+//                 &conn,
+//             )?;
+//
+//             Ok(())
+//         })?;
+//     }
+//
+//     // Return status
+//     if end_index == final_block_index {
+//         Ok(AccountSyncStatus::Synced)
+//     } else {
+//         Ok(AccountSyncStatus::MoreBlocksPotentiallyAvailable)
+//     }
+// }
 
 /// TODO: What does this do?
 ///
@@ -394,7 +461,7 @@ pub fn sync_account(
 /// subaddress.
 pub fn process_txos(
     outputs: &[TxOut],
-    block_index: i64,
+    block_index: u64,
     account: &Account,
     conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     logger: &Logger,
@@ -407,10 +474,8 @@ pub fn process_txos(
     let mut output_txo_ids: HashMap<i64, Vec<String>> = HashMap::default();
 
     for tx_out in outputs {
-        // Calculate the subaddress spend public key for tx_out.
         let tx_out_target_key = RistrettoPublic::try_from(&tx_out.target_key)?;
         let tx_public_key = RistrettoPublic::try_from(&tx_out.public_key)?;
-
         let subaddress_spk: RistrettoPublic = recover_public_subaddress_spend_key(
             &view_key.view_private_key,
             &tx_out_target_key,
@@ -471,13 +536,12 @@ pub fn process_txos(
             subaddress_index,
             key_image,
             value,
-            block_index,
+            block_index as i64,
             &account_id_hex,
             &conn,
         )?;
 
-        // A key of -1 indicates that the output was not sent to an assigned subaddress
-        // of this account.
+        // A key of -1 indicates that the output was not sent to an assigned subaddress.
         let subaddress_key: i64 = subaddress_index.unwrap_or(-1) as i64;
 
         // Upsert the txo_id.

@@ -8,7 +8,7 @@ use crate::{
         txo::TxoModel,
         WalletDb,
     },
-    service::{sync::sync_account, transaction_builder::WalletTransactionBuilder},
+    service::{sync::incrementally_sync_account, transaction_builder::WalletTransactionBuilder},
 };
 use diesel::{
     r2d2::{ConnectionManager as CM, PooledConnection},
@@ -326,7 +326,8 @@ pub fn manually_sync_account(
 ) -> Account {
     let mut account: Account;
     loop {
-        sync_account(&ledger_db, &wallet_db, &account_id.to_string(), &logger).unwrap();
+        incrementally_sync_account(&ledger_db, &wallet_db, &account_id.to_string(), &logger)
+            .unwrap();
         account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
         if account.next_block as u64 == ledger_db.num_blocks().unwrap() {
             break;
