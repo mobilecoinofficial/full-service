@@ -222,6 +222,7 @@ where
     T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
+    global_log::trace!("Running command {:?}", command);
     let result = match command.0 {
         JsonCommandRequestV1::create_account { name, first_block } => {
             let fb = first_block
