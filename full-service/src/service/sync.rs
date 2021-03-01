@@ -311,7 +311,7 @@ fn sync_thread_entry_point(
     }
 }
 
-/// Sync a single account.
+/// Sync a single account against the next chuck of blocks.
 pub fn incrementally_sync_account(
     ledger_db: &LedgerDB,
     wallet_db: &WalletDb,
@@ -378,73 +378,6 @@ pub fn incrementally_sync_account(
     }
     Ok(AccountSyncStatus::MoreBlocksPotentiallyAvailable)
 }
-
-// /// Updates an Account to reflect the next interval of blocks.
-// ///
-// ///
-// /// # Arguments
-// /// * `ledger_db` -
-// /// * `wallet_db` - TODO: pass the connection instead?
-// /// * `account_id` - TODO: pass Account, or just the view key instead?
-// /// * `logger` - Logger.
-// pub fn incrementally_sync_account(
-//     ledger_db: &LedgerDB,
-//     wallet_db: &WalletDb,
-//     account_id: &str,
-//     logger: &Logger,
-// ) -> Result<AccountSyncStatus, SyncError> {
-//     // Index of the last block in the ledger.
-//     let final_block_index = ledger_db.num_blocks()? - 1;
-//
-//     let conn = wallet_db.get_conn()?;
-//     let account = Account::get(&AccountID(account_id.to_string()), &conn)?;
-//     let start_index = account.next_block as u64;
-//     let end_index = cmp::min(final_block_index, start_index +
-// BLOCKS_PER_ACCOUNT_UPDATE);
-//
-//     // Apply the account to each block in the interval [start_index,
-// end_index].     for block_index in start_index..end_index {
-//         let block_contents = ledger_db.get_block_contents(account.next_block
-// as u64)?;
-//
-//         // Update the account w.r.t. this block. Database operations should
-// be transactional.         let _ = conn.transaction::<(), SyncError, _>(|| {
-//
-//             // Process transaction outputs in this block?
-//             let output_txo_ids = process_txos(
-//                 &block_contents.outputs,
-//                 block_index,
-//                 &account,
-//                 &conn,
-//                 logger,
-//             )?;
-//
-//             // Process key images in this block?
-//             account.update_spent_and_increment_next_block(
-//                 block_index as i64,
-//                 block_contents.key_images,
-//                 &conn,
-//             )?;
-//
-//             // Update the TransactionLog
-//             TransactionLog::log_received(
-//                 &output_txo_ids,
-//                 &account,
-//                 block_index,
-//                 &conn,
-//             )?;
-//
-//             Ok(())
-//         })?;
-//     }
-//
-//     // Return status
-//     if end_index == final_block_index {
-//         Ok(AccountSyncStatus::Synced)
-//     } else {
-//         Ok(AccountSyncStatus::MoreBlocksPotentiallyAvailable)
-//     }
-// }
 
 /// TODO: What does this do?
 ///
