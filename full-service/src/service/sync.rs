@@ -39,13 +39,7 @@ use mc_common::{
 };
 use mc_crypto_keys::RistrettoPublic;
 use mc_ledger_db::{Ledger, LedgerDB};
-use mc_transaction_core::{
-    get_tx_out_shared_secret,
-    onetime_keys::{recover_onetime_private_key, recover_public_subaddress_spend_key},
-    ring_signature::KeyImage,
-    tx::TxOut,
-    AmountError,
-};
+use mc_transaction_core::{get_tx_out_shared_secret, onetime_keys::{recover_onetime_private_key, recover_public_subaddress_spend_key}, ring_signature::KeyImage, tx::TxOut, AmountError};
 
 use crate::service::SyncError;
 use diesel::{
@@ -321,9 +315,9 @@ pub fn incrementally_sync_account(
     // Index of the last block currently in the ledger.
     let final_block_index = ledger_db.num_blocks()? - 1;
 
+    let conn = wallet_db.get_conn()?;
     for _ in 0..BLOCKS_PER_ACCOUNT_UPDATE {
-        // TODO: why does this need to be opened inside the for loop?
-        let conn = wallet_db.get_conn()?;
+        // Update the account w.r.t. this block. Database operations should be transactional.
         let sync_status = conn.transaction::<AccountSyncStatus, SyncError, _>(|| {
             let account = Account::get(&AccountID(account_id.to_string()), &conn)?;
             let block_index = account.next_block as u64;
@@ -331,42 +325,30 @@ pub fn incrementally_sync_account(
                 // This account has been synced with all blocks currently in the ledger.
                 return Ok(AccountSyncStatus::Synced);
             }
-
             let block_contents = ledger_db.get_block_contents(account.next_block as u64)?;
 
-            log::trace!(
-                logger,
-                "processing {} outputs and {} key images from block {} for account {}",
-                block_contents.outputs.len(),
-                block_contents.key_images.len(),
-                account.next_block,
-                account_id,
-            );
-
-            // Match tx outs into UTXOs.
+            // Outputs in this block received by `account`?
             let output_txo_ids = process_txos(
                 &block_contents.outputs,
-                account.next_block as u64,
+                block_index,
                 &account,
                 &conn,
                 logger,
             )?;
 
-            // Note: Doing this here means we are updating key images multiple times, once
-            // per account. We do actually want to do it this way, because each account may
-            // need to process the same block at a different time, depending on when we add
-            // it to the DB.
+            // Key images spent in this block that correspond to prior TXOs owned by `account`.
+            // This also updates account.next_block in the DB.
             account.update_spent_and_increment_next_block(
                 account.next_block,
                 block_contents.key_images,
                 &conn,
             )?;
 
-            // Add a transaction for the received TXOs
+            // Include received TXOs in the TransactionLog.
             TransactionLog::log_received(
                 &output_txo_ids,
                 &account,
-                account.next_block as u64,
+                block_index,
                 &conn,
             )?;
             Ok(AccountSyncStatus::MoreBlocksPotentiallyAvailable)
@@ -379,6 +361,7 @@ pub fn incrementally_sync_account(
     }
     Ok(AccountSyncStatus::MoreBlocksPotentiallyAvailable)
 }
+
 
 /// TODO: What does this do?
 ///
