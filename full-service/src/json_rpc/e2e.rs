@@ -6,13 +6,16 @@
 mod e2e {
     use crate::{
         db::b58_decode,
+        json_rpc,
         json_rpc::api_test_utils::{dispatch, setup, wait_for_sync},
         test_utils::{add_block_to_ledger_db, MOB},
     };
+    use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
     use mc_transaction_core::ring_signature::KeyImage;
     use rand::{rngs::StdRng, SeedableRng};
+    use std::convert::TryFrom;
 
     #[test_with_logger]
     fn test_e2e_account_crud(logger: Logger) {
@@ -154,7 +157,7 @@ mod e2e {
             "jsonrpc": "2.0",
             "api_version": "2",
             "id": 1,
-            "method": "import_account",
+            "method": "import_account_by_entropy",
             "params": {
                 "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
                 "name": "Alice Main Account",
@@ -184,7 +187,7 @@ mod e2e {
             "jsonrpc": "2.0",
             "api_version": "2",
             "id": 1,
-            "method": "import_account",
+            "method": "import_account_by_entropy",
             "params": {
                 "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
                 "name": "Alice Main Account",
@@ -226,7 +229,7 @@ mod e2e {
             "jsonrpc": "2.0",
             "api_version": "2",
             "id": 1,
-            "method": "import_account",
+            "method": "import_account_by_entropy",
             "params": {
                 "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
                 "name": "Alice Main Account",
@@ -261,6 +264,110 @@ mod e2e {
         assert!(account_obj.get("main_address").is_some());
         assert!(account_obj.get("entropy").is_some());
         assert!(account_obj.get("account_id").is_some());
+    }
+
+    #[test_with_logger]
+    fn test_export_account_secrets(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+                "first_block": "200",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let account_obj = res["result"]["account"].clone();
+        let account_id = account_obj["account_id"].clone();
+        let entropy = account_obj["entropy"].clone();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 1,
+            "method": "export_account_secrets",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let secrets = result.get("account_secrets").unwrap();
+
+        assert_eq!(secrets["account_id"], serde_json::json!(account_id));
+        assert_eq!(secrets["entropy"], serde_json::json!(entropy));
+
+        // Test that the account_key serializes correctly back to an AccountKey object
+        let mut entropy_slice = [0u8; 32];
+        entropy_slice[0..32]
+            .copy_from_slice(&hex::decode(&entropy.as_str().unwrap()).unwrap().as_slice());
+        let account_key = AccountKey::from(&RootIdentity::from(&RootEntropy::from(&entropy_slice)));
+        assert_eq!(
+            serde_json::json!(json_rpc::account_key::AccountKey::try_from(&account_key).unwrap()),
+            secrets["account_key"]
+        );
+    }
+
+    // Import an account by the account key should succeed.
+    #[test_with_logger]
+    fn test_import_account_by_account_key(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        // Create account for a simple way to get the correctly-formatted json
+        let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let account_obj = res["result"]["account"].clone();
+        let account_key: json_rpc::account_key::AccountKey =
+            serde_json::from_value(account_obj["account_key"].clone()).unwrap();
+        let account_id = account_obj["account_id"].clone();
+        let public_address_from_entropy = account_obj["main_address"].clone();
+
+        // Delete the account to clear out the DB
+        let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 2,
+            "method": "delete_account",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        // Should have deleted the correct account
+        assert_eq!(result["account"]["account_id"], account_id);
+
+        println!("\x1b[1;31m Account key {:?}\x1b[0m", account_key);
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 1,
+            "method": "import_account_by_account_key",
+            "params": {
+                "account_key": account_key,
+                "name": "Alice Main Account Part 2",
+                "first_block": "200",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let account_obj = res["result"]["account"].clone();
+        assert_eq!(account_obj["main_address"], public_address_from_entropy);
+        assert!(account_obj["entropy"].is_null());
     }
 
     #[test_with_logger]
@@ -346,7 +453,9 @@ mod e2e {
         let status = result.get("wallet_status").unwrap();
         assert_eq!(status.get("network_block_count").unwrap(), "12");
         assert_eq!(status.get("local_block_count").unwrap(), "12");
-        assert_eq!(status.get("min_synced_block_index").unwrap(), "0");
+        // Syncing will have already started, so we can't determine what the min synced
+        // index is.
+        assert!(status.get("min_synced_block_index").is_some());
         assert_eq!(status.get("total_unspent_pmob").unwrap(), "0");
         assert_eq!(status.get("total_pending_pmob").unwrap(), "0");
         assert_eq!(status.get("total_spent_pmob").unwrap(), "0");

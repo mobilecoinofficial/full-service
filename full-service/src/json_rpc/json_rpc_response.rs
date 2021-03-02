@@ -4,8 +4,10 @@
 //!
 //! API v2
 
-use crate::json_rpc::{account::Account, balance::Balance, wallet_status::WalletStatus};
-
+use crate::json_rpc::{
+    account::Account, account_secrets::AccountSecrets, balance::Balance,
+    wallet_status::WalletStatus,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
 
@@ -146,8 +148,14 @@ pub enum JsonCommandResponseV2 {
     create_account {
         account: Account,
     },
-    import_account {
+    import_account_by_entropy {
         account: Account,
+    },
+    import_account_by_account_key {
+        account: Account,
+    },
+    export_account_secrets {
+        account_secrets: AccountSecrets,
     },
     get_all_accounts {
         account_ids: Vec<String>,

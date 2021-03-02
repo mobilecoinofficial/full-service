@@ -2,19 +2,14 @@
 
 //! DB impl for the Account model.
 
-use crate::{
-    db::{
-        assigned_subaddress::AssignedSubaddressModel,
-        b58_encode,
-        models::{
-            Account, AccountTxoStatus, AssignedSubaddress, NewAccount, TransactionLog, Txo,
-            TXO_STATUS_PENDING, TXO_STATUS_SPENT, TXO_STATUS_UNSPENT,
-        },
-        transaction_log::TransactionLogModel,
-        txo::TxoModel,
-        WalletDbError,
+use crate::db::{
+    assigned_subaddress::AssignedSubaddressModel,
+    models::{
+        Account, AccountTxoStatus, AssignedSubaddress, NewAccount, TransactionLog, Txo,
+        TXO_STATUS_SPENT,
     },
-    json_rpc::api_v1::decorated_types::JsonAccount,
+    transaction_log::TransactionLogModel,
+    WalletDbError,
 };
 
 use mc_account_keys::{AccountKey, RootEntropy, RootIdentity, DEFAULT_SUBADDRESS_INDEX};
@@ -55,7 +50,8 @@ pub trait AccountModel {
     /// Returns:
     /// * (account_id, main_subaddress_b58)
     fn create(
-        entropy: &RootEntropy,
+        account_key: Option<&AccountKey>,
+        entropy: Option<&RootEntropy>,
         first_block: Option<u64>,
         import_block: Option<u64>,
         name: &str,
@@ -64,7 +60,8 @@ pub trait AccountModel {
 
     /// Import account.
     fn import(
-        entropy: &RootEntropy,
+        account_key: Option<&AccountKey>,
+        entropy: Option<&RootEntropy>,
         name: Option<String>,
         import_block: u64,
         first_block: Option<u64>,
@@ -84,18 +81,11 @@ pub trait AccountModel {
     /// Returns:
     /// * Account
     fn get(
-        account_id_hex: &AccountID,
+        account_id: &AccountID,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Account, WalletDbError>;
 
-    /// Get the API-decorated Account object
-    fn get_decorated(
-        account_id_hex: &AccountID,
-        local_height: u64,
-        network_height: u64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<JsonAccount, WalletDbError>;
-
+    /// Get the accounts associated with the given Txo.
     fn get_by_txo_id(
         txo_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
@@ -128,7 +118,8 @@ pub trait AccountModel {
 
 impl AccountModel for Account {
     fn create(
-        entropy: &RootEntropy,
+        account_key: Option<&AccountKey>,
+        entropy: Option<&RootEntropy>,
         first_block: Option<u64>,
         import_block: Option<u64>,
         name: &str,
@@ -136,18 +127,35 @@ impl AccountModel for Account {
     ) -> Result<(AccountID, String), WalletDbError> {
         use crate::db::schema::accounts;
 
-        let root_id = RootIdentity::from(entropy);
-        let account_key = AccountKey::from(&root_id);
-        let account_id = AccountID::from(&account_key);
+        let account_key_to_create = if let Some(a) = account_key {
+            a.clone()
+        } else if let Some(e) = entropy {
+            let root_id = RootIdentity::from(e);
+            AccountKey::from(&root_id)
+        } else {
+            return Err(WalletDbError::InsufficientSecretsToCreateAccount);
+        };
+
+        // Sanity check that the secrets match the same account in case both were
+        // provided.
+        if let Some(a) = account_key {
+            if let Some(e) = entropy {
+                if &AccountKey::from(&RootIdentity::from(e)) != a {
+                    return Err(WalletDbError::AccountSecretsDoNotMatch);
+                }
+            }
+        }
+
+        let account_id = AccountID::from(&account_key_to_create);
         let fb = first_block.unwrap_or(DEFAULT_FIRST_BLOCK);
 
         Ok(
             conn.transaction::<(AccountID, String), WalletDbError, _>(|| {
                 let new_account = NewAccount {
                     account_id_hex: &account_id.to_string(),
-                    account_key: &mc_util_serial::encode(&account_key), /* FIXME: WS-6 - add
-                                                                         * encryption */
-                    entropy: &entropy.bytes,
+                    account_key: &mc_util_serial::encode(&account_key_to_create), // FIXME: WS-6 - add encryption
+
+                    entropy: entropy.map(|e| e.bytes.as_ref()),
                     main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
                     change_subaddress_index: DEFAULT_CHANGE_SUBADDRESS_INDEX as i64,
                     next_subaddress_index: DEFAULT_NEXT_SUBADDRESS_INDEX as i64,
@@ -162,7 +170,7 @@ impl AccountModel for Account {
                     .execute(conn)?;
 
                 let main_subaddress_b58 = AssignedSubaddress::create(
-                    &account_key,
+                    &account_key_to_create,
                     None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
                            * always for main? */
                     DEFAULT_SUBADDRESS_INDEX,
@@ -171,7 +179,7 @@ impl AccountModel for Account {
                 )?;
 
                 let _change_subaddress_b58 = AssignedSubaddress::create(
-                    &account_key,
+                    &account_key_to_create,
                     None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
                            * always for main? */
                     DEFAULT_CHANGE_SUBADDRESS_INDEX,
@@ -184,7 +192,8 @@ impl AccountModel for Account {
     }
 
     fn import(
-        entropy: &RootEntropy,
+        account_key: Option<&AccountKey>,
+        entropy: Option<&RootEntropy>,
         name: Option<String>,
         import_block: u64,
         first_block: Option<u64>,
@@ -192,7 +201,8 @@ impl AccountModel for Account {
     ) -> Result<Account, WalletDbError> {
         Ok(conn.transaction::<Account, WalletDbError, _>(|| {
             let (account_id, _public_address_b58) = Account::create(
-                &entropy,
+                account_key,
+                entropy,
                 first_block,
                 Some(import_block),
                 &name.unwrap_or_else(|| "".to_string()),
@@ -213,62 +223,22 @@ impl AccountModel for Account {
     }
 
     fn get(
-        account_id_hex: &AccountID,
+        account_id: &AccountID,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Account, WalletDbError> {
         use crate::db::schema::accounts::dsl::{account_id_hex as dsl_account_id_hex, accounts};
 
         match accounts
-            .filter(dsl_account_id_hex.eq(account_id_hex.to_string()))
+            .filter(dsl_account_id_hex.eq(account_id.to_string()))
             .get_result::<Account>(conn)
         {
             Ok(a) => Ok(a),
             // Match on NotFound to get a more informative NotFound Error
             Err(diesel::result::Error::NotFound) => {
-                Err(WalletDbError::AccountNotFound(account_id_hex.to_string()))
+                Err(WalletDbError::AccountNotFound(account_id.to_string()))
             }
             Err(e) => Err(e.into()),
         }
-    }
-
-    fn get_decorated(
-        account_id_hex: &AccountID,
-        local_height: u64,
-        network_height: u64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<JsonAccount, WalletDbError> {
-        Ok(conn.transaction::<JsonAccount, WalletDbError, _>(|| {
-            let account = Account::get(account_id_hex, conn)?;
-
-            let unspent =
-                Txo::list_by_status(&account_id_hex.to_string(), TXO_STATUS_UNSPENT, conn)?
-                    .iter()
-                    .map(|t| t.value as u128)
-                    .sum::<u128>();
-            let pending =
-                Txo::list_by_status(&account_id_hex.to_string(), TXO_STATUS_PENDING, conn)?
-                    .iter()
-                    .map(|t| t.value as u128)
-                    .sum::<u128>();
-
-            let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
-            let main_subaddress_b58 =
-                b58_encode(&account_key.subaddress(DEFAULT_SUBADDRESS_INDEX))?;
-            Ok(JsonAccount {
-                object: "account".to_string(),
-                account_id: account.account_id_hex,
-                name: account.name,
-                network_height: network_height.to_string(),
-                local_height: local_height.to_string(),
-                account_height: account.next_block.to_string(),
-                is_synced: account.next_block == network_height as i64,
-                available_pmob: unspent.to_string(),
-                pending_pmob: pending.to_string(),
-                main_address: main_subaddress_b58,
-                next_subaddress_index: account.next_subaddress_index.to_string(),
-                recovery_mode: false, // FIXME: WS-24 - Recovery mode for account
-            })
-        })?)
     }
 
     fn get_by_txo_id(
@@ -395,7 +365,7 @@ mod tests {
     use mc_common::logger::{test_with_logger, Logger};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
-    use std::{collections::HashSet, iter::FromIterator};
+    use std::{collections::HashSet, convert::TryFrom, iter::FromIterator};
 
     #[test_with_logger]
     fn test_account_crud(logger: Logger) {
@@ -409,7 +379,8 @@ mod tests {
         let account_id_hex = {
             let conn = wallet_db.get_conn().unwrap();
             let (account_id_hex, _public_address_b58) = Account::create(
-                &root_id.root_entropy,
+                None,
+                Some(&root_id.root_entropy),
                 Some(0),
                 None,
                 "Alice's Main Account",
@@ -430,7 +401,7 @@ mod tests {
             id: 1,
             account_id_hex: account_id_hex.to_string(),
             account_key: mc_util_serial::encode(&account_key),
-            entropy: root_id.root_entropy.bytes.to_vec(),
+            entropy: Some(root_id.root_entropy.bytes.to_vec()),
             main_subaddress_index: 0,
             change_subaddress_index: 1,
             next_subaddress_index: 2,
@@ -468,7 +439,8 @@ mod tests {
         let root_id_secondary = RootIdentity::from_random(&mut rng);
         let account_key_secondary = AccountKey::from(&root_id_secondary);
         let (account_id_hex_secondary, _public_address_b58_secondary) = Account::create(
-            &root_id_secondary.root_entropy,
+            None,
+            Some(&root_id_secondary.root_entropy),
             Some(51),
             Some(50),
             "",
@@ -484,7 +456,7 @@ mod tests {
             id: 2,
             account_id_hex: account_id_hex_secondary.to_string(),
             account_key: mc_util_serial::encode(&account_key_secondary),
-            entropy: root_id_secondary.root_entropy.bytes.to_vec(),
+            entropy: Some(root_id_secondary.root_entropy.bytes.to_vec()),
             main_subaddress_index: 0,
             change_subaddress_index: 1,
             next_subaddress_index: 2,
@@ -523,6 +495,142 @@ mod tests {
                 assert_eq!(s, account_id_hex_secondary.to_string())
             }
             Err(_) => panic!("Should error with NotFound but got {:?}", res),
+        }
+    }
+
+    // Providing entropy only on create should succeed and derive account key.
+    #[test_with_logger]
+    fn test_create_account_with_entropy(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        // Test providing entropy only
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        let account_id = {
+            let conn = wallet_db.get_conn().unwrap();
+            let (account_id_hex, _public_address_b58) = Account::create(
+                None,
+                Some(&root_id.root_entropy),
+                Some(0),
+                None,
+                "Alice's Main Account",
+                &conn,
+            )
+            .unwrap();
+            account_id_hex
+        };
+        let account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
+        let decoded_entropy = RootEntropy::try_from(account.entropy.unwrap().as_slice()).unwrap();
+        assert_eq!(decoded_entropy, root_id.root_entropy);
+        let decoded_account_key: AccountKey = mc_util_serial::decode(&account.account_key).unwrap();
+        assert_eq!(decoded_account_key, account_key);
+    }
+
+    // Test providing account_key only should succeed and store None for entropy
+    #[test_with_logger]
+    fn test_create_account_with_account_key(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        let account_id = {
+            let conn = wallet_db.get_conn().unwrap();
+            let (account_id_hex, _public_address_b58) = Account::create(
+                Some(&account_key),
+                None,
+                Some(0),
+                None,
+                "Alice's Main Account",
+                &conn,
+            )
+            .unwrap();
+            account_id_hex
+        };
+        let account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
+        assert!(account.entropy.is_none());
+        let decoded_account_key: AccountKey = mc_util_serial::decode(&account.account_key).unwrap();
+        assert_eq!(decoded_account_key, account_key);
+    }
+
+    // Test providing account_key and entropy that match should succeed and store
+    // both.
+    #[test_with_logger]
+    fn test_create_account_with_matching_secrets(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        let account_id = {
+            let conn = wallet_db.get_conn().unwrap();
+            let (account_id_hex, _public_address_b58) = Account::create(
+                Some(&account_key),
+                Some(&root_id.root_entropy),
+                Some(0),
+                None,
+                "Alice's Main Account",
+                &conn,
+            )
+            .unwrap();
+            account_id_hex
+        };
+        let account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
+        let decoded_entropy = RootEntropy::try_from(account.entropy.unwrap().as_slice()).unwrap();
+        assert_eq!(decoded_entropy, root_id.root_entropy);
+        let decoded_account_key: AccountKey = mc_util_serial::decode(&account.account_key).unwrap();
+        assert_eq!(decoded_account_key, account_key);
+    }
+
+    // Test providing account_key and entropy that don't match should fail.
+    #[test_with_logger]
+    fn test_create_account_with_mismatched_secrets(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let root_id1 = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id1);
+        let root_id2 = RootIdentity::from_random(&mut rng);
+        {
+            let conn = wallet_db.get_conn().unwrap();
+            match Account::create(
+                Some(&account_key),
+                Some(&root_id2.root_entropy),
+                Some(0),
+                None,
+                "Alice's Main Account",
+                &conn,
+            ) {
+                Ok(_) => panic!("Should not be able to create account with mismatched secrets"),
+                Err(WalletDbError::AccountSecretsDoNotMatch) => {}
+                Err(e) => panic!(
+                    "Unexpected error testing account with mismatched secrets {:?}",
+                    e
+                ),
+            }
+        }
+    }
+
+    // Test providing no secrets should fail.
+    #[test_with_logger]
+    fn test_create_account_with_no_secrets(logger: Logger) {
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let conn = wallet_db.get_conn().unwrap();
+        match Account::create(None, None, Some(0), None, "Alice's Main Account", &conn) {
+            Ok(_) => panic!("Should not be able to create account with no secrets"),
+            Err(WalletDbError::InsufficientSecretsToCreateAccount) => {}
+            Err(e) => panic!("Unexpected error testing account with no secrets {:?}", e),
         }
     }
 }
