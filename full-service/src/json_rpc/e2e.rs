@@ -785,7 +785,7 @@ mod e2e {
         );
         assert_eq!(
             transaction_log
-                .get("submitted_block_height")
+                .get("submitted_block_index")
                 .unwrap()
                 .as_str()
                 .unwrap(),
@@ -1093,7 +1093,7 @@ mod e2e {
         );
         assert_eq!(
             transaction_log
-                .get("submitted_block_height")
+                .get("submitted_block_index")
                 .unwrap()
                 .as_str()
                 .unwrap(),
