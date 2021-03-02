@@ -5,7 +5,10 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        models::Account,
+        b58_encode,
+        models::{Account, Txo, TXO_STATUS_PENDING, TXO_STATUS_UNSPENT},
+        txo::TxoModel,
+        WalletDbError,
     },
     json_rpc,
     json_rpc::api_v1::decorated_types::{
@@ -15,6 +18,11 @@ use crate::{
     },
     service::{account::AccountService, balance::BalanceService, WalletService},
 };
+use diesel::{
+    r2d2::{ConnectionManager, PooledConnection},
+    Connection, SqliteConnection,
+};
+use mc_account_keys::{AccountKey, DEFAULT_SUBADDRESS_INDEX};
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
@@ -238,7 +246,7 @@ where
                 .highest_block_index_on_network()
                 .map(|v| v + 1)
                 .unwrap_or(0);
-            let decorated_account = Account::get_decorated(
+            let decorated_account = get_json_account(
                 &AccountID(result.account_id_hex),
                 local_height,
                 network_height,
@@ -272,7 +280,7 @@ where
                 .highest_block_index_on_network()
                 .map(|v| v + 1)
                 .unwrap_or(0);
-            let decorated_account = Account::get_decorated(
+            let decorated_account = get_json_account(
                 &AccountID(result.account_id_hex),
                 local_height,
                 network_height,
@@ -296,7 +304,7 @@ where
             let json_accounts: Vec<JsonAccount> = accounts
                 .iter()
                 .map(|a| {
-                    Account::get_decorated(
+                    get_json_account(
                         &AccountID(a.account_id_hex.clone()),
                         local_height,
                         network_height,
@@ -333,7 +341,7 @@ where
                 .map(|v| v + 1)
                 .unwrap_or(0);
             let account =
-                Account::get_decorated(&AccountID(account_id), local_height, network_height, &conn)
+                get_json_account(&AccountID(account_id), local_height, network_height, &conn)
                     .map_err(format_error)?;
             JsonCommandResponseV1::get_account { account }
         }
@@ -348,7 +356,7 @@ where
                 .highest_block_index_on_network()
                 .map(|v| v + 1)
                 .unwrap_or(0);
-            let account = Account::get_decorated(
+            let account = get_json_account(
                 &AccountID(account_id),
                 local_height,
                 network_height,
@@ -583,6 +591,43 @@ where
         }
     };
     Ok(Json(result))
+}
+
+fn get_json_account(
+    account_id_hex: &AccountID,
+    local_height: u64,
+    network_height: u64,
+    conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+) -> Result<JsonAccount, WalletDbError> {
+    Ok(conn.transaction::<JsonAccount, WalletDbError, _>(|| {
+        let account = Account::get(account_id_hex, conn)?;
+
+        let unspent = Txo::list_by_status(&account_id_hex.to_string(), TXO_STATUS_UNSPENT, conn)?
+            .iter()
+            .map(|t| t.value as u128)
+            .sum::<u128>();
+        let pending = Txo::list_by_status(&account_id_hex.to_string(), TXO_STATUS_PENDING, conn)?
+            .iter()
+            .map(|t| t.value as u128)
+            .sum::<u128>();
+
+        let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+        let main_subaddress_b58 = b58_encode(&account_key.subaddress(DEFAULT_SUBADDRESS_INDEX))?;
+        Ok(JsonAccount {
+            object: "account".to_string(),
+            account_id: account.account_id_hex,
+            name: account.name,
+            network_height: network_height.to_string(),
+            local_height: local_height.to_string(),
+            account_height: account.next_block.to_string(),
+            is_synced: account.next_block == network_height as i64,
+            available_pmob: unspent.to_string(),
+            pending_pmob: pending.to_string(),
+            main_address: main_subaddress_b58,
+            next_subaddress_index: account.next_subaddress_index.to_string(),
+            recovery_mode: false, // FIXME: WS-24 - Recovery mode for account
+        })
+    })?)
 }
 
 #[cfg(test)]
