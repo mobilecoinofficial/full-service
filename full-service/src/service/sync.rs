@@ -35,7 +35,7 @@ use crate::db::{
 use mc_account_keys::AccountKey;
 use mc_common::{
     logger::{log, Logger},
-    HashMap, HashSet,
+    HashMap,
 };
 use mc_crypto_keys::RistrettoPublic;
 use mc_ledger_db::{Ledger, LedgerDB};
@@ -56,7 +56,7 @@ use std::{
     convert::TryFrom,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc, Mutex,
+        Arc,
     },
     thread,
 };
@@ -111,31 +111,18 @@ impl SyncThread {
         // Worker task queue.
         let (sender, receiver) = crossbeam_channel::unbounded::<SyncMsg>();
 
-        // AccountIds that have been added to the queue, but have not yet been
-        // processed.
-        let queued_account_ids = Arc::new(Mutex::new(HashSet::<AccountId>::default()));
-
         // Create worker threads.
         let mut worker_join_handles = Vec::new();
 
         for worker_index in 0..num_workers.unwrap_or_else(num_cpus::get) {
             let ledger_db = ledger_db.clone();
             let wallet_db = wallet_db.clone();
-            let sender = sender.clone();
             let receiver = receiver.clone();
-            let queued_account_ids = queued_account_ids.clone();
             let logger = logger.clone();
             let join_handle = thread::Builder::new()
                 .name(format!("sync_worker_{}", worker_index))
                 .spawn(move || {
-                    sync_thread_entry_point(
-                        ledger_db,
-                        wallet_db,
-                        sender,
-                        receiver,
-                        queued_account_ids,
-                        logger,
-                    );
+                    sync_thread_entry_point(ledger_db, wallet_db, receiver, logger);
                 })
                 .expect("failed starting sync worker thread");
 
@@ -143,8 +130,6 @@ impl SyncThread {
         }
 
         // Start the main sync thread.
-        // This thread constantly updates the list of account ids we are aware of,
-        // and adds new one into our cyclic queue.
         let stop_requested = Arc::new(AtomicBool::new(false));
         let thread_stop_requested = stop_requested.clone();
 
@@ -180,18 +165,6 @@ impl SyncThread {
                         {
                             // If there are no new blocks for this account, don't do anything.
                             if account.next_block >= num_blocks as i64 {
-                                continue;
-                            }
-
-                            let mut queued_account_ids =
-                                queued_account_ids.lock().expect("mutex poisoned");
-                            if !queued_account_ids.insert(account.account_id_hex.clone()) {
-                                // Already queued, no need to add again to queue at this point.
-                                log::trace!(
-                                    logger,
-                                    "{}: skipping, already queued",
-                                    account.account_id_hex
-                                );
                                 continue;
                             }
 
@@ -264,16 +237,12 @@ impl Drop for SyncThread {
 /// # Arguments
 /// * `ledger_db` -
 /// * `wallet_db` -
-/// * `sender` -
 /// * `receiver` -
-/// * `queued_account_ids` -
 /// * `logger` -
 fn sync_thread_entry_point(
     ledger_db: LedgerDB,
     wallet_db: WalletDb,
-    sender: crossbeam_channel::Sender<SyncMsg>,
     receiver: crossbeam_channel::Receiver<SyncMsg>,
-    queued_account_ids: Arc<Mutex<HashSet<AccountId>>>,
     logger: Logger,
 ) {
     for msg in receiver.iter() {
@@ -282,19 +251,12 @@ fn sync_thread_entry_point(
                 match incrementally_sync_account(&ledger_db, &wallet_db, &account_id, &logger) {
                     // Success - No more blocks are currently available.
                     Ok(AccountSyncStatus::Synced) => {
-                        // Remove the account id from the list of queued ones so that the main
-                        // thread could queue it again if necessary.
-                        let mut queued_account_ids =
-                            queued_account_ids.lock().expect("mutex poisoned");
-                        queued_account_ids.remove(&account_id);
+                        // Do nothing.
                     }
 
                     // Success - more blocks might be available.
                     Ok(AccountSyncStatus::MoreBlocksPotentiallyAvailable) => {
-                        // Put the account id back in the queue for further processing.
-                        sender
-                            .send(SyncMsg::SyncAccount(account_id))
-                            .expect("Failed sending to channel");
+                        // Do nothing.
                     }
 
                     // Account not found. Do nothing.
