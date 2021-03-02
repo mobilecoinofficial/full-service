@@ -61,8 +61,7 @@ use std::{
     thread,
 };
 
-///  The number of blocks processed by a worker when incrementally updating an
-/// account.
+///  Number of blocks processed when incrementally updating an account.
 const BLOCKS_PER_ACCOUNT_UPDATE: u64 = 5;
 
 /// The AccountId corresponds to the Account's primary key: account_key_hex.
@@ -70,7 +69,7 @@ pub type AccountId = String;
 
 /// Commands for the Sync worker.
 enum SyncMsg {
-    /// ???
+    /// Request to (incrementally) update the given account.
     SyncAccount(AccountId),
     /// The worker should shut down gracefully.
     Stop,
@@ -80,7 +79,6 @@ enum SyncMsg {
 #[derive(Debug, Eq, PartialEq)]
 pub enum AccountSyncStatus {
     /// The account has been updated against all available blocks.
-    /// TODO: include the last block index that was processed.
     Synced,
 
     /// More blocks might be available.
@@ -332,7 +330,7 @@ pub fn incrementally_sync_account(
                 // This account has been synced with all blocks currently in the ledger.
                 return Ok(AccountSyncStatus::Synced);
             }
-            let block_contents = ledger_db.get_block_contents(account.next_block as u64)?;
+            let block_contents = ledger_db.get_block_contents(block_index)?;
 
             // Outputs in this block received by `account`?
             let output_txo_ids = process_txos(
@@ -364,7 +362,7 @@ pub fn incrementally_sync_account(
     Ok(AccountSyncStatus::MoreBlocksPotentiallyAvailable)
 }
 
-/// TODO: What does this do?
+/// TODO: What does this do? Side effects?
 ///
 /// # Arguments
 /// * `outputs` - Outputs from a single block that belong to the given account.
