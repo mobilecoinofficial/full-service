@@ -5,13 +5,8 @@
 //! API v2
 
 use crate::json_rpc::{
-    account::Account, balance::Balance, transaction_log::TransactionLog, tx_proposal::TxProposal,
-    wallet_status::WalletStatus,
-};
-
-use crate::json_rpc::{
     account::Account, account_secrets::AccountSecrets, balance::Balance,
-    wallet_status::WalletStatus,
+    transaction_log::TransactionLog, tx_proposal::TxProposal, wallet_status::WalletStatus,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Map;

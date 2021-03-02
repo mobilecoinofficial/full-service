@@ -4,22 +4,18 @@
 
 use crate::{
     json_rpc::api_v1::decorated_types::{
-        JsonAccount, JsonAddress, JsonBalanceResponse, JsonBlock, JsonBlockContents, JsonProof,
-        JsonSubmitResponse, JsonTransactionLog, JsonTxo, JsonWalletStatus,
-        StringifiedJsonTxProposal,
+        JsonAddress, JsonBlock, JsonBlockContents, JsonProof, JsonTransactionLog, JsonTxo,
     },
     service::WalletService,
 };
 use mc_common::logger::global_log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_ledger_db::Ledger;
-use mc_ledger_sync::NetworkState;
-use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxProposal};
+use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use rocket_contrib::json::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
-use std::{convert::TryFrom, iter::FromIterator};
+use std::iter::FromIterator;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
