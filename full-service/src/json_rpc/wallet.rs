@@ -8,7 +8,7 @@ use crate::{
     json_rpc,
     json_rpc::{
         account_secrets::AccountSecrets,
-        api_v1::wallet_api::{help_str_v1, wallet_api_inner_v1, JsonCommandRequestV1},
+        api_v1::wallet_api::{wallet_api_inner_v1, JsonCommandRequestV1},
         balance::Balance,
         json_rpc_request::{help_str_v2, JsonCommandRequest, JsonCommandRequestV2},
         json_rpc_response::{
