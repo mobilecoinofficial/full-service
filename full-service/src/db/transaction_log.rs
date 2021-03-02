@@ -65,6 +65,17 @@ pub trait TransactionLogModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<TransactionLog, WalletDbError>;
 
+    /// Get all transaction logs for the given block index.
+    fn get_all_for_block_index(
+        block_index: u64,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<TransactionLog>, WalletDbError>;
+
+    /// Get all transaction logs ordered by finalized_block_index.
+    fn get_all_ordered_by_block_index(
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<TransactionLog>, WalletDbError>;
+
     /// Get the Txos associated with a given TransactionId, grouped according to
     /// their type.
     ///
@@ -144,6 +155,37 @@ impl TransactionLogModel for TransactionLog {
             )),
             Err(e) => Err(e.into()),
         }
+    }
+
+    fn get_all_for_block_index(
+        block_index: u64,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<TransactionLog>, WalletDbError> {
+        use crate::db::schema::transaction_logs::{
+            all_columns, dsl::transaction_logs, finalized_block_index,
+        };
+
+        let matches: Vec<TransactionLog> = transaction_logs
+            .select(all_columns)
+            .filter(finalized_block_index.eq(block_index as i64))
+            .load::<TransactionLog>(conn)?;
+
+        Ok(matches)
+    }
+
+    fn get_all_ordered_by_block_index(
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<TransactionLog>, WalletDbError> {
+        use crate::db::schema::transaction_logs::{
+            all_columns, dsl::transaction_logs, finalized_block_index,
+        };
+
+        let matches = transaction_logs
+            .select(all_columns)
+            .order_by(finalized_block_index.asc())
+            .load(conn)?;
+
+        Ok(matches)
     }
 
     fn get_associated_txos(
@@ -304,8 +346,6 @@ impl TransactionLogModel for TransactionLog {
                 // Check whether all the inputs have been spent or if any failed, and update
                 // accordingly
                 if Txo::are_all_spent(&associated.inputs, conn)? {
-                    // FIXME: WS-18 - do we want to store "submitted_block_index" to disambiguate
-                    // block_count?
                     diesel::update(
                         transaction_logs
                             .filter(transaction_id_hex.eq(&transaction_log.transaction_id_hex)),

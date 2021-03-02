@@ -8,7 +8,7 @@ use crate::{
     json_rpc,
     json_rpc::{
         account_secrets::AccountSecrets,
-        api_v1::wallet_api::{help_str_v1, wallet_api_inner_v1, JsonCommandRequestV1},
+        api_v1::wallet_api::{wallet_api_inner_v1, JsonCommandRequestV1},
         balance::Balance,
         json_rpc_request::{help_str_v2, JsonCommandRequest, JsonCommandRequestV2},
         json_rpc_response::{
@@ -18,7 +18,7 @@ use crate::{
     },
     service::{
         account::AccountService, balance::BalanceService, transaction::TransactionService,
-        WalletService,
+        transaction_log::TransactionLogService, WalletService,
     },
 };
 use mc_common::logger::global_log;
@@ -205,12 +205,9 @@ where
         }
         JsonCommandRequestV2::delete_account { account_id } => {
             JsonCommandResponseV2::delete_account {
-                account: json_rpc::account::Account::try_from(
-                    &service
-                        .delete_account(&AccountID(account_id))
-                        .map_err(format_error)?,
-                )
-                .map_err(format_error)?,
+                success: service
+                    .delete_account(&AccountID(account_id))
+                    .map_err(format_error)?,
             }
         }
         JsonCommandRequestV2::get_balance_for_account { account_id } => {
@@ -318,6 +315,87 @@ where
                 transaction_log: result,
             }
         }
+        JsonCommandRequestV2::get_all_transaction_logs_for_account { account_id } => {
+            let transaction_logs_and_txos = service
+                .list_transaction_logs(&AccountID(account_id))
+                .map_err(format_error)?;
+            let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
+                transaction_logs_and_txos
+                    .iter()
+                    .map(|(t, a)| {
+                        (
+                            t.transaction_id_hex.clone(),
+                            serde_json::json!(json_rpc::transaction_log::TransactionLog::new(t, a)),
+                        )
+                    })
+                    .collect::<Vec<(String, serde_json::Value)>>(),
+            );
+
+            JsonCommandResponseV2::get_all_transaction_logs_for_account {
+                transaction_log_ids: transaction_logs_and_txos
+                    .iter()
+                    .map(|(t, _a)| t.transaction_id_hex.to_string())
+                    .collect(),
+                transaction_log_map,
+            }
+        }
+        JsonCommandRequestV2::get_transaction_log { transaction_log_id } => {
+            let (transaction_log, associated_txos) = service
+                .get_transaction_log(&transaction_log_id)
+                .map_err(format_error)?;
+            JsonCommandResponseV2::get_transaction_log {
+                transaction_log: json_rpc::transaction_log::TransactionLog::new(
+                    &transaction_log,
+                    &associated_txos,
+                ),
+            }
+        }
+        JsonCommandRequestV2::get_all_transaction_logs_for_block { block_index } => {
+            let transaction_logs_and_txos = service
+                .get_all_transaction_logs_for_block(
+                    block_index.parse::<u64>().map_err(format_error)?,
+                )
+                .map_err(format_error)?;
+            let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
+                transaction_logs_and_txos
+                    .iter()
+                    .map(|(t, a)| {
+                        (
+                            t.transaction_id_hex.clone(),
+                            serde_json::json!(json_rpc::transaction_log::TransactionLog::new(t, a)),
+                        )
+                    })
+                    .collect::<Vec<(String, serde_json::Value)>>(),
+            );
+
+            JsonCommandResponseV2::get_all_transaction_logs_for_block {
+                transaction_log_ids: transaction_logs_and_txos
+                    .iter()
+                    .map(|(t, _a)| t.transaction_id_hex.to_string())
+                    .collect(),
+                transaction_log_map,
+            }
+        }
+        JsonCommandRequestV2::get_all_transaction_logs_ordered_by_block => {
+            let transaction_logs_and_txos = service
+                .get_all_transaction_logs_ordered_by_block()
+                .map_err(format_error)?;
+            let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
+                transaction_logs_and_txos
+                    .iter()
+                    .map(|(t, a)| {
+                        (
+                            t.transaction_id_hex.clone(),
+                            serde_json::json!(json_rpc::transaction_log::TransactionLog::new(t, a)),
+                        )
+                    })
+                    .collect::<Vec<(String, serde_json::Value)>>(),
+            );
+
+            JsonCommandResponseV2::get_all_transaction_logs_ordered_by_block {
+                transaction_log_map,
+            }
+        }
     };
     let response = Json(JsonRPCResponse::from(result));
     Ok(response)
@@ -328,17 +406,12 @@ fn wallet_help_v2() -> Result<String, String> {
     Ok(help_str_v2())
 }
 
-#[get("/wallet/v1")]
-fn wallet_help_v1() -> Result<String, String> {
-    Ok(help_str_v1())
-}
-
 /// Returns an instance of a Rocker server.
 pub fn rocket(
     rocket_config: rocket::Config,
     state: WalletState<ThickClient<HardcodedCredentialsProvider>, FogResolver>,
 ) -> rocket::Rocket {
     rocket::custom(rocket_config)
-        .mount("/", routes![wallet_api, wallet_help_v2, wallet_help_v1])
+        .mount("/", routes![wallet_api, wallet_help_v2])
         .manage(state)
 }

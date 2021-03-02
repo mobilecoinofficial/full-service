@@ -534,7 +534,8 @@ pub fn random_account_with_seed_values(
         );
     }
 
-    std::thread::sleep(std::time::Duration::from_secs(6));
+    // FIXME: FS-122 - should not be sleeping in tests
+    std::thread::sleep(std::time::Duration::from_secs(8));
 
     // Make sure we have all our TXOs
     assert_eq!(

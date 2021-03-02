@@ -7,6 +7,7 @@ pub mod balance;
 pub mod sync;
 pub mod transaction;
 pub mod transaction_builder;
+pub mod transaction_log;
 mod wallet_service;
 
 pub use wallet_service::WalletService;

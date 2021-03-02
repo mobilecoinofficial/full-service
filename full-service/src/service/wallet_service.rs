@@ -13,7 +13,7 @@ use crate::{
     },
     error::WalletServiceError,
     json_rpc::api_v1::decorated_types::{
-        JsonAddress, JsonBlock, JsonBlockContents, JsonProof, JsonTransactionLog, JsonTxo,
+        JsonAddress, JsonBlock, JsonBlockContents, JsonProof, JsonTxo,
     },
     service::sync::SyncThread,
 };
@@ -29,6 +29,7 @@ use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use mc_transaction_core::tx::{Tx, TxOut, TxOutConfirmationNumber};
 use mc_util_uri::FogUri;
 
+use crate::service::transaction_log::TransactionLogService;
 use diesel::prelude::*;
 use std::sync::{atomic::AtomicUsize, Arc, RwLock};
 
@@ -162,35 +163,6 @@ impl<
         )
     }
 
-    pub fn list_transactions(
-        &self,
-        account_id_hex: &str,
-    ) -> Result<Vec<JsonTransactionLog>, WalletServiceError> {
-        let transactions = TransactionLog::list_all(account_id_hex, &self.wallet_db.get_conn()?)?;
-
-        let mut results: Vec<JsonTransactionLog> = Vec::new();
-        for (transaction, associated_txos) in transactions.iter() {
-            results.push(JsonTransactionLog::new(&transaction, &associated_txos));
-        }
-        Ok(results)
-    }
-
-    pub fn get_transaction(
-        &self,
-        transaction_id_hex: &str,
-    ) -> Result<JsonTransactionLog, WalletServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-
-        Ok(
-            conn.transaction::<JsonTransactionLog, WalletServiceError, _>(|| {
-                let transaction = TransactionLog::get(transaction_id_hex, &conn)?;
-                let associated = transaction.get_associated_txos(&conn)?;
-
-                Ok(JsonTransactionLog::new(&transaction, &associated))
-            })?,
-        )
-    }
-
     pub fn get_transaction_object(
         &self,
         transaction_id_hex: &str,
@@ -234,16 +206,16 @@ impl<
         &self,
         transaction_log_id: &str,
     ) -> Result<Vec<JsonProof>, WalletServiceError> {
-        let transaction_log = self.get_transaction(&transaction_log_id)?;
-        let proofs: Vec<JsonProof> = transaction_log
-            .output_txo_ids
+        let (_transaction_log, associated_txos) = self.get_transaction_log(&transaction_log_id)?;
+        let proofs: Vec<JsonProof> = associated_txos
+            .outputs
             .iter()
             .map(|txo_id| {
                 self.get_txo(txo_id).and_then(|txo| {
                     txo.proof
                         .map(|proof| JsonProof {
                             object: "proof".to_string(),
-                            txo_id: txo_id.clone(),
+                            txo_id: txo_id.to_string(),
                             proof,
                         })
                         .ok_or_else(|| WalletServiceError::MissingProof(txo_id.to_string()))
@@ -406,11 +378,10 @@ mod tests {
             .get_balance_for_account(&AccountID(alice.account_id_hex))
             .unwrap();
         assert_eq!(balance.unspent, 0);
-        assert_eq!(balance.pending, 0);
-        assert_eq!(balance.spent, 99990000000000);
-        assert_eq!(balance.secreted, 0);
-        assert_eq!(balance.orphaned, 100000000000000); // FIXME: Should not be
-                                                       // orphaned?
+        assert_eq!(balance.pending, 100000000000000);
+        assert_eq!(balance.spent, 0);
+        assert_eq!(balance.secreted, 99990000000000);
+        assert_eq!(balance.orphaned, 0);
 
         // FIXME: How to make the transaction actually hit the test ledger?
     }

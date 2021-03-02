@@ -156,8 +156,6 @@ where
                     min_synced_block_index,
                     (account.next_block as u64).saturating_sub(1),
                 );
-                println!("\x1b[1;33m For account {:?} got network block index = {:?}, local_ledger_block_count {:?}, and account.next_block {:?}", account_id, network_block_index, self.ledger_db.num_blocks().unwrap(), account.next_block);
-
                 account_ids.push(account_id);
             }
 
@@ -206,12 +204,15 @@ where
             .iter()
             .map(|t| t.value as u128)
             .sum::<u128>();
-        Ok((
+
+        let result = (
             unspent as u64,
+            pending as u64,
             spent as u64,
             secreted as u64,
             orphaned as u64,
-            pending as u64,
-        ))
+        );
+
+        Ok(result)
     }
 }

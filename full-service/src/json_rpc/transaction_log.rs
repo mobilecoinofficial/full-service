@@ -59,7 +59,7 @@ pub struct TransactionLog {
 
     /// String representing the transaction log status. On "sent", valid
     /// statuses are "built", "pending", "succeeded", "failed".  On "received",
-    /// the status is "succeded".
+    /// the status is "succeeded".
     pub status: String,
 
     /// A list of the IDs of the Txos which were inputs to this transaction.

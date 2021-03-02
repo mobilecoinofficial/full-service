@@ -131,15 +131,24 @@ pub enum JsonCommandRequestV2 {
         comment: Option<String>,
         account_id: Option<String>,
     },
-    /*
-    get_balance_for_subaddress {
-        address: String,
-    },*/
+    get_all_transaction_logs_for_account {
+        account_id: String,
+    },
+    get_transaction_log {
+        transaction_log_id: String,
+    },
+    get_all_transaction_logs_for_block {
+        block_index: String,
+    },
+    get_all_transaction_logs_ordered_by_block,
     get_wallet_status,
     get_account_status {
         account_id: String,
     },
     /*
+    get_balance_for_subaddress {
+        address: String,
+    },
     get_all_txos_by_account {
         account_id: String,
     },
@@ -155,13 +164,6 @@ pub enum JsonCommandRequestV2 {
     },
     get_all_addresses_by_account {
         account_id: String,
-    },
-
-    get_all_transactions_by_account {
-        account_id: String,
-    },
-    get_transaction {
-        transaction_log_id: String,
     },
     get_transaction_object {
         transaction_log_id: String,

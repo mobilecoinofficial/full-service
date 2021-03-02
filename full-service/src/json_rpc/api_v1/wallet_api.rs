@@ -4,7 +4,7 @@
 
 use crate::{
     json_rpc::api_v1::decorated_types::{
-        JsonAddress, JsonBlock, JsonBlockContents, JsonProof, JsonTransactionLog, JsonTxo,
+        JsonAddress, JsonBlock, JsonBlockContents, JsonProof, JsonTxo,
     },
     service::WalletService,
 };
@@ -16,20 +16,11 @@ use rocket_contrib::json::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use std::iter::FromIterator;
-use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 // Helper method to format displaydoc errors in json.
 fn format_error<T: std::fmt::Display + std::fmt::Debug>(e: T) -> String {
     json!({"error": format!("{:?}", e), "details": e.to_string()}).to_string()
-}
-
-pub fn help_str_v1() -> String {
-    let mut help_str = "Please use json data to choose wallet commands. For example, \n\ncurl -s localhost:9090/wallet -d '{\"method\": \"create_account\", \"params\": {\"name\": \"Alice\"}}' -X POST -H 'Content-type: application/json'\n\nAvailable commands are:\n\n".to_owned();
-    for e in JsonCommandRequestV1::iter() {
-        help_str.push_str(&format!("{:?}\n\n", e));
-    }
-    help_str
 }
 
 #[derive(Deserialize, Serialize, EnumIter, Debug)]
@@ -48,12 +39,6 @@ pub enum JsonCommandRequestV1 {
     },
     get_all_addresses_by_account {
         account_id: String,
-    },
-    get_all_transactions_by_account {
-        account_id: String,
-    },
-    get_transaction {
-        transaction_log_id: String,
     },
     get_transaction_object {
         transaction_log_id: String,
@@ -76,6 +61,7 @@ pub enum JsonCommandRequestV1 {
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(tag = "method", content = "result")]
 #[allow(non_camel_case_types)]
+#[allow(clippy::large_enum_variant)]
 pub enum JsonCommandResponseV1 {
     get_all_txos_by_account {
         txo_ids: Vec<String>,
@@ -90,13 +76,6 @@ pub enum JsonCommandResponseV1 {
     get_all_addresses_by_account {
         address_ids: Vec<String>,
         address_map: Map<String, serde_json::Value>,
-    },
-    get_all_transactions_by_account {
-        transaction_log_ids: Vec<String>,
-        transaction_log_map: Map<String, serde_json::Value>,
-    },
-    get_transaction {
-        transaction: JsonTransactionLog,
     },
     get_transaction_object {
         transaction: JsonTx,
@@ -182,37 +161,6 @@ where
             JsonCommandResponseV1::get_all_addresses_by_account {
                 address_ids: addresses.iter().map(|a| a.address_id.clone()).collect(),
                 address_map,
-            }
-        }
-        JsonCommandRequestV1::get_all_transactions_by_account { account_id } => {
-            let transactions = service
-                .list_transactions(&account_id)
-                .map_err(format_error)?;
-            let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
-                transactions
-                    .iter()
-                    .map(|t| {
-                        (
-                            t.transaction_log_id.clone(),
-                            serde_json::to_value(&(*t).clone()).expect("Could not get json value"),
-                        )
-                    })
-                    .collect::<Vec<(String, serde_json::Value)>>(),
-            );
-
-            JsonCommandResponseV1::get_all_transactions_by_account {
-                transaction_log_ids: transactions
-                    .iter()
-                    .map(|t| t.transaction_log_id.clone())
-                    .collect(),
-                transaction_log_map,
-            }
-        }
-        JsonCommandRequestV1::get_transaction { transaction_log_id } => {
-            JsonCommandResponseV1::get_transaction {
-                transaction: service
-                    .get_transaction(&transaction_log_id)
-                    .map_err(format_error)?,
             }
         }
         JsonCommandRequestV1::get_transaction_object { transaction_log_id } => {
