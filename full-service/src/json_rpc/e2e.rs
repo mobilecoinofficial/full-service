@@ -132,10 +132,7 @@ mod e2e {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        assert_eq!(
-            result.get("account").unwrap().get("account_id").unwrap(),
-            account_id
-        );
+        assert_eq!(result["success"].as_bool().unwrap(), true,);
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -220,10 +217,7 @@ mod e2e {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        assert_eq!(
-            result.get("account").unwrap().get("account_id").unwrap(),
-            account_id
-        );
+        assert_eq!(result["success"].as_bool().unwrap(), true);
 
         // Import it again - should succeed.
         let body = json!({
@@ -349,8 +343,7 @@ mod e2e {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        // Should have deleted the correct account
-        assert_eq!(result["account"]["account_id"], account_id);
+        assert_eq!(result["success"].as_bool().unwrap(), true);
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -755,10 +748,16 @@ mod e2e {
             .unwrap()
             .as_str()
             .unwrap();
+        let orphaned = balance_status
+            .get("orphaned_pmob")
+            .unwrap()
+            .as_str()
+            .unwrap();
         assert_eq!(unspent, "0");
-        assert_eq!(pending, "0");
-        assert_eq!(spent, "99990000000100");
-        assert_eq!(secreted, "0");
+        assert_eq!(pending, "100000000000100");
+        assert_eq!(spent, "0");
+        assert_eq!(secreted, "99990000000100");
+        assert_eq!(orphaned, "0");
 
         // FIXME: FS-93 Increment ledger manually so tx lands.
 

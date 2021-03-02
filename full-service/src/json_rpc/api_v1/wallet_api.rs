@@ -61,6 +61,7 @@ pub enum JsonCommandRequestV1 {
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(tag = "method", content = "result")]
 #[allow(non_camel_case_types)]
+#[allow(clippy::large_enum_variant)]
 pub enum JsonCommandResponseV1 {
     get_all_txos_by_account {
         txo_ids: Vec<String>,

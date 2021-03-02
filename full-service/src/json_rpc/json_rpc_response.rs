@@ -171,7 +171,7 @@ pub enum JsonCommandResponseV2 {
         account: Account,
     },
     delete_account {
-        account: Account,
+        success: bool,
     },
     get_balance_for_account {
         balance: Balance,

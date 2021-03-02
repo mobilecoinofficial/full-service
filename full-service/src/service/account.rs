@@ -66,7 +66,7 @@ pub trait AccountService {
     ) -> Result<Account, WalletServiceError>;
 
     /// Delete an account from the wallet.
-    fn delete_account(&self, account_id: &AccountID) -> Result<Account, WalletServiceError>;
+    fn delete_account(&self, account_id: &AccountID) -> Result<bool, WalletServiceError>;
 }
 
 impl<T, FPR> AccountService for WalletService<T, FPR>
@@ -195,14 +195,11 @@ where
         })?)
     }
 
-    fn delete_account(&self, account_id: &AccountID) -> Result<Account, WalletServiceError> {
+    fn delete_account(&self, account_id: &AccountID) -> Result<bool, WalletServiceError> {
         log::info!(self.logger, "Deleting account {}", account_id,);
 
         let conn = self.wallet_db.get_conn()?;
-
-        let account = Account::get(account_id, &conn)?;
-        let deleted = account.clone();
-        account.delete(&conn)?;
-        Ok(deleted)
+        Account::get(account_id, &conn)?.delete(&conn)?;
+        Ok(true)
     }
 }

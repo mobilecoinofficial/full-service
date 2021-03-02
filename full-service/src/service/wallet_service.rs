@@ -378,11 +378,10 @@ mod tests {
             .get_balance_for_account(&AccountID(alice.account_id_hex))
             .unwrap();
         assert_eq!(balance.unspent, 0);
-        assert_eq!(balance.pending, 0);
-        assert_eq!(balance.spent, 99990000000000);
-        assert_eq!(balance.secreted, 0);
-        assert_eq!(balance.orphaned, 100000000000000); // FIXME: Should not be
-                                                       // orphaned?
+        assert_eq!(balance.pending, 100000000000000);
+        assert_eq!(balance.spent, 0);
+        assert_eq!(balance.secreted, 99990000000000);
+        assert_eq!(balance.orphaned, 0);
 
         // FIXME: How to make the transaction actually hit the test ledger?
     }

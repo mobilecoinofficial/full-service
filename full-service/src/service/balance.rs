@@ -204,12 +204,15 @@ where
             .iter()
             .map(|t| t.value as u128)
             .sum::<u128>();
-        Ok((
+
+        let result = (
             unspent as u64,
+            pending as u64,
             spent as u64,
             secreted as u64,
             orphaned as u64,
-            pending as u64,
-        ))
+        );
+
+        Ok(result)
     }
 }

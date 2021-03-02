@@ -205,12 +205,9 @@ where
         }
         JsonCommandRequestV2::delete_account { account_id } => {
             JsonCommandResponseV2::delete_account {
-                account: json_rpc::account::Account::try_from(
-                    &service
-                        .delete_account(&AccountID(account_id))
-                        .map_err(format_error)?,
-                )
-                .map_err(format_error)?,
+                success: service
+                    .delete_account(&AccountID(account_id))
+                    .map_err(format_error)?,
             }
         }
         JsonCommandRequestV2::get_balance_for_account { account_id } => {
