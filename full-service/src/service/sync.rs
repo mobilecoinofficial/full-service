@@ -260,6 +260,14 @@ impl Drop for SyncThread {
     }
 }
 /// The entry point of a sync worker thread that processes queue messages.
+///
+/// # Arguments
+/// * `ledger_db` -
+/// * `wallet_db` -
+/// * `sender` -
+/// * `receiver` -
+/// * `queued_account_ids` -
+/// * `logger` -
 fn sync_thread_entry_point(
     ledger_db: LedgerDB,
     wallet_db: WalletDb,
@@ -310,6 +318,12 @@ fn sync_thread_entry_point(
 }
 
 /// Sync a single account against the next chuck of blocks.
+///
+/// # Arguments
+/// * `ledger_db` -
+/// * `wallet_db` -
+/// * `account_id` -
+/// * `logger` -
 pub fn incrementally_sync_account(
     ledger_db: &LedgerDB,
     wallet_db: &WalletDb,
