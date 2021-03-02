@@ -50,9 +50,16 @@ impl fmt::Display for AccountID {
 }
 
 pub trait AccountModel {
-    /// Create an account.
+    /// Create a new account.
     ///
-    /// Returns:
+    /// # Arguments
+    /// * `entropy` - The "root entropy" used to generate the account's private keys.
+    /// * `first_block` - Index of the first block where this account may have sent or received MobileCoin.
+    /// * `import_block` - ???
+    /// * `name` - A name for this account in the wallet.
+    /// * `conn` - SQLite connection.
+    ///
+    /// # Returns
     /// * (account_id, main_subaddress_b58)
     fn create(
         entropy: &RootEntropy,
@@ -63,6 +70,13 @@ pub trait AccountModel {
     ) -> Result<(AccountID, String), WalletDbError>;
 
     /// Import account.
+    ///
+    /// # Arguments
+    /// * `entropy` - The "root entropy" used to generate the account's private keys.
+    /// * `first_block` - Index of the first block where this account may have sent or received MobileCoin.
+    /// * `import_block` - ???
+    /// * `name` - A name for this account in the wallet.
+    /// * `conn` - SQLite connection.
     fn import(
         entropy: &RootEntropy,
         name: Option<String>,
@@ -79,16 +93,19 @@ pub trait AccountModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<Account>, WalletDbError>;
 
-    /// Get a specific account.
+    /// Get an account.
     ///
-    /// Returns:
+    /// # Arguments
+    /// * `account_id_hex` - Hex string derived from the account data.
+    ///
+    /// # Returns
     /// * Account
     fn get(
         account_id_hex: &AccountID,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Account, WalletDbError>;
 
-    /// Get the API-decorated Account object
+    /// Get the API-decorated Account object.
     fn get_decorated(
         account_id_hex: &AccountID,
         local_height: u64,
@@ -96,6 +113,7 @@ pub trait AccountModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<JsonAccount, WalletDbError>;
 
+    /// Get all accounts somehow related to a particular TXO?
     fn get_by_txo_id(
         txo_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
@@ -396,6 +414,42 @@ mod tests {
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
     use std::{collections::HashSet, iter::FromIterator};
+
+    /// Get a connection to an empty WalletDb.
+    fn get_wallet_db_connection(logger: Logger) -> PooledConnection<ConnectionManager<SqliteConnection>> {
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+        wallet_db.get_conn().unwrap()
+    }
+
+    #[test_with_logger]
+    /// list_all should return an empty vec if there are no accounts.
+    fn test_list_all_with_no_accounts(logger: Logger) {
+        // WalletDb connection.
+        let conn = get_wallet_db_connection(logger);
+
+        match Account::list_all(&conn) {
+            Ok(accounts) => {
+                assert_eq!(accounts.len(), 0);
+            },
+            Err(e) => { panic!("Unexpected error {:?}", e) }
+        }
+    }
+
+    #[test_with_logger]
+    /// Getting an account from an empty table should return an error.
+    fn test_get_with_no_accounts(logger: Logger) {
+        // WalletDb connection.
+        let conn = get_wallet_db_connection(logger);
+
+        match Account::get(&AccountID("foo".to_string()), &conn) {
+            Ok(account) => {
+                panic!("Unexpected account {:?}", account);
+            },
+            Err(WalletDbError::AccountNotFound(_x)) => { /* This is expected */ },
+            Err(e) => { panic!("Unexpected error {:?}", e) }
+        }
+    }
 
     #[test_with_logger]
     fn test_account_crud(logger: Logger) {
