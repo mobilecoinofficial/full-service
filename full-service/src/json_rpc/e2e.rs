@@ -352,8 +352,6 @@ mod e2e {
         // Should have deleted the correct account
         assert_eq!(result["account"]["account_id"], account_id);
 
-        println!("\x1b[1;31m Account key {:?}\x1b[0m", account_key);
-
         let body = json!({
             "jsonrpc": "2.0",
             "api_version": "2",

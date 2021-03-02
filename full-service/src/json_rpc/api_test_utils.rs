@@ -187,7 +187,7 @@ pub fn wait_for_sync(
         // FIXME: FS-122: Use async primitives so that we don't have to sleep for these
         // tests.
         // Sleep to let the sync thread process the txos
-        std::thread::sleep(Duration::from_secs(1));
+        std::thread::sleep(Duration::from_secs(2));
 
         // Check that syncing is working
         let body = json!({
@@ -196,27 +196,26 @@ pub fn wait_for_sync(
             "method": "get_wallet_status",
         });
         let res = dispatch(&client, body, &logger);
-        let status = res.get("result").unwrap().get("wallet_status").unwrap();
+        let status = res["result"]["wallet_status"].clone();
 
-        let is_synced_all = status.get("is_synced_all").unwrap().as_bool().unwrap();
+        let is_synced_all = status["is_synced_all"].as_bool().unwrap();
         if is_synced_all {
-            let local_height = status
-                .get("local_block_count")
-                .unwrap()
+            let local_height = status["local_block_count"]
                 .as_str()
                 .unwrap()
                 .parse::<u64>()
                 .unwrap();
             assert_eq!(local_height, ledger_db.num_blocks().unwrap());
+            // In the test context, we often add a block manually locally before updating
+            // the network_state. In the wild, the local_height should never be
+            // greater than the network_height.
             assert!(
-                status
-                    .get("network_block_count")
-                    .unwrap()
+                status["network_block_count"]
                     .as_str()
                     .unwrap()
                     .parse::<u64>()
                     .unwrap()
-                    >= local_height
+                    <= local_height
             );
             break;
         }
