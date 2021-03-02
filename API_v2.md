@@ -1,4 +1,4 @@
-# Full Service API v1
+# Full Service API v2
 
 The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with your MobileCoin transactions.
 
