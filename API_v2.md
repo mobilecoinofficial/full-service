@@ -13,6 +13,7 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 * [get_account](#get-account)
 * [update_account_name](#update-account-name)
 * [delete_account](#delete-account)
+* [export_account_secrets](#export-account-secrets)
 * [get_all_txos_by_account](#get-all-txos-for-a-given-account)
 * [get_txo](#get-txo-details)
 * [get_wallet_status](#get-wallet-status)
@@ -465,6 +466,47 @@ curl -s localhost:9090/wallet \
 | Required Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
 | `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
+
+#### Export Account Secrets
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "export_account_secrets",
+        "params": {
+          "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52"
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
+```
+
+```json
+{
+  "method": "export_account_secrets",
+  "result": {
+    "account_secrets": {
+      "object": "account_key",
+      "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
+      "entropy": "fc1fae41f08eccc6c494d67ad0970ef2b469f7149316e5cdb3ad86d07c32469f",
+      "account_key": {
+        "object": "account_key",
+        "view_private_key": "0a20be48e147741246f09adb195b110c4ec39302778c4554cd3c9ff877f8392ce605",
+        "spend_private_key": "0a201f33b194e13176341b4e696b70be5ba5c4e0021f5a79664ab9a8b128f0d6d40d",
+        "fog_report_url": "",
+        "fog_report_id": "",
+        "fog_authority_spki": ""
+      }
+    }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+  "api_version": "2"
+}
+```
 
 ### TXOs
 
