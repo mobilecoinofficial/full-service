@@ -13,6 +13,7 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 * [get_account](#get-account)
 * [update_account_name](#update-account-name)
 * [delete_account](#delete-account)
+* [export_account_secrets](#export-account-secrets)
 * [get_all_txos_by_account](#get-all-txos-for-a-given-account)
 * [get_txo](#get-txo-details)
 * [get_wallet_status](#get-wallet-status)
