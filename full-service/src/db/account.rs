@@ -53,8 +53,10 @@ pub trait AccountModel {
     /// Create a new account.
     ///
     /// # Arguments
-    /// * `entropy` - The "root entropy" used to generate the account's private keys.
-    /// * `first_block` - Index of the first block where this account may have sent or received MobileCoin.
+    /// * `entropy` - The "root entropy" used to generate the account's private
+    ///   keys.
+    /// * `first_block` - Index of the first block where this account may have
+    ///   sent or received MobileCoin.
     /// * `import_block` - ???
     /// * `name` - A name for this account in the wallet.
     /// * `conn` - SQLite connection.
@@ -72,8 +74,10 @@ pub trait AccountModel {
     /// Import account.
     ///
     /// # Arguments
-    /// * `entropy` - The "root entropy" used to generate the account's private keys.
-    /// * `first_block` - Index of the first block where this account may have sent or received MobileCoin.
+    /// * `entropy` - The "root entropy" used to generate the account's private
+    ///   keys.
+    /// * `first_block` - Index of the first block where this account may have
+    ///   sent or received MobileCoin.
     /// * `import_block` - ???
     /// * `name` - A name for this account in the wallet.
     /// * `conn` - SQLite connection.
@@ -102,6 +106,18 @@ pub trait AccountModel {
     /// * Account
     fn get(
         account_id_hex: &AccountID,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Account, WalletDbError>;
+
+    /// Get an account.
+    ///
+    /// # Arguments
+    /// * `id` - The account's ID.
+    ///
+    /// # Returns
+    /// * Account
+    fn get_by_id(
+        id: i32,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Account, WalletDbError>;
 
@@ -247,6 +263,22 @@ impl AccountModel for Account {
             }
             Err(e) => Err(e.into()),
         }
+    }
+
+    /// Get an account.
+    ///
+    /// # Arguments
+    /// * `id` - The account's ID.
+    ///
+    /// # Returns
+    /// * Account
+    fn get_by_id(
+        id: i32,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Account, WalletDbError> {
+        use crate::db::schema::accounts::dsl::accounts;
+        let account = accounts.find(id).get_result::<Account>(conn)?;
+        Ok(account)
     }
 
     fn get_decorated(
@@ -416,7 +448,9 @@ mod tests {
     use std::{collections::HashSet, iter::FromIterator};
 
     /// Get a connection to an empty WalletDb.
-    fn get_wallet_db_connection(logger: Logger) -> PooledConnection<ConnectionManager<SqliteConnection>> {
+    fn get_wallet_db_connection(
+        logger: Logger,
+    ) -> PooledConnection<ConnectionManager<SqliteConnection>> {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
         wallet_db.get_conn().unwrap()
@@ -431,8 +465,8 @@ mod tests {
         match Account::list_all(&conn) {
             Ok(accounts) => {
                 assert_eq!(accounts.len(), 0);
-            },
-            Err(e) => { panic!("Unexpected error {:?}", e) }
+            }
+            Err(e) => panic!("Unexpected error {:?}", e),
         }
     }
 
@@ -445,9 +479,9 @@ mod tests {
         match Account::get(&AccountID("foo".to_string()), &conn) {
             Ok(account) => {
                 panic!("Unexpected account {:?}", account);
-            },
-            Err(WalletDbError::AccountNotFound(_x)) => { /* This is expected */ },
-            Err(e) => { panic!("Unexpected error {:?}", e) }
+            }
+            Err(WalletDbError::AccountNotFound(_x)) => { /* This is expected */ }
+            Err(e) => panic!("Unexpected error {:?}", e),
         }
     }
 
