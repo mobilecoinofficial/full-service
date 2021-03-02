@@ -116,14 +116,6 @@ pub trait AccountModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Account, WalletDbError>;
 
-    // /// Get the API-decorated Account object.
-    // fn get_decorated(
-    //     account_id_hex: &AccountID,
-    //     local_height: u64,
-    //     network_height: u64,
-    //     conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    // ) -> Result<JsonAccount, WalletDbError>;
-
     /// Get all accounts somehow related to a particular TXO?
     fn get_by_txo_id(
         txo_id_hex: &str,
@@ -275,47 +267,6 @@ impl AccountModel for Account {
         let account = accounts.find(id).get_result::<Account>(conn)?;
         Ok(account)
     }
-
-    // fn get_decorated(
-    //     account_id_hex: &AccountID,
-    //     local_height: u64,
-    //     network_height: u64,
-    //     conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    // ) -> Result<JsonAccount, WalletDbError> {
-    //     Ok(conn.transaction::<JsonAccount, WalletDbError, _>(|| {
-    //         let account = Account::get(account_id_hex, conn)?;
-    //
-    //         let unspent =
-    //             Txo::list_by_status(&account_id_hex.to_string(),
-    // TXO_STATUS_UNSPENT, conn)?                 .iter()
-    //                 .map(|t| t.value as u128)
-    //                 .sum::<u128>();
-    //         let pending =
-    //             Txo::list_by_status(&account_id_hex.to_string(),
-    // TXO_STATUS_PENDING, conn)?                 .iter()
-    //                 .map(|t| t.value as u128)
-    //                 .sum::<u128>();
-    //
-    //         let account_key: AccountKey =
-    // mc_util_serial::decode(&account.account_key)?;         let
-    // main_subaddress_b58 =             
-    // b58_encode(&account_key.subaddress(DEFAULT_SUBADDRESS_INDEX))?;
-    //         Ok(JsonAccount {
-    //             object: "account".to_string(),
-    //             account_id: account.account_id_hex,
-    //             name: account.name,
-    //             network_height: network_height.to_string(),
-    //             local_height: local_height.to_string(),
-    //             account_height: account.next_block.to_string(),
-    //             is_synced: account.next_block == network_height as i64,
-    //             available_pmob: unspent.to_string(),
-    //             pending_pmob: pending.to_string(),
-    //             main_address: main_subaddress_b58,
-    //             next_subaddress_index: account.next_subaddress_index.to_string(),
-    //             recovery_mode: false, // FIXME: WS-24 - Recovery mode for account
-    //         })
-    //     })?)
-    // }
 
     fn get_by_txo_id(
         txo_id_hex: &str,
