@@ -121,7 +121,7 @@ pub trait TransactionLogModel {
         comment: String,
         account_id_hex: Option<&str>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<String, WalletDbError>;
+    ) -> Result<TransactionLog, WalletDbError>;
 }
 
 impl TransactionLogModel for TransactionLog {
@@ -304,7 +304,7 @@ impl TransactionLogModel for TransactionLog {
                 // Check whether all the inputs have been spent or if any failed, and update
                 // accordingly
                 if Txo::are_all_spent(&associated.inputs, conn)? {
-                    // FIXME: WS-18 - do we want to store "submitted_block_count" to disambiguate
+                    // FIXME: WS-18 - do we want to store "submitted_block_index" to disambiguate
                     // block_count?
                     diesel::update(
                         transaction_logs
@@ -312,7 +312,7 @@ impl TransactionLogModel for TransactionLog {
                     )
                     .set((
                         crate::db::schema::transaction_logs::status.eq(TX_STATUS_SUCCEEDED),
-                        crate::db::schema::transaction_logs::finalized_block_count
+                        crate::db::schema::transaction_logs::finalized_block_index
                             .eq(Some(cur_block_count)),
                     ))
                     .execute(conn)?;
@@ -372,8 +372,8 @@ impl TransactionLogModel for TransactionLog {
                         fee: None, // Impossible to recover fee from received transaction
                         status: TX_STATUS_SUCCEEDED,
                         sent_time: None, // NULL for received
-                        submitted_block_count: None,
-                        finalized_block_count: Some(block_count as i64),
+                        submitted_block_index: None,
+                        finalized_block_index: Some(block_count as i64),
                         comment: "", // NULL for received
                         direction: TX_DIRECTION_RECEIVED,
                         tx: None, // NULL for received
@@ -405,8 +405,8 @@ impl TransactionLogModel for TransactionLog {
         comment: String,
         account_id_hex: Option<&str>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<String, WalletDbError> {
-        Ok(conn.transaction::<String, WalletDbError, _>(|| {
+    ) -> Result<TransactionLog, WalletDbError> {
+        let transaction_log_id = conn.transaction::<String, WalletDbError, _>(|| {
             // Store the txo_id -> transaction_txo_type
             let mut txo_ids: Vec<(String, String)> = Vec::new();
 
@@ -474,8 +474,8 @@ impl TransactionLogModel for TransactionLog {
                     fee: Some(tx_proposal.tx.prefix.fee as i64),
                     status: TX_STATUS_PENDING,
                     sent_time: Some(Utc::now().timestamp()),
-                    submitted_block_count: Some(block_count as i64),
-                    finalized_block_count: None,
+                    submitted_block_index: Some(block_count as i64),
+                    finalized_block_index: None,
                     comment: &comment,
                     direction: TX_DIRECTION_SENT,
                     tx: Some(&tx),
@@ -500,7 +500,8 @@ impl TransactionLogModel for TransactionLog {
             } else {
                 Err(WalletDbError::TransactionLacksRecipient)
             }
-        })?)
+        })?;
+        Ok(TransactionLog::get(&transaction_log_id, conn)?)
     }
 }
 
@@ -619,7 +620,7 @@ mod tests {
         builder.select_txos(None).unwrap();
         let tx_proposal = builder.build().unwrap();
 
-        let tx_id = TransactionLog::log_submitted(
+        let tx_log = TransactionLog::log_submitted(
             tx_proposal.clone(),
             ledger_db.num_blocks().unwrap(),
             "".to_string(),
@@ -628,8 +629,6 @@ mod tests {
         )
         .unwrap();
 
-        let tx_log = TransactionLog::get(&tx_id, &wallet_db.get_conn().unwrap()).unwrap();
-        assert_eq!(tx_log.transaction_id_hex, tx_id);
         assert_eq!(
             tx_log.account_id_hex,
             AccountID::from(&account_key).to_string()
@@ -648,7 +647,7 @@ mod tests {
         assert_eq!(tx_log.status, TX_STATUS_PENDING);
         assert!(tx_log.sent_time.unwrap() > 0);
         assert_eq!(
-            tx_log.submitted_block_count,
+            tx_log.submitted_block_index,
             Some(ledger_db.num_blocks().unwrap() as i64)
         );
         assert_eq!(tx_log.comment, "");
@@ -770,7 +769,7 @@ mod tests {
         builder.select_txos(None).unwrap();
         let tx_proposal = builder.build().unwrap();
 
-        let tx_id = TransactionLog::log_submitted(
+        let tx_log = TransactionLog::log_submitted(
             tx_proposal.clone(),
             ledger_db.num_blocks().unwrap(),
             "".to_string(),
@@ -779,8 +778,6 @@ mod tests {
         )
         .unwrap();
 
-        let tx_log = TransactionLog::get(&tx_id, &wallet_db.get_conn().unwrap()).unwrap();
-        assert_eq!(tx_log.transaction_id_hex, tx_id);
         assert_eq!(
             tx_log.account_id_hex,
             AccountID::from(&account_key).to_string()
@@ -799,7 +796,7 @@ mod tests {
         assert_eq!(tx_log.status, TX_STATUS_PENDING);
         assert!(tx_log.sent_time.unwrap() > 0);
         assert_eq!(
-            tx_log.submitted_block_count,
+            tx_log.submitted_block_index,
             Some(ledger_db.num_blocks().unwrap() as i64)
         );
         assert_eq!(tx_log.comment, "");

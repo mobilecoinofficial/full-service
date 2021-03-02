@@ -16,7 +16,10 @@ use crate::{
         },
         wallet_status::WalletStatus,
     },
-    service::{account::AccountService, balance::BalanceService, WalletService},
+    service::{
+        account::AccountService, balance::BalanceService, transaction::TransactionService,
+        WalletService,
+    },
 };
 use mc_common::logger::global_log;
 use mc_connection::{
@@ -238,6 +241,82 @@ where
                     .map_err(format_error)?,
             );
             JsonCommandResponseV2::get_account_status { account, balance }
+        }
+        JsonCommandRequestV2::build_and_submit_transaction {
+            account_id,
+            recipient_public_address,
+            value,
+            input_txo_ids,
+            fee,
+            tombstone_block,
+            max_spendable_value,
+            comment,
+        } => {
+            let (transaction_log, associated_txos) = service
+                .build_and_submit(
+                    &account_id,
+                    &recipient_public_address,
+                    value,
+                    input_txo_ids.as_ref(),
+                    fee,
+                    tombstone_block,
+                    max_spendable_value,
+                    comment,
+                )
+                .map_err(format_error)?;
+            JsonCommandResponseV2::build_and_submit_transaction {
+                transaction_log: json_rpc::transaction_log::TransactionLog::new(
+                    &transaction_log,
+                    &associated_txos,
+                ),
+            }
+        }
+        JsonCommandRequestV2::build_transaction {
+            account_id,
+            recipient_public_address,
+            value,
+            input_txo_ids,
+            fee,
+            tombstone_block,
+            max_spendable_value,
+        } => {
+            let tx_proposal = service
+                .build_transaction(
+                    &account_id,
+                    &recipient_public_address,
+                    value,
+                    input_txo_ids.as_ref(),
+                    fee,
+                    tombstone_block,
+                    max_spendable_value,
+                )
+                .map_err(format_error)?;
+            JsonCommandResponseV2::build_transaction {
+                tx_proposal: json_rpc::tx_proposal::TxProposal::from(&tx_proposal),
+            }
+        }
+        JsonCommandRequestV2::submit_transaction {
+            tx_proposal,
+            comment,
+            account_id,
+        } => {
+            let result: Option<json_rpc::transaction_log::TransactionLog> = service
+                .submit_transaction(
+                    mc_mobilecoind::payments::TxProposal::try_from(&tx_proposal)
+                        .map_err(format_error)?,
+                    comment,
+                    account_id,
+                )
+                .map_err(format_error)?
+                .map(|(transaction_log, associated_txos)| {
+                    json_rpc::transaction_log::TransactionLog::new(
+                        &transaction_log,
+                        &associated_txos,
+                    )
+                });
+            JsonCommandResponseV2::submit_transaction {
+                transaction_log: result,
+            }
         }
     };
     let response = Json(JsonRPCResponse::from(result));

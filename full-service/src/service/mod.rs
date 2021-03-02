@@ -5,6 +5,7 @@
 pub mod account;
 pub mod balance;
 pub mod sync;
+pub mod transaction;
 pub mod transaction_builder;
 mod wallet_service;
 
