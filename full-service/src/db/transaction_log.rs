@@ -181,7 +181,6 @@ impl TransactionLogModel for TransactionLog {
         };
 
         let matches = transaction_logs
-            .group_by(finalized_block_index)
             .select(all_columns)
             .order_by(finalized_block_index.asc())
             .load(conn)?;
