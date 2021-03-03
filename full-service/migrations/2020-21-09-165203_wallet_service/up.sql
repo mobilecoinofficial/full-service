@@ -2,7 +2,7 @@ CREATE TABLE accounts (
   id INTEGER NOT NULL PRIMARY KEY,
   account_id_hex VARCHAR NOT NULL UNIQUE,
   account_key BLOB NOT NULL,
-  entropy BLOB,
+  entropy BLOB NOT NULL,
   main_subaddress_index UNSIGNED BIG INT NOT NULL,
   change_subaddress_index UNSIGNED BIG INT NOT NULL,
   next_subaddress_index UNSIGNED BIG INT NOT NULL,
@@ -66,8 +66,8 @@ CREATE TABLE transaction_logs (
     fee UNSIGNED BIG INT,
     status VARCHAR(8) NOT NULL,
     sent_time UNSIGNED BIG INT,
-    submitted_block_index UNSIGNED BIG INT,
-    finalized_block_index UNSIGNED BIG INT,
+    submitted_block_count UNSIGNED BIG INT,
+    finalized_block_count UNSIGNED BIG INT,
     comment TEXT NOT NULL DEFAULT '',
     direction VARCHAR(8) NOT NULL,
     tx BLOB,
@@ -76,7 +76,6 @@ CREATE TABLE transaction_logs (
 );
 
 CREATE UNIQUE INDEX idx_transaction_logs__transaction_id_hex ON transaction_logs (transaction_id_hex);
-CREATE INDEX idx_transaction_logs__finalized_block_index ON transaction_logs (finalized_block_index);
 
 CREATE TABLE transaction_txo_types (
     transaction_id_hex VARCHAR NOT NULL,

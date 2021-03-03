@@ -51,8 +51,8 @@ impl JsonTxo {
             object: "txo".to_string(),
             txo_id: txo_details.txo.txo_id_hex.clone(),
             value_pmob: txo_details.txo.value.to_string(),
-            received_block_height: txo_details.txo.received_block_count.map(|x| x.to_string()),
-            spent_block_height: txo_details.txo.spent_block_count.map(|x| x.to_string()),
+            received_block_height: txo_details.txo.received_block_index.map(|x| x.to_string()),
+            spent_block_height: txo_details.txo.spent_block_index.map(|x| x.to_string()),
             is_spent_recovered: false,
             received_account_id: txo_details
                 .received_to_account

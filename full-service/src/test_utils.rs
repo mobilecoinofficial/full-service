@@ -420,7 +420,7 @@ pub fn create_test_received_txo(
     account_key: &AccountKey,
     recipient_subaddress_index: u64,
     value: u64,
-    received_block_count: u64,
+    received_block_index: u64,
     rng: &mut StdRng,
     wallet_db: &WalletDb,
 ) -> (String, TxOut, KeyImage) {
@@ -432,7 +432,7 @@ pub fn create_test_received_txo(
         Some(recipient_subaddress_index as i64),
         Some(key_image),
         value,
-        received_block_count as i64,
+        received_block_index as i64,
         &AccountID::from(account_key).to_string(),
         &wallet_db.get_conn().unwrap(),
     )
