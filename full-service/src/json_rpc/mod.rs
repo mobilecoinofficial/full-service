@@ -4,10 +4,14 @@
 
 mod account;
 mod account_key;
+pub mod account_secrets;
 pub mod api_v1;
 mod balance;
 pub mod json_rpc_request;
 pub mod json_rpc_response;
+mod transaction_log;
+mod tx_proposal;
+mod unspent_tx_out;
 pub mod wallet;
 mod wallet_status;
 

@@ -18,20 +18,12 @@ use mc_common::HashMap;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
-use mc_ledger_sync::NetworkState;
 
 use diesel::{
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},
     Connection,
 };
-
-/*
-use displaydoc::Display;
-/// Errors for the Balance Service.
-#[derive(Display, Debug)]
-pub enum BalanceServiceError {}
-*/
 
 /// The balance object returned by balance services.
 ///
@@ -106,13 +98,7 @@ where
         let (unspent, pending, spent, secreted, orphaned) =
             Self::get_balance_inner(account_id_hex, &conn)?;
 
-        let network_state = self.network_state.read().expect("lock poisoned");
-        // network_height = network_block_index + 1
-        let network_height = network_state
-            .highest_block_index_on_network()
-            .map(|v| v + 1)
-            .unwrap_or(0);
-
+        let network_block_count = self.get_network_block_index()? + 1;
         let local_block_count = self.ledger_db.num_blocks()?;
         let account = Account::get(account_id, &conn)?;
 
@@ -122,7 +108,7 @@ where
             spent,
             secreted,
             orphaned,
-            network_block_count: network_height,
+            network_block_count,
             local_block_count,
             synced_blocks: account.next_block as u64,
         })
@@ -141,12 +127,7 @@ where
     fn get_wallet_status(&self) -> Result<WalletStatus, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
-        let network_state = self.network_state.read().expect("lock poisoned");
-        // network_height = network_block_index + 1
-        let network_height = network_state
-            .highest_block_index_on_network()
-            .map(|v| v + 1)
-            .unwrap_or(0);
+        let network_block_index = self.get_network_block_index()?;
 
         Ok(conn.transaction::<WalletStatus, WalletServiceError, _>(|| {
             let accounts = Account::list_all(&conn)?;
@@ -158,7 +139,7 @@ where
             let mut secreted = 0;
             let mut orphaned = 0;
 
-            let mut min_synced_block_index = network_height;
+            let mut min_synced_block_index = network_block_index;
             let mut account_ids = Vec::new();
             for account in accounts {
                 let account_id = AccountID(account.account_id_hex.clone());
@@ -175,7 +156,6 @@ where
                     min_synced_block_index,
                     (account.next_block as u64).saturating_sub(1),
                 );
-
                 account_ids.push(account_id);
             }
 
@@ -185,7 +165,7 @@ where
                 spent: spent as u64,
                 secreted: secreted as u64,
                 orphaned: orphaned as u64,
-                network_block_count: network_height,
+                network_block_count: network_block_index + 1,
                 local_block_count: self.ledger_db.num_blocks()?,
                 min_synced_block_index: min_synced_block_index as u64,
                 account_ids,
@@ -224,12 +204,15 @@ where
             .iter()
             .map(|t| t.value as u128)
             .sum::<u128>();
-        Ok((
+
+        let result = (
             unspent as u64,
+            pending as u64,
             spent as u64,
             secreted as u64,
             orphaned as u64,
-            pending as u64,
-        ))
+        );
+
+        Ok(result)
     }
 }

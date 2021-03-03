@@ -7,13 +7,19 @@ use crate::{
     db::account::AccountID,
     json_rpc,
     json_rpc::{
-        api_v1::wallet_api::{help_str_v1, wallet_api_inner_v1, JsonCommandRequestV1},
+        account_secrets::AccountSecrets,
+        api_v1::wallet_api::{wallet_api_inner_v1, JsonCommandRequestV1},
+        balance::Balance,
         json_rpc_request::{help_str_v2, JsonCommandRequest, JsonCommandRequestV2},
         json_rpc_response::{
             format_error, JsonCommandResponse, JsonCommandResponseV2, JsonRPCResponse,
         },
+        wallet_status::WalletStatus,
     },
-    service::{account::AccountService, balance::BalanceService, WalletService},
+    service::{
+        account::AccountService, balance::BalanceService, transaction::TransactionService,
+        transaction_log::TransactionLogService, WalletService,
+    },
 };
 use mc_common::logger::global_log;
 use mc_connection::{
@@ -110,7 +116,7 @@ where
                     .map_err(|e| format!("Could not get RPC Account from DB Account {:?}", e))?,
             }
         }
-        JsonCommandRequestV2::import_account {
+        JsonCommandRequestV2::import_account_by_entropy {
             entropy,
             name,
             first_block_index,
@@ -120,13 +126,45 @@ where
                 .transpose()
                 .map_err(format_error)?;
 
-            JsonCommandResponseV2::import_account {
+            JsonCommandResponseV2::import_account_by_entropy {
                 account: json_rpc::account::Account::try_from(
                     &service
-                        .import_account(entropy, name, fb)
+                        .import_account_entropy(entropy, name, fb)
                         .map_err(format_error)?,
                 )
                 .map_err(format_error)?,
+            }
+        }
+        JsonCommandRequestV2::import_account_by_account_key {
+            account_key,
+            name,
+            first_block_index,
+        } => {
+            let fb = first_block_index
+                .map(|fb| fb.parse::<u64>())
+                .transpose()
+                .map_err(format_error)?;
+
+            JsonCommandResponseV2::import_account_by_account_key {
+                account: json_rpc::account::Account::try_from(
+                    &service
+                        .import_account_key(
+                            mc_account_keys::AccountKey::try_from(&account_key)
+                                .map_err(format_error)?,
+                            name,
+                            fb,
+                        )
+                        .map_err(format_error)?,
+                )
+                .map_err(format_error)?,
+            }
+        }
+        JsonCommandRequestV2::export_account_secrets { account_id } => {
+            let account = service
+                .get_account(&AccountID(account_id))
+                .map_err(format_error)?;
+            JsonCommandResponseV2::export_account_secrets {
+                account_secrets: AccountSecrets::try_from(&account).map_err(format_error)?,
             }
         }
         JsonCommandRequestV2::get_all_accounts => {
@@ -167,17 +205,14 @@ where
         }
         JsonCommandRequestV2::delete_account { account_id } => {
             JsonCommandResponseV2::delete_account {
-                account: json_rpc::account::Account::try_from(
-                    &service
-                        .delete_account(&AccountID(account_id))
-                        .map_err(format_error)?,
-                )
-                .map_err(format_error)?,
+                success: service
+                    .delete_account(&AccountID(account_id))
+                    .map_err(format_error)?,
             }
         }
         JsonCommandRequestV2::get_balance_for_account { account_id } => {
             JsonCommandResponseV2::get_balance_for_account {
-                balance: json_rpc::balance::Balance::from(
+                balance: Balance::from(
                     &service
                         .get_balance_for_account(&AccountID(account_id))
                         .map_err(format_error)?,
@@ -185,7 +220,7 @@ where
             }
         }
         JsonCommandRequestV2::get_wallet_status => JsonCommandResponseV2::get_wallet_status {
-            wallet_status: json_rpc::wallet_status::WalletStatus::try_from(
+            wallet_status: WalletStatus::try_from(
                 &service.get_wallet_status().map_err(format_error)?,
             )
             .map_err(format_error)?,
@@ -197,12 +232,169 @@ where
                     .map_err(format_error)?,
             )
             .map_err(format_error)?;
-            let balance = json_rpc::balance::Balance::from(
+            let balance = Balance::from(
                 &service
                     .get_balance_for_account(&AccountID(account_id))
                     .map_err(format_error)?,
             );
             JsonCommandResponseV2::get_account_status { account, balance }
+        }
+        JsonCommandRequestV2::build_and_submit_transaction {
+            account_id,
+            recipient_public_address,
+            value,
+            input_txo_ids,
+            fee,
+            tombstone_block,
+            max_spendable_value,
+            comment,
+        } => {
+            let (transaction_log, associated_txos) = service
+                .build_and_submit(
+                    &account_id,
+                    &recipient_public_address,
+                    value,
+                    input_txo_ids.as_ref(),
+                    fee,
+                    tombstone_block,
+                    max_spendable_value,
+                    comment,
+                )
+                .map_err(format_error)?;
+            JsonCommandResponseV2::build_and_submit_transaction {
+                transaction_log: json_rpc::transaction_log::TransactionLog::new(
+                    &transaction_log,
+                    &associated_txos,
+                ),
+            }
+        }
+        JsonCommandRequestV2::build_transaction {
+            account_id,
+            recipient_public_address,
+            value,
+            input_txo_ids,
+            fee,
+            tombstone_block,
+            max_spendable_value,
+        } => {
+            let tx_proposal = service
+                .build_transaction(
+                    &account_id,
+                    &recipient_public_address,
+                    value,
+                    input_txo_ids.as_ref(),
+                    fee,
+                    tombstone_block,
+                    max_spendable_value,
+                )
+                .map_err(format_error)?;
+            JsonCommandResponseV2::build_transaction {
+                tx_proposal: json_rpc::tx_proposal::TxProposal::from(&tx_proposal),
+            }
+        }
+        JsonCommandRequestV2::submit_transaction {
+            tx_proposal,
+            comment,
+            account_id,
+        } => {
+            let result: Option<json_rpc::transaction_log::TransactionLog> = service
+                .submit_transaction(
+                    mc_mobilecoind::payments::TxProposal::try_from(&tx_proposal)
+                        .map_err(format_error)?,
+                    comment,
+                    account_id,
+                )
+                .map_err(format_error)?
+                .map(|(transaction_log, associated_txos)| {
+                    json_rpc::transaction_log::TransactionLog::new(
+                        &transaction_log,
+                        &associated_txos,
+                    )
+                });
+            JsonCommandResponseV2::submit_transaction {
+                transaction_log: result,
+            }
+        }
+        JsonCommandRequestV2::get_all_transaction_logs_for_account { account_id } => {
+            let transaction_logs_and_txos = service
+                .list_transaction_logs(&AccountID(account_id))
+                .map_err(format_error)?;
+            let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
+                transaction_logs_and_txos
+                    .iter()
+                    .map(|(t, a)| {
+                        (
+                            t.transaction_id_hex.clone(),
+                            serde_json::json!(json_rpc::transaction_log::TransactionLog::new(t, a)),
+                        )
+                    })
+                    .collect::<Vec<(String, serde_json::Value)>>(),
+            );
+
+            JsonCommandResponseV2::get_all_transaction_logs_for_account {
+                transaction_log_ids: transaction_logs_and_txos
+                    .iter()
+                    .map(|(t, _a)| t.transaction_id_hex.to_string())
+                    .collect(),
+                transaction_log_map,
+            }
+        }
+        JsonCommandRequestV2::get_transaction_log { transaction_log_id } => {
+            let (transaction_log, associated_txos) = service
+                .get_transaction_log(&transaction_log_id)
+                .map_err(format_error)?;
+            JsonCommandResponseV2::get_transaction_log {
+                transaction_log: json_rpc::transaction_log::TransactionLog::new(
+                    &transaction_log,
+                    &associated_txos,
+                ),
+            }
+        }
+        JsonCommandRequestV2::get_all_transaction_logs_for_block { block_index } => {
+            let transaction_logs_and_txos = service
+                .get_all_transaction_logs_for_block(
+                    block_index.parse::<u64>().map_err(format_error)?,
+                )
+                .map_err(format_error)?;
+            let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
+                transaction_logs_and_txos
+                    .iter()
+                    .map(|(t, a)| {
+                        (
+                            t.transaction_id_hex.clone(),
+                            serde_json::json!(json_rpc::transaction_log::TransactionLog::new(t, a)),
+                        )
+                    })
+                    .collect::<Vec<(String, serde_json::Value)>>(),
+            );
+
+            JsonCommandResponseV2::get_all_transaction_logs_for_block {
+                transaction_log_ids: transaction_logs_and_txos
+                    .iter()
+                    .map(|(t, _a)| t.transaction_id_hex.to_string())
+                    .collect(),
+                transaction_log_map,
+            }
+        }
+        JsonCommandRequestV2::get_all_transaction_logs_ordered_by_block => {
+            let transaction_logs_and_txos = service
+                .get_all_transaction_logs_ordered_by_block()
+                .map_err(format_error)?;
+            let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
+                transaction_logs_and_txos
+                    .iter()
+                    .map(|(t, a)| {
+                        (
+                            t.transaction_id_hex.clone(),
+                            serde_json::json!(json_rpc::transaction_log::TransactionLog::new(t, a)),
+                        )
+                    })
+                    .collect::<Vec<(String, serde_json::Value)>>(),
+            );
+
+            JsonCommandResponseV2::get_all_transaction_logs_ordered_by_block {
+                transaction_log_map,
+            }
         }
     };
     let response = Json(JsonRPCResponse::from(result));
@@ -214,17 +406,12 @@ fn wallet_help_v2() -> Result<String, String> {
     Ok(help_str_v2())
 }
 
-#[get("/wallet/v1")]
-fn wallet_help_v1() -> Result<String, String> {
-    Ok(help_str_v1())
-}
-
 /// Returns an instance of a Rocker server.
 pub fn rocket(
     rocket_config: rocket::Config,
     state: WalletState<ThickClient<HardcodedCredentialsProvider>, FogResolver>,
 ) -> rocket::Rocket {
     rocket::custom(rocket_config)
-        .mount("/", routes![wallet_api, wallet_help_v2, wallet_help_v1])
+        .mount("/", routes![wallet_api, wallet_help_v2])
         .manage(state)
 }

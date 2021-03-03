@@ -4,10 +4,14 @@
 //!
 //! API v2
 
-use crate::json_rpc::{account::Account, balance::Balance, wallet_status::WalletStatus};
-
+use crate::json_rpc::{
+    account::Account, account_secrets::AccountSecrets, balance::Balance,
+    transaction_log::TransactionLog, tx_proposal::TxProposal, wallet_status::WalletStatus,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
+use strum::AsStaticRef;
+use strum_macros::AsStaticStr;
 
 /// A JSON RPC Response.
 #[derive(Deserialize, Serialize, Debug)]
@@ -95,18 +99,18 @@ pub struct JsonCommandResponse {
 pub enum JsonRPCError {
     error {
         /// The error code associated with this error.
-        code: JsonRPCErrorCodes,
+        code: i32,
 
         /// A string providing a short description of the error.
         message: String,
 
         /// Additional information about the error.
-        data: String, // FIXME: could be json structured value.
+        data: serde_json::Value,
     },
 }
 
 /// JSON RPC Error codes.
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, AsStaticStr)]
 pub enum JsonRPCErrorCodes {
     /// Parse error.
     ParseError = -32700,
@@ -128,11 +132,12 @@ pub enum JsonRPCErrorCodes {
 
 /// Helper method to format displaydoc errors in JSON RPC 2.0 format.
 pub fn format_error<T: std::fmt::Display + std::fmt::Debug>(e: T) -> String {
-    let data = json!({"server_error": format!("{:?}", e), "details": e.to_string()}).to_string();
+    let data: serde_json::Value =
+        json!({"server_error": format!("{:?}", e), "details": e.to_string()}).into();
     // FIXME: wrap in JsonRPCResponse
     let json_resp = JsonRPCError::error {
-        code: JsonRPCErrorCodes::InternalError,
-        message: "Internal error".to_string(),
+        code: JsonRPCErrorCodes::InternalError as i32,
+        message: JsonRPCErrorCodes::InternalError.as_static().to_string(),
         data,
     };
     json!(json_resp).to_string()
@@ -146,8 +151,14 @@ pub enum JsonCommandResponseV2 {
     create_account {
         account: Account,
     },
-    import_account {
+    import_account_by_entropy {
         account: Account,
+    },
+    import_account_by_account_key {
+        account: Account,
+    },
+    export_account_secrets {
+        account_secrets: AccountSecrets,
     },
     get_all_accounts {
         account_ids: Vec<String>,
@@ -160,19 +171,34 @@ pub enum JsonCommandResponseV2 {
         account: Account,
     },
     delete_account {
-        account: Account,
+        success: bool,
     },
     get_balance_for_account {
         balance: Balance,
     },
-    /*
-    get_balance_for_subaddress {
-        balance: Balance,
-    },*/
-    /* get_txos_for_subaddress {
-
-    }
-     */
+    build_and_submit_transaction {
+        transaction_log: TransactionLog,
+    },
+    build_transaction {
+        tx_proposal: TxProposal,
+    },
+    submit_transaction {
+        transaction_log: Option<TransactionLog>,
+    },
+    get_all_transaction_logs_for_account {
+        transaction_log_ids: Vec<String>,
+        transaction_log_map: Map<String, serde_json::Value>,
+    },
+    get_transaction_log {
+        transaction_log: TransactionLog,
+    },
+    get_all_transaction_logs_for_block {
+        transaction_log_ids: Vec<String>,
+        transaction_log_map: Map<String, serde_json::Value>,
+    },
+    get_all_transaction_logs_ordered_by_block {
+        transaction_log_map: Map<String, serde_json::Value>,
+    },
     get_wallet_status {
         wallet_status: WalletStatus,
     },
@@ -181,6 +207,12 @@ pub enum JsonCommandResponseV2 {
         balance: Balance,
     },
     /*
+    get_balance_for_subaddress {
+        balance: Balance,
+    },
+    get_txos_for_subaddress {
+
+    }
     get_all_txos_by_account {
         txo_ids: Vec<String>,
         txo_map: Map<String, serde_json::Value>,
@@ -195,22 +227,6 @@ pub enum JsonCommandResponseV2 {
     get_all_addresses_by_account {
         address_ids: Vec<String>,
         address_map: Map<String, serde_json::Value>,
-    },
-    send_transaction {
-        transaction: JsonSubmitResponse,
-    },
-    build_transaction {
-        tx_proposal: StringifiedJsonTxProposal,
-    },
-    submit_transaction {
-        transaction: JsonSubmitResponse,
-    },
-    get_all_transactions_by_account {
-        transaction_log_ids: Vec<String>,
-        transaction_log_map: Map<String, serde_json::Value>,
-    },
-    get_transaction {
-        transaction: JsonTransactionLog,
     },
     get_transaction_object {
         transaction: JsonTx,

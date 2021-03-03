@@ -2,7 +2,7 @@
 
 //! Errors for the wallet service.
 
-use crate::db::WalletDbError;
+use crate::{db::WalletDbError, service::transaction::TransactionServiceError};
 use displaydoc::Display;
 
 #[derive(Display, Debug)]
@@ -14,29 +14,8 @@ pub enum WalletServiceError {
     /// Error decoding from hex: {0}
     HexDecode(hex::FromHexError),
 
-    /// Error building transaction: {0}
-    TransactionBuilder(WalletTransactionBuilderError),
-
     /// Error parsing u64
     U64Parse,
-
-    /// No peers configured
-    NoPeersConfigured,
-
-    /// Node not found
-    NodeNotFound,
-
-    /// Error converting json: {0}
-    JsonConversion(String),
-
-    /// Connection Error
-    Connection(retry::Error<mc_connection::Error>),
-
-    /// Error converting to/from API protos: {0}
-    ProtoConversion(mc_api::ConversionError),
-
-    /// Error Converting Proto but throws convert::Infallible
-    ProtoConversionInfallible,
 
     /// Error with LedgerDB: {0}
     LedgerDB(mc_ledger_db::Error),
@@ -57,8 +36,8 @@ pub enum WalletServiceError {
     /// Txo should contain proof: {0}
     MissingProof(String),
 
-    /// Cannot complete this action in offline mode.
-    Offline,
+    /// Error with the transaction service: {0}
+    TransactionService(TransactionServiceError),
 }
 
 impl From<WalletDbError> for WalletServiceError {
@@ -73,27 +52,15 @@ impl From<hex::FromHexError> for WalletServiceError {
     }
 }
 
-impl From<WalletTransactionBuilderError> for WalletServiceError {
-    fn from(src: WalletTransactionBuilderError) -> Self {
-        Self::TransactionBuilder(src)
+impl From<TransactionServiceError> for WalletServiceError {
+    fn from(src: TransactionServiceError) -> Self {
+        Self::TransactionService(src)
     }
 }
 
 impl From<std::num::ParseIntError> for WalletServiceError {
     fn from(_src: std::num::ParseIntError) -> Self {
         Self::U64Parse
-    }
-}
-
-impl From<retry::Error<mc_connection::Error>> for WalletServiceError {
-    fn from(e: retry::Error<mc_connection::Error>) -> Self {
-        Self::Connection(e)
-    }
-}
-
-impl From<mc_api::ConversionError> for WalletServiceError {
-    fn from(src: mc_api::ConversionError) -> Self {
-        Self::ProtoConversion(src)
     }
 }
 

@@ -3,52 +3,10 @@
 //! Decorated types for the service to return, with constructors from the
 //! database types.
 
-use crate::db::{
-    models::{AssignedSubaddress, TransactionLog},
-    transaction_log::AssociatedTxos,
-    txo::TxoDetails,
-};
-use chrono::{TimeZone, Utc};
-use mc_mobilecoind_json::data_types::{
-    JsonOutlay, JsonTx, JsonTxOut, JsonTxOutMembershipElement, JsonTxProposal, JsonUnspentTxOut,
-};
+use crate::db::{models::AssignedSubaddress, txo::TxoDetails};
+use mc_mobilecoind_json::data_types::{JsonTxOut, JsonTxOutMembershipElement};
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Map;
-use std::convert::TryFrom;
-
-#[derive(Deserialize, Serialize, Default, Debug)]
-pub struct JsonCreateAccountResponse {
-    pub entropy: String,
-    pub account: JsonAccount,
-}
-
-#[derive(Deserialize, Serialize, Default, Debug, Clone)]
-pub struct JsonAccount {
-    pub object: String,
-    pub account_id: String,
-    pub name: String,
-    pub network_height: String,
-    pub local_height: String,
-    pub account_height: String,
-    pub is_synced: bool,
-    pub available_pmob: String,
-    pub pending_pmob: String,
-    pub main_address: String,
-    pub next_subaddress_index: String,
-    pub recovery_mode: bool,
-}
-
-#[derive(Deserialize, Serialize, Default, Debug, Clone)]
-pub struct JsonWalletStatus {
-    pub object: String,
-    pub network_height: String,
-    pub local_height: String,
-    pub is_synced_all: bool,
-    pub total_available_pmob: String,
-    pub total_pending_pmob: String,
-    pub account_ids: Vec<String>,
-    pub account_map: Map<String, serde_json::Value>,
-}
 
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct JsonTxo {
@@ -121,17 +79,6 @@ impl JsonTxo {
     }
 }
 
-#[derive(Deserialize, Serialize, Default, Debug)]
-pub struct JsonBalanceResponse {
-    pub unspent: String,
-    pub pending: String,
-    pub spent: String,
-    pub secreted: String,
-    pub orphaned: String,
-    pub local_block_count: String,
-    pub synced_blocks: String,
-}
-
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct JsonAddress {
     pub object: String,
@@ -164,69 +111,6 @@ impl JsonAddress {
 #[derive(Deserialize, Serialize, Default, Debug)]
 pub struct JsonSubmitResponse {
     pub transaction_id: Option<String>,
-}
-
-#[derive(Deserialize, Serialize, Default, Debug, Clone)]
-pub struct JsonTransactionLog {
-    pub object: String,
-    pub transaction_log_id: String,
-    pub direction: String,
-    pub is_sent_recovered: Option<bool>,
-    pub account_id: String,
-    pub recipient_address_id: Option<String>,
-    pub assigned_address_id: Option<String>,
-    pub value_pmob: String,
-    pub fee_pmob: Option<String>,
-    pub submitted_block_height: Option<String>,
-    pub finalized_block_height: Option<String>,
-    pub status: String,
-    pub input_txo_ids: Vec<String>,
-    pub output_txo_ids: Vec<String>,
-    pub change_txo_ids: Vec<String>,
-    pub sent_time: Option<String>,
-    pub comment: String,
-    pub failure_code: Option<i32>,
-    pub failure_message: Option<String>,
-    pub offset_count: i32,
-}
-
-impl JsonTransactionLog {
-    pub fn new(transaction_log: &TransactionLog, associated_txos: &AssociatedTxos) -> Self {
-        let recipient_address_id = transaction_log.recipient_public_address_b58.clone();
-        let assigned_address_id = transaction_log.assigned_subaddress_b58.clone();
-        Self {
-            object: "transaction_log".to_string(),
-            transaction_log_id: transaction_log.transaction_id_hex.clone(),
-            direction: transaction_log.direction.clone(),
-            is_sent_recovered: None, // FIXME: WS-16 "Is Sent Recovered"
-            account_id: transaction_log.account_id_hex.clone(),
-            recipient_address_id: if recipient_address_id == "" {
-                None
-            } else {
-                Some(recipient_address_id)
-            },
-            assigned_address_id: if assigned_address_id == "" {
-                None
-            } else {
-                Some(assigned_address_id)
-            },
-            value_pmob: transaction_log.value.to_string(),
-            fee_pmob: transaction_log.fee.map(|x| x.to_string()),
-            submitted_block_height: transaction_log.submitted_block_count.map(|b| b.to_string()),
-            finalized_block_height: transaction_log.finalized_block_count.map(|b| b.to_string()),
-            status: transaction_log.status.clone(),
-            input_txo_ids: associated_txos.inputs.clone(),
-            output_txo_ids: associated_txos.outputs.clone(),
-            change_txo_ids: associated_txos.change.clone(),
-            sent_time: transaction_log
-                .sent_time
-                .map(|t| Utc.timestamp(t, 0).to_string()),
-            comment: transaction_log.comment.clone(),
-            failure_code: None,    // FIXME: WS-17 Failiure code
-            failure_message: None, // FIXME: WS-17 Failure message
-            offset_count: transaction_log.id,
-        }
-    }
 }
 
 #[derive(Deserialize, Serialize, Default, Debug)]
@@ -287,121 +171,4 @@ pub struct JsonProof {
     pub object: String,
     pub txo_id: String,
     pub proof: String,
-}
-
-#[derive(Deserialize, Serialize, Default, Debug)]
-pub struct StringifiedJsonUnspentTxOut {
-    pub tx_out: JsonTxOut,
-    pub subaddress_index: String,
-    pub key_image: String,
-    pub value: String,
-    pub attempted_spend_height: String,
-    pub attempted_spend_tombstone: String,
-    pub monitor_id: String,
-}
-
-impl From<&JsonUnspentTxOut> for StringifiedJsonUnspentTxOut {
-    fn from(src: &JsonUnspentTxOut) -> Self {
-        Self {
-            tx_out: src.tx_out.clone(),
-            subaddress_index: src.subaddress_index.to_string(),
-            key_image: src.key_image.clone(),
-            value: src.value.clone(),
-            attempted_spend_height: src.attempted_spend_height.to_string(),
-            attempted_spend_tombstone: src.attempted_spend_tombstone.to_string(),
-            monitor_id: src.monitor_id.clone(),
-        }
-    }
-}
-
-impl TryFrom<&StringifiedJsonUnspentTxOut> for JsonUnspentTxOut {
-    type Error = String;
-
-    fn try_from(src: &StringifiedJsonUnspentTxOut) -> Result<JsonUnspentTxOut, String> {
-        Ok(Self {
-            tx_out: src.tx_out.clone(),
-            subaddress_index: src
-                .subaddress_index
-                .parse::<u64>()
-                .map_err(|err| format!("Failed to parse u64 from subaddress_index: {}", err))?,
-            key_image: src.key_image.clone(),
-            value: src.value.clone(),
-            attempted_spend_height: src.attempted_spend_height.parse::<u64>().map_err(|err| {
-                format!("Failed to parse u64 from attempted_spend_height: {}", err)
-            })?,
-            attempted_spend_tombstone: src.attempted_spend_tombstone.parse::<u64>().map_err(
-                |err| {
-                    format!(
-                        "Failed to parse u64 from attempted_spend_tombstone: {}",
-                        err
-                    )
-                },
-            )?,
-            monitor_id: src.monitor_id.clone(),
-        })
-    }
-}
-
-#[derive(Deserialize, Serialize, Default, Debug)]
-pub struct StringifiedJsonTxProposal {
-    pub input_list: Vec<StringifiedJsonUnspentTxOut>,
-    pub outlay_list: Vec<JsonOutlay>,
-    pub tx: JsonTx,
-    pub fee: String,
-    pub outlay_index_to_tx_out_index: Vec<(String, String)>,
-    pub outlay_confirmation_numbers: Vec<Vec<u8>>,
-}
-
-impl From<&JsonTxProposal> for StringifiedJsonTxProposal {
-    fn from(src: &JsonTxProposal) -> Self {
-        let outlay_map: Vec<(String, String)> = src
-            .outlay_index_to_tx_out_index
-            .iter()
-            .map(|(key, val)| (key.to_string(), val.to_string()))
-            .collect();
-        Self {
-            input_list: src
-                .input_list
-                .iter()
-                .map(StringifiedJsonUnspentTxOut::from)
-                .collect(),
-            outlay_list: src.outlay_list.clone(),
-            tx: src.tx.clone(),
-            fee: src.fee.to_string(),
-            outlay_index_to_tx_out_index: outlay_map,
-            outlay_confirmation_numbers: src.outlay_confirmation_numbers.clone(),
-        }
-    }
-}
-
-impl TryFrom<&StringifiedJsonTxProposal> for JsonTxProposal {
-    type Error = String;
-
-    #[allow(clippy::bind_instead_of_map)]
-    fn try_from(src: &StringifiedJsonTxProposal) -> Result<JsonTxProposal, String> {
-        let outlay_map: Vec<(usize, usize)> = src
-            .outlay_index_to_tx_out_index
-            .iter()
-            .map(|(key, val)| {
-                key.parse::<usize>()
-                    .and_then(|k| val.parse::<usize>().and_then(|v| Ok((k, v))))
-                    .map_err(|err| format!("Failed to parse u64 from outlay_map: {}", err))
-            })
-            .collect::<Result<Vec<(usize, usize)>, String>>()?;
-        Ok(Self {
-            input_list: src
-                .input_list
-                .iter()
-                .map(JsonUnspentTxOut::try_from)
-                .collect::<Result<Vec<JsonUnspentTxOut>, String>>()?,
-            outlay_list: src.outlay_list.clone(),
-            tx: src.tx.clone(),
-            fee: src
-                .fee
-                .parse::<u64>()
-                .map_err(|err| format!("Failed to parse u64 from fee: {}", err))?,
-            outlay_index_to_tx_out_index: outlay_map,
-            outlay_confirmation_numbers: src.outlay_confirmation_numbers.clone(),
-        })
-    }
 }

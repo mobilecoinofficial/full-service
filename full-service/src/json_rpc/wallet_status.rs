@@ -81,7 +81,7 @@ impl TryFrom<&service::balance::WalletStatus> for WalletStatus {
             object: "wallet_status".to_string(),
             network_block_count: src.network_block_count.to_string(),
             local_block_count: src.local_block_count.to_string(),
-            is_synced_all: src.min_synced_block_index == src.network_block_count - 1,
+            is_synced_all: src.min_synced_block_index >= src.network_block_count - 1,
             min_synced_block_index: src.min_synced_block_index.to_string(),
             total_unspent_pmob: src.unspent.to_string(),
             total_pending_pmob: src.pending.to_string(),

@@ -9,6 +9,7 @@ use crate::{
         WalletDb,
     },
     service::{sync::sync_account, transaction_builder::WalletTransactionBuilder},
+    WalletService,
 };
 use diesel::{
     r2d2::{ConnectionManager as CM, PooledConnection},
@@ -514,7 +515,8 @@ pub fn random_account_with_seed_values(
     let root_id = RootIdentity::from_random(&mut rng);
     let account_key = AccountKey::from(&root_id);
     Account::create(
-        &root_id.root_entropy,
+        None,
+        Some(&root_id.root_entropy),
         Some(0),
         None,
         "",
@@ -532,7 +534,8 @@ pub fn random_account_with_seed_values(
         );
     }
 
-    std::thread::sleep(std::time::Duration::from_secs(6));
+    // FIXME: FS-122 - should not be sleeping in tests
+    std::thread::sleep(std::time::Duration::from_secs(8));
 
     // Make sure we have all our TXOs
     assert_eq!(
@@ -593,4 +596,27 @@ pub fn get_resolver_factory(
         Ok(fog_pubkey_resolver)
     });
     Ok(fog_pubkey_resolver_factory)
+}
+
+pub fn setup_wallet_service(
+    ledger_db: LedgerDB,
+    logger: Logger,
+) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
+    let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+    let db_test_context = WalletDbTestContext::default();
+    let wallet_db = db_test_context.get_db_instance(logger.clone());
+    let (peer_manager, network_state) =
+        setup_peer_manager_and_network_state(ledger_db.clone(), logger.clone());
+
+    WalletService::new(
+        wallet_db,
+        ledger_db,
+        peer_manager,
+        network_state,
+        get_resolver_factory(&mut rng).unwrap(),
+        None,
+        false,
+        logger,
+    )
 }

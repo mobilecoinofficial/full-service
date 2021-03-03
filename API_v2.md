@@ -1,4 +1,4 @@
-# Full Service API v1
+# Full Service API v2
 
 The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with your MobileCoin transactions.
 
@@ -7,22 +7,26 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 ### Methods Overview
 
 * [create_account](#create-account)
-* [import_account](#import-account)
+* [import_account_by_entropy](#import-account-by-entropy)
+* [import_account_by_account_key](#import-account-by-account-key)
 * [get_all_accounts](#get-all-accounts)
 * [get_account](#get-account)
 * [update_account_name](#update-account-name)
 * [delete_account](#delete-account)
+* [export_account_secrets](#export-account-secrets)
 * [get_all_txos_by_account](#get-all-txos-for-a-given-account)
 * [get_txo](#get-txo-details)
 * [get_wallet_status](#get-wallet-status)
 * [get_balance_for_account](#get-balance-for-a-given-account)
 * [create_address](#create-assigned-subaddress)
 * [get_all_addresses_by_account](#get-all-assigned-subaddresses-for-a-given-account)
-* [send_transaction](#send-transaction)
+* [build_and_submit_transaction](#build-and-submit-transaction)
 * [build_transaction](#build-transaction)
 * [submit_transaction](#submit-transaction)
-* [get_all_transactions_by_account](#get-all-transactions)
-* [get_transaction](#get-transaction)
+* [get_all_transaction_logs_for_account](#get-all-transaction-logs-for-account)
+* [get_transaction_log](#get-transaction-log)
+* [get_all_transaction_logs_for_block](#get-all-transaction-logs-for-block)
+* [get_all_transaction_logs_ordered_by_block](#get-all-transaction-logs-ordered-by-block)
 * [get_proofs](#get-proofs)
 * [verify_proof](#verify-proof)
 * [get_txo_object](#get-txo-object)
@@ -34,6 +38,7 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 The methods above return data representations of wallet contents. The Full Service API Data types are as follows:
 
 * [account](#the-account-object)
+* [balance](#the-balance-object)
 * [wallet_status](#the-wallet-status-object)
 * [assigned_address](#the-assigned-address-object)
 * [transaction_log](#the-transaction-log-object)
@@ -61,26 +66,28 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
 
+```json
 {
   "method": "create_account",
   "result": {
     "account": {
-      "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
-      "account_key": {
-        "fog_authority_spki": "",
-        "fog_report_id": "",
-        "fog_report_url": "",
-        "object": "account_key",
-        "spend_private_key": "0a200c68151e777324da47a1e3a4f8b57e7d94d59084d4a343e1c600c1e4f66fc20d",
-        "view_private_key": "0a20765d49c5a524ddd4d9e96278b17eccd7b33e6bc071c5bc91dcd29435ce478a0d"
-      },
-      "entropy": "856fcacf2a819a065a9376fcdce0ff8dbe14f8b8d6118ef3a194f9e678ade0e0",
-      "main_address": "4bgkVAH1hs55dwLTGVpZER8ZayhqXbYqfuyisoRrmQPXoWcYQ3SQRTjsAytCiAgk21CRrVNysVw5qwzweURzDK9HL3rGXFmAAahb364kYe3",
-      "name": "Alice",
-      "next_subaddress_index": "2",
       "object": "account",
-      "recovery_mode": false
+      "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
+      "name": "Alice",
+      "main_address": "4bgkVAH1hs55dwLTGVpZER8ZayhqXbYqfuyisoRrmQPXoWcYQ3SQRTjsAytCiAgk21CRrVNysVw5qwzweURzDK9HL3rGXFmAAahb364kYe3",
+      "next_subaddress_index": "2",
+      "recovery_mode": false,
+      "entropy": "856fcacf2a819a065a9376fcdce0ff8dbe14f8b8d6118ef3a194f9e678ade0e0",
+      "account_key": {
+        "object": "account_key",
+        "view_private_key": "0a20765d49c5a524ddd4d9e96278b17eccd7b33e6bc071c5bc91dcd29435ce478a0d",
+        "spend_private_key": "0a200c68151e777324da47a1e3a4f8b57e7d94d59084d4a343e1c600c1e4f66fc20d",
+        "fog_report_url": "",
+        "fog_report_id": "",
+        "fog_authority_spki": ""
+      }
     }
   },
   "error": null,
@@ -96,14 +103,14 @@ curl -s localhost:9090/wallet \
 | `name`         | Label for this account   | Can have duplicates (not recommended) |
 | `first_block`  | The block from which to start scanning the ledger |  |
 
-#### Import Account
+#### Import Account by Entropy
 
 Import an existing account from the secret entropy.
 
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "import_account",
+        "method": "import_account_by_entropy",
         "params": {
           "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
           "name": "Bob"
@@ -114,26 +121,28 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
    -X POST -H 'Content-type: application/json' | jq
+```
 
+```json
 {
-  "method": "import_account",
+  "method": "import_account_by_entropy",
   "result": {
     "account": {
-      "account_id": "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470",
-      "account_key": {
-        "fog_authority_spki": "",
-        "fog_report_id": "",
-        "fog_report_url": "",
-        "object": "account_key",
-        "spend_private_key": "0a2011035ae05a302e883af00f788cd7486f8f7445503187b080545c16c37056900e",
-        "view_private_key": "0a20e1d5a0622906afa27d87ab9f900e6099ce778d173b22068ce948832b549d2002"
-      },
-      "entropy": "ed62ae3259992ec31dc9fe08be1b9964327e0c4846be99a975397a32099b9860",
-      "main_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-      "name": "Bob",
-      "next_subaddress_index": "2",
       "object": "account",
-      "recovery_mode": false
+      "account_id": "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470",
+      "name": "Bob",
+      "main_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+      "next_subaddress_index": "2",
+      "recovery_mode": false,
+      "entropy": "ed62ae3259992ec31dc9fe08be1b9964327e0c4846be99a975397a32099b9860",
+      "account_key": {
+        "object": "account_key",
+        "view_private_key": "0a20e1d5a0622906afa27d87ab9f900e6099ce778d173b22068ce948832b549d2002",
+        "spend_private_key": "0a2011035ae05a302e883af00f788cd7486f8f7445503187b080545c16c37056900e",
+        "fog_report_url": "",
+        "fog_report_id": "",
+        "fog_authority_spki": ""
+      }
     }
   },
   "error": null,
@@ -160,6 +169,79 @@ If you receive the following error, it means that you attempted to import an acc
 {"error": "Database(Diesel(DatabaseError(UniqueViolation, "UNIQUE constraint failed: accounts.account_id_hex")))"}
 ```
 
+#### Import Account by Account Key
+
+Import an existing account from the secret account key.
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "import_account_by_account_key",
+        "params": {
+          "account_key": {
+            "object": "account_key",
+            "view_private_key": "0a20765d49c5a524ddd4d9e96278b17eccd7b33e6bc071c5bc91dcd29435ce478a0d"
+            "spend_private_key": "0a200c68151e777324da47a1e3a4f8b57e7d94d59084d4a343e1c600c1e4f66fc20d",
+            "fog_report_url": "",
+            "fog_report_id": "",
+            "fog_authority_spki": "",
+            },
+          "name": "Bob"
+          "first_block_index": 3500,
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
+      }' \
+   -X POST -H 'Content-type: application/json' | jq
+```
+
+```json
+{
+  "method": "import_account_by_account_key",
+  "result": {
+    "account": {
+      "object": "account",
+      "account_id": "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470",
+      "main_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+      "name": "Bob",
+      "next_subaddress_index": "2",
+      "recovery_mode": false,
+      "entropy": null,
+      "account_key": {
+        "object": "account_key",
+        "view_private_key": "0a20e1d5a0622906afa27d87ab9f900e6099ce778d173b22068ce948832b549d2002",
+        "spend_private_key": "0a2011035ae05a302e883af00f788cd7486f8f7445503187b080545c16c37056900e",
+        "fog_report_url": "",
+        "fog_report_id": "",
+        "fog_authority_spki": ""
+      }
+    }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+  "api_version": "2"
+}
+```
+
+| Required Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `account_key`  | The secret account key   | A valid account key       |
+
+| Optional Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `name`         | Label for this account   | Can have duplicates (not recommended) |
+| `first_block`  | The block from which to start scanning the ledger |  |
+
+##### Troubleshooting
+
+If you receive the following error, it means that you attempted to import an account already in the wallet.
+
+```sh
+{"error": "Database(Diesel(DatabaseError(UniqueViolation, "UNIQUE constraint failed: accounts.account_id_hex")))"}
+```
+
 #### Get All Accounts
 
 ```sh
@@ -171,7 +253,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
 
+```json
 {
   "method": "get_all_accounts",
   "result": {
@@ -237,7 +321,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json'  | jq
+```
 
+```json
 {
   "method": "get_account",
   "result": {
@@ -296,7 +382,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json'  | jq
+```
 
+```json
 {
   "method": "update_account_name",
   "result": {
@@ -344,7 +432,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
 
+```json
 {
   "method": "delete_account",
   "result": {
@@ -377,6 +467,47 @@ curl -s localhost:9090/wallet \
 | :------------- | :----------------------- | :------------------------ |
 | `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
 
+#### Export Account Secrets
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "export_account_secrets",
+        "params": {
+          "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52"
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
+```
+
+```json
+{
+  "method": "export_account_secrets",
+  "result": {
+    "account_secrets": {
+      "object": "account_key",
+      "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
+      "entropy": "fc1fae41f08eccc6c494d67ad0970ef2b469f7149316e5cdb3ad86d07c32469f",
+      "account_key": {
+        "object": "account_key",
+        "view_private_key": "0a20be48e147741246f09adb195b110c4ec39302778c4554cd3c9ff877f8392ce605",
+        "spend_private_key": "0a201f33b194e13176341b4e696b70be5ba5c4e0021f5a79664ab9a8b128f0d6d40d",
+        "fog_report_url": "",
+        "fog_report_id": "",
+        "fog_authority_spki": ""
+      }
+    }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+  "api_version": "2"
+}
+```
+
 ### TXOs
 
 #### Get All TXOs for a given account
@@ -393,7 +524,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json'  | jq
+```
 
+```json
 {
   "method": "get_all_txos_by_account",
   "result": {
@@ -469,7 +602,7 @@ curl -s localhost:9090/wallet \
         "key_image": "0a20784ab38c4541ce23abbec6744431d6ae14101c49c6535b3e9bf3fd728db13848",
         "minted_account_id": null,
         "object": "txo",
-        "offset_count": 8
+        "offset_count": 8,
         "proof": null,
         "public_key": "0a20d803a979c9ec0531f106363a885dde29101fcd70209f9ed686905512dfd14d5f",
         "received_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
@@ -478,7 +611,7 @@ curl -s localhost:9090/wallet \
         "subaddress_index": "0",
         "target_key": "0a209abadbfcec6c81b3d184dc104e51cac4c4faa8bab4da21a3714901519810c20d",
         "txo_id": "58c2c3780792ccf9c51014c7688a71f03732b633f8c5dfa49040fa7f51328280",
-        "value_pmob": "4000000000000",
+        "value_pmob": "4000000000000"
       },
       "b496f4f3ec3159bf48517aa7d9cda193ef8bfcac343f81eaed0e0a55849e4726": {
         "account_status_map": {
@@ -493,7 +626,7 @@ curl -s localhost:9090/wallet \
         "key_image": null,
         "minted_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
         "object": "txo",
-        "offset_count": 498
+        "offset_count": 498,
         "proof": null,
         "public_key": "0a209432c589bb4e5101c26e935b70930dfe45c78417527fb994872ebd65fcb9c116",
         "received_account_id": null,
@@ -502,7 +635,7 @@ curl -s localhost:9090/wallet \
         "subaddress_index": null,
         "target_key": "0a208c75723e9b9a4af0c833bfe190c43900c3b41834cf37024f5fecfbe9919dff23",
         "txo_id": "b496f4f3ec3159bf48517aa7d9cda193ef8bfcac343f81eaed0e0a55849e4726",
-        "value_pmob": "980000000000",
+        "value_pmob": "980000000000"
       }
     ]
   }
@@ -544,7 +677,8 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
-
+```
+```json
 {
   "method": "get_txo",
   "result": {
@@ -592,7 +726,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
 
+```json
 {
   "method": "get_wallet_status",
   "result": {
@@ -669,21 +805,23 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
 
+```json
 {
   "method": "get_balance_for_account",
   "result": {
     "balance": {
+      "object": "balance",
+      "network_block_count": "152918",
+      "local_block_count": "152918",
       "account_block_count": "152003",
       "is_synced": false,
-      "local_block_count": "152918",
-      "network_block_count": "152918",
-      "object": "balance",
-      "orphaned_pmob": "0",
-      "pending_pmob": "0",
-      "secreted_pmob": "0",
-      "spent_pmob": "0",
       "unspent_pmob": "110000000000000000"
+      "pending_pmob": "0",
+      "spent_pmob": "0",
+      "secreted_pmob": "0",
+      "orphaned_pmob": "0",
     }
   },
   "error": null,
@@ -713,7 +851,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
 
+```json
 {
   "method": "get_account_status",
   "result": {
@@ -772,7 +912,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
 
+```json
 {
   "method": "create_address",
   "result": {
@@ -812,7 +954,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
 
+```json
 {
   "method": "get_all_addresses_by_account",
   "result": {
@@ -870,7 +1014,7 @@ Sending a transaction is a convenience method that first builds and then submits
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "send_transaction",
+        "method": "build_and_submit_transaction",
         "params": {
           "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
           "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
@@ -881,14 +1025,45 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
-
+```
+`
+```json
 {
-  "method": "send_transaction",
+  "method": "build_and_submit_transaction",
   "result": {
-    "transaction": {
-      "transaction_log_id": "96df759d272cfc134b71e24374a7b5125fe535f1d00fc44c1f12a91c1f951122"
+    "transaction_log": {
+      "object": "transaction_log",
+      "transaction_log_id": "937f102052500525ff0f54aa4f7d94234bd824260bfd7ba40d0561166dda7780",
+      "direction": "tx_direction_sent",
+      "is_sent_recovered": null,
+      "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
+      "recipient_address_id": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+      "assigned_address_id": null,
+      "value_pmob": "42000000000000",
+      "fee_pmob": "10000000000",
+      "submitted_block_height": "152948",
+      "finalized_block_height": null,
+      "status": "tx_status_pending",
+      "input_txo_ids": [
+        "8432bb4e25f1bde68e4759b27ec72d290252cb99943f2f38a9035dba230895b7"
+      ],
+      "output_txo_ids": [
+        "135c3861be4034fccb8d0b329f86124cb6e2404cd4debf52a3c3a10cb4a7bdfb"
+      ],
+      "change_txo_ids": [
+        "44c03ddbccb33e5c37365d7b263568a49e6f608e5e818db604541cc09389b762"
+      ],
+      "sent_time": "2021-02-28 01:27:52 UTC",
+      "comment": "",
+      "failure_code": null,
+      "failure_message": null,
+      "offset_count": 2199
     }
-  }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+  "api_version": "2"
 }
 ```
 
@@ -936,7 +1111,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
 
+```
 {
   "method": "build_transaction",
   "result": {
@@ -952,11 +1129,11 @@ curl -s localhost:9090/wallet \
             "public_key": "3209d365b449b577721430d6e0534f5a188dc4bdcefa02be2eeef45b2925bc1b",
             "e_fog_hint": "ae39a969db8ef10daa4f70fa4859829e294ec704b0eb0a15f43ae91bb62bd9ff58ba622e5820b5cdfe28dde6306a6941d538d14c807f9045504619acaafbb684f2040107eb6868c8c99943d02077fa2d090d0100"
           },
-          "subaddress_index": 0,
+          "subaddress_index": "0",
           "key_image": "2a14381de88c3fe2b827f6adaa771f620873009f55cc7743dca676b188508605",
           "value": "1",
-          "attempted_spend_height": 0,
-          "attempted_spend_tombstone": 0,
+          "attempted_spend_height": "0",
+          "attempted_spend_tombstone": "0",
           "monitor_id": ""
         },
         {
@@ -969,11 +1146,11 @@ curl -s localhost:9090/wallet \
             "public_key": "ce43370def13a97830cf6e2e73020b5190d673bd75e0692cd18c850030cc3f06",
             "e_fog_hint": "6b24ceb038ed5c31bfa8f69c73be59eca46612ba8bfea7f53bc52c97cdf549c419fa5a0b2219b1434848197fdbac7880b3a20d92c59c67ec570c7d60e263b4c7c61164f0517c8f774321435c3ec600593d610100"
           },
-          "subaddress_index": 0,
+          "subaddress_index": "0",
           "key_image": "a66fa1c3c35e2c2a56109a901bffddc1129625e4c4b381389f6be1b5bb3c7056",
           "value": "97580449900010990",
-          "attempted_spend_height": 0,
-          "attempted_spend_tombstone": 0,
+          "attempted_spend_height": "0",
+          "attempted_spend_tombstone": "0",
           "monitor_id": ""
         }
       ],
@@ -1107,11 +1284,11 @@ curl -s localhost:9090/wallet \
           ]
         }
       },
-      "fee": 10000000000,
+      "fee": "10000000000",
       "outlay_index_to_tx_out_index": [
         [
-          0,
-          0
+          "0",
+          "0"
         ]
       ],
       "outlay_confirmation_numbers": [
@@ -1155,6 +1332,65 @@ curl -s localhost:9090/wallet \
 
 #### Submit Transaction
 
+##### Logging the Submitted Transaction for an Account
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "submit_transaction",
+        "params": {
+          "tx_proposal": '$(cat test-tx-proposal.json)',
+          "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
+      }' \
+  -X POST -H 'Content-type: application/json'
+```
+
+```json
+{
+  "method": "submit_transaction",
+  "result": {
+    "transaction_log": {
+      "object": "transaction_log",
+      "transaction_log_id": "ab447d73553309ccaf60aedc1eaa67b47f65bee504872e4358682d76df486a87",
+      "direction": "tx_direction_sent",
+      "is_sent_recovered": null,
+      "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
+      "recipient_address_id": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+      "assigned_address_id": null,
+      "value_pmob": "42000000000000",
+      "fee_pmob": "10000000000",
+      "submitted_block_height": "152950",
+      "finalized_block_height": null,
+      "status": "tx_status_pending",
+      "input_txo_ids": [
+        "eb735cafa6d8b14a69361cc05cb3a5970752d27d1265a1ffdfd22c0171c2b20d"
+      ],
+      "output_txo_ids": [
+        "fd39b4e740cb302edf5da89c22c20bea0e4408df40e31c1dbb2ec0055435861c"
+      ],
+      "change_txo_ids": [
+        "bcb45b4fab868324003631b6490a0bf46aaf37078a8d366b490437513c6786e4"
+      ],
+      "sent_time": "2021-02-28 01:42:28 UTC",
+      "comment": "",
+      "failure_code": null,
+      "failure_message": null,
+      "offset_count": 2252
+    }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+  "api_version": "2"
+}
+```
+
+##### Without Logging the Submitted Transaction
+
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
@@ -1171,10 +1407,12 @@ curl -s localhost:9090/wallet \
 {
   "method": "submit_transaction",
   "result": {
-    "transaction": {
-      "transaction_log_id": "96df759d272cfc134b71e24374a7b5125fe535f1d00fc44c1f12a91c1f951122"
-    }
-  }
+    "transaction_log": null
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+  "api_version": "2"
 }
 ```
 
@@ -1184,14 +1422,15 @@ curl -s localhost:9090/wallet \
 
 | Optional Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
+| `account_id` | Account ID for which to log the transaction. If omitted, the transaction is not logged.   | |
 | `comment` | Comment to annotate this transaction in the transaction log   | |
 
-#### Get All Transactions
+#### Get All Transaction Logs For Account
 
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "get_all_transactions_by_account",
+        "method": "get_all_transaction_logs_for_account",
         "params": {
           "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10"
         },
@@ -1200,71 +1439,76 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
 
+```json
 {
-  "method": "get_all_transactions_by_account",
+  "method": "get_all_transaction_logs_for_account",
   "result": {
     "transaction_log_ids": [
-      "6e51851495c628a3b6eefb3e14ee14bb7a167bba5ce727c8710601ba87f74c4c",
-      "fcd2979f737f213fc327cd79d10c490a9bd4cb163084d4a154585c5e93e8c075",
+      "49da8168e26331fc9bc109d1e59f7ed572b453f232591de4196f9cefb381c3f4",
+      "ff1c85e7a488c2821110597ba75db30d913bb1595de549f83c6e8c56b06d70d1"
     ],
     "transaction_log_map": {
-      "6e51851495c628a3b6eefb3e14ee14bb7a167bba5ce727c8710601ba87f74c4c": {
-        "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
-        "assigned_address_id": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
-        "change_txo_ids": [],
-        "comment": "",
-        "direction": "received",
-        "failure_code": null,
-        "failure_message": null,
-        "fee_pmob": null,
-        "finalized_block_height": "144965",
-        "input_txo_ids": [],
-        "is_sent_recovered": null,
+      "49da8168e26331fc9bc109d1e59f7ed572b453f232591de4196f9cefb381c3f4": {
         "object": "transaction_log",
-        "offset_count": 296
-        "output_txo_ids": [
-          "6e51851495c628a3b6eefb3e14ee14bb7a167bba5ce727c8710601ba87f74c4c"
-        ],
+        "transaction_log_id": "49da8168e26331fc9bc109d1e59f7ed572b453f232591de4196f9cefb381c3f4",
+        "direction": "tx_direction_received",
+        "is_sent_recovered": null,
+        "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
         "recipient_address_id": null,
-        "sent_time": null,
-        "status": "succeeded",
-        "submitted_block_height": null,
-        "transaction_log_id": "6e51851495c628a3b6eefb3e14ee14bb7a167bba5ce727c8710601ba87f74c4c",
-        "value_pmob": "443990000000000",
-      },
-      "6e51851495c628a3b6eefb3e14ee14bb7a167bba5ce727c8710601ba87f74c4c": {
-        "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
-        "assigned_address_id": null,
-        "change_txo_ids": [
-          "e992e718e1f28b67b0cf200e213af560fc7d5a236b3fec590f225b230f88257f"
+        "assigned_address_id": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
+        "value_pmob": "8199980000000000",
+        "fee_pmob": null,
+        "submitted_block_index": null,
+        "finalized_block_index": "130689",
+        "status": "tx_status_succeeded",
+        "input_txo_ids": [],
+        "output_txo_ids": [
+          "49da8168e26331fc9bc109d1e59f7ed572b453f232591de4196f9cefb381c3f4"
         ],
+        "change_txo_ids": [],
+        "sent_time": null,
         "comment": "",
-        "direction": "sent",
-        "fee_pmob": "10000000000",
         "failure_code": null,
         "failure_message": null,
-        "finalized_block_height": "152826",
-        "input_txo_ids": [
-          "3de563a16d2da9656ce6c8aa9b12380b682c2e6aad0011fa8d6528c084078827",
-          "fa242e21e2155e8f257cd75d2d2939000d0926946c2b7b812946e093165acadb"
-        ],
-        "is_sent_recovered": null,
+        "offset_count": 4
+      },
+      "ff1c85e7a488c2821110597ba75db30d913bb1595de549f83c6e8c56b06d70d1": {
         "object": "transaction_log",
-        "offset_count": 496
-        "output_txo_ids": [
-          "badf415972dfc2dc6203ed90be132831ff29f394f65b0be5c35c79048d86af5b"
+        "transaction_log_id": "ff1c85e7a488c2821110597ba75db30d913bb1595de549f83c6e8c56b06d70d1",
+        "direction": "tx_direction_sent",
+        "is_sent_recovered": null,
+        "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+        "recipient_address_id": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
+        "assigned_address_id": null,
+        "value_pmob": "8000000000008",
+        "fee_pmob": "10000000000",
+        "submitted_block_index": "152951",
+        "finalized_block_index": "152951",
+        "status": "tx_status_succeeded",
+        "input_txo_ids": [
+          "135c3861be4034fccb8d0b329f86124cb6e2404cd4debf52a3c3a10cb4a7bdfb",
+          "c91b5f27e28460ef6c4f33229e70c4cfe6dc4bc1517a22122a86df9fb8e40815"
         ],
-        "recipient_address_id": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
-        "sent_time": "2020-12-15 09:30:04 UTC",
-        "status": "succeeded",
-        "submitted_block_height": "152826",
-        "transaction_log_id": "ead39f2c0dea3004732adf1953dee876b73829768d4877809fe06ee0bfc6bf6d",
-        "value_pmob": "1000000000000",
+        "output_txo_ids": [
+          "243494a0030bcbac40e87670b9288834047ef0727bcc6630a2fe2799439879ab"
+        ],
+        "change_txo_ids": [
+          "58729797de0929eed37acb45225d3631235933b709c00015f46bfc002d5754fc"
+        ],
+        "sent_time": "2021-02-28 03:05:11 UTC",
+        "comment": "",
+        "failure_code": null,
+        "failure_message": null,
+        "offset_count": 53
       }
-     ...
     }
-  }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+  "api_version": "2"
 }
 ```
 
@@ -1272,14 +1516,72 @@ curl -s localhost:9090/wallet \
 | :------------- | :----------------------- | :------------------------ |
 | `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
 
-#### Get Transaction
+#### Get Transaction Log
 
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "get_transaction",
+        "method": "get_transaction_log",
         "params": {
-          "transaction_log_id": "ead39f2c0dea3004732adf1953dee876b73829768d4877809fe06ee0bfc6bf6d"
+          "transaction_log_id": "914e703b5b7bc44b61bb3657b4ee8a184d00e87a728e2fe6754a77a38598a800"
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
+```
+
+```json
+{
+  "method": "get_transaction_log",
+  "result": {
+    "transaction_log": {
+      "object": "transaction_log",
+      "transaction_log_id": "914e703b5b7bc44b61bb3657b4ee8a184d00e87a728e2fe6754a77a38598a800",
+      "direction": "tx_direction_received",
+      "is_sent_recovered": null,
+      "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+      "recipient_address_id": null,
+      "assigned_address_id": null,
+      "value_pmob": "51068338999989068",
+      "fee_pmob": null,
+      "submitted_block_index": null,
+      "finalized_block_index": "152905",
+      "status": "tx_status_succeeded",
+      "input_txo_ids": [],
+      "output_txo_ids": [
+        "914e703b5b7bc44b61bb3657b4ee8a184d00e87a728e2fe6754a77a38598a800"
+      ],
+      "change_txo_ids": [],
+      "sent_time": null,
+      "comment": "",
+      "failure_code": null,
+      "failure_message": null,
+      "offset_count": 37
+    }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+  "api_version": "2"
+}
+```
+
+| Required Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `transaction_log_id`   | The transaction log ID for which to get proofs.  | Transaction log must exist in the wallet  |
+
+#### Get All Transaction Logs for Block
+
+Get the transaction logs in a given block. In the below example, the account in the wallet sent a transaction to itself. Therefore, there is one sent transaction_log in the block, and two received (one for the change, and one for the output txo sent to the same account that constructed the transaction).
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "get_all_transaction_logs_for_block",
+        "params": {
+          "block_index": "152951"
         },
         "jsonrpc": "2.0",
         "api_version": "2",
@@ -1288,44 +1590,204 @@ curl -s localhost:9090/wallet \
   -X POST -H 'Content-type: application/json' | jq
 
 {
-  "method": "get_transaction",
+  "method": "get_all_transaction_logs_for_block",
   "result": {
-    "transaction": {
-      "object": "transaction_log",
-      "transaction_log_id": "ead39f2c0dea3004732adf1953dee876b73829768d4877809fe06ee0bfc6bf6d",
-      "direction": "sent",
-      "is_sent_recovered": null,
-      "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
-      "recipient_address_id": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
-      "assigned_address_id": null,
-      "value_pmob": "1000000000000",
-      "fee_pmob": "10000000000",
-      "submitted_block_height": "152826",
-      "finalized_block_height": "152826",
-      "status": "succeeded",
-      "input_txo_ids": [
-        "3de563a16d2da9656ce6c8aa9b12380b682c2e6aad0011fa8d6528c084078827",
-        "fa242e21e2155e8f257cd75d2d2939000d0926946c2b7b812946e093165acadb"
-      ],
-      "output_txo_ids": [
-        "badf415972dfc2dc6203ed90be132831ff29f394f65b0be5c35c79048d86af5b"
-      ],
-      "change_txo_ids": [
-        "e992e718e1f28b67b0cf200e213af560fc7d5a236b3fec590f225b230f88257f"
-      ],
-      "sent_time": "2020-12-15 09:30:04 UTC",
-      "comment": "",
-      "failure_code": null,
-      "failure_message": null,
-      "offset_count": 496
+    "transaction_log_ids": [
+      "ff1c85e7a488c2821110597ba75db30d913bb1595de549f83c6e8c56b06d70d1",
+      "58729797de0929eed37acb45225d3631235933b709c00015f46bfc002d5754fc",
+      "243494a0030bcbac40e87670b9288834047ef0727bcc6630a2fe2799439879ab"
+    ],
+    "transaction_log_map": {
+      "ff1c85e7a488c2821110597ba75db30d913bb1595de549f83c6e8c56b06d70d1": {
+        "object": "transaction_log",
+        "transaction_log_id": "ff1c85e7a488c2821110597ba75db30d913bb1595de549f83c6e8c56b06d70d1",
+        "direction": "tx_direction_sent",
+        "is_sent_recovered": null,
+        "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+        "recipient_address_id": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
+        "assigned_address_id": null,
+        "value_pmob": "8000000000008",
+        "fee_pmob": "10000000000",
+        "submitted_block_index": "152951",
+        "finalized_block_index": "152951",
+        "status": "tx_status_succeeded",
+        "input_txo_ids": [
+          "135c3861be4034fccb8d0b329f86124cb6e2404cd4debf52a3c3a10cb4a7bdfb",
+          "c91b5f27e28460ef6c4f33229e70c4cfe6dc4bc1517a22122a86df9fb8e40815"
+        ],
+        "output_txo_ids": [
+          "243494a0030bcbac40e87670b9288834047ef0727bcc6630a2fe2799439879ab"
+        ],
+        "change_txo_ids": [
+          "58729797de0929eed37acb45225d3631235933b709c00015f46bfc002d5754fc"
+        ],
+        "sent_time": "2021-02-28 03:05:11 UTC",
+        "comment": "",
+        "failure_code": null,
+        "failure_message": null,
+        "offset_count": 53
+      },
+      "58729797de0929eed37acb45225d3631235933b709c00015f46bfc002d5754fc": {
+        "object": "transaction_log",
+        "transaction_log_id": "58729797de0929eed37acb45225d3631235933b709c00015f46bfc002d5754fc",
+        "direction": "tx_direction_received",
+        "is_sent_recovered": null,
+        "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+        "recipient_address_id": null,
+        "assigned_address_id": "2pW3CcHUmg4cafp9ePCpPg72mowC6NJZ1iHQxpkiAuPJuWDVUC9WEGRxychqFmKXx68VqerFKiHeEATwM5hZcf9SKC9Cub2GyMsztSqYdjY",
+        "value_pmob": "11891402222024",
+        "fee_pmob": null,
+        "submitted_block_index": null,
+        "finalized_block_index": "152951",
+        "status": "tx_status_succeeded",
+        "input_txo_ids": [],
+        "output_txo_ids": [
+          "58729797de0929eed37acb45225d3631235933b709c00015f46bfc002d5754fc"
+        ],
+        "change_txo_ids": [],
+        "sent_time": null,
+        "comment": "",
+        "failure_code": null,
+        "failure_message": null,
+        "offset_count": 54
+      },
+      "243494a0030bcbac40e87670b9288834047ef0727bcc6630a2fe2799439879ab": {
+        "object": "transaction_log",
+        "transaction_log_id": "243494a0030bcbac40e87670b9288834047ef0727bcc6630a2fe2799439879ab",
+        "direction": "tx_direction_received",
+        "is_sent_recovered": null,
+        "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+        "recipient_address_id": null,
+        "assigned_address_id": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
+        "value_pmob": "8000000000008",
+        "fee_pmob": null,
+        "submitted_block_index": null,
+        "finalized_block_index": "152951",
+        "status": "tx_status_succeeded",
+        "input_txo_ids": [],
+        "output_txo_ids": [
+          "243494a0030bcbac40e87670b9288834047ef0727bcc6630a2fe2799439879ab"
+        ],
+        "change_txo_ids": [],
+        "sent_time": null,
+        "comment": "",
+        "failure_code": null,
+        "failure_message": null,
+        "offset_count": 55
+      }
     }
-  }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+  "api_version": "2"
 }
 ```
 
-| Required Param | Purpose                  | Requirements              |
-| :------------- | :----------------------- | :------------------------ |
-| `transaction_log_id`   | The transaction log ID for which to get proofs.  | Transaction log must exist in the wallet  |
+#### Get All Transaction Logs Ordered By Block
+
+Get the transaction logs, grouped by the `finalized_block_index`, in ascending order.
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "get_all_transaction_logs_ordered_by_block",
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
+
+{
+  "method": "get_all_transaction_logs_ordered_by_block",
+  "result": {
+    "transaction_log_map": {
+      "c91b5f27e28460ef6c4f33229e70c4cfe6dc4bc1517a22122a86df9fb8e40815": {
+        "object": "transaction_log",
+        "transaction_log_id": "c91b5f27e28460ef6c4f33229e70c4cfe6dc4bc1517a22122a86df9fb8e40815",
+        "direction": "tx_direction_received",
+        "is_sent_recovered": null,
+        "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+        "recipient_address_id": null,
+        "assigned_address_id": "2pW3CcHUmg4cafp9ePCpPg72mowC6NJZ1iHQxpkiAuPJuWDVUC9WEGRxychqFmKXx68VqerFKiHeEATwM5hZcf9SKC9Cub2GyMsztSqYdjY",
+        "value_pmob": "11901402222024",
+        "fee_pmob": null,
+        "submitted_block_index": null,
+        "finalized_block_index": "152923",
+        "status": "tx_status_succeeded",
+        "input_txo_ids": [],
+        "output_txo_ids": [
+          "c91b5f27e28460ef6c4f33229e70c4cfe6dc4bc1517a22122a86df9fb8e40815"
+        ],
+        "change_txo_ids": [],
+        "sent_time": null,
+        "comment": "",
+        "failure_code": null,
+        "failure_message": null,
+        "offset_count": 51
+      },
+      "135c3861be4034fccb8d0b329f86124cb6e2404cd4debf52a3c3a10cb4a7bdfb": {
+        "object": "transaction_log",
+        "transaction_log_id": "135c3861be4034fccb8d0b329f86124cb6e2404cd4debf52a3c3a10cb4a7bdfb",
+        "direction": "tx_direction_received",
+        "is_sent_recovered": null,
+        "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+        "recipient_address_id": null,
+        "assigned_address_id": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
+        "value_pmob": "8000000000008",
+        "fee_pmob": null,
+        "submitted_block_index": null,
+        "finalized_block_index": "152948",
+        "status": "tx_status_succeeded",
+        "input_txo_ids": [],
+        "output_txo_ids": [
+          "135c3861be4034fccb8d0b329f86124cb6e2404cd4debf52a3c3a10cb4a7bdfb"
+        ],
+        "change_txo_ids": [],
+        "sent_time": null,
+        "comment": "",
+        "failure_code": null,
+        "failure_message": null,
+        "offset_count": 52
+      },
+      "ff1c85e7a488c2821110597ba75db30d913bb1595de549f83c6e8c56b06d70d1": {
+        "object": "transaction_log",
+        "transaction_log_id": "ff1c85e7a488c2821110597ba75db30d913bb1595de549f83c6e8c56b06d70d1",
+        "direction": "tx_direction_sent",
+        "is_sent_recovered": null,
+        "account_id": "b0be5377a2f45b1573586ed530b2901a559d9952ea8a02f8c2dbb033a935ac17",
+        "recipient_address_id": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
+        "assigned_address_id": null,
+        "value_pmob": "8000000000008",
+        "fee_pmob": "10000000000",
+        "submitted_block_index": "152951",
+        "finalized_block_index": "152951",
+        "status": "tx_status_succeeded",
+        "input_txo_ids": [
+          "135c3861be4034fccb8d0b329f86124cb6e2404cd4debf52a3c3a10cb4a7bdfb",
+          "c91b5f27e28460ef6c4f33229e70c4cfe6dc4bc1517a22122a86df9fb8e40815"
+        ],
+        "output_txo_ids": [
+          "243494a0030bcbac40e87670b9288834047ef0727bcc6630a2fe2799439879ab"
+        ],
+        "change_txo_ids": [
+          "58729797de0929eed37acb45225d3631235933b709c00015f46bfc002d5754fc"
+        ],
+        "sent_time": "2021-02-28 03:05:11 UTC",
+        "comment": "",
+        "failure_code": null,
+        "failure_message": null,
+        "offset_count": 53
+      }
+    }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+  "api_version": "2"
+}
+
+```
 
 ### Transaction Output Proofs
 
@@ -1347,6 +1809,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
+
+```json
 {
   "method": "get_proofs",
   "result": {
@@ -1383,7 +1848,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
 
+```json
 {
   "method": "verify_proof",
   "result": {
@@ -1418,7 +1885,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
 
+```json
 {
   "method": "get_transaction_object",
   "result": {
@@ -1443,7 +1912,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
 
+```json
 {
   "method": "get_txo_object",
   "result": {
@@ -1468,7 +1939,9 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
+```
 
+```json
 {
   "method": "get_block_object",
   "result": {
@@ -1704,6 +2177,7 @@ The balance for an account, as well as some information about syncing status nee
 
 | *Name* | *Type* | *Description*
 | :--- | :--- | :---
+| object | string, value is "transaction_log" | String representing the object's type. Objects of the same type share the same value.
 | transaction_log_id | int | Unique identifier for the transaction log. This value is not associated to the ledger.
 | direction | string | A string that identifies if this transaction log was sent or received. Valid values are "sent" or "received".
 | is_sent_recovered | boolean | Flag that indicates if the sent transaction log was recovered from the ledger. This value is null for "received" transaction logs. If true, some information may not be available on the transaction log and its txos without user input. If true, the fee receipient_address_id, fee, and sent_time will be null without user input.
@@ -1712,15 +2186,12 @@ The balance for an account, as well as some information about syncing status nee
 | assigned_address_id | string | Unique identifier for the assigned associated account. Only available if direction is "received".
 | value_pmob | string (uint64) | Value in pico MOB associated to this transaction log.
 | fee_pmob | string (uint64) | Fee in pico MOB associated to this transaction log. Only on outgoing transaction logs. Only available if direction is "sent".
-| block_height | string (uint64) | The scanned block height that generated this transaction log.
-| status | string | String representing the transaction log status. On "sent", valid statuses are "built", "pending", "succeeded", "failed".  On "received", the status is "succeded".
-
-#### More attributes
-
-| *Name* | *Type* | *Description*
-| :--- | :--- | :---
-| object | string, value is "transaction_log" | String representing the object's type. Objects of the same type share the same value.
-| txo_ids | list | A list of all txo_ids associated with this transaction log.
+| submitted_block_index | string (uint64) | The block index of the highest block on the network at the time the transaction was submitted.
+| finalized_block_index | string (uint64) | The scanned block block index in which this transaction occurred.
+| status | string | String representing the transaction log status. On "sent", valid statuses are "built", "pending", "succeeded", "failed".  On "received", the status is "succeeded".
+| input_txo_ids | list | A list of the IDs of the Txos which were inputs to this transaction.
+| output_txo_ids | list | A list of the IDs of the Txos which were outputs of this transaction.
+| change_txo_ids | list | A list of the IDs of the Txos which were change in this transaction.
 | sent_time | timestamp | Time at which sent transaction log was created. Only available if direction is "sent". This value is null if "received" or if the sent transactions were recovered from the ledger (is_sent_recovered = true).
 | comment | string | An arbitrary string attached to the object.
 | failure_code | int | Code representing the cause of "failed" status.
@@ -1734,25 +2205,31 @@ Received:
 ```json
 {
   "object": "transaction_log",
-  "transaction_log_id": "873dfb8c...",
-  "direction": "received",
+  "transaction_log_id": "ab447d73553309ccaf60aedc1eaa67b47f65bee504872e4358682d76df486a87",
+  "direction": "tx_direction_sent",
   "is_sent_recovered": null,
-  "account_id": "1916a9b3...",
-  "recipient_address_id": null,
-  "assigned_address_id": "HpaL8g88...",
-  "value_pmob": "8500000000000",
-  "fee_pmob": null,
-  "submitted_block_block_count": null,
-  "finalized_block_block_count": "14152",
-  "status": "succeeded",
-  "input_txo_ids": [],
-  "output_txo_ids": ["28f2f033..."],
-  "change_txo_ids": [],
-  "sent_time": null,
-  "comment": "This is a received tranaction log of 8.5 MOB!",
+  "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
+  "recipient_address_id": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+  "assigned_address_id": null,
+  "value_pmob": "42000000000000",
+  "fee_pmob": "10000000000",
+  "submitted_block_height": "152950",
+  "finalized_block_height": null,
+  "status": "tx_status_pending",
+  "input_txo_ids": [
+    "eb735cafa6d8b14a69361cc05cb3a5970752d27d1265a1ffdfd22c0171c2b20d"
+  ],
+  "output_txo_ids": [
+    "fd39b4e740cb302edf5da89c22c20bea0e4408df40e31c1dbb2ec0055435861c"
+  ],
+  "change_txo_ids": [
+    "bcb45b4fab868324003631b6490a0bf46aaf37078a8d366b490437513c6786e4"
+  ],
+  "sent_time": "2021-02-28 01:42:28 UTC",
+  "comment": "",
   "failure_code": null,
-  "failure_message:": null,
-  "offset_count": 1823
+  "failure_message": null,
+  "offset_count": 2252
 }
 ```
 
@@ -1761,25 +2238,31 @@ Sent - Failed:
 ```json
 {
   "object": "transaction_log",
-  "transaction_log_id": 2111,
-  "direction": "sent",
-  "is_sent_recovered": false,
-  "account_id": "1916a9b3...",
-  "recipient_address_id": "MZ1gUP8E...",
+  "transaction_log_id": "ab447d73553309ccaf60aedc1eaa67b47f65bee504872e4358682d76df486a87",
+  "direction": "tx_direction_sent",
+  "is_sent_recovered": null,
+  "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
+  "recipient_address_id": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
   "assigned_address_id": null,
-  "value_pmob": "1288000000000",
+  "value_pmob": "42000000000000",
   "fee_pmob": "10000000000",
-  "submitted_block_block_count": "19152",
-  "finalized_block_block_count": "19152",
+  "submitted_block_height": "152950",
+  "finalized_block_height": null,
   "status": "failed",
-  "input_txo_ids": ["2bd44ea1..."],
-  "output_txo_ids": ["3ce55d21..."],
-  "change_txo_ids": ["1ac3d0f2..."],
-  "sent_time": "2020-12-15 09:30:04 UTC",
-  "comment": "This is an example of a failed sent tranaction log of 1.288 MOB and 0.01 MOB fee!",
+  "input_txo_ids": [
+    "eb735cafa6d8b14a69361cc05cb3a5970752d27d1265a1ffdfd22c0171c2b20d"
+  ],
+  "output_txo_ids": [
+    "fd39b4e740cb302edf5da89c22c20bea0e4408df40e31c1dbb2ec0055435861c"
+  ],
+  "change_txo_ids": [
+    "bcb45b4fab868324003631b6490a0bf46aaf37078a8d366b490437513c6786e4"
+  ],
+  "sent_time": "2021-02-28 01:42:28 UTC",
+  "comment": "This is an example of a failed sent transaction log of 1.288 MOB and 0.01 MOB fee!",
   "failure_code": 3,
   "failure_message:": "Contains sent key image.",
-  "offset_count": 2111
+  "offset_count": 2252
 }
 ```
 
@@ -1788,29 +2271,42 @@ Sent - Success, Recovered:
 ```json
 {
   "object": "transaction_log",
-  "transaction_log_id": 888,
-  "direction": "sent",
+  "transaction_log_id": "ab447d73553309ccaf60aedc1eaa67b47f65bee504872e4358682d76df486a87",
+  "direction": "tx_direction_sent",
   "is_sent_recovered": true,
-  "account_id": "1916a9b3...",
-  "recipient_address_id": null,
+  "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
+  "recipient_address_id": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
   "assigned_address_id": null,
-  "value_pmob": "8000000000000",
-  "fee_pmob": null,
-  "block_block_count": "8504",
-  "status": "success",
-  "txo_ids": ["fa1b94fa..."],
-  "sent_time": null,
-  "comment": "This is an example of recovered sent tranaction log of 8 MOB and unknown fee!",
-  "failure_code": 3,
-  "failure_message:": "Contains sent key image.",
-  "offset_count": 888
+  "value_pmob": "42000000000000",
+  "fee_pmob": "10000000000",
+  "submitted_block_height": "152950",
+  "finalized_block_height": null,
+  "status": "tx_status_pending",
+  "input_txo_ids": [
+    "eb735cafa6d8b14a69361cc05cb3a5970752d27d1265a1ffdfd22c0171c2b20d"
+  ],
+  "output_txo_ids": [
+    "fd39b4e740cb302edf5da89c22c20bea0e4408df40e31c1dbb2ec0055435861c"
+  ],
+  "change_txo_ids": [
+    "bcb45b4fab868324003631b6490a0bf46aaf37078a8d366b490437513c6786e4"
+  ],
+  "sent_time": "2021-02-28 01:42:28 UTC",
+  "comment": "",
+  "failure_code": null,
+  "failure_message": null,
+  "offset_count": 2252
 }
 ```
 
 #### API Methods Returning Transaction Log Objects
 
-* [get_all_transactions_by_account](#get-all-transactions)
-* [get_transaction](#get-transaction)
+* [get_all_transaction_logs_for_account](#get-all-transaction-logs-for-account)
+* [get_transaction_log](#get-transaction-log)
+* [get_all_transaction_logs_for_block](#get-all-transaction-logs-for-block)
+* [get_all_transaction_logs_ordered_by_block](#get-all-transaction-logs-ordered-by-block)
+* [build_and_submit_transaction](#build-and-submit-transaction)
+* [submit_transaction](#submit-transaction)
 
 ### The TXO Object
 

@@ -14,12 +14,12 @@ use crate::{
     },
 };
 use mc_account_keys::PublicAddress;
-use mc_common::logger::{log, test_with_logger, Logger};
+use mc_common::logger::{log, Logger};
 use mc_connection_test_utils::MockBlockchainConnection;
 use mc_fog_report_validation::MockFogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::PollingNetworkState;
-use rand::{rngs::StdRng, SeedableRng};
+use rand::rngs::StdRng;
 use rocket::{
     http::{ContentType, Status},
     local::Client,
@@ -184,8 +184,11 @@ pub fn wait_for_sync(
 ) {
     let mut count = 0;
     loop {
+        // FIXME: FS-122: Use async primitives so that we don't have to sleep for these
+        // tests.
         // Sleep to let the sync thread process the txos
-        std::thread::sleep(Duration::from_secs(1));
+        std::thread::sleep(Duration::from_secs(2));
+
         // Check that syncing is working
         let body = json!({
             "jsonrpc": "2.0",
@@ -193,80 +196,37 @@ pub fn wait_for_sync(
             "method": "get_wallet_status",
         });
         let res = dispatch(&client, body, &logger);
-        let status = res.get("result").unwrap().get("wallet_status").unwrap();
+        let status = res["result"]["wallet_status"].clone();
 
-        // Have to manually call poll() on network state to get it to update for these
-        // tests
-        network_state.write().unwrap().poll();
-
-        let is_synced_all = status.get("is_synced_all").unwrap().as_bool().unwrap();
+        let is_synced_all = status["is_synced_all"].as_bool().unwrap();
         if is_synced_all {
-            let local_height = status
-                .get("local_block_count")
-                .unwrap()
+            let local_height = status["local_block_count"]
                 .as_str()
                 .unwrap()
                 .parse::<u64>()
                 .unwrap();
             assert_eq!(local_height, ledger_db.num_blocks().unwrap());
-            assert_eq!(
-                status
-                    .get("network_block_count")
-                    .unwrap()
+            // In the test context, we often add a block manually locally before updating
+            // the network_state. In the wild, the local_height should never be
+            // greater than the network_height.
+            assert!(
+                status["network_block_count"]
                     .as_str()
                     .unwrap()
                     .parse::<u64>()
-                    .unwrap(),
-                local_height
+                    .unwrap()
+                    <= local_height
             );
             break;
         }
+
+        // Have to manually call poll() on network state to get it to update for these
+        // tests
+        network_state.write().unwrap().poll();
+
         count += 1;
         if count > 10 {
             panic!("Service did not sync after 10 iterations");
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // Test that our "wallet" endpoint is backward compatible with previous API
-    // versions. Note: requires keeping the test_wallet_api in sync with the
-    // wallet.rs wallet_api method.
-    #[test_with_logger]
-    fn test_api_version(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
-
-        // Create Account with API v1
-        let body = json!({
-            "method": "create_account",
-            "params": {
-                "name": "Alice Main Account",
-            }
-        });
-        let result = dispatch(&client, body, &logger);
-        assert!(result.get("result").unwrap().get("entropy").is_some());
-
-        // Create Account with API v2
-        let body = json!({
-            "jsonrpc": "2.0",
-            "method": "create_account",
-            "params": {
-                "name": "Alice Main Account",
-            },
-            "api_version": "2",
-        });
-        let result = dispatch(&client, body, &logger);
-        assert!(result
-            .get("result")
-            .unwrap()
-            .get("account")
-            .unwrap()
-            .get("entropy")
-            .is_some());
-        assert_eq!(result.get("jsonrpc").unwrap(), "2.0");
     }
 }

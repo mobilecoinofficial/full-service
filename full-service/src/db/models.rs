@@ -76,7 +76,7 @@ pub struct Account {
     pub account_key: Vec<u8>,
     /// The private entropy for this account, used to derive the view and send
     /// keys which comprise the account_key.
-    pub entropy: Vec<u8>,
+    pub entropy: Option<Vec<u8>>,
     /// Default subadress that is given out to refer to this account.
     pub main_subaddress_index: i64,
     /// Subaddress used to return transaction "change" to self.
@@ -104,7 +104,7 @@ pub struct Account {
 pub struct NewAccount<'a> {
     pub account_id_hex: &'a str,
     pub account_key: &'a [u8],
-    pub entropy: &'a [u8],
+    pub entropy: Option<&'a [u8]>,
     pub main_subaddress_index: i64,
     pub change_subaddress_index: i64,
     pub next_subaddress_index: i64,
@@ -232,8 +232,8 @@ pub struct TransactionLog {
     // Statuses: built, pending, succeeded, failed
     pub status: String,
     pub sent_time: Option<i64>, // empty string for nullable
-    pub submitted_block_count: Option<i64>,
-    pub finalized_block_count: Option<i64>,
+    pub submitted_block_index: Option<i64>,
+    pub finalized_block_index: Option<i64>,
     pub comment: String, // empty string for nullable
     // Directions: sent, received
     pub direction: String,
@@ -252,8 +252,8 @@ pub struct NewTransactionLog<'a> {
     pub fee: Option<i64>,
     pub status: &'a str,
     pub sent_time: Option<i64>,
-    pub submitted_block_count: Option<i64>,
-    pub finalized_block_count: Option<i64>,
+    pub submitted_block_index: Option<i64>,
+    pub finalized_block_index: Option<i64>,
     pub comment: &'a str,
     pub direction: &'a str,
     pub tx: Option<&'a [u8]>,

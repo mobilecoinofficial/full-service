@@ -4,7 +4,9 @@
 //!
 //! API v2
 
-use crate::json_rpc::api_v1::wallet_api::JsonCommandRequestV1;
+use crate::json_rpc::{
+    account_key::AccountKey, api_v1::wallet_api::JsonCommandRequestV1, tx_proposal::TxProposal,
+};
 
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -78,10 +80,18 @@ pub enum JsonCommandRequestV2 {
         name: Option<String>,
         first_block_index: Option<String>,
     },
-    import_account {
+    import_account_by_entropy {
         entropy: String,
         name: Option<String>,
         first_block_index: Option<String>,
+    },
+    import_account_by_account_key {
+        account_key: AccountKey,
+        name: Option<String>,
+        first_block_index: Option<String>,
+    },
+    export_account_secrets {
+        account_id: String,
     },
     get_all_accounts,
     get_account {
@@ -97,32 +107,7 @@ pub enum JsonCommandRequestV2 {
     get_balance_for_account {
         account_id: String,
     },
-    /*
-    get_balance_for_subaddress {
-        address: String,
-    },*/
-    get_wallet_status,
-    get_account_status {
-        account_id: String,
-    },
-    /*
-    get_all_txos_by_account {
-        account_id: String,
-    },
-    get_all_txos_by_subadress {
-        address: String,
-    },
-    get_txo {
-        txo_id: String,
-    },
-    create_address {
-        account_id: String,
-        comment: Option<String>,
-    },
-    get_all_addresses_by_account {
-        account_id: String,
-    },
-    send_transaction {
+    build_and_submit_transaction {
         account_id: String,
         recipient_public_address: String,
         value: String,
@@ -142,15 +127,43 @@ pub enum JsonCommandRequestV2 {
         max_spendable_value: Option<String>,
     },
     submit_transaction {
-        tx_proposal: StringifiedJsonTxProposal,
+        tx_proposal: TxProposal,
         comment: Option<String>,
         account_id: Option<String>,
     },
-    get_all_transactions_by_account {
+    get_all_transaction_logs_for_account {
         account_id: String,
     },
-    get_transaction {
+    get_transaction_log {
         transaction_log_id: String,
+    },
+    get_all_transaction_logs_for_block {
+        block_index: String,
+    },
+    get_all_transaction_logs_ordered_by_block,
+    get_wallet_status,
+    get_account_status {
+        account_id: String,
+    },
+    /*
+    get_balance_for_subaddress {
+        address: String,
+    },
+    get_all_txos_by_account {
+        account_id: String,
+    },
+    get_all_txos_by_subadress {
+        address: String,
+    },
+    get_txo {
+        txo_id: String,
+    },
+    create_address {
+        account_id: String,
+        comment: Option<String>,
+    },
+    get_all_addresses_by_account {
+        account_id: String,
     },
     get_transaction_object {
         transaction_log_id: String,
