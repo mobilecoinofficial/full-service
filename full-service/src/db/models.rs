@@ -138,9 +138,9 @@ pub struct Txo {
     /// Pre-computed key image for this Txo, or None if the Txo is orphaned.
     pub key_image: Option<Vec<u8>>,
     /// Block index containing this Txo.
-    pub received_block_count: Option<i64>,
-    pub pending_tombstone_block_count: Option<i64>,
-    pub spent_block_count: Option<i64>,
+    pub received_block_index: Option<i64>,
+    pub pending_tombstone_block_index: Option<i64>,
+    pub spent_block_index: Option<i64>,
     pub proof: Option<Vec<u8>>,
 }
 
@@ -156,9 +156,9 @@ pub struct NewTxo<'a> {
     pub txo: &'a [u8],
     pub subaddress_index: Option<i64>,
     pub key_image: Option<&'a [u8]>,
-    pub received_block_count: Option<i64>,
-    pub pending_tombstone_block_count: Option<i64>,
-    pub spent_block_count: Option<i64>,
+    pub received_block_index: Option<i64>,
+    pub pending_tombstone_block_index: Option<i64>,
+    pub spent_block_index: Option<i64>,
     pub proof: Option<&'a [u8]>,
 }
 

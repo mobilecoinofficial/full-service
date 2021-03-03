@@ -104,7 +104,7 @@ pub trait AccountModel {
     /// a given block height.
     fn update_spent_and_increment_next_block(
         &self,
-        spent_block_count: i64,
+        spent_block_index: i64,
         key_images: Vec<KeyImage>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
@@ -279,7 +279,7 @@ impl AccountModel for Account {
 
     fn update_spent_and_increment_next_block(
         &self,
-        spent_block_count: i64,
+        spent_block_index: i64,
         key_images: Vec<KeyImage>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
@@ -311,7 +311,7 @@ impl AccountModel for Account {
                 } else {
                     // Update the TXO
                     diesel::update(txos.filter(txo_id_hex.eq(&matches[0].txo_id_hex)))
-                        .set(crate::db::schema::txos::spent_block_count.eq(Some(spent_block_count)))
+                        .set(crate::db::schema::txos::spent_block_index.eq(Some(spent_block_index)))
                         .execute(conn)?;
 
                     // Update the AccountTxoStatus
@@ -329,13 +329,13 @@ impl AccountModel for Account {
                     // are all spent
                     TransactionLog::update_transactions_associated_to_txo(
                         &matches[0].txo_id_hex,
-                        spent_block_count,
+                        spent_block_index,
                         conn,
                     )?;
                 }
             }
             diesel::update(accounts.filter(account_id_hex.eq(&self.account_id_hex)))
-                .set(crate::db::schema::accounts::next_block.eq(spent_block_count + 1))
+                .set(crate::db::schema::accounts::next_block.eq(spent_block_index + 1))
                 .execute(conn)?;
             Ok(())
         })?)

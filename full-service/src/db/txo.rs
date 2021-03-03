@@ -75,7 +75,7 @@ pub trait TxoModel {
     /// * `subaddress_index` - The receiving subaddress index, if known.
     /// * `key_image` -
     /// * `value` - The value of the output, in picoMob.
-    /// * `received_block_count` - ???
+    /// * `received_block_index` - ???
     /// * `account_id_hex` - ???
     /// * `conn` - Sqlite database connection.
     ///
@@ -89,7 +89,7 @@ pub trait TxoModel {
         subaddress_index: Option<i64>,
         key_image: Option<KeyImage>,
         value: u64,
-        received_block_count: i64,
+        received_block_index: i64,
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<String, WalletDbError>;
@@ -214,7 +214,7 @@ impl TxoModel for Txo {
         subaddress_index: Option<i64>,
         key_image: Option<KeyImage>,
         value: u64,
-        received_block_count: i64,
+        received_block_index: i64,
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<String, WalletDbError> {
@@ -249,7 +249,7 @@ impl TxoModel for Txo {
                                                     txo_details.txo.update_to_spendable(
                                                         subaddress_index,
                                                         key_image,
-                                                        received_block_count,
+                                                        received_block_index,
                                                         &conn,
                                                     )?;
                                                     account_txo_status.set_unspent(conn)?;
@@ -261,7 +261,7 @@ impl TxoModel for Txo {
                                                     // transaction from itself at an unknown
                                                     // subaddress.
                                                     txo_details.txo.update_received_block_count(
-                                                        received_block_count,
+                                                        received_block_index,
                                                         conn,
                                                     )?;
                                                     account_txo_status.set_orphaned(conn)?;
@@ -285,7 +285,7 @@ impl TxoModel for Txo {
                                             txo_details.txo.update_to_spendable(
                                                 subaddress_index,
                                                 key_image,
-                                                received_block_count,
+                                                received_block_index,
                                                 &conn,
                                             )?;
                                             account_txo_status.set_unspent(conn)?;
@@ -312,7 +312,7 @@ impl TxoModel for Txo {
                                     txo_details.txo.update_to_spendable(
                                         subaddress_index,
                                         key_image,
-                                        received_block_count,
+                                        received_block_index,
                                         &conn,
                                     )?;
                                     TXO_STATUS_UNSPENT
@@ -321,7 +321,7 @@ impl TxoModel for Txo {
                                     // recovered.
                                     txo_details
                                         .txo
-                                        .update_received_block_count(received_block_count, conn)?;
+                                        .update_received_block_count(received_block_index, conn)?;
                                     TXO_STATUS_ORPHANED
                                 };
                                 AccountTxoStatus::create(
@@ -352,9 +352,9 @@ impl TxoModel for Txo {
                         txo: &mc_util_serial::encode(&txo),
                         subaddress_index,
                         key_image: key_image_bytes.as_deref(),
-                        received_block_count: Some(received_block_count as i64),
-                        pending_tombstone_block_count: None,
-                        spent_block_count: None,
+                        received_block_index: Some(received_block_index as i64),
+                        pending_tombstone_block_index: None,
+                        spent_block_index: None,
                         proof: None,
                     };
 
@@ -445,9 +445,9 @@ impl TxoModel for Txo {
                 subaddress_index: None, /* Minted set subaddress_index to None. If later
                                          * received, updates. */
                 key_image: None, // Only the recipient can calculate the KeyImage
-                received_block_count: None,
-                pending_tombstone_block_count: Some(tx_proposal.tx.prefix.tombstone_block as i64),
-                spent_block_count: None,
+                received_block_index: None,
+                pending_tombstone_block_index: Some(tx_proposal.tx.prefix.tombstone_block as i64),
+                spent_block_index: None,
                 proof: encoded_proof.as_deref(),
             };
 
@@ -488,7 +488,7 @@ impl TxoModel for Txo {
         block_count: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::txos::{key_image, received_block_count, subaddress_index};
+        use crate::db::schema::txos::{key_image, received_block_index, subaddress_index};
 
         // Verify that we have a subaddress, otherwise this transaction will be
         // unspendable.
@@ -500,7 +500,7 @@ impl TxoModel for Txo {
 
         diesel::update(self)
             .set((
-                received_block_count.eq(Some(block_count)),
+                received_block_index.eq(Some(block_count)),
                 subaddress_index.eq(received_subaddress_index),
                 key_image.eq(encoded_key_image),
             ))
@@ -513,10 +513,10 @@ impl TxoModel for Txo {
         block_count: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::txos::received_block_count;
+        use crate::db::schema::txos::received_block_index;
 
         diesel::update(self)
-            .set((received_block_count.eq(Some(block_count)),))
+            .set((received_block_index.eq(Some(block_count)),))
             .execute(conn)?;
         Ok(())
     }
@@ -780,7 +780,7 @@ impl TxoModel for Txo {
                         account_txo_statuses::txo_status
                             .eq_any(vec![TXO_STATUS_UNSPENT, TXO_STATUS_PENDING]),
                     )
-                    .and(txos::pending_tombstone_block_count.lt(Some(block_count)))),
+                    .and(txos::pending_tombstone_block_index.lt(Some(block_count)))),
             )
             .select(txos::all_columns)
             .load(conn)?;
@@ -981,9 +981,9 @@ mod tests {
             txo: mc_util_serial::encode(&for_alice_txo),
             subaddress_index: Some(0),
             key_image: Some(mc_util_serial::encode(&for_alice_key_image)),
-            received_block_count: Some(12),
-            pending_tombstone_block_count: None,
-            spent_block_count: None,
+            received_block_index: Some(12),
+            pending_tombstone_block_index: None,
+            spent_block_index: None,
             proof: None,
         };
         // Verify that the statuses table was updated correctly
@@ -1070,7 +1070,7 @@ mod tests {
             spent[0].txo.key_image,
             Some(mc_util_serial::encode(&for_alice_key_image))
         );
-        assert_eq!(spent[0].txo.spent_block_count.clone().unwrap(), 13);
+        assert_eq!(spent[0].txo.spent_block_index.clone().unwrap(), 13);
         assert_eq!(spent[0].secreted_from_account, None);
         // The spent Txo was not secreted from any account in this wallet - it should be
         // received to the account in this wallet.
@@ -1101,7 +1101,7 @@ mod tests {
             .collect();
         assert_eq!(orphaned.len(), 1);
         assert!(orphaned[0].txo.key_image.is_none());
-        assert_eq!(orphaned[0].txo.received_block_count.clone().unwrap(), 13);
+        assert_eq!(orphaned[0].txo.received_block_index.clone().unwrap(), 13);
         assert!(orphaned[0].secreted_from_account.is_some());
         assert!(orphaned[0].received_to_account.is_some());
 
@@ -1121,7 +1121,7 @@ mod tests {
             .filter_map(|t| t)
             .collect();
         assert_eq!(unspent.len(), 1);
-        assert_eq!(unspent[0].txo.received_block_count.clone().unwrap(), 13);
+        assert_eq!(unspent[0].txo.received_block_index.clone().unwrap(), 13);
         // Store the key image for when we spend this Txo below
         let for_bob_key_image: KeyImage =
             mc_util_serial::decode(&unspent[0].txo.key_image.clone().unwrap()).unwrap();

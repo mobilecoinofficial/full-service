@@ -74,9 +74,9 @@ table! {
         txo -> Binary,
         subaddress_index -> Nullable<BigInt>,
         key_image -> Nullable<Binary>,
-        received_block_count -> Nullable<BigInt>,
-        pending_tombstone_block_count -> Nullable<BigInt>,
-        spent_block_count -> Nullable<BigInt>,
+        received_block_index -> Nullable<BigInt>,
+        pending_tombstone_block_index -> Nullable<BigInt>,
+        spent_block_index -> Nullable<BigInt>,
         proof -> Nullable<Binary>,
     }
 }
