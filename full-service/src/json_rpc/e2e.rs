@@ -155,7 +155,7 @@ mod e2e {
             "jsonrpc": "2.0",
             "api_version": "2",
             "id": 1,
-            "method": "import_account_by_entropy",
+            "method": "import_account",
             "params": {
                 "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
                 "name": "Alice Main Account",
@@ -185,7 +185,7 @@ mod e2e {
             "jsonrpc": "2.0",
             "api_version": "2",
             "id": 1,
-            "method": "import_account_by_entropy",
+            "method": "import_account",
             "params": {
                 "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
                 "name": "Alice Main Account",
@@ -224,7 +224,7 @@ mod e2e {
             "jsonrpc": "2.0",
             "api_version": "2",
             "id": 1,
-            "method": "import_account_by_entropy",
+            "method": "import_account",
             "params": {
                 "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
                 "name": "Alice Main Account",
@@ -306,60 +306,6 @@ mod e2e {
             serde_json::json!(json_rpc::account_key::AccountKey::try_from(&account_key).unwrap()),
             secrets["account_key"]
         );
-    }
-
-    // Import an account by the account key should succeed.
-    #[test_with_logger]
-    fn test_import_account_by_account_key(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
-
-        // Create account for a simple way to get the correctly-formatted json
-        let body = json!({
-            "jsonrpc": "2.0",
-            "api_version": "2",
-            "id": 1,
-            "method": "create_account",
-            "params": {
-                "name": "Alice Main Account",
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let account_obj = res["result"]["account"].clone();
-        let account_key: json_rpc::account_key::AccountKey =
-            serde_json::from_value(account_obj["account_key"].clone()).unwrap();
-        let account_id = account_obj["account_id"].clone();
-        let public_address_from_entropy = account_obj["main_address"].clone();
-
-        // Delete the account to clear out the DB
-        let body = json!({
-            "jsonrpc": "2.0",
-            "api_version": "2",
-            "id": 2,
-            "method": "delete_account",
-            "params": {
-                "account_id": account_id,
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        assert_eq!(result["success"].as_bool().unwrap(), true);
-
-        let body = json!({
-            "jsonrpc": "2.0",
-            "api_version": "2",
-            "id": 1,
-            "method": "import_account_by_account_key",
-            "params": {
-                "account_key": account_key,
-                "name": "Alice Main Account Part 2",
-                "first_block": "200",
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let account_obj = res["result"]["account"].clone();
-        assert_eq!(account_obj["main_address"], public_address_from_entropy);
-        assert!(account_obj["entropy"].is_null());
     }
 
     #[test_with_logger]
@@ -934,7 +880,7 @@ mod e2e {
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
 
         let body = json!({
-            "method": "get_all_txos_by_account",
+            "method": "get_all_txos_for_account",
             "params": {
                 "account_id": account_id,
             }
@@ -1034,7 +980,7 @@ mod e2e {
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
 
         let body = json!({
-            "method": "get_all_txos_by_account",
+            "method": "get_all_txos_for_account",
             "params": {
                 "account_id": account_id,
             }

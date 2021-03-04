@@ -151,10 +151,7 @@ pub enum JsonCommandResponseV2 {
     create_account {
         account: Account,
     },
-    import_account_by_entropy {
-        account: Account,
-    },
-    import_account_by_account_key {
+    import_account {
         account: Account,
     },
     export_account_secrets {
@@ -213,7 +210,7 @@ pub enum JsonCommandResponseV2 {
     get_txos_for_subaddress {
 
     }
-    get_all_txos_by_account {
+    get_all_txos_for_account {
         txo_ids: Vec<String>,
         txo_map: Map<String, serde_json::Value>,
     },
@@ -224,7 +221,7 @@ pub enum JsonCommandResponseV2 {
     create_address {
         address: JsonAddress,
     },
-    get_all_addresses_by_account {
+    get_all_addresses_for_account {
         address_ids: Vec<String>,
         address_map: Map<String, serde_json::Value>,
     },

@@ -4,9 +4,7 @@
 //!
 //! API v2
 
-use crate::json_rpc::{
-    account_key::AccountKey, api_v1::wallet_api::JsonCommandRequestV1, tx_proposal::TxProposal,
-};
+use crate::json_rpc::{api_v1::wallet_api::JsonCommandRequestV1, tx_proposal::TxProposal};
 
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -80,13 +78,8 @@ pub enum JsonCommandRequestV2 {
         name: Option<String>,
         first_block_index: Option<String>,
     },
-    import_account_by_entropy {
+    import_account {
         entropy: String,
-        name: Option<String>,
-        first_block_index: Option<String>,
-    },
-    import_account_by_account_key {
-        account_key: AccountKey,
         name: Option<String>,
         first_block_index: Option<String>,
     },
@@ -149,7 +142,7 @@ pub enum JsonCommandRequestV2 {
     get_balance_for_subaddress {
         address: String,
     },
-    get_all_txos_by_account {
+    get_all_txos_for_account {
         account_id: String,
     },
     get_all_txos_by_subadress {
@@ -162,7 +155,7 @@ pub enum JsonCommandRequestV2 {
         account_id: String,
         comment: Option<String>,
     },
-    get_all_addresses_by_account {
+    get_all_addresses_for_account {
         account_id: String,
     },
     get_transaction_object {

@@ -27,7 +27,7 @@ fn format_error<T: std::fmt::Display + std::fmt::Debug>(e: T) -> String {
 #[serde(tag = "method", content = "params")]
 #[allow(non_camel_case_types)]
 pub enum JsonCommandRequestV1 {
-    get_all_txos_by_account {
+    get_all_txos_for_account {
         account_id: String,
     },
     get_txo {
@@ -37,7 +37,7 @@ pub enum JsonCommandRequestV1 {
         account_id: String,
         comment: Option<String>,
     },
-    get_all_addresses_by_account {
+    get_all_addresses_for_account {
         account_id: String,
     },
     get_transaction_object {
@@ -63,7 +63,7 @@ pub enum JsonCommandRequestV1 {
 #[allow(non_camel_case_types)]
 #[allow(clippy::large_enum_variant)]
 pub enum JsonCommandResponseV1 {
-    get_all_txos_by_account {
+    get_all_txos_for_account {
         txo_ids: Vec<String>,
         txo_map: Map<String, serde_json::Value>,
     },
@@ -73,7 +73,7 @@ pub enum JsonCommandResponseV1 {
     create_address {
         address: JsonAddress,
     },
-    get_all_addresses_by_account {
+    get_all_addresses_for_account {
         address_ids: Vec<String>,
         address_map: Map<String, serde_json::Value>,
     },
@@ -112,7 +112,7 @@ where
 {
     global_log::trace!("Running command {:?}", command);
     let result = match command.0 {
-        JsonCommandRequestV1::get_all_txos_by_account { account_id } => {
+        JsonCommandRequestV1::get_all_txos_for_account { account_id } => {
             let txos = service.list_txos(&account_id).map_err(format_error)?;
             let txo_map: Map<String, serde_json::Value> = Map::from_iter(
                 txos.iter()
@@ -125,7 +125,7 @@ where
                     .collect::<Vec<(String, serde_json::Value)>>(),
             );
 
-            JsonCommandResponseV1::get_all_txos_by_account {
+            JsonCommandResponseV1::get_all_txos_for_account {
                 txo_ids: txos.iter().map(|t| t.txo_id.clone()).collect(),
                 txo_map,
             }
@@ -142,7 +142,7 @@ where
                 .create_assigned_subaddress(&account_id, comment.as_deref())
                 .map_err(format_error)?,
         },
-        JsonCommandRequestV1::get_all_addresses_by_account { account_id } => {
+        JsonCommandRequestV1::get_all_addresses_for_account { account_id } => {
             let addresses = service
                 .list_assigned_subaddresses(&account_id)
                 .map_err(format_error)?;
@@ -158,7 +158,7 @@ where
                     .collect::<Vec<(String, serde_json::Value)>>(),
             );
 
-            JsonCommandResponseV1::get_all_addresses_by_account {
+            JsonCommandResponseV1::get_all_addresses_for_account {
                 address_ids: addresses.iter().map(|a| a.address_id.clone()).collect(),
                 address_map,
             }
@@ -248,7 +248,7 @@ mod e2e {
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
 
         let body = json!({
-            "method": "get_all_txos_by_account",
+            "method": "get_all_txos_for_account",
             "params": {
                 "account_id": account_id,
             }
@@ -354,7 +354,7 @@ mod e2e {
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
 
         let body = json!({
-            "method": "get_all_txos_by_account",
+            "method": "get_all_txos_for_account",
             "params": {
                 "account_id": account_id,
             }

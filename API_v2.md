@@ -7,19 +7,18 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 ### Methods Overview
 
 * [create_account](#create-account)
-* [import_account_by_entropy](#import-account-by-entropy)
-* [import_account_by_account_key](#import-account-by-account-key)
+* [import_account](#import-account)
 * [get_all_accounts](#get-all-accounts)
 * [get_account](#get-account)
 * [update_account_name](#update-account-name)
 * [delete_account](#delete-account)
 * [export_account_secrets](#export-account-secrets)
-* [get_all_txos_by_account](#get-all-txos-for-a-given-account)
+* [get_all_txos_for_account](#get-all-txos-for-a-given-account)
 * [get_txo](#get-txo-details)
 * [get_wallet_status](#get-wallet-status)
 * [get_balance_for_account](#get-balance-for-a-given-account)
 * [create_address](#create-assigned-subaddress)
-* [get_all_addresses_by_account](#get-all-assigned-subaddresses-for-a-given-account)
+* [get_all_addresses_for_account](#get-all-assigned-subaddresses-for-a-given-account)
 * [build_and_submit_transaction](#build-and-submit-transaction)
 * [build_transaction](#build-transaction)
 * [submit_transaction](#submit-transaction)
@@ -103,14 +102,14 @@ curl -s localhost:9090/wallet \
 | `name`         | Label for this account   | Can have duplicates (not recommended) |
 | `first_block`  | The block from which to start scanning the ledger |  |
 
-#### Import Account by Entropy
+#### Import Account
 
 Import an existing account from the secret entropy.
 
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "import_account_by_entropy",
+        "method": "import_account",
         "params": {
           "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
           "name": "Bob"
@@ -125,7 +124,7 @@ curl -s localhost:9090/wallet \
 
 ```json
 {
-  "method": "import_account_by_entropy",
+  "method": "import_account",
   "result": {
     "account": {
       "object": "account",
@@ -168,71 +167,6 @@ If you receive the following error, it means that you attempted to import an acc
 ```sh
 {"error": "Database(Diesel(DatabaseError(UniqueViolation, "UNIQUE constraint failed: accounts.account_id_hex")))"}
 ```
-
-#### Import Account by Account Key
-
-Import an existing account from the secret account key.
-
-```sh
-curl -s localhost:9090/wallet \
-  -d '{
-        "method": "import_account_by_account_key",
-        "params": {
-          "account_key": {
-            "object": "account_key",
-            "view_private_key": "0a20765d49c5a524ddd4d9e96278b17eccd7b33e6bc071c5bc91dcd29435ce478a0d"
-            "spend_private_key": "0a200c68151e777324da47a1e3a4f8b57e7d94d59084d4a343e1c600c1e4f66fc20d",
-            "fog_report_url": "",
-            "fog_report_id": "",
-            "fog_authority_spki": "",
-            },
-          "name": "Bob"
-          "first_block_index": 3500,
-        },
-        "jsonrpc": "2.0",
-        "api_version": "2",
-        "id": 1
-      }' \
-   -X POST -H 'Content-type: application/json' | jq
-```
-
-```json
-{
-  "method": "import_account_by_account_key",
-  "result": {
-    "account": {
-      "object": "account",
-      "account_id": "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470",
-      "main_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-      "name": "Bob",
-      "next_subaddress_index": "2",
-      "recovery_mode": false,
-      "entropy": null,
-      "account_key": {
-        "object": "account_key",
-        "view_private_key": "0a20e1d5a0622906afa27d87ab9f900e6099ce778d173b22068ce948832b549d2002",
-        "spend_private_key": "0a2011035ae05a302e883af00f788cd7486f8f7445503187b080545c16c37056900e",
-        "fog_report_url": "",
-        "fog_report_id": "",
-        "fog_authority_spki": ""
-      }
-    }
-  },
-  "error": null,
-  "jsonrpc": "2.0",
-  "id": 1,
-  "api_version": "2"
-}
-```
-
-| Required Param | Purpose                  | Requirements              |
-| :------------- | :----------------------- | :------------------------ |
-| `account_key`  | The secret account key   | A valid account key       |
-
-| Optional Param | Purpose                  | Requirements              |
-| :------------- | :----------------------- | :------------------------ |
-| `name`         | Label for this account   | Can have duplicates (not recommended) |
-| `first_block`  | The block from which to start scanning the ledger |  |
 
 ##### Troubleshooting
 
@@ -515,7 +449,7 @@ curl -s localhost:9090/wallet \
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "get_all_txos_by_account",
+        "method": "get_all_txos_for_account",
         "params": {
           "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
         },
@@ -528,7 +462,7 @@ curl -s localhost:9090/wallet \
 
 ```json
 {
-  "method": "get_all_txos_by_account",
+  "method": "get_all_txos_for_account",
   "result": {
     "txo_ids": [
       "001cdcc1f0a22dc0ddcdaac6020cc03d919cbc3c36923f157b4a6bf0dc980167",
@@ -651,7 +585,7 @@ Note, you may wish to filter TXOs using a tool like jq. For example, to get all 
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "get_all_txos_by_account",
+        "method": "get_all_txos_for_account",
         "params": {
           "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10"
         },
@@ -945,7 +879,7 @@ curl -s localhost:9090/wallet \
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "get_all_addresses_by_account",
+        "method": "get_all_addresses_for_account",
         "params": {
           "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
         },
@@ -958,7 +892,7 @@ curl -s localhost:9090/wallet \
 
 ```json
 {
-  "method": "get_all_addresses_by_account",
+  "method": "get_all_addresses_for_account",
   "result": {
     "address_ids": [
       "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
@@ -1075,7 +1009,7 @@ curl -s localhost:9090/wallet \
 
 | Optional Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
-| `input_txo_ids` | Specific TXOs to use as inputs to this transaction   | TXO IDs (obtain from `get_all_txos_by_account`) |
+| `input_txo_ids` | Specific TXOs to use as inputs to this transaction   | TXO IDs (obtain from `get_all_txos_for_account`) |
 | `fee` | The fee amount to submit with this transaction | If not provided, uses `MINIMUM_FEE` = .01 MOB |
 | `tombstone_block` | The block after which this transaction expires | If not provided, uses `cur_height` + 50 |
 | `max_spendable_value` | The maximum amount for an input TXO selected for this transaction |  |
@@ -1307,7 +1241,7 @@ curl -s localhost:9090/wallet \
 
 | Optional Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
-| `input_txo_ids` | Specific TXOs to use as inputs to this transaction   | TXO IDs (obtain from `get_all_txos_by_account`) |
+| `input_txo_ids` | Specific TXOs to use as inputs to this transaction   | TXO IDs (obtain from `get_all_txos_for_account`) |
 | `fee` | The fee amount to submit with this transaction | If not provided, uses `MINIMUM_FEE` = .01 MOB |
 | `tombstone_block` | The block after which this transaction expires | If not provided, uses `cur_height` + 50 |
 | `max_spendable_value` | The maximum amount for an input TXO selected for this transaction |  |
@@ -2402,7 +2336,7 @@ Txo Spent from One Account to Another in the Same Wallet
 
 #### API Methods Returning Transaction Log Objects
 
-* [get_all_txos_by_account](#get-all-txos-for-a-given-account)
+* [get_all_txos_for_account](#get-all-txos-for-a-given-account)
 * [get_txo](#get-txo-details)
 
 ### The Proof Object

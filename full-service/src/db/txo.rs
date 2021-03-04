@@ -939,8 +939,7 @@ mod tests {
         let root_id = RootIdentity::from_random(&mut rng);
         let alice_account_key = AccountKey::from(&root_id);
         let (alice_account_id, _public_address_b58) = Account::create(
-            None,
-            Some(&root_id.root_entropy),
+            &root_id.root_entropy,
             Some(1),
             None,
             "Alice's Main Account",
@@ -1201,8 +1200,7 @@ mod tests {
         let bob_root_id = RootIdentity::from_random(&mut rng);
         let bob_account_key = AccountKey::from(&bob_root_id);
         let (bob_account_id, _public_address_b58) = Account::create(
-            None,
-            Some(&bob_root_id.root_entropy),
+            &bob_root_id.root_entropy,
             Some(1),
             None,
             "Bob's Main Account",
@@ -1260,8 +1258,7 @@ mod tests {
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
         let (account_id_hex, _public_address_b58) = Account::create(
-            None,
-            Some(&root_id.root_entropy),
+            &root_id.root_entropy,
             Some(1),
             None,
             "Alice's Main Account",
@@ -1366,8 +1363,7 @@ mod tests {
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
         let (account_id_hex, _public_address_b58) = Account::create(
-            None,
-            Some(&root_id.root_entropy),
+            &root_id.root_entropy,
             Some(0),
             None,
             "Alice's Main Account",
@@ -1419,8 +1415,7 @@ mod tests {
         let wallet_db = db_test_context.get_db_instance(logger.clone());
 
         Account::create(
-            None,
-            Some(&root_id.root_entropy),
+            &root_id.root_entropy,
             Some(0),
             None,
             "",
@@ -1483,8 +1478,7 @@ mod tests {
         let root_id = RootIdentity::from_random(&mut rng);
         let recipient_account_key = AccountKey::from(&root_id);
         Account::create(
-            None,
-            Some(&root_id.root_entropy),
+            &root_id.root_entropy,
             Some(0),
             None,
             "",
