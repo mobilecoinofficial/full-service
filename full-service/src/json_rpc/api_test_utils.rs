@@ -200,7 +200,7 @@ pub fn wait_for_sync(
 
         let is_synced_all = status["is_synced_all"].as_bool().unwrap();
         if is_synced_all {
-            let local_height = status["local_block_count"]
+            let local_height = status["local_block_index"]
                 .as_str()
                 .unwrap()
                 .parse::<u64>()
@@ -210,7 +210,7 @@ pub fn wait_for_sync(
             // the network_state. In the wild, the local_height should never be
             // greater than the network_height.
             assert!(
-                status["network_block_count"]
+                status["network_block_index"]
                     .as_str()
                     .unwrap()
                     .parse::<u64>()

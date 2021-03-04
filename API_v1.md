@@ -324,8 +324,8 @@ curl -s localhost:9090/wallet \
         "proof": null,
         "public_key": "0a201a592874a596aeb14cbeb1c7d3449cbd20dc8078ad7fff657e131d619145ef0a",
         "received_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
-        "received_block_height": "128567",
-        "spent_block_height": "128569",
+        "received_block_index": "128567",
+        "spent_block_index": "128569",
         "subaddress_index": "0",
         "target_key": "0a209e1067117870549a77a47de04bd810da052abfc23d60a0c433367bfc689b7428",
         "txo_id": "001cdcc1f0a22dc0ddcdaac6020cc03d919cbc3c36923f157b4a6bf0dc980167",
@@ -352,8 +352,8 @@ curl -s localhost:9090/wallet \
         "proof": "0a204488e153cce1e4bcdd4419eecb778f3d2d2b024b39aaa29532d2e47e238b2e31",
         "public_key": "0a20e6736474f73e440686736bfd045d838c2b3bc056ffc647ad6b1c990f5a46b123",
         "received_account_id": "36fdf8fbdaa35ad8e661209b8a7c7057f29bf16a1e399a34aa92c3873dfb853c",
-        "received_block_height": null,
-        "spent_block_height": null,
+        "received_block_index": null,
+        "spent_block_index": null,
         "subaddress_index": null,
         "target_key": "0a20762d8a723aae2aa70cc11c62c91af715f957a7455b695641fe8c94210812cf1b",
         "txo_id": "84f30233774d728bb7844bed59d471fe55ee3680ab70ddc312840db0f978f3ba",
@@ -376,8 +376,8 @@ curl -s localhost:9090/wallet \
         "proof": null,
         "public_key": "0a20d803a979c9ec0531f106363a885dde29101fcd70209f9ed686905512dfd14d5f",
         "received_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
-        "received_block_height": "79",
-        "spent_block_height": null,
+        "received_block_index": "79",
+        "spent_block_index": null,
         "subaddress_index": "0",
         "target_key": "0a209abadbfcec6c81b3d184dc104e51cac4c4faa8bab4da21a3714901519810c20d",
         "txo_id": "58c2c3780792ccf9c51014c7688a71f03732b633f8c5dfa49040fa7f51328280",
@@ -400,8 +400,8 @@ curl -s localhost:9090/wallet \
         "proof": null,
         "public_key": "0a209432c589bb4e5101c26e935b70930dfe45c78417527fb994872ebd65fcb9c116",
         "received_account_id": null,
-        "received_block_height": null,
-        "spent_block_height": null,
+        "received_block_index": null,
+        "spent_block_index": null,
         "subaddress_index": null,
         "target_key": "0a208c75723e9b9a4af0c833bfe190c43900c3b41834cf37024f5fecfbe9919dff23",
         "txo_id": "b496f4f3ec3159bf48517aa7d9cda193ef8bfcac343f81eaed0e0a55849e4726",
@@ -446,8 +446,8 @@ curl -s localhost:9090/wallet \
       "object": "txo",
       "txo_id": "fff4cae55a74e5ce852b79c31576f4041d510c26e59fec178b3e45705c5b35a7",
       "value_pmob": "2960000000000",
-      "received_block_height": "8094",
-      "spent_block_height": "8180",
+      "received_block_index": "8094",
+      "spent_block_index": "8180",
       "is_spent_recovered": false,
       "received_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
       "minted_account_id": null,
@@ -554,7 +554,7 @@ curl -s localhost:9090/wallet \
       "spent": "18135938351572161289",
       "secreted": "0",
       "orphaned": "0",
-      "local_block_height": "116504",
+      "local_block_index": "116504",
       "synced_blocks": "116504"
     }
   }
@@ -717,7 +717,7 @@ If you get the following error response:
 }
 ```
 
-it may mean that your account is not yet fully synced. Call `check_balance` for the account, and note the `synced_blocks` value. If that value is less than the `local_block_height` value, then your Txos may not all be updated to their spent status.
+it may mean that your account is not yet fully synced. Call `check_balance` for the account, and note the `synced_blocks` value. If that value is less than the `local_block_index` value, then your Txos may not all be updated to their spent status.
 
 #### Build Transaction
 
@@ -1007,7 +1007,7 @@ curl -s localhost:9090/wallet \
         "failure_code": null,
         "failure_message": null,
         "fee_pmob": null,
-        "finalized_block_height": "144965",
+        "finalized_block_index": "144965",
         "input_txo_ids": [],
         "is_sent_recovered": null,
         "object": "transaction_log",
@@ -1018,7 +1018,7 @@ curl -s localhost:9090/wallet \
         "recipient_address_id": null,
         "sent_time": null,
         "status": "succeeded",
-        "submitted_block_height": null,
+        "submitted_block_index": null,
         "transaction_log_id": "6e51851495c628a3b6eefb3e14ee14bb7a167bba5ce727c8710601ba87f74c4c",
         "value_pmob": "443990000000000",
       },
@@ -1033,7 +1033,7 @@ curl -s localhost:9090/wallet \
         "fee_pmob": "10000000000",
         "failure_code": null,
         "failure_message": null,
-        "finalized_block_height": "152826",
+        "finalized_block_index": "152826",
         "input_txo_ids": [
           "3de563a16d2da9656ce6c8aa9b12380b682c2e6aad0011fa8d6528c084078827",
           "fa242e21e2155e8f257cd75d2d2939000d0926946c2b7b812946e093165acadb"
@@ -1047,7 +1047,7 @@ curl -s localhost:9090/wallet \
         "recipient_address_id": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
         "sent_time": "2020-12-15 09:30:04 UTC",
         "status": "succeeded",
-        "submitted_block_height": "152826",
+        "submitted_block_index": "152826",
         "transaction_log_id": "ead39f2c0dea3004732adf1953dee876b73829768d4877809fe06ee0bfc6bf6d",
         "value_pmob": "1000000000000",
       }
@@ -1086,8 +1086,8 @@ curl -s localhost:9090/wallet \
       "assigned_address_id": null,
       "value_pmob": "1000000000000",
       "fee_pmob": "10000000000",
-      "submitted_block_height": "152826",
-      "finalized_block_height": "152826",
+      "submitted_block_index": "152826",
+      "finalized_block_index": "152826",
       "status": "succeeded",
       "input_txo_ids": [
         "3de563a16d2da9656ce6c8aa9b12380b682c2e6aad0011fa8d6528c084078827",
@@ -1425,7 +1425,7 @@ The Full Service Wallet API provides several objects that correspond to the data
 | assigned_address_id | string | Unique identifier for the assigned associated account. Only available if direction is "received".
 | value_pmob | string (uint64) | Value in pico MOB associated to this transaction log.
 | fee_pmob | string (uint64) | Fee in pico MOB associated to this transaction log. Only on outgoing transaction logs. Only available if direction is "sent".
-| block_height | string (uint64) | The scanned block height that generated this transaction log.
+| block_index | string (uint64) | The scanned block height that generated this transaction log.
 | status | string | String representing the transaction log status. On "sent", valid statuses are "built", "pending", "succeeded", "failed".  On "received", the status is "succeded".
 
 #### More attributes
@@ -1455,8 +1455,8 @@ Received:
   "assigned_address_id": "HpaL8g88...",
   "value_pmob": "8500000000000",
   "fee_pmob": null,
-  "submitted_block_height": null,
-  "finalized_block_height": "14152",
+  "submitted_block_index": null,
+  "finalized_block_index": "14152",
   "status": "succeeded",
   "input_txo_ids": [],
   "output_txo_ids": ["28f2f033..."],
@@ -1482,8 +1482,8 @@ Sent - Failed:
   "assigned_address_id": null,
   "value_pmob": "1288000000000",
   "fee_pmob": "10000000000",
-  "submitted_block_height": "19152",
-  "finalized_block_height": "19152",
+  "submitted_block_index": "19152",
+  "finalized_block_index": "19152",
   "status": "failed",
   "input_txo_ids": ["2bd44ea1..."],
   "output_txo_ids": ["3ce55d21..."],
@@ -1509,7 +1509,7 @@ Sent - Success, Recovered:
   "assigned_address_id": null,
   "value_pmob": "8000000000000",
   "fee_pmob": null,
-  "block_height": "8504",
+  "block_index": "8504",
   "status": "success",
   "txo_ids": ["fa1b94fa..."],
   "sent_time": null,
@@ -1532,9 +1532,9 @@ Sent - Success, Recovered:
 | *Name* | *Type* | *Description*
 | :--- | :--- | :---
 | value_pmob | string (uint64) | Available pico MOB for this account at the current account_height. If the account is syncing, this value may change.
-| received_block_height | string (uint64) | Block height in which the txo was received by an account.
-| spent_block_height | string (uint64) | Block height in which the txo was spent by an account.
-| is_spent_recovered | boolean | Flag that indicates if the spent_block_height was recovered from the ledger. This value is null if the txo is unspent. If true, some information may not be available on the txo without user input. If true, the proof will be null without user input.
+| received_block_index | string (uint64) | Block height in which the txo was received by an account.
+| spent_block_index | string (uint64) | Block height in which the txo was spent by an account.
+| is_spent_recovered | boolean | Flag that indicates if the spent_block_index was recovered from the ledger. This value is null if the txo is unspent. If true, some information may not be available on the txo without user input. If true, the proof will be null without user input.
 | received_account_id | string | The account_id for the account which has received this TXO. This account has spend authority.
 | minted_account_i | string | The account_id for the account which minted this TXO.
 | account_status_map | hash map | A normalized hash mapping account_id to account objects. Keys include "type" and "status".
@@ -1562,8 +1562,8 @@ Received and Spent TXO
   "object": "txo",
   "txo_id": "14ad2f88...",
   "value_pmob": "8500000000000",
-  "received_block_height": "14152",
-  "spent_block_height": "20982",
+  "received_block_index": "14152",
+  "spent_block_index": "20982",
   "is_spent_recovered": false,
   "received_account_id": "1916a9b3...",
   "minted_account_id": null,
@@ -1591,8 +1591,8 @@ Txo Spent from One Account to Another in the Same Wallet
   "object": "txo",
   "txo_id": "84f3023...",
   "value_pmob": "200",
-  "received_block_height": null,
-  "spent_block_height": null,
+  "received_block_index": null,
+  "spent_block_index": null,
   "is_spent_recovered": false,
   "received_account_id": "36fdf8...",
   "minted_account_id": "a4db032...",

@@ -101,10 +101,10 @@ pub trait TransactionLogModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletDbError>;
 
-    /// Update the transactions associated with a Txo for a given blockheight.
+    /// Update the transactions associated with a Txo for a given block index.
     fn update_transactions_associated_to_txo(
         txo_id_hex: &str,
-        cur_block_count: i64,
+        cur_block_index: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
@@ -112,7 +112,7 @@ pub trait TransactionLogModel {
     fn log_received(
         subaddress_to_output_txo_ids: &HashMap<i64, Vec<String>>,
         account: &Account,
-        block_count: u64,
+        block_index: u64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
@@ -128,7 +128,7 @@ pub trait TransactionLogModel {
     /// our TransactionLogs Table assumes this behavior.
     fn log_submitted(
         tx_proposal: TxProposal,
-        block_count: u64,
+        block_index: u64,
         comment: String,
         account_id_hex: Option<&str>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
@@ -325,7 +325,7 @@ impl TransactionLogModel for TransactionLog {
     // FIXME: WS-30 - We may be doing n^2 work here
     fn update_transactions_associated_to_txo(
         txo_id_hex: &str,
-        cur_block_count: i64,
+        cur_block_index: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::transaction_logs::dsl::{transaction_id_hex, transaction_logs};
@@ -353,11 +353,11 @@ impl TransactionLogModel for TransactionLog {
                     .set((
                         crate::db::schema::transaction_logs::status.eq(TX_STATUS_SUCCEEDED),
                         crate::db::schema::transaction_logs::finalized_block_index
-                            .eq(Some(cur_block_count)),
+                            .eq(Some(cur_block_index)),
                     ))
                     .execute(conn)?;
-                } else if Txo::any_failed(&associated.inputs, cur_block_count, conn)? {
-                    // FIXME: WS-18, WS-17 - Do we want to store and update the "failed_block_count"
+                } else if Txo::any_failed(&associated.inputs, cur_block_index, conn)? {
+                    // FIXME: WS-18, WS-17 - Do we want to store and update the "failed_block_index"
                     // as min(tombstones)?
                     diesel::update(
                         transaction_logs
@@ -374,7 +374,7 @@ impl TransactionLogModel for TransactionLog {
     fn log_received(
         subaddress_to_output_txo_ids: &HashMap<i64, Vec<String>>,
         account: &Account,
-        block_count: u64,
+        block_index: u64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::transaction_txo_types;
@@ -413,7 +413,7 @@ impl TransactionLogModel for TransactionLog {
                         status: TX_STATUS_SUCCEEDED,
                         sent_time: None, // NULL for received
                         submitted_block_index: None,
-                        finalized_block_index: Some(block_count as i64),
+                        finalized_block_index: Some(block_index as i64),
                         comment: "", // NULL for received
                         direction: TX_DIRECTION_RECEIVED,
                         tx: None, // NULL for received
@@ -441,7 +441,7 @@ impl TransactionLogModel for TransactionLog {
 
     fn log_submitted(
         tx_proposal: TxProposal,
-        block_count: u64,
+        block_index: u64,
         comment: String,
         account_id_hex: Option<&str>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
@@ -514,7 +514,7 @@ impl TransactionLogModel for TransactionLog {
                     fee: Some(tx_proposal.tx.prefix.fee as i64),
                     status: TX_STATUS_PENDING,
                     sent_time: Some(Utc::now().timestamp()),
-                    submitted_block_index: Some(block_count as i64),
+                    submitted_block_index: Some(block_index as i64),
                     finalized_block_index: None,
                     comment: &comment,
                     direction: TX_DIRECTION_SENT,

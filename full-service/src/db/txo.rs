@@ -112,14 +112,14 @@ pub trait TxoModel {
         &self,
         received_subaddress_index: Option<i64>,
         received_key_image: Option<KeyImage>,
-        block_count: i64,
+        block_index: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
     /// Update a Txo's received block count.
-    fn update_received_block_count(
+    fn update_received_block_index(
         &self,
-        block_count: i64,
+        block_index: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
@@ -181,7 +181,7 @@ pub trait TxoModel {
     /// Check whether any of the given Txos failed.
     fn any_failed(
         txo_ids: &[String],
-        block_count: i64,
+        block_index: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError>;
 
@@ -260,7 +260,7 @@ impl TxoModel for Txo {
                                                     // This occurs when an account receives a
                                                     // transaction from itself at an unknown
                                                     // subaddress.
-                                                    txo_details.txo.update_received_block_count(
+                                                    txo_details.txo.update_received_block_index(
                                                         received_block_index,
                                                         conn,
                                                     )?;
@@ -321,7 +321,7 @@ impl TxoModel for Txo {
                                     // recovered.
                                     txo_details
                                         .txo
-                                        .update_received_block_count(received_block_index, conn)?;
+                                        .update_received_block_index(received_block_index, conn)?;
                                     TXO_STATUS_ORPHANED
                                 };
                                 AccountTxoStatus::create(
@@ -485,7 +485,7 @@ impl TxoModel for Txo {
         &self,
         received_subaddress_index: Option<i64>,
         received_key_image: Option<KeyImage>,
-        block_count: i64,
+        block_index: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::txos::{key_image, received_block_index, subaddress_index};
@@ -500,7 +500,7 @@ impl TxoModel for Txo {
 
         diesel::update(self)
             .set((
-                received_block_index.eq(Some(block_count)),
+                received_block_index.eq(Some(block_index)),
                 subaddress_index.eq(received_subaddress_index),
                 key_image.eq(encoded_key_image),
             ))
@@ -508,15 +508,15 @@ impl TxoModel for Txo {
         Ok(())
     }
 
-    fn update_received_block_count(
+    fn update_received_block_index(
         &self,
-        block_count: i64,
+        block_index: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::txos::received_block_index;
 
         diesel::update(self)
-            .set((received_block_index.eq(Some(block_count)),))
+            .set((received_block_index.eq(Some(block_index)),))
             .execute(conn)?;
         Ok(())
     }
@@ -766,7 +766,7 @@ impl TxoModel for Txo {
 
     fn any_failed(
         txo_ids: &[String],
-        block_count: i64,
+        block_index: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError> {
         use crate::db::schema::{account_txo_statuses, txos};
@@ -780,7 +780,7 @@ impl TxoModel for Txo {
                         account_txo_statuses::txo_status
                             .eq_any(vec![TXO_STATUS_UNSPENT, TXO_STATUS_PENDING]),
                     )
-                    .and(txos::pending_tombstone_block_index.lt(Some(block_count)))),
+                    .and(txos::pending_tombstone_block_index.lt(Some(block_index)))),
             )
             .select(txos::all_columns)
             .load(conn)?;

@@ -17,22 +17,22 @@ pub struct WalletStatus {
     pub object: String,
 
     /// The block count of MobileCoin's distributed ledger. The
-    /// local_block_count is synced when it reaches the network_block_count.
-    pub network_block_count: String,
+    /// local_block_index is synced when it reaches the network_block_index.
+    pub network_block_index: String,
 
     /// The local block count downloaded from the ledger. The local database
-    /// will sync up to the network_block_count. The account_block_count can
-    /// only sync up to local_block_count.
-    pub local_block_count: String,
+    /// will sync up to the network_block_index. The account_block_index can
+    /// only sync up to local_block_index.
+    pub local_block_index: String,
 
-    /// Whether ALL accounts are synced with the network_block_count. Balances
+    /// Whether ALL accounts are synced with the network_block_index. Balances
     /// may not appear correct if any account is still syncing.
     pub is_synced_all: bool,
 
     /// The minimum synced block across all accounts
     pub min_synced_block_index: String,
 
-    /// Unspent pico mob for ALL accounts at the account_block_count. If the
+    /// Unspent pico mob for ALL accounts at the account_block_index. If the
     /// account is syncing, this value may change.
     pub total_unspent_pmob: String,
 
@@ -79,9 +79,9 @@ impl TryFrom<&service::balance::WalletStatus> for WalletStatus {
 
         Ok(WalletStatus {
             object: "wallet_status".to_string(),
-            network_block_count: src.network_block_count.to_string(),
-            local_block_count: src.local_block_count.to_string(),
-            is_synced_all: src.min_synced_block_index >= src.network_block_count - 1,
+            network_block_index: src.network_block_index.to_string(),
+            local_block_index: src.local_block_index.to_string(),
+            is_synced_all: src.min_synced_block_index >= src.network_block_index - 1,
             min_synced_block_index: src.min_synced_block_index.to_string(),
             total_unspent_pmob: src.unspent.to_string(),
             total_pending_pmob: src.pending.to_string(),

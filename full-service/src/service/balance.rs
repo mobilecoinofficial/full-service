@@ -35,8 +35,8 @@ pub struct Balance {
     pub spent: u64,
     pub secreted: u64,
     pub orphaned: u64,
-    pub network_block_count: u64,
-    pub local_block_count: u64,
+    pub network_block_index: u64,
+    pub local_block_index: u64,
     pub synced_blocks: u64,
 }
 
@@ -53,8 +53,8 @@ pub struct WalletStatus {
     pub spent: u64,
     pub secreted: u64,
     pub orphaned: u64,
-    pub network_block_count: u64,
-    pub local_block_count: u64,
+    pub network_block_index: u64,
+    pub local_block_index: u64,
     pub min_synced_block_index: u64,
     pub account_ids: Vec<AccountID>,
     pub account_map: HashMap<AccountID, Account>,
@@ -98,8 +98,8 @@ where
         let (unspent, pending, spent, secreted, orphaned) =
             Self::get_balance_inner(account_id_hex, &conn)?;
 
-        let network_block_count = self.get_network_block_index()? + 1;
-        let local_block_count = self.ledger_db.num_blocks()?;
+        let network_block_index = self.get_network_block_index()? + 1;
+        let local_block_index = self.ledger_db.num_blocks()?;
         let account = Account::get(account_id, &conn)?;
 
         Ok(Balance {
@@ -108,8 +108,8 @@ where
             spent,
             secreted,
             orphaned,
-            network_block_count,
-            local_block_count,
+            network_block_index,
+            local_block_index,
             synced_blocks: account.next_block as u64,
         })
     }
@@ -165,8 +165,8 @@ where
                 spent: spent as u64,
                 secreted: secreted as u64,
                 orphaned: orphaned as u64,
-                network_block_count: network_block_index + 1,
-                local_block_count: self.ledger_db.num_blocks()?,
+                network_block_index: network_block_index + 1,
+                local_block_index: self.ledger_db.num_blocks()?,
                 min_synced_block_index: min_synced_block_index as u64,
                 account_ids,
                 account_map,

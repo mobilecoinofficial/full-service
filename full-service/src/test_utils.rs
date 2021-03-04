@@ -128,7 +128,7 @@ pub fn get_test_ledger(
         } else {
             vec![KeyImage::from(rng.next_u64())]
         };
-        let _new_block_count = add_block_to_ledger_db(
+        let _new_block_index = add_block_to_ledger_db(
             &mut ledger_db,
             &public_addresses,
             DEFAULT_PER_RECIPIENT_AMOUNT,
@@ -322,7 +322,7 @@ pub fn manually_sync_account(
     ledger_db: &LedgerDB,
     wallet_db: &WalletDb,
     account_id: &AccountID,
-    target_block_count: u64,
+    target_block_index: u64,
     logger: &Logger,
 ) -> Account {
     let mut account: Account;
@@ -333,7 +333,7 @@ pub fn manually_sync_account(
             break;
         }
     }
-    assert_eq!(account.next_block as u64, target_block_count);
+    assert_eq!(account.next_block as u64, target_block_index);
     account
 }
 

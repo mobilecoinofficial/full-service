@@ -488,8 +488,8 @@ curl -s localhost:9090/wallet \
         "proof": null,
         "public_key": "0a201a592874a596aeb14cbeb1c7d3449cbd20dc8078ad7fff657e131d619145ef0a",
         "received_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
-        "received_block_height": "128567",
-        "spent_block_height": "128569",
+        "received_block_index": "128567",
+        "spent_block_index": "128569",
         "subaddress_index": "0",
         "target_key": "0a209e1067117870549a77a47de04bd810da052abfc23d60a0c433367bfc689b7428",
         "txo_id": "001cdcc1f0a22dc0ddcdaac6020cc03d919cbc3c36923f157b4a6bf0dc980167",
@@ -516,8 +516,8 @@ curl -s localhost:9090/wallet \
         "proof": "0a204488e153cce1e4bcdd4419eecb778f3d2d2b024b39aaa29532d2e47e238b2e31",
         "public_key": "0a20e6736474f73e440686736bfd045d838c2b3bc056ffc647ad6b1c990f5a46b123",
         "received_account_id": "36fdf8fbdaa35ad8e661209b8a7c7057f29bf16a1e399a34aa92c3873dfb853c",
-        "received_block_height": null,
-        "spent_block_height": null,
+        "received_block_index": null,
+        "spent_block_index": null,
         "subaddress_index": null,
         "target_key": "0a20762d8a723aae2aa70cc11c62c91af715f957a7455b695641fe8c94210812cf1b",
         "txo_id": "84f30233774d728bb7844bed59d471fe55ee3680ab70ddc312840db0f978f3ba",
@@ -540,8 +540,8 @@ curl -s localhost:9090/wallet \
         "proof": null,
         "public_key": "0a20d803a979c9ec0531f106363a885dde29101fcd70209f9ed686905512dfd14d5f",
         "received_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
-        "received_block_height": "79",
-        "spent_block_height": null,
+        "received_block_index": "79",
+        "spent_block_index": null,
         "subaddress_index": "0",
         "target_key": "0a209abadbfcec6c81b3d184dc104e51cac4c4faa8bab4da21a3714901519810c20d",
         "txo_id": "58c2c3780792ccf9c51014c7688a71f03732b633f8c5dfa49040fa7f51328280",
@@ -564,8 +564,8 @@ curl -s localhost:9090/wallet \
         "proof": null,
         "public_key": "0a209432c589bb4e5101c26e935b70930dfe45c78417527fb994872ebd65fcb9c116",
         "received_account_id": null,
-        "received_block_height": null,
-        "spent_block_height": null,
+        "received_block_index": null,
+        "spent_block_index": null,
         "subaddress_index": null,
         "target_key": "0a208c75723e9b9a4af0c833bfe190c43900c3b41834cf37024f5fecfbe9919dff23",
         "txo_id": "b496f4f3ec3159bf48517aa7d9cda193ef8bfcac343f81eaed0e0a55849e4726",
@@ -620,8 +620,8 @@ curl -s localhost:9090/wallet \
       "object": "txo",
       "txo_id": "fff4cae55a74e5ce852b79c31576f4041d510c26e59fec178b3e45705c5b35a7",
       "value_pmob": "2960000000000",
-      "received_block_height": "8094",
-      "spent_block_height": "8180",
+      "received_block_index": "8094",
+      "spent_block_index": "8180",
       "is_spent_recovered": false,
       "received_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
       "minted_account_id": null,
@@ -708,8 +708,8 @@ curl -s localhost:9090/wallet \
         }
       },
       "is_synced_all": false,
-      "local_block_count": "152918",
-      "network_block_count": "152918",
+      "local_block_index": "152918",
+      "network_block_index": "152918",
       "object": "wallet_status",
       "total_orphaned_pmob": "0",
       "total_pending_pmob": "70148220000000000",
@@ -747,9 +747,9 @@ curl -s localhost:9090/wallet \
   "result": {
     "balance": {
       "object": "balance",
-      "network_block_count": "152918",
-      "local_block_count": "152918",
-      "account_block_count": "152003",
+      "network_block_index": "152918",
+      "local_block_index": "152918",
+      "account_block_index": "152003",
       "is_synced": false,
       "unspent_pmob": "110000000000000000"
       "pending_pmob": "0",
@@ -809,10 +809,10 @@ curl -s localhost:9090/wallet \
       "recovery_mode": false
     },
     "balance": {
-      "account_block_count": "152918",
+      "account_block_index": "152918",
       "is_synced": true,
-      "local_block_count": "152918",
-      "network_block_count": "152918",
+      "local_block_index": "152918",
+      "network_block_index": "152918",
       "object": "balance",
       "orphaned_pmob": "0",
       "pending_pmob": "2040016523222112112",
@@ -975,8 +975,8 @@ curl -s localhost:9090/wallet \
       "assigned_address_id": null,
       "value_pmob": "42000000000000",
       "fee_pmob": "10000000000",
-      "submitted_block_height": "152948",
-      "finalized_block_height": null,
+      "submitted_block_index": "152948",
+      "finalized_block_index": null,
       "status": "tx_status_pending",
       "input_txo_ids": [
         "8432bb4e25f1bde68e4759b27ec72d290252cb99943f2f38a9035dba230895b7"
@@ -1025,7 +1025,7 @@ If you get the following error response:
 }
 ```
 
-it may mean that your account is not yet fully synced. Call `check_balance` for the account, and note the `synced_blocks` value. If that value is less than the `local_block_height` value, then your Txos may not all be updated to their spent status.
+it may mean that your account is not yet fully synced. Call `check_balance` for the account, and note the `synced_blocks` value. If that value is less than the `local_block_index` value, then your Txos may not all be updated to their spent status.
 
 #### Build Transaction
 
@@ -1297,8 +1297,8 @@ curl -s localhost:9090/wallet \
       "assigned_address_id": null,
       "value_pmob": "42000000000000",
       "fee_pmob": "10000000000",
-      "submitted_block_height": "152950",
-      "finalized_block_height": null,
+      "submitted_block_index": "152950",
+      "finalized_block_index": null,
       "status": "tx_status_pending",
       "input_txo_ids": [
         "eb735cafa6d8b14a69361cc05cb3a5970752d27d1265a1ffdfd22c0171c2b20d"
@@ -1921,9 +1921,9 @@ An Account is associated with one AccountKey, containing a View keypair and a Sp
   "account_id": "1916a9b3...",
   "name": "I love MobileCoin",
   "balance": {
-    "network_block_count": "88888888",
-    "local_block_count": "88888888",
-    "account_block_count": "88888888",
+    "network_block_index": "88888888",
+    "local_block_index": "88888888",
+    "account_block_index": "88888888",
     "is_synced": true,
     "unspent_pmob": "123000000",
     "pending_pmob": "1000"
@@ -1950,11 +1950,11 @@ The balance for an account, as well as some information about syncing status nee
 | *Name* | *Type* | *Description*
 | :--- | :--- | :---
 | object | string, value is "balance" | String representing the object's type. Objects of the same type share the same value
-| network_block_count | string (uint64) | The block height of MobileCoin's distributed ledger. The local_block_count is synced when it reaches the network_block_count.
-| local_block_count | string (uint64) | The local block height downloaded from the ledger. The local database will sync up to the network_block_count. The account_block_count can only sync up to local_block_count.
-| account_block_count| string (uint64) | The scanned local block height for this account. This value will never be greater than the local_block_count. At fully synced, it will match network_block_count.
-| is_synced | boolean | Whether the account is synced with the network_block_count. Balances may not appear correct if the account is still syncing.
-| unspent_pmob | string (uint64) | Unspent pico MOB for this account at the current account_block_count. If the account is syncing, this value may change.
+| network_block_index | string (uint64) | The block height of MobileCoin's distributed ledger. The local_block_index is synced when it reaches the network_block_index.
+| local_block_index | string (uint64) | The local block height downloaded from the ledger. The local database will sync up to the network_block_index. The account_block_index can only sync up to local_block_index.
+| account_block_index| string (uint64) | The scanned local block height for this account. This value will never be greater than the local_block_index. At fully synced, it will match network_block_index.
+| is_synced | boolean | Whether the account is synced with the network_block_index. Balances may not appear correct if the account is still syncing.
+| unspent_pmob | string (uint64) | Unspent pico MOB for this account at the current account_block_index. If the account is syncing, this value may change.
 | pending_pmob | string (uint64) | Pending, out-going pico MOB. The pending value will clear once the ledger processes the outgoing txos. The pending_pmob will reflect the change.
 | spent_pmob | string (uint64) | Spent pico MOB. This is the sum of all the Txos in the wallet which have been spent.
 | secreted_pmob | string (uint64) | Secreted (minted) pico MOB. This is the sum of all the Txos which have been created in the wallet for outgoing transactions.
@@ -1964,10 +1964,10 @@ The balance for an account, as well as some information about syncing status nee
 
 ```json
 {
-  "account_block_count": "152003",
+  "account_block_index": "152003",
   "is_synced": false,
-  "local_block_count": "152918",
-  "network_block_count": "152918",
+  "local_block_index": "152918",
+  "network_block_index": "152918",
   "object": "balance",
   "orphaned_pmob": "0",
   "pending_pmob": "0",
@@ -1987,10 +1987,10 @@ The balance for an account, as well as some information about syncing status nee
 
 | *Name* | *Type* | *Description*
 | :--- | :--- | :---
-| network_block_count | string (uint64) | The block height of the MobileCoin ledger. The local_block_count is synced when it reaches the value.
-| local_block_count | string (uint64) | The local block height downloaded from the ledger. The local database will sync up to the network_block_count. The account_block_count can only sync up to local_block_count.
-| is_synced_all | boolean | Whether ALL accounts are synced with the network_block_count. Balances may not appear correct if any account is still syncing.
-| total_unspent_pmob | string (uint64) | Unspent pico mob for ALL accounts at the account_block_count. If the account is syncing, this value may change.
+| network_block_index | string (uint64) | The block height of the MobileCoin ledger. The local_block_index is synced when it reaches the value.
+| local_block_index | string (uint64) | The local block height downloaded from the ledger. The local database will sync up to the network_block_index. The account_block_index can only sync up to local_block_index.
+| is_synced_all | boolean | Whether ALL accounts are synced with the network_block_index. Balances may not appear correct if any account is still syncing.
+| total_unspent_pmob | string (uint64) | Unspent pico mob for ALL accounts at the account_block_index. If the account is syncing, this value may change.
 | total_pending_pmob | string (uint64) | Pending outgoing pico mob from ALL accounts. Pending pico mobs will clear once the ledger processes the outgoing txo. The available_pmob will reflect the change.
 | total_spent_pmob | string (uint64) | Spent pico MOB. This is the sum of all the Txos in the wallet which have been spent.
 | total_secreted_pmob | string (uint64) | Secreted (minted) pico MOB. This is the sum of all the Txos which have been created in the wallet for outgoing transactions.
@@ -2050,8 +2050,8 @@ The balance for an account, as well as some information about syncing status nee
     }
   },
   "is_synced_all": false,
-  "local_block_count": "152918",
-  "network_block_count": "152918",
+  "local_block_index": "152918",
+  "network_block_index": "152918",
   "object": "wallet_status",
   "total_orphaned_pmob": "0",
   "total_pending_pmob": "70148220000000000",
@@ -2147,8 +2147,8 @@ Received:
   "assigned_address_id": null,
   "value_pmob": "42000000000000",
   "fee_pmob": "10000000000",
-  "submitted_block_height": "152950",
-  "finalized_block_height": null,
+  "submitted_block_index": "152950",
+  "finalized_block_index": null,
   "status": "tx_status_pending",
   "input_txo_ids": [
     "eb735cafa6d8b14a69361cc05cb3a5970752d27d1265a1ffdfd22c0171c2b20d"
@@ -2180,8 +2180,8 @@ Sent - Failed:
   "assigned_address_id": null,
   "value_pmob": "42000000000000",
   "fee_pmob": "10000000000",
-  "submitted_block_height": "152950",
-  "finalized_block_height": null,
+  "submitted_block_index": "152950",
+  "finalized_block_index": null,
   "status": "failed",
   "input_txo_ids": [
     "eb735cafa6d8b14a69361cc05cb3a5970752d27d1265a1ffdfd22c0171c2b20d"
@@ -2213,8 +2213,8 @@ Sent - Success, Recovered:
   "assigned_address_id": null,
   "value_pmob": "42000000000000",
   "fee_pmob": "10000000000",
-  "submitted_block_height": "152950",
-  "finalized_block_height": null,
+  "submitted_block_index": "152950",
+  "finalized_block_index": null,
   "status": "tx_status_pending",
   "input_txo_ids": [
     "eb735cafa6d8b14a69361cc05cb3a5970752d27d1265a1ffdfd22c0171c2b20d"
@@ -2248,10 +2248,10 @@ Sent - Success, Recovered:
 
 | *Name* | *Type* | *Description*
 | :--- | :--- | :---
-| value_pmob | string (uint64) | Available pico MOB for this account at the current account_block_count. If the account is syncing, this value may change.
-| received_block_height | string (uint64) | Block height in which the txo was received by an account.
-| spent_block_height | string (uint64) | Block height in which the txo was spent by an account.
-| is_spent_recovered | boolean | Flag that indicates if the spent_block_height was recovered from the ledger. This value is null if the txo is unspent. If true, some information may not be available on the txo without user input. If true, the proof will be null without user input.
+| value_pmob | string (uint64) | Available pico MOB for this account at the current account_block_index. If the account is syncing, this value may change.
+| received_block_index | string (uint64) | Block height in which the txo was received by an account.
+| spent_block_index | string (uint64) | Block height in which the txo was spent by an account.
+| is_spent_recovered | boolean | Flag that indicates if the spent_block_index was recovered from the ledger. This value is null if the txo is unspent. If true, some information may not be available on the txo without user input. If true, the proof will be null without user input.
 | received_account_id | string | The account_id for the account which has received this TXO. This account has spend authority.
 | minted_account_i | string | The account_id for the account which minted this TXO.
 | account_status_map | hash map | A normalized hash mapping account_id to account objects. Keys include "type" and "status".
@@ -2279,8 +2279,8 @@ Received and Spent TXO
   "object": "txo",
   "txo_id": "14ad2f88...",
   "value_pmob": "8500000000000",
-  "received_block_height": "14152",
-  "spent_block_height": "20982",
+  "received_block_index": "14152",
+  "spent_block_index": "20982",
   "is_spent_recovered": false,
   "received_account_id": "1916a9b3...",
   "minted_account_id": null,
@@ -2308,8 +2308,8 @@ Txo Spent from One Account to Another in the Same Wallet
   "object": "txo",
   "txo_id": "84f3023...",
   "value_pmob": "200",
-  "received_block_height": null,
-  "spent_block_height": null,
+  "received_block_index": null,
+  "spent_block_index": null,
   "is_spent_recovered": false,
   "received_account_id": "36fdf8...",
   "minted_account_id": "a4db032...",

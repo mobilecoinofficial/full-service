@@ -201,7 +201,7 @@ where
         let tx = mc_transaction_core::tx::Tx::try_from(tx_proposal_proto.get_tx())
             .map_err(|_| TransactionServiceError::ProtoConversionInfallible)?;
 
-        let block_count = self
+        let block_index = self
             .peer_manager
             .conn(responder_id)
             .ok_or(TransactionServiceError::NodeNotFound)?
@@ -212,14 +212,14 @@ where
             self.logger,
             "Tx {:?} submitted at block height {}",
             tx,
-            block_count
+            block_index
         );
 
         if let Some(a) = account_id_hex {
             // FIXME: put in db transaction
             let transaction_log = TransactionLog::log_submitted(
                 tx_proposal,
-                block_count,
+                block_index,
                 comment.unwrap_or_else(|| "".to_string()),
                 Some(&a),
                 &self.wallet_db.get_conn()?,
