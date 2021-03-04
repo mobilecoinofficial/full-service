@@ -133,7 +133,8 @@ impl AccountModel for Account {
             conn.transaction::<(AccountID, String), WalletDbError, _>(|| {
                 let new_account = NewAccount {
                     account_id_hex: &account_id.to_string(),
-                    account_key: &mc_util_serial::encode(&account_key), // FIXME: WS-6 - add encryption
+                    account_key: &mc_util_serial::encode(&account_key), /* FIXME: WS-6 - add
+                                                                         * encryption */
                     entropy: &entropy.bytes,
                     main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
                     change_subaddress_index: DEFAULT_CHANGE_SUBADDRESS_INDEX as i64,

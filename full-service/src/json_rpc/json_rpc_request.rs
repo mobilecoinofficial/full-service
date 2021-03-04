@@ -4,9 +4,7 @@
 //!
 //! API v2
 
-use crate::json_rpc::{
-    api_v1::wallet_api::JsonCommandRequestV1, tx_proposal::TxProposal,
-};
+use crate::json_rpc::{api_v1::wallet_api::JsonCommandRequestV1, tx_proposal::TxProposal};
 
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
