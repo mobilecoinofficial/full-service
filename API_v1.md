@@ -12,7 +12,7 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 * [get_account](#get-account)
 * [update_account_name](#update-account-name)
 * [delete_account](#delete-account)
-* [get_all_txos_by_account](#get-all-txos-for-a-given-account)
+* [get_all_txos_for_account](#get-all-txos-for-a-given-account)
 * [get_txo](#get-txo-details)
 * [get_wallet_status](#get-wallet-status)
 * [get_balance](#get-balance-for-a-given-account)
@@ -290,7 +290,7 @@ curl -s localhost:9090/wallet \
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "get_all_txos_by_account",
+        "method": "get_all_txos_for_account",
         "params": {
           "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
         }
@@ -298,7 +298,7 @@ curl -s localhost:9090/wallet \
   -X POST -H 'Content-type: application/json'  | jq
 
 {
-  "method": "get_all_txos_by_account",
+  "method": "get_all_txos_for_account",
   "result": {
     "txo_ids": [
       "001cdcc1f0a22dc0ddcdaac6020cc03d919cbc3c36923f157b4a6bf0dc980167",
@@ -421,7 +421,7 @@ Note, you may wish to filter TXOs using a tool like jq. For example, to get all 
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "get_all_txos_by_account",
+        "method": "get_all_txos_for_account",
         "params": {"account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10"
         }
       }' \
@@ -701,7 +701,7 @@ curl -s localhost:9090/wallet \
 
 | Optional Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
-| `input_txo_ids` | Specific TXOs to use as inputs to this transaction   | TXO IDs (obtain from `get_all_txos_by_account`) |
+| `input_txo_ids` | Specific TXOs to use as inputs to this transaction   | TXO IDs (obtain from `get_all_txos_for_account`) |
 | `fee` | The fee amount to submit with this transaction | If not provided, uses `MINIMUM_FEE` = .01 MOB |
 | `tombstone_block` | The block after which this transaction expires | If not provided, uses `cur_height` + 50 |
 | `max_spendable_value` | The maximum amount for an input TXO selected for this transaction |  |
@@ -928,7 +928,7 @@ curl -s localhost:9090/wallet \
 
 | Optional Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
-| `input_txo_ids` | Specific TXOs to use as inputs to this transaction   | TXO IDs (obtain from `get_all_txos_by_account`) |
+| `input_txo_ids` | Specific TXOs to use as inputs to this transaction   | TXO IDs (obtain from `get_all_txos_for_account`) |
 | `fee` | The fee amount to submit with this transaction | If not provided, uses `MINIMUM_FEE` = .01 MOB |
 | `tombstone_block` | The block after which this transaction expires | If not provided, uses `cur_height` + 50 |
 | `max_spendable_value` | The maximum amount for an input TXO selected for this transaction |  |
@@ -1619,7 +1619,7 @@ Txo Spent from One Account to Another in the Same Wallet
 
 #### API Methods Returning Transaction Log Objects
 
-* [get_all_txos_by_account](#get-all-txos-for-a-given-account)
+* [get_all_txos_for_account](#get-all-txos-for-a-given-account)
 * [get_txo](#get-txo-details)
 
 ### The Proof Object

@@ -880,7 +880,7 @@ mod e2e {
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
 
         let body = json!({
-            "method": "get_all_txos_by_account",
+            "method": "get_all_txos_for_account",
             "params": {
                 "account_id": account_id,
             }
@@ -980,7 +980,7 @@ mod e2e {
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
 
         let body = json!({
-            "method": "get_all_txos_by_account",
+            "method": "get_all_txos_for_account",
             "params": {
                 "account_id": account_id,
             }

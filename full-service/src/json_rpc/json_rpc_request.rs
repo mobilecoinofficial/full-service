@@ -144,7 +144,7 @@ pub enum JsonCommandRequestV2 {
     get_balance_for_subaddress {
         address: String,
     },
-    get_all_txos_by_account {
+    get_all_txos_for_account {
         account_id: String,
     },
     get_all_txos_by_subadress {
@@ -157,7 +157,7 @@ pub enum JsonCommandRequestV2 {
         account_id: String,
         comment: Option<String>,
     },
-    get_all_addresses_by_account {
+    get_all_addresses_for_account {
         account_id: String,
     },
     get_transaction_object {
