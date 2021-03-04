@@ -176,7 +176,7 @@ impl SyncThread {
                         .expect("Failed getting accounts from WalletDb")
                         {
                             // If there are no new blocks for this account, don't do anything.
-                            if account.next_block >= num_blocks as i64 {
+                            if account.next_block_index >= num_blocks as i64 {
                                 continue;
                             }
 
@@ -324,7 +324,8 @@ pub fn sync_account(
             // Get the account data. If it is no longer available, the account has been
             // removed and we can simply return.
             let account = Account::get(&AccountID(account_id.to_string()), &conn)?;
-            let block_contents = match ledger_db.get_block_contents(account.next_block as u64) {
+            let block_contents = match ledger_db.get_block_contents(account.next_block_index as u64)
+            {
                 Ok(block_contents) => block_contents,
                 Err(mc_ledger_db::Error::NotFound) => {
                     return Ok(SyncAccountOk::NoMoreBlocks);
@@ -339,7 +340,7 @@ pub fn sync_account(
                 "processing {} outputs and {} key images from block {} for account {}",
                 block_contents.outputs.len(),
                 block_contents.key_images.len(),
-                account.next_block,
+                account.next_block_index,
                 account_id,
             );
 
@@ -348,7 +349,7 @@ pub fn sync_account(
                 &conn,
                 &block_contents.outputs,
                 &account,
-                account.next_block,
+                account.next_block_index,
                 logger,
             )?;
 
@@ -357,7 +358,7 @@ pub fn sync_account(
             // need to process the same block at a different time, depending on when we add
             // it to the DB.
             account.update_spent_and_increment_next_block(
-                account.next_block,
+                account.next_block_index,
                 block_contents.key_images,
                 &conn,
             )?;
@@ -366,7 +367,7 @@ pub fn sync_account(
             TransactionLog::log_received(
                 &output_txo_ids,
                 &account,
-                account.next_block as u64,
+                account.next_block_index as u64,
                 &conn,
             )?;
             Ok(SyncAccountOk::MoreBlocksPotentiallyAvailable)

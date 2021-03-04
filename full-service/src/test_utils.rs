@@ -329,11 +329,11 @@ pub fn manually_sync_account(
     loop {
         sync_account(&ledger_db, &wallet_db, &account_id.to_string(), &logger).unwrap();
         account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
-        if account.next_block as u64 == ledger_db.num_blocks().unwrap() {
+        if account.next_block_index as u64 == ledger_db.num_blocks().unwrap() {
             break;
         }
     }
-    assert_eq!(account.next_block as u64, target_block_index);
+    assert_eq!(account.next_block_index as u64, target_block_index);
     account
 }
 

@@ -1139,7 +1139,7 @@ mod tests {
 
         let alice_account =
             Account::get(&alice_account_id, &wallet_db.get_conn().unwrap()).unwrap();
-        assert_eq!(alice_account.next_block, 0);
+        assert_eq!(alice_account.next_block_index, 0);
         assert_eq!(alice_account.next_subaddress_index, 5);
 
         // Scan for alice to pick up the orphaned Txo

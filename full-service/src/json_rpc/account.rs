@@ -32,6 +32,10 @@ pub struct Account {
     /// This is useful information in case the account is imported elsewhere.
     pub next_subaddress_index: String,
 
+    /// Index of the first block when this account may have received funds.
+    /// No transactions before this point will be synchronized.
+    pub first_block_index: String,
+
     /// A flag that indicates this imported account is attempting to un-orphan
     /// found TXOs. It is recommended to move all MOB to another account after
     /// recovery if the user is unsure of the assigned addresses.
@@ -54,6 +58,7 @@ impl TryFrom<&db::models::Account> for Account {
             name: src.name.clone(),
             main_address,
             next_subaddress_index: src.next_subaddress_index.to_string(),
+            first_block_index: src.first_block_index.to_string(),
             recovery_mode: false,
         })
     }

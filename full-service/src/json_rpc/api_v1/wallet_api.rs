@@ -226,7 +226,6 @@ mod e2e {
             "method": "create_account",
             "params": {
                 "name": "Alice Main Account",
-                "first_block": "0",
             }
         });
         let res = dispatch(&client, body, &logger);

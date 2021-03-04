@@ -154,7 +154,7 @@ mod e2e {
             "params": {
                 "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
                 "name": "Alice Main Account",
-                "first_block": "200",
+                "first_block_index": "200",
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -168,6 +168,10 @@ mod e2e {
         assert_eq!(
             account_id,
             "f9957a9d050ef8dff9d8ef6f66daa608081e631b2d918988311613343827b779"
+        );
+        assert_eq!(
+            *account_obj.get("first_block_index").unwrap(),
+            serde_json::json!("200")
         );
     }
 
@@ -184,7 +188,7 @@ mod e2e {
             "params": {
                 "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
                 "name": "Alice Main Account",
-                "first_block": "200",
+                "first_block_index": "200",
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -223,7 +227,7 @@ mod e2e {
             "params": {
                 "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
                 "name": "Alice Main Account",
-                "first_block": "200",
+                "first_block_index": "200",
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -245,7 +249,7 @@ mod e2e {
             "method": "create_account",
             "params": {
                 "name": "Alice Main Account",
-                "first_block": "200",
+                "first_block_index": "200",
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -253,6 +257,10 @@ mod e2e {
         let account_obj = result.get("account").unwrap();
         assert!(account_obj.get("main_address").is_some());
         assert!(account_obj.get("account_id").is_some());
+        assert_eq!(
+            *account_obj.get("first_block_index").unwrap(),
+            serde_json::json!("200")
+        );
     }
 
     #[test_with_logger]
@@ -267,7 +275,7 @@ mod e2e {
             "method": "create_account",
             "params": {
                 "name": "Alice Main Account",
-                "first_block": "200",
+                "first_block_index": "200",
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -476,7 +484,7 @@ mod e2e {
             "method": "create_account",
             "params": {
                 "name": "Alice Main Account",
-                "first_block": "0",
+                "first_block_index": "0",
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -851,7 +859,7 @@ mod e2e {
             "method": "create_account",
             "params": {
                 "name": "Alice Main Account",
-                "first_block": "0",
+                "first_block_index": "0",
             }
         });
         let res = dispatch(&client, body, &logger);

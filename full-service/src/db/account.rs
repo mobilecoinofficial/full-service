@@ -25,7 +25,7 @@ use std::fmt;
 
 pub const DEFAULT_CHANGE_SUBADDRESS_INDEX: u64 = 1;
 pub const DEFAULT_NEXT_SUBADDRESS_INDEX: u64 = 2;
-pub const DEFAULT_FIRST_BLOCK: u64 = 0;
+pub const DEFAULT_FIRST_BLOCK_INDEX: u64 = 0;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct AccountID(pub String);
@@ -51,8 +51,8 @@ pub trait AccountModel {
     /// * (account_id, main_subaddress_b58)
     fn create(
         entropy: &RootEntropy,
-        first_block: Option<u64>,
-        import_block: Option<u64>,
+        first_block_index: Option<u64>,
+        import_block_index: Option<u64>,
         name: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(AccountID, String), WalletDbError>;
@@ -61,8 +61,8 @@ pub trait AccountModel {
     fn import(
         entropy: &RootEntropy,
         name: Option<String>,
-        import_block: u64,
-        first_block: Option<u64>,
+        import_block_index: u64,
+        first_block_index: Option<u64>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Account, WalletDbError>;
 
@@ -117,8 +117,8 @@ pub trait AccountModel {
 impl AccountModel for Account {
     fn create(
         entropy: &RootEntropy,
-        first_block: Option<u64>,
-        import_block: Option<u64>,
+        first_block_index: Option<u64>,
+        import_block_index: Option<u64>,
         name: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(AccountID, String), WalletDbError> {
@@ -127,7 +127,7 @@ impl AccountModel for Account {
         let root_id = RootIdentity::from(entropy);
         let account_key = AccountKey::from(&root_id);
         let account_id = AccountID::from(&account_key);
-        let fb = first_block.unwrap_or(DEFAULT_FIRST_BLOCK);
+        let fb = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX);
 
         Ok(
             conn.transaction::<(AccountID, String), WalletDbError, _>(|| {
@@ -139,9 +139,9 @@ impl AccountModel for Account {
                     main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
                     change_subaddress_index: DEFAULT_CHANGE_SUBADDRESS_INDEX as i64,
                     next_subaddress_index: DEFAULT_NEXT_SUBADDRESS_INDEX as i64,
-                    first_block: fb as i64,
-                    next_block: fb as i64,
-                    import_block: import_block.map(|i| i as i64),
+                    first_block_index: fb as i64,
+                    next_block_index: fb as i64,
+                    import_block_index: import_block_index.map(|i| i as i64),
                     name,
                 };
 
@@ -174,15 +174,15 @@ impl AccountModel for Account {
     fn import(
         entropy: &RootEntropy,
         name: Option<String>,
-        import_block: u64,
-        first_block: Option<u64>,
+        import_block_index: u64,
+        first_block_index: Option<u64>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Account, WalletDbError> {
         Ok(conn.transaction::<Account, WalletDbError, _>(|| {
             let (account_id, _public_address_b58) = Account::create(
                 entropy,
-                first_block,
-                Some(import_block),
+                first_block_index,
+                Some(import_block_index),
                 &name.unwrap_or_else(|| "".to_string()),
                 conn,
             )?;
@@ -313,7 +313,7 @@ impl AccountModel for Account {
                 }
             }
             diesel::update(accounts.filter(account_id_hex.eq(&self.account_id_hex)))
-                .set(crate::db::schema::accounts::next_block.eq(spent_block_index + 1))
+                .set(crate::db::schema::accounts::next_block_index.eq(spent_block_index + 1))
                 .execute(conn)?;
             Ok(())
         })?)
@@ -382,9 +382,9 @@ mod tests {
             main_subaddress_index: 0,
             change_subaddress_index: 1,
             next_subaddress_index: 2,
-            first_block: 0,
-            next_block: 0,
-            import_block: None,
+            first_block_index: 0,
+            next_block_index: 0,
+            import_block_index: None,
             name: "Alice's Main Account".to_string(),
         };
         assert_eq!(expected_account, acc);
@@ -436,9 +436,9 @@ mod tests {
             main_subaddress_index: 0,
             change_subaddress_index: 1,
             next_subaddress_index: 2,
-            first_block: 51,
-            next_block: 51,
-            import_block: Some(50),
+            first_block_index: 51,
+            next_block_index: 51,
+            import_block_index: Some(50),
             name: "".to_string(),
         };
         assert_eq!(expected_account_secondary, acc_secondary);
