@@ -44,11 +44,6 @@ mod e2e {
         assert_eq!(account_obj.get("next_subaddress_index").unwrap(), "2");
         assert_eq!(account_obj.get("recovery_mode").unwrap(), false);
 
-        // The initial creation of an account returns the entropy and account_key for
-        // safe keeping.
-        assert!(account_obj.get("entropy").is_some());
-        assert!(account_obj.get("account_key").is_some());
-
         let account_id = account_obj.get("account_id").unwrap();
 
         // Read Accounts via Get All
@@ -257,7 +252,6 @@ mod e2e {
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         assert!(account_obj.get("main_address").is_some());
-        assert!(account_obj.get("entropy").is_some());
         assert!(account_obj.get("account_id").is_some());
     }
 
@@ -279,7 +273,6 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let account_obj = res["result"]["account"].clone();
         let account_id = account_obj["account_id"].clone();
-        let entropy = account_obj["entropy"].clone();
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -293,9 +286,9 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let secrets = result.get("account_secrets").unwrap();
+        let entropy = secrets["entropy"].clone();
 
         assert_eq!(secrets["account_id"], serde_json::json!(account_id));
-        assert_eq!(secrets["entropy"], serde_json::json!(entropy));
 
         // Test that the account_key serializes correctly back to an AccountKey object
         let mut entropy_slice = [0u8; 32];

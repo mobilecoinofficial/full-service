@@ -2,7 +2,7 @@
 
 //! API definition for the Account object.
 
-use crate::{db, json_rpc};
+use crate::db;
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
@@ -36,16 +36,6 @@ pub struct Account {
     /// found TXOs. It is recommended to move all MOB to another account after
     /// recovery if the user is unsure of the assigned addresses.
     pub recovery_mode: bool,
-
-    /// The root entropy for this account. The account_keys are derived from
-    /// this entropy. Optional because only calls that specifically need to
-    /// return entropy should do so. Otherwise, it should be None.
-    pub entropy: String,
-
-    /// The account key for this account. The account_key is derived from
-    /// the entropy. Optional because only calls that specifically need to
-    /// return the account key should do so. Otherwise, it should be None.
-    pub account_key: json_rpc::account_key::AccountKey,
 }
 
 impl TryFrom<&db::models::Account> for Account {
@@ -65,9 +55,6 @@ impl TryFrom<&db::models::Account> for Account {
             main_address,
             next_subaddress_index: src.next_subaddress_index.to_string(),
             recovery_mode: false,
-            entropy: hex::encode(&src.entropy),
-            account_key: json_rpc::account_key::AccountKey::try_from(&account_key)
-                .map_err(|e| format!("Could not get json_rpc::AccountKey: {:?}", e))?,
         })
     }
 }
