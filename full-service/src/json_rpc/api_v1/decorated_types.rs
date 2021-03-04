@@ -13,8 +13,8 @@ pub struct JsonTxo {
     pub object: String,
     pub txo_id: String,
     pub value_pmob: String,
-    pub received_block_height: Option<String>,
-    pub spent_block_height: Option<String>,
+    pub received_block_index: Option<String>,
+    pub spent_block_index: Option<String>,
     pub is_spent_recovered: bool, // FIXME: WS-16 is_spent_recovered
     pub received_account_id: Option<String>,
     pub minted_account_id: Option<String>,
@@ -51,8 +51,8 @@ impl JsonTxo {
             object: "txo".to_string(),
             txo_id: txo_details.txo.txo_id_hex.clone(),
             value_pmob: txo_details.txo.value.to_string(),
-            received_block_height: txo_details.txo.received_block_index.map(|x| x.to_string()),
-            spent_block_height: txo_details.txo.spent_block_index.map(|x| x.to_string()),
+            received_block_index: txo_details.txo.received_block_index.map(|x| x.to_string()),
+            spent_block_index: txo_details.txo.spent_block_index.map(|x| x.to_string()),
             is_spent_recovered: false,
             received_account_id: txo_details
                 .received_to_account

@@ -389,8 +389,8 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let status = result.get("wallet_status").unwrap();
-        assert_eq!(status.get("network_block_count").unwrap(), "12");
-        assert_eq!(status.get("local_block_count").unwrap(), "12");
+        assert_eq!(status.get("network_block_index").unwrap(), "12");
+        assert_eq!(status.get("local_block_index").unwrap(), "12");
         // Syncing will have already started, so we can't determine what the min synced
         // index is.
         assert!(status.get("min_synced_block_index").is_some());
@@ -660,7 +660,7 @@ mod e2e {
         // The MockBlockchainConnection does not write to the ledger_db
         add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
 
-        // FIXME: Why after submit is the network_block_count off-by-one in
+        // FIXME: Why after submit is the network_block_index off-by-one in
         // wait-for-sync?
         // wait_for_sync(&client, &ledger_db, &network_state, &logger);
         assert_eq!(ledger_db.num_blocks().unwrap(), 15);
