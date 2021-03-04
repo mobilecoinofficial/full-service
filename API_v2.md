@@ -7,8 +7,7 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 ### Methods Overview
 
 * [create_account](#create-account)
-* [import_account_by_entropy](#import-account-by-entropy)
-* [import_account_by_account_key](#import-account-by-account-key)
+* [import_account](#import-account)
 * [get_all_accounts](#get-all-accounts)
 * [get_account](#get-account)
 * [update_account_name](#update-account-name)
@@ -103,14 +102,14 @@ curl -s localhost:9090/wallet \
 | `name`         | Label for this account   | Can have duplicates (not recommended) |
 | `first_block`  | The block from which to start scanning the ledger |  |
 
-#### Import Account by Entropy
+#### Import Account
 
 Import an existing account from the secret entropy.
 
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "import_account_by_entropy",
+        "method": "import_account",
         "params": {
           "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
           "name": "Bob"
@@ -125,7 +124,7 @@ curl -s localhost:9090/wallet \
 
 ```json
 {
-  "method": "import_account_by_entropy",
+  "method": "import_account",
   "result": {
     "account": {
       "object": "account",
@@ -168,71 +167,6 @@ If you receive the following error, it means that you attempted to import an acc
 ```sh
 {"error": "Database(Diesel(DatabaseError(UniqueViolation, "UNIQUE constraint failed: accounts.account_id_hex")))"}
 ```
-
-#### Import Account by Account Key
-
-Import an existing account from the secret account key.
-
-```sh
-curl -s localhost:9090/wallet \
-  -d '{
-        "method": "import_account_by_account_key",
-        "params": {
-          "account_key": {
-            "object": "account_key",
-            "view_private_key": "0a20765d49c5a524ddd4d9e96278b17eccd7b33e6bc071c5bc91dcd29435ce478a0d"
-            "spend_private_key": "0a200c68151e777324da47a1e3a4f8b57e7d94d59084d4a343e1c600c1e4f66fc20d",
-            "fog_report_url": "",
-            "fog_report_id": "",
-            "fog_authority_spki": "",
-            },
-          "name": "Bob"
-          "first_block_index": 3500,
-        },
-        "jsonrpc": "2.0",
-        "api_version": "2",
-        "id": 1
-      }' \
-   -X POST -H 'Content-type: application/json' | jq
-```
-
-```json
-{
-  "method": "import_account_by_account_key",
-  "result": {
-    "account": {
-      "object": "account",
-      "account_id": "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470",
-      "main_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-      "name": "Bob",
-      "next_subaddress_index": "2",
-      "recovery_mode": false,
-      "entropy": null,
-      "account_key": {
-        "object": "account_key",
-        "view_private_key": "0a20e1d5a0622906afa27d87ab9f900e6099ce778d173b22068ce948832b549d2002",
-        "spend_private_key": "0a2011035ae05a302e883af00f788cd7486f8f7445503187b080545c16c37056900e",
-        "fog_report_url": "",
-        "fog_report_id": "",
-        "fog_authority_spki": ""
-      }
-    }
-  },
-  "error": null,
-  "jsonrpc": "2.0",
-  "id": 1,
-  "api_version": "2"
-}
-```
-
-| Required Param | Purpose                  | Requirements              |
-| :------------- | :----------------------- | :------------------------ |
-| `account_key`  | The secret account key   | A valid account key       |
-
-| Optional Param | Purpose                  | Requirements              |
-| :------------- | :----------------------- | :------------------------ |
-| `name`         | Label for this account   | Can have duplicates (not recommended) |
-| `first_block`  | The block from which to start scanning the ledger |  |
 
 ##### Troubleshooting
 
@@ -515,7 +449,7 @@ curl -s localhost:9090/wallet \
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "get_all_txos_by_account",
+        "method": "get_all_txos_for_account",
         "params": {
           "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
         },

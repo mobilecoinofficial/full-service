@@ -21,7 +21,7 @@ pub struct AccountSecrets {
     /// The entropy from which this account key was derived, hex-encoded.
     ///
     /// Optional because an account can be created from only the AccountKey.
-    pub entropy: Option<String>,
+    pub entropy: String,
 
     ///  Private key for receiving and spending MobileCoin.
     pub account_key: AccountKey,
@@ -36,7 +36,7 @@ impl TryFrom<&Account> for AccountSecrets {
         Ok(AccountSecrets {
             object: "account_key".to_string(),
             account_id: src.account_id_hex.clone(),
-            entropy: src.entropy.clone().map(|e| hex::encode(&e)),
+            entropy: hex::encode(&src.entropy),
             account_key: AccountKey::try_from(&account_key).map_err(|err| {
                 format!(
                     "Could not convert account_key to json_rpc representation: {:?}",

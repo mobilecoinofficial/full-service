@@ -5,7 +5,7 @@
 //! API v2
 
 use crate::json_rpc::{
-    account_key::AccountKey, api_v1::wallet_api::JsonCommandRequestV1, tx_proposal::TxProposal,
+    api_v1::wallet_api::JsonCommandRequestV1, tx_proposal::TxProposal,
 };
 
 use serde::{Deserialize, Serialize};
@@ -80,13 +80,8 @@ pub enum JsonCommandRequestV2 {
         name: Option<String>,
         first_block_index: Option<String>,
     },
-    import_account_by_entropy {
+    import_account {
         entropy: String,
-        name: Option<String>,
-        first_block_index: Option<String>,
-    },
-    import_account_by_account_key {
-        account_key: AccountKey,
         name: Option<String>,
         first_block_index: Option<String>,
     },

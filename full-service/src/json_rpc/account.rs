@@ -40,12 +40,12 @@ pub struct Account {
     /// The root entropy for this account. The account_keys are derived from
     /// this entropy. Optional because only calls that specifically need to
     /// return entropy should do so. Otherwise, it should be None.
-    pub entropy: Option<String>,
+    pub entropy: String,
 
     /// The account key for this account. The account_key is derived from
     /// the entropy. Optional because only calls that specifically need to
     /// return the account key should do so. Otherwise, it should be None.
-    pub account_key: Option<json_rpc::account_key::AccountKey>,
+    pub account_key: json_rpc::account_key::AccountKey,
 }
 
 impl TryFrom<&db::models::Account> for Account {
@@ -65,11 +65,9 @@ impl TryFrom<&db::models::Account> for Account {
             main_address,
             next_subaddress_index: src.next_subaddress_index.to_string(),
             recovery_mode: false,
-            entropy: src.entropy.clone().map(|e| hex::encode(&e)),
-            account_key: Some(
-                json_rpc::account_key::AccountKey::try_from(&account_key)
-                    .map_err(|e| format!("Could not get json_rpc::AccountKey: {:?}", e))?,
-            ),
+            entropy: hex::encode(&src.entropy),
+            account_key: json_rpc::account_key::AccountKey::try_from(&account_key)
+                .map_err(|e| format!("Could not get json_rpc::AccountKey: {:?}", e))?,
         })
     }
 }
