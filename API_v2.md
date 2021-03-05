@@ -17,6 +17,7 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 * [get_txo](#get-txo-details)
 * [get_wallet_status](#get-wallet-status)
 * [get_balance_for_account](#get-balance-for-a-given-account)
+* [get_balance_for_address](#get-balance-for-a-given-address)
 * [assign_address_for_account](#assign-address-for-account)
 * [get_all_addresses_for_account](#get-all-assigned-addresses-for-a-given-account)
 * [verify_address](#verify-address)
@@ -671,11 +672,11 @@ curl -s localhost:9090/wallet \
       "local_block_index": "152918",
       "account_block_index": "152003",
       "is_synced": false,
-      "unspent_pmob": "110000000000000000"
+      "unspent_pmob": "110000000000000000",
       "pending_pmob": "0",
       "spent_pmob": "0",
       "secreted_pmob": "0",
-      "orphaned_pmob": "0",
+      "orphaned_pmob": "0"
     }
   },
   "error": null,
@@ -688,6 +689,52 @@ curl -s localhost:9090/wallet \
 | Required Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
 | `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
+
+
+#### Get Balance for a Given Address
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "get_balance_for_address",
+        "params": {
+           "address": "3P4GtGkp5UVBXUzBqirgj7QFetWn4PsFPsHBXbC6A8AXw1a9CMej969jneiN1qKcwdn6e1VtD64EruGVSFQ8wHk5xuBHndpV9WUGQ78vV7Z"
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
+```
+
+```json
+{
+  "method": "get_balance_for_address",
+  "result": {
+    "balance": {
+      "object": "balance",
+      "network_block_index": "152961",
+      "local_block_index": "152961",
+      "account_block_index": "152961",
+      "is_synced": true,
+      "unspent_pmob": "11881402222024",
+      "pending_pmob": "0",
+      "spent_pmob": "84493835554166",
+      "secreted_pmob": "0",
+      "orphaned_pmob": "0"
+    }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+  "api_version": "2"
+}
+```
+
+| Required Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `address`      | The address on which to perform this action  | Address must be assigned for an account in the wallet  |
+
 
 #### Get Account Status for a Given Account
 

@@ -980,6 +980,144 @@ mod e2e {
         assert!(result);
     }
 
+    #[test_with_logger]
+    fn test_balance_for_address(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+                "first_block": "0",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let account_id = res["result"]["account"]["account_id"].as_str().unwrap();
+        let b58_public_address = res["result"]["account"]["main_address"].as_str().unwrap();
+
+        let alice_public_address =
+            b58_decode(&b58_public_address).expect("Could not b58_decode public address");
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![alice_public_address],
+            42 * MOB as u64,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 1,
+            "method": "get_balance_for_address",
+            "params": {
+                "address": b58_public_address,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let balance = res["result"]["balance"].clone();
+        println!("balance = {:?}", balance);
+        assert_eq!(
+            balance["unspent_pmob"]
+                .as_str()
+                .unwrap()
+                .parse::<u64>()
+                .expect("Could not parse u64"),
+            42 * MOB as u64
+        );
+        assert_eq!(
+            balance["pending_pmob"]
+                .as_str()
+                .unwrap()
+                .parse::<u64>()
+                .expect("Could not parse u64"),
+            0
+        );
+        assert_eq!(
+            balance["spent_pmob"]
+                .as_str()
+                .unwrap()
+                .parse::<u64>()
+                .expect("Could not parse u64"),
+            0
+        );
+        assert_eq!(
+            balance["secreted_pmob"]
+                .as_str()
+                .unwrap()
+                .parse::<u64>()
+                .expect("Could not parse u64"),
+            0
+        );
+        assert_eq!(
+            balance["orphaned_pmob"]
+                .as_str()
+                .unwrap()
+                .parse::<u64>()
+                .expect("Could not parse u64"),
+            0
+        );
+
+        // Create a subaddress
+        let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 1,
+            "method": "assign_address_for_account",
+            "params": {
+                "account_id": account_id,
+                "comment": "For Bob",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let from_bob_b58_public_address = result
+            .get("address")
+            .unwrap()
+            .get("public_address")
+            .unwrap()
+            .as_str()
+            .unwrap();
+        let from_bob_public_address = b58_decode(from_bob_b58_public_address).unwrap();
+
+        // Add a block to the ledger with a transaction "From Bob"
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![from_bob_public_address],
+            64 * MOB as u64,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 1,
+            "method": "get_balance_for_address",
+            "params": {
+                "address": from_bob_b58_public_address,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let balance = res["result"]["balance"].clone();
+        println!("balance = {:?}", balance);
+        assert_eq!(
+            balance["unspent_pmob"]
+                .as_str()
+                .unwrap()
+                .parse::<u64>()
+                .expect("Could not parse u64"),
+            64 * MOB as u64
+        );
+    }
+
     /*
     TESTS BELOW THIS LINE COPY-PASTED FROM API_V1/wallet_api.rs. They will each be updated
     as the API continues to be updated.
