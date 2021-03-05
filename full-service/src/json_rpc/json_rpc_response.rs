@@ -224,24 +224,24 @@ pub enum JsonCommandResponseV2 {
         txo_ids: Vec<String>,
         txo_map: Map<String, serde_json::Value>,
     },
-    /*
-    get_balance_for_subaddress {
-        balance: Balance,
-    },
-    get_transaction_object {
-        transaction: JsonTx,
-    },
-    get_txo_object {
-        txo: JsonTxOut,
-    },
-    get_block_object {
-        block: JsonBlock,
-        block_contents: JsonBlockContents,
-    },
-    get_proofs {
-        proofs: Vec<JsonProof>,
-    },
-    verify_proof {
-        verified: bool,
-    },*/
+    get_all_txos_for_account {
+        txo_ids: Vec<String>,
+        txo_map: Map<String, serde_json::Value>,
+    }, /*
+       get_transaction_object {
+           transaction: JsonTx,
+       },
+       get_txo_object {
+           txo: JsonTxOut,
+       },
+       get_block_object {
+           block: JsonBlock,
+           block_contents: JsonBlockContents,
+       },
+       get_proofs {
+           proofs: Vec<JsonProof>,
+       },
+       verify_proof {
+           verified: bool,
+       },*/
 }

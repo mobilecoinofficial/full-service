@@ -111,20 +111,6 @@ impl<
         }
     }
 
-    pub fn list_txos(&self, account_id_hex: &str) -> Result<Vec<JsonTxo>, WalletServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-
-        let txos = Txo::list_for_account(account_id_hex, &conn)?;
-        Ok(txos.iter().map(|t| JsonTxo::new(t)).collect())
-    }
-
-    pub fn get_txo(&self, txo_id_hex: &str) -> Result<JsonTxo, WalletServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-
-        let txo_details = Txo::get(txo_id_hex, &conn)?;
-        Ok(JsonTxo::new(&txo_details))
-    }
-
     pub fn get_transaction_object(
         &self,
         transaction_id_hex: &str,

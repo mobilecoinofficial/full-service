@@ -162,7 +162,7 @@ where
         let local_block_index = self.ledger_db.num_blocks()?;
 
         Ok(conn.transaction::<Balance, BalanceServiceError, _>(|| {
-            let txos = Txo::list_for_address(address.to_string(), &conn)?;
+            let txos = Txo::list_for_address(&address.to_string(), &conn)?;
             let assigned_address = AssignedSubaddress::get(address, &conn)?;
 
             let mut unspent = 0;

@@ -157,16 +157,10 @@ pub enum JsonCommandRequestV2 {
     get_all_txos_for_address {
         address: String,
     },
-    /*
-    get_all_txos_for_address {
-        address: String,
-    },
     get_all_txos_for_account {
         account_id: String,
     },
-    get_balance_for_subaddress {
-        address: String,
-    },
+    /*
     get_transaction_object {
         transaction_log_id: String,
     },
