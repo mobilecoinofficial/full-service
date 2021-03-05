@@ -272,7 +272,7 @@ mod tests {
             models::Txo,
             txo::{TxoDetails, TxoModel},
         },
-        service::{account::AccountService, balance::BalanceService},
+        service::{account::AccountService, address::AddressService, balance::BalanceService},
         test_utils::{
             add_block_from_transaction_log, add_block_to_ledger_db, get_test_ledger,
             setup_wallet_service, MOB,
@@ -327,14 +327,14 @@ mod tests {
 
         // Create an assigned subaddress for Bob
         let bob_address_from_alice = service
-            .create_assigned_subaddress(&bob.account_id_hex, Some("From Alice"))
+            .assign_address_for_account(&bob.account_id_hex, Some("From Alice"))
             .unwrap();
 
         // Send a transaction from Alice to Bob
         let (transaction_log, _associated_txos) = service
             .build_and_submit(
                 &alice.account_id_hex,
-                &bob_address_from_alice.public_address,
+                &bob_address_from_alice.assigned_subaddress_b58,
                 (42 * MOB).to_string(),
                 None,
                 None,

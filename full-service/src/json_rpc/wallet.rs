@@ -8,6 +8,7 @@ use crate::{
     json_rpc,
     json_rpc::{
         account_secrets::AccountSecrets,
+        address::Address,
         api_v1::wallet_api::{wallet_api_inner_v1, JsonCommandRequestV1},
         balance::Balance,
         json_rpc_request::{help_str_v2, JsonCommandRequest, JsonCommandRequestV2},
@@ -17,8 +18,8 @@ use crate::{
         wallet_status::WalletStatus,
     },
     service::{
-        account::AccountService, balance::BalanceService, transaction::TransactionService,
-        transaction_log::TransactionLogService, WalletService,
+        account::AccountService, address::AddressService, balance::BalanceService,
+        transaction::TransactionService, transaction_log::TransactionLogService, WalletService,
     },
 };
 use mc_common::logger::global_log;
@@ -214,6 +215,41 @@ where
                     .map_err(format_error)?,
             );
             JsonCommandResponseV2::get_account_status { account, balance }
+        }
+        JsonCommandRequestV2::assign_address_for_account {
+            account_id,
+            metadata,
+        } => JsonCommandResponseV2::assign_address_for_account {
+            address: Address::from(
+                &service
+                    .assign_address_for_account(&account_id, metadata.as_deref())
+                    .map_err(format_error)?,
+            ),
+        },
+        JsonCommandRequestV2::get_all_addresses_for_account { account_id } => {
+            let addresses = service
+                .get_all_addresses_for_account(&account_id)
+                .map_err(format_error)?;
+            let address_map: Map<String, serde_json::Value> = Map::from_iter(
+                addresses
+                    .iter()
+                    .map(|a| {
+                        (
+                            a.assigned_subaddress_b58.clone(),
+                            serde_json::to_value(&(Address::from(a)))
+                                .expect("Could not get json value"),
+                        )
+                    })
+                    .collect::<Vec<(String, serde_json::Value)>>(),
+            );
+
+            JsonCommandResponseV2::get_all_addresses_for_account {
+                address_ids: addresses
+                    .iter()
+                    .map(|a| a.assigned_subaddress_b58.clone())
+                    .collect(),
+                address_map,
+            }
         }
         JsonCommandRequestV2::build_and_submit_transaction {
             account_id,

@@ -3,9 +3,7 @@
 //! The Wallet API for Full Service. Version 1.
 
 use crate::{
-    json_rpc::api_v1::decorated_types::{
-        JsonAddress, JsonBlock, JsonBlockContents, JsonProof, JsonTxo,
-    },
+    json_rpc::api_v1::decorated_types::{JsonBlock, JsonBlockContents, JsonProof, JsonTxo},
     service::WalletService,
 };
 use mc_common::logger::global_log;
@@ -32,13 +30,6 @@ pub enum JsonCommandRequestV1 {
     },
     get_txo {
         txo_id: String,
-    },
-    create_address {
-        account_id: String,
-        comment: Option<String>,
-    },
-    get_all_addresses_for_account {
-        account_id: String,
     },
     get_transaction_object {
         transaction_log_id: String,
@@ -69,13 +60,6 @@ pub enum JsonCommandResponseV1 {
     },
     get_txo {
         txo: JsonTxo,
-    },
-    create_address {
-        address: JsonAddress,
-    },
-    get_all_addresses_for_account {
-        address_ids: Vec<String>,
-        address_map: Map<String, serde_json::Value>,
     },
     get_transaction_object {
         transaction: JsonTx,
@@ -133,35 +117,6 @@ where
         JsonCommandRequestV1::get_txo { txo_id } => {
             let result = service.get_txo(&txo_id).map_err(format_error)?;
             JsonCommandResponseV1::get_txo { txo: result }
-        }
-        JsonCommandRequestV1::create_address {
-            account_id,
-            comment,
-        } => JsonCommandResponseV1::create_address {
-            address: service
-                .create_assigned_subaddress(&account_id, comment.as_deref())
-                .map_err(format_error)?,
-        },
-        JsonCommandRequestV1::get_all_addresses_for_account { account_id } => {
-            let addresses = service
-                .list_assigned_subaddresses(&account_id)
-                .map_err(format_error)?;
-            let address_map: Map<String, serde_json::Value> = Map::from_iter(
-                addresses
-                    .iter()
-                    .map(|a| {
-                        (
-                            a.address_id.clone(),
-                            serde_json::to_value(&(*a).clone()).expect("Could not get json value"),
-                        )
-                    })
-                    .collect::<Vec<(String, serde_json::Value)>>(),
-            );
-
-            JsonCommandResponseV1::get_all_addresses_for_account {
-                address_ids: addresses.iter().map(|a| a.address_id.clone()).collect(),
-                address_map,
-            }
         }
         JsonCommandRequestV1::get_transaction_object { transaction_log_id } => {
             JsonCommandResponseV1::get_transaction_object {
@@ -297,85 +252,5 @@ mod e2e {
             .as_str()
             .unwrap();
         assert_eq!(unspent, "100");
-    }
-
-    #[test_with_logger]
-    fn test_create_assigned_subaddress(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
-
-        // Add an account
-        let body = json!({
-            "api_version": "2",
-            "method": "create_account",
-            "params": {
-                "name": "Alice Main Account",
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let account_id = result
-            .get("account")
-            .unwrap()
-            .get("account_id")
-            .unwrap()
-            .as_str()
-            .unwrap();
-
-        // Create a subaddress
-        let body = json!({
-            "method": "create_address",
-            "params": {
-                "account_id": account_id,
-                "comment": "For Bob",
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let b58_public_address = result
-            .get("address")
-            .unwrap()
-            .get("public_address")
-            .unwrap()
-            .as_str()
-            .unwrap();
-        let from_bob_public_address = b58_decode(b58_public_address).unwrap();
-
-        // Add a block to the ledger with a transaction "From Bob"
-        add_block_to_ledger_db(
-            &mut ledger_db,
-            &vec![from_bob_public_address],
-            42000000000000,
-            &vec![KeyImage::from(rng.next_u64())],
-            &mut rng,
-        );
-
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
-
-        let body = json!({
-            "method": "get_all_txos_for_account",
-            "params": {
-                "account_id": account_id,
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let txos = result.get("txo_ids").unwrap().as_array().unwrap();
-        assert_eq!(txos.len(), 1);
-        let txo_map = result.get("txo_map").unwrap().as_object().unwrap();
-        let txo = &txo_map.get(txos[0].as_str().unwrap()).unwrap();
-        let status_map = txo
-            .get("account_status_map")
-            .unwrap()
-            .as_object()
-            .unwrap()
-            .get(account_id)
-            .unwrap();
-        let txo_status = status_map.get("txo_status").unwrap().as_str().unwrap();
-        assert_eq!(txo_status, "txo_status_unspent");
-        let txo_type = status_map.get("txo_type").unwrap().as_str().unwrap();
-        assert_eq!(txo_type, "txo_type_received");
-        let value = txo.get("value_pmob").unwrap().as_str().unwrap();
-        assert_eq!(value, "42000000000000");
     }
 }

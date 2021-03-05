@@ -3,6 +3,7 @@
 //! Implementations of services.
 
 pub mod account;
+pub mod address;
 pub mod balance;
 pub mod sync;
 pub mod transaction;

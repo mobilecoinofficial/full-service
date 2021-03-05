@@ -138,6 +138,13 @@ pub enum JsonCommandRequestV2 {
     get_account_status {
         account_id: String,
     },
+    assign_address_for_account {
+        account_id: String,
+        metadata: Option<String>,
+    },
+    get_all_addresses_for_account {
+        account_id: String,
+    },
     /*
     get_balance_for_subaddress {
         address: String,
@@ -150,13 +157,6 @@ pub enum JsonCommandRequestV2 {
     },
     get_txo {
         txo_id: String,
-    },
-    create_address {
-        account_id: String,
-        comment: Option<String>,
-    },
-    get_all_addresses_for_account {
-        account_id: String,
     },
     get_transaction_object {
         transaction_log_id: String,
