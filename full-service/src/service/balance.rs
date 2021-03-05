@@ -201,7 +201,7 @@ where
                 orphaned: orphaned as u64,
                 network_block_index,
                 local_block_index,
-                synced_blocks: account.next_block as u64,
+                synced_blocks: account.next_block_index as u64,
             })
         })?)
     }

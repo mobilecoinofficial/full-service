@@ -945,7 +945,7 @@ mod e2e {
             "id": 1,
             "method": "verify_address",
             "params": {
-                "public_address": "NOTVALIDB58",
+                "address": "NOTVALIDB58",
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -972,7 +972,7 @@ mod e2e {
             "id": 1,
             "method": "verify_address",
             "params": {
-                "public_address": b58_public_address,
+                "address": b58_public_address,
             }
         });
         let res = dispatch(&client, body, &logger);
