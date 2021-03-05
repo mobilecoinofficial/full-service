@@ -3,8 +3,10 @@
 //! Service for managing addresses.
 
 use crate::{
-    db::{assigned_subaddress::AssignedSubaddressModel, b58_decode, models::AssignedSubaddress},
-    error::WalletServiceError,
+    db::{
+        assigned_subaddress::AssignedSubaddressModel, b58_decode, models::AssignedSubaddress,
+        WalletDbError,
+    },
     service::WalletService,
 };
 use mc_common::logger::log;
@@ -12,6 +14,30 @@ use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 
 use diesel::Connection;
+use displaydoc::Display;
+
+/// Errors for the Address Service.
+#[derive(Display, Debug)]
+#[allow(clippy::large_enum_variant)]
+pub enum AddressServiceError {
+    /// Error interacting with the database: {0}
+    Database(WalletDbError),
+
+    /// Diesel Error: {0}
+    Diesel(diesel::result::Error),
+}
+
+impl From<WalletDbError> for AddressServiceError {
+    fn from(src: WalletDbError) -> Self {
+        Self::Database(src)
+    }
+}
+
+impl From<diesel::result::Error> for AddressServiceError {
+    fn from(src: diesel::result::Error) -> Self {
+        Self::Diesel(src)
+    }
+}
 
 /// Trait defining the ways in which the wallet can interact with and manage
 /// addresses.
@@ -22,16 +48,16 @@ pub trait AddressService {
         account_id_hex: &str,
         metadata: Option<&str>,
         // FIXME: FS-32 - add "sync from block"
-    ) -> Result<AssignedSubaddress, WalletServiceError>;
+    ) -> Result<AssignedSubaddress, AddressServiceError>;
 
     /// Gets all the addresses for the given account.
     fn get_all_addresses_for_account(
         &self,
         account_id_hex: &str,
-    ) -> Result<Vec<AssignedSubaddress>, WalletServiceError>;
+    ) -> Result<Vec<AssignedSubaddress>, AddressServiceError>;
 
     /// Verifies whether an address can be decoded from b58.
-    fn verify_address(&self, public_address: &str) -> Result<bool, WalletServiceError>;
+    fn verify_address(&self, public_address: &str) -> Result<bool, AddressServiceError>;
 }
 
 impl<T, FPR> AddressService for WalletService<T, FPR>
@@ -44,11 +70,11 @@ where
         account_id_hex: &str,
         metadata: Option<&str>,
         // FIXME: WS-32 - add "sync from block"
-    ) -> Result<AssignedSubaddress, WalletServiceError> {
+    ) -> Result<AssignedSubaddress, AddressServiceError> {
         let conn = &self.wallet_db.get_conn()?;
 
         Ok(
-            conn.transaction::<AssignedSubaddress, WalletServiceError, _>(|| {
+            conn.transaction::<AssignedSubaddress, AddressServiceError, _>(|| {
                 let (public_address_b58, _subaddress_index) =
                     AssignedSubaddress::create_next_for_account(
                         account_id_hex,
@@ -64,14 +90,14 @@ where
     fn get_all_addresses_for_account(
         &self,
         account_id_hex: &str,
-    ) -> Result<Vec<AssignedSubaddress>, WalletServiceError> {
+    ) -> Result<Vec<AssignedSubaddress>, AddressServiceError> {
         Ok(AssignedSubaddress::list_all(
             account_id_hex,
             &self.wallet_db.get_conn()?,
         )?)
     }
 
-    fn verify_address(&self, public_address: &str) -> Result<bool, WalletServiceError> {
+    fn verify_address(&self, public_address: &str) -> Result<bool, AddressServiceError> {
         match b58_decode(public_address) {
             Ok(_a) => {
                 log::info!(self.logger, "Verified address {:?}", public_address);
@@ -138,7 +164,7 @@ mod tests {
             .verify_address(&public_address_b58)
             .expect("Could not verify address"));
 
-        // B58 encoding of public address should fail
+        // Basic B58 encoding of public address should fail (should include a checksum)
         let account_key = AccountKey::random(&mut rng);
         let public_address = account_key.subaddress(rng.next_u64());
         let public_address_b58 =
