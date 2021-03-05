@@ -10,6 +10,7 @@ pub mod api_v1;
 mod balance;
 pub mod json_rpc_request;
 pub mod json_rpc_response;
+mod proof;
 mod transaction_log;
 mod tx_proposal;
 mod txo;

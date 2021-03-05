@@ -14,7 +14,32 @@ use crate::{
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 
+use crate::db::WalletDbError;
 use diesel::connection::Connection;
+use displaydoc::Display;
+
+/// Errors for the Transaction Log Service.
+#[derive(Display, Debug)]
+#[allow(clippy::large_enum_variant)]
+pub enum TransactionLogServiceError {
+    /// Error interacting with the database: {0}
+    Database(WalletDbError),
+
+    /// Diesel Error: {0}
+    Diesel(diesel::result::Error),
+}
+
+impl From<WalletDbError> for TransactionLogServiceError {
+    fn from(src: WalletDbError) -> Self {
+        Self::Database(src)
+    }
+}
+
+impl From<diesel::result::Error> for TransactionLogServiceError {
+    fn from(src: diesel::result::Error) -> Self {
+        Self::Diesel(src)
+    }
+}
 
 /// Trait defining the ways in which the wallet can interact with and manage
 /// transaction logs.
@@ -29,7 +54,7 @@ pub trait TransactionLogService {
     fn get_transaction_log(
         &self,
         transaction_id_hex: &str,
-    ) -> Result<(TransactionLog, AssociatedTxos), WalletServiceError>;
+    ) -> Result<(TransactionLog, AssociatedTxos), TransactionLogServiceError>;
 
     /// Get all transaction logs for a given block.
     fn get_all_transaction_logs_for_block(
@@ -61,16 +86,18 @@ where
     fn get_transaction_log(
         &self,
         transaction_id_hex: &str,
-    ) -> Result<(TransactionLog, AssociatedTxos), WalletServiceError> {
+    ) -> Result<(TransactionLog, AssociatedTxos), TransactionLogServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
         Ok(
-            conn.transaction::<(TransactionLog, AssociatedTxos), WalletServiceError, _>(|| {
-                let transaction_log = TransactionLog::get(transaction_id_hex, &conn)?;
-                let associated = transaction_log.get_associated_txos(&conn)?;
+            conn.transaction::<(TransactionLog, AssociatedTxos), TransactionLogServiceError, _>(
+                || {
+                    let transaction_log = TransactionLog::get(transaction_id_hex, &conn)?;
+                    let associated = transaction_log.get_associated_txos(&conn)?;
 
-                Ok((transaction_log, associated))
-            })?,
+                    Ok((transaction_log, associated))
+                },
+            )?,
         )
     }
 

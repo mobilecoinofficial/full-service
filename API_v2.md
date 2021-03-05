@@ -1742,11 +1742,16 @@ curl -s localhost:9090/wallet \
     "proofs": [
       {
         "object": "proof",
-        "txo_id": "bbee8b70e80837fc3e10bde47f63de41768ee036263907325ef9a8d45d851f15",
-        "proof": "0a2005ba1d9d871c7fb0d5ba7df17391a1e14aad1b4aa2319c997538f8e338a670bb"
+        "txo_id": "9e0de29bfee9a391e520a0b9411a91f094a454ebc70122bdc0e36889ab59d466",
+        "txo_index": "458865",
+        "proof": "0a20faca10509c32845041e49e009ddc4e35b61e7982a11aced50493b4b8aaab7a1f"
       }
     ]
-  }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+  "api_version": "2"
 }
 ```
 
@@ -1779,7 +1784,11 @@ curl -s localhost:9090/wallet \
   "method": "verify_proof",
   "result": {
     "verified": true
-  }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+  "api_version": "2"
 }
 ```
 
@@ -2291,14 +2300,10 @@ Txo Spent from One Account to Another in the Same Wallet
 
 | *Name* | *Type* | *Description*
 | :--- | :--- | :---
-| txo_id | string | Unique identifier for the Txo.
-| proof | string | A string with a proof that can be verified to confirm that another party constructed or had knowledge of the construction of the associated Txo.
-
-#### More attributes
-
-| *Name* | *Type* | *Description*
-| :--- | :--- | :---
 | object | string, value is "proof" | String representing the object's type. Objects of the same type share the same value.
+| txo_id | string | Unique identifier for the Txo.
+| txo_index | string | The index of the Txo in the ledger.
+| proof | string | A string with a proof that can be verified to confirm that another party constructed or had knowledge of the construction of the associated Txo.
 
 #### Example Object
 
@@ -2306,6 +2311,7 @@ Txo Spent from One Account to Another in the Same Wallet
 {
   "object": "proof",
   "txo_id": "873dfb8c...",
+  "txo_index": "1276",
   "proof": "984eacd..."
 }
 ```

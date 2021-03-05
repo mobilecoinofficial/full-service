@@ -15,13 +15,14 @@ use crate::{
         json_rpc_response::{
             format_error, JsonCommandResponse, JsonCommandResponseV2, JsonRPCResponse,
         },
+        proof::Proof,
         txo::Txo,
         wallet_status::WalletStatus,
     },
     service::{
         account::AccountService, address::AddressService, balance::BalanceService,
-        transaction::TransactionService, transaction_log::TransactionLogService, txo::TxoService,
-        WalletService,
+        proof::ProofService, transaction::TransactionService,
+        transaction_log::TransactionLogService, txo::TxoService, WalletService,
     },
 };
 use mc_common::logger::global_log;
@@ -467,6 +468,26 @@ where
                 txo_ids: txos.iter().map(|t| t.txo.txo_id_hex.clone()).collect(),
                 txo_map,
             }
+        }
+        JsonCommandRequestV2::get_proofs { transaction_log_id } => {
+            JsonCommandResponseV2::get_proofs {
+                proofs: service
+                    .get_proofs(&transaction_log_id)
+                    .map_err(format_error)?
+                    .iter()
+                    .map(Proof::from)
+                    .collect(),
+            }
+        }
+        JsonCommandRequestV2::verify_proof {
+            account_id,
+            txo_id,
+            proof,
+        } => {
+            let result = service
+                .verify_proof(&AccountID(account_id), &TxoID(txo_id), &proof)
+                .map_err(format_error)?;
+            JsonCommandResponseV2::verify_proof { verified: result }
         }
     };
     let response = Json(JsonRPCResponse::from(result));

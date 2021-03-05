@@ -5,8 +5,9 @@
 use crate::{
     db::WalletDbError,
     service::{
-        balance::BalanceServiceError, ledger::LedgerServiceError,
-        transaction::TransactionServiceError, txo::TxoServiceError,
+        balance::BalanceServiceError, ledger::LedgerServiceError, proof::ProofServiceError,
+        transaction::TransactionServiceError, transaction_log::TransactionLogServiceError,
+        txo::TxoServiceError,
     },
 };
 use displaydoc::Display;
@@ -50,6 +51,12 @@ pub enum WalletServiceError {
 
     /// Error with the Txo service: {0}
     TxoService(TxoServiceError),
+
+    /// Error with the Proof service: {0}
+    ProofService(ProofServiceError),
+
+    /// Error with the TransactionLog service: {0}
+    TransactionLogService(TransactionLogServiceError),
 }
 
 impl From<WalletDbError> for WalletServiceError {
@@ -85,6 +92,18 @@ impl From<LedgerServiceError> for WalletServiceError {
 impl From<TxoServiceError> for WalletServiceError {
     fn from(src: TxoServiceError) -> Self {
         Self::TxoService(src)
+    }
+}
+
+impl From<ProofServiceError> for WalletServiceError {
+    fn from(src: ProofServiceError) -> Self {
+        Self::ProofService(src)
+    }
+}
+
+impl From<TransactionLogServiceError> for WalletServiceError {
+    fn from(src: TransactionLogServiceError) -> Self {
+        Self::TransactionLogService(src)
     }
 }
 

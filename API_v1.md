@@ -6,17 +6,9 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 
 ### Methods Overview
 
-* [get_proofs](#get-proofs)
-* [verify_proof](#verify-proof)
 * [get_txo_object](#get-txo-object)
 * [get_transaction_object](#get-transaction-object)
 * [get_block_object](#get-block-object)
-
-### Full Service Data Types Overview
-
-The methods above return data representations of wallet contents. The Full Service API Data types are as follows:
-
-* [proof](#the-proof-object)
 
 ## Full Service API Methods
 
@@ -155,37 +147,3 @@ curl -s localhost:9090/wallet \
   }
 }
 ```
-
-## Full Service Data Types
-
-The Full Service Wallet API provides several objects that correspond to the data types of the wallet
-
-### The Proof Object
-
-#### Attributes
-
-| *Name* | *Type* | *Description*
-| :--- | :--- | :---
-| txo_id | string | Unique identifier for the Txo.
-| proof | string | A string with a proof that can be verified to confirm that another party constructed or had knowledge of the construction of the associated Txo.
-
-#### More attributes
-
-| *Name* | *Type* | *Description*
-| :--- | :--- | :---
-| object | string, value is "proof" | String representing the object's type. Objects of the same type share the same value.
-
-#### Example Object
-
-```json
-{
-  "object": "proof",
-  "txo_id": "873dfb8c...",
-  "proof": "984eacd..."
-}
-```
-
-#### API Methods Returning Proof Objects
-
-* [get_proofs](#get-proofs)
-* [verify_proof](#verify-proof)
