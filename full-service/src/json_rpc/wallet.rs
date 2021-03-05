@@ -408,6 +408,13 @@ where
                 transaction_log_map,
             }
         }
+        JsonCommandRequestV2::verify_address { public_address } => {
+            JsonCommandResponseV2::verify_address {
+                verified: service
+                    .verify_address(&public_address)
+                    .map_err(format_error)?,
+            }
+        }
     };
     let response = Json(JsonRPCResponse::from(result));
     Ok(response)

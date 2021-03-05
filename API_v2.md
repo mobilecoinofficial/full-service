@@ -19,6 +19,7 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 * [get_balance_for_account](#get-balance-for-a-given-account)
 * [assign_address_for_account](#assign-address-for-account)
 * [get_all_addresses_for_account](#get-all-assigned-addresses-for-a-given-account)
+* [verify_address](#verify-address)
 * [build_and_submit_transaction](#build-and-submit-transaction)
 * [build_transaction](#build-transaction)
 * [submit_transaction](#submit-transaction)
@@ -848,6 +849,38 @@ curl -s localhost:9090/wallet \
 | Required Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
 | `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
+
+#### Verify Address
+
+Verify whether an address is correctly b58 encoded.
+
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "verify_address",
+        "params": {
+          "public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+        },
+        "jsonrpc": "2.0",
+        "api_version": "2",
+        "id": 1
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
+```
+
+```json
+{
+  "method": "verify_address",
+  "result": {
+    "verified": true
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+  "api_version": "2"
+}
+```
 
 ### Transactions
 

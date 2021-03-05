@@ -933,6 +933,53 @@ mod e2e {
         assert_eq!(value, "42000000000000");
     }
 
+    #[test_with_logger]
+    fn test_verify_address(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 1,
+            "method": "verify_address",
+            "params": {
+                "public_address": "NOTVALIDB58",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res["result"]["verified"].as_bool().unwrap();
+        assert!(!result);
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+                "first_block": "0",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let b58_public_address = res["result"]["account"]["main_address"].as_str().unwrap();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 1,
+            "method": "verify_address",
+            "params": {
+                "public_address": b58_public_address,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res["result"]["verified"].as_bool().unwrap();
+        assert!(result);
+    }
+
     /*
     TESTS BELOW THIS LINE COPY-PASTED FROM API_V1/wallet_api.rs. They will each be updated
     as the API continues to be updated.
