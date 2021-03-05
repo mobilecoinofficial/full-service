@@ -148,27 +148,14 @@ pub enum JsonCommandRequestV2 {
     verify_address {
         address: String,
     },
-    get_balance_for_address {
-        address: String,
+    get_all_txos_for_account {
+        account_id: String,
     },
     get_txo {
         txo_id: String,
     },
     get_all_txos_for_address {
         address: String,
-    },
-    get_all_txos_for_account {
-        account_id: String,
-    },
-    /*
-    get_transaction_object {
-        transaction_log_id: String,
-    },
-    get_txo_object {
-        txo_id: String,
-    },
-    get_block_object {
-        block_index: String,
     },
     get_proofs {
         transaction_log_id: String,
@@ -177,5 +164,16 @@ pub enum JsonCommandRequestV2 {
         account_id: String,
         txo_id: String,
         proof: String,
-    },*/
+    },
+    /*
+        get_transaction_object {
+            transaction_log_id: String,
+        },
+        get_txo_object {
+            txo_id: String,
+        },
+        get_block_object {
+            block_index: String,
+        },
+    */
 }

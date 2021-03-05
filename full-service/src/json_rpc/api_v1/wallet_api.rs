@@ -3,7 +3,7 @@
 //! The Wallet API for Full Service. Version 1.
 
 use crate::{
-    json_rpc::api_v1::decorated_types::{JsonBlock, JsonBlockContents, JsonProof},
+    json_rpc::api_v1::decorated_types::{JsonBlock, JsonBlockContents},
     service::WalletService,
 };
 use mc_common::logger::global_log;
@@ -23,23 +23,9 @@ fn format_error<T: std::fmt::Display + std::fmt::Debug>(e: T) -> String {
 #[serde(tag = "method", content = "params")]
 #[allow(non_camel_case_types)]
 pub enum JsonCommandRequestV1 {
-    get_transaction_object {
-        transaction_log_id: String,
-    },
-    get_txo_object {
-        txo_id: String,
-    },
-    get_block_object {
-        block_index: String,
-    },
-    get_proofs {
-        transaction_log_id: String,
-    },
-    verify_proof {
-        account_id: String,
-        txo_id: String,
-        proof: String,
-    },
+    get_transaction_object { transaction_log_id: String },
+    get_txo_object { txo_id: String },
+    get_block_object { block_index: String },
 }
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(tag = "method", content = "result")]
@@ -55,12 +41,6 @@ pub enum JsonCommandResponseV1 {
     get_block_object {
         block: JsonBlock,
         block_contents: JsonBlockContents,
-    },
-    get_proofs {
-        proofs: Vec<JsonProof>,
-    },
-    verify_proof {
-        verified: bool,
     },
 }
 
@@ -99,23 +79,6 @@ where
                 block,
                 block_contents,
             }
-        }
-        JsonCommandRequestV1::get_proofs { transaction_log_id } => {
-            JsonCommandResponseV1::get_proofs {
-                proofs: service
-                    .get_proofs(&transaction_log_id)
-                    .map_err(format_error)?,
-            }
-        }
-        JsonCommandRequestV1::verify_proof {
-            account_id,
-            txo_id,
-            proof,
-        } => {
-            let result = service
-                .verify_proof(&account_id, &txo_id, &proof)
-                .map_err(format_error)?;
-            JsonCommandResponseV1::verify_proof { verified: result }
         }
     };
     Ok(Json(result))

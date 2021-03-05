@@ -4,14 +4,13 @@
 
 use crate::{
     db::{
-        account::AccountID,
         models::{TransactionLog, Txo},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
         WalletDb,
     },
     error::WalletServiceError,
-    json_rpc::api_v1::decorated_types::{JsonBlock, JsonBlockContents, JsonProof},
+    json_rpc::api_v1::decorated_types::{JsonBlock, JsonBlockContents},
     service::sync::SyncThread,
 };
 use mc_common::logger::{log, Logger};
@@ -23,16 +22,8 @@ use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::PollingNetworkState;
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
-use mc_transaction_core::tx::{Tx, TxOut, TxOutConfirmationNumber};
+use mc_transaction_core::tx::{Tx, TxOut};
 use mc_util_uri::FogUri;
-
-use crate::{
-    db::txo::TxoID,
-    service::{
-        transaction_log::TransactionLogService,
-        txo::{TxoService, TxoServiceError},
-    },
-};
 use std::sync::{atomic::AtomicUsize, Arc, RwLock};
 
 /// Service for interacting with the wallet
@@ -148,45 +139,5 @@ impl<
             JsonBlock::new(&block),
             JsonBlockContents::new(&block_contents),
         ))
-    }
-
-    pub fn get_proofs(
-        &self,
-        transaction_log_id: &str,
-    ) -> Result<Vec<JsonProof>, WalletServiceError> {
-        let (_transaction_log, associated_txos) = self.get_transaction_log(&transaction_log_id)?;
-        let proofs: Vec<JsonProof> = associated_txos
-            .outputs
-            .iter()
-            .map(|txo_id| {
-                self.get_txo(&TxoID(txo_id.to_string())).and_then(|txo| {
-                    txo.txo
-                        .proof
-                        .map(|proof| JsonProof {
-                            object: "proof".to_string(),
-                            txo_id: txo_id.to_string(),
-                            proof: hex::encode(&proof),
-                        })
-                        .ok_or_else(|| TxoServiceError::MissingProof(txo_id.to_string()))
-                })
-            })
-            .collect::<Result<Vec<JsonProof>, TxoServiceError>>()?;
-        Ok(proofs)
-    }
-
-    pub fn verify_proof(
-        &self,
-        account_id_hex: &str,
-        txo_id_hex: &str,
-        proof_hex: &str,
-    ) -> Result<bool, WalletServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-        let proof: TxOutConfirmationNumber = mc_util_serial::decode(&hex::decode(proof_hex)?)?;
-        Ok(Txo::verify_proof(
-            &AccountID(account_id_hex.to_string()),
-            &txo_id_hex,
-            &proof,
-            &conn,
-        )?)
     }
 }

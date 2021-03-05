@@ -2291,14 +2291,10 @@ Txo Spent from One Account to Another in the Same Wallet
 
 | *Name* | *Type* | *Description*
 | :--- | :--- | :---
-| txo_id | string | Unique identifier for the Txo.
-| proof | string | A string with a proof that can be verified to confirm that another party constructed or had knowledge of the construction of the associated Txo.
-
-#### More attributes
-
-| *Name* | *Type* | *Description*
-| :--- | :--- | :---
 | object | string, value is "proof" | String representing the object's type. Objects of the same type share the same value.
+| txo_id | string | Unique identifier for the Txo.
+| txo_index | string | The index of the Txo in the ledger.
+| proof | string | A string with a proof that can be verified to confirm that another party constructed or had knowledge of the construction of the associated Txo.
 
 #### Example Object
 
@@ -2306,6 +2302,7 @@ Txo Spent from One Account to Another in the Same Wallet
 {
   "object": "proof",
   "txo_id": "873dfb8c...",
+  "txo_index": "1276",
   "proof": "984eacd..."
 }
 ```
