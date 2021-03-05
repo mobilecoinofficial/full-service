@@ -12,6 +12,7 @@ pub mod json_rpc_request;
 pub mod json_rpc_response;
 mod transaction_log;
 mod tx_proposal;
+mod txo;
 mod unspent_tx_out;
 pub mod wallet;
 mod wallet_status;

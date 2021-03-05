@@ -13,8 +13,8 @@ use crate::db::{
         TXO_STATUS_UNSPENT, TXO_TYPE_MINTED, TXO_TYPE_RECEIVED, TXO_USED_AS_CHANGE,
         TXO_USED_AS_OUTPUT,
     },
+    WalletDbError,
 };
-
 use mc_account_keys::{AccountKey, PublicAddress};
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::RistrettoPublic;
@@ -25,7 +25,6 @@ use mc_transaction_core::{
     tx::{TxOut, TxOutConfirmationNumber},
 };
 
-use crate::db::WalletDbError;
 use diesel::{
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},
@@ -35,7 +34,7 @@ use std::fmt;
 
 /// A unique ID derived from a TxOut in the ledger.
 #[derive(Debug)]
-pub struct TxoID(String);
+pub struct TxoID(pub String);
 
 impl From<&TxOut> for TxoID {
     fn from(src: &TxOut) -> TxoID {
@@ -55,7 +54,7 @@ pub struct TxoDetails {
     pub txo: Txo,
     pub received_to_account: Option<AccountTxoStatus>,
     pub received_to_assigned_subaddress: Option<AssignedSubaddress>,
-    pub secreted_from_account: Option<AccountTxoStatus>,
+    pub minted_from_account: Option<AccountTxoStatus>,
 }
 
 #[derive(Debug, Clone)]
@@ -136,7 +135,7 @@ pub trait TxoModel {
     ) -> Result<Vec<TxoDetails>, WalletDbError>;
 
     fn list_for_address(
-        assigned_subaddress_b58: String,
+        assigned_subaddress_b58: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<TxoDetails>, WalletDbError>;
 
@@ -226,7 +225,7 @@ impl TxoModel for Txo {
                 Ok(txo_details) => {
                     // If the Txo already exists for this or another account, update the status
                     // with respect to this account.
-                    if txo_details.secreted_from_account.is_some()
+                    if txo_details.minted_from_account.is_some()
                         || txo_details.received_to_account.is_some()
                     {
                         // Check if this txo/pairing already exists for this account.
@@ -579,7 +578,7 @@ impl TxoModel for Txo {
     }
 
     fn list_for_address(
-        assigned_subaddress_b58: String,
+        assigned_subaddress_b58: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<TxoDetails>, WalletDbError> {
         use crate::db::schema::{account_txo_statuses, txos};
@@ -681,13 +680,13 @@ impl TxoModel for Txo {
             txo: txo.clone(),
             received_to_account: None,
             received_to_assigned_subaddress: None,
-            secreted_from_account: None,
+            minted_from_account: None,
         };
 
         for account_txo_status in account_txo_statuses {
             match account_txo_status.txo_type.as_str() {
                 TXO_TYPE_MINTED => {
-                    txo_details.secreted_from_account = Some(account_txo_status.clone());
+                    txo_details.minted_from_account = Some(account_txo_status.clone());
                     // Note: Minted & Unspent/Pending/Spent means that this Txo was also
                     // received, and is either change, or a Txo that we sent to ourselves.
                     match account_txo_status.txo_status.as_str() {
@@ -1070,10 +1069,10 @@ mod tests {
             Some(mc_util_serial::encode(&for_alice_key_image))
         );
         assert_eq!(spent[0].txo.spent_block_index.clone().unwrap(), 13);
-        assert_eq!(spent[0].secreted_from_account, None);
+        assert_eq!(spent[0].minted_from_account, None);
         // The spent Txo was not secreted from any account in this wallet - it should be
         // received to the account in this wallet.
-        assert!(spent[0].secreted_from_account.clone().is_none(),);
+        assert!(spent[0].minted_from_account.clone().is_none(),);
         assert_eq!(
             spent[0].received_to_account.clone().unwrap().txo_type,
             TXO_TYPE_RECEIVED
@@ -1088,7 +1087,7 @@ mod tests {
         let orphaned: Vec<&TxoDetails> = txos
             .iter()
             .filter_map(|f| {
-                f.secreted_from_account.clone().map(|a| {
+                f.minted_from_account.clone().map(|a| {
                     if a.txo_status == TXO_STATUS_ORPHANED {
                         Some(f)
                     } else {
@@ -1101,7 +1100,7 @@ mod tests {
         assert_eq!(orphaned.len(), 1);
         assert!(orphaned[0].txo.key_image.is_none());
         assert_eq!(orphaned[0].txo.received_block_index.clone().unwrap(), 13);
-        assert!(orphaned[0].secreted_from_account.is_some());
+        assert!(orphaned[0].minted_from_account.is_some());
         assert!(orphaned[0].received_to_account.is_some());
 
         // Check that we have one unspent (change) - went from [Minted, Secreted] ->
@@ -1109,7 +1108,7 @@ mod tests {
         let unspent: Vec<&TxoDetails> = txos
             .iter()
             .filter_map(|f| {
-                f.secreted_from_account.clone().map(|a| {
+                f.minted_from_account.clone().map(|a| {
                     if a.txo_status == TXO_STATUS_UNSPENT {
                         Some(f)
                     } else {
@@ -1449,7 +1448,7 @@ mod tests {
         let minted_txo_details = Txo::get(&output_txo_id, &wallet_db.get_conn().unwrap()).unwrap();
         assert_eq!(minted_txo_details.txo.value, output_value);
         assert_eq!(
-            minted_txo_details.secreted_from_account.unwrap().txo_status,
+            minted_txo_details.minted_from_account.unwrap().txo_status,
             TXO_STATUS_SECRETED
         );
         assert!(minted_txo_details.received_to_assigned_subaddress.is_none());
@@ -1458,7 +1457,7 @@ mod tests {
         let change_txo_details = Txo::get(&change_txo_id, &wallet_db.get_conn().unwrap()).unwrap();
         assert_eq!(change_txo_details.txo.value, change_value);
         assert_eq!(
-            change_txo_details.secreted_from_account.unwrap().txo_status,
+            change_txo_details.minted_from_account.unwrap().txo_status,
             TXO_STATUS_SECRETED
         );
         assert!(change_txo_details.received_to_assigned_subaddress.is_none()); // Note: This gets updated on sync
