@@ -17,6 +17,7 @@ use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConne
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_mobilecoind::payments::TxProposal;
 
+use crate::service::address::{AddressService, AddressServiceError};
 use displaydoc::Display;
 use std::{convert::TryFrom, iter::empty, sync::atomic::Ordering};
 
@@ -54,6 +55,12 @@ pub enum TransactionServiceError {
 
     /// Connection Error
     Connection(retry::Error<mc_connection::Error>),
+
+    /// Invalid Public Address: {0}
+    InvalidPublicAddress(String),
+
+    /// Address Service Error: {0}
+    AddressService(AddressServiceError),
 }
 
 impl From<WalletDbError> for TransactionServiceError {
@@ -83,6 +90,12 @@ impl From<mc_api::ConversionError> for TransactionServiceError {
 impl From<retry::Error<mc_connection::Error>> for TransactionServiceError {
     fn from(e: retry::Error<mc_connection::Error>) -> Self {
         Self::Connection(e)
+    }
+}
+
+impl From<AddressServiceError> for TransactionServiceError {
+    fn from(e: AddressServiceError) -> Self {
+        Self::AddressService(e)
     }
 }
 
@@ -147,6 +160,11 @@ where
             self.fog_resolver_factory.clone(),
             self.logger.clone(),
         );
+        if !self.verify_address(recipient_public_address)? {
+            return Err(TransactionServiceError::InvalidPublicAddress(
+                recipient_public_address.to_string(),
+            ));
+        };
         let recipient = b58_decode(recipient_public_address)?;
         builder.add_recipient(recipient, value.parse::<u64>()?)?;
         if let Some(inputs) = input_txo_ids {
@@ -432,6 +450,52 @@ mod tests {
             .get_balance_for_account(&AccountID(bob.account_id_hex))
             .unwrap();
         assert_eq!(bob_balance.unspent, 33990000000000);
+    }
+
+    // Building a transaction for an invalid public address should fail.
+    #[test_with_logger]
+    fn test_invalid_public_address_fails(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+
+        // Create our main account for the wallet
+        let alice = service
+            .create_account(Some("Alice's Main Account".to_string()), None)
+            .unwrap();
+
+        // Add a block with a transaction for Alice
+        let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
+        let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![alice_public_address.clone()],
+            100 * MOB as u64,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        // Sleep to let the sync thread process the txo - FIXME poll instead of sleep
+        std::thread::sleep(Duration::from_secs(8));
+
+        match service.build_transaction(
+            &alice.account_id_hex,
+            "NOTB58",
+            (42 * MOB).to_string(),
+            None,
+            None,
+            None,
+            None,
+        ) {
+            Ok(_) => {
+                panic!("Should not be able to build transaction to invalid b58 public address")
+            }
+            Err(TransactionServiceError::InvalidPublicAddress(_)) => {}
+            Err(e) => panic!("Unexpected error {:?}", e),
+        };
     }
 
     // FIXME: Test with 0 change transactions

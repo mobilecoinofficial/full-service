@@ -145,6 +145,9 @@ pub enum JsonCommandRequestV2 {
     get_all_addresses_for_account {
         account_id: String,
     },
+    verify_address {
+        public_address: String,
+    },
     /*
     get_balance_for_subaddress {
         address: String,

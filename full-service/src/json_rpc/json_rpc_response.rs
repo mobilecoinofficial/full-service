@@ -210,6 +210,9 @@ pub enum JsonCommandResponseV2 {
         public_addresses: Vec<String>,
         address_map: Map<String, serde_json::Value>,
     },
+    verify_address {
+        verified: bool,
+    },
     /*
     get_balance_for_subaddress {
         balance: Balance,
