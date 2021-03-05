@@ -475,7 +475,7 @@ where
                     .get_proofs(&transaction_log_id)
                     .map_err(format_error)?
                     .iter()
-                    .map(|p| Proof::from(p))
+                    .map(Proof::from)
                     .collect(),
             }
         }
