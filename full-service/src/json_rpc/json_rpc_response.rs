@@ -213,12 +213,11 @@ pub enum JsonCommandResponseV2 {
     verify_address {
         verified: bool,
     },
-    /*
-    get_balance_for_subaddress {
+    get_balance_for_address {
         balance: Balance,
     },
-    get_txos_for_subaddress {
-
+    /*
+    get_all_txos_for_address {
     }
     get_all_txos_for_account {
         txo_ids: Vec<String>,
@@ -227,8 +226,6 @@ pub enum JsonCommandResponseV2 {
     get_txo {
         txo: JsonTxo,
     },
-
-
     get_transaction_object {
         transaction: JsonTx,
     },

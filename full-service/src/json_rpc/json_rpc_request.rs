@@ -146,19 +146,19 @@ pub enum JsonCommandRequestV2 {
         account_id: String,
     },
     verify_address {
-        public_address: String,
+        address: String,
+    },
+    get_balance_for_address {
+        address: String,
     },
     /*
-    get_balance_for_subaddress {
+    get_all_txos_for_address {
         address: String,
     },
     get_all_txos_for_account {
         account_id: String,
     },
-    get_all_txos_by_subadress {
-        address: String,
-    },
-    get_txo {
+        get_txo {
         txo_id: String,
     },
     get_transaction_object {

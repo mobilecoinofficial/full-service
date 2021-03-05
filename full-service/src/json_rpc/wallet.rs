@@ -222,13 +222,13 @@ where
         } => JsonCommandResponseV2::assign_address_for_account {
             address: Address::from(
                 &service
-                    .assign_address_for_account(&account_id, metadata.as_deref())
+                    .assign_address_for_account(&AccountID(account_id), metadata.as_deref())
                     .map_err(format_error)?,
             ),
         },
         JsonCommandRequestV2::get_all_addresses_for_account { account_id } => {
             let addresses = service
-                .get_all_addresses_for_account(&account_id)
+                .get_all_addresses_for_account(&AccountID(account_id))
                 .map_err(format_error)?;
             let address_map: Map<String, serde_json::Value> = Map::from_iter(
                 addresses
@@ -408,11 +408,16 @@ where
                 transaction_log_map,
             }
         }
-        JsonCommandRequestV2::verify_address { public_address } => {
-            JsonCommandResponseV2::verify_address {
-                verified: service
-                    .verify_address(&public_address)
-                    .map_err(format_error)?,
+        JsonCommandRequestV2::verify_address { address } => JsonCommandResponseV2::verify_address {
+            verified: service.verify_address(&address).map_err(format_error)?,
+        },
+        JsonCommandRequestV2::get_balance_for_address { address } => {
+            JsonCommandResponseV2::get_balance_for_address {
+                balance: Balance::from(
+                    &service
+                        .get_balance_for_address(&address)
+                        .map_err(format_error)?,
+                ),
             }
         }
     };

@@ -5,25 +5,73 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
+        account_txo_status::AccountTxoStatusModel,
+        assigned_subaddress::AssignedSubaddressModel,
         models::{
-            Account, Txo, TXO_STATUS_ORPHANED, TXO_STATUS_PENDING, TXO_STATUS_SECRETED,
-            TXO_STATUS_SPENT, TXO_STATUS_UNSPENT,
+            Account, AccountTxoStatus, AssignedSubaddress, Txo, TXO_STATUS_ORPHANED,
+            TXO_STATUS_PENDING, TXO_STATUS_SECRETED, TXO_STATUS_SPENT, TXO_STATUS_UNSPENT,
         },
         txo::TxoModel,
+        WalletDbError,
     },
-    error::WalletServiceError,
     service::WalletService,
 };
-use mc_common::HashMap;
-use mc_connection::{BlockchainConnection, UserTxConnection};
-use mc_fog_report_validation::FogPubkeyResolver;
-use mc_ledger_db::Ledger;
 
+use crate::service::ledger::{LedgerService, LedgerServiceError};
 use diesel::{
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},
     Connection,
 };
+use displaydoc::Display;
+use mc_common::HashMap;
+use mc_connection::{BlockchainConnection, UserTxConnection};
+use mc_fog_report_validation::FogPubkeyResolver;
+use mc_ledger_db::Ledger;
+
+/// Errors for the Address Service.
+#[derive(Display, Debug)]
+#[allow(clippy::large_enum_variant)]
+pub enum BalanceServiceError {
+    /// Error interacting with the database: {0}
+    Database(WalletDbError),
+
+    /// Diesel Error: {0}
+    Diesel(diesel::result::Error),
+
+    /// Error with LedgerDB: {0}
+    LedgerDB(mc_ledger_db::Error),
+
+    /// Error getting network block index: {0}
+    NetworkBlockIndex(LedgerServiceError),
+
+    /// Unexpected Account Txo Status: {0}
+    UnexpectedAccountTxoStatus(String),
+}
+
+impl From<WalletDbError> for BalanceServiceError {
+    fn from(src: WalletDbError) -> Self {
+        Self::Database(src)
+    }
+}
+
+impl From<diesel::result::Error> for BalanceServiceError {
+    fn from(src: diesel::result::Error) -> Self {
+        Self::Diesel(src)
+    }
+}
+
+impl From<mc_ledger_db::Error> for BalanceServiceError {
+    fn from(src: mc_ledger_db::Error) -> Self {
+        Self::LedgerDB(src)
+    }
+}
+
+impl From<LedgerServiceError> for BalanceServiceError {
+    fn from(src: LedgerServiceError) -> Self {
+        Self::NetworkBlockIndex(src)
+    }
+}
 
 /// The balance object returned by balance services.
 ///
@@ -69,18 +117,11 @@ pub trait BalanceService {
     fn get_balance_for_account(
         &self,
         account_id: &AccountID,
-    ) -> Result<Balance, WalletServiceError>;
+    ) -> Result<Balance, BalanceServiceError>;
 
-    /*
-    fn get_balance_for_address(
-        &self,
-        account_id: &AccountID,
-        b58_address: String,
-    ) -> Result<Balance, WalletServiceError>;
+    fn get_balance_for_address(&self, address: &str) -> Result<Balance, BalanceServiceError>;
 
-     */
-
-    fn get_wallet_status(&self) -> Result<WalletStatus, WalletServiceError>;
+    fn get_wallet_status(&self) -> Result<WalletStatus, BalanceServiceError>;
 }
 
 impl<T, FPR> BalanceService for WalletService<T, FPR>
@@ -91,7 +132,7 @@ where
     fn get_balance_for_account(
         &self,
         account_id: &AccountID,
-    ) -> Result<Balance, WalletServiceError> {
+    ) -> Result<Balance, BalanceServiceError> {
         let conn = self.wallet_db.get_conn()?;
         let account_id_hex = &account_id.to_string();
 
@@ -114,24 +155,15 @@ where
         })
     }
 
-    /*
-    fn get_balance_for_address(
-        &self,
-        account_id: &AccountID,
-        b58_address: String,
-    ) -> Result<Balance, WalletServiceError> {
-
-    }*/
-
-    // Wallet Status is an overview of the wallet's status
-    fn get_wallet_status(&self) -> Result<WalletStatus, WalletServiceError> {
+    fn get_balance_for_address(&self, address: &str) -> Result<Balance, BalanceServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
-        let network_block_index = self.get_network_block_index()?;
+        let network_block_index = self.get_network_block_index()? + 1;
+        let local_block_index = self.ledger_db.num_blocks()?;
 
-        Ok(conn.transaction::<WalletStatus, WalletServiceError, _>(|| {
-            let accounts = Account::list_all(&conn)?;
-            let mut account_map = HashMap::default();
+        Ok(conn.transaction::<Balance, BalanceServiceError, _>(|| {
+            let txos = Txo::list_for_address(address.to_string(), &conn)?;
+            let assigned_address = AssignedSubaddress::get(address, &conn)?;
 
             let mut unspent = 0;
             let mut pending = 0;
@@ -139,39 +171,92 @@ where
             let mut secreted = 0;
             let mut orphaned = 0;
 
-            let mut min_synced_block_index = network_block_index;
-            let mut account_ids = Vec::new();
-            for account in accounts {
-                let account_id = AccountID(account.account_id_hex.clone());
-                let balance = Self::get_balance_inner(&account_id.to_string(), &conn)?;
-                account_map.insert(account_id.clone(), account.clone());
-                unspent += balance.0;
-                pending += balance.1;
-                spent += balance.2;
-                secreted += balance.3;
-                orphaned += balance.4;
-
-                // account.next_block_index is an index in range [0..ledger_db.num_blocks()]
-                min_synced_block_index = std::cmp::min(
-                    min_synced_block_index,
-                    (account.next_block_index as u64).saturating_sub(1),
-                );
-                account_ids.push(account_id);
+            for txo in txos {
+                let status = AccountTxoStatus::get(
+                    &assigned_address.account_id_hex,
+                    &txo.txo.txo_id_hex,
+                    &conn,
+                )?;
+                match status.txo_status.as_str() {
+                    TXO_STATUS_UNSPENT => unspent += txo.txo.value,
+                    TXO_STATUS_PENDING => pending += txo.txo.value,
+                    TXO_STATUS_SPENT => spent += txo.txo.value,
+                    TXO_STATUS_SECRETED => secreted += txo.txo.value,
+                    TXO_STATUS_ORPHANED => orphaned += txo.txo.value,
+                    _ => {
+                        return Err(BalanceServiceError::UnexpectedAccountTxoStatus(
+                            status.txo_status,
+                        ))
+                    }
+                }
             }
 
-            Ok(WalletStatus {
+            let account = Account::get(&AccountID(assigned_address.account_id_hex), &conn)?;
+
+            Ok(Balance {
                 unspent: unspent as u64,
                 pending: pending as u64,
                 spent: spent as u64,
                 secreted: secreted as u64,
                 orphaned: orphaned as u64,
-                network_block_index: network_block_index + 1,
-                local_block_index: self.ledger_db.num_blocks()?,
-                min_synced_block_index: min_synced_block_index as u64,
-                account_ids,
-                account_map,
+                network_block_index,
+                local_block_index,
+                synced_blocks: account.next_block_index as u64,
             })
         })?)
+    }
+
+    // Wallet Status is an overview of the wallet's status
+    fn get_wallet_status(&self) -> Result<WalletStatus, BalanceServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+
+        let network_block_index = self.get_network_block_index()?;
+
+        Ok(
+            conn.transaction::<WalletStatus, BalanceServiceError, _>(|| {
+                let accounts = Account::list_all(&conn)?;
+                let mut account_map = HashMap::default();
+
+                let mut unspent = 0;
+                let mut pending = 0;
+                let mut spent = 0;
+                let mut secreted = 0;
+                let mut orphaned = 0;
+
+                let mut min_synced_block_index = network_block_index;
+                let mut account_ids = Vec::new();
+                for account in accounts {
+                    let account_id = AccountID(account.account_id_hex.clone());
+                    let balance = Self::get_balance_inner(&account_id.to_string(), &conn)?;
+                    account_map.insert(account_id.clone(), account.clone());
+                    unspent += balance.0;
+                    pending += balance.1;
+                    spent += balance.2;
+                    secreted += balance.3;
+                    orphaned += balance.4;
+
+                    // account.next_block_index is an index in range [0..ledger_db.num_blocks()]
+                    min_synced_block_index = std::cmp::min(
+                        min_synced_block_index,
+                        (account.next_block_index as u64).saturating_sub(1),
+                    );
+                    account_ids.push(account_id);
+                }
+
+                Ok(WalletStatus {
+                    unspent: unspent as u64,
+                    pending: pending as u64,
+                    spent: spent as u64,
+                    secreted: secreted as u64,
+                    orphaned: orphaned as u64,
+                    network_block_index: network_block_index + 1,
+                    local_block_index: self.ledger_db.num_blocks()?,
+                    min_synced_block_index: min_synced_block_index as u64,
+                    account_ids,
+                    account_map,
+                })
+            })?,
+        )
     }
 }
 
@@ -183,7 +268,7 @@ where
     fn get_balance_inner(
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<(u64, u64, u64, u64, u64), WalletServiceError> {
+    ) -> Result<(u64, u64, u64, u64, u64), BalanceServiceError> {
         let unspent = Txo::list_by_status(account_id_hex, TXO_STATUS_UNSPENT, &conn)?
             .iter()
             .map(|t| t.value as u128)
@@ -214,5 +299,106 @@ where
         );
 
         Ok(result)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        db::b58_encode,
+        service::{account::AccountService, address::AddressService},
+        test_utils::{get_test_ledger, manually_sync_account, setup_wallet_service, MOB},
+    };
+    use mc_account_keys::{AccountKey, PublicAddress, RootEntropy, RootIdentity};
+    use mc_common::logger::{test_with_logger, Logger};
+    use mc_util_from_random::FromRandom;
+    use rand::{rngs::StdRng, SeedableRng};
+
+    // The balance for an address should be accurate.
+    #[test_with_logger]
+    fn test_address_balance(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let entropy = RootEntropy::from_random(&mut rng);
+        let account_key = AccountKey::from(&RootIdentity::from(&entropy));
+
+        // Set up the ledger to be seeded with multiple subaddresses paid
+        let public_address0 = account_key.subaddress(0);
+        let public_address1 = account_key.subaddress(1);
+        let public_address2 = account_key.subaddress(2);
+        let public_address3 = account_key.subaddress(3);
+
+        let known_recipients: Vec<PublicAddress> = vec![
+            public_address0.clone(),
+            public_address1,
+            public_address2,
+            public_address3.clone(),
+        ];
+        let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+
+        let account = service
+            .import_account_entropy(hex::encode(&entropy.bytes), None, None)
+            .expect("Could not import account entropy");
+
+        let address = service
+            .assign_address_for_account(&AccountID(account.account_id_hex.clone()), None)
+            .expect("Could not assign address");
+        assert_eq!(address.subaddress_index, 2);
+
+        let _account = manually_sync_account(
+            &ledger_db,
+            &service.wallet_db,
+            &AccountID(account.account_id_hex.to_string()),
+            12,
+            &logger,
+        );
+
+        let account_balance = service
+            .get_balance_for_account(&AccountID(account.account_id_hex))
+            .expect("Could not get balance for account");
+
+        // 3 accounts * 5_000 MOB * 12 blocks
+        assert_eq!(account_balance.unspent, 180_000 * MOB as u64);
+        assert_eq!(account_balance.pending, 0);
+        assert_eq!(account_balance.spent, 0);
+        assert_eq!(account_balance.secreted, 0);
+        assert_eq!(account_balance.orphaned, 60_000 * MOB as u64); // Public address 3
+
+        let db_account_key: AccountKey =
+            mc_util_serial::decode(&account.account_key).expect("Could not decode account key");
+        let db_pub_address = db_account_key.subaddress(account.main_subaddress_index as u64);
+        assert_eq!(db_pub_address, public_address0);
+        let b58_pub_address = b58_encode(&db_pub_address).expect("Could not encode public address");
+        let address_balance = service
+            .get_balance_for_address(&b58_pub_address)
+            .expect("Could not get balance for address");
+
+        assert_eq!(address_balance.unspent, 60_000 * MOB as u64);
+        assert_eq!(address_balance.pending, 0);
+        assert_eq!(address_balance.spent, 0);
+        assert_eq!(address_balance.secreted, 0);
+        assert_eq!(address_balance.orphaned, 0);
+
+        let address_balance2 = service
+            .get_balance_for_address(&address.assigned_subaddress_b58)
+            .expect("Could not get balance for address");
+        assert_eq!(address_balance2.unspent, 60_000 * MOB as u64);
+        assert_eq!(address_balance2.pending, 0);
+        assert_eq!(address_balance2.spent, 0);
+        assert_eq!(address_balance2.secreted, 0);
+        assert_eq!(address_balance2.orphaned, 0);
+
+        // Even though subaddress 3 has funds, we are not watching it, so we should get
+        // an error.
+        let b58_pub_address3 =
+            b58_encode(&public_address3).expect("Could not encode public address");
+        match service.get_balance_for_address(&b58_pub_address3) {
+            Ok(_) => panic!("Should not get success getting balance for a non-assigned address"),
+            Err(BalanceServiceError::Database(WalletDbError::AssignedSubaddressNotFound(_))) => {}
+            Err(e) => panic!("Unexpected error {:?}", e),
+        }
     }
 }
