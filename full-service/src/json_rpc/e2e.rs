@@ -29,7 +29,6 @@ mod e2e {
         // Create Account
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "create_account",
             "params": {
@@ -52,7 +51,6 @@ mod e2e {
         // Read Accounts via Get All
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 2,
             "method": "get_all_accounts",
         });
@@ -72,7 +70,6 @@ mod e2e {
 
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 2,
             "method": "get_account",
             "params": {
@@ -89,7 +86,6 @@ mod e2e {
         // Update Account
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 2,
             "method": "update_account_name",
             "params": {
@@ -106,7 +102,6 @@ mod e2e {
 
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 2,
             "method": "get_account",
             "params": {
@@ -121,7 +116,6 @@ mod e2e {
         // Delete Account
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 2,
             "method": "delete_account",
             "params": {
@@ -134,7 +128,6 @@ mod e2e {
 
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 2,
             "method": "get_all_accounts",
         });
@@ -151,7 +144,6 @@ mod e2e {
 
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "import_account",
             "params": {
@@ -185,7 +177,6 @@ mod e2e {
 
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "import_account",
             "params": {
@@ -210,7 +201,6 @@ mod e2e {
         // Delete Account
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 2,
             "method": "delete_account",
             "params": {
@@ -224,7 +214,6 @@ mod e2e {
         // Import it again - should succeed.
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "import_account",
             "params": {
@@ -247,7 +236,6 @@ mod e2e {
 
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "create_account",
             "params": {
@@ -273,7 +261,6 @@ mod e2e {
 
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "create_account",
             "params": {
@@ -287,7 +274,6 @@ mod e2e {
 
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "export_account_secrets",
             "params": {
@@ -320,7 +306,6 @@ mod e2e {
         // Add an account
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "create_account",
             "params": {
@@ -347,7 +332,6 @@ mod e2e {
 
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "get_balance_for_account",
             "params": {
@@ -375,7 +359,6 @@ mod e2e {
 
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "create_account",
             "params": {
@@ -386,7 +369,6 @@ mod e2e {
 
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "get_wallet_status",
         });
@@ -425,7 +407,6 @@ mod e2e {
 
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "create_account",
             "params": {
@@ -452,7 +433,6 @@ mod e2e {
 
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "get_account_status",
             "params": {
@@ -482,7 +462,6 @@ mod e2e {
         // Add an account
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "create_account",
             "params": {
@@ -514,7 +493,6 @@ mod e2e {
         // Create a tx proposal to ourselves
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "build_transaction",
             "params": {
@@ -554,7 +532,6 @@ mod e2e {
         // Create a tx proposal to ourselves
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "build_transaction",
             "params": {
@@ -616,7 +593,6 @@ mod e2e {
         assert_eq!(ledger_db.num_blocks().unwrap(), 14);
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "get_balance_for_account",
             "params": {
@@ -636,7 +612,6 @@ mod e2e {
         // Submit the tx_proposal
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "submit_transaction",
             "params": {
@@ -672,7 +647,6 @@ mod e2e {
         // Get balance after submission
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "get_balance_for_account",
             "params": {
@@ -714,7 +688,6 @@ mod e2e {
         // Get the transaction_id and verify it contains what we expect
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "get_transaction_log",
             "params": {
@@ -769,7 +742,6 @@ mod e2e {
         // Get All Transaction Logs
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "get_all_transaction_logs_for_account",
             "params": {
@@ -832,7 +804,6 @@ mod e2e {
 
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "get_all_transaction_logs_ordered_by_block",
         });
@@ -856,7 +827,6 @@ mod e2e {
         // Add an account
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "create_account",
             "params": {
@@ -876,7 +846,6 @@ mod e2e {
         // Create a subaddress
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "assign_address_for_account",
             "params": {
@@ -908,7 +877,6 @@ mod e2e {
 
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "get_all_txos_for_account",
             "params": {
@@ -944,7 +912,6 @@ mod e2e {
         // Add an account
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "verify_address",
             "params": {
@@ -958,7 +925,6 @@ mod e2e {
         // Add an account
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "create_account",
             "params": {
@@ -971,7 +937,6 @@ mod e2e {
 
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "verify_address",
             "params": {
@@ -1128,7 +1093,6 @@ mod e2e {
         // Add an account
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "create_account",
             "params": {
@@ -1156,7 +1120,6 @@ mod e2e {
 
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "get_all_txos_for_account",
             "params": {
@@ -1194,7 +1157,6 @@ mod e2e {
         // Check the overall balance for the account
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "get_balance_for_account",
             "params": {

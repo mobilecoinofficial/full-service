@@ -2,17 +2,7 @@
 
 //! The Wallet Service for interacting with the wallet.
 
-use crate::{
-    db::{
-        models::{TransactionLog, Txo},
-        transaction_log::TransactionLogModel,
-        txo::TxoModel,
-        WalletDb,
-    },
-    error::WalletServiceError,
-    json_rpc::api_v1::decorated_types::{JsonBlock, JsonBlockContents},
-    service::sync::SyncThread,
-};
+use crate::{db::WalletDb, service::sync::SyncThread};
 use mc_common::logger::{log, Logger};
 use mc_connection::{
     BlockchainConnection, ConnectionManager as McConnectionManager, UserTxConnection,
@@ -100,44 +90,5 @@ impl<
             offline,
             logger,
         }
-    }
-
-    pub fn get_transaction_object(
-        &self,
-        transaction_id_hex: &str,
-    ) -> Result<JsonTx, WalletServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-        let transaction = TransactionLog::get(transaction_id_hex, &conn)?;
-
-        if let Some(tx_bytes) = transaction.tx {
-            let tx: Tx = mc_util_serial::decode(&tx_bytes)?;
-            // Convert to proto
-            let proto_tx = mc_api::external::Tx::from(&tx);
-            Ok(JsonTx::from(&proto_tx))
-        } else {
-            Err(WalletServiceError::NoTxInTransaction)
-        }
-    }
-
-    pub fn get_txo_object(&self, txo_id_hex: &str) -> Result<JsonTxOut, WalletServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-        let txo_details = Txo::get(txo_id_hex, &conn)?;
-
-        let txo: TxOut = mc_util_serial::decode(&txo_details.txo.txo)?;
-        // Convert to proto
-        let proto_txo = mc_api::external::TxOut::from(&txo);
-        Ok(JsonTxOut::from(&proto_txo))
-    }
-
-    pub fn get_block_object(
-        &self,
-        block_index: u64,
-    ) -> Result<(JsonBlock, JsonBlockContents), WalletServiceError> {
-        let block = self.ledger_db.get_block(block_index)?;
-        let block_contents = self.ledger_db.get_block_contents(block_index)?;
-        Ok((
-            JsonBlock::new(&block),
-            JsonBlockContents::new(&block_contents),
-        ))
     }
 }

@@ -2,7 +2,6 @@
 
 use crate::{
     json_rpc::{
-        api_v1::wallet_api::{wallet_api_inner_v1, JsonCommandRequestV1},
         json_rpc_request::{JsonCommandRequest, JsonCommandRequestV2},
         json_rpc_response::JsonCommandResponse,
         wallet::wallet_api_inner_v2,
@@ -52,38 +51,19 @@ pub fn test_wallet_api(
     command: Json<JsonCommandRequest>,
 ) -> Result<Json<JsonCommandResponse>, String> {
     let req: JsonCommandRequest = command.0.clone();
-    if let Some(version) = command.0.api_version.clone() {
-        wallet_api_inner_v2(
-            &state.service,
-            Json(JsonCommandRequestV2::try_from(&req).map_err(|e| e)?),
-        )
-        .and_then(|res| {
-            Ok(Json(JsonCommandResponse {
-                method: res.0.method,
-                result: res.0.result,
-                error: res.0.error,
-                jsonrpc: Some("2.0".to_string()),
-                id: command.0.id,
-                api_version: Some(version),
-            }))
-        })
-    } else {
-        wallet_api_inner_v1(
-            &state.service,
-            Json(JsonCommandRequestV1::try_from(&req).map_err(|e| e)?),
-        )
-        .and_then(|res| {
-            let json_response: serde_json::Value = serde_json::json!(res.0);
-            Ok(Json(JsonCommandResponse {
-                method: Some(json_response.get("method").unwrap().to_string()),
-                result: Some(json_response.get("result").unwrap().clone()),
-                error: None,
-                jsonrpc: None,
-                id: None,
-                api_version: None,
-            }))
-        })
-    }
+    wallet_api_inner_v2(
+        &state.service,
+        Json(JsonCommandRequestV2::try_from(&req).map_err(|e| e)?),
+    )
+    .and_then(|res| {
+        Ok(Json(JsonCommandResponse {
+            method: res.0.method,
+            result: res.0.result,
+            error: res.0.error,
+            jsonrpc: Some("2.0".to_string()),
+            id: command.0.id,
+        }))
+    })
 }
 
 pub fn test_rocket(rocket_config: rocket::Config, state: TestWalletState) -> rocket::Rocket {
@@ -192,7 +172,6 @@ pub fn wait_for_sync(
         // Check that syncing is working
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "method": "get_wallet_status",
         });
         let res = dispatch(&client, body, &logger);

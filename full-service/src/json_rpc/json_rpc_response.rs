@@ -5,10 +5,18 @@
 //! API v2
 
 use crate::json_rpc::{
-    account::Account, account_secrets::AccountSecrets, address::Address, balance::Balance,
-    proof::Proof, transaction_log::TransactionLog, tx_proposal::TxProposal, txo::Txo,
+    account::Account,
+    account_secrets::AccountSecrets,
+    address::Address,
+    balance::Balance,
+    block::{Block, BlockContents},
+    proof::Proof,
+    transaction_log::TransactionLog,
+    tx_proposal::TxProposal,
+    txo::Txo,
     wallet_status::WalletStatus,
 };
+use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use strum::AsStaticRef;
@@ -86,11 +94,6 @@ pub struct JsonCommandResponse {
 
     /// The id of the Request object to which this response corresponds.
     pub id: Option<u32>,
-
-    /// The Full Service Wallet API version.
-    ///
-    /// Optional: If omitted, assumes V1.
-    pub api_version: Option<String>,
 }
 
 /// A JSON RPC Error.
@@ -234,16 +237,14 @@ pub enum JsonCommandResponseV2 {
     verify_proof {
         verified: bool,
     },
-    /*
-        get_transaction_object {
-            transaction: JsonTx,
-        },
-        get_txo_object {
-            txo: JsonTxOut,
-        },
-        get_block_object {
-            block: JsonBlock,
-            block_contents: JsonBlockContents,
-        },
-    */
+    get_mc_protocol_transaction {
+        transaction: JsonTx,
+    },
+    get_mc_protocol_txo {
+        txo: JsonTxOut,
+    },
+    get_block {
+        block: Block,
+        block_contents: BlockContents,
+    },
 }

@@ -1,4 +1,4 @@
-# Full Service API v2
+# Full Service API
 
 The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with your MobileCoin transactions.
 
@@ -63,7 +63,6 @@ curl -s localhost:9090/wallet \
           "first_block_index": 3500,
         },
         "jsonrpc": "2.0",
-        "api_version": "2",
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
@@ -85,7 +84,6 @@ curl -s localhost:9090/wallet \
   "error": null,
   "jsonrpc": "2.0",
   "id": 1,
-  "api_version": "2"
   }
 }
 ```
@@ -109,7 +107,6 @@ curl -s localhost:9090/wallet \
           "first_block_index": 3500,
         },
         "jsonrpc": "2.0",
-        "api_version": "2",
         "id": 1
       }' \
    -X POST -H 'Content-type: application/json' | jq
@@ -131,7 +128,6 @@ curl -s localhost:9090/wallet \
   "error": null,
   "jsonrpc": "2.0",
   "id": 1,
-  "api_version": "2"
 }
 ```
 
@@ -167,7 +163,6 @@ curl -s localhost:9090/wallet \
   -d '{
         "method": "get_all_accounts",
         "jsonrpc": "2.0",
-        "api_version": "2",
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
@@ -203,7 +198,6 @@ curl -s localhost:9090/wallet \
   "error": null,
   "jsonrpc": "2.0",
   "id": 1,
-  "api_version": "2"
 }
 ```
 
@@ -217,7 +211,6 @@ curl -s localhost:9090/wallet \
           "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52"
         },
         "jsonrpc": "2.0",
-        "api_version": "2",
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json'  | jq
@@ -239,7 +232,6 @@ curl -s localhost:9090/wallet \
   "error": null,
   "jsonrpc": "2.0",
   "id": 1,
-  "api_version": "2"
 }
 ```
 
@@ -269,7 +261,6 @@ curl -s localhost:9090/wallet \
           "name": "Carol"
         },
         "jsonrpc": "2.0",
-        "api_version": "2",
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json'  | jq
@@ -291,7 +282,6 @@ curl -s localhost:9090/wallet \
   "error": null,
   "jsonrpc": "2.0",
   "id": 1,
-  "api_version": "2"
 }
 ```
 
@@ -310,7 +300,6 @@ curl -s localhost:9090/wallet \
           "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52"
         },
         "jsonrpc": "2.0",
-        "api_version": "2",
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
@@ -332,7 +321,6 @@ curl -s localhost:9090/wallet \
   "error": null,
   "jsonrpc": "2.0",
   "id": 1,
-  "api_version": "2"
 }
 ```
 
@@ -350,7 +338,6 @@ curl -s localhost:9090/wallet \
           "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52"
         },
         "jsonrpc": "2.0",
-        "api_version": "2",
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
@@ -377,7 +364,6 @@ curl -s localhost:9090/wallet \
   "error": null,
   "jsonrpc": "2.0",
   "id": 1,
-  "api_version": "2"
 }
 ```
 
@@ -393,7 +379,6 @@ curl -s localhost:9090/wallet \
           "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
         },
         "jsonrpc": "2.0",
-        "api_version": "2",
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json'  | jq
@@ -451,7 +436,7 @@ curl -s localhost:9090/wallet \
         "key_image": null,
         "minted_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
         "object": "txo",
-        "offset_count": 501
+        "offset_count": 501,
         "proof": "0a204488e153cce1e4bcdd4419eecb778f3d2d2b024b39aaa29532d2e47e238b2e31",
         "public_key": "0a20e6736474f73e440686736bfd045d838c2b3bc056ffc647ad6b1c990f5a46b123",
         "received_account_id": "36fdf8fbdaa35ad8e661209b8a7c7057f29bf16a1e399a34aa92c3873dfb853c",
@@ -460,7 +445,7 @@ curl -s localhost:9090/wallet \
         "subaddress_index": null,
         "target_key": "0a20762d8a723aae2aa70cc11c62c91af715f957a7455b695641fe8c94210812cf1b",
         "txo_id": "84f30233774d728bb7844bed59d471fe55ee3680ab70ddc312840db0f978f3ba",
-        "value_pmob": "200",
+        "value_pmob": "200"
       },
       "58c2c3780792ccf9c51014c7688a71f03732b633f8c5dfa49040fa7f51328280": {
         "account_status_map": {
@@ -529,7 +514,6 @@ curl -s localhost:9090/wallet \
           "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10"
         },
         "jsonrpc": "2.0",
-        "api_version": "2",
         "id": 1,
       }' \
   -X POST -H 'Content-type: application/json' \
@@ -546,7 +530,6 @@ curl -s localhost:9090/wallet \
           "txo_id": "fff4cae55a74e5ce852b79c31576f4041d510c26e59fec178b3e45705c5b35a7"
         },
         "jsonrpc": "2.0",
-        "api_version": "2",
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
@@ -595,7 +578,6 @@ curl -s localhost:9090/wallet \
   -d '{
         "method": "get_wallet_status",
         "jsonrpc": "2.0",
-        "api_version": "2",
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
@@ -642,7 +624,6 @@ curl -s localhost:9090/wallet \
   "error": null,
   "jsonrpc": "2.0",
   "id": 1,
-  "api_version": "2"
 }
 ```
 
@@ -656,7 +637,6 @@ curl -s localhost:9090/wallet \
            "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
         },
         "jsonrpc": "2.0",
-        "api_version": "2",
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
@@ -682,7 +662,6 @@ curl -s localhost:9090/wallet \
   "error": null,
   "jsonrpc": "2.0",
   "id": 1,
-  "api_version": "2"
 }
 ```
 
@@ -748,7 +727,6 @@ curl -s localhost:9090/wallet \
            "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
         },
         "jsonrpc": "2.0",
-        "api_version": "2",
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
@@ -782,7 +760,6 @@ curl -s localhost:9090/wallet \
   "error": null,
   "jsonrpc": "2.0",
   "id": 1,
-  "api_version": "2"
 }
 
 ```
@@ -800,7 +777,6 @@ curl -s localhost:9090/wallet \
           "metadata": "For transactions from Carol"
         },
         "jsonrpc": "2.0",
-        "api_version": "2",
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
@@ -822,7 +798,6 @@ curl -s localhost:9090/wallet \
   "error": null,
   "jsonrpc": "2.0",
   "id": 1,
-  "api_version": "2"
 }
 ```
 
@@ -844,7 +819,6 @@ curl -s localhost:9090/wallet \
           "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
         },
         "jsonrpc": "2.0",
-        "api_version": "2",
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
@@ -889,7 +863,6 @@ curl -s localhost:9090/wallet \
   "error": null,
   "jsonrpc": "2.0",
   "id": 1,
-  "api_version": "2"
 }
 ```
 
@@ -910,7 +883,6 @@ curl -s localhost:9090/wallet \
           "address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
         },
         "jsonrpc": "2.0",
-        "api_version": "2",
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
@@ -925,7 +897,6 @@ curl -s localhost:9090/wallet \
   "error": null,
   "jsonrpc": "2.0",
   "id": 1,
-  "api_version": "2"
 }
 ```
 
@@ -945,7 +916,6 @@ curl -s localhost:9090/wallet \
           "value": "42000000000000"
         },
         "jsonrpc": "2.0",
-        "api_version": "2",
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
@@ -986,8 +956,7 @@ curl -s localhost:9090/wallet \
   },
   "error": null,
   "jsonrpc": "2.0",
-  "id": 1,
-  "api_version": "2"
+  "id": 1
 }
 ```
 
@@ -1031,7 +1000,6 @@ curl -s localhost:9090/wallet \
           "value": "42000000000000"
         },
         "jsonrpc": "2.0",
-        "api_version": "2",
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
@@ -1248,7 +1216,6 @@ curl -s localhost:9090/wallet \
           "value": "42000000000000"
         },
         "jsonrpc": "2.0",
-        "api_version": "2",
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq -c '.result | .tx_proposal' > test-tx-proposal.json
@@ -1267,7 +1234,6 @@ curl -s localhost:9090/wallet \
           "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
         },
         "jsonrpc": "2.0",
-        "api_version": "2",
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json'
@@ -1309,7 +1275,6 @@ curl -s localhost:9090/wallet \
   "error": null,
   "jsonrpc": "2.0",
   "id": 1,
-  "api_version": "2"
 }
 ```
 
@@ -1323,7 +1288,6 @@ curl -s localhost:9090/wallet \
           "tx_proposal": '$(cat test-tx-proposal.json)'
         },
         "jsonrpc": "2.0",
-        "api_version": "2",
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json'
@@ -1335,8 +1299,7 @@ curl -s localhost:9090/wallet \
   },
   "error": null,
   "jsonrpc": "2.0",
-  "id": 1,
-  "api_version": "2"
+  "id": 1
 }
 ```
 
@@ -1359,7 +1322,6 @@ curl -s localhost:9090/wallet \
           "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10"
         },
         "jsonrpc": "2.0",
-        "api_version": "2",
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
@@ -1432,7 +1394,6 @@ curl -s localhost:9090/wallet \
   "error": null,
   "jsonrpc": "2.0",
   "id": 1,
-  "api_version": "2"
 }
 ```
 
@@ -1450,7 +1411,6 @@ curl -s localhost:9090/wallet \
           "transaction_log_id": "914e703b5b7bc44b61bb3657b4ee8a184d00e87a728e2fe6754a77a38598a800"
         },
         "jsonrpc": "2.0",
-        "api_version": "2",
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
@@ -1488,7 +1448,6 @@ curl -s localhost:9090/wallet \
   "error": null,
   "jsonrpc": "2.0",
   "id": 1,
-  "api_version": "2"
 }
 ```
 
@@ -1508,7 +1467,6 @@ curl -s localhost:9090/wallet \
           "block_index": "152951"
         },
         "jsonrpc": "2.0",
-        "api_version": "2",
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
@@ -1604,7 +1562,6 @@ curl -s localhost:9090/wallet \
   "error": null,
   "jsonrpc": "2.0",
   "id": 1,
-  "api_version": "2"
 }
 ```
 
@@ -1617,7 +1574,6 @@ curl -s localhost:9090/wallet \
   -d '{
         "method": "get_all_transaction_logs_ordered_by_block",
         "jsonrpc": "2.0",
-        "api_version": "2",
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
@@ -1708,7 +1664,6 @@ curl -s localhost:9090/wallet \
   "error": null,
   "jsonrpc": "2.0",
   "id": 1,
-  "api_version": "2"
 }
 
 ```
@@ -1729,7 +1684,6 @@ curl -s localhost:9090/wallet \
           "transaction_log_id": "0db5ac892ed796bb11e52d3842f83c05f4993f2f9d7da5fc9f40c8628c7859a4"
         },
         "jsonrpc": "2.0",
-        "api_version": "2",
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
@@ -1751,7 +1705,6 @@ curl -s localhost:9090/wallet \
   "error": null,
   "jsonrpc": "2.0",
   "id": 1,
-  "api_version": "2"
 }
 ```
 
@@ -1773,7 +1726,6 @@ curl -s localhost:9090/wallet \
           "proof": "0a2005ba1d9d871c7fb0d5ba7df17391a1e14aad1b4aa2319c997538f8e338a670bb"
         },
         "jsonrpc": "2.0",
-        "api_version": "2",
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
@@ -1788,7 +1740,6 @@ curl -s localhost:9090/wallet \
   "error": null,
   "jsonrpc": "2.0",
   "id": 1,
-  "api_version": "2"
 }
 ```
 
@@ -1814,7 +1765,6 @@ curl -s localhost:9090/wallet \
           "transaction_log_id": "4b4fd11738c03bf5179781aeb27d725002fb67d8a99992920d3654ac00ee1a2c",
         },
         "jsonrpc": "2.0",
-        "api_version": "2",
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
@@ -1841,7 +1791,6 @@ curl -s localhost:9090/wallet \
           "txo_id": "4b4fd11738c03bf5179781aeb27d725002fb67d8a99992920d3654ac00ee1a2c",
         },
         "jsonrpc": "2.0",
-        "api_version": "2",
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
@@ -1868,7 +1817,6 @@ curl -s localhost:9090/wallet \
           "block_index": "3204",
         },
         "jsonrpc": "2.0",
-        "api_version": "2",
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq

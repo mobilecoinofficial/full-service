@@ -83,7 +83,7 @@ MobileCoin Full Service is available under open-source licenses. Look for the [L
 
 ## Usage
 
-For usage and API specification, see [API_v2.md](./API_v2.md).
+For usage and API specification, see [API.md](API.md).
 
 ### Offline (Cold-Wallet) Transaction Flow
 
