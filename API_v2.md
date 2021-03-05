@@ -91,7 +91,7 @@ curl -s localhost:9090/wallet \
 | Optional Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
 | `name`         | Label for this account   | Can have duplicates (not recommended) |
-| `first_block`  | The block from which to start scanning the ledger |  |
+| `first_block_index`  | The block from which to start scanning the ledger |  |
 
 #### Import Account
 
@@ -140,7 +140,7 @@ curl -s localhost:9090/wallet \
 | Optional Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
 | `name`         | Label for this account   | Can have duplicates (not recommended) |
-| `first_block`  | The block from which to start scanning the ledger |  |
+| `first_block_index`  | The block from which to start scanning the ledger |  |
 
 ##### Troubleshooting
 
