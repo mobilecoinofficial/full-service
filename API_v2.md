@@ -17,8 +17,8 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 * [get_txo](#get-txo-details)
 * [get_wallet_status](#get-wallet-status)
 * [get_balance_for_account](#get-balance-for-a-given-account)
-* [create_address](#create-assigned-subaddress)
-* [get_all_addresses_for_account](#get-all-assigned-subaddresses-for-a-given-account)
+* [assign_address_for_account](#assign-address-for-account)
+* [get_all_addresses_for_account](#get-all-assigned-addresses-for-a-given-account)
 * [build_and_submit_transaction](#build-and-submit-transaction)
 * [build_transaction](#build-transaction)
 * [submit_transaction](#submit-transaction)
@@ -39,7 +39,7 @@ The methods above return data representations of wallet contents. The Full Servi
 * [account](#the-account-object)
 * [balance](#the-balance-object)
 * [wallet_status](#the-wallet-status-object)
-* [assigned_address](#the-assigned-address-object)
+* [address](#the-address-object)
 * [transaction_log](#the-transaction-log-object)
 * [txo](#the-txo-object)
 * [proof](#the-proof-object)
@@ -741,15 +741,15 @@ curl -s localhost:9090/wallet \
 
 ### Addresses
 
-#### Create Assigned Subaddress
+#### Assign Address for Account
 
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "create_address",
+        "method": "assign_address_for_account",
         "params": {
           "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
-          "comment": "For transactions from Carol"
+          "metadata": "For transactions from Carol"
         },
         "jsonrpc": "2.0",
         "api_version": "2",
@@ -760,19 +760,21 @@ curl -s localhost:9090/wallet \
 
 ```json
 {
-  "method": "create_address",
+  "method": "assign_address_for_account",
   "result": {
     "address": {
       "object": "address",
-      "address_id": "3",
-      "public_address": "3zjsgFjqCjptUD7FYY7bj4qanJWnZjdbVodBkGcBBwx7W4P9GissUvCLx4F4QhVde33Bt75fshEG5A5KRsVCNxhHkHbeS22SXiPDHssmWvL",
-      "account_id": "15893926fd0eaf0055f73fe1246d369db6a55943e77ebf24c955768792050185",
-      "address_book_entry_id": null,
-      "comment": "For transactions from Frank",
+      "public_address": "3P4GtGkp5UVBXUzBqirgj7QFetWn4PsFPsHBXbC6A8AXw1a9CMej969jneiN1qKcwdn6e1VtD64EruGVSFQ8wHk5xuBHndpV9WUGQ78vV7Z",
+      "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
+      "metadata": "",
       "subaddress_index": "2",
-      "offset_count": 0
+      "offset_count": "7"
     }
-  }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+  "api_version": "2"
 }
 ```
 
@@ -782,9 +784,9 @@ curl -s localhost:9090/wallet \
 
 | Optional Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
-| `comment`      | Annotation for this subaddress |  |
+| `metadata`     | Metadata for this address | String; can contain stringified json  |
 
-#### Get All Assigned Subaddresses for a Given Account
+#### Get All Assigned Addresses for a Given Account
 
 ```sh
 curl -s localhost:9090/wallet \
@@ -804,44 +806,42 @@ curl -s localhost:9090/wallet \
 {
   "method": "get_all_addresses_for_account",
   "result": {
-    "address_ids": [
-      "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
-      "2pW3CcHUmg4cafp9ePCpPg72mowC6NJZ1iHQxpkiAuPJuWDVUC9WEGRxychqFmKXx68VqerFKiHeEATwM5hZcf9SKC9Cub2GyMsztSqYdjY",
-      "8tV9dCdbvmB6mNZyWvz75xdYte38D5qzx2aWv5z85yM7d74NdwbmB7RiFtxHMVknVPfBwYhaPu6M8GuvypPuXk627nW6WzWHMAy2dQJjHGV"
+    "public_addresses": [
+      "4bgkVAH1hs55dwLTGVpZER8ZayhqXbYqfuyisoRrmQPXoWcYQ3SQRTjsAytCiAgk21CRrVNysVw5qwzweURzDK9HL3rGXFmAAahb364kYe3",
+      "6prEWE8yEmHAznkZ3QUtHRmVf7q8DS6XpkjzecYCGMj7hVh8fivmCcujamLtugsvvmWE9P2WgTb2o7xGHw8FhiBr1hSrku1u9KKfRJFMenG",
+      "3P4GtGkp5UVBXUzBqirgj7QFetWn4PsFPsHBXbC6A8AXw1a9CMej969jneiN1qKcwdn6e1VtD64EruGVSFQ8wHk5xuBHndpV9WUGQ78vV7Z"
     ],
     "address_map": {
-      "2pW3CcHUmg4cafp9ePCpPg72mowC6NJZ1iHQxpkiAuPJuWDVUC9WEGRxychqFmKXx68VqerFKiHeEATwM5hZcf9SKC9Cub2GyMsztSqYdjY": {
-        "account_id": "4e09258a93c1b0cb4acafe42bdfe7868bc428755afeccdc841f15eb7016a74f6",
-        "address_book_entry_id": null,
-        "address_id": "2pW3CcHUmg4cafp9ePCpPg72mowC6NJZ1iHQxpkiAuPJuWDVUC9WEGRxychqFmKXx68VqerFKiHeEATwM5hZcf9SKC9Cub2GyMsztSqYdjY",
-        "comment": "Change",
-        "object": "assigned_address",
-        "offset_count": 10,
-        "public_address": "2pW3CcHUmg4cafp9ePCpPg72mowC6NJZ1iHQxpkiAuPJuWDVUC9WEGRxychqFmKXx68VqerFKiHeEATwM5hZcf9SKC9Cub2GyMsztSqYdjY",
-        "subaddress_index": "1"
+      "4bgkVAH1hs55dwLTGVpZER8ZayhqXbYqfuyisoRrmQPXoWcYQ3SQRTjsAytCiAgk21CRrVNysVw5qwzweURzDK9HL3rGXFmAAahb364kYe3": {
+        "object": "address",
+        "public_address": "4bgkVAH1hs55dwLTGVpZER8ZayhqXbYqfuyisoRrmQPXoWcYQ3SQRTjsAytCiAgk21CRrVNysVw5qwzweURzDK9HL3rGXFmAAahb364kYe3",
+        "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
+        "metadata": "Main",
+        "subaddress_index": "0",
+        "offset_count": "5"
       },
-      "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav": {
-        "account_id": "4e09258a93c1b0cb4acafe42bdfe7868bc428755afeccdc841f15eb7016a74f6",
-        "address_book_entry_id": null,
-        "address_id": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
-        "comment": "Main",
-        "object": "assigned_address",
-        "offset_count": 9,
-        "public_address": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
-        "subaddress_index": "0"
+      "6prEWE8yEmHAznkZ3QUtHRmVf7q8DS6XpkjzecYCGMj7hVh8fivmCcujamLtugsvvmWE9P2WgTb2o7xGHw8FhiBr1hSrku1u9KKfRJFMenG": {
+        "object": "address",
+        "public_address": "6prEWE8yEmHAznkZ3QUtHRmVf7q8DS6XpkjzecYCGMj7hVh8fivmCcujamLtugsvvmWE9P2WgTb2o7xGHw8FhiBr1hSrku1u9KKfRJFMenG",
+        "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
+        "metadata": "Change",
+        "subaddress_index": "1",
+        "offset_count": "6"
       },
-      "8tV9dCdbvmB6mNZyWvz75xdYte38D5qzx2aWv5z85yM7d74NdwbmB7RiFtxHMVknVPfBwYhaPu6M8GuvypPuXk627nW6WzWHMAy2dQJjHGV": {
-        "account_id": "4e09258a93c1b0cb4acafe42bdfe7868bc428755afeccdc841f15eb7016a74f6",
-        "address_book_entry_id": null,
-        "address_id": "8tV9dCdbvmB6mNZyWvz75xdYte38D5qzx2aWv5z85yM7d74NdwbmB7RiFtxHMVknVPfBwYhaPu6M8GuvypPuXk627nW6WzWHMAy2dQJjHGV",
-        "comment": "For transactions from Frank",
-        "object": "assigned_address",
-        "offset_count": 11,
-        "public_address": "8tV9dCdbvmB6mNZyWvz75xdYte38D5qzx2aWv5z85yM7d74NdwbmB7RiFtxHMVknVPfBwYhaPu6M8GuvypPuXk627nW6WzWHMAy2dQJjHGV",
-        "subaddress_index": "2"
+      "3P4GtGkp5UVBXUzBqirgj7QFetWn4PsFPsHBXbC6A8AXw1a9CMej969jneiN1qKcwdn6e1VtD64EruGVSFQ8wHk5xuBHndpV9WUGQ78vV7Z": {
+        "object": "address",
+        "public_address": "3P4GtGkp5UVBXUzBqirgj7QFetWn4PsFPsHBXbC6A8AXw1a9CMej969jneiN1qKcwdn6e1VtD64EruGVSFQ8wHk5xuBHndpV9WUGQ78vV7Z",
+        "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
+        "metadata": "",
+        "subaddress_index": "2",
+        "offset_count": "7"
       }
     }
-  }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+  "api_version": "2"
 }
 ```
 
@@ -1740,7 +1740,7 @@ curl -s localhost:9090/wallet \
 }
 ```
 
-##### Get Tx0 Object
+##### Get Txo Object
 
 Get the JSON representation of the "Txo" object in the ledger.
 
@@ -1943,23 +1943,16 @@ The balance for an account, as well as some information about syncing status nee
 
 * [get_wallet_status](#get-wallet-status)
 
-### The Assigned Address Object
+### The Address Object
 
 #### Attributes
 
 | *Name* | *Type* | *Description*
 | :--- | :--- | :---
-| address_id | string | Unique identifier for the address.
-| account_id | string | Unique identifier for the assigned associated account.
+| object | string, value is "address" | String representing the object's type. Objects of the same type share the same value.
 | public_address | string | Shareable B58 encoded string that represents this address.
-| address_book_entry_id | serialized id | The id for an Address Book Entry object if associated to the address.
-| comment | string | An arbitrary string attached to the object.
-
-#### More Attributes
-
-| *Name* | *Type* | *Description*
-| :--- | :--- | :---
-| object | string, value is "assigned_address" | String representing the object's type. Objects of the same type share the same value.
+| account_id | string | Unique identifier for the assigned associated account.
+| metadata | string | An arbitrary string attached to the object.
 | subaddress_index | string (uint64) | The assigned subaddress index on the associated account.
 | offset_count | int | The value to offset pagination requests for assigned_address list. Requests will exclude all list items up to and including this object.
 
@@ -1967,21 +1960,19 @@ The balance for an account, as well as some information about syncing status nee
 
 ```json
 {
-  "object": "assigned_address",
-  "address_id": "HpaL8g88...",
-  "account_id": "1916a9b3...",
-  "public_address": "HpaL8g88...",
-  "address_book_entry_id": 36,
-  "comment": "This is an assigned addresses that expects 1.5 MOB",
-  "subaddress_index": "20",
-  "offset_count": 21
+  "object": "address",
+  "public_address": "3P4GtGkp5UVBXUzBqirgj7QFetWn4PsFPsHBXbC6A8AXw1a9CMej969jneiN1qKcwdn6e1VtD64EruGVSFQ8wHk5xuBHndpV9WUGQ78vV7Z",
+  "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
+  "metadata": "",
+  "subaddress_index": "2",
+  "offset_count": "7"
 }
 ```
 
 #### API Methods Returning Assigned Address Objects
 
-* [create_address](#create-assigned-subaddress)
-* [get_all_addresses](#get-all-assigned-subaddresses-for-a-given-account)
+* [assign_address_for_account](#assign-address-for-account)
+* [get_all_addresses_for_account](#get-all-assigned-addresses-for-a-given-account)
 
 ### The Transaction Log Object
 

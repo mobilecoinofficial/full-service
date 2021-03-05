@@ -5,16 +5,13 @@
 use crate::{
     db::{
         account::AccountID,
-        assigned_subaddress::AssignedSubaddressModel,
-        models::{AssignedSubaddress, TransactionLog, Txo},
+        models::{TransactionLog, Txo},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
         WalletDb,
     },
     error::WalletServiceError,
-    json_rpc::api_v1::decorated_types::{
-        JsonAddress, JsonBlock, JsonBlockContents, JsonProof, JsonTxo,
-    },
+    json_rpc::api_v1::decorated_types::{JsonBlock, JsonBlockContents, JsonProof, JsonTxo},
     service::sync::SyncThread,
 };
 use mc_common::logger::{log, Logger};
@@ -30,7 +27,6 @@ use mc_transaction_core::tx::{Tx, TxOut, TxOutConfirmationNumber};
 use mc_util_uri::FogUri;
 
 use crate::service::transaction_log::TransactionLogService;
-use diesel::prelude::*;
 use std::sync::{atomic::AtomicUsize, Arc, RwLock};
 
 /// Service for interacting with the wallet
@@ -126,41 +122,6 @@ impl<
 
         let txo_details = Txo::get(txo_id_hex, &conn)?;
         Ok(JsonTxo::new(&txo_details))
-    }
-
-    pub fn create_assigned_subaddress(
-        &self,
-        account_id_hex: &str,
-        comment: Option<&str>,
-        // FIXME: WS-32 - add "sync from block"
-    ) -> Result<JsonAddress, WalletServiceError> {
-        let conn = &self.wallet_db.get_conn()?;
-
-        Ok(conn.transaction::<JsonAddress, WalletServiceError, _>(|| {
-            let (public_address_b58, _subaddress_index) =
-                AssignedSubaddress::create_next_for_account(
-                    account_id_hex,
-                    comment.unwrap_or(""),
-                    &conn,
-                )?;
-
-            Ok(JsonAddress::new(&AssignedSubaddress::get(
-                &public_address_b58,
-                &conn,
-            )?))
-        })?)
-    }
-
-    pub fn list_assigned_subaddresses(
-        &self,
-        account_id_hex: &str,
-    ) -> Result<Vec<JsonAddress>, WalletServiceError> {
-        Ok(
-            AssignedSubaddress::list_all(account_id_hex, &self.wallet_db.get_conn()?)?
-                .iter()
-                .map(|a| JsonAddress::new(a))
-                .collect::<Vec<JsonAddress>>(),
-        )
     }
 
     pub fn get_transaction_object(

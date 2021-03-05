@@ -5,7 +5,7 @@
 //! API v2
 
 use crate::json_rpc::{
-    account::Account, account_secrets::AccountSecrets, balance::Balance,
+    account::Account, account_secrets::AccountSecrets, address::Address, balance::Balance,
     transaction_log::TransactionLog, tx_proposal::TxProposal, wallet_status::WalletStatus,
 };
 use serde::{Deserialize, Serialize};
@@ -203,6 +203,13 @@ pub enum JsonCommandResponseV2 {
         account: Account,
         balance: Balance,
     },
+    assign_address_for_account {
+        address: Address,
+    },
+    get_all_addresses_for_account {
+        public_addresses: Vec<String>,
+        address_map: Map<String, serde_json::Value>,
+    },
     /*
     get_balance_for_subaddress {
         balance: Balance,
@@ -218,13 +225,7 @@ pub enum JsonCommandResponseV2 {
         txo: JsonTxo,
     },
 
-    create_address {
-        address: JsonAddress,
-    },
-    get_all_addresses_for_account {
-        address_ids: Vec<String>,
-        address_map: Map<String, serde_json::Value>,
-    },
+
     get_transaction_object {
         transaction: JsonTx,
     },

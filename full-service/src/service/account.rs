@@ -19,13 +19,6 @@ use mc_util_from_random::FromRandom;
 
 use diesel::Connection;
 
-/*
-use displaydoc::Display;
-/// Errors for the Account Service.
-#[derive(Display, Debug)]
-pub enum AccountServiceError {}
-*/
-
 /// Trait defining the ways in which the wallet can interact with and manage
 /// accounts.
 pub trait AccountService {
