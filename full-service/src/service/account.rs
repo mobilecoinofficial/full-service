@@ -17,7 +17,6 @@ use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_util_from_random::FromRandom;
 
-use crate::service::ledger::LedgerService;
 use diesel::Connection;
 
 /// Trait defining the ways in which the wallet can interact with and manage

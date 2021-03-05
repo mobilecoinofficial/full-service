@@ -9,10 +9,8 @@ use mc_connection::{
 };
 use mc_crypto_rand::rand_core::RngCore;
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_ledger_db::{Ledger, LedgerDB};
+use mc_ledger_db::LedgerDB;
 use mc_ledger_sync::PollingNetworkState;
-use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
-use mc_transaction_core::tx::{Tx, TxOut};
 use mc_util_uri::FogUri;
 use std::sync::{atomic::AtomicUsize, Arc, RwLock};
 
