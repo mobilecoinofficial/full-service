@@ -14,10 +14,12 @@ use crate::{
         txo::TxoModel,
         WalletDbError,
     },
-    service::WalletService,
+    service::{
+        ledger::{LedgerService, LedgerServiceError},
+        WalletService,
+    },
 };
 
-use crate::service::ledger::{LedgerService, LedgerServiceError};
 use diesel::{
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},

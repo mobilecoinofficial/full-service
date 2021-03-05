@@ -27,10 +27,6 @@ pub enum WalletServiceError {
     /// Error with LedgerDB: {0}
     LedgerDB(mc_ledger_db::Error),
 
-    /// No transaction object associated with this transaction. Note, received
-    /// transactions do not have transaction objects.
-    NoTxInTransaction,
-
     /// Error decoding prost: {0}
     ProstDecode(prost::DecodeError),
 

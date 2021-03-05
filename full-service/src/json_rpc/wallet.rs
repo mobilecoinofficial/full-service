@@ -9,8 +9,8 @@ use crate::{
     json_rpc::{
         account_secrets::AccountSecrets,
         address::Address,
-        api_v1::wallet_api::{wallet_api_inner_v1, JsonCommandRequestV1},
         balance::Balance,
+        block::{Block, BlockContents},
         json_rpc_request::{help_str_v2, JsonCommandRequest, JsonCommandRequestV2},
         json_rpc_response::{
             format_error, JsonCommandResponse, JsonCommandResponseV2, JsonRPCResponse,
@@ -21,7 +21,7 @@ use crate::{
     },
     service::{
         account::AccountService, address::AddressService, balance::BalanceService,
-        proof::ProofService, transaction::TransactionService,
+        ledger::LedgerService, proof::ProofService, transaction::TransactionService,
         transaction_log::TransactionLogService, txo::TxoService, WalletService,
     },
 };
@@ -30,6 +30,7 @@ use mc_connection::{
     BlockchainConnection, HardcodedCredentialsProvider, ThickClient, UserTxConnection,
 };
 use mc_fog_report_validation::{FogPubkeyResolver, FogResolver};
+use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use rocket::{get, post, routes};
 use rocket_contrib::json::Json;
 use serde_json::Map;
@@ -51,39 +52,19 @@ fn wallet_api(
     command: Json<JsonCommandRequest>,
 ) -> Result<Json<JsonCommandResponse>, String> {
     let req: JsonCommandRequest = command.0.clone();
-
-    if let Some(version) = command.0.api_version.clone() {
-        wallet_api_inner_v2(
-            &state.service,
-            Json(JsonCommandRequestV2::try_from(&req).map_err(|e| e)?),
-        )
-        .map(|res| {
-            Json(JsonCommandResponse {
-                method: res.0.method,
-                result: res.0.result,
-                error: res.0.error,
-                jsonrpc: Some("2.0".to_string()),
-                id: command.0.id,
-                api_version: Some(version),
-            })
+    wallet_api_inner_v2(
+        &state.service,
+        Json(JsonCommandRequestV2::try_from(&req).map_err(|e| e)?),
+    )
+    .map(|res| {
+        Json(JsonCommandResponse {
+            method: res.0.method,
+            result: res.0.result,
+            error: res.0.error,
+            jsonrpc: Some("2.0".to_string()),
+            id: command.0.id,
         })
-    } else {
-        wallet_api_inner_v1(
-            &state.service,
-            Json(JsonCommandRequestV1::try_from(&req).map_err(|e| e)?),
-        )
-        .map(|res| {
-            let json_response: serde_json::Value = serde_json::json!(res.0);
-            Json(JsonCommandResponse {
-                method: Some(json_response.get("method").unwrap().to_string()),
-                result: Some(json_response.get("result").unwrap().clone()),
-                error: None,
-                jsonrpc: None,
-                id: None,
-                api_version: None,
-            })
-        })
-    }
+    })
 }
 
 /// The Wallet API inner method, which handles switching on the method enum.
@@ -488,6 +469,31 @@ where
                 .verify_proof(&AccountID(account_id), &TxoID(txo_id), &proof)
                 .map_err(format_error)?;
             JsonCommandResponseV2::verify_proof { verified: result }
+        }
+        JsonCommandRequestV2::get_mc_protocol_transaction { transaction_log_id } => {
+            let tx = service
+                .get_transaction_object(&transaction_log_id)
+                .map_err(format_error)?;
+            let proto_tx = mc_api::external::Tx::from(&tx);
+            let json_tx = JsonTx::from(&proto_tx);
+            JsonCommandResponseV2::get_mc_protocol_transaction {
+                transaction: json_tx,
+            }
+        }
+        JsonCommandRequestV2::get_mc_protocol_txo { txo_id } => {
+            let tx_out = service.get_txo_object(&txo_id).map_err(format_error)?;
+            let proto_txo = mc_api::external::TxOut::from(&tx_out);
+            let json_txo = JsonTxOut::from(&proto_txo);
+            JsonCommandResponseV2::get_mc_protocol_txo { txo: json_txo }
+        }
+        JsonCommandRequestV2::get_block { block_index } => {
+            let (block, block_contents) = service
+                .get_block_object(block_index.parse::<u64>().map_err(format_error)?)
+                .map_err(format_error)?;
+            JsonCommandResponseV2::get_block {
+                block: Block::new(&block),
+                block_contents: BlockContents::new(&block_contents),
+            }
         }
     };
     let response = Json(JsonRPCResponse::from(result));

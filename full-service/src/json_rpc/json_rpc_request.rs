@@ -4,7 +4,7 @@
 //!
 //! API v2
 
-use crate::json_rpc::{api_v1::wallet_api::JsonCommandRequestV1, tx_proposal::TxProposal};
+use crate::json_rpc::tx_proposal::TxProposal;
 
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -44,20 +44,6 @@ pub struct JsonCommandRequest {
     /// Optional because a "notify" method does not need to correlate an ID on
     /// the response.
     pub id: Option<u32>,
-
-    /// The Full Service Wallet API version.
-    ///
-    /// Optional: If omitted, assumes V1.
-    pub api_version: Option<String>,
-}
-
-impl TryFrom<&JsonCommandRequest> for JsonCommandRequestV1 {
-    type Error = String;
-
-    fn try_from(src: &JsonCommandRequest) -> Result<JsonCommandRequestV1, String> {
-        let src_json: serde_json::Value = serde_json::json!(src);
-        Ok(serde_json::from_value(src_json).map_err(|e| format!("Could not get value {:?}", e))?)
-    }
 }
 
 impl TryFrom<&JsonCommandRequest> for JsonCommandRequestV2 {
@@ -168,15 +154,13 @@ pub enum JsonCommandRequestV2 {
         txo_id: String,
         proof: String,
     },
-    /*
-        get_transaction_object {
-            transaction_log_id: String,
-        },
-        get_txo_object {
-            txo_id: String,
-        },
-        get_block_object {
-            block_index: String,
-        },
-    */
+    get_mc_protocol_transaction {
+        transaction_log_id: String,
+    },
+    get_mc_protocol_txo {
+        txo_id: String,
+    },
+    get_block {
+        block_index: String,
+    },
 }
