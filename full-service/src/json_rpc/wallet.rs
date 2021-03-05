@@ -408,11 +408,16 @@ where
                 transaction_log_map,
             }
         }
-        JsonCommandRequestV2::verify_address { public_address } => {
-            JsonCommandResponseV2::verify_address {
-                verified: service
-                    .verify_address(&public_address)
-                    .map_err(format_error)?,
+        JsonCommandRequestV2::verify_address { address } => JsonCommandResponseV2::verify_address {
+            verified: service.verify_address(&address).map_err(format_error)?,
+        },
+        JsonCommandRequestV2::get_balance_for_address { address } => {
+            JsonCommandResponseV2::get_balance_for_address {
+                balance: Balance::from(
+                    service
+                        .get_balance_for_address(&address)
+                        .map_err(format_error)?,
+                ),
             }
         }
     };

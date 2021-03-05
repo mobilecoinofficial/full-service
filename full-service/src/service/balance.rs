@@ -19,6 +19,11 @@ use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 
+use crate::db::{
+    account_txo_status::AccountTxoStatusModel,
+    assigned_subaddress::AssignedSubaddressModel,
+    models::{AccountTxoStatus, AssignedSubaddress},
+};
 use diesel::{
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},
@@ -71,14 +76,7 @@ pub trait BalanceService {
         account_id: &AccountID,
     ) -> Result<Balance, WalletServiceError>;
 
-    /*
-    fn get_balance_for_address(
-        &self,
-        account_id: &AccountID,
-        b58_address: String,
-    ) -> Result<Balance, WalletServiceError>;
-
-     */
+    fn get_balance_for_address(&self, address: String) -> Result<Balance, WalletServiceError>;
 
     fn get_wallet_status(&self) -> Result<WalletStatus, WalletServiceError>;
 }
@@ -114,14 +112,47 @@ where
         })
     }
 
-    /*
-    fn get_balance_for_address(
-        &self,
-        account_id: &AccountID,
-        b58_address: String,
-    ) -> Result<Balance, WalletServiceError> {
+    fn get_balance_for_address(&self, address: &str) -> Result<Balance, WalletServiceError> {
+        let conn = self.wallet_db.get_conn()?;
 
-    }*/
+        let network_block_index = self.get_network_block_index()? + 1;
+        let local_block_index = self.ledger_db.num_blocks()?;
+        let account = Account::get(account_id, &conn)?;
+
+        Ok(conn.transaction::<Balance, WalletServiceError, _>(|| {
+            let txos = Txo::list_for_address(address.to_string(), &conn)?;
+            let account_id = AssignedSubaddress::get(address, &conn);
+
+            let mut unspent: u64 = 0;
+            let mut pending: u64 = 0;
+            let mut spent: u64 = 0;
+            let mut secreted: u64 = 0;
+            let mut orphaned: u64 = 0;
+
+            for txo in txos {
+                let status = AccountTxoStatus::get(&txo.txo.txo_id_hex, &account_id, &conn)?;
+                match status.txo_status.as_str() {
+                    TXO_STATUS_UNSPENT => unspent += txo.value.value,
+                    TXO_STATUS_PENDING => pending += txo.txo.value,
+                    TXO_STATUS_SPENT => spent += txo.txo.value,
+                    TXO_STATUS_SECRETED => secreted += txo.txo.value,
+                    TXO_STATUS_ORPHANED => orphaned += txo.txo.value,
+                    _ => return Err(WalletServiceError::U64Parse), // FIXME: balance service errors
+                }
+            }
+
+            Ok(Balance {
+                unspent,
+                pending,
+                spent,
+                secreted,
+                orphaned,
+                network_block_index,
+                local_block_index,
+                synced_blocks: account.next_block as u64,
+            })
+        }))
+    }
 
     // Wallet Status is an overview of the wallet's status
     fn get_wallet_status(&self) -> Result<WalletStatus, WalletServiceError> {
