@@ -77,16 +77,7 @@ curl -s localhost:9090/wallet \
       "name": "Alice",
       "main_address": "4bgkVAH1hs55dwLTGVpZER8ZayhqXbYqfuyisoRrmQPXoWcYQ3SQRTjsAytCiAgk21CRrVNysVw5qwzweURzDK9HL3rGXFmAAahb364kYe3",
       "next_subaddress_index": "2",
-      "recovery_mode": false,
-      "entropy": "856fcacf2a819a065a9376fcdce0ff8dbe14f8b8d6118ef3a194f9e678ade0e0",
-      "account_key": {
-        "object": "account_key",
-        "view_private_key": "0a20765d49c5a524ddd4d9e96278b17eccd7b33e6bc071c5bc91dcd29435ce478a0d",
-        "spend_private_key": "0a200c68151e777324da47a1e3a4f8b57e7d94d59084d4a343e1c600c1e4f66fc20d",
-        "fog_report_url": "",
-        "fog_report_id": "",
-        "fog_authority_spki": ""
-      }
+      "recovery_mode": false
     }
   },
   "error": null,
@@ -100,7 +91,7 @@ curl -s localhost:9090/wallet \
 | Optional Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
 | `name`         | Label for this account   | Can have duplicates (not recommended) |
-| `first_block`  | The block from which to start scanning the ledger |  |
+| `first_block_index`  | The block from which to start scanning the ledger |  |
 
 #### Import Account
 
@@ -132,16 +123,7 @@ curl -s localhost:9090/wallet \
       "name": "Bob",
       "main_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
       "next_subaddress_index": "2",
-      "recovery_mode": false,
-      "entropy": "ed62ae3259992ec31dc9fe08be1b9964327e0c4846be99a975397a32099b9860",
-      "account_key": {
-        "object": "account_key",
-        "view_private_key": "0a20e1d5a0622906afa27d87ab9f900e6099ce778d173b22068ce948832b549d2002",
-        "spend_private_key": "0a2011035ae05a302e883af00f788cd7486f8f7445503187b080545c16c37056900e",
-        "fog_report_url": "",
-        "fog_report_id": "",
-        "fog_authority_spki": ""
-      }
+      "recovery_mode": false
     }
   },
   "error": null,
@@ -158,7 +140,7 @@ curl -s localhost:9090/wallet \
 | Optional Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
 | `name`         | Label for this account   | Can have duplicates (not recommended) |
-| `first_block`  | The block from which to start scanning the ledger |  |
+| `first_block_index`  | The block from which to start scanning the ledger |  |
 
 ##### Troubleshooting
 
@@ -200,15 +182,6 @@ curl -s localhost:9090/wallet \
     "account_map": {
       "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52": {
         "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
-        "account_key": {
-          "fog_authority_spki": "",
-          "fog_report_id": "",
-          "fog_report_url": "",
-          "object": "account_key",
-          "spend_private_key": "0a200c68151e777324da47a1e3a4f8b57e7d94d59084d4a343e1c600c1e4f66fc20d",
-          "view_private_key": "0a20765d49c5a524ddd4d9e96278b17eccd7b33e6bc071c5bc91dcd29435ce478a0d"
-        },
-        "entropy": "856fcacf2a819a065a9376fcdce0ff8dbe14f8b8d6118ef3a194f9e678ade0e0",
         "main_address": "4bgkVAH1hs55dwLTGVpZER8ZayhqXbYqfuyisoRrmQPXoWcYQ3SQRTjsAytCiAgk21CRrVNysVw5qwzweURzDK9HL3rGXFmAAahb364kYe3",
         "name": "Alice",
         "next_subaddress_index": "2",
@@ -217,15 +190,6 @@ curl -s localhost:9090/wallet \
       },
       "b6c9f6f779372ae25e93d68a79d725d71f3767d1bfd1c5fe155f948a2cc5c0a0": {
         "account_id": "b6c9f6f779372ae25e93d68a79d725d71f3767d1bfd1c5fe155f948a2cc5c0a0",
-        "account_key": {
-          "fog_authority_spki": "",
-          "fog_report_id": "",
-          "fog_report_url": "",
-          "object": "account_key",
-          "spend_private_key": "0a209e3776c4380148e5a6658a19b99ece5951fb30f6be5505e9e4406aa50a120b01",
-          "view_private_key": "0a20177a364e523a5fffd171701e27cc99c636f4c2d4d6cd064dd24f7f2be6fd9c0c"
-        },
-        "entropy": "9a7ae6067025f4e4f7a9271d2c47bd489d5c320c59ec2fb3fcf9bd43e151f58f",
         "main_address": "7EqduSDpM1R5AfQejbjAqFxpuCoh6zJECtvJB9AZFwjK13dCzZgYbyfLf4TfHcE8LVPjzDdpcxYLkdMBh694mHfftJmsFZuz6xUeRtmsUdc",
         "name": "Alice",
         "next_subaddress_index": "2",
@@ -263,15 +227,6 @@ curl -s localhost:9090/wallet \
   "result": {
     "account": {
       "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
-      "account_key": {
-        "fog_authority_spki": "",
-        "fog_report_id": "",
-        "fog_report_url": "",
-        "object": "account_key",
-        "spend_private_key": "0a200c68151e777324da47a1e3a4f8b57e7d94d59084d4a343e1c600c1e4f66fc20d",
-        "view_private_key": "0a20765d49c5a524ddd4d9e96278b17eccd7b33e6bc071c5bc91dcd29435ce478a0d"
-      },
-      "entropy": "856fcacf2a819a065a9376fcdce0ff8dbe14f8b8d6118ef3a194f9e678ade0e0",
       "main_address": "4bgkVAH1hs55dwLTGVpZER8ZayhqXbYqfuyisoRrmQPXoWcYQ3SQRTjsAytCiAgk21CRrVNysVw5qwzweURzDK9HL3rGXFmAAahb364kYe3",
       "name": "Alice",
       "next_subaddress_index": "2",
@@ -324,15 +279,6 @@ curl -s localhost:9090/wallet \
   "result": {
     "account": {
       "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
-      "account_key": {
-        "fog_authority_spki": "",
-        "fog_report_id": "",
-        "fog_report_url": "",
-        "object": "account_key",
-        "spend_private_key": "0a200c68151e777324da47a1e3a4f8b57e7d94d59084d4a343e1c600c1e4f66fc20d",
-        "view_private_key": "0a20765d49c5a524ddd4d9e96278b17eccd7b33e6bc071c5bc91dcd29435ce478a0d"
-      },
-      "entropy": "856fcacf2a819a065a9376fcdce0ff8dbe14f8b8d6118ef3a194f9e678ade0e0",
       "main_address": "4bgkVAH1hs55dwLTGVpZER8ZayhqXbYqfuyisoRrmQPXoWcYQ3SQRTjsAytCiAgk21CRrVNysVw5qwzweURzDK9HL3rGXFmAAahb364kYe3",
       "name": "Carol",
       "next_subaddress_index": "2",
@@ -374,15 +320,6 @@ curl -s localhost:9090/wallet \
   "result": {
     "account": {
       "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
-      "account_key": {
-        "fog_authority_spki": "",
-        "fog_report_id": "",
-        "fog_report_url": "",
-        "object": "account_key",
-        "spend_private_key": "0a200c68151e777324da47a1e3a4f8b57e7d94d59084d4a343e1c600c1e4f66fc20d",
-        "view_private_key": "0a20765d49c5a524ddd4d9e96278b17eccd7b33e6bc071c5bc91dcd29435ce478a0d"
-      },
-      "entropy": "856fcacf2a819a065a9376fcdce0ff8dbe14f8b8d6118ef3a194f9e678ade0e0",
       "main_address": "4bgkVAH1hs55dwLTGVpZER8ZayhqXbYqfuyisoRrmQPXoWcYQ3SQRTjsAytCiAgk21CRrVNysVw5qwzweURzDK9HL3rGXFmAAahb364kYe3",
       "name": "Carol",
       "next_subaddress_index": "2",
@@ -674,15 +611,6 @@ curl -s localhost:9090/wallet \
       "account_map": {
         "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470": {
           "account_id": "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470",
-          "account_key": {
-            "fog_authority_spki": "",
-            "fog_report_id": "",
-            "fog_report_url": "",
-            "object": "account_key",
-            "spend_private_key": "0a2011035ae05a302e883af00f788cd7486f8f7445503187b080545c16c37056900e",
-            "view_private_key": "0a20e1d5a0622906afa27d87ab9f900e6099ce778d173b22068ce948832b549d2002"
-          },
-          "entropy": "ed62ae3259992ec31dc9fe08be1b9964327e0c4846be99a975397a32099b9860",
           "main_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
           "name": "Bob",
           "next_subaddress_index": "2",
@@ -691,15 +619,6 @@ curl -s localhost:9090/wallet \
         },
         "b0be5377a2f45b1573586ed530b2901a559d9952ea8a02f8c2dbb033a935ac17": {
           "account_id": "b0be5377a2f45b1573586ed530b2901a559d9952ea8a02f8c2dbb033a935ac17",
-          "account_key": {
-            "fog_authority_spki": "",
-            "fog_report_id": "",
-            "fog_report_url": "",
-            "object": "account_key",
-            "spend_private_key": "0a2050360c6aca46928214485da8d8369538325c6fc533745ac116763e95377b8300",
-            "view_private_key": "0a20c9e699562e8ac60401ba86720c032462f5dc00bbca8854d3475eae0ae8003b0e"
-          },
-          "entropy": "fb9a980d3709dd9febf1389ebaad53bd5fec4d0218fd1e4ee90aa85e5cf804d0",
           "main_address": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
           "name": "Carol",
           "next_subaddress_index": "2",
@@ -793,15 +712,6 @@ curl -s localhost:9090/wallet \
   "result": {
     "account": {
       "account_id": "b0be5377a2f45b1573586ed530b2901a559d9952ea8a02f8c2dbb033a935ac17",
-      "account_key": {
-        "fog_authority_spki": "",
-        "fog_report_id": "",
-        "fog_report_url": "",
-        "object": "account_key",
-        "spend_private_key": "0a2050360c6aca46928214485da8d8369538325c6fc533745ac116763e95377b8300",
-        "view_private_key": "0a20c9e699562e8ac60401ba86720c032462f5dc00bbca8854d3475eae0ae8003b0e"
-      },
-      "entropy": "fb9a980d3709dd9febf1389ebaad53bd5fec4d0218fd1e4ee90aa85e5cf804d0",
       "main_address": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
       "name": "Brady",
       "next_subaddress_index": "2",
@@ -1906,13 +1816,6 @@ An Account is associated with one AccountKey, containing a View keypair and a Sp
 | next_subaddress_index | string (uint64) | This index represents the next subaddress to be assigned as an address. This is useful information in case the account is imported elsewhere.
 | recovery_mode | boolean | A flag that indicates this imported account is attempting to un-orphan found TXOs. It is recommended to move all MOB to another account after recovery if the user is unsure of the assigned addresses.
 
-#### Optional attributes
-
-| *Name* | *Type* | *Description*
-| :--- | :--- | :---
-| entropy | string | The root entropy for this account. The account_keys are derived from this entropy. Optional because only calls that specifically need to return entropy should do so. Otherwise, it should be None.
-| account_key | string | The root entropy for this account. The account_key is derived from the entropy. Optional because only calls that specifically need to return the account key should do so. Otherwise, it should be None.
-
 #### Example Object
 
 ```json
@@ -1920,15 +1823,8 @@ An Account is associated with one AccountKey, containing a View keypair and a Sp
   "object": "account",
   "account_id": "1916a9b3...",
   "name": "I love MobileCoin",
-  "balance": {
-    "network_block_index": "88888888",
-    "local_block_index": "88888888",
-    "account_block_index": "88888888",
-    "is_synced": true,
-    "unspent_pmob": "123000000",
-    "pending_pmob": "1000"
-  },
-  "next_subaddress_index": "128",
+  "main_address": "4bgkVAH...",
+  "next_subaddress_index": "3",
   "recovery_mode": false
 }
 ```
@@ -2016,15 +1912,6 @@ The balance for an account, as well as some information about syncing status nee
   "account_map": {
     "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470": {
       "account_id": "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470",
-      "account_key": {
-        "fog_authority_spki": "",
-        "fog_report_id": "",
-        "fog_report_url": "",
-        "object": "account_key",
-        "spend_private_key": "0a2011035ae05a302e883af00f788cd7486f8f7445503187b080545c16c37056900e",
-        "view_private_key": "0a20e1d5a0622906afa27d87ab9f900e6099ce778d173b22068ce948832b549d2002"
-      },
-      "entropy": "ed62ae3259992ec31dc9fe08be1b9964327e0c4846be99a975397a32099b9860",
       "main_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
       "name": "Bob",
       "next_subaddress_index": "2",
@@ -2033,15 +1920,6 @@ The balance for an account, as well as some information about syncing status nee
     },
     "b0be5377a2f45b1573586ed530b2901a559d9952ea8a02f8c2dbb033a935ac17": {
       "account_id": "b0be5377a2f45b1573586ed530b2901a559d9952ea8a02f8c2dbb033a935ac17",
-      "account_key": {
-        "fog_authority_spki": "",
-        "fog_report_id": "",
-        "fog_report_url": "",
-        "object": "account_key",
-        "spend_private_key": "0a2050360c6aca46928214485da8d8369538325c6fc533745ac116763e95377b8300",
-        "view_private_key": "0a20c9e699562e8ac60401ba86720c032462f5dc00bbca8854d3475eae0ae8003b0e"
-      },
-      "entropy": "fb9a980d3709dd9febf1389ebaad53bd5fec4d0218fd1e4ee90aa85e5cf804d0",
       "main_address": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
       "name": "Brady",
       "next_subaddress_index": "2",

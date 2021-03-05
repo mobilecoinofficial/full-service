@@ -110,7 +110,7 @@ where
             orphaned,
             network_block_index,
             local_block_index,
-            synced_blocks: account.next_block as u64,
+            synced_blocks: account.next_block_index as u64,
         })
     }
 
@@ -151,10 +151,10 @@ where
                 secreted += balance.3;
                 orphaned += balance.4;
 
-                // account.next_block is an index in range [0..ledger_db.num_blocks()]
+                // account.next_block_index is an index in range [0..ledger_db.num_blocks()]
                 min_synced_block_index = std::cmp::min(
                     min_synced_block_index,
-                    (account.next_block as u64).saturating_sub(1),
+                    (account.next_block_index as u64).saturating_sub(1),
                 );
                 account_ids.push(account_id);
             }

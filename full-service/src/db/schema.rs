@@ -16,9 +16,9 @@ table! {
         main_subaddress_index -> BigInt,
         change_subaddress_index -> BigInt,
         next_subaddress_index -> BigInt,
-        first_block -> BigInt,
-        next_block -> BigInt,
-        import_block -> Nullable<BigInt>,
+        first_block_index -> BigInt,
+        next_block_index -> BigInt,
+        import_block_index -> Nullable<BigInt>,
         name -> Text,
     }
 }

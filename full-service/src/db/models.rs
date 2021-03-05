@@ -85,14 +85,14 @@ pub struct Account {
     /// from 0).
     pub next_subaddress_index: i64,
     /// Index of the first block where this account may have held funds.
-    pub first_block: i64,
+    pub first_block_index: i64,
     /// Index of the next block to inspect for transactions related to this
     /// account.
-    pub next_block: i64,
+    pub next_block_index: i64,
     /// If the account was imported, account history prior to this block index
     /// is derived from the public ledger, and does not reflect client-side
     /// user events.
-    pub import_block: Option<i64>,
+    pub import_block_index: Option<i64>,
     /// Name of this account.
     pub name: String, /* empty string for nullable */
 }
@@ -108,9 +108,9 @@ pub struct NewAccount<'a> {
     pub main_subaddress_index: i64,
     pub change_subaddress_index: i64,
     pub next_subaddress_index: i64,
-    pub first_block: i64,
-    pub next_block: i64,
-    pub import_block: Option<i64>,
+    pub first_block_index: i64,
+    pub next_block_index: i64,
+    pub import_block_index: Option<i64>,
     pub name: &'a str,
 }
 

@@ -34,7 +34,7 @@ impl TryFrom<&Account> for AccountSecrets {
         let account_key: mc_account_keys::AccountKey = mc_util_serial::decode(&src.account_key)
             .map_err(|err| format!("Could not decode account key from database: {:?}", err))?;
         Ok(AccountSecrets {
-            object: "account_key".to_string(),
+            object: "account_secrets".to_string(),
             account_id: src.account_id_hex.clone(),
             entropy: hex::encode(&src.entropy),
             account_key: AccountKey::try_from(&account_key).map_err(|err| {

@@ -85,7 +85,7 @@ where
         // Since we are creating the account from randomness, it is highly unlikely that
         // it would have collided with another account that already received funds. For
         // this reason, start scanning at the current network block index.
-        let first_block = first_block_index.unwrap_or(self.get_network_block_index()?);
+        let first_block_index = first_block_index.unwrap_or(self.get_network_block_index()?);
 
         // The earliest we could start scanning is the current highest block index of
         // the local ledger.
@@ -94,7 +94,7 @@ where
         let conn = self.wallet_db.get_conn()?;
         let (account_id, _public_address_b58) = Account::create(
             &entropy,
-            Some(first_block),
+            Some(first_block_index),
             Some(import_block_index),
             &name.unwrap_or_else(|| "".to_string()),
             &conn,

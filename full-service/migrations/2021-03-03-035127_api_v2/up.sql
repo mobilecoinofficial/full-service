@@ -1,3 +1,26 @@
+-- ALTER TABLE accounts RENAME COLUMN first_block TO first_block_index;
+-- ALTER TABLE accounts RENAME COLUMN next_block TO next_block_index;
+-- ALTER TABLE accounts RENAME COLUMN import_block TO import_block_index;
+PRAGMA foreign_keys=OFF;
+CREATE TABLE NEW_accounts (
+  id INTEGER NOT NULL PRIMARY KEY,
+  account_id_hex VARCHAR NOT NULL UNIQUE,
+  account_key BLOB NOT NULL,
+  entropy BLOB NOT NULL,
+  main_subaddress_index UNSIGNED BIG INT NOT NULL,
+  change_subaddress_index UNSIGNED BIG INT NOT NULL,
+  next_subaddress_index UNSIGNED BIG INT NOT NULL,
+  first_block_index UNSIGNED BIG INT NOT NULL,
+  next_block_index UNSIGNED BIG INT NOT NULL,
+  import_block_index UNSIGNED BIG INT,
+  name VARCHAR NOT NULL DEFAULT ''
+);
+INSERT INTO NEW_accounts SELECT * FROM accounts;
+DROP TABLE accounts;
+ALTER TABLE NEW_accounts RENAME TO accounts;
+PRAGMA foreign_key_check;
+PRAGMA foreign_keys=ON;
+
 -- ALTER TABLE txos RENAME COLUMN received_block_count TO received_block_index;
 -- ALTER TABLE txos RENAME COLUMN pending_tombstone_block_count TO pending_tombstone_block_index;
 -- ALTER TABLE txos RENAME COLUMN spent_block_count TO pending_tombstone_block_count;

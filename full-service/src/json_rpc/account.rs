@@ -2,7 +2,7 @@
 
 //! API definition for the Account object.
 
-use crate::{db, json_rpc};
+use crate::db;
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
@@ -32,20 +32,14 @@ pub struct Account {
     /// This is useful information in case the account is imported elsewhere.
     pub next_subaddress_index: String,
 
+    /// Index of the first block when this account may have received funds.
+    /// No transactions before this point will be synchronized.
+    pub first_block_index: String,
+
     /// A flag that indicates this imported account is attempting to un-orphan
     /// found TXOs. It is recommended to move all MOB to another account after
     /// recovery if the user is unsure of the assigned addresses.
     pub recovery_mode: bool,
-
-    /// The root entropy for this account. The account_keys are derived from
-    /// this entropy. Optional because only calls that specifically need to
-    /// return entropy should do so. Otherwise, it should be None.
-    pub entropy: String,
-
-    /// The account key for this account. The account_key is derived from
-    /// the entropy. Optional because only calls that specifically need to
-    /// return the account key should do so. Otherwise, it should be None.
-    pub account_key: json_rpc::account_key::AccountKey,
 }
 
 impl TryFrom<&db::models::Account> for Account {
@@ -64,10 +58,8 @@ impl TryFrom<&db::models::Account> for Account {
             name: src.name.clone(),
             main_address,
             next_subaddress_index: src.next_subaddress_index.to_string(),
+            first_block_index: src.first_block_index.to_string(),
             recovery_mode: false,
-            entropy: hex::encode(&src.entropy),
-            account_key: json_rpc::account_key::AccountKey::try_from(&account_key)
-                .map_err(|e| format!("Could not get json_rpc::AccountKey: {:?}", e))?,
         })
     }
 }
