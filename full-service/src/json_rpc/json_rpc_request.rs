@@ -148,6 +148,9 @@ pub enum JsonCommandRequestV2 {
     verify_address {
         address: String,
     },
+    get_balance_for_address {
+        address: String,
+    },
     get_all_txos_for_account {
         account_id: String,
     },

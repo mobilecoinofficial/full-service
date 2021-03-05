@@ -214,6 +214,9 @@ pub enum JsonCommandResponseV2 {
     verify_address {
         verified: bool,
     },
+    get_balance_for_address {
+        balance: Balance,
+    },
     get_all_txos_for_account {
         txo_ids: Vec<String>,
         txo_map: Map<String, serde_json::Value>,

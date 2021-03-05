@@ -5,8 +5,9 @@
 use crate::{
     db::WalletDbError,
     service::{
-        proof::ProofServiceError, transaction::TransactionServiceError,
-        transaction_log::TransactionLogServiceError, txo::TxoServiceError,
+        balance::BalanceServiceError, ledger::LedgerServiceError, proof::ProofServiceError,
+        transaction::TransactionServiceError, transaction_log::TransactionLogServiceError,
+        txo::TxoServiceError,
     },
 };
 use displaydoc::Display;
