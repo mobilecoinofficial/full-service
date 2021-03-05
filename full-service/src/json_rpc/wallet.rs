@@ -244,7 +244,7 @@ where
             );
 
             JsonCommandResponseV2::get_all_addresses_for_account {
-                address_ids: addresses
+                public_addresses: addresses
                     .iter()
                     .map(|a| a.assigned_subaddress_b58.clone())
                     .collect(),

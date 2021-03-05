@@ -207,7 +207,7 @@ pub enum JsonCommandResponseV2 {
         address: Address,
     },
     get_all_addresses_for_account {
-        address_ids: Vec<String>,
+        public_addresses: Vec<String>,
         address_map: Map<String, serde_json::Value>,
     },
     /*

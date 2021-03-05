@@ -3,7 +3,7 @@
 //! Decorated types for the service to return, with constructors from the
 //! database types.
 
-use crate::db::{models::AssignedSubaddress, txo::TxoDetails};
+use crate::db::txo::TxoDetails;
 use mc_mobilecoind_json::data_types::{JsonTxOut, JsonTxOutMembershipElement};
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Map;
