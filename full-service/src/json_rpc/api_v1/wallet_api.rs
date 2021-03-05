@@ -3,7 +3,7 @@
 //! The Wallet API for Full Service. Version 1.
 
 use crate::{
-    json_rpc::api_v1::decorated_types::{JsonBlock, JsonBlockContents, JsonProof, JsonTxo},
+    json_rpc::api_v1::decorated_types::{JsonBlock, JsonBlockContents, JsonProof},
     service::WalletService,
 };
 use mc_common::logger::global_log;
@@ -12,8 +12,6 @@ use mc_fog_report_validation::FogPubkeyResolver;
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use rocket_contrib::json::Json;
 use serde::{Deserialize, Serialize};
-use serde_json::Map;
-use std::iter::FromIterator;
 use strum_macros::EnumIter;
 
 // Helper method to format displaydoc errors in json.
@@ -25,12 +23,6 @@ fn format_error<T: std::fmt::Display + std::fmt::Debug>(e: T) -> String {
 #[serde(tag = "method", content = "params")]
 #[allow(non_camel_case_types)]
 pub enum JsonCommandRequestV1 {
-    get_all_txos_for_account {
-        account_id: String,
-    },
-    get_txo {
-        txo_id: String,
-    },
     get_transaction_object {
         transaction_log_id: String,
     },
@@ -54,13 +46,6 @@ pub enum JsonCommandRequestV1 {
 #[allow(non_camel_case_types)]
 #[allow(clippy::large_enum_variant)]
 pub enum JsonCommandResponseV1 {
-    get_all_txos_for_account {
-        txo_ids: Vec<String>,
-        txo_map: Map<String, serde_json::Value>,
-    },
-    get_txo {
-        txo: JsonTxo,
-    },
     get_transaction_object {
         transaction: JsonTx,
     },
@@ -96,28 +81,6 @@ where
 {
     global_log::trace!("Running command {:?}", command);
     let result = match command.0 {
-        JsonCommandRequestV1::get_all_txos_for_account { account_id } => {
-            let txos = service.list_txos(&account_id).map_err(format_error)?;
-            let txo_map: Map<String, serde_json::Value> = Map::from_iter(
-                txos.iter()
-                    .map(|t| {
-                        (
-                            t.txo_id.clone(),
-                            serde_json::to_value(t.clone()).expect("Could not get json value"),
-                        )
-                    })
-                    .collect::<Vec<(String, serde_json::Value)>>(),
-            );
-
-            JsonCommandResponseV1::get_all_txos_for_account {
-                txo_ids: txos.iter().map(|t| t.txo_id.clone()).collect(),
-                txo_map,
-            }
-        }
-        JsonCommandRequestV1::get_txo { txo_id } => {
-            let result = service.get_txo(&txo_id).map_err(format_error)?;
-            JsonCommandResponseV1::get_txo { txo: result }
-        }
         JsonCommandRequestV1::get_transaction_object { transaction_log_id } => {
             JsonCommandResponseV1::get_transaction_object {
                 transaction: service
@@ -156,101 +119,4 @@ where
         }
     };
     Ok(Json(result))
-}
-
-#[cfg(test)]
-mod e2e {
-    use crate::{
-        db::b58_decode,
-        json_rpc::api_test_utils::{dispatch, setup, wait_for_sync},
-        test_utils::add_block_to_ledger_db,
-    };
-    use mc_common::logger::{test_with_logger, Logger};
-    use mc_crypto_rand::rand_core::RngCore;
-    use mc_transaction_core::ring_signature::KeyImage;
-    use rand::{rngs::StdRng, SeedableRng};
-
-    #[test_with_logger]
-    fn test_get_all_txos(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
-
-        // Add an account
-        let body = json!({
-            "api_version": "2",
-            "method": "create_account",
-            "params": {
-                "name": "Alice Main Account",
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let account_obj = result.get("account").unwrap();
-        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
-        let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
-        let public_address = b58_decode(b58_public_address).unwrap();
-
-        // Add a block with a txo for this address
-        add_block_to_ledger_db(
-            &mut ledger_db,
-            &vec![public_address],
-            100,
-            &vec![KeyImage::from(rng.next_u64())],
-            &mut rng,
-        );
-
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
-
-        let body = json!({
-            "method": "get_all_txos_for_account",
-            "params": {
-                "account_id": account_id,
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let txos = result.get("txo_ids").unwrap().as_array().unwrap();
-        assert_eq!(txos.len(), 1);
-        let txo_map = result.get("txo_map").unwrap().as_object().unwrap();
-        let txo = txo_map.get(txos[0].as_str().unwrap()).unwrap();
-        let account_status_map = txo
-            .get("account_status_map")
-            .unwrap()
-            .as_object()
-            .unwrap()
-            .get(account_id)
-            .unwrap();
-        let txo_status = account_status_map
-            .get("txo_status")
-            .unwrap()
-            .as_str()
-            .unwrap();
-        assert_eq!(txo_status, "txo_status_unspent");
-        let txo_type = account_status_map
-            .get("txo_type")
-            .unwrap()
-            .as_str()
-            .unwrap();
-        assert_eq!(txo_type, "txo_type_received");
-        let value = txo.get("value_pmob").unwrap().as_str().unwrap();
-        assert_eq!(value, "100");
-
-        // Check the overall balance for the account
-        let body = json!({
-            "api_version": "2",
-            "method": "get_balance_for_account",
-            "params": {
-                "account_id": account_id,
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let balance_status = result.get("balance").unwrap();
-        let unspent = balance_status
-            .get("unspent_pmob")
-            .unwrap()
-            .as_str()
-            .unwrap();
-        assert_eq!(unspent, "100");
-    }
 }

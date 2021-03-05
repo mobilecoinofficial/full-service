@@ -723,7 +723,7 @@ mod tests {
                 .subaddress_index,
             0
         );
-        assert!(input_details.secreted_from_account.is_none());
+        assert!(input_details.minted_from_account.is_none());
 
         // Assert outputs are as expected
         assert_eq!(associated.outputs.len(), 1);
@@ -732,18 +732,14 @@ mod tests {
         assert_eq!(output_details.txo.value, 50 * MOB);
         assert_eq!(
             output_details
-                .secreted_from_account
+                .minted_from_account
                 .clone()
                 .unwrap()
                 .txo_status,
             TXO_STATUS_SECRETED
         );
         assert_eq!(
-            output_details
-                .secreted_from_account
-                .clone()
-                .unwrap()
-                .txo_type,
+            output_details.minted_from_account.clone().unwrap().txo_type,
             TXO_TYPE_MINTED
         );
         assert!(output_details.received_to_account.is_none());
@@ -756,18 +752,14 @@ mod tests {
         assert_eq!(change_details.txo.value, 19990000000000); // 19.99 * MOB
         assert_eq!(
             change_details
-                .secreted_from_account
+                .minted_from_account
                 .clone()
                 .unwrap()
                 .txo_status,
             TXO_STATUS_SECRETED
         ); // Note, change becomes "unspent" once scanned
         assert_eq!(
-            change_details
-                .secreted_from_account
-                .clone()
-                .unwrap()
-                .txo_type,
+            change_details.minted_from_account.clone().unwrap().txo_type,
             TXO_TYPE_MINTED
         ); // Note, becomes "received" once scanned
         assert!(change_details.received_to_account.is_none()); // Note, gets filled in once scanned

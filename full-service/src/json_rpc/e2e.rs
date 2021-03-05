@@ -907,6 +907,9 @@ mod e2e {
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
 
         let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 1,
             "method": "get_all_txos_for_account",
             "params": {
                 "account_id": account_id,
@@ -1107,7 +1110,6 @@ mod e2e {
         });
         let res = dispatch(&client, body, &logger);
         let balance = res["result"]["balance"].clone();
-        println!("balance = {:?}", balance);
         assert_eq!(
             balance["unspent_pmob"]
                 .as_str()
@@ -1118,10 +1120,6 @@ mod e2e {
         );
     }
 
-    /*
-    TESTS BELOW THIS LINE COPY-PASTED FROM API_V1/wallet_api.rs. They will each be updated
-    as the API continues to be updated.
-
     #[test_with_logger]
     fn test_get_all_txos(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
@@ -1129,6 +1127,9 @@ mod e2e {
 
         // Add an account
         let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 1,
             "method": "create_account",
             "params": {
                 "name": "Alice Main Account",
@@ -1154,6 +1155,9 @@ mod e2e {
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
 
         let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 1,
             "method": "get_all_txos_for_account",
             "params": {
                 "account_id": account_id,
@@ -1177,28 +1181,30 @@ mod e2e {
             .unwrap()
             .as_str()
             .unwrap();
-        assert_eq!(txo_status, TXO_UNSPENT);
+        assert_eq!(txo_status, TXO_STATUS_UNSPENT);
         let txo_type = account_status_map
             .get("txo_type")
             .unwrap()
             .as_str()
             .unwrap();
-        assert_eq!(txo_type, TXO_RECEIVED);
+        assert_eq!(txo_type, TXO_TYPE_RECEIVED);
         let value = txo.get("value_pmob").unwrap().as_str().unwrap();
         assert_eq!(value, "100");
 
         // Check the overall balance for the account
         let body = json!({
-            "method": "get_balance",
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 1,
+            "method": "get_balance_for_account",
             "params": {
                 "account_id": account_id,
             }
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let balance_status = result.get("status").unwrap();
-        let unspent = balance_status.get(TXO_UNSPENT).unwrap().as_str().unwrap();
+        let balance_status = result.get("balance").unwrap();
+        let unspent = balance_status["unspent_pmob"].as_str().unwrap();
         assert_eq!(unspent, "100");
     }
-    */
 }
