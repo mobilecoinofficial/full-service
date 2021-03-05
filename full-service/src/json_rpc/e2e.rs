@@ -907,6 +907,9 @@ mod e2e {
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
 
         let body = json!({
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 1,
             "method": "get_all_txos_for_account",
             "params": {
                 "account_id": account_id,
@@ -1201,12 +1204,8 @@ mod e2e {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let balance_status = result.get("status").unwrap();
-        let unspent = balance_status
-            .get(TXO_STATUS_UNSPENT)
-            .unwrap()
-            .as_str()
-            .unwrap();
+        let balance_status = result.get("balance").unwrap();
+        let unspent = balance_status["unspent_pmob"].as_str().unwrap();
         assert_eq!(unspent, "100");
     }
 }

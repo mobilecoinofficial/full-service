@@ -51,10 +51,7 @@ pub trait TxoService {
     fn get_txo(&self, txo_id: &TxoID) -> Result<TxoDetails, TxoServiceError>;
 
     /// List the Txos for a given address for an account in the wallet.
-    fn get_all_txos_for_address(
-        &self,
-        address: &String,
-    ) -> Result<Vec<TxoDetails>, TxoServiceError>;
+    fn get_all_txos_for_address(&self, address: &str) -> Result<Vec<TxoDetails>, TxoServiceError>;
 }
 
 impl<T, FPR> TxoService for WalletService<T, FPR>
@@ -74,10 +71,7 @@ where
         Ok(Txo::get(&txo_id.to_string(), &conn)?)
     }
 
-    fn get_all_txos_for_address(
-        &self,
-        address: &String,
-    ) -> Result<Vec<TxoDetails>, TxoServiceError> {
+    fn get_all_txos_for_address(&self, address: &str) -> Result<Vec<TxoDetails>, TxoServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
         Ok(Txo::list_for_address(address, &conn)?)
@@ -90,7 +84,10 @@ mod tests {
     use crate::{
         db::{
             b58_encode,
-            models::{TXO_STATUS_PENDING, TXO_STATUS_UNSPENT, TXO_TYPE_MINTED, TXO_TYPE_RECEIVED},
+            models::{
+                TXO_STATUS_PENDING, TXO_STATUS_SECRETED, TXO_STATUS_UNSPENT, TXO_TYPE_MINTED,
+                TXO_TYPE_RECEIVED,
+            },
         },
         service::{
             account::AccountService, balance::BalanceService, transaction::TransactionService,
@@ -184,7 +181,13 @@ mod tests {
         let pending: Vec<TxoDetails> = txos
             .iter()
             .cloned()
-            .filter(|t| t.received_to_account.as_ref().unwrap().txo_status == TXO_STATUS_PENDING)
+            .filter(|t| {
+                if let Some(txo_deets) = &t.received_to_account {
+                    txo_deets.txo_status == TXO_STATUS_PENDING
+                } else {
+                    false
+                }
+            })
             .collect();
         assert_eq!(pending.len(), 1);
         assert_eq!(
@@ -200,10 +203,10 @@ mod tests {
         assert_eq!(minted.len(), 2);
         assert_eq!(
             minted[0].minted_from_account.as_ref().unwrap().txo_status,
-            TXO_TYPE_MINTED
+            TXO_STATUS_SECRETED
         );
         assert_eq!(
-            minted[1].minted_from_account.as_ref().unwrap().txo_status,
+            minted[1].minted_from_account.as_ref().unwrap().txo_type,
             TXO_TYPE_MINTED
         );
         let minted_value_set = HashSet::from_iter(minted.iter().map(|m| m.txo.value.clone()));
