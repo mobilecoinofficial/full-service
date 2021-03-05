@@ -345,7 +345,7 @@ mod tests {
 
         // Create an assigned subaddress for Bob
         let bob_address_from_alice = service
-            .assign_address_for_account(&bob.account_id_hex, Some("From Alice"))
+            .assign_address_for_account(&AccountID(bob.account_id_hex.clone()), Some("From Alice"))
             .unwrap();
 
         // Send a transaction from Alice to Bob

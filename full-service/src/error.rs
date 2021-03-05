@@ -2,7 +2,13 @@
 
 //! Errors for the wallet service.
 
-use crate::{db::WalletDbError, service::transaction::TransactionServiceError};
+use crate::{
+    db::WalletDbError,
+    service::{
+        balance::BalanceServiceError, ledger::LedgerServiceError,
+        transaction::TransactionServiceError,
+    },
+};
 use displaydoc::Display;
 
 #[derive(Display, Debug)]
@@ -38,6 +44,12 @@ pub enum WalletServiceError {
 
     /// Error with the transaction service: {0}
     TransactionService(TransactionServiceError),
+
+    /// Error with the balance service: {0}
+    BalanceService(BalanceServiceError),
+
+    /// Error with the ledger service: {0}
+    LedgerService(LedgerServiceError),
 }
 
 impl From<WalletDbError> for WalletServiceError {
@@ -55,6 +67,18 @@ impl From<hex::FromHexError> for WalletServiceError {
 impl From<TransactionServiceError> for WalletServiceError {
     fn from(src: TransactionServiceError) -> Self {
         Self::TransactionService(src)
+    }
+}
+
+impl From<BalanceServiceError> for WalletServiceError {
+    fn from(src: BalanceServiceError) -> Self {
+        Self::BalanceService(src)
+    }
+}
+
+impl From<LedgerServiceError> for WalletServiceError {
+    fn from(src: LedgerServiceError) -> Self {
+        Self::LedgerService(src)
     }
 }
 

@@ -8,7 +8,7 @@ use crate::{
         models::Account,
     },
     error::WalletServiceError,
-    service::WalletService,
+    service::{ledger::LedgerService, WalletService},
 };
 use mc_account_keys::RootEntropy;
 use mc_common::logger::log;
