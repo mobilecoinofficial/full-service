@@ -2114,6 +2114,7 @@ dependencies = [
 name = "mc-full-service"
 version = "0.1.0"
 dependencies = [
+ "bs58",
  "chrono",
  "crossbeam-channel 0.4.4",
  "diesel",
