@@ -117,8 +117,7 @@ mod tests {
             .unwrap();
 
         // Add a block with a transaction for this recipient
-        // Add a block with a txo for this address (note that value is smaller than
-        // MINIMUM_FEE)
+        // Add a block with a txo for this address
         let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
         let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
         add_block_to_ledger_db(

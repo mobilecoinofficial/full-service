@@ -93,6 +93,7 @@ impl From<TransactionLogServiceError> for ProofServiceError {
     }
 }
 
+#[derive(Debug)]
 pub struct Proof {
     pub txo_id: TxoID,
     pub txo_index: u64,
