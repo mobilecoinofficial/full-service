@@ -10,6 +10,7 @@
 
 use crate::{
     db::{
+        account::AccountID,
         models::{AccountTxoStatus, Txo, TXO_STATUS_SECRETED, TXO_TYPE_MINTED},
         txo::TxoModel,
         WalletDbError,
@@ -82,7 +83,7 @@ pub struct ReceiverTxReceipt {
     proof: TxOutConfirmationNumber,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Ord, PartialOrd)]
 pub enum ReceiptTransactionStatus {
     /// All Txos are in the ledger at the same block index, and the expected
     /// value matches the value of the Txos.
@@ -142,6 +143,7 @@ pub trait ReceiptService {
     /// Check status
     fn check_receiver_receipts_status(
         &self,
+        account_id: &AccountID,
         receiver_receipts: &[ReceiverTxReceipt],
         expected_value: u64,
     ) -> Result<ReceiptTransactionStatus, ReceiptServiceError>;
@@ -170,6 +172,7 @@ where
 
     fn check_receiver_receipts_status(
         &self,
+        account_id: &AccountID,
         receiver_receipts: &[ReceiverTxReceipt],
         expected_value: u64,
     ) -> Result<ReceiptTransactionStatus, ReceiptServiceError> {
@@ -178,7 +181,7 @@ where
             .map(|r| &r.txo_public_key)
             .collect();
         let txos_and_statuses =
-            Txo::select_by_public_key(&public_keys, &self.wallet_db.get_conn()?)?;
+            Txo::select_by_public_key(account_id, &public_keys, &self.wallet_db.get_conn()?)?;
         // None of the Txos from the receipts are in this wallet.
         if txos_and_statuses.len() == 0 {
             return Ok(ReceiptTransactionStatus::TransactionPending);
@@ -452,7 +455,7 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
-        let service = setup_wallet_service(ledger_db.clone(), logger);
+        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
         let alice = service
             .create_account(Some("Alice's Main Account".to_string()), None)
             .unwrap();
@@ -467,11 +470,105 @@ mod tests {
             &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db,
+            &AccountID(alice.account_id_hex.to_string()),
+            13,
+            &logger,
+        );
 
         let bob = service
             .create_account(Some("Bob's Main Account".to_string()), None)
             .unwrap();
+        let bob_addresses = service
+            .get_all_addresses_for_account(&AccountID(bob.account_id_hex.clone()))
+            .expect("Could not get addresses for Bob");
+        let bob_address = bob_addresses[0].assigned_subaddress_b58.clone();
+        let bob_account_id = AccountID(bob.account_id_hex.to_string());
 
-        // Alice sends a transaction to Bob
+        // Create a TxProposal to Bob
+        let tx_proposal = service
+            .build_transaction(
+                &alice.account_id_hex,
+                &bob_address,
+                (24 * MOB).to_string(),
+                None,
+                None,
+                None,
+                None,
+            )
+            .expect("Could not build transaction");
+
+        let receipts = service
+            .create_receiver_receipts(&tx_proposal)
+            .expect("Could not create receiver receipts");
+
+        // Bob checks the status of the receipts
+        let status = service
+            .check_receiver_receipts_status(&bob_account_id, &receipts, 24 * MOB as u64)
+            .expect("Could not check status of receipt");
+
+        // Status should be pending until block lands and is scanned
+        assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
+
+        // Land the Txo in the ledger - only sync for the sender
+        TransactionLog::log_submitted(
+            tx_proposal.clone(),
+            14,
+            "".to_string(),
+            Some(&alice.account_id_hex),
+            &service.wallet_db.get_conn().unwrap(),
+        )
+        .expect("Could not log submitted");
+
+        // Status for Bob should still be pending, even though the Txos will show up in
+        // the wallet, but under Alice's account.
+        let status = service
+            .check_receiver_receipts_status(&bob_account_id, &receipts, 24 * MOB as u64)
+            .expect("Could not check status of receipt");
+        assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
+
+        // Add the txo to the ledger
+        add_block_with_tx_proposal(&mut ledger_db, tx_proposal);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db,
+            &AccountID(alice.account_id_hex.to_string()),
+            14,
+            &logger,
+        );
+
+        // Status for Bob should still be pending, even though the Txos will show up in
+        // the wallet, but under Alice's account.
+        let status = service
+            .check_receiver_receipts_status(&bob_account_id, &receipts, 24 * MOB as u64)
+            .expect("Could not check status of receipt");
+        assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
+
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db,
+            &AccountID(bob.account_id_hex.to_string()),
+            14,
+            &logger,
+        );
+
+        // Status for Bob is succeeded.
+        let status = service
+            .check_receiver_receipts_status(&bob_account_id, &receipts, 24 * MOB as u64)
+            .expect("Could not check status of receipt");
+        assert_eq!(status, ReceiptTransactionStatus::TransactionSuccess);
+
+        // Status for Alice would be pending, because she never received (and never will
+        // receive) the Txos.
+        let status = service
+            .check_receiver_receipts_status(
+                &AccountID(alice.account_id_hex),
+                &receipts,
+                24 * MOB as u64,
+            )
+            .expect("Could not check status of receipt");
+        assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
     }
 }
