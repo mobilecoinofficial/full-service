@@ -9,7 +9,7 @@
 //! example, in the case of a dispute.
 
 use crate::{
-    db::{models::Txo, WalletDbError},
+    db::{models::Txo, txo::TxoModel, WalletDbError},
     WalletService,
 };
 use displaydoc::Display;
@@ -64,10 +64,10 @@ pub struct ReceiverTxReceipt {
     recipient: PublicAddress,
 
     /// The public key of the Txo sent to the recipient.
-    tx_public_key: CompressedRistrettoPublic,
+    txo_public_key: CompressedRistrettoPublic,
 
     /// The hash of the Txo sent to the recipient.
-    tx_out_hash: Vec<u8>,
+    txo_hash: Vec<u8>,
 
     /// The tombstone block for the transaction.
     tombstone: u64,
@@ -90,8 +90,8 @@ impl TryFrom<&mc_mobilecoind_api::ReceiverTxReceipt> for ReceiverTxReceipt {
         let proof = TxOutConfirmationNumber::from(&proof_bytes);
         Ok(ReceiverTxReceipt {
             recipient,
-            tx_public_key,
-            tx_out_hash: src.get_tx_out_hash().to_vec(),
+            txo_public_key: tx_public_key,
+            txo_hash: src.get_tx_out_hash().to_vec(),
             tombstone: src.get_tombstone(),
             proof,
         })
@@ -108,7 +108,11 @@ pub trait ReceiptService {
     fn apply_receiver_receipts(
         &self,
         receiver_receipts: &[ReceiverTxReceipt],
+        sender_metadata: String,
     ) -> Result<Vec<Txo>, ReceiptServiceError>;
+
+    /// Check status
+    fn check_receipts_status(&self, receiver_receipts: &[ReceiverTxReceipt]);
 }
 
 impl<T, FPR> ReceiptService for WalletService<T, FPR>
@@ -119,9 +123,20 @@ where
     fn apply_receiver_receipts(
         &self,
         receiver_receipts: &[ReceiverTxReceipt],
+        sender_metadata: String,
     ) -> Result<Vec<Txo>, ReceiptServiceError> {
-        println!("{:?}", receiver_receipts);
+        //let txos = Txo::select_by_public_key()
+
         Ok(vec![])
+    }
+
+    fn check_receipts_status(&self, receiver_receipts: &[ReceiverTxReceipt]) {
+        let txos = Txo::select_by_public_key(
+            receiver_receipts
+                .iter()
+                .map(|r| &r.txo_public_key)
+                .collect(),
+        )?;
     }
 }
 
@@ -163,8 +178,8 @@ mod tests {
         let tx_receipt =
             ReceiverTxReceipt::try_from(&proto_tx_receipt).expect("Could not convert tx receipt");
         assert_eq!(public_address, tx_receipt.recipient);
-        assert_eq!(txo.public_key, tx_receipt.tx_public_key);
-        assert_eq!(txo.hash().to_vec(), tx_receipt.tx_out_hash);
+        assert_eq!(txo.public_key, tx_receipt.txo_public_key);
+        assert_eq!(txo.hash().to_vec(), tx_receipt.txo_hash);
         assert_eq!(tombstone, tx_receipt.tombstone);
         assert_eq!(confirmation_number, tx_receipt.proof);
     }

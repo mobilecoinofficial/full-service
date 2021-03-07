@@ -17,7 +17,7 @@ use crate::db::{
 };
 use mc_account_keys::{AccountKey, PublicAddress};
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
-use mc_crypto_keys::RistrettoPublic;
+use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
 use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::{
     constants::MAX_INPUTS,
@@ -74,8 +74,9 @@ pub trait TxoModel {
     /// * `subaddress_index` - The receiving subaddress index, if known.
     /// * `key_image` -
     /// * `value` - The value of the output, in picoMob.
-    /// * `received_block_index` - ???
-    /// * `account_id_hex` - ???
+    /// * `received_block_index` - the block at which the Txo was received.
+    /// * `account_id_hex` - the account ID for the account which received this
+    ///   Txo.
     /// * `conn` - Sqlite database connection.
     ///
     /// The subaddress_index may be None, and the Txo is said to be "orphaned",
@@ -161,6 +162,15 @@ pub trait TxoModel {
         txo_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<TxoDetails, WalletDbError>;
+
+    /// Get several Txos by Txo public_keys.
+    ///
+    /// Returns:
+    /// * Vec<Txo>
+    fn select_by_public_key(
+        public_keys: &[&CompressedRistrettoPublic],
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<Txo>, WalletDbError>;
 
     /// Select several Txos by their TxoIds
     ///
@@ -725,6 +735,35 @@ impl TxoModel for Txo {
         }
 
         Ok(txo_details)
+    }
+
+    fn select_by_public_key(
+        public_keys: &[&CompressedRistrettoPublic],
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<Txo>, WalletDbError> {
+        use crate::db::schema::txos::dsl::{public_key, txos};
+
+        let public_key_blobs: Vec<Vec<u8>> = public_keys
+            .iter()
+            .map(|p| mc_util_serial::encode(*p))
+            .collect();
+        let selected: Vec<Txo> = match txos
+            .filter(public_key.eq_any(public_key_blobs))
+            .load::<Txo>(conn)
+        {
+            Ok(t) => t,
+            // Match on NotFound to get a more informative NotFound Error
+            Err(diesel::result::Error::NotFound) => {
+                return Err(WalletDbError::TxoNotFound(format!(
+                    "TxPublicKeys({:?})",
+                    public_keys
+                )));
+            }
+            Err(e) => {
+                return Err(e.into());
+            }
+        };
+        Ok(selected)
     }
 
     fn select_by_id(
@@ -1580,6 +1619,34 @@ mod tests {
         )
         .unwrap();
         assert!(verified);
+    }
+
+    #[test_with_logger]
+    fn test_select_txos_by_public_key(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let account_key = AccountKey::random(&mut rng);
+
+        // Seed Txos
+        let mut src_txos = Vec::new();
+        for i in 0..10 {
+            let (txo_id, txo, key_image) =
+                create_test_received_txo(&account_key, i, i * MOB as u64, i, &mut rng, &wallet_db);
+            src_txos.push(txo);
+        }
+        let pubkeys: Vec<&CompressedRistrettoPublic> =
+            src_txos.iter().map(|t| &t.public_key).collect();
+
+        let txos = Txo::select_by_public_key(&pubkeys, &wallet_db.get_conn().unwrap())
+            .expect("Could not get txos by public keys");
+        assert_eq!(txos.len(), 10);
+
+        let txos = Txo::select_by_public_key(&pubkeys[0..5], &wallet_db.get_conn().unwrap())
+            .expect("Could not get txos by public keys");
+        assert_eq!(txos.len(), 5);
     }
 
     // FIXME: once we have create_minted, then select_txos test with no
