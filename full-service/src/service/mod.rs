@@ -7,6 +7,7 @@ pub mod address;
 pub mod balance;
 pub mod ledger;
 pub mod proof;
+pub mod receipt;
 pub mod sync;
 pub mod transaction;
 pub mod transaction_builder;
