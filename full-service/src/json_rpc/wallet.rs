@@ -46,7 +46,7 @@ use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use rocket::{get, post, routes};
 use rocket_contrib::json::Json;
 use serde_json::Map;
-use std::{convert::TryFrom, iter::FromIterator, time::Duration};
+use std::{convert::TryFrom, iter::FromIterator};
 
 /// State managed by rocket.
 pub struct WalletState<
@@ -552,7 +552,6 @@ where
             fee,
             tombstone_block,
             max_spendable_value,
-            poll_interval,
         } => {
             let (tx_proposal, gift_code_b58, gift_code) = service
                 .build_gift_code(

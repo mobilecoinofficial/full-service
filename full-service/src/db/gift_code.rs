@@ -157,7 +157,7 @@ mod tests {
         // sufficient for this test to merely log a value.
         let value = rng.next_u64();
 
-        let (tx_out, key_image) =
+        let (tx_out, _key_image) =
             create_test_txo_for_recipient(&gift_code_account_key, 0, value, &mut rng);
 
         let memo = "Test".to_string();
