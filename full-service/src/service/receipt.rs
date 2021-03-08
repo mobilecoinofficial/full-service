@@ -79,22 +79,22 @@ impl From<ProofServiceError> for ReceiptServiceError {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct ReceiverTxReceipt {
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct ReceiverReceipt {
     /// The recipient of this Txo.
-    recipient: PublicAddress,
+    pub recipient: PublicAddress,
 
     /// The public key of the Txo sent to the recipient.
-    txo_public_key: CompressedRistrettoPublic,
+    pub txo_public_key: CompressedRistrettoPublic,
 
     /// The hash of the Txo sent to the recipient.
-    txo_hash: Vec<u8>,
+    pub txo_hash: Vec<u8>,
 
     /// The tombstone block for the transaction.
-    tombstone: u64,
+    pub tombstone: u64,
 
     /// The proof for this Txo, which links the sender to this Txo.
-    proof: TxOutConfirmationNumber,
+    pub proof: TxOutConfirmationNumber,
 }
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Ord, PartialOrd)]
@@ -125,19 +125,19 @@ pub enum ReceiptTransactionStatus {
     DuplicateTxos,
 }
 
-impl TryFrom<&mc_mobilecoind_api::ReceiverTxReceipt> for ReceiverTxReceipt {
+impl TryFrom<&mc_mobilecoind_api::ReceiverTxReceipt> for ReceiverReceipt {
     type Error = ReceiptServiceError;
 
     fn try_from(
         src: &mc_mobilecoind_api::ReceiverTxReceipt,
-    ) -> Result<ReceiverTxReceipt, ReceiptServiceError> {
+    ) -> Result<ReceiverReceipt, ReceiptServiceError> {
         let recipient: PublicAddress = PublicAddress::try_from(src.get_recipient())?;
         let tx_public_key: CompressedRistrettoPublic =
             CompressedRistrettoPublic::try_from(src.get_tx_public_key())?;
         let mut proof_bytes = [0u8; 32];
         proof_bytes[0..32].copy_from_slice(src.get_confirmation_number());
         let proof = TxOutConfirmationNumber::from(&proof_bytes);
-        Ok(ReceiverTxReceipt {
+        Ok(ReceiverReceipt {
             recipient,
             txo_public_key: tx_public_key,
             txo_hash: src.get_tx_out_hash().to_vec(),
@@ -156,7 +156,7 @@ pub trait ReceiptService {
     fn check_receiver_receipts_status(
         &self,
         account_id: &AccountID,
-        receiver_receipts: &[ReceiverTxReceipt],
+        receiver_receipts: &[ReceiverReceipt],
         expected_value: u64,
     ) -> Result<ReceiptTransactionStatus, ReceiptServiceError>;
 
@@ -164,7 +164,7 @@ pub trait ReceiptService {
     fn create_receiver_receipts(
         &self,
         tx_proposal: &TxProposal,
-    ) -> Result<Vec<ReceiverTxReceipt>, ReceiptServiceError>;
+    ) -> Result<Vec<ReceiverReceipt>, ReceiptServiceError>;
 }
 
 impl<T, FPR> ReceiptService for WalletService<T, FPR>
@@ -175,7 +175,7 @@ where
     fn check_receiver_receipts_status(
         &self,
         account_id: &AccountID,
-        receiver_receipts: &[ReceiverTxReceipt],
+        receiver_receipts: &[ReceiverReceipt],
         expected_value: u64,
     ) -> Result<ReceiptTransactionStatus, ReceiptServiceError> {
         let public_keys: Vec<&CompressedRistrettoPublic> = receiver_receipts
@@ -268,15 +268,15 @@ where
     fn create_receiver_receipts(
         &self,
         tx_proposal: &TxProposal,
-    ) -> Result<Vec<ReceiverTxReceipt>, ReceiptServiceError> {
-        let receiver_tx_receipts: Vec<ReceiverTxReceipt> = tx_proposal
+    ) -> Result<Vec<ReceiverReceipt>, ReceiptServiceError> {
+        let receiver_tx_receipts: Vec<ReceiverReceipt> = tx_proposal
             .outlays
             .iter()
             .enumerate()
             .map(|(outlay_index, outlay)| {
                 let tx_out_index = tx_proposal.outlay_index_to_tx_out_index[&outlay_index];
                 let tx_out = tx_proposal.tx.prefix.outputs[tx_out_index].clone();
-                ReceiverTxReceipt {
+                ReceiverReceipt {
                     recipient: outlay.clone().receiver,
                     txo_public_key: tx_out.public_key,
                     txo_hash: tx_out.hash().to_vec(),
@@ -284,7 +284,7 @@ where
                     proof: tx_proposal.outlay_confirmation_numbers[outlay_index].clone(),
                 }
             })
-            .collect::<Vec<ReceiverTxReceipt>>();
+            .collect::<Vec<ReceiverReceipt>>();
         Ok(receiver_tx_receipts)
     }
 }
@@ -344,7 +344,7 @@ mod tests {
         proto_tx_receipt.set_confirmation_number(confirmation_number.to_vec());
 
         let tx_receipt =
-            ReceiverTxReceipt::try_from(&proto_tx_receipt).expect("Could not convert tx receipt");
+            ReceiverReceipt::try_from(&proto_tx_receipt).expect("Could not convert tx receipt");
         assert_eq!(public_address, tx_receipt.recipient);
         assert_eq!(txo.public_key, tx_receipt.txo_public_key);
         assert_eq!(txo.hash().to_vec(), tx_receipt.txo_hash);
