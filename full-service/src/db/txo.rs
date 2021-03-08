@@ -1629,7 +1629,7 @@ mod tests {
         // Seed Txos
         let mut src_txos = Vec::new();
         for i in 0..10 {
-            let (txo_id, txo, key_image) =
+            let (_txo_id, txo, _key_image) =
                 create_test_received_txo(&account_key, i, i * MOB as u64, i, &mut rng, &wallet_db);
             src_txos.push(txo);
         }
@@ -1648,7 +1648,7 @@ mod tests {
     }
 
     // FIXME: once we have create_minted, then select_txos test with no
-    // spendable FIXME: test update txo after tombstone block is exceeded
+    // FIXME: test update txo after tombstone block is exceeded
     // FIXME: test update txo after it has landed via key_image update
     // FIXME: test any_failed and are_all_spent
     // FIXME: test max_spendable
