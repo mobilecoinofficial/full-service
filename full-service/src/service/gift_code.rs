@@ -22,26 +22,18 @@ use crate::{
         WalletDbError,
     },
     error::WalletServiceError,
-    service::{
-        account::AccountService,
-        decorated_types::{JsonGiftCode, JsonSubmitResponse},
-        password_manager::PasswordService,
-        PasswordServiceError, WalletService,
-    },
+    service::{account::AccountService, transaction::TransactionService, WalletService},
 };
+use diesel::prelude::*;
+use displaydoc::Display;
 use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
-use mc_fog_report_connection::FogPubkeyResolver;
+use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_transaction_core::{constants::MINIMUM_FEE, get_tx_out_shared_secret};
 use mc_util_from_random::FromRandom;
-
-use crate::service::transaction::TransactionService;
-use diesel::prelude::*;
-use displaydoc::Display;
-use mc_fog_report_validation::FogPubkeyResolver;
 use std::convert::TryFrom;
 
 #[derive(Display, Debug)]

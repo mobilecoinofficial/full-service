@@ -1,5 +1,3 @@
-DROP TABLE gift_codes;
-
 DROP TABLE transaction_txo_types;
 
 DROP INDEX idx_transaction_logs__transaction_id_hex;

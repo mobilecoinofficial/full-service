@@ -223,10 +223,7 @@ mod tests {
             consume_log_id: None,
         };
         assert_eq!(gotten, expected_gift_code);
-        assert_eq!(
-            gotten.entropy
-            entropy
-        );
+        assert_eq!(gotten.entropy, entropy);
 
         let all_gift_codes = GiftCode::list_all(&wallet_db.get_conn().unwrap()).unwrap();
         assert_eq!(all_gift_codes.len(), 1);

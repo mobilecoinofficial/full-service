@@ -70,6 +70,9 @@ pub enum JsonCommandRequestV2 {
         name: Option<String>,
         first_block_index: Option<String>,
     },
+    export_account_secrets {
+        account_id: String,
+    },
     get_all_accounts,
     get_account {
         account_id: String,
