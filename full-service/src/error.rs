@@ -5,9 +5,10 @@
 use crate::{
     db::WalletDbError,
     service::{
-        balance::BalanceServiceError, gift_code::GiftCodeServiceError, ledger::LedgerServiceError,
-        proof::ProofServiceError, transaction::TransactionServiceError,
-        transaction_log::TransactionLogServiceError, txo::TxoServiceError,
+        account::AccountServiceError, balance::BalanceServiceError,
+        gift_code::GiftCodeServiceError, ledger::LedgerServiceError, proof::ProofServiceError,
+        transaction::TransactionServiceError, transaction_log::TransactionLogServiceError,
+        txo::TxoServiceError,
     },
 };
 use displaydoc::Display;
@@ -56,6 +57,9 @@ pub enum WalletServiceError {
 
     /// Error with the GiftCode service: {0}
     GiftCodeService(GiftCodeServiceError),
+
+    /// Error with the Account service: {0}
+    AccountService(AccountServiceError),
 }
 
 impl From<WalletDbError> for WalletServiceError {
@@ -109,6 +113,12 @@ impl From<TransactionLogServiceError> for WalletServiceError {
 impl From<GiftCodeServiceError> for WalletServiceError {
     fn from(src: GiftCodeServiceError) -> Self {
         Self::GiftCodeService(src)
+    }
+}
+
+impl From<AccountServiceError> for WalletServiceError {
+    fn from(src: AccountServiceError) -> Self {
+        Self::AccountService(src)
     }
 }
 

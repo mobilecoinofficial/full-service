@@ -23,7 +23,9 @@ use crate::{
     },
     error::WalletServiceError,
     service::{
-        account::AccountService, address::AddressService, transaction::TransactionService,
+        account::{AccountService, AccountServiceError},
+        address::AddressService,
+        transaction::{TransactionService, TransactionServiceError},
         WalletService,
     },
 };
@@ -76,6 +78,12 @@ pub enum GiftCodeServiceError {
 
     /// Diesel error: {0}
     Diesel(diesel::result::Error),
+
+    /// Error with the Transaction Service: {0}
+    TransactionService(TransactionServiceError),
+
+    /// Error with the Account Service: {0}
+    AccountService(AccountServiceError),
 }
 
 impl From<WalletDbError> for GiftCodeServiceError {
@@ -108,6 +116,18 @@ impl From<diesel::result::Error> for GiftCodeServiceError {
     }
 }
 
+impl From<TransactionServiceError> for GiftCodeServiceError {
+    fn from(src: TransactionServiceError) -> Self {
+        Self::TransactionService(src)
+    }
+}
+
+impl From<AccountServiceError> for GiftCodeServiceError {
+    fn from(src: AccountServiceError) -> Self {
+        Self::AccountService(src)
+    }
+}
+
 pub struct GiftCodeDetails {
     root_entropy: Vec<u8>,
     txo_public_key: CompressedRistrettoPublic,
@@ -134,6 +154,8 @@ impl fmt::Display for GiftCodeEntropy {
     }
 }
 
+/// Trait defining the ways in which the wallet can interact with and manage
+/// gift codes.
 pub trait GiftCodeService {
     /// Builds a new gift code.
     ///
@@ -157,9 +179,7 @@ pub trait GiftCodeService {
         fee: Option<u64>,
         tombstone_block: Option<u64>,
         max_spendable_value: Option<u64>,
-    ) -> Result<(TransactionLog, GiftCodeEntropy), WalletServiceError>;
-    // FIXME: Once we've refactored account to its own service, this can return
-    // GiftCodeError
+    ) -> Result<(TransactionLog, GiftCodeEntropy), GiftCodeServiceError>;
 
     /// After a gift code has been built and submitted, this method polls for
     /// the funded Txo to hit the ledger, and then constructs the gift code
@@ -220,7 +240,7 @@ where
         fee: Option<u64>,
         tombstone_block: Option<u64>,
         max_spendable_value: Option<u64>,
-    ) -> Result<(TransactionLog, GiftCodeEntropy), WalletServiceError> {
+    ) -> Result<(TransactionLog, GiftCodeEntropy), GiftCodeServiceError> {
         // First, create the account which will receive the funds, from a new random
         // entropy
         let mut rng = rand::thread_rng();
@@ -244,21 +264,23 @@ where
             let conn = self.wallet_db.get_conn()?;
             // Send a transaction to the gift_code account
             let (gift_code_account, gift_code_account_key, from_account) =
-                conn.transaction::<(Account, AccountKey, Account), WalletServiceError, _>(|| {
-                    let from_account = Account::get(&from_account_id, &conn)?;
-                    let gift_code_account =
-                        Account::get(&AccountID(account.account_id_hex), &conn)?;
+                conn.transaction::<(Account, AccountKey, Account), GiftCodeServiceError, _>(
+                    || {
+                        let from_account = Account::get(&from_account_id, &conn)?;
+                        let gift_code_account =
+                            Account::get(&AccountID(account.account_id_hex), &conn)?;
 
-                    let gift_code_account_key: AccountKey =
-                        mc_util_serial::decode(&gift_code_account.account_key)?;
-                    log::debug!(
-                        self.logger,
-                        "Funding gift code account {:?} from account {:?}",
-                        gift_code_account.account_id_hex,
-                        from_account.account_id_hex,
-                    );
-                    Ok((gift_code_account, gift_code_account_key, from_account))
-                })?;
+                        let gift_code_account_key: AccountKey =
+                            mc_util_serial::decode(&gift_code_account.account_key)?;
+                        log::debug!(
+                            self.logger,
+                            "Funding gift code account {:?} from account {:?}",
+                            gift_code_account.account_id_hex,
+                            from_account.account_id_hex,
+                        );
+                        Ok((gift_code_account, gift_code_account_key, from_account))
+                    },
+                )?;
             (gift_code_account, gift_code_account_key, from_account)
         };
 
