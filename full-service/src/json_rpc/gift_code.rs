@@ -22,7 +22,7 @@ pub struct GiftCode {
     pub entropy: String,
 
     /// The amount of MOB contained in the gift code account.
-    pub value: String,
+    pub value_pmob: String,
 
     /// A memo associated with this gift code.
     pub memo: String,
@@ -34,7 +34,7 @@ impl From<&db::models::GiftCode> for GiftCode {
             object: "gift_code".to_string(),
             gift_code: src.gift_code_b58.clone(),
             entropy: hex::encode(&src.entropy),
-            value: src.value.to_string(),
+            value_pmob: src.value.to_string(),
             memo: src.memo.clone(),
         }
     }

@@ -32,6 +32,9 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 * [verify_proof](#verify-proof)
 * [check_receiver_receipts_status](#check-receiver-receipts-status)
 * [create_receiver_receipts](#create-receiver-receipts)
+* [build_and_submit_gift_code](#build-and-submit-gift-code)
+* [get_gift_code](#get-gift-code)
+* [get_all_gift_codes](#get-all-gift-codes)
 * [get_txo_object](#get-txo-object)
 * [get_transaction_object](#get-transaction-object)
 * [get_block_object](#get-block-object)
@@ -48,6 +51,7 @@ The methods above return data representations of wallet contents. The Full Servi
 * [txo](#the-txo-object)
 * [proof](#the-proof-object)
 * [receiver_receipt](#the-receiver-receipt-object)
+* [gift_code](#the-gift-code-object)
 
 ## Full Service API Methods
 
@@ -1823,6 +1827,144 @@ curl -s localhost:9090/wallet \
         "txo_hash": "9db71b4d7718b797154c42a22a3aac6c012a8e3706c35ad7e4a929a1392e7afa",
         "tombstone": "153017",
         "proof": "0a20c77fd2d8e5434557ddbe4a4565e701a815b8581a529112a4eb3b814d69878b34"
+      }
+    ]
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1
+}
+```
+
+### Gift Codes
+
+Gift codes are onetime accounts that contain a single Txo. They provide a means to send MOB in a way that can be "claimed," for example, by pasting a QR code for a gift code into a group chat, and the first person to consume the gift code claims the MOB.
+
+#### Build and Submit Gift Code
+
+Builds and Submits a Gift Code to the ledger.
+
+NOTE: Blocks on submitting the gift code and waits for a response from the ledger that the gift code was successful.
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "build_and_submit_gift_code",
+        "params": {
+          "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
+          "value_pmob": "42000000000000",
+          "memo": "Happy Birthday!"
+        },
+        "jsonrpc": "2.0",
+        "id": 1
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
+```
+
+```json
+{
+  "method": "build_and_submit_gift_code",
+  "result": {
+    "gift_code": {
+      "object": "gift_code",
+      "gift_code": "HFN97xyZrjU25WSvXtCkPBWb3F3Zu8J31ikPB136svHSu2mbTFJ7y4CmJod3C9FF3yoAyhpLxJZqoe1mfboaLnk81Pa6ZvEmrsWc9XkjTSNpeRLAbiQxz33ikKuQfBn",
+      "entropy": "ac60317797d65701df3aeccb80b2d07317e42c72affb38f1295741f335db83ad",
+      "value": "1000000000",
+      "memo": "Happy Birthday!"
+    }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1
+}
+```
+
+| Required Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `account_id` | The account on which to perform this action  | Account must exist in the wallet  |
+| `value_pmob` | The amount of MOB to send in this transaction  |   |
+
+| Optional Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `input_txo_ids` | Specific TXOs to use as inputs to this transaction   | TXO IDs (obtain from `get_all_txos_for_account`) |
+| `fee` | The fee amount to submit with this transaction | If not provided, uses `MINIMUM_FEE` = .01 MOB |
+| `tombstone_block` | The block after which this transaction expires | If not provided, uses `cur_height` + 50 |
+| `max_spendable_value` | The maximum amount for an input TXO selected for this transaction |  |
+| `memo` | Memo for whoever claims the Gift Code.   | |
+| `poll_interval` | The duration (in seconds) between polling while waiting for the gift code to land in the ledger. | |
+
+#### Get Gift Code
+
+Gift codes are stored in the database. You can get a Gift Code to recall the entropy, value, and memo.
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "get_gift_code",
+        "params": {
+          "gift_code_b58": "aDKXe1M9xwKw17w4Qv9tPDoS8en7bwaYYGiTr8ZXq7drVyGK198eBQDPoKuM5VCeE5T3pJTF2MwU8xeCkWkBwfHVhjsZhuru4zaESRzAWWE5iCKTDChMNUgVebMAqvx",
+        },
+        "jsonrpc": "2.0",
+        "id": 1
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
+```
+
+```json
+{
+  "method": "get_gift_code",
+  "result": {
+    "gift_code": {
+      "object": "gift_code",
+      "gift_code": "HFN97xyZrjU25WSvXtCkPBWb3F3Zu8J31ikPB136svHSu2mbTFJ7y4CmJod3C9FF3yoAyhpLxJZqoe1mfboaLnk81Pa6ZvEmrsWc9XkjTSNpeRLAbiQxz33ikKuQfBn",
+      "entropy": "ac60317797d65701df3aeccb80b2d07317e42c72affb38f1295741f335db83ad",
+      "value_pmob": "1000000000",
+      "memo": "Happy Birthday!"
+    }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1
+}
+```
+
+| Required Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `gift_code_b58` | The b58-encoded gift code contents  | Must be a valid b58-encoded gift code.  |
+
+
+#### Get All Gift Codes
+
+Get all the Gift Codes currently in the database.
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "get_all_gift_codes",
+        "jsonrpc": "2.0",
+        "id": 1
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
+```
+
+```json
+{
+  "method": "get_all_gift_codes",
+  "result": {
+    "gift_codes": [
+      {
+        "object": "gift_code",
+        "gift_code": "aDKXe1M9xwKw17w4Qv9tPDoS8en7bwaYYGiTr8ZXq7drVyGK198eBQDPoKuM5VCeE5T3pJTF2MwU8xeCkWkBwfHVhjsZhuru4zaESRzAWWE5iCKTDChMNUgVebMAqvx",
+        "entropy": "a87e5bc61c8cb73ada62b6278c47a51f78137e673b819900047e66df294967f9",
+        "value": "1000000000",
+        "memo": "Happy Birthday!"
+      },
+      {
+        "object": "gift_code",
+        "gift_code": "HFN97xyZrjU25WSvXtCkPBWb3F3Zu8J31ikPB136svHSu2mbTFJ7y4CmJod3C9FF3yoAyhpLxJZqoe1mfboaLnk81Pa6ZvEmrsWc9XkjTSNpeRLAbiQxz33ikKuQfBn",
+        "entropy": "ac60317797d65701df3aeccb80b2d07317e42c72affb38f1295741f335db83ad",
+        "value": "8000000000",
+        "memo": "Happy New Year!"
       }
     ]
   },

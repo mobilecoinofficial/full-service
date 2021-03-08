@@ -2,7 +2,7 @@
 
 //! Service for managing gift codes.
 //!
-//! Gift codes are onetime accounts that contain a single TXO. They provide
+//! Gift codes are onetime accounts that contain a single Txo. They provide
 //! a means to send MOB in a way that can be "claimed," for example, by pasting
 //! a QR code for a gift code into a group chat, and the first person to
 //! consume the gift code claims the MOB.

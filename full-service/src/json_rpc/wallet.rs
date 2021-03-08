@@ -249,7 +249,7 @@ where
         JsonCommandRequestV2::build_and_submit_transaction {
             account_id,
             recipient_public_address,
-            value,
+            value_pmob,
             input_txo_ids,
             fee,
             tombstone_block,
@@ -260,7 +260,7 @@ where
                 .build_and_submit(
                     &account_id,
                     &recipient_public_address,
-                    value,
+                    value_pmob,
                     input_txo_ids.as_ref(),
                     fee,
                     tombstone_block,
@@ -278,7 +278,7 @@ where
         JsonCommandRequestV2::build_transaction {
             account_id,
             recipient_public_address,
-            value,
+            value_pmob,
             input_txo_ids,
             fee,
             tombstone_block,
@@ -288,7 +288,7 @@ where
                 .build_transaction(
                     &account_id,
                     &recipient_public_address,
-                    value,
+                    value_pmob,
                     input_txo_ids.as_ref(),
                     fee,
                     tombstone_block,
@@ -545,7 +545,7 @@ where
         }
         JsonCommandRequestV2::build_gift_code {
             account_id,
-            value,
+            value_pmob,
             memo,
             input_txo_ids,
             fee,
@@ -556,7 +556,7 @@ where
             let (transaction_log, gift_code_entropy) = service
                 .build_and_submit_gift_code(
                     &AccountID(account_id),
-                    value.parse::<u64>().map_err(format_error)?,
+                    value_pmob.parse::<u64>().map_err(format_error)?,
                     memo,
                     input_txo_ids.as_ref(),
                     fee.map(|f| f.parse::<u64>())

@@ -90,7 +90,7 @@ pub enum JsonCommandRequestV2 {
     build_and_submit_transaction {
         account_id: String,
         recipient_public_address: String,
-        value: String,
+        value_pmob: String,
         input_txo_ids: Option<Vec<String>>,
         fee: Option<String>,
         tombstone_block: Option<String>,
@@ -100,7 +100,7 @@ pub enum JsonCommandRequestV2 {
     build_transaction {
         account_id: String,
         recipient_public_address: String,
-        value: String,
+        value_pmob: String,
         input_txo_ids: Option<Vec<String>>,
         fee: Option<String>,
         tombstone_block: Option<String>,
@@ -174,7 +174,7 @@ pub enum JsonCommandRequestV2 {
     },
     build_gift_code {
         account_id: String,
-        value: String,
+        value_pmob: String,
         memo: Option<String>,
         input_txo_ids: Option<Vec<String>>,
         fee: Option<String>,
