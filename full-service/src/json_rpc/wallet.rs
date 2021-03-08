@@ -505,7 +505,7 @@ where
         } => {
             let receipts: Vec<service::receipt::ReceiverReceipt> = receiver_receipts
                 .iter()
-                .map(|r| service::receipt::ReceiverReceipt::try_from(r))
+                .map(service::receipt::ReceiverReceipt::try_from)
                 .collect::<Result<Vec<service::receipt::ReceiverReceipt>, String>>()
                 .map_err(format_error)?;
             let status = service
@@ -528,7 +528,7 @@ where
                 .map_err(format_error)?;
             let json_receipts: Vec<ReceiverReceipt> = receipts
                 .iter()
-                .map(|r| ReceiverReceipt::try_from(r))
+                .map(ReceiverReceipt::try_from)
                 .collect::<Result<Vec<ReceiverReceipt>, String>>()
                 .map_err(format_error)?;
             JsonCommandResponseV2::create_receiver_receipts {

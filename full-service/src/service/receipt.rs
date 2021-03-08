@@ -191,7 +191,7 @@ where
             Txo::select_by_public_key(account_id, &public_keys, &self.wallet_db.get_conn()?)?;
 
         // None of the Txos from the receipts are in this wallet.
-        if txos_and_statuses.len() == 0 {
+        if txos_and_statuses.is_empty() {
             return Ok(ReceiptTransactionStatus::TransactionPending);
         }
 
@@ -254,8 +254,7 @@ where
         // Verify the proofs in the receipts
         for receipt in receiver_receipts {
             // Get the Txo which matches this receipt
-            let (txo, _status) =
-                pubkey_to_txo[&mc_util_serial::encode(&receipt.txo_public_key)].clone();
+            let (txo, _status) = pubkey_to_txo[&mc_util_serial::encode(&receipt.txo_public_key)];
             let proof_hex = hex::encode(mc_util_serial::encode(&receipt.proof));
             if !self.verify_proof(account_id, &TxoID(txo.txo_id_hex.clone()), &proof_hex)? {
                 return Ok(ReceiptTransactionStatus::InvalidProof);
