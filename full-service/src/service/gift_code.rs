@@ -42,6 +42,7 @@ use mc_util_from_random::FromRandom;
 use std::{convert::TryFrom, fmt};
 
 #[derive(Display, Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum GiftCodeServiceError {
     /// Error interacting with the database: {0}
     Database(WalletDbError),
@@ -284,17 +285,9 @@ where
             (gift_code_account, gift_code_account_key, from_account)
         };
 
-        println!(
-            "\x1b[1;33m Sending to gift code at subaddress {:?}\x1b[0m",
-            gift_code_account.main_subaddress_index
-        );
         let main_subaddress =
             gift_code_account_key.subaddress(gift_code_account.main_subaddress_index as u64);
         let gift_code_address = b58_encode(&main_subaddress)?;
-        println!(
-            "\x1b[1;34m Note that gives us spend public key {:?}\x1b[0m",
-            main_subaddress.spend_public_key()
-        );
 
         let (transaction_log, _associated_txos) = self.build_and_submit(
             &from_account.account_id_hex,
@@ -485,7 +478,6 @@ where
         // Sanity check that we have assigned subaddresses for the gift code account
         let addresses =
             AssignedSubaddress::list_all(&gift_code_account_id_hex, &self.wallet_db.get_conn()?)?;
-        println!("\x1b[1;33m GOT ADDRESSES: {:?}\x1b[0m", addresses);
         assert_eq!(addresses.len(), 2);
 
         // Sanity check that our txo is available and spendable from the gift code
@@ -513,19 +505,11 @@ where
             // that we can make sure the subaddress is assigned, rendering the
             // Txo spendable.
             std::thread::sleep(std::time::Duration::from_secs(3));
-            log::info!(
-                self.logger,
-                "\x1b[1;36m Not yet spendable for account {:?}. Txo = {:?}\x1b[0m",
-                gift_code_account_id_hex.to_string(),
-                txo
-            );
             let txos =
                 Txo::list_for_account(&gift_code_account_id_hex, &self.wallet_db.get_conn()?)?;
             txo = txos[0].clone();
             count += 1;
         }
-
-        log::info!(self.logger, "\x1b[1;33m GOT TXOS = {:?}\x1b[0m", txos);
 
         // We go with all the defaults because there is only one TXO in this account to
         // spend.
@@ -612,7 +596,7 @@ where
                 )?;
                 Ok(gift_code)
             }
-            Err(e) => return Err(e.into()),
+            Err(e) => Err(e.into()),
         }
     }
 }
