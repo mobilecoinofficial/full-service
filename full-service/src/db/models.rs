@@ -3,8 +3,8 @@
 //! DB Models
 
 use super::schema::{
-    account_txo_statuses, accounts, assigned_subaddresses, transaction_logs, transaction_txo_types,
-    txos,
+    account_txo_statuses, accounts, assigned_subaddresses, gift_codes, transaction_logs,
+    transaction_txo_types, txos,
 };
 
 use serde::Serialize;

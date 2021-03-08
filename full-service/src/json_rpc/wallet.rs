@@ -11,6 +11,7 @@ use crate::{
         address::Address,
         balance::Balance,
         block::{Block, BlockContents},
+        gift_code::GiftCode,
         json_rpc_request::{help_str_v2, JsonCommandRequest, JsonCommandRequestV2},
         json_rpc_response::{
             format_error, JsonCommandResponse, JsonCommandResponseV2, JsonRPCResponse,
@@ -22,10 +23,17 @@ use crate::{
     },
     service,
     service::{
-        account::AccountService, address::AddressService, balance::BalanceService,
-        gift_code::GiftCodeService, ledger::LedgerService, proof::ProofService,
-        receipt::ReceiptService, transaction::TransactionService,
-        transaction_log::TransactionLogService, txo::TxoService, WalletService,
+        account::AccountService,
+        address::AddressService,
+        balance::BalanceService,
+        gift_code::{EncodedGiftCode, GiftCodeService},
+        ledger::LedgerService,
+        proof::ProofService,
+        receipt::ReceiptService,
+        transaction::TransactionService,
+        transaction_log::TransactionLogService,
+        txo::TxoService,
+        WalletService,
     },
 };
 use mc_common::logger::global_log;
@@ -545,33 +553,52 @@ where
             max_spendable_value,
             poll_interval,
         } => {
-            let (submit_response, gift_code_entropy) = service
+            let (transaction_log, gift_code_entropy) = service
                 .build_and_submit_gift_code(
-                    account_id,
-                    value,
+                    &AccountID(account_id),
+                    value.parse::<u64>().map_err(format_error)?,
                     memo,
                     input_txo_ids.as_ref(),
-                    fee,
-                    tombstone_block,
-                    max_spendable_value,
+                    fee.map(|f| f.parse::<u64>())
+                        .transpose()
+                        .map_err(format_error)?,
+                    tombstone_block
+                        .map(|t| t.parse::<u64>())
+                        .transpose()
+                        .map_err(format_error)?,
+                    max_spendable_value
+                        .map(|m| m.parse::<u64>())
+                        .transpose()
+                        .map_err(format_error)?,
                 )
                 .map_err(format_error)?;
             let gift_code = service
                 .register_gift_code(
-                    submit_response.transaction_id,
-                    gift_code_entropy,
+                    transaction_log.transaction_id_hex,
+                    &gift_code_entropy,
                     poll_interval,
                 )
                 .map_err(format_error)?;
-            JsonCommandResponseV2::build_gift_code { gift_code }
+            JsonCommandResponseV2::build_gift_code {
+                gift_code: GiftCode::from(&gift_code),
+            }
         }
         JsonCommandRequestV2::get_gift_code { gift_code_b58 } => {
             JsonCommandResponseV2::get_gift_code {
-                gift_code: service.get_gift_code(gift_code_b58).map_err(format_error)?,
+                gift_code: GiftCode::from(
+                    &service
+                        .get_gift_code(&EncodedGiftCode(gift_code_b58))
+                        .map_err(format_error)?,
+                ),
             }
         }
         JsonCommandRequestV2::get_all_gift_codes {} => JsonCommandResponseV2::get_all_gift_codes {
-            gift_codes: service.list_gift_codes().map_err(format_error)?,
+            gift_codes: service
+                .list_gift_codes()
+                .map_err(format_error)?
+                .iter()
+                .map(GiftCode::from)
+                .collect(),
         },
     };
     let response = Json(JsonRPCResponse::from(result));

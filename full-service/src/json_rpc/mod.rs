@@ -8,6 +8,7 @@ pub mod account_secrets;
 mod address;
 mod balance;
 mod block;
+mod gift_code;
 pub mod json_rpc_request;
 pub mod json_rpc_response;
 mod proof;

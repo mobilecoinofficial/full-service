@@ -2,6 +2,10 @@
 
 //! API definition for the GiftCode object.
 
+use crate::db;
+
+use serde::{Deserialize, Serialize};
+
 /// An gift code created by this wallet to share.
 ///
 /// A gift code is a self-contained account which has been funded with MOB.
@@ -22,4 +26,16 @@ pub struct GiftCode {
 
     /// A memo associated with this gift code.
     pub memo: String,
+}
+
+impl From<&db::models::GiftCode> for GiftCode {
+    fn from(src: &db::models::GiftCode) -> GiftCode {
+        GiftCode {
+            object: "gift_code".to_string(),
+            gift_code: src.gift_code_b58.clone(),
+            entropy: hex::encode(&src.entropy),
+            value: src.value.to_string(),
+            memo: src.memo.clone(),
+        }
+    }
 }

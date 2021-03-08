@@ -11,6 +11,7 @@ use crate::{
         address::Address,
         balance::Balance,
         block::{Block, BlockContents},
+        gift_code::GiftCode,
         proof::Proof,
         receiver_receipt::ReceiverReceipt,
         transaction_log::TransactionLog,
@@ -258,12 +259,12 @@ pub enum JsonCommandResponseV2 {
         receiver_receipts: Vec<ReceiverReceipt>,
     },
     build_gift_code {
-        gift_code: JsonGiftCode,
+        gift_code: GiftCode,
     },
     get_gift_code {
-        gift_code: JsonGiftCode,
+        gift_code: GiftCode,
     },
     get_all_gift_codes {
-        gift_codes: Vec<JsonGiftCode>,
+        gift_codes: Vec<GiftCode>,
     },
 }

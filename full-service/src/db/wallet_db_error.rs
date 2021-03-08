@@ -138,7 +138,7 @@ impl From<prost::DecodeError> for WalletDbError {
 }
 
 impl From<GiftCodeDbError> for WalletDbError {
-    fn from(src: GiftCodeDbErorr) -> Self {
+    fn from(src: GiftCodeDbError) -> Self {
         Self::GiftCode(src)
     }
 }

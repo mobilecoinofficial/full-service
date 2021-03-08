@@ -3,19 +3,20 @@
 //! The Gift Code Model.
 
 use crate::{
-    db::models::{GiftCode, NewGiftCode},
-    error::WalletDbError,
+    db::{
+        models::{GiftCode, NewGiftCode},
+        WalletDbError,
+    },
+    service::gift_code::EncodedGiftCode,
 };
-use mc_account_keys::RootEntropy;
-use mc_crypto_keys::CompressedRistrettoPublic;
-
-use crate::db::WalletDbError;
 use diesel::{
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},
     RunQueryDsl,
 };
 use displaydoc::Display;
+use mc_account_keys::RootEntropy;
+use mc_crypto_keys::CompressedRistrettoPublic;
 
 #[derive(Display, Debug)]
 pub enum GiftCodeDbError {
@@ -48,11 +49,11 @@ pub trait GiftCodeModel {
         build_log_id: Option<i32>,
         consume_log_id: Option<i32>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<String, WalletDbError>;
+    ) -> Result<GiftCode, WalletDbError>;
 
     /// Get the details of a specific Gift Code.
     fn get(
-        gift_code_b58: &str,
+        gift_code_b58: &EncodedGiftCode,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<GiftCode, WalletDbError>;
 
@@ -101,7 +102,7 @@ impl GiftCodeModel for GiftCode {
         // Insert the gift code to our gift code table.
         let new_gift_code = NewGiftCode {
             gift_code_b58: &gift_code_b58,
-            entropy: &entropy,
+            entropy: &entropy.bytes.to_vec(),
             txo_public_key: &txo_public_key.as_bytes().to_vec(),
             value,
             memo: &memo,
@@ -112,20 +113,20 @@ impl GiftCodeModel for GiftCode {
 
         diesel::insert_into(gift_codes::table)
             .values(&new_gift_code)
-            .execute(&conn)?;
+            .execute(conn)?;
 
-        let gift_code = GiftCode::get(gift_code_b58, conn)?;
+        let gift_code = GiftCode::get(&EncodedGiftCode(gift_code_b58), conn)?;
         Ok(gift_code)
     }
 
     fn get(
-        gift_code_b58: &str,
+        gift_code_b58: &EncodedGiftCode,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<GiftCode, WalletDbError> {
         use crate::db::schema::gift_codes::dsl::{gift_code_b58 as dsl_gift_code_b58, gift_codes};
 
         match gift_codes
-            .filter(dsl_gift_code_b58.eq(gift_code_b58))
+            .filter(dsl_gift_code_b58.eq(gift_code_b58.to_string()))
             .get_result::<GiftCode>(conn)
         {
             Ok(a) => Ok(a),
@@ -164,7 +165,7 @@ impl GiftCodeModel for GiftCode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{db::encryption_provider::EncryptionProvider, test_utils::WalletDbTestContext};
+    use crate::test_utils::WalletDbTestContext;
     use mc_account_keys::RootIdentity;
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_keys::RistrettoPublic;
@@ -194,7 +195,7 @@ mod tests {
         let account_id = 132;
         let build_log_id = 6873;
 
-        let gift_code_b58 = GiftCode::create(
+        let gift_code = GiftCode::create(
             &entropy,
             &txo_public_key,
             value as i64,
@@ -206,14 +207,17 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(gift_code_b58, "9tzLePjpd9wDmk6a2ek7pg9UPGgSbBp6QaSiyqghUvPX54iiwV8XkNUkBvWmrRkA5CSDtif9jyoNN4ruAaVNKsssXASWsFpGVTiEX3mngspUqx67");
+        assert_eq!(gift_code.gift_code_b58, "gk7CcXuK5RKNW13LvrWY156ZLjaoHaXxLedqACZsw3w6FfF6TR4TVzaAQkH5EHxaw54DnGWRJPA31PpcmvGLoArZbDRj1kBhcTusE8AVW4Mj7QT5");
 
-        let gotten =
-            GiftCode::get(&gift_code.gift_code_b58, &wallet_db.get_conn().unwrap()).unwrap();
+        let gotten = GiftCode::get(
+            &EncodedGiftCode(gift_code.gift_code_b58),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
 
         let expected_gift_code = GiftCode {
             id: 1,
-            gift_code_b58: gift_code.gift_code_b58.clone(),
+            gift_code_b58: gotten.gift_code_b58.clone(),
             entropy: entropy.bytes.to_vec(),
             txo_public_key: txo_public_key.as_bytes().to_vec(),
             value: value as i64,
@@ -223,7 +227,7 @@ mod tests {
             consume_log_id: None,
         };
         assert_eq!(gotten, expected_gift_code);
-        assert_eq!(gotten.entropy, entropy);
+        assert_eq!(gotten.entropy, entropy.bytes.to_vec());
 
         let all_gift_codes = GiftCode::list_all(&wallet_db.get_conn().unwrap()).unwrap();
         assert_eq!(all_gift_codes.len(), 1);
@@ -233,7 +237,11 @@ mod tests {
         gotten
             .update_consume_log_id(16, &wallet_db.get_conn().unwrap())
             .unwrap();
-        let gotten2 = GiftCode::get(&gift_code_b58, &wallet_db.get_conn().unwrap()).unwrap();
+        let gotten2 = GiftCode::get(
+            &EncodedGiftCode(gotten.gift_code_b58),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
         assert_eq!(gotten2.consume_log_id.unwrap(), 16);
     }
 }
