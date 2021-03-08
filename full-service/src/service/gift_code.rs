@@ -287,8 +287,7 @@ where
             "Created gift code account. Importing to wallet at block index {:?}.",
             block_index,
         );
-        let account =
-            self.import_account_entropy(entropy_str.clone(), memo.clone(), Some(block_index))?;
+        let account = self.import_account_entropy(entropy_str, memo.clone(), Some(block_index))?;
 
         let (gift_code_account, gift_code_account_key, from_account) = {
             let conn = self.wallet_db.get_conn()?;
@@ -341,7 +340,7 @@ where
         let mut gift_code_payload = mc_mobilecoind_api::printable::TransferPayload::new();
         gift_code_payload.set_entropy(root_id.root_entropy.bytes.to_vec());
         gift_code_payload.set_tx_out_public_key(proto_tx_pubkey);
-        gift_code_payload.set_memo(memo.clone().unwrap_or("".to_string()));
+        gift_code_payload.set_memo(memo.clone().unwrap_or_else(|| "".to_string()));
 
         let mut gift_code_wrapper = mc_mobilecoind_api::printable::PrintableWrapper::new();
         gift_code_wrapper.set_transfer_payload(gift_code_payload);
@@ -353,7 +352,7 @@ where
             &root_id.root_entropy,
             &txo_public_key,
             value as i64,
-            memo.unwrap_or("".to_string()),
+            memo.unwrap_or_else(|| "".to_string()),
             &AccountID::from(&gift_code_account_key),
             &TxoID::from(&tx_out),
             &self.wallet_db.get_conn()?,
@@ -464,7 +463,7 @@ where
         ) {
             // The account may already be in the wallet if we constructed this gift code in this
             // wallet.
-            Ok(account) => account.account_id_hex.to_string(),
+            Ok(account) => account.account_id_hex,
             Err(WalletDbError::AccountNotFound(_)) => {
                 let account = self.import_account_entropy(
                     hex::encode(decoded.root_entropy.bytes),
@@ -499,7 +498,7 @@ where
         );
 
         if value < MINIMUM_FEE {
-            return Err(GiftCodeServiceError::InsufficientValueForFee(value).into());
+            return Err(GiftCodeServiceError::InsufficientValueForFee(value));
         }
 
         // Sanity check that we have assigned subaddresses for the gift code account
@@ -516,22 +515,21 @@ where
             ));
         }
         if txos.len() != 1 {
-            return Err(
-                GiftCodeServiceError::UnexpectedNumTxosInGiftCodeAccount(txos.len()).into(),
-            );
+            return Err(GiftCodeServiceError::UnexpectedNumTxosInGiftCodeAccount(
+                txos.len(),
+            ));
         }
         if txos[0].txo.value as u64 != value {
             return Err(GiftCodeServiceError::UnexpectedValueInGiftCodeTxo(
                 txos[0].txo.value as u64,
-            )
-            .into());
+            ));
         }
         let mut txo = txos[0].clone();
         let max_polling = 3;
         let mut count = 0;
         while txo.txo.subaddress_index.is_none() && count <= max_polling {
             if count == max_polling {
-                return Err(GiftCodeServiceError::TxoNotConsumable.into());
+                return Err(GiftCodeServiceError::TxoNotConsumable);
             }
             // Note that we now need to allow the sync thread to catch up for this TXO so
             // that we can make sure the subaddress is assigned, rendering the
@@ -570,7 +568,7 @@ where
             &decoded.txo_public_key,
             value as i64,
             decoded.memo.clone(),
-            &AccountID(gift_code_account_id_hex.to_string()),
+            &AccountID(gift_code_account_id_hex),
             &TxoID(txo.txo.txo_id_hex),
             &self.wallet_db.get_conn()?,
         )?;

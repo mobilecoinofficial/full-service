@@ -84,4 +84,4 @@ CREATE TABLE transaction_txo_types (
     PRIMARY KEY (transaction_id_hex, txo_id_hex),
     FOREIGN KEY (transaction_id_hex) REFERENCES transaction_logs(transaction_id_hex),
     FOREIGN KEY (txo_id_hex) REFERENCES txos(txo_id_hex)
-);
+)

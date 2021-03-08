@@ -609,7 +609,7 @@ where
         } => {
             let (transaction_log, gift_code) = service
                 .claim_gift_code(
-                    &EncodedGiftCode(gift_code_b58.clone()),
+                    &EncodedGiftCode(gift_code_b58),
                     &AccountID(account_id),
                     address,
                 )
