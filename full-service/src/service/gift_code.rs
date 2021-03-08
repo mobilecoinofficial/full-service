@@ -21,7 +21,6 @@ use crate::{
         txo::TxoModel,
         WalletDbError,
     },
-    error::WalletServiceError,
     service::{
         account::{AccountService, AccountServiceError},
         address::AddressService,
@@ -39,7 +38,7 @@ use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_transaction_core::{constants::MINIMUM_FEE, get_tx_out_shared_secret};
 use mc_util_from_random::FromRandom;
-use std::{convert::TryFrom, fmt};
+use std::{convert::TryFrom, fmt, time::Duration};
 
 #[derive(Display, Debug)]
 #[allow(clippy::large_enum_variant)]
@@ -134,7 +133,7 @@ pub struct GiftCodeDetails {
     txo_public_key: CompressedRistrettoPublic,
     value: u64,
     memo: String,
-    account_id: i32,
+    account_id: AccountID,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -185,11 +184,11 @@ pub trait GiftCodeService {
     /// After a gift code has been built and submitted, this method polls for
     /// the funded Txo to hit the ledger, and then constructs the gift code
     /// given the entropy, txo_public_key, and the memo.
-    fn register_gift_code(
+    fn wait_for_new_gift_code(
         &self,
         transaction_log_id: String,
         gift_code_entropy: &GiftCodeEntropy,
-        poll_interval: Option<u64>,
+        poll_interval: Duration,
     ) -> Result<GiftCode, GiftCodeServiceError>;
 
     /// Get the details for a specific gift code.
@@ -208,22 +207,21 @@ pub trait GiftCodeService {
     /// the destination specified by the account_id_hex and
     /// assigned_subaddress_b58. If no assigned_subaddress_b58 is provided,
     /// then a new AssignedSubaddress will be created to receive the funds.
-    fn consume_gift_code(
+    fn claim_gift_code(
         &self,
         gift_code_b58: &EncodedGiftCode,
         account_id: &AccountID,
         assigned_subaddress_b58: Option<String>,
-    ) -> Result<(TransactionLog, GiftCodeDetails), WalletServiceError>;
-    // FIXME: Once we've refactored transaction building to its own service, this
-    // can return GiftCodeError
+    ) -> Result<(TransactionLog, GiftCodeDetails), GiftCodeServiceError>;
 
-    ///
-    fn register_consumed(
+    /// Wait for a gift code-claiming transaction to hit the ledger, and then
+    /// update the database.
+    fn wait_for_claimed_gift_code(
         &self,
         gift_code_b58: &EncodedGiftCode,
         gift_code_details: &GiftCodeDetails,
         transaction_log_id: String,
-        poll_interval: Option<u64>,
+        poll_interval: Duration,
     ) -> Result<GiftCode, GiftCodeServiceError>;
 }
 
@@ -297,17 +295,20 @@ where
             fee.map(|f| f.to_string()),
             tombstone_block.map(|t| t.to_string()),
             max_spendable_value.map(|f| f.to_string()),
-            memo,
+            Some(
+                json!({"memo": memo.unwrap_or("".to_string()), "gift_code_entropy": entropy_str})
+                    .to_string(),
+            ),
         )?;
 
         Ok((transaction_log, GiftCodeEntropy(entropy_str)))
     }
 
-    fn register_gift_code(
+    fn wait_for_new_gift_code(
         &self,
         transaction_id_hex: String,
         gift_code_entropy: &GiftCodeEntropy,
-        poll_interval: Option<u64>,
+        poll_interval: Duration,
     ) -> Result<GiftCode, GiftCodeServiceError> {
         // Poll until we see this transaction land.
         log::debug!(
@@ -324,7 +325,7 @@ where
                         "Gift code txo still pending at block height {:?}. Sleeping.",
                         self.ledger_db.num_blocks()?,
                     );
-                    std::thread::sleep(std::time::Duration::from_secs(poll_interval.unwrap_or(5)))
+                    std::thread::sleep(poll_interval)
                 }
                 TX_STATUS_FAILED => return Err(GiftCodeServiceError::BuildGiftCodeFailed),
                 TX_STATUS_SUCCEEDED => break transaction_log,
@@ -361,8 +362,8 @@ where
                 &txo_public_key,
                 transaction_log.value,
                 transaction_log.comment.clone(),
-                gift_code_account.id,
-                Some(transaction_log.id),
+                &AccountID(gift_code_account.account_id_hex),
+                Some(&transaction_log.transaction_id_hex),
                 None,
                 &conn,
             )?;
@@ -389,12 +390,12 @@ where
         Ok(())
     }
 
-    fn consume_gift_code(
+    fn claim_gift_code(
         &self,
         gift_code_b58: &EncodedGiftCode,
         account_id: &AccountID,
         assigned_subaddress_b58: Option<String>,
-    ) -> Result<(TransactionLog, GiftCodeDetails), WalletServiceError> {
+    ) -> Result<(TransactionLog, GiftCodeDetails), GiftCodeServiceError> {
         log::info!(
             self.logger,
             "Consuming gift code {:?} to account_id {:?} at address {:?}",
@@ -434,13 +435,13 @@ where
         let (value, _blinding) = gift_txo.amount.get_value(&shared_secret).unwrap();
 
         // Add this account to our DB. It will be drained immediately.
-        let (gift_code_account_id_hex, gift_code_account_id) = match Account::get(
+        let gift_code_account_id_hex = match Account::get(
             &AccountID::from(&gift_code_account_key),
             &self.wallet_db.get_conn()?,
         ) {
             // The account may already be in the wallet if we constructed this gift code in this
             // wallet.
-            Ok(account) => (account.account_id_hex.to_string(), account.id),
+            Ok(account) => account.account_id_hex.to_string(),
             Err(WalletDbError::AccountNotFound(_)) => {
                 let account = self.import_account_entropy(
                     hex::encode(root_entropy),
@@ -452,7 +453,7 @@ where
                     "Imported gift code account {:?}.",
                     account.account_id_hex
                 );
-                (account.account_id_hex, account.id)
+                account.account_id_hex
             }
             Err(e) => return Err(e.into()),
         };
@@ -521,7 +522,10 @@ where
             Some(MINIMUM_FEE.to_string()),
             None,
             None,
-            Some(format!("Consume Gift Code: {}", memo)),
+            Some(
+                json!({ "claim_gift_code": memo, "recipient_address": destination_address })
+                    .to_string(),
+            ),
         )?;
         log::info!(
             self.logger,
@@ -533,19 +537,18 @@ where
             txo_public_key,
             value,
             memo: memo.to_string(),
-            account_id: gift_code_account_id,
+            account_id: AccountID(gift_code_account_id_hex),
         };
         Ok((transaction_log, details))
     }
 
-    fn register_consumed(
+    fn wait_for_claimed_gift_code(
         &self,
         gift_code_b58: &EncodedGiftCode,
         gift_code_details: &GiftCodeDetails,
         transaction_log_id: String,
-        poll_interval: Option<u64>,
+        poll_interval: Duration,
     ) -> Result<GiftCode, GiftCodeServiceError> {
-        // FIXME: duplicated fragment
         let transaction_log = loop {
             let transaction_log = {
                 let conn = self.wallet_db.get_conn()?;
@@ -558,7 +561,7 @@ where
                         "Gift code txo still pending at block height {:?}. Sleeping.",
                         self.ledger_db.num_blocks()?,
                     );
-                    std::thread::sleep(std::time::Duration::from_secs(poll_interval.unwrap_or(5)))
+                    std::thread::sleep(poll_interval)
                 }
                 TX_STATUS_FAILED => return Err(GiftCodeServiceError::BuildGiftCodeFailed),
                 TX_STATUS_SUCCEEDED => break transaction_log,
@@ -569,7 +572,11 @@ where
                 }
             }
         };
-        log::info!(self.logger, "Got transaction log {:?}", transaction_log);
+        log::info!(
+            self.logger,
+            "Got gift code transaction log {:?}",
+            transaction_log
+        );
 
         // Add the consumed gift code to our gift code store. If we also own this gift
         // code, then update.
@@ -577,7 +584,7 @@ where
         match GiftCode::get(&gift_code_b58, &conn) {
             Ok(gc) => {
                 log::info!(self.logger, "Updating existing gift code consume_log_id");
-                gc.update_consume_log_id(transaction_log.id, &conn)?;
+                gc.update_claim_log_id(&transaction_log.transaction_id_hex, &conn)?;
                 log::info!(self.logger, "Updated gift code");
                 Ok(gc)
             }
@@ -589,9 +596,9 @@ where
                     &gift_code_details.txo_public_key,
                     gift_code_details.value as i64,
                     gift_code_details.memo.to_string(),
-                    gift_code_details.account_id,
+                    &gift_code_details.account_id,
                     None,
-                    Some(transaction_log.id),
+                    Some(&transaction_log.transaction_id_hex),
                     &self.wallet_db.get_conn()?,
                 )?;
                 Ok(gift_code)
@@ -686,7 +693,11 @@ mod tests {
 
         log::info!(logger, "Registering gift code");
         let gift_code = service
-            .register_gift_code(submit_response.transaction_id_hex, &gift_code_entropy, None)
+            .wait_for_new_gift_code(
+                submit_response.transaction_id_hex,
+                &gift_code_entropy,
+                Duration::from_secs(5),
+            )
             .unwrap();
         assert_eq!(
             gift_code_entropy,
@@ -762,7 +773,7 @@ mod tests {
 
         log::info!(logger, "Consuming gift code");
         let (consume_response, gift_code_details) = service
-            .consume_gift_code(
+            .claim_gift_code(
                 &EncodedGiftCode(gift_code.gift_code_b58.clone()),
                 &AccountID(bob.account_id_hex.clone()),
                 None,
@@ -782,13 +793,13 @@ mod tests {
             consume_transaction_log
         };
 
-        log::info!(logger, "Registering consumed");
+        log::info!(logger, "Waiting for gift code to land");
         service
-            .register_consumed(
+            .wait_for_claimed_gift_code(
                 &EncodedGiftCode(gift_code.gift_code_b58),
                 &gift_code_details,
                 consume_transaction_log.transaction_id_hex,
-                None,
+                Duration::from_secs(5),
             )
             .unwrap();
 

@@ -180,10 +180,16 @@ pub enum JsonCommandRequestV2 {
         fee: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
-        poll_interval: Option<u64>,
+        poll_interval: Option<String>,
     },
     get_gift_code {
         gift_code_b58: String,
     },
     get_all_gift_codes,
+    claim_gift_code {
+        gift_code_b58: String,
+        account_id: String,
+        address: Option<String>,
+        poll_interval: Option<String>,
+    },
 }

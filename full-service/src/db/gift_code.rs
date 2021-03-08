@@ -4,6 +4,7 @@
 
 use crate::{
     db::{
+        account::AccountID,
         models::{GiftCode, NewGiftCode},
         WalletDbError,
     },
@@ -45,9 +46,9 @@ pub trait GiftCodeModel {
         txo_public_key: &CompressedRistrettoPublic,
         value: i64,
         memo: String,
-        account_id: i32,
-        build_log_id: Option<i32>,
-        consume_log_id: Option<i32>,
+        account_id: &AccountID,
+        build_log_id: Option<&str>,
+        claim_log_id: Option<&str>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<GiftCode, WalletDbError>;
 
@@ -62,13 +63,13 @@ pub trait GiftCodeModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<GiftCode>, WalletDbError>;
 
-    /// Update the consume_log_id for the given gift code.
+    /// Update the claim_log_id for the given gift code.
     ///
     /// This method is used when a gift code was created in this wallet, and is
     /// later consumed by an account also in this wallet.
-    fn update_consume_log_id(
+    fn update_claim_log_id(
         &self,
-        consume_log_id: i32,
+        claim_log_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 }
@@ -79,9 +80,9 @@ impl GiftCodeModel for GiftCode {
         txo_public_key: &CompressedRistrettoPublic,
         value: i64,
         memo: String,
-        account_id: i32,
-        build_log_id: Option<i32>,
-        consume_log_id: Option<i32>,
+        account_id: &AccountID,
+        build_log_id: Option<&str>,
+        claim_log_id: Option<&str>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<GiftCode, WalletDbError> {
         use crate::db::schema::gift_codes;
@@ -106,9 +107,9 @@ impl GiftCodeModel for GiftCode {
             txo_public_key: &txo_public_key.as_bytes().to_vec(),
             value,
             memo: &memo,
-            account_id,
-            build_log_id,
-            consume_log_id,
+            account_id_hex: &account_id.to_string(),
+            build_log_id_hex: build_log_id.unwrap_or(""),
+            claim_log_id_hex: claim_log_id.unwrap_or(""),
         };
 
         diesel::insert_into(gift_codes::table)
@@ -148,15 +149,15 @@ impl GiftCodeModel for GiftCode {
             .load::<GiftCode>(conn)?)
     }
 
-    fn update_consume_log_id(
+    fn update_claim_log_id(
         &self,
-        consume_log_id: i32,
+        claim_log_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::gift_codes::dsl::{gift_code_b58, gift_codes};
 
         diesel::update(gift_codes.filter(gift_code_b58.eq(&self.gift_code_b58)))
-            .set(crate::db::schema::gift_codes::consume_log_id.eq(consume_log_id))
+            .set(crate::db::schema::gift_codes::claim_log_id_hex.eq(claim_log_id_hex))
             .execute(conn)?;
         Ok(())
     }
@@ -166,7 +167,7 @@ impl GiftCodeModel for GiftCode {
 mod tests {
     use super::*;
     use crate::test_utils::WalletDbTestContext;
-    use mc_account_keys::RootIdentity;
+    use mc_account_keys::{AccountKey, RootIdentity};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_keys::RistrettoPublic;
     use mc_crypto_rand::rand_core::RngCore;
@@ -182,6 +183,7 @@ mod tests {
         let wallet_db = db_test_context.get_db_instance(logger);
 
         let root_identity = RootIdentity::from_random(&mut rng);
+        let gift_code_account_key = AccountKey::from(&root_identity);
         let entropy = root_identity.root_entropy;
 
         // The Txo we would have sent to fund this entropy
@@ -192,16 +194,18 @@ mod tests {
         let value = rng.next_u64();
 
         let memo = "Test".to_string();
-        let account_id = 132;
-        let build_log_id = 6873;
+
+        let mut tx_log_bytes = [0u8; 32];
+        rng.fill_bytes(&mut tx_log_bytes);
+        let build_log_id = hex::encode(&tx_log_bytes);
 
         let gift_code = GiftCode::create(
             &entropy,
             &txo_public_key,
             value as i64,
             memo.clone(),
-            account_id,
-            Some(build_log_id),
+            &AccountID::from(&gift_code_account_key),
+            Some(&build_log_id),
             None,
             &wallet_db.get_conn().unwrap(),
         )
@@ -222,9 +226,9 @@ mod tests {
             txo_public_key: txo_public_key.as_bytes().to_vec(),
             value: value as i64,
             memo,
-            account_id,
-            build_log_id: Some(build_log_id),
-            consume_log_id: None,
+            account_id_hex: AccountID::from(&gift_code_account_key).to_string(),
+            build_log_id_hex: build_log_id,
+            claim_log_id_hex: "".to_string(),
         };
         assert_eq!(gotten, expected_gift_code);
         assert_eq!(gotten.entropy, entropy.bytes.to_vec());
@@ -233,15 +237,19 @@ mod tests {
         assert_eq!(all_gift_codes.len(), 1);
         assert_eq!(all_gift_codes[0], expected_gift_code);
 
+        let mut tx_log_bytes = [0u8; 32];
+        rng.fill_bytes(&mut tx_log_bytes);
+        let claim_log_id = hex::encode(&tx_log_bytes);
+
         // Test update
         gotten
-            .update_consume_log_id(16, &wallet_db.get_conn().unwrap())
+            .update_claim_log_id(&claim_log_id, &wallet_db.get_conn().unwrap())
             .unwrap();
         let gotten2 = GiftCode::get(
             &EncodedGiftCode(gotten.gift_code_b58),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(gotten2.consume_log_id.unwrap(), 16);
+        assert_eq!(gotten2.claim_log_id_hex, claim_log_id);
     }
 }

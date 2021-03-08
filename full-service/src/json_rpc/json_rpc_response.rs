@@ -267,4 +267,8 @@ pub enum JsonCommandResponseV2 {
     get_all_gift_codes {
         gift_codes: Vec<GiftCode>,
     },
+    claim_gift_code {
+        transaction_log_id: String,
+        gift_code: GiftCode,
+    },
 }

@@ -45,7 +45,7 @@ use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use rocket::{get, post, routes};
 use rocket_contrib::json::Json;
 use serde_json::Map;
-use std::{convert::TryFrom, iter::FromIterator};
+use std::{convert::TryFrom, iter::FromIterator, time::Duration};
 
 /// State managed by rocket.
 pub struct WalletState<
@@ -573,10 +573,16 @@ where
                 )
                 .map_err(format_error)?;
             let gift_code = service
-                .register_gift_code(
+                .wait_for_new_gift_code(
                     transaction_log.transaction_id_hex,
                     &gift_code_entropy,
-                    poll_interval,
+                    Duration::from_secs(
+                        poll_interval
+                            .map(|p| p.parse::<u64>())
+                            .transpose()
+                            .map_err(format_error)?
+                            .unwrap_or(5),
+                    ),
                 )
                 .map_err(format_error)?;
             JsonCommandResponseV2::build_gift_code {
@@ -600,6 +606,38 @@ where
                 .map(GiftCode::from)
                 .collect(),
         },
+        JsonCommandRequestV2::claim_gift_code {
+            gift_code_b58,
+            account_id,
+            address,
+            poll_interval,
+        } => {
+            let (transaction_log, gift_code_details) = service
+                .claim_gift_code(
+                    &EncodedGiftCode(gift_code_b58.clone()),
+                    &AccountID(account_id),
+                    address,
+                )
+                .map_err(format_error)?;
+            let gift_code = service
+                .wait_for_claimed_gift_code(
+                    &EncodedGiftCode(gift_code_b58),
+                    &gift_code_details,
+                    transaction_log.transaction_id_hex.clone(),
+                    Duration::from_secs(
+                        poll_interval
+                            .map(|p| p.parse::<u64>())
+                            .transpose()
+                            .map_err(format_error)?
+                            .unwrap_or(5),
+                    ),
+                )
+                .map_err(format_error)?;
+            JsonCommandResponseV2::claim_gift_code {
+                transaction_log_id: transaction_log.transaction_id_hex,
+                gift_code: GiftCode::from(&gift_code),
+            }
+        }
     };
     let response = Json(JsonRPCResponse::from(result));
     Ok(response)

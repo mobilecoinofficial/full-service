@@ -35,6 +35,7 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 * [build_and_submit_gift_code](#build-and-submit-gift-code)
 * [get_gift_code](#get-gift-code)
 * [get_all_gift_codes](#get-all-gift-codes)
+* [claim_gift_code](#claim-gift-code)
 * [get_txo_object](#get-txo-object)
 * [get_transaction_object](#get-transaction-object)
 * [get_block_object](#get-block-object)
@@ -909,7 +910,7 @@ curl -s localhost:9090/wallet \
 
 ### Transactions
 
-#### Send Transaction
+#### Build and Submit Transaction
 
 Sending a transaction is a convenience method that first builds and then submits a transaction.
 
@@ -1918,7 +1919,7 @@ curl -s localhost:9090/wallet \
       "object": "gift_code",
       "gift_code": "HFN97xyZrjU25WSvXtCkPBWb3F3Zu8J31ikPB136svHSu2mbTFJ7y4CmJod3C9FF3yoAyhpLxJZqoe1mfboaLnk81Pa6ZvEmrsWc9XkjTSNpeRLAbiQxz33ikKuQfBn",
       "entropy": "ac60317797d65701df3aeccb80b2d07317e42c72affb38f1295741f335db83ad",
-      "value_pmob": "1000000000",
+      "value_pmob": "10000000000000",
       "memo": "Happy Birthday!"
     }
   },
@@ -1956,14 +1957,14 @@ curl -s localhost:9090/wallet \
         "object": "gift_code",
         "gift_code": "aDKXe1M9xwKw17w4Qv9tPDoS8en7bwaYYGiTr8ZXq7drVyGK198eBQDPoKuM5VCeE5T3pJTF2MwU8xeCkWkBwfHVhjsZhuru4zaESRzAWWE5iCKTDChMNUgVebMAqvx",
         "entropy": "a87e5bc61c8cb73ada62b6278c47a51f78137e673b819900047e66df294967f9",
-        "value": "1000000000",
+        "value_pmob": "10000000000000",
         "memo": "Happy Birthday!"
       },
       {
         "object": "gift_code",
         "gift_code": "HFN97xyZrjU25WSvXtCkPBWb3F3Zu8J31ikPB136svHSu2mbTFJ7y4CmJod3C9FF3yoAyhpLxJZqoe1mfboaLnk81Pa6ZvEmrsWc9XkjTSNpeRLAbiQxz33ikKuQfBn",
         "entropy": "ac60317797d65701df3aeccb80b2d07317e42c72affb38f1295741f335db83ad",
-        "value": "8000000000",
+        "value_pmob": "800000000000000",
         "memo": "Happy New Year!"
       }
     ]
@@ -2493,6 +2494,37 @@ Txo Spent from One Account to Another in the Same Wallet
 
 * [get_proofs](#get-proofs)
 * [verify_proof](#verify-proof)
+
+### The Gift Code Object
+
+#### Attributes
+
+| *Name* | *Type* | *Description*
+| :--- | :--- | :---
+| object | string, value is "gift_code" | String representing the object's type. Objects of the same type share the same value.
+| gift_code | string | The base58-encoded gift code string to share.
+| entropy | string | The entropy for the account in this gift code.
+| value_pmob | string | The amount of MOB contained in the gift code account.
+| memo | string | A memo associated with this gift code.
+
+#### Example Object
+
+```json
+{
+  "object": "gift_code",
+  "gift_code": "HFN97xyZrjU25WSvXtCkPBWb3F3Zu8J31ikPB136svHSu2mbTFJ7y4CmJod3C9FF3yoAyhpLxJZqoe1mfboaLnk81Pa6ZvEmrsWc9XkjTSNpeRLAbiQxz33ikKuQfBn",
+  "entropy": "ac60317797d65701df3aeccb80b2d07317e42c72affb38f1295741f335db83ad",
+  "value_pmob": "100000000000000",
+  "memo": "Happy Birthday!"
+}
+```
+
+#### API Methods Returning Gift Code Objects
+
+* [build_and_submit_gift_code](#build-and-submit-gift-code)
+* [get_gift_code](#get-gift-code)
+* [get_all_gift_codes](#get-all-gift-codes)
+* [claim_gift_code](#claim-gift-code)
 
 ### Future API Objects
 

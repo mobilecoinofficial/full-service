@@ -5,10 +5,10 @@ CREATE TABLE gift_codes (
   txo_public_key BLOB NOT NULL,
   value UNSIGNED BIG INT NOT NULL,
   memo TEXT NOT NULL DEFAULT '',
-  account_id INTEGER NOT NULL,
-  build_log_id INTEGER,
-  consume_log_id INTEGER,
-  FOREIGN KEY (account_id) REFERENCES accounts(id),
-  FOREIGN KEY (build_log_id) REFERENCES transaction_logs(id),
-  FOREIGN KEY (consume_log_id) REFERENCES transaction_logs(id)
+  account_id_hex VARCHAR NOT NULL DEFAULT '',
+  build_log_id_hex VARCHAR NOT NULL DEFAULT '',
+  claim_log_id_hex VARCHAR NOT NULL DEFAULT '',
+  FOREIGN KEY (account_id_hex) REFERENCES accounts(account_id_hex),
+  FOREIGN KEY (build_log_id_hex) REFERENCES transaction_logs(transaction_id_hex),
+  FOREIGN KEY (claim_log_id_hex) REFERENCES transaction_logs(transaction_id_hex)
 )

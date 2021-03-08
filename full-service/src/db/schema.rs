@@ -44,9 +44,9 @@ table! {
         txo_public_key -> Binary,
         value -> BigInt,
         memo -> Text,
-        account_id -> Integer,
-        build_log_id -> Nullable<Integer>,
-        consume_log_id -> Nullable<Integer>,
+        account_id_hex -> Text,
+        build_log_id_hex -> Text,
+        claim_log_id_hex -> Text,
     }
 }
 
@@ -94,8 +94,6 @@ table! {
         proof -> Nullable<Binary>,
     }
 }
-
-joinable!(gift_codes -> accounts (account_id));
 
 allow_tables_to_appear_in_same_query!(
     account_txo_statuses,
