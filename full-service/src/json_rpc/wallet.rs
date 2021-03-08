@@ -18,6 +18,7 @@ use crate::{
         },
         proof::Proof,
         receiver_receipt::ReceiverReceipt,
+        tx_proposal::TxProposal,
         txo::Txo,
         wallet_status::WalletStatus,
     },
@@ -296,7 +297,7 @@ where
                 )
                 .map_err(format_error)?;
             JsonCommandResponseV2::build_transaction {
-                tx_proposal: json_rpc::tx_proposal::TxProposal::from(&tx_proposal),
+                tx_proposal: TxProposal::from(&tx_proposal),
             }
         }
         JsonCommandRequestV2::submit_transaction {
@@ -553,8 +554,8 @@ where
             max_spendable_value,
             poll_interval,
         } => {
-            let (transaction_log, gift_code_entropy) = service
-                .build_and_submit_gift_code(
+            let (tx_proposal, gift_code_b58, gift_code) = service
+                .build_gift_code(
                     &AccountID(account_id),
                     value_pmob.parse::<u64>().map_err(format_error)?,
                     memo,
@@ -572,20 +573,9 @@ where
                         .map_err(format_error)?,
                 )
                 .map_err(format_error)?;
-            let gift_code = service
-                .wait_for_new_gift_code(
-                    transaction_log.transaction_id_hex,
-                    &gift_code_entropy,
-                    Duration::from_secs(
-                        poll_interval
-                            .map(|p| p.parse::<u64>())
-                            .transpose()
-                            .map_err(format_error)?
-                            .unwrap_or(5),
-                    ),
-                )
-                .map_err(format_error)?;
             JsonCommandResponseV2::build_gift_code {
+                tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
+                gift_code_b58: gift_code_b58.to_string(),
                 gift_code: GiftCode::from(&gift_code),
             }
         }
@@ -606,31 +596,23 @@ where
                 .map(GiftCode::from)
                 .collect(),
         },
+        JsonCommandRequestV2::check_gift_code_status { gift_code_b58 } => {
+            JsonCommandResponseV2::check_gift_code_status {
+                gift_code_status: service
+                    .check_gift_code_status(&EncodedGiftCode(gift_code_b58))
+                    .map_err(format_error)?,
+            }
+        }
         JsonCommandRequestV2::claim_gift_code {
             gift_code_b58,
             account_id,
             address,
-            poll_interval,
         } => {
-            let (transaction_log, gift_code_details) = service
+            let (transaction_log, gift_code) = service
                 .claim_gift_code(
                     &EncodedGiftCode(gift_code_b58.clone()),
                     &AccountID(account_id),
                     address,
-                )
-                .map_err(format_error)?;
-            let gift_code = service
-                .wait_for_claimed_gift_code(
-                    &EncodedGiftCode(gift_code_b58),
-                    &gift_code_details,
-                    transaction_log.transaction_id_hex.clone(),
-                    Duration::from_secs(
-                        poll_interval
-                            .map(|p| p.parse::<u64>())
-                            .transpose()
-                            .map_err(format_error)?
-                            .unwrap_or(5),
-                    ),
                 )
                 .map_err(format_error)?;
             JsonCommandResponseV2::claim_gift_code {

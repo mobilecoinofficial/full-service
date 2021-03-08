@@ -6,9 +6,7 @@ CREATE TABLE gift_codes (
   value UNSIGNED BIG INT NOT NULL,
   memo TEXT NOT NULL DEFAULT '',
   account_id_hex VARCHAR NOT NULL DEFAULT '',
-  build_log_id_hex VARCHAR NOT NULL DEFAULT '',
-  claim_log_id_hex VARCHAR NOT NULL DEFAULT '',
+  txo_id_hex VARCHAR NOT NULL,
   FOREIGN KEY (account_id_hex) REFERENCES accounts(account_id_hex),
-  FOREIGN KEY (build_log_id_hex) REFERENCES transaction_logs(transaction_id_hex),
-  FOREIGN KEY (claim_log_id_hex) REFERENCES transaction_logs(transaction_id_hex)
+  FOREIGN KEY (txo_id_hex) REFERENCES txos(txo_id_hex)
 )

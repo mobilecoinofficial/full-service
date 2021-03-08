@@ -45,8 +45,7 @@ table! {
         value -> BigInt,
         memo -> Text,
         account_id_hex -> Text,
-        build_log_id_hex -> Text,
-        claim_log_id_hex -> Text,
+        txo_id_hex -> Text,
     }
 }
 

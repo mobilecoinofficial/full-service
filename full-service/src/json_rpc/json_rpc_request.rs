@@ -186,10 +186,12 @@ pub enum JsonCommandRequestV2 {
         gift_code_b58: String,
     },
     get_all_gift_codes,
+    check_gift_code_status {
+        gift_code_b58: String,
+    },
     claim_gift_code {
         gift_code_b58: String,
         account_id: String,
         address: Option<String>,
-        poll_interval: Option<String>,
     },
 }

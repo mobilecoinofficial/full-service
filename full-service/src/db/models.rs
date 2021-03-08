@@ -292,8 +292,7 @@ pub struct GiftCode {
     pub value: i64,
     pub memo: String,
     pub account_id_hex: String,
-    pub build_log_id_hex: String,
-    pub claim_log_id_hex: String,
+    pub txo_id_hex: String,
 }
 
 #[derive(Insertable)]
@@ -305,6 +304,5 @@ pub struct NewGiftCode<'a> {
     pub value: i64,
     pub memo: &'a str,
     pub account_id_hex: &'a str,
-    pub build_log_id_hex: &'a str,
-    pub claim_log_id_hex: &'a str,
+    pub txo_id_hex: &'a str,
 }
