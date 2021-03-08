@@ -16,7 +16,7 @@ pub struct GiftCode {
     pub object: String,
 
     /// The base58-encoded gift code string to share.
-    pub gift_code: String,
+    pub gift_code_b58: String,
 
     /// The entropy for the account in this gift code.
     pub entropy: String,
@@ -39,7 +39,7 @@ impl From<&db::models::GiftCode> for GiftCode {
     fn from(src: &db::models::GiftCode) -> GiftCode {
         GiftCode {
             object: "gift_code".to_string(),
-            gift_code: src.gift_code_b58.clone(),
+            gift_code_b58: src.gift_code_b58.clone(),
             entropy: hex::encode(&src.entropy),
             value_pmob: src.value.to_string(),
             memo: src.memo.clone(),

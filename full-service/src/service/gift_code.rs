@@ -98,6 +98,12 @@ pub enum GiftCodeServiceError {
 
     /// Gift Code Txo is not in ledger at block index: {0}
     GiftCodeTxoNotInLedger(u64),
+
+    /// Cannot claim a gift code that has already been claimed
+    GiftCodeClaimed,
+
+    /// Cannot claim a gift code which has not yet landed in the ledger
+    GiftCodeNotYetAvailable,
 }
 
 impl From<WalletDbError> for GiftCodeServiceError {
@@ -420,6 +426,14 @@ where
             account_id,
             assigned_subaddress_b58
         );
+
+        match self.check_gift_code_status(gift_code_b58)? {
+            GiftCodeStatus::GiftCodeClaimed => return Err(GiftCodeServiceError::GiftCodeClaimed),
+            GiftCodeStatus::GiftCodeSubmittedPending => {
+                return Err(GiftCodeServiceError::GiftCodeNotYetAvailable)
+            }
+            GiftCodeStatus::GiftCodeAvailable => {}
+        }
 
         // Get the components of the gift code from the printable wrapper
         let decoded = self.decode_gift_code(gift_code_b58)?;
