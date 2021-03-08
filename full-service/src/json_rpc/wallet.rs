@@ -16,13 +16,16 @@ use crate::{
             format_error, JsonCommandResponse, JsonCommandResponseV2, JsonRPCResponse,
         },
         proof::Proof,
+        receiver_receipt::ReceiverReceipt,
         txo::Txo,
         wallet_status::WalletStatus,
     },
+    service,
     service::{
         account::AccountService, address::AddressService, balance::BalanceService,
-        ledger::LedgerService, proof::ProofService, transaction::TransactionService,
-        transaction_log::TransactionLogService, txo::TxoService, WalletService,
+        ledger::LedgerService, proof::ProofService, receipt::ReceiptService,
+        transaction::TransactionService, transaction_log::TransactionLogService, txo::TxoService,
+        WalletService,
     },
 };
 use mc_common::logger::global_log;
@@ -493,6 +496,43 @@ where
             JsonCommandResponseV2::get_block {
                 block: Block::new(&block),
                 block_contents: BlockContents::new(&block_contents),
+            }
+        }
+        JsonCommandRequestV2::check_receiver_receipts_status {
+            account_id,
+            receiver_receipts,
+            expected_value,
+        } => {
+            let receipts: Vec<service::receipt::ReceiverReceipt> = receiver_receipts
+                .iter()
+                .map(|r| service::receipt::ReceiverReceipt::try_from(r))
+                .collect::<Result<Vec<service::receipt::ReceiverReceipt>, String>>()
+                .map_err(format_error)?;
+            let status = service
+                .check_receiver_receipts_status(
+                    &AccountID(account_id),
+                    &receipts,
+                    expected_value.parse::<u64>().map_err(format_error)?,
+                )
+                .map_err(format_error)?;
+            JsonCommandResponseV2::check_receiver_receipts_status {
+                receipts_transaction_status: status,
+            }
+        }
+        JsonCommandRequestV2::create_receiver_receipts { tx_proposal } => {
+            let receipts = service
+                .create_receiver_receipts(
+                    &mc_mobilecoind::payments::TxProposal::try_from(&tx_proposal)
+                        .map_err(format_error)?,
+                )
+                .map_err(format_error)?;
+            let json_receipts: Vec<ReceiverReceipt> = receipts
+                .iter()
+                .map(|r| ReceiverReceipt::try_from(r))
+                .collect::<Result<Vec<ReceiverReceipt>, String>>()
+                .map_err(format_error)?;
+            JsonCommandResponseV2::create_receiver_receipts {
+                receiver_receipts: json_receipts,
             }
         }
     };

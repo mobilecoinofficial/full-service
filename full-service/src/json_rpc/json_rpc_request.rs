@@ -6,6 +6,7 @@
 
 use crate::json_rpc::tx_proposal::TxProposal;
 
+use crate::json_rpc::receiver_receipt::ReceiverReceipt;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use strum::IntoEnumIterator;
@@ -162,5 +163,13 @@ pub enum JsonCommandRequestV2 {
     },
     get_block {
         block_index: String,
+    },
+    check_receiver_receipts_status {
+        account_id: String,
+        receiver_receipts: Vec<ReceiverReceipt>,
+        expected_value: String,
+    },
+    create_receiver_receipts {
+        tx_proposal: TxProposal,
     },
 }

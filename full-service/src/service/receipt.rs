@@ -570,14 +570,6 @@ mod tests {
             14,
             &logger,
         );
-
-        // Status for Bob should still be pending, even though the Txos will show up in
-        // the wallet, but under Alice's account.
-        let status = service
-            .check_receiver_receipts_status(&bob_account_id, &receipts, 24 * MOB as u64)
-            .expect("Could not check status of receipt");
-        assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
-
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,

@@ -1169,4 +1169,128 @@ mod e2e {
         let unspent = balance_status["unspent_pmob"].as_str().unwrap();
         assert_eq!(unspent, "100");
     }
+
+    #[test_with_logger]
+    fn test_receipts(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+                "first_block_index": "0",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let alice_account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let alice_b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+        let alice_public_address = b58_decode(alice_b58_public_address).unwrap();
+
+        // Add a block with a txo for this address
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![alice_public_address],
+            100 * MOB as u64,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+
+        // Add Bob's account to our wallet
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Bob Main Account",
+                "first_block_index": "0",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let bob_account_obj = result.get("account").unwrap();
+        let bob_account_id = bob_account_obj.get("account_id").unwrap().as_str().unwrap();
+        let bob_b58_public_address = bob_account_obj
+            .get("main_address")
+            .unwrap()
+            .as_str()
+            .unwrap();
+
+        // Construct a transaction proposal from Alice to Bob
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "build_transaction",
+            "params": {
+                "account_id": alice_account_id,
+                "recipient_public_address": bob_b58_public_address,
+                "value": "42000000000000", // 42 MOB
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let tx_proposal = result.get("tx_proposal").unwrap();
+
+        // Get the receipts from the tx_proposal
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_receiver_receipts",
+            "params": {
+                "tx_proposal": tx_proposal
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let receipts = result["receiver_receipts"].as_array().unwrap();
+        assert_eq!(receipts.len(), 1);
+
+        // Bob checks status (should be pending before the block is added to the ledger)
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "check_receiver_receipts_status",
+            "params": {
+                "account_id": bob_account_id,
+                "receiver_receipts": receipts,
+                "expected_value": "42000000000000",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let status = result["receipts_transaction_status"].as_str().unwrap();
+        assert_eq!(status, "TransactionPending");
+
+        // Add the block to the ledger with the tx proposal
+        let json_tx_proposal: json_rpc::tx_proposal::TxProposal =
+            serde_json::from_value(tx_proposal.clone()).unwrap();
+        let payments_tx_proposal =
+            mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
+
+        // The MockBlockchainConnection does not write to the ledger_db
+        add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+
+        // Bob checks status (should be successful after added to the ledger)
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "check_receiver_receipts_status",
+            "params": {
+                "account_id": bob_account_id,
+                "receiver_receipts": receipts,
+                "expected_value": "42000000000000",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let status = result["receipts_transaction_status"].as_str().unwrap();
+        assert_eq!(status, "TransactionSuccess");
+    }
 }

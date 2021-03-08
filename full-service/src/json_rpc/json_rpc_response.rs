@@ -4,17 +4,21 @@
 //!
 //! API v2
 
-use crate::json_rpc::{
-    account::Account,
-    account_secrets::AccountSecrets,
-    address::Address,
-    balance::Balance,
-    block::{Block, BlockContents},
-    proof::Proof,
-    transaction_log::TransactionLog,
-    tx_proposal::TxProposal,
-    txo::Txo,
-    wallet_status::WalletStatus,
+use crate::{
+    json_rpc::{
+        account::Account,
+        account_secrets::AccountSecrets,
+        address::Address,
+        balance::Balance,
+        block::{Block, BlockContents},
+        proof::Proof,
+        receiver_receipt::ReceiverReceipt,
+        transaction_log::TransactionLog,
+        tx_proposal::TxProposal,
+        txo::Txo,
+        wallet_status::WalletStatus,
+    },
+    service::receipt::ReceiptTransactionStatus,
 };
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use serde::{Deserialize, Serialize};
@@ -246,5 +250,11 @@ pub enum JsonCommandResponseV2 {
     get_block {
         block: Block,
         block_contents: BlockContents,
+    },
+    check_receiver_receipts_status {
+        receipts_transaction_status: ReceiptTransactionStatus,
+    },
+    create_receiver_receipts {
+        receiver_receipts: Vec<ReceiverReceipt>,
     },
 }
