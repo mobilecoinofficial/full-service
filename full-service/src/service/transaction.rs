@@ -108,7 +108,7 @@ pub trait TransactionService {
         &self,
         account_id_hex: &str,
         recipient_public_address: &str,
-        value: String,
+        value: String, // FIXME: Service should take u64
         input_txo_ids: Option<&Vec<String>>,
         fee: Option<String>,
         tombstone_block: Option<String>,
@@ -129,7 +129,7 @@ pub trait TransactionService {
         &self,
         account_id_hex: &str,
         recipient_public_address: &str,
-        value: String,
+        value: String, // FIXME: Service should take u64
         input_txo_ids: Option<&Vec<String>>,
         fee: Option<String>,
         tombstone_block: Option<String>,

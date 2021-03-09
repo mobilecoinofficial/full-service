@@ -52,6 +52,7 @@ impl fmt::Display for TransactionID {
     }
 }
 
+#[derive(Debug)]
 pub struct AssociatedTxos {
     pub inputs: Vec<String>,
     pub outputs: Vec<String>,

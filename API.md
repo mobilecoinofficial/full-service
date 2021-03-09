@@ -30,6 +30,8 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 * [get_all_transaction_logs_ordered_by_block](#get-all-transaction-logs-ordered-by-block)
 * [get_proofs](#get-proofs)
 * [verify_proof](#verify-proof)
+* [check_receiver_receipts_status](#check-receiver-receipts-status)
+* [create_receiver_receipts](#create-receiver-receipts)
 * [get_txo_object](#get-txo-object)
 * [get_transaction_object](#get-transaction-object)
 * [get_block_object](#get-block-object)
@@ -45,6 +47,7 @@ The methods above return data representations of wallet contents. The Full Servi
 * [transaction_log](#the-transaction-log-object)
 * [txo](#the-txo-object)
 * [proof](#the-proof-object)
+* [receiver_receipt](#the-receiver-receipt-object)
 
 ## Full Service API Methods
 
@@ -1749,11 +1752,91 @@ curl -s localhost:9090/wallet \
 | `txo_id`   | The ID of the Txo for which to verify the proof  | Txo must be a received Txo  |
 | `proof`   | The proof to verify  | The proof should be delivered by the sender of the Txo in question |
 
-#### Ledger and Transaction Data
+### Transaction Receipts
+
+Senders can optionally provide `receiver_receipts` to the recipient of a transaction. This has more information than the proof (it contains the proof), and can be used by the receiver to poll for the status of the transaction.
+
+#### Check Receiver Receipts Status
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "check_receiver_receipts_status",
+        "params": {
+          "account_id": "4b4fd11738c03bf5179781aeb27d725002fb67d8a99992920d3654ac00ee1a2c",
+          "receiver_receipts": [
+            {
+              "object": "receiver_receipt",
+              "recipient": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+              "txo_public_key": "0a206ad9d7600a1a5570050a05bbd64c83f56ad8239e12452253bfadd1f67676df0d",
+              "txo_hash": "9db71b4d7718b797154c42a22a3aac6c012a8e3706c35ad7e4a929a1392e7afa",
+              "tombstone": "153017",
+              "proof": "0a20c77fd2d8e5434557ddbe4a4565e701a815b8581a529112a4eb3b814d69878b34"
+            }
+          ],
+          "expected_value": "10000000",
+        },
+        "jsonrpc": "2.0",
+        "id": 1
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
+```
+
+```json
+{
+  "method": "check_receiver_receipts_status",
+  "result": {
+    "receipts_transaction_status": "TransactionSuccess"
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1
+}
+```
+
+#### Create Receiver Receipts
+
+After building a TxProposal, you can get the receipts for that transaction and provide it to the recipient so they can poll for the transaction status.
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "create_receiver_receipts",
+        "params": {
+          "tx_proposal": '$(cat tx_proposal.json)',
+        },
+        "jsonrpc": "2.0",
+        "id": 1
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
+```
+
+```json
+{
+  "method": "create_receiver_receipts",
+  "result": {
+    "receiver_receipts": [
+      {
+        "object": "receiver_receipt",
+        "recipient": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+        "txo_public_key": "0a206ad9d7600a1a5570050a05bbd64c83f56ad8239e12452253bfadd1f67676df0d",
+        "txo_hash": "9db71b4d7718b797154c42a22a3aac6c012a8e3706c35ad7e4a929a1392e7afa",
+        "tombstone": "153017",
+        "proof": "0a20c77fd2d8e5434557ddbe4a4565e701a815b8581a529112a4eb3b814d69878b34"
+      }
+    ]
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1
+}
+```
+
+### Ledger and Transaction Data
 
 To get the JSON representations of the objects which are used in the MobileCoin blockchain, you can use the following calls:
 
-##### Get Transaction Object
+#### Get Transaction Object
 
 Get the JSON representation of the "Tx" object in the transaction log.
 
@@ -1779,7 +1862,7 @@ curl -s localhost:9090/wallet \
 }
 ```
 
-##### Get Txo Object
+#### Get Txo Object
 
 Get the JSON representation of the "Txo" object in the ledger.
 
@@ -1805,7 +1888,7 @@ curl -s localhost:9090/wallet \
 }
 ```
 
-##### Get Block Object
+#### Get Block Object
 
 Get the JSON representation of the "Block" object in the ledger.
 
