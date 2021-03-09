@@ -164,9 +164,9 @@ pub enum JsonCommandRequestV2 {
     get_block {
         block_index: String,
     },
-    check_receiver_receipts_status {
+    check_receiver_receipt_status {
         account_id: String,
-        receiver_receipts: Vec<ReceiverReceipt>,
+        receiver_receipt: ReceiverReceipt,
         expected_value: String,
     },
     create_receiver_receipts {

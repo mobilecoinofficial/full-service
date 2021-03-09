@@ -123,7 +123,7 @@ pub fn dispatch(client: &Client, request_body: JsonValue, logger: &Logger) -> Js
     let response_body = res.body().unwrap().into_string().unwrap();
     log::info!(
         logger,
-        "Attempted dispatch of {:?} got response {:?}",
+        "\nAttempted dispatch of\n{:?}\nGot response\n{:?}",
         request_body,
         response_body
     );

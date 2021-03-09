@@ -1250,21 +1250,22 @@ mod e2e {
         let result = res.get("result").unwrap();
         let receipts = result["receiver_receipts"].as_array().unwrap();
         assert_eq!(receipts.len(), 1);
+        let receipt = &receipts[0];
 
         // Bob checks status (should be pending before the block is added to the ledger)
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "check_receiver_receipts_status",
+            "method": "check_receiver_receipt_status",
             "params": {
                 "account_id": bob_account_id,
-                "receiver_receipts": receipts,
+                "receiver_receipt": receipt,
                 "expected_value": "42000000000000",
             }
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let status = result["receipts_transaction_status"].as_str().unwrap();
+        let status = result["receipt_transaction_status"].as_str().unwrap();
         assert_eq!(status, "TransactionPending");
 
         // Add the block to the ledger with the tx proposal
@@ -1281,16 +1282,16 @@ mod e2e {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "check_receiver_receipts_status",
+            "method": "check_receiver_receipt_status",
             "params": {
                 "account_id": bob_account_id,
-                "receiver_receipts": receipts,
+                "receiver_receipt": receipt,
                 "expected_value": "42000000000000",
             }
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let status = result["receipts_transaction_status"].as_str().unwrap();
+        let status = result["receipt_transaction_status"].as_str().unwrap();
         assert_eq!(status, "TransactionSuccess");
     }
 }

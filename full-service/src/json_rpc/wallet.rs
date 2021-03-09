@@ -507,25 +507,22 @@ where
                 block_contents: BlockContents::new(&block_contents),
             }
         }
-        JsonCommandRequestV2::check_receiver_receipts_status {
+        JsonCommandRequestV2::check_receiver_receipt_status {
             account_id,
-            receiver_receipts,
+            receiver_receipt,
             expected_value,
         } => {
-            let receipts: Vec<service::receipt::ReceiverReceipt> = receiver_receipts
-                .iter()
-                .map(service::receipt::ReceiverReceipt::try_from)
-                .collect::<Result<Vec<service::receipt::ReceiverReceipt>, String>>()
+            let receipt = service::receipt::ReceiverReceipt::try_from(&receiver_receipt)
                 .map_err(format_error)?;
             let status = service
-                .check_receiver_receipts_status(
+                .check_receiver_receipt_status(
                     &AccountID(account_id),
-                    &receipts,
+                    &receipt,
                     expected_value.parse::<u64>().map_err(format_error)?,
                 )
                 .map_err(format_error)?;
-            JsonCommandResponseV2::check_receiver_receipts_status {
-                receipts_transaction_status: status,
+            JsonCommandResponseV2::check_receiver_receipt_status {
+                receipt_transaction_status: status,
             }
         }
         JsonCommandRequestV2::create_receiver_receipts { tx_proposal } => {

@@ -11,7 +11,7 @@
 use crate::{
     db::{
         account::AccountID,
-        models::{AccountTxoStatus, Txo, TXO_STATUS_SECRETED, TXO_TYPE_MINTED},
+        models::{Txo, TXO_STATUS_SECRETED, TXO_TYPE_MINTED},
         txo::{TxoID, TxoModel},
         WalletDbError,
     },
@@ -26,11 +26,7 @@ use mc_fog_report_validation::FogPubkeyResolver;
 use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::tx::TxOutConfirmationNumber;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::{HashMap, HashSet},
-    convert::TryFrom,
-    iter::FromIterator,
-};
+use std::convert::TryFrom;
 
 /// Errors for the Address Service.
 #[derive(Display, Debug)]
@@ -111,10 +107,6 @@ pub enum ReceiptTransactionStatus {
     /// invalid.
     TxosReceivedAtDifferentBlockIndices,
 
-    /// Some Txos received, some not. This indicates the Txos were spent in
-    /// different transactions, and the receipt is invalid.
-    SomeTxosMissing,
-
     /// The expected value of the Txos did not match the actual value.
     UnexpectedValue,
 
@@ -153,10 +145,10 @@ pub trait ReceiptService {
     /// Check the status of the Txos in the receipts.
     ///
     /// Applies the proofs by verifying the proofs once the Txos have landed.
-    fn check_receiver_receipts_status(
+    fn check_receiver_receipt_status(
         &self,
         account_id: &AccountID,
-        receiver_receipts: &[ReceiverReceipt],
+        receiver_receipt: &ReceiverReceipt,
         expected_value: u64,
     ) -> Result<ReceiptTransactionStatus, ReceiptServiceError>;
 
@@ -172,93 +164,38 @@ where
     T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
-    fn check_receiver_receipts_status(
+    fn check_receiver_receipt_status(
         &self,
         account_id: &AccountID,
-        receiver_receipts: &[ReceiverReceipt],
+        receiver_receipt: &ReceiverReceipt,
         expected_value: u64,
     ) -> Result<ReceiptTransactionStatus, ReceiptServiceError> {
-        let public_keys: Vec<&CompressedRistrettoPublic> = receiver_receipts
-            .iter()
-            .map(|r| &r.txo_public_key)
-            .collect();
-        let dup_check: HashSet<&&CompressedRistrettoPublic> = HashSet::from_iter(&public_keys);
-        if dup_check.len() < public_keys.len() {
-            return Ok(ReceiptTransactionStatus::DuplicateTxos);
-        }
-
+        // Get the transaction from the database, with status.
         let txos_and_statuses =
-            Txo::select_by_public_key(account_id, &public_keys, &self.wallet_db.get_conn()?)?;
+            Txo::select_by_public_key(account_id, &[&receiver_receipt.txo_public_key], &self.wallet_db.get_conn()?)?;
 
-        // None of the Txos from the receipts are in this wallet.
+        // Return if the Txo from the receipt is not in this wallet yet.
         if txos_and_statuses.is_empty() {
             return Ok(ReceiptTransactionStatus::TransactionPending);
         }
+        let (txo, status) = &txos_and_statuses[0];
 
-        // Figure out which Txos were minted by us and have not yet been received by us.
-        // (For to-self transactions).
-        let minted: Vec<&(Txo, AccountTxoStatus)> = txos_and_statuses
-            .iter()
-            .filter(|(_txo, status)| {
-                status.txo_type == TXO_TYPE_MINTED && status.txo_status == TXO_STATUS_SECRETED
-            })
-            .collect();
-
-        // Need to verify if the Txos in the wallet were minted by us - in which
-        // case, this transaction could be pending.
-        if minted.len() == receiver_receipts.len() {
+        // Figure out whether the Txo was minted by us, and has not yet been received by
+        // us. (For to-self transactions). If the Txo was minted by us, this
+        // transaction is pending.
+        if status.txo_type == TXO_TYPE_MINTED && status.txo_status == TXO_STATUS_SECRETED {
             return Ok(ReceiptTransactionStatus::TransactionPending);
         }
 
-        // Some of the Txos are in this wallet, but some are missing. The receipt is
-        // malformed.
-        if txos_and_statuses.len() != receiver_receipts.len() {
-            // The case where the sender and receiver share the same wallet, from the
-            // sender's perspective - if they sent to themselves, it is still pending.
-            if minted.len() + txos_and_statuses.len() == receiver_receipts.len() {
-                return Ok(ReceiptTransactionStatus::TransactionPending);
-            }
-            return Ok(ReceiptTransactionStatus::SomeTxosMissing);
-        }
-
-        // We have received all the Txos in this wallet. Check that they're in the same
-        // block index.
-        let received_block_indices: Vec<u64> = txos_and_statuses
-            .iter()
-            .map(|(txo, _status)| txo.received_block_index)
-            .filter_map(|b| b.map(|i| i as u64))
-            .collect();
-        if received_block_indices.iter().min() != received_block_indices.iter().max() {
-            return Ok(ReceiptTransactionStatus::TxosReceivedAtDifferentBlockIndices);
-        }
-
-        // Check that the value of the received Txos matches the expected value
-        let received_total: u64 = txos_and_statuses
-            .iter()
-            .map(|(txo, _status)| txo.value as u64)
-            .collect::<Vec<u64>>()
-            .iter()
-            .sum();
-        if received_total != expected_value {
+        // Check that the value of the received Txo matches the expected value.
+        if (txo.value as u64) != expected_value {
             return Ok(ReceiptTransactionStatus::UnexpectedValue);
         }
 
-        // Create a mapping from public_key -> (Txo, Status)
-        let pubkey_to_txo: HashMap<Vec<u8>, (&Txo, &AccountTxoStatus)> = HashMap::from_iter(
-            txos_and_statuses
-                .iter()
-                .map(|(txo, status)| (txo.public_key.clone(), (txo, status)))
-                .collect::<Vec<(Vec<u8>, (&Txo, &AccountTxoStatus))>>(),
-        );
-
-        // Verify the proofs in the receipts
-        for receipt in receiver_receipts {
-            // Get the Txo which matches this receipt
-            let (txo, _status) = pubkey_to_txo[&mc_util_serial::encode(&receipt.txo_public_key)];
-            let proof_hex = hex::encode(mc_util_serial::encode(&receipt.proof));
-            if !self.verify_proof(account_id, &TxoID(txo.txo_id_hex.clone()), &proof_hex)? {
-                return Ok(ReceiptTransactionStatus::InvalidProof);
-            }
+        // Verify the proof.
+        let proof_hex = hex::encode(mc_util_serial::encode(&receiver_receipt.proof));
+        if !self.verify_proof(account_id, &TxoID(txo.txo_id_hex.clone()), &proof_hex)? {
+            return Ok(ReceiptTransactionStatus::InvalidProof);
         }
 
         Ok(ReceiptTransactionStatus::TransactionSuccess)
@@ -299,9 +236,8 @@ mod tests {
             transaction_log::{AssociatedTxos, TransactionLogModel},
         },
         service::{
-            account::AccountService, address::AddressService, proof::ProofService,
-            transaction::TransactionService, transaction_log::TransactionLogService,
-            txo::TxoService,
+            account::AccountService, address::AddressService, transaction::TransactionService,
+            transaction_log::TransactionLogService, txo::TxoService,
         },
         test_utils::{
             add_block_to_ledger_db, add_block_with_tx_proposal, get_test_ledger,
@@ -405,6 +341,7 @@ mod tests {
         let receipts = service
             .create_receiver_receipts(&tx_proposal)
             .expect("Could not create receiver receipts");
+        let receipt = &receipts[0];
 
         // Note: Since we manually added the block rather than using "Submit," we need
         // to manually log submitted. This needs to happen before it hits the ledger, or
@@ -458,29 +395,29 @@ mod tests {
         assert_eq!(sent_transaction_logs_and_associated_txos.len(), 1);
         let sent_transaction_log: TransactionLog =
             sent_transaction_logs_and_associated_txos[0].0.clone();
+
         let proofs = service
             .get_proofs(&sent_transaction_log.transaction_id_hex)
             .expect("Could not get proofs");
         assert_eq!(proofs.len(), 1);
 
-        assert_eq!(receipts.len(), 1);
         assert_eq!(
-            receipts[0].recipient,
+            receipt.recipient,
             b58_decode(&bob_address).expect("Could not decode public address")
         );
         let txo_pubkey =
             mc_util_serial::decode(&txos[0].txo.public_key).expect("Could not decode pubkey");
-        assert_eq!(receipts[0].txo_public_key, txo_pubkey);
-        assert_eq!(receipts[0].tombstone, 63); // Ledger seeded with 12 blocks at tx construction, then one appended + 50
+        assert_eq!(receipt.txo_public_key, txo_pubkey);
+        assert_eq!(receipt.tombstone, 63); // Ledger seeded with 12 blocks at tx construction, then one appended + 50
         let txo: TxOut = mc_util_serial::decode(&txos[0].txo.txo).expect("Could not decode txo");
-        assert_eq!(receipts[0].txo_hash, txo.hash());
-        assert_eq!(receipts[0].proof, proofs[0].proof);
+        assert_eq!(receipt.txo_hash, txo.hash());
+        assert_eq!(receipt.proof, proofs[0].proof);
     }
 
     // All txos received should return TransactionSuccess, and TransactionPending
     // until they are received.
     #[test_with_logger]
-    fn test_check_receiver_receipts_status_success(logger: Logger) {
+    fn test_check_receiver_receipt_status_success(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -534,10 +471,11 @@ mod tests {
         let receipts = service
             .create_receiver_receipts(&tx_proposal)
             .expect("Could not create receiver receipts");
+        let receipt = &receipts[0];
 
-        // Bob checks the status of the receipts
+        // Bob checks the status of the receipts.
         let status = service
-            .check_receiver_receipts_status(&bob_account_id, &receipts, 24 * MOB as u64)
+            .check_receiver_receipt_status(&bob_account_id, &receipt, 24 * MOB as u64)
             .expect("Could not check status of receipt");
 
         // Status should be pending until block lands and is scanned
@@ -556,7 +494,7 @@ mod tests {
         // Status for Bob should still be pending, even though the Txos will show up in
         // the wallet, but under Alice's account.
         let status = service
-            .check_receiver_receipts_status(&bob_account_id, &receipts, 24 * MOB as u64)
+            .check_receiver_receipt_status(&bob_account_id, &receipt, 24 * MOB as u64)
             .expect("Could not check status of receipt");
         assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
 
@@ -579,16 +517,16 @@ mod tests {
 
         // Status for Bob is succeeded.
         let status = service
-            .check_receiver_receipts_status(&bob_account_id, &receipts, 24 * MOB as u64)
+            .check_receiver_receipt_status(&bob_account_id, &receipt, 24 * MOB as u64)
             .expect("Could not check status of receipt");
         assert_eq!(status, ReceiptTransactionStatus::TransactionSuccess);
 
         // Status for Alice would be pending, because she never received (and never will
         // receive) the Txos.
         let status = service
-            .check_receiver_receipts_status(
+            .check_receiver_receipt_status(
                 &AccountID(alice.account_id_hex),
-                &receipts,
+                &receipt,
                 24 * MOB as u64,
             )
             .expect("Could not check status of receipt");
@@ -596,7 +534,7 @@ mod tests {
     }
 
     #[test_with_logger]
-    fn test_check_receiver_receipts_status_missing_txos(logger: Logger) {
+    fn test_check_receiver_receipt_status_wrong_value(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -647,254 +585,11 @@ mod tests {
             )
             .expect("Could not build transaction");
 
-        let receipts0 = service
+        let receipts = service
             .create_receiver_receipts(&tx_proposal0)
-            .expect("Could not create receiver receipts");
+            .expect("Could not create receiver receipt");
+        let receipt0 = &receipts[0];
 
-        // Land the Txo in the ledger - only sync for the sender
-        TransactionLog::log_submitted(
-            tx_proposal0.clone(),
-            14,
-            "".to_string(),
-            Some(&alice.account_id_hex),
-            &service.wallet_db.get_conn().unwrap(),
-        )
-        .expect("Could not log submitted");
-        add_block_with_tx_proposal(&mut ledger_db, tx_proposal0);
-        manually_sync_account(
-            &ledger_db,
-            &service.wallet_db,
-            &AccountID(alice.account_id_hex.to_string()),
-            14,
-            &logger,
-        );
-
-        // Create another TxProposal to Bob (but do not send this one)
-        let tx_proposal1 = service
-            .build_transaction(
-                &alice.account_id_hex,
-                &bob_address,
-                (32 * MOB).to_string(),
-                None,
-                None,
-                None,
-                None,
-            )
-            .expect("Could not build transaction");
-
-        let receipts1 = service
-            .create_receiver_receipts(&tx_proposal1)
-            .expect("Could not create receiver receipts");
-
-        // Construct an invalid receipt that includes a Txo which has landed, and one
-        // which has not.
-        let mut receipts = receipts0.clone();
-        receipts.extend(receipts1);
-
-        // Sync the ledger for Bob
-        manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, 14, &logger);
-
-        // Bob checks the status, and gets SomeTxosMissing because he has only received
-        // one txo
-        let status = service
-            .check_receiver_receipts_status(&bob_account_id, &receipts, 24 * MOB as u64)
-            .expect("Could not check status of receipt");
-        assert_eq!(status, ReceiptTransactionStatus::SomeTxosMissing);
-
-        // Status for Alice would be pending, because she never received (and never will
-        // receive) the Txos.
-        let status = service
-            .check_receiver_receipts_status(
-                &AccountID(alice.account_id_hex),
-                &receipts,
-                24 * MOB as u64,
-            )
-            .expect("Could not check status of receipt");
-        assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
-    }
-
-    #[test_with_logger]
-    fn test_check_receiver_receipts_status_different_block_indices(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-
-        let known_recipients: Vec<PublicAddress> = Vec::new();
-        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
-
-        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
-        let alice = service
-            .create_account(Some("Alice's Main Account".to_string()), None)
-            .unwrap();
-
-        // Fund Alice
-        let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
-        let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
-        add_block_to_ledger_db(
-            &mut ledger_db,
-            &vec![alice_public_address.clone()],
-            100 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
-            &mut rng,
-        );
-        manually_sync_account(
-            &ledger_db,
-            &service.wallet_db,
-            &AccountID(alice.account_id_hex.to_string()),
-            13,
-            &logger,
-        );
-
-        let bob = service
-            .create_account(Some("Bob's Main Account".to_string()), None)
-            .unwrap();
-        let bob_addresses = service
-            .get_all_addresses_for_account(&AccountID(bob.account_id_hex.clone()))
-            .expect("Could not get addresses for Bob");
-        let bob_address = bob_addresses[0].assigned_subaddress_b58.clone();
-        let bob_account_id = AccountID(bob.account_id_hex.to_string());
-
-        // Create a TxProposal to Bob
-        let tx_proposal0 = service
-            .build_transaction(
-                &alice.account_id_hex,
-                &bob_address,
-                (24 * MOB).to_string(),
-                None,
-                None,
-                None,
-                None,
-            )
-            .expect("Could not build transaction");
-
-        let receipts0 = service
-            .create_receiver_receipts(&tx_proposal0)
-            .expect("Could not create receiver receipts");
-
-        // Land the Txo in the ledger - only sync for the sender
-        TransactionLog::log_submitted(
-            tx_proposal0.clone(),
-            14,
-            "".to_string(),
-            Some(&alice.account_id_hex),
-            &service.wallet_db.get_conn().unwrap(),
-        )
-        .expect("Could not log submitted");
-        add_block_with_tx_proposal(&mut ledger_db, tx_proposal0);
-        manually_sync_account(
-            &ledger_db,
-            &service.wallet_db,
-            &AccountID(alice.account_id_hex.to_string()),
-            14,
-            &logger,
-        );
-        manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, 14, &logger);
-
-        // Create another TxProposal to Bob and send.
-        let tx_proposal1 = service
-            .build_transaction(
-                &alice.account_id_hex,
-                &bob_address,
-                (32 * MOB).to_string(),
-                None,
-                None,
-                None,
-                None,
-            )
-            .expect("Could not build transaction");
-
-        let receipts1 = service
-            .create_receiver_receipts(&tx_proposal1)
-            .expect("Could not create receiver receipts");
-        add_block_with_tx_proposal(&mut ledger_db, tx_proposal1);
-        manually_sync_account(
-            &ledger_db,
-            &service.wallet_db,
-            &AccountID(alice.account_id_hex.to_string()),
-            15,
-            &logger,
-        );
-        manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, 15, &logger);
-
-        // Construct an invalid receipt that includes Txos that landed in different
-        // blocks.
-        let mut receipts = receipts0.clone();
-        receipts.extend(receipts1);
-
-        // Bob checks the status, and gets DifferingBlocks
-        let status = service
-            .check_receiver_receipts_status(&bob_account_id, &receipts, 24 * MOB as u64)
-            .expect("Could not check status of receipt");
-        assert_eq!(
-            status,
-            ReceiptTransactionStatus::TxosReceivedAtDifferentBlockIndices
-        );
-
-        // Status for Alice would be pending, because she never received (and never will
-        // receive) the Txos.
-        let status = service
-            .check_receiver_receipts_status(
-                &AccountID(alice.account_id_hex),
-                &receipts,
-                24 * MOB as u64,
-            )
-            .expect("Could not check status of receipt");
-        assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
-    }
-
-    #[test_with_logger]
-    fn test_check_receiver_receipts_status_wrong_value(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-
-        let known_recipients: Vec<PublicAddress> = Vec::new();
-        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
-
-        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
-        let alice = service
-            .create_account(Some("Alice's Main Account".to_string()), None)
-            .unwrap();
-
-        // Fund Alice
-        let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
-        let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
-        add_block_to_ledger_db(
-            &mut ledger_db,
-            &vec![alice_public_address.clone()],
-            100 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
-            &mut rng,
-        );
-        manually_sync_account(
-            &ledger_db,
-            &service.wallet_db,
-            &AccountID(alice.account_id_hex.to_string()),
-            13,
-            &logger,
-        );
-
-        let bob = service
-            .create_account(Some("Bob's Main Account".to_string()), None)
-            .unwrap();
-        let bob_addresses = service
-            .get_all_addresses_for_account(&AccountID(bob.account_id_hex.clone()))
-            .expect("Could not get addresses for Bob");
-        let bob_address = bob_addresses[0].assigned_subaddress_b58.clone();
-        let bob_account_id = AccountID(bob.account_id_hex.to_string());
-
-        // Create a TxProposal to Bob
-        let tx_proposal0 = service
-            .build_transaction(
-                &alice.account_id_hex,
-                &bob_address,
-                (24 * MOB).to_string(),
-                None,
-                None,
-                None,
-                None,
-            )
-            .expect("Could not build transaction");
-
-        let receipts0 = service
-            .create_receiver_receipts(&tx_proposal0)
-            .expect("Could not create receiver receipts");
 
         // Land the Txo in the ledger - only sync for the sender
         TransactionLog::log_submitted(
@@ -917,16 +612,16 @@ mod tests {
 
         // Bob checks the status, and is expecting an incorrect value
         let status = service
-            .check_receiver_receipts_status(&bob_account_id, &receipts0, 18 * MOB as u64)
+            .check_receiver_receipt_status(&bob_account_id, &receipt0, 18 * MOB as u64)
             .expect("Could not check status of receipt");
         assert_eq!(status, ReceiptTransactionStatus::UnexpectedValue);
 
         // Status for Alice would be pending, because she never received (and never will
         // receive) the Txos.
         let status = service
-            .check_receiver_receipts_status(
+            .check_receiver_receipt_status(
                 &AccountID(alice.account_id_hex),
-                &receipts0,
+                &receipt0,
                 18 * MOB as u64,
             )
             .expect("Could not check status of receipt");
@@ -934,7 +629,7 @@ mod tests {
     }
 
     #[test_with_logger]
-    fn test_check_receiver_receipts_status_duplicate_txos(logger: Logger) {
+    fn test_check_receiver_receipt_status_invalid_proof(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -985,105 +680,10 @@ mod tests {
             )
             .expect("Could not build transaction");
 
-        let receipts0 = service
+        let receipts = service
             .create_receiver_receipts(&tx_proposal0)
             .expect("Could not create receiver receipts");
-
-        // Land the Txo in the ledger - only sync for the sender
-        TransactionLog::log_submitted(
-            tx_proposal0.clone(),
-            14,
-            "".to_string(),
-            Some(&alice.account_id_hex),
-            &service.wallet_db.get_conn().unwrap(),
-        )
-        .expect("Could not log submitted");
-        add_block_with_tx_proposal(&mut ledger_db, tx_proposal0);
-        manually_sync_account(
-            &ledger_db,
-            &service.wallet_db,
-            &AccountID(alice.account_id_hex.to_string()),
-            14,
-            &logger,
-        );
-        manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, 14, &logger);
-
-        // Construct an invalid receipt with the same Txos
-        let mut receipts = receipts0.clone();
-        receipts.extend(receipts0);
-
-        // Bob checks the status, and is expecting an incorrect value
-        let status = service
-            .check_receiver_receipts_status(&bob_account_id, &receipts, 24 * MOB as u64)
-            .expect("Could not check status of receipt");
-        assert_eq!(status, ReceiptTransactionStatus::DuplicateTxos);
-
-        // Checking for the sender should also fail if duplicate Txos in receipt.
-        let status = service
-            .check_receiver_receipts_status(
-                &AccountID(alice.account_id_hex),
-                &receipts,
-                18 * MOB as u64,
-            )
-            .expect("Could not check status of receipt");
-        assert_eq!(status, ReceiptTransactionStatus::DuplicateTxos);
-    }
-
-    #[test_with_logger]
-    fn test_check_receiver_receipts_status_invalid_proof(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-
-        let known_recipients: Vec<PublicAddress> = Vec::new();
-        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
-
-        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
-        let alice = service
-            .create_account(Some("Alice's Main Account".to_string()), None)
-            .unwrap();
-
-        // Fund Alice
-        let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
-        let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
-        add_block_to_ledger_db(
-            &mut ledger_db,
-            &vec![alice_public_address.clone()],
-            100 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
-            &mut rng,
-        );
-        manually_sync_account(
-            &ledger_db,
-            &service.wallet_db,
-            &AccountID(alice.account_id_hex.to_string()),
-            13,
-            &logger,
-        );
-
-        let bob = service
-            .create_account(Some("Bob's Main Account".to_string()), None)
-            .unwrap();
-        let bob_addresses = service
-            .get_all_addresses_for_account(&AccountID(bob.account_id_hex.clone()))
-            .expect("Could not get addresses for Bob");
-        let bob_address = bob_addresses[0].assigned_subaddress_b58.clone();
-        let bob_account_id = AccountID(bob.account_id_hex.to_string());
-
-        // Create a TxProposal to Bob
-        let tx_proposal0 = service
-            .build_transaction(
-                &alice.account_id_hex,
-                &bob_address,
-                (24 * MOB).to_string(),
-                None,
-                None,
-                None,
-                None,
-            )
-            .expect("Could not build transaction");
-
-        let receipts0 = service
-            .create_receiver_receipts(&tx_proposal0)
-            .expect("Could not create receiver receipts");
+        let receipt0 = &receipts[0];
 
         // Land the Txo in the ledger - only sync for the sender
         TransactionLog::log_submitted(
@@ -1105,24 +705,24 @@ mod tests {
         manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, 14, &logger);
 
         // Construct an invalid receipt with an incorrect proof
-        let mut receipts = receipts0.clone();
+        let mut receipt = receipt0.clone();
         let mut bad_proof_bytes = [0u8; 32];
         rng.fill_bytes(&mut bad_proof_bytes);
         let bad_proof = TxOutConfirmationNumber::from(bad_proof_bytes);
-        receipts[0].proof = bad_proof;
+        receipt.proof = bad_proof;
 
         // Bob checks the status, and is expecting an incorrect value
         let status = service
-            .check_receiver_receipts_status(&bob_account_id, &receipts, 24 * MOB as u64)
+            .check_receiver_receipt_status(&bob_account_id, &receipt, 24 * MOB as u64)
             .expect("Could not check status of receipt");
         assert_eq!(status, ReceiptTransactionStatus::InvalidProof);
 
         // Checking for the sender will be pending because the Txos haven't landed for
         // alice (and never will).
         let status = service
-            .check_receiver_receipts_status(
+            .check_receiver_receipt_status(
                 &AccountID(alice.account_id_hex),
-                &receipts,
+                &receipt,
                 18 * MOB as u64,
             )
             .expect("Could not check status of receipt");
