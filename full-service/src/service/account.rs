@@ -6,8 +6,8 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         models::Account,
+        WalletDbError,
     },
-    error::WalletServiceError,
     service::{ledger::LedgerService, WalletService},
 };
 use mc_account_keys::RootEntropy;
@@ -17,7 +17,57 @@ use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_util_from_random::FromRandom;
 
+use crate::service::ledger::LedgerServiceError;
 use diesel::Connection;
+use displaydoc::Display;
+
+#[derive(Display, Debug)]
+pub enum AccountServiceError {
+    /// Error interacting with the database: {0}
+    Database(WalletDbError),
+
+    /// Error with LedgerDB: {0}
+    LedgerDB(mc_ledger_db::Error),
+
+    /// Error decoding from hex: {0}
+    HexDecode(hex::FromHexError),
+
+    /// Diesel error: {0}
+    Diesel(diesel::result::Error),
+
+    /// Error with the Ledger Service: {0}
+    LedgerService(LedgerServiceError),
+}
+
+impl From<WalletDbError> for AccountServiceError {
+    fn from(src: WalletDbError) -> Self {
+        Self::Database(src)
+    }
+}
+
+impl From<mc_ledger_db::Error> for AccountServiceError {
+    fn from(src: mc_ledger_db::Error) -> Self {
+        Self::LedgerDB(src)
+    }
+}
+
+impl From<hex::FromHexError> for AccountServiceError {
+    fn from(src: hex::FromHexError) -> Self {
+        Self::HexDecode(src)
+    }
+}
+
+impl From<diesel::result::Error> for AccountServiceError {
+    fn from(src: diesel::result::Error) -> Self {
+        Self::Diesel(src)
+    }
+}
+
+impl From<LedgerServiceError> for AccountServiceError {
+    fn from(src: LedgerServiceError) -> Self {
+        Self::LedgerService(src)
+    }
+}
 
 /// Trait defining the ways in which the wallet can interact with and manage
 /// accounts.
@@ -27,7 +77,7 @@ pub trait AccountService {
         &self,
         name: Option<String>,
         first_block_index: Option<u64>,
-    ) -> Result<Account, WalletServiceError>;
+    ) -> Result<Account, AccountServiceError>;
 
     /// Import an existing account to the wallet using the entropy.
     fn import_account_entropy(
@@ -35,23 +85,23 @@ pub trait AccountService {
         entropy: String,
         name: Option<String>,
         first_block_index: Option<u64>,
-    ) -> Result<Account, WalletServiceError>;
+    ) -> Result<Account, AccountServiceError>;
 
     /// List accounts in the wallet.
-    fn list_accounts(&self) -> Result<Vec<Account>, WalletServiceError>;
+    fn list_accounts(&self) -> Result<Vec<Account>, AccountServiceError>;
 
     /// Get an account in the wallet.
-    fn get_account(&self, account_id: &AccountID) -> Result<Account, WalletServiceError>;
+    fn get_account(&self, account_id: &AccountID) -> Result<Account, AccountServiceError>;
 
     /// Update the name for an account.
     fn update_account_name(
         &self,
         account_id: &AccountID,
         name: String,
-    ) -> Result<Account, WalletServiceError>;
+    ) -> Result<Account, AccountServiceError>;
 
     /// Delete an account from the wallet.
-    fn delete_account(&self, account_id: &AccountID) -> Result<bool, WalletServiceError>;
+    fn delete_account(&self, account_id: &AccountID) -> Result<bool, AccountServiceError>;
 }
 
 impl<T, FPR> AccountService for WalletService<T, FPR>
@@ -63,7 +113,7 @@ where
         &self,
         name: Option<String>,
         first_block_index: Option<u64>,
-    ) -> Result<Account, WalletServiceError> {
+    ) -> Result<Account, AccountServiceError> {
         log::info!(
             self.logger,
             "Creating account {:?} with first block: {:?}",
@@ -102,7 +152,7 @@ where
         entropy: String,
         name: Option<String>,
         first_block_index: Option<u64>,
-    ) -> Result<Account, WalletServiceError> {
+    ) -> Result<Account, AccountServiceError> {
         log::info!(
             self.logger,
             "Importing account {:?} with first block: {:?}",
@@ -127,12 +177,12 @@ where
         )?)
     }
 
-    fn list_accounts(&self) -> Result<Vec<Account>, WalletServiceError> {
+    fn list_accounts(&self) -> Result<Vec<Account>, AccountServiceError> {
         let conn = self.wallet_db.get_conn()?;
         Ok(Account::list_all(&conn)?)
     }
 
-    fn get_account(&self, account_id: &AccountID) -> Result<Account, WalletServiceError> {
+    fn get_account(&self, account_id: &AccountID) -> Result<Account, AccountServiceError> {
         let conn = self.wallet_db.get_conn()?;
         Ok(Account::get(&account_id, &conn)?)
     }
@@ -141,16 +191,16 @@ where
         &self,
         account_id: &AccountID,
         name: String,
-    ) -> Result<Account, WalletServiceError> {
+    ) -> Result<Account, AccountServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
-        Ok(conn.transaction::<Account, WalletServiceError, _>(|| {
+        Ok(conn.transaction::<Account, AccountServiceError, _>(|| {
             Account::get(&account_id, &conn)?.update_name(name, &conn)?;
             Ok(Account::get(&account_id, &conn)?)
         })?)
     }
 
-    fn delete_account(&self, account_id: &AccountID) -> Result<bool, WalletServiceError> {
+    fn delete_account(&self, account_id: &AccountID) -> Result<bool, AccountServiceError> {
         log::info!(self.logger, "Deleting account {}", account_id,);
 
         let conn = self.wallet_db.get_conn()?;

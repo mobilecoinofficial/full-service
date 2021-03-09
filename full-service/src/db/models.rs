@@ -3,8 +3,8 @@
 //! DB Models
 
 use super::schema::{
-    account_txo_statuses, accounts, assigned_subaddresses, transaction_logs, transaction_txo_types,
-    txos,
+    account_txo_statuses, accounts, assigned_subaddresses, gift_codes, transaction_logs,
+    transaction_txo_types, txos,
 };
 
 use serde::Serialize;
@@ -277,4 +277,32 @@ pub struct NewTransactionTxoType<'a> {
     pub transaction_id_hex: &'a str,
     pub txo_id_hex: &'a str,
     pub transaction_txo_type: &'a str,
+}
+
+#[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
+#[belongs_to(Account, foreign_key = "id")]
+#[belongs_to(TransactionLog, foreign_key = "id")]
+#[table_name = "gift_codes"]
+#[primary_key(id)]
+pub struct GiftCode {
+    pub id: i32,
+    pub gift_code_b58: String,
+    pub entropy: Vec<u8>,
+    pub txo_public_key: Vec<u8>,
+    pub value: i64,
+    pub memo: String,
+    pub account_id_hex: String,
+    pub txo_id_hex: String,
+}
+
+#[derive(Insertable)]
+#[table_name = "gift_codes"]
+pub struct NewGiftCode<'a> {
+    pub gift_code_b58: &'a str,
+    pub entropy: &'a Vec<u8>,
+    pub txo_public_key: &'a Vec<u8>,
+    pub value: i64,
+    pub memo: &'a str,
+    pub account_id_hex: &'a str,
+    pub txo_id_hex: &'a str,
 }

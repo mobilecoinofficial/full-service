@@ -90,7 +90,7 @@ pub enum JsonCommandRequestV2 {
     build_and_submit_transaction {
         account_id: String,
         recipient_public_address: String,
-        value: String,
+        value_pmob: String,
         input_txo_ids: Option<Vec<String>>,
         fee: Option<String>,
         tombstone_block: Option<String>,
@@ -100,7 +100,7 @@ pub enum JsonCommandRequestV2 {
     build_transaction {
         account_id: String,
         recipient_public_address: String,
-        value: String,
+        value_pmob: String,
         input_txo_ids: Option<Vec<String>>,
         fee: Option<String>,
         tombstone_block: Option<String>,
@@ -171,5 +171,26 @@ pub enum JsonCommandRequestV2 {
     },
     create_receiver_receipts {
         tx_proposal: TxProposal,
+    },
+    build_gift_code {
+        account_id: String,
+        value_pmob: String,
+        memo: Option<String>,
+        input_txo_ids: Option<Vec<String>>,
+        fee: Option<String>,
+        tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
+    },
+    get_gift_code {
+        gift_code_b58: String,
+    },
+    get_all_gift_codes,
+    check_gift_code_status {
+        gift_code_b58: String,
+    },
+    claim_gift_code {
+        gift_code_b58: String,
+        account_id: String,
+        address: Option<String>,
     },
 }

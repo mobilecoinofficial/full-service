@@ -11,6 +11,7 @@ use crate::{
         address::Address,
         balance::Balance,
         block::{Block, BlockContents},
+        gift_code::GiftCode,
         proof::Proof,
         receiver_receipt::ReceiverReceipt,
         transaction_log::TransactionLog,
@@ -18,7 +19,7 @@ use crate::{
         txo::Txo,
         wallet_status::WalletStatus,
     },
-    service::receipt::ReceiptTransactionStatus,
+    service::{gift_code::GiftCodeStatus, receipt::ReceiptTransactionStatus},
 };
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use serde::{Deserialize, Serialize};
@@ -256,5 +257,23 @@ pub enum JsonCommandResponseV2 {
     },
     create_receiver_receipts {
         receiver_receipts: Vec<ReceiverReceipt>,
+    },
+    build_gift_code {
+        tx_proposal: TxProposal,
+        gift_code_b58: String,
+        gift_code: GiftCode,
+    },
+    get_gift_code {
+        gift_code: GiftCode,
+    },
+    get_all_gift_codes {
+        gift_codes: Vec<GiftCode>,
+    },
+    check_gift_code_status {
+        gift_code_status: GiftCodeStatus,
+    },
+    claim_gift_code {
+        transaction_log_id: String,
+        gift_code: GiftCode,
     },
 }

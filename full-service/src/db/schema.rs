@@ -37,6 +37,19 @@ table! {
 }
 
 table! {
+    gift_codes (id) {
+        id -> Integer,
+        gift_code_b58 -> Text,
+        entropy -> Binary,
+        txo_public_key -> Binary,
+        value -> BigInt,
+        memo -> Text,
+        account_id_hex -> Text,
+        txo_id_hex -> Text,
+    }
+}
+
+table! {
     transaction_logs (id) {
         id -> Integer,
         transaction_id_hex -> Text,
@@ -85,6 +98,7 @@ allow_tables_to_appear_in_same_query!(
     account_txo_statuses,
     accounts,
     assigned_subaddresses,
+    gift_codes,
     transaction_logs,
     transaction_txo_types,
     txos,

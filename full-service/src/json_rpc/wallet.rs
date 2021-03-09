@@ -11,20 +11,29 @@ use crate::{
         address::Address,
         balance::Balance,
         block::{Block, BlockContents},
+        gift_code::GiftCode,
         json_rpc_request::{help_str_v2, JsonCommandRequest, JsonCommandRequestV2},
         json_rpc_response::{
             format_error, JsonCommandResponse, JsonCommandResponseV2, JsonRPCResponse,
         },
         proof::Proof,
         receiver_receipt::ReceiverReceipt,
+        tx_proposal::TxProposal,
         txo::Txo,
         wallet_status::WalletStatus,
     },
     service,
     service::{
-        account::AccountService, address::AddressService, balance::BalanceService,
-        ledger::LedgerService, proof::ProofService, receipt::ReceiptService,
-        transaction::TransactionService, transaction_log::TransactionLogService, txo::TxoService,
+        account::AccountService,
+        address::AddressService,
+        balance::BalanceService,
+        gift_code::{EncodedGiftCode, GiftCodeService},
+        ledger::LedgerService,
+        proof::ProofService,
+        receipt::ReceiptService,
+        transaction::TransactionService,
+        transaction_log::TransactionLogService,
+        txo::TxoService,
         WalletService,
     },
 };
@@ -241,7 +250,7 @@ where
         JsonCommandRequestV2::build_and_submit_transaction {
             account_id,
             recipient_public_address,
-            value,
+            value_pmob,
             input_txo_ids,
             fee,
             tombstone_block,
@@ -252,7 +261,7 @@ where
                 .build_and_submit(
                     &account_id,
                     &recipient_public_address,
-                    value,
+                    value_pmob,
                     input_txo_ids.as_ref(),
                     fee,
                     tombstone_block,
@@ -270,7 +279,7 @@ where
         JsonCommandRequestV2::build_transaction {
             account_id,
             recipient_public_address,
-            value,
+            value_pmob,
             input_txo_ids,
             fee,
             tombstone_block,
@@ -280,7 +289,7 @@ where
                 .build_transaction(
                     &account_id,
                     &recipient_public_address,
-                    value,
+                    value_pmob,
                     input_txo_ids.as_ref(),
                     fee,
                     tombstone_block,
@@ -288,7 +297,7 @@ where
                 )
                 .map_err(format_error)?;
             JsonCommandResponseV2::build_transaction {
-                tx_proposal: json_rpc::tx_proposal::TxProposal::from(&tx_proposal),
+                tx_proposal: TxProposal::from(&tx_proposal),
             }
         }
         JsonCommandRequestV2::submit_transaction {
@@ -533,6 +542,81 @@ where
                 .map_err(format_error)?;
             JsonCommandResponseV2::create_receiver_receipts {
                 receiver_receipts: json_receipts,
+            }
+        }
+        JsonCommandRequestV2::build_gift_code {
+            account_id,
+            value_pmob,
+            memo,
+            input_txo_ids,
+            fee,
+            tombstone_block,
+            max_spendable_value,
+        } => {
+            let (tx_proposal, gift_code_b58, gift_code) = service
+                .build_gift_code(
+                    &AccountID(account_id),
+                    value_pmob.parse::<u64>().map_err(format_error)?,
+                    memo,
+                    input_txo_ids.as_ref(),
+                    fee.map(|f| f.parse::<u64>())
+                        .transpose()
+                        .map_err(format_error)?,
+                    tombstone_block
+                        .map(|t| t.parse::<u64>())
+                        .transpose()
+                        .map_err(format_error)?,
+                    max_spendable_value
+                        .map(|m| m.parse::<u64>())
+                        .transpose()
+                        .map_err(format_error)?,
+                )
+                .map_err(format_error)?;
+            JsonCommandResponseV2::build_gift_code {
+                tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
+                gift_code_b58: gift_code_b58.to_string(),
+                gift_code: GiftCode::from(&gift_code),
+            }
+        }
+        JsonCommandRequestV2::get_gift_code { gift_code_b58 } => {
+            JsonCommandResponseV2::get_gift_code {
+                gift_code: GiftCode::from(
+                    &service
+                        .get_gift_code(&EncodedGiftCode(gift_code_b58))
+                        .map_err(format_error)?,
+                ),
+            }
+        }
+        JsonCommandRequestV2::get_all_gift_codes {} => JsonCommandResponseV2::get_all_gift_codes {
+            gift_codes: service
+                .list_gift_codes()
+                .map_err(format_error)?
+                .iter()
+                .map(GiftCode::from)
+                .collect(),
+        },
+        JsonCommandRequestV2::check_gift_code_status { gift_code_b58 } => {
+            JsonCommandResponseV2::check_gift_code_status {
+                gift_code_status: service
+                    .check_gift_code_status(&EncodedGiftCode(gift_code_b58))
+                    .map_err(format_error)?,
+            }
+        }
+        JsonCommandRequestV2::claim_gift_code {
+            gift_code_b58,
+            account_id,
+            address,
+        } => {
+            let (transaction_log, gift_code) = service
+                .claim_gift_code(
+                    &EncodedGiftCode(gift_code_b58),
+                    &AccountID(account_id),
+                    address,
+                )
+                .map_err(format_error)?;
+            JsonCommandResponseV2::claim_gift_code {
+                transaction_log_id: transaction_log.transaction_id_hex,
+                gift_code: GiftCode::from(&gift_code),
             }
         }
     };

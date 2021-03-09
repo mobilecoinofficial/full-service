@@ -1,3 +1,7 @@
+// Copyright (c) 2020-2021 MobileCoin Inc.
+
+use crate::db::gift_code::GiftCodeDbError;
+
 use displaydoc::Display;
 
 #[derive(Display, Debug)]
@@ -104,6 +108,9 @@ pub enum WalletDbError {
     /// The account cannot be created without either an entropy or an account
     /// key.
     InsufficientSecretsToCreateAccount,
+
+    /// Error with the GiftCode service: {0}
+    GiftCode(GiftCodeDbError),
 }
 
 impl From<diesel::result::Error> for WalletDbError {
@@ -127,5 +134,11 @@ impl From<mc_api::display::Error> for WalletDbError {
 impl From<prost::DecodeError> for WalletDbError {
     fn from(src: prost::DecodeError) -> Self {
         Self::ProstDecode(src)
+    }
+}
+
+impl From<GiftCodeDbError> for WalletDbError {
+    fn from(src: GiftCodeDbError) -> Self {
+        Self::GiftCode(src)
     }
 }
