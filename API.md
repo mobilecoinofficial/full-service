@@ -1222,7 +1222,7 @@ curl -s localhost:9090/wallet \
         "params": {
           "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
           "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-          "value": "42000000000000"
+          "value_pmob": "42000000000000"
         },
         "jsonrpc": "2.0",
         "id": 1

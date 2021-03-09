@@ -19,7 +19,7 @@ use crate::{
         txo::Txo,
         wallet_status::WalletStatus,
     },
-    service::receipt::ReceiptTransactionStatus,
+    service::{gift_code::GiftCodeStatus, receipt::ReceiptTransactionStatus},
 };
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use serde::{Deserialize, Serialize};
@@ -259,6 +259,8 @@ pub enum JsonCommandResponseV2 {
         receiver_receipts: Vec<ReceiverReceipt>,
     },
     build_gift_code {
+        tx_proposal: TxProposal,
+        gift_code_b58: String,
         gift_code: GiftCode,
     },
     get_gift_code {
