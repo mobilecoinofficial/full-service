@@ -100,8 +100,8 @@ pub trait AccountService {
         name: String,
     ) -> Result<Account, AccountServiceError>;
 
-    /// Delete an account from the wallet.
-    fn delete_account(&self, account_id: &AccountID) -> Result<bool, AccountServiceError>;
+    /// Remove an account from the wallet.
+    fn remove_account(&self, account_id: &AccountID) -> Result<bool, AccountServiceError>;
 }
 
 impl<T, FPR> AccountService for WalletService<T, FPR>
@@ -200,7 +200,7 @@ where
         })?)
     }
 
-    fn delete_account(&self, account_id: &AccountID) -> Result<bool, AccountServiceError> {
+    fn remove_account(&self, account_id: &AccountID) -> Result<bool, AccountServiceError> {
         log::info!(self.logger, "Deleting account {}", account_id,);
 
         let conn = self.wallet_db.get_conn()?;

@@ -11,7 +11,7 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 * [get_all_accounts](#get-all-accounts)
 * [get_account](#get-account)
 * [update_account_name](#update-account-name)
-* [delete_account](#delete-account)
+* [remove_account](#remove-account)
 * [export_account_secrets](#export-account-secrets)
 * [get_all_txos_for_account](#get-all-txos-for-a-given-account)
 * [get_txo](#get-txo-details)
@@ -37,6 +37,7 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 * [get_all_gift_codes](#get-all-gift-codes)
 * [check_gift_code_status](#check-gift-code-status)
 * [claim_gift_code](#claim-gift-code)
+* [remove_gift_code](#remove-gift-code)
 * [get_txo_object](#get-txo-object)
 * [get_transaction_object](#get-transaction-object)
 * [get_block_object](#get-block-object)
@@ -299,12 +300,12 @@ curl -s localhost:9090/wallet \
 | `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
 | `name`         | The new name for this account  |   |
 
-#### Delete Account
+#### Remove Account
 
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "delete_account",
+        "method": "remove_account",
         "params": {
           "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52"
         },
@@ -316,20 +317,13 @@ curl -s localhost:9090/wallet \
 
 ```json
 {
-  "method": "delete_account",
+  "method": "remove_account",
   "result": {
-    "account": {
-      "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
-      "main_address": "4bgkVAH1hs55dwLTGVpZER8ZayhqXbYqfuyisoRrmQPXoWcYQ3SQRTjsAytCiAgk21CRrVNysVw5qwzweURzDK9HL3rGXFmAAahb364kYe3",
-      "name": "Carol",
-      "next_subaddress_index": "2",
-      "object": "account",
-      "recovery_mode": false
-    }
+    "removed": true
   },
   "error": null,
   "jsonrpc": "2.0",
-  "id": 1,
+  "id": 1
 }
 ```
 
@@ -2065,6 +2059,35 @@ curl -s localhost:9090/wallet \
 }
 ```
 
+#### Remove Gift Code
+
+Claim a gift code to an account in this wallet.
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "remove_gift_code",
+        "params": {
+          "gift_code_b58": "3DkTHXADdEUpRJ5QsrjmYh8WqFdDKkvng126zTP9YQb7LNXL8pbRidCvB7Ba3Mvek5ZZdev8EXNPrJBpGdtvfjk3hew1phmjdkf5mp35mbyvhB8UjRqoJJqDRswLrmKQL",
+        },
+        "jsonrpc": "2.0",
+        "id": 1
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
+```
+
+```json
+{
+  "method": "remove_gift_code",
+  "result": {
+    "removed": true
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1
+}
+```
+
 ### Ledger and Transaction Data
 
 To get the JSON representations of the objects which are used in the MobileCoin blockchain, you can use the following calls:
@@ -2618,6 +2641,7 @@ Txo Spent from One Account to Another in the Same Wallet
 * [get_all_gift_codes](#get-all-gift-codes)
 * [check_gift_code_status](#check-gift-code-status)
 * [claim_gift_code](#claim-gift-code)
+* [remove_gift_code](#remove-gift-code)
 
 ### Future API Objects
 
