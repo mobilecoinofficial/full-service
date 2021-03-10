@@ -171,8 +171,11 @@ where
         expected_value: u64,
     ) -> Result<ReceiptTransactionStatus, ReceiptServiceError> {
         // Get the transaction from the database, with status.
-        let txos_and_statuses =
-            Txo::select_by_public_key(account_id, &[&receiver_receipt.txo_public_key], &self.wallet_db.get_conn()?)?;
+        let txos_and_statuses = Txo::select_by_public_key(
+            account_id,
+            &[&receiver_receipt.txo_public_key],
+            &self.wallet_db.get_conn()?,
+        )?;
 
         // Return if the Txo from the receipt is not in this wallet yet.
         if txos_and_statuses.is_empty() {
@@ -589,7 +592,6 @@ mod tests {
             .create_receiver_receipts(&tx_proposal0)
             .expect("Could not create receiver receipt");
         let receipt0 = &receipts[0];
-
 
         // Land the Txo in the ledger - only sync for the sender
         TransactionLog::log_submitted(
