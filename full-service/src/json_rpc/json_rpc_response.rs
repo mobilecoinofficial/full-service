@@ -252,8 +252,8 @@ pub enum JsonCommandResponseV2 {
         block: Block,
         block_contents: BlockContents,
     },
-    check_receiver_receipts_status {
-        receipts_transaction_status: ReceiptTransactionStatus,
+    check_receiver_receipt_status {
+        receipt_transaction_status: ReceiptTransactionStatus,
     },
     create_receiver_receipts {
         receiver_receipts: Vec<ReceiverReceipt>,

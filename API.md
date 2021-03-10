@@ -30,7 +30,7 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 * [get_all_transaction_logs_ordered_by_block](#get-all-transaction-logs-ordered-by-block)
 * [get_proofs](#get-proofs)
 * [verify_proof](#verify-proof)
-* [check_receiver_receipts_status](#check-receiver-receipts-status)
+* [check_receiver_receipt_status](#check-receiver-receipt-status)
 * [create_receiver_receipts](#create-receiver-receipts)
 * [build_gift_code](#build-and-submit-gift-code)
 * [get_gift_code](#get-gift-code)
@@ -1762,24 +1762,22 @@ curl -s localhost:9090/wallet \
 
 Senders can optionally provide `receiver_receipts` to the recipient of a transaction. This has more information than the proof (it contains the proof), and can be used by the receiver to poll for the status of the transaction.
 
-#### Check Receiver Receipts Status
+#### Check Receiver Receipt Status
 
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "check_receiver_receipts_status",
+        "method": "check_receiver_receipt_status",
         "params": {
           "account_id": "4b4fd11738c03bf5179781aeb27d725002fb67d8a99992920d3654ac00ee1a2c",
-          "receiver_receipts": [
-            {
-              "object": "receiver_receipt",
-              "recipient": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-              "txo_public_key": "0a206ad9d7600a1a5570050a05bbd64c83f56ad8239e12452253bfadd1f67676df0d",
-              "txo_hash": "9db71b4d7718b797154c42a22a3aac6c012a8e3706c35ad7e4a929a1392e7afa",
-              "tombstone": "153017",
-              "proof": "0a20c77fd2d8e5434557ddbe4a4565e701a815b8581a529112a4eb3b814d69878b34"
-            }
-          ],
+          "receiver_receipt": {
+            "object": "receiver_receipt",
+            "recipient": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+            "txo_public_key": "0a206ad9d7600a1a5570050a05bbd64c83f56ad8239e12452253bfadd1f67676df0d",
+            "txo_hash": "9db71b4d7718b797154c42a22a3aac6c012a8e3706c35ad7e4a929a1392e7afa",
+            "tombstone": "153017",
+            "proof": "0a20c77fd2d8e5434557ddbe4a4565e701a815b8581a529112a4eb3b814d69878b34"
+          }
           "expected_value": "10000000",
         },
         "jsonrpc": "2.0",
@@ -1790,7 +1788,7 @@ curl -s localhost:9090/wallet \
 
 ```json
 {
-  "method": "check_receiver_receipts_status",
+  "method": "check_receiver_receipt_status",
   "result": {
     "receipts_transaction_status": "TransactionSuccess"
   },
