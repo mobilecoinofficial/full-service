@@ -63,6 +63,12 @@ pub trait GiftCodeModel {
     fn list_all(
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<GiftCode>, WalletDbError>;
+
+    /// Delete a gift code.
+    fn delete(
+        self,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError>;
 }
 
 impl GiftCodeModel for GiftCode {
@@ -82,7 +88,7 @@ impl GiftCodeModel for GiftCode {
         let new_gift_code = NewGiftCode {
             gift_code_b58: &gift_code_b58.to_string(),
             entropy: &entropy.bytes.to_vec(),
-            txo_public_key: &txo_public_key.as_bytes().to_vec(),
+            txo_public_key: &mc_util_serial::encode(txo_public_key),
             value,
             memo: &memo,
             account_id_hex: &account_id.to_string(),
@@ -124,6 +130,16 @@ impl GiftCodeModel for GiftCode {
         Ok(gift_codes::table
             .select(gift_codes::all_columns)
             .load::<GiftCode>(conn)?)
+    }
+
+    fn delete(
+        self,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::gift_codes::dsl::{gift_code_b58, gift_codes};
+
+        diesel::delete(gift_codes.filter(gift_code_b58.eq(&self.gift_code_b58))).execute(conn)?;
+        Ok(())
     }
 }
 
@@ -187,7 +203,7 @@ mod tests {
             id: 1,
             gift_code_b58: gotten.gift_code_b58.clone(),
             entropy: entropy.bytes.to_vec(),
-            txo_public_key: txo_public_key.as_bytes().to_vec(),
+            txo_public_key: mc_util_serial::encode(&txo_public_key),
             value: value as i64,
             memo,
             account_id_hex: AccountID::from(&gift_code_account_key).to_string(),

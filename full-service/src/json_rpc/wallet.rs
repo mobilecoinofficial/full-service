@@ -176,10 +176,10 @@ where
                 .map_err(format_error)?,
             }
         }
-        JsonCommandRequestV2::delete_account { account_id } => {
-            JsonCommandResponseV2::delete_account {
-                success: service
-                    .delete_account(&AccountID(account_id))
+        JsonCommandRequestV2::remove_account { account_id } => {
+            JsonCommandResponseV2::remove_account {
+                removed: service
+                    .remove_account(&AccountID(account_id))
                     .map_err(format_error)?,
             }
         }
@@ -593,10 +593,12 @@ where
                 .collect(),
         },
         JsonCommandRequestV2::check_gift_code_status { gift_code_b58 } => {
+            let (status, gift_code) = service
+                .check_gift_code_status(&EncodedGiftCode(gift_code_b58))
+                .map_err(format_error)?;
             JsonCommandResponseV2::check_gift_code_status {
-                gift_code_status: service
-                    .check_gift_code_status(&EncodedGiftCode(gift_code_b58))
-                    .map_err(format_error)?,
+                gift_code_status: status,
+                gift_code: gift_code.map(|g| GiftCode::from(&g)),
             }
         }
         JsonCommandRequestV2::claim_gift_code {
@@ -614,6 +616,13 @@ where
             JsonCommandResponseV2::claim_gift_code {
                 transaction_log_id: transaction_log.transaction_id_hex,
                 gift_code: GiftCode::from(&gift_code),
+            }
+        }
+        JsonCommandRequestV2::remove_gift_code { gift_code_b58 } => {
+            JsonCommandResponseV2::remove_gift_code {
+                removed: service
+                    .remove_gift_code(&EncodedGiftCode(gift_code_b58))
+                    .map_err(format_error)?,
             }
         }
     };
