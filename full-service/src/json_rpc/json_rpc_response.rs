@@ -176,8 +176,8 @@ pub enum JsonCommandResponseV2 {
     update_account_name {
         account: Account,
     },
-    delete_account {
-        success: bool,
+    remove_account {
+        removed: bool,
     },
     get_balance_for_account {
         balance: Balance,
@@ -271,9 +271,13 @@ pub enum JsonCommandResponseV2 {
     },
     check_gift_code_status {
         gift_code_status: GiftCodeStatus,
+        gift_code: Option<GiftCode>,
     },
     claim_gift_code {
         transaction_log_id: String,
         gift_code: GiftCode,
+    },
+    remove_gift_code {
+        removed: bool,
     },
 }

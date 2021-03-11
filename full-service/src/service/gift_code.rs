@@ -12,7 +12,7 @@ use crate::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
         b58_encode,
-        gift_code::GiftCodeModel,
+        gift_code::{GiftCodeDbError, GiftCodeModel},
         models::{Account, AssignedSubaddress, GiftCode, TransactionLog, Txo},
         txo::{TxoID, TxoModel},
         WalletDbError,
@@ -104,6 +104,9 @@ pub enum GiftCodeServiceError {
 
     /// Cannot claim a gift code which has not yet landed in the ledger
     GiftCodeNotYetAvailable,
+
+    /// Gift Code was removed from the DB prior to claiming
+    GiftCodeRemoved,
 }
 
 impl From<WalletDbError> for GiftCodeServiceError {
@@ -234,11 +237,12 @@ pub trait GiftCodeService {
     /// List all gift codes in the wallet.
     fn list_gift_codes(&self) -> Result<Vec<GiftCode>, GiftCodeServiceError>;
 
-    /// Check the status of a gift code currently in your wallet.
+    /// Check the status of a gift code currently in your wallet. If the gift
+    /// code is not yet in the wallet, add it.
     fn check_gift_code_status(
         &self,
         gift_code_b58: &EncodedGiftCode,
-    ) -> Result<GiftCodeStatus, GiftCodeServiceError>;
+    ) -> Result<(GiftCodeStatus, Option<GiftCode>), GiftCodeServiceError>;
 
     /// Execute a transaction from the gift code account to drain the account to
     /// the destination specified by the account_id_hex and
@@ -256,6 +260,11 @@ pub trait GiftCodeService {
         &self,
         gift_code_b58: &EncodedGiftCode,
     ) -> Result<DecodedGiftCode, GiftCodeServiceError>;
+
+    fn remove_gift_code(
+        &self,
+        gift_code_b58: &EncodedGiftCode,
+    ) -> Result<bool, GiftCodeServiceError>;
 }
 
 impl<T, FPR> GiftCodeService for WalletService<T, FPR>
@@ -384,20 +393,41 @@ where
     fn check_gift_code_status(
         &self,
         gift_code_b58: &EncodedGiftCode,
-    ) -> Result<GiftCodeStatus, GiftCodeServiceError> {
+    ) -> Result<(GiftCodeStatus, Option<GiftCode>), GiftCodeServiceError> {
         let decoded_gift_code = self.decode_gift_code(gift_code_b58)?;
         let account_key = AccountKey::from(&RootIdentity::from(&decoded_gift_code.root_entropy));
 
         // Check if the GiftCode is in the local ledger.
-        let _gift_txo = match self
+        let gift_txo = match self
             .ledger_db
             .get_tx_out_index_by_public_key(&decoded_gift_code.txo_public_key)
         {
             Ok(tx_out_index) => self.ledger_db.get_tx_out_by_index(tx_out_index)?,
             Err(mc_ledger_db::Error::NotFound) => {
-                return Ok(GiftCodeStatus::GiftCodeSubmittedPending)
+                return Ok((GiftCodeStatus::GiftCodeSubmittedPending, None))
             }
             Err(e) => return Err(e.into()),
+        };
+
+        // Add the Gift Code to the DB
+        let shared_secret = get_tx_out_shared_secret(
+            account_key.view_private_key(),
+            &RistrettoPublic::try_from(&gift_txo.public_key).unwrap(),
+        );
+        let (value, _blinding) = gift_txo.amount.get_value(&shared_secret).unwrap();
+        let gift_code = match GiftCode::get(gift_code_b58, &self.wallet_db.get_conn()?) {
+            Ok(gc) => gc,
+            Err(WalletDbError::GiftCode(GiftCodeDbError::GiftCodeNotFound(_))) => GiftCode::create(
+                gift_code_b58,
+                &decoded_gift_code.root_entropy,
+                &decoded_gift_code.txo_public_key,
+                value as i64,
+                decoded_gift_code.memo,
+                &AccountID::from(&account_key),
+                &TxoID::from(&gift_txo),
+                &self.wallet_db.get_conn()?,
+            )?,
+            Err(e) => return Err(GiftCodeServiceError::Database(e)),
         };
 
         // Check if the Gift Code has been spent - by convention gift codes are always
@@ -413,10 +443,10 @@ where
         };
 
         if self.ledger_db.contains_key_image(&gift_code_key_image)? {
-            return Ok(GiftCodeStatus::GiftCodeClaimed);
+            return Ok((GiftCodeStatus::GiftCodeClaimed, Some(gift_code)));
         }
 
-        Ok(GiftCodeStatus::GiftCodeAvailable)
+        Ok((GiftCodeStatus::GiftCodeAvailable, Some(gift_code)))
     }
 
     fn claim_gift_code(
@@ -427,13 +457,15 @@ where
     ) -> Result<(TransactionLog, GiftCode), GiftCodeServiceError> {
         log::info!(
             self.logger,
-            "Consuming gift code {:?} to account_id {:?} at address {:?}",
+            "Claiming gift code {:?} to account_id {:?} at address {:?}",
             gift_code_b58,
             account_id,
             assigned_subaddress_b58
         );
 
-        match self.check_gift_code_status(gift_code_b58)? {
+        let (status, gift_code_opt) = self.check_gift_code_status(gift_code_b58)?;
+
+        match status {
             GiftCodeStatus::GiftCodeClaimed => return Err(GiftCodeServiceError::GiftCodeClaimed),
             GiftCodeStatus::GiftCodeSubmittedPending => {
                 return Err(GiftCodeServiceError::GiftCodeNotYetAvailable)
@@ -441,40 +473,36 @@ where
             GiftCodeStatus::GiftCodeAvailable => {}
         }
 
-        // Get the components of the gift code from the printable wrapper
-        let decoded = self.decode_gift_code(gift_code_b58)?;
+        // It should be impossible to get a None GiftCode with a status of
+        // GiftCodeAvailable.
+        let gift_code = gift_code_opt.ok_or(GiftCodeServiceError::GiftCodeRemoved)?;
 
+        let txo_public_key: CompressedRistrettoPublic =
+            mc_util_serial::decode(&gift_code.txo_public_key)?;
         // Get the block height to start scanning based on the block index of the
         // tx_out_public_key
         let tx_out_index = self
             .ledger_db
-            .get_tx_out_index_by_public_key(&decoded.txo_public_key)?;
+            .get_tx_out_index_by_public_key(&txo_public_key)?;
         let scan_block = self
             .ledger_db
             .get_block_index_by_tx_out_index(tx_out_index)?;
 
-        // Get the value of the txo in the gift
-        let gift_txo = self.ledger_db.get_tx_out_by_index(tx_out_index)?;
-        let root_id = RootIdentity::from(&decoded.root_entropy);
-        let gift_code_account_key = AccountKey::from(&root_id);
-        let shared_secret = get_tx_out_shared_secret(
-            gift_code_account_key.view_private_key(),
-            &RistrettoPublic::try_from(&gift_txo.public_key).unwrap(),
-        );
-        let (value, _blinding) = gift_txo.amount.get_value(&shared_secret).unwrap();
-
         // Add this account to our DB. It will be drained immediately.
         let gift_code_account_id_hex = match Account::get(
-            &AccountID::from(&gift_code_account_key),
+            &AccountID(gift_code.account_id_hex.to_string()),
             &self.wallet_db.get_conn()?,
         ) {
             // The account may already be in the wallet if we constructed this gift code in this
             // wallet.
             Ok(account) => account.account_id_hex,
             Err(WalletDbError::AccountNotFound(_)) => {
+                let mut entropy_bytes = [0u8; 32];
+                entropy_bytes[0..32].copy_from_slice(&gift_code.entropy);
+                let root_entropy = RootEntropy::from(&entropy_bytes);
                 let account = self.import_account(
-                    hex::encode(decoded.root_entropy.bytes),
-                    Some(format!("Gift Code: {}", decoded.memo)),
+                    hex::encode(root_entropy),
+                    Some(json!({"gift_code_memo:": gift_code.memo}).to_string()),
                     Some(scan_block),
                     None,
                     None,
@@ -496,19 +524,22 @@ where
             let address = self
                 .assign_address_for_account(
                     &account_id,
-                    Some(&format!("Gift Code: {}", decoded.memo)),
+                    Some(&json!({"gift_code_memo": gift_code.memo}).to_string()),
                 )
                 .unwrap();
             address.assigned_subaddress_b58
         });
         log::info!(
             self.logger,
-            "Consuming gift code to destination address {:?}",
+            "Consuming gift code {:?} to destination address {:?}",
+            gift_code,
             destination_address
         );
 
-        if value < MINIMUM_FEE {
-            return Err(GiftCodeServiceError::InsufficientValueForFee(value));
+        if (gift_code.value as u64) < MINIMUM_FEE {
+            return Err(GiftCodeServiceError::InsufficientValueForFee(
+                gift_code.value as u64,
+            ));
         }
 
         // Sanity check that we have assigned subaddresses for the gift code account
@@ -529,7 +560,7 @@ where
                 txos.len(),
             ));
         }
-        if txos[0].txo.value as u64 != value {
+        if txos[0].txo.value as u64 != gift_code.value as u64 {
             return Err(GiftCodeServiceError::UnexpectedValueInGiftCodeTxo(
                 txos[0].txo.value as u64,
             ));
@@ -556,13 +587,13 @@ where
         let (transaction_log, _associated_txos) = self.build_and_submit(
             &gift_code_account_id_hex,
             &destination_address,
-            (value - MINIMUM_FEE).to_string(),
+            ((gift_code.value as u64) - MINIMUM_FEE).to_string(),
             None,
             Some(MINIMUM_FEE.to_string()),
             None,
             None,
             Some(
-                json!({ "claim_gift_code": decoded.memo, "recipient_address": destination_address })
+                json!({ "claim_gift_code": gift_code.memo, "recipient_address": destination_address })
                     .to_string(),
             ),
         )?;
@@ -572,16 +603,6 @@ where
             transaction_log.transaction_id_hex
         );
 
-        let gift_code = GiftCode::create(
-            gift_code_b58,
-            &decoded.root_entropy,
-            &decoded.txo_public_key,
-            value as i64,
-            decoded.memo.clone(),
-            &AccountID(gift_code_account_id_hex),
-            &TxoID(txo.txo.txo_id_hex),
-            &self.wallet_db.get_conn()?,
-        )?;
         Ok((transaction_log, gift_code))
     }
 
@@ -606,6 +627,17 @@ where
             txo_public_key,
             memo: transfer_payload.get_memo().to_string(),
         })
+    }
+
+    fn remove_gift_code(
+        &self,
+        gift_code_b58: &EncodedGiftCode,
+    ) -> Result<bool, GiftCodeServiceError> {
+        log::info!(self.logger, "Deleting gift code {}", gift_code_b58,);
+
+        let conn = self.wallet_db.get_conn()?;
+        GiftCode::get(gift_code_b58, &conn)?.delete(&conn)?;
+        Ok(true)
     }
 }
 
@@ -682,10 +714,11 @@ mod tests {
         log::info!(logger, "Built and submitted gift code transaction");
 
         // Check the status before the gift code hits the ledger
-        let status = service
+        let (status, gift_code_opt) = service
             .check_gift_code_status(&gift_code_b58)
             .expect("Could not get gift code status");
         assert_eq!(status, GiftCodeStatus::GiftCodeSubmittedPending);
+        assert!(gift_code_opt.is_none());
 
         // Now add the block with the tx_proposal
         let transaction_log = TransactionLog::log_submitted(
@@ -706,10 +739,11 @@ mod tests {
         );
 
         // Now the Gift Code should be Available
-        let status = service
+        let (status, gift_code_opt) = service
             .check_gift_code_status(&gift_code_b58)
             .expect("Could not get gift code status");
         assert_eq!(status, GiftCodeStatus::GiftCodeAvailable);
+        assert!(gift_code_opt.is_some());
 
         let transaction_recipient =
             b58_decode(&transaction_log.recipient_public_address_b58).unwrap();
@@ -776,7 +810,7 @@ mod tests {
             &logger,
         );
 
-        log::info!(logger, "Consuming gift code");
+        log::info!(logger, "Claiming gift code");
         let (consume_response, _gift_code) = service
             .claim_gift_code(&gift_code_b58, &AccountID(bob.account_id_hex.clone()), None)
             .unwrap();
@@ -801,15 +835,121 @@ mod tests {
         );
 
         // Now the Gift Code should be spent
-        let status = service
+        let (status, gift_code_opt) = service
             .check_gift_code_status(&gift_code_b58)
             .expect("Could not get gift code status");
         assert_eq!(status, GiftCodeStatus::GiftCodeClaimed);
+        assert!(gift_code_opt.is_some());
 
         // Bob's balance should be = gift code value - fee (10000000000)
         let bob_balance = service
             .get_balance_for_account(&AccountID(bob.account_id_hex))
             .unwrap();
         assert_eq!(bob_balance.unspent, 1990000000000)
+    }
+
+    #[test_with_logger]
+    fn test_remove_gift_code(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+
+        // Create our main account for the wallet
+        let alice = service
+            .create_account(Some("Alice's Main Account".to_string()), None)
+            .unwrap();
+
+        // Add a block with a transaction for Alice
+        let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
+        let alice_public_address =
+            &alice_account_key.subaddress(alice.main_subaddress_index as u64);
+        let alice_account_id = AccountID(alice.account_id_hex.to_string());
+
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![alice_public_address.clone()],
+            100 * MOB as u64,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db,
+            &alice_account_id,
+            13,
+            &logger,
+        );
+
+        // Verify balance for Alice
+        let balance = service
+            .get_balance_for_account(&AccountID(alice.account_id_hex.clone()))
+            .unwrap();
+        assert_eq!(balance.unspent, 100 * MOB as u64);
+
+        // Create a gift code for Bob
+        let (tx_proposal, gift_code_b58, _db_gift_code) = service
+            .build_gift_code(
+                &AccountID(alice.account_id_hex.clone()),
+                2 * MOB as u64,
+                Some("Gift code for Bob".to_string()),
+                None,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+        log::info!(logger, "Built and submitted gift code transaction");
+
+        // Check the status before the gift code hits the ledger
+        let (status, gift_code_opt) = service
+            .check_gift_code_status(&gift_code_b58)
+            .expect("Could not get gift code status");
+        assert_eq!(status, GiftCodeStatus::GiftCodeSubmittedPending);
+        assert!(gift_code_opt.is_none());
+
+        // Let gift code hit the ledger
+        let _transaction_log = TransactionLog::log_submitted(
+            tx_proposal.clone(),
+            14,
+            "Gift Code".to_string(),
+            Some(&alice_account_id.to_string()),
+            &service.wallet_db.get_conn().unwrap(),
+        )
+        .expect("Could not log submitted");
+        add_block_with_tx_proposal(&mut ledger_db, tx_proposal);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db,
+            &alice_account_id,
+            14,
+            &logger,
+        );
+
+        // Check that it landed
+        let (status, gift_code_opt) = service
+            .check_gift_code_status(&gift_code_b58)
+            .expect("Could not get gift code status");
+        assert_eq!(status, GiftCodeStatus::GiftCodeAvailable);
+        assert!(gift_code_opt.is_some());
+
+        // Check that we get all gift codes
+        let gift_codes = service
+            .list_gift_codes()
+            .expect("Could not list gift codes");
+        assert_eq!(gift_codes.len(), 1);
+
+        assert_eq!(gift_codes[0], gift_code_opt.unwrap());
+
+        // remove that gift code
+        assert!(service
+            .remove_gift_code(&gift_code_b58)
+            .expect("Could not remove gift code"));
+        let gift_codes = service
+            .list_gift_codes()
+            .expect("Could not list gift codes");
+        assert_eq!(gift_codes.len(), 0);
     }
 }
