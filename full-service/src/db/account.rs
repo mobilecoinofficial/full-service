@@ -49,6 +49,7 @@ pub trait AccountModel {
     ///
     /// Returns:
     /// * (account_id, main_subaddress_b58)
+    #[allow(clippy::too_many_arguments)]
     fn create(
         entropy: &RootEntropy,
         first_block_index: Option<u64>,
@@ -61,6 +62,7 @@ pub trait AccountModel {
     ) -> Result<(AccountID, String), WalletDbError>;
 
     /// Import account.
+    #[allow(clippy::too_many_arguments)]
     fn import(
         entropy: &RootEntropy,
         name: Option<String>,
@@ -135,9 +137,9 @@ impl AccountModel for Account {
 
         let root_id = RootIdentity {
             root_entropy: entropy.clone(),
-            fog_report_url: fog_report_url.unwrap_or("".to_string()),
-            fog_report_id: fog_report_id.unwrap_or("".to_string()),
-            fog_authority_spki: hex::decode(fog_authority_spki.unwrap_or("".to_string()))
+            fog_report_url: fog_report_url.unwrap_or_else(|| "".to_string()),
+            fog_report_id: fog_report_id.unwrap_or_else(|| "".to_string()),
+            fog_authority_spki: hex::decode(fog_authority_spki.unwrap_or_else(|| "".to_string()))
                 .expect("invalid spki"),
         };
         let account_key = AccountKey::from(&root_id);
