@@ -54,6 +54,9 @@ pub trait AccountModel {
         first_block_index: Option<u64>,
         import_block_index: Option<u64>,
         name: &str,
+        fog_report_url: Option<String>,
+        fog_report_id: Option<String>,
+        fog_authority_spki: Option<String>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(AccountID, String), WalletDbError>;
 
@@ -63,6 +66,9 @@ pub trait AccountModel {
         name: Option<String>,
         import_block_index: u64,
         first_block_index: Option<u64>,
+        fog_report_url: Option<String>,
+        fog_report_id: Option<String>,
+        fog_authority_spki: Option<String>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Account, WalletDbError>;
 
@@ -120,12 +126,22 @@ impl AccountModel for Account {
         first_block_index: Option<u64>,
         import_block_index: Option<u64>,
         name: &str,
+        fog_report_url: Option<String>,
+        fog_report_id: Option<String>,
+        fog_authority_spki: Option<String>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(AccountID, String), WalletDbError> {
         use crate::db::schema::accounts;
 
-        let root_id = RootIdentity::from(entropy);
+        let root_id = RootIdentity {
+            root_entropy: entropy.clone(),
+            fog_report_url: fog_report_url.unwrap_or("".to_string()),
+            fog_report_id: fog_report_id.unwrap_or("".to_string()),
+            fog_authority_spki: hex::decode(fog_authority_spki.unwrap_or("".to_string()))
+                .expect("invalid spki"),
+        };
         let account_key = AccountKey::from(&root_id);
+
         let account_id = AccountID::from(&account_key);
         let fb = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX);
 
@@ -176,6 +192,9 @@ impl AccountModel for Account {
         name: Option<String>,
         import_block_index: u64,
         first_block_index: Option<u64>,
+        fog_report_url: Option<String>,
+        fog_report_id: Option<String>,
+        fog_authority_spki: Option<String>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Account, WalletDbError> {
         Ok(conn.transaction::<Account, WalletDbError, _>(|| {
@@ -184,6 +203,9 @@ impl AccountModel for Account {
                 first_block_index,
                 Some(import_block_index),
                 &name.unwrap_or_else(|| "".to_string()),
+                fog_report_url,
+                fog_report_id,
+                fog_authority_spki,
                 conn,
             )?;
             Ok(Account::get(&account_id, &conn)?)
@@ -361,6 +383,9 @@ mod tests {
                 Some(0),
                 None,
                 "Alice's Main Account",
+                None,
+                None,
+                None,
                 &conn,
             )
             .unwrap();
@@ -420,6 +445,9 @@ mod tests {
             Some(51),
             Some(50),
             "",
+            None,
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -492,6 +520,9 @@ mod tests {
                 Some(0),
                 None,
                 "Alice's Main Account",
+                None,
+                None,
+                None,
                 &conn,
             )
             .unwrap();

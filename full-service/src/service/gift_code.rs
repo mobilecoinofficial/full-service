@@ -287,7 +287,14 @@ where
             "Created gift code account. Importing to wallet at block index {:?}.",
             block_index,
         );
-        let account = self.import_account_entropy(entropy_str, memo.clone(), Some(block_index))?;
+        let account = self.import_account(
+            entropy_str,
+            memo.clone(),
+            Some(block_index),
+            None,
+            None,
+            None,
+        )?;
 
         let (gift_code_account, gift_code_account_key, from_account) = {
             let conn = self.wallet_db.get_conn()?;
@@ -465,10 +472,13 @@ where
             // wallet.
             Ok(account) => account.account_id_hex,
             Err(WalletDbError::AccountNotFound(_)) => {
-                let account = self.import_account_entropy(
+                let account = self.import_account(
                     hex::encode(decoded.root_entropy.bytes),
                     Some(format!("Gift Code: {}", decoded.memo)),
                     Some(scan_block),
+                    None,
+                    None,
+                    None,
                 )?;
                 log::info!(
                     self.logger,
