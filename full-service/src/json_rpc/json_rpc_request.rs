@@ -84,7 +84,7 @@ pub enum JsonCommandRequestV2 {
         account_id: String,
         name: String,
     },
-    delete_account {
+    remove_account {
         account_id: String,
     },
     get_balance_for_account {
@@ -195,5 +195,8 @@ pub enum JsonCommandRequestV2 {
         gift_code_b58: String,
         account_id: String,
         address: Option<String>,
+    },
+    remove_gift_code {
+        gift_code_b58: String,
     },
 }
