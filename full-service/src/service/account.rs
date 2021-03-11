@@ -80,11 +80,14 @@ pub trait AccountService {
     ) -> Result<Account, AccountServiceError>;
 
     /// Import an existing account to the wallet using the entropy.
-    fn import_account_entropy(
+    fn import_account(
         &self,
         entropy: String,
         name: Option<String>,
         first_block_index: Option<u64>,
+        fog_report_url: Option<String>,
+        fog_report_id: Option<String>,
+        fog_authority_spki: Option<String>,
     ) -> Result<Account, AccountServiceError>;
 
     /// List accounts in the wallet.
@@ -140,6 +143,9 @@ where
             Some(first_block_index),
             Some(import_block_index),
             &name.unwrap_or_else(|| "".to_string()),
+            None,
+            None,
+            None,
             &conn,
         )?;
 
@@ -147,11 +153,14 @@ where
         Ok(account)
     }
 
-    fn import_account_entropy(
+    fn import_account(
         &self,
         entropy: String,
         name: Option<String>,
         first_block_index: Option<u64>,
+        fog_report_url: Option<String>,
+        fog_report_id: Option<String>,
+        fog_authority_spki: Option<String>,
     ) -> Result<Account, AccountServiceError> {
         log::info!(
             self.logger,
@@ -173,6 +182,9 @@ where
             name,
             import_block,
             first_block_index,
+            fog_report_url,
+            fog_report_id,
+            fog_authority_spki,
             &conn,
         )?)
     }

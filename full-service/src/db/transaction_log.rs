@@ -600,6 +600,9 @@ mod tests {
             Some(0),
             None,
             "",
+            None,
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();

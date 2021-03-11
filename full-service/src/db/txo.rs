@@ -976,6 +976,9 @@ mod tests {
             Some(1),
             None,
             "Alice's Main Account",
+            None,
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1237,6 +1240,9 @@ mod tests {
             Some(1),
             None,
             "Bob's Main Account",
+            None,
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1295,6 +1301,9 @@ mod tests {
             Some(1),
             None,
             "Alice's Main Account",
+            None,
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1400,6 +1409,9 @@ mod tests {
             Some(0),
             None,
             "Alice's Main Account",
+            None,
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1452,6 +1464,9 @@ mod tests {
             Some(0),
             None,
             "",
+            None,
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1515,6 +1530,9 @@ mod tests {
             Some(0),
             None,
             "",
+            None,
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();

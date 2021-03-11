@@ -299,6 +299,56 @@ mod e2e {
     }
 
     #[test_with_logger]
+    fn test_e2e_import_account_fog(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        // Import an account with fog info.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_account",
+            "params": {
+                "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
+                "name": "Alice Main Account",
+                "first_block_index": "200",
+                "fog_report_url": "fog://fog-report.example.com",
+                "fog_report_id": "",
+                "fog_authority_spki": "30820222300d06092a864886f70d01010105000382020f003082020a0282020100c853a8724bc211cf5370ed4dbec8947c5573bed0ec47ae14211454977b41336061f0a040f77dbf529f3a46d8095676ec971b940ab4c9642578760779840a3f9b3b893b2f65006c544e9c16586d33649769b7c1c94552d7efa081a56ad612dec932812676ebec091f2aed69123604f4888a125e04ff85f5a727c286664378581cf34c7ee13eb01cc4faf3308ed3c07a9415f98e5fbfe073e6c357967244e46ba6ebbe391d8154e6e4a1c80524b1a6733eca46e37bfdd62d75816988a79aac6bdb62a06b1237a8ff5e5c848d01bbff684248cf06d92f301623c893eb0fba0f3faee2d197ea57ac428f89d6c000f76d58d5aacc3d70204781aca45bc02b1456b454231d2f2ed4ca6614e5242c7d7af0fe61e9af6ecfa76674ffbc29b858091cbfb4011538f0e894ce45d21d7fac04ba2ff57e9ff6db21e2afd9468ad785c262ec59d4a1a801c5ec2f95fc107dc9cb5f7869d70aa84450b8c350c2fa48bddef20752a1e43676b246c7f59f8f1f4aee43c1a15f36f7a36a9ec708320ea42089991551f2656ec62ea38233946b85616ff182cf17cd227e596329b546ea04d13b053be4cf3338de777b50bc6eca7a6185cf7a5022bc9be3749b1bb43e10ecc88a0c580f2b7373138ee49c7bafd8be6a64048887230480b0c85a045255494e04a9a81646369ce7a10e08da6fae27333ec0c16c8a74d93779a9e055395078d0b07286f9930203010001"
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+        assert_eq!(public_address, "Gty4pvRo2yjWMtsNzYRqmhhvVRevsdkqS4AsZWcbNsGJYdTVR8dmXRXB3T6b9rfxXNTxtHuQQSUq1YV8c7Ggkzc2KGSLdLZrbj6XzhL7BC9Dj2e4wa3M7j5Z6AzeERPW4kjuVwgomAvLJY9btj5D1poDMvkt2xUMaP438cCXwQjTS5rB2cdFeaLToHiK3DvjKVg3w4886q8dNQMnEj89wqANzuFUGkfd9how9zeWpH4oJGa");
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        assert_eq!(
+            account_id,
+            "d9472ed9d869465d1b7cdb3f8acdd5ca08479c5c735a6096d14cbc2748c09f64"
+        );
+
+        // Export account secrets and check fog info.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "export_account_secrets",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let secrets = result.get("account_secrets").unwrap();
+        let account_key = secrets.get("account_key").unwrap();
+
+        assert_eq!(
+            *account_key.get("fog_report_url").unwrap(),
+            serde_json::json!("fog://fog-report.example.com")
+        );
+    }
+
+    #[test_with_logger]
     fn test_e2e_get_balance(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());

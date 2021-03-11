@@ -117,6 +117,9 @@ where
             entropy,
             name,
             first_block_index,
+            fog_report_url,
+            fog_report_id,
+            fog_authority_spki,
         } => {
             let fb = first_block_index
                 .map(|fb| fb.parse::<u64>())
@@ -126,7 +129,14 @@ where
             JsonCommandResponseV2::import_account {
                 account: json_rpc::account::Account::try_from(
                     &service
-                        .import_account_entropy(entropy, name, fb)
+                        .import_account(
+                            entropy,
+                            name,
+                            fb,
+                            fog_report_url,
+                            fog_report_id,
+                            fog_authority_spki,
+                        )
                         .map_err(format_error)?,
                 )
                 .map_err(format_error)?,

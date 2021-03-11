@@ -296,7 +296,14 @@ where
             "Created gift code account. Importing to wallet at block index {:?}.",
             block_index,
         );
-        let account = self.import_account_entropy(entropy_str, memo.clone(), Some(block_index))?;
+        let account = self.import_account(
+            entropy_str,
+            memo.clone(),
+            Some(block_index),
+            None,
+            None,
+            None,
+        )?;
 
         let (gift_code_account, gift_code_account_key, from_account) = {
             let conn = self.wallet_db.get_conn()?;
@@ -493,10 +500,13 @@ where
                 let mut entropy_bytes = [0u8; 32];
                 entropy_bytes[0..32].copy_from_slice(&gift_code.entropy);
                 let root_entropy = RootEntropy::from(&entropy_bytes);
-                let account = self.import_account_entropy(
+                let account = self.import_account(
                     hex::encode(root_entropy),
                     Some(json!({"gift_code_memo:": gift_code.memo}).to_string()),
                     Some(scan_block),
+                    None,
+                    None,
+                    None,
                 )?;
                 log::info!(
                     self.logger,
