@@ -2,9 +2,9 @@
 
 use crate::{
     json_rpc::{
-        json_rpc_request::{JsonCommandRequest, JsonCommandRequestV2},
-        json_rpc_response::JsonCommandResponse,
-        wallet::wallet_api_inner_v2,
+        json_rpc_request::{JsonCommandRequest, JsonRPCRequest},
+        json_rpc_response::JsonRPCResponse,
+        wallet::wallet_api_inner,
     },
     service::WalletService,
     test_utils::{
@@ -48,19 +48,19 @@ pub struct TestWalletState {
 #[post("/wallet", format = "json", data = "<command>")]
 pub fn test_wallet_api(
     state: rocket::State<TestWalletState>,
-    command: Json<JsonCommandRequest>,
-) -> Result<Json<JsonCommandResponse>, String> {
-    let req: JsonCommandRequest = command.0.clone();
-    wallet_api_inner_v2(
+    command: Json<JsonRPCRequest>,
+) -> Result<Json<JsonRPCResponse>, String> {
+    let req: JsonRPCRequest = command.0.clone();
+    wallet_api_inner(
         &state.service,
-        Json(JsonCommandRequestV2::try_from(&req).map_err(|e| e)?),
+        Json(JsonCommandRequest::try_from(&req).map_err(|e| e)?),
     )
     .and_then(|res| {
-        Ok(Json(JsonCommandResponse {
+        Ok(Json(JsonRPCResponse {
             method: res.0.method,
             result: res.0.result,
             error: res.0.error,
-            jsonrpc: Some("2.0".to_string()),
+            jsonrpc: "2.0".to_string(),
             id: command.0.id,
         }))
     })
@@ -114,19 +114,19 @@ pub fn setup(
 }
 
 pub fn dispatch(client: &Client, request_body: JsonValue, logger: &Logger) -> JsonValue {
+    log::info!(logger, "Attempting dispatch of\n{:?}\n", request_body,);
+    let request_body = request_body.to_string();
+    log::info!(logger, "Attempting dispatch of\n{}\n", request_body,);
+
     let mut res = client
         .post("/wallet")
         .header(ContentType::JSON)
-        .body(request_body.to_string())
+        .body(request_body)
         .dispatch();
     assert_eq!(res.status(), Status::Ok);
+
     let response_body = res.body().unwrap().into_string().unwrap();
-    log::info!(
-        logger,
-        "\nAttempted dispatch of\n{:?}\nGot response\n{:?}",
-        request_body,
-        response_body
-    );
+    log::info!(logger, "Got response\n{}\n", response_body);
 
     let res: JsonValue = serde_json::from_str(&response_body).unwrap();
     res
@@ -173,6 +173,7 @@ pub fn wait_for_sync(
         let body = json!({
             "jsonrpc": "2.0",
             "method": "get_wallet_status",
+            "id": 1,
         });
         let res = dispatch(&client, body, &logger);
         let status = res["result"]["wallet_status"].clone();
