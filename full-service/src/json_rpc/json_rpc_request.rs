@@ -1,8 +1,6 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
 //! The JSON RPC 2.0 Requests to the Wallet API for Full Service.
-//!
-//! API v2
 
 use crate::json_rpc::tx_proposal::TxProposal;
 
@@ -14,18 +12,18 @@ use strum_macros::EnumIter;
 
 // FIXME: Update
 /// Help string when invoking GET on the wallet endpoint.
-pub fn help_str_v2() -> String {
+pub fn help_str() -> String {
     let mut help_str = "Please use json data to choose wallet commands. For example, \n\ncurl -s localhost:9090/wallet -d '{\"method\": \"create_account\", \"params\": {\"name\": \"Alice\"}}' -X POST -H 'Content-type: application/json'\n\nAvailable commands are:\n\n".to_owned();
-    for e in JsonCommandRequestV2::iter() {
+    for e in JsonCommandRequest::iter() {
         help_str.push_str(&format!("{:?}\n\n", e));
     }
     help_str
 }
 
-/// JSON RPC 2.0 Request.
+/// JSON-RPC 2.0 Request.
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[allow(non_camel_case_types)]
-pub struct JsonCommandRequest {
+pub struct JsonRPCRequest {
     /// The method to be invoked on the server.
     pub method: String,
 
@@ -34,23 +32,19 @@ pub struct JsonCommandRequest {
     /// Optional, as some methods do not take parameters.
     pub params: Option<serde_json::Value>,
 
-    /// The JSON RPC Version (Should always be 2.0)
-    ///
-    /// Optional for backwards compatibility because the previous version of
-    /// this API (v1) did not require the jsonrpc parameter.
-    pub jsonrpc: Option<String>,
+    /// The JSON-RPC Version (Should always be 2.0)
+    pub jsonrpc: String,
 
     /// The ID to be associated with this request.
-    ///
-    /// Optional because a "notify" method does not need to correlate an ID on
-    /// the response.
-    pub id: Option<u32>,
+    /// JSON-RPC Notification requests are not yet supported, so this field is
+    /// not optional.
+    pub id: u32,
 }
 
-impl TryFrom<&JsonCommandRequest> for JsonCommandRequestV2 {
+impl TryFrom<&JsonRPCRequest> for JsonCommandRequest {
     type Error = String;
 
-    fn try_from(src: &JsonCommandRequest) -> Result<JsonCommandRequestV2, String> {
+    fn try_from(src: &JsonRPCRequest) -> Result<JsonCommandRequest, String> {
         let src_json: serde_json::Value = serde_json::json!(src);
         Ok(serde_json::from_value(src_json).map_err(|e| format!("Could not get value {:?}", e))?)
     }
@@ -60,7 +54,7 @@ impl TryFrom<&JsonCommandRequest> for JsonCommandRequestV2 {
 #[derive(Deserialize, Serialize, EnumIter, Debug)]
 #[serde(tag = "method", content = "params")]
 #[allow(non_camel_case_types)]
-pub enum JsonCommandRequestV2 {
+pub enum JsonCommandRequest {
     create_account {
         name: Option<String>,
         first_block_index: Option<String>,
