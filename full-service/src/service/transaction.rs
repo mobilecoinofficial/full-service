@@ -188,7 +188,7 @@ where
         let tx_proposal = builder.build()?;
 
         // FIXME: WS-32 - Might be nice to have a tx_proposal table so that you don't
-        // have to write these out to local files. That's V2, though.
+        // have to write these out to local files.
         Ok(tx_proposal)
     }
 

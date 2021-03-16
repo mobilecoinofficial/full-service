@@ -27,7 +27,7 @@ use serde_json::Map;
 use strum::AsStaticRef;
 use strum_macros::AsStaticStr;
 
-/// A JSON RPC Response.
+/// A JSON RPC 2.0 Response.
 #[derive(Deserialize, Serialize, Debug)]
 pub struct JsonRPCResponse {
     /// The method which was invoked on the server.
@@ -54,8 +54,8 @@ pub struct JsonRPCResponse {
 }
 
 // FIXME: unwraps -> TryFrom
-impl From<JsonCommandResponseV2> for JsonRPCResponse {
-    fn from(src: JsonCommandResponseV2) -> JsonRPCResponse {
+impl From<JsonCommandResponse> for JsonRPCResponse {
+    fn from(src: JsonCommandResponse) -> JsonRPCResponse {
         let json_response = json!(src);
         JsonRPCResponse {
             method: Some(
@@ -72,33 +72,6 @@ impl From<JsonCommandResponseV2> for JsonRPCResponse {
             id: 1, // FIXME: must be the same as the request that was passed in
         }
     }
-}
-
-/// JSON RPC 2.0 Response.
-#[derive(Deserialize, Serialize, Debug)]
-#[allow(non_camel_case_types)]
-pub struct JsonCommandResponse {
-    /// The method which was invoked on the server.
-    ///
-    /// Optional because JSON RPC does not require returning the method invoked,
-    /// as that can be determined by the id. We return it as a convenience.
-    pub method: Option<String>,
-
-    /// The result of invoking the method on the server.
-    ///
-    /// Optional: if error occurs, result is not returned.
-    pub result: Option<serde_json::Value>,
-
-    /// The error that occurred when invoking the method on the server.
-    ///
-    /// Optional: if method was successful, error is not returned.
-    pub error: Option<JsonRPCError>,
-
-    /// The JSON RPC version. Should always be 2.0.
-    pub jsonrpc: Option<String>,
-
-    /// The id of the Request object to which this response corresponds.
-    pub id: Option<u32>,
 }
 
 /// A JSON RPC Error.
@@ -156,7 +129,7 @@ pub fn format_error<T: std::fmt::Display + std::fmt::Debug>(e: T) -> String {
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(tag = "method", content = "result")]
 #[allow(non_camel_case_types)]
-pub enum JsonCommandResponseV2 {
+pub enum JsonCommandResponse {
     create_account {
         account: Account,
     },
