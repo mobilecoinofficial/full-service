@@ -4,6 +4,7 @@
 
 use crate::db::{
     assigned_subaddress::AssignedSubaddressModel,
+    b58_encode,
     models::{
         Account, AccountTxoStatus, AssignedSubaddress, NewAccount, TransactionLog, Txo,
         TXO_STATUS_SPENT,
@@ -32,7 +33,9 @@ pub struct AccountID(pub String);
 
 impl From<&AccountKey> for AccountID {
     fn from(src: &AccountKey) -> AccountID {
-        let main_subaddress = src.subaddress(DEFAULT_SUBADDRESS_INDEX);
+        // Ignore fog data for account key hex
+        let account_id_key = AccountKey::new(src.spend_private_key(), src.view_private_key());
+        let main_subaddress = account_id_key.subaddress(DEFAULT_SUBADDRESS_INDEX);
         let temp: [u8; 32] = main_subaddress.digest32::<MerlinTranscript>(b"account_data");
         Self(hex::encode(temp))
     }
@@ -97,12 +100,19 @@ pub trait AccountModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<Account>, WalletDbError>;
 
-    /// Update an account.
-    /// The only updatable field is the name. Any other desired update requires
-    /// adding a new account, and deleting the existing if desired.
+    /// Update an account's name.
     fn update_name(
         &self,
         new_name: String,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError>;
+
+    /// Update the account's fog details.
+    fn update_fog_details(
+        &self,
+        new_fog_report_url: &str,
+        new_fog_report_id: &str,
+        new_fog_authority_spki: &[u8],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
@@ -279,6 +289,45 @@ impl AccountModel for Account {
         Ok(())
     }
 
+    fn update_fog_details(
+        &self,
+        new_fog_report_url: &str,
+        new_fog_report_id: &str,
+        new_fog_authority_spki: &[u8],
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
+
+        Ok(conn.transaction::<(), WalletDbError, _>(|| {
+            let cur_account_key: AccountKey = mc_util_serial::decode(&self.account_key)?;
+
+            println!("\x1b[1;36m now updating account key \x1b[0m");
+            let new_account_key = AccountKey::new_with_fog(
+                cur_account_key.spend_private_key(),
+                cur_account_key.view_private_key(),
+                new_fog_report_url,
+                new_fog_report_id.to_string(),
+                new_fog_authority_spki,
+            );
+            println!("\x1b[1;32m Now account key is {:?}\x1b[0m", new_account_key);
+
+            // FIXME: update subaddresses
+            println!(
+                "\x1b[1;31m NEW ADDRESS FOR 0 = {:?}\x1b[0m",
+                b58_encode(&new_account_key.subaddress(0))?
+            );
+
+            let new_account_key_bytes = mc_util_serial::encode(&new_account_key);
+
+            diesel::update(accounts.filter(account_id_hex.eq(&self.account_id_hex)))
+                .set(crate::db::schema::accounts::account_key.eq(new_account_key_bytes))
+                .execute(conn)?;
+
+            // Updating the fog details also updates the assigned addresses
+            Ok(())
+        })?)
+    }
+
     fn update_spent_and_increment_next_block(
         &self,
         spent_block_index: i64,
@@ -365,6 +414,7 @@ mod tests {
     use crate::test_utils::WalletDbTestContext;
     use mc_account_keys::RootIdentity;
     use mc_common::logger::{test_with_logger, Logger};
+    use mc_crypto_rand::RngCore;
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
     use std::{collections::HashSet, convert::TryFrom, iter::FromIterator};
@@ -536,5 +586,72 @@ mod tests {
         assert_eq!(decoded_entropy, root_id.root_entropy);
         let decoded_account_key: AccountKey = mc_util_serial::decode(&account.account_key).unwrap();
         assert_eq!(decoded_account_key, account_key);
+    }
+
+    #[test_with_logger]
+    fn test_update_account_key_with_fog(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        let account_id = {
+            let conn = wallet_db.get_conn().unwrap();
+            let (account_id_hex, _public_address_b58) = Account::create(
+                &root_id.root_entropy,
+                Some(0),
+                None,
+                "Alice's Main Account",
+                None,
+                None,
+                None,
+                &conn,
+            )
+            .unwrap();
+            account_id_hex
+        };
+
+        let account = Account::get(&account_id, &wallet_db.get_conn().unwrap())
+            .expect("Could not get account");
+        let stored_account_key: AccountKey =
+            mc_util_serial::decode(&account.account_key).expect("Could not decode");
+        assert!(stored_account_key.fog_report_id().is_none());
+        assert!(stored_account_key.fog_report_url().is_none());
+        assert!(stored_account_key.fog_authority_spki().is_none());
+
+        let mut fog_authority_spki_bytes = [0u8; 32];
+        rng.fill_bytes(&mut fog_authority_spki_bytes);
+        account
+            .update_fog_details(
+                "fog://fog.test.mobilecoin.com",
+                "",
+                &fog_authority_spki_bytes,
+                &wallet_db.get_conn().unwrap(),
+            )
+            .expect("Could not update name");
+
+        let updated = Account::get(&account_id, &wallet_db.get_conn().unwrap())
+            .expect("Could not get account");
+        let updated_account_key: AccountKey =
+            mc_util_serial::decode(&updated.account_key).expect("Could not decode");
+        assert_eq!(
+            updated_account_key.view_private_key().to_bytes(),
+            account_key.view_private_key().to_bytes()
+        );
+        assert_eq!(
+            updated_account_key.spend_private_key().to_bytes(),
+            account_key.spend_private_key().to_bytes()
+        );
+        assert_eq!(updated_account_key.fog_report_id(), None);
+        assert_eq!(
+            updated_account_key.fog_report_url(),
+            Some("fog://fog.test.mobilecoin.com")
+        );
+        assert_eq!(
+            updated_account_key.fog_authority_spki(),
+            Some(fog_authority_spki_bytes.to_vec().as_slice())
+        );
     }
 }

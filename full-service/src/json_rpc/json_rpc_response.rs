@@ -176,6 +176,9 @@ pub enum JsonCommandResponseV2 {
     update_account_name {
         account: Account,
     },
+    update_account_fog_details {
+        account: Account,
+    },
     remove_account {
         removed: bool,
     },

@@ -84,6 +84,12 @@ pub enum JsonCommandRequestV2 {
         account_id: String,
         name: String,
     },
+    update_account_fog_details {
+        account_id: String,
+        fog_report_url: String,
+        fog_report_id: String,
+        fog_authority_spki: String,
+    },
     remove_account {
         account_id: String,
     },

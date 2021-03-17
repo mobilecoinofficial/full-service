@@ -103,6 +103,15 @@ pub trait AccountService {
         name: String,
     ) -> Result<Account, AccountServiceError>;
 
+    /// Update an account's fog details.
+    fn update_account_fog_details(
+        &self,
+        account_id: &AccountID,
+        fog_report_url: &str,
+        fog_report_id: &str,
+        fog_authority_spki: &[u8],
+    ) -> Result<Account, AccountServiceError>;
+
     /// Remove an account from the wallet.
     fn remove_account(&self, account_id: &AccountID) -> Result<bool, AccountServiceError>;
 }
@@ -212,6 +221,26 @@ where
         })?)
     }
 
+    fn update_account_fog_details(
+        &self,
+        account_id: &AccountID,
+        fog_report_url: &str,
+        fog_report_id: &str,
+        fog_authority_spki: &[u8],
+    ) -> Result<Account, AccountServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+
+        Ok(conn.transaction::<Account, AccountServiceError, _>(|| {
+            Account::get(&account_id, &conn)?.update_fog_details(
+                &fog_report_url,
+                &fog_report_id,
+                &fog_authority_spki,
+                &conn,
+            )?;
+            Ok(Account::get(&account_id, &conn)?)
+        })?)
+    }
+
     fn remove_account(&self, account_id: &AccountID) -> Result<bool, AccountServiceError> {
         log::info!(self.logger, "Deleting account {}", account_id,);
 
@@ -219,4 +248,22 @@ where
         Account::get(account_id, &conn)?.delete(&conn)?;
         Ok(true)
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        db::b58_encode,
+        service::{account::AccountService, address::AddressService},
+        test_utils::{get_test_ledger, manually_sync_account, setup_wallet_service, MOB},
+    };
+    use mc_account_keys::{AccountKey, PublicAddress, RootEntropy, RootIdentity};
+    use mc_common::logger::{test_with_logger, Logger};
+    use mc_util_from_random::FromRandom;
+    use rand::{rngs::StdRng, SeedableRng};
+
+    // The balance for an address should be accurate.
+    #[test_with_logger]
+    fn test_update_account_with_fog(logger: Logger) {}
 }

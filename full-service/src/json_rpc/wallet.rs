@@ -186,6 +186,24 @@ where
                 .map_err(format_error)?,
             }
         }
+        JsonCommandRequestV2::update_account_fog_details {
+            account_id,
+            fog_report_url,
+            fog_report_id,
+            fog_authority_spki,
+        } => JsonCommandResponseV2::update_account_fog_details {
+            account: json_rpc::account::Account::try_from(
+                &service
+                    .update_account_fog_details(
+                        &AccountID(account_id),
+                        &fog_report_url,
+                        &fog_report_id,
+                        &base64::decode(fog_authority_spki).map_err(format_error)?,
+                    )
+                    .map_err(format_error)?,
+            )
+            .map_err(format_error)?,
+        },
         JsonCommandRequestV2::remove_account { account_id } => {
             JsonCommandResponseV2::remove_account {
                 removed: service
