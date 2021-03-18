@@ -537,10 +537,13 @@ impl TxoModel for Txo {
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::account_txo_statuses::dsl::account_txo_statuses;
 
-        conn.transaction::<(), WalletDbError, _>(|| {
+        let result = conn.transaction::<(), WalletDbError, _>(|| {
             // Find the account associated with this Txo.
             // Note: We should only be calling update_to_pending on inputs, which we had to
             // own to spend.
+            // However, if we sent a tranaction from an account we own to a different
+            // account in the same wallet, and then removed the first account,
+            // then this could fail.
             let accounts = Account::get_by_txo_id(&txo_id.to_string(), conn)?;
 
             // Update the status to pending.
@@ -566,8 +569,15 @@ impl TxoModel for Txo {
                 }
             }
             Ok(())
-        })?;
-        Ok(())
+        });
+
+        match result {
+            Ok(()) => Ok(()),
+            // If the account was not found, there is nothing to update, which is fine.
+            Err(WalletDbError::AccountNotFound(_)) => Ok(()),
+            // Let other errors propagate.
+            Err(e) => Err(e),
+        }
     }
 
     fn list_for_account(
@@ -715,10 +725,12 @@ impl TxoModel for Txo {
                     ))
                 }
             }
+
             // Get the subaddress details if assigned
-            let assigned_subaddress = if let Some(subaddress_index) = txo.subaddress_index {
-                let account: Account =
-                    Account::get(&AccountID(account_txo_status.account_id_hex), conn)?;
+            let assigned_subaddress: Option<AssignedSubaddress> = if let Some(subaddress_index) =
+                txo.subaddress_index
+            {
+                let account = Account::get(&AccountID(account_txo_status.account_id_hex), conn)?;
                 let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
                 let subaddress = account_key.subaddress(subaddress_index as u64);
                 let subaddress_b58 = b58_encode(&subaddress)?;

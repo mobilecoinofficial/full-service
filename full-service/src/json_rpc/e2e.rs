@@ -113,7 +113,7 @@ mod e2e {
         let name = result.get("account").unwrap().get("name").unwrap();
         assert_eq!("Eve Main Account", name.as_str().unwrap());
 
-        // Delete Account
+        // Remove Account
         let body = json!({
             "jsonrpc": "2.0",
             "id": 2,
@@ -867,6 +867,171 @@ mod e2e {
         assert_eq!(transaction_log_map.len(), 3);
         // FIXME: Once finalized_block_index is working, assert that they are
         // presented in ascending order of block_index
+    }
+
+    #[test_with_logger]
+    fn test_send_txo_from_removed_account(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
+
+        // Add three accounts.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "account 1",
+                "first_block_index": "0",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id_1 = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let b58_public_address_1 = account_obj.get("main_address").unwrap().as_str().unwrap();
+        let public_address_1 = b58_decode(b58_public_address_1).unwrap();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "account 2",
+                "first_block_index": "0",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id_2 = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let b58_public_address_2 = account_obj.get("main_address").unwrap().as_str().unwrap();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "account 3",
+                "first_block_index": "0",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id_3 = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let b58_public_address_3 = account_obj.get("main_address").unwrap().as_str().unwrap();
+
+        // Add a block to fund account 1.
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![public_address_1],
+            100000000000000, // 100.0 MOB
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        assert_eq!(ledger_db.num_blocks().unwrap(), 13);
+
+        // Send some coins to account 2.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "build_transaction",
+            "params": {
+                "account_id": account_id_1,
+                "recipient_public_address": b58_public_address_2,
+                "value_pmob": "84000000000000", // 84.0 MOB
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let tx_proposal = result.get("tx_proposal").unwrap();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "submit_transaction",
+            "params": {
+                "tx_proposal": tx_proposal,
+                "account_id": account_id_1,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result");
+        assert!(result.is_some());
+
+        let json_tx_proposal: json_rpc::tx_proposal::TxProposal =
+            serde_json::from_value(tx_proposal.clone()).unwrap();
+        let payments_tx_proposal =
+            mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
+
+        add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+
+        // Remove account 1.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "remove_account",
+            "params": {
+                "account_id": account_id_1,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        assert_eq!(result["removed"].as_bool().unwrap(), true,);
+
+        // Send coins from account 2 to account 3.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "build_transaction",
+            "params": {
+                "account_id": account_id_2,
+                "recipient_public_address": b58_public_address_3,
+                "value_pmob": "42000000000000", // 42.0 MOB
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let tx_proposal = result.get("tx_proposal").unwrap();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "submit_transaction",
+            "params": {
+                "tx_proposal": tx_proposal,
+                "account_id": account_id_2,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result");
+        assert!(result.is_some());
+
+        let json_tx_proposal: json_rpc::tx_proposal::TxProposal =
+            serde_json::from_value(tx_proposal.clone()).unwrap();
+        let payments_tx_proposal =
+            mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
+
+        add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+
+        // Check that account 3 received its coins.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_account",
+            "params": {
+                "account_id": account_id_3,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance_status = result.get("balance").unwrap();
+        let unspent = balance_status["unspent_pmob"].as_str().unwrap();
+        assert_eq!(unspent, "42000000000000"); // 42.0 MOB
     }
 
     #[test_with_logger]
