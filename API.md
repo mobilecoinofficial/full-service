@@ -1754,7 +1754,7 @@ curl -s localhost:9090/wallet \
 
 ### Transaction Receipts
 
-Senders can optionally provide `receiver_receipts` to the recipient of a transaction. This has more information than the proof (it contains the proof), and can be used by the receiver to poll for the status of the transaction.
+Senders can optionally provide `receiver_receipts` to the recipient of a transaction. This has more information than the confirmation proof (it contains the confirmation proof), and can be used by the receiver to poll for the status of the transaction.
 
 #### Check Receiver Receipt Status
 
@@ -1763,16 +1763,14 @@ curl -s localhost:9090/wallet \
   -d '{
         "method": "check_receiver_receipt_status",
         "params": {
-          "account_id": "4b4fd11738c03bf5179781aeb27d725002fb67d8a99992920d3654ac00ee1a2c",
+          "address": "3Dg4iFavKJScgCUeqb1VnET5ADmKjZgWz15fN7jfeCCWb72serxKE7fqz7htQvRirN4yeU2xxtcHRAN2zbF6V9n7FomDm69VX3FghvkDfpq",
           "receiver_receipt": {
             "object": "receiver_receipt",
-            "recipient": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-            "txo_public_key": "0a206ad9d7600a1a5570050a05bbd64c83f56ad8239e12452253bfadd1f67676df0d",
-            "txo_hash": "9db71b4d7718b797154c42a22a3aac6c012a8e3706c35ad7e4a929a1392e7afa",
-            "tombstone": "153017",
-            "proof": "0a20c77fd2d8e5434557ddbe4a4565e701a815b8581a529112a4eb3b814d69878b34"
+            "public_key": "0a20d2118a065192f11e228e0fce39e90a878b5aa628b7613a4556c193461ebd4f67",
+            "confirmation": "0a205e5ca2fa40f837d7aff6d37e9314329d21bad03d5fac2ec1fc844a09368c33e5",
+            "tombstone_block": "154512",
+            "amount": "0a220a20782c575ed7d893245d10d7dd49dcffc3515a7ed252bcade74e719a17d639092d11332ed73afc7c44a7"
           }
-          "expected_value": "10000000",
         },
         "jsonrpc": "2.0",
         "id": 1
@@ -1784,7 +1782,31 @@ curl -s localhost:9090/wallet \
 {
   "method": "check_receiver_receipt_status",
   "result": {
-    "receipts_transaction_status": "TransactionSuccess"
+    "receipts_transaction_status": "TransactionSuccess",
+    "txo": {
+      "object": "txo",
+      "txo_id": "fff4cae55a74e5ce852b79c31576f4041d510c26e59fec178b3e45705c5b35a7",
+      "value_pmob": "2960000000000",
+      "received_block_index": "8094",
+      "spent_block_index": "8180",
+      "is_spent_recovered": false,
+      "received_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+      "minted_account_id": null,
+      "account_status_map": {
+        "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10": {
+          "txo_status": "spent",
+          "txo_type": "received"
+        }
+      },
+      "target_key": "0a209eefc082a656a34fae5cec81044d1b13bd8963c411afa28aecfce4839fc9f74e",
+      "public_key": "0a20f03f9684e5420d5410fe732f121626352d45e4e799d725432a0c61fa1343ac51",
+      "e_fog_hint": "0a544944e7527b7f09322651b7242663edf17478fd1804aeea24838a35ad3c66d5194763642ae1c1e0cd2bbe2571a97a8c0fb49e346d2fd5262113e7333c7f012e61114bd32d335b1a8183be8e1865b0a10199b60100",
+      "subaddress_index": "0",
+      "assigned_subaddress": "3Dg4iFavKJScgCUeqb1VnET5ADmKjZgWz15fN7jfeCCWb72serxKE7fqz7htQvRirN4yeU2xxtcHRAN2zbF6V9n7FomDm69VX3FghvkDfpq",
+      "key_image": "0a205445b406012d26baebb51cbcaaaceb0d56387a67353637d07265f4e886f33419",
+      "proof": null,
+      "offset_count": 25
+    }
   },
   "error": null,
   "jsonrpc": "2.0",
@@ -1816,11 +1838,10 @@ curl -s localhost:9090/wallet \
     "receiver_receipts": [
       {
         "object": "receiver_receipt",
-        "recipient": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-        "txo_public_key": "0a206ad9d7600a1a5570050a05bbd64c83f56ad8239e12452253bfadd1f67676df0d",
-        "txo_hash": "9db71b4d7718b797154c42a22a3aac6c012a8e3706c35ad7e4a929a1392e7afa",
-        "tombstone": "153017",
-        "proof": "0a20c77fd2d8e5434557ddbe4a4565e701a815b8581a529112a4eb3b814d69878b34"
+        "public_key": "0a20d2118a065192f11e228e0fce39e90a878b5aa628b7613a4556c193461ebd4f67",
+        "confirmation": "0a205e5ca2fa40f837d7aff6d37e9314329d21bad03d5fac2ec1fc844a09368c33e5",
+        "tombstone_block": "154512",
+        "amount": "0a220a20782c575ed7d893245d10d7dd49dcffc3515a7ed252bcade74e719a17d639092d11332ed73afc7c44a7"
       }
     ]
   },
@@ -2616,6 +2637,34 @@ Txo Spent from One Account to Another in the Same Wallet
 
 * [get_proofs](#get-proofs)
 * [verify_proof](#verify-proof)
+
+### The Receiver Receipt Object
+
+#### Attributes
+
+| *Name* | *Type* | *Description*
+| :--- | :--- | :---
+| object | string, value is "proof" | String representing the object's type. Objects of the same type share the same value.
+| public_key | string | Hex-encoded public key for the Txo.
+| tombstone_block | string | The block index after which this Txo would be rejected by consensus.
+| confirmation | string | Hex-encoded proof that can be verified to confirm that another party constructed or had knowledge of the construction of the associated Txo.
+| amount | string | The encrypted amount in the Txo referenced by this receipt.
+
+#### Example Object
+
+```json
+{
+  "object": "receiver_receipt",
+  "public_key": "0a20d2118a065192f11e228e0fce39e90a878b5aa628b7613a4556c193461ebd4f67",
+  "confirmation": "0a205e5ca2fa40f837d7aff6d37e9314329d21bad03d5fac2ec1fc844a09368c33e5",
+  "tombstone_block": "154512",
+  "amount": "0a220a20782c575ed7d893245d10d7dd49dcffc3515a7ed252bcade74e719a17d639092d11332ed73afc7c44a7"
+}
+```
+
+#### API Methods Returning Receipt Objects
+
+* [create_receiver_receipts](#create-receiver-receipts)
 
 ### The Gift Code Object
 
