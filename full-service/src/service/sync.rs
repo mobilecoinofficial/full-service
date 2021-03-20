@@ -61,6 +61,7 @@ use std::{
         Arc, Mutex,
     },
     thread,
+    time::Duration,
 };
 
 ///  The maximal number of blocks a worker thread would process at once.
@@ -168,13 +169,17 @@ impl SyncThread {
 
                         // Go over our list of accounts and see which one needs to process these
                         // blocks.
-                        for account in Account::list_all(
-                            &wallet_db
+                        let accounts = {
+                            let conn = &wallet_db
                                 .get_conn()
-                                .expect("Could not get connection to DB"),
-                        )
-                        .expect("Failed getting accounts from WalletDb")
-                        {
+                                .expect("Could not get connection to DB");
+                            conn.transaction::<Vec<Account>, WalletDbError, _>(|| {
+                                Ok(Account::list_all(&conn)
+                                    .expect("Failed getting accounts from database"))
+                            })
+                            .expect("Failed executing database transaction")
+                        };
+                        for account in accounts {
                             // If there are no new blocks for this account, don't do anything.
                             if account.next_block_index >= num_blocks as i64 {
                                 continue;
@@ -186,17 +191,27 @@ impl SyncThread {
                                 // Already queued, no need to add again to queue at this point.
                                 log::trace!(
                                     logger,
-                                    "{}: skipping, already queued",
-                                    account.account_id_hex
+                                    "{}: skipping, already queued {} with next_block_index {} at num_blocks {}",
+                                    account.account_id_hex,
+                                    account.name,
+                                    account.next_block_index,
+                                    num_blocks
                                 );
-                                continue;
+                                // If sync failed on this account due to DB lock previously, we will
+                                // need to make sure it is still in the queue.
+                                if !sender.is_empty() {
+                                    continue;
+                                }
                             }
 
                             // This account has blocks to process, put it in the queue.
                             log::debug!(
                                 logger,
-                                "sync thread noticed account {} needs syncing",
+                                "sync thread noticed account {} {} with next_block_index {} needs syncing at num_blocks {}",
                                 account.account_id_hex,
+                                account.name,
+                                account.next_block_index,
+                                num_blocks
                             );
                             sender
                                 .send(SyncMsg::SyncAccount(account.account_id_hex))
@@ -296,6 +311,30 @@ fn sync_thread_entry_point(
 
                     // Errors that are acceptable - nothing to do.
                     Err(SyncError::AccountNotFound) => {}
+
+                    // Database is locked means there was some write contention, which is expected
+                    // when using SQLite3 with concurrency. Fail gracefully and retry on next loop.
+                    Err(SyncError::Database(WalletDbError::Diesel(
+                        diesel::result::Error::DatabaseError(kind, info),
+                    ))) => {
+                        match info.message() {
+                            "database is locked" => {
+                                log::warn!(logger, "Database locked. Will retry")
+                            }
+                            _ => log::error!(
+                                logger,
+                                "Unexpected database error {:?} {:?} {:?} {:?} {:?} {:?}",
+                                kind,
+                                info,
+                                info.details(),
+                                info.column_name(),
+                                info.table_name(),
+                                info.hint(),
+                            ),
+                        };
+                        // Sleep for half a second to let the database finish what it's up to
+                        std::thread::sleep(Duration::from_millis(500));
+                    }
 
                     // Other errors - log.
                     Err(err) => {

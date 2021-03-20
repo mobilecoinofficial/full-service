@@ -39,7 +39,7 @@ use mc_transaction_core::{
 };
 use mc_util_from_random::FromRandom;
 use serde::{Deserialize, Serialize};
-use std::{convert::TryFrom, fmt};
+use std::{convert::TryFrom, fmt, time::Duration};
 
 #[derive(Display, Debug)]
 #[allow(clippy::large_enum_variant)]
@@ -575,7 +575,7 @@ where
             // Note that we now need to allow the sync thread to catch up for this TXO so
             // that we can make sure the subaddress is assigned, rendering the
             // Txo spendable.
-            std::thread::sleep(std::time::Duration::from_secs(3));
+            std::thread::sleep(Duration::from_secs(2));
             let txos =
                 Txo::list_for_account(&gift_code_account_id_hex, &self.wallet_db.get_conn()?)?;
             txo = txos[0].clone();

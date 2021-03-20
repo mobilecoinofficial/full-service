@@ -164,10 +164,8 @@ pub fn wait_for_sync(
 ) {
     let mut count = 0;
     loop {
-        // FIXME: FS-122: Use async primitives so that we don't have to sleep for these
-        // tests.
         // Sleep to let the sync thread process the txos
-        std::thread::sleep(Duration::from_secs(2));
+        std::thread::sleep(Duration::from_millis(2000));
 
         // Check that syncing is working
         let body = json!({
