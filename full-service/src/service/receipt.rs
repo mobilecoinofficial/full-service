@@ -165,7 +165,7 @@ pub trait ReceiptService {
     /// Applies the proofs by verifying the proofs once the Txos have landed.
     fn check_receipt_status(
         &self,
-        address: &String,
+        address: &str,
         receiver_receipt: &ReceiverReceipt,
     ) -> Result<(ReceiptTransactionStatus, Option<TxoDetails>), ReceiptServiceError>;
 
@@ -183,7 +183,7 @@ where
 {
     fn check_receipt_status(
         &self,
-        address: &String,
+        address: &str,
         receiver_receipt: &ReceiverReceipt,
     ) -> Result<(ReceiptTransactionStatus, Option<TxoDetails>), ReceiptServiceError> {
         let conn = &self.wallet_db.get_conn()?;
@@ -192,7 +192,7 @@ where
             .transaction::<(ReceiptTransactionStatus, Option<TxoDetails>), ReceiptServiceError, _>(
                 || {
                     let assigned_address = AssignedSubaddress::get(address, &conn)?;
-                    let account_id = AccountID(assigned_address.account_id_hex.clone());
+                    let account_id = AccountID(assigned_address.account_id_hex);
                     let account = Account::get(&account_id, &conn)?;
                     // Get the transaction from the database, with status.
                     let txos_and_statuses = Txo::select_by_public_key(

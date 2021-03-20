@@ -597,7 +597,6 @@ impl TxoModel for Txo {
             results.iter().map(|t| Txo::get(t, &conn)).collect();
         details
     }
-
     fn list_for_address(
         assigned_subaddress_b58: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
