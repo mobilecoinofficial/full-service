@@ -227,6 +227,7 @@ pub enum JsonCommandResponse {
     },
     check_receiver_receipt_status {
         receipt_transaction_status: ReceiptTransactionStatus,
+        txo: Option<Txo>,
     },
     create_receiver_receipts {
         receiver_receipts: Vec<ReceiverReceipt>,

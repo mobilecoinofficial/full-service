@@ -1430,7 +1430,6 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let bob_account_obj = result.get("account").unwrap();
-        let bob_account_id = bob_account_obj.get("account_id").unwrap().as_str().unwrap();
         let bob_b58_public_address = bob_account_obj
             .get("main_address")
             .unwrap()
@@ -1473,9 +1472,8 @@ mod e2e {
             "id": 1,
             "method": "check_receiver_receipt_status",
             "params": {
-                "account_id": bob_account_id,
+                "address": bob_b58_public_address,
                 "receiver_receipt": receipt,
-                "expected_value": "42000000000000",
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -1499,9 +1497,8 @@ mod e2e {
             "id": 1,
             "method": "check_receiver_receipt_status",
             "params": {
-                "account_id": bob_account_id,
+                "address": bob_b58_public_address,
                 "receiver_receipt": receipt,
-                "expected_value": "42000000000000",
             }
         });
         let res = dispatch(&client, body, &logger);
