@@ -216,7 +216,76 @@ where
         log::info!(self.logger, "Deleting account {}", account_id,);
 
         let conn = self.wallet_db.get_conn()?;
-        Account::get(account_id, &conn)?.delete(&conn)?;
+        let account = Account::get(account_id, &conn)?;
+        account.delete(&conn)?;
+
         Ok(true)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        db::{account_txo_status::AccountTxoStatusModel, models::AccountTxoStatus},
+        test_utils::{
+            create_test_received_txo, get_test_ledger, setup_wallet_service, WalletDbTestContext,
+            MOB,
+        },
+    };
+    use mc_account_keys::{AccountKey, PublicAddress};
+    use mc_common::logger::{test_with_logger, Logger};
+    use rand::{rngs::StdRng, SeedableRng};
+
+    #[test_with_logger]
+    fn test_remove_account_txo_status(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+
+        // Create an account.
+        let account = service.create_account(Some("A".to_string()), None).unwrap();
+
+        let statuses = {
+            let conn = wallet_db.get_conn().unwrap();
+            AccountTxoStatus::get_all_for_account(&account.account_id_hex, &conn).unwrap()
+        };
+        assert_eq!(statuses.len(), 0);
+
+        // Add a transaction, with transaction status.
+        let account_key: AccountKey = mc_util_serial::decode(&account.account_key).unwrap();
+        let account_id = AccountID(account.account_id_hex.to_string());
+
+        create_test_received_txo(
+            &account_key,
+            0,
+            (100 * MOB) as u64,
+            13 as u64,
+            &mut rng,
+            &wallet_db,
+        );
+
+        let statuses = {
+            let conn = wallet_db.get_conn().unwrap();
+            AccountTxoStatus::get_all_for_account(&account.account_id_hex, &conn).unwrap()
+        };
+        println!("statuses {:?}", statuses);
+        assert_eq!(statuses.len(), 1);
+
+        // Delete the account. The transaction status referring to it is also cleared.
+        let result = service.remove_account(&account_id);
+        assert!(result.is_ok());
+
+        let statuses = {
+            let conn = wallet_db.get_conn().unwrap();
+            AccountTxoStatus::get_all_for_account(&account.account_id_hex, &conn).unwrap()
+        };
+        assert_eq!(statuses.len(), 0);
     }
 }
