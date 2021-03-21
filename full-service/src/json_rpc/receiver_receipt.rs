@@ -2,9 +2,9 @@
 
 //! API definition for the ReceiverReceipt object.
 
-use crate::service;
+use crate::{json_rpc::amount::Amount, service};
 use mc_crypto_keys::CompressedRistrettoPublic;
-use mc_transaction_core::{tx::TxOutConfirmationNumber, Amount};
+use mc_transaction_core::tx::TxOutConfirmationNumber;
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
@@ -30,7 +30,7 @@ pub struct ReceiverReceipt {
 
     /// The amount of the Txo.
     /// Note: This value is self-reported by the sender and is unverifiable.
-    pub amount: String,
+    pub amount: Amount,
 }
 
 impl TryFrom<&service::receipt::ReceiverReceipt> for ReceiverReceipt {
@@ -42,7 +42,7 @@ impl TryFrom<&service::receipt::ReceiverReceipt> for ReceiverReceipt {
             public_key: hex::encode(&mc_util_serial::encode(&src.public_key)),
             tombstone_block: src.tombstone_block.to_string(),
             confirmation: hex::encode(&mc_util_serial::encode(&src.confirmation)),
-            amount: hex::encode(&mc_util_serial::encode(&src.amount)),
+            amount: Amount::from(&src.amount),
         })
     }
 }
@@ -61,11 +61,10 @@ impl TryFrom<&ReceiverReceipt> for service::receipt::ReceiverReceipt {
                 .map_err(|err| format!("Could not decode hex for proof: {:?}", err))?,
         )
         .map_err(|err| format!("Could not decode proof: {:?}", err))?;
-        let amount: Amount = mc_util_serial::decode(
-            &hex::decode(&src.amount)
-                .map_err(|err| format!("Could not decode hex for amount: {:?}", err))?,
-        )
-        .map_err(|err| format!("Could not decode amount: {:?}", err))?;
+
+        let amount = mc_transaction_core::Amount::try_from(&src.amount)
+            .map_err(|err| format!("Could not convert amount: {:?}", err))?;
+
         Ok(service::receipt::ReceiverReceipt {
             public_key: txo_public_key,
             tombstone_block: src
@@ -105,8 +104,11 @@ mod tests {
         let mut proof_bytes = [0u8; 32];
         rng.fill_bytes(&mut proof_bytes);
         let confirmation_number = TxOutConfirmationNumber::from(proof_bytes);
-        let amount = Amount::new(rng.next_u64(), &RistrettoPublic::from_random(&mut rng))
-            .expect("Could not create amount");
+        let amount = mc_transaction_core::Amount::new(
+            rng.next_u64(),
+            &RistrettoPublic::from_random(&mut rng),
+        )
+        .expect("Could not create amount");
 
         let service_receipt = service::receipt::ReceiverReceipt {
             public_key: txo.public_key,

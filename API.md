@@ -1769,7 +1769,11 @@ curl -s localhost:9090/wallet \
             "public_key": "0a20d2118a065192f11e228e0fce39e90a878b5aa628b7613a4556c193461ebd4f67",
             "confirmation": "0a205e5ca2fa40f837d7aff6d37e9314329d21bad03d5fac2ec1fc844a09368c33e5",
             "tombstone_block": "154512",
-            "amount": "0a220a20782c575ed7d893245d10d7dd49dcffc3515a7ed252bcade74e719a17d639092d11332ed73afc7c44a7"
+            "amount": {
+              "object": "amount",
+              "commitment": "782c575ed7d893245d10d7dd49dcffc3515a7ed252bcade74e719a17d639092d",
+              "masked_value": "12052895925511073331"
+            }
           }
         },
         "jsonrpc": "2.0",
@@ -1841,7 +1845,11 @@ curl -s localhost:9090/wallet \
         "public_key": "0a20d2118a065192f11e228e0fce39e90a878b5aa628b7613a4556c193461ebd4f67",
         "confirmation": "0a205e5ca2fa40f837d7aff6d37e9314329d21bad03d5fac2ec1fc844a09368c33e5",
         "tombstone_block": "154512",
-        "amount": "0a220a20782c575ed7d893245d10d7dd49dcffc3515a7ed252bcade74e719a17d639092d11332ed73afc7c44a7"
+        "amount": {
+          "object": "amount",
+          "commitment": "782c575ed7d893245d10d7dd49dcffc3515a7ed252bcade74e719a17d639092d",
+          "masked_value": "12052895925511073331"
+        }
       }
     ]
   },
@@ -2658,7 +2666,11 @@ Txo Spent from One Account to Another in the Same Wallet
   "public_key": "0a20d2118a065192f11e228e0fce39e90a878b5aa628b7613a4556c193461ebd4f67",
   "confirmation": "0a205e5ca2fa40f837d7aff6d37e9314329d21bad03d5fac2ec1fc844a09368c33e5",
   "tombstone_block": "154512",
-  "amount": "0a220a20782c575ed7d893245d10d7dd49dcffc3515a7ed252bcade74e719a17d639092d11332ed73afc7c44a7"
+  "amount": {
+    "object": "amount",
+    "commitment": "782c575ed7d893245d10d7dd49dcffc3515a7ed252bcade74e719a17d639092d",
+    "masked_value": "12052895925511073331"
+  }
 }
 ```
 
