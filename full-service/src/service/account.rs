@@ -228,10 +228,7 @@ mod tests {
     use super::*;
     use crate::{
         db::{account_txo_status::AccountTxoStatusModel, models::AccountTxoStatus},
-        test_utils::{
-            create_test_received_txo, get_test_ledger, setup_wallet_service, WalletDbTestContext,
-            MOB,
-        },
+        test_utils::{create_test_received_txo, get_test_ledger, setup_wallet_service, MOB},
     };
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{test_with_logger, Logger};
@@ -245,22 +242,20 @@ mod tests {
         let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
-
-        let db_test_context = WalletDbTestContext::default();
-        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let wallet_db = &service.wallet_db;
 
         // Create an account.
         let account = service.create_account(Some("A".to_string()), None).unwrap();
 
-        let statuses = {
-            let conn = wallet_db.get_conn().unwrap();
-            AccountTxoStatus::get_all_for_account(&account.account_id_hex, &conn).unwrap()
-        };
+        let statuses = AccountTxoStatus::get_all_for_account(
+            &account.account_id_hex,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
         assert_eq!(statuses.len(), 0);
 
         // Add a transaction, with transaction status.
         let account_key: AccountKey = mc_util_serial::decode(&account.account_key).unwrap();
-        let account_id = AccountID(account.account_id_hex.to_string());
 
         create_test_received_txo(
             &account_key,
@@ -271,21 +266,23 @@ mod tests {
             &wallet_db,
         );
 
-        let statuses = {
-            let conn = wallet_db.get_conn().unwrap();
-            AccountTxoStatus::get_all_for_account(&account.account_id_hex, &conn).unwrap()
-        };
-        println!("statuses {:?}", statuses);
+        let statuses = AccountTxoStatus::get_all_for_account(
+            &account.account_id_hex,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
         assert_eq!(statuses.len(), 1);
 
         // Delete the account. The transaction status referring to it is also cleared.
+        let account_id = AccountID(account.account_id_hex.clone().to_string());
         let result = service.remove_account(&account_id);
         assert!(result.is_ok());
 
-        let statuses = {
-            let conn = wallet_db.get_conn().unwrap();
-            AccountTxoStatus::get_all_for_account(&account.account_id_hex, &conn).unwrap()
-        };
+        let statuses = AccountTxoStatus::get_all_for_account(
+            &account.account_id_hex,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
         assert_eq!(statuses.len(), 0);
     }
 }

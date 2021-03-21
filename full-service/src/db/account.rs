@@ -357,8 +357,7 @@ impl AccountModel for Account {
         AssignedSubaddress::delete_all(&self.account_id_hex, conn)?;
 
         // Also delete txo statuses associated with this account.
-        let res = AccountTxoStatus::delete_all_for_account(&self.account_id_hex, conn)?;
-        println!("delete txostatus {:?}", res);
+        AccountTxoStatus::delete_all_for_account(&self.account_id_hex, conn)?;
 
         Ok(())
     }
