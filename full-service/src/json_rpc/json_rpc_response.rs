@@ -246,7 +246,7 @@ pub enum JsonCommandResponse {
         gift_code_value: Option<i64>,
     },
     claim_gift_code {
-        transaction_log_id: String
+        success: bool,
     },
     remove_gift_code {
         removed: bool,

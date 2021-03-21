@@ -216,7 +216,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                         .iter()
                         .chain(self.outlays.iter().map(|(receiver, _amount)| receiver))
                         .filter_map(|x| extract_fog_uri(x).transpose())
-                        .collect::<Result<Vec<_>, _>>()?;
+                        .collect::<Result<Vec<_>, _>>()?; 
                     (self.fog_resolver_factory)(&fog_uris)
                         .map_err(WalletTransactionBuilderError::FogPubkeyResolver)?
                 };

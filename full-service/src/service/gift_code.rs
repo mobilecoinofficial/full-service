@@ -11,8 +11,9 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         b58_encode,
+        b58_decode,
         gift_code::{GiftCodeModel},
-        models::{Account, GiftCode, TransactionLog},
+        models::{Account, GiftCode, TransactionLog, Txo},
         WalletDbError,
     },
     service::{
@@ -31,10 +32,14 @@ use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::{
-    constants::MINIMUM_FEE, get_tx_out_shared_secret, onetime_keys::recover_onetime_private_key,
+    constants::MINIMUM_FEE, get_tx_out_shared_secret,
+    onetime_keys::recover_onetime_private_key,
     ring_signature::KeyImage,
+    tx::{Tx, TxOut, TxOutMembershipProof},
 };
+use mc_transaction_std::{InputCredentials, TransactionBuilder};
 use mc_util_from_random::FromRandom;
+use mc_util_uri::FogUri;
 use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, fmt};
 
@@ -250,7 +255,7 @@ pub trait GiftCodeService {
         gift_code_b58: &EncodedGiftCode,
         account_id: &AccountID,
         assigned_subaddress_b58: Option<String>,
-    ) -> Result<TransactionLog, GiftCodeServiceError>;
+    ) -> Result<bool, GiftCodeServiceError>;
 
     /// Decode the gift code from b58 to its component parts.
     fn decode_gift_code(
@@ -316,7 +321,6 @@ where
         }
         
         let outlay_index = tx_proposal.outlay_index_to_tx_out_index[&0];
-        // let value = tx_proposal.outlays[0].value;
         let tx_out = tx_proposal.tx.prefix.outputs[outlay_index].clone();
         let txo_public_key = tx_out.public_key;
 
@@ -418,6 +422,19 @@ where
         Ok((GiftCodeStatus::GiftCodeAvailable, Some(value as i64)))
     }
 
+    /*
+    // Implementation: Required
+    // Testing: Required
+    fn open_gift_code(
+        &self,
+        gift_code_b58: &EncodedGiftCode,
+        account_id: &AccountID,
+        assigned_subaddress_b58: Option<String>
+    ) -> Result<TxProposal, GiftCodeServiceError> {
+
+    }
+    */
+
     // Implementation: Incomplete
     // Testing: Needs Tests Rewritten - tisk tisk, you should be doing TDD ;)
     fn claim_gift_code(
@@ -425,8 +442,8 @@ where
         gift_code_b58: &EncodedGiftCode,
         account_id: &AccountID,
         assigned_subaddress_b58: Option<String>,
-    ) -> Result<TransactionLog, GiftCodeServiceError> {
-        let (status, gift_code_value) = self.check_gift_code_status(gift_code_b58)?;
+    ) -> Result<bool, GiftCodeServiceError> {
+        let (status, gift_value) = self.check_gift_code_status(gift_code_b58)?;
         
         match status {
             GiftCodeStatus::GiftCodeClaimed => return Err(GiftCodeServiceError::GiftCodeClaimed),
@@ -436,11 +453,12 @@ where
             GiftCodeStatus::GiftCodeAvailable => {}
         }
 
-        let decoded_gift_code = self.decode_gift_code(&gift_code_b58)?;
-        let gift_code_account_key = AccountKey::from(&RootIdentity::from(&decoded_gift_code.root_entropy));
-        let gift_code_account_id = AccountID::from(&gift_code_account_key);
+        let gift_value = gift_value.unwrap();
 
-        let gift_code_account_id_hex = gift_code_account_id.to_string();
+        let decoded_gift_code = self.decode_gift_code(&gift_code_b58)?;
+        let gift_account_key = AccountKey::from(&RootIdentity::from(&decoded_gift_code.root_entropy));
+        let gift_account_id = AccountID::from(&gift_account_key);
+        let gift_account_id_hex = gift_account_id.to_string();
 
         // Checking if we have an already specified destination subaddress, or if we should
         // just use the next available one for the account and tag it with the memo in the
@@ -455,11 +473,13 @@ where
             address.assigned_subaddress_b58
         });
 
+        let recipient_public_address = b58_decode(&destination_address)?;
+
         // If the gift code value is less than the MINIMUM_FEE, well, then shucks, someone
         // messed up when they were making it. Welcome to the Lost MOB club :)
-        if (gift_code_value.unwrap() as u64) < MINIMUM_FEE {
+        if (gift_value as u64) < MINIMUM_FEE {
             return Err(GiftCodeServiceError::InsufficientValueForFee(
-                gift_code_value.unwrap() as u64,
+                gift_value as u64,
             ));
         }
 
@@ -468,21 +488,72 @@ where
         // the gift account into the wallet_db. Again, the thought is, why bother when we don't
         // have to? And also I'm working on the Desktop Wallet and this will solve my problems there
         // so bite me. - Brian.
-        let (transaction_log, _associated_txos) = self.build_and_submit(
-            &gift_code_account_id_hex,
-            &destination_address,
-            ((gift_code_value.unwrap() as u64) - MINIMUM_FEE).to_string(),
-            None,
-            Some(MINIMUM_FEE.to_string()),
-            None,
-            None,
-            Some(
-                json!({ "claim_gift_code": decoded_gift_code.memo, "recipient_address": destination_address })
-                    .to_string(),
-            ),
-        )?;
 
-        Ok(transaction_log)
+        let gift_txo_index = self.ledger_db.get_tx_out_index_by_public_key(&decoded_gift_code.txo_public_key)?;
+        let gift_txo = self.ledger_db.get_tx_out_by_index(gift_txo_index)?;
+        let membership_proofs = self.ledger_db.get_tx_out_proof_of_memberships(&[gift_txo_index])?;
+
+        let ring_size = 15;
+        let mut ring: Vec<TxOut> = Vec::new();
+        let mut rng = rand::thread_rng();
+
+        let fog_resolver = (self.fog_resolver_factory)(&[]).map_err(GiftCodeServiceError::UnexpectedTxStatus)?;
+        
+        // Create ring_size - 1 mixins.
+        // for _i in 0..ring_size - 1 {
+        //     let address = AccountKey::random(&mut rng).default_subaddress();
+        //     let (tx_out, _) =
+        //         create_output(gift_value, &address, &fog_resolver, &mut rng).unwrap();
+        //     ring.push(tx_out);
+        // }
+
+        // let real_index = (rng.next_u64() % ring_size as u64) as usize;
+        let real_index = 0;
+        ring.insert(0, gift_txo);
+        let real_output = ring[real_index].clone();
+
+        log::info!(self.logger, "generating one time private key...");
+        let onetime_private_key = recover_onetime_private_key(
+            &RistrettoPublic::try_from(&real_output.public_key).unwrap(),
+            &gift_account_key.view_private_key(),
+            &gift_account_key.subaddress_spend_private(DEFAULT_SUBADDRESS_INDEX),
+        );
+
+        log::info!(self.logger, "generating input credentials...");
+        let input_credentials = InputCredentials::new(
+            ring,
+            membership_proofs.to_vec().clone(),
+            real_index,
+            onetime_private_key,
+            *gift_account_key.view_private_key(),
+        )
+        .unwrap();
+
+        log::info!(self.logger, "creating transaction builder...");
+        let mut transaction_builder = TransactionBuilder::new(fog_resolver);
+        log::info!(self.logger, "adding input_Credentials to transaction builder...");
+        transaction_builder.add_input(input_credentials);
+        log::info!(self.logger, "adding output to transaction_builder");
+        transaction_builder.add_output(gift_value as u64, &recipient_public_address, &mut rng);
+
+        log::info!(self.logger, "building transaction...");
+        let tx = transaction_builder.build(&mut rng).unwrap();
+
+        // let (transaction_log, _associated_txos) = self.build_and_submit(
+        //     &gift_account_id_hex,
+        //     &destination_address,
+        //     ((gift_value as u64) - MINIMUM_FEE).to_string(),
+        //     Some(&[gift_txo.public_key.to_string()].to_vec()),
+        //     Some(MINIMUM_FEE.to_string()),
+        //     None,
+        //     None,
+        //     Some(
+        //         json!({ "claim_gift_code": decoded_gift_code.memo, "recipient_address": destination_address })
+        //             .to_string(),
+        //     ),
+        // )?;
+
+        Ok(true)
     }
 
     // Implementation: Done

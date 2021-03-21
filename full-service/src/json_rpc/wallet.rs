@@ -607,7 +607,7 @@ where
             account_id,
             address,
         } => {
-            let transaction_log = service
+            let success = service
                 .claim_gift_code(
                     &EncodedGiftCode(gift_code_b58),
                     &AccountID(account_id),
@@ -615,9 +615,10 @@ where
                 )
                 .map_err(format_error)?;
             JsonCommandResponse::claim_gift_code {
-                transaction_log_id: transaction_log.transaction_id_hex,
+                success,
             }
         }
+
         JsonCommandRequest::remove_gift_code { gift_code_b58 } => {
             JsonCommandResponse::remove_gift_code {
                 removed: service
