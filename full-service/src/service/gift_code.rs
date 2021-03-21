@@ -10,21 +10,18 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        assigned_subaddress::AssignedSubaddressModel,
         b58_encode,
-        gift_code::{GiftCodeDbError, GiftCodeModel},
-        models::{Account, AssignedSubaddress, GiftCode, TransactionLog, Txo},
-        txo::{TxoID, TxoModel},
+        gift_code::{GiftCodeModel},
+        models::{Account, GiftCode, TransactionLog},
         WalletDbError,
     },
     service::{
-        account::{AccountService, AccountServiceError},
+        account::{AccountServiceError},
         address::AddressService,
         transaction::{TransactionService, TransactionServiceError},
         WalletService,
     },
 };
-use diesel::prelude::*;
 use displaydoc::Display;
 use mc_account_keys::{AccountKey, RootEntropy, RootIdentity, DEFAULT_SUBADDRESS_INDEX};
 use mc_common::logger::log;
@@ -226,7 +223,7 @@ pub trait GiftCodeService {
         fee: Option<u64>,
         tombstone_block: Option<u64>,
         max_spendable_value: Option<u64>,
-    ) -> Result<(TxProposal, EncodedGiftCode, GiftCode), GiftCodeServiceError>;
+    ) -> Result<(TxProposal, EncodedGiftCode), GiftCodeServiceError>;
 
     /// Get the details for a specific gift code.
     fn get_gift_code(
@@ -242,7 +239,7 @@ pub trait GiftCodeService {
     fn check_gift_code_status(
         &self,
         gift_code_b58: &EncodedGiftCode,
-    ) -> Result<(GiftCodeStatus, Option<GiftCode>), GiftCodeServiceError>;
+    ) -> Result<(GiftCodeStatus, Option<i64>), GiftCodeServiceError>;
 
     /// Execute a transaction from the gift code account to drain the account to
     /// the destination specified by the account_id_hex and
@@ -253,7 +250,7 @@ pub trait GiftCodeService {
         gift_code_b58: &EncodedGiftCode,
         account_id: &AccountID,
         assigned_subaddress_b58: Option<String>,
-    ) -> Result<(TransactionLog, GiftCode), GiftCodeServiceError>;
+    ) -> Result<TransactionLog, GiftCodeServiceError>;
 
     /// Decode the gift code from b58 to its component parts.
     fn decode_gift_code(
@@ -272,6 +269,8 @@ where
     T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
+    // Implementation: Done
+    // Testing: Needs
     fn build_gift_code(
         &self,
         from_account_id: &AccountID,
@@ -281,61 +280,30 @@ where
         fee: Option<u64>,
         tombstone_block: Option<u64>,
         max_spendable_value: Option<u64>,
-    ) -> Result<(TxProposal, EncodedGiftCode, GiftCode), GiftCodeServiceError> {
-        // First, create the account which will receive the funds, from a new random
-        // entropy
+    ) -> Result<(TxProposal, EncodedGiftCode), GiftCodeServiceError> {
+        // First we need to generate a new random root entropy. The way that gift codes work currently
+        // is that the sender creates a middle_man account and sends that account the amount of MOB
+        // desired, plus extra to cover the receivers fee
+        // Then, that account and all of its secrets get encoded into a b58 string, and when the receiver
+        // gets that they can decode it and create a new transaction liquidating the gift account of all
+        // of the MOB on its primary account.
+        // There should never be a reason to check any other sub_address besides the main one. If there
+        // ever is any on a different subaddress, either something went terribly wrong and we messed up,
+        // or someone is being very dumb and using a gift account as a place to store their personal MOB.
         let mut rng = rand::thread_rng();
-        let root_id = RootIdentity::from_random(&mut rng);
-        let entropy_str = hex::encode(&root_id.root_entropy);
+        let gift_code_root_entropy = RootEntropy::from_random(&mut rng);
+        let gift_code_account_key = AccountKey::from(&RootIdentity::from(&gift_code_root_entropy));
 
-        // Set first_block to current block height, since we know this account has only
-        // existed since now
-        let block_index = self.ledger_db.num_blocks()? - 1;
-        log::debug!(
-            self.logger,
-            "Created gift code account. Importing to wallet at block index {:?}.",
-            block_index,
-        );
-        let account = self.import_account(
-            entropy_str,
-            memo.clone(),
-            Some(block_index),
-            None,
-            None,
-            None,
-        )?;
-
-        let (gift_code_account, gift_code_account_key, from_account) = {
-            let conn = self.wallet_db.get_conn()?;
-            // Send a transaction to the gift_code account
-            let (gift_code_account, gift_code_account_key, from_account) =
-                conn.transaction::<(Account, AccountKey, Account), GiftCodeServiceError, _>(
-                    || {
-                        let from_account = Account::get(&from_account_id, &conn)?;
-                        let gift_code_account =
-                            Account::get(&AccountID(account.account_id_hex), &conn)?;
-
-                        let gift_code_account_key: AccountKey =
-                            mc_util_serial::decode(&gift_code_account.account_key)?;
-                        log::debug!(
-                            self.logger,
-                            "Funding gift code account {:?} from account {:?}",
-                            gift_code_account.account_id_hex,
-                            from_account.account_id_hex,
-                        );
-                        Ok((gift_code_account, gift_code_account_key, from_account))
-                    },
-                )?;
-            (gift_code_account, gift_code_account_key, from_account)
-        };
-
-        let main_subaddress =
-            gift_code_account_key.subaddress(gift_code_account.main_subaddress_index as u64);
-        let gift_code_address = b58_encode(&main_subaddress)?;
-
+        // We should never actually need this account to exist in the wallet_db, as we will only ever
+        // be using it a single time at this instant with a single unspent txo in its main subaddress
+        // and the b58 encoded gc will contain all necessary info to generate a tx_proposal for it
+        let gift_code_account_main_subaddress_b58 = b58_encode(&gift_code_account_key.default_subaddress())?;
+        
+        let from_account = Account::get(&from_account_id, &self.wallet_db.get_conn()?)?;
+        
         let tx_proposal = self.build_transaction(
             &from_account.account_id_hex,
-            &gift_code_address,
+            &gift_code_account_main_subaddress_b58,
             value.to_string(),
             input_txo_ids,
             fee.map(|f| f.to_string()),
@@ -343,18 +311,19 @@ where
             max_spendable_value.map(|f| f.to_string()),
         )?;
 
-        // Create the gift_code_b58 using the printable wrapper for a TransferPayload.
         if tx_proposal.outlay_index_to_tx_out_index.len() != 1 {
             return Err(GiftCodeServiceError::UnexpectedTxProposalFormat);
         }
+        
         let outlay_index = tx_proposal.outlay_index_to_tx_out_index[&0];
-        let value = tx_proposal.outlays[0].value;
+        // let value = tx_proposal.outlays[0].value;
         let tx_out = tx_proposal.tx.prefix.outputs[outlay_index].clone();
         let txo_public_key = tx_out.public_key;
+
         let proto_tx_pubkey: mc_api::external::CompressedRistretto = (&txo_public_key).into();
 
         let mut gift_code_payload = mc_mobilecoind_api::printable::TransferPayload::new();
-        gift_code_payload.set_entropy(root_id.root_entropy.bytes.to_vec());
+        gift_code_payload.set_entropy(gift_code_root_entropy.bytes.to_vec());
         gift_code_payload.set_tx_out_public_key(proto_tx_pubkey);
         gift_code_payload.set_memo(memo.clone().unwrap_or_else(|| "".to_string()));
 
@@ -362,21 +331,26 @@ where
         gift_code_wrapper.set_transfer_payload(gift_code_payload);
         let gift_code_b58 = gift_code_wrapper.b58_encode()?;
 
-        // Add the gift code to our Gift Codes table for tracking.
-        let gift_code = GiftCode::create(
-            &EncodedGiftCode(gift_code_b58.clone()),
-            &root_id.root_entropy,
-            &txo_public_key,
-            value as i64,
-            memo.unwrap_or_else(|| "".to_string()),
-            &AccountID::from(&gift_code_account_key),
-            &TxoID::from(&tx_out),
-            &self.wallet_db.get_conn()?,
-        )?;
 
-        Ok((tx_proposal, EncodedGiftCode(gift_code_b58), gift_code))
+        Ok((tx_proposal, EncodedGiftCode(gift_code_b58)))
     }
 
+    /*
+    // Implementation: Incomplete
+    // Testing: Needs Verification
+    fn submit_gift_code(
+        &self,
+        gift_code_b58: &EncodedGiftCode,
+        tx_proposal: &TxProposal
+    ) -> Result<GiftCode, GiftCodeServiceError> {
+        // TODO: - Requires Implementation
+        // We want to officially store the GiftCode into the DB
+        // after the transaction has been successfully submitted to the ledger
+    }
+    */
+
+    // Implementation: Done
+    // Testing: Needs Verification
     fn get_gift_code(
         &self,
         gift_code_b58: &EncodedGiftCode,
@@ -385,17 +359,26 @@ where
         Ok(GiftCode::get(&gift_code_b58, &conn)?)
     }
 
+    // Implementation: Done
+    // Testing: Needs Verification
     fn list_gift_codes(&self) -> Result<Vec<GiftCode>, GiftCodeServiceError> {
         let conn = self.wallet_db.get_conn()?;
         Ok(GiftCode::list_all(&conn)?)
     }
 
+    // Implementation: Done
+    // Testing: Needs Tests
     fn check_gift_code_status(
         &self,
         gift_code_b58: &EncodedGiftCode,
-    ) -> Result<(GiftCodeStatus, Option<GiftCode>), GiftCodeServiceError> {
+    ) -> Result<(GiftCodeStatus, Option<i64>), GiftCodeServiceError> {
+
+        log::info!(self.logger, "encoded_gift_code: {:?}", gift_code_b58);
+
         let decoded_gift_code = self.decode_gift_code(gift_code_b58)?;
-        let account_key = AccountKey::from(&RootIdentity::from(&decoded_gift_code.root_entropy));
+        let gift_account_key = AccountKey::from(&RootIdentity::from(&decoded_gift_code.root_entropy));
+
+        log::info!(self.logger, "decoded_gift_code.pubKey: {:?}, account_key: {:?}", decoded_gift_code.txo_public_key, gift_account_key);
 
         // Check if the GiftCode is in the local ledger.
         let gift_txo = match self
@@ -409,62 +392,42 @@ where
             Err(e) => return Err(e.into()),
         };
 
-        // Add the Gift Code to the DB
         let shared_secret = get_tx_out_shared_secret(
-            account_key.view_private_key(),
+            gift_account_key.view_private_key(),
             &RistrettoPublic::try_from(&gift_txo.public_key).unwrap(),
         );
+
         let (value, _blinding) = gift_txo.amount.get_value(&shared_secret).unwrap();
-        let gift_code = match GiftCode::get(gift_code_b58, &self.wallet_db.get_conn()?) {
-            Ok(gc) => gc,
-            Err(WalletDbError::GiftCode(GiftCodeDbError::GiftCodeNotFound(_))) => GiftCode::create(
-                gift_code_b58,
-                &decoded_gift_code.root_entropy,
-                &decoded_gift_code.txo_public_key,
-                value as i64,
-                decoded_gift_code.memo,
-                &AccountID::from(&account_key),
-                &TxoID::from(&gift_txo),
-                &self.wallet_db.get_conn()?,
-            )?,
-            Err(e) => return Err(GiftCodeServiceError::Database(e)),
-        };
 
         // Check if the Gift Code has been spent - by convention gift codes are always
-        // to the main subaddress index.
-        let gift_code_subaddress = DEFAULT_SUBADDRESS_INDEX;
+        // to the main subaddress index and gift accounts should NEVER have MOB stored
+        // anywhere else. If they do, that's not good :,)
         let gift_code_key_image = {
             let onetime_private_key = recover_onetime_private_key(
                 &RistrettoPublic::try_from(&decoded_gift_code.txo_public_key)?,
-                account_key.view_private_key(),
-                &account_key.subaddress_spend_private(gift_code_subaddress as u64),
+                gift_account_key.view_private_key(),
+                &gift_account_key.subaddress_spend_private(DEFAULT_SUBADDRESS_INDEX as u64),
             );
             KeyImage::from(&onetime_private_key)
         };
 
         if self.ledger_db.contains_key_image(&gift_code_key_image)? {
-            return Ok((GiftCodeStatus::GiftCodeClaimed, Some(gift_code)));
+            return Ok((GiftCodeStatus::GiftCodeClaimed, Some(value as i64)));
         }
 
-        Ok((GiftCodeStatus::GiftCodeAvailable, Some(gift_code)))
+        Ok((GiftCodeStatus::GiftCodeAvailable, Some(value as i64)))
     }
 
+    // Implementation: Incomplete
+    // Testing: Needs Tests Rewritten - tisk tisk, you should be doing TDD ;)
     fn claim_gift_code(
         &self,
         gift_code_b58: &EncodedGiftCode,
         account_id: &AccountID,
         assigned_subaddress_b58: Option<String>,
-    ) -> Result<(TransactionLog, GiftCode), GiftCodeServiceError> {
-        log::info!(
-            self.logger,
-            "Claiming gift code {:?} to account_id {:?} at address {:?}",
-            gift_code_b58,
-            account_id,
-            assigned_subaddress_b58
-        );
-
-        let (status, gift_code_opt) = self.check_gift_code_status(gift_code_b58)?;
-
+    ) -> Result<TransactionLog, GiftCodeServiceError> {
+        let (status, gift_code_value) = self.check_gift_code_status(gift_code_b58)?;
+        
         match status {
             GiftCodeStatus::GiftCodeClaimed => return Err(GiftCodeServiceError::GiftCodeClaimed),
             GiftCodeStatus::GiftCodeSubmittedPending => {
@@ -473,146 +436,63 @@ where
             GiftCodeStatus::GiftCodeAvailable => {}
         }
 
-        // It should be impossible to get a None GiftCode with a status of
-        // GiftCodeAvailable.
-        let gift_code = gift_code_opt.ok_or(GiftCodeServiceError::GiftCodeRemoved)?;
+        let decoded_gift_code = self.decode_gift_code(&gift_code_b58)?;
+        let gift_code_account_key = AccountKey::from(&RootIdentity::from(&decoded_gift_code.root_entropy));
+        let gift_code_account_id = AccountID::from(&gift_code_account_key);
 
-        let txo_public_key: CompressedRistrettoPublic =
-            mc_util_serial::decode(&gift_code.txo_public_key)?;
-        // Get the block height to start scanning based on the block index of the
-        // tx_out_public_key
-        let tx_out_index = self
-            .ledger_db
-            .get_tx_out_index_by_public_key(&txo_public_key)?;
-        let scan_block = self
-            .ledger_db
-            .get_block_index_by_tx_out_index(tx_out_index)?;
+        let gift_code_account_id_hex = gift_code_account_id.to_string();
 
-        // Add this account to our DB. It will be drained immediately.
-        let gift_code_account_id_hex = match Account::get(
-            &AccountID(gift_code.account_id_hex.to_string()),
-            &self.wallet_db.get_conn()?,
-        ) {
-            // The account may already be in the wallet if we constructed this gift code in this
-            // wallet.
-            Ok(account) => account.account_id_hex,
-            Err(WalletDbError::AccountNotFound(_)) => {
-                let mut entropy_bytes = [0u8; 32];
-                entropy_bytes[0..32].copy_from_slice(&gift_code.entropy);
-                let root_entropy = RootEntropy::from(&entropy_bytes);
-                let account = self.import_account(
-                    hex::encode(root_entropy),
-                    Some(json!({"gift_code_memo:": gift_code.memo}).to_string()),
-                    Some(scan_block),
-                    None,
-                    None,
-                    None,
-                )?;
-                log::info!(
-                    self.logger,
-                    "Imported gift code account {:?}.",
-                    account.account_id_hex
-                );
-                account.account_id_hex
-            }
-            Err(e) => return Err(e.into()),
-        };
-
-        // Construct a transaction from the gift code account to our desired recipient
-        // account.
+        // Checking if we have an already specified destination subaddress, or if we should
+        // just use the next available one for the account and tag it with the memo in the
+        // decoded_gift_code.
         let destination_address = assigned_subaddress_b58.unwrap_or_else(|| {
             let address = self
                 .assign_address_for_account(
                     &account_id,
-                    Some(&json!({"gift_code_memo": gift_code.memo}).to_string()),
+                    Some(&json!({"gift_code_memo": decoded_gift_code.memo}).to_string()),
                 )
                 .unwrap();
             address.assigned_subaddress_b58
         });
-        log::info!(
-            self.logger,
-            "Consuming gift code {:?} to destination address {:?}",
-            gift_code,
-            destination_address
-        );
 
-        if (gift_code.value as u64) < MINIMUM_FEE {
+        // If the gift code value is less than the MINIMUM_FEE, well, then shucks, someone
+        // messed up when they were making it. Welcome to the Lost MOB club :)
+        if (gift_code_value.unwrap() as u64) < MINIMUM_FEE {
             return Err(GiftCodeServiceError::InsufficientValueForFee(
-                gift_code.value as u64,
+                gift_code_value.unwrap() as u64,
             ));
         }
 
-        // Sanity check that we have assigned subaddresses for the gift code account
-        let addresses =
-            AssignedSubaddress::list_all(&gift_code_account_id_hex, &self.wallet_db.get_conn()?)?;
-        assert_eq!(addresses.len(), 2);
-
-        // Sanity check that our txo is available and spendable from the gift code
-        // account
-        let txos = Txo::list_for_account(&gift_code_account_id_hex, &self.wallet_db.get_conn()?)?;
-        if txos.is_empty() {
-            return Err(GiftCodeServiceError::GiftCodeTxoNotInLedger(
-                self.ledger_db.num_blocks()? - 1,
-            ));
-        }
-        if txos.len() != 1 {
-            return Err(GiftCodeServiceError::UnexpectedNumTxosInGiftCodeAccount(
-                txos.len(),
-            ));
-        }
-        if txos[0].txo.value as u64 != gift_code.value as u64 {
-            return Err(GiftCodeServiceError::UnexpectedValueInGiftCodeTxo(
-                txos[0].txo.value as u64,
-            ));
-        }
-        let mut txo = txos[0].clone();
-        let max_polling = 3;
-        let mut count = 0;
-        while txo.txo.subaddress_index.is_none() && count <= max_polling {
-            if count == max_polling {
-                return Err(GiftCodeServiceError::TxoNotConsumable);
-            }
-            // Note that we now need to allow the sync thread to catch up for this TXO so
-            // that we can make sure the subaddress is assigned, rendering the
-            // Txo spendable.
-            std::thread::sleep(std::time::Duration::from_secs(3));
-            let txos =
-                Txo::list_for_account(&gift_code_account_id_hex, &self.wallet_db.get_conn()?)?;
-            txo = txos[0].clone();
-            count += 1;
-        }
-
-        // We go with all the defaults because there is only one TXO in this account to
-        // spend.
+        // TODO - This needs to be refactored so that it utilizes mobilecoin::TransactionBuilder
+        // instead of WalletTransactionBuilder, as we are no longer relying on EVER importing
+        // the gift account into the wallet_db. Again, the thought is, why bother when we don't
+        // have to? And also I'm working on the Desktop Wallet and this will solve my problems there
+        // so bite me. - Brian.
         let (transaction_log, _associated_txos) = self.build_and_submit(
             &gift_code_account_id_hex,
             &destination_address,
-            ((gift_code.value as u64) - MINIMUM_FEE).to_string(),
+            ((gift_code_value.unwrap() as u64) - MINIMUM_FEE).to_string(),
             None,
             Some(MINIMUM_FEE.to_string()),
             None,
             None,
             Some(
-                json!({ "claim_gift_code": gift_code.memo, "recipient_address": destination_address })
+                json!({ "claim_gift_code": decoded_gift_code.memo, "recipient_address": destination_address })
                     .to_string(),
             ),
         )?;
-        log::info!(
-            self.logger,
-            "Submitted transaction to consume gift code with id {:?}",
-            transaction_log.transaction_id_hex
-        );
 
-        Ok((transaction_log, gift_code))
+        Ok(transaction_log)
     }
 
+    // Implementation: Done
+    // Testing: Needs Verification
     fn decode_gift_code(
         &self,
         gift_code_b58: &EncodedGiftCode,
     ) -> Result<DecodedGiftCode, GiftCodeServiceError> {
         let wrapper =
-            mc_mobilecoind_api::printable::PrintableWrapper::b58_decode(gift_code_b58.to_string())
-                .unwrap();
+            mc_mobilecoind_api::printable::PrintableWrapper::b58_decode(gift_code_b58.to_string())?;
         let transfer_payload = wrapper.get_transfer_payload();
 
         let mut entropy = [0u8; 32];
@@ -629,6 +509,8 @@ where
         })
     }
 
+    // Implementation: Done
+    // Testing: Needs Verification
     fn remove_gift_code(
         &self,
         gift_code_b58: &EncodedGiftCode,

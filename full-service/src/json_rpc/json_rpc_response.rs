@@ -234,7 +234,6 @@ pub enum JsonCommandResponse {
     build_gift_code {
         tx_proposal: TxProposal,
         gift_code_b58: String,
-        gift_code: GiftCode,
     },
     get_gift_code {
         gift_code: GiftCode,
@@ -244,11 +243,10 @@ pub enum JsonCommandResponse {
     },
     check_gift_code_status {
         gift_code_status: GiftCodeStatus,
-        gift_code: Option<GiftCode>,
+        gift_code_value: Option<i64>,
     },
     claim_gift_code {
-        transaction_log_id: String,
-        gift_code: GiftCode,
+        transaction_log_id: String
     },
     remove_gift_code {
         removed: bool,

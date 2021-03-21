@@ -554,7 +554,7 @@ where
             tombstone_block,
             max_spendable_value,
         } => {
-            let (tx_proposal, gift_code_b58, gift_code) = service
+            let (tx_proposal, gift_code_b58) = service
                 .build_gift_code(
                     &AccountID(account_id),
                     value_pmob.parse::<u64>().map_err(format_error)?,
@@ -576,7 +576,6 @@ where
             JsonCommandResponse::build_gift_code {
                 tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
                 gift_code_b58: gift_code_b58.to_string(),
-                gift_code: GiftCode::from(&gift_code),
             }
         }
         JsonCommandRequest::get_gift_code { gift_code_b58 } => JsonCommandResponse::get_gift_code {
@@ -595,12 +594,12 @@ where
                 .collect(),
         },
         JsonCommandRequest::check_gift_code_status { gift_code_b58 } => {
-            let (status, gift_code) = service
+            let (status, value) = service
                 .check_gift_code_status(&EncodedGiftCode(gift_code_b58))
                 .map_err(format_error)?;
             JsonCommandResponse::check_gift_code_status {
                 gift_code_status: status,
-                gift_code: gift_code.map(|g| GiftCode::from(&g)),
+                gift_code_value: value,
             }
         }
         JsonCommandRequest::claim_gift_code {
@@ -608,7 +607,7 @@ where
             account_id,
             address,
         } => {
-            let (transaction_log, gift_code) = service
+            let transaction_log = service
                 .claim_gift_code(
                     &EncodedGiftCode(gift_code_b58),
                     &AccountID(account_id),
@@ -617,7 +616,6 @@ where
                 .map_err(format_error)?;
             JsonCommandResponse::claim_gift_code {
                 transaction_log_id: transaction_log.transaction_id_hex,
-                gift_code: GiftCode::from(&gift_code),
             }
         }
         JsonCommandRequest::remove_gift_code { gift_code_b58 } => {
