@@ -13,7 +13,7 @@ use crate::{
         b58_encode,
         b58_decode,
         gift_code::{GiftCodeModel},
-        models::{Account, GiftCode, TransactionLog, Txo},
+        models::{Account, GiftCode},
         WalletDbError,
     },
     service::{
@@ -25,23 +25,23 @@ use crate::{
 };
 use displaydoc::Display;
 use mc_account_keys::{AccountKey, RootEntropy, RootIdentity, DEFAULT_SUBADDRESS_INDEX};
-use mc_common::logger::log;
-use mc_connection::{BlockchainConnection, UserTxConnection};
+use mc_common::{ logger::log, HashSet };
+use mc_connection::{BlockchainConnection, UserTxConnection, RetryableUserTxConnection};
 use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::{
-    constants::MINIMUM_FEE, get_tx_out_shared_secret,
+    constants::MINIMUM_FEE, get_tx_out_shared_secret, constants::RING_SIZE,
     onetime_keys::recover_onetime_private_key,
     ring_signature::KeyImage,
-    tx::{Tx, TxOut, TxOutMembershipProof},
+    tx::TxOut,
 };
 use mc_transaction_std::{InputCredentials, TransactionBuilder};
 use mc_util_from_random::FromRandom;
-use mc_util_uri::FogUri;
 use serde::{Deserialize, Serialize};
-use std::{convert::TryFrom, fmt};
+use std::{convert::TryFrom, iter::empty, fmt, sync::atomic::Ordering};
+use rand::Rng;
 
 #[derive(Display, Debug)]
 #[allow(clippy::large_enum_variant)]
@@ -109,6 +109,15 @@ pub enum GiftCodeServiceError {
 
     /// Gift Code was removed from the DB prior to claiming
     GiftCodeRemoved,
+
+    /// Node Not Found
+    NodeNotFound,
+
+    /// Connection Error
+    Connection(retry::Error<mc_connection::Error>),
+
+    /// Error converting to/from API protos: {0}
+    ProtoConversion(mc_api::ConversionError),
 }
 
 impl From<WalletDbError> for GiftCodeServiceError {
@@ -162,6 +171,18 @@ impl From<mc_api::display::Error> for GiftCodeServiceError {
 impl From<mc_crypto_keys::KeyError> for GiftCodeServiceError {
     fn from(src: mc_crypto_keys::KeyError) -> Self {
         Self::CryptoKey(src)
+    }
+}
+
+impl From<mc_api::ConversionError> for GiftCodeServiceError {
+    fn from(src: mc_api::ConversionError) -> Self {
+        Self::ProtoConversion(src)
+    }
+}
+
+impl From<retry::Error<mc_connection::Error>> for GiftCodeServiceError {
+    fn from(e: retry::Error<mc_connection::Error>) -> Self {
+        Self::Connection(e)
     }
 }
 
@@ -457,8 +478,7 @@ where
 
         let decoded_gift_code = self.decode_gift_code(&gift_code_b58)?;
         let gift_account_key = AccountKey::from(&RootIdentity::from(&decoded_gift_code.root_entropy));
-        let gift_account_id = AccountID::from(&gift_account_key);
-        let gift_account_id_hex = gift_account_id.to_string();
+        // let gift_account_id = AccountID::from(&gift_account_key);
 
         // Checking if we have an already specified destination subaddress, or if we should
         // just use the next available one for the account and tag it with the memo in the
@@ -483,34 +503,34 @@ where
             ));
         }
 
-        // TODO - This needs to be refactored so that it utilizes mobilecoin::TransactionBuilder
-        // instead of WalletTransactionBuilder, as we are no longer relying on EVER importing
-        // the gift account into the wallet_db. Again, the thought is, why bother when we don't
-        // have to? And also I'm working on the Desktop Wallet and this will solve my problems there
-        // so bite me. - Brian.
-
         let gift_txo_index = self.ledger_db.get_tx_out_index_by_public_key(&decoded_gift_code.txo_public_key)?;
-        let gift_txo = self.ledger_db.get_tx_out_by_index(gift_txo_index)?;
-        let membership_proofs = self.ledger_db.get_tx_out_proof_of_memberships(&[gift_txo_index])?;
 
-        let ring_size = 15;
         let mut ring: Vec<TxOut> = Vec::new();
         let mut rng = rand::thread_rng();
 
         let fog_resolver = (self.fog_resolver_factory)(&[]).map_err(GiftCodeServiceError::UnexpectedTxStatus)?;
         
-        // Create ring_size - 1 mixins.
-        // for _i in 0..ring_size - 1 {
-        //     let address = AccountKey::random(&mut rng).default_subaddress();
-        //     let (tx_out, _) =
-        //         create_output(gift_value, &address, &fog_resolver, &mut rng).unwrap();
-        //     ring.push(tx_out);
-        // }
+        let num_txos = self.ledger_db.num_txos()?;
+        let mut sampled_indices: HashSet<u64> = HashSet::default();
+        while sampled_indices.len() < RING_SIZE - 1 {
+            let index = rng.gen_range(0, num_txos);
+            if index == gift_txo_index {
+                continue;
+            }
 
-        // let real_index = (rng.next_u64() % ring_size as u64) as usize;
-        let real_index = 0;
-        ring.insert(0, gift_txo);
-        let real_output = ring[real_index].clone();
+            sampled_indices.insert(index);
+        }
+
+        let mut sampled_indices_vec: Vec<u64> = sampled_indices.into_iter().collect();
+        sampled_indices_vec.insert(0, gift_txo_index);
+
+        let membership_proofs = self.ledger_db.get_tx_out_proof_of_memberships(&sampled_indices_vec)?;
+
+        for index in sampled_indices_vec.iter() {
+            ring.push(self.ledger_db.get_tx_out_by_index(*index)?);
+        }
+
+        let real_output = ring[0].clone();
 
         log::info!(self.logger, "generating one time private key...");
         let onetime_private_key = recover_onetime_private_key(
@@ -522,8 +542,8 @@ where
         log::info!(self.logger, "generating input credentials...");
         let input_credentials = InputCredentials::new(
             ring,
-            membership_proofs.to_vec().clone(),
-            real_index,
+            membership_proofs.clone(),
+            0,
             onetime_private_key,
             *gift_account_key.view_private_key(),
         )
@@ -534,25 +554,39 @@ where
         log::info!(self.logger, "adding input_Credentials to transaction builder...");
         transaction_builder.add_input(input_credentials);
         log::info!(self.logger, "adding output to transaction_builder");
-        transaction_builder.add_output(gift_value as u64, &recipient_public_address, &mut rng);
+        let (_tx_out, _confirmation) =
+            transaction_builder.add_output(gift_value as u64 - MINIMUM_FEE, &recipient_public_address, &mut rng).unwrap();
+
+        transaction_builder.set_fee(MINIMUM_FEE);
+        
+        let num_blocks_in_ledger = self.ledger_db.num_blocks()?;
+        transaction_builder.set_tombstone_block(num_blocks_in_ledger + 50);
 
         log::info!(self.logger, "building transaction...");
         let tx = transaction_builder.build(&mut rng).unwrap();
 
-        // let (transaction_log, _associated_txos) = self.build_and_submit(
-        //     &gift_account_id_hex,
-        //     &destination_address,
-        //     ((gift_value as u64) - MINIMUM_FEE).to_string(),
-        //     Some(&[gift_txo.public_key.to_string()].to_vec()),
-        //     Some(MINIMUM_FEE.to_string()),
-        //     None,
-        //     None,
-        //     Some(
-        //         json!({ "claim_gift_code": decoded_gift_code.memo, "recipient_address": destination_address })
-        //             .to_string(),
-        //     ),
-        // )?;
+        let responder_ids = self.peer_manager.responder_ids();
+        if responder_ids.is_empty() {
+            return Err(GiftCodeServiceError::TxoNotConsumable);
+        }
 
+        let idx = self.submit_node_offset.fetch_add(1, Ordering::SeqCst);
+        let responder_id = &responder_ids[idx % responder_ids.len()];
+
+        let block_index = self
+        .peer_manager
+        .conn(responder_id)
+        .ok_or(GiftCodeServiceError::NodeNotFound)?
+        .propose_tx(&tx, empty())
+        .map_err(GiftCodeServiceError::from)?;
+
+        log::info!(
+            self.logger,
+            "Tx {:?} submitted at block height {}",
+            tx,
+            block_index
+        );
+        
         Ok(true)
     }
 
