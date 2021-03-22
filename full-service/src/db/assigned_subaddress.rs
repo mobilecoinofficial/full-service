@@ -21,7 +21,7 @@ use diesel::{
 pub trait AssignedSubaddressModel {
     /// Assign a subaddress to a contact.
     ///
-    /// Inserts (upserts?) an AssignedSubaddress to the DB.
+    /// Inserts an AssignedSubaddress to the DB.
     ///
     /// # Arguments
     /// * `account_key` - An account's private keys.

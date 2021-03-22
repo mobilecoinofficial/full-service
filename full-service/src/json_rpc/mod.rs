@@ -6,6 +6,7 @@ mod account;
 mod account_key;
 pub mod account_secrets;
 mod address;
+mod amount;
 mod balance;
 mod block;
 mod gift_code;

@@ -10,21 +10,24 @@
 
 use crate::{
     db::{
-        account::AccountID,
-        models::{Txo, TXO_STATUS_SECRETED, TXO_TYPE_MINTED},
-        txo::{TxoID, TxoModel},
+        account::{AccountID, AccountModel},
+        assigned_subaddress::AssignedSubaddressModel,
+        models::{Account, AssignedSubaddress, Txo, TXO_STATUS_SECRETED, TXO_TYPE_MINTED},
+        txo::{TxoDetails, TxoModel},
         WalletDbError,
     },
-    service::proof::{ProofService, ProofServiceError},
     WalletService,
 };
+use diesel::Connection;
 use displaydoc::Display;
-use mc_account_keys::PublicAddress;
+use mc_account_keys::AccountKey;
 use mc_connection::{BlockchainConnection, UserTxConnection};
-use mc_crypto_keys::CompressedRistrettoPublic;
+use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_mobilecoind::payments::TxProposal;
-use mc_transaction_core::tx::TxOutConfirmationNumber;
+use mc_transaction_core::{
+    get_tx_out_shared_secret, tx::TxOutConfirmationNumber, Amount, AmountError,
+};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
@@ -47,8 +50,14 @@ pub enum ReceiptServiceError {
     /// Error Converting Proto but throws convert::Infallible.
     ProtoConversionInfallible,
 
-    /// Error with the Proof Service
-    ProofService(ProofServiceError),
+    /// Error decoding prost: {0}
+    ProstDecode(prost::DecodeError),
+
+    /// Error with crypto keys: {0}
+    CryptoKey(mc_crypto_keys::KeyError),
+
+    /// Error decoding from hex: {0}
+    HexDecode(hex::FromHexError),
 }
 
 impl From<WalletDbError> for ReceiptServiceError {
@@ -69,28 +78,39 @@ impl From<mc_api::ConversionError> for ReceiptServiceError {
     }
 }
 
-impl From<ProofServiceError> for ReceiptServiceError {
-    fn from(src: ProofServiceError) -> Self {
-        Self::ProofService(src)
+impl From<prost::DecodeError> for ReceiptServiceError {
+    fn from(src: prost::DecodeError) -> Self {
+        Self::ProstDecode(src)
+    }
+}
+
+impl From<mc_crypto_keys::KeyError> for ReceiptServiceError {
+    fn from(src: mc_crypto_keys::KeyError) -> Self {
+        Self::CryptoKey(src)
+    }
+}
+
+impl From<hex::FromHexError> for ReceiptServiceError {
+    fn from(src: hex::FromHexError) -> Self {
+        Self::HexDecode(src)
     }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ReceiverReceipt {
-    /// The recipient of this Txo.
-    pub recipient: PublicAddress,
-
     /// The public key of the Txo sent to the recipient.
-    pub txo_public_key: CompressedRistrettoPublic,
+    pub public_key: CompressedRistrettoPublic,
 
-    /// The hash of the Txo sent to the recipient.
-    pub txo_hash: Vec<u8>,
+    /// The confirmation number for this Txo, which links the sender to this
+    /// Txo.
+    pub confirmation: TxOutConfirmationNumber,
 
     /// The tombstone block for the transaction.
-    pub tombstone: u64,
+    pub tombstone_block: u64,
 
-    /// The proof for this Txo, which links the sender to this Txo.
-    pub proof: TxOutConfirmationNumber,
+    /// The encrypted amount of this transaction.
+    /// Note: This value is self-reported by the sender and is unverifiable.
+    pub amount: Amount,
 }
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Ord, PartialOrd)]
@@ -107,34 +127,32 @@ pub enum ReceiptTransactionStatus {
     /// invalid.
     TxosReceivedAtDifferentBlockIndices,
 
-    /// The expected value of the Txos did not match the actual value.
-    UnexpectedValue,
-
     /// Invalid proof
     InvalidProof,
 
     /// Receipt contains duplicate Txos
     DuplicateTxos,
+
+    /// Receipt Amount does not match the Amount in the Txo: {0}
+    AmountMismatch(String),
+
+    /// Failed to decrypt the amount for the given Txo
+    FailedAmountDecryption,
 }
 
-impl TryFrom<&mc_mobilecoind_api::ReceiverTxReceipt> for ReceiverReceipt {
+impl TryFrom<&mc_api::external::Receipt> for ReceiverReceipt {
     type Error = ReceiptServiceError;
 
-    fn try_from(
-        src: &mc_mobilecoind_api::ReceiverTxReceipt,
-    ) -> Result<ReceiverReceipt, ReceiptServiceError> {
-        let recipient: PublicAddress = PublicAddress::try_from(src.get_recipient())?;
-        let tx_public_key: CompressedRistrettoPublic =
-            CompressedRistrettoPublic::try_from(src.get_tx_public_key())?;
-        let mut proof_bytes = [0u8; 32];
-        proof_bytes[0..32].copy_from_slice(src.get_confirmation_number());
-        let proof = TxOutConfirmationNumber::from(&proof_bytes);
+    fn try_from(src: &mc_api::external::Receipt) -> Result<ReceiverReceipt, ReceiptServiceError> {
+        let public_key: CompressedRistrettoPublic =
+            CompressedRistrettoPublic::try_from(src.get_public_key())?;
+        let confirmation = TxOutConfirmationNumber::try_from(src.get_confirmation())?;
+        let amount = Amount::try_from(src.get_amount())?;
         Ok(ReceiverReceipt {
-            recipient,
-            txo_public_key: tx_public_key,
-            txo_hash: src.get_tx_out_hash().to_vec(),
-            tombstone: src.get_tombstone(),
-            proof,
+            public_key,
+            confirmation,
+            tombstone_block: src.get_tombstone_block(),
+            amount,
         })
     }
 }
@@ -145,12 +163,11 @@ pub trait ReceiptService {
     /// Check the status of the Txos in the receipts.
     ///
     /// Applies the proofs by verifying the proofs once the Txos have landed.
-    fn check_receiver_receipt_status(
+    fn check_receipt_status(
         &self,
-        account_id: &AccountID,
+        address: &str,
         receiver_receipt: &ReceiverReceipt,
-        expected_value: u64,
-    ) -> Result<ReceiptTransactionStatus, ReceiptServiceError>;
+    ) -> Result<(ReceiptTransactionStatus, Option<TxoDetails>), ReceiptServiceError>;
 
     /// Create a receipt from a given TxProposal
     fn create_receiver_receipts(
@@ -164,44 +181,80 @@ where
     T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
-    fn check_receiver_receipt_status(
+    fn check_receipt_status(
         &self,
-        account_id: &AccountID,
+        address: &str,
         receiver_receipt: &ReceiverReceipt,
-        expected_value: u64,
-    ) -> Result<ReceiptTransactionStatus, ReceiptServiceError> {
-        // Get the transaction from the database, with status.
-        let txos_and_statuses = Txo::select_by_public_key(
-            account_id,
-            &[&receiver_receipt.txo_public_key],
-            &self.wallet_db.get_conn()?,
-        )?;
+    ) -> Result<(ReceiptTransactionStatus, Option<TxoDetails>), ReceiptServiceError> {
+        let conn = &self.wallet_db.get_conn()?;
 
-        // Return if the Txo from the receipt is not in this wallet yet.
-        if txos_and_statuses.is_empty() {
-            return Ok(ReceiptTransactionStatus::TransactionPending);
-        }
-        let (txo, status) = &txos_and_statuses[0];
+        Ok(conn
+            .transaction::<(ReceiptTransactionStatus, Option<TxoDetails>), ReceiptServiceError, _>(
+                || {
+                    let assigned_address = AssignedSubaddress::get(address, &conn)?;
+                    let account_id = AccountID(assigned_address.account_id_hex);
+                    let account = Account::get(&account_id, &conn)?;
+                    // Get the transaction from the database, with status.
+                    let txos_and_statuses = Txo::select_by_public_key(
+                        &account_id,
+                        &[&receiver_receipt.public_key],
+                        &conn,
+                    )?;
 
-        // Figure out whether the Txo was minted by us, and has not yet been received by
-        // us. (For to-self transactions). If the Txo was minted by us, this
-        // transaction is pending.
-        if status.txo_type == TXO_TYPE_MINTED && status.txo_status == TXO_STATUS_SECRETED {
-            return Ok(ReceiptTransactionStatus::TransactionPending);
-        }
+                    // Return if the Txo from the receipt is not in this wallet yet.
+                    if txos_and_statuses.is_empty() {
+                        return Ok((ReceiptTransactionStatus::TransactionPending, None));
+                    }
+                    let (txo, status) = &txos_and_statuses[0];
 
-        // Check that the value of the received Txo matches the expected value.
-        if (txo.value as u64) != expected_value {
-            return Ok(ReceiptTransactionStatus::UnexpectedValue);
-        }
+                    // Figure out whether the Txo was minted by us, and has not yet been received by
+                    // us. (For to-self transactions). If the Txo was minted by us, this
+                    // transaction is pending.
+                    if status.txo_type == TXO_TYPE_MINTED
+                        && status.txo_status == TXO_STATUS_SECRETED
+                    {
+                        return Ok((ReceiptTransactionStatus::TransactionPending, None));
+                    }
+                    let details = Txo::get(&txo.txo_id_hex, &conn)?;
 
-        // Verify the proof.
-        let proof_hex = hex::encode(mc_util_serial::encode(&receiver_receipt.proof));
-        if !self.verify_proof(account_id, &TxoID(txo.txo_id_hex.clone()), &proof_hex)? {
-            return Ok(ReceiptTransactionStatus::InvalidProof);
-        }
+                    // Decrypt the amount to get the expected value
+                    let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+                    let public_key: RistrettoPublic =
+                        RistrettoPublic::try_from(&receiver_receipt.public_key)?;
+                    let shared_secret =
+                        get_tx_out_shared_secret(account_key.view_private_key(), &public_key);
+                    let expected_value = match receiver_receipt.amount.get_value(&shared_secret) {
+                        Ok((v, _blinding)) => v,
+                        Err(AmountError::InconsistentCommitment) => {
+                            return Ok((
+                                ReceiptTransactionStatus::FailedAmountDecryption,
+                                Some(details),
+                            ))
+                        }
+                    };
+                    // Check that the value of the received Txo matches the expected value.
+                    if (txo.value as u64) != expected_value {
+                        return Ok((
+                            ReceiptTransactionStatus::AmountMismatch(format!(
+                                "Expected: {}, Got: {}",
+                                expected_value, txo.value
+                            )),
+                            Some(details),
+                        ));
+                    }
 
-        Ok(ReceiptTransactionStatus::TransactionSuccess)
+                    // Verify the proof.
+                    let proof_hex =
+                        hex::encode(mc_util_serial::encode(&receiver_receipt.confirmation));
+                    let proof: TxOutConfirmationNumber =
+                        mc_util_serial::decode(&hex::decode(proof_hex)?)?;
+                    if !Txo::verify_proof(&account_id, &txo.txo_id_hex.clone(), &proof, &conn)? {
+                        return Ok((ReceiptTransactionStatus::InvalidProof, Some(details)));
+                    }
+
+                    Ok((ReceiptTransactionStatus::TransactionSuccess, Some(details)))
+                },
+            )?)
     }
 
     fn create_receiver_receipts(
@@ -212,15 +265,14 @@ where
             .outlays
             .iter()
             .enumerate()
-            .map(|(outlay_index, outlay)| {
+            .map(|(outlay_index, _outlay)| {
                 let tx_out_index = tx_proposal.outlay_index_to_tx_out_index[&outlay_index];
                 let tx_out = tx_proposal.tx.prefix.outputs[tx_out_index].clone();
                 ReceiverReceipt {
-                    recipient: outlay.clone().receiver,
-                    txo_public_key: tx_out.public_key,
-                    txo_hash: tx_out.hash().to_vec(),
-                    tombstone: tx_proposal.tx.prefix.tombstone_block,
-                    proof: tx_proposal.outlay_confirmation_numbers[outlay_index].clone(),
+                    public_key: tx_out.public_key,
+                    tombstone_block: tx_proposal.tx.prefix.tombstone_block,
+                    confirmation: tx_proposal.outlay_confirmation_numbers[outlay_index].clone(),
+                    amount: tx_out.amount,
                 }
             })
             .collect::<Vec<ReceiverReceipt>>();
@@ -234,22 +286,23 @@ mod tests {
     use crate::{
         db::{
             account::AccountID,
-            b58_decode,
+            b58_encode,
             models::{TransactionLog, TX_DIRECTION_SENT},
             transaction_log::{AssociatedTxos, TransactionLogModel},
         },
         service::{
-            account::AccountService, address::AddressService, transaction::TransactionService,
-            transaction_log::TransactionLogService, txo::TxoService,
+            account::AccountService, address::AddressService, proof::ProofService,
+            transaction::TransactionService, transaction_log::TransactionLogService,
+            txo::TxoService,
         },
         test_utils::{
             add_block_to_ledger_db, add_block_with_tx_proposal, get_test_ledger,
             manually_sync_account, setup_wallet_service, MOB,
         },
     };
-    use mc_account_keys::AccountKey;
+    use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{test_with_logger, Logger};
-    use mc_crypto_keys::RistrettoPrivate;
+    use mc_crypto_keys::{ReprBytes, RistrettoPrivate, RistrettoPublic};
     use mc_crypto_rand::RngCore;
     use mc_transaction_core::{ring_signature::KeyImage, tx::TxOut};
     use mc_util_from_random::FromRandom;
@@ -274,20 +327,25 @@ mod tests {
         rng.fill_bytes(&mut proof_bytes);
         let confirmation_number = TxOutConfirmationNumber::from(proof_bytes);
 
-        let mut proto_tx_receipt = mc_mobilecoind_api::ReceiverTxReceipt::new();
-        proto_tx_receipt.set_recipient((&public_address).into());
-        proto_tx_receipt.set_tx_public_key((&txo.public_key).into());
-        proto_tx_receipt.set_tx_out_hash(txo.hash().to_vec());
-        proto_tx_receipt.set_tombstone(tombstone);
-        proto_tx_receipt.set_confirmation_number(confirmation_number.to_vec());
+        let mut proto_tx_receipt = mc_api::external::Receipt::new();
+        proto_tx_receipt.set_public_key((&txo.public_key).into());
+        proto_tx_receipt.set_tombstone_block(tombstone);
+        let mut proto_confirmation = mc_api::external::TxOutConfirmationNumber::new();
+        proto_confirmation.set_hash(confirmation_number.to_vec());
+        proto_tx_receipt.set_confirmation(proto_confirmation);
+        let mut proto_commitment = mc_api::external::CompressedRistretto::new();
+        proto_commitment.set_data(txo.amount.commitment.to_bytes().to_vec());
+        let mut proto_amount = mc_api::external::Amount::new();
+        proto_amount.set_commitment(proto_commitment);
+        proto_amount.set_masked_value(txo.amount.masked_value);
+        proto_tx_receipt.set_amount(proto_amount);
 
         let tx_receipt =
             ReceiverReceipt::try_from(&proto_tx_receipt).expect("Could not convert tx receipt");
-        assert_eq!(public_address, tx_receipt.recipient);
-        assert_eq!(txo.public_key, tx_receipt.txo_public_key);
-        assert_eq!(txo.hash().to_vec(), tx_receipt.txo_hash);
-        assert_eq!(tombstone, tx_receipt.tombstone);
-        assert_eq!(confirmation_number, tx_receipt.proof);
+        assert_eq!(txo.public_key, tx_receipt.public_key);
+        assert_eq!(tombstone, tx_receipt.tombstone_block);
+        assert_eq!(confirmation_number, tx_receipt.confirmation);
+        assert_eq!(txo.amount, tx_receipt.amount);
     }
 
     #[test_with_logger]
@@ -404,17 +462,13 @@ mod tests {
             .expect("Could not get proofs");
         assert_eq!(proofs.len(), 1);
 
-        assert_eq!(
-            receipt.recipient,
-            b58_decode(&bob_address).expect("Could not decode public address")
-        );
         let txo_pubkey =
             mc_util_serial::decode(&txos[0].txo.public_key).expect("Could not decode pubkey");
-        assert_eq!(receipt.txo_public_key, txo_pubkey);
-        assert_eq!(receipt.tombstone, 63); // Ledger seeded with 12 blocks at tx construction, then one appended + 50
+        assert_eq!(receipt.public_key, txo_pubkey);
+        assert_eq!(receipt.tombstone_block, 63); // Ledger seeded with 12 blocks at tx construction, then one appended + 50
         let txo: TxOut = mc_util_serial::decode(&txos[0].txo.txo).expect("Could not decode txo");
-        assert_eq!(receipt.txo_hash, txo.hash());
-        assert_eq!(receipt.proof, proofs[0].proof);
+        assert_eq!(receipt.amount, txo.amount);
+        assert_eq!(receipt.confirmation, proofs[0].proof);
     }
 
     // All txos received should return TransactionSuccess, and TransactionPending
@@ -455,8 +509,7 @@ mod tests {
         let bob_addresses = service
             .get_all_addresses_for_account(&AccountID(bob.account_id_hex.clone()))
             .expect("Could not get addresses for Bob");
-        let bob_address = bob_addresses[0].assigned_subaddress_b58.clone();
-        let bob_account_id = AccountID(bob.account_id_hex.to_string());
+        let bob_address = &bob_addresses[0].assigned_subaddress_b58.clone();
 
         // Create a TxProposal to Bob
         let tx_proposal = service
@@ -477,8 +530,8 @@ mod tests {
         let receipt = &receipts[0];
 
         // Bob checks the status of the receipts.
-        let status = service
-            .check_receiver_receipt_status(&bob_account_id, &receipt, 24 * MOB as u64)
+        let (status, _txo) = service
+            .check_receipt_status(&bob_address, &receipt)
             .expect("Could not check status of receipt");
 
         // Status should be pending until block lands and is scanned
@@ -496,8 +549,8 @@ mod tests {
 
         // Status for Bob should still be pending, even though the Txos will show up in
         // the wallet, but under Alice's account.
-        let status = service
-            .check_receiver_receipt_status(&bob_account_id, &receipt, 24 * MOB as u64)
+        let (status, _txo) = service
+            .check_receipt_status(&bob_address, &receipt)
             .expect("Could not check status of receipt");
         assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
 
@@ -519,19 +572,17 @@ mod tests {
         );
 
         // Status for Bob is succeeded.
-        let status = service
-            .check_receiver_receipt_status(&bob_account_id, &receipt, 24 * MOB as u64)
+        let (status, _txo) = service
+            .check_receipt_status(&bob_address, &receipt)
             .expect("Could not check status of receipt");
         assert_eq!(status, ReceiptTransactionStatus::TransactionSuccess);
 
         // Status for Alice would be pending, because she never received (and never will
         // receive) the Txos.
-        let status = service
-            .check_receiver_receipt_status(
-                &AccountID(alice.account_id_hex),
-                &receipt,
-                24 * MOB as u64,
-            )
+        let alice_address =
+            &b58_encode(&alice_public_address).expect("Could not encode Alice address");
+        let (status, _txo) = service
+            .check_receipt_status(&alice_address, &receipt)
             .expect("Could not check status of receipt");
         assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
     }
@@ -572,7 +623,7 @@ mod tests {
         let bob_addresses = service
             .get_all_addresses_for_account(&AccountID(bob.account_id_hex.clone()))
             .expect("Could not get addresses for Bob");
-        let bob_address = bob_addresses[0].assigned_subaddress_b58.clone();
+        let bob_address = &bob_addresses[0].assigned_subaddress_b58.clone();
         let bob_account_id = AccountID(bob.account_id_hex.to_string());
 
         // Create a TxProposal to Bob
@@ -591,7 +642,7 @@ mod tests {
         let receipts = service
             .create_receiver_receipts(&tx_proposal0)
             .expect("Could not create receiver receipt");
-        let receipt0 = &receipts[0];
+        let mut receipt0 = receipts[0].clone();
 
         // Land the Txo in the ledger - only sync for the sender
         TransactionLog::log_submitted(
@@ -612,20 +663,44 @@ mod tests {
         );
         manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, 14, &logger);
 
-        // Bob checks the status, and is expecting an incorrect value
-        let status = service
-            .check_receiver_receipt_status(&bob_account_id, &receipt0, 18 * MOB as u64)
+        // Bob checks the status, and is expecting an incorrect value, from a
+        // transaction with a different shared secret
+        receipt0.amount = Amount::new(18 * MOB as u64, &RistrettoPublic::from_random(&mut rng))
+            .expect("Could not create Amount");
+        let (status, _txo) = service
+            .check_receipt_status(&bob_address, &receipt0)
             .expect("Could not check status of receipt");
-        assert_eq!(status, ReceiptTransactionStatus::UnexpectedValue);
+        assert_eq!(status, ReceiptTransactionStatus::FailedAmountDecryption);
+
+        // Now check status with a correct shared secret, but the wrong value
+        let bob_account_key: AccountKey = mc_util_serial::decode(
+            &Account::get(&bob_account_id, &service.wallet_db.get_conn().unwrap())
+                .expect("Could not get bob account")
+                .account_key,
+        )
+        .expect("Could not decode");
+        let public_key: RistrettoPublic = RistrettoPublic::try_from(&receipt0.public_key)
+            .expect("Could not get ristretto public from compressed");
+        let shared_secret =
+            get_tx_out_shared_secret(bob_account_key.view_private_key(), &public_key);
+        receipt0.amount =
+            Amount::new(18 * MOB as u64, &shared_secret).expect("Could not create Amount");
+        let (status, _txo) = service
+            .check_receipt_status(&bob_address, &receipt0)
+            .expect("Could not check status of receipt");
+        assert_eq!(
+            status,
+            ReceiptTransactionStatus::AmountMismatch(
+                "Expected: 18000000000000, Got: 24000000000000".to_string()
+            )
+        );
 
         // Status for Alice would be pending, because she never received (and never will
         // receive) the Txos.
-        let status = service
-            .check_receiver_receipt_status(
-                &AccountID(alice.account_id_hex),
-                &receipt0,
-                18 * MOB as u64,
-            )
+        let alice_address =
+            &b58_encode(&alice_public_address).expect("Could not encode alice address");
+        let (status, _txo) = service
+            .check_receipt_status(&alice_address, &receipt0)
             .expect("Could not check status of receipt");
         assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
     }
@@ -666,7 +741,7 @@ mod tests {
         let bob_addresses = service
             .get_all_addresses_for_account(&AccountID(bob.account_id_hex.clone()))
             .expect("Could not get addresses for Bob");
-        let bob_address = bob_addresses[0].assigned_subaddress_b58.clone();
+        let bob_address = &bob_addresses[0].assigned_subaddress_b58.clone();
         let bob_account_id = AccountID(bob.account_id_hex.to_string());
 
         // Create a TxProposal to Bob
@@ -711,22 +786,20 @@ mod tests {
         let mut bad_proof_bytes = [0u8; 32];
         rng.fill_bytes(&mut bad_proof_bytes);
         let bad_proof = TxOutConfirmationNumber::from(bad_proof_bytes);
-        receipt.proof = bad_proof;
+        receipt.confirmation = bad_proof;
 
         // Bob checks the status, and is expecting an incorrect value
-        let status = service
-            .check_receiver_receipt_status(&bob_account_id, &receipt, 24 * MOB as u64)
+        let (status, _txo) = service
+            .check_receipt_status(&bob_address, &receipt)
             .expect("Could not check status of receipt");
         assert_eq!(status, ReceiptTransactionStatus::InvalidProof);
 
         // Checking for the sender will be pending because the Txos haven't landed for
         // alice (and never will).
-        let status = service
-            .check_receiver_receipt_status(
-                &AccountID(alice.account_id_hex),
-                &receipt,
-                18 * MOB as u64,
-            )
+        let alice_address =
+            &b58_encode(&alice_public_address).expect("Could not encode alice address");
+        let (status, _txo) = service
+            .check_receipt_status(&alice_address, &receipt)
             .expect("Could not check status of receipt");
         assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
     }
