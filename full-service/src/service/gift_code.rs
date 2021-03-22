@@ -11,14 +11,12 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         b58_encode,
-        b58_decode,
         gift_code::{GiftCodeModel},
         models::{Account, GiftCode},
         WalletDbError,
     },
     service::{
         account::{AccountServiceError},
-        address::AddressService,
         transaction::{TransactionService, TransactionServiceError},
         WalletService,
     },
@@ -462,7 +460,7 @@ where
         &self,
         gift_code_b58: &EncodedGiftCode,
         account_id: &AccountID,
-        assigned_subaddress_b58: Option<String>,
+        _assigned_subaddress_b58: Option<String>,
     ) -> Result<bool, GiftCodeServiceError> {
         let (status, gift_value) = self.check_gift_code_status(gift_code_b58)?;
         
@@ -480,20 +478,26 @@ where
         let gift_account_key = AccountKey::from(&RootIdentity::from(&decoded_gift_code.root_entropy));
         // let gift_account_id = AccountID::from(&gift_account_key);
 
+        // So, because there is some uncertainty about the direction that subaddresses are going
+        // we will force all gift code claims to happen on the main subaddress (index 0) to prevent
+        // the entire account from resyncing with the ledger when assign_subaddress_for_account is called.
+        let account = Account::get(&account_id, &self.wallet_db.get_conn()?)?;
+        let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+        let recipient_public_address = account_key.subaddress(DEFAULT_SUBADDRESS_INDEX);
+
+        // TODO - Unsure of direction of assigning new subaddresses
         // Checking if we have an already specified destination subaddress, or if we should
         // just use the next available one for the account and tag it with the memo in the
         // decoded_gift_code.
-        let destination_address = assigned_subaddress_b58.unwrap_or_else(|| {
-            let address = self
-                .assign_address_for_account(
-                    &account_id,
-                    Some(&json!({"gift_code_memo": decoded_gift_code.memo}).to_string()),
-                )
-                .unwrap();
-            address.assigned_subaddress_b58
-        });
-
-        let recipient_public_address = b58_decode(&destination_address)?;
+        // let destination_address = assigned_subaddress_b58.unwrap_or_else(|| {
+        //     let address = self
+        //         .assign_address_for_account(
+        //             &account_id,
+        //             Some(&json!({"gift_code_memo": decoded_gift_code.memo}).to_string()),
+        //         )
+        //         .unwrap();
+        //     address.assigned_subaddress_b58
+        // });
 
         // If the gift code value is less than the MINIMUM_FEE, well, then shucks, someone
         // messed up when they were making it. Welcome to the Lost MOB club :)
@@ -532,14 +536,12 @@ where
 
         let real_output = ring[0].clone();
 
-        log::info!(self.logger, "generating one time private key...");
         let onetime_private_key = recover_onetime_private_key(
             &RistrettoPublic::try_from(&real_output.public_key).unwrap(),
             &gift_account_key.view_private_key(),
             &gift_account_key.subaddress_spend_private(DEFAULT_SUBADDRESS_INDEX),
         );
 
-        log::info!(self.logger, "generating input credentials...");
         let input_credentials = InputCredentials::new(
             ring,
             membership_proofs.clone(),
@@ -549,11 +551,8 @@ where
         )
         .unwrap();
 
-        log::info!(self.logger, "creating transaction builder...");
         let mut transaction_builder = TransactionBuilder::new(fog_resolver);
-        log::info!(self.logger, "adding input_Credentials to transaction builder...");
         transaction_builder.add_input(input_credentials);
-        log::info!(self.logger, "adding output to transaction_builder");
         let (_tx_out, _confirmation) =
             transaction_builder.add_output(gift_value as u64 - MINIMUM_FEE, &recipient_public_address, &mut rng).unwrap();
 
@@ -562,7 +561,6 @@ where
         let num_blocks_in_ledger = self.ledger_db.num_blocks()?;
         transaction_builder.set_tombstone_block(num_blocks_in_ledger + 50);
 
-        log::info!(self.logger, "building transaction...");
         let tx = transaction_builder.build(&mut rng).unwrap();
 
         let responder_ids = self.peer_manager.responder_ids();
