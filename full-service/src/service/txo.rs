@@ -92,7 +92,9 @@ mod tests {
         service::{
             account::AccountService, balance::BalanceService, transaction::TransactionService,
         },
-        test_utils::{add_block_to_ledger_db, get_test_ledger, setup_wallet_service, MOB},
+        test_utils::{
+            add_block_to_ledger_db, get_test_ledger, setup_wallet_service, wait_for_sync, MOB,
+        },
     };
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::{
@@ -102,7 +104,7 @@ mod tests {
     use mc_crypto_rand::RngCore;
     use mc_transaction_core::ring_signature::KeyImage;
     use rand::{rngs::StdRng, SeedableRng};
-    use std::{iter::FromIterator, time::Duration};
+    use std::iter::FromIterator;
 
     #[test_with_logger]
     fn test_txo_lifecycle(logger: Logger) {
@@ -119,6 +121,7 @@ mod tests {
         // Add a block with a transaction for this recipient
         // Add a block with a txo for this address
         let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
+        let alice_account_id = AccountID::from(&alice_account_key);
         let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
         add_block_to_ledger_db(
             &mut ledger_db,
@@ -128,20 +131,15 @@ mod tests {
             &mut rng,
         );
 
-        // Sleep to let the sync thread process the txo
-        std::thread::sleep(Duration::from_secs(5));
+        wait_for_sync(&ledger_db, &service.wallet_db, &alice_account_id, 13);
 
         // Verify balance for Alice
-        let balance = service
-            .get_balance_for_account(&AccountID(alice.account_id_hex.clone()))
-            .unwrap();
+        let balance = service.get_balance_for_account(&alice_account_id).unwrap();
 
         assert_eq!(balance.unspent, 100 * MOB as u64);
 
         // Verify that we have 1 txo
-        let txos = service
-            .list_txos(&AccountID(alice.account_id_hex.clone()))
-            .unwrap();
+        let txos = service.list_txos(&alice_account_id).unwrap();
         assert_eq!(txos.len(), 1);
         assert_eq!(
             txos[0].received_to_account.as_ref().unwrap().txo_status,
