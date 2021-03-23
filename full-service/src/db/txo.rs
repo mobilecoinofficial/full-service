@@ -1216,7 +1216,7 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(unspent.len(), 2);
+        assert_eq!(unspent.len(), 1);
 
         // The type should still be "minted"
         let minted = Txo::list_by_type(
@@ -1274,7 +1274,7 @@ mod tests {
                 logger.clone(),
             );
         assert_eq!(output_value, 72 * MOB);
-        assert_eq!(change_value, (927.98 * (MOB as f64)) as i64);
+        assert_eq!(change_value, (894.98 * (MOB as f64)) as i64);
 
         // Add the minted Txos to the ledger
         add_block_with_db_txos(
