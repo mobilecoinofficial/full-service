@@ -3,8 +3,7 @@
 //! Entrypoint for Wallet API.
 
 use crate::{
-    db,
-    db::{account::AccountID, txo::TxoID},
+    db::{self, account::AccountID, transaction_log::TransactionID, txo::TxoID},
     json_rpc,
     json_rpc::{
         account_secrets::AccountSecrets,
@@ -304,6 +303,7 @@ where
                 .map_err(format_error)?;
             JsonCommandResponse::build_transaction {
                 tx_proposal: TxProposal::from(&tx_proposal),
+                transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
             }
         }
         JsonCommandRequest::submit_transaction {
@@ -512,21 +512,17 @@ where
             }
         }
         JsonCommandRequest::check_receiver_receipt_status {
-            account_id,
+            address,
             receiver_receipt,
-            expected_value,
         } => {
             let receipt = service::receipt::ReceiverReceipt::try_from(&receiver_receipt)
                 .map_err(format_error)?;
-            let status = service
-                .check_receiver_receipt_status(
-                    &AccountID(account_id),
-                    &receipt,
-                    expected_value.parse::<u64>().map_err(format_error)?,
-                )
+            let (status, txo) = service
+                .check_receipt_status(&address, &receipt)
                 .map_err(format_error)?;
             JsonCommandResponse::check_receiver_receipt_status {
                 receipt_transaction_status: status,
+                txo: txo.as_ref().map(Txo::from),
             }
         }
         JsonCommandRequest::create_receiver_receipts { tx_proposal } => {

@@ -293,7 +293,7 @@ mod tests {
         service::{account::AccountService, address::AddressService, balance::BalanceService},
         test_utils::{
             add_block_from_transaction_log, add_block_to_ledger_db, get_test_ledger,
-            setup_wallet_service, MOB,
+            setup_wallet_service, wait_for_sync, MOB,
         },
     };
     use mc_account_keys::{AccountKey, PublicAddress};
@@ -301,7 +301,6 @@ mod tests {
     use mc_crypto_rand::rand_core::RngCore;
     use mc_transaction_core::ring_signature::KeyImage;
     use rand::{rngs::StdRng, SeedableRng};
-    use std::time::Duration;
 
     // Test sending a transaction from Alice -> Bob, and then from Bob -> Alice
     #[test_with_logger]
@@ -320,6 +319,7 @@ mod tests {
 
         // Add a block with a transaction for Alice
         let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
+        let alice_account_id = AccountID::from(&alice_account_key);
         let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
         add_block_to_ledger_db(
             &mut ledger_db,
@@ -329,8 +329,7 @@ mod tests {
             &mut rng,
         );
 
-        // Sleep to let the sync thread process the txo - FIXME poll instead of sleep
-        std::thread::sleep(Duration::from_secs(8));
+        wait_for_sync(&ledger_db, &service.wallet_db, &alice_account_id, 13);
 
         // Verify balance for Alice
         let balance = service
@@ -342,6 +341,9 @@ mod tests {
         let bob = service
             .create_account(Some("Bob's Main Account".to_string()), None)
             .unwrap();
+        let bob_account_key: AccountKey =
+            mc_util_serial::decode(&bob.account_key).expect("Could not decode account key");
+        let bob_account_id = AccountID::from(&bob_account_key);
 
         // Create an assigned subaddress for Bob
         let bob_address_from_alice = service
@@ -372,7 +374,8 @@ mod tests {
             add_block_from_transaction_log(&mut ledger_db, &conn, &transaction_log);
         }
 
-        std::thread::sleep(Duration::from_secs(8));
+        wait_for_sync(&ledger_db, &service.wallet_db, &alice_account_id, 14);
+        wait_for_sync(&ledger_db, &service.wallet_db, &bob_account_id, 14);
 
         // Get the Txos from the transaction log
         let transaction_txos = transaction_log
@@ -438,7 +441,8 @@ mod tests {
             add_block_from_transaction_log(&mut ledger_db, &conn, &transaction_log);
         }
 
-        std::thread::sleep(Duration::from_secs(8));
+        wait_for_sync(&ledger_db, &service.wallet_db, &alice_account_id, 15);
+        wait_for_sync(&ledger_db, &service.wallet_db, &bob_account_id, 15);
 
         let alice_balance = service
             .get_balance_for_account(&AccountID(alice.account_id_hex))
@@ -469,6 +473,7 @@ mod tests {
 
         // Add a block with a transaction for Alice
         let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
+        let alice_account_id = AccountID::from(&alice_account_key);
         let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
         add_block_to_ledger_db(
             &mut ledger_db,
@@ -478,8 +483,7 @@ mod tests {
             &mut rng,
         );
 
-        // Sleep to let the sync thread process the txo - FIXME poll instead of sleep
-        std::thread::sleep(Duration::from_secs(8));
+        wait_for_sync(&ledger_db, &service.wallet_db, &alice_account_id, 13);
 
         match service.build_transaction(
             &alice.account_id_hex,

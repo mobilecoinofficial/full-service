@@ -162,9 +162,8 @@ pub enum JsonCommandRequest {
         block_index: String,
     },
     check_receiver_receipt_status {
-        account_id: String,
+        address: String,
         receiver_receipt: ReceiverReceipt,
-        expected_value: String,
     },
     create_receiver_receipts {
         tx_proposal: TxProposal,

@@ -21,7 +21,7 @@ use diesel::{
 pub trait AssignedSubaddressModel {
     /// Assign a subaddress to a contact.
     ///
-    /// Inserts (upserts?) an AssignedSubaddress to the DB.
+    /// Inserts an AssignedSubaddress to the DB.
     ///
     /// # Arguments
     /// * `account_key` - An account's private keys.
@@ -141,17 +141,12 @@ impl AssignedSubaddressModel for AssignedSubaddress {
             diesel::insert_into(assigned_subaddresses::table)
                 .values(&subaddress_entry)
                 .execute(conn)?;
+
             // Update the next subaddress index for the account
-            // Note: we also update the first block back to 0 to scan from the beginning of
-            // the ledger for this new subaddress.
-            // FIXME: WS-10 - pass in a "sync from" block rather than 0
-            let sync_from = 0;
             diesel::update(accounts.filter(dsl_account_id_hex.eq(account_id_hex)))
-                .set((
-                    crate::db::schema::accounts::next_subaddress_index.eq(subaddress_index + 1),
-                    crate::db::schema::accounts::next_block_index.eq(sync_from),
-                ))
+                .set(crate::db::schema::accounts::next_subaddress_index.eq(subaddress_index + 1))
                 .execute(conn)?;
+
             Ok((subaddress_b58, subaddress_index))
         })?)
     }

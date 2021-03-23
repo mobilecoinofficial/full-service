@@ -183,11 +183,7 @@ impl APIConfig {
                 let report_responses = conn
                     .fetch_fog_reports(fog_uris.iter().cloned())
                     .map_err(|err| format!("Failed fetching fog reports: {}", err))?;
-                log::debug!(
-                    logger,
-                    "\x1b[1;33mGot report responses {:?}\x1b[0m",
-                    report_responses
-                );
+                log::debug!(logger, "Got report responses {:?}", report_responses);
                 Ok(FogResolver::new(report_responses, verifier)
                     .expect("Could not construct fog resolver"))
             } else {
