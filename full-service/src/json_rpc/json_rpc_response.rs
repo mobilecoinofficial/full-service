@@ -160,6 +160,7 @@ pub enum JsonCommandResponse {
     },
     build_transaction {
         tx_proposal: TxProposal,
+        transaction_log_id: String,
     },
     submit_transaction {
         transaction_log: Option<TransactionLog>,
