@@ -645,8 +645,8 @@ mod tests {
         db::{b58_decode, models::TransactionLog, transaction_log::TransactionLogModel},
         service::{account::AccountService, balance::BalanceService},
         test_utils::{
-            add_block_from_transaction_log, add_block_to_ledger_db, add_block_with_tx,
-            add_block_with_tx_proposal, get_test_ledger, manually_sync_account,
+            add_block_with_tx_proposal, add_block_to_ledger_db, add_block_with_tx,
+            get_test_ledger, manually_sync_account,
             setup_wallet_service, MOB,
         },
     };
