@@ -1012,6 +1012,7 @@ curl -s localhost:9090/wallet \
 {
   "method": "build_transaction",
   "result": {
+    "transaction_log_id": "ab447d73553309ccaf60aedc1eaa67b47f65bee504872e4358682d76df486a87",
     "tx_proposal": {
       "input_list": [
         {

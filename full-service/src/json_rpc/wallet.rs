@@ -3,8 +3,7 @@
 //! Entrypoint for Wallet API.
 
 use crate::{
-    db,
-    db::{account::AccountID, txo::TxoID},
+    db::{self, account::AccountID, transaction_log::TransactionID, txo::TxoID},
     json_rpc,
     json_rpc::{
         account_secrets::AccountSecrets,
@@ -304,6 +303,7 @@ where
                 .map_err(format_error)?;
             JsonCommandResponse::build_transaction {
                 tx_proposal: TxProposal::from(&tx_proposal),
+                transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
             }
         }
         JsonCommandRequest::submit_transaction {
