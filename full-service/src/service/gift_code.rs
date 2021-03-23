@@ -354,7 +354,7 @@ where
         let mut gift_code_payload = mc_mobilecoind_api::printable::TransferPayload::new();
         gift_code_payload.set_entropy(gift_code_root_entropy.bytes.to_vec());
         gift_code_payload.set_tx_out_public_key(proto_tx_pubkey);
-        gift_code_payload.set_memo(memo.clone().unwrap_or_else(|| "".to_string()));
+        gift_code_payload.set_memo(memo.unwrap_or_else(|| "".to_string()));
 
         let mut gift_code_wrapper = mc_mobilecoind_api::printable::PrintableWrapper::new();
         gift_code_wrapper.set_transfer_payload(gift_code_payload);
@@ -551,7 +551,7 @@ where
 
         let input_credentials = InputCredentials::new(
             ring,
-            membership_proofs.clone(),
+            membership_proofs,
             0,
             onetime_private_key,
             *gift_account_key.view_private_key(),
