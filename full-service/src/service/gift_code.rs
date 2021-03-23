@@ -118,6 +118,9 @@ pub enum GiftCodeServiceError {
 
     /// Error converting to/from API protos: {0}
     ProtoConversion(mc_api::ConversionError),
+
+    /// Error with Transaction Builder
+    TxBuilder(mc_transaction_std::TxBuilderError),
 }
 
 impl From<WalletDbError> for GiftCodeServiceError {
@@ -171,6 +174,12 @@ impl From<mc_api::display::Error> for GiftCodeServiceError {
 impl From<mc_crypto_keys::KeyError> for GiftCodeServiceError {
     fn from(src: mc_crypto_keys::KeyError) -> Self {
         Self::CryptoKey(src)
+    }
+}
+
+impl From<mc_transaction_std::TxBuilderError> for GiftCodeServiceError {
+    fn from(src: mc_transaction_std::TxBuilderError) -> Self {
+        Self::TxBuilder(src)
     }
 }
 
@@ -427,7 +436,7 @@ where
 
         let shared_secret = get_tx_out_shared_secret(
             gift_account_key.view_private_key(),
-            &RistrettoPublic::try_from(&gift_txo.public_key).unwrap(),
+            &RistrettoPublic::try_from(&gift_txo.public_key)?,
         );
 
         let (value, _blinding) = gift_txo.amount.get_value(&shared_secret).unwrap();
@@ -544,7 +553,7 @@ where
         let real_output = ring[0].clone();
 
         let onetime_private_key = recover_onetime_private_key(
-            &RistrettoPublic::try_from(&real_output.public_key).unwrap(),
+            &RistrettoPublic::try_from(&real_output.public_key)?,
             &gift_account_key.view_private_key(),
             &gift_account_key.subaddress_spend_private(DEFAULT_SUBADDRESS_INDEX),
         );
@@ -555,25 +564,22 @@ where
             0,
             onetime_private_key,
             *gift_account_key.view_private_key(),
-        )
-        .unwrap();
+        )?;
 
         let mut transaction_builder = TransactionBuilder::new(fog_resolver);
         transaction_builder.add_input(input_credentials);
-        let (_tx_out, _confirmation) = transaction_builder
-            .add_output(
-                gift_value as u64 - MINIMUM_FEE,
-                &recipient_public_address,
-                &mut rng,
-            )
-            .unwrap();
+        let (_tx_out, _confirmation) = transaction_builder.add_output(
+            gift_value as u64 - MINIMUM_FEE,
+            &recipient_public_address,
+            &mut rng,
+        )?;
 
         transaction_builder.set_fee(MINIMUM_FEE);
 
         let num_blocks_in_ledger = self.ledger_db.num_blocks()?;
         transaction_builder.set_tombstone_block(num_blocks_in_ledger + 50);
 
-        let tx = transaction_builder.build(&mut rng).unwrap();
+        let tx = transaction_builder.build(&mut rng)?;
 
         let responder_ids = self.peer_manager.responder_ids();
         if responder_ids.is_empty() {
@@ -587,8 +593,7 @@ where
             .peer_manager
             .conn(responder_id)
             .ok_or(GiftCodeServiceError::NodeNotFound)?
-            .propose_tx(&tx, empty())
-            .map_err(GiftCodeServiceError::from)?;
+            .propose_tx(&tx, empty())?;
 
         log::info!(
             self.logger,
@@ -615,7 +620,7 @@ where
         let root_entropy = RootEntropy::from(&entropy);
 
         let txo_public_key =
-            CompressedRistrettoPublic::try_from(transfer_payload.get_tx_out_public_key()).unwrap();
+            CompressedRistrettoPublic::try_from(transfer_payload.get_tx_out_public_key())?;
 
         Ok(DecodedGiftCode {
             root_entropy,
