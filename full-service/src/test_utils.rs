@@ -222,10 +222,7 @@ pub fn add_block_with_tx_proposal(ledger_db: &mut LedgerDB, tx_proposal: TxPropo
 }
 
 pub fn add_block_with_tx(ledger_db: &mut LedgerDB, tx: Tx) -> u64 {
-    let block_contents = BlockContents::new(
-        tx.key_images(),
-        tx.prefix.outputs.clone(),
-    );
+    let block_contents = BlockContents::new(tx.key_images(), tx.prefix.outputs.clone());
     append_test_block(ledger_db, block_contents)
 }
 

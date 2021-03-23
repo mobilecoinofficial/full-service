@@ -13,7 +13,6 @@ use crate::{
         b58_decode, b58_encode,
         gift_code::GiftCodeModel,
         models::{Account, GiftCode},
-        transaction_log::TransactionID,
         WalletDbError,
     },
     service::{
@@ -488,7 +487,7 @@ where
         let decoded_gift_code = self.decode_gift_code(&gift_code_b58)?;
         let gift_account_key =
             AccountKey::from(&RootIdentity::from(&decoded_gift_code.root_entropy));
-        
+
         let default_subaddress = assigned_subaddress_b58.unwrap_or_else(|| {
             let address = self
                 .assign_address_for_account(
@@ -643,16 +642,12 @@ where
 mod tests {
     use super::*;
     use crate::{
-        db::{
-            b58_decode,
-            models::TransactionLog,
-            transaction_log::TransactionLogModel
-        },
-        service::balance::BalanceService,
-        service::account::AccountService,
+        db::{b58_decode, models::TransactionLog, transaction_log::TransactionLogModel},
+        service::{account::AccountService, balance::BalanceService},
         test_utils::{
-            add_block_from_transaction_log, add_block_to_ledger_db, add_block_with_tx_proposal,
-            add_block_with_tx, get_test_ledger, manually_sync_account, setup_wallet_service, MOB,
+            add_block_from_transaction_log, add_block_to_ledger_db, add_block_with_tx,
+            add_block_with_tx_proposal, get_test_ledger, manually_sync_account,
+            setup_wallet_service, MOB,
         },
     };
     use mc_account_keys::PublicAddress;
@@ -777,7 +772,7 @@ mod tests {
             .get_balance_for_account(&AccountID(alice.account_id_hex.clone()))
             .unwrap();
         assert_eq!(balance.unspent, 97990000000000);
-        
+
         // Verify that we can get the gift_code
         // log::info!(logger, "Getting gift code from database");
         // let gotten_gift_code = service.get_gift_code(&gift_code_b58).unwrap();

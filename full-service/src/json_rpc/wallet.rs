@@ -611,9 +611,7 @@ where
                     address,
                 )
                 .map_err(format_error)?;
-            JsonCommandResponse::claim_gift_code { 
-                tx: Tx::from(&tx),
-            }
+            JsonCommandResponse::claim_gift_code { tx: Tx::from(&tx) }
         }
 
         JsonCommandRequest::remove_gift_code { gift_code_b58 } => {
