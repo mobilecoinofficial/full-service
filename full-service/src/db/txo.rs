@@ -695,7 +695,6 @@ impl TxoModel for Txo {
                 txo_id_hex, account_txo_statuses
             )));
         }
-
         let mut txo_details = TxoDetails {
             txo: txo.clone(),
             received_to_account: None,
@@ -726,23 +725,27 @@ impl TxoModel for Txo {
             }
 
             // Get the subaddress details if assigned
-            let assigned_subaddress: Option<AssignedSubaddress> = if let Some(subaddress_index) =
-                txo.subaddress_index
-            {
-                let account = Account::get(&AccountID(account_txo_status.account_id_hex), conn)?;
-                let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
-                let subaddress = account_key.subaddress(subaddress_index as u64);
-                let subaddress_b58 = b58_encode(&subaddress)?;
-                match AssignedSubaddress::get(&subaddress_b58, conn) {
-                    Ok(a) => Some(a),
-                    Err(WalletDbError::AssignedSubaddressNotFound(_s)) => None,
-                    Err(e) => {
-                        return Err(e);
+            let assigned_subaddress: Option<AssignedSubaddress> =
+                if let Some(subaddress_index) = txo.subaddress_index {
+                    if let Ok(account) =
+                        Account::get(&AccountID(account_txo_status.account_id_hex), conn)
+                    {
+                        let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+                        let subaddress = account_key.subaddress(subaddress_index as u64);
+                        let subaddress_b58 = b58_encode(&subaddress)?;
+                        match AssignedSubaddress::get(&subaddress_b58, conn) {
+                            Ok(a) => Some(a),
+                            Err(WalletDbError::AssignedSubaddressNotFound(_s)) => None,
+                            Err(e) => {
+                                return Err(e);
+                            }
+                        }
+                    } else {
+                        None
                     }
-                }
-            } else {
-                None
-            };
+                } else {
+                    None
+                };
             txo_details.received_to_assigned_subaddress = assigned_subaddress;
         }
 
