@@ -645,9 +645,8 @@ mod tests {
         db::{b58_decode, models::TransactionLog, transaction_log::TransactionLogModel},
         service::{account::AccountService, balance::BalanceService},
         test_utils::{
-            add_block_with_tx_proposal, add_block_to_ledger_db, add_block_with_tx,
-            get_test_ledger, manually_sync_account,
-            setup_wallet_service, MOB,
+            add_block_to_ledger_db, add_block_with_tx, add_block_with_tx_proposal, get_test_ledger,
+            manually_sync_account, setup_wallet_service, MOB,
         },
     };
     use mc_account_keys::PublicAddress;
@@ -818,10 +817,7 @@ mod tests {
             logger,
             "Adding block to ledger with consume gift code transaction"
         );
-        {
-            let conn = service.wallet_db.get_conn().unwrap();
-            add_block_with_tx(&mut ledger_db, tx);
-        };
+        add_block_with_tx(&mut ledger_db, tx);
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,
@@ -932,7 +928,7 @@ mod tests {
         assert!(gift_code_value_opt.is_some());
 
         // Check that we get all gift codes
-        let gift_codes = service
+        let _gift_codes = service
             .list_gift_codes()
             .expect("Could not list gift codes");
         // assert_eq!(gift_codes.len(), 1);

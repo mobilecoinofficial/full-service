@@ -1605,7 +1605,7 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let bob_account_obj = result.get("account").unwrap();
-        let bob_account_id = bob_account_obj.get("account_id").unwrap().as_str().unwrap();
+        let _bob_account_id = bob_account_obj.get("account_id").unwrap().as_str().unwrap();
 
         // Get all the gift codes in the wallet
         // let body = json!({
