@@ -141,12 +141,12 @@ impl AssignedSubaddressModel for AssignedSubaddress {
             diesel::insert_into(assigned_subaddresses::table)
                 .values(&subaddress_entry)
                 .execute(conn)?;
+
             // Update the next subaddress index for the account
             diesel::update(accounts.filter(dsl_account_id_hex.eq(account_id_hex)))
-                .set((
-                    crate::db::schema::accounts::next_subaddress_index.eq(subaddress_index + 1),
-                ))
+                .set(crate::db::schema::accounts::next_subaddress_index.eq(subaddress_index + 1))
                 .execute(conn)?;
+
             Ok((subaddress_b58, subaddress_index))
         })?)
     }
