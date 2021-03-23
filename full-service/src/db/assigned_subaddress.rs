@@ -115,6 +115,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(String, i64), WalletDbError> {
         use crate::db::schema::{
+            accounts::dsl::{account_id_hex as dsl_account_id_hex, accounts},
             assigned_subaddresses,
         };
 
