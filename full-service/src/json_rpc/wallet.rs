@@ -15,6 +15,7 @@ use crate::{
         json_rpc_response::{format_error, JsonCommandResponse, JsonRPCResponse},
         proof::Proof,
         receiver_receipt::ReceiverReceipt,
+        tx::Tx,
         tx_proposal::TxProposal,
         txo::Txo,
         wallet_status::WalletStatus,
@@ -603,15 +604,15 @@ where
             account_id,
             address,
         } => {
-            let success = service
+            let tx = service
                 .claim_gift_code(
                     &EncodedGiftCode(gift_code_b58),
                     &AccountID(account_id),
                     address,
                 )
                 .map_err(format_error)?;
-            JsonCommandResponse::claim_gift_code {
-                success,
+            JsonCommandResponse::claim_gift_code { 
+                tx: Tx::from(&tx),
             }
         }
 

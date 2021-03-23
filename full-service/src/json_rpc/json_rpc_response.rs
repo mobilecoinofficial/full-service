@@ -15,6 +15,7 @@ use crate::{
         proof::Proof,
         receiver_receipt::ReceiverReceipt,
         transaction_log::TransactionLog,
+        tx::Tx,
         tx_proposal::TxProposal,
         txo::Txo,
         wallet_status::WalletStatus,
@@ -248,7 +249,7 @@ pub enum JsonCommandResponse {
         gift_code_value: Option<i64>,
     },
     claim_gift_code {
-        success: bool,
+        tx: Tx,
     },
     remove_gift_code {
         removed: bool,

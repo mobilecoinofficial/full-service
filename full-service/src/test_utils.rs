@@ -33,7 +33,7 @@ use mc_transaction_core::{
     encrypted_fog_hint::EncryptedFogHint,
     onetime_keys::{create_onetime_public_key, recover_onetime_private_key},
     ring_signature::KeyImage,
-    tx::TxOut,
+    tx::{Tx, TxOut},
     Block, BlockContents, BLOCK_VERSION,
 };
 use mc_util_from_random::FromRandom;
@@ -217,6 +217,14 @@ pub fn add_block_with_tx_proposal(ledger_db: &mut LedgerDB, tx_proposal: TxPropo
     let block_contents = BlockContents::new(
         tx_proposal.tx.key_images(),
         tx_proposal.tx.prefix.outputs.clone(),
+    );
+    append_test_block(ledger_db, block_contents)
+}
+
+pub fn add_block_with_tx(ledger_db: &mut LedgerDB, tx: Tx) -> u64 {
+    let block_contents = BlockContents::new(
+        tx.key_images(),
+        tx.prefix.outputs.clone(),
     );
     append_test_block(ledger_db, block_contents)
 }
