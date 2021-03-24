@@ -679,7 +679,6 @@ where
 mod tests {
     use super::*;
     use crate::{
-        db::{b58_decode, models::TransactionLog, transaction_log::TransactionLogModel},
         service::{account::AccountService, balance::BalanceService},
         test_utils::{
             add_block_to_ledger_db, add_block_with_tx, add_block_with_tx_proposal, get_test_ledger,
@@ -745,7 +744,15 @@ mod tests {
                 None,
             )
             .unwrap();
-        log::info!(logger, "Built and submitted gift code transaction");
+        log::info!(logger, "Built gift code transaction");
+
+        let _gift_code = service
+            .submit_gift_code(
+                &AccountID(alice.account_id_hex.clone()),
+                &gift_code_b58.clone(),
+                &tx_proposal.clone(),
+            )
+            .unwrap();
 
         // Check the status before the gift code hits the ledger
         let (status, gift_code_value_opt) = service
@@ -754,15 +761,6 @@ mod tests {
         assert_eq!(status, GiftCodeStatus::GiftCodeSubmittedPending);
         assert!(gift_code_value_opt.is_none());
 
-        // Now add the block with the tx_proposal
-        let transaction_log = TransactionLog::log_submitted(
-            tx_proposal.clone(),
-            14,
-            "Gift Code".to_string(),
-            Some(&alice_account_id.to_string()),
-            &service.wallet_db.get_conn().unwrap(),
-        )
-        .expect("Could not log submitted");
         add_block_with_tx_proposal(&mut ledger_db, tx_proposal);
         manually_sync_account(
             &ledger_db,
@@ -779,16 +777,10 @@ mod tests {
         assert_eq!(status, GiftCodeStatus::GiftCodeAvailable);
         assert!(gift_code_value_opt.is_some());
 
-        let transaction_recipient =
-            b58_decode(&transaction_log.recipient_public_address_b58).unwrap();
-
         let decoded = service
             .decode_gift_code(&gift_code_b58)
             .expect("Could not decode gift code");
         let gift_code_account_key = AccountKey::from(&RootIdentity::from(&decoded.root_entropy));
-        let gift_code_public_address = gift_code_account_key.default_subaddress();
-
-        assert_eq!(gift_code_public_address, transaction_recipient);
 
         // Get the tx_out from the ledger and check that it matches expectations
         log::info!(logger, "Retrieving gift code Txo from ledger");
@@ -810,26 +802,16 @@ mod tests {
         assert_eq!(balance.unspent, 97990000000000);
 
         // Verify that we can get the gift_code
-        // log::info!(logger, "Getting gift code from database");
-        // let gotten_gift_code = service.get_gift_code(&gift_code_b58).unwrap();
-        // assert_eq!(gotten_gift_code.value, value as i64);
-        // assert_eq!(gotten_gift_code.gift_code_b58, gift_code_b58.to_string());
+        log::info!(logger, "Getting gift code from database");
+        let gotten_gift_code = service.get_gift_code(&gift_code_b58).unwrap();
+        assert_eq!(gotten_gift_code.value, value as i64);
+        assert_eq!(gotten_gift_code.gift_code_b58, gift_code_b58.to_string());
 
         // Check that we can list all
-        // log::info!(logger, "Listing all gift codes");
-        // let gift_codes = service.list_gift_codes().unwrap();
-        // assert_eq!(gift_codes.len(), 1);
-        // assert_eq!(gift_codes[0], gotten_gift_code);
-
-        // Hack to make sure the gift code account has scanned the gift code Txo -
-        // otherwise claim_gift_code hangs.
-        // manually_sync_account(
-        //     &ledger_db,
-        //     &service.wallet_db,
-        //     &AccountID::from(&gift_code_account_key),
-        //     14,
-        //     &logger,
-        // );
+        log::info!(logger, "Listing all gift codes");
+        let gift_codes = service.list_gift_codes().unwrap();
+        assert_eq!(gift_codes.len(), 1);
+        assert_eq!(gift_codes[0], gotten_gift_code);
 
         // Claim the gift code to another account
         log::info!(logger, "Creating new account to receive gift code");
@@ -930,7 +912,15 @@ mod tests {
                 None,
             )
             .unwrap();
-        log::info!(logger, "Built and submitted gift code transaction");
+        log::info!(logger, "Built gift code transaction");
+
+        let _gift_code = service
+            .submit_gift_code(
+                &AccountID(alice.account_id_hex.clone()),
+                &gift_code_b58.clone(),
+                &tx_proposal.clone(),
+            )
+            .unwrap();
 
         // Check the status before the gift code hits the ledger
         let (status, gift_code_value_opt) = service
@@ -939,15 +929,7 @@ mod tests {
         assert_eq!(status, GiftCodeStatus::GiftCodeSubmittedPending);
         assert!(gift_code_value_opt.is_none());
 
-        // Let gift code hit the ledger
-        let _transaction_log = TransactionLog::log_submitted(
-            tx_proposal.clone(),
-            14,
-            "Gift Code".to_string(),
-            Some(&alice_account_id.to_string()),
-            &service.wallet_db.get_conn().unwrap(),
-        )
-        .expect("Could not log submitted");
+        // Let transaction hit the ledger
         add_block_with_tx_proposal(&mut ledger_db, tx_proposal);
         manually_sync_account(
             &ledger_db,
@@ -965,20 +947,18 @@ mod tests {
         assert!(gift_code_value_opt.is_some());
 
         // Check that we get all gift codes
-        let _gift_codes = service
+        let gift_codes = service
             .list_gift_codes()
             .expect("Could not list gift codes");
-        // assert_eq!(gift_codes.len(), 1);
-
-        // assert_eq!(gift_codes[0], gift_code_opt.unwrap());
+        assert_eq!(gift_codes.len(), 1);
 
         // remove that gift code
-        // assert!(service
-        //     .remove_gift_code(&gift_code_b58)
-        //     .expect("Could not remove gift code"));
-        // let gift_codes = service
-        //     .list_gift_codes()
-        //     .expect("Could not list gift codes");
-        // assert_eq!(gift_codes.len(), 0);
+        assert!(service
+            .remove_gift_code(&gift_code_b58)
+            .expect("Could not remove gift code"));
+        let gift_codes = service
+            .list_gift_codes()
+            .expect("Could not list gift codes");
+        assert_eq!(gift_codes.len(), 0);
     }
 }
