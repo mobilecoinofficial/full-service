@@ -574,7 +574,19 @@ where
                 tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
                 gift_code_b58: gift_code_b58.to_string(),
             }
-        }
+        },
+        JsonCommandRequest::submit_gift_code { from_account_id, gift_code_b58, tx_proposal } => {
+            let gift_code = service.submit_gift_code(
+                &AccountID(from_account_id),
+                &EncodedGiftCode(gift_code_b58),
+                &mc_mobilecoind::payments::TxProposal::try_from(&tx_proposal)
+                        .map_err(format_error)?,
+            )
+            .map_err(format_error)?;
+            JsonCommandResponse::submit_gift_code { 
+                gift_code: GiftCode::from(&gift_code)
+            }
+        },
         JsonCommandRequest::get_gift_code { gift_code_b58 } => JsonCommandResponse::get_gift_code {
             gift_code: GiftCode::from(
                 &service

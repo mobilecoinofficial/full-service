@@ -13,6 +13,7 @@ use crate::{
         b58_decode, b58_encode,
         gift_code::GiftCodeModel,
         models::{Account, GiftCode},
+        txo::TxoID,
         WalletDbError,
     },
     service::{
@@ -260,6 +261,13 @@ pub trait GiftCodeService {
         max_spendable_value: Option<u64>,
     ) -> Result<(TxProposal, EncodedGiftCode), GiftCodeServiceError>;
 
+    fn submit_gift_code(
+        &self,
+        from_account_id: &AccountID,
+        gift_code_b58: &EncodedGiftCode,
+        tx_proposal: &TxProposal,
+    ) -> Result<GiftCode, GiftCodeServiceError>;
+
     /// Get the details for a specific gift code.
     fn get_gift_code(
         &self,
@@ -372,19 +380,39 @@ where
         Ok((tx_proposal, EncodedGiftCode(gift_code_b58)))
     }
 
-    /*
     // Implementation: Incomplete
     // Testing: Needs Verification
     fn submit_gift_code(
         &self,
+        from_account_id: &AccountID,
         gift_code_b58: &EncodedGiftCode,
-        tx_proposal: &TxProposal
+        tx_proposal: &TxProposal,
     ) -> Result<GiftCode, GiftCodeServiceError> {
         // TODO: - Requires Implementation
         // We want to officially store the GiftCode into the DB
         // after the transaction has been successfully submitted to the ledger
+        let decoded_gift_code = self.decode_gift_code(gift_code_b58)?;
+        let value = tx_proposal.outlays[0].value as i64;
+
+        log::info!(self.logger, "submitting transaction for gift code... {:?}", value);
+
+        self.submit_transaction(
+            tx_proposal.clone(),
+            Some(json!({"gift_code_memo": decoded_gift_code.memo}).to_string()),
+            Some(from_account_id.clone().0),
+        )?;
+
+        Ok(GiftCode::create(
+            &gift_code_b58,
+            &decoded_gift_code.root_entropy,
+            &decoded_gift_code.txo_public_key,
+            value,
+            decoded_gift_code.memo,
+            &from_account_id,
+            &TxoID::from(&tx_proposal.tx.prefix.outputs[0].clone()),
+            &self.wallet_db.get_conn()?,
+        )?)
     }
-    */
 
     // Implementation: Done
     // Testing: Needs Verification

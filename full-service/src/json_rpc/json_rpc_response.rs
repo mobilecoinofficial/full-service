@@ -238,6 +238,9 @@ pub enum JsonCommandResponse {
         tx_proposal: TxProposal,
         gift_code_b58: String,
     },
+    submit_gift_code {
+        gift_code: GiftCode,
+    },
     get_gift_code {
         gift_code: GiftCode,
     },

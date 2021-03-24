@@ -177,6 +177,11 @@ pub enum JsonCommandRequest {
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
     },
+    submit_gift_code {
+        from_account_id: String,
+        gift_code_b58: String,
+        tx_proposal: TxProposal,
+    },
     get_gift_code {
         gift_code_b58: String,
     },
