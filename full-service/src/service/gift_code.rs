@@ -394,7 +394,11 @@ where
         let decoded_gift_code = self.decode_gift_code(gift_code_b58)?;
         let value = tx_proposal.outlays[0].value as i64;
 
-        log::info!(self.logger, "submitting transaction for gift code... {:?}", value);
+        log::info!(
+            self.logger,
+            "submitting transaction for gift code... {:?}",
+            value
+        );
 
         self.submit_transaction(
             tx_proposal.clone(),
