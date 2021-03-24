@@ -1935,7 +1935,7 @@ curl -s localhost:9090/wallet \
         "params": {
           "gift_code_b58": "3Th9MSyznKV8VWAHAYoF8ZnVVunaTcMjRTnXvtzqeJPfAY8c7uQn71d6McViyzjLaREg7AppT7quDmBRG5E48csVhhzF4TEn1tw9Ekwr2hrq57A8cqR6sqpNC47mF7kHe",
           "tx_proposal": '$(cat test-tx-proposal.json)',
-          "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
+          "from_account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
         },
         "jsonrpc": "2.0",
         "id": 1
@@ -1947,33 +1947,15 @@ curl -s localhost:9090/wallet \
 {
   "method": "submit_gift_code",
   "result": {
-    "transaction_log": {
-      "object": "transaction_log",
-      "transaction_log_id": "ab447d73553309ccaf60aedc1eaa67b47f65bee504872e4358682d76df486a87",
-      "direction": "tx_direction_sent",
-      "is_sent_recovered": null,
-      "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
-      "recipient_address_id": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-      "assigned_address_id": null,
-      "value_pmob": "42000000000000",
-      "fee_pmob": "10000000000",
-      "submitted_block_index": "152950",
-      "finalized_block_index": null,
-      "status": "tx_status_pending",
-      "input_txo_ids": [
-        "eb735cafa6d8b14a69361cc05cb3a5970752d27d1265a1ffdfd22c0171c2b20d"
-      ],
-      "output_txo_ids": [
-        "fd39b4e740cb302edf5da89c22c20bea0e4408df40e31c1dbb2ec0055435861c"
-      ],
-      "change_txo_ids": [
-        "bcb45b4fab868324003631b6490a0bf46aaf37078a8d366b490437513c6786e4"
-      ],
-      "sent_time": "2021-02-28 01:42:28 UTC",
-      "comment": "",
-      "failure_code": null,
-      "failure_message": null,
-      "offset_count": 2252
+    "gift_code": {
+      "id": 14311503,
+      "gift_code_b58": "3Th9MSyznKV8VWAHAYoF8ZnVVunaTcMjRTnXvtzqeJPfAY8c7uQn71d6McViyzjLaREg7AppT7quDmBRG5E48csVhhzF4TEn1tw9Ekwr2hrq57A8cqR6sqpNC47mF7kHe",
+      "entropy": "487d6f7c3e44977c32ccf3aa74fdbe02aebf4a2845efcf994ab5f2e8072a19e3",
+      "txo_public_key": "",
+      "value": 100000000000,
+      "memo": "Happy Birthday!",
+      "account_id_hex": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
+      "txo_id_hex": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6"
     }
   },
   "error": null,
@@ -1985,7 +1967,7 @@ curl -s localhost:9090/wallet \
 | Required Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
 | `gift_code_b58` | The b58-encoded gift code contents  | Must be a valid b58-encoded gift code.  |
-| `account_id` | The account on which to perform this action  | Account must exist in the wallet  |
+| `from_account_id` | The account on which to perform this action  | Account must exist in the wallet  |
 | `tx_proposal` | Transaction proposal to submit  | Created with `build_gift_code`  |
 
 
@@ -2097,7 +2079,19 @@ curl -s localhost:9090/wallet \
 {
   "method": "check_gift_code_status",
   "result": {
-    "gift_code_status": "GiftCodeAvailable"
+    "gift_code_status": "GiftCodeAvailable",
+    "gift_code_value": 100000000
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1
+}
+
+{
+  "method": "check_gift_code_status",
+  "result": {
+    "gift_code_status": "GiftCodeSubmittedPending",
+    "gift_code_value": null
   },
   "error": null,
   "jsonrpc": "2.0",
@@ -2138,7 +2132,7 @@ curl -s localhost:9090/wallet \
 {
   "method": "claim_gift_code",
   "result": {
-    "transaction_log_id": "0cd67c3423a68287b82804653792874b7a684cc67156142634084536b3b4c0b4"
+    "tx": "TBD -> Currently just an empty string"
   },
   "error": null,
   "jsonrpc": "2.0",
