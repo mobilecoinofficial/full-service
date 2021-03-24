@@ -1553,7 +1553,6 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let result = res["result"].clone();
         let gift_code_b58 = result["gift_code_b58"].as_str().unwrap();
-        // let gift_code_b58 = gift_code["gift_code_b58"].as_str().unwrap();
         let tx_proposal = result["tx_proposal"].clone();
 
         // Check the status of the gift code
@@ -1568,6 +1567,19 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let status = res["result"]["gift_code_status"].as_str().unwrap();
         assert_eq!(status, "GiftCodeSubmittedPending");
+
+        // Submit the gift code and tx proposal
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "submit_gift_code",
+            "params": {
+                "from_account_id": alice_account_id,
+                "gift_code_b58": gift_code_b58,
+                "tx_proposal": tx_proposal,
+            }
+        });
+        dispatch(&client, body, &logger);
 
         // Add the TxProposal for the gift code
         let json_tx_proposal: json_rpc::tx_proposal::TxProposal =
@@ -1605,56 +1617,62 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let bob_account_obj = result.get("account").unwrap();
-        let _bob_account_id = bob_account_obj.get("account_id").unwrap().as_str().unwrap();
+        let bob_account_id = bob_account_obj.get("account_id").unwrap().as_str().unwrap();
 
         // Get all the gift codes in the wallet
-        // let body = json!({
-        //     "jsonrpc": "2.0",
-        //     "id": 1,
-        //     "method": "get_all_gift_codes",
-        // });
-        // let res = dispatch(&client, body, &logger);
-        // let result = res["result"]["gift_codes"].as_array().unwrap();
-        // assert_eq!(result.len(), 1);
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_all_gift_codes",
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res["result"]["gift_codes"].as_array().unwrap();
+        assert_eq!(result.len(), 1);
 
         // Get the specific gift code
-        // let body = json!({
-        //     "jsonrpc": "2.0",
-        //     "id": 1,
-        //     "method": "get_gift_code",
-        //     "params": {
-        //         "gift_code_b58": gift_code_b58,
-        //     }
-        // });
-        // let res = dispatch(&client, body, &logger);
-        // let gotten = res["result"]["gift_code"].clone();
-        // assert_eq!(gift_code, gotten);
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_gift_code",
+            "params": {
+                "gift_code_b58": gift_code_b58,
+            }
+        });
+        dispatch(&client, body, &logger);
 
         // Claim the gift code for bob
-        // let body = json!({
-        //     "jsonrpc": "2.0",
-        //     "id": 1,
-        //     "method": "claim_gift_code",
-        //     "params": {
-        //         "account_id": bob_account_id,
-        //         "gift_code_b58": gift_code_b58,
-        //     }
-        // });
-        // let res = dispatch(&client, body, &logger);
-        // let result = res.get("result").unwrap();
-        // assert_eq!(result["gift_code"], gift_code);
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "claim_gift_code",
+            "params": {
+                "account_id": bob_account_id,
+                "gift_code_b58": gift_code_b58,
+            }
+        });
+        dispatch(&client, body, &logger);
 
         // Now remove that gift code
-        // let body = json!({
-        //     "jsonrpc": "2.0",
-        //     "id": 1,
-        //     "method": "remove_gift_code",
-        //     "params": {
-        //         "gift_code_b58": gift_code_b58,
-        //     }
-        // });
-        // let res = dispatch(&client, body, &logger);
-        // let result = res["result"]["removed"].as_bool().unwrap();
-        // assert!(result);
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "remove_gift_code",
+            "params": {
+                "gift_code_b58": gift_code_b58,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res["result"]["removed"].as_bool().unwrap();
+        assert!(result);
+
+        // Get all the gift codes in the wallet again, should be 0 now
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_all_gift_codes",
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res["result"]["gift_codes"].as_array().unwrap();
+        assert_eq!(result.len(), 0);
     }
 }
