@@ -28,8 +28,8 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 * [get_transaction_log](#get-transaction-log)
 * [get_all_transaction_logs_for_block](#get-all-transaction-logs-for-block)
 * [get_all_transaction_logs_ordered_by_block](#get-all-transaction-logs-ordered-by-block)
-* [get_proofs](#get-proofs)
-* [verify_proof](#verify-proof)
+* [get_confirmations](#get-confirmations)
+* [validate_confirmation](#validate-confirmations)
 * [check_receiver_receipt_status](#check-receiver-receipt-status)
 * [create_receiver_receipts](#create-receiver-receipts)
 * [build_gift_code](#build-gift-code)
@@ -53,7 +53,7 @@ The methods above return data representations of wallet contents. The Full Servi
 * [address](#the-address-object)
 * [transaction_log](#the-transaction-log-object)
 * [txo](#the-txo-object)
-* [proof](#the-proof-object)
+* [confirmation](#the-confirmation-object)
 * [receiver_receipt](#the-receiver-receipt-object)
 * [gift_code](#the-gift-code-object)
 
@@ -413,7 +413,7 @@ curl -s localhost:9090/wallet \
         "minted_account_id": null,
         "object": "txo",
         "offset_count": 262,
-        "proof": null,
+        "confirmation": null,
         "public_key": "0a201a592874a596aeb14cbeb1c7d3449cbd20dc8078ad7fff657e131d619145ef0a",
         "received_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
         "received_block_index": "128567",
@@ -441,7 +441,7 @@ curl -s localhost:9090/wallet \
         "minted_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
         "object": "txo",
         "offset_count": 501,
-        "proof": "0a204488e153cce1e4bcdd4419eecb778f3d2d2b024b39aaa29532d2e47e238b2e31",
+        "confirmation": "0a204488e153cce1e4bcdd4419eecb778f3d2d2b024b39aaa29532d2e47e238b2e31",
         "public_key": "0a20e6736474f73e440686736bfd045d838c2b3bc056ffc647ad6b1c990f5a46b123",
         "received_account_id": "36fdf8fbdaa35ad8e661209b8a7c7057f29bf16a1e399a34aa92c3873dfb853c",
         "received_block_index": null,
@@ -465,7 +465,7 @@ curl -s localhost:9090/wallet \
         "minted_account_id": null,
         "object": "txo",
         "offset_count": 8,
-        "proof": null,
+        "confirmation": null,
         "public_key": "0a20d803a979c9ec0531f106363a885dde29101fcd70209f9ed686905512dfd14d5f",
         "received_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
         "received_block_index": "79",
@@ -489,7 +489,7 @@ curl -s localhost:9090/wallet \
         "minted_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
         "object": "txo",
         "offset_count": 498,
-        "proof": null,
+        "confirmation": null,
         "public_key": "0a209432c589bb4e5101c26e935b70930dfe45c78417527fb994872ebd65fcb9c116",
         "received_account_id": null,
         "received_block_index": null,
@@ -563,7 +563,7 @@ curl -s localhost:9090/wallet \
       "subaddress_index": "0",
       "assigned_subaddress": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
       "key_image": "0a205445b406012d26baebb51cbcaaaceb0d56387a67353637d07265f4e886f33419",
-      "proof": null,
+      "confirmation": null,
       "offset_count": 25
     }
   }
@@ -1458,7 +1458,7 @@ curl -s localhost:9090/wallet \
 
 | Required Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
-| `transaction_log_id`   | The transaction log ID for which to get proofs.  | Transaction log must exist in the wallet  |
+| `transaction_log_id`   | The transaction log ID to get.  | Transaction log must exist in the wallet  |
 
 #### Get All Transaction Logs for Block
 
@@ -1673,18 +1673,18 @@ curl -s localhost:9090/wallet \
 
 ```
 
-### Transaction Output Proofs
+### Transaction Output Confirmation Numbers
 
-When constructing a transaction, the wallet produces a "proof" for each Txo minted by the transaction. This proof can be delivered to the recipient to confirm that they received the Txo from the sender.
+When constructing a transaction, the wallet produces a "confirmation number" for each Txo minted by the transaction. This confirmation number can be delivered to the recipient to prove that they received the Txo from that particular sender.
 
-#### Get Proofs
+#### Get Confirmations
 
-A Txo constructed by this wallet will contain a proof, which can be shared with the recipient to verify the association between the sender and this Txo. When calling `get_proofs` for a transaction, only the proofs for the "output_txo_ids" are returned.
+A Txo constructed by this wallet will contain a confirmation number, which can be shared with the recipient to verify the association between the sender and this Txo. When calling `get_confirmations` for a transaction, only the confirmation numbers for the "output_txo_ids" are returned.
 
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "get_proofs",
+        "method": "get_confirmations",
         "params": {
           "transaction_log_id": "0db5ac892ed796bb11e52d3842f83c05f4993f2f9d7da5fc9f40c8628c7859a4"
         },
@@ -1696,14 +1696,14 @@ curl -s localhost:9090/wallet \
 
 ```json
 {
-  "method": "get_proofs",
+  "method": "get_confirmations",
   "result": {
-    "proofs": [
+    "confirmations": [
       {
-        "object": "proof",
+        "object": "confirmation",
         "txo_id_hex": "9e0de29bfee9a391e520a0b9411a91f094a454ebc70122bdc0e36889ab59d466",
         "txo_index": "458865",
-        "proof": "0a20faca10509c32845041e49e009ddc4e35b61e7982a11aced50493b4b8aaab7a1f"
+        "confirmation": "0a20faca10509c32845041e49e009ddc4e35b61e7982a11aced50493b4b8aaab7a1f"
       }
     ]
   },
@@ -1715,20 +1715,20 @@ curl -s localhost:9090/wallet \
 
 | Required Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
-| `transaction_log_id`   | The transaction log ID for which to get proofs.  | Transaction log must exist in the wallet  |
+| `transaction_log_id`   | The transaction log ID for which to get confirmation numbers.  | Transaction log must exist in the wallet  |
 
-#### Verify Proof
+#### Validate Confirmation
 
-A sender can provide the proofs from a transaction to the recipient, who then verifies for a specific txo id (note that txo id is specific to the txo, and is consistent across wallets. Therefore the sender and receiver will have the same txo id for the same Txo which was minted by the sender, and received by the receiver) with the following:
+A sender can provide the confirmation numbers from a transaction to the recipient, who then verifies for a specific txo id (note that txo id is specific to the txo, and is consistent across wallets. Therefore the sender and receiver will have the same txo id for the same Txo which was minted by the sender, and received by the receiver) with the following:
 
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "verify_proof",
+        "method": "validate_confirmation",
         "params": {
           "account_id": "4b4fd11738c03bf5179781aeb27d725002fb67d8a99992920d3654ac00ee1a2c",
           "txo_id_hex": "bbee8b70e80837fc3e10bde47f63de41768ee036263907325ef9a8d45d851f15",
-          "proof": "0a2005ba1d9d871c7fb0d5ba7df17391a1e14aad1b4aa2319c997538f8e338a670bb"
+          "confirmation": "0a2005ba1d9d871c7fb0d5ba7df17391a1e14aad1b4aa2319c997538f8e338a670bb"
         },
         "jsonrpc": "2.0",
         "id": 1
@@ -1738,7 +1738,7 @@ curl -s localhost:9090/wallet \
 
 ```json
 {
-  "method": "verify_proof",
+  "method": "validate_confirmation",
   "result": {
     "verified": true
   },
@@ -1751,12 +1751,12 @@ curl -s localhost:9090/wallet \
 | Required Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
 | `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
-| `txo_id_hex`   | The ID of the Txo for which to verify the proof  | Txo must be a received Txo  |
-| `proof`   | The proof to verify  | The proof should be delivered by the sender of the Txo in question |
+| `txo_id_hex`   | The ID of the Txo for which to validate the confirmation number  | Txo must be a received Txo  |
+| `confirmation`   | The confirmation number to validate  | The confirmation number should be delivered by the sender of the Txo in question |
 
 ### Transaction Receipts
 
-Senders can optionally provide `receiver_receipts` to the recipient of a transaction. This has more information than the confirmation proof (it contains the confirmation proof), and can be used by the receiver to poll for the status of the transaction.
+Senders can optionally provide `receiver_receipts` to the recipient of a transaction. This has more information than the confirmation number (it contains the confirmation number), and can be used by the receiver to poll for the status of the transaction.
 
 #### Check Receiver Receipt Status
 
@@ -1810,7 +1810,7 @@ curl -s localhost:9090/wallet \
       "subaddress_index": "0",
       "assigned_subaddress": "3Dg4iFavKJScgCUeqb1VnET5ADmKjZgWz15fN7jfeCCWb72serxKE7fqz7htQvRirN4yeU2xxtcHRAN2zbF6V9n7FomDm69VX3FghvkDfpq",
       "key_image": "0a205445b406012d26baebb51cbcaaaceb0d56387a67353637d07265f4e886f33419",
-      "proof": null,
+      "confirmation": null,
       "offset_count": 25
     }
   },
@@ -2587,7 +2587,7 @@ Sent - Success, Recovered:
 | value_pmob | string (uint64) | Available pico MOB for this account at the current account_block_index. If the account is syncing, this value may change.
 | received_block_index | string (uint64) | Block index in which the Txo was received by an account.
 | spent_block_index | string (uint64) | Block index in which the Txo was spent by an account.
-| is_spent_recovered | boolean | Flag that indicates if the spent_block_index was recovered from the ledger. This value is null if the Txo is unspent. If true, some information may not be available on the txo without user input. If true, the proof will be null without user input.
+| is_spent_recovered | boolean | Flag that indicates if the spent_block_index was recovered from the ledger. This value is null if the Txo is unspent. If true, some information may not be available on the txo without user input. If true, the confirmation number will be null without user input.
 | received_account_id | string | The account_id for the account which has received this Txo. This account has spend authority.
 | minted_account_i | string | The account_id for the account which minted this Txo.
 | account_status_map | hash map | A normalized hash mapping account_id to account objects. Keys include "type" and "status".
@@ -2599,7 +2599,7 @@ Sent - Success, Recovered:
 | subaddress_index | string (uint64) | The assigned subaddress index for this Txo with respect to its received account.
 | assigned_address | string (uint64) | The address corresponding to the subaddress index which was assigned as an intended sender for this Txo.
 | key_image (only on pending/spent) | string (hex) | A fingerprint of the Txo derived from your private spend key materials, required to spend a Txo
-| proof | string (hex) | A proof that the sender of the Txo can provide to verify that they participated in the construction of this Txo.
+| confirmation | string (hex) | A confirmation that the sender of the Txo can provide to validate that they participated in the construction of this Txo.
 | offset_count | int | The value to offset pagination requests. Requests will exclude all list items up to and including this object.
 
 #### Example Objects
@@ -2628,7 +2628,7 @@ Received and Spent Txo
   "subaddress_index": "20",
   "assigned_subaddress": "7BeDc5jpZ...",
   "key_image": "6d6f6269...",
-  "proof": "23fd34a...",
+  "confirmation": "23fd34a...",
   "offset_count": 284
 }
 ```
@@ -2661,7 +2661,7 @@ Txo Spent from One Account to Another in the Same Wallet
   "subaddress_index": null,
   "assigned_subaddress": null,
   "key_image": null,
-  "proof": "0a2044...",
+  "confirmation": "0a2044...",
   "offset_count": 501
 }
 ```
@@ -2671,32 +2671,32 @@ Txo Spent from One Account to Another in the Same Wallet
 * [get_all_txos_for_account](#get-all-txos-for-a-given-account)
 * [get_txo](#get-txo-details)
 
-### The Proof Object
+### The Confirmation Object
 
 #### Attributes
 
 | *Name* | *Type* | *Description*
 | :--- | :--- | :---
-| object | string, value is "proof" | String representing the object's type. Objects of the same type share the same value.
+| object | string, value is "confirmation" | String representing the object's type. Objects of the same type share the same value.
 | txo_id_hex | string | Unique identifier for the Txo.
 | txo_index | string | The index of the Txo in the ledger.
-| proof | string | A string with a proof that can be verified to confirm that another party constructed or had knowledge of the construction of the associated Txo.
+| confirmation | string | A string with a confirmation number that can be validated to confirm that another party constructed or had knowledge of the construction of the associated Txo.
 
 #### Example Object
 
 ```json
 {
-  "object": "proof",
+  "object": "confirmation",
   "txo_id_hex": "873dfb8c...",
   "txo_index": "1276",
-  "proof": "984eacd..."
+  "confirmation": "984eacd..."
 }
 ```
 
-#### API Methods Returning Proof Objects
+#### API Methods Returning Confirmation Objects
 
-* [get_proofs](#get-proofs)
-* [verify_proof](#verify-proof)
+* [get_confirmations](#get-confirmations)
+* [validate_confirmation](#validate-confirmation)
 
 ### The Receiver Receipt Object
 
@@ -2704,10 +2704,10 @@ Txo Spent from One Account to Another in the Same Wallet
 
 | *Name* | *Type* | *Description*
 | :--- | :--- | :---
-| object | string, value is "proof" | String representing the object's type. Objects of the same type share the same value.
+| object | string, value is "confirmation" | String representing the object's type. Objects of the same type share the same value.
 | public_key | string | Hex-encoded public key for the Txo.
 | tombstone_block | string | The block index after which this Txo would be rejected by consensus.
-| confirmation | string | Hex-encoded proof that can be verified to confirm that another party constructed or had knowledge of the construction of the associated Txo.
+| confirmation | string | Hex-encoded confirmation that can be validated to confirm that another party constructed or had knowledge of the construction of the associated Txo.
 | amount | string | The encrypted amount in the Txo referenced by this receipt.
 
 #### Example Object
