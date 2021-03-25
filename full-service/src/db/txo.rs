@@ -609,11 +609,12 @@ impl TxoModel for Txo {
         // multiple roles within payments (for example, change - minted,
         // received, unspent, spent).
         let results: Vec<Txo> = txos::table
-            .left_outer_join(
+            .inner_join(
                 account_txo_statuses::table
-                    .on(account_txo_statuses::account_id_hex.eq(subaddress.account_id_hex)),
+                    .on(txos::txo_id_hex.eq(account_txo_statuses::txo_id_hex)),
             )
             .select(txos::all_columns)
+            .filter(account_txo_statuses::account_id_hex.eq(subaddress.account_id_hex))
             .filter(txos::subaddress_index.eq(subaddress.subaddress_index))
             .distinct()
             .load(conn)?;
