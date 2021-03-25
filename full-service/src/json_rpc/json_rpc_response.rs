@@ -160,6 +160,7 @@ pub enum JsonCommandResponse {
     },
     build_transaction {
         tx_proposal: TxProposal,
+        transaction_log_id: String,
     },
     submit_transaction {
         transaction_log: Option<TransactionLog>,
@@ -227,6 +228,7 @@ pub enum JsonCommandResponse {
     },
     check_receiver_receipt_status {
         receipt_transaction_status: ReceiptTransactionStatus,
+        txo: Option<Txo>,
     },
     create_receiver_receipts {
         receiver_receipts: Vec<ReceiverReceipt>,
@@ -234,6 +236,8 @@ pub enum JsonCommandResponse {
     build_gift_code {
         tx_proposal: TxProposal,
         gift_code_b58: String,
+    },
+    submit_gift_code {
         gift_code: GiftCode,
     },
     get_gift_code {
@@ -244,11 +248,10 @@ pub enum JsonCommandResponse {
     },
     check_gift_code_status {
         gift_code_status: GiftCodeStatus,
-        gift_code: Option<GiftCode>,
+        gift_code_value: Option<i64>,
     },
     claim_gift_code {
-        transaction_log_id: String,
-        gift_code: GiftCode,
+        txo_id_hex: String,
     },
     remove_gift_code {
         removed: bool,

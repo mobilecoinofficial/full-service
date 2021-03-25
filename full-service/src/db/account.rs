@@ -3,6 +3,7 @@
 //! DB impl for the Account model.
 
 use crate::db::{
+    account_txo_status::AccountTxoStatusModel,
     assigned_subaddress::AssignedSubaddressModel,
     models::{
         Account, AccountTxoStatus, AssignedSubaddress, NewAccount, TransactionLog, Txo,
@@ -354,6 +355,9 @@ impl AccountModel for Account {
 
         // Also delete the associated assigned subaddresses
         AssignedSubaddress::delete_all(&self.account_id_hex, conn)?;
+
+        // Also delete txo statuses associated with this account.
+        AccountTxoStatus::delete_all_for_account(&self.account_id_hex, conn)?;
 
         Ok(())
     }

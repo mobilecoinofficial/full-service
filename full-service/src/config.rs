@@ -172,7 +172,7 @@ impl APIConfig {
                 .build(),
         );
 
-        let conn = GrpcFogReportConnection::new(env, logger);
+        let conn = GrpcFogReportConnection::new(env, logger.clone());
 
         let verifier = self.get_fog_ingest_verifier();
 
@@ -183,7 +183,9 @@ impl APIConfig {
                 let report_responses = conn
                     .fetch_fog_reports(fog_uris.iter().cloned())
                     .map_err(|err| format!("Failed fetching fog reports: {}", err))?;
-                Ok(FogResolver::new(report_responses, verifier))
+                log::debug!(logger, "Got report responses {:?}", report_responses);
+                Ok(FogResolver::new(report_responses, verifier)
+                    .expect("Could not construct fog resolver"))
             } else {
                 Err(
                     "Some recipients have fog, but no fog ingest report verifier was configured"

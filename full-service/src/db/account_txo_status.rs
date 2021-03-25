@@ -8,6 +8,7 @@ use crate::db::models::{
 
 use crate::db::WalletDbError;
 use diesel::{
+    debug_query,
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},
     RunQueryDsl,
@@ -33,6 +34,11 @@ pub trait AccountTxoStatusModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<AccountTxoStatus>, WalletDbError>;
 
+    fn get_all_for_account(
+        account_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<AccountTxoStatus>, WalletDbError>;
+
     fn set_unspent(
         &self,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
@@ -40,6 +46,11 @@ pub trait AccountTxoStatusModel {
 
     fn set_orphaned(
         &self,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError>;
+
+    fn delete_all_for_account(
+        account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 }
@@ -104,6 +115,29 @@ impl AccountTxoStatusModel for AccountTxoStatus {
         Ok(results)
     }
 
+    fn get_all_for_account(
+        account_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<AccountTxoStatus>, WalletDbError> {
+        use crate::db::schema::{
+            account_txo_statuses as cols, account_txo_statuses::dsl::account_txo_statuses,
+        };
+
+        let results = account_txo_statuses
+            .filter(cols::account_id_hex.eq(account_id_hex))
+            .select(cols::all_columns)
+            .load(conn);
+
+        match results {
+            Ok(r) => Ok(r),
+            // Match on NotFound to get a more informative NotFound Error
+            Err(diesel::result::Error::NotFound) => Err(WalletDbError::AccountTxoStatusNotFound(
+                format!("({})", account_id_hex),
+            )),
+            Err(e) => Err(e.into()),
+        }
+    }
+
     fn set_unspent(
         &self,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
@@ -125,6 +159,38 @@ impl AccountTxoStatusModel for AccountTxoStatus {
         diesel::update(self)
             .set(txo_status.eq(TXO_STATUS_ORPHANED))
             .execute(conn)?;
+        Ok(())
+    }
+
+    fn delete_all_for_account(
+        account_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::{
+            account_txo_statuses as cols, account_txo_statuses::dsl::account_txo_statuses,
+        };
+        use diesel::sqlite::Sqlite;
+
+        let results: Vec<AccountTxoStatus> = account_txo_statuses
+            .filter(cols::account_id_hex.eq(account_id_hex))
+            .select(cols::all_columns)
+            .load(conn)?;
+        println!("diesel load with filter {:?}", results);
+
+        // let res = account_txo_statuses.filter(cols::account_id_hex.
+        // eq(account_id_hex)).load::<AccountTxoStatus>(conn)?;
+        println!(
+            "{}",
+            debug_query::<Sqlite, _>(&diesel::delete(
+                account_txo_statuses.filter(cols::account_id_hex.eq(account_id_hex))
+            ))
+        );
+
+        let res =
+            diesel::delete(account_txo_statuses.filter(cols::account_id_hex.eq(account_id_hex)))
+                .execute(conn)?;
+        println!("diesel delete {:?}", res);
+
         Ok(())
     }
 }

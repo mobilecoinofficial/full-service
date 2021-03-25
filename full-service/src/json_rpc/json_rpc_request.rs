@@ -162,9 +162,8 @@ pub enum JsonCommandRequest {
         block_index: String,
     },
     check_receiver_receipt_status {
-        account_id: String,
+        address: String,
         receiver_receipt: ReceiverReceipt,
-        expected_value: String,
     },
     create_receiver_receipts {
         tx_proposal: TxProposal,
@@ -177,6 +176,11 @@ pub enum JsonCommandRequest {
         fee: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
+    },
+    submit_gift_code {
+        from_account_id: String,
+        gift_code_b58: String,
+        tx_proposal: TxProposal,
     },
     get_gift_code {
         gift_code_b58: String,

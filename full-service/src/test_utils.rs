@@ -6,8 +6,9 @@ use crate::{
         models::{Account, TransactionLog, Txo, TXO_USED_AS_CHANGE, TXO_USED_AS_OUTPUT},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
-        WalletDb,
+        WalletDb, WalletDbError,
     },
+    error::SyncError,
     service::{sync::sync_account, transaction_builder::WalletTransactionBuilder},
     WalletService,
 };
@@ -32,7 +33,7 @@ use mc_transaction_core::{
     encrypted_fog_hint::EncryptedFogHint,
     onetime_keys::{create_onetime_public_key, recover_onetime_private_key},
     ring_signature::KeyImage,
-    tx::TxOut,
+    tx::{Tx, TxOut},
     Block, BlockContents, BLOCK_VERSION,
 };
 use mc_util_from_random::FromRandom;
@@ -42,6 +43,7 @@ use std::{
     convert::TryFrom,
     path::PathBuf,
     sync::{Arc, RwLock},
+    time::Duration,
 };
 use tempdir::TempDir;
 
@@ -72,9 +74,10 @@ impl Default for WalletDbTestContext {
         let base_url = std::env::var("TEST_DATABASE_URL").expect("TEST_DATABASE_URL must be set");
 
         // Connect to the database and run the migrations
+        // Note: This should be kept in sync wth how the migrations are run in main.rs
+        // so as to have faithful tests.
         let conn = SqliteConnection::establish(&format!("{}/{}", base_url, db_name))
             .unwrap_or_else(|err| panic!("Cannot connect to {} database: {:?}", db_name, err));
-
         embedded_migrations::run(&conn).expect("failed running migrations");
 
         // Success
@@ -84,7 +87,9 @@ impl Default for WalletDbTestContext {
 
 impl WalletDbTestContext {
     pub fn get_db_instance(&self, logger: Logger) -> WalletDb {
-        WalletDb::new_from_url(&format!("{}/{}", self.base_url, self.db_name), logger)
+        // Note: Setting db_connections too high results in IO Error: Too many open
+        // files.
+        WalletDb::new_from_url(&format!("{}/{}", self.base_url, self.db_name), 7, logger)
             .expect("failed creating new SqlRecoveryDb")
     }
 }
@@ -216,6 +221,11 @@ pub fn add_block_with_tx_proposal(ledger_db: &mut LedgerDB, tx_proposal: TxPropo
     append_test_block(ledger_db, block_contents)
 }
 
+pub fn add_block_with_tx(ledger_db: &mut LedgerDB, tx: Tx) -> u64 {
+    let block_contents = BlockContents::new(tx.key_images(), tx.prefix.outputs.clone());
+    append_test_block(ledger_db, block_contents)
+}
+
 pub fn add_block_from_transaction_log(
     ledger_db: &mut LedgerDB,
     conn: &PooledConnection<CM<SqliteConnection>>,
@@ -327,7 +337,15 @@ pub fn manually_sync_account(
 ) -> Account {
     let mut account: Account;
     loop {
-        sync_account(&ledger_db, &wallet_db, &account_id.to_string(), &logger).unwrap();
+        match sync_account(&ledger_db, &wallet_db, &account_id.to_string(), &logger) {
+            Ok(_) => {}
+            Err(SyncError::Database(WalletDbError::Diesel(
+                diesel::result::Error::DatabaseError(_kind, _info),
+            ))) => {
+                std::thread::sleep(Duration::from_millis(500));
+            }
+            Err(e) => panic!("Could not sync account due to {:?}", e),
+        }
         account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
         if account.next_block_index as u64 == ledger_db.num_blocks().unwrap() {
             break;
@@ -335,6 +353,22 @@ pub fn manually_sync_account(
     }
     assert_eq!(account.next_block_index as u64, target_block_index);
     account
+}
+
+pub fn wait_for_sync(
+    ledger_db: &LedgerDB,
+    wallet_db: &WalletDb,
+    account_id: &AccountID,
+    target_block_index: u64,
+) {
+    let mut account: Account;
+    loop {
+        account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
+        if account.next_block_index as u64 == ledger_db.num_blocks().unwrap() {
+            break;
+        }
+    }
+    assert_eq!(account.next_block_index as u64, target_block_index);
 }
 
 pub fn setup_grpc_peer_manager_and_network_state(
@@ -514,17 +548,19 @@ pub fn random_account_with_seed_values(
 ) -> AccountKey {
     let root_id = RootIdentity::from_random(&mut rng);
     let account_key = AccountKey::from(&root_id);
-    Account::create(
-        &root_id.root_entropy,
-        Some(0),
-        None,
-        "",
-        None,
-        None,
-        None,
-        &wallet_db.get_conn().unwrap(),
-    )
-    .unwrap();
+    {
+        Account::create(
+            &root_id.root_entropy,
+            Some(0),
+            None,
+            &format!("SeedAccount{}", rng.next_u32()),
+            None,
+            None,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+    }
 
     for value in seed_values.iter() {
         add_block_to_ledger_db(
@@ -536,19 +572,25 @@ pub fn random_account_with_seed_values(
         );
     }
 
-    // FIXME: FS-122 - should not be sleeping in tests
-    std::thread::sleep(std::time::Duration::from_secs(8));
+    wait_for_sync(
+        &ledger_db,
+        &wallet_db,
+        &AccountID::from(&account_key),
+        ledger_db.num_blocks().unwrap(),
+    );
 
     // Make sure we have all our TXOs
-    assert_eq!(
-        Txo::list_for_account(
-            &AccountID::from(&account_key).to_string(),
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap()
-        .len(),
-        seed_values.len(),
-    );
+    {
+        assert_eq!(
+            Txo::list_for_account(
+                &AccountID::from(&account_key).to_string(),
+                &wallet_db.get_conn().unwrap(),
+            )
+            .unwrap()
+            .len(),
+            seed_values.len(),
+        );
+    }
 
     account_key
 }

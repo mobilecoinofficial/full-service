@@ -32,7 +32,8 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 * [verify_proof](#verify-proof)
 * [check_receiver_receipt_status](#check-receiver-receipt-status)
 * [create_receiver_receipts](#create-receiver-receipts)
-* [build_gift_code](#build-and-submit-gift-code)
+* [build_gift_code](#build-gift-code)
+* [submit_gift_code](#submit-gift-code)
 * [get_gift_code](#get-gift-code)
 * [get_all_gift_codes](#get-all-gift-codes)
 * [check_gift_code_status](#check-gift-code-status)
@@ -1012,6 +1013,7 @@ curl -s localhost:9090/wallet \
 {
   "method": "build_transaction",
   "result": {
+    "transaction_log_id": "ab447d73553309ccaf60aedc1eaa67b47f65bee504872e4358682d76df486a87",
     "tx_proposal": {
       "input_list": [
         {
@@ -1754,7 +1756,7 @@ curl -s localhost:9090/wallet \
 
 ### Transaction Receipts
 
-Senders can optionally provide `receiver_receipts` to the recipient of a transaction. This has more information than the proof (it contains the proof), and can be used by the receiver to poll for the status of the transaction.
+Senders can optionally provide `receiver_receipts` to the recipient of a transaction. This has more information than the confirmation proof (it contains the confirmation proof), and can be used by the receiver to poll for the status of the transaction.
 
 #### Check Receiver Receipt Status
 
@@ -1763,16 +1765,18 @@ curl -s localhost:9090/wallet \
   -d '{
         "method": "check_receiver_receipt_status",
         "params": {
-          "account_id": "4b4fd11738c03bf5179781aeb27d725002fb67d8a99992920d3654ac00ee1a2c",
+          "address": "3Dg4iFavKJScgCUeqb1VnET5ADmKjZgWz15fN7jfeCCWb72serxKE7fqz7htQvRirN4yeU2xxtcHRAN2zbF6V9n7FomDm69VX3FghvkDfpq",
           "receiver_receipt": {
             "object": "receiver_receipt",
-            "recipient": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-            "txo_public_key": "0a206ad9d7600a1a5570050a05bbd64c83f56ad8239e12452253bfadd1f67676df0d",
-            "txo_hash": "9db71b4d7718b797154c42a22a3aac6c012a8e3706c35ad7e4a929a1392e7afa",
-            "tombstone": "153017",
-            "proof": "0a20c77fd2d8e5434557ddbe4a4565e701a815b8581a529112a4eb3b814d69878b34"
+            "public_key": "0a20d2118a065192f11e228e0fce39e90a878b5aa628b7613a4556c193461ebd4f67",
+            "confirmation": "0a205e5ca2fa40f837d7aff6d37e9314329d21bad03d5fac2ec1fc844a09368c33e5",
+            "tombstone_block": "154512",
+            "amount": {
+              "object": "amount",
+              "commitment": "782c575ed7d893245d10d7dd49dcffc3515a7ed252bcade74e719a17d639092d",
+              "masked_value": "12052895925511073331"
+            }
           }
-          "expected_value": "10000000",
         },
         "jsonrpc": "2.0",
         "id": 1
@@ -1784,7 +1788,31 @@ curl -s localhost:9090/wallet \
 {
   "method": "check_receiver_receipt_status",
   "result": {
-    "receipts_transaction_status": "TransactionSuccess"
+    "receipts_transaction_status": "TransactionSuccess",
+    "txo": {
+      "object": "txo",
+      "txo_id": "fff4cae55a74e5ce852b79c31576f4041d510c26e59fec178b3e45705c5b35a7",
+      "value_pmob": "2960000000000",
+      "received_block_index": "8094",
+      "spent_block_index": "8180",
+      "is_spent_recovered": false,
+      "received_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+      "minted_account_id": null,
+      "account_status_map": {
+        "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10": {
+          "txo_status": "spent",
+          "txo_type": "received"
+        }
+      },
+      "target_key": "0a209eefc082a656a34fae5cec81044d1b13bd8963c411afa28aecfce4839fc9f74e",
+      "public_key": "0a20f03f9684e5420d5410fe732f121626352d45e4e799d725432a0c61fa1343ac51",
+      "e_fog_hint": "0a544944e7527b7f09322651b7242663edf17478fd1804aeea24838a35ad3c66d5194763642ae1c1e0cd2bbe2571a97a8c0fb49e346d2fd5262113e7333c7f012e61114bd32d335b1a8183be8e1865b0a10199b60100",
+      "subaddress_index": "0",
+      "assigned_subaddress": "3Dg4iFavKJScgCUeqb1VnET5ADmKjZgWz15fN7jfeCCWb72serxKE7fqz7htQvRirN4yeU2xxtcHRAN2zbF6V9n7FomDm69VX3FghvkDfpq",
+      "key_image": "0a205445b406012d26baebb51cbcaaaceb0d56387a67353637d07265f4e886f33419",
+      "proof": null,
+      "offset_count": 25
+    }
   },
   "error": null,
   "jsonrpc": "2.0",
@@ -1816,11 +1844,14 @@ curl -s localhost:9090/wallet \
     "receiver_receipts": [
       {
         "object": "receiver_receipt",
-        "recipient": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-        "txo_public_key": "0a206ad9d7600a1a5570050a05bbd64c83f56ad8239e12452253bfadd1f67676df0d",
-        "txo_hash": "9db71b4d7718b797154c42a22a3aac6c012a8e3706c35ad7e4a929a1392e7afa",
-        "tombstone": "153017",
-        "proof": "0a20c77fd2d8e5434557ddbe4a4565e701a815b8581a529112a4eb3b814d69878b34"
+        "public_key": "0a20d2118a065192f11e228e0fce39e90a878b5aa628b7613a4556c193461ebd4f67",
+        "confirmation": "0a205e5ca2fa40f837d7aff6d37e9314329d21bad03d5fac2ec1fc844a09368c33e5",
+        "tombstone_block": "154512",
+        "amount": {
+          "object": "amount",
+          "commitment": "782c575ed7d893245d10d7dd49dcffc3515a7ed252bcade74e719a17d639092d",
+          "masked_value": "12052895925511073331"
+        }
       }
     ]
   },
@@ -1838,7 +1869,7 @@ Gift codes are onetime accounts that contain a single Txo. They provide a means 
 
 Builds a Gift Code in a tx_proposal ready to submit to the ledger.
 
-NOTE: You will need to call [submit_transaction](#submit-transaction) with the tx_proposal returned from this method in order to submit the transaction to fund the gift code.
+NOTE: You will need to call [submit_gift_code](#submit-gift-code) with the tx_proposal returned from this method in order to submit the transaction to fund the gift code.
 
 ```sh
 curl -s localhost:9090/wallet \
@@ -1892,6 +1923,53 @@ curl -s localhost:9090/wallet \
 | `tombstone_block` | The block after which this transaction expires | If not provided, uses `cur_height` + 50 |
 | `max_spendable_value` | The maximum amount for an input TXO selected for this transaction |  |
 | `memo` | Memo for whoever claims the Gift Code.   | |
+
+#### Submit Gift Code
+
+Convenience method to submit a tx_proposal related to a recently built gift code to the ledger. Will add the gift code to the wallet_db once the tx_proposal has been appended to the ledger.
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "submit_gift_code",
+        "params": {
+          "gift_code_b58": "3Th9MSyznKV8VWAHAYoF8ZnVVunaTcMjRTnXvtzqeJPfAY8c7uQn71d6McViyzjLaREg7AppT7quDmBRG5E48csVhhzF4TEn1tw9Ekwr2hrq57A8cqR6sqpNC47mF7kHe",
+          "tx_proposal": '$(cat test-tx-proposal.json)',
+          "from_account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
+        },
+        "jsonrpc": "2.0",
+        "id": 1
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
+```
+
+```json
+{
+  "method": "submit_gift_code",
+  "result": {
+    "gift_code": {
+      "id": 14311503,
+      "gift_code_b58": "3Th9MSyznKV8VWAHAYoF8ZnVVunaTcMjRTnXvtzqeJPfAY8c7uQn71d6McViyzjLaREg7AppT7quDmBRG5E48csVhhzF4TEn1tw9Ekwr2hrq57A8cqR6sqpNC47mF7kHe",
+      "entropy": "487d6f7c3e44977c32ccf3aa74fdbe02aebf4a2845efcf994ab5f2e8072a19e3",
+      "txo_public_key": "",
+      "value": 100000000000,
+      "memo": "Happy Birthday!",
+      "account_id_hex": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
+      "txo_id_hex": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6"
+    }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+}
+```
+
+| Required Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `gift_code_b58` | The b58-encoded gift code contents  | Must be a valid b58-encoded gift code.  |
+| `from_account_id` | The account on which to perform this action  | Account must exist in the wallet  |
+| `tx_proposal` | Transaction proposal to submit  | Created with `build_gift_code`  |
+
 
 #### Get Gift Code
 
@@ -1989,16 +2067,7 @@ curl -s localhost:9090/wallet \
   -d '{
         "method": "check_gift_code_status",
         "params": {
-          "gift_code_b58": "2yE5NUCa3CZfv72aUazPoZN4x1rvWE2bNKvGocj8n9iGdKCc9CG72wZeGfRb3UBx2QmaoX6CZsVpYFySgQ3tfmhWpywfrf4GQq4JF1XQmCrrw8qW3C9h3qZ9tfu4fFxgY",
-          "gift_code": {
-            "object": "gift_code",
-            "gift_code_b58": "2yE5NUCa3CZfv72aUazPoZN4x1rvWE2bNKvGocj8n9iGdKCc9CG72wZeGfRb3UBx2QmaoX6CZsVpYFySgQ3tfmhWpywfrf4GQq4JF1XQmCrrw8qW3C9h3qZ9tfu4fFxgY",
-            "entropy": "14aa16d9d4000628c82826d9c43bbc17414f8677e74882bf21e44db75d4c2b87",
-            "value_pmob": "20000000000",
-            "memo": "Happy Birthday!",
-            "account_id": "dba3d3b99fe9ce6bc666490b8176be91ace0f4166853b0327ea39928640ea840",
-            "txo_id": "ab917ed9e69fa97bd9422452b1a2f615c2405301b220f7a81eb091f75eba3f54"
-          }
+          "gift_code_b58": "2yE5NUCa3CZfv72aUazPoZN4x1rvWE2bNKvGocj8n9iGdKCc9CG72wZeGfRb3UBx2QmaoX6CZsVpYFySgQ3tfmhWpywfrf4GQq4JF1XQmCrrw8qW3C9h3qZ9tfu4fFxgY"
         },
         "jsonrpc": "2.0",
         "id": 1
@@ -2010,7 +2079,19 @@ curl -s localhost:9090/wallet \
 {
   "method": "check_gift_code_status",
   "result": {
-    "gift_code_status": "GiftCodeAvailable"
+    "gift_code_status": "GiftCodeAvailable",
+    "gift_code_value": 100000000
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1
+}
+
+{
+  "method": "check_gift_code_status",
+  "result": {
+    "gift_code_status": "GiftCodeSubmittedPending",
+    "gift_code_value": null
   },
   "error": null,
   "jsonrpc": "2.0",
@@ -2051,16 +2132,7 @@ curl -s localhost:9090/wallet \
 {
   "method": "claim_gift_code",
   "result": {
-    "transaction_log_id": "0cd67c3423a68287b82804653792874b7a684cc67156142634084536b3b4c0b4",
-    "gift_code": {
-      "object": "gift_code",
-      "gift_code_b58": "3DkTHXADdEUpRJ5QsrjmYh8WqFdDKkvng126zTP9YQb7LNXL8pbRidCvB7Ba3Mvek5ZZdev8EXNPrJBpGdtvfjk3hew1phmjdkf5mp35mbyvhB8UjRqoJJqDRswLrmKQL",
-      "entropy": "41e1e794f8a2f7227fa8b5cd936f115b8799da712984c85f499e03bca43cba9c",
-      "value_pmob": "60000000000",
-      "memo": "Happy New Year!",
-      "account_id": "050d8d97aaf31c70d63c6aed828c11d3fb16b56b44910659b6724621047b81f9",
-      "txo_id": "5806b6416cd9f5f752180988bc27af246e13d78a8d2308c48a3a85d529e6e57f"
-    }
+    "txo_id_hex": "5806b6416cd9f5f752180988bc27af246e13d78a8d2308c48a3a85d529e6e57f"
   },
   "error": null,
   "jsonrpc": "2.0",
@@ -2068,9 +2140,14 @@ curl -s localhost:9090/wallet \
 }
 ```
 
+| Required Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `gift_code_b58` | The b58-encoded gift code contents  | Must be a valid b58-encoded gift code.  |
+| `account_id` | The account on which to perform this action  | Account must exist in the wallet  |
+
 #### Remove Gift Code
 
-Claim a gift code to an account in this wallet.
+Remove a gift code from the database.
 
 ```sh
 curl -s localhost:9090/wallet \
@@ -2096,6 +2173,10 @@ curl -s localhost:9090/wallet \
   "id": 1
 }
 ```
+
+| Required Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `gift_code_b58` | The b58-encoded gift code contents  | Must be a valid b58-encoded gift code that exists in the database |
 
 ### Ledger and Transaction Data
 
@@ -2616,6 +2697,38 @@ Txo Spent from One Account to Another in the Same Wallet
 
 * [get_proofs](#get-proofs)
 * [verify_proof](#verify-proof)
+
+### The Receiver Receipt Object
+
+#### Attributes
+
+| *Name* | *Type* | *Description*
+| :--- | :--- | :---
+| object | string, value is "proof" | String representing the object's type. Objects of the same type share the same value.
+| public_key | string | Hex-encoded public key for the Txo.
+| tombstone_block | string | The block index after which this Txo would be rejected by consensus.
+| confirmation | string | Hex-encoded proof that can be verified to confirm that another party constructed or had knowledge of the construction of the associated Txo.
+| amount | string | The encrypted amount in the Txo referenced by this receipt.
+
+#### Example Object
+
+```json
+{
+  "object": "receiver_receipt",
+  "public_key": "0a20d2118a065192f11e228e0fce39e90a878b5aa628b7613a4556c193461ebd4f67",
+  "confirmation": "0a205e5ca2fa40f837d7aff6d37e9314329d21bad03d5fac2ec1fc844a09368c33e5",
+  "tombstone_block": "154512",
+  "amount": {
+    "object": "amount",
+    "commitment": "782c575ed7d893245d10d7dd49dcffc3515a7ed252bcade74e719a17d639092d",
+    "masked_value": "12052895925511073331"
+  }
+}
+```
+
+#### API Methods Returning Receipt Objects
+
+* [create_receiver_receipts](#create-receiver-receipts)
 
 ### The Gift Code Object
 

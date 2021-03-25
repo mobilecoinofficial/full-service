@@ -47,7 +47,6 @@ fn main() {
                 config.wallet_db, err
             )
         });
-
     embedded_migrations::run(&conn).expect("failed running migrations");
 
     let wallet_db = WalletDb::new_from_url(
@@ -55,6 +54,7 @@ fn main() {
             .wallet_db
             .to_str()
             .expect("Could not get wallet_db path"),
+        10,
         logger.clone(),
     )
     .expect("Could not access wallet db");
