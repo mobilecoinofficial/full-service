@@ -649,12 +649,17 @@ fn wallet_help() -> Result<String, String> {
     Ok(help_str())
 }
 
-/// Returns an instance of a Rocker server.
+#[get("/health")]
+fn health() -> Result<(), ()> {
+    Ok(())
+}
+
+/// Returns an instance of a Rocket server.
 pub fn rocket(
     rocket_config: rocket::Config,
     state: WalletState<ThickClient<HardcodedCredentialsProvider>, FogResolver>,
 ) -> rocket::Rocket {
     rocket::custom(rocket_config)
-        .mount("/", routes![wallet_api, wallet_help])
+        .mount("/", routes![wallet_api, wallet_help, health])
         .manage(state)
 }
