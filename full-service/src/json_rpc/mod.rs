@@ -15,7 +15,6 @@ pub mod json_rpc_response;
 mod proof;
 mod receiver_receipt;
 mod transaction_log;
-mod tx;
 mod tx_proposal;
 mod txo;
 mod unspent_tx_out;

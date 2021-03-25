@@ -312,8 +312,6 @@ where
     T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
-    // Implementation: Done
-    // Testing: Needs
     fn build_gift_code(
         &self,
         from_account_id: &AccountID,
@@ -380,17 +378,12 @@ where
         Ok((tx_proposal, EncodedGiftCode(gift_code_b58)))
     }
 
-    // Implementation: Incomplete
-    // Testing: Needs Verification
     fn submit_gift_code(
         &self,
         from_account_id: &AccountID,
         gift_code_b58: &EncodedGiftCode,
         tx_proposal: &TxProposal,
     ) -> Result<GiftCode, GiftCodeServiceError> {
-        // TODO: - Requires Implementation
-        // We want to officially store the GiftCode into the DB
-        // after the transaction has been successfully submitted to the ledger
         let decoded_gift_code = self.decode_gift_code(gift_code_b58)?;
         let value = tx_proposal.outlays[0].value as i64;
 
@@ -418,8 +411,6 @@ where
         )?)
     }
 
-    // Implementation: Done
-    // Testing: Needs Verification
     fn get_gift_code(
         &self,
         gift_code_b58: &EncodedGiftCode,
@@ -428,15 +419,11 @@ where
         Ok(GiftCode::get(&gift_code_b58, &conn)?)
     }
 
-    // Implementation: Done
-    // Testing: Needs Verification
     fn list_gift_codes(&self) -> Result<Vec<GiftCode>, GiftCodeServiceError> {
         let conn = self.wallet_db.get_conn()?;
         Ok(GiftCode::list_all(&conn)?)
     }
 
-    // Implementation: Done
-    // Testing: Needs Tests
     fn check_gift_code_status(
         &self,
         gift_code_b58: &EncodedGiftCode,
@@ -492,21 +479,6 @@ where
         Ok((GiftCodeStatus::GiftCodeAvailable, Some(value as i64)))
     }
 
-    /*
-    // Implementation: Required
-    // Testing: Required
-    fn open_gift_code(
-        &self,
-        gift_code_b58: &EncodedGiftCode,
-        account_id: &AccountID,
-        assigned_subaddress_b58: Option<String>
-    ) -> Result<TxProposal, GiftCodeServiceError> {
-
-    }
-    */
-
-    // Implementation: Incomplete
-    // Testing: Needs Tests Rewritten - tisk tisk, you should be doing TDD ;)
     fn claim_gift_code(
         &self,
         gift_code_b58: &EncodedGiftCode,
@@ -637,8 +609,6 @@ where
         Ok(tx)
     }
 
-    // Implementation: Done
-    // Testing: Needs Verification
     fn decode_gift_code(
         &self,
         gift_code_b58: &EncodedGiftCode,
@@ -661,8 +631,6 @@ where
         })
     }
 
-    // Implementation: Done
-    // Testing: Needs Verification
     fn remove_gift_code(
         &self,
         gift_code_b58: &EncodedGiftCode,
@@ -826,7 +794,6 @@ mod tests {
             &logger,
         );
 
-        // log::info!(logger, "Claiming gift code");
         let tx = service
             .claim_gift_code(&gift_code_b58, &AccountID(bob.account_id_hex.clone()), None)
             .unwrap();
@@ -928,7 +895,7 @@ mod tests {
             .expect("Could not get gift code status");
         assert_eq!(status, GiftCodeStatus::GiftCodeSubmittedPending);
         assert!(gift_code_value_opt.is_none());
-
+        
         // Let transaction hit the ledger
         add_block_with_tx_proposal(&mut ledger_db, tx_proposal);
         manually_sync_account(

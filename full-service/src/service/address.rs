@@ -9,10 +9,6 @@ use crate::{
     },
     service::WalletService,
 };
-use diesel::{
-    prelude::*,
-    r2d2::{ConnectionManager, PooledConnection},
-};
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
@@ -54,14 +50,6 @@ pub trait AddressService {
         // FIXME: FS-32 - add "sync from block"
     ) -> Result<AssignedSubaddress, AddressServiceError>;
 
-    fn assign_address_for_account_with_db(
-        &self,
-        account_id: &AccountID,
-        metadata: Option<&str>,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-        // FIXME: FS-32 - add "sync from block"
-    ) -> Result<AssignedSubaddress, AddressServiceError>;
-
     /// Gets all the addresses for the given account.
     fn get_all_addresses_for_account(
         &self,
@@ -85,27 +73,6 @@ where
     ) -> Result<AssignedSubaddress, AddressServiceError> {
         let conn = &self.wallet_db.get_conn()?;
 
-        Ok(
-            conn.transaction::<AssignedSubaddress, AddressServiceError, _>(|| {
-                let (public_address_b58, _subaddress_index) =
-                    AssignedSubaddress::create_next_for_account(
-                        &account_id.to_string(),
-                        metadata.unwrap_or(""),
-                        &conn,
-                    )?;
-
-                Ok(AssignedSubaddress::get(&public_address_b58, &conn)?)
-            })?,
-        )
-    }
-
-    fn assign_address_for_account_with_db(
-        &self,
-        account_id: &AccountID,
-        metadata: Option<&str>,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-        // FIXME: WS-32 - add "sync from block"
-    ) -> Result<AssignedSubaddress, AddressServiceError> {
         Ok(
             conn.transaction::<AssignedSubaddress, AddressServiceError, _>(|| {
                 let (public_address_b58, _subaddress_index) =
