@@ -895,7 +895,7 @@ mod tests {
             .expect("Could not get gift code status");
         assert_eq!(status, GiftCodeStatus::GiftCodeSubmittedPending);
         assert!(gift_code_value_opt.is_none());
-        
+
         // Let transaction hit the ledger
         add_block_with_tx_proposal(&mut ledger_db, tx_proposal);
         manually_sync_account(
