@@ -52,6 +52,7 @@ impl fmt::Display for TransactionID {
     }
 }
 
+#[derive(Debug)]
 pub struct AssociatedTxos {
     pub inputs: Vec<String>,
     pub outputs: Vec<String>,
@@ -447,7 +448,7 @@ impl TransactionLogModel for TransactionLog {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<TransactionLog, WalletDbError> {
         let transaction_log_id = conn.transaction::<String, WalletDbError, _>(|| {
-            // Store the txo_id -> transaction_txo_type
+            // Store the txo_id_hex -> transaction_txo_type
             let mut txo_ids: Vec<(String, String)> = Vec::new();
 
             // Verify that the TxProposal is well-formed according to our assumptions about
@@ -483,7 +484,7 @@ impl TransactionLogModel for TransactionLog {
                     }
 
                     txo_ids.push((
-                        processed_output.txo_id,
+                        processed_output.txo_id_hex,
                         processed_output.txo_type.to_string(),
                     ));
                 }
@@ -579,7 +580,7 @@ mod tests {
         // Populate our DB with some received txos in the same block
         let mut synced: HashMap<i64, Vec<String>> = HashMap::default();
         for i in 1..20 {
-            let (txo_hex, _txo, _key_image) = create_test_received_txo(
+            let (txo_id_hex, _txo, _key_image) = create_test_received_txo(
                 &account_key,
                 0, // All to the same subaddress
                 (100 * i * MOB) as u64,
@@ -590,7 +591,7 @@ mod tests {
             if synced.is_empty() {
                 synced.insert(0, Vec::new());
             }
-            synced.get_mut(&0).unwrap().push(txo_hex);
+            synced.get_mut(&0).unwrap().push(txo_id_hex);
         }
 
         // Now we'll ingest them.
@@ -599,6 +600,9 @@ mod tests {
             Some(0),
             None,
             "",
+            None,
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -607,15 +611,16 @@ mod tests {
             .unwrap();
 
         for (_subaddress, txos) in synced.iter() {
-            for txo_id in txos {
+            for txo_id_hex in txos {
                 let transaction_logs =
-                    TransactionLog::select_for_txo(txo_id, &wallet_db.get_conn().unwrap()).unwrap();
+                    TransactionLog::select_for_txo(txo_id_hex, &wallet_db.get_conn().unwrap())
+                        .unwrap();
                 // There should be one TransactionLog per received txo
                 assert_eq!(transaction_logs.len(), 1);
 
-                assert_eq!(&transaction_logs[0].transaction_id_hex, txo_id);
+                assert_eq!(&transaction_logs[0].transaction_id_hex, txo_id_hex);
 
-                let txo_details = Txo::get(txo_id, &wallet_db.get_conn().unwrap()).unwrap();
+                let txo_details = Txo::get(txo_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
                 assert_eq!(transaction_logs[0].value, txo_details.txo.value);
 
                 // Make the sure the types are correct - all received should be TXO_OUTPUT

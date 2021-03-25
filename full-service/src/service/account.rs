@@ -6,8 +6,8 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         models::Account,
+        WalletDbError,
     },
-    error::WalletServiceError,
     service::{ledger::LedgerService, WalletService},
 };
 use mc_account_keys::RootEntropy;
@@ -17,7 +17,57 @@ use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_util_from_random::FromRandom;
 
+use crate::service::ledger::LedgerServiceError;
 use diesel::Connection;
+use displaydoc::Display;
+
+#[derive(Display, Debug)]
+pub enum AccountServiceError {
+    /// Error interacting with the database: {0}
+    Database(WalletDbError),
+
+    /// Error with LedgerDB: {0}
+    LedgerDB(mc_ledger_db::Error),
+
+    /// Error decoding from hex: {0}
+    HexDecode(hex::FromHexError),
+
+    /// Diesel error: {0}
+    Diesel(diesel::result::Error),
+
+    /// Error with the Ledger Service: {0}
+    LedgerService(LedgerServiceError),
+}
+
+impl From<WalletDbError> for AccountServiceError {
+    fn from(src: WalletDbError) -> Self {
+        Self::Database(src)
+    }
+}
+
+impl From<mc_ledger_db::Error> for AccountServiceError {
+    fn from(src: mc_ledger_db::Error) -> Self {
+        Self::LedgerDB(src)
+    }
+}
+
+impl From<hex::FromHexError> for AccountServiceError {
+    fn from(src: hex::FromHexError) -> Self {
+        Self::HexDecode(src)
+    }
+}
+
+impl From<diesel::result::Error> for AccountServiceError {
+    fn from(src: diesel::result::Error) -> Self {
+        Self::Diesel(src)
+    }
+}
+
+impl From<LedgerServiceError> for AccountServiceError {
+    fn from(src: LedgerServiceError) -> Self {
+        Self::LedgerService(src)
+    }
+}
 
 /// Trait defining the ways in which the wallet can interact with and manage
 /// accounts.
@@ -27,31 +77,34 @@ pub trait AccountService {
         &self,
         name: Option<String>,
         first_block_index: Option<u64>,
-    ) -> Result<Account, WalletServiceError>;
+    ) -> Result<Account, AccountServiceError>;
 
     /// Import an existing account to the wallet using the entropy.
-    fn import_account_entropy(
+    fn import_account(
         &self,
         entropy: String,
         name: Option<String>,
         first_block_index: Option<u64>,
-    ) -> Result<Account, WalletServiceError>;
+        fog_report_url: Option<String>,
+        fog_report_id: Option<String>,
+        fog_authority_spki: Option<String>,
+    ) -> Result<Account, AccountServiceError>;
 
     /// List accounts in the wallet.
-    fn list_accounts(&self) -> Result<Vec<Account>, WalletServiceError>;
+    fn list_accounts(&self) -> Result<Vec<Account>, AccountServiceError>;
 
     /// Get an account in the wallet.
-    fn get_account(&self, account_id: &AccountID) -> Result<Account, WalletServiceError>;
+    fn get_account(&self, account_id: &AccountID) -> Result<Account, AccountServiceError>;
 
     /// Update the name for an account.
     fn update_account_name(
         &self,
         account_id: &AccountID,
         name: String,
-    ) -> Result<Account, WalletServiceError>;
+    ) -> Result<Account, AccountServiceError>;
 
-    /// Delete an account from the wallet.
-    fn delete_account(&self, account_id: &AccountID) -> Result<bool, WalletServiceError>;
+    /// Remove an account from the wallet.
+    fn remove_account(&self, account_id: &AccountID) -> Result<bool, AccountServiceError>;
 }
 
 impl<T, FPR> AccountService for WalletService<T, FPR>
@@ -63,7 +116,7 @@ where
         &self,
         name: Option<String>,
         first_block_index: Option<u64>,
-    ) -> Result<Account, WalletServiceError> {
+    ) -> Result<Account, AccountServiceError> {
         log::info!(
             self.logger,
             "Creating account {:?} with first block: {:?}",
@@ -90,6 +143,9 @@ where
             Some(first_block_index),
             Some(import_block_index),
             &name.unwrap_or_else(|| "".to_string()),
+            None,
+            None,
+            None,
             &conn,
         )?;
 
@@ -97,12 +153,15 @@ where
         Ok(account)
     }
 
-    fn import_account_entropy(
+    fn import_account(
         &self,
         entropy: String,
         name: Option<String>,
         first_block_index: Option<u64>,
-    ) -> Result<Account, WalletServiceError> {
+        fog_report_url: Option<String>,
+        fog_report_id: Option<String>,
+        fog_authority_spki: Option<String>,
+    ) -> Result<Account, AccountServiceError> {
         log::info!(
             self.logger,
             "Importing account {:?} with first block: {:?}",
@@ -123,16 +182,19 @@ where
             name,
             import_block,
             first_block_index,
+            fog_report_url,
+            fog_report_id,
+            fog_authority_spki,
             &conn,
         )?)
     }
 
-    fn list_accounts(&self) -> Result<Vec<Account>, WalletServiceError> {
+    fn list_accounts(&self) -> Result<Vec<Account>, AccountServiceError> {
         let conn = self.wallet_db.get_conn()?;
         Ok(Account::list_all(&conn)?)
     }
 
-    fn get_account(&self, account_id: &AccountID) -> Result<Account, WalletServiceError> {
+    fn get_account(&self, account_id: &AccountID) -> Result<Account, AccountServiceError> {
         let conn = self.wallet_db.get_conn()?;
         Ok(Account::get(&account_id, &conn)?)
     }
@@ -141,20 +203,86 @@ where
         &self,
         account_id: &AccountID,
         name: String,
-    ) -> Result<Account, WalletServiceError> {
+    ) -> Result<Account, AccountServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
-        Ok(conn.transaction::<Account, WalletServiceError, _>(|| {
+        Ok(conn.transaction::<Account, AccountServiceError, _>(|| {
             Account::get(&account_id, &conn)?.update_name(name, &conn)?;
             Ok(Account::get(&account_id, &conn)?)
         })?)
     }
 
-    fn delete_account(&self, account_id: &AccountID) -> Result<bool, WalletServiceError> {
+    fn remove_account(&self, account_id: &AccountID) -> Result<bool, AccountServiceError> {
         log::info!(self.logger, "Deleting account {}", account_id,);
 
         let conn = self.wallet_db.get_conn()?;
-        Account::get(account_id, &conn)?.delete(&conn)?;
+        let account = Account::get(account_id, &conn)?;
+        account.delete(&conn)?;
+
         Ok(true)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        db::{account_txo_status::AccountTxoStatusModel, models::AccountTxoStatus},
+        test_utils::{create_test_received_txo, get_test_ledger, setup_wallet_service, MOB},
+    };
+    use mc_account_keys::{AccountKey, PublicAddress};
+    use mc_common::logger::{test_with_logger, Logger};
+    use rand::{rngs::StdRng, SeedableRng};
+
+    #[test_with_logger]
+    fn test_remove_account_txo_status(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+        let wallet_db = &service.wallet_db;
+
+        // Create an account.
+        let account = service.create_account(Some("A".to_string()), None).unwrap();
+
+        let statuses = AccountTxoStatus::get_all_for_account(
+            &account.account_id_hex,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(statuses.len(), 0);
+
+        // Add a transaction, with transaction status.
+        let account_key: AccountKey = mc_util_serial::decode(&account.account_key).unwrap();
+
+        create_test_received_txo(
+            &account_key,
+            0,
+            (100 * MOB) as u64,
+            13 as u64,
+            &mut rng,
+            &wallet_db,
+        );
+
+        let statuses = AccountTxoStatus::get_all_for_account(
+            &account.account_id_hex,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(statuses.len(), 1);
+
+        // Delete the account. The transaction status referring to it is also cleared.
+        let account_id = AccountID(account.account_id_hex.clone().to_string());
+        let result = service.remove_account(&account_id);
+        assert!(result.is_ok());
+
+        let statuses = AccountTxoStatus::get_all_for_account(
+            &account.account_id_hex,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(statuses.len(), 0);
     }
 }

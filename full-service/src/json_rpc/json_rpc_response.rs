@@ -4,17 +4,22 @@
 //!
 //! API v2
 
-use crate::json_rpc::{
-    account::Account,
-    account_secrets::AccountSecrets,
-    address::Address,
-    balance::Balance,
-    block::{Block, BlockContents},
-    proof::Proof,
-    transaction_log::TransactionLog,
-    tx_proposal::TxProposal,
-    txo::Txo,
-    wallet_status::WalletStatus,
+use crate::{
+    json_rpc::{
+        account::Account,
+        account_secrets::AccountSecrets,
+        address::Address,
+        balance::Balance,
+        block::{Block, BlockContents},
+        confirmation_number::Confirmation,
+        gift_code::GiftCode,
+        receiver_receipt::ReceiverReceipt,
+        transaction_log::TransactionLog,
+        tx_proposal::TxProposal,
+        txo::Txo,
+        wallet_status::WalletStatus,
+    },
+    service::{gift_code::GiftCodeStatus, receipt::ReceiptTransactionStatus},
 };
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use serde::{Deserialize, Serialize};
@@ -22,7 +27,7 @@ use serde_json::Map;
 use strum::AsStaticRef;
 use strum_macros::AsStaticStr;
 
-/// A JSON RPC Response.
+/// A JSON RPC 2.0 Response.
 #[derive(Deserialize, Serialize, Debug)]
 pub struct JsonRPCResponse {
     /// The method which was invoked on the server.
@@ -49,8 +54,8 @@ pub struct JsonRPCResponse {
 }
 
 // FIXME: unwraps -> TryFrom
-impl From<JsonCommandResponseV2> for JsonRPCResponse {
-    fn from(src: JsonCommandResponseV2) -> JsonRPCResponse {
+impl From<JsonCommandResponse> for JsonRPCResponse {
+    fn from(src: JsonCommandResponse) -> JsonRPCResponse {
         let json_response = json!(src);
         JsonRPCResponse {
             method: Some(
@@ -67,33 +72,6 @@ impl From<JsonCommandResponseV2> for JsonRPCResponse {
             id: 1, // FIXME: must be the same as the request that was passed in
         }
     }
-}
-
-/// JSON RPC 2.0 Response.
-#[derive(Deserialize, Serialize, Debug)]
-#[allow(non_camel_case_types)]
-pub struct JsonCommandResponse {
-    /// The method which was invoked on the server.
-    ///
-    /// Optional because JSON RPC does not require returning the method invoked,
-    /// as that can be determined by the id. We return it as a convenience.
-    pub method: Option<String>,
-
-    /// The result of invoking the method on the server.
-    ///
-    /// Optional: if error occurs, result is not returned.
-    pub result: Option<serde_json::Value>,
-
-    /// The error that occurred when invoking the method on the server.
-    ///
-    /// Optional: if method was successful, error is not returned.
-    pub error: Option<JsonRPCError>,
-
-    /// The JSON RPC version. Should always be 2.0.
-    pub jsonrpc: Option<String>,
-
-    /// The id of the Request object to which this response corresponds.
-    pub id: Option<u32>,
 }
 
 /// A JSON RPC Error.
@@ -151,7 +129,7 @@ pub fn format_error<T: std::fmt::Display + std::fmt::Debug>(e: T) -> String {
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(tag = "method", content = "result")]
 #[allow(non_camel_case_types)]
-pub enum JsonCommandResponseV2 {
+pub enum JsonCommandResponse {
     create_account {
         account: Account,
     },
@@ -171,8 +149,8 @@ pub enum JsonCommandResponseV2 {
     update_account_name {
         account: Account,
     },
-    delete_account {
-        success: bool,
+    remove_account {
+        removed: bool,
     },
     get_balance_for_account {
         balance: Balance,
@@ -182,6 +160,7 @@ pub enum JsonCommandResponseV2 {
     },
     build_transaction {
         tx_proposal: TxProposal,
+        transaction_log_id: String,
     },
     submit_transaction {
         transaction_log: Option<TransactionLog>,
@@ -231,11 +210,11 @@ pub enum JsonCommandResponseV2 {
         txo_ids: Vec<String>,
         txo_map: Map<String, serde_json::Value>,
     },
-    get_proofs {
-        proofs: Vec<Proof>,
+    get_confirmations {
+        confirmations: Vec<Confirmation>,
     },
-    verify_proof {
-        verified: bool,
+    validate_confirmation {
+        validated: bool,
     },
     get_mc_protocol_transaction {
         transaction: JsonTx,
@@ -246,5 +225,35 @@ pub enum JsonCommandResponseV2 {
     get_block {
         block: Block,
         block_contents: BlockContents,
+    },
+    check_receiver_receipt_status {
+        receipt_transaction_status: ReceiptTransactionStatus,
+        txo: Option<Txo>,
+    },
+    create_receiver_receipts {
+        receiver_receipts: Vec<ReceiverReceipt>,
+    },
+    build_gift_code {
+        tx_proposal: TxProposal,
+        gift_code_b58: String,
+    },
+    submit_gift_code {
+        gift_code: GiftCode,
+    },
+    get_gift_code {
+        gift_code: GiftCode,
+    },
+    get_all_gift_codes {
+        gift_codes: Vec<GiftCode>,
+    },
+    check_gift_code_status {
+        gift_code_status: GiftCodeStatus,
+        gift_code_value: Option<i64>,
+    },
+    claim_gift_code {
+        txo_id_hex: String,
+    },
+    remove_gift_code {
+        removed: bool,
     },
 }

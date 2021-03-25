@@ -5,9 +5,10 @@
 use crate::{
     db::WalletDbError,
     service::{
-        balance::BalanceServiceError, ledger::LedgerServiceError, proof::ProofServiceError,
-        transaction::TransactionServiceError, transaction_log::TransactionLogServiceError,
-        txo::TxoServiceError,
+        account::AccountServiceError, balance::BalanceServiceError,
+        confirmation_number::ConfirmationServiceError, gift_code::GiftCodeServiceError,
+        ledger::LedgerServiceError, transaction::TransactionServiceError,
+        transaction_log::TransactionLogServiceError, txo::TxoServiceError,
     },
 };
 use displaydoc::Display;
@@ -49,10 +50,16 @@ pub enum WalletServiceError {
     TxoService(TxoServiceError),
 
     /// Error with the Proof service: {0}
-    ProofService(ProofServiceError),
+    ConfirmationService(ConfirmationServiceError),
 
     /// Error with the TransactionLog service: {0}
     TransactionLogService(TransactionLogServiceError),
+
+    /// Error with the GiftCode service: {0}
+    GiftCodeService(GiftCodeServiceError),
+
+    /// Error with the Account service: {0}
+    AccountService(AccountServiceError),
 }
 
 impl From<WalletDbError> for WalletServiceError {
@@ -91,15 +98,27 @@ impl From<TxoServiceError> for WalletServiceError {
     }
 }
 
-impl From<ProofServiceError> for WalletServiceError {
-    fn from(src: ProofServiceError) -> Self {
-        Self::ProofService(src)
+impl From<ConfirmationServiceError> for WalletServiceError {
+    fn from(src: ConfirmationServiceError) -> Self {
+        Self::ConfirmationService(src)
     }
 }
 
 impl From<TransactionLogServiceError> for WalletServiceError {
     fn from(src: TransactionLogServiceError) -> Self {
         Self::TransactionLogService(src)
+    }
+}
+
+impl From<GiftCodeServiceError> for WalletServiceError {
+    fn from(src: GiftCodeServiceError) -> Self {
+        Self::GiftCodeService(src)
+    }
+}
+
+impl From<AccountServiceError> for WalletServiceError {
+    fn from(src: AccountServiceError) -> Self {
+        Self::AccountService(src)
     }
 }
 

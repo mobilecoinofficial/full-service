@@ -113,18 +113,18 @@ mod e2e {
         let name = result.get("account").unwrap().get("name").unwrap();
         assert_eq!("Eve Main Account", name.as_str().unwrap());
 
-        // Delete Account
+        // Remove Account
         let body = json!({
             "jsonrpc": "2.0",
             "id": 2,
-            "method": "delete_account",
+            "method": "remove_account",
             "params": {
                 "account_id": *account_id,
             }
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        assert_eq!(result["success"].as_bool().unwrap(), true,);
+        assert_eq!(result["removed"].as_bool().unwrap(), true,);
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -202,14 +202,14 @@ mod e2e {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 2,
-            "method": "delete_account",
+            "method": "remove_account",
             "params": {
                 "account_id": *account_id,
             }
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        assert_eq!(result["success"].as_bool().unwrap(), true);
+        assert_eq!(result["removed"].as_bool().unwrap(), true);
 
         // Import it again - should succeed.
         let body = json!({
@@ -295,6 +295,56 @@ mod e2e {
         assert_eq!(
             serde_json::json!(json_rpc::account_key::AccountKey::try_from(&account_key).unwrap()),
             secrets["account_key"]
+        );
+    }
+
+    #[test_with_logger]
+    fn test_e2e_import_account_fog(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        // Import an account with fog info.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_account",
+            "params": {
+                "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
+                "name": "Alice Main Account",
+                "first_block_index": "200",
+                "fog_report_url": "fog://fog-report.example.com",
+                "fog_report_id": "",
+                "fog_authority_spki": "30820222300d06092a864886f70d01010105000382020f003082020a0282020100c853a8724bc211cf5370ed4dbec8947c5573bed0ec47ae14211454977b41336061f0a040f77dbf529f3a46d8095676ec971b940ab4c9642578760779840a3f9b3b893b2f65006c544e9c16586d33649769b7c1c94552d7efa081a56ad612dec932812676ebec091f2aed69123604f4888a125e04ff85f5a727c286664378581cf34c7ee13eb01cc4faf3308ed3c07a9415f98e5fbfe073e6c357967244e46ba6ebbe391d8154e6e4a1c80524b1a6733eca46e37bfdd62d75816988a79aac6bdb62a06b1237a8ff5e5c848d01bbff684248cf06d92f301623c893eb0fba0f3faee2d197ea57ac428f89d6c000f76d58d5aacc3d70204781aca45bc02b1456b454231d2f2ed4ca6614e5242c7d7af0fe61e9af6ecfa76674ffbc29b858091cbfb4011538f0e894ce45d21d7fac04ba2ff57e9ff6db21e2afd9468ad785c262ec59d4a1a801c5ec2f95fc107dc9cb5f7869d70aa84450b8c350c2fa48bddef20752a1e43676b246c7f59f8f1f4aee43c1a15f36f7a36a9ec708320ea42089991551f2656ec62ea38233946b85616ff182cf17cd227e596329b546ea04d13b053be4cf3338de777b50bc6eca7a6185cf7a5022bc9be3749b1bb43e10ecc88a0c580f2b7373138ee49c7bafd8be6a64048887230480b0c85a045255494e04a9a81646369ce7a10e08da6fae27333ec0c16c8a74d93779a9e055395078d0b07286f9930203010001"
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+        assert_eq!(public_address, "Gty4pvRo2yjWMtsNzYRqmhhvVRevsdkqS4AsZWcbNsGJYdTVR8dmXRXB3T6b9rfxXNTxtHuQQSUq1YV8c7Ggkzc2KGSLdLZrbj6XzhL7BC9Dj2e4wa3M7j5Z6AzeERPW4kjuVwgomAvLJY9btj5D1poDMvkt2xUMaP438cCXwQjTS5rB2cdFeaLToHiK3DvjKVg3w4886q8dNQMnEj89wqANzuFUGkfd9how9zeWpH4oJGa");
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        assert_eq!(
+            account_id,
+            "d9472ed9d869465d1b7cdb3f8acdd5ca08479c5c735a6096d14cbc2748c09f64"
+        );
+
+        // Export account secrets and check fog info.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "export_account_secrets",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let secrets = result.get("account_secrets").unwrap();
+        let account_key = secrets.get("account_key").unwrap();
+
+        assert_eq!(
+            *account_key.get("fog_report_url").unwrap(),
+            serde_json::json!("fog://fog-report.example.com")
         );
     }
 
@@ -498,7 +548,7 @@ mod e2e {
             "params": {
                 "account_id": account_id,
                 "recipient_public_address": b58_public_address,
-                "value": "42",
+                "value_pmob": "42",
             }
         });
         // We will fail because we cannot afford the fee, which is 100000000000 pMOB
@@ -537,7 +587,7 @@ mod e2e {
             "params": {
                 "account_id": account_id,
                 "recipient_public_address": b58_public_address,
-                "value": "42000000000000", // 42.0 MOB
+                "value_pmob": "42000000000000", // 42.0 MOB
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -817,6 +867,171 @@ mod e2e {
         assert_eq!(transaction_log_map.len(), 3);
         // FIXME: Once finalized_block_index is working, assert that they are
         // presented in ascending order of block_index
+    }
+
+    #[test_with_logger]
+    fn test_send_txo_from_removed_account(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
+
+        // Add three accounts.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "account 1",
+                "first_block_index": "0",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id_1 = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let b58_public_address_1 = account_obj.get("main_address").unwrap().as_str().unwrap();
+        let public_address_1 = b58_decode(b58_public_address_1).unwrap();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "account 2",
+                "first_block_index": "0",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id_2 = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let b58_public_address_2 = account_obj.get("main_address").unwrap().as_str().unwrap();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "account 3",
+                "first_block_index": "0",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id_3 = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let b58_public_address_3 = account_obj.get("main_address").unwrap().as_str().unwrap();
+
+        // Add a block to fund account 1.
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![public_address_1],
+            100000000000000, // 100.0 MOB
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        assert_eq!(ledger_db.num_blocks().unwrap(), 13);
+
+        // Send some coins to account 2.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "build_transaction",
+            "params": {
+                "account_id": account_id_1,
+                "recipient_public_address": b58_public_address_2,
+                "value_pmob": "84000000000000", // 84.0 MOB
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let tx_proposal = result.get("tx_proposal").unwrap();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "submit_transaction",
+            "params": {
+                "tx_proposal": tx_proposal,
+                "account_id": account_id_1,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result");
+        assert!(result.is_some());
+
+        let json_tx_proposal: json_rpc::tx_proposal::TxProposal =
+            serde_json::from_value(tx_proposal.clone()).unwrap();
+        let payments_tx_proposal =
+            mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
+
+        add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+
+        // Remove account 1.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "remove_account",
+            "params": {
+                "account_id": account_id_1,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        assert_eq!(result["removed"].as_bool().unwrap(), true,);
+
+        // Send coins from account 2 to account 3.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "build_transaction",
+            "params": {
+                "account_id": account_id_2,
+                "recipient_public_address": b58_public_address_3,
+                "value_pmob": "42000000000000", // 42.0 MOB
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let tx_proposal = result.get("tx_proposal").unwrap();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "submit_transaction",
+            "params": {
+                "tx_proposal": tx_proposal,
+                "account_id": account_id_2,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result");
+        assert!(result.is_some());
+
+        let json_tx_proposal: json_rpc::tx_proposal::TxProposal =
+            serde_json::from_value(tx_proposal.clone()).unwrap();
+        let payments_tx_proposal =
+            mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
+
+        add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+
+        // Check that account 3 received its coins.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_account",
+            "params": {
+                "account_id": account_id_3,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance_status = result.get("balance").unwrap();
+        let unspent = balance_status["unspent_pmob"].as_str().unwrap();
+        assert_eq!(unspent, "42000000000000"); // 42.0 MOB
     }
 
     #[test_with_logger]
@@ -1168,5 +1383,298 @@ mod e2e {
         let balance_status = result.get("balance").unwrap();
         let unspent = balance_status["unspent_pmob"].as_str().unwrap();
         assert_eq!(unspent, "100");
+    }
+
+    #[test_with_logger]
+    fn test_receipts(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+                "first_block_index": "0",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let alice_account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let alice_b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+        let alice_public_address = b58_decode(alice_b58_public_address).unwrap();
+
+        // Add a block with a txo for this address
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![alice_public_address],
+            100 * MOB as u64,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+
+        // Add Bob's account to our wallet
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Bob Main Account",
+                "first_block_index": "0",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let bob_account_obj = result.get("account").unwrap();
+        let bob_b58_public_address = bob_account_obj
+            .get("main_address")
+            .unwrap()
+            .as_str()
+            .unwrap();
+
+        // Construct a transaction proposal from Alice to Bob
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "build_transaction",
+            "params": {
+                "account_id": alice_account_id,
+                "recipient_public_address": bob_b58_public_address,
+                "value_pmob": "42000000000000", // 42 MOB
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let tx_proposal = result.get("tx_proposal").unwrap();
+
+        // Get the receipts from the tx_proposal
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_receiver_receipts",
+            "params": {
+                "tx_proposal": tx_proposal
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let receipts = result["receiver_receipts"].as_array().unwrap();
+        assert_eq!(receipts.len(), 1);
+        let receipt = &receipts[0];
+
+        // Bob checks status (should be pending before the block is added to the ledger)
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "check_receiver_receipt_status",
+            "params": {
+                "address": bob_b58_public_address,
+                "receiver_receipt": receipt,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let status = result["receipt_transaction_status"].as_str().unwrap();
+        assert_eq!(status, "TransactionPending");
+
+        // Add the block to the ledger with the tx proposal
+        let json_tx_proposal: json_rpc::tx_proposal::TxProposal =
+            serde_json::from_value(tx_proposal.clone()).unwrap();
+        let payments_tx_proposal =
+            mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
+
+        // The MockBlockchainConnection does not write to the ledger_db
+        add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+
+        // Bob checks status (should be successful after added to the ledger)
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "check_receiver_receipt_status",
+            "params": {
+                "address": bob_b58_public_address,
+                "receiver_receipt": receipt,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let status = result["receipt_transaction_status"].as_str().unwrap();
+        assert_eq!(status, "TransactionSuccess");
+    }
+
+    #[test_with_logger]
+    fn test_gift_codes(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+                "first_block_index": "0",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let alice_account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let alice_b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+        let alice_public_address = b58_decode(alice_b58_public_address).unwrap();
+
+        // Add a block with a txo for this address
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![alice_public_address],
+            100 * MOB as u64,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+
+        // Create a gift code
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "build_gift_code",
+            "params": {
+                "account_id": alice_account_id,
+                "value_pmob": "42000000000000",
+                "memo": "Happy Birthday!",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res["result"].clone();
+        let gift_code_b58 = result["gift_code_b58"].as_str().unwrap();
+        let tx_proposal = result["tx_proposal"].clone();
+
+        // Check the status of the gift code
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "check_gift_code_status",
+            "params": {
+                "gift_code_b58": gift_code_b58,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let status = res["result"]["gift_code_status"].as_str().unwrap();
+        assert_eq!(status, "GiftCodeSubmittedPending");
+
+        // Submit the gift code and tx proposal
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "submit_gift_code",
+            "params": {
+                "from_account_id": alice_account_id,
+                "gift_code_b58": gift_code_b58,
+                "tx_proposal": tx_proposal,
+            }
+        });
+        dispatch(&client, body, &logger);
+
+        // Add the TxProposal for the gift code
+        let json_tx_proposal: json_rpc::tx_proposal::TxProposal =
+            serde_json::from_value(tx_proposal.clone()).unwrap();
+        let payments_tx_proposal =
+            mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
+
+        // The MockBlockchainConnection does not write to the ledger_db
+        add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+
+        // Check the status of the gift code
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "check_gift_code_status",
+            "params": {
+                "gift_code_b58": gift_code_b58,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let status = res["result"]["gift_code_status"].as_str().unwrap();
+        assert_eq!(status, "GiftCodeAvailable");
+
+        // Add Bob's account to our wallet
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Bob Main Account",
+                "first_block_index": "0",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let bob_account_obj = result.get("account").unwrap();
+        let bob_account_id = bob_account_obj.get("account_id").unwrap().as_str().unwrap();
+
+        // Get all the gift codes in the wallet
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_all_gift_codes",
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res["result"]["gift_codes"].as_array().unwrap();
+        assert_eq!(result.len(), 1);
+
+        // Get the specific gift code
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_gift_code",
+            "params": {
+                "gift_code_b58": gift_code_b58,
+            }
+        });
+        dispatch(&client, body, &logger);
+
+        // Claim the gift code for bob
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "claim_gift_code",
+            "params": {
+                "account_id": bob_account_id,
+                "gift_code_b58": gift_code_b58,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let txo_id_hex = res["result"]["txo_id_hex"].as_str().unwrap();
+        assert_eq!(txo_id_hex.len(), 64);
+
+        // Now remove that gift code
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "remove_gift_code",
+            "params": {
+                "gift_code_b58": gift_code_b58,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res["result"]["removed"].as_bool().unwrap();
+        assert!(result);
+
+        // Get all the gift codes in the wallet again, should be 0 now
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_all_gift_codes",
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res["result"]["gift_codes"].as_array().unwrap();
+        assert_eq!(result.len(), 0);
     }
 }

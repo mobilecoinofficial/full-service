@@ -44,10 +44,28 @@ MobileCoin Full Service is available under open-source licenses. Look for the [L
     curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${SIGNED_ENCLAVE_URI}
     ```
 
+1. Install SGX libraries.
+
+    On Ubuntu:
+    ```sh
+    wget https://download.01.org/intel-sgx/sgx-linux/2.9.1/distro/ubuntu18.04-server/sgx_linux_x64_sdk_2.9.101.2.bin
+    chmod +x sgx_linux_x64_sdk_2.9.101.2.bin
+    sudo ./sgx_linux_x64_sdk_2.9.101.2.bin --prefix=/opt/intel
+    ```
+
+    Put this line in your .bashrc:
+    ```sh
+    source /opt/intel/sgxsdk/environment
+    ```
+
+    This works on more recent Ubuntu distributions, even though it specifies 18.04.
+
+
 1. Build
 
     ```sh
-    SGX_MODE=HW IAS_MODE=PROD CONSENSUS_ENCLAVE_CSS=$(pwd)/consensus-enclave.css cargo build --release -p mc-full-service
+    export SGX_MODE=HW IAS_MODE=PROD CONSENSUS_ENCLAVE_CSS=$(pwd)/consensus-enclave.css
+    cargo build --release -p mc-full-service
     ```
 
 1. Run

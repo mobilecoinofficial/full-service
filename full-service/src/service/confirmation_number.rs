@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
-//! Service for managing Proofs.
+//! Service for managing confirmation numbers.
 
 use crate::{
     db::{
@@ -25,7 +25,7 @@ use mc_transaction_core::tx::TxOutConfirmationNumber;
 /// Errors for the Txo Service.
 #[derive(Display, Debug)]
 #[allow(clippy::large_enum_variant)]
-pub enum ProofServiceError {
+pub enum ConfirmationServiceError {
     /// Error interacting with the database: {0}
     Database(WalletDbError),
 
@@ -41,8 +41,8 @@ pub enum ProofServiceError {
     /// Error decoding from hex: {0}
     HexDecode(hex::FromHexError),
 
-    /// Minted Txo should contain proof: {0}
-    MissingProof(String),
+    /// Minted Txo should contain confirmation: {0}
+    MissingConfirmation(String),
 
     /// Error with the TxoService: {0}
     TxoService(TxoServiceError),
@@ -51,109 +51,119 @@ pub enum ProofServiceError {
     TransactionLogService(TransactionLogServiceError),
 }
 
-impl From<WalletDbError> for ProofServiceError {
+impl From<WalletDbError> for ConfirmationServiceError {
     fn from(src: WalletDbError) -> Self {
         Self::Database(src)
     }
 }
 
-impl From<diesel::result::Error> for ProofServiceError {
+impl From<diesel::result::Error> for ConfirmationServiceError {
     fn from(src: diesel::result::Error) -> Self {
         Self::Diesel(src)
     }
 }
 
-impl From<mc_ledger_db::Error> for ProofServiceError {
+impl From<mc_ledger_db::Error> for ConfirmationServiceError {
     fn from(src: mc_ledger_db::Error) -> Self {
         Self::LedgerDB(src)
     }
 }
 
-impl From<prost::DecodeError> for ProofServiceError {
+impl From<prost::DecodeError> for ConfirmationServiceError {
     fn from(src: prost::DecodeError) -> Self {
         Self::ProstDecode(src)
     }
 }
 
-impl From<hex::FromHexError> for ProofServiceError {
+impl From<hex::FromHexError> for ConfirmationServiceError {
     fn from(src: hex::FromHexError) -> Self {
         Self::HexDecode(src)
     }
 }
 
-impl From<TxoServiceError> for ProofServiceError {
+impl From<TxoServiceError> for ConfirmationServiceError {
     fn from(src: TxoServiceError) -> Self {
         Self::TxoService(src)
     }
 }
 
-impl From<TransactionLogServiceError> for ProofServiceError {
+impl From<TransactionLogServiceError> for ConfirmationServiceError {
     fn from(src: TransactionLogServiceError) -> Self {
         Self::TransactionLogService(src)
     }
 }
 
-pub struct Proof {
+#[derive(Debug)]
+pub struct Confirmation {
     pub txo_id: TxoID,
     pub txo_index: u64,
-    pub proof: TxOutConfirmationNumber,
+    pub confirmation: TxOutConfirmationNumber,
 }
 
 /// Trait defining the ways in which the wallet can interact with and manage
-/// Proofs.
-pub trait ProofService {
-    /// Get the proofs from the outputs in a transaction log.
-    fn get_proofs(&self, transaction_log_id: &str) -> Result<Vec<Proof>, ProofServiceError>;
+/// tonfirmation numbers.
+pub trait ConfirmationService {
+    /// Get the confirmations from the outputs in a transaction log.
+    fn get_confirmations(
+        &self,
+        transaction_log_id: &str,
+    ) -> Result<Vec<Confirmation>, ConfirmationServiceError>;
 
-    /// Verify the proof with a given Txo.
-    fn verify_proof(
+    /// Validate the confirmation number with a given Txo.
+    fn validate_confirmation(
         &self,
         account_id: &AccountID,
         txo_id: &TxoID,
-        proof_hex: &str,
-    ) -> Result<bool, ProofServiceError>;
+        confirmation_hex: &str,
+    ) -> Result<bool, ConfirmationServiceError>;
 }
 
-impl<T, FPR> ProofService for WalletService<T, FPR>
+impl<T, FPR> ConfirmationService for WalletService<T, FPR>
 where
     T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
-    fn get_proofs(&self, transaction_log_id: &str) -> Result<Vec<Proof>, ProofServiceError> {
+    fn get_confirmations(
+        &self,
+        transaction_log_id: &str,
+    ) -> Result<Vec<Confirmation>, ConfirmationServiceError> {
         let (_transaction_log, associated_txos) = self.get_transaction_log(&transaction_log_id)?;
 
         let mut results = Vec::new();
         for associated_txo in associated_txos.outputs {
             let txo = self.get_txo(&TxoID(associated_txo.clone()))?;
-            if let Some(proof) = txo.txo.proof {
-                let confirmation: TxOutConfirmationNumber = mc_util_serial::decode(&proof)?;
+            if let Some(confirmation) = txo.txo.confirmation {
+                let confirmation: TxOutConfirmationNumber = mc_util_serial::decode(&confirmation)?;
                 let pubkey: CompressedRistrettoPublic =
                     mc_util_serial::decode(&txo.txo.public_key)?;
                 let txo_index = self.ledger_db.get_tx_out_index_by_public_key(&pubkey)?;
-                results.push(Proof {
+                results.push(Confirmation {
                     txo_id: TxoID(txo.txo.txo_id_hex),
                     txo_index,
-                    proof: confirmation,
+                    confirmation,
                 });
             } else {
-                return Err(ProofServiceError::MissingProof(associated_txo));
+                return Err(ConfirmationServiceError::MissingConfirmation(
+                    associated_txo,
+                ));
             }
         }
         Ok(results)
     }
 
-    fn verify_proof(
+    fn validate_confirmation(
         &self,
         account_id: &AccountID,
         txo_id: &TxoID,
-        proof_hex: &str,
-    ) -> Result<bool, ProofServiceError> {
+        confirmation_hex: &str,
+    ) -> Result<bool, ConfirmationServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        let proof: TxOutConfirmationNumber = mc_util_serial::decode(&hex::decode(proof_hex)?)?;
-        Ok(Txo::verify_proof(
+        let confirmation: TxOutConfirmationNumber =
+            mc_util_serial::decode(&hex::decode(confirmation_hex)?)?;
+        Ok(Txo::validate_confirmation(
             &AccountID(account_id.to_string()),
             &txo_id.to_string(),
-            &proof,
+            &confirmation,
             &conn,
         )?)
     }
