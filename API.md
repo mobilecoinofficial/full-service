@@ -1890,10 +1890,8 @@ curl -s localhost:9090/wallet \
 {
   "method": "build_gift_code",
   "result": {
-    "gift_code": {
-      "tx_proposal": "...",
-      "gift_code_b58": "3Th9MSyznKV8VWAHAYoF8ZnVVunaTcMjRTnXvtzqeJPfAY8c7uQn71d6McViyzjLaREg7AppT7quDmBRG5E48csVhhzF4TEn1tw9Ekwr2hrq57A8cqR6sqpNC47mF7kHe"
-    }
+    "tx_proposal": "...",
+    "gift_code_b58": "3Th9MSyznKV8VWAHAYoF8ZnVVunaTcMjRTnXvtzqeJPfAY8c7uQn71d6McViyzjLaREg7AppT7quDmBRG5E48csVhhzF4TEn1tw9Ekwr2hrq57A8cqR6sqpNC47mF7kHe",
   },
   "error": null,
   "jsonrpc": "2.0",
