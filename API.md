@@ -32,7 +32,8 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 * [verify_proof](#verify-proof)
 * [check_receiver_receipt_status](#check-receiver-receipt-status)
 * [create_receiver_receipts](#create-receiver-receipts)
-* [build_gift_code](#build-and-submit-gift-code)
+* [build_gift_code](#build-gift-code)
+* [submit_gift_code](#submit-gift-code)
 * [get_gift_code](#get-gift-code)
 * [get_all_gift_codes](#get-all-gift-codes)
 * [check_gift_code_status](#check-gift-code-status)
@@ -1868,7 +1869,7 @@ Gift codes are onetime accounts that contain a single Txo. They provide a means 
 
 Builds a Gift Code in a tx_proposal ready to submit to the ledger.
 
-NOTE: You will need to call [submit_transaction](#submit-transaction) with the tx_proposal returned from this method in order to submit the transaction to fund the gift code.
+NOTE: You will need to call [submit_gift_code](#submit-gift-code) with the tx_proposal returned from this method in order to submit the transaction to fund the gift code.
 
 ```sh
 curl -s localhost:9090/wallet \
@@ -1922,6 +1923,53 @@ curl -s localhost:9090/wallet \
 | `tombstone_block` | The block after which this transaction expires | If not provided, uses `cur_height` + 50 |
 | `max_spendable_value` | The maximum amount for an input TXO selected for this transaction |  |
 | `memo` | Memo for whoever claims the Gift Code.   | |
+
+#### Submit Gift Code
+
+Convenience method to submit a tx_proposal related to a recently built gift code to the ledger. Will add the gift code to the wallet_db once the tx_proposal has been appended to the ledger.
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "submit_gift_code",
+        "params": {
+          "gift_code_b58": "3Th9MSyznKV8VWAHAYoF8ZnVVunaTcMjRTnXvtzqeJPfAY8c7uQn71d6McViyzjLaREg7AppT7quDmBRG5E48csVhhzF4TEn1tw9Ekwr2hrq57A8cqR6sqpNC47mF7kHe",
+          "tx_proposal": '$(cat test-tx-proposal.json)',
+          "from_account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
+        },
+        "jsonrpc": "2.0",
+        "id": 1
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
+```
+
+```json
+{
+  "method": "submit_gift_code",
+  "result": {
+    "gift_code": {
+      "id": 14311503,
+      "gift_code_b58": "3Th9MSyznKV8VWAHAYoF8ZnVVunaTcMjRTnXvtzqeJPfAY8c7uQn71d6McViyzjLaREg7AppT7quDmBRG5E48csVhhzF4TEn1tw9Ekwr2hrq57A8cqR6sqpNC47mF7kHe",
+      "entropy": "487d6f7c3e44977c32ccf3aa74fdbe02aebf4a2845efcf994ab5f2e8072a19e3",
+      "txo_public_key": "",
+      "value": 100000000000,
+      "memo": "Happy Birthday!",
+      "account_id_hex": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
+      "txo_id_hex": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6"
+    }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+}
+```
+
+| Required Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `gift_code_b58` | The b58-encoded gift code contents  | Must be a valid b58-encoded gift code.  |
+| `from_account_id` | The account on which to perform this action  | Account must exist in the wallet  |
+| `tx_proposal` | Transaction proposal to submit  | Created with `build_gift_code`  |
+
 
 #### Get Gift Code
 
@@ -2019,16 +2067,7 @@ curl -s localhost:9090/wallet \
   -d '{
         "method": "check_gift_code_status",
         "params": {
-          "gift_code_b58": "2yE5NUCa3CZfv72aUazPoZN4x1rvWE2bNKvGocj8n9iGdKCc9CG72wZeGfRb3UBx2QmaoX6CZsVpYFySgQ3tfmhWpywfrf4GQq4JF1XQmCrrw8qW3C9h3qZ9tfu4fFxgY",
-          "gift_code": {
-            "object": "gift_code",
-            "gift_code_b58": "2yE5NUCa3CZfv72aUazPoZN4x1rvWE2bNKvGocj8n9iGdKCc9CG72wZeGfRb3UBx2QmaoX6CZsVpYFySgQ3tfmhWpywfrf4GQq4JF1XQmCrrw8qW3C9h3qZ9tfu4fFxgY",
-            "entropy": "14aa16d9d4000628c82826d9c43bbc17414f8677e74882bf21e44db75d4c2b87",
-            "value_pmob": "20000000000",
-            "memo": "Happy Birthday!",
-            "account_id": "dba3d3b99fe9ce6bc666490b8176be91ace0f4166853b0327ea39928640ea840",
-            "txo_id": "ab917ed9e69fa97bd9422452b1a2f615c2405301b220f7a81eb091f75eba3f54"
-          }
+          "gift_code_b58": "2yE5NUCa3CZfv72aUazPoZN4x1rvWE2bNKvGocj8n9iGdKCc9CG72wZeGfRb3UBx2QmaoX6CZsVpYFySgQ3tfmhWpywfrf4GQq4JF1XQmCrrw8qW3C9h3qZ9tfu4fFxgY"
         },
         "jsonrpc": "2.0",
         "id": 1
@@ -2040,7 +2079,19 @@ curl -s localhost:9090/wallet \
 {
   "method": "check_gift_code_status",
   "result": {
-    "gift_code_status": "GiftCodeAvailable"
+    "gift_code_status": "GiftCodeAvailable",
+    "gift_code_value": 100000000
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1
+}
+
+{
+  "method": "check_gift_code_status",
+  "result": {
+    "gift_code_status": "GiftCodeSubmittedPending",
+    "gift_code_value": null
   },
   "error": null,
   "jsonrpc": "2.0",
@@ -2081,16 +2132,7 @@ curl -s localhost:9090/wallet \
 {
   "method": "claim_gift_code",
   "result": {
-    "transaction_log_id": "0cd67c3423a68287b82804653792874b7a684cc67156142634084536b3b4c0b4",
-    "gift_code": {
-      "object": "gift_code",
-      "gift_code_b58": "3DkTHXADdEUpRJ5QsrjmYh8WqFdDKkvng126zTP9YQb7LNXL8pbRidCvB7Ba3Mvek5ZZdev8EXNPrJBpGdtvfjk3hew1phmjdkf5mp35mbyvhB8UjRqoJJqDRswLrmKQL",
-      "entropy": "41e1e794f8a2f7227fa8b5cd936f115b8799da712984c85f499e03bca43cba9c",
-      "value_pmob": "60000000000",
-      "memo": "Happy New Year!",
-      "account_id": "050d8d97aaf31c70d63c6aed828c11d3fb16b56b44910659b6724621047b81f9",
-      "txo_id": "5806b6416cd9f5f752180988bc27af246e13d78a8d2308c48a3a85d529e6e57f"
-    }
+    "txo_id_hex": "5806b6416cd9f5f752180988bc27af246e13d78a8d2308c48a3a85d529e6e57f"
   },
   "error": null,
   "jsonrpc": "2.0",
@@ -2098,9 +2140,14 @@ curl -s localhost:9090/wallet \
 }
 ```
 
+| Required Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `gift_code_b58` | The b58-encoded gift code contents  | Must be a valid b58-encoded gift code.  |
+| `account_id` | The account on which to perform this action  | Account must exist in the wallet  |
+
 #### Remove Gift Code
 
-Claim a gift code to an account in this wallet.
+Remove a gift code from the database.
 
 ```sh
 curl -s localhost:9090/wallet \
@@ -2126,6 +2173,10 @@ curl -s localhost:9090/wallet \
   "id": 1
 }
 ```
+
+| Required Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `gift_code_b58` | The b58-encoded gift code contents  | Must be a valid b58-encoded gift code that exists in the database |
 
 ### Ledger and Transaction Data
 
