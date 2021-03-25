@@ -80,6 +80,9 @@ pub enum GiftCodeServiceError {
     /// The Txo is not consumable
     TxoNotConsumable,
 
+    /// The Account is Not Found
+    AccountNotFound,
+
     /// The TxProposal for this GiftCode was constructed in an unexpected
     /// manner.
     UnexpectedTxProposalFormat,
@@ -512,14 +515,14 @@ where
 
         // This can definitely look better
         let default_subaddress = if assigned_subaddress_b58.is_some() {
-            assigned_subaddress_b58.unwrap()
+            assigned_subaddress_b58.ok_or(GiftCodeServiceError::AccountNotFound)
         } else {
             let address = self.assign_address_for_account(
                 &account_id,
                 Some(&json!({"gift_code_memo": decoded_gift_code.memo}).to_string()),
             )?;
-            address.assigned_subaddress_b58
-        };
+            Ok(address.assigned_subaddress_b58)
+        }?;
 
         let recipient_public_address = b58_decode(&default_subaddress)?;
 
