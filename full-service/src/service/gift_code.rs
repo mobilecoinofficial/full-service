@@ -122,7 +122,7 @@ pub enum GiftCodeServiceError {
 
     /// Error with Transaction Builder
     TxBuilder(mc_transaction_std::TxBuilderError),
-    
+
     /// Error with Account Service
     AddressService(AddressServiceError),
 }
@@ -514,11 +514,10 @@ where
         let default_subaddress = if assigned_subaddress_b58.is_some() {
             assigned_subaddress_b58.unwrap()
         } else {
-            let address = self
-                .assign_address_for_account(
-                    &account_id,
-                    Some(&json!({"gift_code_memo": decoded_gift_code.memo}).to_string()),
-                )?;
+            let address = self.assign_address_for_account(
+                &account_id,
+                Some(&json!({"gift_code_memo": decoded_gift_code.memo}).to_string()),
+            )?;
             address.assigned_subaddress_b58
         };
 
@@ -806,8 +805,11 @@ mod tests {
         );
 
         // Making sure it doesn't crash when we try to pass in a non-existent account id
-        let result = service
-            .claim_gift_code(&gift_code_b58, &AccountID("nonexistent_account_id".to_string()), None);
+        let result = service.claim_gift_code(
+            &gift_code_b58,
+            &AccountID("nonexistent_account_id".to_string()),
+            None,
+        );
         assert!(result.is_err());
 
         let tx = service
