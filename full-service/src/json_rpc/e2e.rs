@@ -1650,7 +1650,9 @@ mod e2e {
                 "gift_code_b58": gift_code_b58,
             }
         });
-        dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger);
+        let txo_id_hex = res["result"]["txo_id_hex"].as_str().unwrap();
+        assert_eq!(txo_id_hex.len(), 64);
 
         // Now remove that gift code
         let body = json!({

@@ -2132,7 +2132,7 @@ curl -s localhost:9090/wallet \
 {
   "method": "claim_gift_code",
   "result": {
-    "tx": "TBD -> Currently just an empty string"
+    "txo_id_hex": "5806b6416cd9f5f752180988bc27af246e13d78a8d2308c48a3a85d529e6e57f"
   },
   "error": null,
   "jsonrpc": "2.0",

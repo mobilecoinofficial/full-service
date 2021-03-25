@@ -15,7 +15,6 @@ use crate::{
         json_rpc_response::{format_error, JsonCommandResponse, JsonRPCResponse},
         proof::Proof,
         receiver_receipt::ReceiverReceipt,
-        tx::Tx,
         tx_proposal::TxProposal,
         txo::Txo,
         wallet_status::WalletStatus,
@@ -628,7 +627,9 @@ where
                     address,
                 )
                 .map_err(format_error)?;
-            JsonCommandResponse::claim_gift_code { tx: Tx::from(&tx) }
+            JsonCommandResponse::claim_gift_code {
+                txo_id_hex: TxoID::from(&tx.prefix.outputs[0]).to_string(),
+            }
         }
 
         JsonCommandRequest::remove_gift_code { gift_code_b58 } => {
