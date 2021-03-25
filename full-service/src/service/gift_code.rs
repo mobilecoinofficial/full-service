@@ -513,7 +513,6 @@ where
         let gift_account_key =
             AccountKey::from(&RootIdentity::from(&decoded_gift_code.root_entropy));
 
-        // This can definitely look better
         let default_subaddress = if assigned_subaddress_b58.is_some() {
             assigned_subaddress_b58.ok_or(GiftCodeServiceError::AccountNotFound)
         } else {
