@@ -319,7 +319,7 @@ fn sync_thread_entry_point(
                     ))) => {
                         match info.message() {
                             "database is locked" => {
-                                log::warn!(logger, "Database locked. Will retry")
+                                log::trace!(logger, "Database locked. Will retry")
                             }
                             _ => log::error!(
                                 logger,
