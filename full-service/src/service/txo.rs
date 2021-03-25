@@ -25,8 +25,8 @@ pub enum TxoServiceError {
     /// Diesel Error: {0}
     Diesel(diesel::result::Error),
 
-    /// Minted Txo should contain proof: {0}
-    MissingProof(String),
+    /// Minted Txo should contain confirmation: {0}
+    MissingConfirmation(String),
 }
 
 impl From<WalletDbError> for TxoServiceError {

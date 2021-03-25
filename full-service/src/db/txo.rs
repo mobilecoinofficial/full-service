@@ -61,7 +61,7 @@ pub struct TxoDetails {
 pub struct ProcessedTxProposalOutput {
     /// The recipient of this TxOut - None if change
     pub recipient: Option<PublicAddress>,
-    pub txo_id: String,
+    pub txo_id_hex: String,
     pub value: i64,
     pub txo_type: String,
 }
@@ -206,14 +206,14 @@ pub trait TxoModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
-    /// Verify a proof for a Txo
+    /// Validate a confirmation number for a Txo
     ///
     /// Returns:
     /// * Bool - true if verified
-    fn verify_proof(
+    fn validate_confirmation(
         account_id: &AccountID,
-        txo_id: &str,
-        proof: &TxOutConfirmationNumber,
+        txo_id_hex: &str,
+        confirmation: &TxOutConfirmationNumber,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError>;
 }
@@ -365,7 +365,7 @@ impl TxoModel for Txo {
                         received_block_index: Some(received_block_index as i64),
                         pending_tombstone_block_index: None,
                         spent_block_index: None,
-                        proof: None,
+                        confirmation: None,
                     };
 
                     diesel::insert_into(crate::db::schema::txos::table)
@@ -412,7 +412,7 @@ impl TxoModel for Txo {
         let total_output_value: u64 = tx_proposal.outlays.iter().map(|o| o.value).sum();
         let change_value: u64 = total_input_value - total_output_value - tx_proposal.fee();
         // Determine whether this output is an outlay destination, or change.
-        let (value, proof, outlay_receiver) = if let Some(outlay_index) = tx_proposal
+        let (value, confirmation, outlay_receiver) = if let Some(outlay_index) = tx_proposal
             .outlay_index_to_tx_out_index
             .iter()
             .find_map(|(k, &v)| if v == output_index { Some(k) } else { None })
@@ -441,8 +441,8 @@ impl TxoModel for Txo {
             (TXO_USED_AS_CHANGE, change_value)
         };
 
-        let encoded_proof =
-            proof.map(|p| mc_util_serial::encode(&tx_proposal.outlay_confirmation_numbers[p]));
+        let encoded_confirmation = confirmation
+            .map(|p| mc_util_serial::encode(&tx_proposal.outlay_confirmation_numbers[p]));
 
         conn.transaction::<(), WalletDbError, _>(|| {
             let new_txo = NewTxo {
@@ -458,7 +458,7 @@ impl TxoModel for Txo {
                 received_block_index: None,
                 pending_tombstone_block_index: Some(tx_proposal.tx.prefix.tombstone_block as i64),
                 spent_block_index: None,
-                proof: encoded_proof.as_deref(),
+                confirmation: encoded_confirmation.as_deref(),
             };
 
             diesel::insert_into(txos::table)
@@ -485,7 +485,7 @@ impl TxoModel for Txo {
 
         Ok(ProcessedTxProposalOutput {
             recipient: outlay_receiver,
-            txo_id: txo_id.to_string(),
+            txo_id_hex: txo_id.to_string(),
             value: log_value as i64,
             txo_type: transaction_txo_type.to_string(),
         })
@@ -924,18 +924,18 @@ impl TxoModel for Txo {
         Ok(selected_utxos)
     }
 
-    fn verify_proof(
+    fn validate_confirmation(
         account_id: &AccountID,
-        txo_id: &str,
-        proof: &TxOutConfirmationNumber,
+        txo_id_hex: &str,
+        confirmation: &TxOutConfirmationNumber,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError> {
         Ok(conn.transaction::<bool, WalletDbError, _>(|| {
-            let txo_details = Txo::get(txo_id, conn)?;
+            let txo_details = Txo::get(txo_id_hex, conn)?;
             let public_key: RistrettoPublic = mc_util_serial::decode(&txo_details.txo.public_key)?;
             let account = Account::get(account_id, conn)?;
             let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
-            Ok(proof.validate(&public_key, account_key.view_private_key()))
+            Ok(confirmation.validate(&public_key, account_key.view_private_key()))
         })?)
     }
 }
@@ -1037,7 +1037,7 @@ mod tests {
             received_block_index: Some(12),
             pending_tombstone_block_index: None,
             spent_block_index: None,
-            proof: None,
+            confirmation: None,
         };
         // Verify that the statuses table was updated correctly
         let expected_txo_status = AccountTxoStatus {
@@ -1530,9 +1530,9 @@ mod tests {
         assert!(change_txo_details.received_to_assigned_subaddress.is_none()); // Note: This gets updated on sync
     }
 
-    // Test that proof verifies
+    // Test that the confirmation number validates correctly.
     #[test_with_logger]
-    fn test_verify_proof(logger: Logger) {
+    fn test_validate_confirmation(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -1626,9 +1626,9 @@ mod tests {
         let received_txo = txos[0].clone();
 
         // Note: Because this txo is both received and sent, between two different
-        // accounts, its proof does get updated. Typically, received txos have
-        // None for the proof.
-        assert!(received_txo.txo.proof.is_some());
+        // accounts, its confirmation number does get updated. Typically, received txos
+        // have None for the confirmation number.
+        assert!(received_txo.txo.confirmation.is_some());
 
         // Get the txo from the sent perspective
         log::info!(logger, "Listing all Txos for sender account");
@@ -1655,14 +1655,14 @@ mod tests {
         // what differentiates them.
         assert_eq!(sent_txo_details.txo, received_txo.txo);
 
-        assert!(sent_txo_details.txo.proof.is_some());
-        let proof: TxOutConfirmationNumber =
-            mc_util_serial::decode(&sent_txo_details.txo.proof.unwrap()).unwrap();
-        log::info!(logger, "Verifying the proof");
-        let verified = Txo::verify_proof(
+        assert!(sent_txo_details.txo.confirmation.is_some());
+        let confirmation: TxOutConfirmationNumber =
+            mc_util_serial::decode(&sent_txo_details.txo.confirmation.unwrap()).unwrap();
+        log::info!(logger, "Validating the confirmation number");
+        let verified = Txo::validate_confirmation(
             &AccountID::from(&recipient_account_key),
             &received_txo.txo.txo_id_hex,
-            &proof,
+            &confirmation,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();

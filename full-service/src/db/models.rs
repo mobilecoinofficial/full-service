@@ -141,7 +141,7 @@ pub struct Txo {
     pub received_block_index: Option<i64>,
     pub pending_tombstone_block_index: Option<i64>,
     pub spent_block_index: Option<i64>,
-    pub proof: Option<Vec<u8>>,
+    pub confirmation: Option<Vec<u8>>,
 }
 
 /// A structure that can be inserted to create a new entity in the `txos` table.
@@ -159,7 +159,7 @@ pub struct NewTxo<'a> {
     pub received_block_index: Option<i64>,
     pub pending_tombstone_block_index: Option<i64>,
     pub spent_block_index: Option<i64>,
-    pub proof: Option<&'a [u8]>,
+    pub confirmation: Option<&'a [u8]>,
 }
 
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
