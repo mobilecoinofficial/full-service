@@ -18,7 +18,7 @@ use crate::{
     },
     service::{
         account::AccountServiceError,
-        address::AddressService,
+        address::{AddressService, AddressServiceError},
         transaction::{TransactionService, TransactionServiceError},
         WalletService,
     },
@@ -80,6 +80,9 @@ pub enum GiftCodeServiceError {
     /// The Txo is not consumable
     TxoNotConsumable,
 
+    /// The Account is Not Found
+    AccountNotFound,
+
     /// The TxProposal for this GiftCode was constructed in an unexpected
     /// manner.
     UnexpectedTxProposalFormat,
@@ -122,6 +125,9 @@ pub enum GiftCodeServiceError {
 
     /// Error with Transaction Builder
     TxBuilder(mc_transaction_std::TxBuilderError),
+
+    /// Error with Account Service
+    AddressService(AddressServiceError),
 }
 
 impl From<WalletDbError> for GiftCodeServiceError {
@@ -193,6 +199,12 @@ impl From<mc_api::ConversionError> for GiftCodeServiceError {
 impl From<retry::Error<mc_connection::Error>> for GiftCodeServiceError {
     fn from(e: retry::Error<mc_connection::Error>) -> Self {
         Self::Connection(e)
+    }
+}
+
+impl From<AddressServiceError> for GiftCodeServiceError {
+    fn from(src: AddressServiceError) -> Self {
+        Self::AddressService(src)
     }
 }
 
@@ -501,15 +513,15 @@ where
         let gift_account_key =
             AccountKey::from(&RootIdentity::from(&decoded_gift_code.root_entropy));
 
-        let default_subaddress = assigned_subaddress_b58.unwrap_or_else(|| {
-            let address = self
-                .assign_address_for_account(
-                    &account_id,
-                    Some(&json!({"gift_code_memo": decoded_gift_code.memo}).to_string()),
-                )
-                .unwrap();
-            address.assigned_subaddress_b58
-        });
+        let default_subaddress = if assigned_subaddress_b58.is_some() {
+            assigned_subaddress_b58.ok_or(GiftCodeServiceError::AccountNotFound)
+        } else {
+            let address = self.assign_address_for_account(
+                &account_id,
+                Some(&json!({"gift_code_memo": decoded_gift_code.memo}).to_string()),
+            )?;
+            Ok(address.assigned_subaddress_b58)
+        }?;
 
         let recipient_public_address = b58_decode(&default_subaddress)?;
 
@@ -793,6 +805,14 @@ mod tests {
             14,
             &logger,
         );
+
+        // Making sure it doesn't crash when we try to pass in a non-existent account id
+        let result = service.claim_gift_code(
+            &gift_code_b58,
+            &AccountID("nonexistent_account_id".to_string()),
+            None,
+        );
+        assert!(result.is_err());
 
         let tx = service
             .claim_gift_code(&gift_code_b58, &AccountID(bob.account_id_hex.clone()), None)
