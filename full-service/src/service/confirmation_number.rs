@@ -140,7 +140,7 @@ where
                 results.push(Confirmation {
                     txo_id: TxoID(txo.txo.txo_id_hex),
                     txo_index,
-                    confirmation: confirmation,
+                    confirmation,
                 });
             } else {
                 return Err(ConfirmationServiceError::MissingConfirmation(
