@@ -33,7 +33,7 @@ pub struct Txo {
     /// Flag that indicates if the spent_block_index was recovered from the
     /// ledger. This value is null if the txo is unspent. If true, some
     /// information may not be available on the txo without user input. If true,
-    /// the proof will be null without user input.
+    /// the confirmation number will be null without user input.
     pub is_spent_recovered: bool, // FIXME: WS-16 is_spent_recovered
 
     /// The account_id for the account which has received this TXO. This account
@@ -84,9 +84,9 @@ pub struct Txo {
     /// required to spend a Txo.
     pub key_image: Option<String>,
 
-    /// A proof that the sender of the Txo can provide to verify that they
-    /// participated in the construction of this Txo.
-    pub proof: Option<String>,
+    /// A confirmation number that the sender of the Txo can provide to verify
+    /// that they participated in the construction of this Txo.
+    pub confirmation: Option<String>,
 
     /// The value to offset pagination requests. Requests will exclude all list
     /// items up to and including this object.
@@ -137,7 +137,7 @@ impl From<&TxoDetails> for Txo {
                 .clone()
                 .map(|a| a.assigned_subaddress_b58),
             key_image: txo_details.txo.key_image.as_ref().map(|k| hex::encode(&k)),
-            proof: txo_details.txo.proof.as_ref().map(hex::encode),
+            confirmation: txo_details.txo.confirmation.as_ref().map(hex::encode),
             offset_count: txo_details.txo.id,
         }
     }

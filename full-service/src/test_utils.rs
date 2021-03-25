@@ -314,9 +314,9 @@ pub fn add_block_with_db_txos(
 ) -> u64 {
     let outputs: Vec<TxOut> = output_txo_ids
         .iter()
-        .map(|txo_id| {
+        .map(|txo_id_hex| {
             mc_util_serial::decode(
-                &Txo::get(&txo_id.to_string(), &wallet_db.get_conn().unwrap())
+                &Txo::get(&txo_id_hex.to_string(), &wallet_db.get_conn().unwrap())
                     .unwrap()
                     .txo
                     .txo,
@@ -534,8 +534,8 @@ pub fn create_test_minted_and_change_txos(
     // Change starts as an output, and is updated to change when scanned.
     assert_eq!(processed_change.txo_type, TXO_USED_AS_CHANGE);
     (
-        (processed_output.txo_id, processed_output.value),
-        (processed_change.txo_id, processed_change.value),
+        (processed_output.txo_id_hex, processed_output.value),
+        (processed_change.txo_id_hex, processed_change.value),
     )
 }
 
