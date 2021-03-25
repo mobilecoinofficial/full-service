@@ -1891,18 +1891,8 @@ curl -s localhost:9090/wallet \
   "method": "build_gift_code",
   "result": {
     "gift_code": {
-      "object": "gift_code",
       "tx_proposal": "...",
-      "gift_code_b58": "3Th9MSyznKV8VWAHAYoF8ZnVVunaTcMjRTnXvtzqeJPfAY8c7uQn71d6McViyzjLaREg7AppT7quDmBRG5E48csVhhzF4TEn1tw9Ekwr2hrq57A8cqR6sqpNC47mF7kHe",
-      "gift_code": {
-        "object": "gift_code",
-        "gift_code_b58": "3Th9MSyznKV8VWAHAYoF8ZnVVunaTcMjRTnXvtzqeJPfAY8c7uQn71d6McViyzjLaREg7AppT7quDmBRG5E48csVhhzF4TEn1tw9Ekwr2hrq57A8cqR6sqpNC47mF7kHe",
-        "entropy": "487d6f7c3e44977c32ccf3aa74fdbe02aebf4a2845efcf994ab5f2e8072a19e3",
-        "value_pmob": "42000000000000",
-        "memo": "Happy Birthday!",
-        "account_id": "1e7a1cf00adc278fa27b1e885e5ed6c1ff793c6bc56a9255c97d9daafdfdffeb",
-        "txo_id_hex": "46725fd1dc65f170dd8d806a942c516112c080ec87b29ef1529c2014e27cc653"
-      }
+      "gift_code_b58": "3Th9MSyznKV8VWAHAYoF8ZnVVunaTcMjRTnXvtzqeJPfAY8c7uQn71d6McViyzjLaREg7AppT7quDmBRG5E48csVhhzF4TEn1tw9Ekwr2hrq57A8cqR6sqpNC47mF7kHe"
     }
   },
   "error": null,
@@ -1948,14 +1938,13 @@ curl -s localhost:9090/wallet \
   "method": "submit_gift_code",
   "result": {
     "gift_code": {
-      "id": 14311503,
+      "object": "gift_code",
       "gift_code_b58": "3Th9MSyznKV8VWAHAYoF8ZnVVunaTcMjRTnXvtzqeJPfAY8c7uQn71d6McViyzjLaREg7AppT7quDmBRG5E48csVhhzF4TEn1tw9Ekwr2hrq57A8cqR6sqpNC47mF7kHe",
       "entropy": "487d6f7c3e44977c32ccf3aa74fdbe02aebf4a2845efcf994ab5f2e8072a19e3",
-      "txo_public_key": "",
-      "value": 100000000000,
+      "value_pmob": "42000000000000",
       "memo": "Happy Birthday!",
-      "account_id_hex": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
-      "txo_id_hex": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6"
+      "account_id": "1e7a1cf00adc278fa27b1e885e5ed6c1ff793c6bc56a9255c97d9daafdfdffeb",
+      "txo_id_hex": "46725fd1dc65f170dd8d806a942c516112c080ec87b29ef1529c2014e27cc653"
     }
   },
   "error": null,
