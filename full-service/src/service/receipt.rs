@@ -4,7 +4,7 @@
 //!
 //! A transaction receipt is constructed at the same time a transaction is
 //! constructed. It contains details about the outputs in the transaction, as
-//! well as a confirmation proof for each output, linking the sender to the
+//! well as a confirmation number for each output, linking the sender to the
 //! output. The chooses whether to share this receipt with the recipient, for
 //! example, in the case of a dispute.
 
@@ -127,8 +127,8 @@ pub enum ReceiptTransactionStatus {
     /// invalid.
     TxosReceivedAtDifferentBlockIndices,
 
-    /// Invalid proof
-    InvalidProof,
+    /// Invalid confirmation number.
+    InvalidConfirmation,
 
     /// Receipt contains duplicate Txos
     DuplicateTxos,
@@ -162,7 +162,7 @@ impl TryFrom<&mc_api::external::Receipt> for ReceiverReceipt {
 pub trait ReceiptService {
     /// Check the status of the Txos in the receipts.
     ///
-    /// Applies the proofs by verifying the proofs once the Txos have landed.
+    /// Validates confirmation numbers once the Txos have landed.
     fn check_receipt_status(
         &self,
         address: &str,
@@ -243,13 +243,18 @@ where
                         ));
                     }
 
-                    // Verify the proof.
-                    let proof_hex =
+                    // Validate the confirmation number.
+                    let confirmation_hex =
                         hex::encode(mc_util_serial::encode(&receiver_receipt.confirmation));
-                    let proof: TxOutConfirmationNumber =
-                        mc_util_serial::decode(&hex::decode(proof_hex)?)?;
-                    if !Txo::verify_proof(&account_id, &txo.txo_id_hex.clone(), &proof, &conn)? {
-                        return Ok((ReceiptTransactionStatus::InvalidProof, Some(details)));
+                    let confirmation: TxOutConfirmationNumber =
+                        mc_util_serial::decode(&hex::decode(confirmation_hex)?)?;
+                    if !Txo::validate_confirmation(
+                        &account_id,
+                        &txo.txo_id_hex.clone(),
+                        &confirmation,
+                        &conn,
+                    )? {
+                        return Ok((ReceiptTransactionStatus::InvalidConfirmation, Some(details)));
                     }
 
                     Ok((ReceiptTransactionStatus::TransactionSuccess, Some(details)))
@@ -291,9 +296,9 @@ mod tests {
             transaction_log::{AssociatedTxos, TransactionLogModel},
         },
         service::{
-            account::AccountService, address::AddressService, proof::ProofService,
-            transaction::TransactionService, transaction_log::TransactionLogService,
-            txo::TxoService,
+            account::AccountService, address::AddressService,
+            confirmation_number::ConfirmationService, transaction::TransactionService,
+            transaction_log::TransactionLogService, txo::TxoService,
         },
         test_utils::{
             add_block_to_ledger_db, add_block_with_tx_proposal, get_test_ledger,
@@ -323,9 +328,9 @@ mod tests {
         )
         .expect("Could not make TxOut");
         let tombstone = rng.next_u64();
-        let mut proof_bytes = [0u8; 32];
-        rng.fill_bytes(&mut proof_bytes);
-        let confirmation_number = TxOutConfirmationNumber::from(proof_bytes);
+        let mut confirmation_bytes = [0u8; 32];
+        rng.fill_bytes(&mut confirmation_bytes);
+        let confirmation_number = TxOutConfirmationNumber::from(confirmation_bytes);
 
         let mut proto_tx_receipt = mc_api::external::Receipt::new();
         proto_tx_receipt.set_public_key((&txo.public_key).into());
@@ -441,7 +446,7 @@ mod tests {
         assert_eq!(txos.len(), 1);
 
         // Get the corresponding TransactionLog for Alice's Account - only the sender
-        // has the proof.
+        // has the confirmation number.
         let transaction_logs = service
             .list_transaction_logs(&AccountID(alice.account_id_hex))
             .expect("Could not get transaction logs");
@@ -457,10 +462,10 @@ mod tests {
         let sent_transaction_log: TransactionLog =
             sent_transaction_logs_and_associated_txos[0].0.clone();
 
-        let proofs = service
-            .get_proofs(&sent_transaction_log.transaction_id_hex)
-            .expect("Could not get proofs");
-        assert_eq!(proofs.len(), 1);
+        let confirmations = service
+            .get_confirmations(&sent_transaction_log.transaction_id_hex)
+            .expect("Could not get confirmations");
+        assert_eq!(confirmations.len(), 1);
 
         let txo_pubkey =
             mc_util_serial::decode(&txos[0].txo.public_key).expect("Could not decode pubkey");
@@ -468,7 +473,7 @@ mod tests {
         assert_eq!(receipt.tombstone_block, 63); // Ledger seeded with 12 blocks at tx construction, then one appended + 50
         let txo: TxOut = mc_util_serial::decode(&txos[0].txo.txo).expect("Could not decode txo");
         assert_eq!(receipt.amount, txo.amount);
-        assert_eq!(receipt.confirmation, proofs[0].proof);
+        assert_eq!(receipt.confirmation, confirmations[0].confirmation);
     }
 
     // All txos received should return TransactionSuccess, and TransactionPending
@@ -706,7 +711,7 @@ mod tests {
     }
 
     #[test_with_logger]
-    fn test_check_receiver_receipt_status_invalid_proof(logger: Logger) {
+    fn test_check_receiver_receipt_status_invalid_confirmation(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -781,18 +786,18 @@ mod tests {
         );
         manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, 14, &logger);
 
-        // Construct an invalid receipt with an incorrect proof
+        // Construct an invalid receipt with an incorrect confirmation number.
         let mut receipt = receipt0.clone();
-        let mut bad_proof_bytes = [0u8; 32];
-        rng.fill_bytes(&mut bad_proof_bytes);
-        let bad_proof = TxOutConfirmationNumber::from(bad_proof_bytes);
-        receipt.confirmation = bad_proof;
+        let mut bad_confirmation_bytes = [0u8; 32];
+        rng.fill_bytes(&mut bad_confirmation_bytes);
+        let bad_confirmation = TxOutConfirmationNumber::from(bad_confirmation_bytes);
+        receipt.confirmation = bad_confirmation;
 
         // Bob checks the status, and is expecting an incorrect value
         let (status, _txo) = service
             .check_receipt_status(&bob_address, &receipt)
             .expect("Could not check status of receipt");
-        assert_eq!(status, ReceiptTransactionStatus::InvalidProof);
+        assert_eq!(status, ReceiptTransactionStatus::InvalidConfirmation);
 
         // Checking for the sender will be pending because the Txos haven't landed for
         // alice (and never will).

@@ -10,10 +10,10 @@ use crate::{
         address::Address,
         balance::Balance,
         block::{Block, BlockContents},
+        confirmation_number::Confirmation,
         gift_code::GiftCode,
         json_rpc_request::{help_str, JsonCommandRequest, JsonRPCRequest},
         json_rpc_response::{format_error, JsonCommandResponse, JsonRPCResponse},
-        proof::Proof,
         receiver_receipt::ReceiverReceipt,
         tx_proposal::TxProposal,
         txo::Txo,
@@ -24,9 +24,9 @@ use crate::{
         account::AccountService,
         address::AddressService,
         balance::BalanceService,
+        confirmation_number::ConfirmationService,
         gift_code::{EncodedGiftCode, GiftCodeService},
         ledger::LedgerService,
-        proof::ProofService,
         receipt::ReceiptService,
         transaction::TransactionService,
         transaction_log::TransactionLogService,
@@ -442,8 +442,8 @@ where
                 txo_map,
             }
         }
-        JsonCommandRequest::get_txo { txo_id } => {
-            let result = service.get_txo(&TxoID(txo_id)).map_err(format_error)?;
+        JsonCommandRequest::get_txo { txo_id_hex } => {
+            let result = service.get_txo(&TxoID(txo_id_hex)).map_err(format_error)?;
             JsonCommandResponse::get_txo {
                 txo: Txo::from(&result),
             }
@@ -468,23 +468,25 @@ where
                 txo_map,
             }
         }
-        JsonCommandRequest::get_proofs { transaction_log_id } => JsonCommandResponse::get_proofs {
-            proofs: service
-                .get_proofs(&transaction_log_id)
-                .map_err(format_error)?
-                .iter()
-                .map(Proof::from)
-                .collect(),
-        },
-        JsonCommandRequest::verify_proof {
+        JsonCommandRequest::get_confirmations { transaction_log_id } => {
+            JsonCommandResponse::get_confirmations {
+                confirmations: service
+                    .get_confirmations(&transaction_log_id)
+                    .map_err(format_error)?
+                    .iter()
+                    .map(Confirmation::from)
+                    .collect(),
+            }
+        }
+        JsonCommandRequest::validate_confirmation {
             account_id,
-            txo_id,
-            proof,
+            txo_id_hex,
+            confirmation,
         } => {
             let result = service
-                .verify_proof(&AccountID(account_id), &TxoID(txo_id), &proof)
+                .validate_confirmation(&AccountID(account_id), &TxoID(txo_id_hex), &confirmation)
                 .map_err(format_error)?;
-            JsonCommandResponse::verify_proof { verified: result }
+            JsonCommandResponse::validate_confirmation { validated: result }
         }
         JsonCommandRequest::get_mc_protocol_transaction { transaction_log_id } => {
             let tx = service
@@ -496,8 +498,8 @@ where
                 transaction: json_tx,
             }
         }
-        JsonCommandRequest::get_mc_protocol_txo { txo_id } => {
-            let tx_out = service.get_txo_object(&txo_id).map_err(format_error)?;
+        JsonCommandRequest::get_mc_protocol_txo { txo_id_hex } => {
+            let tx_out = service.get_txo_object(&txo_id_hex).map_err(format_error)?;
             let proto_txo = mc_api::external::TxOut::from(&tx_out);
             let json_txo = JsonTxOut::from(&proto_txo);
             JsonCommandResponse::get_mc_protocol_txo { txo: json_txo }

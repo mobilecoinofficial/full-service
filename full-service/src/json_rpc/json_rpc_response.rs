@@ -11,8 +11,8 @@ use crate::{
         address::Address,
         balance::Balance,
         block::{Block, BlockContents},
+        confirmation_number::Confirmation,
         gift_code::GiftCode,
-        proof::Proof,
         receiver_receipt::ReceiverReceipt,
         transaction_log::TransactionLog,
         tx_proposal::TxProposal,
@@ -210,11 +210,11 @@ pub enum JsonCommandResponse {
         txo_ids: Vec<String>,
         txo_map: Map<String, serde_json::Value>,
     },
-    get_proofs {
-        proofs: Vec<Proof>,
+    get_confirmations {
+        confirmations: Vec<Confirmation>,
     },
-    verify_proof {
-        verified: bool,
+    validate_confirmation {
+        validated: bool,
     },
     get_mc_protocol_transaction {
         transaction: JsonTx,

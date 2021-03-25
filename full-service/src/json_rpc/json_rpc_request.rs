@@ -139,24 +139,24 @@ pub enum JsonCommandRequest {
         account_id: String,
     },
     get_txo {
-        txo_id: String,
+        txo_id_hex: String,
     },
     get_all_txos_for_address {
         address: String,
     },
-    get_proofs {
+    get_confirmations {
         transaction_log_id: String,
     },
-    verify_proof {
+    validate_confirmation {
         account_id: String,
-        txo_id: String,
-        proof: String,
+        txo_id_hex: String,
+        confirmation: String,
     },
     get_mc_protocol_transaction {
         transaction_log_id: String,
     },
     get_mc_protocol_txo {
-        txo_id: String,
+        txo_id_hex: String,
     },
     get_block {
         block_index: String,

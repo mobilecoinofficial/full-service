@@ -90,7 +90,7 @@ table! {
         received_block_index -> Nullable<BigInt>,
         pending_tombstone_block_index -> Nullable<BigInt>,
         spent_block_index -> Nullable<BigInt>,
-        proof -> Nullable<Binary>,
+        confirmation -> Nullable<Binary>,
     }
 }
 
