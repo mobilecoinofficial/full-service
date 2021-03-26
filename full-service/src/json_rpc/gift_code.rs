@@ -32,7 +32,7 @@ pub struct GiftCode {
     pub account_id: String,
 
     /// The Txo ID of the Txo in the Gift Code.
-    pub txo_id: String,
+    pub txo_id_hex: String,
 }
 
 impl From<&db::models::GiftCode> for GiftCode {
@@ -44,7 +44,7 @@ impl From<&db::models::GiftCode> for GiftCode {
             value_pmob: src.value.to_string(),
             memo: src.memo.clone(),
             account_id: src.account_id_hex.to_string(),
-            txo_id: src.txo_id_hex.to_string(),
+            txo_id_hex: src.txo_id_hex.to_string(),
         }
     }
 }
