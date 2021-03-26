@@ -2067,7 +2067,8 @@ curl -s localhost:9090/wallet \
   "method": "check_gift_code_status",
   "result": {
     "gift_code_status": "GiftCodeAvailable",
-    "gift_code_value": 100000000
+    "gift_code_value": 100000000,
+    "gift_code_memo": "Happy Birthday!"
   },
   "error": null,
   "jsonrpc": "2.0",
@@ -2079,6 +2080,7 @@ curl -s localhost:9090/wallet \
   "result": {
     "gift_code_status": "GiftCodeSubmittedPending",
     "gift_code_value": null
+    "gift_code_memo": "",
   },
   "error": null,
   "jsonrpc": "2.0",
