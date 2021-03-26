@@ -249,6 +249,7 @@ pub enum JsonCommandResponse {
     check_gift_code_status {
         gift_code_status: GiftCodeStatus,
         gift_code_value: Option<i64>,
+        gift_code_memo: String,
     },
     claim_gift_code {
         txo_id_hex: String,

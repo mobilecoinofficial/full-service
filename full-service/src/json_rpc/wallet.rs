@@ -609,12 +609,13 @@ where
                 .collect(),
         },
         JsonCommandRequest::check_gift_code_status { gift_code_b58 } => {
-            let (status, value) = service
+            let (status, value, memo) = service
                 .check_gift_code_status(&EncodedGiftCode(gift_code_b58))
                 .map_err(format_error)?;
             JsonCommandResponse::check_gift_code_status {
                 gift_code_status: status,
                 gift_code_value: value,
+                gift_code_memo: memo,
             }
         }
         JsonCommandRequest::claim_gift_code {

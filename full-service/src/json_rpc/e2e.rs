@@ -1567,6 +1567,8 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let status = res["result"]["gift_code_status"].as_str().unwrap();
         assert_eq!(status, "GiftCodeSubmittedPending");
+        let memo = res["result"]["gift_code_memo"].as_str().unwrap();
+        assert_eq!(memo, "Happy Birthday!");
 
         // Submit the gift code and tx proposal
         let body = json!({
@@ -1603,6 +1605,8 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let status = res["result"]["gift_code_status"].as_str().unwrap();
         assert_eq!(status, "GiftCodeAvailable");
+        let memo = res["result"]["gift_code_memo"].as_str().unwrap();
+        assert_eq!(memo, "Happy Birthday!");
 
         // Add Bob's account to our wallet
         let body = json!({
