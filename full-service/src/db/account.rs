@@ -5,9 +5,8 @@
 use crate::db::{
     account_txo_status::AccountTxoStatusModel,
     assigned_subaddress::AssignedSubaddressModel,
-    gift_code::GiftCodeModel,
     models::{
-        Account, AccountTxoStatus, AssignedSubaddress, GiftCode, NewAccount, TransactionLog, Txo,
+        Account, AccountTxoStatus, AssignedSubaddress, NewAccount, TransactionLog, Txo,
         TXO_STATUS_SPENT,
     },
     transaction_log::TransactionLogModel,
@@ -362,9 +361,6 @@ impl AccountModel for Account {
 
         // Also delete txo statuses associated with this account.
         AccountTxoStatus::delete_all_for_account(&self.account_id_hex, conn)?;
-
-        // And finally, delete all of the gift codes from the database
-        GiftCode::delete_all(conn)?;
 
         Ok(())
     }
