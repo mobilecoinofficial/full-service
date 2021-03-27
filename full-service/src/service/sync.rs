@@ -383,8 +383,6 @@ pub fn sync_account(
                 account_id,
             );
 
-            log::info!(logger, "process_txos");
-
             // Match tx outs into UTXOs.
             let output_txo_ids = process_txos(
                 &conn,
@@ -394,7 +392,6 @@ pub fn sync_account(
                 logger,
             )?;
 
-            log::info!(logger, "update spent and increment next block");
             // Note: Doing this here means we are updating key images multiple times, once
             // per account. We do actually want to do it this way, because each account may
             // need to process the same block at a different time, depending on when we add
@@ -405,7 +402,6 @@ pub fn sync_account(
                 &conn,
             )?;
 
-            log::info!(logger, "add transaction log for the received txos");
             // Add a transaction for the received TXOs
             TransactionLog::log_received(
                 &output_txo_ids,
@@ -497,7 +493,6 @@ pub fn process_txos(
             KeyImage::from(&onetime_private_key)
         });
 
-        log::info!(logger, "inserting txo into database");
         // Insert received txo
         let txo_id = Txo::create_received(
             tx_out.clone(),
@@ -508,8 +503,6 @@ pub fn process_txos(
             &account_id_hex,
             &conn,
         )?;
-
-        log::info!(logger, "inserted txo into database");
 
         // If we couldn't find an assigned subaddress for this value, store for -1
         let subaddress_key: i64 = subaddress_index.unwrap_or(-1) as i64;
