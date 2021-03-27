@@ -238,7 +238,6 @@ impl TxoModel for Txo {
                         match AccountTxoStatus::get(account_id_hex, &txo_id.to_string(), conn) {
                             // The txo/pairing exists for this account in this wallet.
                             Ok(account_txo_status) => {
-                                println!("pairing to account exists...");
                                 match account_txo_status.txo_status.as_str() {
                                     TXO_STATUS_SECRETED => {
                                         match account_txo_status.txo_type.as_str() {
@@ -311,7 +310,6 @@ impl TxoModel for Txo {
                             // We also want to set it as unspent, but we need to create a new
                             // AccountTxoStatus entry.
                             Err(WalletDbError::AccountTxoStatusNotFound(_)) => {
-                                println!("txo pairing status does not exist for account...");
                                 let status = if subaddress_index.is_some() {
                                     // If the Txo was already in the DB, but not for this account,
                                     // we need to update to spendable with the subaddress and
