@@ -64,6 +64,11 @@ pub trait GiftCodeModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<GiftCode>, WalletDbError>;
 
+    /// Delete all gift codes from the database
+    fn delete_all(
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError>;
+
     /// Delete a gift code.
     fn delete(
         self,
@@ -130,6 +135,14 @@ impl GiftCodeModel for GiftCode {
         Ok(gift_codes::table
             .select(gift_codes::all_columns)
             .load::<GiftCode>(conn)?)
+    }
+
+    fn delete_all(
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::gift_codes::dsl::gift_codes;
+        diesel::delete(gift_codes).execute(conn)?;
+        Ok(())
     }
 
     fn delete(

@@ -5,8 +5,9 @@
 use crate::db::{
     account_txo_status::AccountTxoStatusModel,
     assigned_subaddress::AssignedSubaddressModel,
+    gift_code::GiftCodeModel,
     models::{
-        Account, AccountTxoStatus, AssignedSubaddress, NewAccount, TransactionLog, Txo,
+        Account, AccountTxoStatus, AssignedSubaddress, GiftCode, NewAccount, TransactionLog, Txo,
         TXO_STATUS_SPENT,
     },
     transaction_log::TransactionLogModel,
@@ -353,11 +354,17 @@ impl AccountModel for Account {
 
         diesel::delete(accounts.filter(account_id_hex.eq(&self.account_id_hex))).execute(conn)?;
 
+        // Also delete transaction logs associated with this account
+        TransactionLog::delete_all_for_account(&self.account_id_hex, conn)?;
+
         // Also delete the associated assigned subaddresses
         AssignedSubaddress::delete_all(&self.account_id_hex, conn)?;
 
         // Also delete txo statuses associated with this account.
         AccountTxoStatus::delete_all_for_account(&self.account_id_hex, conn)?;
+
+        // And finally, delete all of the gift codes from the database
+        GiftCode::delete_all(conn)?;
 
         Ok(())
     }

@@ -177,8 +177,6 @@ impl AccountTxoStatusModel for AccountTxoStatus {
             .load(conn)?;
         println!("diesel load with filter {:?}", results);
 
-        // let res = account_txo_statuses.filter(cols::account_id_hex.
-        // eq(account_id_hex)).load::<AccountTxoStatus>(conn)?;
         println!(
             "{}",
             debug_query::<Sqlite, _>(&diesel::delete(
