@@ -134,6 +134,12 @@ pub trait TransactionLogModel {
         account_id_hex: Option<&str>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<TransactionLog, WalletDbError>;
+
+    /// Remove all logs for an account
+    fn delete_all_for_account(
+        account_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError>;
 }
 
 impl TransactionLogModel for TransactionLog {
@@ -543,6 +549,33 @@ impl TransactionLogModel for TransactionLog {
             }
         })?;
         Ok(TransactionLog::get(&transaction_log_id, conn)?)
+    }
+
+    fn delete_all_for_account(
+        account_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::{
+            transaction_logs as cols, transaction_logs::dsl::transaction_logs,
+            transaction_txo_types as types_cols, transaction_txo_types::dsl::transaction_txo_types,
+        };
+
+        let results: Vec<String> = transaction_logs
+            .filter(cols::account_id_hex.eq(account_id_hex))
+            .select(cols::transaction_id_hex)
+            .load(conn)?;
+
+        for transaction_id_hex in results.iter() {
+            diesel::delete(
+                transaction_txo_types.filter(types_cols::transaction_id_hex.eq(transaction_id_hex)),
+            )
+            .execute(conn)?;
+        }
+
+        diesel::delete(transaction_logs.filter(cols::account_id_hex.eq(account_id_hex)))
+            .execute(conn)?;
+
+        Ok(())
     }
 }
 

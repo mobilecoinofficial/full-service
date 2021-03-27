@@ -353,6 +353,9 @@ impl AccountModel for Account {
 
         diesel::delete(accounts.filter(account_id_hex.eq(&self.account_id_hex))).execute(conn)?;
 
+        // Also delete transaction logs associated with this account
+        TransactionLog::delete_all_for_account(&self.account_id_hex, conn)?;
+
         // Also delete the associated assigned subaddresses
         AssignedSubaddress::delete_all(&self.account_id_hex, conn)?;
 

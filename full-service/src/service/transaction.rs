@@ -226,7 +226,7 @@ where
             .propose_tx(&tx, empty())
             .map_err(TransactionServiceError::from)?;
 
-        log::info!(
+        log::trace!(
             self.logger,
             "Tx {:?} submitted at block height {}",
             tx,
