@@ -411,6 +411,7 @@ mod tests {
                 &root_id.root_entropy,
                 Some(0),
                 None,
+                None,
                 "Alice's Main Account",
                 None,
                 None,
@@ -473,6 +474,7 @@ mod tests {
             &root_id_secondary.root_entropy,
             Some(51),
             Some(50),
+            None,
             "",
             None,
             None,
@@ -547,6 +549,7 @@ mod tests {
             let (account_id_hex, _public_address_b58) = Account::create(
                 &root_id.root_entropy,
                 Some(0),
+                None,
                 None,
                 "Alice's Main Account",
                 None,

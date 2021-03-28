@@ -870,6 +870,151 @@ mod e2e {
     }
 
     #[test_with_logger]
+    fn test_import_account_with_next_subaddress_index(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
+
+        // create an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_account",
+            "params": {
+                "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
+                "name": "Alice Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+
+        // assign next subaddress for account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "assign_address_for_account",
+            "params": {
+                "account_id": account_id,
+                "metadata": "subaddress_index_2",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let address = result.get("address").unwrap();
+        let b58_public_address = address.get("public_address").unwrap().as_str().unwrap();
+        let public_address = b58_decode(b58_public_address).unwrap();
+
+        // Add a block to fund account at the new subaddress.
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![public_address],
+            100000000000000, // 100.0 MOB
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        assert_eq!(ledger_db.num_blocks().unwrap(), 13);
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_account",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance = result.get("balance").unwrap();
+        let unspent_pmob = balance.get("unspent_pmob").unwrap().as_str().unwrap();
+
+        assert_eq!("100000000000000", unspent_pmob);
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "remove_account",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        dispatch(&client, body, &logger);
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_account",
+            "params": {
+                "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
+                "name": "Alice Main Account",
+            }
+        });
+        dispatch(&client, body, &logger);
+
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_account",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance = result.get("balance").unwrap();
+        let unspent_pmob = balance.get("unspent_pmob").unwrap().as_str().unwrap();
+        let orphaned_pmob = balance.get("orphaned_pmob").unwrap().as_str().unwrap();
+
+        assert_eq!("0", unspent_pmob);
+        assert_eq!("100000000000000", orphaned_pmob);
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "remove_account",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        dispatch(&client, body, &logger);
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_account",
+            "params": {
+                "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
+                "name": "Alice Main Account",
+                "next_subaddress_index": "3",
+            }
+        });
+        dispatch(&client, body, &logger);
+
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_account",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance = result.get("balance").unwrap();
+        let unspent_pmob = balance.get("unspent_pmob").unwrap().as_str().unwrap();
+        let orphaned_pmob = balance.get("orphaned_pmob").unwrap().as_str().unwrap();
+
+        assert_eq!("100000000000000", unspent_pmob);
+        assert_eq!("0", orphaned_pmob);
+    }
+
+    #[test_with_logger]
     fn test_send_txo_from_removed_account(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
