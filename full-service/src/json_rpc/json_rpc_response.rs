@@ -251,7 +251,7 @@ pub enum JsonCommandResponse {
         gift_code_value: Option<i64>,
     },
     claim_gift_code {
-        txo_id_hex: String,
+        txo_id: String,
     },
     remove_gift_code {
         removed: bool,
