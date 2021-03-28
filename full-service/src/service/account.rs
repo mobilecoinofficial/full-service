@@ -80,11 +80,13 @@ pub trait AccountService {
     ) -> Result<Account, AccountServiceError>;
 
     /// Import an existing account to the wallet using the entropy.
+    #[allow(clippy::too_many_arguments)]
     fn import_account(
         &self,
         entropy: String,
         name: Option<String>,
         first_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
         fog_report_url: Option<String>,
         fog_report_id: Option<String>,
         fog_authority_spki: Option<String>,
@@ -142,6 +144,7 @@ where
             &entropy,
             Some(first_block_index),
             Some(import_block_index),
+            None,
             &name.unwrap_or_else(|| "".to_string()),
             None,
             None,
@@ -158,6 +161,7 @@ where
         entropy: String,
         name: Option<String>,
         first_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
         fog_report_url: Option<String>,
         fog_report_id: Option<String>,
         fog_authority_spki: Option<String>,
@@ -182,6 +186,7 @@ where
             name,
             import_block,
             first_block_index,
+            next_subaddress_index,
             fog_report_url,
             fog_report_id,
             fog_authority_spki,

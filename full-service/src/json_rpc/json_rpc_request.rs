@@ -63,6 +63,7 @@ pub enum JsonCommandRequest {
         entropy: String,
         name: Option<String>,
         first_block_index: Option<String>,
+        next_subaddress_index: Option<String>,
         fog_report_url: Option<String>,
         fog_report_id: Option<String>,
         fog_authority_spki: Option<String>,

@@ -114,12 +114,17 @@ where
             entropy,
             name,
             first_block_index,
+            next_subaddress_index,
             fog_report_url,
             fog_report_id,
             fog_authority_spki,
         } => {
             let fb = first_block_index
                 .map(|fb| fb.parse::<u64>())
+                .transpose()
+                .map_err(format_error)?;
+            let ns = next_subaddress_index
+                .map(|ns| ns.parse::<u64>())
                 .transpose()
                 .map_err(format_error)?;
 
@@ -130,6 +135,7 @@ where
                             entropy,
                             name,
                             fb,
+                            ns,
                             fog_report_url,
                             fog_report_id,
                             fog_authority_spki,
