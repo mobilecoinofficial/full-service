@@ -442,8 +442,8 @@ where
                 txo_map,
             }
         }
-        JsonCommandRequest::get_txo { txo_id_hex } => {
-            let result = service.get_txo(&TxoID(txo_id_hex)).map_err(format_error)?;
+        JsonCommandRequest::get_txo { txo_id } => {
+            let result = service.get_txo(&TxoID(txo_id)).map_err(format_error)?;
             JsonCommandResponse::get_txo {
                 txo: Txo::from(&result),
             }
@@ -480,11 +480,11 @@ where
         }
         JsonCommandRequest::validate_confirmation {
             account_id,
-            txo_id_hex,
+            txo_id,
             confirmation,
         } => {
             let result = service
-                .validate_confirmation(&AccountID(account_id), &TxoID(txo_id_hex), &confirmation)
+                .validate_confirmation(&AccountID(account_id), &TxoID(txo_id), &confirmation)
                 .map_err(format_error)?;
             JsonCommandResponse::validate_confirmation { validated: result }
         }
@@ -498,8 +498,8 @@ where
                 transaction: json_tx,
             }
         }
-        JsonCommandRequest::get_mc_protocol_txo { txo_id_hex } => {
-            let tx_out = service.get_txo_object(&txo_id_hex).map_err(format_error)?;
+        JsonCommandRequest::get_mc_protocol_txo { txo_id } => {
+            let tx_out = service.get_txo_object(&txo_id).map_err(format_error)?;
             let proto_txo = mc_api::external::TxOut::from(&tx_out);
             let json_txo = JsonTxOut::from(&proto_txo);
             JsonCommandResponse::get_mc_protocol_txo { txo: json_txo }
@@ -630,7 +630,7 @@ where
                 )
                 .map_err(format_error)?;
             JsonCommandResponse::claim_gift_code {
-                txo_id_hex: TxoID::from(&tx.prefix.outputs[0]).to_string(),
+                txo_id: TxoID::from(&tx.prefix.outputs[0]).to_string(),
             }
         }
 
