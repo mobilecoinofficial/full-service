@@ -1651,7 +1651,7 @@ mod e2e {
             }
         });
         let res = dispatch(&client, body, &logger);
-        let txo_id_hex = res["result"]["txo_id_hex"].as_str().unwrap();
+        let txo_id_hex = res["result"]["txo_id"].as_str().unwrap();
         assert_eq!(txo_id_hex.len(), 64);
 
         // Now remove that gift code
