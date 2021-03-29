@@ -57,7 +57,6 @@ impl TryFrom<&JsonRPCRequest> for JsonCommandRequest {
 pub enum JsonCommandRequest {
     create_account {
         name: Option<String>,
-        first_block_index: Option<String>,
     },
     import_account {
         entropy: String,

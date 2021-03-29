@@ -73,11 +73,7 @@ impl From<LedgerServiceError> for AccountServiceError {
 /// accounts.
 pub trait AccountService {
     /// Creates a new account with default values.
-    fn create_account(
-        &self,
-        name: Option<String>,
-        first_block_index: Option<u64>,
-    ) -> Result<Account, AccountServiceError>;
+    fn create_account(&self, name: Option<String>) -> Result<Account, AccountServiceError>;
 
     /// Import an existing account to the wallet using the entropy.
     #[allow(clippy::too_many_arguments)]
@@ -114,17 +110,8 @@ where
     T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
-    fn create_account(
-        &self,
-        name: Option<String>,
-        first_block_index: Option<u64>,
-    ) -> Result<Account, AccountServiceError> {
-        log::info!(
-            self.logger,
-            "Creating account {:?} with first block: {:?}",
-            name,
-            first_block_index,
-        );
+    fn create_account(&self, name: Option<String>) -> Result<Account, AccountServiceError> {
+        log::info!(self.logger, "Creating account {:?}", name,);
 
         // Generate entropy for the account
         let mut rng = rand::thread_rng();
@@ -133,7 +120,7 @@ where
         // Since we are creating the account from randomness, it is highly unlikely that
         // it would have collided with another account that already received funds. For
         // this reason, start scanning at the current network block index.
-        let first_block_index = first_block_index.unwrap_or(self.get_network_block_index()?);
+        let first_block_index = self.get_network_block_index()?;
 
         // The earliest we could start scanning is the current highest block index of
         // the local ledger.
@@ -250,7 +237,7 @@ mod tests {
         let wallet_db = &service.wallet_db;
 
         // Create an account.
-        let account = service.create_account(Some("A".to_string()), None).unwrap();
+        let account = service.create_account(Some("A".to_string())).unwrap();
 
         let statuses = AccountTxoStatus::get_all_for_account(
             &account.account_id_hex,
