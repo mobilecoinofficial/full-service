@@ -421,7 +421,7 @@ curl -s localhost:9090/wallet \
         "spent_block_index": "128569",
         "subaddress_index": "0",
         "target_key": "0a209e1067117870549a77a47de04bd810da052abfc23d60a0c433367bfc689b7428",
-        "txo_id_hex": "001cdcc1f0a22dc0ddcdaac6020cc03d919cbc3c36923f157b4a6bf0dc980167",
+        "txo_id": "001cdcc1f0a22dc0ddcdaac6020cc03d919cbc3c36923f157b4a6bf0dc980167",
         "value_pmob": "990000000000"
       },
       "84f30233774d728bb7844bed59d471fe55ee3680ab70ddc312840db0f978f3ba": {
@@ -449,7 +449,7 @@ curl -s localhost:9090/wallet \
         "spent_block_index": null,
         "subaddress_index": null,
         "target_key": "0a20762d8a723aae2aa70cc11c62c91af715f957a7455b695641fe8c94210812cf1b",
-        "txo_id_hex": "84f30233774d728bb7844bed59d471fe55ee3680ab70ddc312840db0f978f3ba",
+        "txo_id": "84f30233774d728bb7844bed59d471fe55ee3680ab70ddc312840db0f978f3ba",
         "value_pmob": "200"
       },
       "58c2c3780792ccf9c51014c7688a71f03732b633f8c5dfa49040fa7f51328280": {
@@ -473,7 +473,7 @@ curl -s localhost:9090/wallet \
         "spent_block_index": null,
         "subaddress_index": "0",
         "target_key": "0a209abadbfcec6c81b3d184dc104e51cac4c4faa8bab4da21a3714901519810c20d",
-        "txo_id_hex": "58c2c3780792ccf9c51014c7688a71f03732b633f8c5dfa49040fa7f51328280",
+        "txo_id": "58c2c3780792ccf9c51014c7688a71f03732b633f8c5dfa49040fa7f51328280",
         "value_pmob": "4000000000000"
       },
       "b496f4f3ec3159bf48517aa7d9cda193ef8bfcac343f81eaed0e0a55849e4726": {
@@ -497,7 +497,7 @@ curl -s localhost:9090/wallet \
         "spent_block_index": null,
         "subaddress_index": null,
         "target_key": "0a208c75723e9b9a4af0c833bfe190c43900c3b41834cf37024f5fecfbe9919dff23",
-        "txo_id_hex": "b496f4f3ec3159bf48517aa7d9cda193ef8bfcac343f81eaed0e0a55849e4726",
+        "txo_id": "b496f4f3ec3159bf48517aa7d9cda193ef8bfcac343f81eaed0e0a55849e4726",
         "value_pmob": "980000000000"
       }
     ]
@@ -532,7 +532,7 @@ curl -s localhost:9090/wallet \
   -d '{
         "method": "get_txo",
         "params": {
-          "txo_id_hex": "fff4cae55a74e5ce852b79c31576f4041d510c26e59fec178b3e45705c5b35a7"
+          "txo_id": "fff4cae55a74e5ce852b79c31576f4041d510c26e59fec178b3e45705c5b35a7"
         },
         "jsonrpc": "2.0",
         "id": 1
@@ -545,7 +545,7 @@ curl -s localhost:9090/wallet \
   "result": {
     "txo": {
       "object": "txo",
-      "txo_id_hex": "fff4cae55a74e5ce852b79c31576f4041d510c26e59fec178b3e45705c5b35a7",
+      "txo_id": "fff4cae55a74e5ce852b79c31576f4041d510c26e59fec178b3e45705c5b35a7",
       "value_pmob": "2960000000000",
       "received_block_index": "8094",
       "spent_block_index": "8180",
@@ -574,7 +574,7 @@ curl -s localhost:9090/wallet \
 | Required Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
 | `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
-| `txo_id_hex`   | The txo ID for which to get details  |  |
+| `txo_id`   | The txo ID for which to get details  |  |
 
 #### Get Wallet Status
 
@@ -1702,7 +1702,7 @@ curl -s localhost:9090/wallet \
     "confirmations": [
       {
         "object": "confirmation",
-        "txo_id_hex": "9e0de29bfee9a391e520a0b9411a91f094a454ebc70122bdc0e36889ab59d466",
+        "txo_id": "9e0de29bfee9a391e520a0b9411a91f094a454ebc70122bdc0e36889ab59d466",
         "txo_index": "458865",
         "confirmation": "0a20faca10509c32845041e49e009ddc4e35b61e7982a11aced50493b4b8aaab7a1f"
       }
@@ -1728,7 +1728,7 @@ curl -s localhost:9090/wallet \
         "method": "validate_confirmation",
         "params": {
           "account_id": "4b4fd11738c03bf5179781aeb27d725002fb67d8a99992920d3654ac00ee1a2c",
-          "txo_id_hex": "bbee8b70e80837fc3e10bde47f63de41768ee036263907325ef9a8d45d851f15",
+          "txo_id": "bbee8b70e80837fc3e10bde47f63de41768ee036263907325ef9a8d45d851f15",
           "confirmation": "0a2005ba1d9d871c7fb0d5ba7df17391a1e14aad1b4aa2319c997538f8e338a670bb"
         },
         "jsonrpc": "2.0",
@@ -1752,7 +1752,7 @@ curl -s localhost:9090/wallet \
 | Required Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
 | `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
-| `txo_id_hex`   | The ID of the Txo for which to validate the confirmation number  | Txo must be a received Txo  |
+| `txo_id`   | The ID of the Txo for which to validate the confirmation number  | Txo must be a received Txo  |
 | `confirmation`   | The confirmation number to validate  | The confirmation number should be delivered by the sender of the Txo in question |
 
 ### Transaction Receipts
@@ -1792,7 +1792,7 @@ curl -s localhost:9090/wallet \
     "receipts_transaction_status": "TransactionSuccess",
     "txo": {
       "object": "txo",
-      "txo_id_hex": "fff4cae55a74e5ce852b79c31576f4041d510c26e59fec178b3e45705c5b35a7",
+      "txo_id": "fff4cae55a74e5ce852b79c31576f4041d510c26e59fec178b3e45705c5b35a7",
       "value_pmob": "2960000000000",
       "received_block_index": "8094",
       "spent_block_index": "8180",
@@ -1943,7 +1943,7 @@ curl -s localhost:9090/wallet \
       "value_pmob": "42000000000000",
       "memo": "Happy Birthday!",
       "account_id": "1e7a1cf00adc278fa27b1e885e5ed6c1ff793c6bc56a9255c97d9daafdfdffeb",
-      "txo_id_hex": "46725fd1dc65f170dd8d806a942c516112c080ec87b29ef1529c2014e27cc653"
+      "txo_id": "46725fd1dc65f170dd8d806a942c516112c080ec87b29ef1529c2014e27cc653"
     }
   },
   "error": null,
@@ -1987,7 +1987,7 @@ curl -s localhost:9090/wallet \
       "value_pmob": "42000000000000",
       "memo": "Happy Birthday!",
       "account_id": "1e7a1cf00adc278fa27b1e885e5ed6c1ff793c6bc56a9255c97d9daafdfdffeb",
-      "txo_id_hex": "46725fd1dc65f170dd8d806a942c516112c080ec87b29ef1529c2014e27cc653"
+      "txo_id": "46725fd1dc65f170dd8d806a942c516112c080ec87b29ef1529c2014e27cc653"
     }
   },
   "error": null,
@@ -2027,7 +2027,7 @@ curl -s localhost:9090/wallet \
         "value_pmob": "80000000000",
         "memo": "Happy New Year!",
         "account_id": "1e7a1cf00adc278fa27b1e885e5ed6c1ff793c6bc56a9255c97d9daafdfdffeb",
-        "txo_id_hex": "46725fd1dc65f170dd8d806a942c516112c080ec87b29ef1529c2014e27cc653"
+        "txo_id": "46725fd1dc65f170dd8d806a942c516112c080ec87b29ef1529c2014e27cc653"
       },
       {
         "object": "gift_code",
@@ -2036,7 +2036,7 @@ curl -s localhost:9090/wallet \
         "value_pmob": "20000000000",
         "memo": "Happy Birthday!",
         "account_id": "dba3d3b99fe9ce6bc666490b8176be91ace0f4166853b0327ea39928640ea840",
-        "txo_id_hex": "ab917ed9e69fa97bd9422452b1a2f615c2405301b220f7a81eb091f75eba3f54"
+        "txo_id": "ab917ed9e69fa97bd9422452b1a2f615c2405301b220f7a81eb091f75eba3f54"
       }
     ]
   },
@@ -2122,7 +2122,7 @@ curl -s localhost:9090/wallet \
 {
   "method": "claim_gift_code",
   "result": {
-    "txo_id_hex": "5806b6416cd9f5f752180988bc27af246e13d78a8d2308c48a3a85d529e6e57f"
+    "txo_id": "5806b6416cd9f5f752180988bc27af246e13d78a8d2308c48a3a85d529e6e57f"
   },
   "error": null,
   "jsonrpc": "2.0",
@@ -2207,7 +2207,7 @@ curl -s localhost:9090/wallet \
   -d '{
         "method": "get_txo_object",
         "params": {
-          "txo_id_hex": "4b4fd11738c03bf5179781aeb27d725002fb67d8a99992920d3654ac00ee1a2c",
+          "txo_id": "4b4fd11738c03bf5179781aeb27d725002fb67d8a99992920d3654ac00ee1a2c",
         },
         "jsonrpc": "2.0",
         "id": 1
@@ -2599,7 +2599,7 @@ Received and Spent Txo
 ```json
 {
   "object": "txo",
-  "txo_id_hex": "14ad2f88...",
+  "txo_id": "14ad2f88...",
   "value_pmob": "8500000000000",
   "received_block_index": "14152",
   "spent_block_index": "20982",
@@ -2628,7 +2628,7 @@ Txo Spent from One Account to Another in the Same Wallet
 ```json
 {
   "object": "txo",
-  "txo_id_hex": "84f3023...",
+  "txo_id": "84f3023...",
   "value_pmob": "200",
   "received_block_index": null,
   "spent_block_index": null,
@@ -2668,7 +2668,7 @@ Txo Spent from One Account to Another in the Same Wallet
 | *Name* | *Type* | *Description*
 | :--- | :--- | :---
 | object | string, value is "confirmation" | String representing the object's type. Objects of the same type share the same value.
-| txo_id_hex | string | Unique identifier for the Txo.
+| txo_id | string | Unique identifier for the Txo.
 | txo_index | string | The index of the Txo in the ledger.
 | confirmation | string | A string with a confirmation number that can be validated to confirm that another party constructed or had knowledge of the construction of the associated Txo.
 
@@ -2677,7 +2677,7 @@ Txo Spent from One Account to Another in the Same Wallet
 ```json
 {
   "object": "confirmation",
-  "txo_id_hex": "873dfb8c...",
+  "txo_id": "873dfb8c...",
   "txo_index": "1276",
   "confirmation": "984eacd..."
 }
@@ -2742,7 +2742,7 @@ Txo Spent from One Account to Another in the Same Wallet
   "value_pmob": "60000000000",
   "memo": "Happy New Year!",
   "account_id": "050d8d97aaf31c70d63c6aed828c11d3fb16b56b44910659b6724621047b81f9",
-  "txo_id_hex": "5806b6416cd9f5f752180988bc27af246e13d78a8d2308c48a3a85d529e6e57f"
+  "txo_id": "5806b6416cd9f5f752180988bc27af246e13d78a8d2308c48a3a85d529e6e57f"
 }
 ```
 

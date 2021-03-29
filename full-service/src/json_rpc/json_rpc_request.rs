@@ -140,7 +140,7 @@ pub enum JsonCommandRequest {
         account_id: String,
     },
     get_txo {
-        txo_id_hex: String,
+        txo_id: String,
     },
     get_all_txos_for_address {
         address: String,
@@ -150,14 +150,14 @@ pub enum JsonCommandRequest {
     },
     validate_confirmation {
         account_id: String,
-        txo_id_hex: String,
+        txo_id: String,
         confirmation: String,
     },
     get_mc_protocol_transaction {
         transaction_log_id: String,
     },
     get_mc_protocol_txo {
-        txo_id_hex: String,
+        txo_id: String,
     },
     get_block {
         block_index: String,
