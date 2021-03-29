@@ -194,13 +194,7 @@ impl AccountModel for Account {
                 for subaddress_index in
                     2..next_subaddress_index.unwrap_or(DEFAULT_NEXT_SUBADDRESS_INDEX)
                 {
-                    AssignedSubaddress::create(
-                        &account_key,
-                        None,
-                        subaddress_index,
-                        "From Account Import",
-                        &conn,
-                    )?;
+                    AssignedSubaddress::create(&account_key, None, subaddress_index, "", &conn)?;
                 }
 
                 Ok((account_id, main_subaddress_b58))
