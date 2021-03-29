@@ -156,7 +156,7 @@ curl -s localhost:9090/wallet \
 If you receive the following error, it means that you attempted to import an account already in the wallet.
 
 ```sh
-{"error": "Database(Diesel(DatabaseError(UniqueViolation, "UNIQUE constraint failed: accounts.account_id")))"}
+{"error": "Database(Diesel(DatabaseError(UniqueViolation, "UNIQUE constraint failed: accounts.account_id_hex")))"}
 ```
 
 ##### Troubleshooting
@@ -164,7 +164,7 @@ If you receive the following error, it means that you attempted to import an acc
 If you receive the following error, it means that you attempted to import an account already in the wallet.
 
 ```sh
-{"error": "Database(Diesel(DatabaseError(UniqueViolation, "UNIQUE constraint failed: accounts.account_id")))"}
+{"error": "Database(Diesel(DatabaseError(UniqueViolation, "UNIQUE constraint failed: accounts.account_id_hex")))"}
 ```
 
 #### Get All Accounts
