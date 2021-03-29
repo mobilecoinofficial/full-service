@@ -71,7 +71,6 @@ curl -s localhost:9090/wallet \
         "method": "create_account",
         "params": {
           "name": "Alice"
-          "first_block_index": 3500,
         },
         "jsonrpc": "2.0",
         "id": 1
@@ -89,6 +88,7 @@ curl -s localhost:9090/wallet \
       "name": "Alice",
       "main_address": "4bgkVAH1hs55dwLTGVpZER8ZayhqXbYqfuyisoRrmQPXoWcYQ3SQRTjsAytCiAgk21CRrVNysVw5qwzweURzDK9HL3rGXFmAAahb364kYe3",
       "next_subaddress_index": "2",
+      "first_block_index": "3500",
       "recovery_mode": false
     }
   },
@@ -102,7 +102,6 @@ curl -s localhost:9090/wallet \
 | Optional Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
 | `name`         | Label for this account   | Can have duplicates (not recommended) |
-| `first_block_index`  | The block from which to start scanning the ledger |  |
 
 #### Import Account
 
@@ -115,8 +114,8 @@ curl -s localhost:9090/wallet \
         "params": {
           "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
           "name": "Bob"
-          "first_block_index": 3500,
           "next_subaddress_index": 2,
+          "first_block_index": "3500",
         },
         "jsonrpc": "2.0",
         "id": 1
@@ -134,6 +133,7 @@ curl -s localhost:9090/wallet \
       "name": "Bob",
       "main_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
       "next_subaddress_index": "2",
+      "first_block_index": "3500",
       "recovery_mode": false
     }
   },
@@ -194,6 +194,7 @@ curl -s localhost:9090/wallet \
         "main_address": "4bgkVAH1hs55dwLTGVpZER8ZayhqXbYqfuyisoRrmQPXoWcYQ3SQRTjsAytCiAgk21CRrVNysVw5qwzweURzDK9HL3rGXFmAAahb364kYe3",
         "name": "Alice",
         "next_subaddress_index": "2",
+        "first_block_index": "3500",
         "object": "account",
         "recovery_mode": false
       },
@@ -202,6 +203,7 @@ curl -s localhost:9090/wallet \
         "main_address": "7EqduSDpM1R5AfQejbjAqFxpuCoh6zJECtvJB9AZFwjK13dCzZgYbyfLf4TfHcE8LVPjzDdpcxYLkdMBh694mHfftJmsFZuz6xUeRtmsUdc",
         "name": "Alice",
         "next_subaddress_index": "2",
+        "first_block_index": "3500",
         "object": "account",
         "recovery_mode": false
       }
@@ -237,6 +239,7 @@ curl -s localhost:9090/wallet \
       "main_address": "4bgkVAH1hs55dwLTGVpZER8ZayhqXbYqfuyisoRrmQPXoWcYQ3SQRTjsAytCiAgk21CRrVNysVw5qwzweURzDK9HL3rGXFmAAahb364kYe3",
       "name": "Alice",
       "next_subaddress_index": "2",
+      "first_block_index": "3500",
       "object": "account",
       "recovery_mode": false
     }
@@ -287,6 +290,7 @@ curl -s localhost:9090/wallet \
       "main_address": "4bgkVAH1hs55dwLTGVpZER8ZayhqXbYqfuyisoRrmQPXoWcYQ3SQRTjsAytCiAgk21CRrVNysVw5qwzweURzDK9HL3rGXFmAAahb364kYe3",
       "name": "Carol",
       "next_subaddress_index": "2",
+      "first_block_index": "3500",
       "object": "account",
       "recovery_mode": false
     }
@@ -603,6 +607,7 @@ curl -s localhost:9090/wallet \
           "main_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
           "name": "Bob",
           "next_subaddress_index": "2",
+          "first_block_index": "3500",
           "object": "account",
           "recovery_mode": false
         },
@@ -611,6 +616,7 @@ curl -s localhost:9090/wallet \
           "main_address": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
           "name": "Carol",
           "next_subaddress_index": "2",
+          "first_block_index": "3500",
           "object": "account",
           "recovery_mode": false
         }
@@ -746,6 +752,7 @@ curl -s localhost:9090/wallet \
       "main_address": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
       "name": "Brady",
       "next_subaddress_index": "2",
+      "first_block_index": "3500",
       "object": "account",
       "recovery_mode": false
     },
@@ -2281,8 +2288,10 @@ An Account is associated with one AccountKey, containing a View keypair and a Sp
   "name": "I love MobileCoin",
   "main_address": "4bgkVAH...",
   "next_subaddress_index": "3",
+  "first_block_index": "3500",
   "recovery_mode": false
 }
+
 ```
 
 #### API Methods Returning Account Objects
@@ -2371,6 +2380,7 @@ The balance for an account, as well as some information about syncing status nee
       "main_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
       "name": "Bob",
       "next_subaddress_index": "2",
+      "first_block_index": "3500",
       "object": "account",
       "recovery_mode": false
     },
@@ -2379,6 +2389,7 @@ The balance for an account, as well as some information about syncing status nee
       "main_address": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
       "name": "Brady",
       "next_subaddress_index": "2",
+      "first_block_index": "3500",
       "object": "account",
       "recovery_mode": false
     }

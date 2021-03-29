@@ -93,17 +93,9 @@ where
     global_log::trace!("Running command {:?}", command);
 
     let result: JsonCommandResponse = match command.0 {
-        JsonCommandRequest::create_account {
-            name,
-            first_block_index,
-        } => {
-            let fb = first_block_index
-                .map(|fb| fb.parse::<u64>())
-                .transpose()
-                .map_err(format_error)?;
-
+        JsonCommandRequest::create_account { name } => {
             let account: db::models::Account =
-                service.create_account(name, fb).map_err(format_error)?;
+                service.create_account(name).map_err(format_error)?;
 
             JsonCommandResponse::create_account {
                 account: json_rpc::account::Account::try_from(&account)

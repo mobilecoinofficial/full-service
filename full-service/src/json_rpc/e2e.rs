@@ -230,31 +230,6 @@ mod e2e {
     }
 
     #[test_with_logger]
-    fn test_create_account_with_first_block(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
-
-        let body = json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "create_account",
-            "params": {
-                "name": "Alice Main Account",
-                "first_block_index": "200",
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let account_obj = result.get("account").unwrap();
-        assert!(account_obj.get("main_address").is_some());
-        assert!(account_obj.get("account_id").is_some());
-        assert_eq!(
-            *account_obj.get("first_block_index").unwrap(),
-            serde_json::json!("200")
-        );
-    }
-
-    #[test_with_logger]
     fn test_export_account_secrets(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
@@ -265,7 +240,6 @@ mod e2e {
             "method": "create_account",
             "params": {
                 "name": "Alice Main Account",
-                "first_block_index": "200",
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -516,7 +490,6 @@ mod e2e {
             "method": "create_account",
             "params": {
                 "name": "Alice Main Account",
-                "first_block_index": "0",
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -1026,7 +999,6 @@ mod e2e {
             "method": "create_account",
             "params": {
                 "name": "account 1",
-                "first_block_index": "0",
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -1042,7 +1014,6 @@ mod e2e {
             "method": "create_account",
             "params": {
                 "name": "account 2",
-                "first_block_index": "0",
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -1057,7 +1028,6 @@ mod e2e {
             "method": "create_account",
             "params": {
                 "name": "account 3",
-                "first_block_index": "0",
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -1289,7 +1259,6 @@ mod e2e {
             "method": "create_account",
             "params": {
                 "name": "Alice Main Account",
-                "first_block": "0",
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -1321,7 +1290,6 @@ mod e2e {
             "method": "create_account",
             "params": {
                 "name": "Alice Main Account",
-                "first_block": "0",
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -1457,7 +1425,6 @@ mod e2e {
             "method": "create_account",
             "params": {
                 "name": "Alice Main Account",
-                "first_block_index": "0",
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -1542,7 +1509,6 @@ mod e2e {
             "method": "create_account",
             "params": {
                 "name": "Alice Main Account",
-                "first_block_index": "0",
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -1569,7 +1535,6 @@ mod e2e {
             "method": "create_account",
             "params": {
                 "name": "Bob Main Account",
-                "first_block_index": "0",
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -1664,7 +1629,6 @@ mod e2e {
             "method": "create_account",
             "params": {
                 "name": "Alice Main Account",
-                "first_block_index": "0",
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -1760,7 +1724,6 @@ mod e2e {
             "method": "create_account",
             "params": {
                 "name": "Bob Main Account",
-                "first_block_index": "0",
             }
         });
         let res = dispatch(&client, body, &logger);
