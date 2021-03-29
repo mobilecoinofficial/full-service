@@ -553,6 +553,7 @@ pub fn random_account_with_seed_values(
             &root_id.root_entropy,
             Some(0),
             None,
+            None,
             &format!("SeedAccount{}", rng.next_u32()),
             None,
             None,

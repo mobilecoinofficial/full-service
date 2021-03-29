@@ -632,6 +632,7 @@ mod tests {
             &root_id.root_entropy,
             Some(0),
             None,
+            None,
             "",
             None,
             None,

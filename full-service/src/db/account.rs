@@ -55,6 +55,7 @@ pub trait AccountModel {
         entropy: &RootEntropy,
         first_block_index: Option<u64>,
         import_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
         name: &str,
         fog_report_url: Option<String>,
         fog_report_id: Option<String>,
@@ -69,6 +70,7 @@ pub trait AccountModel {
         name: Option<String>,
         import_block_index: u64,
         first_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
         fog_report_url: Option<String>,
         fog_report_id: Option<String>,
         fog_authority_spki: Option<String>,
@@ -128,6 +130,7 @@ impl AccountModel for Account {
         entropy: &RootEntropy,
         first_block_index: Option<u64>,
         import_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
         name: &str,
         fog_report_url: Option<String>,
         fog_report_id: Option<String>,
@@ -157,7 +160,9 @@ impl AccountModel for Account {
                     entropy: &entropy.bytes,
                     main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
                     change_subaddress_index: DEFAULT_CHANGE_SUBADDRESS_INDEX as i64,
-                    next_subaddress_index: DEFAULT_NEXT_SUBADDRESS_INDEX as i64,
+                    next_subaddress_index: next_subaddress_index
+                        .unwrap_or(DEFAULT_NEXT_SUBADDRESS_INDEX)
+                        as i64,
                     first_block_index: fb as i64,
                     next_block_index: fb as i64,
                     import_block_index: import_block_index.map(|i| i as i64),
@@ -185,6 +190,13 @@ impl AccountModel for Account {
                     "Change",
                     &conn,
                 )?;
+
+                for subaddress_index in
+                    2..next_subaddress_index.unwrap_or(DEFAULT_NEXT_SUBADDRESS_INDEX)
+                {
+                    AssignedSubaddress::create(&account_key, None, subaddress_index, "", &conn)?;
+                }
+
                 Ok((account_id, main_subaddress_b58))
             })?,
         )
@@ -195,6 +207,7 @@ impl AccountModel for Account {
         name: Option<String>,
         import_block_index: u64,
         first_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
         fog_report_url: Option<String>,
         fog_report_id: Option<String>,
         fog_authority_spki: Option<String>,
@@ -205,6 +218,7 @@ impl AccountModel for Account {
                 entropy,
                 first_block_index,
                 Some(import_block_index),
+                next_subaddress_index,
                 &name.unwrap_or_else(|| "".to_string()),
                 fog_report_url,
                 fog_report_id,
@@ -391,6 +405,7 @@ mod tests {
                 &root_id.root_entropy,
                 Some(0),
                 None,
+                None,
                 "Alice's Main Account",
                 None,
                 None,
@@ -453,6 +468,7 @@ mod tests {
             &root_id_secondary.root_entropy,
             Some(51),
             Some(50),
+            None,
             "",
             None,
             None,
@@ -527,6 +543,7 @@ mod tests {
             let (account_id_hex, _public_address_b58) = Account::create(
                 &root_id.root_entropy,
                 Some(0),
+                None,
                 None,
                 "Alice's Main Account",
                 None,
