@@ -148,13 +148,13 @@ curl -s localhost:9090/wallet \
 | Required Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
 | `mnemonic`      | The secret mnemonic to recover the account  | 24 words  |
-| `key_derivation_version`      | The version number of the key derivation path used to derive an account key from this mnemonic. |  |
+| `key_derivation_version`      | The version number of the key derivation used to derive an account key from this mnemonic. Current version is 2 |  |
 
 | Optional Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
 | `name`         | Label for this account   | Can have duplicates (not recommended) |
 | `first_block_index`  | The block from which to start scanning the ledger |  |
-| `next_subaddress_index`  | The next available known subaddress index for the account |  |
+| `next_subaddress_index`  | The next known unused subaddress index for the account |  |
 
 #### Import Legacy Account - Deprecated
 
@@ -204,7 +204,7 @@ curl -s localhost:9090/wallet \
 | :------------- | :----------------------- | :------------------------ |
 | `name`         | Label for this account   | Can have duplicates (not recommended) |
 | `first_block_index`  | The block from which to start scanning the ledger |  |
-| `next_subaddress_index`  | The next available known subaddress index for the account |  |
+| `next_subaddress_index`  | The next known unused subaddress index for the account |  |
 
 ##### Troubleshooting
 

@@ -77,7 +77,7 @@ pub struct Account {
     /// The private entropy for this account, used to derive the view and send
     /// keys which comprise the account_key.
     pub entropy: Vec<u8>,
-    /// Which version of key derivation path we are using.
+    /// Which version of key derivation we are using.
     pub key_derivation_version: i32,
     /// Default subadress that is given out to refer to this account.
     pub main_subaddress_index: i64,
