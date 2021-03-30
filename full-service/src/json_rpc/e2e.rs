@@ -172,6 +172,24 @@ mod e2e {
     }
 
     #[test_with_logger]
+    fn test_e2e_import_account_unknown_version(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_account",
+            "params": {
+                "mnemonic": "sheriff odor square mistake huge skate mouse shoot purity weapon proof stuff correct concert blanket neck own shift clay mistake air viable stick group",
+                "key_derivation_version": "3",
+                "name": "",
+            }
+        });
+        dispatch_expect_error(&client, body, &logger, "{\"code\":-32603,\"message\":\"InternalError\",\"data\":{\"server_error\":\"UnknownKeyDerivation(3)\",\"details\":\"Unknown key version version: 3\"}}".to_string());
+    }
+
+    #[test_with_logger]
     fn test_e2e_import_account_legacy(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
@@ -295,8 +313,8 @@ mod e2e {
         let result = res.get("result").unwrap();
         let secrets = result.get("account_secrets").unwrap();
         let phrase = secrets["mnemonic"].as_str().unwrap();
-
         assert_eq!(secrets["account_id"], serde_json::json!(account_id));
+        assert_eq!(secrets["key_derivation_version"], serde_json::json!("2"));
 
         // Test that the mnemonic serializes correctly back to an AccountKey object
         let mnemonic = Mnemonic::from_phrase(phrase, Language::English).unwrap();

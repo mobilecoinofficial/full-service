@@ -4,7 +4,7 @@
 
 use crate::{
     db::{
-        account::{AccountID, AccountModel},
+        account::{AccountID, AccountModel, KEY_DERIVATION_FROM_MNEMONIC},
         models::Account,
         WalletDbError,
     },
@@ -37,6 +37,9 @@ pub enum AccountServiceError {
 
     /// Error with the Ledger Service: {0}
     LedgerService(LedgerServiceError),
+
+    /// Unknown key version version: {0}
+    UnknownKeyDerivation(u8),
 }
 
 impl From<WalletDbError> for AccountServiceError {
@@ -79,7 +82,8 @@ pub trait AccountService {
     #[allow(clippy::too_many_arguments)]
     fn import_account(
         &self,
-        phrase: String,
+        mnemonic_phrase: String,
+        key_derivation_version: u8,
         name: Option<String>,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
@@ -157,7 +161,8 @@ where
 
     fn import_account(
         &self,
-        phrase: String,
+        mnemonic_phrase: String,
+        key_derivation_version: u8,
         name: Option<String>,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
@@ -171,8 +176,15 @@ where
             name,
             first_block_index,
         );
+
+        if key_derivation_version != KEY_DERIVATION_FROM_MNEMONIC {
+            return Err(AccountServiceError::UnknownKeyDerivation(
+                key_derivation_version,
+            ));
+        }
+
         // Get mnemonic from phrase
-        let mnemonic = Mnemonic::from_phrase(&phrase, Language::English).unwrap();
+        let mnemonic = Mnemonic::from_phrase(&mnemonic_phrase, Language::English).unwrap();
 
         // We record the local highest block index because that is the earliest we could
         // start scanning.
