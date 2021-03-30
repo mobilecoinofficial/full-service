@@ -2,7 +2,10 @@
 
 //! API definition for the Account Secrets object.
 
-use crate::{db::models::Account, json_rpc::account_key::AccountKey};
+use crate::{
+    db::{account::KEY_DERIVATION_FROM_ROOT_ENTROPY, models::Account},
+    json_rpc::account_key::AccountKey,
+};
 
 use bip39::{Language, Mnemonic};
 use serde_derive::{Deserialize, Serialize};
@@ -23,8 +26,7 @@ pub struct AccountSecrets {
     /// words.
     pub mnemonic: String,
 
-    /// The version number of the key derivation path used to derive the account
-    /// key from this mnemonic.
+    /// The key derivation version that this mnemonic goes with
     pub key_derivation_version: String,
 
     ///  Private keys for receiving and spending MobileCoin.
@@ -35,7 +37,7 @@ impl TryFrom<&Account> for AccountSecrets {
     type Error = String;
 
     fn try_from(src: &Account) -> Result<AccountSecrets, String> {
-        if src.key_derivation_version == 1 {
+        if src.key_derivation_version == KEY_DERIVATION_FROM_ROOT_ENTROPY as i32 {
             Err("Not allowed to export secrets for legacy account".to_string())
         } else {
             let account_key: mc_account_keys::AccountKey = mc_util_serial::decode(&src.account_key)
