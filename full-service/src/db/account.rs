@@ -200,7 +200,7 @@ impl AccountModel for Account {
 
         Account::create(
             mnemonic.entropy(),
-            KEY_DERIVATION_FROM_MNEMONIC,
+            MNEMONIC_KEY_DERIVATION_VERSION,
             &account_key,
             first_block_index,
             import_block_index,
@@ -232,7 +232,7 @@ impl AccountModel for Account {
 
         Account::create(
             &entropy.bytes,
-            KEY_DERIVATION_FROM_ROOT_ENTROPY,
+            ROOT_ENTROPY_KEY_DERIVATION_VERSION,
             &account_key,
             first_block_index,
             import_block_index,

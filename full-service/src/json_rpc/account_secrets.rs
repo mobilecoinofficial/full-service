@@ -3,7 +3,7 @@
 //! API definition for the Account Secrets object.
 
 use crate::{
-    db::{account::KEY_DERIVATION_FROM_ROOT_ENTROPY, models::Account},
+    db::{account::ROOT_ENTROPY_KEY_DERIVATION_VERSION, models::Account},
     json_rpc::account_key::AccountKey,
 };
 
@@ -37,7 +37,7 @@ impl TryFrom<&Account> for AccountSecrets {
     type Error = String;
 
     fn try_from(src: &Account) -> Result<AccountSecrets, String> {
-        if src.key_derivation_version == KEY_DERIVATION_FROM_ROOT_ENTROPY as i32 {
+        if src.key_derivation_version == ROOT_ENTROPY_KEY_DERIVATION_VERSION as i32 {
             Err("Not allowed to export secrets for legacy account".to_string())
         } else {
             let account_key: mc_account_keys::AccountKey = mc_util_serial::decode(&src.account_key)

@@ -4,7 +4,7 @@
 
 use crate::{
     db::{
-        account::{AccountID, AccountModel, KEY_DERIVATION_FROM_MNEMONIC},
+        account::{AccountID, AccountModel, MNEMONIC_KEY_DERIVATION_VERSION},
         models::Account,
         WalletDbError,
     },
@@ -177,7 +177,7 @@ where
             first_block_index,
         );
 
-        if key_derivation_version != KEY_DERIVATION_FROM_MNEMONIC {
+        if key_derivation_version != MNEMONIC_KEY_DERIVATION_VERSION {
             return Err(AccountServiceError::UnknownKeyDerivation(
                 key_derivation_version,
             ));
