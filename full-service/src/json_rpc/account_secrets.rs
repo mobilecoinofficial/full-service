@@ -23,6 +23,9 @@ pub struct AccountSecrets {
     /// words.
     pub mnemonic: String,
 
+    /// The key derivation version that this mnemonic goes with
+    pub key_derivation_version: String,
+
     ///  Private keys for receiving and spending MobileCoin.
     pub account_key: AccountKey,
 }
@@ -44,6 +47,7 @@ impl TryFrom<&Account> for AccountSecrets {
                     .unwrap()
                     .phrase()
                     .to_string(),
+                key_derivation_version: src.key_derivation_version.to_string(),
                 account_key: AccountKey::try_from(&account_key).map_err(|err| {
                     format!(
                         "Could not convert account_key to json_rpc representation: {:?}",

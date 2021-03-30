@@ -139,6 +139,39 @@ mod e2e {
     }
 
     #[test_with_logger]
+    fn test_e2e_import_account(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_account",
+            "params": {
+                "mnemonic": "sheriff odor square mistake huge skate mouse shoot purity weapon proof stuff correct concert blanket neck own shift clay mistake air viable stick group",
+                "key_derivation_version": "2",
+                "name": "Alice Main Account",
+                "first_block_index": "200",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+        assert_eq!(public_address, "8peJ2on3r9o7TC9y5Z1a5vH3gM6rtDQZjHvEB5TKwXzetHKiBCSWmK7gGsEKrhpN9xTpWjZncG1jfTw7QZL6ouME215jo8CKZiQpKXoDVag");
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        assert_eq!(
+            account_id,
+            "a1d298fd819d91420210eb6dab0495cd3b9063552b2f4e9b8b3e688ed96c5a61"
+        );
+
+        assert_eq!(
+            *account_obj.get("first_block_index").unwrap(),
+            serde_json::json!("200")
+        );
+    }
+
+    #[test_with_logger]
     fn test_e2e_import_account_legacy(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
@@ -238,9 +271,12 @@ mod e2e {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "create_account",
+            "method": "import_account",
             "params": {
+                "mnemonic": "sheriff odor square mistake huge skate mouse shoot purity weapon proof stuff correct concert blanket neck own shift clay mistake air viable stick group",
+                "key_derivation_version": "2",
                 "name": "Alice Main Account",
+                "first_block_index": "200",
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -280,6 +316,37 @@ mod e2e {
     }
 
     #[test_with_logger]
+    fn test_export_legacy_account_secrets(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_account_from_legacy_root_entropy",
+            "params": {
+                "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
+                "name": "Alice Main Account",
+                "first_block_index": "200",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "export_account_secrets",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        dispatch_expect_error(&client, body, &logger, "{\"code\":-32603,\"message\":\"InternalError\",\"data\":{\"server_error\":\"\\\"Not allowed to export secrets for legacy account\\\"\",\"details\":\"Not allowed to export secrets for legacy account\"}}".to_string());
+    }
+
+    #[test_with_logger]
     fn test_e2e_import_account_fog(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
@@ -291,6 +358,7 @@ mod e2e {
             "method": "import_account",
             "params": {
                 "mnemonic": "sheriff odor square mistake huge skate mouse shoot purity weapon proof stuff correct concert blanket neck own shift clay mistake air viable stick group",
+                "key_derivation_version": "2",
                 "name": "Alice Main Account",
                 "first_block_index": "200",
                 "fog_report_url": "fog://fog-report.example.com",

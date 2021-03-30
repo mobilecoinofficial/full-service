@@ -104,6 +104,7 @@ where
         }
         JsonCommandRequest::import_account {
             mnemonic,
+            key_derivation_version,
             name,
             first_block_index,
             next_subaddress_index,

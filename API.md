@@ -113,9 +113,10 @@ curl -s localhost:9090/wallet \
         "method": "import_account",
         "params": {
           "mnemonic": "sheriff odor square mistake huge skate mouse shoot purity weapon proof stuff correct concert blanket neck own shift clay mistake air viable stick group",
+          "key_derivation_version": "2",
           "name": "Bob"
           "next_subaddress_index": 2,
-          "first_block_index": "3500",
+          "first_block_index": "3500"
         },
         "jsonrpc": "2.0",
         "id": 1
@@ -146,6 +147,7 @@ curl -s localhost:9090/wallet \
 | Required Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
 | `mnemonic`      | The secret mnemonic to recover the account  | 24 words  |
+| `key_derivation_version`      | The key derivation version that this mnemonic should be applied to |  |
 
 | Optional Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
@@ -411,6 +413,7 @@ curl -s localhost:9090/wallet \
       "object": "account_key",
       "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
       "mnemonic": "sheriff odor square mistake huge skate mouse shoot purity weapon proof stuff correct concert blanket neck own shift clay mistake air viable stick group",
+      "key_derivation_version": "2",
       "account_key": {
         "object": "account_key",
         "view_private_key": "0a20be48e147741246f09adb195b110c4ec39302778c4554cd3c9ff877f8392ce605",
