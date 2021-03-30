@@ -23,7 +23,8 @@ pub struct AccountSecrets {
     /// words.
     pub mnemonic: String,
 
-    /// The key derivation version that this mnemonic goes with
+    /// The version number of the key derivation path used to derive the account
+    /// key from this mnemonic.
     pub key_derivation_version: String,
 
     ///  Private keys for receiving and spending MobileCoin.

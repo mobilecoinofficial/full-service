@@ -148,7 +148,7 @@ curl -s localhost:9090/wallet \
 | Required Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
 | `mnemonic`      | The secret mnemonic to recover the account  | 24 words  |
-| `key_derivation_version`      | The key derivation version that this mnemonic should be applied to |  |
+| `key_derivation_version`      | The version number of the key derivation path used to derive an account key from this mnemonic. |  |
 
 | Optional Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
