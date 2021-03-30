@@ -14,7 +14,7 @@ use crate::db::{
 };
 
 use mc_account_keys::{AccountKey, RootEntropy, RootIdentity, DEFAULT_SUBADDRESS_INDEX};
-use mc_account_keys_slip10::Slip10KeyGenerator;
+use mc_account_keys_slip10::Slip10Key;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_transaction_core::ring_signature::KeyImage;
 
@@ -189,8 +189,7 @@ impl AccountModel for Account {
         fog_authority_spki: Option<String>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(AccountID, String), WalletDbError> {
-        let slip10_key = mnemonic.clone().derive_slip10_key(&[0]).unwrap();
-        let account_key = slip10_key
+        let account_key = Slip10Key::from(mnemonic.clone())
             .try_into_account_key(
                 &fog_report_url.unwrap_or_else(|| "".to_string()),
                 &fog_report_id.unwrap_or_else(|| "".to_string()),

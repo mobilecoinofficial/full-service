@@ -14,7 +14,7 @@ mod e2e {
         test_utils::{add_block_to_ledger_db, add_block_with_tx_proposal, MOB},
     };
     use bip39::{Language, Mnemonic};
-    use mc_account_keys_slip10::Slip10KeyGenerator;
+    use mc_account_keys_slip10::Slip10Key;
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
     use mc_ledger_db::Ledger;
@@ -158,11 +158,11 @@ mod e2e {
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
-        assert_eq!(public_address, "8peJ2on3r9o7TC9y5Z1a5vH3gM6rtDQZjHvEB5TKwXzetHKiBCSWmK7gGsEKrhpN9xTpWjZncG1jfTw7QZL6ouME215jo8CKZiQpKXoDVag");
+        assert_eq!(public_address, "3CnfxAc2LvKw4FDNRVgj3GndwAhgQDd7v2Cne66GTUJyzBr3WzSikk9nJ5sCAb1jgSSKaqpWQtcEjV1nhoadVKjq2Soa8p3XZy6u2tpHdor");
         let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
         assert_eq!(
             account_id,
-            "a1d298fd819d91420210eb6dab0495cd3b9063552b2f4e9b8b3e688ed96c5a61"
+            "7872edf0d4094643213aabc92aa0d07379cfb58eda0722b21a44868f22f75b4e"
         );
 
         assert_eq!(
@@ -318,8 +318,7 @@ mod e2e {
 
         // Test that the mnemonic serializes correctly back to an AccountKey object
         let mnemonic = Mnemonic::from_phrase(phrase, Language::English).unwrap();
-        let slip_10_key = mnemonic.derive_slip10_key(&[0]).unwrap();
-        let account_key = slip_10_key
+        let account_key = Slip10Key::from(mnemonic.clone())
             .try_into_account_key(
                 &"".to_string(),
                 &"".to_string(),
@@ -388,11 +387,11 @@ mod e2e {
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
-        assert_eq!(public_address, "V6qwRLUBogn9B4Wh9mupGhQ3vECKRetPFJwL8JGAggBhnp674a6a5eb4oLudJZC8atrD1v1fSVXDYdTVmf1qrC99M3VWg9GF8VxVBQdKo6PYSd4JmGxg2ZAroj5hzBSY5GrBPbdRq8Ww6cBdAyhAXpYE8WN3VijHXPkBZjgHTcBu8vnEdS97MBHssVWfQQzdpavuedBrt1oVzdKFG5Qbi2afmqQCAxAms62k8d4qoPmQtWq");
+        assert_eq!(public_address, "mpcKQqPcgbB2oPneTAuLiZu9ZHp9qNkQo9k6949dupe89HruwmEgvcyVRFFNQccsurgMaZBykWAR1tGwbZqw4FGckqJsAcs2Fc1912Bf84S2am1kLKiRdQWfWUm6rQ8LCw75k14htjiD4u1PfYxwEvXWHXPK2R7PpzfWv5xc8129J5DykCC6wRDUZiqDcesjf7zi91frhfWvX3E6QPnc6kKZj4mfZQPjFVkHdcXWAuQoaJc");
         let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
         assert_eq!(
             account_id,
-            "e98f1708f865005dc54cc43ddbfe2dfd8ab1759e4813ec83154cf1001e7915bc"
+            "e260179ba2bed78ed47266a55106a7365f96329203cd95edfc0915f08b7947ce"
         );
 
         // Export account secrets and check fog info.
