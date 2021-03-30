@@ -158,7 +158,7 @@ where
             JsonCommandResponse::import_account {
                 account: json_rpc::account::Account::try_from(
                     &service
-                        .import_account(
+                        .import_account_from_legacy_root_entropy(
                             entropy,
                             name,
                             fb,

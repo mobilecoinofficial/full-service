@@ -13,7 +13,8 @@ mod e2e {
         json_rpc::api_test_utils::{dispatch, dispatch_expect_error, setup, wait_for_sync},
         test_utils::{add_block_to_ledger_db, add_block_with_tx_proposal, MOB},
     };
-    use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
+    use bip39::{Language, Mnemonic};
+    use mc_account_keys_slip10::Slip10KeyGenerator;
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
     use mc_ledger_db::Ledger;
@@ -138,14 +139,14 @@ mod e2e {
     }
 
     #[test_with_logger]
-    fn test_e2e_import_account(logger: Logger) {
+    fn test_e2e_import_account_legacy(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "import_account",
+            "method": "import_account_from_legacy_root_entropy",
             "params": {
                 "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
                 "name": "Alice Main Account",
@@ -178,7 +179,7 @@ mod e2e {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "import_account",
+            "method": "import_account_from_legacy_root_entropy",
             "params": {
                 "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
                 "name": "Alice Main Account",
@@ -215,7 +216,7 @@ mod e2e {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "import_account",
+            "method": "import_account_from_legacy_root_entropy",
             "params": {
                 "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
                 "name": "Alice Main Account",
@@ -257,15 +258,21 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let secrets = result.get("account_secrets").unwrap();
-        let entropy = secrets["entropy"].clone();
+        let phrase = secrets["mnemonic"].as_str().unwrap();
 
         assert_eq!(secrets["account_id"], serde_json::json!(account_id));
 
-        // Test that the account_key serializes correctly back to an AccountKey object
-        let mut entropy_slice = [0u8; 32];
-        entropy_slice[0..32]
-            .copy_from_slice(&hex::decode(&entropy.as_str().unwrap()).unwrap().as_slice());
-        let account_key = AccountKey::from(&RootIdentity::from(&RootEntropy::from(&entropy_slice)));
+        // Test that the mnemonic serializes correctly back to an AccountKey object
+        let mnemonic = Mnemonic::from_phrase(phrase, Language::English).unwrap();
+        let slip_10_key = mnemonic.derive_slip10_key(&[0]).unwrap();
+        let account_key = slip_10_key
+            .try_into_account_key(
+                &"".to_string(),
+                &"".to_string(),
+                &hex::decode("".to_string()).expect("invalid spki"),
+            )
+            .unwrap();
+
         assert_eq!(
             serde_json::json!(json_rpc::account_key::AccountKey::try_from(&account_key).unwrap()),
             secrets["account_key"]
@@ -283,7 +290,7 @@ mod e2e {
             "id": 1,
             "method": "import_account",
             "params": {
-                "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
+                "mnemonic": "sheriff odor square mistake huge skate mouse shoot purity weapon proof stuff correct concert blanket neck own shift clay mistake air viable stick group",
                 "name": "Alice Main Account",
                 "first_block_index": "200",
                 "fog_report_url": "fog://fog-report.example.com",
@@ -295,11 +302,11 @@ mod e2e {
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
-        assert_eq!(public_address, "Gty4pvRo2yjWMtsNzYRqmhhvVRevsdkqS4AsZWcbNsGJYdTVR8dmXRXB3T6b9rfxXNTxtHuQQSUq1YV8c7Ggkzc2KGSLdLZrbj6XzhL7BC9Dj2e4wa3M7j5Z6AzeERPW4kjuVwgomAvLJY9btj5D1poDMvkt2xUMaP438cCXwQjTS5rB2cdFeaLToHiK3DvjKVg3w4886q8dNQMnEj89wqANzuFUGkfd9how9zeWpH4oJGa");
+        assert_eq!(public_address, "V6qwRLUBogn9B4Wh9mupGhQ3vECKRetPFJwL8JGAggBhnp674a6a5eb4oLudJZC8atrD1v1fSVXDYdTVmf1qrC99M3VWg9GF8VxVBQdKo6PYSd4JmGxg2ZAroj5hzBSY5GrBPbdRq8Ww6cBdAyhAXpYE8WN3VijHXPkBZjgHTcBu8vnEdS97MBHssVWfQQzdpavuedBrt1oVzdKFG5Qbi2afmqQCAxAms62k8d4qoPmQtWq");
         let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
         assert_eq!(
             account_id,
-            "d9472ed9d869465d1b7cdb3f8acdd5ca08479c5c735a6096d14cbc2748c09f64"
+            "e98f1708f865005dc54cc43ddbfe2dfd8ab1759e4813ec83154cf1001e7915bc"
         );
 
         // Export account secrets and check fog info.
@@ -851,7 +858,7 @@ mod e2e {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "import_account",
+            "method": "import_account_from_legacy_root_entropy",
             "params": {
                 "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
                 "name": "Alice Main Account",
@@ -918,7 +925,7 @@ mod e2e {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "import_account",
+            "method": "import_account_from_legacy_root_entropy",
             "params": {
                 "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
                 "name": "Alice Main Account",
@@ -958,7 +965,7 @@ mod e2e {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "import_account",
+            "method": "import_account_from_legacy_root_entropy",
             "params": {
                 "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
                 "name": "Alice Main Account",

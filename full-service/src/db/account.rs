@@ -51,6 +51,11 @@ impl fmt::Display for AccountID {
 }
 
 pub trait AccountModel {
+    /// Create an account.
+    ///
+    /// Returns:
+    /// * (account_id, main_subaddress_b58)
+    #[allow(clippy::too_many_arguments)]
     fn create_from_mnemonic(
         mnemonic: &Mnemonic,
         first_block_index: Option<u64>,
@@ -63,6 +68,11 @@ pub trait AccountModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(AccountID, String), WalletDbError>;
 
+    /// Create an account.
+    ///
+    /// Returns:
+    /// * (account_id, main_subaddress_b58)
+    #[allow(clippy::too_many_arguments)]
     fn create_from_root_entropy(
         entropy: &RootEntropy,
         first_block_index: Option<u64>,
@@ -90,6 +100,20 @@ pub trait AccountModel {
         name: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(AccountID, String), WalletDbError>;
+
+    /// Import account.
+    #[allow(clippy::too_many_arguments)]
+    fn import(
+        mnemonic: &Mnemonic,
+        name: Option<String>,
+        import_block_index: u64,
+        first_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
+        fog_report_url: Option<String>,
+        fog_report_id: Option<String>,
+        fog_authority_spki: Option<String>,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Account, WalletDbError>;
 
     /// Import account.
     #[allow(clippy::too_many_arguments)]
@@ -284,6 +308,33 @@ impl AccountModel for Account {
                 Ok((account_id, main_subaddress_b58))
             })?,
         )
+    }
+
+    fn import(
+        mnemonic: &Mnemonic,
+        name: Option<String>,
+        import_block_index: u64,
+        first_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
+        fog_report_url: Option<String>,
+        fog_report_id: Option<String>,
+        fog_authority_spki: Option<String>,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Account, WalletDbError> {
+        Ok(conn.transaction::<Account, WalletDbError, _>(|| {
+            let (account_id, _public_address_b58) = Account::create_from_mnemonic(
+                mnemonic,
+                first_block_index,
+                Some(import_block_index),
+                next_subaddress_index,
+                &name.unwrap_or_else(|| "".to_string()),
+                fog_report_url,
+                fog_report_id,
+                fog_authority_spki,
+                conn,
+            )?;
+            Ok(Account::get(&account_id, &conn)?)
+        })?)
     }
 
     fn import_legacy(

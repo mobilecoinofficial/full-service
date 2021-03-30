@@ -79,6 +79,19 @@ pub trait AccountService {
     #[allow(clippy::too_many_arguments)]
     fn import_account(
         &self,
+        phrase: String,
+        name: Option<String>,
+        first_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
+        fog_report_url: Option<String>,
+        fog_report_id: Option<String>,
+        fog_authority_spki: Option<String>,
+    ) -> Result<Account, AccountServiceError>;
+
+    /// Import an existing account to the wallet using the entropy.
+    #[allow(clippy::too_many_arguments)]
+    fn import_account_from_legacy_root_entropy(
+        &self,
         entropy: String,
         name: Option<String>,
         first_block_index: Option<u64>,
@@ -144,6 +157,43 @@ where
 
     fn import_account(
         &self,
+        phrase: String,
+        name: Option<String>,
+        first_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
+        fog_report_url: Option<String>,
+        fog_report_id: Option<String>,
+        fog_authority_spki: Option<String>,
+    ) -> Result<Account, AccountServiceError> {
+        log::info!(
+            self.logger,
+            "Importing account {:?} with first block: {:?}",
+            name,
+            first_block_index,
+        );
+        // Get mnemonic from phrase
+        let mnemonic = Mnemonic::from_phrase(&phrase, Language::English).unwrap();
+
+        // We record the local highest block index because that is the earliest we could
+        // start scanning.
+        let import_block = self.ledger_db.num_blocks()? - 1;
+
+        let conn = self.wallet_db.get_conn()?;
+        Ok(Account::import(
+            &mnemonic,
+            name,
+            import_block,
+            first_block_index,
+            next_subaddress_index,
+            fog_report_url,
+            fog_report_id,
+            fog_authority_spki,
+            &conn,
+        )?)
+    }
+
+    fn import_account_from_legacy_root_entropy(
+        &self,
         entropy: String,
         name: Option<String>,
         first_block_index: Option<u64>,
@@ -167,7 +217,7 @@ where
         let import_block = self.ledger_db.num_blocks()? - 1;
 
         let conn = self.wallet_db.get_conn()?;
-        Ok(Account::import(
+        Ok(Account::import_legacy(
             &RootEntropy::from(&entropy_bytes),
             name,
             import_block,

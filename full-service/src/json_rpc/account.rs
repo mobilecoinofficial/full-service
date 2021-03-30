@@ -23,6 +23,10 @@ pub struct Account {
     /// Display name for the account.
     pub name: String,
 
+    /// The key derivation version this account uses to generate its account
+    /// keys
+    pub key_derivation_version: String,
+
     /// B58 Address Code for the account's main address. The main address is
     /// determined by the seed subaddress. It is not assigned to a single
     /// recipient, and should be consider a free-for-all address.
@@ -56,6 +60,7 @@ impl TryFrom<&db::models::Account> for Account {
             object: "account".to_string(),
             account_id: src.account_id_hex.clone(),
             name: src.name.clone(),
+            key_derivation_version: src.key_derivation_version.to_string(),
             main_address,
             next_subaddress_index: src.next_subaddress_index.to_string(),
             first_block_index: src.first_block_index.to_string(),
