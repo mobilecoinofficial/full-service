@@ -979,7 +979,7 @@ mod tests {
 
         let root_id = RootIdentity::from_random(&mut rng);
         let alice_account_key = AccountKey::from(&root_id);
-        let (alice_account_id, _public_address_b58) = Account::create(
+        let (alice_account_id, _public_address_b58) = Account::create_from_root_entropy(
             &root_id.root_entropy,
             Some(1),
             None,
@@ -1244,7 +1244,7 @@ mod tests {
         // Create a new account and send some MOB to it
         let bob_root_id = RootIdentity::from_random(&mut rng);
         let bob_account_key = AccountKey::from(&bob_root_id);
-        let (bob_account_id, _public_address_b58) = Account::create(
+        let (bob_account_id, _public_address_b58) = Account::create_from_root_entropy(
             &bob_root_id.root_entropy,
             Some(1),
             None,
@@ -1306,7 +1306,7 @@ mod tests {
 
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
-        let (account_id_hex, _public_address_b58) = Account::create(
+        let (account_id_hex, _public_address_b58) = Account::create_from_root_entropy(
             &root_id.root_entropy,
             Some(1),
             None,
@@ -1415,7 +1415,7 @@ mod tests {
 
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
-        let (account_id_hex, _public_address_b58) = Account::create(
+        let (account_id_hex, _public_address_b58) = Account::create_from_root_entropy(
             &root_id.root_entropy,
             Some(0),
             None,
@@ -1471,7 +1471,7 @@ mod tests {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger.clone());
 
-        Account::create(
+        Account::create_from_root_entropy(
             &root_id.root_entropy,
             Some(0),
             None,
@@ -1540,7 +1540,7 @@ mod tests {
         let root_id = RootIdentity::from_random(&mut rng);
         let recipient_account_key = AccountKey::from(&root_id);
         let recipient_account_id = AccountID::from(&recipient_account_key);
-        Account::create(
+        Account::create_from_root_entropy(
             &root_id.root_entropy,
             Some(0),
             None,

@@ -15,9 +15,9 @@ use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
-use mc_util_from_random::FromRandom;
 
 use crate::service::ledger::LedgerServiceError;
+use bip39::{Language, Mnemonic, MnemonicType};
 use diesel::Connection;
 use displaydoc::Display;
 
@@ -114,8 +114,7 @@ where
         log::info!(self.logger, "Creating account {:?}", name,);
 
         // Generate entropy for the account
-        let mut rng = rand::thread_rng();
-        let entropy = RootEntropy::from_random(&mut rng);
+        let mnemonic = Mnemonic::new(MnemonicType::Words24, Language::English);
 
         // Since we are creating the account from randomness, it is highly unlikely that
         // it would have collided with another account that already received funds. For
@@ -127,8 +126,8 @@ where
         let import_block_index = self.ledger_db.num_blocks()? - 1;
 
         let conn = self.wallet_db.get_conn()?;
-        let (account_id, _public_address_b58) = Account::create(
-            &entropy,
+        let (account_id, _public_address_b58) = Account::create_from_mnemonic(
+            &mnemonic,
             Some(first_block_index),
             Some(import_block_index),
             None,
