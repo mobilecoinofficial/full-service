@@ -93,7 +93,7 @@ pub trait AccountModel {
 
     /// Import account.
     #[allow(clippy::too_many_arguments)]
-    fn import(
+    fn import_legacy(
         entropy: &RootEntropy,
         name: Option<String>,
         import_block_index: u64,
@@ -286,7 +286,7 @@ impl AccountModel for Account {
         )
     }
 
-    fn import(
+    fn import_legacy(
         root_entropy: &RootEntropy,
         name: Option<String>,
         import_block_index: u64,

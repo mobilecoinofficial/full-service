@@ -18,12 +18,11 @@ pub struct AccountSecrets {
     /// The account ID for this account key in the wallet database.
     pub account_id: String,
 
-    /// The entropy from which this account key was derived, hex-encoded.
-    ///
-    /// Optional because an account can be created from only the AccountKey.
-    pub entropy: String,
+    /// The mnemonic from which this account key was derived, as a list of BIP39
+    /// words.
+    pub mnemonic: String,
 
-    ///  Private key for receiving and spending MobileCoin.
+    ///  Private keys for receiving and spending MobileCoin.
     pub account_key: AccountKey,
 }
 
