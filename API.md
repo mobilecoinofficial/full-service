@@ -8,6 +8,7 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 
 * [create_account](#create-account)
 * [import_account](#import-account)
+* [import_account_from_legacy_root_entropy](#import-legacy-account-deprecated)
 * [get_all_accounts](#get-all-accounts)
 * [get_account](#get-account)
 * [update_account_name](#update-account-name)
@@ -2355,6 +2356,7 @@ An Account is associated with one AccountKey, containing a View keypair and a Sp
 
 * [create_account](#create-account)
 * [import_account](#import-account)
+* [import_account_from_legacy_root_entropy](#import-legacy-account-deprecated)
 * [get_all_accounts](#get-all-accounts)
 * [get_account](#get-account)
 * [update_account_name](#update-account-name)
