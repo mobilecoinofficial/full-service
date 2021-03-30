@@ -4,6 +4,7 @@
 
 use crate::{db::models::Account, json_rpc::account_key::AccountKey};
 
+use bip39::{Language, Mnemonic};
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
@@ -30,18 +31,26 @@ impl TryFrom<&Account> for AccountSecrets {
     type Error = String;
 
     fn try_from(src: &Account) -> Result<AccountSecrets, String> {
-        let account_key: mc_account_keys::AccountKey = mc_util_serial::decode(&src.account_key)
-            .map_err(|err| format!("Could not decode account key from database: {:?}", err))?;
-        Ok(AccountSecrets {
-            object: "account_secrets".to_string(),
-            account_id: src.account_id_hex.clone(),
-            entropy: hex::encode(&src.entropy),
-            account_key: AccountKey::try_from(&account_key).map_err(|err| {
-                format!(
-                    "Could not convert account_key to json_rpc representation: {:?}",
-                    err
-                )
-            })?,
-        })
+        if src.key_derivation_version == 1 {
+            Err("Not allowed to export secrets for legacy account".to_string())
+        } else {
+            let account_key: mc_account_keys::AccountKey = mc_util_serial::decode(&src.account_key)
+                .map_err(|err| format!("Could not decode account key from database: {:?}", err))?;
+
+            Ok(AccountSecrets {
+                object: "account_secrets".to_string(),
+                account_id: src.account_id_hex.clone(),
+                mnemonic: Mnemonic::from_entropy(&src.entropy, Language::English)
+                    .unwrap()
+                    .phrase()
+                    .to_string(),
+                account_key: AccountKey::try_from(&account_key).map_err(|err| {
+                    format!(
+                        "Could not convert account_key to json_rpc representation: {:?}",
+                        err
+                    )
+                })?,
+            })
+        }
     }
 }

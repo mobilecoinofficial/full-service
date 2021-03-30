@@ -112,6 +112,56 @@ curl -s localhost:9090/wallet \
   -d '{
         "method": "import_account",
         "params": {
+          "mnemonic": "sheriff odor square mistake huge skate mouse shoot purity weapon proof stuff correct concert blanket neck own shift clay mistake air viable stick group",
+          "name": "Bob"
+          "next_subaddress_index": 2,
+          "first_block_index": "3500",
+        },
+        "jsonrpc": "2.0",
+        "id": 1
+      }' \
+   -X POST -H 'Content-type: application/json' | jq
+```
+
+```json
+{
+  "method": "import_account",
+  "result": {
+    "account": {
+      "object": "account",
+      "account_id": "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470",
+      "name": "Bob",
+      "main_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+      "next_subaddress_index": "2",
+      "first_block_index": "3500",
+      "recovery_mode": false
+    }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+}
+```
+
+| Required Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `mnemonic`      | The secret mnemonic to recover the account  | 24 words  |
+
+| Optional Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `name`         | Label for this account   | Can have duplicates (not recommended) |
+| `first_block_index`  | The block from which to start scanning the ledger |  |
+| `next_subaddress_index`  | The next available known subaddress index for the account |  |
+
+#### Import Legacy Account - Deprecated
+
+Import an existing account from the secret entropy. - Deprecated
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "import_account_from_legacy_root_entropy",
+        "params": {
           "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
           "name": "Bob"
           "next_subaddress_index": 2,
@@ -151,6 +201,7 @@ curl -s localhost:9090/wallet \
 | :------------- | :----------------------- | :------------------------ |
 | `name`         | Label for this account   | Can have duplicates (not recommended) |
 | `first_block_index`  | The block from which to start scanning the ledger |  |
+| `next_subaddress_index`  | The next available known subaddress index for the account |  |
 
 ##### Troubleshooting
 
@@ -359,7 +410,7 @@ curl -s localhost:9090/wallet \
     "account_secrets": {
       "object": "account_key",
       "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
-      "entropy": "fc1fae41f08eccc6c494d67ad0970ef2b469f7149316e5cdb3ad86d07c32469f",
+      "mnemonic": "sheriff odor square mistake huge skate mouse shoot purity weapon proof stuff correct concert blanket neck own shift clay mistake air viable stick group",
       "account_key": {
         "object": "account_key",
         "view_private_key": "0a20be48e147741246f09adb195b110c4ec39302778c4554cd3c9ff877f8392ce605",
@@ -375,6 +426,9 @@ curl -s localhost:9090/wallet \
   "id": 1,
 }
 ```
+
+##### Troubleshooting
+If you are getting an error, make sure that you are not trying to export secrets from an account that is using the old version of generating the Account Keys.
 
 ### TXOs
 
