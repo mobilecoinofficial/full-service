@@ -246,6 +246,7 @@ curl -s localhost:9090/wallet \
     "account_map": {
       "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52": {
         "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
+        "key_derivation_version:": "1",
         "main_address": "4bgkVAH1hs55dwLTGVpZER8ZayhqXbYqfuyisoRrmQPXoWcYQ3SQRTjsAytCiAgk21CRrVNysVw5qwzweURzDK9HL3rGXFmAAahb364kYe3",
         "name": "Alice",
         "next_subaddress_index": "2",
@@ -255,6 +256,7 @@ curl -s localhost:9090/wallet \
       },
       "b6c9f6f779372ae25e93d68a79d725d71f3767d1bfd1c5fe155f948a2cc5c0a0": {
         "account_id": "b6c9f6f779372ae25e93d68a79d725d71f3767d1bfd1c5fe155f948a2cc5c0a0",
+        "key_derivation_version:": "2",
         "main_address": "7EqduSDpM1R5AfQejbjAqFxpuCoh6zJECtvJB9AZFwjK13dCzZgYbyfLf4TfHcE8LVPjzDdpcxYLkdMBh694mHfftJmsFZuz6xUeRtmsUdc",
         "name": "Alice",
         "next_subaddress_index": "2",
@@ -292,6 +294,7 @@ curl -s localhost:9090/wallet \
     "account": {
       "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
       "main_address": "4bgkVAH1hs55dwLTGVpZER8ZayhqXbYqfuyisoRrmQPXoWcYQ3SQRTjsAytCiAgk21CRrVNysVw5qwzweURzDK9HL3rGXFmAAahb364kYe3",
+      "key_derivation_version:": "2",
       "name": "Alice",
       "next_subaddress_index": "2",
       "first_block_index": "3500",
@@ -663,6 +666,7 @@ curl -s localhost:9090/wallet \
       "account_map": {
         "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470": {
           "account_id": "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470",
+          "key_derivation_version:": "2",
           "main_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
           "name": "Bob",
           "next_subaddress_index": "2",
@@ -672,6 +676,7 @@ curl -s localhost:9090/wallet \
         },
         "b0be5377a2f45b1573586ed530b2901a559d9952ea8a02f8c2dbb033a935ac17": {
           "account_id": "b0be5377a2f45b1573586ed530b2901a559d9952ea8a02f8c2dbb033a935ac17",
+          "key_derivation_version:": "2",
           "main_address": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
           "name": "Carol",
           "next_subaddress_index": "2",
@@ -2474,6 +2479,7 @@ The balance for an account, as well as some information about syncing status nee
   "account_map": {
     "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470": {
       "account_id": "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470",
+      "key_derivation_version:": "2",
       "main_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
       "name": "Bob",
       "next_subaddress_index": "2",
@@ -2483,6 +2489,7 @@ The balance for an account, as well as some information about syncing status nee
     },
     "b0be5377a2f45b1573586ed530b2901a559d9952ea8a02f8c2dbb033a935ac17": {
       "account_id": "b0be5377a2f45b1573586ed530b2901a559d9952ea8a02f8c2dbb033a935ac17",
+      "key_derivation_version:": "2",
       "main_address": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
       "name": "Brady",
       "next_subaddress_index": "2",
