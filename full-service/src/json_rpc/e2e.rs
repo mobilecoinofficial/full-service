@@ -14,6 +14,7 @@ mod e2e {
         test_utils::{add_block_to_ledger_db, add_block_with_tx_proposal, MOB},
     };
     use bip39::{Language, Mnemonic};
+    use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
     use mc_account_keys_slip10::Slip10Key;
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
@@ -312,7 +313,7 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let secrets = result.get("account_secrets").unwrap();
-        let phrase = secrets["mnemonic"].as_str().unwrap();
+        let phrase = secrets["entropy"].as_str().unwrap();
         assert_eq!(secrets["account_id"], serde_json::json!(account_id));
         assert_eq!(secrets["key_derivation_version"], serde_json::json!("2"));
 
@@ -360,7 +361,22 @@ mod e2e {
                 "account_id": account_id,
             }
         });
-        dispatch_expect_error(&client, body, &logger, "{\"code\":-32603,\"message\":\"InternalError\",\"data\":{\"server_error\":\"\\\"Not allowed to export secrets for legacy account\\\"\",\"details\":\"Not allowed to export secrets for legacy account\"}}".to_string());
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let secrets = result.get("account_secrets").unwrap();
+        let entropy = secrets["entropy"].clone();
+
+        assert_eq!(secrets["account_id"], serde_json::json!(account_id));
+
+        // Test that the account_key serializes correctly back to an AccountKey object
+        let mut entropy_slice = [0u8; 32];
+        entropy_slice[0..32]
+            .copy_from_slice(&hex::decode(&entropy.as_str().unwrap()).unwrap().as_slice());
+        let account_key = AccountKey::from(&RootIdentity::from(&RootEntropy::from(&entropy_slice)));
+        assert_eq!(
+            serde_json::json!(json_rpc::account_key::AccountKey::try_from(&account_key).unwrap()),
+            secrets["account_key"]
+        );
     }
 
     #[test_with_logger]

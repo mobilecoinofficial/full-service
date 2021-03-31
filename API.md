@@ -417,7 +417,7 @@ curl -s localhost:9090/wallet \
     "account_secrets": {
       "object": "account_secrets",
       "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
-      "mnemonic": "sheriff odor square mistake huge skate mouse shoot purity weapon proof stuff correct concert blanket neck own shift clay mistake air viable stick group",
+      "entropy": "sheriff odor square mistake huge skate mouse shoot purity weapon proof stuff correct concert blanket neck own shift clay mistake air viable stick group",
       "key_derivation_version": "2",
       "account_key": {
         "object": "account_key",
@@ -435,8 +435,9 @@ curl -s localhost:9090/wallet \
 }
 ```
 
-##### Troubleshooting
-If you are getting an error, make sure that you are not trying to export secrets from an account that is using the old version of generating the Account Keys.
+If the account was generated using version 1 of the key derviation, entropy will be provided as a hex encoded string.
+
+If the account was generated using version 2 of the key derivation, entropy will be provided as a 24 word mnemonic string.
 
 ### TXOs
 
