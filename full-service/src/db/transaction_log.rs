@@ -3,6 +3,7 @@
 //! DB impl for the Transaction model.
 
 use crate::db::{
+    account::{AccountID, AccountModel},
     b58_encode,
     models::{
         Account, NewTransactionLog, NewTransactionTxoType, TransactionLog, TransactionTxoType, Txo,
@@ -412,9 +413,9 @@ impl TransactionLogModel for TransactionLog {
                     // Create a TransactionLogs entry for every TXO
                     let new_transaction_log = NewTransactionLog {
                         transaction_id_hex: &transaction_id.to_string(),
-                        account_id_hex: &account.account_id_hex,
+                        account_id_hex: Some(&account.account_id_hex),
                         recipient_public_address_b58: "", // NULL for received
-                        assigned_subaddress_b58: &b58_subaddress,
+                        assigned_subaddress_b58: Some(&b58_subaddress),
                         value: txo.value,
                         fee: None, // Impossible to recover fee from received transaction
                         status: TX_STATUS_SUCCEEDED,
@@ -453,6 +454,14 @@ impl TransactionLogModel for TransactionLog {
         account_id_hex: Option<&str>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<TransactionLog, WalletDbError> {
+        // Verify that the account exists.
+        if let Some(a_id) = account_id_hex {
+            match Account::get(&AccountID(a_id.to_string()), &conn) {
+                Ok(_) => (),
+                Err(e) => return Err(e),
+            }
+        }
+
         let transaction_log_id = conn.transaction::<String, WalletDbError, _>(|| {
             // Store the txo_id_hex -> transaction_txo_type
             let mut txo_ids: Vec<(String, String)> = Vec::new();
@@ -509,14 +518,15 @@ impl TransactionLogModel for TransactionLog {
             if let Some(recipient) = recipient_address {
                 let transaction_id = TransactionID::from(&tx_proposal.tx);
                 let tx = mc_util_serial::encode(&tx_proposal.tx);
+
                 // Create a TransactionLogs entry
                 let new_transaction_log = NewTransactionLog {
                     transaction_id_hex: &transaction_id.to_string(),
-                    account_id_hex: &account_id_hex.unwrap_or(""), /* Can be empty str if
-                                                                    * submitting an "unowned"
-                                                                    * proposal */
+                    // This needs to be nullable, not empty, to maintain FK constraints.
+                    account_id_hex: account_id_hex, /* Can be null if submitting an "unowned"
+                                                     * proposal. */
                     recipient_public_address_b58: &b58_encode(&recipient)?,
-                    assigned_subaddress_b58: "", // NULL for sent
+                    assigned_subaddress_b58: None, // NULL for sent
                     value: transaction_value as i64,
                     fee: Some(tx_proposal.tx.prefix.fee as i64),
                     status: TX_STATUS_PENDING,
@@ -527,7 +537,6 @@ impl TransactionLogModel for TransactionLog {
                     direction: TX_DIRECTION_SENT,
                     tx: Some(&tx),
                 };
-
                 diesel::insert_into(crate::db::schema::transaction_logs::table)
                     .values(&new_transaction_log)
                     .execute(conn)?;
@@ -709,14 +718,14 @@ mod tests {
 
         assert_eq!(
             tx_log.account_id_hex,
-            AccountID::from(&account_key).to_string()
+            Some(AccountID::from(&account_key).to_string())
         );
         assert_eq!(
             tx_log.recipient_public_address_b58,
             b58_encode(&recipient).unwrap()
         );
         // No assigned subaddress for sent
-        assert_eq!(tx_log.assigned_subaddress_b58, "");
+        assert_eq!(tx_log.assigned_subaddress_b58, None);
         // Value is the amount sent, not including fee and change
         assert_eq!(tx_log.value, 50 * MOB);
         // Fee exists for submitted
@@ -850,14 +859,14 @@ mod tests {
 
         assert_eq!(
             tx_log.account_id_hex,
-            AccountID::from(&account_key).to_string()
+            Some(AccountID::from(&account_key).to_string())
         );
         assert_eq!(
             tx_log.recipient_public_address_b58,
             b58_encode(&recipient).unwrap()
         );
         // No assigned subaddress for sent
-        assert_eq!(tx_log.assigned_subaddress_b58, "");
+        assert_eq!(tx_log.assigned_subaddress_b58, None);
         // Value is the amount sent, not including fee and change
         assert_eq!(tx_log.value, value as i64);
         // Fee exists for submitted

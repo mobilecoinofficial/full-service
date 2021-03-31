@@ -337,7 +337,6 @@ mod e2e {
     fn test_export_legacy_account_secrets(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
-
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
@@ -352,7 +351,6 @@ mod e2e {
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
-
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
@@ -365,9 +363,7 @@ mod e2e {
         let result = res.get("result").unwrap();
         let secrets = result.get("account_secrets").unwrap();
         let entropy = secrets["entropy"].clone();
-
         assert_eq!(secrets["account_id"], serde_json::json!(account_id));
-
         // Test that the account_key serializes correctly back to an AccountKey object
         let mut entropy_slice = [0u8; 32];
         entropy_slice[0..32]

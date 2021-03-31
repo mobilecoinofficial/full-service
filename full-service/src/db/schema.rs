@@ -54,9 +54,9 @@ table! {
     transaction_logs (id) {
         id -> Integer,
         transaction_id_hex -> Text,
-        account_id_hex -> Text,
+        account_id_hex -> Nullable<Text>,
         recipient_public_address_b58 -> Text,
-        assigned_subaddress_b58 -> Text,
+        assigned_subaddress_b58 -> Nullable<Text>,
         value -> BigInt,
         fee -> Nullable<BigInt>,
         status -> Text,
