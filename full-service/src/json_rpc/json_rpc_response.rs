@@ -136,6 +136,9 @@ pub enum JsonCommandResponse {
     import_account {
         account: Account,
     },
+    import_account_from_legacy_root_entropy {
+        account: Account,
+    },
     export_account_secrets {
         account_secrets: AccountSecrets,
     },

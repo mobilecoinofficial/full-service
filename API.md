@@ -8,6 +8,7 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 
 * [create_account](#create-account)
 * [import_account](#import-account)
+* [import_account_from_legacy_root_entropy](#import-legacy-account-deprecated)
 * [get_all_accounts](#get-all-accounts)
 * [get_account](#get-account)
 * [update_account_name](#update-account-name)
@@ -29,7 +30,7 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 * [get_all_transaction_logs_for_block](#get-all-transaction-logs-for-block)
 * [get_all_transaction_logs_ordered_by_block](#get-all-transaction-logs-ordered-by-block)
 * [get_confirmations](#get-confirmations)
-* [validate_confirmation](#validate-confirmations)
+* [validate_confirmation](#validate-confirmation)
 * [check_receiver_receipt_status](#check-receiver-receipt-status)
 * [create_receiver_receipts](#create-receiver-receipts)
 * [build_gift_code](#build-gift-code)
@@ -48,6 +49,7 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 The methods above return data representations of wallet contents. The Full Service API Data types are as follows:
 
 * [account](#the-account-object)
+* [account_secrets](#the-account-secrets-object)
 * [balance](#the-balance-object)
 * [wallet_status](#the-wallet-status-object)
 * [address](#the-address-object)
@@ -112,6 +114,58 @@ curl -s localhost:9090/wallet \
   -d '{
         "method": "import_account",
         "params": {
+          "mnemonic": "sheriff odor square mistake huge skate mouse shoot purity weapon proof stuff correct concert blanket neck own shift clay mistake air viable stick group",
+          "key_derivation_version": "2",
+          "name": "Bob"
+          "next_subaddress_index": 2,
+          "first_block_index": "3500"
+        },
+        "jsonrpc": "2.0",
+        "id": 1
+      }' \
+   -X POST -H 'Content-type: application/json' | jq
+```
+
+```json
+{
+  "method": "import_account",
+  "result": {
+    "account": {
+      "object": "account",
+      "account_id": "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470",
+      "name": "Bob",
+      "main_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+      "next_subaddress_index": "2",
+      "first_block_index": "3500",
+      "recovery_mode": false
+    }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+}
+```
+
+| Required Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `mnemonic`      | The secret mnemonic to recover the account  | 24 words  |
+| `key_derivation_version`      | The version number of the key derivation used to derive an account key from this mnemonic. Current version is 2 |  |
+
+| Optional Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `name`         | Label for this account   | Can have duplicates (not recommended) |
+| `first_block_index`  | The block from which to start scanning the ledger |  |
+| `next_subaddress_index`  | The next known unused subaddress index for the account |  |
+
+#### Import Legacy Account - Deprecated
+
+Import an existing account from the secret entropy. - Deprecated
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "import_account_from_legacy_root_entropy",
+        "params": {
           "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
           "name": "Bob"
           "next_subaddress_index": 2,
@@ -151,6 +205,7 @@ curl -s localhost:9090/wallet \
 | :------------- | :----------------------- | :------------------------ |
 | `name`         | Label for this account   | Can have duplicates (not recommended) |
 | `first_block_index`  | The block from which to start scanning the ledger |  |
+| `next_subaddress_index`  | The next known unused subaddress index for the account |  |
 
 ##### Troubleshooting
 
@@ -191,6 +246,7 @@ curl -s localhost:9090/wallet \
     "account_map": {
       "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52": {
         "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
+        "key_derivation_version:": "1",
         "main_address": "4bgkVAH1hs55dwLTGVpZER8ZayhqXbYqfuyisoRrmQPXoWcYQ3SQRTjsAytCiAgk21CRrVNysVw5qwzweURzDK9HL3rGXFmAAahb364kYe3",
         "name": "Alice",
         "next_subaddress_index": "2",
@@ -200,6 +256,7 @@ curl -s localhost:9090/wallet \
       },
       "b6c9f6f779372ae25e93d68a79d725d71f3767d1bfd1c5fe155f948a2cc5c0a0": {
         "account_id": "b6c9f6f779372ae25e93d68a79d725d71f3767d1bfd1c5fe155f948a2cc5c0a0",
+        "key_derivation_version:": "2",
         "main_address": "7EqduSDpM1R5AfQejbjAqFxpuCoh6zJECtvJB9AZFwjK13dCzZgYbyfLf4TfHcE8LVPjzDdpcxYLkdMBh694mHfftJmsFZuz6xUeRtmsUdc",
         "name": "Alice",
         "next_subaddress_index": "2",
@@ -237,6 +294,7 @@ curl -s localhost:9090/wallet \
     "account": {
       "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
       "main_address": "4bgkVAH1hs55dwLTGVpZER8ZayhqXbYqfuyisoRrmQPXoWcYQ3SQRTjsAytCiAgk21CRrVNysVw5qwzweURzDK9HL3rGXFmAAahb364kYe3",
+      "key_derivation_version:": "2",
       "name": "Alice",
       "next_subaddress_index": "2",
       "first_block_index": "3500",
@@ -357,9 +415,10 @@ curl -s localhost:9090/wallet \
   "method": "export_account_secrets",
   "result": {
     "account_secrets": {
-      "object": "account_key",
+      "object": "account_secrets",
       "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
-      "entropy": "fc1fae41f08eccc6c494d67ad0970ef2b469f7149316e5cdb3ad86d07c32469f",
+      "mnemonic": "sheriff odor square mistake huge skate mouse shoot purity weapon proof stuff correct concert blanket neck own shift clay mistake air viable stick group",
+      "key_derivation_version": "2",
       "account_key": {
         "object": "account_key",
         "view_private_key": "0a20be48e147741246f09adb195b110c4ec39302778c4554cd3c9ff877f8392ce605",
@@ -375,6 +434,9 @@ curl -s localhost:9090/wallet \
   "id": 1,
 }
 ```
+
+##### Troubleshooting
+If you are getting an error, make sure that you are not trying to export secrets from an account that is using the old version of generating the Account Keys.
 
 ### TXOs
 
@@ -604,6 +666,7 @@ curl -s localhost:9090/wallet \
       "account_map": {
         "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470": {
           "account_id": "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470",
+          "key_derivation_version:": "2",
           "main_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
           "name": "Bob",
           "next_subaddress_index": "2",
@@ -613,6 +676,7 @@ curl -s localhost:9090/wallet \
         },
         "b0be5377a2f45b1573586ed530b2901a559d9952ea8a02f8c2dbb033a935ac17": {
           "account_id": "b0be5377a2f45b1573586ed530b2901a559d9952ea8a02f8c2dbb033a935ac17",
+          "key_derivation_version:": "2",
           "main_address": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
           "name": "Carol",
           "next_subaddress_index": "2",
@@ -2298,9 +2362,47 @@ An Account is associated with one AccountKey, containing a View keypair and a Sp
 
 * [create_account](#create-account)
 * [import_account](#import-account)
+* [import_account_from_legacy_root_entropy](#import-legacy-account-deprecated)
 * [get_all_accounts](#get-all-accounts)
 * [get_account](#get-account)
 * [update_account_name](#update-account-name)
+
+
+### The Account Secrets Object
+
+Secret keys for an account.
+
+This is returned separately from other account information, to enable more careful handling of cryptographically sensitive information.
+
+
+#### Attributes
+
+| *Name* | *Type* | *Description*
+| :--- | :--- | :---
+| object | string, value is "account_secrets" | String representing the object's type. Objects of the same type share the same value
+| account_id | string | Unique identifier for the account.
+| mnemonic | string | A BIP39 encoded mnemonic phrase used to generate the account key.
+| key_derivation_version | string (uint64) | The version number of the key derivation path used to generate the account key from the mnemonic.
+| account_key |  account_key | The view and spend keys used to transact on the mobilecoin network. Also may contain keys to connect to the Fog ledger scanning service.
+
+#### Example Object
+
+```json
+{
+  "object": "account_secrets",
+  "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
+  "mnemonic": "sheriff odor square mistake huge skate mouse shoot purity weapon proof stuff correct concert blanket neck own shift clay mistake air viable stick group",
+  "key_derivation_version": "2",
+  "account_key": {
+    "object": "account_key",
+    "view_private_key": "0a20be48e147741246f09adb195b110c4ec39302778c4554cd3c9ff877f8392ce605",
+    "spend_private_key": "0a201f33b194e13176341b4e696b70be5ba5c4e0021f5a79664ab9a8b128f0d6d40d",
+    "fog_report_url": "",
+    "fog_report_id": "",
+    "fog_authority_spki": ""
+  }
+}
+```
 
 ### The Balance Object
 
@@ -2377,6 +2479,7 @@ The balance for an account, as well as some information about syncing status nee
   "account_map": {
     "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470": {
       "account_id": "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470",
+      "key_derivation_version:": "2",
       "main_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
       "name": "Bob",
       "next_subaddress_index": "2",
@@ -2386,6 +2489,7 @@ The balance for an account, as well as some information about syncing status nee
     },
     "b0be5377a2f45b1573586ed530b2901a559d9952ea8a02f8c2dbb033a935ac17": {
       "account_id": "b0be5377a2f45b1573586ed530b2901a559d9952ea8a02f8c2dbb033a935ac17",
+      "key_derivation_version:": "2",
       "main_address": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
       "name": "Brady",
       "next_subaddress_index": "2",

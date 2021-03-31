@@ -4,7 +4,7 @@
 
 use crate::{
     db::{
-        account::{AccountID, AccountModel},
+        account::{AccountID, AccountModel, MNEMONIC_KEY_DERIVATION_VERSION},
         models::Account,
         WalletDbError,
     },
@@ -15,9 +15,9 @@ use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
-use mc_util_from_random::FromRandom;
 
 use crate::service::ledger::LedgerServiceError;
+use bip39::{Language, Mnemonic, MnemonicType};
 use diesel::Connection;
 use displaydoc::Display;
 
@@ -37,6 +37,9 @@ pub enum AccountServiceError {
 
     /// Error with the Ledger Service: {0}
     LedgerService(LedgerServiceError),
+
+    /// Unknown key version version: {0}
+    UnknownKeyDerivation(u8),
 }
 
 impl From<WalletDbError> for AccountServiceError {
@@ -79,6 +82,20 @@ pub trait AccountService {
     #[allow(clippy::too_many_arguments)]
     fn import_account(
         &self,
+        mnemonic_phrase: String,
+        key_derivation_version: u8,
+        name: Option<String>,
+        first_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
+        fog_report_url: Option<String>,
+        fog_report_id: Option<String>,
+        fog_authority_spki: Option<String>,
+    ) -> Result<Account, AccountServiceError>;
+
+    /// Import an existing account to the wallet using the entropy.
+    #[allow(clippy::too_many_arguments)]
+    fn import_account_from_legacy_root_entropy(
+        &self,
         entropy: String,
         name: Option<String>,
         first_block_index: Option<u64>,
@@ -114,8 +131,7 @@ where
         log::info!(self.logger, "Creating account {:?}", name,);
 
         // Generate entropy for the account
-        let mut rng = rand::thread_rng();
-        let entropy = RootEntropy::from_random(&mut rng);
+        let mnemonic = Mnemonic::new(MnemonicType::Words24, Language::English);
 
         // Since we are creating the account from randomness, it is highly unlikely that
         // it would have collided with another account that already received funds. For
@@ -127,8 +143,8 @@ where
         let import_block_index = self.ledger_db.num_blocks()? - 1;
 
         let conn = self.wallet_db.get_conn()?;
-        let (account_id, _public_address_b58) = Account::create(
-            &entropy,
+        let (account_id, _public_address_b58) = Account::create_from_mnemonic(
+            &mnemonic,
             Some(first_block_index),
             Some(import_block_index),
             None,
@@ -144,6 +160,51 @@ where
     }
 
     fn import_account(
+        &self,
+        mnemonic_phrase: String,
+        key_derivation_version: u8,
+        name: Option<String>,
+        first_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
+        fog_report_url: Option<String>,
+        fog_report_id: Option<String>,
+        fog_authority_spki: Option<String>,
+    ) -> Result<Account, AccountServiceError> {
+        log::info!(
+            self.logger,
+            "Importing account {:?} with first block: {:?}",
+            name,
+            first_block_index,
+        );
+
+        if key_derivation_version != MNEMONIC_KEY_DERIVATION_VERSION {
+            return Err(AccountServiceError::UnknownKeyDerivation(
+                key_derivation_version,
+            ));
+        }
+
+        // Get mnemonic from phrase
+        let mnemonic = Mnemonic::from_phrase(&mnemonic_phrase, Language::English).unwrap();
+
+        // We record the local highest block index because that is the earliest we could
+        // start scanning.
+        let import_block = self.ledger_db.num_blocks()? - 1;
+
+        let conn = self.wallet_db.get_conn()?;
+        Ok(Account::import(
+            &mnemonic,
+            name,
+            import_block,
+            first_block_index,
+            next_subaddress_index,
+            fog_report_url,
+            fog_report_id,
+            fog_authority_spki,
+            &conn,
+        )?)
+    }
+
+    fn import_account_from_legacy_root_entropy(
         &self,
         entropy: String,
         name: Option<String>,
@@ -168,7 +229,7 @@ where
         let import_block = self.ledger_db.num_blocks()? - 1;
 
         let conn = self.wallet_db.get_conn()?;
-        Ok(Account::import(
+        Ok(Account::import_legacy(
             &RootEntropy::from(&entropy_bytes),
             name,
             import_block,

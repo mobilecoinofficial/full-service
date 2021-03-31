@@ -56,3 +56,5 @@ Cargo.lock
 # Homebrew bundle
 /Brewfile.lock.json
 consensus-enclave.css
+
+ingest-enclave.css

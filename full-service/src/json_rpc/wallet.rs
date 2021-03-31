@@ -103,6 +103,44 @@ where
             }
         }
         JsonCommandRequest::import_account {
+            mnemonic,
+            key_derivation_version,
+            name,
+            first_block_index,
+            next_subaddress_index,
+            fog_report_url,
+            fog_report_id,
+            fog_authority_spki,
+        } => {
+            let fb = first_block_index
+                .map(|fb| fb.parse::<u64>())
+                .transpose()
+                .map_err(format_error)?;
+            let ns = next_subaddress_index
+                .map(|ns| ns.parse::<u64>())
+                .transpose()
+                .map_err(format_error)?;
+            let kdv = key_derivation_version.parse::<u8>().map_err(format_error)?;
+
+            JsonCommandResponse::import_account {
+                account: json_rpc::account::Account::try_from(
+                    &service
+                        .import_account(
+                            mnemonic,
+                            kdv,
+                            name,
+                            fb,
+                            ns,
+                            fog_report_url,
+                            fog_report_id,
+                            fog_authority_spki,
+                        )
+                        .map_err(format_error)?,
+                )
+                .map_err(format_error)?,
+            }
+        }
+        JsonCommandRequest::import_account_from_legacy_root_entropy {
             entropy,
             name,
             first_block_index,
@@ -123,7 +161,7 @@ where
             JsonCommandResponse::import_account {
                 account: json_rpc::account::Account::try_from(
                     &service
-                        .import_account(
+                        .import_account_from_legacy_root_entropy(
                             entropy,
                             name,
                             fb,
