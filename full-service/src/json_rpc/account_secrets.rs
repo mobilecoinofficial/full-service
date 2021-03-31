@@ -19,10 +19,13 @@ pub struct AccountSecrets {
     /// The account ID for this account key in the wallet database.
     pub account_id: String,
 
-    /// The entropy from which this account key was derived, as a String.
-    /// Depending on the version, this will either be a hex encoded string
-    /// for version 1, or a 24 word mnemonic for version 2.
-    pub entropy: String,
+    /// The entropy from which this account key was derived, as a String
+    /// (version 1)
+    pub entropy: Option<String>,
+
+    /// The mnemonic from which this account key was derived, as a String
+    /// (version 2)
+    pub mnemonic: Option<String>,
 
     /// The key derivation version that this mnemonic goes with
     pub key_derivation_version: String,
@@ -39,17 +42,25 @@ impl TryFrom<&Account> for AccountSecrets {
             .map_err(|err| format!("Could not decode account key from database: {:?}", err))?;
 
         let entropy = match src.key_derivation_version {
-            1 => hex::encode(&src.entropy),
-            _ => Mnemonic::from_entropy(&src.entropy, Language::English)
-                .unwrap()
-                .phrase()
-                .to_string(),
+            1 => Some(hex::encode(&src.entropy)),
+            _ => None,
+        };
+
+        let mnemonic = match src.key_derivation_version {
+            2 => Some(
+                Mnemonic::from_entropy(&src.entropy, Language::English)
+                    .unwrap()
+                    .phrase()
+                    .to_string(),
+            ),
+            _ => None,
         };
 
         Ok(AccountSecrets {
             object: "account_secrets".to_string(),
             account_id: src.account_id_hex.clone(),
-            entropy: entropy,
+            entropy,
+            mnemonic,
             key_derivation_version: src.key_derivation_version.to_string(),
             account_key: AccountKey::try_from(&account_key).map_err(|err| {
                 format!(

@@ -313,7 +313,7 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let secrets = result.get("account_secrets").unwrap();
-        let phrase = secrets["entropy"].as_str().unwrap();
+        let phrase = secrets["mnemonic"].as_str().unwrap();
         assert_eq!(secrets["account_id"], serde_json::json!(account_id));
         assert_eq!(secrets["key_derivation_version"], serde_json::json!("2"));
 
