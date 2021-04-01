@@ -18,7 +18,7 @@ pub struct Txo {
 
     /// Unique identifier for the Txo. Constructed from the contents of the
     /// TxOut in the ledger representation.
-    pub txo_id: String,
+    pub txo_id_hex: String,
 
     /// Available pico MOB for this account at the current account_block_index.
     /// If the account is syncing, this value may change.
@@ -113,7 +113,7 @@ impl From<&TxoDetails> for Txo {
 
         Txo {
             object: "txo".to_string(),
-            txo_id: txo_details.txo.txo_id_hex.clone(),
+            txo_id_hex: txo_details.txo.txo_id_hex.clone(),
             value_pmob: txo_details.txo.value.to_string(),
             received_block_index: txo_details.txo.received_block_index.map(|x| x.to_string()),
             spent_block_index: txo_details.txo.spent_block_index.map(|x| x.to_string()),

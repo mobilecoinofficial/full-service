@@ -93,17 +93,9 @@ where
     global_log::trace!("Running command {:?}", command);
 
     let result: JsonCommandResponse = match command.0 {
-        JsonCommandRequest::create_account {
-            name,
-            first_block_index,
-        } => {
-            let fb = first_block_index
-                .map(|fb| fb.parse::<u64>())
-                .transpose()
-                .map_err(format_error)?;
-
+        JsonCommandRequest::create_account { name } => {
             let account: db::models::Account =
-                service.create_account(name, fb).map_err(format_error)?;
+                service.create_account(name).map_err(format_error)?;
 
             JsonCommandResponse::create_account {
                 account: json_rpc::account::Account::try_from(&account)
@@ -111,9 +103,11 @@ where
             }
         }
         JsonCommandRequest::import_account {
-            entropy,
+            mnemonic,
+            key_derivation_version,
             name,
             first_block_index,
+            next_subaddress_index,
             fog_report_url,
             fog_report_id,
             fog_authority_spki,
@@ -122,14 +116,56 @@ where
                 .map(|fb| fb.parse::<u64>())
                 .transpose()
                 .map_err(format_error)?;
+            let ns = next_subaddress_index
+                .map(|ns| ns.parse::<u64>())
+                .transpose()
+                .map_err(format_error)?;
+            let kdv = key_derivation_version.parse::<u8>().map_err(format_error)?;
 
             JsonCommandResponse::import_account {
                 account: json_rpc::account::Account::try_from(
                     &service
                         .import_account(
+                            mnemonic,
+                            kdv,
+                            name,
+                            fb,
+                            ns,
+                            fog_report_url,
+                            fog_report_id,
+                            fog_authority_spki,
+                        )
+                        .map_err(format_error)?,
+                )
+                .map_err(format_error)?,
+            }
+        }
+        JsonCommandRequest::import_account_from_legacy_root_entropy {
+            entropy,
+            name,
+            first_block_index,
+            next_subaddress_index,
+            fog_report_url,
+            fog_report_id,
+            fog_authority_spki,
+        } => {
+            let fb = first_block_index
+                .map(|fb| fb.parse::<u64>())
+                .transpose()
+                .map_err(format_error)?;
+            let ns = next_subaddress_index
+                .map(|ns| ns.parse::<u64>())
+                .transpose()
+                .map_err(format_error)?;
+
+            JsonCommandResponse::import_account {
+                account: json_rpc::account::Account::try_from(
+                    &service
+                        .import_account_from_legacy_root_entropy(
                             entropy,
                             name,
                             fb,
+                            ns,
                             fog_report_url,
                             fog_report_id,
                             fog_authority_spki,
@@ -442,8 +478,8 @@ where
                 txo_map,
             }
         }
-        JsonCommandRequest::get_txo { txo_id_hex } => {
-            let result = service.get_txo(&TxoID(txo_id_hex)).map_err(format_error)?;
+        JsonCommandRequest::get_txo { txo_id } => {
+            let result = service.get_txo(&TxoID(txo_id)).map_err(format_error)?;
             JsonCommandResponse::get_txo {
                 txo: Txo::from(&result),
             }
@@ -480,11 +516,11 @@ where
         }
         JsonCommandRequest::validate_confirmation {
             account_id,
-            txo_id_hex,
+            txo_id,
             confirmation,
         } => {
             let result = service
-                .validate_confirmation(&AccountID(account_id), &TxoID(txo_id_hex), &confirmation)
+                .validate_confirmation(&AccountID(account_id), &TxoID(txo_id), &confirmation)
                 .map_err(format_error)?;
             JsonCommandResponse::validate_confirmation { validated: result }
         }
@@ -498,8 +534,8 @@ where
                 transaction: json_tx,
             }
         }
-        JsonCommandRequest::get_mc_protocol_txo { txo_id_hex } => {
-            let tx_out = service.get_txo_object(&txo_id_hex).map_err(format_error)?;
+        JsonCommandRequest::get_mc_protocol_txo { txo_id } => {
+            let tx_out = service.get_txo_object(&txo_id).map_err(format_error)?;
             let proto_txo = mc_api::external::TxOut::from(&tx_out);
             let json_txo = JsonTxOut::from(&proto_txo);
             JsonCommandResponse::get_mc_protocol_txo { txo: json_txo }
@@ -609,12 +645,13 @@ where
                 .collect(),
         },
         JsonCommandRequest::check_gift_code_status { gift_code_b58 } => {
-            let (status, value) = service
+            let (status, value, memo) = service
                 .check_gift_code_status(&EncodedGiftCode(gift_code_b58))
                 .map_err(format_error)?;
             JsonCommandResponse::check_gift_code_status {
                 gift_code_status: status,
                 gift_code_value: value,
+                gift_code_memo: memo,
             }
         }
         JsonCommandRequest::claim_gift_code {
@@ -630,7 +667,7 @@ where
                 )
                 .map_err(format_error)?;
             JsonCommandResponse::claim_gift_code {
-                txo_id_hex: TxoID::from(&tx.prefix.outputs[0]).to_string(),
+                txo_id: TxoID::from(&tx.prefix.outputs[0]).to_string(),
             }
         }
 

@@ -77,6 +77,8 @@ pub struct Account {
     /// The private entropy for this account, used to derive the view and send
     /// keys which comprise the account_key.
     pub entropy: Vec<u8>,
+    /// Which version of key derivation we are using.
+    pub key_derivation_version: i32,
     /// Default subadress that is given out to refer to this account.
     pub main_subaddress_index: i64,
     /// Subaddress used to return transaction "change" to self.
@@ -105,6 +107,7 @@ pub struct NewAccount<'a> {
     pub account_id_hex: &'a str,
     pub account_key: &'a [u8],
     pub entropy: &'a [u8],
+    pub key_derivation_version: i32,
     pub main_subaddress_index: i64,
     pub change_subaddress_index: i64,
     pub next_subaddress_index: i64,

@@ -14,9 +14,11 @@ use crate::db::{
 };
 
 use mc_account_keys::{AccountKey, RootEntropy, RootIdentity, DEFAULT_SUBADDRESS_INDEX};
+use mc_account_keys_slip10::Slip10Key;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_transaction_core::ring_signature::KeyImage;
 
+use bip39::Mnemonic;
 use diesel::{
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},
@@ -27,6 +29,9 @@ use std::fmt;
 pub const DEFAULT_CHANGE_SUBADDRESS_INDEX: u64 = 1;
 pub const DEFAULT_NEXT_SUBADDRESS_INDEX: u64 = 2;
 pub const DEFAULT_FIRST_BLOCK_INDEX: u64 = 0;
+
+pub const ROOT_ENTROPY_KEY_DERIVATION_VERSION: u8 = 1;
+pub const MNEMONIC_KEY_DERIVATION_VERSION: u8 = 2;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct AccountID(pub String);
@@ -51,10 +56,11 @@ pub trait AccountModel {
     /// Returns:
     /// * (account_id, main_subaddress_b58)
     #[allow(clippy::too_many_arguments)]
-    fn create(
-        entropy: &RootEntropy,
+    fn create_from_mnemonic(
+        mnemonic: &Mnemonic,
         first_block_index: Option<u64>,
         import_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
         name: &str,
         fog_report_url: Option<String>,
         fog_report_id: Option<String>,
@@ -62,13 +68,61 @@ pub trait AccountModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(AccountID, String), WalletDbError>;
 
+    /// Create an account.
+    ///
+    /// Returns:
+    /// * (account_id, main_subaddress_b58)
+    #[allow(clippy::too_many_arguments)]
+    fn create_from_root_entropy(
+        entropy: &RootEntropy,
+        first_block_index: Option<u64>,
+        import_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
+        name: &str,
+        fog_report_url: Option<String>,
+        fog_report_id: Option<String>,
+        fog_authority_spki: Option<String>,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(AccountID, String), WalletDbError>;
+
+    /// Create an account.
+    ///
+    /// Returns:
+    /// * (account_id, main_subaddress_b58)
+    #[allow(clippy::too_many_arguments)]
+    fn create(
+        entropy: &[u8],
+        key_derivation_version: u8,
+        account_key: &AccountKey,
+        first_block_index: Option<u64>,
+        import_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
+        name: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(AccountID, String), WalletDbError>;
+
     /// Import account.
     #[allow(clippy::too_many_arguments)]
     fn import(
+        mnemonic: &Mnemonic,
+        name: Option<String>,
+        import_block_index: u64,
+        first_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
+        fog_report_url: Option<String>,
+        fog_report_id: Option<String>,
+        fog_authority_spki: Option<String>,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Account, WalletDbError>;
+
+    /// Import account.
+    #[allow(clippy::too_many_arguments)]
+    fn import_legacy(
         entropy: &RootEntropy,
         name: Option<String>,
         import_block_index: u64,
         first_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
         fog_report_url: Option<String>,
         fog_report_id: Option<String>,
         fog_authority_spki: Option<String>,
@@ -124,18 +178,49 @@ pub trait AccountModel {
 }
 
 impl AccountModel for Account {
-    fn create(
-        entropy: &RootEntropy,
+    fn create_from_mnemonic(
+        mnemonic: &Mnemonic,
         first_block_index: Option<u64>,
         import_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
         name: &str,
         fog_report_url: Option<String>,
         fog_report_id: Option<String>,
         fog_authority_spki: Option<String>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(AccountID, String), WalletDbError> {
-        use crate::db::schema::accounts;
+        let account_key = Slip10Key::from(mnemonic.clone())
+            .try_into_account_key(
+                &fog_report_url.unwrap_or_else(|| "".to_string()),
+                &fog_report_id.unwrap_or_else(|| "".to_string()),
+                &hex::decode(fog_authority_spki.unwrap_or_else(|| "".to_string()))
+                    .expect("invalid spki"),
+            )
+            .unwrap();
 
+        Account::create(
+            mnemonic.entropy(),
+            MNEMONIC_KEY_DERIVATION_VERSION,
+            &account_key,
+            first_block_index,
+            import_block_index,
+            next_subaddress_index,
+            name,
+            conn,
+        )
+    }
+
+    fn create_from_root_entropy(
+        entropy: &RootEntropy,
+        first_block_index: Option<u64>,
+        import_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
+        name: &str,
+        fog_report_url: Option<String>,
+        fog_report_id: Option<String>,
+        fog_authority_spki: Option<String>,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(AccountID, String), WalletDbError> {
         let root_id = RootIdentity {
             root_entropy: entropy.clone(),
             fog_report_url: fog_report_url.unwrap_or_else(|| "".to_string()),
@@ -145,19 +230,46 @@ impl AccountModel for Account {
         };
         let account_key = AccountKey::from(&root_id);
 
-        let account_id = AccountID::from(&account_key);
+        Account::create(
+            &entropy.bytes,
+            ROOT_ENTROPY_KEY_DERIVATION_VERSION,
+            &account_key,
+            first_block_index,
+            import_block_index,
+            next_subaddress_index,
+            name,
+            conn,
+        )
+    }
+
+    fn create(
+        entropy: &[u8],
+        key_derivation_version: u8,
+        account_key: &AccountKey,
+        first_block_index: Option<u64>,
+        import_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
+        name: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(AccountID, String), WalletDbError> {
+        use crate::db::schema::accounts;
+
+        let account_id = AccountID::from(account_key);
         let fb = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX);
 
         Ok(
             conn.transaction::<(AccountID, String), WalletDbError, _>(|| {
                 let new_account = NewAccount {
                     account_id_hex: &account_id.to_string(),
-                    account_key: &mc_util_serial::encode(&account_key), /* FIXME: WS-6 - add
-                                                                         * encryption */
-                    entropy: &entropy.bytes,
+                    account_key: &mc_util_serial::encode(account_key), /* FIXME: WS-6 - add
+                                                                        * encryption */
+                    entropy: &entropy,
+                    key_derivation_version: key_derivation_version as i32,
                     main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
                     change_subaddress_index: DEFAULT_CHANGE_SUBADDRESS_INDEX as i64,
-                    next_subaddress_index: DEFAULT_NEXT_SUBADDRESS_INDEX as i64,
+                    next_subaddress_index: next_subaddress_index
+                        .unwrap_or(DEFAULT_NEXT_SUBADDRESS_INDEX)
+                        as i64,
                     first_block_index: fb as i64,
                     next_block_index: fb as i64,
                     import_block_index: import_block_index.map(|i| i as i64),
@@ -185,26 +297,62 @@ impl AccountModel for Account {
                     "Change",
                     &conn,
                 )?;
+
+                for subaddress_index in
+                    2..next_subaddress_index.unwrap_or(DEFAULT_NEXT_SUBADDRESS_INDEX)
+                {
+                    AssignedSubaddress::create(&account_key, None, subaddress_index, "", &conn)?;
+                }
+
                 Ok((account_id, main_subaddress_b58))
             })?,
         )
     }
 
     fn import(
-        entropy: &RootEntropy,
+        mnemonic: &Mnemonic,
         name: Option<String>,
         import_block_index: u64,
         first_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
         fog_report_url: Option<String>,
         fog_report_id: Option<String>,
         fog_authority_spki: Option<String>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Account, WalletDbError> {
         Ok(conn.transaction::<Account, WalletDbError, _>(|| {
-            let (account_id, _public_address_b58) = Account::create(
-                entropy,
+            let (account_id, _public_address_b58) = Account::create_from_mnemonic(
+                mnemonic,
                 first_block_index,
                 Some(import_block_index),
+                next_subaddress_index,
+                &name.unwrap_or_else(|| "".to_string()),
+                fog_report_url,
+                fog_report_id,
+                fog_authority_spki,
+                conn,
+            )?;
+            Ok(Account::get(&account_id, &conn)?)
+        })?)
+    }
+
+    fn import_legacy(
+        root_entropy: &RootEntropy,
+        name: Option<String>,
+        import_block_index: u64,
+        first_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
+        fog_report_url: Option<String>,
+        fog_report_id: Option<String>,
+        fog_authority_spki: Option<String>,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Account, WalletDbError> {
+        Ok(conn.transaction::<Account, WalletDbError, _>(|| {
+            let (account_id, _public_address_b58) = Account::create_from_root_entropy(
+                root_entropy,
+                first_block_index,
+                Some(import_block_index),
+                next_subaddress_index,
                 &name.unwrap_or_else(|| "".to_string()),
                 fog_report_url,
                 fog_report_id,
@@ -353,6 +501,9 @@ impl AccountModel for Account {
 
         diesel::delete(accounts.filter(account_id_hex.eq(&self.account_id_hex))).execute(conn)?;
 
+        // Also delete transaction logs associated with this account
+        TransactionLog::delete_all_for_account(&self.account_id_hex, conn)?;
+
         // Also delete the associated assigned subaddresses
         AssignedSubaddress::delete_all(&self.account_id_hex, conn)?;
 
@@ -384,9 +535,10 @@ mod tests {
         let account_key = AccountKey::from(&root_id);
         let account_id_hex = {
             let conn = wallet_db.get_conn().unwrap();
-            let (account_id_hex, _public_address_b58) = Account::create(
+            let (account_id_hex, _public_address_b58) = Account::create_from_root_entropy(
                 &root_id.root_entropy,
                 Some(0),
+                None,
                 None,
                 "Alice's Main Account",
                 None,
@@ -410,6 +562,7 @@ mod tests {
             account_id_hex: account_id_hex.to_string(),
             account_key: mc_util_serial::encode(&account_key),
             entropy: root_id.root_entropy.bytes.to_vec(),
+            key_derivation_version: 1,
             main_subaddress_index: 0,
             change_subaddress_index: 1,
             next_subaddress_index: 2,
@@ -446,17 +599,19 @@ mod tests {
         // Add another account with no name, scanning from later
         let root_id_secondary = RootIdentity::from_random(&mut rng);
         let account_key_secondary = AccountKey::from(&root_id_secondary);
-        let (account_id_hex_secondary, _public_address_b58_secondary) = Account::create(
-            &root_id_secondary.root_entropy,
-            Some(51),
-            Some(50),
-            "",
-            None,
-            None,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
+        let (account_id_hex_secondary, _public_address_b58_secondary) =
+            Account::create_from_root_entropy(
+                &root_id_secondary.root_entropy,
+                Some(51),
+                Some(50),
+                None,
+                "",
+                None,
+                None,
+                None,
+                &wallet_db.get_conn().unwrap(),
+            )
+            .unwrap();
         let res = Account::list_all(&wallet_db.get_conn().unwrap()).unwrap();
         assert_eq!(res.len(), 2);
 
@@ -467,6 +622,7 @@ mod tests {
             account_id_hex: account_id_hex_secondary.to_string(),
             account_key: mc_util_serial::encode(&account_key_secondary),
             entropy: root_id_secondary.root_entropy.bytes.to_vec(),
+            key_derivation_version: 1,
             main_subaddress_index: 0,
             change_subaddress_index: 1,
             next_subaddress_index: 2,
@@ -521,9 +677,10 @@ mod tests {
         let account_key = AccountKey::from(&root_id);
         let account_id = {
             let conn = wallet_db.get_conn().unwrap();
-            let (account_id_hex, _public_address_b58) = Account::create(
+            let (account_id_hex, _public_address_b58) = Account::create_from_root_entropy(
                 &root_id.root_entropy,
                 Some(0),
+                None,
                 None,
                 "Alice's Main Account",
                 None,

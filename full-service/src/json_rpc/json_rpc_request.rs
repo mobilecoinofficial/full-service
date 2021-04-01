@@ -57,12 +57,22 @@ impl TryFrom<&JsonRPCRequest> for JsonCommandRequest {
 pub enum JsonCommandRequest {
     create_account {
         name: Option<String>,
-        first_block_index: Option<String>,
     },
     import_account {
+        mnemonic: String,
+        key_derivation_version: String,
+        name: Option<String>,
+        first_block_index: Option<String>,
+        next_subaddress_index: Option<String>,
+        fog_report_url: Option<String>,
+        fog_report_id: Option<String>,
+        fog_authority_spki: Option<String>,
+    },
+    import_account_from_legacy_root_entropy {
         entropy: String,
         name: Option<String>,
         first_block_index: Option<String>,
+        next_subaddress_index: Option<String>,
         fog_report_url: Option<String>,
         fog_report_id: Option<String>,
         fog_authority_spki: Option<String>,
@@ -139,7 +149,7 @@ pub enum JsonCommandRequest {
         account_id: String,
     },
     get_txo {
-        txo_id_hex: String,
+        txo_id: String,
     },
     get_all_txos_for_address {
         address: String,
@@ -149,14 +159,14 @@ pub enum JsonCommandRequest {
     },
     validate_confirmation {
         account_id: String,
-        txo_id_hex: String,
+        txo_id: String,
         confirmation: String,
     },
     get_mc_protocol_transaction {
         transaction_log_id: String,
     },
     get_mc_protocol_txo {
-        txo_id_hex: String,
+        txo_id: String,
     },
     get_block {
         block_index: String,

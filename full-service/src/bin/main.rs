@@ -31,6 +31,10 @@ fn main() {
 
     let config = APIConfig::from_args();
 
+    if !cfg!(debug_assertions) && !config.offline {
+        config.validate_host().expect("Could not validate host");
+    }
+
     let (logger, _global_logger_guard) = create_app_logger(o!());
 
     let rocket_config: rocket::Config =

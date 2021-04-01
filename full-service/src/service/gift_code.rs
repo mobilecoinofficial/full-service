@@ -294,7 +294,7 @@ pub trait GiftCodeService {
     fn check_gift_code_status(
         &self,
         gift_code_b58: &EncodedGiftCode,
-    ) -> Result<(GiftCodeStatus, Option<i64>), GiftCodeServiceError>;
+    ) -> Result<(GiftCodeStatus, Option<i64>, String), GiftCodeServiceError>;
 
     /// Execute a transaction from the gift code account to drain the account to
     /// the destination specified by the account_id_hex and
@@ -439,7 +439,7 @@ where
     fn check_gift_code_status(
         &self,
         gift_code_b58: &EncodedGiftCode,
-    ) -> Result<(GiftCodeStatus, Option<i64>), GiftCodeServiceError> {
+    ) -> Result<(GiftCodeStatus, Option<i64>, String), GiftCodeServiceError> {
         log::info!(self.logger, "encoded_gift_code: {:?}", gift_code_b58);
 
         let decoded_gift_code = self.decode_gift_code(gift_code_b58)?;
@@ -460,7 +460,11 @@ where
         {
             Ok(tx_out_index) => self.ledger_db.get_tx_out_by_index(tx_out_index)?,
             Err(mc_ledger_db::Error::NotFound) => {
-                return Ok((GiftCodeStatus::GiftCodeSubmittedPending, None))
+                return Ok((
+                    GiftCodeStatus::GiftCodeSubmittedPending,
+                    None,
+                    decoded_gift_code.memo,
+                ))
             }
             Err(e) => return Err(e.into()),
         };
@@ -485,10 +489,18 @@ where
         };
 
         if self.ledger_db.contains_key_image(&gift_code_key_image)? {
-            return Ok((GiftCodeStatus::GiftCodeClaimed, Some(value as i64)));
+            return Ok((
+                GiftCodeStatus::GiftCodeClaimed,
+                Some(value as i64),
+                decoded_gift_code.memo,
+            ));
         }
 
-        Ok((GiftCodeStatus::GiftCodeAvailable, Some(value as i64)))
+        Ok((
+            GiftCodeStatus::GiftCodeAvailable,
+            Some(value as i64),
+            decoded_gift_code.memo,
+        ))
     }
 
     fn claim_gift_code(
@@ -497,7 +509,7 @@ where
         account_id: &AccountID,
         assigned_subaddress_b58: Option<String>,
     ) -> Result<Tx, GiftCodeServiceError> {
-        let (status, gift_value) = self.check_gift_code_status(gift_code_b58)?;
+        let (status, gift_value, _memo) = self.check_gift_code_status(gift_code_b58)?;
 
         match status {
             GiftCodeStatus::GiftCodeClaimed => return Err(GiftCodeServiceError::GiftCodeClaimed),
@@ -682,7 +694,7 @@ mod tests {
 
         // Create our main account for the wallet
         let alice = service
-            .create_account(Some("Alice's Main Account".to_string()), None)
+            .create_account(Some("Alice's Main Account".to_string()))
             .unwrap();
 
         // Add a block with a transaction for Alice
@@ -735,7 +747,7 @@ mod tests {
             .unwrap();
 
         // Check the status before the gift code hits the ledger
-        let (status, gift_code_value_opt) = service
+        let (status, gift_code_value_opt, _memo) = service
             .check_gift_code_status(&gift_code_b58)
             .expect("Could not get gift code status");
         assert_eq!(status, GiftCodeStatus::GiftCodeSubmittedPending);
@@ -751,7 +763,7 @@ mod tests {
         );
 
         // Now the Gift Code should be Available
-        let (status, gift_code_value_opt) = service
+        let (status, gift_code_value_opt, _memo) = service
             .check_gift_code_status(&gift_code_b58)
             .expect("Could not get gift code status");
         assert_eq!(status, GiftCodeStatus::GiftCodeAvailable);
@@ -796,7 +808,7 @@ mod tests {
         // Claim the gift code to another account
         log::info!(logger, "Creating new account to receive gift code");
         let bob = service
-            .create_account(Some("Bob's Main Account".to_string()), None)
+            .create_account(Some("Bob's Main Account".to_string()))
             .unwrap();
         manually_sync_account(
             &ledger_db,
@@ -833,7 +845,7 @@ mod tests {
         );
 
         // Now the Gift Code should be spent
-        let (status, gift_code_value_opt) = service
+        let (status, gift_code_value_opt, _memo) = service
             .check_gift_code_status(&gift_code_b58)
             .expect("Could not get gift code status");
         assert_eq!(status, GiftCodeStatus::GiftCodeClaimed);
@@ -857,7 +869,7 @@ mod tests {
 
         // Create our main account for the wallet
         let alice = service
-            .create_account(Some("Alice's Main Account".to_string()), None)
+            .create_account(Some("Alice's Main Account".to_string()))
             .unwrap();
 
         // Add a block with a transaction for Alice
@@ -910,7 +922,7 @@ mod tests {
             .unwrap();
 
         // Check the status before the gift code hits the ledger
-        let (status, gift_code_value_opt) = service
+        let (status, gift_code_value_opt, _memo) = service
             .check_gift_code_status(&gift_code_b58)
             .expect("Could not get gift code status");
         assert_eq!(status, GiftCodeStatus::GiftCodeSubmittedPending);
@@ -927,7 +939,7 @@ mod tests {
         );
 
         // Check that it landed
-        let (status, gift_code_value_opt) = service
+        let (status, gift_code_value_opt, _memo) = service
             .check_gift_code_status(&gift_code_b58)
             .expect("Could not get gift code status");
         assert_eq!(status, GiftCodeStatus::GiftCodeAvailable);

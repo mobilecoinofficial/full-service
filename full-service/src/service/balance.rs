@@ -342,7 +342,15 @@ mod tests {
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
 
         let account = service
-            .import_account(hex::encode(&entropy.bytes), None, None, None, None, None)
+            .import_account_from_legacy_root_entropy(
+                hex::encode(&entropy.bytes),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
             .expect("Could not import account entropy");
 
         let address = service

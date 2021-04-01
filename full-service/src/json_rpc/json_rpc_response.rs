@@ -136,6 +136,9 @@ pub enum JsonCommandResponse {
     import_account {
         account: Account,
     },
+    import_account_from_legacy_root_entropy {
+        account: Account,
+    },
     export_account_secrets {
         account_secrets: AccountSecrets,
     },
@@ -249,9 +252,10 @@ pub enum JsonCommandResponse {
     check_gift_code_status {
         gift_code_status: GiftCodeStatus,
         gift_code_value: Option<i64>,
+        gift_code_memo: String,
     },
     claim_gift_code {
-        txo_id_hex: String,
+        txo_id: String,
     },
     remove_gift_code {
         removed: bool,

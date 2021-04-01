@@ -755,6 +755,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "displaydoc"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3274a6bc8a6a4521291b53b9dcb8345e963fe931c3fc462a7d3ead71d7ccd30d"
+dependencies = [
+ "proc-macro2 1.0.24",
+ "quote 1.0.7",
+ "syn 1.0.48",
+]
+
+[[package]]
 name = "dotenv"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1237,6 +1248,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "hmac-sha512"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77e806677ce663d0a199541030c816847b36e8dc095f70dae4a4f4ad63da5383"
+
+[[package]]
 name = "hostname"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1651,6 +1668,7 @@ version = "1.0.1-pre1"
 dependencies = [
  "blake2",
  "curve25519-dalek",
+ "displaydoc 0.2.1",
  "hkdf",
  "mc-crypto-digestible",
  "mc-crypto-hashes",
@@ -1665,6 +1683,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "mc-account-keys-slip10"
+version = "1.0.1-pre1"
+dependencies = [
+ "curve25519-dalek",
+ "displaydoc 0.2.1",
+ "hkdf",
+ "mc-account-keys",
+ "mc-crypto-keys",
+ "sha2",
+ "slip10_ed25519",
+ "tiny-bip39",
+ "zeroize",
+]
+
+[[package]]
 name = "mc-api"
 version = "1.0.1-pre1"
 dependencies = [
@@ -1672,7 +1705,7 @@ dependencies = [
  "cargo-emit",
  "crc",
  "curve25519-dalek",
- "displaydoc",
+ "displaydoc 0.2.1",
  "mc-account-keys",
  "mc-attest-core",
  "mc-crypto-keys",
@@ -1692,7 +1725,7 @@ dependencies = [
  "aead",
  "cargo-emit",
  "digest",
- "displaydoc",
+ "displaydoc 0.2.1",
  "mc-attest-core",
  "mc-crypto-keys",
  "mc-crypto-noise",
@@ -1727,12 +1760,15 @@ version = "1.0.1-pre1"
 dependencies = [
  "binascii",
  "bitflags",
+ "cargo-emit",
  "cfg-if 0.1.10",
  "chrono",
  "digest",
- "displaydoc",
+ "displaydoc 0.2.1",
  "failure",
+ "hex",
  "hex_fmt",
+ "lazy_static",
  "mbedtls",
  "mbedtls-sys-auto",
  "mc-common",
@@ -1743,7 +1779,8 @@ dependencies = [
  "mc-sgx-types",
  "mc-util-encodings",
  "prost",
- "rand_core 0.5.1",
+ "rand 0.7.3",
+ "rand_hc 0.2.0",
  "rjson",
  "serde",
  "sha2",
@@ -1754,7 +1791,7 @@ dependencies = [
 name = "mc-attest-enclave-api"
 version = "1.0.1-pre1"
 dependencies = [
- "displaydoc",
+ "displaydoc 0.2.1",
  "mc-attest-ake",
  "mc-attest-core",
  "mc-crypto-noise",
@@ -1803,7 +1840,7 @@ version = "1.0.1-pre1"
 dependencies = [
  "aes-gcm",
  "cookie 0.14.3",
- "displaydoc",
+ "displaydoc 0.2.1",
  "grpcio",
  "mc-attest-ake",
  "mc-attest-api",
@@ -2001,7 +2038,7 @@ dependencies = [
 name = "mc-crypto-x509-utils"
 version = "1.0.1-pre1"
 dependencies = [
- "displaydoc",
+ "displaydoc 0.2.1",
  "mc-crypto-keys",
  "pem",
  "x509-signature",
@@ -2027,7 +2064,7 @@ dependencies = [
 name = "mc-fog-report-connection"
 version = "1.0.1-pre1"
 dependencies = [
- "displaydoc",
+ "displaydoc 0.2.1",
  "grpcio",
  "mc-account-keys",
  "mc-attest-core",
@@ -2044,7 +2081,7 @@ dependencies = [
 name = "mc-fog-report-validation"
 version = "1.0.1-pre1"
 dependencies = [
- "displaydoc",
+ "displaydoc 0.2.1",
  "mc-account-keys",
  "mc-attest-core",
  "mc-crypto-keys",
@@ -2068,7 +2105,7 @@ dependencies = [
 name = "mc-fog-sig"
 version = "1.0.1-pre1"
 dependencies = [
- "displaydoc",
+ "displaydoc 0.2.1",
  "mc-account-keys",
  "mc-crypto-keys",
  "mc-crypto-x509-utils",
@@ -2092,7 +2129,7 @@ dependencies = [
 name = "mc-fog-sig-report"
 version = "1.0.1-pre1"
 dependencies = [
- "displaydoc",
+ "displaydoc 0.2.1",
  "mc-attest-core",
  "mc-crypto-digestible-signature",
  "mc-crypto-keys",
@@ -2120,11 +2157,12 @@ dependencies = [
  "diesel",
  "diesel-derive-enum",
  "diesel_migrations",
- "displaydoc",
+ "displaydoc 0.1.7",
  "dotenv",
  "grpcio",
  "hex",
  "mc-account-keys",
+ "mc-account-keys-slip10",
  "mc-api",
  "mc-attest-core",
  "mc-common",
@@ -2152,6 +2190,7 @@ dependencies = [
  "num_cpus",
  "prost",
  "rand 0.7.3",
+ "reqwest",
  "retry",
  "rocket",
  "rocket_contrib",
@@ -2162,6 +2201,7 @@ dependencies = [
  "strum",
  "strum_macros",
  "tempdir",
+ "tiny-bip39",
  "uuid 0.7.4",
 ]
 
@@ -2222,7 +2262,7 @@ dependencies = [
  "aes-gcm",
  "blake2",
  "crossbeam-channel 0.5.0",
- "displaydoc",
+ "displaydoc 0.2.1",
  "failure",
  "grpcio",
  "hex_fmt",
@@ -2319,7 +2359,7 @@ dependencies = [
 name = "mc-sgx-css"
 version = "1.0.1-pre1"
 dependencies = [
- "displaydoc",
+ "displaydoc 0.2.1",
  "sha2",
 ]
 
@@ -2334,7 +2374,7 @@ dependencies = [
  "blake2",
  "bulletproofs",
  "curve25519-dalek",
- "displaydoc",
+ "displaydoc 0.2.1",
  "generic-array",
  "hex_fmt",
  "lazy_static",
@@ -2396,7 +2436,7 @@ version = "1.0.1-pre1"
 dependencies = [
  "cargo-emit",
  "cargo_metadata 0.9.1",
- "displaydoc",
+ "displaydoc 0.2.1",
  "mbedtls",
  "mbedtls-sys-auto",
  "mc-sgx-css",
@@ -2435,7 +2475,7 @@ version = "1.0.1-pre1"
 dependencies = [
  "cargo-emit",
  "cc",
- "displaydoc",
+ "displaydoc 0.2.1",
  "mc-util-build-script",
  "pkg-config",
 ]
@@ -2446,7 +2486,7 @@ version = "1.0.1-pre1"
 dependencies = [
  "base64 0.12.3",
  "binascii",
- "displaydoc",
+ "displaydoc 0.2.1",
  "hex",
  "mc-util-repr-bytes",
  "serde",
@@ -2465,7 +2505,7 @@ version = "1.0.1-pre1"
 dependencies = [
  "base64 0.12.3",
  "cookie 0.14.3",
- "displaydoc",
+ "displaydoc 0.2.1",
  "futures",
  "grpcio",
  "hex",
@@ -2495,7 +2535,7 @@ version = "1.0.1-pre1"
 name = "mc-util-lmdb"
 version = "1.0.1-pre1"
 dependencies = [
- "displaydoc",
+ "displaydoc 0.2.1",
  "lmdb-rkv",
  "mc-util-serial",
  "prost",
@@ -2546,7 +2586,7 @@ name = "mc-util-uri"
 version = "1.0.1-pre1"
 dependencies = [
  "base64 0.12.3",
- "displaydoc",
+ "displaydoc 0.2.1",
  "ed25519",
  "hex",
  "mc-common",
@@ -2561,7 +2601,7 @@ dependencies = [
 name = "mc-watcher"
 version = "1.0.1-pre1"
 dependencies = [
- "displaydoc",
+ "displaydoc 0.2.1",
  "grpcio",
  "hex",
  "lmdb-rkv",
@@ -2593,7 +2633,7 @@ dependencies = [
 name = "mc-watcher-api"
 version = "1.0.1-pre1"
 dependencies = [
- "displaydoc",
+ "displaydoc 0.2.1",
  "serde",
 ]
 
@@ -2826,6 +2866,9 @@ name = "once_cell"
 version = "1.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13bd41f508810a131401606d54ac32a467c97172d74ba7662562ebba5ad07fa0"
+dependencies = [
+ "parking_lot",
+]
 
 [[package]]
 name = "opaque-debug"
@@ -2872,6 +2915,15 @@ dependencies = [
  "redox_syscall",
  "smallvec",
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "pbkdf2"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "216eaa586a190f0a738f2f918511eecfa90f13295abec0e457cdebcceda80cbd"
+dependencies = [
+ "crypto-mac 0.8.0",
 ]
 
 [[package]]
@@ -3906,6 +3958,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c111b5bd5695e56cffe5129854aa230b39c93a305372fdbb2668ca2394eea9f8"
 
 [[package]]
+name = "slip10_ed25519"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4be0ff28bf14f9610a342169084e87a4f435ad798ec528dc7579a3678fa9dc9a"
+dependencies = [
+ "hmac-sha512",
+]
+
+[[package]]
 name = "slog"
 version = "2.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4323,6 +4384,24 @@ dependencies = [
  "quote 1.0.7",
  "standback",
  "syn 1.0.48",
+]
+
+[[package]]
+name = "tiny-bip39"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d9e44c4759bae7f1032e286a7ef990bd9ed23fe831b7eeba0beb97484c2e59b8"
+dependencies = [
+ "anyhow",
+ "hmac 0.8.1",
+ "once_cell",
+ "pbkdf2",
+ "rand 0.7.3",
+ "rustc-hash",
+ "sha2",
+ "thiserror",
+ "unicode-normalization",
+ "zeroize",
 ]
 
 [[package]]
@@ -4883,9 +4962,9 @@ checksum = "79af3189e6b0484c9fd54208f8eeb8818cadee00ec81438b67a64c8e6f2f3694"
 
 [[package]]
 name = "zeroize"
-version = "1.1.1"
+version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "05f33972566adbd2d3588b0491eb94b98b43695c4ef897903470ede4f3f5a28a"
+checksum = "81a974bcdd357f0dca4d41677db03436324d45a4c9ed2d0b873a5a360ce41c36"
 dependencies = [
  "zeroize_derive",
 ]

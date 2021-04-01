@@ -234,119 +234,108 @@ impl TxoModel for Txo {
                 // If we already have this TXO for this account (e.g. from minting in a previous
                 // transaction), we need to update it
                 Ok(txo_details) => {
-                    // If the Txo already exists for this or another account, update the status
-                    // with respect to this account.
-                    if txo_details.minted_from_account.is_some()
-                        || txo_details.received_to_account.is_some()
-                    {
-                        // Check if this txo/pairing already exists for this account.
-                        match AccountTxoStatus::get(account_id_hex, &txo_id.to_string(), conn) {
-                            // The txo/pairing exists for this account in this wallet.
-                            Ok(account_txo_status) => {
-                                match account_txo_status.txo_status.as_str() {
-                                    TXO_STATUS_SECRETED => {
-                                        match account_txo_status.txo_type.as_str() {
-                                            // We minted this TXO and sent it to ourselves. It's
-                                            // either change that we're now recovering as unspent,
-                                            // or it's a new Txo that we sent to ourselves.
-                                            TXO_TYPE_MINTED => {
-                                                if subaddress_index.is_some() {
-                                                    // Transition from [Minted, Secreted] ->
-                                                    // [Minted,
-                                                    // Unspent]
-                                                    // This occurs when an account receives a
-                                                    // transaction from itself at a subaddress.
-                                                    txo_details.txo.update_to_spendable(
-                                                        subaddress_index,
-                                                        key_image,
-                                                        received_block_index,
-                                                        &conn,
-                                                    )?;
-                                                    account_txo_status.set_unspent(conn)?;
-                                                } else {
-                                                    // Transition from [Minted, Secreted] ->
-                                                    // [Minted,
-                                                    // Orphaned]
-                                                    // This occurs when an account receives a
-                                                    // transaction from itself at an unknown
-                                                    // subaddress.
-                                                    txo_details.txo.update_received_block_index(
-                                                        received_block_index,
-                                                        conn,
-                                                    )?;
-                                                    account_txo_status.set_orphaned(conn)?;
-                                                }
-                                            }
-                                            // Should not get [Received, Secreted]
-                                            _ => {
-                                                return Err(
-                                                    WalletDbError::UnexpectedAccountTxoStatus(
-                                                        account_txo_status.txo_status,
-                                                    ),
-                                                );
+                    // Check if this txo/pairing already exists for this account.
+                    match AccountTxoStatus::get(account_id_hex, &txo_id.to_string(), conn) {
+                        // The txo/pairing exists for this account in this wallet.
+                        Ok(account_txo_status) => {
+                            match account_txo_status.txo_status.as_str() {
+                                TXO_STATUS_SECRETED => {
+                                    match account_txo_status.txo_type.as_str() {
+                                        // We minted this TXO and sent it to ourselves. It's
+                                        // either change that we're now recovering as unspent,
+                                        // or it's a new Txo that we sent to ourselves.
+                                        TXO_TYPE_MINTED => {
+                                            if subaddress_index.is_some() {
+                                                // Transition from [Minted, Secreted] ->
+                                                // [Minted,
+                                                // Unspent]
+                                                // This occurs when an account receives a
+                                                // transaction from itself at a subaddress.
+                                                txo_details.txo.update_to_spendable(
+                                                    subaddress_index,
+                                                    key_image,
+                                                    received_block_index,
+                                                    &conn,
+                                                )?;
+                                                account_txo_status.set_unspent(conn)?;
+                                            } else {
+                                                // Transition from [Minted, Secreted] ->
+                                                // [Minted,
+                                                // Orphaned]
+                                                // This occurs when an account receives a
+                                                // transaction from itself at an unknown
+                                                // subaddress.
+                                                txo_details.txo.update_received_block_index(
+                                                    received_block_index,
+                                                    conn,
+                                                )?;
+                                                account_txo_status.set_orphaned(conn)?;
                                             }
                                         }
-                                    }
-                                    TXO_STATUS_ORPHANED => {
-                                        // If we have a subaddress for this account and this Txo, we
-                                        // can update to spendable. True for [Minted, Orphaned] and
-                                        // [Received, Orphaned]
-                                        if subaddress_index.is_some() {
-                                            txo_details.txo.update_to_spendable(
-                                                subaddress_index,
-                                                key_image,
-                                                received_block_index,
-                                                &conn,
-                                            )?;
-                                            account_txo_status.set_unspent(conn)?;
+                                        // Should not get [Received, Secreted]
+                                        _ => {
+                                            return Err(WalletDbError::UnexpectedAccountTxoStatus(
+                                                account_txo_status.txo_status,
+                                            ));
                                         }
-                                    }
-                                    TXO_STATUS_UNSPENT => {}
-                                    TXO_STATUS_PENDING => {}
-                                    TXO_STATUS_SPENT => {}
-                                    _ => {
-                                        return Err(WalletDbError::UnexpectedAccountTxoStatus(
-                                            account_txo_status.txo_status,
-                                        ));
                                     }
                                 }
+                                TXO_STATUS_ORPHANED => {
+                                    // If we have a subaddress for this account and this Txo, we
+                                    // can update to spendable. True for [Minted, Orphaned] and
+                                    // [Received, Orphaned]
+                                    if subaddress_index.is_some() {
+                                        txo_details.txo.update_to_spendable(
+                                            subaddress_index,
+                                            key_image,
+                                            received_block_index,
+                                            &conn,
+                                        )?;
+                                        account_txo_status.set_unspent(conn)?;
+                                    }
+                                }
+                                TXO_STATUS_UNSPENT => {}
+                                TXO_STATUS_PENDING => {}
+                                TXO_STATUS_SPENT => {}
+                                _ => {
+                                    return Err(WalletDbError::UnexpectedAccountTxoStatus(
+                                        account_txo_status.txo_status,
+                                    ));
+                                }
                             }
-                            // The txo/pairing exists for another account currently in the wallet.
-                            // We also want to set it as unspent, but we need to create a new
-                            // AccountTxoStatus entry.
-                            Err(WalletDbError::AccountTxoStatusNotFound(_)) => {
-                                let status = if subaddress_index.is_some() {
-                                    // If the Txo was already in the DB, but not for this account,
-                                    // we need to update to spendable with the subaddress and
-                                    // key_image
-                                    txo_details.txo.update_to_spendable(
-                                        subaddress_index,
-                                        key_image,
-                                        received_block_index,
-                                        &conn,
-                                    )?;
-                                    TXO_STATUS_UNSPENT
-                                } else {
-                                    // Note: An orphaned Txo cannot be spent until the subaddress is
-                                    // recovered.
-                                    txo_details
-                                        .txo
-                                        .update_received_block_index(received_block_index, conn)?;
-                                    TXO_STATUS_ORPHANED
-                                };
-                                AccountTxoStatus::create(
-                                    account_id_hex,
-                                    &txo_id.to_string(),
-                                    status,
-                                    TXO_TYPE_RECEIVED,
-                                    conn,
-                                )?;
-                            }
-                            Err(e) => return Err(e),
                         }
-                    } else {
-                        // The Txo should be either secreted from or received to this account.
-                        return Err(WalletDbError::MalformedTxoDatabaseEntry);
+                        // The txo/pairing exists for another account currently in the wallet.
+                        // We also want to set it as unspent, but we need to create a new
+                        // AccountTxoStatus entry.
+                        Err(WalletDbError::AccountTxoStatusNotFound(_)) => {
+                            let status = if subaddress_index.is_some() {
+                                // If the Txo was already in the DB, but not for this account,
+                                // we need to update to spendable with the subaddress and
+                                // key_image
+                                txo_details.txo.update_to_spendable(
+                                    subaddress_index,
+                                    key_image,
+                                    received_block_index,
+                                    &conn,
+                                )?;
+                                TXO_STATUS_UNSPENT
+                            } else {
+                                // Note: An orphaned Txo cannot be spent until the subaddress is
+                                // recovered.
+                                txo_details
+                                    .txo
+                                    .update_received_block_index(received_block_index, conn)?;
+                                TXO_STATUS_ORPHANED
+                            };
+                            AccountTxoStatus::create(
+                                account_id_hex,
+                                &txo_id.to_string(),
+                                status,
+                                TXO_TYPE_RECEIVED,
+                                conn,
+                            )?;
+                        }
+                        Err(e) => return Err(e),
                     }
                 }
 
@@ -597,6 +586,7 @@ impl TxoModel for Txo {
             results.iter().map(|t| Txo::get(t, &conn)).collect();
         details
     }
+
     fn list_for_address(
         assigned_subaddress_b58: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
@@ -989,9 +979,10 @@ mod tests {
 
         let root_id = RootIdentity::from_random(&mut rng);
         let alice_account_key = AccountKey::from(&root_id);
-        let (alice_account_id, _public_address_b58) = Account::create(
+        let (alice_account_id, _public_address_b58) = Account::create_from_root_entropy(
             &root_id.root_entropy,
             Some(1),
+            None,
             None,
             "Alice's Main Account",
             None,
@@ -1253,9 +1244,10 @@ mod tests {
         // Create a new account and send some MOB to it
         let bob_root_id = RootIdentity::from_random(&mut rng);
         let bob_account_key = AccountKey::from(&bob_root_id);
-        let (bob_account_id, _public_address_b58) = Account::create(
+        let (bob_account_id, _public_address_b58) = Account::create_from_root_entropy(
             &bob_root_id.root_entropy,
             Some(1),
+            None,
             None,
             "Bob's Main Account",
             None,
@@ -1314,9 +1306,10 @@ mod tests {
 
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
-        let (account_id_hex, _public_address_b58) = Account::create(
+        let (account_id_hex, _public_address_b58) = Account::create_from_root_entropy(
             &root_id.root_entropy,
             Some(1),
+            None,
             None,
             "Alice's Main Account",
             None,
@@ -1422,9 +1415,10 @@ mod tests {
 
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
-        let (account_id_hex, _public_address_b58) = Account::create(
+        let (account_id_hex, _public_address_b58) = Account::create_from_root_entropy(
             &root_id.root_entropy,
             Some(0),
+            None,
             None,
             "Alice's Main Account",
             None,
@@ -1477,9 +1471,10 @@ mod tests {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger.clone());
 
-        Account::create(
+        Account::create_from_root_entropy(
             &root_id.root_entropy,
             Some(0),
+            None,
             None,
             "",
             None,
@@ -1545,9 +1540,10 @@ mod tests {
         let root_id = RootIdentity::from_random(&mut rng);
         let recipient_account_key = AccountKey::from(&root_id);
         let recipient_account_id = AccountID::from(&recipient_account_key);
-        Account::create(
+        Account::create_from_root_entropy(
             &root_id.root_entropy,
             Some(0),
+            None,
             None,
             "Alice",
             None,
