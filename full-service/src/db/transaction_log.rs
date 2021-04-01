@@ -618,6 +618,19 @@ mod tests {
 
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
+        let (account_id, _address) = Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(0),
+            None,
+            None,
+            "",
+            None,
+            None,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        let account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
 
         // Populate our DB with some received txos in the same block
         let mut synced: HashMap<i64, Vec<String>> = HashMap::default();
@@ -637,19 +650,6 @@ mod tests {
         }
 
         // Now we'll ingest them.
-        let (account_id, _address) = Account::create_from_root_entropy(
-            &root_id.root_entropy,
-            Some(0),
-            None,
-            None,
-            "",
-            None,
-            None,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-        let account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
         TransactionLog::log_received(&synced, &account, 144, &wallet_db.get_conn().unwrap())
             .unwrap();
 
@@ -895,4 +895,93 @@ mod tests {
     // FIXME: WS-9 - test log_submitted for transaction value > i64::Max
     // FIXME: test_log_submitted to self and then scan
     // FIXME: test_log_submitted for recovered
+
+    #[test_with_logger]
+    fn test_delete_transaction_logs_for_account(logger: Logger) {
+        use crate::db::schema::{transaction_logs, transaction_txo_types};
+        use diesel::dsl::count_star;
+
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+
+        // Populate our DB with some received txos in the same block.
+        // Do this for two different accounts.
+        let mut account_ids: Vec<AccountID> = Vec::new();
+        for _ in 0..2 {
+            let root_id = RootIdentity::from_random(&mut rng);
+            let account_key = AccountKey::from(&root_id);
+            let (account_id, _address) = Account::create_from_root_entropy(
+                &root_id.root_entropy,
+                Some(0),
+                None,
+                None,
+                "",
+                None,
+                None,
+                None,
+                &wallet_db.get_conn().unwrap(),
+            )
+            .unwrap();
+            let account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
+
+            let mut synced: HashMap<i64, Vec<String>> = HashMap::default();
+            for i in 1..=10 {
+                let (txo_id_hex, _txo, _key_image) = create_test_received_txo(
+                    &account_key,
+                    0, // All to the same subaddress
+                    (100 * i * MOB) as u64,
+                    144,
+                    &mut rng,
+                    &wallet_db,
+                );
+                if synced.is_empty() {
+                    synced.insert(0, Vec::new());
+                }
+                synced.get_mut(&0).unwrap().push(txo_id_hex);
+            }
+
+            // Ingest relevant txos.
+            TransactionLog::log_received(&synced, &account, 144, &wallet_db.get_conn().unwrap())
+                .unwrap();
+
+            account_ids.push(account_id);
+        }
+
+        // Check that we created transaction_logs and transaction_txo_types entries.
+        assert_eq!(
+            Ok(20),
+            transaction_logs::table
+                .select(count_star())
+                .first(&wallet_db.get_conn().unwrap())
+        );
+        assert_eq!(
+            Ok(20),
+            transaction_txo_types::table
+                .select(count_star())
+                .first(&wallet_db.get_conn().unwrap())
+        );
+
+        // Delete the transaction logs for one account.
+        let result = TransactionLog::delete_all_for_account(
+            &account_ids[0].to_string(),
+            &wallet_db.get_conn().unwrap(),
+        );
+        assert!(result.is_ok());
+
+        // For the given account, the transaction logs and the txo types are deleted.
+        assert_eq!(
+            Ok(10),
+            transaction_logs::table
+                .select(count_star())
+                .first(&wallet_db.get_conn().unwrap())
+        );
+        assert_eq!(
+            Ok(10),
+            transaction_txo_types::table
+                .select(count_star())
+                .first(&wallet_db.get_conn().unwrap())
+        );
+    }
 }

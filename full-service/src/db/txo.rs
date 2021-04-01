@@ -228,6 +228,12 @@ impl TxoModel for Txo {
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<String, WalletDbError> {
+        // Verify that the account exists.
+        match Account::get(&AccountID(account_id_hex.to_string()), &conn) {
+            Ok(_) => (),
+            Err(e) => return Err(e),
+        }
+
         let txo_id = TxoID::from(&txo);
         conn.transaction::<(), WalletDbError, _>(|| {
             match Txo::get(&txo_id.to_string(), conn) {
@@ -1672,8 +1678,20 @@ mod tests {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
 
-        let account_key = AccountKey::random(&mut rng);
-        let account_id = AccountID::from(&account_key);
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        let (account_id, _address) = Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(0),
+            None,
+            None,
+            "",
+            None,
+            None,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
 
         // Seed Txos
         let mut src_txos = Vec::new();
