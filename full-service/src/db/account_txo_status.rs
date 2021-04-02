@@ -169,14 +169,8 @@ impl AccountTxoStatusModel for AccountTxoStatus {
             account_txo_statuses as cols, account_txo_statuses::dsl::account_txo_statuses,
         };
 
-        let results: Vec<AccountTxoStatus> = account_txo_statuses
-            .filter(cols::account_id_hex.eq(account_id_hex))
-            .select(cols::all_columns)
-            .load(conn)?;
-
-        let res =
-            diesel::delete(account_txo_statuses.filter(cols::account_id_hex.eq(account_id_hex)))
-                .execute(conn)?;
+        diesel::delete(account_txo_statuses.filter(cols::account_id_hex.eq(account_id_hex)))
+            .execute(conn)?;
 
         Ok(())
     }
