@@ -608,5 +608,7 @@ mod tests {
             let txo = Txo::get(&txo_id, &wallet_db.get_conn().unwrap()).expect("Could not get txo");
             assert_eq!(txo.txo.value as u64, expected_value);
         }
+
+        // Now verify that the service gets the Txos with the correct value
     }
 }
