@@ -402,12 +402,12 @@ impl TransactionLogModel for TransactionLog {
 
                     // Get the public address for the subaddress that received these TXOs
                     let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
-                    let b58_subaddress = if *subaddress_index >= 0 {
-                        let subaddress = account_key.subaddress(*subaddress_index as u64);
-                        b58_encode(&subaddress)?
+                    let subaddress = account_key.subaddress(*subaddress_index as u64);
+                    let b58_subaddress = b58_encode(&subaddress)?;
+                    let assigned_subaddress_b58: Option<&str> = if *subaddress_index >= 0 {
+                        Some(&b58_subaddress)
                     } else {
-                        // If not matched to an existing subaddress, empty string as NULL
-                        "".to_string()
+                        None
                     };
 
                     // Create a TransactionLogs entry for every TXO
@@ -415,7 +415,7 @@ impl TransactionLogModel for TransactionLog {
                         transaction_id_hex: &transaction_id.to_string(),
                         account_id_hex: Some(&account.account_id_hex),
                         recipient_public_address_b58: "", // NULL for received
-                        assigned_subaddress_b58: Some(&b58_subaddress),
+                        assigned_subaddress_b58: assigned_subaddress_b58,
                         value: txo.value,
                         fee: None, // Impossible to recover fee from received transaction
                         status: TX_STATUS_SUCCEEDED,
@@ -426,7 +426,6 @@ impl TransactionLogModel for TransactionLog {
                         direction: TX_DIRECTION_RECEIVED,
                         tx: None, // NULL for received
                     };
-
                     diesel::insert_into(crate::db::schema::transaction_logs::table)
                         .values(&new_transaction_log)
                         .execute(conn)?;

@@ -409,6 +409,7 @@ pub fn sync_account(
                 account.next_block_index as u64,
                 &conn,
             )?;
+
             Ok(SyncAccountOk::MoreBlocksPotentiallyAvailable)
         })?;
         // Early out of the loop if we hit NoMoreBlocks

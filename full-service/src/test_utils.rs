@@ -19,7 +19,7 @@ use diesel::{
 use diesel_migrations::embed_migrations;
 use mc_account_keys::{AccountKey, PublicAddress, RootIdentity};
 use mc_attest_core::Verifier;
-use mc_common::logger::Logger;
+use mc_common::logger::{log, Logger};
 use mc_connection::{Connection, ConnectionManager, HardcodedCredentialsProvider, ThickClient};
 use mc_connection_test_utils::{test_client_uri, MockBlockchainConnection};
 use mc_consensus_scp::QuorumSet;
@@ -340,8 +340,24 @@ pub fn manually_sync_account(
         match sync_account(&ledger_db, &wallet_db, &account_id.to_string(), &logger) {
             Ok(_) => {}
             Err(SyncError::Database(WalletDbError::Diesel(
-                diesel::result::Error::DatabaseError(_kind, _info),
+                diesel::result::Error::DatabaseError(kind, info),
             ))) => {
+                match info.message() {
+                    "database is locked" => log::trace!(logger, "Database locked. Will retry"),
+                    _ => {
+                        log::error!(
+                            logger,
+                            "Unexpected database error {:?} {:?} {:?} {:?} {:?} {:?}",
+                            kind,
+                            info,
+                            info.details(),
+                            info.column_name(),
+                            info.table_name(),
+                            info.hint(),
+                        );
+                        panic!("Could not manually sync account.");
+                    }
+                };
                 std::thread::sleep(Duration::from_millis(500));
             }
             Err(e) => panic!("Could not sync account due to {:?}", e),
