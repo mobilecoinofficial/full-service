@@ -114,7 +114,7 @@ impl From<&TxoDetails> for Txo {
         Txo {
             object: "txo".to_string(),
             txo_id_hex: txo_details.txo.txo_id_hex.clone(),
-            value_pmob: txo_details.txo.value.to_string(),
+            value_pmob: (txo_details.txo.value as u64).to_string(),
             received_block_index: txo_details.txo.received_block_index.map(|x| x.to_string()),
             spent_block_index: txo_details.txo.spent_block_index.map(|x| x.to_string()),
             is_spent_recovered: false,
@@ -140,5 +140,58 @@ impl From<&TxoDetails> for Txo {
             confirmation: txo_details.txo.confirmation.as_ref().map(hex::encode),
             offset_count: txo_details.txo.id,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        db,
+        db::{account::AccountModel, models::Account, txo::TxoModel},
+        test_utils::{create_test_received_txo, WalletDbTestContext, MOB},
+    };
+    use mc_account_keys::{AccountKey, RootIdentity};
+    use mc_common::logger::{test_with_logger, Logger};
+    use mc_util_from_random::FromRandom;
+    use rand::{rngs::StdRng, SeedableRng};
+
+    #[test_with_logger]
+    fn test_display_txo_in_origin(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        let (_account_id_hex, _public_address_b58) = Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(1),
+            None,
+            None,
+            "Alice's Main Account",
+            None,
+            None,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        // Amount in origin block TXO is 250_000_000 MOB / 16
+        let (txo_hex, _txo, _key_image) = create_test_received_txo(
+            &account_key,
+            0,
+            15_625_000 * MOB as u64,
+            0,
+            &mut rng,
+            &wallet_db,
+        );
+
+        let txo_details = db::models::Txo::get(&txo_hex, &wallet_db.get_conn().unwrap())
+            .expect("Could not get Txo");
+        assert_eq!(txo_details.txo.value as u64, 15_625_000 * MOB as u64);
+        let json_txo = Txo::from(&txo_details);
+        assert_eq!(json_txo.value_pmob, "15625000000000000000");
     }
 }
