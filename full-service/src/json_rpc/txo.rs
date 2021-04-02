@@ -115,8 +115,14 @@ impl From<&TxoDetails> for Txo {
             object: "txo".to_string(),
             txo_id_hex: txo_details.txo.txo_id_hex.clone(),
             value_pmob: (txo_details.txo.value as u64).to_string(),
-            received_block_index: txo_details.txo.received_block_index.map(|x| x.to_string()),
-            spent_block_index: txo_details.txo.spent_block_index.map(|x| x.to_string()),
+            received_block_index: txo_details
+                .txo
+                .received_block_index
+                .map(|x| (x as u64).to_string()),
+            spent_block_index: txo_details
+                .txo
+                .spent_block_index
+                .map(|x| (x as u64).to_string()),
             is_spent_recovered: false,
             received_account_id: txo_details
                 .received_to_account
@@ -131,7 +137,10 @@ impl From<&TxoDetails> for Txo {
             target_key: hex::encode(&txo_details.txo.target_key),
             public_key: hex::encode(&txo_details.txo.public_key),
             e_fog_hint: hex::encode(&txo_details.txo.e_fog_hint),
-            subaddress_index: txo_details.txo.subaddress_index.map(|s| s.to_string()),
+            subaddress_index: txo_details
+                .txo
+                .subaddress_index
+                .map(|s| (s as u64).to_string()),
             assigned_address: txo_details
                 .received_to_assigned_subaddress
                 .clone()
