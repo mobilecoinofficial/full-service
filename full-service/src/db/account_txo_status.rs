@@ -8,7 +8,6 @@ use crate::db::models::{
 
 use crate::db::WalletDbError;
 use diesel::{
-    debug_query,
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},
     RunQueryDsl,
@@ -169,7 +168,6 @@ impl AccountTxoStatusModel for AccountTxoStatus {
         use crate::db::schema::{
             account_txo_statuses as cols, account_txo_statuses::dsl::account_txo_statuses,
         };
-        use diesel::sqlite::Sqlite;
 
         let results: Vec<AccountTxoStatus> = account_txo_statuses
             .filter(cols::account_id_hex.eq(account_id_hex))
