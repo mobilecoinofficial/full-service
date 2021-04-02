@@ -337,12 +337,14 @@ mod e2e {
     fn test_export_legacy_account_secrets(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        let entropy = "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b";
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
             "method": "import_account_from_legacy_root_entropy",
             "params": {
-                "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
+                "entropy": entropy,
                 "name": "Alice Main Account",
                 "first_block_index": "200",
             }
@@ -351,7 +353,6 @@ mod e2e {
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
-        let entropy = account_obj["entropy"].clone();
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -365,14 +366,14 @@ mod e2e {
         let result = res.get("result").unwrap();
         let secrets = result.get("account_secrets").unwrap();
         let entropy = secrets["entropy"].clone();
+
         assert_eq!(secrets["account_id"], serde_json::json!(account_id));
         assert_eq!(secrets["entropy"], serde_json::json!(entropy));
         assert_eq!(secrets["key_derivation_version"], serde_json::json!("1"));
 
         // Test that the account_key serializes correctly back to an AccountKey object
         let mut entropy_slice = [0u8; 32];
-        entropy_slice[0..32]
-            .copy_from_slice(&hex::decode(&entropy.as_str().unwrap()).unwrap().as_slice());
+        entropy_slice[0..32].copy_from_slice(&hex::decode(entropy).unwrap().as_slice());
         let account_key = AccountKey::from(&RootIdentity::from(&RootEntropy::from(&entropy_slice)));
         assert_eq!(
             serde_json::json!(json_rpc::account_key::AccountKey::try_from(&account_key).unwrap()),
