@@ -105,7 +105,7 @@ impl TransactionLog {
             account_id: transaction_log
                 .account_id_hex
                 .clone()
-                .unwrap_or("".to_string()),
+                .unwrap_or_else(|| "".to_string())
             recipient_address_id: if recipient_address_id == "" {
                 None
             } else {
