@@ -175,19 +175,10 @@ impl AccountTxoStatusModel for AccountTxoStatus {
             .filter(cols::account_id_hex.eq(account_id_hex))
             .select(cols::all_columns)
             .load(conn)?;
-        println!("diesel load with filter {:?}", results);
-
-        println!(
-            "{}",
-            debug_query::<Sqlite, _>(&diesel::delete(
-                account_txo_statuses.filter(cols::account_id_hex.eq(account_id_hex))
-            ))
-        );
 
         let res =
             diesel::delete(account_txo_statuses.filter(cols::account_id_hex.eq(account_id_hex)))
                 .execute(conn)?;
-        println!("diesel delete {:?}", res);
 
         Ok(())
     }
