@@ -521,3 +521,91 @@ pub fn process_txos(
 
 // FIXME: test select received txo by value
 // FIXME: test syncing after removing account
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        service::account::AccountService,
+        test_utils::{add_block_to_ledger_db, get_test_ledger, setup_wallet_service, MOB},
+    };
+    use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
+    use mc_common::logger::{test_with_logger, Logger};
+    use mc_util_from_random::FromRandom;
+    use rand::{rngs::StdRng, SeedableRng};
+
+    #[test_with_logger]
+    fn test_process_txo_bigint_in_origin(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let entropy = RootEntropy::from_random(&mut rng);
+        let account_key = AccountKey::from(&RootIdentity::from(&entropy));
+
+        let mut ledger_db = get_test_ledger(0, &vec![], 0, &mut rng);
+
+        let origin_block_amount: u128 = 250_000_000 * MOB as u128;
+        let origin_block_txo_amount = origin_block_amount / 16;
+        let o = account_key.subaddress(0);
+        let _new_block_index = add_block_to_ledger_db(
+            &mut ledger_db,
+            &[
+                o.clone(),
+                o.clone(),
+                o.clone(),
+                o.clone(),
+                o.clone(),
+                o.clone(),
+                o.clone(),
+                o.clone(),
+                o.clone(),
+                o.clone(),
+                o.clone(),
+                o.clone(),
+                o.clone(),
+                o.clone(),
+                o.clone(),
+                o.clone(),
+            ],
+            origin_block_txo_amount as u64,
+            &vec![],
+            &mut rng,
+        );
+
+        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+        let wallet_db = &service.wallet_db;
+
+        // Import the account (this will start it syncing, but we can still process_txos
+        // again below for the test)
+        let account = service
+            .import_account_from_legacy_root_entropy(
+                hex::encode(&entropy.bytes),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .expect("Could not import account entropy");
+
+        // Process the Txos for the first block
+        let subaddress_to_txo_ids = process_txos(
+            &wallet_db.get_conn().unwrap(),
+            &ledger_db.get_block_data(0).unwrap().contents().outputs,
+            &account,
+            0,
+            &logger,
+        )
+        .expect("could not process txos");
+
+        assert_eq!(subaddress_to_txo_ids.len(), 1);
+        assert_eq!(subaddress_to_txo_ids[&0].len(), 16);
+
+        // There should now be 16 txos. Let's get each one and verify the amount
+        let expected_value: u64 = 15_625_000 * MOB as u64;
+        for txo_id in subaddress_to_txo_ids[&0].clone() {
+            let txo = Txo::get(&txo_id, &wallet_db.get_conn().unwrap()).expect("Could not get txo");
+            assert_eq!(txo.txo.value as u64, expected_value);
+        }
+    }
+}
