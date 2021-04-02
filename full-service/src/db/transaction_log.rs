@@ -415,7 +415,7 @@ impl TransactionLogModel for TransactionLog {
                         transaction_id_hex: &transaction_id.to_string(),
                         account_id_hex: Some(&account.account_id_hex),
                         recipient_public_address_b58: "", // NULL for received
-                        assigned_subaddress_b58: assigned_subaddress_b58,
+                        assigned_subaddress_b58,
                         value: txo.value,
                         fee: None, // Impossible to recover fee from received transaction
                         status: TX_STATUS_SUCCEEDED,
@@ -521,9 +521,7 @@ impl TransactionLogModel for TransactionLog {
                 // Create a TransactionLogs entry
                 let new_transaction_log = NewTransactionLog {
                     transaction_id_hex: &transaction_id.to_string(),
-                    // This needs to be nullable, not empty, to maintain FK constraints.
-                    account_id_hex: account_id_hex, /* Can be null if submitting an "unowned"
-                                                     * proposal. */
+                    account_id_hex, // Can be null if submitting an "unowned" proposal.
                     recipient_public_address_b58: &b58_encode(&recipient)?,
                     assigned_subaddress_b58: None, // NULL for sent
                     value: transaction_value as i64,
