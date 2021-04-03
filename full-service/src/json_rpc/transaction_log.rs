@@ -102,10 +102,7 @@ impl TransactionLog {
             transaction_log_id: transaction_log.transaction_id_hex.clone(),
             direction: transaction_log.direction.clone(),
             is_sent_recovered: None, // FIXME: WS-16 "Is Sent Recovered"
-            account_id: transaction_log
-                .account_id_hex
-                .clone()
-                .unwrap_or_else(|| "".to_string()),
+            account_id: transaction_log.account_id_hex.clone(),
             recipient_address_id: if recipient_address_id == "" {
                 None
             } else {

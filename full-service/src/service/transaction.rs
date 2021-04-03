@@ -239,7 +239,7 @@ where
                 tx_proposal,
                 block_index,
                 comment.unwrap_or_else(|| "".to_string()),
-                Some(&a),
+                &a,
                 &self.wallet_db.get_conn()?,
             )?;
             let associated_txos =

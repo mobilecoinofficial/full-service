@@ -525,7 +525,7 @@ pub fn create_test_minted_and_change_txos(
     let outlay_txo_index = tx_proposal.outlay_index_to_tx_out_index[&0];
     let tx_out = tx_proposal.tx.prefix.outputs[outlay_txo_index].clone();
     let processed_output = Txo::create_minted(
-        Some(&AccountID::from(&src_account_key).to_string()),
+        &AccountID::from(&src_account_key).to_string(),
         &tx_out,
         &tx_proposal,
         outlay_txo_index,
@@ -539,7 +539,7 @@ pub fn create_test_minted_and_change_txos(
     let change_txo_index = if outlay_txo_index == 0 { 1 } else { 0 };
     let change_tx_out = tx_proposal.tx.prefix.outputs[change_txo_index].clone();
     let processed_change = Txo::create_minted(
-        Some(&AccountID::from(&src_account_key).to_string()),
+        &AccountID::from(&src_account_key).to_string(),
         &change_tx_out,
         &tx_proposal,
         change_txo_index,

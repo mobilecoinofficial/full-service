@@ -417,7 +417,7 @@ mod tests {
             tx_proposal.clone(),
             14,
             "".to_string(),
-            Some(&alice.account_id_hex),
+            &alice.account_id_hex,
             &service.wallet_db.get_conn().unwrap(),
         )
         .expect("Could not log submitted");
@@ -547,7 +547,7 @@ mod tests {
             tx_proposal.clone(),
             14,
             "".to_string(),
-            Some(&alice.account_id_hex),
+            &alice.account_id_hex,
             &service.wallet_db.get_conn().unwrap(),
         )
         .expect("Could not log submitted");
@@ -654,7 +654,7 @@ mod tests {
             tx_proposal0.clone(),
             14,
             "".to_string(),
-            Some(&alice.account_id_hex),
+            &alice.account_id_hex,
             &service.wallet_db.get_conn().unwrap(),
         )
         .expect("Could not log submitted");
@@ -772,7 +772,7 @@ mod tests {
             tx_proposal0.clone(),
             14,
             "".to_string(),
-            Some(&alice.account_id_hex),
+            &alice.account_id_hex,
             &service.wallet_db.get_conn().unwrap(),
         )
         .expect("Could not log submitted");

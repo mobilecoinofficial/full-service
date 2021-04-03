@@ -132,7 +132,7 @@ pub trait TransactionLogModel {
         tx_proposal: TxProposal,
         block_index: u64,
         comment: String,
-        account_id_hex: Option<&str>,
+        account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<TransactionLog, WalletDbError>;
 
@@ -413,7 +413,7 @@ impl TransactionLogModel for TransactionLog {
                     // Create a TransactionLogs entry for every TXO
                     let new_transaction_log = NewTransactionLog {
                         transaction_id_hex: &transaction_id.to_string(),
-                        account_id_hex: Some(&account.account_id_hex),
+                        account_id_hex: &account.account_id_hex,
                         recipient_public_address_b58: "", // NULL for received
                         assigned_subaddress_b58,
                         value: txo.value,
@@ -450,16 +450,11 @@ impl TransactionLogModel for TransactionLog {
         tx_proposal: TxProposal,
         block_index: u64,
         comment: String,
-        account_id_hex: Option<&str>,
+        account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<TransactionLog, WalletDbError> {
         // Verify that the account exists.
-        if let Some(a_id) = account_id_hex {
-            match Account::get(&AccountID(a_id.to_string()), &conn) {
-                Ok(_) => (),
-                Err(e) => return Err(e),
-            }
-        }
+        Account::get(&AccountID(account_id_hex.to_string()), &conn)?;
 
         let transaction_log_id = conn.transaction::<String, WalletDbError, _>(|| {
             // Store the txo_id_hex -> transaction_txo_type
@@ -708,14 +703,14 @@ mod tests {
             tx_proposal.clone(),
             ledger_db.num_blocks().unwrap(),
             "".to_string(),
-            Some(&AccountID::from(&account_key).to_string()),
+            &AccountID::from(&account_key).to_string(),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
 
         assert_eq!(
             tx_log.account_id_hex,
-            Some(AccountID::from(&account_key).to_string())
+            AccountID::from(&account_key).to_string()
         );
         assert_eq!(
             tx_log.recipient_public_address_b58,
@@ -849,14 +844,14 @@ mod tests {
             tx_proposal.clone(),
             ledger_db.num_blocks().unwrap(),
             "".to_string(),
-            Some(&AccountID::from(&account_key).to_string()),
+            &AccountID::from(&account_key).to_string(),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
 
         assert_eq!(
             tx_log.account_id_hex,
-            Some(AccountID::from(&account_key).to_string())
+            AccountID::from(&account_key).to_string()
         );
         assert_eq!(
             tx_log.recipient_public_address_b58,

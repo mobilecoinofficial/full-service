@@ -227,9 +227,9 @@ pub struct NewAssignedSubaddress<'a> {
 pub struct TransactionLog {
     pub id: i32,
     pub transaction_id_hex: String,
-    pub account_id_hex: Option<String>,
-    pub recipient_public_address_b58: String, // empty string for nullable
-    pub assigned_subaddress_b58: Option<String>, // empty string for nullable
+    pub account_id_hex: String,
+    pub recipient_public_address_b58: String, // empty string for null
+    pub assigned_subaddress_b58: Option<String>,
     pub value: i64,
     pub fee: Option<i64>,
     // Statuses: built, pending, succeeded, failed
@@ -248,7 +248,7 @@ pub struct TransactionLog {
 #[table_name = "transaction_logs"]
 pub struct NewTransactionLog<'a> {
     pub transaction_id_hex: &'a str,
-    pub account_id_hex: Option<&'a str>,
+    pub account_id_hex: &'a str,
     pub recipient_public_address_b58: &'a str,
     pub assigned_subaddress_b58: Option<&'a str>,
     pub value: i64,
