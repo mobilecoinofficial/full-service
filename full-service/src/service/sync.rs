@@ -526,7 +526,7 @@ pub fn process_txos(
 mod tests {
     use super::*;
     use crate::{
-        service::account::AccountService,
+        service::{account::AccountService, balance::BalanceService},
         test_utils::{add_block_to_ledger_db, get_test_ledger, setup_wallet_service, MOB},
     };
     use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
@@ -608,6 +608,10 @@ mod tests {
             assert_eq!(txo.txo.value as u64, expected_value);
         }
 
-        // Now verify that the service gets the Txos with the correct value
+        // Now verify that the service gets the balance with the correct value
+        let balance = service
+            .get_balance_for_account(&AccountID::from(&account_key))
+            .expect("Could not get balance");
+        assert_eq!(balance.unspent, 250_000_000 * MOB as u128);
     }
 }
