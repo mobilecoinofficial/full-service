@@ -1,6 +1,5 @@
--- ALTER TABLE accounts ADD COLUMN key_derivation_version INTEGER NOT NULL DEFAULT 1;
 PRAGMA foreign_keys=OFF;
-CREATE TABLE NEW_accounts (
+CREATE TABLE OLD_accounts (
     id INTEGER NOT NULL PRIMARY KEY,
     account_id_hex VARCHAR NOT NULL UNIQUE,
     account_key BLOB NOT NULL,
@@ -14,7 +13,7 @@ CREATE TABLE NEW_accounts (
     name VARCHAR NOT NULL DEFAULT '',
     key_derivation_version INTEGER NOT NULL DEFAULT 1
 );
-INSERT INTO NEW_accounts SELECT
+INSERT INTO OLD_accounts SELECT
     id,
     account_id_hex,
     account_key,
@@ -26,9 +25,9 @@ INSERT INTO NEW_accounts SELECT
     next_block_index,
     import_block_index,
     name,
-    1
+    key_derivation_version
 FROM accounts;
 DROP TABLE accounts;
-ALTER TABLE NEW_accounts RENAME TO accounts;
+ALTER TABLE OLD_accounts RENAME TO accounts;
 PRAGMA foreign_key_check;
 PRAGMA foreign_keys=ON;
