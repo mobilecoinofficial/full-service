@@ -1426,7 +1426,6 @@ mod e2e {
         });
         let res = dispatch(&client, body, &logger);
         let balance = res["result"]["balance"].clone();
-        println!("balance = {:?}", balance);
         assert_eq!(
             balance["unspent_pmob"]
                 .as_str()
