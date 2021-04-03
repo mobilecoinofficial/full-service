@@ -43,7 +43,7 @@ impl From<&AssignedSubaddress> for Address {
             public_address: src.assigned_subaddress_b58.clone(),
             account_id: src.account_id_hex.clone(),
             metadata: src.comment.clone(),
-            subaddress_index: src.subaddress_index.to_string(),
+            subaddress_index: (src.subaddress_index as u64).to_string(),
             offset_count: src.id.to_string(),
         }
     }

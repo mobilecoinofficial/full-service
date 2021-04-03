@@ -136,7 +136,7 @@ mod tests {
         // Verify balance for Alice
         let balance = service.get_balance_for_account(&alice_account_id).unwrap();
 
-        assert_eq!(balance.unspent, 100 * MOB as u64);
+        assert_eq!(balance.unspent, 100 * MOB as u128);
 
         // Verify that we have 1 txo
         let txos = service.list_txos(&alice_account_id).unwrap();

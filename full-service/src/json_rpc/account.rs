@@ -61,8 +61,8 @@ impl TryFrom<&db::models::Account> for Account {
             key_derivation_version: src.key_derivation_version.to_string(),
             name: src.name.clone(),
             main_address,
-            next_subaddress_index: src.next_subaddress_index.to_string(),
-            first_block_index: src.first_block_index.to_string(),
+            next_subaddress_index: (src.next_subaddress_index as u64).to_string(),
+            first_block_index: (src.first_block_index as u64).to_string(),
             recovery_mode: false,
         })
     }
