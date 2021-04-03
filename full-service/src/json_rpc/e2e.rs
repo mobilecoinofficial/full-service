@@ -365,7 +365,6 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let secrets = result.get("account_secrets").unwrap();
-        let entropy = secrets["entropy"].clone();
 
         assert_eq!(secrets["account_id"], serde_json::json!(account_id));
         assert_eq!(secrets["entropy"], serde_json::json!(entropy));
@@ -373,7 +372,7 @@ mod e2e {
 
         // Test that the account_key serializes correctly back to an AccountKey object
         let mut entropy_slice = [0u8; 32];
-        entropy_slice[0..32].copy_from_slice(&hex::decode(entropy).unwrap().as_slice());
+        entropy_slice[0..32].copy_from_slice(&hex::decode(&entropy).unwrap().as_slice());
         let account_key = AccountKey::from(&RootIdentity::from(&RootEntropy::from(&entropy_slice)));
         assert_eq!(
             serde_json::json!(json_rpc::account_key::AccountKey::try_from(&account_key).unwrap()),
