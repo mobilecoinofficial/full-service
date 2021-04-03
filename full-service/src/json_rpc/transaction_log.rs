@@ -113,10 +113,14 @@ impl TransactionLog {
             } else {
                 Some(assigned_address_id)
             },
-            value_pmob: transaction_log.value.to_string(),
-            fee_pmob: transaction_log.fee.map(|x| x.to_string()),
-            submitted_block_index: transaction_log.submitted_block_index.map(|b| b.to_string()),
-            finalized_block_index: transaction_log.finalized_block_index.map(|b| b.to_string()),
+            value_pmob: (transaction_log.value as u64).to_string(),
+            fee_pmob: transaction_log.fee.map(|x| (x as u64).to_string()),
+            submitted_block_index: transaction_log
+                .submitted_block_index
+                .map(|b| (b as u64).to_string()),
+            finalized_block_index: transaction_log
+                .finalized_block_index
+                .map(|b| (b as u64).to_string()),
             status: transaction_log.status.clone(),
             input_txo_ids: associated_txos.inputs.clone(),
             output_txo_ids: associated_txos.outputs.clone(),
