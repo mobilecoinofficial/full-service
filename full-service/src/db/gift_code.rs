@@ -94,7 +94,6 @@ impl GiftCodeModel for GiftCode {
             account_id_hex: &account_id.to_string(),
             txo_id_hex: &txo_id.to_string(),
         };
-
         diesel::insert_into(gift_codes::table)
             .values(&new_gift_code)
             .execute(conn)?;

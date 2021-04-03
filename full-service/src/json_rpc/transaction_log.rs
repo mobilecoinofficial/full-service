@@ -108,11 +108,7 @@ impl TransactionLog {
             } else {
                 Some(recipient_address_id)
             },
-            assigned_address_id: if assigned_address_id == "" {
-                None
-            } else {
-                Some(assigned_address_id)
-            },
+            assigned_address_id,
             value_pmob: transaction_log.value.to_string(),
             fee_pmob: transaction_log.fee.map(|x| x.to_string()),
             submitted_block_index: transaction_log.submitted_block_index.map(|b| b.to_string()),

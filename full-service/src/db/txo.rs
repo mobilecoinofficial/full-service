@@ -99,7 +99,7 @@ pub trait TxoModel {
     /// Returns:
     /// * ProcessedTxProposalOutput
     fn create_minted(
-        account_id_hex: Option<&str>,
+        account_id_hex: &str,
         txo: &TxOut,
         tx_proposal: &TxProposal,
         outlay_index: usize,
@@ -228,6 +228,9 @@ impl TxoModel for Txo {
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<String, WalletDbError> {
+        // Verify that the account exists.
+        Account::get(&AccountID(account_id_hex.to_string()), &conn)?;
+
         let txo_id = TxoID::from(&txo);
         conn.transaction::<(), WalletDbError, _>(|| {
             match Txo::get(&txo_id.to_string(), conn) {
@@ -387,7 +390,7 @@ impl TxoModel for Txo {
     }
 
     fn create_minted(
-        account_id_hex: Option<&str>,
+        account_id_hex: &str,
         output: &TxOut,
         tx_proposal: &TxProposal,
         output_index: usize,
@@ -454,21 +457,18 @@ impl TxoModel for Txo {
                 .values(&new_txo)
                 .execute(conn)?;
 
-            // If account_id is provided, then log a relationship. Also possible to create
-            // minted from a TxProposal not belonging to any existing account.
-            if let Some(account_id_hex) = account_id_hex.as_deref() {
-                let new_account_txo_status = NewAccountTxoStatus {
-                    account_id_hex: &account_id_hex,
-                    txo_id_hex: &txo_id.to_string(),
-                    txo_status: TXO_STATUS_SECRETED, /* We cannot track spent status for minted
-                                                      * TXOs
-                                                      * unless change */
-                    txo_type: TXO_TYPE_MINTED,
-                };
-                diesel::insert_into(account_txo_statuses::table)
-                    .values(&new_account_txo_status)
-                    .execute(conn)?;
-            }
+            // Log a relationship between the account and the TXO.
+            let new_account_txo_status = NewAccountTxoStatus {
+                account_id_hex: &account_id_hex,
+                txo_id_hex: &txo_id.to_string(),
+                // The lifecycle of this txo starts at secreted. If it is change, then it will
+                // become unspent when it is received.
+                txo_status: TXO_STATUS_SECRETED,
+                txo_type: TXO_TYPE_MINTED,
+            };
+            diesel::insert_into(account_txo_statuses::table)
+                .values(&new_account_txo_status)
+                .execute(conn)?;
             Ok(())
         })?;
 
@@ -1595,7 +1595,7 @@ mod tests {
             proposal.clone(),
             ledger_db.num_blocks().unwrap(),
             "".to_string(),
-            Some(&sender_account_id.to_string()),
+            &sender_account_id.to_string(),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1672,8 +1672,20 @@ mod tests {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
 
-        let account_key = AccountKey::random(&mut rng);
-        let account_id = AccountID::from(&account_key);
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        let (account_id, _address) = Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(0),
+            None,
+            None,
+            "",
+            None,
+            None,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
 
         // Seed Txos
         let mut src_txos = Vec::new();
