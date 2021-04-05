@@ -40,6 +40,9 @@ pub enum AccountServiceError {
 
     /// Unknown key version version: {0}
     UnknownKeyDerivation(u8),
+
+    /// Invalid BIP39 english mnemonic: {0}
+    InvalidMnemonic(String),
 }
 
 impl From<WalletDbError> for AccountServiceError {
@@ -184,7 +187,14 @@ where
         }
 
         // Get mnemonic from phrase
-        let mnemonic = Mnemonic::from_phrase(&mnemonic_phrase, Language::English).unwrap();
+        let mnemonic = match Mnemonic::from_phrase(&mnemonic_phrase, Language::English) {
+            Ok(m) => m,
+            Err(_) => {
+                return Err(AccountServiceError::InvalidMnemonic(
+                    mnemonic_phrase.to_string(),
+                ))
+            }
+        };
 
         // We record the local highest block index because that is the earliest we could
         // start scanning.
