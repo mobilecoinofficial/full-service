@@ -158,6 +158,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
                 .set((crate::db::schema::accounts::next_subaddress_index.eq(subaddress_index + 1),))
                 .execute(conn)?;
 
+            // Find and repair orphaned txos at this subaddress. 
             let orphaned_txos = Txo::list_by_status(&account_id_hex, &TXO_STATUS_ORPHANED, &conn)?;
 
             for orphaned_txo in orphaned_txos.iter() {
@@ -173,12 +174,12 @@ impl AssignedSubaddressModel for AssignedSubaddress {
                 );
 
                 if txo_subaddress_spk == *subaddress.spend_public_key() {
-                    // get the current account status mapping
+                    // Get the current account status mapping.
                     let account_txo_status =
                         AccountTxoStatus::get(&account_id_hex, &orphaned_txo.txo_id_hex, &conn)
                             .unwrap();
 
-                    // update the status to unspent
+                    // Update the status to unspent.
                     account_txo_status.set_unspent(&conn)?;
 
                     let onetime_private_key = recover_onetime_private_key(
@@ -191,7 +192,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
 
                     let key_image_bytes = mc_util_serial::encode(&key_image);
 
-                    // update the account status mapping
+                    // Update the account status mapping.
                     diesel::update(orphaned_txo)
                         .set((
                             crate::db::schema::txos::subaddress_index.eq(subaddress_index),
