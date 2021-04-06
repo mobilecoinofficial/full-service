@@ -158,7 +158,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
                 .set((crate::db::schema::accounts::next_subaddress_index.eq(subaddress_index + 1),))
                 .execute(conn)?;
 
-            // Find and repair orphaned txos at this subaddress. 
+            // Find and repair orphaned txos at this subaddress.
             let orphaned_txos = Txo::list_by_status(&account_id_hex, &TXO_STATUS_ORPHANED, &conn)?;
 
             for orphaned_txo in orphaned_txos.iter() {
