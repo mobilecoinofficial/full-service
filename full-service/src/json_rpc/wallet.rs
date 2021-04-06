@@ -365,9 +365,22 @@ where
                 transaction_log: result,
             }
         }
-        JsonCommandRequest::get_all_transaction_logs_for_account { account_id } => {
+        JsonCommandRequest::get_all_transaction_logs_for_account {
+            account_id,
+            offset,
+            limit,
+        } => {
+            let o = offset
+                .map(|o| o.parse::<i64>())
+                .transpose()
+                .map_err(format_error)?;
+            let l = limit
+                .map(|l| l.parse::<i64>())
+                .transpose()
+                .map_err(format_error)?;
+
             let transaction_logs_and_txos = service
-                .list_transaction_logs(&AccountID(account_id))
+                .list_transaction_logs(&AccountID(account_id), o, l)
                 .map_err(format_error)?;
             let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
                 transaction_logs_and_txos
@@ -460,20 +473,20 @@ where
         }
         JsonCommandRequest::get_all_txos_for_account {
             account_id,
-            limit,
             offset,
+            limit,
         } => {
-            let l = limit
-                .map(|l| l.parse::<i64>())
-                .transpose()
-                .map_err(format_error)?;
             let o = offset
                 .map(|o| o.parse::<i64>())
                 .transpose()
                 .map_err(format_error)?;
+            let l = limit
+                .map(|l| l.parse::<i64>())
+                .transpose()
+                .map_err(format_error)?;
 
             let txos = service
-                .list_txos(&AccountID(account_id), l, o)
+                .list_txos(&AccountID(account_id), o, l)
                 .map_err(format_error)?;
             let txo_map: Map<String, serde_json::Value> = Map::from_iter(
                 txos.iter()

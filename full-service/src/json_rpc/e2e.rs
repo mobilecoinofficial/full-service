@@ -952,6 +952,112 @@ mod e2e {
     }
 
     #[test_with_logger]
+    fn test_transaction_pagination(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+        let public_address = b58_decode(b58_public_address).unwrap();
+
+        // Add some transactions.
+        for _ in 0..10 {
+            add_block_to_ledger_db(
+                &mut ledger_db,
+                &vec![public_address.clone()],
+                100,
+                &vec![KeyImage::from(rng.next_u64())],
+                &mut rng,
+            );
+        }
+
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        assert_eq!(ledger_db.num_blocks().unwrap(), 22);
+
+        // Check that we can paginate txo output.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_all_txos_for_account",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let txos_all = result.get("txo_ids").unwrap().as_array().unwrap();
+        assert_eq!(txos_all.len(), 10);
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_all_txos_for_account",
+            "params": {
+                "account_id": account_id,
+                "offset": "2",
+                "limit": "5",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let txos_page = result.get("txo_ids").unwrap().as_array().unwrap();
+        assert_eq!(txos_page.len(), 5);
+        assert_eq!(txos_all[2..7].len(), 5);
+        assert_eq!(txos_page[..], txos_all[2..7]);
+
+        // Check that we can paginate transaction log output.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_all_transaction_logs_for_account",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let tx_logs_all = result
+            .get("transaction_log_ids")
+            .unwrap()
+            .as_array()
+            .unwrap();
+        assert_eq!(tx_logs_all.len(), 10);
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_all_transaction_logs_for_account",
+            "params": {
+                "account_id": account_id,
+                "offset": "3",
+                "limit": "6",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let tx_logs_page = result
+            .get("transaction_log_ids")
+            .unwrap()
+            .as_array()
+            .unwrap();
+        assert_eq!(tx_logs_page.len(), 6);
+        assert_eq!(tx_logs_all[3..9].len(), 6);
+        assert_eq!(tx_logs_page[..], tx_logs_all[3..9]);
+    }
+
+    #[test_with_logger]
     fn test_import_account_with_next_subaddress_index(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());

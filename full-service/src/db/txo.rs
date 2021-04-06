@@ -586,8 +586,8 @@ impl TxoModel for Txo {
             .select(cols::txo_id_hex);
 
         // Optionally add limit and offset.
-        let statuses: Vec<String> = if let (Some(l), Some(o)) = (limit, offset) {
-            statuses_query.limit(l).offset(o).load(conn)?
+        let statuses: Vec<String> = if let (Some(o), Some(l)) = (offset, limit) {
+            statuses_query.offset(o).limit(l).load(conn)?
         } else {
             statuses_query.load(conn)?
         };
@@ -1211,6 +1211,8 @@ mod tests {
         // we are not creating submit logs in this test)
         let transaction_logs = TransactionLog::list_all(
             &alice_account_id.to_string(),
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();

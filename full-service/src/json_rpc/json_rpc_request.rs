@@ -120,6 +120,8 @@ pub enum JsonCommandRequest {
     },
     get_all_transaction_logs_for_account {
         account_id: String,
+        limit: Option<String>,
+        offset: Option<String>,
     },
     get_transaction_log {
         transaction_log_id: String,
