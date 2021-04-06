@@ -573,6 +573,12 @@ curl -s localhost:9090/wallet \
 | :------------- | :----------------------- | :------------------------ |
 | `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
 
+| Optional Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `limit`     | Don't return more than this many entries | |
+| `offset`     | Start returning results after this many entries | |
+
+
 Note, you may wish to filter TXOs using a tool like jq. For example, to get all unspent TXOs, you can use:
 
 ```sh
