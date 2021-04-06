@@ -387,7 +387,7 @@ mod tests {
             .create_account(Some("Bob's Main Account".to_string()))
             .unwrap();
         let bob_addresses = service
-            .get_all_addresses_for_account(&AccountID(bob.account_id_hex.clone()))
+            .get_all_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
             .expect("Could not get addresses for Bob");
         let bob_address = bob_addresses[0].assigned_subaddress_b58.clone();
 
@@ -512,7 +512,7 @@ mod tests {
             .create_account(Some("Bob's Main Account".to_string()))
             .unwrap();
         let bob_addresses = service
-            .get_all_addresses_for_account(&AccountID(bob.account_id_hex.clone()))
+            .get_all_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
             .expect("Could not get addresses for Bob");
         let bob_address = &bob_addresses[0].assigned_subaddress_b58.clone();
 
@@ -626,7 +626,7 @@ mod tests {
             .create_account(Some("Bob's Main Account".to_string()))
             .unwrap();
         let bob_addresses = service
-            .get_all_addresses_for_account(&AccountID(bob.account_id_hex.clone()))
+            .get_all_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
             .expect("Could not get addresses for Bob");
         let bob_address = &bob_addresses[0].assigned_subaddress_b58.clone();
         let bob_account_id = AccountID(bob.account_id_hex.to_string());
@@ -744,7 +744,7 @@ mod tests {
             .create_account(Some("Bob's Main Account".to_string()))
             .unwrap();
         let bob_addresses = service
-            .get_all_addresses_for_account(&AccountID(bob.account_id_hex.clone()))
+            .get_all_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
             .expect("Could not get addresses for Bob");
         let bob_address = &bob_addresses[0].assigned_subaddress_b58.clone();
         let bob_account_id = AccountID(bob.account_id_hex.to_string());

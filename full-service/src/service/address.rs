@@ -54,6 +54,8 @@ pub trait AddressService {
     fn get_all_addresses_for_account(
         &self,
         account_id: &AccountID,
+        offset: Option<i64>,
+        limit: Option<i64>,
     ) -> Result<Vec<AssignedSubaddress>, AddressServiceError>;
 
     /// Verifies whether an address can be decoded from b58.
@@ -90,9 +92,13 @@ where
     fn get_all_addresses_for_account(
         &self,
         account_id: &AccountID,
+        offset: Option<i64>,
+        limit: Option<i64>,
     ) -> Result<Vec<AssignedSubaddress>, AddressServiceError> {
         Ok(AssignedSubaddress::list_all(
             &account_id.to_string(),
+            offset,
+            limit,
             &self.wallet_db.get_conn()?,
         )?)
     }

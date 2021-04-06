@@ -140,6 +140,8 @@ pub enum JsonCommandRequest {
     },
     get_all_addresses_for_account {
         account_id: String,
+        offset: Option<String>,
+        limit: Option<String>,
     },
     verify_address {
         address: String,

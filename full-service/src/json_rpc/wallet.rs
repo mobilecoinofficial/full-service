@@ -263,9 +263,22 @@ where
                     .map_err(format_error)?,
             ),
         },
-        JsonCommandRequest::get_all_addresses_for_account { account_id } => {
+        JsonCommandRequest::get_all_addresses_for_account {
+            account_id,
+            offset,
+            limit,
+        } => {
+            let o = offset
+                .map(|o| o.parse::<i64>())
+                .transpose()
+                .map_err(format_error)?;
+            let l = limit
+                .map(|l| l.parse::<i64>())
+                .transpose()
+                .map_err(format_error)?;
+
             let addresses = service
-                .get_all_addresses_for_account(&AccountID(account_id))
+                .get_all_addresses_for_account(&AccountID(account_id), o, l)
                 .map_err(format_error)?;
             let address_map: Map<String, serde_json::Value> = Map::from_iter(
                 addresses

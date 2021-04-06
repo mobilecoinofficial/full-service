@@ -945,6 +945,11 @@ curl -s localhost:9090/wallet \
 | :------------- | :----------------------- | :------------------------ |
 | `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
 
+| Optional Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `offset`       | Start returning results after this many entries | |
+| `limit`        | Don't return more than this many entries | |
+
 #### Verify Address
 
 Verify whether an address is correctly b58 encoded.
