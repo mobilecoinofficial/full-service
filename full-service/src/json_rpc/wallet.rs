@@ -458,9 +458,22 @@ where
                 ),
             }
         }
-        JsonCommandRequest::get_all_txos_for_account { account_id } => {
+        JsonCommandRequest::get_all_txos_for_account {
+            account_id,
+            limit,
+            offset,
+        } => {
+            let l = limit
+                .map(|l| l.parse::<i64>())
+                .transpose()
+                .map_err(format_error)?;
+            let o = offset
+                .map(|o| o.parse::<i64>())
+                .transpose()
+                .map_err(format_error)?;
+
             let txos = service
-                .list_txos(&AccountID(account_id))
+                .list_txos(&AccountID(account_id), l, o)
                 .map_err(format_error)?;
             let txo_map: Map<String, serde_json::Value> = Map::from_iter(
                 txos.iter()

@@ -132,6 +132,8 @@ pub trait TxoModel {
     /// Get all Txos associated with a given account.
     fn list_for_account(
         account_id_hex: &str,
+        offset: Option<i64>,
+        limit: Option<i64>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<TxoDetails>, WalletDbError>;
 
@@ -571,19 +573,29 @@ impl TxoModel for Txo {
 
     fn list_for_account(
         account_id_hex: &str,
+        offset: Option<i64>,
+        limit: Option<i64>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<TxoDetails>, WalletDbError> {
         use crate::db::schema::{
             account_txo_statuses as cols, account_txo_statuses::dsl::account_txo_statuses,
         };
 
-        let results: Vec<String> = account_txo_statuses
+        let statuses_query = account_txo_statuses
             .filter(cols::account_id_hex.eq(account_id_hex))
-            .select(cols::txo_id_hex)
-            .load(conn)?;
+            .select(cols::txo_id_hex);
 
+        // Optionally add limit and offset.
+        let statuses: Vec<String> = if let (Some(l), Some(o)) = (limit, offset) {
+            statuses_query.limit(l).offset(o).load(conn)?
+        } else {
+            statuses_query.load(conn)?
+        };
+
+        // TODO: This loop queries the txo and account_txo_statuses table N times. Use a
+        // join instead.
         let details: Result<Vec<TxoDetails>, WalletDbError> =
-            results.iter().map(|t| Txo::get(t, &conn)).collect();
+            statuses.iter().map(|t| Txo::get(t, &conn)).collect();
         details
     }
 
@@ -1009,6 +1021,8 @@ mod tests {
 
         let txos = Txo::list_for_account(
             &alice_account_id.to_string(),
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1084,6 +1098,8 @@ mod tests {
         // and one minted (destined for alice).
         let txos = Txo::list_for_account(
             &alice_account_id.to_string(),
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1221,6 +1237,8 @@ mod tests {
 
         let updated_txos = Txo::list_for_account(
             &alice_account_id.to_string(),
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1287,6 +1305,8 @@ mod tests {
         // We should now have 1 txo in Bob's account.
         let txos = Txo::list_for_account(
             &AccountID::from(&bob_account_key).to_string(),
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1614,6 +1634,8 @@ mod tests {
         log::info!(logger, "Listing all Txos for recipient account");
         let txos = Txo::list_for_account(
             &recipient_account_id.to_string(),
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1630,6 +1652,8 @@ mod tests {
         log::info!(logger, "Listing all Txos for sender account");
         let sender_txos = Txo::list_for_account(
             &sender_account_id.to_string(),
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();

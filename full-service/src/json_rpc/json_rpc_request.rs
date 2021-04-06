@@ -147,6 +147,8 @@ pub enum JsonCommandRequest {
     },
     get_all_txos_for_account {
         account_id: String,
+        limit: Option<String>,
+        offset: Option<String>,
     },
     get_txo {
         txo_id: String,
