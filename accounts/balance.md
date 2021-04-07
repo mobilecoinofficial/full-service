@@ -21,6 +21,12 @@ description: >-
 | `secreted_pmob` | string \(uint64\) | Secreted \(minted\) pico MOB. This is the sum of all the TXOs which have been created in the wallet for outgoing transactions. |
 | `orphaned_pmob` | string \(uint64\) | Orphaned pico MOB. The orphaned value represents the TXOs which were view-key matched, but which can not be spent until their subaddress index is recovered. |
 
+## Parameters
+
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `account_id` | String | The unique identifier for the account. |
+
 ## Example
 
 ```text
@@ -86,10 +92,6 @@ curl -s localhost:9090/wallet \
 {% endtab %}
 {% endtabs %}
 
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `account_id` | String | The unique identifier for the account. |
-
 ### `get_balance_for_address`
 
 Get the current balance for a given address.
@@ -137,8 +139,4 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 {% endtabs %}
-
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `account_id` | String | The unique identifier for the account. |
 

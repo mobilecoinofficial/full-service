@@ -24,6 +24,16 @@ Important: If you receive funds at a subaddress which has not yet been assigned,
 | `subaddress_index` | string \(uint64\) | The assigned subaddress index on the associated account. |
 | `offset_count` | integer | The value to offset pagination requests for assigned\_address list. Requests will exclude all list items up to and including this object. |
 
+## Parameters
+
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `account_id` | The account on which to perform this action. | The account must exist in the wallet. |
+
+| Optional Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| ​`metadata`  | The metadata for this address. | String; can contain stringified json. |
+
 ## Example
 
 ```text
@@ -81,16 +91,6 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 {% endtabs %}
-
-​
-
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action. | The account must exist in the wallet. |
-
-| Optional Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| ​`metadata`  | The metadata for this address. | String; can contain stringified json. |
 
 ### `get_all_addresses_for_account`
 
@@ -156,10 +156,6 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 {% endtabs %}
-
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action. | The account must exist in the wallet. |
 
 ### `verify_address`
 

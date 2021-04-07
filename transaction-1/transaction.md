@@ -8,6 +8,21 @@ description: >-
 
 Due to the privacy properties of the MobileCoin ledger, Transactions are ephemeral. Once they have been created, they only exist until they are validated, and then only the outputs are written to the ledger. For this reason, the Full Service wallet stores Transactions in the `transaction_log` table in order to preserve transaction history.
 
+## Parameters
+
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `account_id` | The account on which to perform this action | Account must exist in the wallet |
+| `recipient_public_address` | Recipient for this transaction | b58-encoded public address bytes |
+| `value_pmob` | The amount of MOB to send in this transaction |  |
+
+| Optional Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `input_txo_ids` | Specific TXOs to use as inputs to this transaction | TXO IDs \(obtain from `get_all_txos_for_account`\) |
+| `fee` | The fee amount to submit with this transaction | If not provided, uses `MINIMUM_FEE` = .01 MOB |
+| `tombstone_block` | The block after which this transaction expires | If not provided, uses `cur_height` + 50 |
+| `max_spendable_value` | The maximum amount for an input TXO selected for this transaction |  |
+
 ## Methods
 
 ### `build_transaction`
@@ -241,18 +256,7 @@ curl -s localhost:9090/wallet \
 ```
 {% endhint %}
 
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action | Account must exist in the wallet |
-| `recipient_public_address` | Recipient for this transaction | b58-encoded public address bytes |
-| `value_pmob` | The amount of MOB to send in this transaction |  |
 
-| Optional Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `input_txo_ids` | Specific TXOs to use as inputs to this transaction | TXO IDs \(obtain from `get_all_txos_for_account`\) |
-| `fee` | The fee amount to submit with this transaction | If not provided, uses `MINIMUM_FEE` = .01 MOB |
-| `tombstone_block` | The block after which this transaction expires | If not provided, uses `cur_height` + 50 |
-| `max_spendable_value` | The maximum amount for an input TXO selected for this transaction |  |
 
 ### `submit_transaction`
 

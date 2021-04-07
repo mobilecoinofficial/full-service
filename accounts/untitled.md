@@ -17,6 +17,18 @@ description: >-
 | `next_subaddress_index` | string \(uint64\) | This index represents the next subaddress to be assigned as an address. This is useful information in case the account is imported elsewhere. |
 | `recovery_mode` | boolean | A flag that indicates this imported account is attempting to un-orphan found TXOs. It is recommended to move all MOB to another account after recovery if the user is unsure of the assigned addresses. |
 
+## Parameters
+
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `entropy` | The secret root entropy. | 32 bytes of randomness, hex-encoded. |
+
+| Optional Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `name` | A label for this account. | A label can have duplicates, but it is not recommended. |
+| `next_subaddress_index` | The next known unused subaddress index for the account. |  |
+| `first_block_index` | The block from which to start scanning the ledger. |  |
+
 ## Example
 
 ```text
@@ -76,10 +88,6 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 {% endtabs %}
-
-| Optional Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `name` | A label for this account. | A label can have duplicates, but it is not recommended. |
 
 ### `import_account`
 
@@ -185,16 +193,6 @@ curl -s localhost:9090/wallet \
 {% endtab %}
 {% endtabs %}
 
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `entropy` | The secret root entropy. | 32 bytes of randomness, hex-encoded. |
-
-| Optional Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `name` | A label for this account. | A label can have duplicates, but it is not recommended. |
-| `next_subaddress_index` | The next known unused subaddress index for the account. |  |
-| `first_block_index` | The block from which to start scanning the ledger. |  |
-
 {% hint style="warning" %}
 `If you attempt to import an account already in the wallet, you will see the following error message:`
 
@@ -246,10 +244,6 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 {% endtabs %}
-
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action. | The account must exist in the wallet. |
 
 {% hint style="warning" %}
 If the account is not in the database, you will receive the following error message:
@@ -318,10 +312,6 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 {% endtabs %}
-
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action. | The account must exist in the wallet. |
 
 ### `get_account_status`
 
@@ -422,11 +412,6 @@ curl -s localhost:9090/wallet \
 {% endtab %}
 {% endtabs %}
 
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action. | The account must exist in the wallet. |
-| `name` | The new name for this account. |  |
-
 ### `remove_account`
 
 Remove an account from a given wallet.
@@ -461,8 +446,4 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 {% endtabs %}
-
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action. | The account must exist in the wallet. |
 

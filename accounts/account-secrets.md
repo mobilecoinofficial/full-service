@@ -17,6 +17,8 @@ description: >-
 | `key_derivation_version` | string \(uint64\) | The version number of the key derivation path used to generate the account key from the mnemonic. |
 | `account_key` | account\_key | The view and spend keys used to transact on the MobileCoin network. Also may contain keys to connect to the Fog ledger scanning service. |
 
+## Parameters
+
 ## Example
 
 ```text

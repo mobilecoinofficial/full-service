@@ -24,7 +24,6 @@
 ## Ledger
 
 * [Block](ledger/block.md)
-* [Ledger Output TXO](ledger/ledger-output-txo.md)
 
 ---
 
