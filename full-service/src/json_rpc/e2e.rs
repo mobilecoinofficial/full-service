@@ -1054,6 +1054,35 @@ mod e2e {
         assert_eq!("0", unspent_pmob);
         assert_eq!("100000000000000", orphaned_pmob);
 
+        // assign next subaddress for account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "assign_address_for_account",
+            "params": {
+                "account_id": account_id,
+                "metadata": "subaddress_index_2",
+            }
+        });
+        dispatch(&client, body, &logger);
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_account",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance = result.get("balance").unwrap();
+        let unspent_pmob = balance.get("unspent_pmob").unwrap().as_str().unwrap();
+        let orphaned_pmob = balance.get("orphaned_pmob").unwrap().as_str().unwrap();
+
+        assert_eq!("100000000000000", unspent_pmob);
+        assert_eq!("0", orphaned_pmob);
+
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
