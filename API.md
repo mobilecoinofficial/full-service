@@ -481,7 +481,6 @@ curl -s localhost:9090/wallet \
         "key_image": "0a20f041e3da520a6e3328d43a920b90bf87826a1602c9249cf6591dd32328a4544e",
         "minted_account_id": null,
         "object": "txo",
-        "offset_count": 262,
         "confirmation": null,
         "public_key": "0a201a592874a596aeb14cbeb1c7d3449cbd20dc8078ad7fff657e131d619145ef0a",
         "received_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
@@ -509,7 +508,6 @@ curl -s localhost:9090/wallet \
         "key_image": null,
         "minted_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
         "object": "txo",
-        "offset_count": 501,
         "confirmation": "0a204488e153cce1e4bcdd4419eecb778f3d2d2b024b39aaa29532d2e47e238b2e31",
         "public_key": "0a20e6736474f73e440686736bfd045d838c2b3bc056ffc647ad6b1c990f5a46b123",
         "received_account_id": "36fdf8fbdaa35ad8e661209b8a7c7057f29bf16a1e399a34aa92c3873dfb853c",
@@ -533,7 +531,6 @@ curl -s localhost:9090/wallet \
         "key_image": "0a20784ab38c4541ce23abbec6744431d6ae14101c49c6535b3e9bf3fd728db13848",
         "minted_account_id": null,
         "object": "txo",
-        "offset_count": 8,
         "confirmation": null,
         "public_key": "0a20d803a979c9ec0531f106363a885dde29101fcd70209f9ed686905512dfd14d5f",
         "received_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
@@ -557,7 +554,6 @@ curl -s localhost:9090/wallet \
         "key_image": null,
         "minted_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
         "object": "txo",
-        "offset_count": 498,
         "confirmation": null,
         "public_key": "0a209432c589bb4e5101c26e935b70930dfe45c78417527fb994872ebd65fcb9c116",
         "received_account_id": null,
@@ -632,8 +628,7 @@ curl -s localhost:9090/wallet \
       "subaddress_index": "0",
       "assigned_subaddress": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
       "key_image": "0a205445b406012d26baebb51cbcaaaceb0d56387a67353637d07265f4e886f33419",
-      "confirmation": null,
-      "offset_count": 25
+      "confirmation": null
     }
   }
 }
@@ -869,8 +864,7 @@ curl -s localhost:9090/wallet \
       "public_address": "3P4GtGkp5UVBXUzBqirgj7QFetWn4PsFPsHBXbC6A8AXw1a9CMej969jneiN1qKcwdn6e1VtD64EruGVSFQ8wHk5xuBHndpV9WUGQ78vV7Z",
       "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
       "metadata": "",
-      "subaddress_index": "2",
-      "offset_count": "7"
+      "subaddress_index": "2"
     }
   },
   "error": null,
@@ -917,24 +911,21 @@ curl -s localhost:9090/wallet \
         "public_address": "4bgkVAH1hs55dwLTGVpZER8ZayhqXbYqfuyisoRrmQPXoWcYQ3SQRTjsAytCiAgk21CRrVNysVw5qwzweURzDK9HL3rGXFmAAahb364kYe3",
         "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
         "metadata": "Main",
-        "subaddress_index": "0",
-        "offset_count": "5"
+        "subaddress_index": "0"
       },
       "6prEWE8yEmHAznkZ3QUtHRmVf7q8DS6XpkjzecYCGMj7hVh8fivmCcujamLtugsvvmWE9P2WgTb2o7xGHw8FhiBr1hSrku1u9KKfRJFMenG": {
         "object": "address",
         "public_address": "6prEWE8yEmHAznkZ3QUtHRmVf7q8DS6XpkjzecYCGMj7hVh8fivmCcujamLtugsvvmWE9P2WgTb2o7xGHw8FhiBr1hSrku1u9KKfRJFMenG",
         "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
         "metadata": "Change",
-        "subaddress_index": "1",
-        "offset_count": "6"
+        "subaddress_index": "1"
       },
       "3P4GtGkp5UVBXUzBqirgj7QFetWn4PsFPsHBXbC6A8AXw1a9CMej969jneiN1qKcwdn6e1VtD64EruGVSFQ8wHk5xuBHndpV9WUGQ78vV7Z": {
         "object": "address",
         "public_address": "3P4GtGkp5UVBXUzBqirgj7QFetWn4PsFPsHBXbC6A8AXw1a9CMej969jneiN1qKcwdn6e1VtD64EruGVSFQ8wHk5xuBHndpV9WUGQ78vV7Z",
         "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
         "metadata": "",
-        "subaddress_index": "2",
-        "offset_count": "7"
+        "subaddress_index": "2"
       }
     }
   },
@@ -1028,8 +1019,7 @@ curl -s localhost:9090/wallet \
       "sent_time": "2021-02-28 01:27:52 UTC",
       "comment": "",
       "failure_code": null,
-      "failure_message": null,
-      "offset_count": 2199
+      "failure_message": null
     }
   },
   "error": null,
@@ -1347,8 +1337,7 @@ curl -s localhost:9090/wallet \
       "sent_time": "2021-02-28 01:42:28 UTC",
       "comment": "",
       "failure_code": null,
-      "failure_message": null,
-      "offset_count": 2252
+      "failure_message": null
     }
   },
   "error": null,
@@ -1436,8 +1425,7 @@ curl -s localhost:9090/wallet \
         "sent_time": null,
         "comment": "",
         "failure_code": null,
-        "failure_message": null,
-        "offset_count": 4
+        "failure_message": null
       },
       "ff1c85e7a488c2821110597ba75db30d913bb1595de549f83c6e8c56b06d70d1": {
         "object": "transaction_log",
@@ -1465,8 +1453,7 @@ curl -s localhost:9090/wallet \
         "sent_time": "2021-02-28 03:05:11 UTC",
         "comment": "",
         "failure_code": null,
-        "failure_message": null,
-        "offset_count": 53
+        "failure_message": null
       }
     }
   },
@@ -1520,8 +1507,7 @@ curl -s localhost:9090/wallet \
       "sent_time": null,
       "comment": "",
       "failure_code": null,
-      "failure_message": null,
-      "offset_count": 37
+      "failure_message": null
     }
   },
   "error": null,
@@ -1585,8 +1571,7 @@ curl -s localhost:9090/wallet \
         "sent_time": "2021-02-28 03:05:11 UTC",
         "comment": "",
         "failure_code": null,
-        "failure_message": null,
-        "offset_count": 53
+        "failure_message": null
       },
       "58729797de0929eed37acb45225d3631235933b709c00015f46bfc002d5754fc": {
         "object": "transaction_log",
@@ -1609,8 +1594,7 @@ curl -s localhost:9090/wallet \
         "sent_time": null,
         "comment": "",
         "failure_code": null,
-        "failure_message": null,
-        "offset_count": 54
+        "failure_message": null
       },
       "243494a0030bcbac40e87670b9288834047ef0727bcc6630a2fe2799439879ab": {
         "object": "transaction_log",
@@ -1633,8 +1617,7 @@ curl -s localhost:9090/wallet \
         "sent_time": null,
         "comment": "",
         "failure_code": null,
-        "failure_message": null,
-        "offset_count": 55
+        "failure_message": null
       }
     }
   },
@@ -1682,8 +1665,7 @@ curl -s localhost:9090/wallet \
         "sent_time": null,
         "comment": "",
         "failure_code": null,
-        "failure_message": null,
-        "offset_count": 51
+        "failure_message": null
       },
       "135c3861be4034fccb8d0b329f86124cb6e2404cd4debf52a3c3a10cb4a7bdfb": {
         "object": "transaction_log",
@@ -1706,8 +1688,7 @@ curl -s localhost:9090/wallet \
         "sent_time": null,
         "comment": "",
         "failure_code": null,
-        "failure_message": null,
-        "offset_count": 52
+        "failure_message": null
       },
       "ff1c85e7a488c2821110597ba75db30d913bb1595de549f83c6e8c56b06d70d1": {
         "object": "transaction_log",
@@ -1735,8 +1716,7 @@ curl -s localhost:9090/wallet \
         "sent_time": "2021-02-28 03:05:11 UTC",
         "comment": "",
         "failure_code": null,
-        "failure_message": null,
-        "offset_count": 53
+        "failure_message": null
       }
     }
   },
@@ -1884,8 +1864,7 @@ curl -s localhost:9090/wallet \
       "subaddress_index": "0",
       "assigned_subaddress": "3Dg4iFavKJScgCUeqb1VnET5ADmKjZgWz15fN7jfeCCWb72serxKE7fqz7htQvRirN4yeU2xxtcHRAN2zbF6V9n7FomDm69VX3FghvkDfpq",
       "key_image": "0a205445b406012d26baebb51cbcaaaceb0d56387a67353637d07265f4e886f33419",
-      "confirmation": null,
-      "offset_count": 25
+      "confirmation": null
     }
   },
   "error": null,
@@ -2527,7 +2506,6 @@ The balance for an account, as well as some information about syncing status nee
 | account_id | string | Unique identifier for the assigned associated account.
 | metadata | string | An arbitrary string attached to the object.
 | subaddress_index | string (uint64) | The assigned subaddress index on the associated account.
-| offset_count | int | The value to offset pagination requests for assigned_address list. Requests will exclude all list items up to and including this object.
 
 #### Example Object
 
@@ -2537,8 +2515,7 @@ The balance for an account, as well as some information about syncing status nee
   "public_address": "3P4GtGkp5UVBXUzBqirgj7QFetWn4PsFPsHBXbC6A8AXw1a9CMej969jneiN1qKcwdn6e1VtD64EruGVSFQ8wHk5xuBHndpV9WUGQ78vV7Z",
   "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
   "metadata": "",
-  "subaddress_index": "2",
-  "offset_count": "7"
+  "subaddress_index": "2"
 }
 ```
 
@@ -2572,7 +2549,6 @@ The balance for an account, as well as some information about syncing status nee
 | comment | string | An arbitrary string attached to the object.
 | failure_code | int | Code representing the cause of "failed" status.
 | failure_message | string | Human parsable explanation of "failed" status.
-| offset_count | int | The value to offset pagination requests for transaction_log list. Requests will exclude all list items up to and including this object.
 
 #### Example Objects
 
@@ -2604,8 +2580,7 @@ Received:
   "sent_time": "2021-02-28 01:42:28 UTC",
   "comment": "",
   "failure_code": null,
-  "failure_message": null,
-  "offset_count": 2252
+  "failure_message": null
 }
 ```
 
@@ -2637,8 +2612,7 @@ Sent - Failed:
   "sent_time": "2021-02-28 01:42:28 UTC",
   "comment": "This is an example of a failed sent transaction log of 1.288 MOB and 0.01 MOB fee!",
   "failure_code": 3,
-  "failure_message:": "Contains sent key image.",
-  "offset_count": 2252
+  "failure_message:": "Contains sent key image."
 }
 ```
 
@@ -2670,8 +2644,7 @@ Sent - Success, Recovered:
   "sent_time": "2021-02-28 01:42:28 UTC",
   "comment": "",
   "failure_code": null,
-  "failure_message": null,
-  "offset_count": 2252
+  "failure_message": null
 }
 ```
 
@@ -2707,7 +2680,6 @@ Sent - Success, Recovered:
 | assigned_address | string (uint64) | The address corresponding to the subaddress index which was assigned as an intended sender for this Txo.
 | key_image (only on pending/spent) | string (hex) | A fingerprint of the Txo derived from your private spend key materials, required to spend a Txo
 | confirmation | string (hex) | A confirmation that the sender of the Txo can provide to validate that they participated in the construction of this Txo.
-| offset_count | int | The value to offset pagination requests. Requests will exclude all list items up to and including this object.
 
 #### Example Objects
 
@@ -2735,8 +2707,7 @@ Received and Spent Txo
   "subaddress_index": "20",
   "assigned_subaddress": "7BeDc5jpZ...",
   "key_image": "6d6f6269...",
-  "confirmation": "23fd34a...",
-  "offset_count": 284
+  "confirmation": "23fd34a..."
 }
 ```
 
@@ -2768,8 +2739,7 @@ Txo Spent from One Account to Another in the Same Wallet
   "subaddress_index": null,
   "assigned_subaddress": null,
   "key_image": null,
-  "confirmation": "0a2044...",
-  "offset_count": 501
+  "confirmation": "0a2044..."
 }
 ```
 
@@ -2893,7 +2863,6 @@ Txo Spent from One Account to Another in the Same Wallet
 | :--- | :--- | :---
 | object | string, value is "address" | String representing the object's type. Objects of the same type share the same value.
 | account_id | string | Unique identifier for the assigned associated account. Only for "assigned" addresses
-| offset_count | int | The value to offset pagination requests for recipient_address list. Requests will exclude all list items up to and including this object.
 
 ##### Example Object
 
@@ -2903,8 +2872,7 @@ Txo Spent from One Account to Another in the Same Wallet
   "address_id": "42Dik1AA...",
   "public_address": "42Dik1AA...",
   "address_book_entry_id": 36,
-  "comment": "This is a receipient addresses",
-  "offset_count": 12
+  "comment": "This is a receipient addresses"
 }
 ```
 
@@ -2928,7 +2896,6 @@ Txo Spent from One Account to Another in the Same Wallet
 | *Name* | *Type* | *Description*
 | :--- | :--- | :---
 | object | string, value is "address_book_entry" | String representing the object's type. Objects of the same type share the same value.
-| offset_count | int | The value to offset pagination requests for address_book_entry list. Requests will exclude all list items up to and including this object.
 
 ##### Example Object
 
@@ -2943,7 +2910,6 @@ Txo Spent from One Account to Another in the Same Wallet
   "assigned_address_ids_by_account_map": {
     "1916a9b3...": ["HpaL8g88...", "YuG7Aa82...", "cPTw8yhs..."],
     "9b3ea14b...": ["6R6JwQAW..."]
-  },
-  "offset_count": 36
+  }
 }
 ```

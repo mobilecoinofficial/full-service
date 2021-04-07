@@ -31,9 +31,6 @@ pub struct Address {
 
     /// The index of this address in the subaddress space for the account.
     pub subaddress_index: String,
-
-    /// The offset in the database (used for pagination).
-    pub offset_count: String,
 }
 
 impl From<&AssignedSubaddress> for Address {
@@ -44,7 +41,6 @@ impl From<&AssignedSubaddress> for Address {
             account_id: src.account_id_hex.clone(),
             metadata: src.comment.clone(),
             subaddress_index: (src.subaddress_index as u64).to_string(),
-            offset_count: src.id.to_string(),
         }
     }
 }

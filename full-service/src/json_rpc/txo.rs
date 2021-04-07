@@ -87,10 +87,6 @@ pub struct Txo {
     /// A confirmation number that the sender of the Txo can provide to verify
     /// that they participated in the construction of this Txo.
     pub confirmation: Option<String>,
-
-    /// The value to offset pagination requests. Requests will exclude all list
-    /// items up to and including this object.
-    pub offset_count: i32,
 }
 
 impl From<&TxoDetails> for Txo {
@@ -147,7 +143,6 @@ impl From<&TxoDetails> for Txo {
                 .map(|a| a.assigned_subaddress_b58),
             key_image: txo_details.txo.key_image.as_ref().map(|k| hex::encode(&k)),
             confirmation: txo_details.txo.confirmation.as_ref().map(hex::encode),
-            offset_count: txo_details.txo.id,
         }
     }
 }
