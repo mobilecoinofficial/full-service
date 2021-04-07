@@ -3,6 +3,7 @@
 //! DB impl for the Transaction model.
 
 use crate::db::{
+    account::{AccountID, AccountModel},
     b58_encode,
     models::{
         Account, NewTransactionLog, NewTransactionTxoType, TransactionLog, TransactionTxoType, Txo,
@@ -131,7 +132,7 @@ pub trait TransactionLogModel {
         tx_proposal: TxProposal,
         block_index: u64,
         comment: String,
-        account_id_hex: Option<&str>,
+        account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<TransactionLog, WalletDbError>;
 
@@ -401,12 +402,12 @@ impl TransactionLogModel for TransactionLog {
 
                     // Get the public address for the subaddress that received these TXOs
                     let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
-                    let b58_subaddress = if *subaddress_index >= 0 {
-                        let subaddress = account_key.subaddress(*subaddress_index as u64);
-                        b58_encode(&subaddress)?
+                    let subaddress = account_key.subaddress(*subaddress_index as u64);
+                    let b58_subaddress = b58_encode(&subaddress)?;
+                    let assigned_subaddress_b58: Option<&str> = if *subaddress_index >= 0 {
+                        Some(&b58_subaddress)
                     } else {
-                        // If not matched to an existing subaddress, empty string as NULL
-                        "".to_string()
+                        None
                     };
 
                     // Create a TransactionLogs entry for every TXO
@@ -414,7 +415,7 @@ impl TransactionLogModel for TransactionLog {
                         transaction_id_hex: &transaction_id.to_string(),
                         account_id_hex: &account.account_id_hex,
                         recipient_public_address_b58: "", // NULL for received
-                        assigned_subaddress_b58: &b58_subaddress,
+                        assigned_subaddress_b58,
                         value: txo.value,
                         fee: None, // Impossible to recover fee from received transaction
                         status: TX_STATUS_SUCCEEDED,
@@ -425,7 +426,6 @@ impl TransactionLogModel for TransactionLog {
                         direction: TX_DIRECTION_RECEIVED,
                         tx: None, // NULL for received
                     };
-
                     diesel::insert_into(crate::db::schema::transaction_logs::table)
                         .values(&new_transaction_log)
                         .execute(conn)?;
@@ -450,9 +450,12 @@ impl TransactionLogModel for TransactionLog {
         tx_proposal: TxProposal,
         block_index: u64,
         comment: String,
-        account_id_hex: Option<&str>,
+        account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<TransactionLog, WalletDbError> {
+        // Verify that the account exists.
+        Account::get(&AccountID(account_id_hex.to_string()), &conn)?;
+
         let transaction_log_id = conn.transaction::<String, WalletDbError, _>(|| {
             // Store the txo_id_hex -> transaction_txo_type
             let mut txo_ids: Vec<(String, String)> = Vec::new();
@@ -509,14 +512,13 @@ impl TransactionLogModel for TransactionLog {
             if let Some(recipient) = recipient_address {
                 let transaction_id = TransactionID::from(&tx_proposal.tx);
                 let tx = mc_util_serial::encode(&tx_proposal.tx);
+
                 // Create a TransactionLogs entry
                 let new_transaction_log = NewTransactionLog {
                     transaction_id_hex: &transaction_id.to_string(),
-                    account_id_hex: &account_id_hex.unwrap_or(""), /* Can be empty str if
-                                                                    * submitting an "unowned"
-                                                                    * proposal */
+                    account_id_hex, // Can be null if submitting an "unowned" proposal.
                     recipient_public_address_b58: &b58_encode(&recipient)?,
-                    assigned_subaddress_b58: "", // NULL for sent
+                    assigned_subaddress_b58: None, // NULL for sent
                     value: transaction_value as i64,
                     fee: Some(tx_proposal.tx.prefix.fee as i64),
                     status: TX_STATUS_PENDING,
@@ -527,7 +529,6 @@ impl TransactionLogModel for TransactionLog {
                     direction: TX_DIRECTION_SENT,
                     tx: Some(&tx),
                 };
-
                 diesel::insert_into(crate::db::schema::transaction_logs::table)
                     .values(&new_transaction_log)
                     .execute(conn)?;
@@ -609,6 +610,19 @@ mod tests {
 
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
+        let (account_id, _address) = Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(0),
+            None,
+            None,
+            "",
+            None,
+            None,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        let account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
 
         // Populate our DB with some received txos in the same block
         let mut synced: HashMap<i64, Vec<String>> = HashMap::default();
@@ -628,19 +642,6 @@ mod tests {
         }
 
         // Now we'll ingest them.
-        let (account_id, _address) = Account::create_from_root_entropy(
-            &root_id.root_entropy,
-            Some(0),
-            None,
-            None,
-            "",
-            None,
-            None,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-        let account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
         TransactionLog::log_received(&synced, &account, 144, &wallet_db.get_conn().unwrap())
             .unwrap();
 
@@ -702,7 +703,7 @@ mod tests {
             tx_proposal.clone(),
             ledger_db.num_blocks().unwrap(),
             "".to_string(),
-            Some(&AccountID::from(&account_key).to_string()),
+            &AccountID::from(&account_key).to_string(),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -716,7 +717,7 @@ mod tests {
             b58_encode(&recipient).unwrap()
         );
         // No assigned subaddress for sent
-        assert_eq!(tx_log.assigned_subaddress_b58, "");
+        assert_eq!(tx_log.assigned_subaddress_b58, None);
         // Value is the amount sent, not including fee and change
         assert_eq!(tx_log.value, 50 * MOB);
         // Fee exists for submitted
@@ -843,7 +844,7 @@ mod tests {
             tx_proposal.clone(),
             ledger_db.num_blocks().unwrap(),
             "".to_string(),
-            Some(&AccountID::from(&account_key).to_string()),
+            &AccountID::from(&account_key).to_string(),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -857,7 +858,7 @@ mod tests {
             b58_encode(&recipient).unwrap()
         );
         // No assigned subaddress for sent
-        assert_eq!(tx_log.assigned_subaddress_b58, "");
+        assert_eq!(tx_log.assigned_subaddress_b58, None);
         // Value is the amount sent, not including fee and change
         assert_eq!(tx_log.value, value as i64);
         // Fee exists for submitted
@@ -886,4 +887,93 @@ mod tests {
     // FIXME: WS-9 - test log_submitted for transaction value > i64::Max
     // FIXME: test_log_submitted to self and then scan
     // FIXME: test_log_submitted for recovered
+
+    #[test_with_logger]
+    fn test_delete_transaction_logs_for_account(logger: Logger) {
+        use crate::db::schema::{transaction_logs, transaction_txo_types};
+        use diesel::dsl::count_star;
+
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+
+        // Populate our DB with some received txos in the same block.
+        // Do this for two different accounts.
+        let mut account_ids: Vec<AccountID> = Vec::new();
+        for _ in 0..2 {
+            let root_id = RootIdentity::from_random(&mut rng);
+            let account_key = AccountKey::from(&root_id);
+            let (account_id, _address) = Account::create_from_root_entropy(
+                &root_id.root_entropy,
+                Some(0),
+                None,
+                None,
+                "",
+                None,
+                None,
+                None,
+                &wallet_db.get_conn().unwrap(),
+            )
+            .unwrap();
+            let account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
+
+            let mut synced: HashMap<i64, Vec<String>> = HashMap::default();
+            for i in 1..=10 {
+                let (txo_id_hex, _txo, _key_image) = create_test_received_txo(
+                    &account_key,
+                    0, // All to the same subaddress
+                    (100 * i * MOB) as u64,
+                    144,
+                    &mut rng,
+                    &wallet_db,
+                );
+                if synced.is_empty() {
+                    synced.insert(0, Vec::new());
+                }
+                synced.get_mut(&0).unwrap().push(txo_id_hex);
+            }
+
+            // Ingest relevant txos.
+            TransactionLog::log_received(&synced, &account, 144, &wallet_db.get_conn().unwrap())
+                .unwrap();
+
+            account_ids.push(account_id);
+        }
+
+        // Check that we created transaction_logs and transaction_txo_types entries.
+        assert_eq!(
+            Ok(20),
+            transaction_logs::table
+                .select(count_star())
+                .first(&wallet_db.get_conn().unwrap())
+        );
+        assert_eq!(
+            Ok(20),
+            transaction_txo_types::table
+                .select(count_star())
+                .first(&wallet_db.get_conn().unwrap())
+        );
+
+        // Delete the transaction logs for one account.
+        let result = TransactionLog::delete_all_for_account(
+            &account_ids[0].to_string(),
+            &wallet_db.get_conn().unwrap(),
+        );
+        assert!(result.is_ok());
+
+        // For the given account, the transaction logs and the txo types are deleted.
+        assert_eq!(
+            Ok(10),
+            transaction_logs::table
+                .select(count_star())
+                .first(&wallet_db.get_conn().unwrap())
+        );
+        assert_eq!(
+            Ok(10),
+            transaction_txo_types::table
+                .select(count_star())
+                .first(&wallet_db.get_conn().unwrap())
+        );
+    }
 }

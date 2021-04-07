@@ -692,7 +692,6 @@ mod tests {
             account_id_hex
         };
         let account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
-        // let decoded_entropy = RootEntropy::try_from(&account.entropy).unwrap();
         let decoded_entropy = RootEntropy::try_from(account.entropy.as_slice()).unwrap();
         assert_eq!(decoded_entropy, root_id.root_entropy);
         let decoded_account_key: AccountKey = mc_util_serial::decode(&account.account_key).unwrap();

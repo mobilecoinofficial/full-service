@@ -49,7 +49,7 @@ pub struct Balance {
     /// been created in the wallet for outgoing transactions.
     pub secreted_pmob: String,
 
-    /// rphaned pico MOB. The orphaned value represents the Txos which were
+    /// Orphaned pico MOB. The orphaned value represents the Txos which were
     /// view-key matched, but which can not be spent until their subaddress
     /// index is recovered.
     pub orphaned_pmob: String,

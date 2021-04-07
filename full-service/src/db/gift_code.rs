@@ -47,7 +47,7 @@ pub trait GiftCodeModel {
         entropy: &RootEntropy,
         txo_public_key: &CompressedRistrettoPublic,
         value: i64,
-        memo: String,
+        memo: &str,
         account_id: &AccountID,
         txo_id: &TxoID,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
@@ -77,7 +77,7 @@ impl GiftCodeModel for GiftCode {
         entropy: &RootEntropy,
         txo_public_key: &CompressedRistrettoPublic,
         value: i64,
-        memo: String,
+        memo: &str,
         account_id: &AccountID,
         txo_id: &TxoID,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
@@ -90,11 +90,10 @@ impl GiftCodeModel for GiftCode {
             entropy: &entropy.bytes.to_vec(),
             txo_public_key: &mc_util_serial::encode(txo_public_key),
             value,
-            memo: &memo,
+            memo,
             account_id_hex: &account_id.to_string(),
             txo_id_hex: &txo_id.to_string(),
         };
-
         diesel::insert_into(gift_codes::table)
             .values(&new_gift_code)
             .execute(conn)?;
@@ -176,7 +175,7 @@ mod tests {
         let (tx_out, _key_image) =
             create_test_txo_for_recipient(&gift_code_account_key, 0, value, &mut rng);
 
-        let memo = "Test".to_string();
+        let memo = String::from("Test");
 
         let mut tx_log_bytes = [0u8; 32];
         rng.fill_bytes(&mut tx_log_bytes);
@@ -186,7 +185,7 @@ mod tests {
             &entropy,
             &txo_public_key,
             value as i64,
-            memo.clone(),
+            &memo,
             &AccountID::from(&gift_code_account_key),
             &TxoID::from(&tx_out),
             &wallet_db.get_conn().unwrap(),

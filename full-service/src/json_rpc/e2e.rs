@@ -338,12 +338,13 @@ mod e2e {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
+        let entropy = "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b";
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
             "method": "import_account_from_legacy_root_entropy",
             "params": {
-                "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
+                "entropy": entropy,
                 "name": "Alice Main Account",
                 "first_block_index": "200",
             }
@@ -364,14 +365,14 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let secrets = result.get("account_secrets").unwrap();
-        let entropy = secrets["entropy"].clone();
 
         assert_eq!(secrets["account_id"], serde_json::json!(account_id));
+        assert_eq!(secrets["entropy"], serde_json::json!(entropy));
+        assert_eq!(secrets["key_derivation_version"], serde_json::json!("1"));
 
         // Test that the account_key serializes correctly back to an AccountKey object
         let mut entropy_slice = [0u8; 32];
-        entropy_slice[0..32]
-            .copy_from_slice(&hex::decode(&entropy.as_str().unwrap()).unwrap().as_slice());
+        entropy_slice[0..32].copy_from_slice(&hex::decode(&entropy).unwrap().as_slice());
         let account_key = AccountKey::from(&RootIdentity::from(&RootEntropy::from(&entropy_slice)));
         assert_eq!(
             serde_json::json!(json_rpc::account_key::AccountKey::try_from(&account_key).unwrap()),
@@ -1053,6 +1054,35 @@ mod e2e {
         assert_eq!("0", unspent_pmob);
         assert_eq!("100000000000000", orphaned_pmob);
 
+        // assign next subaddress for account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "assign_address_for_account",
+            "params": {
+                "account_id": account_id,
+                "metadata": "subaddress_index_2",
+            }
+        });
+        dispatch(&client, body, &logger);
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_account",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance = result.get("balance").unwrap();
+        let unspent_pmob = balance.get("unspent_pmob").unwrap().as_str().unwrap();
+        let orphaned_pmob = balance.get("orphaned_pmob").unwrap().as_str().unwrap();
+
+        assert_eq!("100000000000000", unspent_pmob);
+        assert_eq!("0", orphaned_pmob);
+
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
@@ -1426,7 +1456,6 @@ mod e2e {
         });
         let res = dispatch(&client, body, &logger);
         let balance = res["result"]["balance"].clone();
-        println!("balance = {:?}", balance);
         assert_eq!(
             balance["unspent_pmob"]
                 .as_str()

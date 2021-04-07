@@ -239,7 +239,7 @@ where
                 tx_proposal,
                 block_index,
                 comment.unwrap_or_else(|| "".to_string()),
-                Some(&a),
+                &a,
                 &self.wallet_db.get_conn()?,
             )?;
             let associated_txos =
@@ -335,7 +335,7 @@ mod tests {
         let balance = service
             .get_balance_for_account(&AccountID(alice.account_id_hex.clone()))
             .unwrap();
-        assert_eq!(balance.unspent, 100 * MOB as u64);
+        assert_eq!(balance.unspent, 100 * MOB as u128);
 
         // Add an account for Bob
         let bob = service

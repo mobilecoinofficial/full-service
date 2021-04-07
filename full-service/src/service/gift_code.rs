@@ -405,22 +405,25 @@ where
             value
         );
 
+        // Save the gift code to the database before attempting to send it out.
+        let gift_code = GiftCode::create(
+            &gift_code_b58,
+            &decoded_gift_code.root_entropy,
+            &decoded_gift_code.txo_public_key,
+            value,
+            &decoded_gift_code.memo,
+            &from_account_id,
+            &TxoID::from(&tx_proposal.tx.prefix.outputs[0].clone()),
+            &self.wallet_db.get_conn()?,
+        )?;
+
         self.submit_transaction(
             tx_proposal.clone(),
             Some(json!({"gift_code_memo": decoded_gift_code.memo}).to_string()),
             Some(from_account_id.clone().0),
         )?;
 
-        Ok(GiftCode::create(
-            &gift_code_b58,
-            &decoded_gift_code.root_entropy,
-            &decoded_gift_code.txo_public_key,
-            value,
-            decoded_gift_code.memo,
-            &from_account_id,
-            &TxoID::from(&tx_proposal.tx.prefix.outputs[0].clone()),
-            &self.wallet_db.get_conn()?,
-        )?)
+        Ok(gift_code)
     }
 
     fn get_gift_code(
@@ -722,7 +725,7 @@ mod tests {
         let balance = service
             .get_balance_for_account(&AccountID(alice.account_id_hex.clone()))
             .unwrap();
-        assert_eq!(balance.unspent, 100 * MOB as u64);
+        assert_eq!(balance.unspent, 100 * MOB as u128);
 
         // Create a gift code for Bob
         let (tx_proposal, gift_code_b58) = service
@@ -897,7 +900,7 @@ mod tests {
         let balance = service
             .get_balance_for_account(&AccountID(alice.account_id_hex.clone()))
             .unwrap();
-        assert_eq!(balance.unspent, 100 * MOB as u64);
+        assert_eq!(balance.unspent, 100 * MOB as u128);
 
         // Create a gift code for Bob
         let (tx_proposal, gift_code_b58) = service
