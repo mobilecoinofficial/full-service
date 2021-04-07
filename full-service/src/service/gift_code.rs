@@ -725,7 +725,7 @@ mod tests {
         let balance = service
             .get_balance_for_account(&AccountID(alice.account_id_hex.clone()))
             .unwrap();
-        assert_eq!(balance.unspent, 100 * MOB as u64);
+        assert_eq!(balance.unspent, 100 * MOB as u128);
 
         // Create a gift code for Bob
         let (tx_proposal, gift_code_b58) = service
@@ -900,7 +900,7 @@ mod tests {
         let balance = service
             .get_balance_for_account(&AccountID(alice.account_id_hex.clone()))
             .unwrap();
-        assert_eq!(balance.unspent, 100 * MOB as u64);
+        assert_eq!(balance.unspent, 100 * MOB as u128);
 
         // Create a gift code for Bob
         let (tx_proposal, gift_code_b58) = service
