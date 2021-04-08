@@ -100,6 +100,8 @@ pub trait TransactionLogModel {
     /// * Vec(TransactionLog, AssociatedTxos(inputs, outputs, change))
     fn list_all(
         account_id_hex: &str,
+        offset: Option<i64>,
+        limit: Option<i64>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletDbError>;
 
@@ -258,13 +260,15 @@ impl TransactionLogModel for TransactionLog {
 
     fn list_all(
         account_id_hex: &str,
+        offset: Option<i64>,
+        limit: Option<i64>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletDbError> {
         use crate::db::schema::{transaction_logs, transaction_txo_types};
 
         // FIXME: use group_by rather than the processing below:
         // https://docs.diesel.rs/diesel/associations/trait.GroupedBy.html
-        let transactions: Vec<(TransactionLog, TransactionTxoType)> = transaction_logs::table
+        let transactions_query = transaction_logs::table
             .inner_join(
                 transaction_txo_types::table.on(transaction_logs::transaction_id_hex
                     .eq(transaction_txo_types::transaction_id_hex)
@@ -274,7 +278,14 @@ impl TransactionLogModel for TransactionLog {
                 transaction_logs::all_columns,
                 transaction_txo_types::all_columns,
             ))
-            .load(conn)?;
+            .order(transaction_logs::id);
+
+        let transactions: Vec<(TransactionLog, TransactionTxoType)> =
+            if let (Some(o), Some(l)) = (offset, limit) {
+                transactions_query.offset(o).limit(l).load(conn)?
+            } else {
+                transactions_query.load(conn)?
+            };
 
         #[derive(Clone)]
         struct TransactionContents {
@@ -314,7 +325,8 @@ impl TransactionLogModel for TransactionLog {
                 }
             }
         }
-        Ok(results
+
+        let mut results: Vec<(TransactionLog, AssociatedTxos)> = results
             .values()
             .cloned()
             .map(|t| {
@@ -327,7 +339,10 @@ impl TransactionLogModel for TransactionLog {
                     },
                 )
             })
-            .collect())
+            .collect();
+
+        results.sort_by_key(|r| r.0.id);
+        Ok(results)
     }
 
     // FIXME: WS-30 - We may be doing n^2 work here

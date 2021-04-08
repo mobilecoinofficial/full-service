@@ -6,12 +6,16 @@
 mod e2e {
     use crate::{
         db::{
+            account::AccountID,
             b58_decode,
             models::{TXO_STATUS_UNSPENT, TXO_TYPE_RECEIVED},
         },
         json_rpc,
         json_rpc::api_test_utils::{dispatch, dispatch_expect_error, setup, wait_for_sync},
-        test_utils::{add_block_to_ledger_db, add_block_with_tx_proposal, MOB},
+        test_utils::{
+            add_block_to_ledger_db, add_block_with_tx_proposal,
+            wait_for_sync as wait_for_account_sync, MOB,
+        },
     };
     use bip39::{Language, Mnemonic};
     use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
@@ -949,6 +953,182 @@ mod e2e {
         assert_eq!(transaction_log_map.len(), 3);
         // FIXME: Once finalized_block_index is working, assert that they are
         // presented in ascending order of block_index
+    }
+
+    #[test_with_logger]
+    fn test_paginate_transactions(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+        let public_address = b58_decode(b58_public_address).unwrap();
+
+        // Add some transactions.
+        for _ in 0..10 {
+            add_block_to_ledger_db(
+                &mut ledger_db,
+                &vec![public_address.clone()],
+                100,
+                &vec![KeyImage::from(rng.next_u64())],
+                &mut rng,
+            );
+        }
+
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        assert_eq!(ledger_db.num_blocks().unwrap(), 22);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            22,
+        );
+
+        // Check that we can paginate txo output.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_all_txos_for_account",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let txos_all = result.get("txo_ids").unwrap().as_array().unwrap();
+        assert_eq!(txos_all.len(), 10);
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_txos_for_account",
+            "params": {
+                "account_id": account_id,
+                "offset": "2",
+                "limit": "5",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let txos_page = result.get("txo_ids").unwrap().as_array().unwrap();
+        assert_eq!(txos_page.len(), 5);
+        assert_eq!(txos_all[2..7].len(), 5);
+        assert_eq!(txos_page[..], txos_all[2..7]);
+
+        // Check that we can paginate transaction log output.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_all_transaction_logs_for_account",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let tx_logs_all = result
+            .get("transaction_log_ids")
+            .unwrap()
+            .as_array()
+            .unwrap();
+        assert_eq!(tx_logs_all.len(), 10);
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_transaction_logs_for_account",
+            "params": {
+                "account_id": account_id,
+                "offset": "3",
+                "limit": "6",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let tx_logs_page = result
+            .get("transaction_log_ids")
+            .unwrap()
+            .as_array()
+            .unwrap();
+        assert_eq!(tx_logs_page.len(), 6);
+        assert_eq!(tx_logs_all[3..9].len(), 6);
+        assert_eq!(tx_logs_page[..], tx_logs_all[3..9]);
+    }
+
+    #[test_with_logger]
+    fn test_paginate_assigned_addresses(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+
+        // Assign some addresses.
+        for _ in 0..10 {
+            let body = json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "assign_address_for_account",
+                "params": {
+                    "account_id": account_id,
+                    "metadata": "subaddress_index_2",
+                }
+            });
+            dispatch(&client, body, &logger);
+        }
+
+        // Check that we can paginate address output.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_all_addresses_for_account",
+            "params": {
+                "account_id": account_id,
+            },
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let addresses_all = result.get("public_addresses").unwrap().as_array().unwrap();
+        assert_eq!(addresses_all.len(), 12); // Accounts start with 2 addresses, then we created 10.
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_addresses_for_account",
+            "params": {
+                "account_id": account_id,
+                "offset": "1",
+                "limit": "4",
+            },
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let addresses_page = result.get("public_addresses").unwrap().as_array().unwrap();
+        assert_eq!(addresses_page.len(), 4);
+        assert_eq!(addresses_page[..], addresses_all[1..5]);
     }
 
     #[test_with_logger]

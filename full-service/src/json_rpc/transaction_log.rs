@@ -84,10 +84,6 @@ pub struct TransactionLog {
 
     /// Human parsable explanation of "failed" status.
     pub failure_message: Option<String>,
-
-    /// The value to offset pagination requests for transaction_log list.
-    /// Requests will exclude all list items up to and including this object.
-    pub offset_count: i32,
 }
 
 impl TransactionLog {
@@ -127,7 +123,6 @@ impl TransactionLog {
             comment: transaction_log.comment.clone(),
             failure_code: None,    // FIXME: WS-17 Failiure code
             failure_message: None, // FIXME: WS-17 Failure message
-            offset_count: transaction_log.id,
         }
     }
 }
