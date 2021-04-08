@@ -168,7 +168,7 @@ pub enum JsonCommandResponse {
     submit_transaction {
         transaction_log: Option<TransactionLog>,
     },
-    get_all_transaction_logs_for_account {
+    get_transaction_logs_for_account {
         transaction_log_ids: Vec<String>,
         transaction_log_map: Map<String, serde_json::Value>,
     },
@@ -192,7 +192,7 @@ pub enum JsonCommandResponse {
     assign_address_for_account {
         address: Address,
     },
-    get_all_addresses_for_account {
+    get_addresses_for_account {
         public_addresses: Vec<String>,
         address_map: Map<String, serde_json::Value>,
     },
@@ -202,7 +202,7 @@ pub enum JsonCommandResponse {
     get_balance_for_address {
         balance: Balance,
     },
-    get_all_txos_for_account {
+    get_txos_for_account {
         txo_ids: Vec<String>,
         txo_map: Map<String, serde_json::Value>,
     },

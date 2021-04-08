@@ -51,7 +51,7 @@ pub trait AddressService {
     ) -> Result<AssignedSubaddress, AddressServiceError>;
 
     /// Gets all the addresses for the given account.
-    fn get_all_addresses_for_account(
+    fn get_addresses_for_account(
         &self,
         account_id: &AccountID,
         offset: Option<i64>,
@@ -89,7 +89,7 @@ where
         )
     }
 
-    fn get_all_addresses_for_account(
+    fn get_addresses_for_account(
         &self,
         account_id: &AccountID,
         offset: Option<i64>,

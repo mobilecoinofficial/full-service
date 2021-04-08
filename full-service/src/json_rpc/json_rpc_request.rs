@@ -118,10 +118,13 @@ pub enum JsonCommandRequest {
         comment: Option<String>,
         account_id: Option<String>,
     },
+    get_transaction_logs_for_account {
+        account_id: String,
+        offset: String,
+        limit: String,
+    },
     get_all_transaction_logs_for_account {
         account_id: String,
-        limit: Option<String>,
-        offset: Option<String>,
     },
     get_transaction_log {
         transaction_log_id: String,
@@ -138,10 +141,13 @@ pub enum JsonCommandRequest {
         account_id: String,
         metadata: Option<String>,
     },
+    get_addresses_for_account {
+        account_id: String,
+        offset: String,
+        limit: String,
+    },
     get_all_addresses_for_account {
         account_id: String,
-        offset: Option<String>,
-        limit: Option<String>,
     },
     verify_address {
         address: String,
@@ -149,10 +155,13 @@ pub enum JsonCommandRequest {
     get_balance_for_address {
         address: String,
     },
+    get_txos_for_account {
+        account_id: String,
+        offset: String,
+        limit: String,
+    },
     get_all_txos_for_account {
         account_id: String,
-        limit: Option<String>,
-        offset: Option<String>,
     },
     get_txo {
         txo_id: String,
