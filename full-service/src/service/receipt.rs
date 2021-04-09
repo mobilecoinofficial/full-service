@@ -395,8 +395,7 @@ mod tests {
         let tx_proposal = service
             .build_transaction(
                 &alice.account_id_hex,
-                &bob_address,
-                (24 * MOB).to_string(),
+                &vec![(bob_address.to_string(), (24 * MOB).to_string())],
                 None,
                 None,
                 None,
@@ -520,8 +519,7 @@ mod tests {
         let tx_proposal = service
             .build_transaction(
                 &alice.account_id_hex,
-                &bob_address,
-                (24 * MOB).to_string(),
+                &vec![(bob_address.to_string(), (24 * MOB).to_string())],
                 None,
                 None,
                 None,
@@ -635,8 +633,7 @@ mod tests {
         let tx_proposal0 = service
             .build_transaction(
                 &alice.account_id_hex,
-                &bob_address,
-                (24 * MOB).to_string(),
+                &vec![(bob_address.to_string(), (24 * MOB).to_string())],
                 None,
                 None,
                 None,
@@ -753,8 +750,7 @@ mod tests {
         let tx_proposal0 = service
             .build_transaction(
                 &alice.account_id_hex,
-                &bob_address,
-                (24 * MOB).to_string(),
+                &vec![(bob_address.to_string(), (24 * MOB).to_string())],
                 None,
                 None,
                 None,

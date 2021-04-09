@@ -113,6 +113,14 @@ pub enum JsonCommandRequest {
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
     },
+    build_multi_transaction {
+        account_id: String,
+        addresses_and_values: Vec<(String, String)>,
+        input_txo_ids: Option<Vec<String>>,
+        fee: Option<String>,
+        tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
+    },
     submit_transaction {
         tx_proposal: TxProposal,
         comment: Option<String>,

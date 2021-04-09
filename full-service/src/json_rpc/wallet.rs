@@ -360,8 +360,30 @@ where
             let tx_proposal = service
                 .build_transaction(
                     &account_id,
-                    &recipient_public_address,
-                    value_pmob,
+                    &vec![(recipient_public_address, value_pmob)],
+                    input_txo_ids.as_ref(),
+                    fee,
+                    tombstone_block,
+                    max_spendable_value,
+                )
+                .map_err(format_error)?;
+            JsonCommandResponse::build_transaction {
+                tx_proposal: TxProposal::from(&tx_proposal),
+                transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
+            }
+        }
+        JsonCommandRequest::build_multi_transaction {
+            account_id,
+            addresses_and_values,
+            input_txo_ids,
+            fee,
+            tombstone_block,
+            max_spendable_value,
+        } => {
+            let tx_proposal = service
+                .build_transaction(
+                    &account_id,
+                    &addresses_and_values,
                     input_txo_ids.as_ref(),
                     fee,
                     tombstone_block,

@@ -24,10 +24,6 @@ pub enum WalletDbError {
     /// Constructed a malformed transaction with multiple account IDs
     MultipleAccountIDsInTransaction,
 
-    /// Constructed a transaction with multiple recipients (not currently
-    /// supported for transaction logs)
-    MultipleRecipientsInTransaction,
-
     /// Constructed a transaction with no recipient
     TransactionLacksRecipient,
 

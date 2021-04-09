@@ -360,8 +360,7 @@ where
 
         let tx_proposal = self.build_transaction(
             &from_account.account_id_hex,
-            &gift_code_account_main_subaddress_b58,
-            value.to_string(),
+            &vec![(gift_code_account_main_subaddress_b58, value.to_string())],
             input_txo_ids,
             fee.map(|f| f.to_string()),
             tombstone_block.map(|t| t.to_string()),

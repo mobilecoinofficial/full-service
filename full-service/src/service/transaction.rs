@@ -102,13 +102,11 @@ impl From<AddressServiceError> for TransactionServiceError {
 /// Trait defining the ways in which the wallet can interact with and manage
 /// transactions.
 pub trait TransactionService {
-    /// Builds a transaction from the given account to the specified recipient.
-    #[allow(clippy::too_many_arguments)]
+    /// Builds a transaction from the given account to the specified recipients.
     fn build_transaction(
         &self,
         account_id_hex: &str,
-        recipient_public_address: &str,
-        value: String, // FIXME: Service should take u64
+        addresses_and_values: &Vec<(String, String)>,
         input_txo_ids: Option<&Vec<String>>,
         fee: Option<String>,
         tombstone_block: Option<String>,
@@ -146,8 +144,7 @@ where
     fn build_transaction(
         &self,
         account_id_hex: &str,
-        recipient_public_address: &str,
-        value: String,
+        addresses_and_values: &Vec<(String, String)>,
         input_txo_ids: Option<&Vec<String>>,
         fee: Option<String>,
         tombstone_block: Option<String>,
@@ -160,13 +157,17 @@ where
             self.fog_resolver_factory.clone(),
             self.logger.clone(),
         );
-        if !self.verify_address(recipient_public_address)? {
-            return Err(TransactionServiceError::InvalidPublicAddress(
-                recipient_public_address.to_string(),
-            ));
-        };
-        let recipient = b58_decode(recipient_public_address)?;
-        builder.add_recipient(recipient, value.parse::<u64>()?)?;
+
+        for (recipient_public_address, value) in addresses_and_values {
+            if !self.verify_address(recipient_public_address)? {
+                return Err(TransactionServiceError::InvalidPublicAddress(
+                    recipient_public_address.to_string(),
+                ));
+            };
+            let recipient = b58_decode(recipient_public_address)?;
+            builder.add_recipient(recipient, value.parse::<u64>()?)?;
+        }
+
         if let Some(inputs) = input_txo_ids {
             builder.set_txos(inputs)?;
         } else {
@@ -215,7 +216,7 @@ where
         let tx_proposal_proto = mc_mobilecoind_api::TxProposal::try_from(&tx_proposal)
             .map_err(|_| TransactionServiceError::ProtoConversionInfallible)?;
 
-        // Try and submit.
+        // Try to submit.
         let tx = mc_transaction_core::tx::Tx::try_from(tx_proposal_proto.get_tx())
             .map_err(|_| TransactionServiceError::ProtoConversionInfallible)?;
 
@@ -226,15 +227,8 @@ where
             .propose_tx(&tx, empty())
             .map_err(TransactionServiceError::from)?;
 
-        log::trace!(
-            self.logger,
-            "Tx {:?} submitted at block height {}",
-            tx,
-            block_index
-        );
-
-        if let Some(a) = account_id_hex {
-            // FIXME: put in db transaction
+        // Log the transaction.
+        let result = if let Some(a) = account_id_hex {
             let transaction_log = TransactionLog::log_submitted(
                 tx_proposal,
                 block_index,
@@ -247,7 +241,16 @@ where
             Ok(Some((transaction_log, associated_txos)))
         } else {
             Ok(None)
-        }
+        };
+
+        log::trace!(
+            self.logger,
+            "Tx {:?} submitted at block height {}",
+            tx,
+            block_index
+        );
+
+        result
     }
 
     fn build_and_submit(
@@ -263,8 +266,7 @@ where
     ) -> Result<(TransactionLog, AssociatedTxos), TransactionServiceError> {
         let tx_proposal = self.build_transaction(
             account_id_hex,
-            recipient_public_address,
-            value,
+            &vec![(recipient_public_address.to_string(), value)],
             input_txo_ids,
             fee,
             tombstone_block,
@@ -384,7 +386,7 @@ mod tests {
         let secreted = transaction_txos
             .outputs
             .iter()
-            .map(|t| Txo::get(t, &service.wallet_db.get_conn().unwrap()).unwrap())
+            .map(|t| Txo::get(&t.txo_id_hex, &service.wallet_db.get_conn().unwrap()).unwrap())
             .collect::<Vec<TxoDetails>>();
         assert_eq!(secreted.len(), 1);
         assert_eq!(secreted[0].txo.value, 42 * MOB);
@@ -392,7 +394,7 @@ mod tests {
         let change = transaction_txos
             .change
             .iter()
-            .map(|t| Txo::get(t, &service.wallet_db.get_conn().unwrap()).unwrap())
+            .map(|t| Txo::get(&t.txo_id_hex, &service.wallet_db.get_conn().unwrap()).unwrap())
             .collect::<Vec<TxoDetails>>();
         assert_eq!(change.len(), 1);
         assert_eq!(change[0].txo.value, (57.99 * MOB as f64) as i64);
@@ -400,7 +402,7 @@ mod tests {
         let inputs = transaction_txos
             .inputs
             .iter()
-            .map(|t| Txo::get(t, &service.wallet_db.get_conn().unwrap()).unwrap())
+            .map(|t| Txo::get(&t.txo_id_hex, &service.wallet_db.get_conn().unwrap()).unwrap())
             .collect::<Vec<TxoDetails>>();
         assert_eq!(inputs.len(), 1);
         assert_eq!(inputs[0].txo.value, 100 * MOB);
@@ -487,8 +489,7 @@ mod tests {
 
         match service.build_transaction(
             &alice.account_id_hex,
-            "NOTB58",
-            (42 * MOB).to_string(),
+            &vec![("NOTB58".to_string(), (42 * MOB).to_string())],
             None,
             None,
             None,
