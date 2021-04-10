@@ -71,7 +71,6 @@ where
         &self,
         account_id: &AccountID,
         metadata: Option<&str>,
-        // FIXME: WS-32 - add "sync from block"
     ) -> Result<AssignedSubaddress, AddressServiceError> {
         let conn = &self.wallet_db.get_conn()?;
 
