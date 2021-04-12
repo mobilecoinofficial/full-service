@@ -360,7 +360,7 @@ where
             let tx_proposal = service
                 .build_transaction(
                     &account_id,
-                    &vec![(recipient_public_address, value_pmob)],
+                    &[(recipient_public_address, value_pmob)],
                     input_txo_ids.as_ref(),
                     fee,
                     tombstone_block,

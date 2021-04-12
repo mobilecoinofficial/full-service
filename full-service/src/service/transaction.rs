@@ -106,7 +106,7 @@ pub trait TransactionService {
     fn build_transaction(
         &self,
         account_id_hex: &str,
-        addresses_and_values: &Vec<(String, String)>,
+        addresses_and_values: &[(String, String)],
         input_txo_ids: Option<&Vec<String>>,
         fee: Option<String>,
         tombstone_block: Option<String>,
@@ -144,7 +144,7 @@ where
     fn build_transaction(
         &self,
         account_id_hex: &str,
-        addresses_and_values: &Vec<(String, String)>,
+        addresses_and_values: &[(String, String)],
         input_txo_ids: Option<&Vec<String>>,
         fee: Option<String>,
         tombstone_block: Option<String>,
@@ -266,7 +266,7 @@ where
     ) -> Result<(TransactionLog, AssociatedTxos), TransactionServiceError> {
         let tx_proposal = self.build_transaction(
             account_id_hex,
-            &vec![(recipient_public_address.to_string(), value)],
+            &[(recipient_public_address.to_string(), value)],
             input_txo_ids,
             fee,
             tombstone_block,
