@@ -39,6 +39,18 @@ ALTER TABLE OLD_transaction_logs RENAME TO transaction_logs;
 PRAGMA foreign_key_check;
 PRAGMA foreign_keys=ON;
 
+-- Update the transaction_logs table from txos.recipient_public_address_b58.
+UPDATE transaction_logs
+SET recipient_public_address_b58 = q.recipient_public_address_b58
+FROM (
+    SELECT tl.transaction_id_hex, txos.recipient_public_address_b58
+    FROM transaction_txo_types AS ttt
+        JOIN txos ON ttt.txo_id_hex = txos.txo_id_hex
+        JOIN transaction_logs AS tl ON ttt.transaction_id_hex = tl.transaction_id_hex
+    WHERE txos.recipient_public_address_b58 != '' AND ttt.transaction_txo_type = 'txo_used_as_output'
+) AS q
+WHERE transaction_logs.transaction_id_hex = q.transaction_id_hex;
+
 -- ALTER TABLE txos REMOVE COLUMN recipient_public_address_b58;
 PRAGMA foreign_keys=OFF;
 CREATE TABLE OLD_txos (
