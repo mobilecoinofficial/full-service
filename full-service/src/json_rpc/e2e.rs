@@ -956,7 +956,7 @@ mod e2e {
     }
 
     #[test_with_logger]
-    fn test_multi_transaction(logger: Logger) {
+    fn test_multiple_outlay_transaction(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
 
@@ -1020,7 +1020,7 @@ mod e2e {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "build_multi_transaction",
+            "method": "build_transaction",
             "params": {
                 "account_id": alice_account_id,
                 "addresses_and_values": [

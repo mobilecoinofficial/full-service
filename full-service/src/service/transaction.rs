@@ -126,8 +126,7 @@ pub trait TransactionService {
     fn build_and_submit(
         &self,
         account_id_hex: &str,
-        recipient_public_address: &str,
-        value: String, // FIXME: Service should take u64
+        addresses_and_values: &[(String, String)],
         input_txo_ids: Option<&Vec<String>>,
         fee: Option<String>,
         tombstone_block: Option<String>,
@@ -256,8 +255,7 @@ where
     fn build_and_submit(
         &self,
         account_id_hex: &str,
-        recipient_public_address: &str,
-        value: String,
+        addresses_and_values: &[(String, String)],
         input_txo_ids: Option<&Vec<String>>,
         fee: Option<String>,
         tombstone_block: Option<String>,
@@ -266,7 +264,7 @@ where
     ) -> Result<(TransactionLog, AssociatedTxos), TransactionServiceError> {
         let tx_proposal = self.build_transaction(
             account_id_hex,
-            &[(recipient_public_address.to_string(), value)],
+            &addresses_and_values,
             input_txo_ids,
             fee,
             tombstone_block,
@@ -356,8 +354,10 @@ mod tests {
         let (transaction_log, _associated_txos) = service
             .build_and_submit(
                 &alice.account_id_hex,
-                &bob_address_from_alice.assigned_subaddress_b58,
-                (42 * MOB).to_string(),
+                &[(
+                    bob_address_from_alice.assigned_subaddress_b58,
+                    (42 * MOB).to_string(),
+                )],
                 None,
                 None,
                 None,
@@ -423,8 +423,10 @@ mod tests {
         let (transaction_log, _associated_txos) = service
             .build_and_submit(
                 &bob.account_id_hex,
-                &b58_encode(&alice_public_address).unwrap(),
-                (8 * MOB).to_string(),
+                &[(
+                    b58_encode(&alice_public_address).unwrap(),
+                    (8 * MOB).to_string(),
+                )],
                 None,
                 None,
                 None,
