@@ -991,43 +991,53 @@ curl -s localhost:9090/wallet \
   -d '{
         "method": "build_and_submit_transaction",
         "params": {
-          "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
-          "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-          "value_pmob": "42000000000000"
+          "account_id": "49de3bfe8529c13a5e6dbc0fe600027a6c5cc2c8c74845c81c2b8e5f1d3e74eb",
+          "addresses_and_values": [
+            [
+              "5i7zz8EtTcTKUCogvqNqMS1dw42PAZQRtSzj9aKu69HAXKGpb4qh61Q5awYihhwN6aYWkpbptzNEzxz4RZ5H4xiX3n5XLXzaSJNiQAie1QG",
+              "990000000000"
+            ]
+          ]
         },
         "jsonrpc": "2.0",
+        "api_version": "2",
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
 ```
-`
+
 ```json
 {
   "method": "build_and_submit_transaction",
   "result": {
     "transaction_log": {
       "object": "transaction_log",
-      "transaction_log_id": "937f102052500525ff0f54aa4f7d94234bd824260bfd7ba40d0561166dda7780",
+      "transaction_log_id": "0e6b241fb6c71e799b30495830064e1f3418fe9fc25988d2f4b2f8be2305c4f2",
       "direction": "tx_direction_sent",
       "is_sent_recovered": null,
-      "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
-      "recipient_address_id": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+      "account_id": "49de3bfe8529c13a5e6dbc0fe600027a6c5cc2c8c74845c81c2b8e5f1d3e74eb",
+      "input_txos": [
+        {
+          "txo_id_hex": "193ed5d58108b42cf5b13da8404918d399e1ad9f5bae785ea7e73caff821170a",
+          "recipient_address_id": "47XCMxHLtmHpNeNLUi7sNGzbXhyqD5GrQXBGjrmJ5oXE1WaBMgLpLXJxBUo9rJsHx68cCKPRGQ2z8TryX1pn4VJQzusFcac4Zs2V5aC3Gs7",
+          "value_pmob": "1000000000000"
+        }
+      ],
+      "output_txos": [
+        {
+          "txo_id_hex": "8b407f8953355c91cd014450c94196b9b6101d63a4ef8eda72fc14020bc64d70",
+          "recipient_address_id": "5i7zz8EtTcTKUCogvqNqMS1dw42PAZQRtSzj9aKu69HAXKGpb4qh61Q5awYihhwN6aYWkpbptzNEzxz4RZ5H4xiX3n5XLXzaSJNiQAie1QG",
+          "value_pmob": "990000000000"
+        }
+      ],
+      "change_txos": [],
       "assigned_address_id": null,
-      "value_pmob": "42000000000000",
+      "value_pmob": "990000000000",
       "fee_pmob": "10000000000",
-      "submitted_block_index": "152948",
+      "submitted_block_index": "158864",
       "finalized_block_index": null,
       "status": "tx_status_pending",
-      "input_txo_ids": [
-        "8432bb4e25f1bde68e4759b27ec72d290252cb99943f2f38a9035dba230895b7"
-      ],
-      "output_txo_ids": [
-        "135c3861be4034fccb8d0b329f86124cb6e2404cd4debf52a3c3a10cb4a7bdfb"
-      ],
-      "change_txo_ids": [
-        "44c03ddbccb33e5c37365d7b263568a49e6f608e5e818db604541cc09389b762"
-      ],
-      "sent_time": "2021-02-28 01:27:52 UTC",
+      "sent_time": "2021-04-14 00:58:27 UTC",
       "comment": "",
       "failure_code": null,
       "failure_message": null
@@ -1042,8 +1052,7 @@ curl -s localhost:9090/wallet \
 | Required Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
 | `account_id` | The account on which to perform this action  | Account must exist in the wallet  |
-| `recipient_public_address` | Recipient for this transaction  | b58-encoded public address bytes  |
-| `value_pmob` | The amount of MOB to send in this transaction  |   |
+| `addresses_and_values` | Recipients and for this transaction, and the amount of MOB to send to each | A list of pairs, the first item is the recipient's b58-encoded public address, and the second is an amount of pico MOB |
 
 | Optional Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
@@ -1075,8 +1084,12 @@ curl -s localhost:9090/wallet \
         "method": "build_transaction",
         "params": {
           "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
-          "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-          "value_pmob": "42000000000000"
+          "addresses_and_values": [
+            [
+              "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+              "42000000000000"
+            ]
+          ]
         },
         "jsonrpc": "2.0",
         "id": 1
@@ -1274,8 +1287,7 @@ curl -s localhost:9090/wallet \
 | Required Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
 | `account_id` | The account on which to perform this action  | Account must exist in the wallet  |
-| `recipient_public_address` | Recipient for this transaction  | b58-encoded public address bytes  |
-| `value_pmob` | The amount of MOB to send in this transaction  |   |
+| `addresses_and_values` | Recipients and for this transaction, and the amount of MOB to send to each | A list of pairs, the first item is the recipient's b58-encoded public address, and the second is an amount of pico MOB |
 
 | Optional Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
@@ -1292,8 +1304,12 @@ curl -s localhost:9090/wallet \
         "method": "build_transaction",
         "params": {
           "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
-          "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-          "value_pmob": "42000000000000"
+          "addresses_and_values": [
+            [
+              "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+              "42000000000000"
+            ]
+          ]
         },
         "jsonrpc": "2.0",
         "id": 1
