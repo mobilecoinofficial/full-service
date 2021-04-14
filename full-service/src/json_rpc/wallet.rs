@@ -332,7 +332,7 @@ where
         } => {
             // The user can specify either a single address and a single value, or a list of
             // addresses and values.
-            let mut addresses_and_values = addresses_and_values.unwrap_or(Vec::new());
+            let mut addresses_and_values = addresses_and_values.unwrap_or_default();
             if let (Some(a), Some(v)) = (recipient_public_address, value_pmob) {
                 addresses_and_values.push((a, v));
             }
@@ -366,7 +366,7 @@ where
         } => {
             // The user can specify a list of addresses and values,
             // or a single address and a single value (deprecated).
-            let mut addresses_and_values = addresses_and_values.unwrap_or(Vec::new());
+            let mut addresses_and_values = addresses_and_values.unwrap_or_default();
             if let (Some(a), Some(v)) = (recipient_public_address, value_pmob) {
                 addresses_and_values.push((a, v));
             }
