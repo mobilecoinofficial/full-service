@@ -171,8 +171,11 @@ mod tests {
         let tx_proposal = service
             .build_transaction(
                 &alice.account_id_hex,
-                &b58_encode(&bob_account_key.subaddress(bob.main_subaddress_index as u64)).unwrap(),
-                "42000000000000".to_string(),
+                &vec![(
+                    b58_encode(&bob_account_key.subaddress(bob.main_subaddress_index as u64))
+                        .unwrap(),
+                    "42000000000000".to_string(),
+                )],
                 None,
                 None,
                 None,

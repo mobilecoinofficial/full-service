@@ -321,6 +321,7 @@ where
         }
         JsonCommandRequest::build_and_submit_transaction {
             account_id,
+            addresses_and_values,
             recipient_public_address,
             value_pmob,
             input_txo_ids,
@@ -329,11 +330,16 @@ where
             max_spendable_value,
             comment,
         } => {
+            // The user can specify either a single address and a single value, or a list of
+            // addresses and values.
+            let mut addresses_and_values = addresses_and_values.unwrap_or_default();
+            if let (Some(a), Some(v)) = (recipient_public_address, value_pmob) {
+                addresses_and_values.push((a, v));
+            }
             let (transaction_log, associated_txos) = service
                 .build_and_submit(
                     &account_id,
-                    &recipient_public_address,
-                    value_pmob,
+                    &addresses_and_values,
                     input_txo_ids.as_ref(),
                     fee,
                     tombstone_block,
@@ -350,6 +356,7 @@ where
         }
         JsonCommandRequest::build_transaction {
             account_id,
+            addresses_and_values,
             recipient_public_address,
             value_pmob,
             input_txo_ids,
@@ -357,11 +364,16 @@ where
             tombstone_block,
             max_spendable_value,
         } => {
+            // The user can specify a list of addresses and values,
+            // or a single address and a single value (deprecated).
+            let mut addresses_and_values = addresses_and_values.unwrap_or_default();
+            if let (Some(a), Some(v)) = (recipient_public_address, value_pmob) {
+                addresses_and_values.push((a, v));
+            }
             let tx_proposal = service
                 .build_transaction(
                     &account_id,
-                    &recipient_public_address,
-                    value_pmob,
+                    &addresses_and_values,
                     input_txo_ids.as_ref(),
                     fee,
                     tombstone_block,

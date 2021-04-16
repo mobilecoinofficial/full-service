@@ -61,8 +61,6 @@ pub struct WalletDbTestContext {
 
 impl Default for WalletDbTestContext {
     fn default() -> Self {
-        dotenv::dotenv().unwrap();
-
         let db_name: String = format!(
             "test_{}",
             thread_rng()
@@ -71,7 +69,7 @@ impl Default for WalletDbTestContext {
                 .collect::<String>()
                 .to_lowercase()
         );
-        let base_url = std::env::var("TEST_DATABASE_URL").expect("TEST_DATABASE_URL must be set");
+        let base_url = String::from("/tmp");
 
         // Connect to the database and run the migrations
         // Note: This should be kept in sync wth how the migrations are run in main.rs
@@ -233,25 +231,14 @@ pub fn add_block_from_transaction_log(
 ) -> u64 {
     let associated_txos = transaction_log.get_associated_txos(conn).unwrap();
 
-    let mut output_ids = associated_txos.outputs.clone();
-    output_ids.append(&mut associated_txos.change.clone());
-
-    let output_txos: Vec<Txo> = output_ids
-        .iter()
-        .map(|id| Txo::get(id, conn).unwrap().txo)
-        .collect();
-
+    let mut output_txos = associated_txos.outputs.clone();
+    output_txos.append(&mut associated_txos.change.clone());
     let outputs: Vec<TxOut> = output_txos
         .iter()
         .map(|txo| mc_util_serial::decode(&txo.txo).unwrap())
         .collect();
 
-    let input_txos: Vec<Txo> = associated_txos
-        .inputs
-        .iter()
-        .map(|id| Txo::get(id, conn).unwrap().txo)
-        .collect();
-
+    let input_txos: Vec<Txo> = associated_txos.inputs.clone();
     let key_images: Vec<KeyImage> = input_txos
         .iter()
         .map(|txo| mc_util_serial::decode(&txo.key_image.clone().unwrap()).unwrap())

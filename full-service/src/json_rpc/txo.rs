@@ -24,6 +24,10 @@ pub struct Txo {
     /// If the account is syncing, this value may change.
     pub value_pmob: String,
 
+    /// Unique identifier for the recipient associated account. Only available
+    /// if direction is "sent".
+    pub recipient_address_id: Option<String>,
+
     /// Block index in which the txo was received by an account.
     pub received_block_index: Option<String>,
 
@@ -107,10 +111,17 @@ impl From<&TxoDetails> for Txo {
             );
         }
 
+        let recipient_address_id = txo_details.txo.recipient_public_address_b58.clone();
+
         Txo {
             object: "txo".to_string(),
             txo_id_hex: txo_details.txo.txo_id_hex.clone(),
             value_pmob: (txo_details.txo.value as u64).to_string(),
+            recipient_address_id: if recipient_address_id == "" {
+                None
+            } else {
+                Some(recipient_address_id)
+            },
             received_block_index: txo_details
                 .txo
                 .received_block_index

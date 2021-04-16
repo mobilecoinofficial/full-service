@@ -96,8 +96,9 @@ pub enum JsonCommandRequest {
     },
     build_and_submit_transaction {
         account_id: String,
-        recipient_public_address: String,
-        value_pmob: String,
+        addresses_and_values: Option<Vec<(String, String)>>,
+        recipient_public_address: Option<String>,
+        value_pmob: Option<String>,
         input_txo_ids: Option<Vec<String>>,
         fee: Option<String>,
         tombstone_block: Option<String>,
@@ -106,8 +107,9 @@ pub enum JsonCommandRequest {
     },
     build_transaction {
         account_id: String,
-        recipient_public_address: String,
-        value_pmob: String,
+        addresses_and_values: Option<Vec<(String, String)>>,
+        recipient_public_address: Option<String>,
+        value_pmob: Option<String>,
         input_txo_ids: Option<Vec<String>>,
         fee: Option<String>,
         tombstone_block: Option<String>,

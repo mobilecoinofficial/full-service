@@ -360,6 +360,7 @@ impl TxoModel for Txo {
                         pending_tombstone_block_index: None,
                         spent_block_index: None,
                         confirmation: None,
+                        recipient_public_address_b58: "".to_string(), // NULL for received
                     };
 
                     diesel::insert_into(crate::db::schema::txos::table)
@@ -405,6 +406,7 @@ impl TxoModel for Txo {
         let total_input_value: u64 = tx_proposal.utxos.iter().map(|u| u.value).sum();
         let total_output_value: u64 = tx_proposal.outlays.iter().map(|o| o.value).sum();
         let change_value: u64 = total_input_value - total_output_value - tx_proposal.fee();
+
         // Determine whether this output is an outlay destination, or change.
         let (value, confirmation, outlay_receiver) = if let Some(outlay_index) = tx_proposal
             .outlay_index_to_tx_out_index
@@ -427,13 +429,14 @@ impl TxoModel for Txo {
 
         // Update receiver, transaction_value, and transaction_txo_type, if outlay was
         // found.
-        let (transaction_txo_type, log_value) = if outlay_receiver.is_some() {
-            (TXO_USED_AS_OUTPUT, total_output_value)
-        } else {
-            // If not in an outlay, this output is change, according to how we build
-            // transactions.
-            (TXO_USED_AS_CHANGE, change_value)
-        };
+        let (transaction_txo_type, log_value, recipient_public_address_b58) =
+            if let Some(r) = outlay_receiver.clone() {
+                (TXO_USED_AS_OUTPUT, total_output_value, b58_encode(&r)?)
+            } else {
+                // If not in an outlay, this output is change, according to how we build
+                // transactions.
+                (TXO_USED_AS_CHANGE, change_value, "".to_string())
+            };
 
         let encoded_confirmation = confirmation
             .map(|p| mc_util_serial::encode(&tx_proposal.outlay_confirmation_numbers[p]));
@@ -453,6 +456,7 @@ impl TxoModel for Txo {
                 pending_tombstone_block_index: Some(tx_proposal.tx.prefix.tombstone_block as i64),
                 spent_block_index: None,
                 confirmation: encoded_confirmation.as_deref(),
+                recipient_public_address_b58,
             };
 
             diesel::insert_into(txos::table)
@@ -1043,6 +1047,7 @@ mod tests {
             pending_tombstone_block_index: None,
             spent_block_index: None,
             confirmation: None,
+            recipient_public_address_b58: "".to_string(),
         };
         // Verify that the statuses table was updated correctly
         let expected_txo_status = AccountTxoStatus {
@@ -1671,7 +1676,8 @@ mod tests {
             .unwrap();
         let sent_outputs = associated.outputs;
         assert_eq!(sent_outputs.len(), 1);
-        let sent_txo_details = Txo::get(&sent_outputs[0], &wallet_db.get_conn().unwrap()).unwrap();
+        let sent_txo_details =
+            Txo::get(&sent_outputs[0].txo_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
 
         // These two txos should actually be the same txo, and the account_txo_status is
         // what differentiates them.
