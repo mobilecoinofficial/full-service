@@ -1248,22 +1248,26 @@ mod e2e {
             transaction_log.get("value_pmob").unwrap().as_str().unwrap(),
             "85000000000000"
         );
-        assert_eq!(
-            transaction_log.get("output_txos").unwrap()[1] // FIXME: For some reason, the first outlay always comes first in the list.
-                .get("recipient_address_id")
-                .unwrap()
-                .as_str()
-                .unwrap(),
-            bob_b58_public_address
-        );
-        assert_eq!(
-            transaction_log.get("output_txos").unwrap()[0]
-                .get("recipient_address_id")
-                .unwrap()
-                .as_str()
-                .unwrap(),
-            charlie_b58_public_address
-        );
+
+        let mut output_addresses: Vec<String> = transaction_log
+            .get("output_txos")
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|t| {
+                t.get("recipient_address_id")
+                    .unwrap()
+                    .as_str()
+                    .unwrap()
+                    .into()
+            })
+            .collect();
+        output_addresses.sort();
+        let mut target_addresses = vec![bob_b58_public_address, charlie_b58_public_address];
+        target_addresses.sort();
+        assert_eq!(output_addresses, target_addresses);
+
         transaction_log.get("account_id").unwrap().as_str().unwrap();
         assert_eq!(
             transaction_log.get("fee_pmob").unwrap().as_str().unwrap(),
