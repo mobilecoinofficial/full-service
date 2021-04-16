@@ -61,8 +61,6 @@ pub struct WalletDbTestContext {
 
 impl Default for WalletDbTestContext {
     fn default() -> Self {
-        dotenv::dotenv().unwrap();
-
         let db_name: String = format!(
             "test_{}",
             thread_rng()
@@ -71,7 +69,7 @@ impl Default for WalletDbTestContext {
                 .collect::<String>()
                 .to_lowercase()
         );
-        let base_url = std::env::var("TEST_DATABASE_URL").expect("TEST_DATABASE_URL must be set");
+        let base_url = String::from("/tmp");
 
         // Connect to the database and run the migrations
         // Note: This should be kept in sync wth how the migrations are run in main.rs
