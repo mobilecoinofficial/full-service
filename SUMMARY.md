@@ -1,31 +1,31 @@
-# Table of contents
+# 目录
 
-* [Welcome!](README.md)
+* [欢迎！](README.md)
 
-## Accounts
+## 账户
 
-* [Account](accounts/untitled.md)
-* [Account Secrets](accounts/account-secrets.md)
-* [Address](accounts/address.md)
-* [Balance](accounts/balance.md)
+* [账户](accounts/untitled.md)
+* [账户机密](accounts/account-secrets.md)
+* [地址](accounts/address.md)
+* [余额](accounts/balance.md)
 
-## Transactions <a id="transaction-1"></a>
+## 交易 <a id="transaction-1"></a>
 
-* [Transaction](transaction-1/transaction.md)
-* [Transaction Output TXO](transaction-1/txo.md)
-* [Confirmation](transaction-1/transaction-confirmation.md)
-* [Receiver Receipt](transaction-1/transaction-receipt.md)
-* [Transaction Log](transaction-1/transaction-log.md)
+* [交易](transaction-1/transaction.md)
+* [交易输出 TXO](transaction-1/txo.md)
+* [确认信息](transaction-1/transaction-confirmation.md)
+* [收据](transaction-1/transaction-receipt.md)
+* [交易日志](transaction-1/transaction-log.md)
 
-## Wallet
+## 钱包
 
-* [Wallet Status](wallet/wallet-status.md)
+* [钱包状态](wallet/wallet-status.md)
 
-## Ledger
+## 账簿 
 
-* [Block](ledger/block.md)
+* [区块](ledger/block.md)
 
 ---
 
-* [Gift Code](gift-code.md)
+* [红包码](gift-code.md)
 
