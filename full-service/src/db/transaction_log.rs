@@ -350,7 +350,7 @@ impl TransactionLogModel for TransactionLog {
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::transaction_logs::dsl::{transaction_id_hex, transaction_logs};
 
-        Ok(conn.transaction::<(), WalletDbError, _>(|| {
+        conn.transaction::<(), WalletDbError, _>(|| {
             let associated_transaction_logs = Self::select_for_txo(txo_id_hex, conn)?;
 
             for transaction_log in associated_transaction_logs {
@@ -393,7 +393,7 @@ impl TransactionLogModel for TransactionLog {
                 }
             }
             Ok(())
-        })?)
+        })
     }
 
     fn log_received(
@@ -404,7 +404,7 @@ impl TransactionLogModel for TransactionLog {
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::transaction_txo_types;
 
-        Ok(conn.transaction::<(), WalletDbError, _>(|| {
+        conn.transaction::<(), WalletDbError, _>(|| {
             for (subaddress_index, output_txo_ids) in subaddress_to_output_txo_ids {
                 let txos = Txo::select_by_id(&output_txo_ids, conn)?;
                 for (txo, _account_txo_status) in txos {
@@ -459,7 +459,7 @@ impl TransactionLogModel for TransactionLog {
                 }
             }
             Ok(())
-        })?)
+        })
     }
 
     fn log_submitted(
@@ -545,7 +545,7 @@ impl TransactionLogModel for TransactionLog {
             }
             Ok(transaction_id.to_string())
         })?;
-        Ok(TransactionLog::get(&transaction_log_id, conn)?)
+        TransactionLog::get(&transaction_log_id, conn)
     }
 
     fn delete_all_for_account(

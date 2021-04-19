@@ -46,7 +46,7 @@ impl TryFrom<&JsonRPCRequest> for JsonCommandRequest {
 
     fn try_from(src: &JsonRPCRequest) -> Result<JsonCommandRequest, String> {
         let src_json: serde_json::Value = serde_json::json!(src);
-        Ok(serde_json::from_value(src_json).map_err(|e| format!("Could not get value {:?}", e))?)
+        serde_json::from_value(src_json).map_err(|e| format!("Could not get value {:?}", e))
     }
 }
 

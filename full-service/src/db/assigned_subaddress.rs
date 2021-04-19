@@ -143,7 +143,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
             },
         };
 
-        Ok(conn.transaction::<(String, i64), WalletDbError, _>(|| {
+        conn.transaction::<(String, i64), WalletDbError, _>(|| {
             let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
             let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
@@ -228,7 +228,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
             }
 
             Ok((subaddress_b58, subaddress_index))
-        })?)
+        })
     }
 
     fn get(

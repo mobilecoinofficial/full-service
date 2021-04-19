@@ -257,56 +257,54 @@ impl AccountModel for Account {
         let account_id = AccountID::from(account_key);
         let fb = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX);
 
-        Ok(
-            conn.transaction::<(AccountID, String), WalletDbError, _>(|| {
-                let new_account = NewAccount {
-                    account_id_hex: &account_id.to_string(),
-                    account_key: &mc_util_serial::encode(account_key), /* FIXME: WS-6 - add
-                                                                        * encryption */
-                    entropy: &entropy,
-                    key_derivation_version: key_derivation_version as i32,
-                    main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
-                    change_subaddress_index: DEFAULT_CHANGE_SUBADDRESS_INDEX as i64,
-                    next_subaddress_index: next_subaddress_index
-                        .unwrap_or(DEFAULT_NEXT_SUBADDRESS_INDEX)
-                        as i64,
-                    first_block_index: fb as i64,
-                    next_block_index: fb as i64,
-                    import_block_index: import_block_index.map(|i| i as i64),
-                    name,
-                };
+        conn.transaction::<(AccountID, String), WalletDbError, _>(|| {
+            let new_account = NewAccount {
+                account_id_hex: &account_id.to_string(),
+                account_key: &mc_util_serial::encode(account_key), /* FIXME: WS-6 - add
+                                                                    * encryption */
+                entropy: &entropy,
+                key_derivation_version: key_derivation_version as i32,
+                main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
+                change_subaddress_index: DEFAULT_CHANGE_SUBADDRESS_INDEX as i64,
+                next_subaddress_index: next_subaddress_index
+                    .unwrap_or(DEFAULT_NEXT_SUBADDRESS_INDEX)
+                    as i64,
+                first_block_index: fb as i64,
+                next_block_index: fb as i64,
+                import_block_index: import_block_index.map(|i| i as i64),
+                name,
+            };
 
-                diesel::insert_into(accounts::table)
-                    .values(&new_account)
-                    .execute(conn)?;
+            diesel::insert_into(accounts::table)
+                .values(&new_account)
+                .execute(conn)?;
 
-                let main_subaddress_b58 = AssignedSubaddress::create(
-                    &account_key,
-                    None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
-                           * always for main? */
-                    DEFAULT_SUBADDRESS_INDEX,
-                    "Main",
-                    &conn,
-                )?;
+            let main_subaddress_b58 = AssignedSubaddress::create(
+                &account_key,
+                None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
+                       * always for main? */
+                DEFAULT_SUBADDRESS_INDEX,
+                "Main",
+                &conn,
+            )?;
 
-                let _change_subaddress_b58 = AssignedSubaddress::create(
-                    &account_key,
-                    None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
-                           * always for main? */
-                    DEFAULT_CHANGE_SUBADDRESS_INDEX,
-                    "Change",
-                    &conn,
-                )?;
+            let _change_subaddress_b58 = AssignedSubaddress::create(
+                &account_key,
+                None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
+                       * always for main? */
+                DEFAULT_CHANGE_SUBADDRESS_INDEX,
+                "Change",
+                &conn,
+            )?;
 
-                for subaddress_index in
-                    2..next_subaddress_index.unwrap_or(DEFAULT_NEXT_SUBADDRESS_INDEX)
-                {
-                    AssignedSubaddress::create(&account_key, None, subaddress_index, "", &conn)?;
-                }
+            for subaddress_index in
+                2..next_subaddress_index.unwrap_or(DEFAULT_NEXT_SUBADDRESS_INDEX)
+            {
+                AssignedSubaddress::create(&account_key, None, subaddress_index, "", &conn)?;
+            }
 
-                Ok((account_id, main_subaddress_b58))
-            })?,
-        )
+            Ok((account_id, main_subaddress_b58))
+        })
     }
 
     fn import(
@@ -320,7 +318,7 @@ impl AccountModel for Account {
         fog_authority_spki: Option<String>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Account, WalletDbError> {
-        Ok(conn.transaction::<Account, WalletDbError, _>(|| {
+        conn.transaction::<Account, WalletDbError, _>(|| {
             let (account_id, _public_address_b58) = Account::create_from_mnemonic(
                 mnemonic,
                 first_block_index,
@@ -332,8 +330,8 @@ impl AccountModel for Account {
                 fog_authority_spki,
                 conn,
             )?;
-            Ok(Account::get(&account_id, &conn)?)
-        })?)
+            Account::get(&account_id, &conn)
+        })
     }
 
     fn import_legacy(
@@ -347,7 +345,7 @@ impl AccountModel for Account {
         fog_authority_spki: Option<String>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Account, WalletDbError> {
-        Ok(conn.transaction::<Account, WalletDbError, _>(|| {
+        conn.transaction::<Account, WalletDbError, _>(|| {
             let (account_id, _public_address_b58) = Account::create_from_root_entropy(
                 root_entropy,
                 first_block_index,
@@ -359,8 +357,8 @@ impl AccountModel for Account {
                 fog_authority_spki,
                 conn,
             )?;
-            Ok(Account::get(&account_id, &conn)?)
-        })?)
+            Account::get(&account_id, &conn)
+        })
     }
 
     fn list_all(
@@ -440,7 +438,7 @@ impl AccountModel for Account {
             txos::dsl::{txo_id_hex, txos},
         };
 
-        Ok(conn.transaction::<(), WalletDbError, _>(|| {
+        conn.transaction::<(), WalletDbError, _>(|| {
             for key_image in key_images {
                 // Get the txo by key_image
                 let matches = crate::db::schema::txos::table
@@ -489,7 +487,7 @@ impl AccountModel for Account {
                 .set(crate::db::schema::accounts::next_block_index.eq(spent_block_index + 1))
                 .execute(conn)?;
             Ok(())
-        })?)
+        })
     }
 
     /// Delete an account.

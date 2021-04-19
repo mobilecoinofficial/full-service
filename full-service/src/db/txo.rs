@@ -936,13 +936,13 @@ impl TxoModel for Txo {
         confirmation: &TxOutConfirmationNumber,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError> {
-        Ok(conn.transaction::<bool, WalletDbError, _>(|| {
+        conn.transaction::<bool, WalletDbError, _>(|| {
             let txo_details = Txo::get(txo_id_hex, conn)?;
             let public_key: RistrettoPublic = mc_util_serial::decode(&txo_details.txo.public_key)?;
             let account = Account::get(account_id, conn)?;
             let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
             Ok(confirmation.validate(&public_key, account_key.view_private_key()))
-        })?)
+        })
     }
 }
 

@@ -117,7 +117,7 @@ impl From<&TxoDetails> for Txo {
             object: "txo".to_string(),
             txo_id_hex: txo_details.txo.txo_id_hex.clone(),
             value_pmob: (txo_details.txo.value as u64).to_string(),
-            recipient_address_id: if recipient_address_id == "" {
+            recipient_address_id: if recipient_address_id.is_empty() {
                 None
             } else {
                 Some(recipient_address_id)
