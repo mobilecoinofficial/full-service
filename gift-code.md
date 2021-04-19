@@ -36,6 +36,19 @@ description: >-
 
 Build a gift code in a `tx_proposal` that you can fund and submit to the ledger.
 
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `account_id` | The account on which to perform this action. | The account must exist in the wallet. |
+| `value_pmob` | The amount of MOB to send in this transaction. |  |
+
+| Optional Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `input_txo_ids` | The specific TXOs to use as inputs to this transaction. |  TXO IDs \(obtain from `get_all_txos_for_account`\). |
+| `fee` | The fee amount to submit with this transaction. |  If not provided, uses `MINIMUM_FEE` = .01 MOB. |
+| `tombstone_block` | The block after which this transaction expires. |  If not provided, uses `cur_height` + 50. |
+| `max_spendable_value` | The maximum amount for an input TXO selected for this transaction. |  |
+| `memo` | Memo for whoever claims the gift code. |  |
+
 {% tabs %}
 {% tab title="build\_gift\_code" %}
 ```text
@@ -70,24 +83,15 @@ curl -s localhost:9090/wallet \
 {% endtab %}
 {% endtabs %}
 
-
-
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action. | The account must exist in the wallet. |
-| `value_pmob` | The amount of MOB to send in this transaction. |  |
-
-| Optional Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `input_txo_ids` | The specific TXOs to use as inputs to this transaction. |  TXO IDs \(obtain from `get_all_txos_for_account`\). |
-| `fee` | The fee amount to submit with this transaction. |  If not provided, uses `MINIMUM_FEE` = .01 MOB. |
-| `tombstone_block` | The block after which this transaction expires. |  If not provided, uses `cur_height` + 50. |
-| `max_spendable_value` | The maximum amount for an input TXO selected for this transaction. |  |
-| `memo` | Memo for whoever claims the gift code. |  |
-
 ### `submit_gift_code`
 
 Submit a `tx_proposal` to the ledger that adds the gift code to the `wallet_db` once the `tx_proposal` has been appended to the ledger.
+
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `gift_code_b58` | The base58-encoded gift code contents. | Must be a valid base58-encoded gift code. |
+| `from_account_id` | The account on which to perform this action. | The account must exist in the wallet. |
+| `tx_proposal` | Transaction proposal to submit. |  Created with `build_gift_code`. |
 
 {% tabs %}
 {% tab title="submit\_gift\_code" %}
@@ -134,15 +138,13 @@ curl -s localhost:9090/wallet \
 {% endtab %}
 {% endtabs %}
 
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `gift_code_b58` | The base58-encoded gift code contents. | Must be a valid base58-encoded gift code. |
-| `from_account_id` | The account on which to perform this action. | The account must exist in the wallet. |
-| `tx_proposal` | Transaction proposal to submit. |  Created with `build_gift_code`. |
-
 ### `get_gift_code`
 
 Recall a gift code's entropy, value, and memo from the database.
+
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `gift_code_b58` | The base58-encoded gift code contents. | Must be a valid base58-encoded gift code. |
 
 {% tabs %}
 {% tab title="get\_gift\_code" %}
@@ -187,16 +189,12 @@ curl -s localhost:9090/wallet \
 {% endtab %}
 {% endtabs %}
 
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `gift_code_b58` | The base58-encoded gift code contents. | Must be a valid base58-encoded gift code. |
-
 ### `get_all_gift_codes`
 
 Get all the gift codes currently in the database.
 
 {% tabs %}
-{% tab title="First Tab" %}
+{% tab title="get\_all\_gift\_codes" %}
 
 
 ```text
@@ -250,6 +248,10 @@ curl -s localhost:9090/wallet \
 
 Check the status of a gift code, which may be pending, available, or claimed.
 
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `gift_code_b58` | The base58-encoded gift code contents. | The base58-encoded gift code must be valid. |
+
 {% tabs %}
 {% tab title="check\_gift\_code\_status" %}
 
@@ -299,10 +301,6 @@ curl -s localhost:9090/wallet \
 {% endtab %}
 {% endtabs %}
 
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `gift_code_b58` | The base58-encoded gift code contents. | The base58-encoded gift code must be valid. |
-
 #### Outputs
 
 * `GiftCodeSubmittedPending` - The gift code TXO has not yet appeared in the ledger.
@@ -312,6 +310,11 @@ curl -s localhost:9090/wallet \
 ### `claim_gift_code`
 
 Claim a gift code to an account in the wallet.
+
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `gift_code_b58` | The base58-encoded gift code contents. | The base58-encoded gift code must be valid. |
+| `account_id` | The account on which to perform this action. | The account must exist in the wallet. |
 
 {% tabs %}
 {% tab title="claim\_gift\_code" %}
@@ -349,14 +352,13 @@ curl -s localhost:9090/wallet \
 {% endtab %}
 {% endtabs %}
 
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `gift_code_b58` | The base58-encoded gift code contents. | The base58-encoded gift code must be valid. |
-| `account_id` | The account on which to perform this action. | The account must exist in the wallet. |
-
 ### `remove_gift_code`
 
 Remove a gift code from the database.
+
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `gift_code_b58` | The base58-encoded gift code contents. | The base58-encoded gift code must be valid. |
 
 {% tabs %}
 {% tab title="remove\_gift\_code" %}
@@ -392,8 +394,4 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 {% endtabs %}
-
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `gift_code_b58` | The base58-encoded gift code contents. | The base58-encoded gift code must be valid. |
 

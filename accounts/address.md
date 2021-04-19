@@ -11,7 +11,7 @@ Addresses in the Full-service Wallet are useful to help distinguish incoming tra
 
 The way this works under the hood is by using the "subaddress index" to perform a cryptographic operation to generate a new subaddress. 
 
-Important: If you receive funds at a subaddress which has not yet been assigned, you will not be able to spend the funds until you assign the address. We call those funds "orphaned" until they have been "recovered" by assigning the subaddress in the wallet to which they were sent.
+Important: If you receive funds at a subaddress that has not yet been assigned, you will not be able to spend the funds until you assign the address. We call those funds "orphaned" until they have been "recovered" by assigning the subaddress in the wallet to which they were sent.
 
 ## Attributes
 
@@ -23,16 +23,6 @@ Important: If you receive funds at a subaddress which has not yet been assigned,
 | `metadata` | string | An arbitrary string attached to the object. |
 | `subaddress_index` | string \(uint64\) | The assigned subaddress index on the associated account. |
 | `offset_count` | integer | The value to offset pagination requests for assigned\_address list. Requests will exclude all list items up to and including this object. |
-
-## Parameters
-
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action. | The account must exist in the wallet. |
-
-| Optional Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| ​`metadata`  | The metadata for this address. | String; can contain stringified json. |
 
 ## Example
 
@@ -52,6 +42,14 @@ Important: If you receive funds at a subaddress which has not yet been assigned,
 ### `assign_address_for_account`
 
 Assign an address to a given account.
+
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `account_id` | The account on which to perform this action. | The account must exist in the wallet. |
+
+| Optional Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| ​`metadata`  | The metadata for this address. | String; can contain stringified json. |
 
 {% tabs %}
 {% tab title="assign\_address\_for\_account" %}

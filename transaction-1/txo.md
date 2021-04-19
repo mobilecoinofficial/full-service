@@ -133,6 +133,11 @@ curl -s localhost:9090/wallet \
 
 Get details of a given TXO.
 
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `account_id` | The account on which to perform this action | Account must exist in the wallet |
+| `txo_id` | The TXO ID for which to get details |  |
+
 {% tabs %}
 {% tab title="get\_txo" %}
 ```text
@@ -184,14 +189,13 @@ curl -s localhost:9090/wallet \
 {% endtab %}
 {% endtabs %}
 
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action | Account must exist in the wallet |
-| `txo_id` | The TXO ID for which to get details |  |
-
 ### `get_all_txos_for_account`
 
 Get all TXOs for a given account.
+
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `account_id` | The account on which to perform this action | Account must exist in the wallet |
 
 {% tabs %}
 {% tab title="get\_all\_txos\_for\_account" %}
@@ -327,10 +331,6 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 {% endtabs %}
-
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action | Account must exist in the wallet |
 
 {% hint style="info" %}
 Note, you may wish to filter TXOs using a tool like jq. For example, to get all unspent TXOs, you can use:
