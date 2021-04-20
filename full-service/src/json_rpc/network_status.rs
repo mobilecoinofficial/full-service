@@ -2,11 +2,10 @@
 
 //! API definition for the Network Status object.
 
-use crate::{json_rpc, service};
+use crate::service;
 
 use serde_derive::{Deserialize, Serialize};
-use serde_json::Map;
-use std::{convert::TryFrom, iter::FromIterator};
+use std::convert::TryFrom;
 
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct NetworkStatus {
