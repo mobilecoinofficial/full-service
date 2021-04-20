@@ -55,8 +55,7 @@ table! {
         id -> Integer,
         transaction_id_hex -> Text,
         account_id_hex -> Text,
-        recipient_public_address_b58 -> Text,
-        assigned_subaddress_b58 -> Text,
+        assigned_subaddress_b58 -> Nullable<Text>,
         value -> BigInt,
         fee -> Nullable<BigInt>,
         status -> Text,
@@ -92,6 +91,7 @@ table! {
         pending_tombstone_block_index -> Nullable<BigInt>,
         spent_block_index -> Nullable<BigInt>,
         confirmation -> Nullable<Binary>,
+        recipient_public_address_b58 -> Text,
     }
 }
 

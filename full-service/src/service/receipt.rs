@@ -387,7 +387,7 @@ mod tests {
             .create_account(Some("Bob's Main Account".to_string()))
             .unwrap();
         let bob_addresses = service
-            .get_all_addresses_for_account(&AccountID(bob.account_id_hex.clone()))
+            .get_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
             .expect("Could not get addresses for Bob");
         let bob_address = bob_addresses[0].assigned_subaddress_b58.clone();
 
@@ -395,8 +395,7 @@ mod tests {
         let tx_proposal = service
             .build_transaction(
                 &alice.account_id_hex,
-                &bob_address,
-                (24 * MOB).to_string(),
+                &vec![(bob_address.to_string(), (24 * MOB).to_string())],
                 None,
                 None,
                 None,
@@ -417,7 +416,7 @@ mod tests {
             tx_proposal.clone(),
             14,
             "".to_string(),
-            Some(&alice.account_id_hex),
+            &alice.account_id_hex,
             &service.wallet_db.get_conn().unwrap(),
         )
         .expect("Could not log submitted");
@@ -441,14 +440,14 @@ mod tests {
 
         // Get corresponding Txo for Bob
         let txos = service
-            .list_txos(&AccountID(bob.account_id_hex))
+            .list_txos(&AccountID(bob.account_id_hex), None, None)
             .expect("Could not get Bob Txos");
         assert_eq!(txos.len(), 1);
 
         // Get the corresponding TransactionLog for Alice's Account - only the sender
         // has the confirmation number.
         let transaction_logs = service
-            .list_transaction_logs(&AccountID(alice.account_id_hex))
+            .list_transaction_logs(&AccountID(alice.account_id_hex), None, None)
             .expect("Could not get transaction logs");
         // Alice should have two received (initial and change), and one sent
         // TransactionLog.
@@ -512,7 +511,7 @@ mod tests {
             .create_account(Some("Bob's Main Account".to_string()))
             .unwrap();
         let bob_addresses = service
-            .get_all_addresses_for_account(&AccountID(bob.account_id_hex.clone()))
+            .get_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
             .expect("Could not get addresses for Bob");
         let bob_address = &bob_addresses[0].assigned_subaddress_b58.clone();
 
@@ -520,8 +519,7 @@ mod tests {
         let tx_proposal = service
             .build_transaction(
                 &alice.account_id_hex,
-                &bob_address,
-                (24 * MOB).to_string(),
+                &vec![(bob_address.to_string(), (24 * MOB).to_string())],
                 None,
                 None,
                 None,
@@ -547,7 +545,7 @@ mod tests {
             tx_proposal.clone(),
             14,
             "".to_string(),
-            Some(&alice.account_id_hex),
+            &alice.account_id_hex,
             &service.wallet_db.get_conn().unwrap(),
         )
         .expect("Could not log submitted");
@@ -626,7 +624,7 @@ mod tests {
             .create_account(Some("Bob's Main Account".to_string()))
             .unwrap();
         let bob_addresses = service
-            .get_all_addresses_for_account(&AccountID(bob.account_id_hex.clone()))
+            .get_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
             .expect("Could not get addresses for Bob");
         let bob_address = &bob_addresses[0].assigned_subaddress_b58.clone();
         let bob_account_id = AccountID(bob.account_id_hex.to_string());
@@ -635,8 +633,7 @@ mod tests {
         let tx_proposal0 = service
             .build_transaction(
                 &alice.account_id_hex,
-                &bob_address,
-                (24 * MOB).to_string(),
+                &vec![(bob_address.to_string(), (24 * MOB).to_string())],
                 None,
                 None,
                 None,
@@ -654,7 +651,7 @@ mod tests {
             tx_proposal0.clone(),
             14,
             "".to_string(),
-            Some(&alice.account_id_hex),
+            &alice.account_id_hex,
             &service.wallet_db.get_conn().unwrap(),
         )
         .expect("Could not log submitted");
@@ -744,7 +741,7 @@ mod tests {
             .create_account(Some("Bob's Main Account".to_string()))
             .unwrap();
         let bob_addresses = service
-            .get_all_addresses_for_account(&AccountID(bob.account_id_hex.clone()))
+            .get_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
             .expect("Could not get addresses for Bob");
         let bob_address = &bob_addresses[0].assigned_subaddress_b58.clone();
         let bob_account_id = AccountID(bob.account_id_hex.to_string());
@@ -753,8 +750,7 @@ mod tests {
         let tx_proposal0 = service
             .build_transaction(
                 &alice.account_id_hex,
-                &bob_address,
-                (24 * MOB).to_string(),
+                &vec![(bob_address.to_string(), (24 * MOB).to_string())],
                 None,
                 None,
                 None,
@@ -772,7 +768,7 @@ mod tests {
             tx_proposal0.clone(),
             14,
             "".to_string(),
-            Some(&alice.account_id_hex),
+            &alice.account_id_hex,
             &service.wallet_db.get_conn().unwrap(),
         )
         .expect("Could not log submitted");

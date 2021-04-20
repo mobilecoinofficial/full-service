@@ -131,7 +131,7 @@ where
 
         let mut results = Vec::new();
         for associated_txo in associated_txos.outputs {
-            let txo = self.get_txo(&TxoID(associated_txo.clone()))?;
+            let txo = self.get_txo(&TxoID(associated_txo.txo_id_hex.clone()))?;
             if let Some(confirmation) = txo.txo.confirmation {
                 let confirmation: TxOutConfirmationNumber = mc_util_serial::decode(&confirmation)?;
                 let pubkey: CompressedRistrettoPublic =
@@ -144,7 +144,7 @@ where
                 });
             } else {
                 return Err(ConfirmationServiceError::MissingConfirmation(
-                    associated_txo,
+                    associated_txo.txo_id_hex,
                 ));
             }
         }

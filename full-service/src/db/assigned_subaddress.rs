@@ -5,8 +5,18 @@
 
 use crate::db::{
     account::{AccountID, AccountModel},
+    account_txo_status::AccountTxoStatusModel,
     b58_encode,
-    models::{Account, AssignedSubaddress, NewAssignedSubaddress},
+    models::{
+        Account, AccountTxoStatus, AssignedSubaddress, NewAssignedSubaddress, Txo,
+        TXO_STATUS_ORPHANED,
+    },
+    txo::TxoModel,
+};
+
+use mc_transaction_core::{
+    onetime_keys::{recover_onetime_private_key, recover_public_subaddress_spend_key},
+    ring_signature::KeyImage,
 };
 
 use mc_account_keys::AccountKey;
@@ -68,6 +78,8 @@ pub trait AssignedSubaddressModel {
     /// List all AssignedSubaddresses for a given account.
     fn list_all(
         account_id_hex: &str,
+        offset: Option<i64>,
+        limit: Option<i64>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<AssignedSubaddress>, WalletDbError>;
 
@@ -117,12 +129,17 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         use crate::db::schema::{
             accounts::dsl::{account_id_hex as dsl_account_id_hex, accounts},
             assigned_subaddresses,
+            transaction_logs::dsl::{
+                account_id_hex as tx_log_account_id_hex,
+                transaction_id_hex as tx_log_transaction_id_hex, transaction_logs,
+            },
         };
 
         Ok(conn.transaction::<(String, i64), WalletDbError, _>(|| {
             let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
             let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+            let account_view_key = account_key.view_key();
             let subaddress_index = account.next_subaddress_index;
             let subaddress = account_key.subaddress(subaddress_index as u64);
 
@@ -146,6 +163,61 @@ impl AssignedSubaddressModel for AssignedSubaddress {
             diesel::update(accounts.filter(dsl_account_id_hex.eq(account_id_hex)))
                 .set((crate::db::schema::accounts::next_subaddress_index.eq(subaddress_index + 1),))
                 .execute(conn)?;
+
+            // Find and repair orphaned txos at this subaddress.
+            let orphaned_txos = Txo::list_by_status(&account_id_hex, &TXO_STATUS_ORPHANED, &conn)?;
+
+            for orphaned_txo in orphaned_txos.iter() {
+                let tx_out_target_key: RistrettoPublic =
+                    mc_util_serial::decode(&orphaned_txo.target_key).unwrap();
+                let tx_public_key: RistrettoPublic =
+                    mc_util_serial::decode(&orphaned_txo.public_key).unwrap();
+
+                let txo_subaddress_spk: RistrettoPublic = recover_public_subaddress_spend_key(
+                    &account_view_key.view_private_key,
+                    &tx_out_target_key,
+                    &tx_public_key,
+                );
+
+                if txo_subaddress_spk == *subaddress.spend_public_key() {
+                    // Get the current account status mapping.
+                    let account_txo_status =
+                        AccountTxoStatus::get(&account_id_hex, &orphaned_txo.txo_id_hex, &conn)
+                            .unwrap();
+
+                    // Update the status to unspent.
+                    account_txo_status.set_unspent(&conn)?;
+
+                    let onetime_private_key = recover_onetime_private_key(
+                        &tx_public_key,
+                        account_key.view_private_key(),
+                        &account_key.subaddress_spend_private(subaddress_index as u64),
+                    );
+
+                    let key_image = KeyImage::from(&onetime_private_key);
+
+                    let key_image_bytes = mc_util_serial::encode(&key_image);
+
+                    // Update the account status mapping.
+                    diesel::update(orphaned_txo)
+                        .set((
+                            crate::db::schema::txos::subaddress_index.eq(subaddress_index),
+                            crate::db::schema::txos::key_image.eq(key_image_bytes),
+                        ))
+                        .execute(conn)?;
+
+                    diesel::update(
+                        transaction_logs
+                            .filter(tx_log_transaction_id_hex.eq(&orphaned_txo.txo_id_hex))
+                            .filter(tx_log_account_id_hex.eq(account_id_hex)),
+                    )
+                    .set(
+                        (crate::db::schema::transaction_logs::assigned_subaddress_b58
+                            .eq(&subaddress_b58),),
+                    )
+                    .execute(conn)?;
+                }
+            }
 
             Ok((subaddress_b58, subaddress_index))
         })?)
@@ -207,18 +279,25 @@ impl AssignedSubaddressModel for AssignedSubaddress {
 
     fn list_all(
         account_id_hex: &str,
+        offset: Option<i64>,
+        limit: Option<i64>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<AssignedSubaddress>, WalletDbError> {
         use crate::db::schema::assigned_subaddresses::{
             account_id_hex as schema_account_id_hex, all_columns, dsl::assigned_subaddresses,
         };
 
-        let matches: Vec<AssignedSubaddress> = assigned_subaddresses
+        let addresses_query = assigned_subaddresses
             .select(all_columns)
-            .filter(schema_account_id_hex.eq(account_id_hex))
-            .load::<AssignedSubaddress>(conn)?;
+            .filter(schema_account_id_hex.eq(account_id_hex));
 
-        Ok(matches)
+        let addresses: Vec<AssignedSubaddress> = if let (Some(o), Some(l)) = (offset, limit) {
+            addresses_query.offset(o).limit(l).load(conn)?
+        } else {
+            addresses_query.load(conn)?
+        };
+
+        Ok(addresses)
     }
 
     fn delete_all(

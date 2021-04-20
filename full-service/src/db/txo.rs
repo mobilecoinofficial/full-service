@@ -99,7 +99,7 @@ pub trait TxoModel {
     /// Returns:
     /// * ProcessedTxProposalOutput
     fn create_minted(
-        account_id_hex: Option<&str>,
+        account_id_hex: &str,
         txo: &TxOut,
         tx_proposal: &TxProposal,
         outlay_index: usize,
@@ -132,6 +132,8 @@ pub trait TxoModel {
     /// Get all Txos associated with a given account.
     fn list_for_account(
         account_id_hex: &str,
+        offset: Option<i64>,
+        limit: Option<i64>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<TxoDetails>, WalletDbError>;
 
@@ -228,6 +230,9 @@ impl TxoModel for Txo {
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<String, WalletDbError> {
+        // Verify that the account exists.
+        Account::get(&AccountID(account_id_hex.to_string()), &conn)?;
+
         let txo_id = TxoID::from(&txo);
         conn.transaction::<(), WalletDbError, _>(|| {
             match Txo::get(&txo_id.to_string(), conn) {
@@ -355,6 +360,7 @@ impl TxoModel for Txo {
                         pending_tombstone_block_index: None,
                         spent_block_index: None,
                         confirmation: None,
+                        recipient_public_address_b58: "".to_string(), // NULL for received
                     };
 
                     diesel::insert_into(crate::db::schema::txos::table)
@@ -387,7 +393,7 @@ impl TxoModel for Txo {
     }
 
     fn create_minted(
-        account_id_hex: Option<&str>,
+        account_id_hex: &str,
         output: &TxOut,
         tx_proposal: &TxProposal,
         output_index: usize,
@@ -400,6 +406,7 @@ impl TxoModel for Txo {
         let total_input_value: u64 = tx_proposal.utxos.iter().map(|u| u.value).sum();
         let total_output_value: u64 = tx_proposal.outlays.iter().map(|o| o.value).sum();
         let change_value: u64 = total_input_value - total_output_value - tx_proposal.fee();
+
         // Determine whether this output is an outlay destination, or change.
         let (value, confirmation, outlay_receiver) = if let Some(outlay_index) = tx_proposal
             .outlay_index_to_tx_out_index
@@ -422,13 +429,14 @@ impl TxoModel for Txo {
 
         // Update receiver, transaction_value, and transaction_txo_type, if outlay was
         // found.
-        let (transaction_txo_type, log_value) = if outlay_receiver.is_some() {
-            (TXO_USED_AS_OUTPUT, total_output_value)
-        } else {
-            // If not in an outlay, this output is change, according to how we build
-            // transactions.
-            (TXO_USED_AS_CHANGE, change_value)
-        };
+        let (transaction_txo_type, log_value, recipient_public_address_b58) =
+            if let Some(r) = outlay_receiver.clone() {
+                (TXO_USED_AS_OUTPUT, total_output_value, b58_encode(&r)?)
+            } else {
+                // If not in an outlay, this output is change, according to how we build
+                // transactions.
+                (TXO_USED_AS_CHANGE, change_value, "".to_string())
+            };
 
         let encoded_confirmation = confirmation
             .map(|p| mc_util_serial::encode(&tx_proposal.outlay_confirmation_numbers[p]));
@@ -448,27 +456,25 @@ impl TxoModel for Txo {
                 pending_tombstone_block_index: Some(tx_proposal.tx.prefix.tombstone_block as i64),
                 spent_block_index: None,
                 confirmation: encoded_confirmation.as_deref(),
+                recipient_public_address_b58,
             };
 
             diesel::insert_into(txos::table)
                 .values(&new_txo)
                 .execute(conn)?;
 
-            // If account_id is provided, then log a relationship. Also possible to create
-            // minted from a TxProposal not belonging to any existing account.
-            if let Some(account_id_hex) = account_id_hex.as_deref() {
-                let new_account_txo_status = NewAccountTxoStatus {
-                    account_id_hex: &account_id_hex,
-                    txo_id_hex: &txo_id.to_string(),
-                    txo_status: TXO_STATUS_SECRETED, /* We cannot track spent status for minted
-                                                      * TXOs
-                                                      * unless change */
-                    txo_type: TXO_TYPE_MINTED,
-                };
-                diesel::insert_into(account_txo_statuses::table)
-                    .values(&new_account_txo_status)
-                    .execute(conn)?;
-            }
+            // Log a relationship between the account and the TXO.
+            let new_account_txo_status = NewAccountTxoStatus {
+                account_id_hex: &account_id_hex,
+                txo_id_hex: &txo_id.to_string(),
+                // The lifecycle of this txo starts at secreted. If it is change, then it will
+                // become unspent when it is received.
+                txo_status: TXO_STATUS_SECRETED,
+                txo_type: TXO_TYPE_MINTED,
+            };
+            diesel::insert_into(account_txo_statuses::table)
+                .values(&new_account_txo_status)
+                .execute(conn)?;
             Ok(())
         })?;
 
@@ -571,19 +577,29 @@ impl TxoModel for Txo {
 
     fn list_for_account(
         account_id_hex: &str,
+        offset: Option<i64>,
+        limit: Option<i64>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<TxoDetails>, WalletDbError> {
         use crate::db::schema::{
             account_txo_statuses as cols, account_txo_statuses::dsl::account_txo_statuses,
         };
 
-        let results: Vec<String> = account_txo_statuses
+        let statuses_query = account_txo_statuses
             .filter(cols::account_id_hex.eq(account_id_hex))
-            .select(cols::txo_id_hex)
-            .load(conn)?;
+            .select(cols::txo_id_hex);
 
+        // Optionally add limit and offset.
+        let statuses: Vec<String> = if let (Some(o), Some(l)) = (offset, limit) {
+            statuses_query.offset(o).limit(l).load(conn)?
+        } else {
+            statuses_query.load(conn)?
+        };
+
+        // TODO: This loop queries the txo and account_txo_statuses table N times. Use a
+        // join instead.
         let details: Result<Vec<TxoDetails>, WalletDbError> =
-            results.iter().map(|t| Txo::get(t, &conn)).collect();
+            statuses.iter().map(|t| Txo::get(t, &conn)).collect();
         details
     }
 
@@ -1009,6 +1025,8 @@ mod tests {
 
         let txos = Txo::list_for_account(
             &alice_account_id.to_string(),
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1029,6 +1047,7 @@ mod tests {
             pending_tombstone_block_index: None,
             spent_block_index: None,
             confirmation: None,
+            recipient_public_address_b58: "".to_string(),
         };
         // Verify that the statuses table was updated correctly
         let expected_txo_status = AccountTxoStatus {
@@ -1084,6 +1103,8 @@ mod tests {
         // and one minted (destined for alice).
         let txos = Txo::list_for_account(
             &alice_account_id.to_string(),
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1195,6 +1216,8 @@ mod tests {
         // we are not creating submit logs in this test)
         let transaction_logs = TransactionLog::list_all(
             &alice_account_id.to_string(),
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1208,7 +1231,7 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(unspent.len(), 1);
+        assert_eq!(unspent.len(), 2);
 
         // The type should still be "minted"
         let minted = Txo::list_by_type(
@@ -1221,6 +1244,8 @@ mod tests {
 
         let updated_txos = Txo::list_for_account(
             &alice_account_id.to_string(),
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1267,7 +1292,7 @@ mod tests {
                 logger.clone(),
             );
         assert_eq!(output_value, 72 * MOB);
-        assert_eq!(change_value, (894.98 * (MOB as f64)) as i64);
+        assert_eq!(change_value, (927.98 * (MOB as f64)) as i64);
 
         // Add the minted Txos to the ledger
         add_block_with_db_txos(
@@ -1287,6 +1312,8 @@ mod tests {
         // We should now have 1 txo in Bob's account.
         let txos = Txo::list_for_account(
             &AccountID::from(&bob_account_key).to_string(),
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1595,7 +1622,7 @@ mod tests {
             proposal.clone(),
             ledger_db.num_blocks().unwrap(),
             "".to_string(),
-            Some(&sender_account_id.to_string()),
+            &sender_account_id.to_string(),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1614,6 +1641,8 @@ mod tests {
         log::info!(logger, "Listing all Txos for recipient account");
         let txos = Txo::list_for_account(
             &recipient_account_id.to_string(),
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1630,6 +1659,8 @@ mod tests {
         log::info!(logger, "Listing all Txos for sender account");
         let sender_txos = Txo::list_for_account(
             &sender_account_id.to_string(),
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1645,7 +1676,8 @@ mod tests {
             .unwrap();
         let sent_outputs = associated.outputs;
         assert_eq!(sent_outputs.len(), 1);
-        let sent_txo_details = Txo::get(&sent_outputs[0], &wallet_db.get_conn().unwrap()).unwrap();
+        let sent_txo_details =
+            Txo::get(&sent_outputs[0].txo_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
 
         // These two txos should actually be the same txo, and the account_txo_status is
         // what differentiates them.
@@ -1672,8 +1704,20 @@ mod tests {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
 
-        let account_key = AccountKey::random(&mut rng);
-        let account_id = AccountID::from(&account_key);
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        let (account_id, _address) = Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(0),
+            None,
+            None,
+            "",
+            None,
+            None,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
 
         // Seed Txos
         let mut src_txos = Vec::new();

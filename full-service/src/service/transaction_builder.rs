@@ -154,10 +154,6 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         recipient: PublicAddress,
         value: u64,
     ) -> Result<(), WalletTransactionBuilderError> {
-        // This wallet does not support multiple outgoing recipients at this time.
-        if !self.outlays.is_empty() && recipient != self.outlays[0].0 {
-            return Err(WalletTransactionBuilderError::MultipleOutgoingRecipients);
-        }
         // Verify that the maximum output value of this transaction remains under
         // u64::MAX
         let cur_sum = self.outlays.iter().map(|(_r, v)| *v as u128).sum::<u128>();
@@ -351,13 +347,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 let mut tx_out_to_outlay_index: HashMap<TxOut, usize> = HashMap::default();
                 let mut outlay_confirmation_numbers = Vec::default();
                 let mut rng = rand::thread_rng();
-                let recip_check = &self.outlays[0].0;
                 for (i, (recipient, out_value)) in self.outlays.iter().enumerate() {
-                    // Note: Should not fail this check due to filtering on add_recipient
-                    if recipient != recip_check {
-                        return Err(WalletTransactionBuilderError::MultipleRecipientsInTransaction);
-                    }
-
                     let (tx_out, confirmation_number) =
                         transaction_builder.add_output(*out_value as u64, &recipient, &mut rng)?;
 
@@ -672,6 +662,8 @@ mod tests {
         // Get our TXO list
         let txos: Vec<Txo> = Txo::list_for_account(
             &AccountID::from(&account_key).to_string(),
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap()
@@ -1080,10 +1072,9 @@ mod tests {
         }
     }
 
-    // We should be able to add multiple TxOuts to the same recipient, not to
-    // multiple
+    // We should be able to add multiple TxOuts to multiple recipients.
     #[test_with_logger]
-    fn test_add_multiple_recipients_fails(logger: Logger) {
+    fn test_add_multiple_recipients(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -1111,10 +1102,8 @@ mod tests {
 
         // Create a new recipient
         let second_recipient = AccountKey::random(&mut rng).subaddress(0);
-        match builder.add_recipient(second_recipient.clone(), 40 * MOB as u64) {
-            Ok(_) => panic!("Should not be able to add multiple recipients"),
-            Err(WalletTransactionBuilderError::MultipleOutgoingRecipients) => {}
-            Err(e) => panic!("Unexpected error {:?}", e),
-        }
+        builder
+            .add_recipient(second_recipient.clone(), 40 * MOB as u64)
+            .unwrap();
     }
 }

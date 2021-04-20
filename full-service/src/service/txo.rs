@@ -45,7 +45,12 @@ impl From<diesel::result::Error> for TxoServiceError {
 /// Txos.
 pub trait TxoService {
     /// List the Txos for a given account in the wallet.
-    fn list_txos(&self, account_id: &AccountID) -> Result<Vec<TxoDetails>, TxoServiceError>;
+    fn list_txos(
+        &self,
+        account_id: &AccountID,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> Result<Vec<TxoDetails>, TxoServiceError>;
 
     /// Get a Txo from the wallet.
     fn get_txo(&self, txo_id: &TxoID) -> Result<TxoDetails, TxoServiceError>;
@@ -59,10 +64,20 @@ where
     T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
-    fn list_txos(&self, account_id: &AccountID) -> Result<Vec<TxoDetails>, TxoServiceError> {
+    fn list_txos(
+        &self,
+        account_id: &AccountID,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> Result<Vec<TxoDetails>, TxoServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
-        Ok(Txo::list_for_account(&account_id.to_string(), &conn)?)
+        Ok(Txo::list_for_account(
+            &account_id.to_string(),
+            limit,
+            offset,
+            &conn,
+        )?)
     }
 
     fn get_txo(&self, txo_id: &TxoID) -> Result<TxoDetails, TxoServiceError> {
@@ -136,10 +151,10 @@ mod tests {
         // Verify balance for Alice
         let balance = service.get_balance_for_account(&alice_account_id).unwrap();
 
-        assert_eq!(balance.unspent, 100 * MOB as u64);
+        assert_eq!(balance.unspent, 100 * MOB as u128);
 
         // Verify that we have 1 txo
-        let txos = service.list_txos(&alice_account_id).unwrap();
+        let txos = service.list_txos(&alice_account_id, None, None).unwrap();
         assert_eq!(txos.len(), 1);
         assert_eq!(
             txos[0].received_to_account.as_ref().unwrap().txo_status,
@@ -156,8 +171,11 @@ mod tests {
         let tx_proposal = service
             .build_transaction(
                 &alice.account_id_hex,
-                &b58_encode(&bob_account_key.subaddress(bob.main_subaddress_index as u64)).unwrap(),
-                "42000000000000".to_string(),
+                &vec![(
+                    b58_encode(&bob_account_key.subaddress(bob.main_subaddress_index as u64))
+                        .unwrap(),
+                    "42000000000000".to_string(),
+                )],
                 None,
                 None,
                 None,
@@ -171,7 +189,7 @@ mod tests {
         // We should now have 3 txos - one pending, two minted (one of which will be
         // change)
         let txos = service
-            .list_txos(&AccountID(alice.account_id_hex.clone()))
+            .list_txos(&AccountID(alice.account_id_hex.clone()), None, None)
             .unwrap();
         assert_eq!(txos.len(), 3);
         // The Pending Tx

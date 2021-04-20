@@ -145,6 +145,8 @@ pub struct Txo {
     pub pending_tombstone_block_index: Option<i64>,
     pub spent_block_index: Option<i64>,
     pub confirmation: Option<Vec<u8>>,
+    /// The recipient public address. Blank for unknown.
+    pub recipient_public_address_b58: String,
 }
 
 /// A structure that can be inserted to create a new entity in the `txos` table.
@@ -163,6 +165,7 @@ pub struct NewTxo<'a> {
     pub pending_tombstone_block_index: Option<i64>,
     pub spent_block_index: Option<i64>,
     pub confirmation: Option<&'a [u8]>,
+    pub recipient_public_address_b58: String,
 }
 
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
@@ -228,13 +231,12 @@ pub struct TransactionLog {
     pub id: i32,
     pub transaction_id_hex: String,
     pub account_id_hex: String,
-    pub recipient_public_address_b58: String, // empty string for nullable
-    pub assigned_subaddress_b58: String,      // empty string for nullable
+    pub assigned_subaddress_b58: Option<String>,
     pub value: i64,
     pub fee: Option<i64>,
     // Statuses: built, pending, succeeded, failed
     pub status: String,
-    pub sent_time: Option<i64>, // empty string for nullable
+    pub sent_time: Option<i64>,
     pub submitted_block_index: Option<i64>,
     pub finalized_block_index: Option<i64>,
     pub comment: String, // empty string for nullable
@@ -249,8 +251,7 @@ pub struct TransactionLog {
 pub struct NewTransactionLog<'a> {
     pub transaction_id_hex: &'a str,
     pub account_id_hex: &'a str,
-    pub recipient_public_address_b58: &'a str,
-    pub assigned_subaddress_b58: &'a str,
+    pub assigned_subaddress_b58: Option<&'a str>,
     pub value: i64,
     pub fee: Option<i64>,
     pub status: &'a str,

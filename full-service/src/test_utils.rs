@@ -19,7 +19,7 @@ use diesel::{
 use diesel_migrations::embed_migrations;
 use mc_account_keys::{AccountKey, PublicAddress, RootIdentity};
 use mc_attest_core::Verifier;
-use mc_common::logger::Logger;
+use mc_common::logger::{log, Logger};
 use mc_connection::{Connection, ConnectionManager, HardcodedCredentialsProvider, ThickClient};
 use mc_connection_test_utils::{test_client_uri, MockBlockchainConnection};
 use mc_consensus_scp::QuorumSet;
@@ -61,8 +61,6 @@ pub struct WalletDbTestContext {
 
 impl Default for WalletDbTestContext {
     fn default() -> Self {
-        dotenv::dotenv().unwrap();
-
         let db_name: String = format!(
             "test_{}",
             thread_rng()
@@ -71,7 +69,7 @@ impl Default for WalletDbTestContext {
                 .collect::<String>()
                 .to_lowercase()
         );
-        let base_url = std::env::var("TEST_DATABASE_URL").expect("TEST_DATABASE_URL must be set");
+        let base_url = String::from("/tmp");
 
         // Connect to the database and run the migrations
         // Note: This should be kept in sync wth how the migrations are run in main.rs
@@ -233,25 +231,14 @@ pub fn add_block_from_transaction_log(
 ) -> u64 {
     let associated_txos = transaction_log.get_associated_txos(conn).unwrap();
 
-    let mut output_ids = associated_txos.outputs.clone();
-    output_ids.append(&mut associated_txos.change.clone());
-
-    let output_txos: Vec<Txo> = output_ids
-        .iter()
-        .map(|id| Txo::get(id, conn).unwrap().txo)
-        .collect();
-
+    let mut output_txos = associated_txos.outputs.clone();
+    output_txos.append(&mut associated_txos.change.clone());
     let outputs: Vec<TxOut> = output_txos
         .iter()
         .map(|txo| mc_util_serial::decode(&txo.txo).unwrap())
         .collect();
 
-    let input_txos: Vec<Txo> = associated_txos
-        .inputs
-        .iter()
-        .map(|id| Txo::get(id, conn).unwrap().txo)
-        .collect();
-
+    let input_txos: Vec<Txo> = associated_txos.inputs.clone();
     let key_images: Vec<KeyImage> = input_txos
         .iter()
         .map(|txo| mc_util_serial::decode(&txo.key_image.clone().unwrap()).unwrap())
@@ -340,8 +327,24 @@ pub fn manually_sync_account(
         match sync_account(&ledger_db, &wallet_db, &account_id.to_string(), &logger) {
             Ok(_) => {}
             Err(SyncError::Database(WalletDbError::Diesel(
-                diesel::result::Error::DatabaseError(_kind, _info),
+                diesel::result::Error::DatabaseError(kind, info),
             ))) => {
+                match info.message() {
+                    "database is locked" => log::trace!(logger, "Database locked. Will retry"),
+                    _ => {
+                        log::error!(
+                            logger,
+                            "Unexpected database error {:?} {:?} {:?} {:?} {:?} {:?}",
+                            kind,
+                            info,
+                            info.details(),
+                            info.column_name(),
+                            info.table_name(),
+                            info.hint(),
+                        );
+                        panic!("Could not manually sync account.");
+                    }
+                };
                 std::thread::sleep(Duration::from_millis(500));
             }
             Err(e) => panic!("Could not sync account due to {:?}", e),
@@ -509,7 +512,7 @@ pub fn create_test_minted_and_change_txos(
     let outlay_txo_index = tx_proposal.outlay_index_to_tx_out_index[&0];
     let tx_out = tx_proposal.tx.prefix.outputs[outlay_txo_index].clone();
     let processed_output = Txo::create_minted(
-        Some(&AccountID::from(&src_account_key).to_string()),
+        &AccountID::from(&src_account_key).to_string(),
         &tx_out,
         &tx_proposal,
         outlay_txo_index,
@@ -523,7 +526,7 @@ pub fn create_test_minted_and_change_txos(
     let change_txo_index = if outlay_txo_index == 0 { 1 } else { 0 };
     let change_tx_out = tx_proposal.tx.prefix.outputs[change_txo_index].clone();
     let processed_change = Txo::create_minted(
-        Some(&AccountID::from(&src_account_key).to_string()),
+        &AccountID::from(&src_account_key).to_string(),
         &change_tx_out,
         &tx_proposal,
         change_txo_index,
@@ -585,6 +588,8 @@ pub fn random_account_with_seed_values(
         assert_eq!(
             Txo::list_for_account(
                 &AccountID::from(&account_key).to_string(),
+                None,
+                None,
                 &wallet_db.get_conn().unwrap(),
             )
             .unwrap()
