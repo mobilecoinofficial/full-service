@@ -820,7 +820,7 @@ mod tests {
         // Not setting the tombstone results in tombstone = 0. This is an acceptable
         // value,
         let proposal = builder.build().unwrap();
-        assert_eq!(proposal.tx.prefix.tombstone_block, 63);
+        assert_eq!(proposal.tx.prefix.tombstone_block, 113);
 
         // Build a transaction and explicitly set tombstone
         let (recipient, mut builder) =
