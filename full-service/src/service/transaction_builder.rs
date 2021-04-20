@@ -30,7 +30,7 @@ use mc_mobilecoind::{
     UnspentTxOut,
 };
 use mc_transaction_core::{
-    constants::{MINIMUM_FEE, RING_SIZE},
+    constants::{MAX_TOMBSTONE_BLOCKS, MINIMUM_FEE, RING_SIZE},
     onetime_keys::recover_onetime_private_key,
     ring_signature::KeyImage,
     tx::{TxOut, TxOutMembershipProof},
