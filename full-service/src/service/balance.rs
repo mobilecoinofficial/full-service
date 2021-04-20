@@ -267,7 +267,7 @@ where
                     spent,
                     secreted,
                     orphaned,
-                    network_block_index: network_block_index,
+                    network_block_index,
                     local_block_index: self.ledger_db.num_blocks()? - 1,
                     min_synced_block_index: min_synced_block_index as u64,
                     account_ids,
