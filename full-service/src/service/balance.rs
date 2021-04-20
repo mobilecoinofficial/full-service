@@ -141,8 +141,8 @@ where
         let (unspent, pending, spent, secreted, orphaned) =
             Self::get_balance_inner(account_id_hex, &conn)?;
 
-        let network_block_index = self.get_network_block_index()? + 1;
-        let local_block_index = self.ledger_db.num_blocks()?;
+        let network_block_index = self.get_network_block_index()?;
+        let local_block_index = self.ledger_db.num_blocks()? - 1;
         let account = Account::get(account_id, &conn)?;
 
         Ok(Balance {
@@ -160,8 +160,8 @@ where
     fn get_balance_for_address(&self, address: &str) -> Result<Balance, BalanceServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
-        let network_block_index = self.get_network_block_index()? + 1;
-        let local_block_index = self.ledger_db.num_blocks()?;
+        let network_block_index = self.get_network_block_index()?;
+        let local_block_index = self.ledger_db.num_blocks()? - 1;
 
         Ok(conn.transaction::<Balance, BalanceServiceError, _>(|| {
             let txos = Txo::list_for_address(&address.to_string(), &conn)?;

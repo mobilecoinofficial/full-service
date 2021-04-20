@@ -173,8 +173,8 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let tombstone_block = if tombstone > 0 {
             tombstone
         } else {
-            let num_blocks_in_ledger = self.ledger_db.num_blocks()?;
-            num_blocks_in_ledger + MAX_TOMBSTONE_BLOCKS
+            let last_block_index = self.ledger_db.num_blocks()? - 1;
+            last_block_index + MAX_TOMBSTONE_BLOCKS
         };
         self.tombstone = tombstone_block;
         Ok(())
@@ -821,7 +821,7 @@ mod tests {
         // Not setting the tombstone results in tombstone = 0. This is an acceptable
         // value,
         let proposal = builder.build().unwrap();
-        assert_eq!(proposal.tx.prefix.tombstone_block, 113);
+        assert_eq!(proposal.tx.prefix.tombstone_block, 112);
 
         // Build a transaction and explicitly set tombstone
         let (recipient, mut builder) =
