@@ -720,10 +720,10 @@ mod e2e {
             .unwrap();
         assert_eq!(outlay_confirmation_numbers.len(), 1);
 
-        // Tombstone block = ledger height (12 to start + 2 new blocks + 50 default
+        // Tombstone block = ledger height (12 to start + 2 new blocks + 100 default
         // tombstone)
         let prefix_tombstone = tx_prefix.get("tombstone_block").unwrap();
-        assert_eq!(prefix_tombstone, "64");
+        assert_eq!(prefix_tombstone, "114");
 
         // Get current balance
         assert_eq!(ledger_db.num_blocks().unwrap(), 14);
