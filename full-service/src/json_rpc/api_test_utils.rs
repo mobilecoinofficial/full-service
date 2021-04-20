@@ -183,7 +183,7 @@ pub fn wait_for_sync(
                 .unwrap()
                 .parse::<u64>()
                 .unwrap();
-            assert_eq!(local_height, ledger_db.num_blocks().unwrap());
+            assert_eq!(local_height, ledger_db.num_blocks().unwrap() - 1);
             // In the test context, we often add a block manually locally before updating
             // the network_state. In the wild, the local_height should never be
             // greater than the network_height.

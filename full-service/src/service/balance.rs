@@ -90,6 +90,13 @@ pub struct Balance {
     pub synced_blocks: u64,
 }
 
+/// The Network Status object.
+/// This holds the number of blocks in the ledger, on the network and locally.
+pub struct NetworkStatus {
+    pub network_block_index: u64,
+    pub local_block_index: u64,
+}
+
 /// The Wallet Status object returned by balance services.
 ///
 /// This must be a service object because there is no "WalletStatus" table in
@@ -122,6 +129,8 @@ pub trait BalanceService {
     ) -> Result<Balance, BalanceServiceError>;
 
     fn get_balance_for_address(&self, address: &str) -> Result<Balance, BalanceServiceError>;
+
+    fn get_network_status(&self) -> Result<NetworkStatus, BalanceServiceError>;
 
     fn get_wallet_status(&self) -> Result<WalletStatus, BalanceServiceError>;
 }
@@ -208,6 +217,13 @@ where
         })?)
     }
 
+    fn get_network_status(&self) -> Result<NetworkStatus, BalanceServiceError> {
+        Ok(NetworkStatus {
+            network_block_index: self.get_network_block_index()?,
+            local_block_index: self.ledger_db.num_blocks()? - 1,
+        })
+    }
+
     // Wallet Status is an overview of the wallet's status
     fn get_wallet_status(&self) -> Result<WalletStatus, BalanceServiceError> {
         let conn = self.wallet_db.get_conn()?;
@@ -251,8 +267,8 @@ where
                     spent,
                     secreted,
                     orphaned,
-                    network_block_index: network_block_index + 1,
-                    local_block_index: self.ledger_db.num_blocks()?,
+                    network_block_index: network_block_index,
+                    local_block_index: self.ledger_db.num_blocks()? - 1,
                     min_synced_block_index: min_synced_block_index as u64,
                     account_ids,
                     account_map,

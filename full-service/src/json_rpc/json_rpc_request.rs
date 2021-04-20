@@ -135,6 +135,7 @@ pub enum JsonCommandRequest {
         block_index: String,
     },
     get_all_transaction_logs_ordered_by_block,
+    get_network_status,
     get_wallet_status,
     get_account_status {
         account_id: String,

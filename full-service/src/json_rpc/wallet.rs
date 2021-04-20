@@ -14,6 +14,7 @@ use crate::{
         gift_code::GiftCode,
         json_rpc_request::{help_str, JsonCommandRequest, JsonRPCRequest},
         json_rpc_response::{format_error, JsonCommandResponse, JsonRPCResponse},
+        network_status::NetworkStatus,
         receiver_receipt::ReceiverReceipt,
         tx_proposal::TxProposal,
         txo::Txo,
@@ -233,6 +234,12 @@ where
                 ),
             }
         }
+        JsonCommandRequest::get_network_status => JsonCommandResponse::get_network_status {
+            network_status: NetworkStatus::try_from(
+                &service.get_network_status().map_err(format_error)?,
+            )
+            .map_err(format_error)?,
+        },
         JsonCommandRequest::get_wallet_status => JsonCommandResponse::get_wallet_status {
             wallet_status: WalletStatus::try_from(
                 &service.get_wallet_status().map_err(format_error)?,
