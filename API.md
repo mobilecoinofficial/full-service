@@ -1320,7 +1320,7 @@ curl -s localhost:9090/wallet \
 | :------------- | :----------------------- | :------------------------ |
 | `input_txo_ids` | Specific TXOs to use as inputs to this transaction   | TXO IDs (obtain from `get_all_txos_for_account`) |
 | `fee` | The fee amount to submit with this transaction | If not provided, uses `MINIMUM_FEE` = .01 MOB |
-| `tombstone_block` | The block after which this transaction expires | If not provided, uses `cur_height` + 50 |
+| `tombstone_block` | The block after which this transaction expires | If not provided, uses `cur_height` + 100 |
 | `max_spendable_value` | The maximum amount for an input TXO selected for this transaction |  |
 
 Note, as the tx_proposal json object is quite large, you may wish to write the result to a file for use in the submit_transaction call, such as:

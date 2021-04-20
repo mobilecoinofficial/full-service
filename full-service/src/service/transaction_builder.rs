@@ -30,7 +30,7 @@ use mc_mobilecoind::{
     UnspentTxOut,
 };
 use mc_transaction_core::{
-    constants::{MINIMUM_FEE, RING_SIZE},
+    constants::{MAX_TOMBSTONE_BLOCKS, MINIMUM_FEE, RING_SIZE},
     onetime_keys::recover_onetime_private_key,
     ring_signature::KeyImage,
     tx::{TxOut, TxOutMembershipProof},
@@ -41,11 +41,6 @@ use mc_util_uri::FogUri;
 use diesel::prelude::*;
 use rand::Rng;
 use std::{convert::TryFrom, str::FromStr, sync::Arc};
-
-/// Default number of blocks used for calculating transaction tombstone block
-/// number.
-// TODO support for making this configurable
-pub const DEFAULT_NEW_TX_BLOCK_ATTEMPTS: u64 = 50;
 
 /// A builder of transactions constructed from this wallet.
 pub struct WalletTransactionBuilder<FPR: FogPubkeyResolver + 'static> {
@@ -179,7 +174,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             tombstone
         } else {
             let num_blocks_in_ledger = self.ledger_db.num_blocks()?;
-            num_blocks_in_ledger + DEFAULT_NEW_TX_BLOCK_ATTEMPTS
+            num_blocks_in_ledger + MAX_TOMBSTONE_BLOCKS
         };
         self.tombstone = tombstone_block;
         Ok(())
