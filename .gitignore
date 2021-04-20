@@ -58,3 +58,9 @@ Cargo.lock
 consensus-enclave.css
 
 ingest-enclave.css
+
+testnet-dbs/wallet.db
+
+testnet-dbs/wallet.db-shm
+
+testnet-dbs/wallet.db-wal
