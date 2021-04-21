@@ -291,7 +291,8 @@ pub struct NewTransactionTxoType<'a> {
 pub struct GiftCode {
     pub id: i32,
     pub gift_code_b58: String,
-    pub entropy: Vec<u8>,
+    pub root_entropy: Option<Vec<u8>>,
+    pub bip39_entropy: Option<Vec<u8>>,
     pub txo_public_key: Vec<u8>,
     pub value: i64,
     pub memo: String,
@@ -303,7 +304,8 @@ pub struct GiftCode {
 #[table_name = "gift_codes"]
 pub struct NewGiftCode<'a> {
     pub gift_code_b58: &'a str,
-    pub entropy: &'a Vec<u8>,
+    pub root_entropy: Option<Vec<u8>>,
+    pub bip39_entropy: Option<Vec<u8>>,
     pub txo_public_key: &'a Vec<u8>,
     pub value: i64,
     pub memo: &'a str,
