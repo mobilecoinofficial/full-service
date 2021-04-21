@@ -235,7 +235,7 @@ impl APIConfig {
         transactions_fetcher: &ReqwestTransactionsFetcher,
     ) -> LedgerDB {
         // Attempt to open the ledger and see if it has anything in it.
-        if let Ok(ledger_db) = LedgerDB::open(self.ledger_db.clone()) {
+        if let Ok(ledger_db) = LedgerDB::open(&self.ledger_db) {
             if let Ok(num_blocks) = ledger_db.num_blocks() {
                 if num_blocks > 0 {
                     // Successfully opened a ledger that has blocks in it.
@@ -283,7 +283,7 @@ impl APIConfig {
             None => {
                 std::fs::create_dir_all(self.ledger_db.clone())
                     .expect("Could not create ledger dir");
-                LedgerDB::create(self.ledger_db.clone()).expect("Could not create ledger_db");
+                LedgerDB::create(&self.ledger_db).expect("Could not create ledger_db");
                 if !self.offline {
                     log::info!(
                         logger,
@@ -293,8 +293,7 @@ impl APIConfig {
                     let block_data = transactions_fetcher
                         .get_origin_block_and_transactions()
                         .expect("Failed to download initial transactions");
-                    let mut db =
-                        LedgerDB::open(self.ledger_db.clone()).expect("Could not open ledger_db");
+                    let mut db = LedgerDB::open(&self.ledger_db).expect("Could not open ledger_db");
                     db.append_block(
                         block_data.block(),
                         block_data.contents(),
@@ -308,7 +307,7 @@ impl APIConfig {
 
         // Open ledger and verify it has (at least) the origin block.
         log::debug!(logger, "Opening Ledger DB {:?}", self.ledger_db);
-        let ledger_db = LedgerDB::open(self.ledger_db.clone())
+        let ledger_db = LedgerDB::open(&self.ledger_db)
             .unwrap_or_else(|_| panic!("Could not open ledger db inside {:?}", self.ledger_db));
 
         let num_blocks = ledger_db
