@@ -254,8 +254,6 @@ curl -s localhost:9090/wallet \
 ```
 {% endhint %}
 
-
-
 ### `submit_transaction`
 
 Submit a transaction for an account with or without recording it in the transaction log.
@@ -440,6 +438,6 @@ curl -s localhost:9090/wallet \
 }
 ```
 
- Call `check_balance` for the account, and note the `synced_blocks` value. If that value is less than the `local_block_index` value, then your TXOs may not all be updated to their spent status.
+Call `check_balance` for the account, and note the `synced_blocks` value. If that value is less than the `local_block_index` value, then your TXOs may not all be updated to their spent status.
 {% endhint %}
 

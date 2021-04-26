@@ -32,7 +32,7 @@ The confirmation number can be delivered to the recipient to prove that they rec
 
 ### `get_confirmations`
 
- A TXO constructed by this wallet will contain a confirmation number, which can be shared with the recipient to verify the association between the sender and this TXO. When calling `get_confirmations` for a transaction, only the confirmation numbers for the `output_txo_ids` are returned.
+A TXO constructed by this wallet will contain a confirmation number, which can be shared with the recipient to verify the association between the sender and this TXO. When calling `get_confirmations` for a transaction, only the confirmation numbers for the `output_txo_ids` are returned.
 
 | Required Param | Purpose | Requirements |
 | :--- | :--- | :--- |

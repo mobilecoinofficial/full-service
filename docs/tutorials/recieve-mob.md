@@ -17,13 +17,11 @@ Security best practices dictate that your secret mnemonic should only exist in o
 
 ## Receive MOB
 
-To receive MOB, you must provide the sender with an account address. 
+To receive MOB, you must provide the sender with an account address.
 
-When you create an account, the API response includes a `main_address` that you can share to receive funds. The `main_address` is a subaddress at index 0. You must know which subaddress your MOB was sent to in order to spend it. Limiting the number of subaddresses makes it simpler to keep track of your funds. Using a single address for multiple transactions will anonymize the senders and there will not be a way to verify the amount sent by each sender. 
+When you create an account, the API response includes a `main_address` that you can share to receive funds. The `main_address` is a subaddress at index 0. You must know which subaddress your MOB was sent to in order to spend it. Limiting the number of subaddresses makes it simpler to keep track of your funds. Using a single address for multiple transactions will anonymize the senders and there will not be a way to verify the amount sent by each sender.
 
 In order to track who is sending what payments, you can create unique subaddresses to share with a particular sender and or a particular transaction.
 
 1. Generate a [subaddress](../accounts/address.md#assign_address_for_account).
-
-
 
