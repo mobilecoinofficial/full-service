@@ -9,13 +9,13 @@
 * [Address](accounts/address.md)
 * [Balance](accounts/balance.md)
 
-## Transactions <a id="transaction-1"></a>
+## Transactions
 
-* [Transaction](transaction-1/transaction.md)
-* [Transaction Output TXO](transaction-1/transaction-output-txo.md)
-* [Confirmation](transaction-1/confirmation.md)
-* [Receiver Receipt](transaction-1/receiver-receipt.md)
-* [Transaction Log](transaction-1/transaction-log.md)
+* [Transaction](transactions/transaction.md)
+* [Transaction Output TXO](transactions/txo.md)
+* [Confirmation](transactions/transaction-confirmation.md)
+* [Receiver Receipt](transactions/transaction-receipt.md)
+* [Transaction Log](transactions/transaction-log.md)
 
 ## Wallet
 
