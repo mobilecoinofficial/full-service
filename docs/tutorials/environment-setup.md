@@ -11,9 +11,8 @@ description: Set up your environment to run full service on Mac or Linux.
 
    * If you downloaded TestNet, run:
 
-   `RUST_LOG=info,mc_connection=info,mc_ledger_sync=info ./full-service \`
-
    ```text
+   RUST_LOG=info,mc_connection=info,mc_ledger_sync=info ./full-service \
        `--wallet-db ./testnet-dbs/wallet.db \`
 
        `--ledger-db ./testnet-dbs/ledger-db/ \`
@@ -31,9 +30,8 @@ description: Set up your environment to run full service on Mac or Linux.
 
    * If you downloaded MainNet, run:
 
-   `RUST_LOG=info,mc_connection=info,mc_ledger_sync=info ./full-service \`
-
    ```text
+     RUST_LOG=info,mc_connection=info,mc_ledger_sync=info ./full-service \
        `--wallet-db ./mainnet-dbs/wallet.db \`
 
        `--ledger-db ./mainnet-dbs/ledger-db/ \`
