@@ -16,6 +16,7 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 * [export_account_secrets](#export-account-secrets)
 * [get_all_txos_for_account](#get-all-txos-for-a-given-account)
 * [get_txo](#get-txo-details)
+* [get_network_status](#get-network-status)
 * [get_wallet_status](#get-wallet-status)
 * [get_balance_for_account](#get-balance-for-a-given-account)
 * [get_balance_for_address](#get-balance-for-a-given-address)
@@ -644,6 +645,32 @@ curl -s localhost:9090/wallet \
 | :------------- | :----------------------- | :------------------------ |
 | `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
 | `txo_id`   | The txo ID for which to get details  |  |
+
+#### Get Network Status
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "get_network_status",
+        "jsonrpc": "2.0",
+        "id": 1
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
+```
+
+```json
+{
+  "method": "get_wallet_status",
+  "result": {
+    "wallet_status": {
+      "local_block_index": "152918",
+      "network_block_index": "152918",
+    }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+}
 
 #### Get Wallet Status
 
@@ -2456,6 +2483,32 @@ The balance for an account, as well as some information about syncing status nee
 #### API Methods Returning Balance Objects
 
 * [get_balance_for_account](#get-balance-for-a-given-account)
+
+### The Network Status Object
+
+#### Attributes
+
+| *Name* | *Type* | *Description*
+| :--- | :--- | :---
+| object | string, value is "account" | String representing the object's type. Objects of the same type share the same value
+| network_block_index | string (uint64) | The block height of the MobileCoin ledger. The local_block_index is synced when it reaches the value.
+| local_block_index | string (uint64) | The local block height downloaded from the ledger. The local database will sync up to the network_block_index. The account_block_index can only sync up to local_block_index.
+
+#### Example Object
+
+```json
+{
+"wallet_status": {
+  "local_block_index": "152918",
+  "network_block_index": "152918",
+  "object": "wallet_status",
+}
+```
+
+#### API Methods Returning Network Status Objects
+
+* [get_network_status](#get-network-status)
+
 
 ### The Wallet Status Object
 
