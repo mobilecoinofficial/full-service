@@ -14,17 +14,11 @@ description: Set up your environment to run full service on Mac or Linux.
    ```text
    RUST_LOG=info,mc_connection=info,mc_ledger_sync=info ./full-service \
        --wallet-db ./testnet-dbs/wallet.db \
-
        --ledger-db ./testnet-dbs/ledger-db/ \
-
        --peer mc://node1.test.mobilecoin.com/ \
-
        --peer mc://node2.test.mobilecoin.com/ \
-
        --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
-
        --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
-
        --fog-ingest-enclave-css $(pwd)/ingest-enclave.css
    ```
 
@@ -33,17 +27,11 @@ description: Set up your environment to run full service on Mac or Linux.
    ```text
      RUST_LOG=info,mc_connection=info,mc_ledger_sync=info ./full-service \
        --wallet-db ./mainnet-dbs/wallet.db \
-
        --ledger-db ./mainnet-dbs/ledger-db/ \
-
        --peer mc://node1.prod.mobilecoinww.com/ \
-
        --peer mc://node2.prod.mobilecoinww.com/ \
-
        --tx-source-url https://ledger.mobilecoinww.com/node1.prod.mobilecoinww.com/ \
-
        --tx-source-url https://ledger.mobilecoinww.com/node2.prod.mobilecoinww.com/ \
-
        --fog-ingest-enclave-css $(pwd)/ingest-enclave.css
    ```
 
