@@ -13,6 +13,7 @@ use crate::{
         block::{Block, BlockContents},
         confirmation_number::Confirmation,
         gift_code::GiftCode,
+        network_status::NetworkStatus,
         receiver_receipt::ReceiverReceipt,
         transaction_log::TransactionLog,
         tx_proposal::TxProposal,
@@ -181,6 +182,9 @@ pub enum JsonCommandResponse {
     },
     get_all_transaction_logs_ordered_by_block {
         transaction_log_map: Map<String, serde_json::Value>,
+    },
+    get_network_status {
+        network_status: NetworkStatus,
     },
     get_wallet_status {
         wallet_status: WalletStatus,

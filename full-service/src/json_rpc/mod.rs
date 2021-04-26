@@ -13,6 +13,7 @@ mod confirmation_number;
 mod gift_code;
 pub mod json_rpc_request;
 pub mod json_rpc_response;
+mod network_status;
 mod receiver_receipt;
 mod transaction_log;
 mod tx_proposal;
