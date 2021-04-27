@@ -24,5 +24,5 @@ When you create an account, the API response includes a `main_address` that you 
 In order to track who is sending what payments, you can create unique subaddresses to share with a particular sender and or a particular transaction.
 
 1. Generate a [subaddress](../accounts/address.md#assign_address_for_account) to share with the sender.
-2. Check the [status of the subaddress](../wallet/wallet-status.md#get_wallet_status) to view the `total_unspent_pmob` that you received in the transaction.
+2. Check the [status of your account](../wallet/wallet-status.md#get_wallet_status) to view the `total_unspent_pmob` that you received in the transaction.
 
