@@ -22,9 +22,9 @@ description: >-
 ```text
 {
   "object": "account",
-  "account_id": "1916a9b3...",
+  "account_id": "gdc3fd37f1903aec5a12b12a580eb837e14f87e5936f92a0af4794219f00691d",
   "name": "I love MobileCoin",
-  "main_address": "4bgkVAH...",
+  "main_address": "8vbEtknX7zNtmN5epTYU95do3fDfsmecDu9kUbW66XGkKBX87n8AyqiiH9CMrueo5H7yiBEPXPoQHhEBLFHZJLcB2g7DZJ3tUZ9ArVgBu3a",
   "next_subaddress_index": "3",
   "first_block_index": "3500",
   "recovery_mode": false
