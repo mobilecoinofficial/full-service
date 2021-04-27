@@ -18,8 +18,11 @@ pub struct GiftCode {
     /// The base58-encoded gift code string to share.
     pub gift_code_b58: String,
 
-    /// The entropy for the account in this gift code.
-    pub entropy: String,
+    /// The root entropy for the account in this gift code.
+    pub root_entropy: String,
+
+    /// The root entropy for the account in this gift code.
+    pub bip39_entropy: String,
 
     /// The amount of MOB contained in the gift code account.
     pub value_pmob: String,
@@ -40,7 +43,16 @@ impl From<&db::models::GiftCode> for GiftCode {
         GiftCode {
             object: "gift_code".to_string(),
             gift_code_b58: src.gift_code_b58.clone(),
-            entropy: hex::encode(&src.entropy),
+            root_entropy: src
+                .root_entropy
+                .as_ref()
+                .map(hex::encode)
+                .unwrap_or_default(),
+            bip39_entropy: src
+                .bip39_entropy
+                .as_ref()
+                .map(hex::encode)
+                .unwrap_or_default(),
             value_pmob: src.value.to_string(),
             memo: src.memo.clone(),
             account_id: src.account_id_hex.to_string(),
