@@ -38,7 +38,7 @@ dependencies = [
 [[package]]
 name = "aes-gcm"
 version = "0.6.0"
-source = "git+https://github.com/xoloki/AEADs?rev=d1a8517d3dd867ed9c5794002add67992a42f6aa#d1a8517d3dd867ed9c5794002add67992a42f6aa"
+source = "git+https://github.com/mobilecoinofficial/AEADs?rev=d1a8517d3dd867ed9c5794002add67992a42f6aa#d1a8517d3dd867ed9c5794002add67992a42f6aa"
 dependencies = [
  "aead",
  "aes",
@@ -683,9 +683,8 @@ dependencies = [
 
 [[package]]
 name = "diesel"
-version = "1.4.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e2de9deab977a153492a1468d1b1c0662c1cf39e5ea87d0c060ecd59ef18d8c"
+version = "1.4.6"
+source = "git+https://github.com/eranrund/diesel?rev=25592f0383a1d1628db7d2db6c1fb02614a978c1#25592f0383a1d1628db7d2db6c1fb02614a978c1"
 dependencies = [
  "byteorder",
  "diesel_derives",
@@ -1582,10 +1581,11 @@ dependencies = [
 
 [[package]]
 name = "libsqlite3-sys"
-version = "0.18.0"
+version = "0.22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e704a02bcaecd4a08b93a23f6be59d0bd79cd161e0963e9499165a0a35df7bd"
+checksum = "19cb1effde5f834799ac5e5ef0e40d45027cd74f271b1de786ba8abb30e2164d"
 dependencies = [
+ "cc",
  "pkg-config",
  "vcpkg",
 ]
@@ -2210,6 +2210,7 @@ dependencies = [
  "dotenv",
  "grpcio",
  "hex",
+ "libsqlite3-sys",
  "mc-account-keys",
  "mc-account-keys-slip10",
  "mc-api",
