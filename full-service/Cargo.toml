@@ -40,13 +40,14 @@ mc-util-uri = { path = "../mobilecoin/util/uri" }
 
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
 crossbeam-channel = "0.4"
-diesel = { version = "1.4", features = ["sqlite"] }
+diesel = { version = "1.4.6", features = ["sqlite"] }
 diesel-derive-enum = { version = "1", features = ["sqlite"] }
 diesel_migrations = { version = "1.4.0", features = ["sqlite"] }
 displaydoc = {version = "0.1", default-features = false }
 dotenv = "0.15.0"
 grpcio = "0.6.0"
 hex = {version = "0.4", default-features = false }
+libsqlite3-sys = { version = ">=0.8.0, <=0.22.1", features = ["min_sqlite_version_3_7_16", "bundled"] }
 num_cpus = "1.12"
 prost = { version = "0.6.1", default-features = false, features = ["prost-derive"] }
 rand = { version = "0.7", default-features = false }
@@ -55,8 +56,8 @@ retry = "1.2"
 rocket = { version = "0.4.5", default-features = false }
 rocket_contrib = { version = "0.4.5", default-features = false, features = ["json", "diesel_sqlite_pool"] }
 serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }
-serde_json = { version = "1.0", features = ["preserve_order"] }
 serde_derive = "1.0"
+serde_json = { version = "1.0", features = ["preserve_order"] }
 structopt = "0.3"
 strum = { version = "0.20", features = ["derive"] }
 strum_macros = "0.20"
@@ -72,4 +73,4 @@ bs58 = "0.3.0"
 
 [build-dependencies]
 # clippy fails to run without this.
-diesel = { version = "1.4.5", features = ["sqlite"] }
+diesel = { version = "1.4.6", features = ["sqlite"] }

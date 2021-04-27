@@ -28,9 +28,12 @@ prost-derive = { git = "https://github.com/danburkert/prost", rev = "6113789f70b
 bulletproofs = { git = "https://github.com/eranrund/bulletproofs", rev = "e8e8ef45ecc6d31f1a9525140edc977351d0f780" }
 
 # We need to patch aes-gcm so we can make some fields/functions/structs pub in order to have a constant time decrypt
-aes-gcm = { git = "https://github.com/xoloki/AEADs", rev = "d1a8517d3dd867ed9c5794002add67992a42f6aa" }
+aes-gcm = { git = "https://github.com/mobilecoinofficial/AEADs", rev = "d1a8517d3dd867ed9c5794002add67992a42f6aa" }
 
 # grpcio patched with metadata
 grpcio = { git = "https://github.com/jcape/grpc-rs", rev = "2ad042e9e65ecb664a60e034d0a899a8760d81d3" }
 # Code gen patched with metadata
 grpcio-compiler = { git = "https://github.com/jcape/grpc-rs", rev = "2ad042e9e65ecb664a60e034d0a899a8760d81d3" }
+
+# Overridden in order to bump libsqlite3-sys. This allows us to statically link a more recent version of SQLite3.
+diesel = { git = "https://github.com/eranrund/diesel", rev = "25592f0383a1d1628db7d2db6c1fb02614a978c1" }
