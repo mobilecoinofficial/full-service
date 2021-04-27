@@ -23,8 +23,10 @@ use crate::{
         WalletService,
     },
 };
+use bip39::{Language, Mnemonic, MnemonicType};
 use displaydoc::Display;
 use mc_account_keys::{AccountKey, RootEntropy, RootIdentity, DEFAULT_SUBADDRESS_INDEX};
+use mc_account_keys_slip10::Slip10KeyGenerator;
 use mc_common::{logger::log, HashSet};
 use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
 use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
@@ -39,7 +41,6 @@ use mc_transaction_core::{
     tx::{Tx, TxOut},
 };
 use mc_transaction_std::{InputCredentials, TransactionBuilder};
-use mc_util_from_random::FromRandom;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, fmt, iter::empty, sync::atomic::Ordering};
@@ -128,6 +129,9 @@ pub enum GiftCodeServiceError {
 
     /// Error with Account Service
     AddressService(AddressServiceError),
+
+    /// Gift code does not contain a valid entropy
+    InvalidEntropy,
 }
 
 impl From<WalletDbError> for GiftCodeServiceError {
@@ -219,18 +223,11 @@ impl fmt::Display for EncodedGiftCode {
 
 /// The decoded details from the Gift Code.
 pub struct DecodedGiftCode {
-    root_entropy: RootEntropy,
+    root_entropy: Option<RootEntropy>,
+    bip39_entropy: Option<Vec<u8>>,
+    account_key: AccountKey,
     txo_public_key: CompressedRistrettoPublic,
     memo: String,
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub struct GiftCodeEntropy(pub String);
-
-impl fmt::Display for GiftCodeEntropy {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
 }
 
 /// Possible states for a Gift Code in relation to accounts in this wallet.
@@ -334,7 +331,7 @@ where
         tombstone_block: Option<u64>,
         max_spendable_value: Option<u64>,
     ) -> Result<(TxProposal, EncodedGiftCode), GiftCodeServiceError> {
-        // First we need to generate a new random root entropy. The way that gift codes
+        // First we need to generate a new random bip39 entropy. The way that gift codes
         // work currently is that the sender creates a middle_man account and
         // sends that account the amount of MOB desired, plus extra to cover the
         // receivers fee Then, that account and all of its secrets get encoded
@@ -345,9 +342,11 @@ where
         // main one. If there ever is any on a different subaddress, either
         // something went terribly wrong and we messed up, or someone is being
         // very dumb and using a gift account as a place to store their personal MOB.
-        let mut rng = rand::thread_rng();
-        let gift_code_root_entropy = RootEntropy::from_random(&mut rng);
-        let gift_code_account_key = AccountKey::from(&RootIdentity::from(&gift_code_root_entropy));
+        let mnemonic = Mnemonic::new(MnemonicType::Words24, Language::English);
+        let gift_code_bip39_entropy_bytes = mnemonic.entropy().to_vec();
+
+        let key = mnemonic.derive_slip10_key(0);
+        let gift_code_account_key = AccountKey::from(key);
 
         // We should never actually need this account to exist in the wallet_db, as we
         // will only ever be using it a single time at this instant with a
@@ -378,7 +377,7 @@ where
         let proto_tx_pubkey: mc_api::external::CompressedRistretto = (&txo_public_key).into();
 
         let mut gift_code_payload = mc_mobilecoind_api::printable::TransferPayload::new();
-        gift_code_payload.set_entropy(gift_code_root_entropy.bytes.to_vec());
+        gift_code_payload.set_bip39_entropy(gift_code_bip39_entropy_bytes.to_vec());
         gift_code_payload.set_tx_out_public_key(proto_tx_pubkey);
         gift_code_payload.set_memo(memo.unwrap_or_else(|| "".to_string()));
 
@@ -407,7 +406,8 @@ where
         // Save the gift code to the database before attempting to send it out.
         let gift_code = GiftCode::create(
             &gift_code_b58,
-            &decoded_gift_code.root_entropy,
+            decoded_gift_code.root_entropy.as_ref(),
+            decoded_gift_code.bip39_entropy.as_ref(),
             &decoded_gift_code.txo_public_key,
             value,
             &decoded_gift_code.memo,
@@ -445,8 +445,7 @@ where
         log::info!(self.logger, "encoded_gift_code: {:?}", gift_code_b58);
 
         let decoded_gift_code = self.decode_gift_code(gift_code_b58)?;
-        let gift_account_key =
-            AccountKey::from(&RootIdentity::from(&decoded_gift_code.root_entropy));
+        let gift_account_key = decoded_gift_code.account_key;
 
         log::info!(
             self.logger,
@@ -524,8 +523,7 @@ where
         let gift_value = gift_value.unwrap();
 
         let decoded_gift_code = self.decode_gift_code(&gift_code_b58)?;
-        let gift_account_key =
-            AccountKey::from(&RootIdentity::from(&decoded_gift_code.root_entropy));
+        let gift_account_key = decoded_gift_code.account_key;
 
         let default_subaddress = if assigned_subaddress_b58.is_some() {
             assigned_subaddress_b58.ok_or(GiftCodeServiceError::AccountNotFound)
@@ -643,15 +641,63 @@ where
             mc_mobilecoind_api::printable::PrintableWrapper::b58_decode(gift_code_b58.to_string())?;
         let transfer_payload = wrapper.get_transfer_payload();
 
-        let mut entropy = [0u8; 32];
-        entropy.copy_from_slice(transfer_payload.get_entropy());
-        let root_entropy = RootEntropy::from(&entropy);
+        // Must have one type of entropy.
+        if transfer_payload.get_root_entropy().is_empty()
+            && transfer_payload.get_bip39_entropy().is_empty()
+        {
+            return Err(GiftCodeServiceError::InvalidEntropy);
+        }
+
+        // Only allow one type of entropy.
+        if !transfer_payload.get_root_entropy().is_empty()
+            && !transfer_payload.get_bip39_entropy().is_empty()
+        {
+            return Err(GiftCodeServiceError::InvalidEntropy);
+        }
+
+        // This will hold the account key.
+        let mut account_key = None;
+
+        // If we were provided with bip39 entropy, ensure it can be converted into a
+        // mnemonic.
+        let mut bip39_entropy = None;
+        if !transfer_payload.get_bip39_entropy().is_empty() {
+            match Mnemonic::from_entropy(transfer_payload.get_bip39_entropy(), Language::English) {
+                Err(_) => {
+                    return Err(GiftCodeServiceError::InvalidEntropy);
+                }
+                Ok(mnemonic) => {
+                    bip39_entropy = Some(transfer_payload.get_bip39_entropy().to_vec());
+
+                    let key = mnemonic.derive_slip10_key(0);
+                    account_key = Some(AccountKey::from(key));
+                }
+            };
+        }
+
+        // If we were provided with root entropy, ensure it is 32 bytes long.
+        let mut root_entropy = None;
+        if !transfer_payload.get_root_entropy().is_empty() {
+            if transfer_payload.get_root_entropy().len() != 32 {
+                return Err(GiftCodeServiceError::InvalidEntropy);
+            }
+
+            let mut entropy = [0u8; 32];
+            entropy.copy_from_slice(transfer_payload.get_root_entropy());
+            root_entropy = Some(RootEntropy::from(&entropy));
+
+            account_key = Some(AccountKey::from(&RootIdentity::from(&RootEntropy::from(
+                &entropy,
+            ))));
+        }
 
         let txo_public_key =
             CompressedRistrettoPublic::try_from(transfer_payload.get_tx_out_public_key())?;
 
         Ok(DecodedGiftCode {
             root_entropy,
+            bip39_entropy,
+            account_key: account_key.unwrap(), /* guaranteed to succeed because the code above either manages to set it or returns an error. */
             txo_public_key,
             memo: transfer_payload.get_memo().to_string(),
         })
@@ -774,7 +820,7 @@ mod tests {
         let decoded = service
             .decode_gift_code(&gift_code_b58)
             .expect("Could not decode gift code");
-        let gift_code_account_key = AccountKey::from(&RootIdentity::from(&decoded.root_entropy));
+        let gift_code_account_key = decoded.account_key;
 
         // Get the tx_out from the ledger and check that it matches expectations
         log::info!(logger, "Retrieving gift code Txo from ledger");
