@@ -38,7 +38,7 @@ dependencies = [
 [[package]]
 name = "aes-gcm"
 version = "0.6.0"
-source = "git+https://github.com/xoloki/AEADs?rev=d1a8517d3dd867ed9c5794002add67992a42f6aa#d1a8517d3dd867ed9c5794002add67992a42f6aa"
+source = "git+https://github.com/mobilecoinofficial/AEADs?rev=d1a8517d3dd867ed9c5794002add67992a42f6aa#d1a8517d3dd867ed9c5794002add67992a42f6aa"
 dependencies = [
  "aead",
  "aes",
