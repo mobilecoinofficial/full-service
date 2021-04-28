@@ -66,6 +66,14 @@ pub trait AssignedSubaddressModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<AssignedSubaddress, WalletDbError>;
 
+    /// Get the Assigned Subaddress for a given index in an account, if it
+    /// exists
+    fn get_for_account_by_index(
+        account_id_hex: &str,
+        index: i64,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<AssignedSubaddress, WalletDbError>;
+
     /// Find an AssignedSubaddress by the subaddress spend public key
     ///
     /// Returns:
@@ -246,6 +254,29 @@ impl AssignedSubaddressModel for AssignedSubaddress {
                 return Err(e.into());
             }
         };
+        Ok(assigned_subaddress)
+    }
+
+    fn get_for_account_by_index(
+        account_id_hex: &str,
+        index: i64,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<AssignedSubaddress, WalletDbError> {
+        use crate::db::schema::assigned_subaddresses::dsl::{
+            account_id_hex as dsl_account_id_hex, assigned_subaddresses, subaddress_index,
+        };
+
+        let assigned_subaddress: AssignedSubaddress = match assigned_subaddresses
+            .filter(dsl_account_id_hex.eq(account_id_hex))
+            .filter(subaddress_index.eq(index))
+            .get_result::<AssignedSubaddress>(conn)
+        {
+            Ok(t) => t,
+            Err(e) => {
+                return Err(e.into());
+            }
+        };
+
         Ok(assigned_subaddress)
     }
 

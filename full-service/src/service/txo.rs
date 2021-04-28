@@ -5,10 +5,13 @@
 use crate::{
     db::{
         account::AccountID,
-        models::Txo,
+        assigned_subaddress::AssignedSubaddressModel,
+        models::{AssignedSubaddress, TransactionLog, Txo, TXO_STATUS_UNSPENT},
+        transaction_log::AssociatedTxos,
         txo::{TxoDetails, TxoID, TxoModel},
         WalletDbError,
     },
+    service::transaction::{TransactionService, TransactionServiceError},
     WalletService,
 };
 use displaydoc::Display;
@@ -27,6 +30,15 @@ pub enum TxoServiceError {
 
     /// Minted Txo should contain confirmation: {0}
     MissingConfirmation(String),
+
+    /// Error with the Transaction Service: {0}
+    TransactionService(TransactionServiceError),
+
+    /// No account found to spend this txo
+    TxoNotSpendableByAnyAccount(String),
+
+    /// Txo Not Spendable
+    TxoNotSpendable(String),
 }
 
 impl From<WalletDbError> for TxoServiceError {
@@ -38,6 +50,12 @@ impl From<WalletDbError> for TxoServiceError {
 impl From<diesel::result::Error> for TxoServiceError {
     fn from(src: diesel::result::Error) -> Self {
         Self::Diesel(src)
+    }
+}
+
+impl From<TransactionServiceError> for TxoServiceError {
+    fn from(src: TransactionServiceError) -> Self {
+        Self::TransactionService(src)
     }
 }
 
@@ -54,6 +72,16 @@ pub trait TxoService {
 
     /// Get a Txo from the wallet.
     fn get_txo(&self, txo_id: &TxoID) -> Result<TxoDetails, TxoServiceError>;
+
+    /// Split a Txo
+    fn split_txo(
+        &self,
+        txo_id: &TxoID,
+        output_values: &[String],
+        subaddress_index: Option<i64>,
+        fee: Option<String>,
+        tombstone_block: Option<String>,
+    ) -> Result<(TransactionLog, AssociatedTxos), TxoServiceError>;
 
     /// List the Txos for a given address for an account in the wallet.
     fn get_all_txos_for_address(&self, address: &str) -> Result<Vec<TxoDetails>, TxoServiceError>;
@@ -84,6 +112,57 @@ where
         let conn = self.wallet_db.get_conn()?;
 
         Ok(Txo::get(&txo_id.to_string(), &conn)?)
+    }
+
+    fn split_txo(
+        &self,
+        txo_id: &TxoID,
+        output_values: &[String],
+        subaddress_index: Option<i64>,
+        fee: Option<String>,
+        tombstone_block: Option<String>,
+    ) -> Result<(TransactionLog, AssociatedTxos), TxoServiceError> {
+        use crate::service::txo::TxoServiceError::{TxoNotSpendable, TxoNotSpendableByAnyAccount};
+
+        let conn = self.wallet_db.get_conn()?;
+        let txo_details = Txo::get(&txo_id.to_string(), &conn)?;
+
+        let received_to_account_txo_status = match txo_details.received_to_account {
+            Some(account_status) => Ok(account_status),
+            None => Err(TxoNotSpendableByAnyAccount(txo_details.txo.txo_id_hex)),
+        }?;
+
+        let account_id_hex = match received_to_account_txo_status.txo_status.as_str() {
+            TXO_STATUS_UNSPENT => Ok(received_to_account_txo_status.account_id_hex),
+            _ => Err(TxoNotSpendable(received_to_account_txo_status.txo_status)),
+        }?;
+
+        let address_to_split_into: AssignedSubaddress =
+            AssignedSubaddress::get_for_account_by_index(
+                &account_id_hex,
+                subaddress_index.unwrap_or(0),
+                &conn,
+            )?;
+
+        let mut addresses_and_values = Vec::new();
+        for output_value in output_values.iter() {
+            addresses_and_values.push((
+                address_to_split_into.assigned_subaddress_b58.clone(),
+                output_value.to_string(),
+            ))
+        }
+
+        let (transaction_log, associated_txos) = self.build_and_submit(
+            &account_id_hex,
+            &addresses_and_values,
+            Some(&[txo_id.to_string()].to_vec()),
+            fee,
+            tombstone_block,
+            None,
+            Some("Split TXO".to_string()),
+        )?;
+
+        Ok((transaction_log, associated_txos))
     }
 
     fn get_all_txos_for_address(&self, address: &str) -> Result<Vec<TxoDetails>, TxoServiceError> {

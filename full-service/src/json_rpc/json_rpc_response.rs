@@ -213,6 +213,9 @@ pub enum JsonCommandResponse {
     get_txo {
         txo: Txo,
     },
+    split_txo {
+        transaction_log: TransactionLog,
+    },
     get_all_txos_for_address {
         txo_ids: Vec<String>,
         txo_map: Map<String, serde_json::Value>,

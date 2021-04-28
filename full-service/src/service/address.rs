@@ -58,6 +58,12 @@ pub trait AddressService {
         limit: Option<i64>,
     ) -> Result<Vec<AssignedSubaddress>, AddressServiceError>;
 
+    fn get_address_for_account(
+        &self,
+        account_id: &AccountID,
+        index: i64,
+    ) -> Result<AssignedSubaddress, AddressServiceError>;
+
     /// Verifies whether an address can be decoded from b58.
     fn verify_address(&self, public_address: &str) -> Result<bool, AddressServiceError>;
 }
@@ -98,6 +104,18 @@ where
             &account_id.to_string(),
             offset,
             limit,
+            &self.wallet_db.get_conn()?,
+        )?)
+    }
+
+    fn get_address_for_account(
+        &self,
+        account_id: &AccountID,
+        index: i64,
+    ) -> Result<AssignedSubaddress, AddressServiceError> {
+        Ok(AssignedSubaddress::get_for_account_by_index(
+            &account_id.to_string(),
+            index,
             &self.wallet_db.get_conn()?,
         )?)
     }

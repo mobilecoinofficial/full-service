@@ -58,3 +58,11 @@ Cargo.lock
 consensus-enclave.css
 
 ingest-enclave.css
+
+*.db
+
+*.db-shm
+
+*.db-wal
+
+*.mdb

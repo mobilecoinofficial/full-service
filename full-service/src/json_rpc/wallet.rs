@@ -590,6 +590,32 @@ where
                 txo: Txo::from(&result),
             }
         }
+        JsonCommandRequest::split_txo {
+            txo_id,
+            output_values,
+            subaddress_index,
+            fee,
+            tombstone_block,
+        } => {
+            let (transaction_log, associated_txos) = service
+                .split_txo(
+                    &TxoID(txo_id),
+                    &output_values,
+                    subaddress_index
+                        .map(|f| f.parse::<i64>())
+                        .transpose()
+                        .map_err(format_error)?,
+                    fee,
+                    tombstone_block,
+                )
+                .map_err(format_error)?;
+            JsonCommandResponse::split_txo {
+                transaction_log: json_rpc::transaction_log::TransactionLog::new(
+                    &transaction_log,
+                    &associated_txos,
+                ),
+            }
+        }
         JsonCommandRequest::get_all_txos_for_address { address } => {
             let txos = service
                 .get_all_txos_for_address(&address)
