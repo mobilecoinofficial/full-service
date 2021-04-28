@@ -1,21 +1,20 @@
 ---
 description: >-
-  An account in the wallet. An account is associated with one AccountKey,
-  containing a View keypair and a Spend keypair.
+  每个钱包里的账户都包括一个 AccountKey 密钥，由 View 密钥对和 Spend 密钥对构成。
 ---
 
-# Account
+# 账户
 
-## Attributes
+## 属性
 
-| Name | Type | Description |
+| 属性 | 类型 | 说明 |
 | :--- | :--- | :--- |
-| `object` | string, value is "account" | String representing the object's type. Objects of the same type share the same value. |
-| `account_id` | string | The unique identifier for the account. |
-| `name` | string | The display name for the account. |
-| `main_address` | string | The b58 address code for the account's main address. The main address is determined by the seed subaddress. It is not assigned to a single recipient and should be considered a free-for-all address. |
-| `next_subaddress_index` | string \(uint64\) | This index represents the next subaddress to be assigned as an address. This is useful information in case the account is imported elsewhere. |
-| `recovery_mode` | boolean | A flag that indicates this imported account is attempting to un-orphan found TXOs. It is recommended to move all MOB to another account after recovery if the user is unsure of the assigned addresses. |
+| `object` | 字符串，固定为 "account" | 用于表示对象类型。同类型的对象的 `object` 属性必定一致。 |
+| `account_id` | 字符串 | 账户的唯一 ID。 |
+| `name` | 字符串 | 用于显示的账户名。 |
+| `main_address` | 字符串 | 账户主地址的 B58 编码。 The main address is determined by the seed subaddress. It is not assigned to a single recipient and should be considered a free-for-all address. |
+| `next_subaddress_index` | 字符串 \(uint64\) | This index represents the next subaddress to be assigned as an address. This is useful information in case the account is imported elsewhere. |
+| `recovery_mode` | 布尔型 | A flag that indicates this imported account is attempting to un-orphan found TXOs. It is recommended to move all MOB to another account after recovery if the user is unsure of the assigned addresses. |
 
 ## Parameters
 

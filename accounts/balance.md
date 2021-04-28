@@ -2,24 +2,25 @@
 description: >-
   The balance of an account, which includes additional information about the
   syncing status needed to interpret the balance correctly.
+  账户的余额，包括用于正确解读账户余额的同步状态信息。
 ---
 
-# Balance
+# 余额
 
-## Attributes
+## 属性
 
-| Name | Type | Description |
+| 属性 | 类型 | 说明 |
 | :--- | :--- | :--- |
-| `object` | string, value is "balance" | String representing the object's type. Objects of the same type share the same value. |
-| `network_block_index` | string \(uint64\) | The block height of MobileCoin's distributed ledger. The `local_block_index` is synced when it reaches the `network_block_index`. |
-| `local_block_index` | string \(uint64\) | The local block height downloaded from the ledger. The local database will sync up to the `network_block_index`. The `account_block_index` can only sync up to `local_block_index`. |
-| `account_block_index` | string \(uint64\) | The scanned local block height for this account. This value will never be greater than the `local_block_index`. At fully synced, it will match `network_block_index`. |
-| `is_synced` | boolean | Whether the account is synced with the `network_block_index`. Balances may not appear correct if the account is still syncing. |
-| `unspent_pmob` | string \(uint64\) | Unspent pico MOB for this account at the current `account_block_index`. If the account is syncing, this value may change. |
-| `pending_pmob` | string \(uint64\) | Pending, out-going pico MOB. The pending value will clear once the ledger processes the outgoing TXOs. The `pending_pmob` will reflect the change. |
-| `spent_pmob` | string \(uint64\) | Spent pico MOB. This is the sum of all the TXOs in the wallet which have been spent. |
-| `secreted_pmob` | string \(uint64\) | Secreted \(minted\) pico MOB. This is the sum of all the TXOs which have been created in the wallet for outgoing transactions. |
-| `orphaned_pmob` | string \(uint64\) | Orphaned pico MOB. The orphaned value represents the TXOs which were view-key matched, but which can not be spent until their subaddress index is recovered. |
+| `object` | 字符串，固定为 "balance" | 用于表示对象类型。同类型的对象的 `object` 属性必定一致。 |
+| `network_block_index` | 字符串 \(uint64\) | MobileCoin 的分布式账簿的区块高度。 当 `local_block_index` 和 `network_block_index` 相等时则说明本地状态已经完成同步。 |
+| `local_block_index` | 字符串 \(uint64\) | 已下载到本地的区块高度。本地数据库会同步到 `network_block_index` 的高度. 而 `account_block_index` 只会同步到 `local_block_index` 的高度。 |
+| `account_block_index` | 字符串 \(uint64\) | 已扫描的关于当前账户的本地区块高度。这个值将永远小于等于 `local_block_index`。当完全同步后，这个值将会等于 `network_block_index` 的高度。 |
+| `is_synced` | 布尔型 | Whether the account is synced with the `network_block_index`. Balances may not appear correct if the account is still syncing. |
+| `unspent_pmob` | 字符串 \(uint64\) | Unspent pico MOB for this account at the current `account_block_index`. If the account is syncing, this value may change. |
+| `pending_pmob` | 字符串 \(uint64\) | Pending, out-going pico MOB. The pending value will clear once the ledger processes the outgoing TXOs. The `pending_pmob` will reflect the change. |
+| `spent_pmob` | 字符串 \(uint64\) | Spent pico MOB. This is the sum of all the TXOs in the wallet which have been spent. |
+| `secreted_pmob` | 字符串 \(uint64\) | Secreted \(minted\) pico MOB. This is the sum of all the TXOs which have been created in the wallet for outgoing transactions. |
+| `orphaned_pmob` | 字符串 \(uint64\) | Orphaned pico MOB. The orphaned value represents the TXOs which were view-key matched, but which can not be spent until their subaddress index is recovered. |
 
 ## Parameters
 

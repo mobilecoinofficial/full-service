@@ -3,9 +3,11 @@ description: >-
   An Address is a public address created from the Account Key. An Address
   contains a public View key and a public Spend key, as well as optional Fog
   materials, if the account is enabled for mobile.
+  账户地址是由账户密钥（Account Key）生成的。一个账户地址包括一个公开的查看（View）密钥和一个公开的消费（Spend）密钥。
+  如果该账户启用了移动端功能，账户地址还会包含一个雾（Fog）materials???。
 ---
 
-# Address
+# 账户地址
 
 Addresses in the Full-service Wallet are useful to help distinguish incoming transactions from each other. Due to MobileCoin's privacy properties, without using "subaddresses," the wallet would be unable to disambiguate which transactions were from which sender. By creating a new address for each contact, and sharing the address with only that contact, you can be certain that when you receive funds at that address, it is from the assigned contact.
 
