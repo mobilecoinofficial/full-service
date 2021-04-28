@@ -162,6 +162,10 @@ curl -s localhost:9090/wallet \
 
 ### `get_transaction_log`
 
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `transaction_log_id` | The transaction log ID to get. | Transaction log must exist in the wallet |
+
 {% tabs %}
 {% tab title="get\_transaction\_log" %}
 ```text
@@ -216,13 +220,13 @@ curl -s localhost:9090/wallet \
 {% endtab %}
 {% endtabs %}
 
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `transaction_log_id` | The transaction log ID to get. | Transaction log must exist in the wallet |
-
 ### `get_all_transaction_logs_for_account`
 
 Get all transaction logs for a given account.
+
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `account_id` | String | The unique identifier for the account. |
 
 {% tabs %}
 {% tab title="get\_all\_transaction\_logs\_for\_account" %}
@@ -312,10 +316,6 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 {% endtabs %}
-
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `account_id` | String | The unique identifier for the account. |
 
 ### `get_all_transaction_logs_for_block`
 

@@ -8,7 +8,7 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 
 * [create_account](#create-account)
 * [import_account](#import-account)
-* [import_account_from_legacy_root_entropy](#import-legacy-account-deprecated)
+* [import_account_from_legacy_root_entropy](#deprecated-import-legacy-account)
 * [get_all_accounts](#get-all-accounts)
 * [get_account](#get-account)
 * [update_account_name](#update-account-name)
@@ -157,7 +157,7 @@ curl -s localhost:9090/wallet \
 | `first_block_index`  | The block from which to start scanning the ledger |  |
 | `next_subaddress_index`  | The next known unused subaddress index for the account |  |
 
-#### Import Legacy Account - Deprecated
+#### Deprecated: Import Legacy Account
 
 Import an existing account from the secret entropy. - Deprecated
 

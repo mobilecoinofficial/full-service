@@ -5,7 +5,7 @@
 ## 账户
 
 * [账户](accounts/untitled.md)
-* [账户机密](accounts/account-secrets.md)
+* [账户凭据（Secrets）](accounts/account-secrets.md)
 * [账户地址](accounts/address.md)
 * [余额](accounts/balance.md)
 

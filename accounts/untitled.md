@@ -12,21 +12,9 @@ description: >-
 | `object` | 字符串，固定为 "account" | 用于表示对象类型。同类型的对象的 `object` 属性必定一致。 |
 | `account_id` | 字符串 | 账户的唯一 ID。 |
 | `name` | 字符串 | 用于显示的账户名。 |
-| `main_address` | 字符串 | 账户主地址的 B58 编码。 The main address is determined by the seed subaddress. It is not assigned to a single recipient and should be considered a free-for-all address. |
-| `next_subaddress_index` | 字符串 \(uint64\) | This index represents the next subaddress to be assigned as an address. This is useful information in case the account is imported elsewhere. |
-| `recovery_mode` | 布尔型 | A flag that indicates this imported account is attempting to un-orphan found TXOs. It is recommended to move all MOB to another account after recovery if the user is unsure of the assigned addresses. |
-
-## Parameters
-
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `entropy` | The secret root entropy. | 32 bytes of randomness, hex-encoded. |
-
-| Optional Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `name` | A label for this account. | A label can have duplicates, but it is not recommended. |
-| `next_subaddress_index` | The next known unused subaddress index for the account. |  |
-| `first_block_index` | The block from which to start scanning the ledger. |  |
+| `main_address` | string | The b58 address code for the account's main address. The main address is determined by the seed subaddress. It is not assigned to a single recipient and should be considered a free-for-all address. |
+| `next_subaddress_index` | string \(uint64\) | This index represents the next subaddress to be assigned as an address. This is useful information in case the account is imported elsewhere. |
+| `recovery_mode` | boolean | A flag that indicates this imported account is attempting to un-orphan found TXOs. It is recommended to move all MOB to another account after recovery if the user is unsure of the assigned addresses. |
 
 ## Example
 
@@ -47,6 +35,16 @@ description: >-
 ### `create_account`
 
 Create a new account in the wallet.
+
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `entropy` | The secret root entropy. | 32 bytes of randomness, hex-encoded. |
+
+| Optional Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `name` | A label for this account. | A label can have duplicates, but it is not recommended. |
+| `next_subaddress_index` | The next known unused subaddress index for the account. |  |
+| `first_block_index` | The block from which to start scanning the ledger. |  |
 
 {% tabs %}
 {% tab title="create\_account" %}

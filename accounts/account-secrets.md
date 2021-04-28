@@ -5,19 +5,17 @@ description: >-
   cryptographically sensitive information.
 ---
 
-# Account Secrets
+# 账户凭据（Secrects） 
 
-## Attributes
+## 属性
 
-| Name | Type | Description |
+| 属性 | 类型 | 说明 |
 | :--- | :--- | :--- |
-| `object` | string, value is "account\_secrets" | String representing the object's type. Objects of the same type share the same value. |
+| `object` | 字符串 "account\_secrets" | String representing the object's type. Objects of the same type share the same value. |
 | `account_id` | string | The unique identifier for the account. |
 | `mnemonic` | string | A BIP39-encoded mnemonic phrase used to generate the account key. |
 | `key_derivation_version` | string \(uint64\) | The version number of the key derivation path used to generate the account key from the mnemonic. |
 | `account_key` | account\_key | The view and spend keys used to transact on the MobileCoin network. Also may contain keys to connect to the Fog ledger scanning service. |
-
-## Parameters
 
 ## Example
 
@@ -89,7 +87,6 @@ curl -s localhost:9090/wallet \
 
 #### Outputs
 
-If the account was generated using version 1 of the key derivation, entropy will be provided as a hex encoded string.
+If the account was generated using version 1 of the key derivation, entropy will be provided as a hex-encoded string.
 
 If the account was generated using version 2 of the key derivation, mnemonic will be provided as a 24-word mnemonic string.
-
