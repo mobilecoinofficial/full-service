@@ -11,7 +11,7 @@ description: >-
 
 | 属性 | 类型 | 说明 |
 | :--- | :--- | :--- |
-| `object` | 字符串 "account\_secrets" | String representing the object's type. Objects of the same type share the same value. |
+| `object` | 字符串，固定为 "account\_secrets" | String representing the object's type. Objects of the same type share the same value. |
 | `account_id` | string | The unique identifier for the account. |
 | `mnemonic` | string | A BIP39-encoded mnemonic phrase used to generate the account key. |
 | `key_derivation_version` | string \(uint64\) | The version number of the key derivation path used to generate the account key from the mnemonic. |
