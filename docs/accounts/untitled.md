@@ -48,18 +48,16 @@ Create a new account in the wallet.
 | `first_block_index` | The block from which to start scanning the ledger. |  |
 
 {% tabs %}
-{% tab title="create\_account" %}
+{% tab title="body" %}
 ```text
-curl -s localhost:9090/wallet \
-  -d '{
-        "method": "create_account",
-        "params": {
-          "name": "Alice"
-        },
-        "jsonrpc": "2.0",
-        "id": 1
-      }' \
-  -X POST -H 'Content-type: application/json' | jq
+{
+  "method": "create_account",
+  "params": {
+    "name": "Alice"
+  },
+  "jsonrpc": "2.0",
+  "id": 1
+}
 ```
 {% endtab %}
 
