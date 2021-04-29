@@ -48,7 +48,7 @@ Create a new account in the wallet.
 | `first_block_index` | The block from which to start scanning the ledger. |  |
 
 {% tabs %}
-{% tab title="body" %}
+{% tab title="request body params" %}
 ```text
 {
   "method": "create_account",
@@ -61,7 +61,7 @@ Create a new account in the wallet.
 ```
 {% endtab %}
 
-{% tab title="return" %}
+{% tab title="response" %}
 ```text
 {
   "method": "create_account",
