@@ -5,6 +5,7 @@
 ## Accounts
 
 * [Account](accounts/untitled.md)
+    * [Create Account](accounts/untitled.md)
 * [Account Secrets](accounts/account-secrets.md)
 * [Address](accounts/address.md)
 * [Balance](accounts/balance.md)
