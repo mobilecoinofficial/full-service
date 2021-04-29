@@ -10,7 +10,7 @@ description: >-
 
 | _Name_ | _Type_ | _Description_ |
 | :--- | :--- | :--- |
-| `object` | string, value is "block" | String representing the object's type. Objects of the same type share the same value. |
+| `object` | String, value is "block" | String representing the object's type. Objects of the same type share the same value. |
 | `block` | JSON object | Contains the block header information for the block |
 | `block_contents` | JSON object | Contains the key\_images and TXOs \(outputs\) for the block. |
 
@@ -21,7 +21,7 @@ description: >-
 Get the JSON representation of the "Block" object in the ledger.
 
 {% tabs %}
-{% tab title="get\_block\_object" %}
+{% tab title="Body Request" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -36,7 +36,7 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 
-{% tab title="return" %}
+{% tab title="Response" %}
 ```text
 {
   "method": "get_block",
