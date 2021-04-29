@@ -22,6 +22,29 @@ description: >-
 * \`\`[`verify_address`](accounts/address.md#verify_address)\`\`
 * \`\`[`get_balance_for_account`](accounts/balance.md#get_balance_for_account)\`\`
 * \`\`[`get_balance_for_address`](accounts/balance.md#get_balance_for_address)\`\`
+* \`\`[`build_transaction`](transactions/transaction.md#build_transaction)\`\`
+* \`\`[`submit_transaction`](transactions/transaction.md#submit_transaction)\`\`
+* \`\`[`build_and_submit_transaction`](transactions/transaction.md#build_and_submit_transaction)\`\`
+* \`\`[`get_txo_object`](transactions/txo.md#get_txo_object)\`\`
+* \`\`[`get_txo`](transactions/txo.md#get_txo)\`\`
+* \`\`[`get_all_txos_for_account`](transactions/txo.md#get_all_txos_for_account)\`\`
+* \`\`[`get_confirmations`](transactions/transaction-confirmation.md#get_confirmations)\`\`
+* \`\`[`validate_confirmation`](transactions/transaction-confirmation.md#validate_confirmation)\`\`
+* \`\`[`check_receiver_receipt_status`](transactions/transaction-receipt.md#check_receiver_receipt_status)\`\`
+* \`\`[`create_receiver_receipts`](transactions/transaction-receipt.md#create_receiver_receipts)\`\`
+* \`\`[`get_transaction_object`](transactions/transaction-log.md#get_transaction_object)\`\`
+* \`\`[`get_transaction_log`](transactions/transaction-log.md#get_transaction_log)\`\`
+* \`\`[`get_all_transaction_logs-for_account`](transactions/transaction-log.md#get_all_transaction_logs_for_account)\`\`
+* \`\`[`get_all_transaction_logs_for_block`](transactions/transaction-log.md#get_all_transaction_logs_for_block)\`\`
+* \`\`[`get_all_tranacation_logs_ordered_by_block`](transactions/transaction-log.md#get_all_transaction_logs_ordered_by_block)\`\`
+* \`\`[`get_wallet_status`](wallet/wallet-status.md#get_wallet_status)\`\`
+* \`\`[`get_block_object`](ledger/block.md#get_block_object)\`\`
+* \`\`[`build_gift_code`](gift-code.md#build_gift_code)\`\`
+* \`\`[`submit_gift_code`](gift-code.md#submit_gift_code)\`\`
+* \`\`[`get_gift_code`](gift-code.md#get_gift_code)\`\`
+* \`\`[`check_gift_code_status`](gift-code.md#check_gift_code_status)\`\`
+* \`\`[`claim_gift_code`](gift-code.md#claim_gift_code)\`\`
+* \`\`[`remove_gift_code`](gift-code.md#remove_gift_code)\`\`
 
 ### 
 

@@ -37,7 +37,7 @@ In order to track who is sending what payments, you can create unique subaddress
 ### Send MOB
 
 1. Review your initial balance of your account by calling [`get_balance_for_account`](../accounts/balance.md#get_balance_for_account) with your `account_id`.
-2. Since you are running a test that doesn't require you to review the tx\_proposal before submitting it to the ledger, call the convenience method [`build_and_submit_transaction`](../transactions/transaction.md#build_and_submit_transaction) to send MOB to a public address. The public address can be someone else's, or for testing purposes, you can use the subaddress that you created in the [Receive MOB](recieve-mob.md#receive-mob) section of the tutorial.
+2. Since you are running a test that doesn't require you to review the tx\_proposal before submitting it to the ledger, call the convenience method [`build_and_submit_transaction`](../transactions/transaction.md#build_and_submit_transaction) to send MOB to a public address.
 3. Verify whether the transaction was successful by calling the [`get_balance_for_account`](../accounts/balance.md#get_balance_for_account) endpoint again to compare the balance in your account before and after the transaction.
    *  If you sent MOB to your own account, subtract the unspent MOB transaction fee from your initial balance. 
    * If you sent MOB to someone else, subtract the unspent MOB transaction fee and the amount sent from your initial balance. 
