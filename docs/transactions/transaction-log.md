@@ -13,26 +13,26 @@ Due to the privacy properties of the MobileCoin ledger, transactions are ephemer
 
 | _Name_ | _Type_ | _Description_ |
 | :--- | :--- | :--- |
-| `object` | string, value is "transaction\_log" | String representing the object's type. Objects of the same type share the same value. |
-| `transaction_log_id` | integer | Unique identifier for the transaction log. This value is not associated to the ledger. |
-| `direction` | string | A string that identifies if this transaction log was sent or received. Valid values are "sent" or "received". |
-| `is_sent_recovered` | boolean | Flag that indicates if the sent transaction log was recovered from the ledger. This value is null for "received" transaction logs. If true, some information may not be available on the transaction log and its TXOs without user input. If true, the fee `receipient_address_id`, fee, and `sent_time` will be null without user input. |
-| `account_id` | string | Unique identifier for the assigned associated account. If the transaction is outgoing, this account is from whence the TXO came. If received, this is the receiving account. |
-| `recipient_address_id` | string | Unique identifier for the recipient associated account. Only available if direction is "sent". |
-| `assigned_address_id` | string | Unique identifier for the assigned associated account. Only available if direction is "received". |
-| `value_pmob` | string \(uint64\) | Value in pico MOB associated to this transaction log. |
-| `fee_pmob` | string \(uint64\) | Fee in pico MOB associated to this transaction log. Only on outgoing transaction logs. Only available if direction is "sent". |
-| `submitted_block_index` | string \(uint64\) | The block index of the highest block on the network at the time the transaction was submitted. |
-| `finalized_block_index` | string \(uint64\) | The scanned block block index in which this transaction occurred. |
-| `status` | string | String representing the transaction log status. On "sent", valid statuses are "built", "pending", "succeeded", "failed". On "received", the status is "succeeded". |
-| `input_txo_ids` | list | A list of the IDs of the TXOs which were inputs to this transaction. |
-| `output_txo_ids` | list | A list of the IDs of the TXOs which were outputs of this transaction. |
-| `change_txo_ids` | list | A list of the IDs of the TXOs which were change in this transaction. |
-| `sent_time` | timestamp | Time at which sent transaction log was created. Only available if direction is "sent". This value is null if "received" or if the sent transactions were recovered from the ledger \(`is_sent_recovered = true`\). |
-| `comment` | string | An arbitrary string attached to the object. |
-| `failure_code` | integer | Code representing the cause of "failed" status. |
-| `failure_message` | string | Human parsable explanation of "failed" status. |
-| `offset_count` | integer | The value to offset pagination requests for `transaction_log` list. Requests will exclude all list items up to and including this object. |
+| `object` | String, value is "transaction\_log" | String representing the object's type. Objects of the same type share the same value. |
+| `transaction_log_id` | Integer | Unique identifier for the transaction log. This value is not associated to the ledger. |
+| `direction` | String | A string that identifies if this transaction log was sent or received. Valid values are "sent" or "received". |
+| `is_sent_recovered` | Boolean | Flag that indicates if the sent transaction log was recovered from the ledger. This value is null for "received" transaction logs. If true, some information may not be available on the transaction log and its TXOs without user input. If true, the fee `receipient_address_id`, fee, and `sent_time` will be null without user input. |
+| `account_id` | String | Unique identifier for the assigned associated account. If the transaction is outgoing, this account is from whence the TXO came. If received, this is the receiving account. |
+| `recipient_address_id` | String | Unique identifier for the recipient associated account. Only available if direction is "sent". |
+| `assigned_address_id` | String | Unique identifier for the assigned associated account. Only available if direction is "received". |
+| `value_pmob` | String \(uint64\) | Value in pico MOB associated to this transaction log. |
+| `fee_pmob` | String \(uint64\) | Fee in pico MOB associated to this transaction log. Only on outgoing transaction logs. Only available if direction is "sent". |
+| `submitted_block_index` | String \(uint64\) | The block index of the highest block on the network at the time the transaction was submitted. |
+| `finalized_block_index` | String \(uint64\) | The scanned block block index in which this transaction occurred. |
+| `status` | String | String representing the transaction log status. On "sent", valid statuses are "built", "pending", "succeeded", "failed". On "received", the status is "succeeded". |
+| `input_txo_ids` | List | A list of the IDs of the TXOs which were inputs to this transaction. |
+| `output_txo_ids` | List | A list of the IDs of the TXOs which were outputs of this transaction. |
+| `change_txo_ids` | List | A list of the IDs of the TXOs which were change in this transaction. |
+| `sent_time` | Timestamp | Time at which sent transaction log was created. Only available if direction is "sent". This value is null if "received" or if the sent transactions were recovered from the ledger \(`is_sent_recovered = true`\). |
+| `comment` | String | An arbitrary string attached to the object. |
+| `failure_code` | Integer | Code representing the cause of "failed" status. |
+| `failure_message` | String | Human parsable explanation of "failed" status. |
+| `offset_count` | Integer | The value to offset pagination requests for `transaction_log` list. Requests will exclude all list items up to and including this object. |
 
 ## Example
 
@@ -162,9 +162,9 @@ curl -s localhost:9090/wallet \
 
 ### `get_transaction_log`
 
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `transaction_log_id` | The transaction log ID to get. | Transaction log must exist in the wallet |
+| Parameter | Required | Type | Description |
+| :--- | :--- | :--- | :--- |
+| `transaction_log_id` | Yes | String | The transaction log ID to get. |
 
 {% tabs %}
 {% tab title="get\_transaction\_log" %}
@@ -324,7 +324,7 @@ Get all transaction logs for a given block.
 In the below example, the account in the wallet sent a transaction to itself. Therefore, there is one sent `transaction_log` in the block, and two received \(one for the change, and one for the output TXO sent to the same account that constructed the transaction\).
 
 {% tabs %}
-{% tab title="get\_all\_transaction\_logs\_for\_block" %}
+{% tab title="Body Request" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -339,7 +339,7 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 
-{% tab title="return" %}
+{% tab title="Response" %}
 ```text
 {
   "method": "get_all_transaction_logs_for_block",
@@ -442,7 +442,7 @@ curl -s localhost:9090/wallet \
 Get the transaction logs, grouped by the `finalized_block_index`, in ascending order.
 
 {% tabs %}
-{% tab title="get\_all\_transaction\_logs\_ordered\_by\_block" %}
+{% tab title="Body Request" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -454,7 +454,7 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 
-{% tab title="return" %}
+{% tab title="Response" %}
 ```text
 {
   "method": "get_all_transaction_logs_ordered_by_block",

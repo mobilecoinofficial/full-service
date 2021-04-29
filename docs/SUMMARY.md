@@ -32,5 +32,5 @@
 ## Tutorials
 
 * [Environment Setup](tutorials/environment-setup.md)
-* [Recieve MOB](tutorials/recieve-mob.md)
+* [Run Full Service](tutorials/recieve-mob.md)
 

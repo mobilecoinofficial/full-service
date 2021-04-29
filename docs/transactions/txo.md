@@ -133,10 +133,10 @@ curl -s localhost:9090/wallet \
 
 Get details of a given TXO.
 
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action | Account must exist in the wallet |
-| `txo_id` | The TXO ID for which to get details |  |
+| Parameter | Required | Type | Description |
+| :--- | :--- | :--- | :--- |
+| `account_id` | Yes |  | The account on which to perform this action. |
+| `txo_id` | Yes |  | The TXO ID for which to get details. |
 
 {% tabs %}
 {% tab title="get\_txo" %}
@@ -193,12 +193,12 @@ curl -s localhost:9090/wallet \
 
 Get all TXOs for a given account.
 
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action | Account must exist in the wallet |
+| Parameter | Required | Type | Description |
+| :--- | :--- | :--- | :--- |
+| `account_id` | Yes |  | The account on which to perform this action. |
 
 {% tabs %}
-{% tab title="get\_all\_txos\_for\_account" %}
+{% tab title="Body Request" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -213,7 +213,7 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 
-{% tab title="return" %}
+{% tab title="Response" %}
 ```text
 {
   "method": "get_all_txos_for_account",

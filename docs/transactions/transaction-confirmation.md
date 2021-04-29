@@ -12,10 +12,10 @@ The confirmation number can be delivered to the recipient to prove that they rec
 
 | _Name_ | _Type_ | _Description_ |
 | :--- | :--- | :--- |
-| `object` | string, value is "confirmation" | String representing the object's type. Objects of the same type share the same value. |
-| `txo_id` | string | Unique identifier for the TXO. |
-| `txo_index` | string | The index of the TXO in the ledger. |
-| `confirmation` | string | A string with a confirmation number that can be validated to confirm that another party constructed or had knowledge of the construction of the associated TXO. |
+| `object` | String, value is "confirmation" | String representing the object's type. Objects of the same type share the same value. |
+| `txo_id` | String | Unique identifier for the TXO. |
+| `txo_index` | String | The index of the TXO in the ledger. |
+| `confirmation` | String | A string with a confirmation number that can be validated to confirm that another party constructed or had knowledge of the construction of the associated TXO. |
 
 ## Example
 
@@ -34,9 +34,9 @@ The confirmation number can be delivered to the recipient to prove that they rec
 
 A TXO constructed by this wallet will contain a confirmation number, which can be shared with the recipient to verify the association between the sender and this TXO. When calling `get_confirmations` for a transaction, only the confirmation numbers for the `output_txo_ids` are returned.
 
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `transaction_log_id` | The transaction log ID for which to get confirmation numbers. | The transaction log must exist in the wallet. |
+| Param | Required | Type | Description |
+| :--- | :--- | :--- | :--- |
+| `transaction_log_id` | Yes | String | The transaction log must exist in the wallet. |
 
 {% tabs %}
 {% tab title="get\_confirmations" %}
@@ -80,14 +80,14 @@ curl -s localhost:9090/wallet \
 
 A sender can provide the confirmation numbers from a transaction to the recipient, who then verifies for a specific TXO ID \(note that TXO ID is specific to the TXO, and is consistent across wallets. Therefore the sender and receiver will have the same TXO ID for the same TXO which was minted by the sender, and received by the receiver\) with the following:
 
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action. | The account must exist in the wallet. |
-| `txo_id` | The ID of the TXO for which to validate the confirmation number. | TXO must be a received TXO. |
-| `confirmation` | The confirmation number to validate. | The confirmation number should be delivered by the sender of the TXO in question. |
+| Param | Required | Type | Description |
+| :--- | :--- | :--- | :--- |
+| `account_id` | Yes | String | The account on which to perform this action. |
+| `txo_id` | Yes | String | The ID of the TXO for which to validate the confirmation number. |
+| `confirmation` | Yes | String | The confirmation number to validate. |
 
 {% tabs %}
-{% tab title="validate\_confirmation" %}
+{% tab title="Body Request" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -104,7 +104,7 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 
-{% tab title="return" %}
+{% tab title="Response" %}
 ```text
 {
   "method": "validate_confirmation",

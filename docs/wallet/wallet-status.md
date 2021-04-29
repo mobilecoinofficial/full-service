@@ -8,17 +8,17 @@ description: The Wallet Status provides a quick overview of the contents of the 
 
 | _Name_ | _Type_ | _Description_ |
 | :--- | :--- | :--- |
-| `object` | string, value is "wallet\_status" | String representing the object's type. Objects of the same type share the same value. |
-| `network_block_index` | string \(uint64\) | The block height of the MobileCoin ledger. The `local_block_index` is synced when it reaches the value. |
-| `local_block_index` | string \(uint64\) | The local block height downloaded from the ledger. The local database will sync up to the `network_block_index`. The `account_block_index` can only sync up to `local_block_index`. |
-| `is_synced_all` | boolean | Whether ALL accounts are synced with the `network_block_index`. Balances may not appear correct if any account is still syncing. |
-| `total_unspent_pmob` | string \(uint64\) | Unspent pico mob for ALL accounts at the `account_block_index`. If the account is syncing, this value may change. |
-| `total_pending_pmob` | string \(uint64\) | Pending outgoing pico mob from ALL accounts. Pending pico mobs will clear once the ledger processes the outgoing TXO. The `available_pmob` will reflect the change. |
-| `total_spent_pmob` | string \(uint64\) | Spent pico MOB. This is the sum of all the TXOs in the wallet which have been spent. |
-| `total_secreted_pmob` | string \(uint64\) | Secreted \(minted\) pico MOB. This is the sum of all the TXOs which have been created in the wallet for outgoing transactions. |
-| `total_orphaned_pmob` | string \(uint64\) | Orphaned pico MOB. The orphaned value represents the TXOs which were view-key matched, but which can not be spent until their subaddress index is recovered. |
-| `account_ids` | list | A list of all `account_ids` imported into the wallet in order of import. |
-| `account_map` | hash map | A normalized hash mapping `account_id` to account objects. |
+| `object` | String, value is "wallet\_status" | String representing the object's type. Objects of the same type share the same value. |
+| `network_block_index` | String \(uint64\) | The block height of the MobileCoin ledger. The `local_block_index` is synced when it reaches the value. |
+| `local_block_index` | String \(uint64\) | The local block height downloaded from the ledger. The local database will sync up to the `network_block_index`. The `account_block_index` can only sync up to `local_block_index`. |
+| `is_synced_all` | Boolean | Whether ALL accounts are synced with the `network_block_index`. Balances may not appear correct if any account is still syncing. |
+| `total_unspent_pmob` | String \(uint64\) | Unspent pico mob for ALL accounts at the `account_block_index`. If the account is syncing, this value may change. |
+| `total_pending_pmob` | String \(uint64\) | Pending outgoing pico mob from ALL accounts. Pending pico mobs will clear once the ledger processes the outgoing TXO. The `available_pmob` will reflect the change. |
+| `total_spent_pmob` | String \(uint64\) | Spent pico MOB. This is the sum of all the TXOs in the wallet which have been spent. |
+| `total_secreted_pmob` | String \(uint64\) | Secreted \(minted\) pico MOB. This is the sum of all the TXOs which have been created in the wallet for outgoing transactions. |
+| `total_orphaned_pmob` | String \(uint64\) | Orphaned pico MOB. The orphaned value represents the TXOs which were view-key matched, but which can not be spent until their subaddress index is recovered. |
+| `account_ids` | List | A list of all `account_ids` imported into the wallet in order of import. |
+| `account_map` | Hash map | A normalized hash mapping `account_id` to account objects. |
 
 ## ​Example
 
@@ -70,7 +70,7 @@ description: The Wallet Status provides a quick overview of the contents of the 
 Get the current status of a wallet.
 
 {% tabs %}
-{% tab title="get\_wallet\_status" %}
+{% tab title="Body Request" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -82,7 +82,7 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 
-{% tab title="return" %}
+{% tab title="Response" %}
 ```text
 {
   "method": "get_wallet_status",
