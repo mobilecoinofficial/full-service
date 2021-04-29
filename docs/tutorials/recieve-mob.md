@@ -8,7 +8,7 @@ Direct your Full Service API calls to localhost:9090/wallet.
 
 ## Create an account
 
-1. [Create an account](../accounts/untitled.md#create_account) to receive MOB.
+1. [Create an account](../accounts/untitled/#create_account) to receive MOB.
 2. [Export account secrets ](../accounts/account-secrets.md#export_account_secrets)to create a mnemonic that will allow you to recover your account. 
 
 {% hint style="warning" %}

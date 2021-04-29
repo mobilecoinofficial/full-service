@@ -4,8 +4,8 @@
 
 ## Accounts
 
-* [Account](accounts/untitled.md)
-    * [Create Account](accounts/untitled.md)
+* [Account](accounts/untitled/README.md)
+  * [Create Account](accounts/untitled/untitled-create_account.md)
 * [Account Secrets](accounts/account-secrets.md)
 * [Address](accounts/address.md)
 * [Balance](accounts/balance.md)
