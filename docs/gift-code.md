@@ -36,18 +36,21 @@ description: >-
 
 Build a gift code in a `tx_proposal` that you can fund and submit to the ledger.
 
-| Parameter | Required | Type | Description |
-| :--- | :--- | :--- | :--- |
-| `account_id` | Yes | String | The account on which to perform this action. |
-| `value_pmob` | Yes |  | The amount of MOB to send in this transaction. |
-| `input_txo_ids` | NO |  | The specific TXOs to use as inputs to this transaction. TXO IDs \(obtain from `get_all_txos_for_account`\). |
-| `fee` | NO |  | The fee amount to submit with this transaction. If not provided, uses `MINIMUM_FEE` = .01 MOB. |
-| `tombstone_block` | No |  | The block after which this transaction expires. If not provided, uses `cur_height` + 50. |
-| `max_spendable_value` | No |  | The maximum amount for an input TXO selected for this transaction. |
-| `memo` | No |  | Memo for whoever claims the gift code. |
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+| `value_pmob` | The amount of MOB to send in this transaction. |  |
+
+| Optional Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `input_txo_ids` | The specific TXOs to use as inputs to this transaction. | TXO IDs \(obtain from `get_all_txos_for_account`\) |
+| `fee` | The fee amount to submit with this transaction. |  If not provided, uses `MINIMUM_FEE` = .01 MOB. |
+| `tombstone_block` | The block after which this transaction expires.  | If not provided, uses `cur_height` + 50. |
+| `max_spendable_value` | The maximum amount for an input TXO selected for this transaction. |  |
+| `memo` | Memo for whoever claims the gift code. |  |
 
 {% tabs %}
-{% tab title="Body Request" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -84,14 +87,14 @@ curl -s localhost:9090/wallet \
 
 Submit a `tx_proposal` to the ledger that adds the gift code to the `wallet_db` once the `tx_proposal` has been appended to the ledger.
 
-| Parameter | Required | Type | Description |
-| :--- | :--- | :--- | :--- |
-| `gift_code_b58` | Yes |  | The base58-encoded gift code contents. |
-| `from_account_id` | Yes |  | The account on which to perform this action. |
-| `tx_proposal` | Yes |  | Transaction proposal to submit. |
+| Required Param | Purpose | Requirement |
+| :--- | :--- | :--- |
+| `gift_code_b58` | The base58-encoded gift code contents. | Must be a valid b58-encoded gift code. |
+| `from_account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+| `tx_proposal` | Transaction proposal to submit. | Created with`build_gift_code.` |
 
 {% tabs %}
-{% tab title="Body Request" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -135,12 +138,12 @@ curl -s localhost:9090/wallet \
 
 Recall a gift code's entropy, value, and memo from the database.
 
-| Parameter | Required | Type | Description |
-| :--- | :--- | :--- | :--- |
-| `gift_code_b58` | Yes |  | The base58-encoded gift code contents. |
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `gift_code_b58` | The base58-encoded gift code contents. | Must be a valid b58-encoded gift code. |
 
 {% tabs %}
-{% tab title="get\_gift\_code" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -155,7 +158,7 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 
-{% tab title="return" %}
+{% tab title="Response" %}
 ```text
 {
   "method": "get_gift_code",
@@ -183,7 +186,7 @@ curl -s localhost:9090/wallet \
 Get all the gift codes currently in the database.
 
 {% tabs %}
-{% tab title="Body Request" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -233,12 +236,12 @@ curl -s localhost:9090/wallet \
 
 Check the status of a gift code, which may be pending, available, or claimed.
 
-| Parameter | Required | Type | Description |
-| :--- | :--- | :--- | :--- |
-| `gift_code_b58` | Yes |  | The base58-encoded gift code contents. |
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `gift_code_b58` | The base58-encoded gift code contents. | Must be a valid b58-encoded gift code. |
 
 {% tabs %}
-{% tab title="Body Request" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -292,13 +295,13 @@ curl -s localhost:9090/wallet \
 
 Claim a gift code to an account in the wallet.
 
-| Parameter | Required | Type | Description |
-| :--- | :--- | :--- | :--- |
-| `gift_code_b58` | Yes |  | The base58-encoded gift code contents. |
-| `account_id` | Yes |  | The account on which to perform this action. |
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `gift_code_b58` | The base58-encoded gift code contents. | Must be a valid b58-encoded gift code. |
+| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
 
 {% tabs %}
-{% tab title="Body Request" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -333,12 +336,12 @@ curl -s localhost:9090/wallet \
 
 Remove a gift code from the database.
 
-| Parameter | Required | Type | Requirements |
-| :--- | :--- | :--- | :--- |
-| `gift_code_b58` | Yes |  | The base58-encoded gift code contents. |
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `gift_code_b58` | The base58-encoded gift code contents. | Must be a valid b58-encoded gift code. |
 
 {% tabs %}
-{% tab title="Body Request" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{

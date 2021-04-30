@@ -144,7 +144,7 @@ Due to the privacy properties of the MobileCoin ledger, transactions are ephemer
 Get the JSON representation of the TXO object in the transaction log.
 
 {% tabs %}
-{% tab title="get\_transaction\_object" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -158,16 +158,27 @@ curl -s localhost:9090/wallet \
   -X POST -H 'Content-type: application/json' | jq
 ```
 {% endtab %}
+
+{% tab title="Response" %}
+```
+{
+  "method": "get_transaction_object",
+  "result": {
+    "transaction": ...
+  }
+}
+```
+{% endtab %}
 {% endtabs %}
 
 ### `get_transaction_log`
 
-| Parameter | Required | Type | Description |
-| :--- | :--- | :--- | :--- |
-| `transaction_log_id` | Yes | String | The transaction log ID to get. |
+| Required Param | Purpose | Requirement |
+| :--- | :--- | :--- |
+| `transaction_log_id` | The transaction log ID to get. | Transaction log must exist in the wallet. |
 
 {% tabs %}
-{% tab title="get\_transaction\_log" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -182,7 +193,7 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 
-{% tab title="return" %}
+{% tab title="Response" %}
 ```text
 {
   "method": "get_transaction_log",
@@ -226,10 +237,10 @@ Get all transaction logs for a given account.
 
 | Required Param | Purpose | Requirements |
 | :--- | :--- | :--- |
-| `account_id` | String | The unique identifier for the account. |
+| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
 
 {% tabs %}
-{% tab title="get\_all\_transaction\_logs\_for\_account" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -244,7 +255,7 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 
-{% tab title="return" %}
+{% tab title="Response" %}
 ```text
 {
   "method": "get_all_transaction_logs_for_account",
@@ -322,6 +333,10 @@ curl -s localhost:9090/wallet \
 Get all transaction logs for a given block.
 
 In the below example, the account in the wallet sent a transaction to itself. Therefore, there is one sent `transaction_log` in the block, and two received \(one for the change, and one for the output TXO sent to the same account that constructed the transaction\).
+
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `block_index` | The block on which to perform this action. | Block must exist in the wallet. |
 
 {% tabs %}
 {% tab title="Body Request" %}

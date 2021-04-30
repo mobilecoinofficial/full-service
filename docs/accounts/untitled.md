@@ -10,12 +10,12 @@ description: >-
 
 | Name | Type | Description |
 | :--- | :--- | :--- |
-| `object` | string, value is "account" | String representing the object's type. Objects of the same type share the same value. |
-| `account_id` | string | The unique identifier for the account. |
-| `name` | string | The display name for the account. |
-| `main_address` | string | The b58 address code for the account's main address. The main address is determined by the seed subaddress. It is not assigned to a single recipient and should be considered a free-for-all address. |
-| `next_subaddress_index` | string \(uint64\) | This index represents the next subaddress to be assigned as an address. This is useful information in case the account is imported elsewhere. |
-| `recovery_mode` | boolean | A flag that indicates this imported account is attempting to un-orphan found TXOs. It is recommended to move all MOB to another account after recovery if the user is unsure of the assigned addresses. |
+| `object` | String, value is "account" | String representing the object's type. Objects of the same type share the same value. |
+| `account_id` | String | The unique identifier for the account. |
+| `name` | String | The display name for the account. |
+| `main_address` | String | The b58 address code for the account's main address. The main address is determined by the seed subaddress. It is not assigned to a single recipient and should be considered a free-for-all address. |
+| `next_subaddress_index` | String \(uint64\) | This index represents the next subaddress to be assigned as an address. This is useful information in case the account is imported elsewhere. |
+| `recovery_mode` | Boolean | A flag that indicates this imported account is attempting to un-orphan found TXOs. It is recommended to move all MOB to another account after recovery if the user is unsure of the assigned addresses. |
 
 ## Example
 
@@ -42,7 +42,7 @@ Create a new account in the wallet.
 | `name` | A label for this account. | A label can have duplicates, but it is not recommended. |
 
 {% tabs %}
-{% tab title="request body params" %}
+{% tab title="Request Body" %}
 ```text
 {
   "method": "create_account",
@@ -55,7 +55,7 @@ Create a new account in the wallet.
 ```
 {% endtab %}
 
-{% tab title="response" %}
+{% tab title="Response" %}
 ```text
 {
   "method": "create_account",
@@ -84,7 +84,7 @@ Create a new account in the wallet.
 Import an existing account from the secret entropy.
 
 {% tabs %}
-{% tab title="import\_account" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -103,7 +103,7 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 
-{% tab title="return" %}
+{% tab title="Response" %}
 ```text
 {
   "method": "import_account",
@@ -142,7 +142,7 @@ curl -s localhost:9090/wallet \
 Import an existing account from the secret entropy.
 
 {% tabs %}
-{% tab title="import\_legacy\_account" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -160,7 +160,7 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 
-{% tab title="return" %}
+{% tab title="Response" %}
 ```text
 {
   "method": "import_account",
@@ -191,12 +191,22 @@ curl -s localhost:9090/wallet \
 ```
 {% endhint %}
 
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `entropy` | The secret root entropy. | 32 bytes of randomness, hex-encoded. |
+
+| Optional Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `name` | A label for this account. | A label can have duplicates, but it is not recommended. |
+| `next_subaddress_index` | The next known unused subaddress index for the account. |  |
+| `first_block_index` | The block from which to start scanning the ledger. |  |
+
 ### `get_account`
 
 Get the details of a given account.
 
 {% tabs %}
-{% tab title="get\_account" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -211,7 +221,7 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 
-{% tab title="return" %}
+{% tab title="Response" %}
 ```text
 {
   "method": "get_account",
@@ -246,12 +256,16 @@ If the account is not in the database, you will receive the following error mess
 ```
 {% endhint %}
 
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+
 ### `get_all_accounts`
 
 Get the details of all accounts in a given wallet.
 
 {% tabs %}
-{% tab title="get\_all\_accounts" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -263,7 +277,7 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 
-{% tab title="return" %}
+{% tab title="Response" %}
 ```text
 {
   "method": "get_all_accounts",
@@ -307,8 +321,12 @@ curl -s localhost:9090/wallet \
 
 Get the current status of a given account. The account status includes both the account object and the balance object.
 
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+
 {% tabs %}
-{% tab title="get\_account\_status" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -323,7 +341,7 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 
-{% tab title="return" %}
+{% tab title="Response" %}
 ```text
 {
   "method": "get_account_status",
@@ -362,8 +380,13 @@ curl -s localhost:9090/wallet \
 
 Rename an account.
 
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+| `name` | The new name for this account. |  |
+
 {% tabs %}
-{% tab title="update\_account\_name" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -379,7 +402,7 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 
-{% tab title="return" %}
+{% tab title="Response" %}
 ```text
 {
   "method": "update_account_name",
@@ -406,8 +429,12 @@ curl -s localhost:9090/wallet \
 
 Remove an account from a given wallet.
 
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+
 {% tabs %}
-{% tab title="remove\_account" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -422,7 +449,7 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 
-{% tab title="return" %}
+{% tab title="Response" %}
 ```text
 {
   "method": "remove_account",

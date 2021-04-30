@@ -108,6 +108,10 @@ curl -s localhost:9090/wallet \
 
 After building a `tx_proposal`, you can get the receipts for that transaction and provide it to the recipient so they can poll for the transaction status.
 
+| Required Param | Purpose | Description |
+| :--- | :--- | :--- |
+| `tx_proposal` |  |  |
+
 {% tabs %}
 {% tab title="create\_receiver\_receipts" %}
 ```text
@@ -150,4 +154,6 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 {% endtabs %}
+
+
 

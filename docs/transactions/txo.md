@@ -101,8 +101,12 @@ In order to construct a transaction, the wallet will select "Unspent Transaction
 
 Get the JSON representation of the "TXO" object in the ledger.
 
+| Parameter | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `txo_id` | A TXO identifier. |  |
+
 {% tabs %}
-{% tab title="get\_txo\_object" %}
+{% tab title="Body Request" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -117,7 +121,7 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 
-{% tab title="return" %}
+{% tab title="Response" %}
 ```text
 {
   "method": "get_txo_object",
@@ -133,13 +137,13 @@ curl -s localhost:9090/wallet \
 
 Get details of a given TXO.
 
-| Parameter | Required | Type | Description |
-| :--- | :--- | :--- | :--- |
-| `account_id` | Yes |  | The account on which to perform this action. |
-| `txo_id` | Yes |  | The TXO ID for which to get details. |
+| Parameter | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+| `txo_id` | The TXO ID for which to get details. |  |
 
 {% tabs %}
-{% tab title="get\_txo" %}
+{% tab title="Body Request" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -154,7 +158,7 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 
-{% tab title="return" %}
+{% tab title="Response" %}
 ```text
 {
   "method": "get_txo",
@@ -193,9 +197,9 @@ curl -s localhost:9090/wallet \
 
 Get all TXOs for a given account.
 
-| Parameter | Required | Type | Description |
-| :--- | :--- | :--- | :--- |
-| `account_id` | Yes |  | The account on which to perform this action. |
+| Parameter | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
 
 {% tabs %}
 {% tab title="Body Request" %}

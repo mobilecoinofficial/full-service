@@ -17,12 +17,12 @@ Important: If you receive funds at a subaddress that has not yet been assigned, 
 
 | Name | Type | Description |
 | :--- | :--- | :--- |
-| `object` | string, value is "address" | String representing the object's type. Objects of the same type share the same value. |
-| `public_address` | string | A shareable B58-encoded string representing the address. |
-| `account_id` | string | A unique identifier for the assigned associated account. |
-| `metadata` | string | An arbitrary string attached to the object. |
-| `subaddress_index` | string \(uint64\) | The assigned subaddress index on the associated account. |
-| `offset_count` | integer | The value to offset pagination requests for assigned\_address list. Requests will exclude all list items up to and including this object. |
+| `object` | String, value is "address" | String representing the object's type. Objects of the same type share the same value. |
+| `public_address` | String | A shareable B58-encoded string representing the address. |
+| `account_id` | String | A unique identifier for the assigned associated account. |
+| `metadata` | String | An arbitrary string attached to the object. |
+| `subaddress_index` | String \(uint64\) | The assigned subaddress index on the associated account. |
+| `offset_count` | Integer | The value to offset pagination requests for assigned\_address list. Requests will exclude all list items up to and including this object. |
 
 ## Example
 
@@ -49,10 +49,10 @@ Assign an address to a given account.
 
 | Optional Param | Purpose | Requirements |
 | :--- | :--- | :--- |
-| ​`metadata` | The metadata for this address. | String; can contain stringified json. |
+| ​`metadata` | The metadata for this address. | String; can contain stringified JSON. |
 
 {% tabs %}
-{% tab title="assign\_address\_for\_account" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -68,7 +68,7 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 
-{% tab title="return" %}
+{% tab title="Response" %}
 ```text
 {
   "method": "assign_address_for_account",
@@ -94,8 +94,12 @@ curl -s localhost:9090/wallet \
 
 Get all assigned addresses for a given account.
 
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `account_id` | The account on which to perform this action. | The account must exist in the wallet. |
+
 {% tabs %}
-{% tab title="get\_all\_addresses\_for\_account" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -110,7 +114,7 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 
-{% tab title="return" %}
+{% tab title="Response" %}
 ```text
 {
   "method": "get_all_addresses_for_account",
@@ -159,8 +163,12 @@ curl -s localhost:9090/wallet \
 
 Verify whether an address is correctly b58-encoded.
 
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `address` | The address on which to perform this action. | Address must be assigned for an account in the wallet. |
+
 {% tabs %}
-{% tab title="verify\_address" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -175,7 +183,7 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 
-{% tab title="return" %}
+{% tab title="Response" %}
 ```text
 {
   "method": "verify_address",

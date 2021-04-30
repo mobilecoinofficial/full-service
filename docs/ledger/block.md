@@ -20,6 +20,10 @@ description: >-
 
 Get the JSON representation of the "Block" object in the ledger.
 
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `block_index` | The block on which to perform this action. | Block must exist in the wallet. |
+
 {% tabs %}
 {% tab title="Body Request" %}
 ```text

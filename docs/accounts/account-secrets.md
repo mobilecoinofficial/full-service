@@ -11,10 +11,10 @@ description: >-
 
 | Name | Type | Description |
 | :--- | :--- | :--- |
-| `object` | string, value is "account\_secrets" | String representing the object's type. Objects of the same type share the same value. |
-| `account_id` | string | The unique identifier for the account. |
-| `mnemonic` | string | A BIP39-encoded mnemonic phrase used to generate the account key. |
-| `key_derivation_version` | string \(uint64\) | The version number of the key derivation path used to generate the account key from the mnemonic. |
+| `object` | String, value is "account\_secrets" | String representing the object's type. Objects of the same type share the same value. |
+| `account_id` | String | The unique identifier for the account. |
+| `mnemonic` | String | A BIP39-encoded mnemonic phrase used to generate the account key. |
+| `key_derivation_version` | String \(uint64\) | The version number of the key derivation path used to generate the account key from the mnemonic. |
 | `account_key` | account\_key | The view and spend keys used to transact on the MobileCoin network. Also may contain keys to connect to the Fog ledger scanning service. |
 
 ## Example
@@ -40,8 +40,12 @@ description: >-
 
 ### `export_account_secrets`
 
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+
 {% tabs %}
-{% tab title="export\_account\_secrets" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -56,7 +60,7 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 
-{% tab title="return" %}
+{% tab title="Response" %}
 ```text
 {
   "method": "export_account_secrets",

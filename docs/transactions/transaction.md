@@ -28,7 +28,7 @@ Build a transaction to confirm its contents before submitting it to the network.
 | `max_spendable_value` | The maximum amount for an input TXO selected for this transaction |  |
 
 {% tabs %}
-{% tab title="build\_transaction" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -45,7 +45,7 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 
-{% tab title="return" %}
+{% tab title="Response" %}
 ```text
 {
   "method": "build_transaction",
@@ -236,7 +236,7 @@ curl -s localhost:9090/wallet \
 {% endtabs %}
 
 {% hint style="info" %}
-Since the `tx_proposal` json object is quite large, you may wish to write the result to a file for use in the `submit_transaction` call, such as:
+Since the `tx_proposal`JSON object is quite large, you may wish to write the result to a file for use in the `submit_transaction` call, such as:
 
 ```text
 curl -s localhost:9090/wallet \
@@ -267,8 +267,10 @@ Submit a transaction for an account with or without recording it in the transact
 | `account_id` | Account ID for which to log the transaction. If omitted, the transaction is not logged. |  |
 | `comment` | Comment to annotate this transaction in the transaction log |  |
 
+#### Example with Log
+
 {% tabs %}
-{% tab title="submit\_transaction with log" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -284,7 +286,7 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 
-{% tab title="return" %}
+{% tab title="Response" %}
 ```text
 {
   "method": "submit_transaction",
@@ -324,8 +326,14 @@ curl -s localhost:9090/wallet \
 }
 ```
 {% endtab %}
+{% endtabs %}
 
-{% tab title="submit\_transaction without log" %}
+#### Example without Log
+
+{% tabs %}
+{% tab title="Request Body" %}
+
+
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -337,7 +345,13 @@ curl -s localhost:9090/wallet \
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json'
+```
+{% endtab %}
 
+{% tab title="Response" %}
+
+
+```text
 {
   "method": "submit_transaction",
   "result": {
@@ -370,7 +384,7 @@ Sending a transaction is a convenience method that first builds and then submits
 | `comment` | Comment to annotate this transaction in the transaction log |  |
 
 {% tabs %}
-{% tab title="build\_and\_submit\_transaction" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -387,7 +401,7 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 
-{% tab title="return" %}
+{% tab title="Response" %}
 ```text
 {
   "method": "build_and_submit_transaction",

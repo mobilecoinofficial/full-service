@@ -10,16 +10,16 @@ description: >-
 
 | Name | Type | Description |
 | :--- | :--- | :--- |
-| `object` | string, value is "balance" | String representing the object's type. Objects of the same type share the same value. |
-| `network_block_index` | string \(uint64\) | The block height of MobileCoin's distributed ledger. The `local_block_index` is synced when it reaches the `network_block_index`. |
-| `local_block_index` | string \(uint64\) | The local block height downloaded from the ledger. The local database will sync up to the `network_block_index`. The `account_block_index` can only sync up to `local_block_index`. |
-| `account_block_index` | string \(uint64\) | The scanned local block height for this account. This value will never be greater than the `local_block_index`. At fully synced, it will match `network_block_index`. |
-| `is_synced` | boolean | Whether the account is synced with the `network_block_index`. Balances may not appear correct if the account is still syncing. |
-| `unspent_pmob` | string \(uint64\) | Unspent pico MOB for this account at the current `account_block_index`. If the account is syncing, this value may change. |
-| `pending_pmob` | string \(uint64\) | Pending, out-going pico MOB. The pending value will clear once the ledger processes the outgoing TXOs. The `pending_pmob` will reflect the change. |
-| `spent_pmob` | string \(uint64\) | Spent pico MOB. This is the sum of all the TXOs in the wallet which have been spent. |
-| `secreted_pmob` | string \(uint64\) | Secreted \(minted\) pico MOB. This is the sum of all the TXOs which have been created in the wallet for outgoing transactions. |
-| `orphaned_pmob` | string \(uint64\) | Orphaned pico MOB. The orphaned value represents the TXOs which were view-key matched, but which can not be spent until their subaddress index is recovered. |
+| `object` | String, value is "balance" | String representing the object's type. Objects of the same type share the same value. |
+| `network_block_index` | String \(uint64\) | The block height of MobileCoin's distributed ledger. The `local_block_index` is synced when it reaches the `network_block_index`. |
+| `local_block_index` | String \(uint64\) | The local block height downloaded from the ledger. The local database will sync up to the `network_block_index`. The `account_block_index` can only sync up to `local_block_index`. |
+| `account_block_index` | String \(uint64\) | The scanned local block height for this account. This value will never be greater than the `local_block_index`. At fully synced, it will match `network_block_index`. |
+| `is_synced` | Boolean | Whether the account is synced with the `network_block_index`. Balances may not appear correct if the account is still syncing. |
+| `unspent_pmob` | String \(uint64\) | Unspent pico MOB for this account at the current `account_block_index`. If the account is syncing, this value may change. |
+| `pending_pmob` | String \(uint64\) | Pending, out-going pico MOB. The pending value will clear once the ledger processes the outgoing TXOs. The `pending_pmob` will reflect the change. |
+| `spent_pmob` | String \(uint64\) | Spent pico MOB. This is the sum of all the TXOs in the wallet which have been spent. |
+| `secreted_pmob` | String \(uint64\) | Secreted \(minted\) pico MOB. This is the sum of all the TXOs which have been created in the wallet for outgoing transactions. |
+| `orphaned_pmob` | String \(uint64\) | Orphaned pico MOB. The orphaned value represents the TXOs which were view-key matched, but which can not be spent until their subaddress index is recovered. |
 
 ## Example
 
@@ -46,10 +46,10 @@ Get the current balance for a given account.
 
 | Required Param | Purpose | Requirements |
 | :--- | :--- | :--- |
-| `account_id` | String | The unique identifier for the account. |
+| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
 
 {% tabs %}
-{% tab title="get\_balance\_for\_account" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -64,7 +64,7 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 
-{% tab title="return" %}
+{% tab title="Response" %}
 ```text
 {
   "method": "get_balance_for_account",
@@ -94,8 +94,12 @@ curl -s localhost:9090/wallet \
 
 Get the current balance for a given address.
 
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `address` | The address on which to perform this action. | Address must be assigned for an account in the wallet. |
+
 {% tabs %}
-{% tab title="get\_balance\_for\_address" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -111,7 +115,7 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 
-{% tab title="return" %}
+{% tab title="Response" %}
 ```text
 {
   "method": "get_balance_for_address",
