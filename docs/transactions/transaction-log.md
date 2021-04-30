@@ -339,7 +339,7 @@ In the below example, the account in the wallet sent a transaction to itself. Th
 | `block_index` | The block on which to perform this action. | Block must exist in the wallet. |
 
 {% tabs %}
-{% tab title="Body Request" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -457,7 +457,7 @@ curl -s localhost:9090/wallet \
 Get the transaction logs, grouped by the `finalized_block_index`, in ascending order.
 
 {% tabs %}
-{% tab title="Body Request" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{

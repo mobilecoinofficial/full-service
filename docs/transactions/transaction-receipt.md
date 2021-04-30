@@ -39,7 +39,7 @@ description: >-
 Check the status of a receiver receipt.
 
 {% tabs %}
-{% tab title="check\_reciever\_receipt\_status" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -65,7 +65,7 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 
-{% tab title="return" %}
+{% tab title="Response" %}
 ```text
 {
   "method": "check_receiver_receipt_status",
@@ -113,7 +113,7 @@ After building a `tx_proposal`, you can get the receipts for that transaction an
 | `tx_proposal` |  |  |
 
 {% tabs %}
-{% tab title="create\_receiver\_receipts" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -128,7 +128,7 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 
-{% tab title="return" %}
+{% tab title="Response" %}
 ```text
 {
   "method": "create_receiver_receipts",

@@ -87,7 +87,7 @@ A sender can provide the confirmation numbers from a transaction to the recipien
 | `confirmation` | The confirmation number to validate. | The confirmation number should be delivered by the sender of the Txo in question. |
 
 {% tabs %}
-{% tab title="Body Request" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{

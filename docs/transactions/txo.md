@@ -106,7 +106,7 @@ Get the JSON representation of the "TXO" object in the ledger.
 | `txo_id` | A TXO identifier. |  |
 
 {% tabs %}
-{% tab title="Body Request" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -143,7 +143,7 @@ Get details of a given TXO.
 | `txo_id` | The TXO ID for which to get details. |  |
 
 {% tabs %}
-{% tab title="Body Request" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
@@ -202,7 +202,7 @@ Get all TXOs for a given account.
 | `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
 
 {% tabs %}
-{% tab title="Body Request" %}
+{% tab title="Request Body" %}
 ```text
 curl -s localhost:9090/wallet \
   -d '{
