@@ -2241,7 +2241,7 @@ mod e2e {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "split_txo",
+            "method": "build_split_txo_transaction",
             "params": {
                 "txo_id": txo_id,
                 "output_values": ["20000000000", "80000000000", "30000000000", "70000000000", "40000000000"],
