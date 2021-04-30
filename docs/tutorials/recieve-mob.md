@@ -8,8 +8,8 @@ description: 'Direct your Full Service API calls to localhost:9090/wallet.'
 
 ### Create a New Account
 
-1. Call [`create_account`](../accounts/untitled/#create_account) to open a new account.
-2. To protect yourself from ever losing your account, run [`export_account_secrets`](../accounts/account-secrets/#export_account_secrets) to create a mnemonic that will allow you to recover your account. 
+1. Call [`create_account`](../accounts/untitled/create_account.md) to open a new account.
+2. To protect yourself from ever losing your account, run [`export_account_secrets`](../accounts/account-secrets/export_account_secrets.md) to create a mnemonic that will allow you to recover your account. 
 
 {% hint style="warning" %}
 Creating a mnemonic is the only way to recover your account.
@@ -17,7 +17,7 @@ Creating a mnemonic is the only way to recover your account.
 
 ### Import an Existing Account
 
-1. If you already have an account, you can access it with the [`import_account`](../accounts/untitled/#import_account) method. 
+1. If you already have an account, you can access it with the [`import_account`](../accounts/untitled/import_account.md) method. 
    * To identify your account, you must provide the method with your secret mnemonic and an account name if you have one. 
    * To speed up the import process, you can provide the method with the first block index that you'd like to scan from the ledger. If you don’t include the first block index, it will default to scanning the entire ledger, which will take longer as the ledger size increases.
 
@@ -31,14 +31,14 @@ In order to track who is sending what payments, you can create unique subaddress
 
 ### Receive MOB
 
-1. Generate a subaddress to share with the sender by calling [`assign_address_for_account`](../accounts/address/#assign_address_for_account).
-2. Call [`get_wallet_status`](../wallet/wallet-status/#get_wallet_status) to view the `total_unspent_pmob` that you received in the transaction.
+1. Generate a subaddress to share with the sender by calling [`assign_address_for_account`](../accounts/address/assign_address_for_account.md).
+2. Call [`get_wallet_status`](../wallet/wallet-status/get_wallet_status.md) to view the `total_unspent_pmob` that you received in the transaction.
 
 ### Send MOB
 
-1. Review your initial balance of your account by calling [`get_balance_for_account`](../accounts/balance/#get_balance_for_account) with your `account_id`.
-2. Since you are running a test that doesn't require you to review the tx\_proposal before submitting it to the ledger, call the convenience method [`build_and_submit_transaction`](../transactions/transaction/#build_and_submit_transaction) to send MOB to a public address.
-3. Verify whether the transaction was successful by calling the [`get_balance_for_account`](../accounts/balance/#get_balance_for_account) endpoint again to compare the balance in your account before and after the transaction.
+1. Review the initial balance of your account by calling [`get_balance_for_account`](../accounts/balance/get_balance_for_account.md) with your `account_id`.
+2. Since you are running a test that doesn't require you to review the tx\_proposal before submitting it to the ledger, call the convenience method [`build_and_submit_transaction`](../transactions/transaction/build_and_submit_transaction.md) to send MOB to a public address.
+3. Verify whether the transaction was successful by calling the [`get_balance_for_account`](../accounts/balance/get_balance_for_account.md) endpoint again to compare the balance in your account before and after the transaction.
    *  If you sent MOB to your own account, subtract the unspent MOB transaction fee from your initial balance. 
    * If you sent MOB to someone else, subtract the unspent MOB transaction fee and the amount sent from your initial balance. 
 
