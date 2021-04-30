@@ -17,6 +17,9 @@ use crate::{
 use displaydoc::Display;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
+use diesel::{
+    prelude::*,
+};
 
 /// Errors for the Txo Service.
 #[derive(Display, Debug)]
@@ -125,44 +128,43 @@ where
         use crate::service::txo::TxoServiceError::{TxoNotSpendable, TxoNotSpendableByAnyAccount};
 
         let conn = self.wallet_db.get_conn()?;
-        let txo_details = Txo::get(&txo_id.to_string(), &conn)?;
-
-        let received_to_account_txo_status = match txo_details.received_to_account {
-            Some(account_status) => Ok(account_status),
-            None => Err(TxoNotSpendableByAnyAccount(txo_details.txo.txo_id_hex)),
-        }?;
-
-        let account_id_hex = match received_to_account_txo_status.txo_status.as_str() {
-            TXO_STATUS_UNSPENT => Ok(received_to_account_txo_status.account_id_hex),
-            _ => Err(TxoNotSpendable(received_to_account_txo_status.txo_status)),
-        }?;
-
-        let address_to_split_into: AssignedSubaddress =
-            AssignedSubaddress::get_for_account_by_index(
+        Ok(conn.transaction::<(TransactionLog, AssociatedTxos), TxoServiceError, _>(|| {
+            let txo_details = Txo::get(&txo_id.to_string(), &conn)?;
+            let received_to_account_txo_status = match txo_details.received_to_account {
+                Some(account_status) => Ok(account_status),
+                None => Err(TxoNotSpendableByAnyAccount(txo_details.txo.txo_id_hex)),
+            }?;
+    
+            let account_id_hex = match received_to_account_txo_status.txo_status.as_str() {
+                TXO_STATUS_UNSPENT => Ok(received_to_account_txo_status.account_id_hex),
+                _ => Err(TxoNotSpendable(received_to_account_txo_status.txo_status)),
+            }?;
+    
+            let address_to_split_into: AssignedSubaddress =
+                AssignedSubaddress::get_for_account_by_index(
+                    &account_id_hex,
+                    subaddress_index.unwrap_or(0),
+                    &conn,
+                )?;
+    
+            let mut addresses_and_values = Vec::new();
+            for output_value in output_values.iter() {
+                addresses_and_values.push((
+                    address_to_split_into.assigned_subaddress_b58.clone(),
+                    output_value.to_string(),
+                ))
+            }
+    
+            Ok(self.build_and_submit(
                 &account_id_hex,
-                subaddress_index.unwrap_or(0),
-                &conn,
-            )?;
-
-        let mut addresses_and_values = Vec::new();
-        for output_value in output_values.iter() {
-            addresses_and_values.push((
-                address_to_split_into.assigned_subaddress_b58.clone(),
-                output_value.to_string(),
-            ))
-        }
-
-        let (transaction_log, associated_txos) = self.build_and_submit(
-            &account_id_hex,
-            &addresses_and_values,
-            Some(&[txo_id.to_string()].to_vec()),
-            fee,
-            tombstone_block,
-            None,
-            Some("Split TXO".to_string()),
-        )?;
-
-        Ok((transaction_log, associated_txos))
+                &addresses_and_values,
+                Some(&[txo_id.to_string()].to_vec()),
+                fee,
+                tombstone_block,
+                None,
+                Some("Split TXO".to_string()),
+            )?)
+        })?)
     }
 
     fn get_all_txos_for_address(&self, address: &str) -> Result<Vec<TxoDetails>, TxoServiceError> {

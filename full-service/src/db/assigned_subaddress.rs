@@ -262,22 +262,13 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         index: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<AssignedSubaddress, WalletDbError> {
-        use crate::db::schema::assigned_subaddresses::dsl::{
-            account_id_hex as dsl_account_id_hex, assigned_subaddresses, subaddress_index,
-        };
+        let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
-        let assigned_subaddress: AssignedSubaddress = match assigned_subaddresses
-            .filter(dsl_account_id_hex.eq(account_id_hex))
-            .filter(subaddress_index.eq(index))
-            .get_result::<AssignedSubaddress>(conn)
-        {
-            Ok(t) => t,
-            Err(e) => {
-                return Err(e.into());
-            }
-        };
+        let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+        let subaddress = account_key.subaddress(index as u64);
 
-        Ok(assigned_subaddress)
+        let subaddress_b58 = b58_encode(&subaddress)?;
+        Ok(Self::get(&subaddress_b58, &conn)?)
     }
 
     fn find_by_subaddress_spend_public_key(
