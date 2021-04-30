@@ -4,7 +4,15 @@
 
 ## Accounts
 
-* [Account](accounts/untitled.md)
+* [Account](accounts/untitled/README.md)
+  * [create\_account](accounts/untitled/create_account.md)
+  * [import\_account](accounts/untitled/import_account.md)
+  * [import\_account\_from\_legacy\_root\_entropy \(deprecated\)](accounts/untitled/import_account_from_legacy_root_entropy-deprecated.md)
+  * [get\_account](accounts/untitled/get_account.md)
+  * [get\_all\_accounts](accounts/untitled/get_all_accounts.md)
+  * [get\_account\_status](accounts/untitled/get_account_status.md)
+  * [update\_account\_name](accounts/untitled/update_account_name.md)
+  * [remove\_account](accounts/untitled/remove_account.md)
 * [Account Secrets](accounts/account-secrets/README.md)
   * [export\_account\_secrets](accounts/account-secrets/export_account_secrets.md)
 * [Address](accounts/address/README.md)

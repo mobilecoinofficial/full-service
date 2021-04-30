@@ -8,14 +8,14 @@ description: >-
 
 ## API Endpoints
 
-* \*\*\*\*[`create_account`](accounts/untitled.md#create_account)\`\`
-* **\`\`**[`import_account`](accounts/untitled.md#import_account)\`\`
-* **\`\`**[`import_account_from_legacy_root_entropy`](accounts/untitled.md#import_account_from_legacy_root_entropy-deprecated) **``\(deprecated\)**
-* \`\`[`get_account`](accounts/untitled.md#get_account)\`\`
-* \`\`[`get_all_accounts`](accounts/untitled.md#get_all_accounts)\`\`
-* \`\`[`get_account_status`](accounts/untitled.md#get_account_status)\`\`
-* \`\`[`update_account_name`](accounts/untitled.md#update_account_name)\`\`
-* \`\`[`remove_account`](accounts/untitled.md#remove_account)\`\`
+* \*\*\*\*[`create_account`](accounts/untitled/#create_account)\`\`
+* **\`\`**[`import_account`](accounts/untitled/#import_account)\`\`
+* **\`\`**[`import_account_from_legacy_root_entropy`](accounts/untitled/#import_account_from_legacy_root_entropy-deprecated) **``\(deprecated\)**
+* \`\`[`get_account`](accounts/untitled/#get_account)\`\`
+* \`\`[`get_all_accounts`](accounts/untitled/#get_all_accounts)\`\`
+* \`\`[`get_account_status`](accounts/untitled/#get_account_status)\`\`
+* \`\`[`update_account_name`](accounts/untitled/#update_account_name)\`\`
+* \`\`[`remove_account`](accounts/untitled/#remove_account)\`\`
 * \`\`[`export_account_secrets`](accounts/account-secrets/#export_account_secrets)\`\`
 * \`\`[`assign_address_for_account`](accounts/address/#assign_address_for_account)\`\`
 * \`\`[`get_all_addresses_for_account`](accounts/address/#get_all_addresses_for_account)\`\`
