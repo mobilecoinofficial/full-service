@@ -25,9 +25,9 @@ description: >-
 * \`\`[`build_transaction`](transactions/transaction/#build_transaction)\`\`
 * \`\`[`submit_transaction`](transactions/transaction/#submit_transaction)\`\`
 * \`\`[`build_and_submit_transaction`](transactions/transaction/#build_and_submit_transaction)\`\`
-* \`\`[`get_txo_object`](transactions/txo.md#get_txo_object)\`\`
-* \`\`[`get_txo`](transactions/txo.md#get_txo)\`\`
-* \`\`[`get_all_txos_for_account`](transactions/txo.md#get_all_txos_for_account)\`\`
+* \`\`[`get_txo_object`](transactions/txo/#get_txo_object)\`\`
+* \`\`[`get_txo`](transactions/txo/#get_txo)\`\`
+* \`\`[`get_all_txos_for_account`](transactions/txo/#get_all_txos_for_account)\`\`
 * \`\`[`get_confirmations`](transactions/transaction-confirmation.md#get_confirmations)\`\`
 * \`\`[`validate_confirmation`](transactions/transaction-confirmation.md#validate_confirmation)\`\`
 * \`\`[`check_receiver_receipt_status`](transactions/transaction-receipt.md#check_receiver_receipt_status)\`\`
