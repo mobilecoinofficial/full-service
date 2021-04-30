@@ -20,8 +20,8 @@ description: >-
 * \`\`[`assign_address_for_account`](accounts/address.md#assign_address_for_account)\`\`
 * \`\`[`get_all_addresses_for_account`](accounts/address.md#get_all_addresses_for_account)\`\`
 * \`\`[`verify_address`](accounts/address.md#verify_address)\`\`
-* \`\`[`get_balance_for_account`](accounts/balance.md#get_balance_for_account)\`\`
-* \`\`[`get_balance_for_address`](accounts/balance.md#get_balance_for_address)\`\`
+* \`\`[`get_balance_for_account`](accounts/balance/#get_balance_for_account)\`\`
+* \`\`[`get_balance_for_address`](accounts/balance/#get_balance_for_address)\`\`
 * \`\`[`build_transaction`](transactions/transaction.md#build_transaction)\`\`
 * \`\`[`submit_transaction`](transactions/transaction.md#submit_transaction)\`\`
 * \`\`[`build_and_submit_transaction`](transactions/transaction.md#build_and_submit_transaction)\`\`

@@ -7,7 +7,9 @@
 * [Account](accounts/untitled.md)
 * [Account Secrets](accounts/account-secrets.md)
 * [Address](accounts/address.md)
-* [Balance](accounts/balance.md)
+* [Balance](accounts/balance/README.md)
+  * [get\_balance\_for\_account](accounts/balance/get_balance_for_account.md)
+  * [get\_balance\_for\_address](accounts/balance/get_balance_for_address.md)
 
 ## Transactions
 
