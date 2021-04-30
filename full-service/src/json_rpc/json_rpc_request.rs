@@ -169,10 +169,10 @@ pub enum JsonCommandRequest {
     get_txo {
         txo_id: String,
     },
-    split_txo {
+    build_split_txo_transaction {
         txo_id: String,
         output_values: Vec<String>,
-        subaddress_index: Option<String>,
+        destination_subaddress_index: Option<String>,
         fee: Option<String>,
         tombstone_block: Option<String>,
     },

@@ -590,18 +590,18 @@ where
                 txo: Txo::from(&result),
             }
         }
-        JsonCommandRequest::split_txo {
+        JsonCommandRequest::build_split_txo_transaction {
             txo_id,
             output_values,
-            subaddress_index,
+            destination_subaddress_index,
             fee,
             tombstone_block,
         } => {
-            let (transaction_log, associated_txos) = service
+            let tx_proposal = service
                 .split_txo(
                     &TxoID(txo_id),
                     &output_values,
-                    subaddress_index
+                    destination_subaddress_index
                         .map(|f| f.parse::<i64>())
                         .transpose()
                         .map_err(format_error)?,
@@ -609,11 +609,9 @@ where
                     tombstone_block,
                 )
                 .map_err(format_error)?;
-            JsonCommandResponse::split_txo {
-                transaction_log: json_rpc::transaction_log::TransactionLog::new(
-                    &transaction_log,
-                    &associated_txos,
-                ),
+            JsonCommandResponse::build_split_txo_transaction {
+                tx_proposal: TxProposal::from(&tx_proposal),
+                transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
             }
         }
         JsonCommandRequest::get_all_txos_for_address { address } => {
