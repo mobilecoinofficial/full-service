@@ -30,8 +30,8 @@ description: >-
 * \`\`[`get_all_txos_for_account`](transactions/txo/#get_all_txos_for_account)\`\`
 * \`\`[`get_confirmations`](transactions/transaction-confirmation/#get_confirmations)\`\`
 * \`\`[`validate_confirmation`](transactions/transaction-confirmation/#validate_confirmation)\`\`
-* \`\`[`check_receiver_receipt_status`](transactions/transaction-receipt.md#check_receiver_receipt_status)\`\`
-* \`\`[`create_receiver_receipts`](transactions/transaction-receipt.md#create_receiver_receipts)\`\`
+* \`\`[`check_receiver_receipt_status`](transactions/transaction-receipt/#check_receiver_receipt_status)\`\`
+* \`\`[`create_receiver_receipts`](transactions/transaction-receipt/#create_receiver_receipts)\`\`
 * \`\`[`get_transaction_object`](transactions/transaction-log.md#get_transaction_object)\`\`
 * \`\`[`get_transaction_log`](transactions/transaction-log.md#get_transaction_log)\`\`
 * \`\`[`get_all_transaction_logs-for_account`](transactions/transaction-log.md#get_all_transaction_logs_for_account)\`\`

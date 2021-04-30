@@ -36,7 +36,9 @@
 * [Confirmation](transactions/transaction-confirmation/README.md)
   * [get\_confirmations](transactions/transaction-confirmation/get_confirmations.md)
   * [validate\_confirmation](transactions/transaction-confirmation/validate_confirmation.md)
-* [Receiver Receipt](transactions/transaction-receipt.md)
+* [Receiver Receipt](transactions/transaction-receipt/README.md)
+  * [check\_receiver\_receipt\_status](transactions/transaction-receipt/check_receiver_receipt_status.md)
+  * [create\_receiver\_receipts](transactions/transaction-receipt/create_receiver_receipts.md)
 * [Transaction Log](transactions/transaction-log.md)
 
 ## Wallet
