@@ -141,6 +141,16 @@ curl -s localhost:9090/wallet \
 
 Import an existing account from the secret entropy.
 
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `entropy` | The secret root entropy. | 32 bytes of randomness, hex-encoded. |
+
+| Optional Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `name` | A label for this account. | A label can have duplicates, but it is not recommended. |
+| `next_subaddress_index` | The next known unused subaddress index for the account. |  |
+| `first_block_index` | The block from which to start scanning the ledger. |  |
+
 {% tabs %}
 {% tab title="Request Body" %}
 ```text
@@ -191,19 +201,13 @@ curl -s localhost:9090/wallet \
 ```
 {% endhint %}
 
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `entropy` | The secret root entropy. | 32 bytes of randomness, hex-encoded. |
-
-| Optional Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `name` | A label for this account. | A label can have duplicates, but it is not recommended. |
-| `next_subaddress_index` | The next known unused subaddress index for the account. |  |
-| `first_block_index` | The block from which to start scanning the ledger. |  |
-
 ### `get_account`
 
 Get the details of a given account.
+
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
 
 {% tabs %}
 {% tab title="Request Body" %}
@@ -255,10 +259,6 @@ If the account is not in the database, you will receive the following error mess
 }
 ```
 {% endhint %}
-
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
 
 ### `get_all_accounts`
 
