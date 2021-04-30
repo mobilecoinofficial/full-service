@@ -143,6 +143,10 @@ Due to the privacy properties of the MobileCoin ledger, transactions are ephemer
 
 Get the JSON representation of the TXO object in the transaction log.
 
+| Required Param | Purpose | Requirement |
+| :--- | :--- | :--- |
+| `transaction_log_id` | The transaction log ID to get. | Transaction log must exist in the wallet. |
+
 {% tabs %}
 {% tab title="Request Body" %}
 ```text
