@@ -22,9 +22,9 @@ description: >-
 * \`\`[`verify_address`](accounts/address/#verify_address)\`\`
 * \`\`[`get_balance_for_account`](accounts/balance/#get_balance_for_account)\`\`
 * \`\`[`get_balance_for_address`](accounts/balance/#get_balance_for_address)\`\`
-* \`\`[`build_transaction`](transactions/transaction.md#build_transaction)\`\`
-* \`\`[`submit_transaction`](transactions/transaction.md#submit_transaction)\`\`
-* \`\`[`build_and_submit_transaction`](transactions/transaction.md#build_and_submit_transaction)\`\`
+* \`\`[`build_transaction`](transactions/transaction/#build_transaction)\`\`
+* \`\`[`submit_transaction`](transactions/transaction/#submit_transaction)\`\`
+* \`\`[`build_and_submit_transaction`](transactions/transaction/#build_and_submit_transaction)\`\`
 * \`\`[`get_txo_object`](transactions/txo.md#get_txo_object)\`\`
 * \`\`[`get_txo`](transactions/txo.md#get_txo)\`\`
 * \`\`[`get_all_txos_for_account`](transactions/txo.md#get_all_txos_for_account)\`\`

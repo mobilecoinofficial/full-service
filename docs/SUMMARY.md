@@ -25,7 +25,10 @@
 
 ## Transactions
 
-* [Transaction](transactions/transaction.md)
+* [Transaction](transactions/transaction/README.md)
+  * [build\_transaction](transactions/transaction/build_transaction.md)
+  * [submit\_transaction](transactions/transaction/submit_transaction.md)
+  * [build\_and\_submit\_transaction](transactions/transaction/build_and_submit_transaction.md)
 * [Transaction Output TXO](transactions/txo.md)
 * [Confirmation](transactions/transaction-confirmation.md)
 * [Receiver Receipt](transactions/transaction-receipt.md)
