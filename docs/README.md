@@ -32,11 +32,11 @@ description: >-
 * \`\`[`validate_confirmation`](transactions/transaction-confirmation/#validate_confirmation)\`\`
 * \`\`[`check_receiver_receipt_status`](transactions/transaction-receipt/#check_receiver_receipt_status)\`\`
 * \`\`[`create_receiver_receipts`](transactions/transaction-receipt/#create_receiver_receipts)\`\`
-* \`\`[`get_transaction_object`](transactions/transaction-log.md#get_transaction_object)\`\`
-* \`\`[`get_transaction_log`](transactions/transaction-log.md#get_transaction_log)\`\`
-* \`\`[`get_all_transaction_logs-for_account`](transactions/transaction-log.md#get_all_transaction_logs_for_account)\`\`
-* \`\`[`get_all_transaction_logs_for_block`](transactions/transaction-log.md#get_all_transaction_logs_for_block)\`\`
-* \`\`[`get_all_tranacation_logs_ordered_by_block`](transactions/transaction-log.md#get_all_transaction_logs_ordered_by_block)\`\`
+* \`\`[`get_transaction_object`](transactions/transaction-log/#get_transaction_object)\`\`
+* \`\`[`get_transaction_log`](transactions/transaction-log/#get_transaction_log)\`\`
+* \`\`[`get_all_transaction_logs-for_account`](transactions/transaction-log/#get_all_transaction_logs_for_account)\`\`
+* \`\`[`get_all_transaction_logs_for_block`](transactions/transaction-log/#get_all_transaction_logs_for_block)\`\`
+* \`\`[`get_all_tranacation_logs_ordered_by_block`](transactions/transaction-log/#get_all_transaction_logs_ordered_by_block)\`\`
 * \`\`[`get_wallet_status`](wallet/wallet-status.md#get_wallet_status)\`\`
 * \`\`[`get_block_object`](ledger/block.md#get_block_object)\`\`
 * \`\`[`build_gift_code`](gift-code.md#build_gift_code)\`\`

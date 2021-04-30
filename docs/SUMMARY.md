@@ -39,7 +39,12 @@
 * [Receiver Receipt](transactions/transaction-receipt/README.md)
   * [check\_receiver\_receipt\_status](transactions/transaction-receipt/check_receiver_receipt_status.md)
   * [create\_receiver\_receipts](transactions/transaction-receipt/create_receiver_receipts.md)
-* [Transaction Log](transactions/transaction-log.md)
+* [Transaction Log](transactions/transaction-log/README.md)
+  * [get\_transaction\_object](transactions/transaction-log/get_transaction_object.md)
+  * [get\_transaction\_log](transactions/transaction-log/get_transaction_log.md)
+  * [get\_all\_transaction\_logs\_for\_account](transactions/transaction-log/get_all_transaction_logs_for_account.md)
+  * [get\_all\_transaction\_logs\_for\_block](transactions/transaction-log/get_all_transaction_logs_for_block.md)
+  * [get\_all\_transaction\_logs\_ordered\_by\_block](transactions/transaction-log/get_all_transaction_logs_ordered_by_block.md)
 
 ## Wallet
 

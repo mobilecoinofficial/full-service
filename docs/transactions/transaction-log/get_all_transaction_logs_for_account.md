@@ -1,0 +1,101 @@
+---
+description: Get all transaction logs for a given account.
+---
+
+# get\_all\_transaction\_logs\_for\_account
+
+## Parameters
+
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+
+## Example
+
+{% tabs %}
+{% tab title="Request Body" %}
+```text
+{
+  "method": "get_all_transaction_logs_for_account",
+  "params": {
+    "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10"
+  },
+  "jsonrpc": "2.0",
+  "id": 1
+}
+```
+{% endtab %}
+
+{% tab title="Response" %}
+```text
+{
+  "method": "get_all_transaction_logs_for_account",
+  "result": {
+    "transaction_log_ids": [
+      "49da8168e26331fc9bc109d1e59f7ed572b453f232591de4196f9cefb381c3f4",
+      "ff1c85e7a488c2821110597ba75db30d913bb1595de549f83c6e8c56b06d70d1"
+    ],
+    "transaction_log_map": {
+      "49da8168e26331fc9bc109d1e59f7ed572b453f232591de4196f9cefb381c3f4": {
+        "object": "transaction_log",
+        "transaction_log_id": "49da8168e26331fc9bc109d1e59f7ed572b453f232591de4196f9cefb381c3f4",
+        "direction": "tx_direction_received",
+        "is_sent_recovered": null,
+        "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+        "recipient_address_id": null,
+        "assigned_address_id": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
+        "value_pmob": "8199980000000000",
+        "fee_pmob": null,
+        "submitted_block_index": null,
+        "finalized_block_index": "130689",
+        "status": "tx_status_succeeded",
+        "input_txo_ids": [],
+        "output_txo_ids": [
+          "49da8168e26331fc9bc109d1e59f7ed572b453f232591de4196f9cefb381c3f4"
+        ],
+        "change_txo_ids": [],
+        "sent_time": null,
+        "comment": "",
+        "failure_code": null,
+        "failure_message": null,
+        "offset_count": 4
+      },
+      "ff1c85e7a488c2821110597ba75db30d913bb1595de549f83c6e8c56b06d70d1": {
+        "object": "transaction_log",
+        "transaction_log_id": "ff1c85e7a488c2821110597ba75db30d913bb1595de549f83c6e8c56b06d70d1",
+        "direction": "tx_direction_sent",
+        "is_sent_recovered": null,
+        "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
+        "recipient_address_id": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
+        "assigned_address_id": null,
+        "value_pmob": "8000000000008",
+        "fee_pmob": "10000000000",
+        "submitted_block_index": "152951",
+        "finalized_block_index": "152951",
+        "status": "tx_status_succeeded",
+        "input_txo_ids": [
+          "135c3861be4034fccb8d0b329f86124cb6e2404cd4debf52a3c3a10cb4a7bdfb",
+          "c91b5f27e28460ef6c4f33229e70c4cfe6dc4bc1517a22122a86df9fb8e40815"
+        ],
+        "output_txo_ids": [
+          "243494a0030bcbac40e87670b9288834047ef0727bcc6630a2fe2799439879ab"
+        ],
+        "change_txo_ids": [
+          "58729797de0929eed37acb45225d3631235933b709c00015f46bfc002d5754fc"
+        ],
+        "sent_time": "2021-02-28 03:05:11 UTC",
+        "comment": "",
+        "failure_code": null,
+        "failure_message": null,
+        "offset_count": 53
+      }
+    }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+}
+```
+{% endtab %}
+{% endtabs %}
+
