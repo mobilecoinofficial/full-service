@@ -43,7 +43,7 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 * [remove_gift_code](#remove-gift-code)
 * [get_txo_object](#get-txo-object)
 * [get_transaction_object](#get-transaction-object)
-* [get_block_object](#get-block-object)
+* [get_block](#get-block)
 
 ### Full Service Data Types Overview
 
@@ -2335,16 +2335,16 @@ curl -s localhost:9090/wallet \
 }
 ```
 
-#### Get Block Object
+#### Get Block
 
 Get the JSON representation of the "Block" object in the ledger.
 
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "get_block_object",
+        "method": "get_block",
         "params": {
-          "block_index": "3204",
+          "block_index": "3204"
         },
         "jsonrpc": "2.0",
         "id": 1
@@ -2354,7 +2354,7 @@ curl -s localhost:9090/wallet \
 
 ```json
 {
-  "method": "get_block_object",
+  "method": "get_block",
   "result": {
     "block": ...
     "block_contents": ...
