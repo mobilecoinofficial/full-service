@@ -31,7 +31,7 @@ In order to track who is sending what payments, you can create unique subaddress
 
 ### Receive MOB
 
-1. Generate a subaddress to share with the sender by calling [`assign_address_for_account`](../accounts/address.md#assign_address_for_account).
+1. Generate a subaddress to share with the sender by calling [`assign_address_for_account`](../accounts/address/#assign_address_for_account).
 2. Call [`get_wallet_status`](../wallet/wallet-status.md#get_wallet_status) to view the `total_unspent_pmob` that you received in the transaction.
 
 ### Send MOB
