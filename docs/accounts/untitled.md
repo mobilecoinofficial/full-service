@@ -37,15 +37,9 @@ description: >-
 
 Create a new account in the wallet.
 
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `entropy` | The secret root entropy. | 32 bytes of randomness, hex-encoded. |
-
 | Optional Param | Purpose | Requirements |
 | :--- | :--- | :--- |
 | `name` | A label for this account. | A label can have duplicates, but it is not recommended. |
-| `next_subaddress_index` | The next known unused subaddress index for the account. |  |
-| `first_block_index` | The block from which to start scanning the ledger. |  |
 
 {% tabs %}
 {% tab title="request body params" %}
