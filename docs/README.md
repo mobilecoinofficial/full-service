@@ -38,13 +38,13 @@ description: >-
 * \`\`[`get_all_transaction_logs_for_block`](transactions/transaction-log/#get_all_transaction_logs_for_block)\`\`
 * \`\`[`get_all_tranacation_logs_ordered_by_block`](transactions/transaction-log/#get_all_transaction_logs_ordered_by_block)\`\`
 * \`\`[`get_wallet_status`](wallet/wallet-status/#get_wallet_status)\`\`
-* \`\`[`get_block_object`](ledger/block.md#get_block_object)\`\`
-* \`\`[`build_gift_code`](gift-code.md#build_gift_code)\`\`
-* \`\`[`submit_gift_code`](gift-code.md#submit_gift_code)\`\`
-* \`\`[`get_gift_code`](gift-code.md#get_gift_code)\`\`
-* \`\`[`check_gift_code_status`](gift-code.md#check_gift_code_status)\`\`
-* \`\`[`claim_gift_code`](gift-code.md#claim_gift_code)\`\`
-* \`\`[`remove_gift_code`](gift-code.md#remove_gift_code)\`\`
+* \`\`[`get_block_object`](ledger/block/#get_block_object)\`\`
+* \`\`[`build_gift_code`](gift-code/#build_gift_code)\`\`
+* \`\`[`submit_gift_code`](gift-code/#submit_gift_code)\`\`
+* \`\`[`get_gift_code`](gift-code/#get_gift_code)\`\`
+* \`\`[`check_gift_code_status`](gift-code/#check_gift_code_status)\`\`
+* \`\`[`claim_gift_code`](gift-code/#claim_gift_code)\`\`
+* \`\`[`remove_gift_code`](gift-code/#remove_gift_code)\`\`
 
 ### 
 

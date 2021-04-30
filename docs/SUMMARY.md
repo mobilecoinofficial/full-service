@@ -53,11 +53,19 @@
 
 ## Ledger
 
-* [Block](ledger/block.md)
+* [Block](ledger/block/README.md)
+  * [get\_block](ledger/block/get_block.md)
 
 ---
 
-* [Gift Code](gift-code.md)
+* [Gift Code](gift-code/README.md)
+  * [build\_gift\_code](gift-code/build_gift_code.md)
+  * [submit\_gift\_code](gift-code/submit_gift_code.md)
+  * [get\_gift\_code](gift-code/get_gift_code.md)
+  * [get\_all\_gift\_codes](gift-code/get_all_gift_codes.md)
+  * [check\_gift\_code\_status](gift-code/check_gift_code_status.md)
+  * [claim\_gift\_code](gift-code/claim_gift_code.md)
+  * [remove\_gift\_code](gift-code/remove_gift_code.md)
 
 ## Tutorials
 
