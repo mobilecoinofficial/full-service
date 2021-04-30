@@ -5,7 +5,8 @@
 ## Accounts
 
 * [Account](accounts/untitled.md)
-* [Account Secrets](accounts/account-secrets.md)
+* [Account Secrets](accounts/account-secrets/README.md)
+  * [export\_account\_secrets](accounts/account-secrets/export_account_secrets.md)
 * [Address](accounts/address/README.md)
   * [assign\_address\_for\_account](accounts/address/assign_address_for_account.md)
   * [get\_all\_addresses\_for\_account](accounts/address/get_all_addresses_for_account.md)

@@ -16,7 +16,7 @@ description: >-
 * \`\`[`get_account_status`](accounts/untitled.md#get_account_status)\`\`
 * \`\`[`update_account_name`](accounts/untitled.md#update_account_name)\`\`
 * \`\`[`remove_account`](accounts/untitled.md#remove_account)\`\`
-* \`\`[`export_account_secrets`](accounts/account-secrets.md#export_account_secrets)\`\`
+* \`\`[`export_account_secrets`](accounts/account-secrets/#export_account_secrets)\`\`
 * \`\`[`assign_address_for_account`](accounts/address/#assign_address_for_account)\`\`
 * \`\`[`get_all_addresses_for_account`](accounts/address/#get_all_addresses_for_account)\`\`
 * \`\`[`verify_address`](accounts/address/#verify_address)\`\`

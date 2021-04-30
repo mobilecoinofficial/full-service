@@ -9,7 +9,7 @@ description: 'Direct your Full Service API calls to localhost:9090/wallet.'
 ### Create a New Account
 
 1. Call [`create_account`](../accounts/untitled.md#create_account) to open a new account.
-2. To protect yourself from ever losing your account, run [`export_account_secrets`](../accounts/account-secrets.md#export_account_secrets) to create a mnemonic that will allow you to recover your account. 
+2. To protect yourself from ever losing your account, run [`export_account_secrets`](../accounts/account-secrets/#export_account_secrets) to create a mnemonic that will allow you to recover your account. 
 
 {% hint style="warning" %}
 Creating a mnemonic is the only way to recover your account.
