@@ -33,6 +33,55 @@ description: >-
 
 ## Methods
 
+{% api-method method="post" host="localhost:9090/wallet - " path="create\_account" %}
+{% api-method-summary %}
+Create Account
+{% endapi-method-summary %}
+
+{% api-method-description %}
+Create a new account in the wallet
+{% endapi-method-description %}
+
+{% api-method-spec %}
+{% api-method-request %}
+{% api-method-body-parameters %}
+{% api-method-parameter name="name" type="string" required=false %}
+A label for this account. It can have duplicates, but it is not recommended.
+{% endapi-method-parameter %}
+{% endapi-method-body-parameters %}
+{% endapi-method-request %}
+
+{% api-method-response %}
+{% api-method-response-example httpCode=200 %}
+{% api-method-response-example-description %}
+
+{% endapi-method-response-example-description %}
+
+```
+{
+  "method": "create_account",
+  "result": {
+    "account": {
+      "object": "account",
+      "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
+      "name": "Alice",
+      "main_address": "4bgkVAH1hs55dwLTGVpZER8ZayhqXbYqfuyisoRrmQPXoWcYQ3SQRTjsAytCiAgk21CRrVNysVw5qwzweURzDK9HL3rGXFmAAahb364kYe3",
+      "next_subaddress_index": "2",
+      "first_block_index": "3500",
+      "recovery_mode": false
+    }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+  }
+}
+```
+{% endapi-method-response-example %}
+{% endapi-method-response %}
+{% endapi-method-spec %}
+{% endapi-method %}
+
 ### `create_account`
 
 Create a new account in the wallet.
