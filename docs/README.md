@@ -28,8 +28,8 @@ description: >-
 * \`\`[`get_txo_object`](transactions/txo/#get_txo_object)\`\`
 * \`\`[`get_txo`](transactions/txo/#get_txo)\`\`
 * \`\`[`get_all_txos_for_account`](transactions/txo/#get_all_txos_for_account)\`\`
-* \`\`[`get_confirmations`](transactions/transaction-confirmation.md#get_confirmations)\`\`
-* \`\`[`validate_confirmation`](transactions/transaction-confirmation.md#validate_confirmation)\`\`
+* \`\`[`get_confirmations`](transactions/transaction-confirmation/#get_confirmations)\`\`
+* \`\`[`validate_confirmation`](transactions/transaction-confirmation/#validate_confirmation)\`\`
 * \`\`[`check_receiver_receipt_status`](transactions/transaction-receipt.md#check_receiver_receipt_status)\`\`
 * \`\`[`create_receiver_receipts`](transactions/transaction-receipt.md#create_receiver_receipts)\`\`
 * \`\`[`get_transaction_object`](transactions/transaction-log.md#get_transaction_object)\`\`

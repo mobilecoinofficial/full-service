@@ -33,7 +33,9 @@
   * [get\_txo\_object](transactions/txo/get_txo_object.md)
   * [get\_txo](transactions/txo/get_txo.md)
   * [get\_all\_txos\_for\_account](transactions/txo/get_all_txos_for_account.md)
-* [Confirmation](transactions/transaction-confirmation.md)
+* [Confirmation](transactions/transaction-confirmation/README.md)
+  * [get\_confirmations](transactions/transaction-confirmation/get_confirmations.md)
+  * [validate\_confirmation](transactions/transaction-confirmation/validate_confirmation.md)
 * [Receiver Receipt](transactions/transaction-receipt.md)
 * [Transaction Log](transactions/transaction-log.md)
 
