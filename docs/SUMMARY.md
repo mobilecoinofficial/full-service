@@ -48,7 +48,8 @@
 
 ## Wallet
 
-* [Wallet Status](wallet/wallet-status.md)
+* [Wallet Status](wallet/wallet-status/README.md)
+  * [get\_wallet\_status](wallet/wallet-status/get_wallet_status.md)
 
 ## Ledger
 

@@ -37,7 +37,7 @@ description: >-
 * \`\`[`get_all_transaction_logs-for_account`](transactions/transaction-log/#get_all_transaction_logs_for_account)\`\`
 * \`\`[`get_all_transaction_logs_for_block`](transactions/transaction-log/#get_all_transaction_logs_for_block)\`\`
 * \`\`[`get_all_tranacation_logs_ordered_by_block`](transactions/transaction-log/#get_all_transaction_logs_ordered_by_block)\`\`
-* \`\`[`get_wallet_status`](wallet/wallet-status.md#get_wallet_status)\`\`
+* \`\`[`get_wallet_status`](wallet/wallet-status/#get_wallet_status)\`\`
 * \`\`[`get_block_object`](ledger/block.md#get_block_object)\`\`
 * \`\`[`build_gift_code`](gift-code.md#build_gift_code)\`\`
 * \`\`[`submit_gift_code`](gift-code.md#submit_gift_code)\`\`
