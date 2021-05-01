@@ -2,7 +2,7 @@
 description: 'Recall a gift code''s entropy, value, and memo from the database.'
 ---
 
-# get\_gift\_code
+# Get Gift Code
 
 ## Parameters
 

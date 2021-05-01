@@ -2,7 +2,7 @@
 description: 'Check the status of a gift code, which may be pending, available, or claimed.'
 ---
 
-# check\_gift\_code\_status
+# Check Gift Code Status
 
 ## Parameters
 

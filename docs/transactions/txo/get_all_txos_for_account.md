@@ -2,7 +2,7 @@
 description: Get all TXOs for a given account.
 ---
 
-# get\_all\_txos\_for\_account
+# Get All TXOs For Account
 
 ## Parameters
 

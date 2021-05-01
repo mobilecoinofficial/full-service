@@ -2,7 +2,7 @@
 description: Get the JSON representation of the "Block" object in the ledger.
 ---
 
-# get\_block
+# Get Block
 
 ## Parameters
 

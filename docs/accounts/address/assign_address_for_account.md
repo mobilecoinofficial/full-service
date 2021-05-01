@@ -2,7 +2,7 @@
 description: Assign an address to a given account.
 ---
 
-# assign\_address\_for\_account
+# Assign Address For Account
 
 ## Parameters
 

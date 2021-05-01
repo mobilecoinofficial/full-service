@@ -2,7 +2,7 @@
 description: Get the details of a given account.
 ---
 
-# get\_account
+# Get Account
 
 ## Parameters
 

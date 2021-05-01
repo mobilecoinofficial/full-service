@@ -2,7 +2,7 @@
 description: Rename an account.
 ---
 
-# update\_account\_name
+# Update Account Name
 
 ## Parameters
 

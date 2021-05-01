@@ -4,7 +4,7 @@ description: >-
   transaction log.
 ---
 
-# submit\_transaction
+# Submit Transaction
 
 ## Parameters
 

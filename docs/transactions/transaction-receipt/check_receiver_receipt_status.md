@@ -2,7 +2,7 @@
 description: Check the status of a receiver receipt.
 ---
 
-# check\_receiver\_receipt\_status
+# Check Receiver Receipt Status
 
 ## Example
 

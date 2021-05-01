@@ -4,7 +4,7 @@ description: >-
   once the tx_proposal has been appended to the ledger.
 ---
 
-# submit\_gift\_code
+# Submit Gift Code
 
 ## Parameters
 

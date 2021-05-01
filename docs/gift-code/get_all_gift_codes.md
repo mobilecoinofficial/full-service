@@ -2,7 +2,7 @@
 description: Get all the gift codes currently in the database.
 ---
 
-# get\_all\_gift\_codes
+# Get All Gift Codes
 
 ## Example
 

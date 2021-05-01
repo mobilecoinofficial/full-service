@@ -4,7 +4,7 @@ description: >-
   the account object and the balance object.
 ---
 
-# get\_account\_status
+# Get Account Status
 
 ## Parameters
 

@@ -2,7 +2,7 @@
 description: Get the current balance for a given address.
 ---
 
-# get\_balance\_for\_address
+# Get Balance For Address
 
 | Required Param | Purpose | Requirements |
 | :--- | :--- | :--- |

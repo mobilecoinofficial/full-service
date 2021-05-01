@@ -4,7 +4,7 @@ description: >-
   submits a transaction.
 ---
 
-# build\_and\_submit\_transaction
+# Build And Submit Transaction
 
 ## Parameters
 

@@ -2,7 +2,7 @@
 description: Remove a gift code from the database.
 ---
 
-# remove\_gift\_code
+# Remove Gift Code
 
 ## Parameters
 

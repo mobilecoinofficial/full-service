@@ -2,7 +2,7 @@
 description: Get the JSON representation of the TXO object in the transaction log.
 ---
 
-# get\_transaction\_object
+# Get Transaction Object
 
 ## Parameters
 

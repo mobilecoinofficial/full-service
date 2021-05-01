@@ -4,7 +4,7 @@ description: >-
   and provide it to the recipient so they can poll for the transaction status.
 ---
 
-# create\_receiver\_receipts
+# Create Receiver Receipts
 
 ## Parameters
 

@@ -2,7 +2,7 @@
 description: Get details of a given TXO.
 ---
 
-# get\_txo
+# Get TXO
 
 ## Parameters
 

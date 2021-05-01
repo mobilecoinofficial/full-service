@@ -2,7 +2,7 @@
 description: Verify whether an address is correctly b58-encoded.
 ---
 
-# verify\_address
+# Verify Address
 
 ## Parameters
 

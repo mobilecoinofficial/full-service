@@ -2,13 +2,14 @@
 description: Import an existing account from the secret entropy.
 ---
 
-# import\_account\_from\_legacy\_root\_entropy \(deprecated\)
+# Import Account
 
 ## Parameters
 
 | Required Param | Purpose | Requirements |
 | :--- | :--- | :--- |
-| `entropy` | The secret root entropy. | 32 bytes of randomness, hex-encoded. |
+| `mnemonic` | The secret mnemonic to recover the account. | The mnemonic must be 24 words. |
+| `key_derivation_version` | The version number of the key derivation used to derive an account key from this mnemonic. The current version is 2. |  |
 
 | Optional Param | Purpose | Requirements |
 | :--- | :--- | :--- |
@@ -22,12 +23,13 @@ description: Import an existing account from the secret entropy.
 {% tab title="Request Body" %}
 ```text
 {
-  "method": "import_account_from_legacy_root_entropy",
+  "method": "import_account",
   "params": {
-    "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
+    "mnemonic": "sheriff odor square mistake huge skate mouse shoot purity weapon proof stuff correct concert blanket neck own shift clay mistake air viable stick group",
+    "key_derivation_version": "2",
     "name": "Bob"
     "next_subaddress_index": 2,
-    "first_block_index": "3500",
+    "first_block_index": "3500"
   },
   "jsonrpc": "2.0",
   "id": 1
@@ -36,7 +38,7 @@ description: Import an existing account from the secret entropy.
 {% endtab %}
 
 {% tab title="Response" %}
-```text
+```
 {
   "method": "import_account",
   "result": {
@@ -57,12 +59,4 @@ description: Import an existing account from the secret entropy.
 ```
 {% endtab %}
 {% endtabs %}
-
-{% hint style="warning" %}
-`If you attempt to import an account already in the wallet, you will see the following error message:`
-
-```text
-{"error": "Database(Diesel(DatabaseError(UniqueViolation, "UNIQUE constraint failed: accounts.account_id_hex")))"}
-```
-{% endhint %}
 

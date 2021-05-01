@@ -2,7 +2,7 @@
 description: Get all transaction logs for a given account.
 ---
 
-# get\_all\_transaction\_logs\_for\_account
+# Get All Transaction Logs For Account
 
 ## Parameters
 

@@ -2,7 +2,7 @@
 description: Build a gift code in a tx_proposal that you can fund and submit to the ledger.
 ---
 
-# build\_gift\_code
+# Build Gift Code
 
 ## Parameters
 

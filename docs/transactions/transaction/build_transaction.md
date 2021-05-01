@@ -4,7 +4,7 @@ description: >-
   network.
 ---
 
-# build\_transaction
+# Build Transaction
 
 ## Parameters
 

@@ -2,7 +2,7 @@
 description: Claim a gift code to an account in the wallet.
 ---
 
-# claim\_gift\_code
+# Claim Gift Code
 
 ## Parameters
 

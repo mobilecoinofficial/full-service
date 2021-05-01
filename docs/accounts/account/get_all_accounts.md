@@ -2,7 +2,7 @@
 description: Get the details of all accounts in a given wallet.
 ---
 
-# get\_all\_accounts
+# Get All Accounts
 
 ## Example
 

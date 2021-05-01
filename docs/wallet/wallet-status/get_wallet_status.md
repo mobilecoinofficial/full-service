@@ -2,7 +2,7 @@
 description: Get the current status of a wallet.
 ---
 
-# get\_wallet\_status
+# Get Wallet Status
 
 ## Example
 

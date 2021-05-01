@@ -2,7 +2,7 @@
 description: Get the current balance for a given account.
 ---
 
-# get\_balance\_for\_account
+# Get Balance For Account
 
 ## Parameters
 

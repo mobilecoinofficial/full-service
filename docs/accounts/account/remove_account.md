@@ -2,7 +2,7 @@
 description: Remove an account from a given wallet.
 ---
 
-# remove\_account
+# Remove Account
 
 ## Parameters
 

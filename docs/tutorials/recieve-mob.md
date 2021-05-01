@@ -8,7 +8,7 @@ description: 'Direct your Full Service API calls to localhost:9090/wallet.'
 
 ### Create a New Account
 
-1. Call [`create_account`](../accounts/untitled/create_account.md) to open a new account.
+1. Call [`create_account`](../accounts/account/create_account.md) to open a new account.
 2. To protect yourself from ever losing your account, run [`export_account_secrets`](../accounts/account-secrets/export_account_secrets.md) to create a mnemonic that will allow you to recover your account. 
 
 {% hint style="warning" %}
@@ -17,7 +17,7 @@ Creating a mnemonic is the only way to recover your account.
 
 ### Import an Existing Account
 
-1. If you already have an account, you can access it with the [`import_account`](../accounts/untitled/import_account.md) method. 
+1. If you already have an account, you can access it with the [`import_account`](../accounts/account/import_account.md) method. 
    * To identify your account, you must provide the method with your secret mnemonic and an account name if you have one. 
    * To speed up the import process, you can provide the method with the first block index that you'd like to scan from the ledger. If you don’t include the first block index, it will default to scanning the entire ledger, which will take longer as the ledger size increases.
 

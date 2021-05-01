@@ -2,7 +2,7 @@
 description: Get the JSON representation of the "TXO" object in the ledger.
 ---
 
-# get\_txo\_object
+# Get TXO Object
 
 ## Parameters
 

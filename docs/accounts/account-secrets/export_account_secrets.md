@@ -4,7 +4,7 @@ description: >-
   lost.
 ---
 
-# export\_account\_secrets
+# Export Account Secrets
 
 ## Parameters
 

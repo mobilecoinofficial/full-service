@@ -5,7 +5,7 @@ description: >-
   this TXO.
 ---
 
-# get\_confirmations
+# Get Confirmations
 
 ## Parameters
 

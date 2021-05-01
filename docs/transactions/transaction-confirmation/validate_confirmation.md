@@ -1,4 +1,4 @@
-# validate\_confirmation
+# Validate Confirmations
 
 A sender can provide the confirmation numbers from a transaction to the recipient, who then verifies for a specific TXO ID \(note that TXO ID is specific to the TXO, and is consistent across wallets. Therefore the sender and receiver will have the same TXO ID for the same TXO which was minted by the sender, and received by the receiver\).
 

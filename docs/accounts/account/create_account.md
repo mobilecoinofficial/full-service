@@ -2,7 +2,7 @@
 description: Create a new account in the wallet.
 ---
 
-# create\_account
+# Create Account
 
 Parameters
 

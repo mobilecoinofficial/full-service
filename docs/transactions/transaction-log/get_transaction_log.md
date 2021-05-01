@@ -1,4 +1,4 @@
-# get\_transaction\_log
+# Get Transaction Log
 
 ## Parameters
 

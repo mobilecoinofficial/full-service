@@ -2,7 +2,7 @@
 description: Get all transaction logs for a given block.
 ---
 
-# get\_all\_transaction\_logs\_for\_block
+# Get All Transaction Logs For Block
 
 ## Parameters
 

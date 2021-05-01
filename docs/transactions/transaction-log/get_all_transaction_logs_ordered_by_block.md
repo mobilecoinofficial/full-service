@@ -4,7 +4,7 @@ description: >-
   order.
 ---
 
-# get\_all\_transaction\_logs\_ordered\_by\_block
+# Get All Transaction Logs Ordered By Block
 
 ## Example
 

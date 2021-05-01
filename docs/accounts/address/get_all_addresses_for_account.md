@@ -2,7 +2,7 @@
 description: Get all assigned addresses for a given account.
 ---
 
-# get\_all\_addresses\_for\_account
+# Get All Addresses For Account
 
 ## Parameters
 
