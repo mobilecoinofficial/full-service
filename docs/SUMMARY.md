@@ -56,16 +56,16 @@
 * [Block](ledger/block/README.md)
   * [Get Block](ledger/block/get_block.md)
 
----
+## Gift Codes
 
-* [Gift Code](gift-code/README.md)
-  * [Build Gift Code](gift-code/build_gift_code.md)
-  * [Submit Gift Code](gift-code/submit_gift_code.md)
-  * [Get Gift Code](gift-code/get_gift_code.md)
-  * [Get All Gift Codes](gift-code/get_all_gift_codes.md)
-  * [Check Gift Code Status](gift-code/check_gift_code_status.md)
-  * [Claim Gift Code](gift-code/claim_gift_code.md)
-  * [Remove Gift Code](gift-code/remove_gift_code.md)
+* [Gift Code](gift-codes/gift-code/README.md)
+  * [Build Gift Code](gift-codes/gift-code/build_gift_code.md)
+  * [Submit Gift Code](gift-codes/gift-code/submit_gift_code.md)
+  * [Get Gift Code](gift-codes/gift-code/get_gift_code.md)
+  * [Get All Gift Codes](gift-codes/gift-code/get_all_gift_codes.md)
+  * [Check Gift Code Status](gift-codes/gift-code/check_gift_code_status.md)
+  * [Claim Gift Code](gift-codes/gift-code/claim_gift_code.md)
+  * [Remove Gift Code](gift-codes/gift-code/remove_gift_code.md)
 
 ## Tutorials
 
