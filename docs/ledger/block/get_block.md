@@ -16,7 +16,7 @@ description: Get the JSON representation of the "Block" object in the ledger.
 {% tab title="Body Request" %}
 ```text
 {
-  "method": "get_block_object",
+  "method": "get_block",
   "params": {
     "block_index": "3204",
   },

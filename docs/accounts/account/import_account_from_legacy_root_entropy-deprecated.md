@@ -15,6 +15,9 @@ description: Import an existing account from the secret entropy.
 | `name` | A label for this account. | A label can have duplicates, but it is not recommended. |
 | `next_subaddress_index` | The next known unused subaddress index for the account. |  |
 | `first_block_index` | The block from which to start scanning the ledger. |  |
+| `fog_report_url` |  |  |
+| `fog_report_id` |  |  |
+| `fog_authority_spki` |  |  |
 
 ## Example
 

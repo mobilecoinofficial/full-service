@@ -2,13 +2,13 @@
 description: Get the JSON representation of the "TXO" object in the ledger.
 ---
 
-# Get TXO Object
+# Get All TXOs For Address
 
 ## Parameters
 
 | Parameter | Purpose | Requirements |
 | :--- | :--- | :--- |
-| `txo_id` | A TXO identifier. |  |
+| `address` | The address on which to perform this action. |  |
 
 ## Example
 
@@ -16,9 +16,9 @@ description: Get the JSON representation of the "TXO" object in the ledger.
 {% tab title="Request Body" %}
 ```text
 {
-  "method": "get_txo_object",
+  "method": "get_all_txos_for_address",
   "params": {
-    "txo_id": "4b4fd11738c03bf5179781aeb27d725002fb67d8a99992920d3654ac00ee1a2c",
+    "address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
   },
   "jsonrpc": "2.0",
   "id": 1

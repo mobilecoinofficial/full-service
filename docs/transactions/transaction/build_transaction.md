@@ -11,11 +11,12 @@ description: >-
 | Required Param | Purpose | Requirements |
 | :--- | :--- | :--- |
 | `account_id` | The account on which to perform this action | Account must exist in the wallet |
-| `recipient_public_address` | The recipient for this transaction | b58-encoded public address bytes |
-| `value_pmob` | The amount of MOB to send in this transaction |  |
 
 | Optional Param | Purpose | Requirements |
 | :--- | :--- | :--- |
+| `recipient_public_address` | The recipient for this transaction | b58-encoded public address bytes |
+| `value_pmob` | The amount of MOB to send in this transaction |  |
+| `addresses_and_values` | An array of public addresses and value tuples | addresses are b58-encoded public addresses, value is in pmob |
 | `input_txo_ids` | Specific TXOs to use as inputs to this transaction | TXO IDs \(obtain from `get_all_txos_for_account`\) |
 | `fee` | The fee amount to submit with this transaction | If not provided, uses `MINIMUM_FEE` = .01 MOB |
 | `tombstone_block` | The block after which this transaction expires | If not provided, uses `cur_height` + 50 |

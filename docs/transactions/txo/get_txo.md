@@ -8,7 +8,6 @@ description: Get details of a given TXO.
 
 | Parameter | Purpose | Requirements |
 | :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
 | `txo_id` | The TXO ID for which to get details. |  |
 
 ## Example
