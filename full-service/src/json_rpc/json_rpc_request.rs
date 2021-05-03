@@ -169,6 +169,13 @@ pub enum JsonCommandRequest {
     get_txo {
         txo_id: String,
     },
+    build_split_txo_transaction {
+        txo_id: String,
+        output_values: Vec<String>,
+        destination_subaddress_index: Option<String>,
+        fee: Option<String>,
+        tombstone_block: Option<String>,
+    },
     get_all_txos_for_address {
         address: String,
     },

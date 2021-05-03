@@ -590,6 +590,30 @@ where
                 txo: Txo::from(&result),
             }
         }
+        JsonCommandRequest::build_split_txo_transaction {
+            txo_id,
+            output_values,
+            destination_subaddress_index,
+            fee,
+            tombstone_block,
+        } => {
+            let tx_proposal = service
+                .split_txo(
+                    &TxoID(txo_id),
+                    &output_values,
+                    destination_subaddress_index
+                        .map(|f| f.parse::<i64>())
+                        .transpose()
+                        .map_err(format_error)?,
+                    fee,
+                    tombstone_block,
+                )
+                .map_err(format_error)?;
+            JsonCommandResponse::build_split_txo_transaction {
+                tx_proposal: TxProposal::from(&tx_proposal),
+                transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
+            }
+        }
         JsonCommandRequest::get_all_txos_for_address { address } => {
             let txos = service
                 .get_all_txos_for_address(&address)

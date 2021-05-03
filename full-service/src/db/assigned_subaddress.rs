@@ -66,6 +66,14 @@ pub trait AssignedSubaddressModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<AssignedSubaddress, WalletDbError>;
 
+    /// Get the Assigned Subaddress for a given index in an account, if it
+    /// exists
+    fn get_for_account_by_index(
+        account_id_hex: &str,
+        index: i64,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<AssignedSubaddress, WalletDbError>;
+
     /// Find an AssignedSubaddress by the subaddress spend public key
     ///
     /// Returns:
@@ -247,6 +255,20 @@ impl AssignedSubaddressModel for AssignedSubaddress {
             }
         };
         Ok(assigned_subaddress)
+    }
+
+    fn get_for_account_by_index(
+        account_id_hex: &str,
+        index: i64,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<AssignedSubaddress, WalletDbError> {
+        let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
+
+        let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+        let subaddress = account_key.subaddress(index as u64);
+
+        let subaddress_b58 = b58_encode(&subaddress)?;
+        Ok(Self::get(&subaddress_b58, &conn)?)
     }
 
     fn find_by_subaddress_spend_public_key(
