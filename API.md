@@ -41,8 +41,8 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 * [check_gift_code_status](#check-gift-code-status)
 * [claim_gift_code](#claim-gift-code)
 * [remove_gift_code](#remove-gift-code)
-* [get_txo_object](#get-txo-object)
-* [get_transaction_object](#get-transaction-object)
+* [get_txo](#get-txo)
+* [get_transaction](#get-transaction)
 * [get_block](#get-block)
 
 ### Full Service Data Types Overview
@@ -2283,14 +2283,14 @@ curl -s localhost:9090/wallet \
 
 To get the JSON representations of the objects which are used in the MobileCoin blockchain, you can use the following calls:
 
-#### Get Transaction Object
+#### Get Transaction
 
 Get the JSON representation of the "Tx" object in the transaction log.
 
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "get_transaction_object",
+        "method": "get_transaction",
         "params": {
           "transaction_log_id": "4b4fd11738c03bf5179781aeb27d725002fb67d8a99992920d3654ac00ee1a2c",
         },
@@ -2302,21 +2302,21 @@ curl -s localhost:9090/wallet \
 
 ```json
 {
-  "method": "get_transaction_object",
+  "method": "get_transaction",
   "result": {
     "transaction": ...
   }
 }
 ```
 
-#### Get Txo Object
+#### Get Txo
 
 Get the JSON representation of the "Txo" object in the ledger.
 
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "get_txo_object",
+        "method": "get_txo",
         "params": {
           "txo_id": "4b4fd11738c03bf5179781aeb27d725002fb67d8a99992920d3654ac00ee1a2c",
         },
@@ -2328,7 +2328,7 @@ curl -s localhost:9090/wallet \
 
 ```json
 {
-  "method": "get_txo_object",
+  "method": "get_txo",
   "result": {
     "txo": ...
   }
