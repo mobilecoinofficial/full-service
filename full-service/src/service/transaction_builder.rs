@@ -480,7 +480,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let mut rng = rand::thread_rng();
         let mut sampled_indices: HashSet<u64> = HashSet::default();
         while sampled_indices.len() < num_requested {
-            let index = rng.gen_range(0, num_txos);
+            let index = rng.gen_range(0..num_txos);
             if excluded_tx_out_indices.contains(&index) {
                 continue;
             }

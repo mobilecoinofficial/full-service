@@ -559,7 +559,7 @@ where
         let num_txos = self.ledger_db.num_txos()?;
         let mut sampled_indices: HashSet<u64> = HashSet::default();
         while sampled_indices.len() < RING_SIZE - 1 {
-            let index = rng.gen_range(0, num_txos);
+            let index = rng.gen_range(0..num_txos);
             if index == gift_txo_index {
                 continue;
             }

@@ -126,7 +126,7 @@ where
         use crate::service::txo::TxoServiceError::{TxoNotSpendable, TxoNotSpendableByAnyAccount};
 
         let conn = self.wallet_db.get_conn()?;
-        Ok(conn.transaction::<TxProposal, TxoServiceError, _>(|| {
+        conn.transaction::<TxProposal, TxoServiceError, _>(|| {
             let txo_details = Txo::get(&txo_id.to_string(), &conn)?;
             let received_to_account_txo_status = match txo_details.received_to_account {
                 Some(account_status) => Ok(account_status),
@@ -161,7 +161,7 @@ where
                 tombstone_block,
                 None,
             )?)
-        })?)
+        })
     }
 
     fn get_all_txos_for_address(&self, address: &str) -> Result<Vec<TxoDetails>, TxoServiceError> {

@@ -268,7 +268,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         let subaddress = account_key.subaddress(index as u64);
 
         let subaddress_b58 = b58_encode(&subaddress)?;
-        Ok(Self::get(&subaddress_b58, &conn)?)
+        Self::get(&subaddress_b58, &conn)
     }
 
     fn find_by_subaddress_spend_public_key(
