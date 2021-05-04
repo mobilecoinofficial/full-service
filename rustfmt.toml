@@ -1,7 +1,6 @@
-merge_imports = true
 edition = "2018"
 wrap_comments = true
-
+imports_granularity = "Crate"
 
 ignore = [
     "mobilecoin",   # The mobilecoin submodule is a dependency of this project.
