@@ -1542,7 +1542,7 @@ mod tests {
         );
         assert!(minted_txo_details.received_to_assigned_subaddress.is_none());
 
-        assert_eq!(change_value, (4998.99 * (MOB as f64)) as i64);
+        assert_eq!(change_value, 4999 * MOB - MINIMUM_FEE as i64);
         let change_txo_details = Txo::get(&change_txo_id, &wallet_db.get_conn().unwrap()).unwrap();
         assert_eq!(change_txo_details.txo.value, change_value);
         assert_eq!(
