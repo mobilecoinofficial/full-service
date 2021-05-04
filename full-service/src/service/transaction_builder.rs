@@ -30,7 +30,7 @@ use mc_mobilecoind::{
     UnspentTxOut,
 };
 use mc_transaction_core::{
-    constants::{MAX_TOMBSTONE_BLOCKS, MINIMUM_FEE, RING_SIZE},
+    constants::{MINIMUM_FEE, RING_SIZE},
     onetime_keys::recover_onetime_private_key,
     ring_signature::KeyImage,
     tx::{TxOut, TxOutMembershipProof},
@@ -41,6 +41,10 @@ use mc_util_uri::FogUri;
 use diesel::prelude::*;
 use rand::Rng;
 use std::{convert::TryFrom, iter::FromIterator, str::FromStr, sync::Arc};
+
+/// Default number of blocks in the future to set the transaction tombstone
+/// block.
+const DEFAULT_TOMBSTONE_BLOCKS: u64 = 10;
 
 /// A builder of transactions constructed from this wallet.
 pub struct WalletTransactionBuilder<FPR: FogPubkeyResolver + 'static> {
@@ -174,7 +178,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             tombstone
         } else {
             let last_block_index = self.ledger_db.num_blocks()? - 1;
-            last_block_index + MAX_TOMBSTONE_BLOCKS
+            last_block_index + DEFAULT_TOMBSTONE_BLOCKS
         };
         self.tombstone = tombstone_block;
         Ok(())
@@ -821,7 +825,7 @@ mod tests {
         // Not setting the tombstone results in tombstone = 0. This is an acceptable
         // value,
         let proposal = builder.build().unwrap();
-        assert_eq!(proposal.tx.prefix.tombstone_block, 112);
+        assert_eq!(proposal.tx.prefix.tombstone_block, 22);
 
         // Build a transaction and explicitly set tombstone
         let (recipient, mut builder) =
