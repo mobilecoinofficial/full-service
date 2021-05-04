@@ -559,7 +559,7 @@ where
         let num_txos = self.ledger_db.num_txos()?;
         let mut sampled_indices: HashSet<u64> = HashSet::default();
         while sampled_indices.len() < RING_SIZE - 1 {
-            let index = rng.gen_range(0, num_txos);
+            let index = rng.gen_range(0..num_txos);
             if index == gift_txo_index {
                 continue;
             }
@@ -833,13 +833,13 @@ mod tests {
             &RistrettoPublic::try_from(&tx_out.public_key).unwrap(),
         );
         let (value, _blinding) = tx_out.amount.get_value(&shared_secret).unwrap();
-        assert_eq!(value, 2000000000000);
+        assert_eq!(value, 2 * MOB as u64);
 
         // Verify balance for Alice = original balance - fee - gift_code_value
         let balance = service
             .get_balance_for_account(&AccountID(alice.account_id_hex.clone()))
             .unwrap();
-        assert_eq!(balance.unspent, 97990000000000);
+        assert_eq!(balance.unspent, (98 * MOB - MINIMUM_FEE as i64) as u128);
 
         // Verify that we can get the gift_code
         log::info!(logger, "Getting gift code from database");
@@ -903,7 +903,7 @@ mod tests {
         let bob_balance = service
             .get_balance_for_account(&AccountID(bob.account_id_hex))
             .unwrap();
-        assert_eq!(bob_balance.unspent, 1990000000000)
+        assert_eq!(bob_balance.unspent, (2 * MOB - MINIMUM_FEE as i64) as u128)
     }
 
     #[test_with_logger]

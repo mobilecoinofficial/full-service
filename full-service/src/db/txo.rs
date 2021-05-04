@@ -936,13 +936,13 @@ impl TxoModel for Txo {
         confirmation: &TxOutConfirmationNumber,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError> {
-        Ok(conn.transaction::<bool, WalletDbError, _>(|| {
+        conn.transaction::<bool, WalletDbError, _>(|| {
             let txo_details = Txo::get(txo_id_hex, conn)?;
             let public_key: RistrettoPublic = mc_util_serial::decode(&txo_details.txo.public_key)?;
             let account = Account::get(account_id, conn)?;
             let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
             Ok(confirmation.validate(&public_key, account_key.view_private_key()))
-        })?)
+        })
     }
 }
 
@@ -1085,7 +1085,7 @@ mod tests {
                 logger.clone(),
             );
         assert_eq!(output_value, 33 * MOB);
-        assert_eq!(change_value, (966.99 * (MOB as f64)) as i64);
+        assert_eq!(change_value, 967 * MOB - MINIMUM_FEE as i64);
 
         add_block_with_db_txos(
             &mut ledger_db,
@@ -1292,7 +1292,7 @@ mod tests {
                 logger.clone(),
             );
         assert_eq!(output_value, 72 * MOB);
-        assert_eq!(change_value, (927.98 * (MOB as f64)) as i64);
+        assert_eq!(change_value, 928 * MOB - (2 * MINIMUM_FEE as i64));
 
         // Add the minted Txos to the ledger
         add_block_with_db_txos(
@@ -1542,7 +1542,7 @@ mod tests {
         );
         assert!(minted_txo_details.received_to_assigned_subaddress.is_none());
 
-        assert_eq!(change_value, (4998.99 * (MOB as f64)) as i64);
+        assert_eq!(change_value, 4999 * MOB - MINIMUM_FEE as i64);
         let change_txo_details = Txo::get(&change_txo_id, &wallet_db.get_conn().unwrap()).unwrap();
         assert_eq!(change_txo_details.txo.value, change_value);
         assert_eq!(

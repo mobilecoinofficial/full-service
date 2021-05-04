@@ -269,10 +269,10 @@ where
     ) -> Result<Account, AccountServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
-        Ok(conn.transaction::<Account, AccountServiceError, _>(|| {
+        conn.transaction::<Account, AccountServiceError, _>(|| {
             Account::get(&account_id, &conn)?.update_name(name, &conn)?;
             Ok(Account::get(&account_id, &conn)?)
-        })?)
+        })
     }
 
     fn remove_account(&self, account_id: &AccountID) -> Result<bool, AccountServiceError> {
