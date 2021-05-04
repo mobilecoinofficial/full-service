@@ -1085,7 +1085,7 @@ mod tests {
                 logger.clone(),
             );
         assert_eq!(output_value, 33 * MOB);
-        assert_eq!(change_value, (966.99 * (MOB as f64)) as i64);
+        assert_eq!(change_value, 967 * MOB - MINIMUM_FEE as i64);
 
         add_block_with_db_txos(
             &mut ledger_db,
@@ -1292,7 +1292,7 @@ mod tests {
                 logger.clone(),
             );
         assert_eq!(output_value, 72 * MOB);
-        assert_eq!(change_value, (927.98 * (MOB as f64)) as i64);
+        assert_eq!(change_value, 928 * MOB - (2 * MINIMUM_FEE as i64));
 
         // Add the minted Txos to the ledger
         add_block_with_db_txos(

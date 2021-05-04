@@ -798,7 +798,7 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(change_details.txo.value, 19990000000000); // 19.99 * MOB
+        assert_eq!(change_details.txo.value, 20 * MOB - MINIMUM_FEE as i64);
         assert_eq!(
             change_details
                 .minted_from_account

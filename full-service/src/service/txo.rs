@@ -195,7 +195,7 @@ mod tests {
         HashSet,
     };
     use mc_crypto_rand::RngCore;
-    use mc_transaction_core::ring_signature::KeyImage;
+    use mc_transaction_core::{constants::MINIMUM_FEE, ring_signature::KeyImage};
     use rand::{rngs::StdRng, SeedableRng};
     use std::iter::FromIterator;
 
@@ -303,17 +303,17 @@ mod tests {
             TXO_TYPE_MINTED
         );
         let minted_value_set = HashSet::from_iter(minted.iter().map(|m| m.txo.value.clone()));
-        assert!(minted_value_set.contains(&(57990000000000 as i64)));
-        assert!(minted_value_set.contains(&(42000000000000 as i64)));
+        assert!(minted_value_set.contains(&(58 * MOB - MINIMUM_FEE as i64)));
+        assert!(minted_value_set.contains(&(42 * MOB)));
 
         // Our balance should reflect the various statuses of our txos
         let balance = service
             .get_balance_for_account(&AccountID(alice.account_id_hex))
             .unwrap();
         assert_eq!(balance.unspent, 0);
-        assert_eq!(balance.pending, 100000000000000);
+        assert_eq!(balance.pending, 100 * MOB as u128);
         assert_eq!(balance.spent, 0);
-        assert_eq!(balance.secreted, 99990000000000);
+        assert_eq!(balance.secreted, (100 * MOB - MINIMUM_FEE as i64) as u128);
         assert_eq!(balance.orphaned, 0);
 
         // FIXME: How to make the transaction actually hit the test ledger?
