@@ -299,7 +299,7 @@ mod tests {
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
-    use mc_transaction_core::ring_signature::KeyImage;
+    use mc_transaction_core::{constants::MINIMUM_FEE, ring_signature::KeyImage};
     use rand::{rngs::StdRng, SeedableRng};
 
     // Test sending a transaction from Alice -> Bob, and then from Bob -> Alice
@@ -397,7 +397,7 @@ mod tests {
             .map(|t| Txo::get(&t.txo_id_hex, &service.wallet_db.get_conn().unwrap()).unwrap())
             .collect::<Vec<TxoDetails>>();
         assert_eq!(change.len(), 1);
-        assert_eq!(change[0].txo.value, (57.99 * MOB as f64) as i64);
+        assert_eq!(change[0].txo.value, 58 * MOB - MINIMUM_FEE as i64);
 
         let inputs = transaction_txos
             .inputs
@@ -411,7 +411,7 @@ mod tests {
         let balance = service
             .get_balance_for_account(&AccountID(alice.account_id_hex.clone()))
             .unwrap();
-        assert_eq!(balance.unspent, 57990000000000);
+        assert_eq!(balance.unspent, (58 * MOB - MINIMUM_FEE as i64) as u128);
 
         // Bob's balance should be = output_txo_value
         let bob_balance = service
@@ -451,13 +451,16 @@ mod tests {
         let alice_balance = service
             .get_balance_for_account(&AccountID(alice.account_id_hex))
             .unwrap();
-        assert_eq!(alice_balance.unspent, 65990000000000);
+        assert_eq!(
+            alice_balance.unspent,
+            (66 * MOB - MINIMUM_FEE as i64) as u128
+        );
 
         // Bob's balance should be = output_txo_value
         let bob_balance = service
             .get_balance_for_account(&AccountID(bob.account_id_hex))
             .unwrap();
-        assert_eq!(bob_balance.unspent, 33990000000000);
+        assert_eq!(bob_balance.unspent, (34 * MOB - MINIMUM_FEE as i64) as u128);
     }
 
     // Building a transaction for an invalid public address should fail.

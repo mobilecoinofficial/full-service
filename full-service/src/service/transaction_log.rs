@@ -95,16 +95,12 @@ where
     ) -> Result<(TransactionLog, AssociatedTxos), TransactionLogServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
-        Ok(
-            conn.transaction::<(TransactionLog, AssociatedTxos), TransactionLogServiceError, _>(
-                || {
-                    let transaction_log = TransactionLog::get(transaction_id_hex, &conn)?;
-                    let associated = transaction_log.get_associated_txos(&conn)?;
+        conn.transaction::<(TransactionLog, AssociatedTxos), TransactionLogServiceError, _>(|| {
+            let transaction_log = TransactionLog::get(transaction_id_hex, &conn)?;
+            let associated = transaction_log.get_associated_txos(&conn)?;
 
-                    Ok((transaction_log, associated))
-                },
-            )?,
-        )
+            Ok((transaction_log, associated))
+        })
     }
 
     fn get_all_transaction_logs_for_block(
@@ -113,22 +109,17 @@ where
     ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
-        Ok(
-            conn.transaction::<Vec<(TransactionLog, AssociatedTxos)>, WalletServiceError, _>(
-                || {
-                    let transaction_logs =
-                        TransactionLog::get_all_for_block_index(block_index, &conn)?;
-                    let mut res: Vec<(TransactionLog, AssociatedTxos)> = Vec::new();
-                    for transaction_log in transaction_logs {
-                        res.push((
-                            transaction_log.clone(),
-                            transaction_log.get_associated_txos(&conn)?,
-                        ));
-                    }
-                    Ok(res)
-                },
-            )?,
-        )
+        conn.transaction::<Vec<(TransactionLog, AssociatedTxos)>, WalletServiceError, _>(|| {
+            let transaction_logs = TransactionLog::get_all_for_block_index(block_index, &conn)?;
+            let mut res: Vec<(TransactionLog, AssociatedTxos)> = Vec::new();
+            for transaction_log in transaction_logs {
+                res.push((
+                    transaction_log.clone(),
+                    transaction_log.get_associated_txos(&conn)?,
+                ));
+            }
+            Ok(res)
+        })
     }
 
     fn get_all_transaction_logs_ordered_by_block(
@@ -136,20 +127,16 @@ where
     ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
-        Ok(
-            conn.transaction::<Vec<(TransactionLog, AssociatedTxos)>, WalletServiceError, _>(
-                || {
-                    let transaction_logs = TransactionLog::get_all_ordered_by_block_index(&conn)?;
-                    let mut res: Vec<(TransactionLog, AssociatedTxos)> = Vec::new();
-                    for transaction_log in transaction_logs {
-                        res.push((
-                            transaction_log.clone(),
-                            transaction_log.get_associated_txos(&conn)?,
-                        ));
-                    }
-                    Ok(res)
-                },
-            )?,
-        )
+        conn.transaction::<Vec<(TransactionLog, AssociatedTxos)>, WalletServiceError, _>(|| {
+            let transaction_logs = TransactionLog::get_all_ordered_by_block_index(&conn)?;
+            let mut res: Vec<(TransactionLog, AssociatedTxos)> = Vec::new();
+            for transaction_log in transaction_logs {
+                res.push((
+                    transaction_log.clone(),
+                    transaction_log.get_associated_txos(&conn)?,
+                ));
+            }
+            Ok(res)
+        })
     }
 }
