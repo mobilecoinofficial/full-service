@@ -957,7 +957,7 @@ mod e2e {
     #[test_with_logger]
     fn test_multiple_outlay_transaction(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         // Add some accounts.
         let body = json!({
@@ -1012,8 +1012,12 @@ mod e2e {
             &mut rng,
         );
 
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
-        assert_eq!(ledger_db.num_blocks().unwrap(), 13);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(alice_account_id.to_string()),
+            13,
+        );
 
         // Create a two-output tx proposal to Bob and Charlie.
         let body = json!({
@@ -1647,7 +1651,7 @@ mod e2e {
     #[test_with_logger]
     fn test_send_txo_from_removed_account(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         // Add three accounts.
         let body = json!({
@@ -1702,8 +1706,12 @@ mod e2e {
             &mut rng,
         );
 
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
-        assert_eq!(ledger_db.num_blocks().unwrap(), 13);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id_1.to_string()),
+            13,
+        );
 
         // Send some coins to account 2.
         let body = json!({
@@ -1739,7 +1747,12 @@ mod e2e {
             mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
 
         add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id_2.to_string()),
+            14,
+        );
 
         // Remove account 1.
         let body = json!({
@@ -1788,7 +1801,12 @@ mod e2e {
             mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
 
         add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id_3.to_string()),
+            15,
+        );
 
         // Check that account 3 received its coins.
         let body = json!({
