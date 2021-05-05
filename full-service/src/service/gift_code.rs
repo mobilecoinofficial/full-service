@@ -24,6 +24,7 @@ use crate::{
     },
 };
 use bip39::{Language, Mnemonic, MnemonicType};
+use diesel::Connection;
 use displaydoc::Display;
 use mc_account_keys::{AccountKey, RootEntropy, RootIdentity, DEFAULT_SUBADDRESS_INDEX};
 use mc_account_keys_slip10::Slip10KeyGenerator;
@@ -355,7 +356,8 @@ where
         let gift_code_account_main_subaddress_b58 =
             b58_encode(&gift_code_account_key.default_subaddress())?;
 
-        let from_account = Account::get(&from_account_id, &self.wallet_db.get_conn()?)?;
+        let conn = self.wallet_db.get_conn()?;
+        let from_account = conn.transaction(|| Account::get(&from_account_id, &conn))?;
 
         let tx_proposal = self.build_transaction(
             &from_account.account_id_hex,
@@ -404,17 +406,20 @@ where
         );
 
         // Save the gift code to the database before attempting to send it out.
-        let gift_code = GiftCode::create(
-            &gift_code_b58,
-            decoded_gift_code.root_entropy.as_ref(),
-            decoded_gift_code.bip39_entropy.as_ref(),
-            &decoded_gift_code.txo_public_key,
-            value,
-            &decoded_gift_code.memo,
-            &from_account_id,
-            &TxoID::from(&tx_proposal.tx.prefix.outputs[0].clone()),
-            &self.wallet_db.get_conn()?,
-        )?;
+        let conn = self.wallet_db.get_conn()?;
+        let gift_code = conn.transaction(|| {
+            GiftCode::create(
+                &gift_code_b58,
+                decoded_gift_code.root_entropy.as_ref(),
+                decoded_gift_code.bip39_entropy.as_ref(),
+                &decoded_gift_code.txo_public_key,
+                value,
+                &decoded_gift_code.memo,
+                &from_account_id,
+                &TxoID::from(&tx_proposal.tx.prefix.outputs[0].clone()),
+                &conn,
+            )
+        })?;
 
         self.submit_transaction(
             tx_proposal.clone(),
@@ -430,12 +435,12 @@ where
         gift_code_b58: &EncodedGiftCode,
     ) -> Result<GiftCode, GiftCodeServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        Ok(GiftCode::get(&gift_code_b58, &conn)?)
+        conn.transaction(|| Ok(GiftCode::get(&gift_code_b58, &conn)?))
     }
 
     fn list_gift_codes(&self) -> Result<Vec<GiftCode>, GiftCodeServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        Ok(GiftCode::list_all(&conn)?)
+        conn.transaction(|| Ok(GiftCode::list_all(&conn)?))
     }
 
     fn check_gift_code_status(
@@ -710,7 +715,7 @@ where
         log::info!(self.logger, "Deleting gift code {}", gift_code_b58,);
 
         let conn = self.wallet_db.get_conn()?;
-        GiftCode::get(gift_code_b58, &conn)?.delete(&conn)?;
+        conn.transaction(|| GiftCode::get(gift_code_b58, &conn)?.delete(&conn))?;
         Ok(true)
     }
 }

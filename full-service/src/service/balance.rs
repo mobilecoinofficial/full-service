@@ -144,35 +144,36 @@ where
         &self,
         account_id: &AccountID,
     ) -> Result<Balance, BalanceServiceError> {
-        let conn = self.wallet_db.get_conn()?;
         let account_id_hex = &account_id.to_string();
 
-        let (unspent, pending, spent, secreted, orphaned) =
-            Self::get_balance_inner(account_id_hex, &conn)?;
+        let conn = self.wallet_db.get_conn()?;
+        conn.transaction(|| {
+            let (unspent, pending, spent, secreted, orphaned) =
+                Self::get_balance_inner(account_id_hex, &conn)?;
 
-        let network_block_index = self.get_network_block_index()? + 1;
-        let local_block_index = self.ledger_db.num_blocks()?;
-        let account = Account::get(account_id, &conn)?;
+            let network_block_index = self.get_network_block_index()? + 1;
+            let local_block_index = self.ledger_db.num_blocks()?;
+            let account = Account::get(account_id, &conn)?;
 
-        Ok(Balance {
-            unspent,
-            pending,
-            spent,
-            secreted,
-            orphaned,
-            network_block_index,
-            local_block_index,
-            synced_blocks: account.next_block_index as u64,
+            Ok(Balance {
+                unspent,
+                pending,
+                spent,
+                secreted,
+                orphaned,
+                network_block_index,
+                local_block_index,
+                synced_blocks: account.next_block_index as u64,
+            })
         })
     }
 
     fn get_balance_for_address(&self, address: &str) -> Result<Balance, BalanceServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-
         let network_block_index = self.get_network_block_index()? + 1;
         let local_block_index = self.ledger_db.num_blocks()?;
 
-        conn.transaction::<Balance, BalanceServiceError, _>(|| {
+        let conn = self.wallet_db.get_conn()?;
+        conn.transaction(|| {
             let txos = Txo::list_for_address(&address.to_string(), &conn)?;
             let assigned_address = AssignedSubaddress::get(address, &conn)?;
 
@@ -226,11 +227,10 @@ where
 
     // Wallet Status is an overview of the wallet's status
     fn get_wallet_status(&self) -> Result<WalletStatus, BalanceServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-
         let network_block_index = self.get_network_block_index()?;
 
-        conn.transaction::<WalletStatus, BalanceServiceError, _>(|| {
+        let conn = self.wallet_db.get_conn()?;
+        conn.transaction(|| {
             let accounts = Account::list_all(&conn)?;
             let mut account_map = HashMap::default();
 

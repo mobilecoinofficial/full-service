@@ -146,20 +146,22 @@ where
         let import_block_index = self.ledger_db.num_blocks()? - 1;
 
         let conn = self.wallet_db.get_conn()?;
-        let (account_id, _public_address_b58) = Account::create_from_mnemonic(
-            &mnemonic,
-            Some(first_block_index),
-            Some(import_block_index),
-            None,
-            &name.unwrap_or_else(|| "".to_string()),
-            None,
-            None,
-            None,
-            &conn,
-        )?;
+        conn.transaction(|| {
+            let (account_id, _public_address_b58) = Account::create_from_mnemonic(
+                &mnemonic,
+                Some(first_block_index),
+                Some(import_block_index),
+                None,
+                &name.unwrap_or_else(|| "".to_string()),
+                None,
+                None,
+                None,
+                &conn,
+            )?;
 
-        let account = Account::get(&account_id, &conn)?;
-        Ok(account)
+            let account = Account::get(&account_id, &conn)?;
+            Ok(account)
+        })
     }
 
     fn import_account(
@@ -201,17 +203,19 @@ where
         let import_block = self.ledger_db.num_blocks()? - 1;
 
         let conn = self.wallet_db.get_conn()?;
-        Ok(Account::import(
-            &mnemonic,
-            name,
-            import_block,
-            first_block_index,
-            next_subaddress_index,
-            fog_report_url,
-            fog_report_id,
-            fog_authority_spki,
-            &conn,
-        )?)
+        conn.transaction(|| {
+            Ok(Account::import(
+                &mnemonic,
+                name,
+                import_block,
+                first_block_index,
+                next_subaddress_index,
+                fog_report_url,
+                fog_report_id,
+                fog_authority_spki,
+                &conn,
+            )?)
+        })
     }
 
     fn import_account_from_legacy_root_entropy(
@@ -239,27 +243,29 @@ where
         let import_block = self.ledger_db.num_blocks()? - 1;
 
         let conn = self.wallet_db.get_conn()?;
-        Ok(Account::import_legacy(
-            &RootEntropy::from(&entropy_bytes),
-            name,
-            import_block,
-            first_block_index,
-            next_subaddress_index,
-            fog_report_url,
-            fog_report_id,
-            fog_authority_spki,
-            &conn,
-        )?)
+        conn.transaction(|| {
+            Ok(Account::import_legacy(
+                &RootEntropy::from(&entropy_bytes),
+                name,
+                import_block,
+                first_block_index,
+                next_subaddress_index,
+                fog_report_url,
+                fog_report_id,
+                fog_authority_spki,
+                &conn,
+            )?)
+        })
     }
 
     fn list_accounts(&self) -> Result<Vec<Account>, AccountServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        Ok(Account::list_all(&conn)?)
+        conn.transaction(|| Ok(Account::list_all(&conn)?))
     }
 
     fn get_account(&self, account_id: &AccountID) -> Result<Account, AccountServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        Ok(Account::get(&account_id, &conn)?)
+        conn.transaction(|| Ok(Account::get(&account_id, &conn)?))
     }
 
     fn update_account_name(
@@ -268,8 +274,7 @@ where
         name: String,
     ) -> Result<Account, AccountServiceError> {
         let conn = self.wallet_db.get_conn()?;
-
-        conn.transaction::<Account, AccountServiceError, _>(|| {
+        conn.transaction(|| {
             Account::get(&account_id, &conn)?.update_name(name, &conn)?;
             Ok(Account::get(&account_id, &conn)?)
         })
@@ -279,10 +284,12 @@ where
         log::info!(self.logger, "Deleting account {}", account_id,);
 
         let conn = self.wallet_db.get_conn()?;
-        let account = Account::get(account_id, &conn)?;
-        account.delete(&conn)?;
+        conn.transaction(|| {
+            let account = Account::get(account_id, &conn)?;
+            account.delete(&conn)?;
 
-        Ok(true)
+            Ok(true)
+        })
     }
 }
 

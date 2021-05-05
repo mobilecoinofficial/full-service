@@ -143,92 +143,90 @@ impl AssignedSubaddressModel for AssignedSubaddress {
             },
         };
 
-        conn.transaction::<(String, i64), WalletDbError, _>(|| {
-            let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
+        let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
-            let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
-            let account_view_key = account_key.view_key();
-            let subaddress_index = account.next_subaddress_index;
-            let subaddress = account_key.subaddress(subaddress_index as u64);
+        let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+        let account_view_key = account_key.view_key();
+        let subaddress_index = account.next_subaddress_index;
+        let subaddress = account_key.subaddress(subaddress_index as u64);
 
-            let subaddress_b58 = b58_encode(&subaddress)?;
-            let subaddress_entry = NewAssignedSubaddress {
-                assigned_subaddress_b58: &subaddress_b58,
-                account_id_hex,
-                address_book_entry: None, /* FIXME: WS-8 - Address Book Entry if details
-                                           * provided, or None always for main? */
-                public_address: &mc_util_serial::encode(&subaddress),
-                subaddress_index: subaddress_index as i64,
-                comment,
-                subaddress_spend_key: &mc_util_serial::encode(subaddress.spend_public_key()),
-            };
+        let subaddress_b58 = b58_encode(&subaddress)?;
+        let subaddress_entry = NewAssignedSubaddress {
+            assigned_subaddress_b58: &subaddress_b58,
+            account_id_hex,
+            address_book_entry: None, /* FIXME: WS-8 - Address Book Entry if details
+                                       * provided, or None always for main? */
+            public_address: &mc_util_serial::encode(&subaddress),
+            subaddress_index: subaddress_index as i64,
+            comment,
+            subaddress_spend_key: &mc_util_serial::encode(subaddress.spend_public_key()),
+        };
 
-            diesel::insert_into(assigned_subaddresses::table)
-                .values(&subaddress_entry)
-                .execute(conn)?;
+        diesel::insert_into(assigned_subaddresses::table)
+            .values(&subaddress_entry)
+            .execute(conn)?;
 
-            // Update the next subaddress index for the account
-            diesel::update(accounts.filter(dsl_account_id_hex.eq(account_id_hex)))
-                .set((crate::db::schema::accounts::next_subaddress_index.eq(subaddress_index + 1),))
-                .execute(conn)?;
+        // Update the next subaddress index for the account
+        diesel::update(accounts.filter(dsl_account_id_hex.eq(account_id_hex)))
+            .set((crate::db::schema::accounts::next_subaddress_index.eq(subaddress_index + 1),))
+            .execute(conn)?;
 
-            // Find and repair orphaned txos at this subaddress.
-            let orphaned_txos = Txo::list_by_status(&account_id_hex, &TXO_STATUS_ORPHANED, &conn)?;
+        // Find and repair orphaned txos at this subaddress.
+        let orphaned_txos = Txo::list_by_status(&account_id_hex, &TXO_STATUS_ORPHANED, &conn)?;
 
-            for orphaned_txo in orphaned_txos.iter() {
-                let tx_out_target_key: RistrettoPublic =
-                    mc_util_serial::decode(&orphaned_txo.target_key).unwrap();
-                let tx_public_key: RistrettoPublic =
-                    mc_util_serial::decode(&orphaned_txo.public_key).unwrap();
+        for orphaned_txo in orphaned_txos.iter() {
+            let tx_out_target_key: RistrettoPublic =
+                mc_util_serial::decode(&orphaned_txo.target_key).unwrap();
+            let tx_public_key: RistrettoPublic =
+                mc_util_serial::decode(&orphaned_txo.public_key).unwrap();
 
-                let txo_subaddress_spk: RistrettoPublic = recover_public_subaddress_spend_key(
-                    &account_view_key.view_private_key,
-                    &tx_out_target_key,
+            let txo_subaddress_spk: RistrettoPublic = recover_public_subaddress_spend_key(
+                &account_view_key.view_private_key,
+                &tx_out_target_key,
+                &tx_public_key,
+            );
+
+            if txo_subaddress_spk == *subaddress.spend_public_key() {
+                // Get the current account status mapping.
+                let account_txo_status =
+                    AccountTxoStatus::get(&account_id_hex, &orphaned_txo.txo_id_hex, &conn)
+                        .unwrap();
+
+                // Update the status to unspent.
+                account_txo_status.set_unspent(&conn)?;
+
+                let onetime_private_key = recover_onetime_private_key(
                     &tx_public_key,
+                    account_key.view_private_key(),
+                    &account_key.subaddress_spend_private(subaddress_index as u64),
                 );
 
-                if txo_subaddress_spk == *subaddress.spend_public_key() {
-                    // Get the current account status mapping.
-                    let account_txo_status =
-                        AccountTxoStatus::get(&account_id_hex, &orphaned_txo.txo_id_hex, &conn)
-                            .unwrap();
+                let key_image = KeyImage::from(&onetime_private_key);
 
-                    // Update the status to unspent.
-                    account_txo_status.set_unspent(&conn)?;
+                let key_image_bytes = mc_util_serial::encode(&key_image);
 
-                    let onetime_private_key = recover_onetime_private_key(
-                        &tx_public_key,
-                        account_key.view_private_key(),
-                        &account_key.subaddress_spend_private(subaddress_index as u64),
-                    );
-
-                    let key_image = KeyImage::from(&onetime_private_key);
-
-                    let key_image_bytes = mc_util_serial::encode(&key_image);
-
-                    // Update the account status mapping.
-                    diesel::update(orphaned_txo)
-                        .set((
-                            crate::db::schema::txos::subaddress_index.eq(subaddress_index),
-                            crate::db::schema::txos::key_image.eq(key_image_bytes),
-                        ))
-                        .execute(conn)?;
-
-                    diesel::update(
-                        transaction_logs
-                            .filter(tx_log_transaction_id_hex.eq(&orphaned_txo.txo_id_hex))
-                            .filter(tx_log_account_id_hex.eq(account_id_hex)),
-                    )
-                    .set(
-                        (crate::db::schema::transaction_logs::assigned_subaddress_b58
-                            .eq(&subaddress_b58),),
-                    )
+                // Update the account status mapping.
+                diesel::update(orphaned_txo)
+                    .set((
+                        crate::db::schema::txos::subaddress_index.eq(subaddress_index),
+                        crate::db::schema::txos::key_image.eq(key_image_bytes),
+                    ))
                     .execute(conn)?;
-                }
-            }
 
-            Ok((subaddress_b58, subaddress_index))
-        })
+                diesel::update(
+                    transaction_logs
+                        .filter(tx_log_transaction_id_hex.eq(&orphaned_txo.txo_id_hex))
+                        .filter(tx_log_account_id_hex.eq(account_id_hex)),
+                )
+                .set(
+                    (crate::db::schema::transaction_logs::assigned_subaddress_b58
+                        .eq(&subaddress_b58),),
+                )
+                .execute(conn)?;
+            }
+        }
+
+        Ok((subaddress_b58, subaddress_index))
     }
 
     fn get(
