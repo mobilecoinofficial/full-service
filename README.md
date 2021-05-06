@@ -197,6 +197,7 @@ See [CONTRIBUTING](./CONTRIBUTING.md).
 
 To add or edit tables:
 
+1. Ensure that you have `diesel_cli` installed and that it is using the current sqlite version: `cargo install diesel_cli --no-default-features --features "sqlite sqlite-bundled" --git https://github.com/eranrund/diesel --rev 25592f0383a1d1628db7d2db6c1fb02614a978c1`
 1. `cd full-service`
 1. Create a migration with `diesel migration generate <migration_name>`
 1. Edit the migrations/<migration_name>/up.sql and down.sql.

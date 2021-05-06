@@ -46,7 +46,7 @@ impl TryFrom<&JsonRPCRequest> for JsonCommandRequest {
 
     fn try_from(src: &JsonRPCRequest) -> Result<JsonCommandRequest, String> {
         let src_json: serde_json::Value = serde_json::json!(src);
-        Ok(serde_json::from_value(src_json).map_err(|e| format!("Could not get value {:?}", e))?)
+        serde_json::from_value(src_json).map_err(|e| format!("Could not get value {:?}", e))
     }
 }
 
@@ -135,6 +135,7 @@ pub enum JsonCommandRequest {
         block_index: String,
     },
     get_all_transaction_logs_ordered_by_block,
+    get_network_status,
     get_wallet_status,
     get_account_status {
         account_id: String,
@@ -167,6 +168,13 @@ pub enum JsonCommandRequest {
     },
     get_txo {
         txo_id: String,
+    },
+    build_split_txo_transaction {
+        txo_id: String,
+        output_values: Vec<String>,
+        destination_subaddress_index: Option<String>,
+        fee: Option<String>,
+        tombstone_block: Option<String>,
     },
     get_all_txos_for_address {
         address: String,

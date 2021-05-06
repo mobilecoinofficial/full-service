@@ -14,6 +14,7 @@ use crate::{
         gift_code::GiftCode,
         json_rpc_request::{help_str, JsonCommandRequest, JsonRPCRequest},
         json_rpc_response::{format_error, JsonCommandResponse, JsonRPCResponse},
+        network_status::NetworkStatus,
         receiver_receipt::ReceiverReceipt,
         tx_proposal::TxProposal,
         txo::Txo,
@@ -233,6 +234,12 @@ where
                 ),
             }
         }
+        JsonCommandRequest::get_network_status => JsonCommandResponse::get_network_status {
+            network_status: NetworkStatus::try_from(
+                &service.get_network_status().map_err(format_error)?,
+            )
+            .map_err(format_error)?,
+        },
         JsonCommandRequest::get_wallet_status => JsonCommandResponse::get_wallet_status {
             wallet_status: WalletStatus::try_from(
                 &service.get_wallet_status().map_err(format_error)?,
@@ -581,6 +588,30 @@ where
             let result = service.get_txo(&TxoID(txo_id)).map_err(format_error)?;
             JsonCommandResponse::get_txo {
                 txo: Txo::from(&result),
+            }
+        }
+        JsonCommandRequest::build_split_txo_transaction {
+            txo_id,
+            output_values,
+            destination_subaddress_index,
+            fee,
+            tombstone_block,
+        } => {
+            let tx_proposal = service
+                .split_txo(
+                    &TxoID(txo_id),
+                    &output_values,
+                    destination_subaddress_index
+                        .map(|f| f.parse::<i64>())
+                        .transpose()
+                        .map_err(format_error)?,
+                    fee,
+                    tombstone_block,
+                )
+                .map_err(format_error)?;
+            JsonCommandResponse::build_split_txo_transaction {
+                tx_proposal: TxProposal::from(&tx_proposal),
+                transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
             }
         }
         JsonCommandRequest::get_all_txos_for_address { address } => {

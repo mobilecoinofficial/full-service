@@ -59,8 +59,10 @@ consensus-enclave.css
 
 ingest-enclave.css
 
-testnet-dbs/wallet.db
+*.db
 
-testnet-dbs/wallet.db-shm
+*.db-shm
 
-testnet-dbs/wallet.db-wal
+*.db-wal
+
+*.mdb

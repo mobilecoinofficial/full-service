@@ -66,6 +66,7 @@ impl Default for WalletDbTestContext {
             thread_rng()
                 .sample_iter(&Alphanumeric)
                 .take(10)
+                .map(char::from)
                 .collect::<String>()
                 .to_lowercase()
         );
@@ -151,8 +152,8 @@ pub fn get_test_ledger(
 pub fn generate_ledger_db(path: &str) -> LedgerDB {
     // DELETE the old database if it already exists.
     let _ = std::fs::remove_file(format!("{}/data.mdb", path));
-    LedgerDB::create(PathBuf::from(path)).expect("Could not create ledger_db");
-    let db = LedgerDB::open(PathBuf::from(path)).expect("Could not open ledger_db");
+    LedgerDB::create(&PathBuf::from(path)).expect("Could not create ledger_db");
+    let db = LedgerDB::open(&PathBuf::from(path)).expect("Could not open ledger_db");
     db
 }
 
