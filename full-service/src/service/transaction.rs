@@ -21,6 +21,8 @@ use crate::service::address::{AddressService, AddressServiceError};
 use displaydoc::Display;
 use std::{convert::TryFrom, iter::empty, sync::atomic::Ordering};
 
+use diesel::Connection;
+
 /// Errors for the Transaction Service.
 #[derive(Display, Debug)]
 #[allow(clippy::large_enum_variant)]
@@ -61,6 +63,9 @@ pub enum TransactionServiceError {
 
     /// Address Service Error: {0}
     AddressService(AddressServiceError),
+
+    /// Diesel Error: {0}
+    Diesel(diesel::result::Error),
 }
 
 impl From<WalletDbError> for TransactionServiceError {
@@ -96,6 +101,12 @@ impl From<retry::Error<mc_connection::Error>> for TransactionServiceError {
 impl From<AddressServiceError> for TransactionServiceError {
     fn from(e: AddressServiceError) -> Self {
         Self::AddressService(e)
+    }
+}
+
+impl From<diesel::result::Error> for TransactionServiceError {
+    fn from(src: diesel::result::Error) -> Self {
+        Self::Diesel(src)
     }
 }
 
@@ -228,16 +239,18 @@ where
 
         // Log the transaction.
         let result = if let Some(a) = account_id_hex {
-            let transaction_log = TransactionLog::log_submitted(
-                tx_proposal,
-                block_index,
-                comment.unwrap_or_else(|| "".to_string()),
-                &a,
-                &self.wallet_db.get_conn()?,
-            )?;
-            let associated_txos =
-                transaction_log.get_associated_txos(&self.wallet_db.get_conn()?)?;
-            Ok(Some((transaction_log, associated_txos)))
+            let conn = self.wallet_db.get_conn()?;
+            conn.transaction(|| {
+                let transaction_log = TransactionLog::log_submitted(
+                    tx_proposal,
+                    block_index,
+                    comment.unwrap_or_else(|| "".to_string()),
+                    &a,
+                    &conn,
+                )?;
+                let associated_txos = transaction_log.get_associated_txos(&conn)?;
+                Ok(Some((transaction_log, associated_txos)))
+            })
         } else {
             Ok(None)
         };

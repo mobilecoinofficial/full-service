@@ -81,12 +81,15 @@ where
         offset: Option<i64>,
         limit: Option<i64>,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletServiceError> {
-        Ok(TransactionLog::list_all(
-            &account_id.to_string(),
-            offset,
-            limit,
-            &self.wallet_db.get_conn()?,
-        )?)
+        let conn = &self.wallet_db.get_conn()?;
+        conn.transaction(|| {
+            Ok(TransactionLog::list_all(
+                &account_id.to_string(),
+                offset,
+                limit,
+                &conn,
+            )?)
+        })
     }
 
     fn get_transaction_log(
@@ -94,8 +97,7 @@ where
         transaction_id_hex: &str,
     ) -> Result<(TransactionLog, AssociatedTxos), TransactionLogServiceError> {
         let conn = self.wallet_db.get_conn()?;
-
-        conn.transaction::<(TransactionLog, AssociatedTxos), TransactionLogServiceError, _>(|| {
+        conn.transaction(|| {
             let transaction_log = TransactionLog::get(transaction_id_hex, &conn)?;
             let associated = transaction_log.get_associated_txos(&conn)?;
 
@@ -108,8 +110,7 @@ where
         block_index: u64,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
-
-        conn.transaction::<Vec<(TransactionLog, AssociatedTxos)>, WalletServiceError, _>(|| {
+        conn.transaction(|| {
             let transaction_logs = TransactionLog::get_all_for_block_index(block_index, &conn)?;
             let mut res: Vec<(TransactionLog, AssociatedTxos)> = Vec::new();
             for transaction_log in transaction_logs {
@@ -126,8 +127,7 @@ where
         &self,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
-
-        conn.transaction::<Vec<(TransactionLog, AssociatedTxos)>, WalletServiceError, _>(|| {
+        conn.transaction(|| {
             let transaction_logs = TransactionLog::get_all_ordered_by_block_index(&conn)?;
             let mut res: Vec<(TransactionLog, AssociatedTxos)> = Vec::new();
             for transaction_log in transaction_logs {

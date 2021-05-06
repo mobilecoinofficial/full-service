@@ -22,6 +22,8 @@ use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_transaction_core::tx::TxOutConfirmationNumber;
 
+use diesel::Connection;
+
 /// Errors for the Txo Service.
 #[derive(Display, Debug)]
 #[allow(clippy::large_enum_variant)]
@@ -158,13 +160,15 @@ where
         confirmation_hex: &str,
     ) -> Result<bool, ConfirmationServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        let confirmation: TxOutConfirmationNumber =
-            mc_util_serial::decode(&hex::decode(confirmation_hex)?)?;
-        Ok(Txo::validate_confirmation(
-            &AccountID(account_id.to_string()),
-            &txo_id.to_string(),
-            &confirmation,
-            &conn,
-        )?)
+        conn.transaction(|| {
+            let confirmation: TxOutConfirmationNumber =
+                mc_util_serial::decode(&hex::decode(confirmation_hex)?)?;
+            Ok(Txo::validate_confirmation(
+                &AccountID(account_id.to_string()),
+                &txo_id.to_string(),
+                &confirmation,
+                &conn,
+            )?)
+        })
     }
 }

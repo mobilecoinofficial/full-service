@@ -100,19 +100,19 @@ where
         offset: Option<i64>,
     ) -> Result<Vec<TxoDetails>, TxoServiceError> {
         let conn = self.wallet_db.get_conn()?;
-
-        Ok(Txo::list_for_account(
-            &account_id.to_string(),
-            limit,
-            offset,
-            &conn,
-        )?)
+        conn.transaction(|| {
+            Ok(Txo::list_for_account(
+                &account_id.to_string(),
+                limit,
+                offset,
+                &conn,
+            )?)
+        })
     }
 
     fn get_txo(&self, txo_id: &TxoID) -> Result<TxoDetails, TxoServiceError> {
         let conn = self.wallet_db.get_conn()?;
-
-        Ok(Txo::get(&txo_id.to_string(), &conn)?)
+        conn.transaction(|| Ok(Txo::get(&txo_id.to_string(), &conn)?))
     }
 
     fn split_txo(
@@ -126,7 +126,7 @@ where
         use crate::service::txo::TxoServiceError::{TxoNotSpendable, TxoNotSpendableByAnyAccount};
 
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction::<TxProposal, TxoServiceError, _>(|| {
+        conn.transaction(|| {
             let txo_details = Txo::get(&txo_id.to_string(), &conn)?;
             let received_to_account_txo_status = match txo_details.received_to_account {
                 Some(account_status) => Ok(account_status),
@@ -166,8 +166,7 @@ where
 
     fn get_all_txos_for_address(&self, address: &str) -> Result<Vec<TxoDetails>, TxoServiceError> {
         let conn = self.wallet_db.get_conn()?;
-
-        Ok(Txo::list_for_address(address, &conn)?)
+        conn.transaction(|| Ok(Txo::list_for_address(address, &conn)?))
     }
 }
 
