@@ -2130,13 +2130,104 @@ mod e2e {
         // Add a block to fund account at the new subaddress.
         add_block_to_ledger_db(
             &mut ledger_db,
-            &vec![public_address],
+            &vec![public_address.clone()],
             100000000000000, // 100.0 MOB
             &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
 
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![public_address.clone()],
+            500000000000000, // 500.0 MOB
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+
+        // Remove Account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "remove_account",
+            "params": {
+                "account_id": *account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        assert_eq!(result["removed"].as_bool().unwrap(), true,);
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_account",
+            "params": {
+                "mnemonic": "sheriff odor square mistake huge skate mouse shoot purity weapon proof stuff correct concert blanket neck own shift clay mistake air viable stick group",
+                "key_derivation_version": "2",
+                "name": "Alice Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            14,
+        );
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_account",
+            "params": {
+                "account_id": *account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance = result.get("balance").unwrap();
+        assert_eq!(balance.get("unspent_pmob").unwrap(), "0");
+        assert_eq!(balance.get("spent_pmob").unwrap(), "0");
+        assert_eq!(balance.get("orphaned_pmob").unwrap(), "600000000000000");
+
+        // assign next subaddress for account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "assign_address_for_account",
+            "params": {
+                "account_id": account_id,
+                "metadata": "subaddress_index_2",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let address = result.get("address").unwrap();
+        let b58_public_address = address.get("public_address").unwrap().as_str().unwrap();
+        let public_address = b58_decode(b58_public_address).unwrap();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_account",
+            "params": {
+                "account_id": *account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance = result.get("balance").unwrap();
+        assert_eq!(balance.get("unspent_pmob").unwrap(), "600000000000000");
+        assert_eq!(balance.get("spent_pmob").unwrap(), "0");
+        assert_eq!(balance.get("orphaned_pmob").unwrap(), "0");
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -2185,8 +2276,7 @@ mod e2e {
             "id": 1,
             "method": "submit_transaction",
             "params": {
-                "tx_proposal": tx_proposal,
-                "account_id": account_id,
+                "tx_proposal": tx_proposal
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -2204,7 +2294,7 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
-            14,
+            15,
         );
 
         let body = json!({
@@ -2218,7 +2308,7 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let balance = result.get("balance").unwrap();
-        assert_eq!(balance.get("unspent_pmob").unwrap(), "49999600000000");
+        assert_eq!(balance.get("unspent_pmob").unwrap(), "549999600000000");
         assert_eq!(balance.get("spent_pmob").unwrap(), "100000000000000");
         assert_eq!(balance.get("orphaned_pmob").unwrap(), "0");
 
@@ -2251,12 +2341,26 @@ mod e2e {
         let account_obj = result.get("account").unwrap();
         let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
 
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
         wait_for_account_sync(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
-            14,
+            15,
         );
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_all_txos_for_account",
+            "params": {
+                "account_id": *account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let txo_ids = result.get("txo_ids").unwrap().as_array().unwrap();
+        let txo_map = result.get("txo_map").unwrap();
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -2271,7 +2375,7 @@ mod e2e {
         let balance = result.get("balance").unwrap();
         assert_eq!(balance.get("unspent_pmob").unwrap(), "49999600000000");
         assert_eq!(balance.get("spent_pmob").unwrap(), "100000000000000");
-        assert_eq!(balance.get("orphaned_pmob").unwrap(), "0");
+        assert_eq!(balance.get("orphaned_pmob").unwrap(), "500000000000000");
     }
 
     #[test_with_logger]
