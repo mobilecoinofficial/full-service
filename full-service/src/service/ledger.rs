@@ -15,6 +15,7 @@ use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_ledger_sync::NetworkState;
 use mc_transaction_core::{
+    ring_signature::KeyImage,
     tx::{Tx, TxOut},
     Block, BlockContents,
 };
@@ -73,6 +74,8 @@ pub trait LedgerService {
         &self,
         block_index: u64,
     ) -> Result<(Block, BlockContents), LedgerServiceError>;
+
+    fn contains_key_image(&self, key_image: &KeyImage) -> Result<bool, LedgerServiceError>;
 }
 
 impl<T, FPR> LedgerService for WalletService<T, FPR>
@@ -112,5 +115,9 @@ where
         let block = self.ledger_db.get_block(block_index)?;
         let block_contents = self.ledger_db.get_block_contents(block_index)?;
         Ok((block, block_contents))
+    }
+
+    fn contains_key_image(&self, key_image: &KeyImage) -> Result<bool, LedgerServiceError> {
+        Ok(self.ledger_db.contains_key_image(&key_image)?)
     }
 }

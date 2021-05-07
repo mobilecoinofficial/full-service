@@ -84,6 +84,7 @@ where
                 AssignedSubaddress::create_next_for_account(
                     &account_id.to_string(),
                     metadata.unwrap_or(""),
+                    &self.ledger_db,
                     &conn,
                 )?;
 
