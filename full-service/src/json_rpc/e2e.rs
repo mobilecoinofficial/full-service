@@ -2208,11 +2208,7 @@ mod e2e {
                 "metadata": "subaddress_index_2",
             }
         });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let address = result.get("address").unwrap();
-        let b58_public_address = address.get("public_address").unwrap().as_str().unwrap();
-        let public_address = b58_decode(b58_public_address).unwrap();
+        dispatch(&client, body, &logger);
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -2352,30 +2348,17 @@ mod e2e {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_all_txos_for_account",
-            "params": {
-                "account_id": *account_id,
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let txo_ids = result.get("txo_ids").unwrap().as_array().unwrap();
-        let txo_map = result.get("txo_map").unwrap();
-
-        let body = json!({
-            "jsonrpc": "2.0",
-            "id": 1,
             "method": "get_balance_for_account",
             "params": {
                 "account_id": *account_id,
-            }
+            } 
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let balance = result.get("balance").unwrap();
         assert_eq!(balance.get("unspent_pmob").unwrap(), "49999600000000");
-        assert_eq!(balance.get("spent_pmob").unwrap(), "100000000000000");
-        assert_eq!(balance.get("orphaned_pmob").unwrap(), "500000000000000");
+        assert_eq!(balance.get("spent_pmob").unwrap(), "0");
+        assert_eq!(balance.get("orphaned_pmob").unwrap(), "600000000000000");
     }
 
     #[test_with_logger]
