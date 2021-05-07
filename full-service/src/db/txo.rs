@@ -1190,6 +1190,7 @@ mod tests {
             AssignedSubaddress::create_next_for_account(
                 &alice_account_id.to_string(),
                 "",
+                &ledger_db,
                 &wallet_db.get_conn().unwrap(),
             )
             .unwrap();

@@ -2087,6 +2087,280 @@ mod e2e {
         );
     }
 
+    /// This test is intended to make sure that when a subaddress is assigned
+    /// that it correctly generates and checks the key image against the ledger
+    /// db to see if the previously orphaned txo has been spent or not
+    #[test_with_logger]
+    fn test_mark_orphaned_txo_as_spent(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_account",
+            "params": {
+                "mnemonic": "sheriff odor square mistake huge skate mouse shoot purity weapon proof stuff correct concert blanket neck own shift clay mistake air viable stick group",
+                "key_derivation_version": "2",
+                "name": "Alice Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+
+        // assign next subaddress for account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "assign_address_for_account",
+            "params": {
+                "account_id": account_id,
+                "metadata": "subaddress_index_2",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let address = result.get("address").unwrap();
+        let b58_public_address = address.get("public_address").unwrap().as_str().unwrap();
+        let public_address = b58_decode(b58_public_address).unwrap();
+
+        // Add a block to fund account at the new subaddress.
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![public_address.clone()],
+            100000000000000, // 100.0 MOB
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![public_address.clone()],
+            500000000000000, // 500.0 MOB
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+
+        // Remove Account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "remove_account",
+            "params": {
+                "account_id": *account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        assert_eq!(result["removed"].as_bool().unwrap(), true,);
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_account",
+            "params": {
+                "mnemonic": "sheriff odor square mistake huge skate mouse shoot purity weapon proof stuff correct concert blanket neck own shift clay mistake air viable stick group",
+                "key_derivation_version": "2",
+                "name": "Alice Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            14,
+        );
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_account",
+            "params": {
+                "account_id": *account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance = result.get("balance").unwrap();
+        assert_eq!(balance.get("unspent_pmob").unwrap(), "0");
+        assert_eq!(balance.get("spent_pmob").unwrap(), "0");
+        assert_eq!(balance.get("orphaned_pmob").unwrap(), "600000000000000");
+
+        // assign next subaddress for account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "assign_address_for_account",
+            "params": {
+                "account_id": account_id,
+                "metadata": "subaddress_index_2",
+            }
+        });
+        dispatch(&client, body, &logger);
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_account",
+            "params": {
+                "account_id": *account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance = result.get("balance").unwrap();
+        assert_eq!(balance.get("unspent_pmob").unwrap(), "600000000000000");
+        assert_eq!(balance.get("spent_pmob").unwrap(), "0");
+        assert_eq!(balance.get("orphaned_pmob").unwrap(), "0");
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "account 2",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id_2 = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let b58_public_address_2 = account_obj.get("main_address").unwrap().as_str().unwrap();
+
+        // Remove Account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "remove_account",
+            "params": {
+                "account_id": *account_id_2,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        assert_eq!(result["removed"].as_bool().unwrap(), true,);
+
+        // Send some coins to account 2.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "build_transaction",
+            "params": {
+                "account_id": account_id,
+                "recipient_public_address": b58_public_address_2,
+                "value_pmob": "50000000000000", // 50.0 MOB
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let tx_proposal = result.get("tx_proposal").unwrap();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "submit_transaction",
+            "params": {
+                "tx_proposal": tx_proposal
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result");
+        assert!(result.is_some());
+
+        let json_tx_proposal: json_rpc::tx_proposal::TxProposal =
+            serde_json::from_value(tx_proposal.clone()).unwrap();
+        let payments_tx_proposal =
+            mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
+
+        add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            15,
+        );
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_account",
+            "params": {
+                "account_id": *account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance = result.get("balance").unwrap();
+        assert_eq!(balance.get("unspent_pmob").unwrap(), "549999600000000");
+        assert_eq!(balance.get("spent_pmob").unwrap(), "100000000000000");
+        assert_eq!(balance.get("orphaned_pmob").unwrap(), "0");
+
+        // Remove Account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "remove_account",
+            "params": {
+                "account_id": *account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        assert_eq!(result["removed"].as_bool().unwrap(), true,);
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_account",
+            "params": {
+                "mnemonic": "sheriff odor square mistake huge skate mouse shoot purity weapon proof stuff correct concert blanket neck own shift clay mistake air viable stick group",
+                "key_derivation_version": "2",
+                "name": "Alice Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            15,
+        );
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_account",
+            "params": {
+                "account_id": *account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance = result.get("balance").unwrap();
+        assert_eq!(balance.get("unspent_pmob").unwrap(), "49999600000000");
+        assert_eq!(balance.get("spent_pmob").unwrap(), "100000000000000");
+        assert_eq!(balance.get("orphaned_pmob").unwrap(), "500000000000000");
+    }
+
     #[test_with_logger]
     fn test_get_all_txos(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);

@@ -107,6 +107,9 @@ pub enum WalletDbError {
 
     /// Error with the GiftCode service: {0}
     GiftCode(GiftCodeDbError),
+
+    /// Error with the LedgerDB
+    LedgerDB(mc_ledger_db::Error),
 }
 
 impl From<diesel::result::Error> for WalletDbError {
@@ -136,5 +139,11 @@ impl From<prost::DecodeError> for WalletDbError {
 impl From<GiftCodeDbError> for WalletDbError {
     fn from(src: GiftCodeDbError) -> Self {
         Self::GiftCode(src)
+    }
+}
+
+impl From<mc_ledger_db::Error> for WalletDbError {
+    fn from(src: mc_ledger_db::Error) -> Self {
+        Self::LedgerDB(src)
     }
 }

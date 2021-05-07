@@ -21,6 +21,7 @@ use mc_transaction_core::{
 
 use mc_account_keys::AccountKey;
 use mc_crypto_keys::RistrettoPublic;
+use mc_ledger_db::{Ledger, LedgerDB};
 
 use crate::db::WalletDbError;
 use diesel::{
@@ -57,6 +58,7 @@ pub trait AssignedSubaddressModel {
     fn create_next_for_account(
         account_id_hex: &str,
         comment: &str,
+        ledger_db: &LedgerDB,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(String, i64), WalletDbError>;
 
@@ -132,6 +134,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
     fn create_next_for_account(
         account_id_hex: &str,
         comment: &str,
+        ledger_db: &LedgerDB,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(String, i64), WalletDbError> {
         use crate::db::schema::{
@@ -192,9 +195,6 @@ impl AssignedSubaddressModel for AssignedSubaddress {
                     AccountTxoStatus::get(&account_id_hex, &orphaned_txo.txo_id_hex, &conn)
                         .unwrap();
 
-                // Update the status to unspent.
-                account_txo_status.set_unspent(&conn)?;
-
                 let onetime_private_key = recover_onetime_private_key(
                     &tx_public_key,
                     account_key.view_private_key(),
@@ -202,6 +202,12 @@ impl AssignedSubaddressModel for AssignedSubaddress {
                 );
 
                 let key_image = KeyImage::from(&onetime_private_key);
+
+                if ledger_db.contains_key_image(&key_image)? {
+                    account_txo_status.set_spent(&conn)?;
+                } else {
+                    account_txo_status.set_unspent(&conn)?;
+                }
 
                 let key_image_bytes = mc_util_serial::encode(&key_image);
 
