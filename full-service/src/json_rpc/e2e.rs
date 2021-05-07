@@ -2351,14 +2351,14 @@ mod e2e {
             "method": "get_balance_for_account",
             "params": {
                 "account_id": *account_id,
-            } 
+            }
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let balance = result.get("balance").unwrap();
         assert_eq!(balance.get("unspent_pmob").unwrap(), "49999600000000");
-        assert_eq!(balance.get("spent_pmob").unwrap(), "0");
-        assert_eq!(balance.get("orphaned_pmob").unwrap(), "600000000000000");
+        assert_eq!(balance.get("spent_pmob").unwrap(), "100000000000000");
+        assert_eq!(balance.get("orphaned_pmob").unwrap(), "500000000000000");
     }
 
     #[test_with_logger]
