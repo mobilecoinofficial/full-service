@@ -41,7 +41,7 @@ description: Import an existing account from the secret entropy.
 {% endtab %}
 
 {% tab title="Response" %}
-```
+```text
 {
   "method": "import_account",
   "result": {

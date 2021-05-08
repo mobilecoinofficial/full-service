@@ -25,7 +25,7 @@ Parameters
 {% endtab %}
 
 {% tab title="Response" %}
-```
+```text
 {
   "method": "create_account",
   "result": {
@@ -47,6 +47,4 @@ Parameters
 ```
 {% endtab %}
 {% endtabs %}
-
-
 

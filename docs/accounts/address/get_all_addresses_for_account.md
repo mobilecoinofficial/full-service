@@ -27,7 +27,7 @@ description: Get all assigned addresses for a given account.
 {% endtab %}
 
 {% tab title="Response" %}
-```
+```text
 {
   "method": "get_all_addresses_for_account",
   "result": {

@@ -17,7 +17,7 @@ Due to the privacy properties of the MobileCoin ledger, transactions are ephemer
 | object | string | String representing the object's type. Objects of the same type share the same value |
 | `transaction_log_id` | string | Unique identifier for the transaction log. This value is not associated to the ledger |
 | `direction` | string | A string that identifies if this transaction log was sent or received. Valid values are "sent" or "received" |
-| `is_sent_recovered` | bool \(optional\) | Flag that indicates if the sent transaction log was recovered from the ledger. This is "null" for received transaction logs. If true, some information may not be available on the transaction log and its txos without user input.  |
+| `is_sent_recovered` | bool \(optional\) | Flag that indicates if the sent transaction log was recovered from the ledger. This is "null" for received transaction logs. If true, some information may not be available on the transaction log and its txos without user input. |
 | `account_id` | string | Unique identifier for the assigned associated account. If the transaction is outgoing, this account is from whence the txo came. If received, this is the receiving account. |
 | `input_txos` | \[TxoAbbrev\] | A list of txos which were inputs to this transaction |
 | `output_txos` | \[TxoAbbrev\] | A list of txos which were outputs to this transaction |
@@ -41,9 +41,5 @@ Due to the privacy properties of the MobileCoin ledger, transactions are ephemer
 | `recipient_address_id` | string | Unique identifier for the recipient associated account. Blank unless direction is `sent` |
 | `value_pmob` | string | Available pico MOB for this Txo. If the account is syncing, this value may change |
 
-
-
 ## Example
-
-
 

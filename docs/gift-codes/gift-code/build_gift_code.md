@@ -14,8 +14,8 @@ description: Build a gift code in a tx_proposal that you can fund and submit to 
 | Optional Param | Purpose | Requirements |
 | :--- | :--- | :--- |
 | `input_txo_ids` | The specific TXOs to use as inputs to this transaction. | TXO IDs \(obtain from `get_all_txos_for_account`\) |
-| `fee` | The fee amount to submit with this transaction. |  If not provided, uses `MINIMUM_FEE` = .01 MOB. |
-| `tombstone_block` | The block after which this transaction expires.  | If not provided, uses `cur_height` + 50. |
+| `fee` | The fee amount to submit with this transaction. | If not provided, uses `MINIMUM_FEE` = .01 MOB. |
+| `tombstone_block` | The block after which this transaction expires. | If not provided, uses `cur_height` + 50. |
 | `max_spendable_value` | The maximum amount for an input TXO selected for this transaction. |  |
 | `memo` | Memo for whoever claims the gift code. |  |
 
@@ -38,7 +38,7 @@ description: Build a gift code in a tx_proposal that you can fund and submit to 
 {% endtab %}
 
 {% tab title="Response" %}
-```
+```text
 {
   "method": "build_gift_code",
   "result": {

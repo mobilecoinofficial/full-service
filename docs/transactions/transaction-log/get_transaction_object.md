@@ -27,7 +27,7 @@ description: Get the JSON representation of the TXO object in the transaction lo
 {% endtab %}
 
 {% tab title="Response" %}
-```
+```text
 {
   "method": "get_transaction_object",
   "result": {

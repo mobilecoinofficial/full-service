@@ -29,7 +29,7 @@ description: >-
 {% endtab %}
 
 {% tab title="Response" %}
-```
+```text
 {
   "method": "get_account_status",
   "result": {

@@ -29,7 +29,7 @@ description: Rename an account.
 {% endtab %}
 
 {% tab title="Response" %}
-```
+```text
 {
   "method": "remove_account",
   "result": {

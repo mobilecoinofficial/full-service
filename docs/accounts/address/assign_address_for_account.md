@@ -32,7 +32,7 @@ description: Assign an address to a given account.
 {% endtab %}
 
 {% tab title="Response" %}
-```
+```text
 {
   "method": "assign_address_for_account",
   "result": {

@@ -41,5 +41,3 @@ description: Remove an account from a given wallet.
 {% endtab %}
 {% endtabs %}
 
-
-

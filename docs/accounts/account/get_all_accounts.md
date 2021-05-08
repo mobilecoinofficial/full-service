@@ -18,7 +18,7 @@ description: Get the details of all accounts in a given wallet.
 {% endtab %}
 
 {% tab title="Response" %}
-```
+```text
 {
   "method": "get_all_accounts",
   "result": {

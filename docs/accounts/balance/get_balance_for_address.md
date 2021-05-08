@@ -24,7 +24,7 @@ description: Get the current balance for a given address.
 {% endtab %}
 
 {% tab title="Response" %}
-```
+```text
 {
   "method": "get_balance_for_address",
   "result": {

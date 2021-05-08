@@ -29,7 +29,7 @@ curl -s localhost:9090/wallet \
 {% endtab %}
 
 {% tab title="Response" %}
-```
+```text
 {
   "method": "get_balance_for_account",
   "result": {
@@ -53,6 +53,4 @@ curl -s localhost:9090/wallet \
 ```
 {% endtab %}
 {% endtabs %}
-
-
 

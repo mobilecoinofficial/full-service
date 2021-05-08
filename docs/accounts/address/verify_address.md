@@ -27,7 +27,7 @@ description: Verify whether an address is correctly b58-encoded.
 {% endtab %}
 
 {% tab title="Response" %}
-```
+```text
 {
   "method": "verify_address",
   "result": {
