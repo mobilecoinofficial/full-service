@@ -74,3 +74,4 @@ bs58 = "0.3.0"
 [build-dependencies]
 # clippy fails to run without this.
 diesel = { version = "1.4.6", features = ["sqlite"] }
+libsqlite3-sys = { version = ">=0.8.0, <=0.22.1", features = ["min_sqlite_version_3_7_16", "bundled"] }
