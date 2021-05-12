@@ -5,7 +5,7 @@ use diesel::{
     r2d2::{ConnectionManager, Pool, PooledConnection},
 };
 use mc_common::logger::Logger;
-use std::time::Duration;
+use std::{env, time::Duration};
 
 #[derive(Debug)]
 pub struct ConnectionOptions {
@@ -35,6 +35,13 @@ impl diesel::r2d2::CustomizeConnection<SqliteConnection, diesel::r2d2::Error>
             if let Some(d) = self.busy_timeout {
                 conn.batch_execute(&format!("PRAGMA busy_timeout = {};", d.as_millis()))?;
             }
+
+            // Send the encryption key to SQLCipher, if it is not the empty string.
+            let encryption_key = env::var("MC_PASSWORD").unwrap_or("".to_string());
+            if !encryption_key.is_empty() {
+                conn.batch_execute(&format!("PRAGMA key = '{}';", encryption_key))?;
+            }
+
             Ok(())
         })()
         .map_err(diesel::r2d2::Error::QueryError)

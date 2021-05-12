@@ -47,7 +47,7 @@ displaydoc = {version = "0.1", default-features = false }
 dotenv = "0.15.0"
 grpcio = "0.6.0"
 hex = {version = "0.4", default-features = false }
-libsqlite3-sys = { version = ">=0.8.0, <=0.22.1", features = ["min_sqlite_version_3_7_16", "bundled"] }
+libsqlite3-sys = { git = "https://github.com/mobilecoinofficial/rusqlite", branch = "bundled-sqlcipher", version = ">=0.8.0, <=0.22.2", optional = false, features = ["min_sqlite_version_3_7_16", "bundled-sqlcipher"] }
 num_cpus = "1.12"
 prost = { version = "0.6.1", default-features = false, features = ["prost-derive"] }
 rand = { version = "0.8", default-features = false }
