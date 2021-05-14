@@ -1,29 +1,29 @@
 ---
-description: Assign an address to a given account.
+description: 为账户分配地址。
 ---
 
-# Assign Address For Account
+# 为账户分配地址
 
-## Parameters
+## 参数
 
-| Required Param | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action. | The account must exist in the wallet. |
+| `account_id` | 要分配地址的账户。 | 指定的账户必须存在在钱包中。 |
 
-| Optional Param | Purpose | Requirements |
+| 可选参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| ​`metadata` | The metadata for this address. | String; can contain stringified JSON. |
+| ​`metadata` | 这个地址的元数据。| 字符串。可以包含字符串化的 JSON。 |
 
-## Example
+## 示例
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "assign_address_for_account",
   "params": {
     "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
-    "metadata": "For transactions from Carol"
+    "metadata": "为了和 Carol 进行交易"
   },
   "jsonrpc": "2.0",
   "id": 1
@@ -31,7 +31,7 @@ description: Assign an address to a given account.
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "assign_address_for_account",

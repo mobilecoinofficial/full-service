@@ -1,17 +1,19 @@
 ---
-description: Create a new account in the wallet.
+description: 在钱包中创建一个新的账户。
 ---
 
-# Create Account
+# 创建账户
 
-Parameters
+## 参数：
 
-| Optional Param | Purpose | Requirements |
+| 可选参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `name` | A label for this account. | A label can have duplicates, but it is not recommended. |
+| `name` | 账户名称。 | 账户名称可以重复，但是我们并不建议您这样做。 |
+
+## 示例
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "create_account",
@@ -24,7 +26,7 @@ Parameters
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "create_account",

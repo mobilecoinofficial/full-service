@@ -1,21 +1,20 @@
 ---
 description: >-
-  Exporting the secret mnemonic an account is the only way to recover it when
-  lost.
+  导出助记词是找回丢失账户的唯一途径。
 ---
 
-# Export Account Secrets
+# 导出账户密钥
 
-## Parameters
+##  参数
 
-| Required Param | Purpose | Requirements |
+| 参数 |  用途 | 说明 |
 | :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+| `account_id` | 指定导出助记词的账户。 | 指定的账户必须存在在钱包中。 |
 
-## Example
+## 示例
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "export_account_secrets",
@@ -28,7 +27,7 @@ description: >-
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "export_account_secrets",
@@ -57,9 +56,9 @@ description: >-
 {% endtab %}
 {% endtabs %}
 
-## Outputs
+## 输出
 
-If the account was generated using version 1 of the key derivation, entropy will be provided as a hex-encoded string.
+如果账户创建使用的密钥生成算法版本号是 1，那么您会得到一个 16 进制编码的字符串。
 
-If the account was generated using version 2 of the key derivation, mnemonic will be provided as a 24-word mnemonic string.
+如果账户创建使用的密钥生成算法版本号是 2，那么您会得到一个由 24 个单词构成的助记词字符串。
 

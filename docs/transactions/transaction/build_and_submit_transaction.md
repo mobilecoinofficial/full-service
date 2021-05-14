@@ -1,32 +1,31 @@
 ---
 description: >-
-  Sending a transaction is a convenience method that first builds and then
-  submits a transaction.
+  一个同时进行构建交易和提交交易的便利方法。
 ---
 
-# Build And Submit Transaction
+# 构建并提交交易
 
-## Parameters
+## 参数
 
-| Required Param | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action | Account must exist in the wallet |
+| `account_id` | 用来构建并提交交易的账户。 | 指定的账户必须存在在钱包中。 |
 
-| Optional Param | Purpose | Requirements |
+| 可选参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `recipient_public_address` | The recipient for this transaction | b58-encoded public address bytes |
-| `value_pmob` | The amount of MOB to send in this transaction |  |
-| `addresses_and_values` | An array of public addresses and value tuples | addresses are b58-encoded public addresses, value is in pmob |
-| `input_txo_ids` | Specific TXOs to use as inputs to this transaction | TXO IDs \(obtain from `get_all_txos_for_account`\) |
-| `fee` | The fee amount to submit with this transaction | If not provided, uses `MINIMUM_FEE` = .01 MOB |
-| `tombstone_block` | The block after which this transaction expires | If not provided, uses `cur_height` + 50 |
-| `max_spendable_value` | The maximum amount for an input TXO selected for this transaction |  |
-| `comment` | Comment to annotate this transaction in the transaction log |  |
+| `recipient_public_address` | 当笔交易的收取方。| 字节形式的经 Base 58 编码的公共地址 |
+| `value_pmob` | 当笔交易要发送的 MOB 数额。 | 单位是 pmob  |
+| `addresses_and_values` | 一个由公共地址和 MOB 数额二元组构成的数组。| 地址和数额的形式和上述两个字段一致 |
+| `input_txo_ids` | 指定当笔交易内要发送的 MOB （TXO） ID。 | TXO ID \(通过 `get_all_txos_for_account` 获取\) |
+| `fee` | 当笔交易的手续费 | 默认值 `MINIMUM_FEE` = .01 MOB |
+| `tombstone_block` | 当笔交易的失效期（区块高度） | 默认值为当前区块高度 + 50 |
+| `max_spendable_value` | 会被选入当笔交易的 TXO 的最大金额。|  |
+| `comment` | 在交易日志中标记当笔交易的备注。 |  |
 
-## Example
+## 示例
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "build_and_submit_transaction",
@@ -41,7 +40,7 @@ description: >-
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "build_and_submit_transaction",
@@ -84,7 +83,7 @@ description: >-
 {% endtabs %}
 
 {% hint style="warning" %}
-`If an account is not fully-synced, you may see the following error message:`
+`如果账户没有完全同步，您可能会看到如下错误信息：`
 
 ```text
 {
@@ -92,6 +91,6 @@ description: >-
 }
 ```
 
-Call `check_balance` for the account, and note the `synced_blocks` value. If that value is less than the `local_block_index` value, then your TXOs may not all be updated to their spent status.
+调用 `check_balance` 来查看该账户的余额并注意 `synced_blocked` 字段。如果该值小于 `local_block_index` 字段，那么您所持有的 MOB 状态可能并没有完全同步。
 {% endhint %}
 

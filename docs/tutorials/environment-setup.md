@@ -1,15 +1,15 @@
 ---
-description: Set up your environment to run full service on Mac or Linux.
+description: 在 Mac 或 Linux 上配置您的 Full Service 环境。
 ---
 
-# Environment Setup
+# 环境配置
 
-## Binaries
+## 二进制
 
-1. Download [TestNet or MainNet binaries](https://github.com/mobilecoinofficial/full-service/releases). 
-2. In a terminal window, navigate to your downoads folder to run the Full Service binaries directory that you just downloaded.
+1. 下载[测试网络或主网络的二进制](https://github.com/mobilecoinofficial/full-service/releases)。
+2. 打开一个终端窗口并定位到您的下载目录来运行刚下载的 Full Service 程序。
 
-   * If you downloaded TestNet, run:
+   * 如果您下载的是测试网络版本，请运行：
 
    ```text
    mkdir -p testnet-dbs
@@ -23,7 +23,7 @@ description: Set up your environment to run full service on Mac or Linux.
        --fog-ingest-enclave-css $(pwd)/ingest-enclave.css
    ```
 
-   * If you downloaded MainNet, run:
+   * 如果您下载的是主网络版本，请运行：
 
    ```text
      mkdir -p mainnet-dbs
@@ -38,17 +38,10 @@ description: Set up your environment to run full service on Mac or Linux.
    ```
 
 {% hint style="info" %}
-Replace our default peers or tx-source-urls if you would prefer to establish your own source of truth.
+如果您想使用您自己的信任节点组的话，请替换我们的默认 peer 或 tx-source-url 参数。
 {% endhint %}
 
-## SQLite3
+## **HTTP 请求工具**
 
-1. Confirm [Homebrew](https://brew.sh/) is installed.
-2. Run `brew info sqlite` to see which version, if any, you have installed.
-   * If you do not yet have sqlite, run `brew install sqlite`
-   * If your version is outdated, run `brew upgrade sqlite`
-
-## **HTTP Request Service**
-
-1. Install a service, such as [Postman](https://www.postman.com/), to send HTTP requests.
+1. 安装一个您喜欢的 HTTP 请求工具，比如：[Postman](https://www.postman.com/) 用来通过 HTTP 请求和 Full Service 交互。
 

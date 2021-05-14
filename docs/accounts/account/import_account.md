@@ -1,29 +1,29 @@
 ---
-description: Import an existing account from the secret entropy.
+description: 通过助记词来导入一个既存账户。
 ---
 
-# Import Account
+# 导入账户
 
-## Parameters
+## 参数
 
-| Required Param | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `mnemonic` | The secret mnemonic to recover the account. | The mnemonic must be 24 words. |
-| `key_derivation_version` | The version number of the key derivation used to derive an account key from this mnemonic. The current version is 2. |  |
+| `mnemonic` | 用来找回账户的助记词组。 | 助记词必须为 24 个英文单词。 |
+| `key_derivation_version` | 通过助记词生成账户密钥的算法的版本号。当前版本为 2。 |  |
 
-| Optional Param | Purpose | Requirements |
+| 可选参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `name` | A label for this account. | A label can have duplicates, but it is not recommended. |
-| `next_subaddress_index` | The next known unused subaddress index for the account. |  |
-| `first_block_index` | The block from which to start scanning the ledger. |  |
+| `name` | 账户名称。 | 账户名称可以重复，但是我们并不建议您这样做。 |
+| `next_subaddress_index` | 该账户已知的下一个可用子地址下标。  |  |
+| `first_block_index` | 账簿扫描的起始区块。 |  |
 | `fog_report_url` |  |  |
 | `fog_report_id` |  |  |
 | `fog_authority_spki` |  |  |
 
-## Example
+## 示例
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "import_account",
@@ -40,7 +40,7 @@ description: Import an existing account from the secret entropy.
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "import_account",

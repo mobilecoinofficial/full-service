@@ -1,34 +1,32 @@
 ---
-description: Get the current balance for a given account.
+description: 获取指定账户的当前余额。
 ---
 
-# Get Balance For Account
+# 获取账户余额
 
-## Parameters
+## 参数
 
-| Required Param | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+| `account_id` | 要查询余额的账户。 | 指定的账户必须存在在钱包中。 |
 
-## Example
+## 示例
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
-curl -s localhost:9090/wallet \
-  -d '{
-        "method": "get_balance_for_account",
-        "params": {
-           "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
-        },
-        "jsonrpc": "2.0",
-        "id": 1
-      }' \
-  -X POST -H 'Content-type: application/json' | jq
+{
+  "method": "get_balance_for_account",
+  "params": {
+     "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
+  },
+  "jsonrpc": "2.0",
+  "id": 1
+}
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "get_balance_for_account",

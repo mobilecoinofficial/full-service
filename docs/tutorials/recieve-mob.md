@@ -1,44 +1,44 @@
 ---
-description: 'Direct your Full Service API calls to localhost:9090/wallet.'
+description: '请将您的 Full Service API 请求指向：localhost:9090/wallet'
 ---
 
-# Run Full Service
+# 运行 Full Service
 
-## Open Your Account
+## 打开账户
 
-### Create a New Account
+### 创建一个新的账户
 
-1. Call [`create_account`](../accounts/account/create_account.md) to open a new account.
-2. To protect yourself from ever losing your account, run [`export_account_secrets`](../accounts/account-secrets/export_account_secrets.md) to create a mnemonic that will allow you to recover your account. 
+1. 使用 [`create_account`](../accounts/account/create_account.md) 方法来创建一个新的账户。
+2. 为了避免遗忘您的账户，请通过 [`export_account_secrets`](../accounts/account-secrets/export_account_secrets.md) 方法来创建一个用来找回账户的助记词。
 
 {% hint style="warning" %}
-Creating a mnemonic is the only way to recover your account.
+导出助记词是找回账户的唯一途径。
 {% endhint %}
 
-### Import an Existing Account
+### 导入一个既存账户
 
-1. If you already have an account, you can access it with the [`import_account`](../accounts/account/import_account.md) method. 
-   * To identify your account, you must provide the method with your secret mnemonic and an account name if you have one. 
-   * To speed up the import process, you can provide the method with the first block index that you'd like to scan from the ledger. If you don’t include the first block index, it will default to scanning the entire ledger, which will take longer as the ledger size increases.
+1. 如果您已经有一个账户，您可以通过 [`import_account`](../accounts/account/import_account.md) 方法来导入它。
+   * 您必须提供助记词和账户名作为身份认证。
+   * 您可以通过指定从特定的区块下标开始扫描账簿以加速导入的过程。如果没有指定的话，Full Service 将会扫描整个账簿，因此耗时将会随着账簿变大而变长。
 
-## MOB Transactions
+## MOB 交易
 
-To receive MOB, you must provide the sender with an account address.
+您必须向发送方提供您的账户地址才能接收 MOB。
 
-When you create an account, the API response includes a `main_address` that you can share to receive funds. The `main_address` is a subaddress at index 0. You must know which subaddress your MOB was sent to in order to spend it. Limiting the number of subaddresses makes it simpler to keep track of your funds. Using a single address for multiple transactions will anonymize the senders and there will not be a way to verify the amount sent by each sender.
+当您通过 API 创建账户时，返回值中会包括一个 `main_address` 字段，您可以公开这个地址用来收取 MOB。`main_address` 是下标为 0 的子地址。您必须知道 MOB 被发送到的子地址才能够使用它。通过限制您的子地址的数量可以帮助您记录资金流入的历史。如果只使用一个地址进行多笔交易，那么交易的发送方将会不可能被区分，因此也无法得知每个发送方发送的具体金额。
 
-In order to track who is sending what payments, you can create unique subaddresses to share with a particular sender and or a particular transaction.
+如果想要记录交易的发送方，您可以为特定的发送方或特定的交易创建一个独特的子地址来进行交易。
 
-### Receive MOB
+### 收取 MOB
 
-1. Generate a subaddress to share with the sender by calling [`assign_address_for_account`](../accounts/address/assign_address_for_account.md).
-2. Call [`get_wallet_status`](../wallet/wallet-status/get_wallet_status.md) to view the `total_unspent_pmob` that you received in the transaction.
+1. 子地址可以通过 [`assign_address_for_account`](../accounts/address/assign_address_for_account.md) 方法生成。
+2. 调用 [`get_wallet_status`](../wallet/wallet-status/get_wallet_status.md) 方法，可以通过 `total_unspent_pmob` 字段查看您收到的金额。
 
-### Send MOB
+### 发送 MOB
 
-1. Review the initial balance of your account by calling [`get_balance_for_account`](../accounts/balance/get_balance_for_account.md) with your `account_id`.
-2. Since you are running a test that doesn't require you to review the tx\_proposal before submitting it to the ledger, call the convenience method [`build_and_submit_transaction`](../transactions/transaction/build_and_submit_transaction.md) to send MOB to a public address.
-3. Verify whether the transaction was successful by calling the [`get_balance_for_account`](../accounts/balance/get_balance_for_account.md) endpoint again to compare the balance in your account before and after the transaction.
-   * If you sent MOB to your own account, subtract the unspent MOB transaction fee from your initial balance. 
-   * If you sent MOB to someone else, subtract the unspent MOB transaction fee and the amount sent from your initial balance. 
+1. 通过调用 [`get_balance_for_account`](../accounts/balance/get_balance_for_account.md) 方法并提供您的 `account_id` 作为参数来查看您的初始余额。
+2. 因为测试交易，所以您并不需要去查看 tx\_proposal，因此可以直接通过 [`build_and_submit_transaction`](../transactions/transaction/build_and_submit_transaction.md) 方法来向一个公开的地址发送 MOB。
+3. 通过调用 [`get_balance_for_account`](../accounts/balance/get_balance_for_account.md) 方法来比较您的账户在交易前后的余额，并您的交易是否已经成功：
+   * 如果您是发送给自己的账户，那么从您的初始余额中减去未花 MOB 交易手续费。
+   * 如果您是发送给他人的账户，那么从您的初始余额中减去未花 MOB 交易手续费和您发送的金额。
 

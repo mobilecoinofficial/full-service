@@ -1,13 +1,13 @@
 ---
-description: Get the current status of a wallet.
+description: 获取钱包当前状态。
 ---
 
-# Get Wallet Status
+# 获取钱包状态
 
-## Example
+## 示例
 
 {% tabs %}
-{% tab title="Body Request" %}
+{% tab title="请求内容" %}
 ```text
 {
     "method": "get_wallet_status",
@@ -17,7 +17,7 @@ description: Get the current status of a wallet.
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "get_wallet_status",
