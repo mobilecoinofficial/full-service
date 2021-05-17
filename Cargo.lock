@@ -1582,6 +1582,7 @@ name = "libsqlite3-sys"
 version = "0.22.2"
 source = "git+https://github.com/mobilecoinofficial/rusqlite?rev=a1640612d5227fe355210de3718740d17ab4b82c#a1640612d5227fe355210de3718740d17ab4b82c"
 dependencies = [
+ "cc",
  "pkg-config",
  "vcpkg",
 ]

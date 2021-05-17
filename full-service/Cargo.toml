@@ -40,7 +40,7 @@ mc-util-uri = { path = "../mobilecoin/util/uri" }
 
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
 crossbeam-channel = "0.4"
-diesel = { version = "1.4.6", features = ["sqlite"] }
+diesel = { version = "1.4.6", features = ["sqlite-bundled"] }
 diesel-derive-enum = { version = "1", features = ["sqlite"] }
 diesel_migrations = { version = "1.4.0", features = ["sqlite"] }
 displaydoc = {version = "0.1", default-features = false }
@@ -72,4 +72,4 @@ bs58 = "0.3.0"
 
 [build-dependencies]
 # clippy fails to run without this.
-diesel = { version = "1.4.6", features = ["sqlite"] }
+diesel = { version = "1.4.6", features = ["sqlite-bundled"] }
