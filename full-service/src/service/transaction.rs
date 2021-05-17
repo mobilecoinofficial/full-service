@@ -10,7 +10,9 @@ use crate::{
         WalletDbError,
     },
     error::WalletTransactionBuilderError,
-    service::{transaction_builder::WalletTransactionBuilder, WalletService},
+    service::{
+        ledger::LedgerService, transaction_builder::WalletTransactionBuilder, WalletService,
+    },
 };
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
@@ -188,14 +190,18 @@ where
             };
             builder.select_txos(max_spendable)?;
         }
+
         if let Some(tombstone) = tombstone_block {
             builder.set_tombstone(tombstone.parse::<u64>()?)?;
         } else {
             builder.set_tombstone(0)?;
         }
-        if let Some(f) = fee {
-            builder.set_fee(f.parse::<u64>()?)?;
-        }
+
+        builder.set_fee(match fee {
+            Some(f) => f.parse()?,
+            None => self.get_network_fee(),
+        })?;
+
         let tx_proposal = builder.build()?;
 
         // FIXME: WS-32 - Might be nice to have a tx_proposal table so that you don't
