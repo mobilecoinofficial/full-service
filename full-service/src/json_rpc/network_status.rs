@@ -19,6 +19,9 @@ pub struct NetworkStatus {
 
     /// The highest index block that has been downloaded from the ledger.
     pub local_block_index: String,
+
+    /// The current network fee per transaction, in pmob.
+    pub fee_pmob: String,
 }
 
 impl TryFrom<&service::balance::NetworkStatus> for NetworkStatus {
@@ -29,6 +32,7 @@ impl TryFrom<&service::balance::NetworkStatus> for NetworkStatus {
             object: "network_status".to_string(),
             network_block_index: src.network_block_index.to_string(),
             local_block_index: src.local_block_index.to_string(),
+            fee_pmob: src.fee_pmob.to_string(),
         })
     }
 }

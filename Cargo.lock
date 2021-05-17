@@ -2225,6 +2225,7 @@ dependencies = [
  "num_cpus",
  "prost",
  "rand 0.8.3",
+ "rayon",
  "reqwest",
  "retry",
  "rocket",
@@ -2245,7 +2246,7 @@ name = "mc-ledger-db"
 version = "1.0.1-pre1"
 dependencies = [
  "curve25519-dalek",
- "failure",
+ "displaydoc 0.2.1",
  "lazy_static",
  "lmdb-rkv",
  "mc-account-keys",
@@ -2334,11 +2335,11 @@ dependencies = [
  "prost",
  "protobuf",
  "rand 0.8.3",
+ "rayon",
  "reqwest",
  "retry",
  "serde_json",
  "structopt",
- "tempdir",
  "tiny-bip39",
 ]
 
