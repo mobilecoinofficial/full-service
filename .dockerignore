@@ -1,5 +1,5 @@
 consensus-enclave.css
-target/rls/
+**/target/
 .vscode/
 .circleci/
 .gitbook/

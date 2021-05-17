@@ -685,7 +685,7 @@ dependencies = [
 [[package]]
 name = "diesel"
 version = "1.4.6"
-source = "git+https://github.com/mobilecoinofficial/diesel?branch=sqlite-static-attempt#30012dc06e9b16a3a661d0e694952e151caa9289"
+source = "git+https://github.com/mobilecoinofficial/diesel?rev=22a4a4b973db2b7aadaf088b3279dbbe52176896#22a4a4b973db2b7aadaf088b3279dbbe52176896"
 dependencies = [
  "byteorder",
  "diesel_derives",
@@ -1580,8 +1580,9 @@ checksum = "7fc7aa29613bd6a620df431842069224d8bc9011086b1db4c0e0cd47fa03ec9a"
 [[package]]
 name = "libsqlite3-sys"
 version = "0.22.2"
-source = "git+https://github.com/mobilecoinofficial/rusqlite?branch=bundled-sqlcipher#a1c599198a909048b2d650db0d82a1f7d55959ce"
+source = "git+https://github.com/mobilecoinofficial/rusqlite?rev=a1640612d5227fe355210de3718740d17ab4b82c#a1640612d5227fe355210de3718740d17ab4b82c"
 dependencies = [
+ "cc",
  "pkg-config",
  "vcpkg",
 ]
@@ -2195,7 +2196,6 @@ dependencies = [
  "dotenv",
  "grpcio",
  "hex",
- "libsqlite3-sys",
  "mc-account-keys",
  "mc-account-keys-slip10",
  "mc-api",
