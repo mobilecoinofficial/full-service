@@ -1477,7 +1477,7 @@ mod e2e {
     #[test_with_logger]
     fn test_import_account_with_next_subaddress_index(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
 
         // create an account
         let body = json!({
@@ -1558,7 +1558,12 @@ mod e2e {
         });
         dispatch(&client, body, &logger);
 
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            13,
+        );
 
         let body = json!({
             "jsonrpc": "2.0",
