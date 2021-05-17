@@ -79,21 +79,19 @@ impl WalletDb {
         Ok(self.pool.get()?)
     }
 
-    pub fn set_db_encryption_key_from_env(conn: &SqliteConnection) -> () {
+    pub fn set_db_encryption_key_from_env(conn: &SqliteConnection) {
         // Send the encryption key to SQLCipher, if it is not the empty string.
         // Then check that it worked, or else panic.
-        let encryption_key = env::var("MC_PASSWORD").unwrap_or("".to_string());
+        let encryption_key = env::var("MC_PASSWORD").unwrap_or_else(|_| "".to_string());
         if !encryption_key.is_empty() {
-            if conn
-                .batch_execute(&format!(
-                    "
-                PRAGMA key = '{}';
-                SELECT count(*) FROM sqlite_master;
-            ",
-                    encryption_key
-                ))
-                .is_err()
-            {
+            let result = conn.batch_execute(&format!(
+                "
+                    PRAGMA key = '{}';
+                    SELECT count(*) FROM sqlite_master;
+                ",
+                encryption_key
+            ));
+            if result.is_err() {
                 panic!("Could not decrypt database.");
             }
         }
