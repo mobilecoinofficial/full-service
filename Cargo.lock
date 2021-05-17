@@ -1582,7 +1582,6 @@ name = "libsqlite3-sys"
 version = "0.22.2"
 source = "git+https://github.com/mobilecoinofficial/rusqlite?branch=bundled-sqlcipher#a1c599198a909048b2d650db0d82a1f7d55959ce"
 dependencies = [
- "cc",
  "pkg-config",
  "vcpkg",
 ]
