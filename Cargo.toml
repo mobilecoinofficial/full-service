@@ -36,8 +36,8 @@ grpcio = { git = "https://github.com/jcape/grpc-rs", rev = "2ad042e9e65ecb664a60
 grpcio-compiler = { git = "https://github.com/jcape/grpc-rs", rev = "2ad042e9e65ecb664a60e034d0a899a8760d81d3" }
 
 # Override diesel dependency with our fork, in order to use a version of libsqlite3-sys that has bundled-sqlcipher. This allows us to
-# statically link SQLite, and encrypt the database with SQLCipher
-diesel = { git = "https://github.com/mobilecoinofficial/diesel", branch = "sqlite-static-attempt" }
+# statically link SQLite.
+diesel = { git = "https://github.com/mobilecoinofficial/diesel", branch = "1.4.x-bundled-sqlcipher", features = ["sqlite", "bundled"] }
 
 # ed25519-dalek depends on rand 0.7 which in turns depends on a broken version of packed_simd
 # This is a PR that moves it to newer rand

@@ -685,7 +685,7 @@ dependencies = [
 [[package]]
 name = "diesel"
 version = "1.4.6"
-source = "git+https://github.com/mobilecoinofficial/diesel?branch=sqlite-static-attempt#30012dc06e9b16a3a661d0e694952e151caa9289"
+source = "git+https://github.com/mobilecoinofficial/diesel?branch=1.4.x-bundled-sqlcipher#49ff18163a6c6695a927a7925b6db6d4b8ec4a4a"
 dependencies = [
  "byteorder",
  "diesel_derives",
@@ -2195,7 +2195,6 @@ dependencies = [
  "dotenv",
  "grpcio",
  "hex",
- "libsqlite3-sys",
  "mc-account-keys",
  "mc-account-keys-slip10",
  "mc-api",
