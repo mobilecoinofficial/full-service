@@ -95,6 +95,7 @@ pub struct Balance {
 pub struct NetworkStatus {
     pub network_block_index: u64,
     pub local_block_index: u64,
+    pub fee_pmob: u64,
 }
 
 /// The Wallet Status object returned by balance services.
@@ -222,6 +223,7 @@ where
         Ok(NetworkStatus {
             network_block_index: self.get_network_block_index()?,
             local_block_index: self.ledger_db.num_blocks()? - 1,
+            fee_pmob: self.get_network_fee(),
         })
     }
 
