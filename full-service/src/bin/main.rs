@@ -31,8 +31,10 @@ fn main() {
 
     let config = APIConfig::from_args();
 
-    if !cfg!(debug_assertions) && !config.offline {
-        config.validate_host().expect("Could not validate host");
+    // Exit if the user is not in an authorized country.
+    if !cfg!(debug_assertions) && !config.offline && config.validate_host().is_err() {
+        println!("Could not validate host");
+        return;
     }
 
     let (logger, _global_logger_guard) = create_app_logger(o!());

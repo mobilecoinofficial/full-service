@@ -340,28 +340,31 @@ impl APIConfig {
         let mut json_headers = HeaderMap::new();
         json_headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
         let response = client
-            .get("https://icanhazip.com")
-            .send()?
-            .error_for_status()?;
-        let local_ip_addr = response.text()?;
-        let response = client
-            .get(format!("https://ipinfo.io/{}/json/", local_ip_addr).as_str())
+            .get("https://ipinfo.io/json/")
             .headers(json_headers)
             .send()?
             .error_for_status()?;
         let data = response.text()?;
         let data_json: serde_json::Value = serde_json::from_str(&data)?;
-        if let Some(v) = data_json.get("country") {
-            if let Some(country) = v.as_str() {
-                match country {
-                    "US" => Err(ConfigError::InvalidCountry),
-                    _ => Ok(()),
-                }
-            } else {
-                Err(ConfigError::DataMissing(data_json.to_string()))
-            }
-        } else {
-            Err(ConfigError::DataMissing(data_json.to_string()))
+
+        let data_missing_err = Err(ConfigError::DataMissing(data_json.to_string()));
+        let country: &str = match data_json["country"].as_str() {
+            Some(c) => c,
+            None => return data_missing_err,
+        };
+        let region: &str = match data_json["region"].as_str() {
+            Some(r) => r,
+            None => return data_missing_err,
+        };
+
+        let err = Err(ConfigError::InvalidCountry);
+        match country {
+            "US" | "IR" | "SY" | "CU" | "KP" => err,
+            "UA" => match region {
+                "Crimea" => err,
+                _ => Ok(()),
+            },
+            _ => Ok(()),
         }
     }
 
