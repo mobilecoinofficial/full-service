@@ -218,6 +218,11 @@ pub trait TxoModel {
         confirmation: &TxOutConfirmationNumber,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError>;
+
+    /// Delete txos which are not referenced by any account or transaction.
+    fn delete_unreferenced(
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError>;
 }
 
 impl TxoModel for Txo {
@@ -935,6 +940,46 @@ impl TxoModel for Txo {
         let account = Account::get(account_id, conn)?;
         let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
         Ok(confirmation.validate(&public_key, account_key.view_private_key()))
+    }
+
+    fn delete_unreferenced(
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::{account_txo_statuses, transaction_txo_types, txos};
+        // DELETE FROM txos
+        //     WHERE txo_id_hex IN (
+        //         SELECT
+        //             txos.txo_id_hex
+        //         FROM txos
+        //             LEFT JOIN account_txo_statuses ats
+        //                 ON txos.txo_id_hex = ats.txo_id_hex
+        //             LEFT JOIN transaction_txo_types ttt
+        //                 ON txos.txo_id_hex = ttt.txo_id_hex
+        //         WHERE
+        //             ats.txo_id_hex IS NULL
+        //             AND ttt.txo_id_hex IS NULL
+        //     );
+        diesel::delete(
+            txos::table.filter(
+                txos::txo_id_hex.eq_any(
+                    txos::table
+                        .left_join(
+                            account_txo_statuses::table
+                                .on(txos::txo_id_hex.eq(account_txo_statuses::txo_id_hex)),
+                        )
+                        .left_join(
+                            transaction_txo_types::table
+                                .on(txos::txo_id_hex.eq(transaction_txo_types::txo_id_hex)),
+                        )
+                        .filter(account_txo_statuses::txo_id_hex.is_null())
+                        .filter(transaction_txo_types::txo_id_hex.is_null())
+                        .select(txos::txo_id_hex),
+                ),
+            ),
+        )
+        .execute(conn)?;
+
+        Ok(())
     }
 }
 
@@ -1731,6 +1776,68 @@ mod tests {
             Txo::select_by_public_key(&account_id, &pubkeys[0..5], &wallet_db.get_conn().unwrap())
                 .expect("Could not get txos by public keys");
         assert_eq!(txos_and_status.len(), 5);
+    }
+
+    #[test_with_logger]
+    fn test_delete_unreferenced_txos(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        let (account_id_hex, _public_address_b58) = Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(1),
+            None,
+            None,
+            "Alice's Main Account",
+            None,
+            None,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        let account = Account::get(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
+
+        // Create some txos.
+        assert_eq!(
+            txos::table
+                .select(count(txos::txo_id_hex))
+                .first::<i64>(&wallet_db.get_conn().unwrap())
+                .unwrap(),
+            0
+        );
+        for _ in 0..10 {
+            let (_txo_hex, _txo, _key_image) = create_test_received_txo(
+                &account_key,
+                0,
+                (100 * MOB) as u64, // 100.0 MOB * i
+                (144) as u64,
+                &mut rng,
+                &wallet_db,
+            );
+        }
+        assert_eq!(
+            txos::table
+                .select(count(txos::txo_id_hex))
+                .first::<i64>(&wallet_db.get_conn().unwrap())
+                .unwrap(),
+            10
+        );
+
+        // Delete the account. No Txos are left.
+        account.delete(&wallet_db.get_conn().unwrap()).unwrap();
+        use crate::db::schema::txos;
+        use diesel::dsl::count;
+        assert_eq!(
+            txos::table
+                .select(count(txos::txo_id_hex))
+                .first::<i64>(&wallet_db.get_conn().unwrap())
+                .unwrap(),
+            0
+        );
     }
 
     // FIXME: once we have create_minted, then select_txos test with no

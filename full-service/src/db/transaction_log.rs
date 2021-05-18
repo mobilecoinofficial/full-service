@@ -262,8 +262,8 @@ impl TransactionLogModel for TransactionLog {
 
         // Query for all transaction logs for the account, as well as associated txos.
         // This is accomplished via a double-join through the
-        // transaction_txo_types table. TODO: investigate simplifying the
-        // database structure around this.
+        // transaction_txo_types table.
+        // TODO: investigate simplifying the database structure around this.
         let transactions_query = transaction_logs::table
             .filter(transaction_logs::account_id_hex.eq(account_id_hex))
             .inner_join(transaction_txo_types::table.on(
