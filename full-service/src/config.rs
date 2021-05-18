@@ -340,12 +340,7 @@ impl APIConfig {
         let mut json_headers = HeaderMap::new();
         json_headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
         let response = client
-            .get("https://icanhazip.com")
-            .send()?
-            .error_for_status()?;
-        let local_ip_addr = response.text()?;
-        let response = client
-            .get(format!("https://ipinfo.io/{}/json/", local_ip_addr).as_str())
+            .get("https://ipinfo.io/json/")
             .headers(json_headers)
             .send()?
             .error_for_status()?;
