@@ -364,11 +364,7 @@ impl APIConfig {
 
         let err = Err(ConfigError::InvalidCountry);
         match country {
-            "US" => err,
-            "IR" => err,
-            "SY" => err,
-            "CU" => err,
-            "KP" => err,
+            "US" | "IR" | "SY" | "CU" | "KP" => err,
             "UA" => match region {
                 "Crimea" => err,
                 _ => Ok(()),
