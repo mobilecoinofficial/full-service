@@ -1780,6 +1780,9 @@ mod tests {
 
     #[test_with_logger]
     fn test_delete_unreferenced_txos(logger: Logger) {
+        use crate::db::schema::txos;
+        use diesel::dsl::count;
+
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -1829,8 +1832,6 @@ mod tests {
 
         // Delete the account. No Txos are left.
         account.delete(&wallet_db.get_conn().unwrap()).unwrap();
-        use crate::db::schema::txos;
-        use diesel::dsl::count;
         assert_eq!(
             txos::table
                 .select(count(txos::txo_id_hex))

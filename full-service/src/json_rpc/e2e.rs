@@ -1654,9 +1654,14 @@ mod e2e {
     }
 
     #[test_with_logger]
-    fn test_send_txo_from_removed_account(logger: Logger) {
+    fn test_send_txo_received_from_removed_account(logger: Logger) {
+        use crate::db::schema::txos;
+        use diesel::{dsl::count, prelude::*};
+
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        let wallet_db = db_ctx.get_db_instance(logger.clone());
 
         // Add three accounts.
         let body = json!({
@@ -1703,6 +1708,13 @@ mod e2e {
         let b58_public_address_3 = account_obj.get("main_address").unwrap().as_str().unwrap();
 
         // Add a block to fund account 1.
+        assert_eq!(
+            txos::table
+                .select(count(txos::txo_id_hex))
+                .first::<i64>(&wallet_db.get_conn().unwrap())
+                .unwrap(),
+            0
+        );
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![public_address_1],
@@ -1710,12 +1722,18 @@ mod e2e {
             &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
-
         wait_for_account_sync(
             &ledger_db,
-            &db_ctx.get_db_instance(logger.clone()),
+            &wallet_db,
             &AccountID(account_id_1.to_string()),
             13,
+        );
+        assert_eq!(
+            txos::table
+                .select(count(txos::txo_id_hex))
+                .first::<i64>(&wallet_db.get_conn().unwrap())
+                .unwrap(),
+            1
         );
 
         // Send some coins to account 2.
@@ -1754,9 +1772,16 @@ mod e2e {
         add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
         wait_for_account_sync(
             &ledger_db,
-            &db_ctx.get_db_instance(logger.clone()),
+            &wallet_db,
             &AccountID(account_id_2.to_string()),
             14,
+        );
+        assert_eq!(
+            txos::table
+                .select(count(txos::txo_id_hex))
+                .first::<i64>(&wallet_db.get_conn().unwrap())
+                .unwrap(),
+            3
         );
 
         // Remove account 1.
@@ -1771,6 +1796,13 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         assert_eq!(result["removed"].as_bool().unwrap(), true,);
+        assert_eq!(
+            txos::table
+                .select(count(txos::txo_id_hex))
+                .first::<i64>(&wallet_db.get_conn().unwrap())
+                .unwrap(),
+            1
+        );
 
         // Send coins from account 2 to account 3.
         let body = json!({
@@ -1808,9 +1840,16 @@ mod e2e {
         add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
         wait_for_account_sync(
             &ledger_db,
-            &db_ctx.get_db_instance(logger.clone()),
+            &wallet_db,
             &AccountID(account_id_3.to_string()),
             15,
+        );
+        assert_eq!(
+            txos::table
+                .select(count(txos::txo_id_hex))
+                .first::<i64>(&wallet_db.get_conn().unwrap())
+                .unwrap(),
+            3
         );
 
         // Check that account 3 received its coins.
