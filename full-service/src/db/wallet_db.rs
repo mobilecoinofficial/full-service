@@ -86,7 +86,7 @@ impl WalletDb {
         if !encryption_key.is_empty() {
             let result = conn.batch_execute(&format!(
                 "PRAGMA key = {};",
-                sql_escape_string(encryption_key.clone())
+                sql_escape_string(&encryption_key)
             ));
             if result.is_err() {
                 panic!("Could not decrypt database.");
@@ -102,14 +102,14 @@ impl WalletDb {
         if !changed_encryption_key.is_empty() && encryption_key != changed_encryption_key {
             let result = conn.batch_execute(&format!(
                 "PRAGMA rekey = {};",
-                sql_escape_string(changed_encryption_key.clone())
+                sql_escape_string(&changed_encryption_key)
             ));
             if result.is_err() {
                 panic!("Could not set new password.");
             }
             // Set the new password in the environment, so other threads can decrypt
             // correctly.
-            env::set_var("MC_PASSWORD", changed_encryption_key.clone());
+            env::set_var("MC_PASSWORD", changed_encryption_key);
             global_log::info!("Re-encrypted database with new password.");
         }
     }
@@ -125,7 +125,7 @@ impl WalletDb {
 /// Escape a string for consumption by SQLite.
 /// This function doubles all single quote characters within the string, then
 /// wraps the string in single quotes on the front and back.
-fn sql_escape_string(s: String) -> String {
+fn sql_escape_string(s: &str) -> String {
     let mut s_escaped = String::new();
     for c in s.chars() {
         if c == '\'' {
