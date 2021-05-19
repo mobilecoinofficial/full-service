@@ -2155,7 +2155,7 @@ mod e2e {
         let account_obj = result.get("account").unwrap();
         let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
 
-        // assign next subaddress for account
+        // Assign next subaddress for account.
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
@@ -2190,7 +2190,7 @@ mod e2e {
 
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
 
-        // Remove Account
+        // Remove the account.
         let body = json!({
             "jsonrpc": "2.0",
             "id": 2,
@@ -2203,7 +2203,7 @@ mod e2e {
         let result = res.get("result").unwrap();
         assert_eq!(result["removed"].as_bool().unwrap(), true,);
 
-        // Add an account
+        // Add the same account back.
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
@@ -2242,7 +2242,7 @@ mod e2e {
         assert_eq!(balance.get("spent_pmob").unwrap(), "0");
         assert_eq!(balance.get("orphaned_pmob").unwrap(), "600000000000000");
 
-        // assign next subaddress for account
+        // Add back next subaddress. Txos are detected as unspent.
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
@@ -2269,6 +2269,7 @@ mod e2e {
         assert_eq!(balance.get("spent_pmob").unwrap(), "0");
         assert_eq!(balance.get("orphaned_pmob").unwrap(), "0");
 
+        // Create a second account.
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
@@ -2283,7 +2284,7 @@ mod e2e {
         let account_id_2 = account_obj.get("account_id").unwrap().as_str().unwrap();
         let b58_public_address_2 = account_obj.get("main_address").unwrap().as_str().unwrap();
 
-        // Remove Account
+        // Remove the second Account
         let body = json!({
             "jsonrpc": "2.0",
             "id": 2,
@@ -2296,7 +2297,7 @@ mod e2e {
         let result = res.get("result").unwrap();
         assert_eq!(result["removed"].as_bool().unwrap(), true,);
 
-        // Send some coins to account 2.
+        // Send some coins to the removed second account.
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
@@ -2337,6 +2338,7 @@ mod e2e {
             15,
         );
 
+        // The first account shows the coins are spent.
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
@@ -2352,7 +2354,7 @@ mod e2e {
         assert_eq!(balance.get("spent_pmob").unwrap(), "100000000000000");
         assert_eq!(balance.get("orphaned_pmob").unwrap(), "0");
 
-        // Remove Account
+        // Remove the first account and add it back again.
         let body = json!({
             "jsonrpc": "2.0",
             "id": 2,
@@ -2365,7 +2367,6 @@ mod e2e {
         let result = res.get("result").unwrap();
         assert_eq!(result["removed"].as_bool().unwrap(), true,);
 
-        // Add an account
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
@@ -2389,6 +2390,8 @@ mod e2e {
             15,
         );
 
+        // The unspent pmob shows what wasn't sent to the second account.
+        // The orphaned pmob are because we haven't added back the next subaddress.
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
@@ -2401,8 +2404,8 @@ mod e2e {
         let result = res.get("result").unwrap();
         let balance = result.get("balance").unwrap();
         assert_eq!(balance.get("unspent_pmob").unwrap(), "49999600000000");
-        assert_eq!(balance.get("spent_pmob").unwrap(), "100000000000000");
-        assert_eq!(balance.get("orphaned_pmob").unwrap(), "500000000000000");
+        assert_eq!(balance.get("spent_pmob").unwrap(), "0");
+        assert_eq!(balance.get("orphaned_pmob").unwrap(), "600000000000000");
     }
 
     #[test_with_logger]
