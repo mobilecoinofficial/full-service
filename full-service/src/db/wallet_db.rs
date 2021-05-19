@@ -4,7 +4,7 @@ use diesel::{
     prelude::*,
     r2d2::{ConnectionManager, Pool, PooledConnection},
 };
-use mc_common::logger::Logger;
+use mc_common::logger::{global_log, Logger};
 use std::{env, time::Duration};
 
 #[derive(Debug)]
@@ -86,14 +86,37 @@ impl WalletDb {
         if !encryption_key.is_empty() {
             let result = conn.batch_execute(&format!(
                 "
-                    PRAGMA key = '{}';
-                    SELECT count(*) FROM sqlite_master;
+                PRAGMA key = '{}';
+                SELECT count(*) FROM sqlite_master;
                 ",
                 encryption_key
             ));
             if result.is_err() {
                 panic!("Could not decrypt database.");
             }
+        }
+    }
+
+    pub fn try_change_db_encryption_key_from_env(conn: &SqliteConnection) {
+        // Change the encryption key if specified by the environment variable.
+        let encryption_key = env::var("MC_PASSWORD").unwrap_or_else(|_| "".to_string());
+        let changed_encryption_key =
+            env::var("MC_CHANGED_PASSWORD").unwrap_or_else(|_| "".to_string());
+        if !changed_encryption_key.is_empty() && encryption_key != changed_encryption_key {
+            let result = conn.batch_execute(&format!(
+                "
+                PRAGMA rekey = '{}';
+                SELECT count(*) FROM sqlite_master;
+                ",
+                changed_encryption_key
+            ));
+            if result.is_err() {
+                panic!("Could not set new password.");
+            }
+            // Set the new password in the environment, so other threads can decrypt
+            // correctly.
+            env::set_var("MC_PASSWORD", changed_encryption_key);
+            global_log::info!("Re-encrypted database with new password.");
         }
     }
 }
