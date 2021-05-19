@@ -126,13 +126,5 @@ impl WalletDb {
 /// This function doubles all single quote characters within the string, then
 /// wraps the string in single quotes on the front and back.
 fn sql_escape_string(s: &str) -> String {
-    let mut s_escaped = String::new();
-    for c in s.chars() {
-        if c == '\'' {
-            s_escaped.push_str("''");
-        } else {
-            s_escaped.push(c);
-        }
-    }
-    format!("'{}'", s_escaped)
+    format!("'{}'", s.replace("'", "''"))
 }
