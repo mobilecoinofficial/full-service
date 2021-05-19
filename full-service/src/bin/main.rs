@@ -54,9 +54,10 @@ fn main() {
             )
         });
     WalletDb::set_db_encryption_key_from_env(&conn);
-    log::info!(logger, "Successfully decrypted database.");
     WalletDb::try_change_db_encryption_key_from_env(&conn);
+    WalletDb::check_database_connectivity(&conn);
     embedded_migrations::run(&conn).expect("failed running migrations");
+    log::info!(logger, "Connected to database.");
 
     let wallet_db = WalletDb::new_from_url(
         config
