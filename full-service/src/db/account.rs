@@ -10,6 +10,7 @@ use crate::db::{
         TXO_STATUS_SPENT,
     },
     transaction_log::TransactionLogModel,
+    txo::TxoModel,
     WalletDbError,
 };
 
@@ -494,6 +495,9 @@ impl AccountModel for Account {
 
         // Also delete txo statuses associated with this account.
         AccountTxoStatus::delete_all_for_account(&self.account_id_hex, conn)?;
+
+        // Delete Txos with no references.
+        Txo::delete_unreferenced(conn)?;
 
         Ok(())
     }
