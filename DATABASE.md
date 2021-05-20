@@ -12,6 +12,12 @@ Please keep in mind that there is no way to recover the contents of an encrypted
 ### Setting and changing the password
 In order to enable encryption, set the password for the database with the environment variable `MC_PASSWORD`. In order to re-encrypt the database with a new password, also set the environment variable `MC_CHANGE_PASSWORD`.
 
+To manually set an environment variable without writing it to the shell history, you can do the following:
+
+    $ set +o history
+    $ export MC_PASSWORD='<your password here>'
+    $ set -o history
+
 ### Encrypting an unencrypted database
 When migrating an existing plain-text wallet database to the encrypted format, there is a manual process using the SQLCipher command line tool. The following commands open the unencrypted database in `sqlcipher`, export an encrypted copy of the database, then replace the original database with the encrypted copy.
 
