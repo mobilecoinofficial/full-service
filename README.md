@@ -191,6 +191,9 @@ MobileCoin Full Service is available under open-source licenses. Look for the [L
 
 For usage and API specification, see [API.md](API.md).
 
+For database encryption features, see [DATABASE.md](DATABASE.md).
+
+
 ### Offline (Cold-Wallet) Transaction Flow
 
 Full Service supports offline transactions. This flow is recommended to keep an account key on an air-gapped machine which has never connected to the internet.
