@@ -14,9 +14,8 @@ In order to enable encryption, set the password for the database with the enviro
 
 To manually set an environment variable without writing it to the shell history, you can do the following:
 
-    $ set +o history
-    $ export MC_PASSWORD='<your password here>'
-    $ set -o history
+    $ read -rs MC_PASSWORD
+    $ export MC_PASSWORD
 
 ### Encrypting an unencrypted database
 When migrating an existing plain-text wallet database to the encrypted format, there is a manual process using the SQLCipher command line tool. The following commands open the unencrypted database in `sqlcipher`, export an encrypted copy of the database, then replace the original database with the encrypted copy.
