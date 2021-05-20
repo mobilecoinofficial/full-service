@@ -99,7 +99,10 @@ impl WalletDb {
         let encryption_key = env::var("MC_PASSWORD").unwrap_or_else(|_| "".to_string());
         let changed_encryption_key =
             env::var("MC_CHANGED_PASSWORD").unwrap_or_else(|_| "".to_string());
-        if !changed_encryption_key.is_empty() && encryption_key != changed_encryption_key {
+        if !encryption_key.is_empty()
+            && !changed_encryption_key.is_empty()
+            && encryption_key != changed_encryption_key
+        {
             let result = conn.batch_execute(&format!(
                 "PRAGMA rekey = {};",
                 sql_escape_string(&changed_encryption_key)

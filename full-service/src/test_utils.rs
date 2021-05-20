@@ -41,6 +41,7 @@ use mc_util_uri::{ConnectionUri, FogUri};
 use rand::{distributions::Alphanumeric, rngs::StdRng, thread_rng, Rng, SeedableRng};
 use std::{
     convert::TryFrom,
+    env,
     path::PathBuf,
     sync::{Arc, RwLock},
     time::Duration,
@@ -75,6 +76,9 @@ impl Default for WalletDbTestContext {
         // Connect to the database and run the migrations
         // Note: This should be kept in sync wth how the migrations are run in main.rs
         // so as to have faithful tests.
+        // Clear environment variables for db encryption.
+        env::set_var("MC_PASSWORD", "".to_string());
+        env::set_var("MC_CHANGE_PASSWORD", "".to_string());
         let conn = SqliteConnection::establish(&format!("{}/{}", base_url, db_name))
             .unwrap_or_else(|err| panic!("Cannot connect to {} database: {:?}", db_name, err));
         embedded_migrations::run(&conn).expect("failed running migrations");
