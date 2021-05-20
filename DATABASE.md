@@ -1,7 +1,7 @@
 # Database Usage
 
 The MobileCoin wallet service stores its data in two places:
-- The first database is the ledger database, which is an append-only data store, recording the state of the public ledger. This contains no readable secret information, because all transaction outputs are stored on the ledger in an encrypted format. Its location is specified with the command line option `--ledger_db`.
+- The first database is the ledger database, which is an append-only data store, recording the state of the public ledger. This contains no readable secret information, because all transaction outputs are stored on the ledger in an encrypted format. Its location is specified with the command line option `--ledger-db`.
 - The second database is the wallet database, which stores the private keys and private transaction information for the accounts in the wallet. It should be encrypted using our password features, or stored on an encrypted partition. Its location is specified with `--wallet-db`.
 
 ## Database Encryption
