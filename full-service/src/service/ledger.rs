@@ -15,7 +15,7 @@ use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_ledger_sync::NetworkState;
 use mc_transaction_core::{
-    constants::{MILLIMOB_TO_PICOMOB, MINIMUM_FEE},
+    constants::MILLIMOB_TO_PICOMOB,
     ring_signature::KeyImage,
     tx::{Tx, TxOut},
     Block, BlockContents,
