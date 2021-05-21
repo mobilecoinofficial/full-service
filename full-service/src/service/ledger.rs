@@ -15,7 +15,7 @@ use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_ledger_sync::NetworkState;
 use mc_transaction_core::{
-    constants::MINIMUM_FEE,
+    constants::{MILLIMOB_TO_PICOMOB, MINIMUM_FEE},
     ring_signature::KeyImage,
     tx::{Tx, TxOut},
     Block, BlockContents,
@@ -25,6 +25,11 @@ use crate::db::WalletDbError;
 use displaydoc::Display;
 use rayon::prelude::*; // For par_iter
 use std::iter::empty;
+
+/// Fallback fee if the network is not able to tell us the fee. This is set to
+/// the previous minimum fee, otherwise tx from new clients to old consensus
+/// will use the wrong fees (when not manually specified).
+const FALLBACK_FEE: u64 = 10 * MILLIMOB_TO_PICOMOB;
 
 /// Errors for the Address Service.
 #[derive(Display, Debug)]
@@ -128,7 +133,7 @@ where
 
     fn get_network_fee(&self) -> u64 {
         if self.peer_manager.is_empty() {
-            MINIMUM_FEE
+            FALLBACK_FEE
         } else {
             // Iterate an owned list of connections in parallel, get the block info for
             // each, and extract the fee. If no fees are returned, use the hard-coded
@@ -139,7 +144,7 @@ where
                 .filter_map(|conn| conn.fetch_block_info(empty()).ok())
                 .map(|block_info| block_info.minimum_fee)
                 .max()
-                .unwrap_or(MINIMUM_FEE)
+                .unwrap_or(FALLBACK_FEE)
         }
     }
 }
