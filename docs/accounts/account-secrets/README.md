@@ -5,19 +5,19 @@ description: >-
   cryptographically sensitive information.
 ---
 
-# Account Secrets
+# 账户密钥
 
-## Attributes
+## 属性
 
-| Name | Type | Description |
+| 属性 | 类型 | 说明 |
 | :--- | :--- | :--- |
-| `object` | String, value is "account\_secrets" | String representing the object's type. Objects of the same type share the same value. |
-| `account_id` | String | The unique identifier for the account. |
-| `mnemonic` | String | A BIP39-encoded mnemonic phrase used to generate the account key. |
-| `key_derivation_version` | String \(uint64\) | The version number of the key derivation path used to generate the account key from the mnemonic. |
-| `account_key` | account\_key | The view and spend keys used to transact on the MobileCoin network. Also may contain keys to connect to the Fog ledger scanning service. |
+| `object` | 字符串，固定为 "account\_secrets" | 由字符串表示的对象类型。每个类型的 `object` 字段是固定的。 |
+| `account_id` | 字符串 | 账户的唯一标识符。 |
+| `mnemonic` | 字符串 | 以 BIP39 编码的助记词序列，用来生成账户密钥。  |
+| `key_derivation_version` | 字符串，内容为 64 位无符号整数 | 用于从助记词序列生成账户密钥的路径版本。 |
+| `account_key` | account\_key | 账户的只读（View）密钥和可花（Spend）密钥。也会包括连接到雾账簿服务所需要的 URL 和密钥。 |
 
-## Example
+## 示例
 
 ```text
 {
