@@ -1,19 +1,19 @@
 ---
-description: Remove an account from a given wallet.
+description: 从钱包内移除指定账户
 ---
 
-# Remove Account
+# 移除账户
 
-## Parameters
+## 参数
 
-| Required Param | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+| `account_id` | 要移除的账户 ID | 指定的账户必须存在在钱包中。 |
 
-## Example
+## 示例
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "remove_account",
@@ -26,7 +26,7 @@ description: Remove an account from a given wallet.
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "remove_account",

@@ -1,21 +1,20 @@
 ---
 description: >-
-  Get the current status of a given account. The account status includes both
-  the account object and the balance object.
+  获取一个指定账户的当前状态，包括账户对象和余额对象。
 ---
 
-# Get Account Status
+# 获取账户状态
 
-## Parameters
+## 参数
 
-| Required Param | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+| `account_id` | 用来查询状态的账户。 | 指定的账户必须存在在钱包中。 |
 
-## Example
+## 示例
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "get_account_status",
@@ -28,7 +27,7 @@ description: >-
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "get_account_status",

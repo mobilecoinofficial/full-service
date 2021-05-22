@@ -1,28 +1,28 @@
 ---
-description: Import an existing account from the secret entropy.
+description: 根据账户备份密钥（Secret Entrop）导入既存账户。
 ---
 
-# Import Account Legacy
+# 导入账户（旧版）
 
-## Parameters
+## 参数
 
-| Required Param | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `entropy` | The secret root entropy. | 32 bytes of randomness, hex-encoded. |
+| `entropy` | 备份根密钥（root entropy） 。 | 十六进制编码的 32 位随机数。 |
 
-| Optional Param | Purpose | Requirements |
+| 可选参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `name` | A label for this account. | A label can have duplicates, but it is not recommended. |
-| `next_subaddress_index` | The next known unused subaddress index for the account. |  |
-| `first_block_index` | The block from which to start scanning the ledger. |  |
+| `name` | 账户名称。 | 账户名称可以重复，但是我们并不建议您这样做。 |
+| `next_subaddress_index` | 该账户已知的下一个可用子地址下标。  |  |
+| `first_block_index` | 账簿扫描的起始区块。 |  |
 | `fog_report_url` |  |  |
 | `fog_report_id` |  |  |
 | `fog_authority_spki` |  |  |
 
-## Example
+## 示例
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "import_account_from_legacy_root_entropy",
@@ -38,7 +38,7 @@ description: Import an existing account from the secret entropy.
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "import_account",
@@ -62,7 +62,7 @@ description: Import an existing account from the secret entropy.
 {% endtabs %}
 
 {% hint style="warning" %}
-`If you attempt to import an account already in the wallet, you will see the following error message:`
+`如果您尝试导入一个已经在钱包内的账户，您会收到如下错误信息：`
 
 ```text
 {"error": "Database(Diesel(DatabaseError(UniqueViolation, "UNIQUE constraint failed: accounts.account_id_hex")))"}

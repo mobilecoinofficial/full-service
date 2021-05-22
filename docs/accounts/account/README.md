@@ -1,23 +1,22 @@
 ---
 description: >-
-  An account in the wallet. An account is associated with one AccountKey,
-  containing a View keypair and a Spend keypair.
+  每个钱包内的账户都关联着一个 AccountKey，一个 AccountKey 包含一组只读（View）密钥对和一组可花（Spend）密钥对。
 ---
 
-# Account
+# 账户 API
 
-## Attributes
+## 属性
 
-| Name | Type | Description |
+| 属性 | 类型 | 说明 |
 | :--- | :--- | :--- |
-| `object` | String, value is "account" | String representing the object's type. Objects of the same type share the same value. |
-| `account_id` | String | The unique identifier for the account. |
-| `name` | String | The display name for the account. |
-| `main_address` | String | The b58 address code for the account's main address. The main address is determined by the seed subaddress. It is not assigned to a single recipient and should be considered a free-for-all address. |
-| `next_subaddress_index` | String \(uint64\) | This index represents the next subaddress to be assigned as an address. This is useful information in case the account is imported elsewhere. |
-| `recovery_mode` | Boolean | A flag that indicates this imported account is attempting to un-orphan found TXOs. It is recommended to move all MOB to another account after recovery if the user is unsure of the assigned addresses. |
+| `object` | 字符串，固定为 "account" | 由字符串表示的对象类型。每个类型的 `object` 字段是固定的。 |
+| `account_id` | 字符串 | 账户的唯一标识符。 |
+| `name` | 字符串 | 账户的显示名称。 |
+| `main_address` | 字符串 | Base 58 编码的账户主地址。账户主地址由种子地址决定。主地址不能被用作特定收款地址，而应当作为通用收款地址。 |
+| `next_subaddress_index` | 字符串，内容为 64 位无符号整数 | 指向下一个可以被分配的地址的下标。主要在帐户是从其他地方导入的情况下使用。 |
+| `recovery_mode` | 布尔型 | 当本字段为 `true` 时，说明此账户正在尝试回溯账户内每一个交易结果的父区块。我们建议当您在不确定交易结果的指定地址时，在回溯结束后将所有的 MOB 都转入其他账户。 |
 
-## Example
+## 示例
 
 ```text
 {

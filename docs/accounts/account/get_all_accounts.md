@@ -1,13 +1,13 @@
 ---
-description: Get the details of all accounts in a given wallet.
+description: 获取指定钱包中的全部账户信息
 ---
 
-# Get All Accounts
+# 获取全部账户
 
-## Example
+## 示例
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
     "method": "get_all_accounts",
@@ -17,7 +17,7 @@ description: Get the details of all accounts in a given wallet.
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "get_all_accounts",

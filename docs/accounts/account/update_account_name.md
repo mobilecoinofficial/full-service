@@ -1,20 +1,20 @@
 ---
-description: Rename an account.
+description: 重命名一个账户
 ---
 
-# Update Account Name
+# 重命名账户
 
-## Parameters
+## 参数
 
-| Required Param | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
-| `name` | The new name for this account. |  |
+| `account_id` | 要重命名的账户 ID。  | 指定的账户必须存在在钱包中。  |
+| `name` |  账户的新名字。 |  |
 
-## Example
+## 示例
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "update_account_name",
@@ -28,7 +28,7 @@ description: Rename an account.
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "remove_account",

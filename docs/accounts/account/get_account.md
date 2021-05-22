@@ -1,19 +1,19 @@
 ---
-description: Get the details of a given account.
+description: 获取指定账户的详情。
 ---
 
-# Get Account
+# 获取账户详情
 
-## Parameters
+## 参数
 
-| Required Param | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+| `account_id` | 用来查询状态的账户。 | 指定的账户必须存在在钱包中。 |
 
 ## Example
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "get_account",
@@ -26,7 +26,7 @@ description: Get the details of a given account.
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "get_account",
@@ -51,7 +51,7 @@ description: Get the details of a given account.
 {% endtabs %}
 
 {% hint style="warning" %}
-If the account is not in the database, you will receive the following error message:
+如果指定账户不存在在数据库里，您会收到如下报错：
 
 ```text
 {
