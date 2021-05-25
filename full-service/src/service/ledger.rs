@@ -10,17 +10,21 @@ use crate::{
     },
     WalletService,
 };
-use mc_connection::{BlockchainConnection, UserTxConnection};
+use mc_connection::{BlockchainConnection, RetryableBlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_ledger_sync::NetworkState;
 use mc_transaction_core::{
+    constants::MINIMUM_FEE,
+    ring_signature::KeyImage,
     tx::{Tx, TxOut},
     Block, BlockContents,
 };
 
 use crate::db::WalletDbError;
 use displaydoc::Display;
+use rayon::prelude::*; // For par_iter
+use std::iter::empty;
 
 /// Errors for the Address Service.
 #[derive(Display, Debug)]
@@ -73,6 +77,10 @@ pub trait LedgerService {
         &self,
         block_index: u64,
     ) -> Result<(Block, BlockContents), LedgerServiceError>;
+
+    fn contains_key_image(&self, key_image: &KeyImage) -> Result<bool, LedgerServiceError>;
+
+    fn get_network_fee(&self) -> u64;
 }
 
 impl<T, FPR> LedgerService for WalletService<T, FPR>
@@ -112,5 +120,26 @@ where
         let block = self.ledger_db.get_block(block_index)?;
         let block_contents = self.ledger_db.get_block_contents(block_index)?;
         Ok((block, block_contents))
+    }
+
+    fn contains_key_image(&self, key_image: &KeyImage) -> Result<bool, LedgerServiceError> {
+        Ok(self.ledger_db.contains_key_image(&key_image)?)
+    }
+
+    fn get_network_fee(&self) -> u64 {
+        if self.peer_manager.is_empty() {
+            MINIMUM_FEE
+        } else {
+            // Iterate an owned list of connections in parallel, get the block info for
+            // each, and extract the fee. If no fees are returned, use the hard-coded
+            // minimum.
+            self.peer_manager
+                .conns()
+                .par_iter()
+                .filter_map(|conn| conn.fetch_block_info(empty()).ok())
+                .map(|block_info| block_info.minimum_fee)
+                .max()
+                .unwrap_or(MINIMUM_FEE)
+        }
     }
 }

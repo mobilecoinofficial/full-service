@@ -16,6 +16,7 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 * [export_account_secrets](#export-account-secrets)
 * [get_all_txos_for_account](#get-all-txos-for-a-given-account)
 * [get_txo](#get-txo-details)
+* [get_network_status](#get-network-status)
 * [get_wallet_status](#get-wallet-status)
 * [get_balance_for_account](#get-balance-for-a-given-account)
 * [get_balance_for_address](#get-balance-for-a-given-address)
@@ -40,9 +41,9 @@ The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with
 * [check_gift_code_status](#check-gift-code-status)
 * [claim_gift_code](#claim-gift-code)
 * [remove_gift_code](#remove-gift-code)
-* [get_txo_object](#get-txo-object)
-* [get_transaction_object](#get-transaction-object)
-* [get_block_object](#get-block-object)
+* [get_txo](#get-txo)
+* [get_transaction](#get-transaction)
+* [get_block](#get-block)
 
 ### Full Service Data Types Overview
 
@@ -481,7 +482,6 @@ curl -s localhost:9090/wallet \
         "key_image": "0a20f041e3da520a6e3328d43a920b90bf87826a1602c9249cf6591dd32328a4544e",
         "minted_account_id": null,
         "object": "txo",
-        "offset_count": 262,
         "confirmation": null,
         "public_key": "0a201a592874a596aeb14cbeb1c7d3449cbd20dc8078ad7fff657e131d619145ef0a",
         "received_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
@@ -509,7 +509,6 @@ curl -s localhost:9090/wallet \
         "key_image": null,
         "minted_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
         "object": "txo",
-        "offset_count": 501,
         "confirmation": "0a204488e153cce1e4bcdd4419eecb778f3d2d2b024b39aaa29532d2e47e238b2e31",
         "public_key": "0a20e6736474f73e440686736bfd045d838c2b3bc056ffc647ad6b1c990f5a46b123",
         "received_account_id": "36fdf8fbdaa35ad8e661209b8a7c7057f29bf16a1e399a34aa92c3873dfb853c",
@@ -533,7 +532,6 @@ curl -s localhost:9090/wallet \
         "key_image": "0a20784ab38c4541ce23abbec6744431d6ae14101c49c6535b3e9bf3fd728db13848",
         "minted_account_id": null,
         "object": "txo",
-        "offset_count": 8,
         "confirmation": null,
         "public_key": "0a20d803a979c9ec0531f106363a885dde29101fcd70209f9ed686905512dfd14d5f",
         "received_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
@@ -557,7 +555,6 @@ curl -s localhost:9090/wallet \
         "key_image": null,
         "minted_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
         "object": "txo",
-        "offset_count": 498,
         "confirmation": null,
         "public_key": "0a209432c589bb4e5101c26e935b70930dfe45c78417527fb994872ebd65fcb9c116",
         "received_account_id": null,
@@ -576,6 +573,12 @@ curl -s localhost:9090/wallet \
 | Required Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
 | `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
+
+| Optional Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `offset`       | Start returning results after this many entries | |
+| `limit`        | Don't return more than this many entries | |
+
 
 Note, you may wish to filter TXOs using a tool like jq. For example, to get all unspent TXOs, you can use:
 
@@ -632,8 +635,7 @@ curl -s localhost:9090/wallet \
       "subaddress_index": "0",
       "assigned_subaddress": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
       "key_image": "0a205445b406012d26baebb51cbcaaaceb0d56387a67353637d07265f4e886f33419",
-      "confirmation": null,
-      "offset_count": 25
+      "confirmation": null
     }
   }
 }
@@ -643,6 +645,32 @@ curl -s localhost:9090/wallet \
 | :------------- | :----------------------- | :------------------------ |
 | `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
 | `txo_id`   | The txo ID for which to get details  |  |
+
+#### Get Network Status
+
+```sh
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "get_network_status",
+        "jsonrpc": "2.0",
+        "id": 1
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
+```
+
+```json
+{
+  "method": "get_wallet_status",
+  "result": {
+    "wallet_status": {
+      "local_block_index": "152918",
+      "network_block_index": "152918",
+    }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1,
+}
 
 #### Get Wallet Status
 
@@ -869,8 +897,7 @@ curl -s localhost:9090/wallet \
       "public_address": "3P4GtGkp5UVBXUzBqirgj7QFetWn4PsFPsHBXbC6A8AXw1a9CMej969jneiN1qKcwdn6e1VtD64EruGVSFQ8wHk5xuBHndpV9WUGQ78vV7Z",
       "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
       "metadata": "",
-      "subaddress_index": "2",
-      "offset_count": "7"
+      "subaddress_index": "2"
     }
   },
   "error": null,
@@ -917,24 +944,21 @@ curl -s localhost:9090/wallet \
         "public_address": "4bgkVAH1hs55dwLTGVpZER8ZayhqXbYqfuyisoRrmQPXoWcYQ3SQRTjsAytCiAgk21CRrVNysVw5qwzweURzDK9HL3rGXFmAAahb364kYe3",
         "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
         "metadata": "Main",
-        "subaddress_index": "0",
-        "offset_count": "5"
+        "subaddress_index": "0"
       },
       "6prEWE8yEmHAznkZ3QUtHRmVf7q8DS6XpkjzecYCGMj7hVh8fivmCcujamLtugsvvmWE9P2WgTb2o7xGHw8FhiBr1hSrku1u9KKfRJFMenG": {
         "object": "address",
         "public_address": "6prEWE8yEmHAznkZ3QUtHRmVf7q8DS6XpkjzecYCGMj7hVh8fivmCcujamLtugsvvmWE9P2WgTb2o7xGHw8FhiBr1hSrku1u9KKfRJFMenG",
         "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
         "metadata": "Change",
-        "subaddress_index": "1",
-        "offset_count": "6"
+        "subaddress_index": "1"
       },
       "3P4GtGkp5UVBXUzBqirgj7QFetWn4PsFPsHBXbC6A8AXw1a9CMej969jneiN1qKcwdn6e1VtD64EruGVSFQ8wHk5xuBHndpV9WUGQ78vV7Z": {
         "object": "address",
         "public_address": "3P4GtGkp5UVBXUzBqirgj7QFetWn4PsFPsHBXbC6A8AXw1a9CMej969jneiN1qKcwdn6e1VtD64EruGVSFQ8wHk5xuBHndpV9WUGQ78vV7Z",
         "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
         "metadata": "",
-        "subaddress_index": "2",
-        "offset_count": "7"
+        "subaddress_index": "2"
       }
     }
   },
@@ -947,6 +971,11 @@ curl -s localhost:9090/wallet \
 | Required Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
 | `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
+
+| Optional Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `offset`       | Start returning results after this many entries | |
+| `limit`        | Don't return more than this many entries | |
 
 #### Verify Address
 
@@ -989,47 +1018,56 @@ curl -s localhost:9090/wallet \
   -d '{
         "method": "build_and_submit_transaction",
         "params": {
-          "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
-          "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-          "value_pmob": "42000000000000"
+          "account_id": "49de3bfe8529c13a5e6dbc0fe600027a6c5cc2c8c74845c81c2b8e5f1d3e74eb",
+          "addresses_and_values": [
+            [
+              "5i7zz8EtTcTKUCogvqNqMS1dw42PAZQRtSzj9aKu69HAXKGpb4qh61Q5awYihhwN6aYWkpbptzNEzxz4RZ5H4xiX3n5XLXzaSJNiQAie1QG",
+              "990000000000"
+            ]
+          ]
         },
         "jsonrpc": "2.0",
+        "api_version": "2",
         "id": 1
       }' \
   -X POST -H 'Content-type: application/json' | jq
 ```
-`
+
 ```json
 {
   "method": "build_and_submit_transaction",
   "result": {
     "transaction_log": {
       "object": "transaction_log",
-      "transaction_log_id": "937f102052500525ff0f54aa4f7d94234bd824260bfd7ba40d0561166dda7780",
+      "transaction_log_id": "0e6b241fb6c71e799b30495830064e1f3418fe9fc25988d2f4b2f8be2305c4f2",
       "direction": "tx_direction_sent",
       "is_sent_recovered": null,
-      "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
-      "recipient_address_id": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+      "account_id": "49de3bfe8529c13a5e6dbc0fe600027a6c5cc2c8c74845c81c2b8e5f1d3e74eb",
+      "input_txos": [
+        {
+          "txo_id_hex": "193ed5d58108b42cf5b13da8404918d399e1ad9f5bae785ea7e73caff821170a",
+          "recipient_address_id": "47XCMxHLtmHpNeNLUi7sNGzbXhyqD5GrQXBGjrmJ5oXE1WaBMgLpLXJxBUo9rJsHx68cCKPRGQ2z8TryX1pn4VJQzusFcac4Zs2V5aC3Gs7",
+          "value_pmob": "1000000000000"
+        }
+      ],
+      "output_txos": [
+        {
+          "txo_id_hex": "8b407f8953355c91cd014450c94196b9b6101d63a4ef8eda72fc14020bc64d70",
+          "recipient_address_id": "5i7zz8EtTcTKUCogvqNqMS1dw42PAZQRtSzj9aKu69HAXKGpb4qh61Q5awYihhwN6aYWkpbptzNEzxz4RZ5H4xiX3n5XLXzaSJNiQAie1QG",
+          "value_pmob": "990000000000"
+        }
+      ],
+      "change_txos": [],
       "assigned_address_id": null,
-      "value_pmob": "42000000000000",
+      "value_pmob": "990000000000",
       "fee_pmob": "10000000000",
-      "submitted_block_index": "152948",
+      "submitted_block_index": "158864",
       "finalized_block_index": null,
       "status": "tx_status_pending",
-      "input_txo_ids": [
-        "8432bb4e25f1bde68e4759b27ec72d290252cb99943f2f38a9035dba230895b7"
-      ],
-      "output_txo_ids": [
-        "135c3861be4034fccb8d0b329f86124cb6e2404cd4debf52a3c3a10cb4a7bdfb"
-      ],
-      "change_txo_ids": [
-        "44c03ddbccb33e5c37365d7b263568a49e6f608e5e818db604541cc09389b762"
-      ],
-      "sent_time": "2021-02-28 01:27:52 UTC",
+      "sent_time": "2021-04-14 00:58:27 UTC",
       "comment": "",
       "failure_code": null,
-      "failure_message": null,
-      "offset_count": 2199
+      "failure_message": null
     }
   },
   "error": null,
@@ -1041,8 +1079,7 @@ curl -s localhost:9090/wallet \
 | Required Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
 | `account_id` | The account on which to perform this action  | Account must exist in the wallet  |
-| `recipient_public_address` | Recipient for this transaction  | b58-encoded public address bytes  |
-| `value_pmob` | The amount of MOB to send in this transaction  |   |
+| `addresses_and_values` | Recipients and for this transaction, and the amount of MOB to send to each | A list of pairs, the first item is the recipient's b58-encoded public address, and the second is an amount of pico MOB |
 
 | Optional Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
@@ -1074,8 +1111,12 @@ curl -s localhost:9090/wallet \
         "method": "build_transaction",
         "params": {
           "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
-          "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-          "value_pmob": "42000000000000"
+          "addresses_and_values": [
+            [
+              "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+              "42000000000000"
+            ]
+          ]
         },
         "jsonrpc": "2.0",
         "id": 1
@@ -1273,8 +1314,7 @@ curl -s localhost:9090/wallet \
 | Required Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
 | `account_id` | The account on which to perform this action  | Account must exist in the wallet  |
-| `recipient_public_address` | Recipient for this transaction  | b58-encoded public address bytes  |
-| `value_pmob` | The amount of MOB to send in this transaction  |   |
+| `addresses_and_values` | Recipients and for this transaction, and the amount of MOB to send to each | A list of pairs, the first item is the recipient's b58-encoded public address, and the second is an amount of pico MOB |
 
 | Optional Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
@@ -1291,8 +1331,12 @@ curl -s localhost:9090/wallet \
         "method": "build_transaction",
         "params": {
           "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
-          "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-          "value_pmob": "42000000000000"
+          "addresses_and_values": [
+            [
+              "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+              "42000000000000"
+            ]
+          ]
         },
         "jsonrpc": "2.0",
         "id": 1
@@ -1347,8 +1391,7 @@ curl -s localhost:9090/wallet \
       "sent_time": "2021-02-28 01:42:28 UTC",
       "comment": "",
       "failure_code": null,
-      "failure_message": null,
-      "offset_count": 2252
+      "failure_message": null
     }
   },
   "error": null,
@@ -1436,8 +1479,7 @@ curl -s localhost:9090/wallet \
         "sent_time": null,
         "comment": "",
         "failure_code": null,
-        "failure_message": null,
-        "offset_count": 4
+        "failure_message": null
       },
       "ff1c85e7a488c2821110597ba75db30d913bb1595de549f83c6e8c56b06d70d1": {
         "object": "transaction_log",
@@ -1465,8 +1507,7 @@ curl -s localhost:9090/wallet \
         "sent_time": "2021-02-28 03:05:11 UTC",
         "comment": "",
         "failure_code": null,
-        "failure_message": null,
-        "offset_count": 53
+        "failure_message": null
       }
     }
   },
@@ -1479,6 +1520,11 @@ curl -s localhost:9090/wallet \
 | Required Param | Purpose                  | Requirements              |
 | :------------- | :----------------------- | :------------------------ |
 | `account_id`   | The account on which to perform this action  | Account must exist in the wallet  |
+
+| Optional Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `offset`       | Start returning results after this many entries | |
+| `limit`        | Don't return more than this many entries | |
 
 #### Get Transaction Log
 
@@ -1520,8 +1566,7 @@ curl -s localhost:9090/wallet \
       "sent_time": null,
       "comment": "",
       "failure_code": null,
-      "failure_message": null,
-      "offset_count": 37
+      "failure_message": null
     }
   },
   "error": null,
@@ -1585,8 +1630,7 @@ curl -s localhost:9090/wallet \
         "sent_time": "2021-02-28 03:05:11 UTC",
         "comment": "",
         "failure_code": null,
-        "failure_message": null,
-        "offset_count": 53
+        "failure_message": null
       },
       "58729797de0929eed37acb45225d3631235933b709c00015f46bfc002d5754fc": {
         "object": "transaction_log",
@@ -1609,8 +1653,7 @@ curl -s localhost:9090/wallet \
         "sent_time": null,
         "comment": "",
         "failure_code": null,
-        "failure_message": null,
-        "offset_count": 54
+        "failure_message": null
       },
       "243494a0030bcbac40e87670b9288834047ef0727bcc6630a2fe2799439879ab": {
         "object": "transaction_log",
@@ -1633,8 +1676,7 @@ curl -s localhost:9090/wallet \
         "sent_time": null,
         "comment": "",
         "failure_code": null,
-        "failure_message": null,
-        "offset_count": 55
+        "failure_message": null
       }
     }
   },
@@ -1682,8 +1724,7 @@ curl -s localhost:9090/wallet \
         "sent_time": null,
         "comment": "",
         "failure_code": null,
-        "failure_message": null,
-        "offset_count": 51
+        "failure_message": null
       },
       "135c3861be4034fccb8d0b329f86124cb6e2404cd4debf52a3c3a10cb4a7bdfb": {
         "object": "transaction_log",
@@ -1706,8 +1747,7 @@ curl -s localhost:9090/wallet \
         "sent_time": null,
         "comment": "",
         "failure_code": null,
-        "failure_message": null,
-        "offset_count": 52
+        "failure_message": null
       },
       "ff1c85e7a488c2821110597ba75db30d913bb1595de549f83c6e8c56b06d70d1": {
         "object": "transaction_log",
@@ -1735,8 +1775,7 @@ curl -s localhost:9090/wallet \
         "sent_time": "2021-02-28 03:05:11 UTC",
         "comment": "",
         "failure_code": null,
-        "failure_message": null,
-        "offset_count": 53
+        "failure_message": null
       }
     }
   },
@@ -1884,8 +1923,7 @@ curl -s localhost:9090/wallet \
       "subaddress_index": "0",
       "assigned_subaddress": "3Dg4iFavKJScgCUeqb1VnET5ADmKjZgWz15fN7jfeCCWb72serxKE7fqz7htQvRirN4yeU2xxtcHRAN2zbF6V9n7FomDm69VX3FghvkDfpq",
       "key_image": "0a205445b406012d26baebb51cbcaaaceb0d56387a67353637d07265f4e886f33419",
-      "confirmation": null,
-      "offset_count": 25
+      "confirmation": null
     }
   },
   "error": null,
@@ -2245,14 +2283,14 @@ curl -s localhost:9090/wallet \
 
 To get the JSON representations of the objects which are used in the MobileCoin blockchain, you can use the following calls:
 
-#### Get Transaction Object
+#### Get Transaction
 
 Get the JSON representation of the "Tx" object in the transaction log.
 
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "get_transaction_object",
+        "method": "get_transaction",
         "params": {
           "transaction_log_id": "4b4fd11738c03bf5179781aeb27d725002fb67d8a99992920d3654ac00ee1a2c",
         },
@@ -2264,21 +2302,21 @@ curl -s localhost:9090/wallet \
 
 ```json
 {
-  "method": "get_transaction_object",
+  "method": "get_transaction",
   "result": {
     "transaction": ...
   }
 }
 ```
 
-#### Get Txo Object
+#### Get Txo
 
 Get the JSON representation of the "Txo" object in the ledger.
 
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "get_txo_object",
+        "method": "get_txo",
         "params": {
           "txo_id": "4b4fd11738c03bf5179781aeb27d725002fb67d8a99992920d3654ac00ee1a2c",
         },
@@ -2290,23 +2328,23 @@ curl -s localhost:9090/wallet \
 
 ```json
 {
-  "method": "get_txo_object",
+  "method": "get_txo",
   "result": {
     "txo": ...
   }
 }
 ```
 
-#### Get Block Object
+#### Get Block
 
 Get the JSON representation of the "Block" object in the ledger.
 
 ```sh
 curl -s localhost:9090/wallet \
   -d '{
-        "method": "get_block_object",
+        "method": "get_block",
         "params": {
-          "block_index": "3204",
+          "block_index": "3204"
         },
         "jsonrpc": "2.0",
         "id": 1
@@ -2316,7 +2354,7 @@ curl -s localhost:9090/wallet \
 
 ```json
 {
-  "method": "get_block_object",
+  "method": "get_block",
   "result": {
     "block": ...
     "block_contents": ...
@@ -2446,6 +2484,32 @@ The balance for an account, as well as some information about syncing status nee
 
 * [get_balance_for_account](#get-balance-for-a-given-account)
 
+### The Network Status Object
+
+#### Attributes
+
+| *Name* | *Type* | *Description*
+| :--- | :--- | :---
+| object | string, value is "account" | String representing the object's type. Objects of the same type share the same value
+| network_block_index | string (uint64) | The block height of the MobileCoin ledger. The local_block_index is synced when it reaches the value.
+| local_block_index | string (uint64) | The local block height downloaded from the ledger. The local database will sync up to the network_block_index. The account_block_index can only sync up to local_block_index.
+
+#### Example Object
+
+```json
+{
+"wallet_status": {
+  "local_block_index": "152918",
+  "network_block_index": "152918",
+  "object": "wallet_status",
+}
+```
+
+#### API Methods Returning Network Status Objects
+
+* [get_network_status](#get-network-status)
+
+
 ### The Wallet Status Object
 
 #### Attributes
@@ -2527,7 +2591,6 @@ The balance for an account, as well as some information about syncing status nee
 | account_id | string | Unique identifier for the assigned associated account.
 | metadata | string | An arbitrary string attached to the object.
 | subaddress_index | string (uint64) | The assigned subaddress index on the associated account.
-| offset_count | int | The value to offset pagination requests for assigned_address list. Requests will exclude all list items up to and including this object.
 
 #### Example Object
 
@@ -2537,8 +2600,7 @@ The balance for an account, as well as some information about syncing status nee
   "public_address": "3P4GtGkp5UVBXUzBqirgj7QFetWn4PsFPsHBXbC6A8AXw1a9CMej969jneiN1qKcwdn6e1VtD64EruGVSFQ8wHk5xuBHndpV9WUGQ78vV7Z",
   "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
   "metadata": "",
-  "subaddress_index": "2",
-  "offset_count": "7"
+  "subaddress_index": "2"
 }
 ```
 
@@ -2572,7 +2634,6 @@ The balance for an account, as well as some information about syncing status nee
 | comment | string | An arbitrary string attached to the object.
 | failure_code | int | Code representing the cause of "failed" status.
 | failure_message | string | Human parsable explanation of "failed" status.
-| offset_count | int | The value to offset pagination requests for transaction_log list. Requests will exclude all list items up to and including this object.
 
 #### Example Objects
 
@@ -2604,8 +2665,7 @@ Received:
   "sent_time": "2021-02-28 01:42:28 UTC",
   "comment": "",
   "failure_code": null,
-  "failure_message": null,
-  "offset_count": 2252
+  "failure_message": null
 }
 ```
 
@@ -2637,8 +2697,7 @@ Sent - Failed:
   "sent_time": "2021-02-28 01:42:28 UTC",
   "comment": "This is an example of a failed sent transaction log of 1.288 MOB and 0.01 MOB fee!",
   "failure_code": 3,
-  "failure_message:": "Contains sent key image.",
-  "offset_count": 2252
+  "failure_message:": "Contains sent key image."
 }
 ```
 
@@ -2670,8 +2729,7 @@ Sent - Success, Recovered:
   "sent_time": "2021-02-28 01:42:28 UTC",
   "comment": "",
   "failure_code": null,
-  "failure_message": null,
-  "offset_count": 2252
+  "failure_message": null
 }
 ```
 
@@ -2707,7 +2765,6 @@ Sent - Success, Recovered:
 | assigned_address | string (uint64) | The address corresponding to the subaddress index which was assigned as an intended sender for this Txo.
 | key_image (only on pending/spent) | string (hex) | A fingerprint of the Txo derived from your private spend key materials, required to spend a Txo
 | confirmation | string (hex) | A confirmation that the sender of the Txo can provide to validate that they participated in the construction of this Txo.
-| offset_count | int | The value to offset pagination requests. Requests will exclude all list items up to and including this object.
 
 #### Example Objects
 
@@ -2735,8 +2792,7 @@ Received and Spent Txo
   "subaddress_index": "20",
   "assigned_subaddress": "7BeDc5jpZ...",
   "key_image": "6d6f6269...",
-  "confirmation": "23fd34a...",
-  "offset_count": 284
+  "confirmation": "23fd34a..."
 }
 ```
 
@@ -2768,8 +2824,7 @@ Txo Spent from One Account to Another in the Same Wallet
   "subaddress_index": null,
   "assigned_subaddress": null,
   "key_image": null,
-  "confirmation": "0a2044...",
-  "offset_count": 501
+  "confirmation": "0a2044..."
 }
 ```
 
@@ -2893,7 +2948,6 @@ Txo Spent from One Account to Another in the Same Wallet
 | :--- | :--- | :---
 | object | string, value is "address" | String representing the object's type. Objects of the same type share the same value.
 | account_id | string | Unique identifier for the assigned associated account. Only for "assigned" addresses
-| offset_count | int | The value to offset pagination requests for recipient_address list. Requests will exclude all list items up to and including this object.
 
 ##### Example Object
 
@@ -2903,8 +2957,7 @@ Txo Spent from One Account to Another in the Same Wallet
   "address_id": "42Dik1AA...",
   "public_address": "42Dik1AA...",
   "address_book_entry_id": 36,
-  "comment": "This is a receipient addresses",
-  "offset_count": 12
+  "comment": "This is a receipient addresses"
 }
 ```
 
@@ -2928,7 +2981,6 @@ Txo Spent from One Account to Another in the Same Wallet
 | *Name* | *Type* | *Description*
 | :--- | :--- | :---
 | object | string, value is "address_book_entry" | String representing the object's type. Objects of the same type share the same value.
-| offset_count | int | The value to offset pagination requests for address_book_entry list. Requests will exclude all list items up to and including this object.
 
 ##### Example Object
 
@@ -2943,7 +2995,6 @@ Txo Spent from One Account to Another in the Same Wallet
   "assigned_address_ids_by_account_map": {
     "1916a9b3...": ["HpaL8g88...", "YuG7Aa82...", "cPTw8yhs..."],
     "9b3ea14b...": ["6R6JwQAW..."]
-  },
-  "offset_count": 36
+  }
 }
 ```

@@ -254,9 +254,6 @@ pub enum WalletTransactionBuilderError {
     /// Attempting to build a transaction from a TXO without a subaddress: {0}
     NullSubaddress(String),
 
-    /// Full-service transactions can only have one recipient.
-    MultipleRecipientsInTransaction,
-
     /// Error executing diesel transaction: {0}
     Diesel(diesel::result::Error),
 
@@ -272,10 +269,6 @@ pub enum WalletTransactionBuilderError {
 
     /// Fee must be at least MINIMUM_FEE: {0}
     InsufficientFee(String),
-
-    /// The wallet service only supports transactions with one recipient at this
-    /// time.
-    MultipleOutgoingRecipients,
 
     /// Error parsing URI {0}
     UriParse(mc_util_uri::UriParseError),

@@ -51,10 +51,18 @@ pub trait AddressService {
     ) -> Result<AssignedSubaddress, AddressServiceError>;
 
     /// Gets all the addresses for the given account.
-    fn get_all_addresses_for_account(
+    fn get_addresses_for_account(
         &self,
         account_id: &AccountID,
+        offset: Option<i64>,
+        limit: Option<i64>,
     ) -> Result<Vec<AssignedSubaddress>, AddressServiceError>;
+
+    fn get_address_for_account(
+        &self,
+        account_id: &AccountID,
+        index: i64,
+    ) -> Result<AssignedSubaddress, AddressServiceError>;
 
     /// Verifies whether an address can be decoded from b58.
     fn verify_address(&self, public_address: &str) -> Result<bool, AddressServiceError>;
@@ -69,32 +77,51 @@ where
         &self,
         account_id: &AccountID,
         metadata: Option<&str>,
-        // FIXME: WS-32 - add "sync from block"
     ) -> Result<AssignedSubaddress, AddressServiceError> {
         let conn = &self.wallet_db.get_conn()?;
+        conn.transaction(|| {
+            let (public_address_b58, _subaddress_index) =
+                AssignedSubaddress::create_next_for_account(
+                    &account_id.to_string(),
+                    metadata.unwrap_or(""),
+                    &self.ledger_db,
+                    &conn,
+                )?;
 
-        Ok(
-            conn.transaction::<AssignedSubaddress, AddressServiceError, _>(|| {
-                let (public_address_b58, _subaddress_index) =
-                    AssignedSubaddress::create_next_for_account(
-                        &account_id.to_string(),
-                        metadata.unwrap_or(""),
-                        &conn,
-                    )?;
-
-                Ok(AssignedSubaddress::get(&public_address_b58, &conn)?)
-            })?,
-        )
+            Ok(AssignedSubaddress::get(&public_address_b58, &conn)?)
+        })
     }
 
-    fn get_all_addresses_for_account(
+    fn get_addresses_for_account(
         &self,
         account_id: &AccountID,
+        offset: Option<i64>,
+        limit: Option<i64>,
     ) -> Result<Vec<AssignedSubaddress>, AddressServiceError> {
-        Ok(AssignedSubaddress::list_all(
-            &account_id.to_string(),
-            &self.wallet_db.get_conn()?,
-        )?)
+        let conn = self.wallet_db.get_conn()?;
+        conn.transaction(|| {
+            Ok(AssignedSubaddress::list_all(
+                &account_id.to_string(),
+                offset,
+                limit,
+                &conn,
+            )?)
+        })
+    }
+
+    fn get_address_for_account(
+        &self,
+        account_id: &AccountID,
+        index: i64,
+    ) -> Result<AssignedSubaddress, AddressServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+        conn.transaction(|| {
+            Ok(AssignedSubaddress::get_for_account_by_index(
+                &account_id.to_string(),
+                index,
+                &conn,
+            )?)
+        })
     }
 
     fn verify_address(&self, public_address: &str) -> Result<bool, AddressServiceError> {

@@ -6,12 +6,16 @@
 mod e2e {
     use crate::{
         db::{
+            account::AccountID,
             b58_decode,
             models::{TXO_STATUS_UNSPENT, TXO_TYPE_RECEIVED},
         },
         json_rpc,
         json_rpc::api_test_utils::{dispatch, dispatch_expect_error, setup, wait_for_sync},
-        test_utils::{add_block_to_ledger_db, add_block_with_tx_proposal, MOB},
+        test_utils::{
+            add_block_to_ledger_db, add_block_with_tx_proposal,
+            wait_for_sync as wait_for_account_sync, MOB,
+        },
     };
     use bip39::{Language, Mnemonic};
     use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
@@ -19,7 +23,7 @@ mod e2e {
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
     use mc_ledger_db::Ledger;
-    use mc_transaction_core::ring_signature::KeyImage;
+    use mc_transaction_core::{constants::MINIMUM_FEE, ring_signature::KeyImage};
     use rand::{rngs::StdRng, SeedableRng};
     use std::convert::TryFrom;
 
@@ -508,8 +512,8 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let status = result.get("wallet_status").unwrap();
-        assert_eq!(status.get("network_block_index").unwrap(), "12");
-        assert_eq!(status.get("local_block_index").unwrap(), "12");
+        assert_eq!(status.get("network_block_index").unwrap(), "11");
+        assert_eq!(status.get("local_block_index").unwrap(), "11");
         // Syncing will have already started, so we can't determine what the min synced
         // index is.
         assert!(status.get("min_synced_block_index").is_some());
@@ -633,8 +637,7 @@ mod e2e {
                 "value_pmob": "42",
             }
         });
-        // We will fail because we cannot afford the fee, which is 100000000000 pMOB
-        // (.01 MOB)
+        // We will fail because we cannot afford the fee
         dispatch_expect_error(
             &client,
             body,
@@ -643,8 +646,8 @@ mod e2e {
                 "code": -32603,
                 "message": "InternalError",
                 "data": json!({
-                    "server_error": "TransactionBuilder(WalletDb(InsufficientFundsUnderMaxSpendable(\"Max spendable value in wallet: 100, but target value: 10000000042\")))",
-                    "details": "Error building transaction: Wallet DB Error: Insufficient funds from Txos under max_spendable_value: Max spendable value in wallet: 100, but target value: 10000000042",
+                    "server_error": format!("TransactionBuilder(WalletDb(InsufficientFundsUnderMaxSpendable(\"Max spendable value in wallet: 100, but target value: {}\")))", 42 + MINIMUM_FEE),
+                    "details": format!("Error building transaction: Wallet DB Error: Insufficient funds from Txos under max_spendable_value: Max spendable value in wallet: 100, but target value: {}", 42 + MINIMUM_FEE),
                 })
             }).to_string(),
         );
@@ -683,7 +686,7 @@ mod e2e {
         let fee = tx_proposal.get("fee").unwrap();
         // FIXME: WS-9 - Note, minimum fee does not fit into i32 - need to make sure we
         // are not losing precision with the JsonTxProposal treating Fee as number
-        assert_eq!(fee, "10000000000");
+        assert_eq!(fee, &MINIMUM_FEE.to_string());
         assert_eq!(fee, prefix_fee);
 
         // Transaction builder attempts to use as many inputs as we have txos
@@ -812,7 +815,7 @@ mod e2e {
         assert_eq!(unspent, "0");
         assert_eq!(pending, "100000000000100");
         assert_eq!(spent, "0");
-        assert_eq!(secreted, "99990000000100");
+        assert_eq!(secreted, &(100000000000100 - MINIMUM_FEE).to_string());
         assert_eq!(orphaned, "0");
 
         // FIXME: FS-93 Increment ledger manually so tx lands.
@@ -838,7 +841,7 @@ mod e2e {
             "42000000000000"
         );
         assert_eq!(
-            transaction_log
+            transaction_log.get("output_txos").unwrap()[0]
                 .get("recipient_address_id")
                 .unwrap()
                 .as_str()
@@ -848,7 +851,7 @@ mod e2e {
         transaction_log.get("account_id").unwrap().as_str().unwrap();
         assert_eq!(
             transaction_log.get("fee_pmob").unwrap().as_str().unwrap(),
-            "10000000000"
+            &MINIMUM_FEE.to_string()
         );
         assert_eq!(
             transaction_log.get("status").unwrap().as_str().unwrap(),
@@ -895,7 +898,7 @@ mod e2e {
         let transaction_log = transaction_log_map.get(transaction_id).unwrap();
         assert_eq!(
             transaction_log
-                .get("output_txo_ids")
+                .get("output_txos")
                 .unwrap()
                 .as_array()
                 .unwrap()
@@ -904,7 +907,7 @@ mod e2e {
         );
         assert_eq!(
             transaction_log
-                .get("input_txo_ids")
+                .get("input_txos")
                 .unwrap()
                 .as_array()
                 .unwrap()
@@ -913,7 +916,7 @@ mod e2e {
         );
         assert_eq!(
             transaction_log
-                .get("change_txo_ids")
+                .get("change_txos")
                 .unwrap()
                 .as_array()
                 .unwrap()
@@ -952,9 +955,529 @@ mod e2e {
     }
 
     #[test_with_logger]
+    fn test_multiple_outlay_transaction(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        // Add some accounts.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let alice_account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+        let alice_public_address = b58_decode(b58_public_address).unwrap();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Bob Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let bob_account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let bob_b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Charlie Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let charlie_account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let charlie_b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+
+        // Add some money to Alice's account.
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![alice_public_address],
+            100000000000000, // 100.0 MOB
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(alice_account_id.to_string()),
+            13,
+        );
+
+        // Create a two-output tx proposal to Bob and Charlie.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "build_transaction",
+            "params": {
+                "account_id": alice_account_id,
+                "addresses_and_values": [
+                    [bob_b58_public_address, "42000000000000"], // 42.0 MOB
+                    [charlie_b58_public_address, "43000000000000"], // 43.0 MOB
+                ]
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+
+        let tx_proposal = result.get("tx_proposal").unwrap();
+        let tx = tx_proposal.get("tx").unwrap();
+        let tx_prefix = tx.get("prefix").unwrap();
+
+        // Assert the fee is correct in both places
+        let prefix_fee = tx_prefix.get("fee").unwrap().as_str().unwrap();
+        let fee = tx_proposal.get("fee").unwrap();
+        // FIXME: WS-9 - Note, minimum fee does not fit into i32 - need to make sure we
+        // are not losing precision with the JsonTxProposal treating Fee as number
+        assert_eq!(fee, &MINIMUM_FEE.to_string());
+        assert_eq!(fee, prefix_fee);
+
+        // Two destinations.
+        let outlays = tx_proposal.get("outlay_list").unwrap().as_array().unwrap();
+        assert_eq!(outlays.len(), 2);
+
+        // Map outlay -> tx_out, should have one entry for one outlay
+        let outlay_index_to_tx_out_index = tx_proposal
+            .get("outlay_index_to_tx_out_index")
+            .unwrap()
+            .as_array()
+            .unwrap();
+        assert_eq!(outlay_index_to_tx_out_index.len(), 2);
+
+        // Three outputs in the prefix, one for change
+        let prefix_outputs = tx_prefix.get("outputs").unwrap().as_array().unwrap();
+        assert_eq!(prefix_outputs.len(), 3);
+
+        // Two outlay confirmation numbers for our two outlays (no receipt for change)
+        let outlay_confirmation_numbers = tx_proposal
+            .get("outlay_confirmation_numbers")
+            .unwrap()
+            .as_array()
+            .unwrap();
+        assert_eq!(outlay_confirmation_numbers.len(), 2);
+
+        // Get balances before submitting.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_account",
+            "params": {
+                "account_id": alice_account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance_status = result.get("balance").unwrap();
+        let alice_unspent = balance_status
+            .get("unspent_pmob")
+            .unwrap()
+            .as_str()
+            .unwrap();
+        assert_eq!(alice_unspent, "100000000000000");
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_account",
+            "params": {
+                "account_id": bob_account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance_status = result.get("balance").unwrap();
+        let bob_unspent = balance_status
+            .get("unspent_pmob")
+            .unwrap()
+            .as_str()
+            .unwrap();
+        assert_eq!(bob_unspent, "0");
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_account",
+            "params": {
+                "account_id": charlie_account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance_status = result.get("balance").unwrap();
+        let charlie_unspent = balance_status
+            .get("unspent_pmob")
+            .unwrap()
+            .as_str()
+            .unwrap();
+        assert_eq!(charlie_unspent, "0");
+
+        // Submit the tx_proposal
+        assert_eq!(ledger_db.num_blocks().unwrap(), 13);
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "submit_transaction",
+            "params": {
+                "tx_proposal": tx_proposal,
+                "account_id": alice_account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let transaction_id = result
+            .get("transaction_log")
+            .unwrap()
+            .get("transaction_log_id")
+            .unwrap()
+            .as_str()
+            .unwrap();
+
+        let json_tx_proposal: json_rpc::tx_proposal::TxProposal =
+            serde_json::from_value(tx_proposal.clone()).unwrap();
+        let payments_tx_proposal =
+            mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
+
+        // The MockBlockchainConnection does not write to the ledger_db
+        add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
+        assert_eq!(ledger_db.num_blocks().unwrap(), 14);
+
+        // Wait for accounts to sync.
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(alice_account_id.to_string()),
+            14,
+        );
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(bob_account_id.to_string()),
+            14,
+        );
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(charlie_account_id.to_string()),
+            14,
+        );
+
+        // Get balances after submission
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_account",
+            "params": {
+                "account_id": alice_account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance_status = result.get("balance").unwrap();
+        let unspent = balance_status
+            .get("unspent_pmob")
+            .unwrap()
+            .as_str()
+            .unwrap();
+        assert_eq!(unspent, &(15 * MOB - MINIMUM_FEE as i64).to_string());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_account",
+            "params": {
+                "account_id": bob_account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance_status = result.get("balance").unwrap();
+        let bob_unspent = balance_status
+            .get("unspent_pmob")
+            .unwrap()
+            .as_str()
+            .unwrap();
+        assert_eq!(bob_unspent, "42000000000000");
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_account",
+            "params": {
+                "account_id": charlie_account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance_status = result.get("balance").unwrap();
+        let charlie_unspent = balance_status
+            .get("unspent_pmob")
+            .unwrap()
+            .as_str()
+            .unwrap();
+        assert_eq!(charlie_unspent, "43000000000000");
+
+        // Get the transaction log and verify it contains what we expect
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_transaction_log",
+            "params": {
+                "transaction_log_id": transaction_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let transaction_log = result.get("transaction_log").unwrap();
+        assert_eq!(
+            transaction_log.get("direction").unwrap().as_str().unwrap(),
+            "tx_direction_sent"
+        );
+        assert_eq!(
+            transaction_log.get("value_pmob").unwrap().as_str().unwrap(),
+            "85000000000000"
+        );
+
+        let mut output_addresses: Vec<String> = transaction_log
+            .get("output_txos")
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|t| {
+                t.get("recipient_address_id")
+                    .unwrap()
+                    .as_str()
+                    .unwrap()
+                    .into()
+            })
+            .collect();
+        output_addresses.sort();
+        let mut target_addresses = vec![bob_b58_public_address, charlie_b58_public_address];
+        target_addresses.sort();
+        assert_eq!(output_addresses, target_addresses);
+
+        transaction_log.get("account_id").unwrap().as_str().unwrap();
+        assert_eq!(
+            transaction_log.get("fee_pmob").unwrap().as_str().unwrap(),
+            &MINIMUM_FEE.to_string()
+        );
+        assert_eq!(
+            transaction_log.get("status").unwrap().as_str().unwrap(),
+            "tx_status_succeeded"
+        );
+        assert_eq!(
+            transaction_log
+                .get("submitted_block_index")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            "13"
+        );
+        assert_eq!(
+            transaction_log
+                .get("transaction_log_id")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            transaction_id
+        );
+    }
+
+    #[test_with_logger]
+    fn test_paginate_transactions(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+        let public_address = b58_decode(b58_public_address).unwrap();
+
+        // Add some transactions.
+        for _ in 0..10 {
+            add_block_to_ledger_db(
+                &mut ledger_db,
+                &vec![public_address.clone()],
+                100,
+                &vec![KeyImage::from(rng.next_u64())],
+                &mut rng,
+            );
+        }
+
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        assert_eq!(ledger_db.num_blocks().unwrap(), 22);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            22,
+        );
+
+        // Check that we can paginate txo output.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_all_txos_for_account",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let txos_all = result.get("txo_ids").unwrap().as_array().unwrap();
+        assert_eq!(txos_all.len(), 10);
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_txos_for_account",
+            "params": {
+                "account_id": account_id,
+                "offset": "2",
+                "limit": "5",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let txos_page = result.get("txo_ids").unwrap().as_array().unwrap();
+        assert_eq!(txos_page.len(), 5);
+        assert_eq!(txos_all[2..7].len(), 5);
+        assert_eq!(txos_page[..], txos_all[2..7]);
+
+        // Check that we can paginate transaction log output.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_all_transaction_logs_for_account",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let tx_logs_all = result
+            .get("transaction_log_ids")
+            .unwrap()
+            .as_array()
+            .unwrap();
+        assert_eq!(tx_logs_all.len(), 10);
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_transaction_logs_for_account",
+            "params": {
+                "account_id": account_id,
+                "offset": "3",
+                "limit": "6",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let tx_logs_page = result
+            .get("transaction_log_ids")
+            .unwrap()
+            .as_array()
+            .unwrap();
+        assert_eq!(tx_logs_page.len(), 6);
+        assert_eq!(tx_logs_all[3..9].len(), 6);
+        assert_eq!(tx_logs_page[..], tx_logs_all[3..9]);
+    }
+
+    #[test_with_logger]
+    fn test_paginate_assigned_addresses(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+
+        // Assign some addresses.
+        for _ in 0..10 {
+            let body = json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "assign_address_for_account",
+                "params": {
+                    "account_id": account_id,
+                    "metadata": "subaddress_index_2",
+                }
+            });
+            dispatch(&client, body, &logger);
+        }
+
+        // Check that we can paginate address output.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_all_addresses_for_account",
+            "params": {
+                "account_id": account_id,
+            },
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let addresses_all = result.get("public_addresses").unwrap().as_array().unwrap();
+        assert_eq!(addresses_all.len(), 12); // Accounts start with 2 addresses, then we created 10.
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_addresses_for_account",
+            "params": {
+                "account_id": account_id,
+                "offset": "1",
+                "limit": "4",
+            },
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let addresses_page = result.get("public_addresses").unwrap().as_array().unwrap();
+        assert_eq!(addresses_page.len(), 4);
+        assert_eq!(addresses_page[..], addresses_all[1..5]);
+    }
+
+    #[test_with_logger]
     fn test_import_account_with_next_subaddress_index(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
 
         // create an account
         let body = json!({
@@ -1035,7 +1558,12 @@ mod e2e {
         });
         dispatch(&client, body, &logger);
 
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            13,
+        );
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -1126,9 +1654,14 @@ mod e2e {
     }
 
     #[test_with_logger]
-    fn test_send_txo_from_removed_account(logger: Logger) {
+    fn test_send_txo_received_from_removed_account(logger: Logger) {
+        use crate::db::schema::txos;
+        use diesel::{dsl::count, prelude::*};
+
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        let wallet_db = db_ctx.get_db_instance(logger.clone());
 
         // Add three accounts.
         let body = json!({
@@ -1175,6 +1708,13 @@ mod e2e {
         let b58_public_address_3 = account_obj.get("main_address").unwrap().as_str().unwrap();
 
         // Add a block to fund account 1.
+        assert_eq!(
+            txos::table
+                .select(count(txos::txo_id_hex))
+                .first::<i64>(&wallet_db.get_conn().unwrap())
+                .unwrap(),
+            0
+        );
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![public_address_1],
@@ -1182,9 +1722,19 @@ mod e2e {
             &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
-
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
-        assert_eq!(ledger_db.num_blocks().unwrap(), 13);
+        wait_for_account_sync(
+            &ledger_db,
+            &wallet_db,
+            &AccountID(account_id_1.to_string()),
+            13,
+        );
+        assert_eq!(
+            txos::table
+                .select(count(txos::txo_id_hex))
+                .first::<i64>(&wallet_db.get_conn().unwrap())
+                .unwrap(),
+            1
+        );
 
         // Send some coins to account 2.
         let body = json!({
@@ -1220,7 +1770,19 @@ mod e2e {
             mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
 
         add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &wallet_db,
+            &AccountID(account_id_2.to_string()),
+            14,
+        );
+        assert_eq!(
+            txos::table
+                .select(count(txos::txo_id_hex))
+                .first::<i64>(&wallet_db.get_conn().unwrap())
+                .unwrap(),
+            3
+        );
 
         // Remove account 1.
         let body = json!({
@@ -1234,6 +1796,13 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         assert_eq!(result["removed"].as_bool().unwrap(), true,);
+        assert_eq!(
+            txos::table
+                .select(count(txos::txo_id_hex))
+                .first::<i64>(&wallet_db.get_conn().unwrap())
+                .unwrap(),
+            1
+        );
 
         // Send coins from account 2 to account 3.
         let body = json!({
@@ -1269,7 +1838,19 @@ mod e2e {
             mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
 
         add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &wallet_db,
+            &AccountID(account_id_3.to_string()),
+            15,
+        );
+        assert_eq!(
+            txos::table
+                .select(count(txos::txo_id_hex))
+                .first::<i64>(&wallet_db.get_conn().unwrap())
+                .unwrap(),
+            3
+        );
 
         // Check that account 3 received its coins.
         let body = json!({
@@ -1550,10 +2131,287 @@ mod e2e {
         );
     }
 
+    /// This test is intended to make sure that when a subaddress is assigned
+    /// that it correctly generates and checks the key image against the ledger
+    /// db to see if the previously orphaned txo has been spent or not
+    #[test_with_logger]
+    fn test_mark_orphaned_txo_as_spent(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_account",
+            "params": {
+                "mnemonic": "sheriff odor square mistake huge skate mouse shoot purity weapon proof stuff correct concert blanket neck own shift clay mistake air viable stick group",
+                "key_derivation_version": "2",
+                "name": "Alice Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+
+        // Assign next subaddress for account.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "assign_address_for_account",
+            "params": {
+                "account_id": account_id,
+                "metadata": "subaddress_index_2",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let address = result.get("address").unwrap();
+        let b58_public_address = address.get("public_address").unwrap().as_str().unwrap();
+        let public_address = b58_decode(b58_public_address).unwrap();
+
+        // Add a block to fund account at the new subaddress.
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![public_address.clone()],
+            100000000000000, // 100.0 MOB
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![public_address.clone()],
+            500000000000000, // 500.0 MOB
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+
+        // Remove the account.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "remove_account",
+            "params": {
+                "account_id": *account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        assert_eq!(result["removed"].as_bool().unwrap(), true,);
+
+        // Add the same account back.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_account",
+            "params": {
+                "mnemonic": "sheriff odor square mistake huge skate mouse shoot purity weapon proof stuff correct concert blanket neck own shift clay mistake air viable stick group",
+                "key_derivation_version": "2",
+                "name": "Alice Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            14,
+        );
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_account",
+            "params": {
+                "account_id": *account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance = result.get("balance").unwrap();
+        assert_eq!(balance.get("unspent_pmob").unwrap(), "0");
+        assert_eq!(balance.get("spent_pmob").unwrap(), "0");
+        assert_eq!(balance.get("orphaned_pmob").unwrap(), "600000000000000");
+
+        // Add back next subaddress. Txos are detected as unspent.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "assign_address_for_account",
+            "params": {
+                "account_id": account_id,
+                "metadata": "subaddress_index_2",
+            }
+        });
+        dispatch(&client, body, &logger);
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_account",
+            "params": {
+                "account_id": *account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance = result.get("balance").unwrap();
+        assert_eq!(balance.get("unspent_pmob").unwrap(), "600000000000000");
+        assert_eq!(balance.get("spent_pmob").unwrap(), "0");
+        assert_eq!(balance.get("orphaned_pmob").unwrap(), "0");
+
+        // Create a second account.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "account 2",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id_2 = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let b58_public_address_2 = account_obj.get("main_address").unwrap().as_str().unwrap();
+
+        // Remove the second Account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "remove_account",
+            "params": {
+                "account_id": *account_id_2,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        assert_eq!(result["removed"].as_bool().unwrap(), true,);
+
+        // Send some coins to the removed second account.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "build_transaction",
+            "params": {
+                "account_id": account_id,
+                "recipient_public_address": b58_public_address_2,
+                "value_pmob": "50000000000000", // 50.0 MOB
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let tx_proposal = result.get("tx_proposal").unwrap();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "submit_transaction",
+            "params": {
+                "tx_proposal": tx_proposal
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result");
+        assert!(result.is_some());
+
+        let json_tx_proposal: json_rpc::tx_proposal::TxProposal =
+            serde_json::from_value(tx_proposal.clone()).unwrap();
+        let payments_tx_proposal =
+            mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
+
+        add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            15,
+        );
+
+        // The first account shows the coins are spent.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_account",
+            "params": {
+                "account_id": *account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance = result.get("balance").unwrap();
+        assert_eq!(balance.get("unspent_pmob").unwrap(), "549999600000000");
+        assert_eq!(balance.get("spent_pmob").unwrap(), "100000000000000");
+        assert_eq!(balance.get("orphaned_pmob").unwrap(), "0");
+
+        // Remove the first account and add it back again.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "remove_account",
+            "params": {
+                "account_id": *account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        assert_eq!(result["removed"].as_bool().unwrap(), true,);
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_account",
+            "params": {
+                "mnemonic": "sheriff odor square mistake huge skate mouse shoot purity weapon proof stuff correct concert blanket neck own shift clay mistake air viable stick group",
+                "key_derivation_version": "2",
+                "name": "Alice Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            15,
+        );
+
+        // The unspent pmob shows what wasn't sent to the second account.
+        // The orphaned pmob are because we haven't added back the next subaddress.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_account",
+            "params": {
+                "account_id": *account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance = result.get("balance").unwrap();
+        assert_eq!(balance.get("unspent_pmob").unwrap(), "49999600000000");
+        assert_eq!(balance.get("spent_pmob").unwrap(), "0");
+        assert_eq!(balance.get("orphaned_pmob").unwrap(), "600000000000000");
+    }
+
     #[test_with_logger]
     fn test_get_all_txos(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -1580,7 +2438,12 @@ mod e2e {
             &mut rng,
         );
 
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            13,
+        );
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -1632,6 +2495,141 @@ mod e2e {
         let balance_status = result.get("balance").unwrap();
         let unspent = balance_status["unspent_pmob"].as_str().unwrap();
         assert_eq!(unspent, "100");
+    }
+
+    #[test_with_logger]
+    fn test_split_txo(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+        let public_address = b58_decode(b58_public_address).unwrap();
+
+        // Add a block with a txo for this address
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![public_address],
+            250000000000,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_all_txos_for_account",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let txos = result.get("txo_ids").unwrap().as_array().unwrap();
+        assert_eq!(txos.len(), 1);
+        let txo_map = result.get("txo_map").unwrap().as_object().unwrap();
+        let txo = txo_map.get(txos[0].as_str().unwrap()).unwrap();
+        let account_status_map = txo
+            .get("account_status_map")
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .get(account_id)
+            .unwrap();
+        let txo_status = account_status_map
+            .get("txo_status")
+            .unwrap()
+            .as_str()
+            .unwrap();
+        assert_eq!(txo_status, TXO_STATUS_UNSPENT);
+        let txo_type = account_status_map
+            .get("txo_type")
+            .unwrap()
+            .as_str()
+            .unwrap();
+        assert_eq!(txo_type, TXO_TYPE_RECEIVED);
+        let value = txo.get("value_pmob").unwrap().as_str().unwrap();
+        assert_eq!(value, "250000000000");
+        let txo_id = &txos[0];
+
+        // Check the overall balance for the account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_account",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance_status = result.get("balance").unwrap();
+        let unspent = balance_status["unspent_pmob"].as_str().unwrap();
+        assert_eq!(unspent, "250000000000");
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "build_split_txo_transaction",
+            "params": {
+                "txo_id": txo_id,
+                "output_values": ["20000000000", "80000000000", "30000000000", "70000000000", "40000000000"],
+                "fee": "10000000000"
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let tx_proposal = result.get("tx_proposal").unwrap();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "submit_transaction",
+            "params": {
+                "tx_proposal": tx_proposal,
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result");
+        assert!(result.is_some());
+
+        let json_tx_proposal: json_rpc::tx_proposal::TxProposal =
+            serde_json::from_value(tx_proposal.clone()).unwrap();
+        let payments_tx_proposal =
+            mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
+
+        add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+
+        // Check the overall balance for the account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_account",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance_status = result.get("balance").unwrap();
+        let unspent = balance_status["unspent_pmob"].as_str().unwrap();
+        assert_eq!(unspent, "240000000000");
     }
 
     #[test_with_logger]

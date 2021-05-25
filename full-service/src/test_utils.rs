@@ -41,6 +41,7 @@ use mc_util_uri::{ConnectionUri, FogUri};
 use rand::{distributions::Alphanumeric, rngs::StdRng, thread_rng, Rng, SeedableRng};
 use std::{
     convert::TryFrom,
+    env,
     path::PathBuf,
     sync::{Arc, RwLock},
     time::Duration,
@@ -61,21 +62,23 @@ pub struct WalletDbTestContext {
 
 impl Default for WalletDbTestContext {
     fn default() -> Self {
-        dotenv::dotenv().unwrap();
-
         let db_name: String = format!(
             "test_{}",
             thread_rng()
                 .sample_iter(&Alphanumeric)
                 .take(10)
+                .map(char::from)
                 .collect::<String>()
                 .to_lowercase()
         );
-        let base_url = std::env::var("TEST_DATABASE_URL").expect("TEST_DATABASE_URL must be set");
+        let base_url = String::from("/tmp");
 
         // Connect to the database and run the migrations
         // Note: This should be kept in sync wth how the migrations are run in main.rs
         // so as to have faithful tests.
+        // Clear environment variables for db encryption.
+        env::set_var("MC_PASSWORD", "".to_string());
+        env::set_var("MC_CHANGE_PASSWORD", "".to_string());
         let conn = SqliteConnection::establish(&format!("{}/{}", base_url, db_name))
             .unwrap_or_else(|err| panic!("Cannot connect to {} database: {:?}", db_name, err));
         embedded_migrations::run(&conn).expect("failed running migrations");
@@ -153,8 +156,8 @@ pub fn get_test_ledger(
 pub fn generate_ledger_db(path: &str) -> LedgerDB {
     // DELETE the old database if it already exists.
     let _ = std::fs::remove_file(format!("{}/data.mdb", path));
-    LedgerDB::create(PathBuf::from(path)).expect("Could not create ledger_db");
-    let db = LedgerDB::open(PathBuf::from(path)).expect("Could not open ledger_db");
+    LedgerDB::create(&PathBuf::from(path)).expect("Could not create ledger_db");
+    let db = LedgerDB::open(&PathBuf::from(path)).expect("Could not open ledger_db");
     db
 }
 
@@ -233,25 +236,14 @@ pub fn add_block_from_transaction_log(
 ) -> u64 {
     let associated_txos = transaction_log.get_associated_txos(conn).unwrap();
 
-    let mut output_ids = associated_txos.outputs.clone();
-    output_ids.append(&mut associated_txos.change.clone());
-
-    let output_txos: Vec<Txo> = output_ids
-        .iter()
-        .map(|id| Txo::get(id, conn).unwrap().txo)
-        .collect();
-
+    let mut output_txos = associated_txos.outputs.clone();
+    output_txos.append(&mut associated_txos.change.clone());
     let outputs: Vec<TxOut> = output_txos
         .iter()
         .map(|txo| mc_util_serial::decode(&txo.txo).unwrap())
         .collect();
 
-    let input_txos: Vec<Txo> = associated_txos
-        .inputs
-        .iter()
-        .map(|id| Txo::get(id, conn).unwrap().txo)
-        .collect();
-
+    let input_txos: Vec<Txo> = associated_txos.inputs.clone();
     let key_images: Vec<KeyImage> = input_txos
         .iter()
         .map(|txo| mc_util_serial::decode(&txo.key_image.clone().unwrap()).unwrap())
@@ -601,6 +593,8 @@ pub fn random_account_with_seed_values(
         assert_eq!(
             Txo::list_for_account(
                 &AccountID::from(&account_key).to_string(),
+                None,
+                None,
                 &wallet_db.get_conn().unwrap(),
             )
             .unwrap()

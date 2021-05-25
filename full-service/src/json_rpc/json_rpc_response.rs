@@ -13,6 +13,7 @@ use crate::{
         block::{Block, BlockContents},
         confirmation_number::Confirmation,
         gift_code::GiftCode,
+        network_status::NetworkStatus,
         receiver_receipt::ReceiverReceipt,
         transaction_log::TransactionLog,
         tx_proposal::TxProposal,
@@ -168,7 +169,7 @@ pub enum JsonCommandResponse {
     submit_transaction {
         transaction_log: Option<TransactionLog>,
     },
-    get_all_transaction_logs_for_account {
+    get_transaction_logs_for_account {
         transaction_log_ids: Vec<String>,
         transaction_log_map: Map<String, serde_json::Value>,
     },
@@ -182,6 +183,9 @@ pub enum JsonCommandResponse {
     get_all_transaction_logs_ordered_by_block {
         transaction_log_map: Map<String, serde_json::Value>,
     },
+    get_network_status {
+        network_status: NetworkStatus,
+    },
     get_wallet_status {
         wallet_status: WalletStatus,
     },
@@ -192,7 +196,7 @@ pub enum JsonCommandResponse {
     assign_address_for_account {
         address: Address,
     },
-    get_all_addresses_for_account {
+    get_addresses_for_account {
         public_addresses: Vec<String>,
         address_map: Map<String, serde_json::Value>,
     },
@@ -202,12 +206,16 @@ pub enum JsonCommandResponse {
     get_balance_for_address {
         balance: Balance,
     },
-    get_all_txos_for_account {
+    get_txos_for_account {
         txo_ids: Vec<String>,
         txo_map: Map<String, serde_json::Value>,
     },
     get_txo {
         txo: Txo,
+    },
+    build_split_txo_transaction {
+        tx_proposal: TxProposal,
+        transaction_log_id: String,
     },
     get_all_txos_for_address {
         txo_ids: Vec<String>,

@@ -44,7 +44,8 @@ pub trait GiftCodeModel {
     #[allow(clippy::too_many_arguments)]
     fn create(
         gift_code_b58: &EncodedGiftCode,
-        entropy: &RootEntropy,
+        root_entropy: Option<&RootEntropy>,
+        bip39_entropy: Option<&Vec<u8>>,
         txo_public_key: &CompressedRistrettoPublic,
         value: i64,
         memo: &str,
@@ -74,7 +75,8 @@ pub trait GiftCodeModel {
 impl GiftCodeModel for GiftCode {
     fn create(
         gift_code_b58: &EncodedGiftCode,
-        entropy: &RootEntropy,
+        root_entropy: Option<&RootEntropy>,
+        bip39_entropy: Option<&Vec<u8>>,
         txo_public_key: &CompressedRistrettoPublic,
         value: i64,
         memo: &str,
@@ -87,7 +89,8 @@ impl GiftCodeModel for GiftCode {
         // Insert the gift code to our gift code table.
         let new_gift_code = NewGiftCode {
             gift_code_b58: &gift_code_b58.to_string(),
-            entropy: &entropy.bytes.to_vec(),
+            root_entropy: root_entropy.map(|entropy| entropy.bytes.to_vec()),
+            bip39_entropy: bip39_entropy.cloned(),
             txo_public_key: &mc_util_serial::encode(txo_public_key),
             value,
             memo,
@@ -182,7 +185,8 @@ mod tests {
 
         let gift_code = GiftCode::create(
             &EncodedGiftCode("gk7CcXuK5RKNW13LvrWY156ZLjaoHaXxLedqACZsw3w6FfF6TR4TVzaAQkH5EHxaw54DnGWRJPA31PpcmvGLoArZbDRj1kBhcTusE8AVW4Mj7QT5".to_string()),
-            &entropy,
+            Some(&entropy),
+            None,
             &txo_public_key,
             value as i64,
             &memo,
@@ -201,7 +205,8 @@ mod tests {
         let expected_gift_code = GiftCode {
             id: 1,
             gift_code_b58: gotten.gift_code_b58.clone(),
-            entropy: entropy.bytes.to_vec(),
+            root_entropy: Some(entropy.bytes.to_vec()),
+            bip39_entropy: None,
             txo_public_key: mc_util_serial::encode(&txo_public_key),
             value: value as i64,
             memo,
@@ -209,7 +214,8 @@ mod tests {
             txo_id_hex: TxoID::from(&tx_out).to_string(),
         };
         assert_eq!(gotten, expected_gift_code);
-        assert_eq!(gotten.entropy, entropy.bytes.to_vec());
+        assert_eq!(gotten.root_entropy, Some(entropy.bytes.to_vec()));
+        assert_eq!(gotten.bip39_entropy, None);
 
         let all_gift_codes = GiftCode::list_all(&wallet_db.get_conn().unwrap()).unwrap();
         assert_eq!(all_gift_codes.len(), 1);

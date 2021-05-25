@@ -187,79 +187,70 @@ where
         receiver_receipt: &ReceiverReceipt,
     ) -> Result<(ReceiptTransactionStatus, Option<TxoDetails>), ReceiptServiceError> {
         let conn = &self.wallet_db.get_conn()?;
+        conn.transaction(|| {
+            let assigned_address = AssignedSubaddress::get(address, &conn)?;
+            let account_id = AccountID(assigned_address.account_id_hex);
+            let account = Account::get(&account_id, &conn)?;
+            // Get the transaction from the database, with status.
+            let txos_and_statuses =
+                Txo::select_by_public_key(&account_id, &[&receiver_receipt.public_key], &conn)?;
 
-        Ok(conn
-            .transaction::<(ReceiptTransactionStatus, Option<TxoDetails>), ReceiptServiceError, _>(
-                || {
-                    let assigned_address = AssignedSubaddress::get(address, &conn)?;
-                    let account_id = AccountID(assigned_address.account_id_hex);
-                    let account = Account::get(&account_id, &conn)?;
-                    // Get the transaction from the database, with status.
-                    let txos_and_statuses = Txo::select_by_public_key(
-                        &account_id,
-                        &[&receiver_receipt.public_key],
-                        &conn,
-                    )?;
+            // Return if the Txo from the receipt is not in this wallet yet.
+            if txos_and_statuses.is_empty() {
+                return Ok((ReceiptTransactionStatus::TransactionPending, None));
+            }
+            let (txo, status) = &txos_and_statuses[0];
 
-                    // Return if the Txo from the receipt is not in this wallet yet.
-                    if txos_and_statuses.is_empty() {
-                        return Ok((ReceiptTransactionStatus::TransactionPending, None));
-                    }
-                    let (txo, status) = &txos_and_statuses[0];
+            // Figure out whether the Txo was minted by us, and has not yet been received by
+            // us. (For to-self transactions). If the Txo was minted by us, this
+            // transaction is pending.
+            if status.txo_type == TXO_TYPE_MINTED && status.txo_status == TXO_STATUS_SECRETED {
+                return Ok((ReceiptTransactionStatus::TransactionPending, None));
+            }
+            let details = Txo::get(&txo.txo_id_hex, &conn)?;
 
-                    // Figure out whether the Txo was minted by us, and has not yet been received by
-                    // us. (For to-self transactions). If the Txo was minted by us, this
-                    // transaction is pending.
-                    if status.txo_type == TXO_TYPE_MINTED
-                        && status.txo_status == TXO_STATUS_SECRETED
-                    {
-                        return Ok((ReceiptTransactionStatus::TransactionPending, None));
-                    }
-                    let details = Txo::get(&txo.txo_id_hex, &conn)?;
+            // Decrypt the amount to get the expected value
+            let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+            let public_key: RistrettoPublic =
+                RistrettoPublic::try_from(&receiver_receipt.public_key)?;
+            let shared_secret =
+                get_tx_out_shared_secret(account_key.view_private_key(), &public_key);
+            let expected_value = match receiver_receipt.amount.get_value(&shared_secret) {
+                Ok((v, _blinding)) => v,
+                Err(AmountError::InconsistentCommitment) => {
+                    return Ok((
+                        ReceiptTransactionStatus::FailedAmountDecryption,
+                        Some(details),
+                    ))
+                }
+            };
+            // Check that the value of the received Txo matches the expected value.
+            if (txo.value as u64) != expected_value {
+                return Ok((
+                    ReceiptTransactionStatus::AmountMismatch(format!(
+                        "Expected: {}, Got: {}",
+                        expected_value, txo.value
+                    )),
+                    Some(details),
+                ));
+            }
 
-                    // Decrypt the amount to get the expected value
-                    let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
-                    let public_key: RistrettoPublic =
-                        RistrettoPublic::try_from(&receiver_receipt.public_key)?;
-                    let shared_secret =
-                        get_tx_out_shared_secret(account_key.view_private_key(), &public_key);
-                    let expected_value = match receiver_receipt.amount.get_value(&shared_secret) {
-                        Ok((v, _blinding)) => v,
-                        Err(AmountError::InconsistentCommitment) => {
-                            return Ok((
-                                ReceiptTransactionStatus::FailedAmountDecryption,
-                                Some(details),
-                            ))
-                        }
-                    };
-                    // Check that the value of the received Txo matches the expected value.
-                    if (txo.value as u64) != expected_value {
-                        return Ok((
-                            ReceiptTransactionStatus::AmountMismatch(format!(
-                                "Expected: {}, Got: {}",
-                                expected_value, txo.value
-                            )),
-                            Some(details),
-                        ));
-                    }
+            // Validate the confirmation number.
+            let confirmation_hex =
+                hex::encode(mc_util_serial::encode(&receiver_receipt.confirmation));
+            let confirmation: TxOutConfirmationNumber =
+                mc_util_serial::decode(&hex::decode(confirmation_hex)?)?;
+            if !Txo::validate_confirmation(
+                &account_id,
+                &txo.txo_id_hex.clone(),
+                &confirmation,
+                &conn,
+            )? {
+                return Ok((ReceiptTransactionStatus::InvalidConfirmation, Some(details)));
+            }
 
-                    // Validate the confirmation number.
-                    let confirmation_hex =
-                        hex::encode(mc_util_serial::encode(&receiver_receipt.confirmation));
-                    let confirmation: TxOutConfirmationNumber =
-                        mc_util_serial::decode(&hex::decode(confirmation_hex)?)?;
-                    if !Txo::validate_confirmation(
-                        &account_id,
-                        &txo.txo_id_hex.clone(),
-                        &confirmation,
-                        &conn,
-                    )? {
-                        return Ok((ReceiptTransactionStatus::InvalidConfirmation, Some(details)));
-                    }
-
-                    Ok((ReceiptTransactionStatus::TransactionSuccess, Some(details)))
-                },
-            )?)
+            Ok((ReceiptTransactionStatus::TransactionSuccess, Some(details)))
+        })
     }
 
     fn create_receiver_receipts(
@@ -387,7 +378,7 @@ mod tests {
             .create_account(Some("Bob's Main Account".to_string()))
             .unwrap();
         let bob_addresses = service
-            .get_all_addresses_for_account(&AccountID(bob.account_id_hex.clone()))
+            .get_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
             .expect("Could not get addresses for Bob");
         let bob_address = bob_addresses[0].assigned_subaddress_b58.clone();
 
@@ -395,8 +386,7 @@ mod tests {
         let tx_proposal = service
             .build_transaction(
                 &alice.account_id_hex,
-                &bob_address,
-                (24 * MOB).to_string(),
+                &vec![(bob_address.to_string(), (24 * MOB).to_string())],
                 None,
                 None,
                 None,
@@ -441,14 +431,14 @@ mod tests {
 
         // Get corresponding Txo for Bob
         let txos = service
-            .list_txos(&AccountID(bob.account_id_hex))
+            .list_txos(&AccountID(bob.account_id_hex), None, None)
             .expect("Could not get Bob Txos");
         assert_eq!(txos.len(), 1);
 
         // Get the corresponding TransactionLog for Alice's Account - only the sender
         // has the confirmation number.
         let transaction_logs = service
-            .list_transaction_logs(&AccountID(alice.account_id_hex))
+            .list_transaction_logs(&AccountID(alice.account_id_hex), None, None)
             .expect("Could not get transaction logs");
         // Alice should have two received (initial and change), and one sent
         // TransactionLog.
@@ -512,7 +502,7 @@ mod tests {
             .create_account(Some("Bob's Main Account".to_string()))
             .unwrap();
         let bob_addresses = service
-            .get_all_addresses_for_account(&AccountID(bob.account_id_hex.clone()))
+            .get_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
             .expect("Could not get addresses for Bob");
         let bob_address = &bob_addresses[0].assigned_subaddress_b58.clone();
 
@@ -520,8 +510,7 @@ mod tests {
         let tx_proposal = service
             .build_transaction(
                 &alice.account_id_hex,
-                &bob_address,
-                (24 * MOB).to_string(),
+                &vec![(bob_address.to_string(), (24 * MOB).to_string())],
                 None,
                 None,
                 None,
@@ -626,7 +615,7 @@ mod tests {
             .create_account(Some("Bob's Main Account".to_string()))
             .unwrap();
         let bob_addresses = service
-            .get_all_addresses_for_account(&AccountID(bob.account_id_hex.clone()))
+            .get_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
             .expect("Could not get addresses for Bob");
         let bob_address = &bob_addresses[0].assigned_subaddress_b58.clone();
         let bob_account_id = AccountID(bob.account_id_hex.to_string());
@@ -635,8 +624,7 @@ mod tests {
         let tx_proposal0 = service
             .build_transaction(
                 &alice.account_id_hex,
-                &bob_address,
-                (24 * MOB).to_string(),
+                &vec![(bob_address.to_string(), (24 * MOB).to_string())],
                 None,
                 None,
                 None,
@@ -744,7 +732,7 @@ mod tests {
             .create_account(Some("Bob's Main Account".to_string()))
             .unwrap();
         let bob_addresses = service
-            .get_all_addresses_for_account(&AccountID(bob.account_id_hex.clone()))
+            .get_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
             .expect("Could not get addresses for Bob");
         let bob_address = &bob_addresses[0].assigned_subaddress_b58.clone();
         let bob_account_id = AccountID(bob.account_id_hex.to_string());
@@ -753,8 +741,7 @@ mod tests {
         let tx_proposal0 = service
             .build_transaction(
                 &alice.account_id_hex,
-                &bob_address,
-                (24 * MOB).to_string(),
+                &vec![(bob_address.to_string(), (24 * MOB).to_string())],
                 None,
                 None,
                 None,

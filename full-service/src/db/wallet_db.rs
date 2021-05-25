@@ -4,8 +4,8 @@ use diesel::{
     prelude::*,
     r2d2::{ConnectionManager, Pool, PooledConnection},
 };
-use mc_common::logger::Logger;
-use std::time::Duration;
+use mc_common::logger::{global_log, Logger};
+use std::{env, time::Duration};
 
 #[derive(Debug)]
 pub struct ConnectionOptions {
@@ -19,6 +19,8 @@ impl diesel::r2d2::CustomizeConnection<SqliteConnection, diesel::r2d2::Error>
 {
     fn on_acquire(&self, conn: &mut SqliteConnection) -> Result<(), diesel::r2d2::Error> {
         (|| {
+            WalletDb::set_db_encryption_key_from_env(conn);
+
             if self.enable_wal {
                 conn.batch_execute("
                     PRAGMA journal_mode = WAL;          -- better write-concurrency
@@ -29,10 +31,13 @@ impl diesel::r2d2::CustomizeConnection<SqliteConnection, diesel::r2d2::Error>
             }
             if self.enable_foreign_keys {
                 conn.batch_execute("PRAGMA foreign_keys = ON;")?;
+            } else {
+                conn.batch_execute("PRAGMA foreign_keys = OFF;")?;
             }
             if let Some(d) = self.busy_timeout {
                 conn.batch_execute(&format!("PRAGMA busy_timeout = {};", d.as_millis()))?;
             }
+
             Ok(())
         })()
         .map_err(diesel::r2d2::Error::QueryError)
@@ -73,4 +78,56 @@ impl WalletDb {
     ) -> Result<PooledConnection<ConnectionManager<SqliteConnection>>, WalletDbError> {
         Ok(self.pool.get()?)
     }
+
+    pub fn set_db_encryption_key_from_env(conn: &SqliteConnection) {
+        // Send the encryption key to SQLCipher, if it is not the empty string.
+        // Then check that it worked, or else panic.
+        let encryption_key = env::var("MC_PASSWORD").unwrap_or_else(|_| "".to_string());
+        if !encryption_key.is_empty() {
+            let result = conn.batch_execute(&format!(
+                "PRAGMA key = {};",
+                sql_escape_string(&encryption_key)
+            ));
+            if result.is_err() {
+                panic!("Could not decrypt database.");
+            }
+        }
+    }
+
+    pub fn try_change_db_encryption_key_from_env(conn: &SqliteConnection) {
+        // Change the encryption key if specified by the environment variable.
+        let encryption_key = env::var("MC_PASSWORD").unwrap_or_else(|_| "".to_string());
+        let changed_encryption_key =
+            env::var("MC_CHANGED_PASSWORD").unwrap_or_else(|_| "".to_string());
+        if !encryption_key.is_empty()
+            && !changed_encryption_key.is_empty()
+            && encryption_key != changed_encryption_key
+        {
+            let result = conn.batch_execute(&format!(
+                "PRAGMA rekey = {};",
+                sql_escape_string(&changed_encryption_key)
+            ));
+            if result.is_err() {
+                panic!("Could not set new password.");
+            }
+            // Set the new password in the environment, so other threads can decrypt
+            // correctly.
+            env::set_var("MC_PASSWORD", changed_encryption_key);
+            global_log::info!("Re-encrypted database with new password.");
+        }
+    }
+
+    pub fn check_database_connectivity(conn: &SqliteConnection) {
+        let result = conn.batch_execute("SELECT count(*) FROM sqlite_master;");
+        if result.is_err() {
+            panic!("Could not access database.");
+        }
+    }
+}
+
+/// Escape a string for consumption by SQLite.
+/// This function doubles all single quote characters within the string, then
+/// wraps the string in single quotes on the front and back.
+fn sql_escape_string(s: &str) -> String {
+    format!("'{}'", s.replace("'", "''"))
 }

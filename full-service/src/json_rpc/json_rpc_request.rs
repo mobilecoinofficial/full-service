@@ -46,7 +46,7 @@ impl TryFrom<&JsonRPCRequest> for JsonCommandRequest {
 
     fn try_from(src: &JsonRPCRequest) -> Result<JsonCommandRequest, String> {
         let src_json: serde_json::Value = serde_json::json!(src);
-        Ok(serde_json::from_value(src_json).map_err(|e| format!("Could not get value {:?}", e))?)
+        serde_json::from_value(src_json).map_err(|e| format!("Could not get value {:?}", e))
     }
 }
 
@@ -96,8 +96,9 @@ pub enum JsonCommandRequest {
     },
     build_and_submit_transaction {
         account_id: String,
-        recipient_public_address: String,
-        value_pmob: String,
+        addresses_and_values: Option<Vec<(String, String)>>,
+        recipient_public_address: Option<String>,
+        value_pmob: Option<String>,
         input_txo_ids: Option<Vec<String>>,
         fee: Option<String>,
         tombstone_block: Option<String>,
@@ -106,8 +107,9 @@ pub enum JsonCommandRequest {
     },
     build_transaction {
         account_id: String,
-        recipient_public_address: String,
-        value_pmob: String,
+        addresses_and_values: Option<Vec<(String, String)>>,
+        recipient_public_address: Option<String>,
+        value_pmob: Option<String>,
         input_txo_ids: Option<Vec<String>>,
         fee: Option<String>,
         tombstone_block: Option<String>,
@@ -117,6 +119,11 @@ pub enum JsonCommandRequest {
         tx_proposal: TxProposal,
         comment: Option<String>,
         account_id: Option<String>,
+    },
+    get_transaction_logs_for_account {
+        account_id: String,
+        offset: String,
+        limit: String,
     },
     get_all_transaction_logs_for_account {
         account_id: String,
@@ -128,6 +135,7 @@ pub enum JsonCommandRequest {
         block_index: String,
     },
     get_all_transaction_logs_ordered_by_block,
+    get_network_status,
     get_wallet_status,
     get_account_status {
         account_id: String,
@@ -135,6 +143,11 @@ pub enum JsonCommandRequest {
     assign_address_for_account {
         account_id: String,
         metadata: Option<String>,
+    },
+    get_addresses_for_account {
+        account_id: String,
+        offset: String,
+        limit: String,
     },
     get_all_addresses_for_account {
         account_id: String,
@@ -145,11 +158,23 @@ pub enum JsonCommandRequest {
     get_balance_for_address {
         address: String,
     },
+    get_txos_for_account {
+        account_id: String,
+        offset: String,
+        limit: String,
+    },
     get_all_txos_for_account {
         account_id: String,
     },
     get_txo {
         txo_id: String,
+    },
+    build_split_txo_transaction {
+        txo_id: String,
+        output_values: Vec<String>,
+        destination_subaddress_index: Option<String>,
+        fee: Option<String>,
+        tombstone_block: Option<String>,
     },
     get_all_txos_for_address {
         address: String,

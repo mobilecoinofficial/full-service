@@ -39,6 +39,9 @@ pub struct Account {
     /// No transactions before this point will be synchronized.
     pub first_block_index: String,
 
+    /// Index of the next block this account needs to sync.
+    pub next_block_index: String,
+
     /// A flag that indicates this imported account is attempting to un-orphan
     /// found TXOs. It is recommended to move all MOB to another account after
     /// recovery if the user is unsure of the assigned addresses.
@@ -63,6 +66,7 @@ impl TryFrom<&db::models::Account> for Account {
             main_address,
             next_subaddress_index: (src.next_subaddress_index as u64).to_string(),
             first_block_index: (src.first_block_index as u64).to_string(),
+            next_block_index: (src.next_block_index as u64).to_string(),
             recovery_mode: false,
         })
     }

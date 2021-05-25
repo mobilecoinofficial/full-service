@@ -31,8 +31,10 @@ fn main() {
 
     let config = APIConfig::from_args();
 
-    if !cfg!(debug_assertions) && !config.offline {
-        config.validate_host().expect("Could not validate host");
+    // Exit if the user is not in an authorized country.
+    if !cfg!(debug_assertions) && !config.offline && config.validate_host().is_err() {
+        println!("Could not validate host");
+        return;
     }
 
     let (logger, _global_logger_guard) = create_app_logger(o!());
@@ -51,7 +53,11 @@ fn main() {
                 config.wallet_db, err
             )
         });
+    WalletDb::set_db_encryption_key_from_env(&conn);
+    WalletDb::try_change_db_encryption_key_from_env(&conn);
+    WalletDb::check_database_connectivity(&conn);
     embedded_migrations::run(&conn).expect("failed running migrations");
+    log::info!(logger, "Connected to database.");
 
     let wallet_db = WalletDb::new_from_url(
         config

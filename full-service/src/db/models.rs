@@ -145,6 +145,8 @@ pub struct Txo {
     pub pending_tombstone_block_index: Option<i64>,
     pub spent_block_index: Option<i64>,
     pub confirmation: Option<Vec<u8>>,
+    /// The recipient public address. Blank for unknown.
+    pub recipient_public_address_b58: String,
 }
 
 /// A structure that can be inserted to create a new entity in the `txos` table.
@@ -163,6 +165,7 @@ pub struct NewTxo<'a> {
     pub pending_tombstone_block_index: Option<i64>,
     pub spent_block_index: Option<i64>,
     pub confirmation: Option<&'a [u8]>,
+    pub recipient_public_address_b58: String,
 }
 
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
@@ -228,7 +231,6 @@ pub struct TransactionLog {
     pub id: i32,
     pub transaction_id_hex: String,
     pub account_id_hex: String,
-    pub recipient_public_address_b58: String, // empty string for null
     pub assigned_subaddress_b58: Option<String>,
     pub value: i64,
     pub fee: Option<i64>,
@@ -249,7 +251,6 @@ pub struct TransactionLog {
 pub struct NewTransactionLog<'a> {
     pub transaction_id_hex: &'a str,
     pub account_id_hex: &'a str,
-    pub recipient_public_address_b58: &'a str,
     pub assigned_subaddress_b58: Option<&'a str>,
     pub value: i64,
     pub fee: Option<i64>,
@@ -290,7 +291,8 @@ pub struct NewTransactionTxoType<'a> {
 pub struct GiftCode {
     pub id: i32,
     pub gift_code_b58: String,
-    pub entropy: Vec<u8>,
+    pub root_entropy: Option<Vec<u8>>,
+    pub bip39_entropy: Option<Vec<u8>>,
     pub txo_public_key: Vec<u8>,
     pub value: i64,
     pub memo: String,
@@ -302,7 +304,8 @@ pub struct GiftCode {
 #[table_name = "gift_codes"]
 pub struct NewGiftCode<'a> {
     pub gift_code_b58: &'a str,
-    pub entropy: &'a Vec<u8>,
+    pub root_entropy: Option<Vec<u8>>,
+    pub bip39_entropy: Option<Vec<u8>>,
     pub txo_public_key: &'a Vec<u8>,
     pub value: i64,
     pub memo: &'a str,
