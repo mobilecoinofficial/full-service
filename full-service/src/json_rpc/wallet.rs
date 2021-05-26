@@ -831,8 +831,6 @@ where
         }
     };
 
-    println!("Got response");
-
     Ok(response)
 }
 
