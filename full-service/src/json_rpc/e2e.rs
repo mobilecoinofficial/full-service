@@ -191,7 +191,24 @@ mod e2e {
                 "name": "",
             }
         });
-        dispatch_expect_error(&client, body, &logger, "{\"code\":-32603,\"message\":\"InternalError\",\"data\":{\"server_error\":\"UnknownKeyDerivation(3)\",\"details\":\"Unknown key version version: 3\"}}".to_string());
+        dispatch_expect_error(
+            &client,
+            body,
+            &logger,
+            json!({
+                "method": "import_account",
+                "error": json!({
+                    "code": -32603,
+                    "message": "InternalError",
+                    "data": json!({
+                        "server_error": "UnknownKeyDerivation(3)",
+                        "details": "Unknown key version version: 3",
+                    })
+                }),
+                "jsonrpc": "2.0",
+                "id": 1,
+            }).to_string(),
+        );
     }
 
     #[test_with_logger]
@@ -643,12 +660,17 @@ mod e2e {
             body,
             &logger,
             json!({
-                "code": -32603,
-                "message": "InternalError",
-                "data": json!({
-                    "server_error": format!("TransactionBuilder(WalletDb(InsufficientFundsUnderMaxSpendable(\"Max spendable value in wallet: 100, but target value: {}\")))", 42 + MINIMUM_FEE),
-                    "details": format!("Error building transaction: Wallet DB Error: Insufficient funds from Txos under max_spendable_value: Max spendable value in wallet: 100, but target value: {}", 42 + MINIMUM_FEE),
-                })
+                "method": "build_transaction",
+                "error": json!({
+                    "code": -32603,
+                    "message": "InternalError",
+                    "data": json!({
+                        "server_error": format!("TransactionBuilder(WalletDb(InsufficientFundsUnderMaxSpendable(\"Max spendable value in wallet: 100, but target value: {}\")))", 42 + MINIMUM_FEE),
+                        "details": format!("Error building transaction: Wallet DB Error: Insufficient funds from Txos under max_spendable_value: Max spendable value in wallet: 100, but target value: {}", 42 + MINIMUM_FEE),
+                    })
+                }),
+                "jsonrpc": "2.0",
+                "id": 1,
             }).to_string(),
         );
 

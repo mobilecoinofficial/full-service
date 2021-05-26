@@ -46,24 +46,33 @@ pub struct TestWalletState {
 // Note: the reason this is duplicated from wallet.rs is to be able to pass the
 // TestWalletState, which handles Mock objects.
 #[post("/wallet", format = "json", data = "<command>")]
-pub fn test_wallet_api(
+fn test_wallet_api(
     state: rocket::State<TestWalletState>,
     command: Json<JsonRPCRequest>,
 ) -> Result<Json<JsonRPCResponse>, String> {
     let req: JsonRPCRequest = command.0.clone();
-    wallet_api_inner(
+
+    let mut response = JsonRPCResponse {
+        method: Some(command.0.method),
+        result: None,
+        error: None,
+        jsonrpc: "2.0".to_string(),
+        id: command.0.id,
+    };
+
+    match wallet_api_inner(
         &state.service,
-        Json(JsonCommandRequest::try_from(&req).map_err(|e| e)?),
-    )
-    .and_then(|res| {
-        Ok(Json(JsonRPCResponse {
-            method: res.0.method,
-            result: res.0.result,
-            error: res.0.error,
-            jsonrpc: "2.0".to_string(),
-            id: command.0.id,
-        }))
-    })
+        JsonCommandRequest::try_from(&req).map_err(|e| e)?,
+    ) {
+        Ok(command_response) => {
+            response.result = Some(command_response);
+        },
+        Err(rpc_error) => {
+            response.error = Some(rpc_error);
+        },
+    };
+
+    Ok(Json(response))
 }
 
 pub fn test_rocket(rocket_config: rocket::Config, state: TestWalletState) -> rocket::Rocket {
