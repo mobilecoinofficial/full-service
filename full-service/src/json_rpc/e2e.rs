@@ -207,7 +207,8 @@ mod e2e {
                 }),
                 "jsonrpc": "2.0",
                 "id": 1,
-            }).to_string(),
+            })
+            .to_string(),
         );
     }
 

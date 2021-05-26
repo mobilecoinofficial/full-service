@@ -66,10 +66,10 @@ fn test_wallet_api(
     ) {
         Ok(command_response) => {
             response.result = Some(command_response);
-        },
+        }
         Err(rpc_error) => {
             response.error = Some(rpc_error);
-        },
+        }
     };
 
     Ok(Json(response))

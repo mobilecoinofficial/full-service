@@ -106,6 +106,18 @@ pub fn format_error<T: std::fmt::Display + std::fmt::Debug>(e: T) -> JsonRPCErro
     }
 }
 
+/// Helper method to format displaydoc invalid request errors in JSON RPC 2.0
+/// format.
+pub fn format_invalid_request_error<T: std::fmt::Display + std::fmt::Debug>(e: T) -> JsonRPCError {
+    let data: serde_json::Value =
+        json!({"server_error": format!("{:?}", e), "details": e.to_string()}).into();
+    JsonRPCError::error {
+        code: JsonRPCErrorCodes::InvalidRequest as i32,
+        message: JsonRPCErrorCodes::InvalidRequest.as_static().to_string(),
+        data,
+    }
+}
+
 /// Responses from the Full Service Wallet.
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(untagged)]

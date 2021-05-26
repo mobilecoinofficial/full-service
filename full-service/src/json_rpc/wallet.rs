@@ -13,7 +13,10 @@ use crate::{
         confirmation_number::Confirmation,
         gift_code::GiftCode,
         json_rpc_request::{help_str, JsonCommandRequest, JsonRPCRequest},
-        json_rpc_response::{format_error, JsonCommandResponse, JsonRPCResponse, JsonRPCError},
+        json_rpc_response::{
+            format_error, format_invalid_request_error, JsonCommandResponse, JsonRPCError,
+            JsonRPCResponse,
+        },
         network_status::NetworkStatus,
         receiver_receipt::ReceiverReceipt,
         tx_proposal::TxProposal,
@@ -71,16 +74,21 @@ fn wallet_api(
         id: command.0.id,
     };
 
-    match wallet_api_inner(
-        &state.service,
-        JsonCommandRequest::try_from(&req).map_err(|e| e)?,
-    ) {
+    let request = match JsonCommandRequest::try_from(&req) {
+        Ok(request) => request,
+        Err(error) => {
+            response.error = Some(format_invalid_request_error(error));
+            return Ok(Json(response));
+        }
+    };
+
+    match wallet_api_inner(&state.service, request) {
         Ok(command_response) => {
             response.result = Some(command_response);
-        },
+        }
         Err(rpc_error) => {
             response.error = Some(rpc_error);
-        },
+        }
     };
 
     Ok(Json(response))
@@ -101,15 +109,17 @@ where
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
     global_log::trace!("Running command {:?}", command);
+    println!("Running command {:?}", command);
 
-    Ok(match command {
+    let response = match command {
         JsonCommandRequest::create_account { name } => {
             let account: db::models::Account =
                 service.create_account(name).map_err(format_error)?;
 
             JsonCommandResponse::create_account {
-                account: json_rpc::account::Account::try_from(&account)
-                    .map_err(|e| format_error(format!("Could not get RPC Account from DB Account {:?}", e)))?,
+                account: json_rpc::account::Account::try_from(&account).map_err(|e| {
+                    format_error(format!("Could not get RPC Account from DB Account {:?}", e))
+                })?,
             }
         }
         JsonCommandRequest::import_account {
@@ -819,7 +829,11 @@ where
                     .map_err(format_error)?,
             }
         }
-    })
+    };
+
+    println!("Got response");
+
+    Ok(response)
 }
 
 #[get("/wallet")]
