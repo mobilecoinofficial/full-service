@@ -13,7 +13,10 @@ use crate::{
         confirmation_number::Confirmation,
         gift_code::GiftCode,
         json_rpc_request::{help_str, JsonCommandRequest, JsonRPCRequest},
-        json_rpc_response::{format_error, JsonCommandResponse, JsonRPCResponse},
+        json_rpc_response::{
+            format_error, format_invalid_request_error, JsonCommandResponse, JsonRPCError,
+            JsonRPCResponse,
+        },
         network_status::NetworkStatus,
         receiver_receipt::ReceiverReceipt,
         tx_proposal::TxProposal,
@@ -62,19 +65,33 @@ fn wallet_api(
     command: Json<JsonRPCRequest>,
 ) -> Result<Json<JsonRPCResponse>, String> {
     let req: JsonRPCRequest = command.0.clone();
-    wallet_api_inner(
-        &state.service,
-        Json(JsonCommandRequest::try_from(&req).map_err(|e| e)?),
-    )
-    .map(|res| {
-        Json(JsonRPCResponse {
-            method: res.0.method,
-            result: res.0.result,
-            error: res.0.error,
-            jsonrpc: "2.0".to_string(),
-            id: command.0.id,
-        })
-    })
+
+    let mut response = JsonRPCResponse {
+        method: Some(command.0.method),
+        result: None,
+        error: None,
+        jsonrpc: "2.0".to_string(),
+        id: command.0.id,
+    };
+
+    let request = match JsonCommandRequest::try_from(&req) {
+        Ok(request) => request,
+        Err(error) => {
+            response.error = Some(format_invalid_request_error(error));
+            return Ok(Json(response));
+        }
+    };
+
+    match wallet_api_inner(&state.service, request) {
+        Ok(command_response) => {
+            response.result = Some(command_response);
+        }
+        Err(rpc_error) => {
+            response.error = Some(rpc_error);
+        }
+    };
+
+    Ok(Json(response))
 }
 
 /// The Wallet API inner method, which handles switching on the method enum.
@@ -85,22 +102,24 @@ fn wallet_api(
 /// tests. This also allows us to version the overall API easily.
 pub fn wallet_api_inner<T, FPR>(
     service: &WalletService<T, FPR>,
-    command: Json<JsonCommandRequest>,
-) -> Result<Json<JsonRPCResponse>, String>
+    command: JsonCommandRequest,
+) -> Result<JsonCommandResponse, JsonRPCError>
 where
     T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
     global_log::trace!("Running command {:?}", command);
+    println!("Running command {:?}", command);
 
-    let result: JsonCommandResponse = match command.0 {
+    let response = match command {
         JsonCommandRequest::create_account { name } => {
             let account: db::models::Account =
                 service.create_account(name).map_err(format_error)?;
 
             JsonCommandResponse::create_account {
-                account: json_rpc::account::Account::try_from(&account)
-                    .map_err(|e| format!("Could not get RPC Account from DB Account {:?}", e))?,
+                account: json_rpc::account::Account::try_from(&account).map_err(|e| {
+                    format_error(format!("Could not get RPC Account from DB Account {:?}", e))
+                })?,
             }
         }
         JsonCommandRequest::import_account {
@@ -189,13 +208,15 @@ where
             let json_accounts: Vec<(String, serde_json::Value)> = accounts
                 .iter()
                 .map(|a| {
-                    json_rpc::account::Account::try_from(a).and_then(|v| {
-                        serde_json::to_value(v)
-                            .map(|v| (a.account_id_hex.clone(), v))
-                            .map_err(format_error)
-                    })
+                    json_rpc::account::Account::try_from(a)
+                        .map_err(format_error)
+                        .and_then(|v| {
+                            serde_json::to_value(v)
+                                .map(|v| (a.account_id_hex.clone(), v))
+                                .map_err(format_error)
+                        })
                 })
-                .collect::<Result<Vec<(String, serde_json::Value)>, String>>()?;
+                .collect::<Result<Vec<(String, serde_json::Value)>, JsonRPCError>>()?;
             let account_map: Map<String, serde_json::Value> = Map::from_iter(json_accounts);
             JsonCommandResponse::get_all_accounts {
                 account_ids: accounts.iter().map(|a| a.account_id_hex.clone()).collect(),
@@ -809,7 +830,7 @@ where
             }
         }
     };
-    let response = Json(JsonRPCResponse::from(result));
+
     Ok(response)
 }
 

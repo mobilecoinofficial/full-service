@@ -35,16 +35,19 @@ pub struct JsonRPCResponse {
     ///
     /// Optional because JSON RPC does not require returning the method invoked,
     /// as that can be determined by the id. We return it as a convenience.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub method: Option<String>,
 
     /// The result of invoking the method on the server.
     ///
     /// Optional: if error occurs, result is not returned.
-    pub result: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub result: Option<JsonCommandResponse>,
 
     /// The error that occurred when invoking the method on the server.
     ///
     /// Optional: if method was successful, error is not returned.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<JsonRPCError>,
 
     /// The JSON RPC version. Should always be 2.0.
@@ -52,27 +55,6 @@ pub struct JsonRPCResponse {
 
     /// The id of the Request object to which this response corresponds.
     pub id: u32,
-}
-
-// FIXME: unwraps -> TryFrom
-impl From<JsonCommandResponse> for JsonRPCResponse {
-    fn from(src: JsonCommandResponse) -> JsonRPCResponse {
-        let json_response = json!(src);
-        JsonRPCResponse {
-            method: Some(
-                json_response
-                    .get("method")
-                    .unwrap()
-                    .as_str()
-                    .unwrap()
-                    .to_string(),
-            ),
-            result: Some(json_response.get("result").unwrap().clone()),
-            error: None, // FIXME: currently returning "error: null" but should be omitted
-            jsonrpc: "2.0".to_string(),
-            id: 1, // FIXME: must be the same as the request that was passed in
-        }
-    }
 }
 
 /// A JSON RPC Error.
@@ -114,21 +96,31 @@ pub enum JsonRPCErrorCodes {
 }
 
 /// Helper method to format displaydoc errors in JSON RPC 2.0 format.
-pub fn format_error<T: std::fmt::Display + std::fmt::Debug>(e: T) -> String {
+pub fn format_error<T: std::fmt::Display + std::fmt::Debug>(e: T) -> JsonRPCError {
     let data: serde_json::Value =
         json!({"server_error": format!("{:?}", e), "details": e.to_string()}).into();
-    // FIXME: wrap in JsonRPCResponse
-    let json_resp = JsonRPCError::error {
+    JsonRPCError::error {
         code: JsonRPCErrorCodes::InternalError as i32,
         message: JsonRPCErrorCodes::InternalError.as_static().to_string(),
         data,
-    };
-    json!(json_resp).to_string()
+    }
+}
+
+/// Helper method to format displaydoc invalid request errors in JSON RPC 2.0
+/// format.
+pub fn format_invalid_request_error<T: std::fmt::Display + std::fmt::Debug>(e: T) -> JsonRPCError {
+    let data: serde_json::Value =
+        json!({"server_error": format!("{:?}", e), "details": e.to_string()}).into();
+    JsonRPCError::error {
+        code: JsonRPCErrorCodes::InvalidRequest as i32,
+        message: JsonRPCErrorCodes::InvalidRequest.as_static().to_string(),
+        data,
+    }
 }
 
 /// Responses from the Full Service Wallet.
 #[derive(Deserialize, Serialize, Debug)]
-#[serde(tag = "method", content = "result")]
+#[serde(untagged)]
 #[allow(non_camel_case_types)]
 pub enum JsonCommandResponse {
     create_account {
