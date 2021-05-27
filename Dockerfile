@@ -25,7 +25,7 @@
 # In order to create a consistent and verifiable the build environment, only add
 # or update in the mobilecoin/rust-sgx-base image and refer to the image by its hash.
 
-FROM mobilecoin/rust-sgx-base@sha256:5ffeda68b4a3f28370bd2a533c8ada0f95cbc9b8232b8cd5a633b47a19e39cfc as builder
+FROM mobilecoin/rust-sgx-base@sha256:cf4ff6d68e937d1f57a8e445a06e257949b515a241e06c32c41820ec697c2ddb as builder
 
 ARG NAMESPACE=test
 ARG SIGNED_ENCLAVE_BASE=enclave-distribution.${NAMESPACE}.mobilecoin.com
@@ -49,7 +49,7 @@ COPY . /app/
 ARG BUILD_OPTS
 ARG SGX_MODE=HW
 ARG IAS_MODE=PROD
-ARG RUSTFLAGS='-C target-cpu=skylake'
+ARG RUSTFLAGS='-C target-cpu=penryn'
 
 # Build full-service
 RUN  --mount=type=cache,target=/root/.cargo/git \
