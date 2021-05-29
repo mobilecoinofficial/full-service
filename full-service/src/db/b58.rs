@@ -29,6 +29,22 @@ pub fn b58_decode(b58_public_address: &str) -> Result<PublicAddress, WalletDbErr
     Ok(public_address)
 }
 
+pub fn b58_encode_payment_request(
+    public_address: &PublicAddress,
+    amount_pmob: u64,
+    memo: String,
+) -> Result<String, WalletDbError> {
+    let mut payment_request = mc_mobilecoind_api::printable::PaymentRequest::new();
+    payment_request.set_public_address(public_address.into());
+    payment_request.set_value(amount_pmob);
+    payment_request.set_memo(memo);
+
+    let mut wrapper = mc_mobilecoind_api::printable::PrintableWrapper::new();
+    wrapper.set_payment_request(payment_request);
+
+    Ok(wrapper.b58_encode()?)
+}
+
 #[cfg(test)]
 mod tests {
     use crate::db::{b58_decode, b58_encode};

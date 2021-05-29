@@ -156,6 +156,9 @@ pub enum JsonCommandResponse {
     create_account {
         account: Account,
     },
+    create_payment_request {
+        payment_request_b58: String,
+    },
     create_receiver_receipts {
         receiver_receipts: Vec<ReceiverReceipt>,
     },

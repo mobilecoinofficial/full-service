@@ -31,6 +31,7 @@ use crate::{
         confirmation_number::ConfirmationService,
         gift_code::{EncodedGiftCode, GiftCodeService},
         ledger::LedgerService,
+        payment_request::PaymentRequestService,
         receipt::ReceiptService,
         transaction::TransactionService,
         transaction_log::TransactionLogService,
@@ -295,6 +296,16 @@ where
                 })?,
             }
         }
+        JsonCommandRequest::create_payment_request {
+            account_id,
+            subaddress_index,
+            amount_pmob,
+            memo,
+        } => JsonCommandResponse::create_payment_request {
+            payment_request_b58: service
+                .create_payment_request(account_id, subaddress_index, amount_pmob, memo)
+                .map_err(format_error)?,
+        },
         JsonCommandRequest::create_receiver_receipts { tx_proposal } => {
             let receipts = service
                 .create_receiver_receipts(
@@ -752,7 +763,7 @@ where
                 )
                 .map_err(format_error)?,
             }
-        }  
+        }
         JsonCommandRequest::remove_account { account_id } => JsonCommandResponse::remove_account {
             removed: service
                 .remove_account(&AccountID(account_id))
