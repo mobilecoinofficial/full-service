@@ -55,9 +55,136 @@ impl TryFrom<&JsonRPCRequest> for JsonCommandRequest {
 #[serde(tag = "method", content = "params")]
 #[allow(non_camel_case_types)]
 pub enum JsonCommandRequest {
+    assign_address_for_account {
+        account_id: String,
+        metadata: Option<String>,
+    },
+    build_and_submit_transaction {
+        account_id: String,
+        addresses_and_values: Option<Vec<(String, String)>>,
+        recipient_public_address: Option<String>,
+        value_pmob: Option<String>,
+        input_txo_ids: Option<Vec<String>>,
+        fee: Option<String>,
+        tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
+        comment: Option<String>,
+    },
+    build_gift_code {
+        account_id: String,
+        value_pmob: String,
+        memo: Option<String>,
+        input_txo_ids: Option<Vec<String>>,
+        fee: Option<String>,
+        tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
+    },
+    build_split_txo_transaction {
+        txo_id: String,
+        output_values: Vec<String>,
+        destination_subaddress_index: Option<String>,
+        fee: Option<String>,
+        tombstone_block: Option<String>,
+    },
+    build_transaction {
+        account_id: String,
+        addresses_and_values: Option<Vec<(String, String)>>,
+        recipient_public_address: Option<String>,
+        value_pmob: Option<String>,
+        input_txo_ids: Option<Vec<String>>,
+        fee: Option<String>,
+        tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
+    },
+    claim_gift_code {
+        gift_code_b58: String,
+        account_id: String,
+        address: Option<String>,
+    },
     create_account {
         name: Option<String>,
     },
+    check_receiver_receipt_status {
+        address: String,
+        receiver_receipt: ReceiverReceipt,
+    },
+    check_gift_code_status {
+        gift_code_b58: String,
+    },
+    create_receiver_receipts {
+        tx_proposal: TxProposal,
+    },
+    export_account_secrets {
+        account_id: String,
+    },
+    get_account {
+        account_id: String,
+    },
+    get_account_status {
+        account_id: String,
+    },
+    get_addresses_for_account {
+        account_id: String,
+        offset: String,
+        limit: String,
+    },
+    get_all_accounts,
+    get_all_addresses_for_account {
+        account_id: String,
+    },
+    get_all_gift_codes,
+    get_all_transaction_logs_for_account {
+        account_id: String,
+    },
+    get_all_transaction_logs_for_block {
+        block_index: String,
+    },
+    get_all_transaction_logs_ordered_by_block,
+    get_all_txos_for_account {
+        account_id: String,
+    },
+    get_all_txos_for_address {
+        address: String,
+    },
+    get_balance_for_account {
+        account_id: String,
+    },
+    get_balance_for_address {
+        address: String,
+    },
+    get_block {
+        block_index: String,
+    },
+    get_confirmations {
+        transaction_log_id: String,
+    },
+    get_gift_code {
+        gift_code_b58: String,
+    },
+    get_mc_protocol_transaction {
+        transaction_log_id: String,
+    },
+    get_mc_protocol_txo {
+        txo_id: String,
+    },
+    get_network_status,
+    get_transaction_log {
+        transaction_log_id: String,
+    },
+    get_transaction_logs_for_account {
+        account_id: String,
+        offset: String,
+        limit: String,
+    },
+    get_txo {
+        txo_id: String,
+    },
+    get_txos_for_account {
+        account_id: String,
+        offset: String,
+        limit: String,
+    },
+    get_wallet_status,
     import_account {
         mnemonic: String,
         key_derivation_version: String,
@@ -77,159 +204,32 @@ pub enum JsonCommandRequest {
         fog_report_id: Option<String>,
         fog_authority_spki: Option<String>,
     },
-    export_account_secrets {
-        account_id: String,
-    },
-    get_all_accounts,
-    get_account {
-        account_id: String,
-    },
-    update_account_name {
-        account_id: String,
-        name: String,
-    },
     remove_account {
         account_id: String,
     },
-    get_balance_for_account {
-        account_id: String,
-    },
-    build_and_submit_transaction {
-        account_id: String,
-        addresses_and_values: Option<Vec<(String, String)>>,
-        recipient_public_address: Option<String>,
-        value_pmob: Option<String>,
-        input_txo_ids: Option<Vec<String>>,
-        fee: Option<String>,
-        tombstone_block: Option<String>,
-        max_spendable_value: Option<String>,
-        comment: Option<String>,
-    },
-    build_transaction {
-        account_id: String,
-        addresses_and_values: Option<Vec<(String, String)>>,
-        recipient_public_address: Option<String>,
-        value_pmob: Option<String>,
-        input_txo_ids: Option<Vec<String>>,
-        fee: Option<String>,
-        tombstone_block: Option<String>,
-        max_spendable_value: Option<String>,
-    },
-    submit_transaction {
-        tx_proposal: TxProposal,
-        comment: Option<String>,
-        account_id: Option<String>,
-    },
-    get_transaction_logs_for_account {
-        account_id: String,
-        offset: String,
-        limit: String,
-    },
-    get_all_transaction_logs_for_account {
-        account_id: String,
-    },
-    get_transaction_log {
-        transaction_log_id: String,
-    },
-    get_all_transaction_logs_for_block {
-        block_index: String,
-    },
-    get_all_transaction_logs_ordered_by_block,
-    get_network_status,
-    get_wallet_status,
-    get_account_status {
-        account_id: String,
-    },
-    assign_address_for_account {
-        account_id: String,
-        metadata: Option<String>,
-    },
-    get_addresses_for_account {
-        account_id: String,
-        offset: String,
-        limit: String,
-    },
-    get_all_addresses_for_account {
-        account_id: String,
-    },
-    verify_address {
-        address: String,
-    },
-    get_balance_for_address {
-        address: String,
-    },
-    get_txos_for_account {
-        account_id: String,
-        offset: String,
-        limit: String,
-    },
-    get_all_txos_for_account {
-        account_id: String,
-    },
-    get_txo {
-        txo_id: String,
-    },
-    build_split_txo_transaction {
-        txo_id: String,
-        output_values: Vec<String>,
-        destination_subaddress_index: Option<String>,
-        fee: Option<String>,
-        tombstone_block: Option<String>,
-    },
-    get_all_txos_for_address {
-        address: String,
-    },
-    get_confirmations {
-        transaction_log_id: String,
-    },
-    validate_confirmation {
-        account_id: String,
-        txo_id: String,
-        confirmation: String,
-    },
-    get_mc_protocol_transaction {
-        transaction_log_id: String,
-    },
-    get_mc_protocol_txo {
-        txo_id: String,
-    },
-    get_block {
-        block_index: String,
-    },
-    check_receiver_receipt_status {
-        address: String,
-        receiver_receipt: ReceiverReceipt,
-    },
-    create_receiver_receipts {
-        tx_proposal: TxProposal,
-    },
-    build_gift_code {
-        account_id: String,
-        value_pmob: String,
-        memo: Option<String>,
-        input_txo_ids: Option<Vec<String>>,
-        fee: Option<String>,
-        tombstone_block: Option<String>,
-        max_spendable_value: Option<String>,
+    remove_gift_code {
+        gift_code_b58: String,
     },
     submit_gift_code {
         from_account_id: String,
         gift_code_b58: String,
         tx_proposal: TxProposal,
     },
-    get_gift_code {
-        gift_code_b58: String,
+    submit_transaction {
+        tx_proposal: TxProposal,
+        comment: Option<String>,
+        account_id: Option<String>,
     },
-    get_all_gift_codes,
-    check_gift_code_status {
-        gift_code_b58: String,
-    },
-    claim_gift_code {
-        gift_code_b58: String,
+    update_account_name {
         account_id: String,
-        address: Option<String>,
+        name: String,
     },
-    remove_gift_code {
-        gift_code_b58: String,
+    validate_confirmation {
+        account_id: String,
+        txo_id: String,
+        confirmation: String,
+    },
+    verify_address {
+        address: String,
     },
 }
