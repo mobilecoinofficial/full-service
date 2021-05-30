@@ -6,7 +6,7 @@ use crate::db::{
     account::{AccountID, AccountModel},
     account_txo_status::AccountTxoStatusModel,
     assigned_subaddress::AssignedSubaddressModel,
-    b58_encode,
+    b58::b58_encode,
     models::{
         Account, AccountTxoStatus, AssignedSubaddress, NewAccountTxoStatus, NewTxo, Txo,
         TXO_STATUS_ORPHANED, TXO_STATUS_PENDING, TXO_STATUS_SECRETED, TXO_STATUS_SPENT,

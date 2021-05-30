@@ -4,7 +4,7 @@
 
 use crate::{
     db::{
-        account::AccountID, assigned_subaddress::AssignedSubaddressModel, b58_decode,
+        account::AccountID, assigned_subaddress::AssignedSubaddressModel, b58::b58_decode,
         models::AssignedSubaddress, WalletDbError,
     },
     service::WalletService,

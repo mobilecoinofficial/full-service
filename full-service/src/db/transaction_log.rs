@@ -4,7 +4,7 @@
 
 use crate::db::{
     account::{AccountID, AccountModel},
-    b58_encode,
+    b58::b58_encode,
     models::{
         Account, NewTransactionLog, NewTransactionTxoType, TransactionLog, TransactionTxoType, Txo,
         TXO_USED_AS_CHANGE, TXO_USED_AS_INPUT, TXO_USED_AS_OUTPUT, TX_DIRECTION_RECEIVED,

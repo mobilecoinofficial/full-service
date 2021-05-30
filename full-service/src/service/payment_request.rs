@@ -4,8 +4,10 @@
 
 use crate::{
     db::{
-        assigned_subaddress::AssignedSubaddressModel, b58_decode, b58_encode_payment_request,
-        models::AssignedSubaddress, WalletDbError,
+        assigned_subaddress::AssignedSubaddressModel,
+        b58::{b58_decode, b58_encode_payment_request, B58Error},
+        models::AssignedSubaddress,
+        WalletDbError,
     },
     service::WalletService,
 };
@@ -17,6 +19,9 @@ use displaydoc::Display;
 
 #[derive(Display, Debug)]
 pub enum PaymentRequestServiceError {
+    /// Error interacting with the B58 Util: {0}
+    B58(B58Error),
+
     /// Error interacting with the database: {0}
     Database(WalletDbError),
 
@@ -42,6 +47,12 @@ pub enum PaymentRequestServiceError {
 impl From<WalletDbError> for PaymentRequestServiceError {
     fn from(src: WalletDbError) -> Self {
         Self::Database(src)
+    }
+}
+
+impl From<B58Error> for PaymentRequestServiceError {
+    fn from(src: B58Error) -> Self {
+        Self::B58(src)
     }
 }
 

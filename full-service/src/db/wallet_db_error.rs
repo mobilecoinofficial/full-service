@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
-use crate::db::gift_code::GiftCodeDbError;
+use crate::db::{b58::B58Error, gift_code::GiftCodeDbError};
 
 use displaydoc::Display;
 
@@ -108,8 +108,14 @@ pub enum WalletDbError {
     /// Error with the GiftCode service: {0}
     GiftCode(GiftCodeDbError),
 
+    /// Error with the B58 Util: {0}
+    B58(B58Error),
+
     /// Error with the LedgerDB
     LedgerDB(mc_ledger_db::Error),
+
+    /// Error converting to/from API protos: {0}
+    ProtoConversion(mc_api::ConversionError),
 }
 
 impl From<diesel::result::Error> for WalletDbError {
@@ -121,6 +127,12 @@ impl From<diesel::result::Error> for WalletDbError {
 impl From<rocket_contrib::databases::r2d2::Error> for WalletDbError {
     fn from(src: rocket_contrib::databases::r2d2::Error) -> Self {
         Self::RocketDB(src)
+    }
+}
+
+impl From<mc_api::ConversionError> for WalletDbError {
+    fn from(src: mc_api::ConversionError) -> Self {
+        Self::ProtoConversion(src)
     }
 }
 
@@ -139,6 +151,12 @@ impl From<prost::DecodeError> for WalletDbError {
 impl From<GiftCodeDbError> for WalletDbError {
     fn from(src: GiftCodeDbError) -> Self {
         Self::GiftCode(src)
+    }
+}
+
+impl From<B58Error> for WalletDbError {
+    fn from(src: B58Error) -> Self {
+        Self::B58(src)
     }
 }
 

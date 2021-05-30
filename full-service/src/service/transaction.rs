@@ -4,7 +4,7 @@
 
 use crate::{
     db::{
-        b58_decode,
+        b58::{b58_decode, B58Error},
         models::TransactionLog,
         transaction_log::{AssociatedTxos, TransactionLogModel},
         WalletDbError,
@@ -29,6 +29,9 @@ use diesel::Connection;
 #[derive(Display, Debug)]
 #[allow(clippy::large_enum_variant)]
 pub enum TransactionServiceError {
+    ///Error interacting with the B58 Util: {0}
+    B58(B58Error),
+
     /// Error interacting with the database: {0}
     Database(WalletDbError),
 
@@ -73,6 +76,12 @@ pub enum TransactionServiceError {
 impl From<WalletDbError> for TransactionServiceError {
     fn from(src: WalletDbError) -> Self {
         Self::Database(src)
+    }
+}
+
+impl From<B58Error> for TransactionServiceError {
+    fn from(src: B58Error) -> Self {
+        Self::B58(src)
     }
 }
 
