@@ -319,9 +319,9 @@ where
 mod tests {
     use super::*;
     use crate::{
-        db::b58_encode,
         service::{account::AccountService, address::AddressService},
         test_utils::{get_test_ledger, manually_sync_account, setup_wallet_service, MOB},
+        util::b58::b58_encode,
     };
     use mc_account_keys::{AccountKey, PublicAddress, RootEntropy, RootIdentity};
     use mc_common::logger::{test_with_logger, Logger};

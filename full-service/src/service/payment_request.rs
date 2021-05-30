@@ -3,13 +3,9 @@
 //! Service for managing accounts.
 
 use crate::{
-    db::{
-        assigned_subaddress::AssignedSubaddressModel,
-        b58::{b58_decode, b58_encode_payment_request, B58Error},
-        models::AssignedSubaddress,
-        WalletDbError,
-    },
+    db::{assigned_subaddress::AssignedSubaddressModel, models::AssignedSubaddress, WalletDbError},
     service::WalletService,
+    util::b58::{b58_decode, b58_encode_payment_request, B58Error},
 };
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
@@ -120,7 +116,7 @@ where
         let payment_request_b58 = b58_encode_payment_request(
             &public_address,
             amount_pmob,
-            memo.unwrap_or("".to_string()),
+            memo.unwrap_or_else(|| "".to_string()),
         )?;
 
         // Step 4 - return the newly created payment_request_b58

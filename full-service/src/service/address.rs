@@ -4,10 +4,11 @@
 
 use crate::{
     db::{
-        account::AccountID, assigned_subaddress::AssignedSubaddressModel, b58::b58_decode,
+        account::AccountID, assigned_subaddress::AssignedSubaddressModel,
         models::AssignedSubaddress, WalletDbError,
     },
     service::WalletService,
+    util::b58::b58_decode,
 };
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
@@ -147,8 +148,8 @@ where
 mod tests {
     use super::*;
     use crate::{
-        db::b58_encode,
         test_utils::{get_test_ledger, setup_wallet_service},
+        util::b58::b58_encode,
     };
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{test_with_logger, Logger};

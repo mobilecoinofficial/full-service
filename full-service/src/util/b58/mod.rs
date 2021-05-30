@@ -1,7 +1,10 @@
 //! Public Address base58 encoding and decoding.
 
+pub mod errors;
+mod tests;
+pub use self::errors::B58Error;
+
 use bip39::{Language, Mnemonic};
-use displaydoc::Display;
 use mc_account_keys::{AccountKey, PublicAddress, RootEntropy, RootIdentity};
 use mc_account_keys_slip10::Slip10KeyGenerator;
 use mc_crypto_keys::CompressedRistrettoPublic;
@@ -21,28 +24,25 @@ pub struct DecodedTransferPayload {
     pub memo: String,
 }
 
-#[derive(Display, Debug)]
-pub enum B58Error {
-    /// Invalid Entropy
-    InvalidEntropy,
-
-    /// Proto Conversion
-    ProtoConversion(mc_api::ConversionError),
-
-    /// Printable Wrapper
-    PrintableWrapper(mc_api::display::Error),
+pub enum PrintableWrapperType {
+    PublicAddress,
+    PaymentRequest,
+    TransferPayload,
 }
 
-impl From<mc_api::ConversionError> for B58Error {
-    fn from(src: mc_api::ConversionError) -> Self {
-        Self::ProtoConversion(src)
-    }
-}
+pub fn b58_printable_wrapper_type(b58_code: &str) -> Result<PrintableWrapperType, B58Error> {
+    let wrapper =
+        mc_mobilecoind_api::printable::PrintableWrapper::b58_decode(b58_code.to_string())?;
 
-impl From<mc_api::display::Error> for B58Error {
-    fn from(src: mc_api::display::Error) -> Self {
-        Self::PrintableWrapper(src)
+    if wrapper.has_payment_request() {
+        return Ok(PrintableWrapperType::PaymentRequest);
+    } else if wrapper.has_transfer_payload() {
+        return Ok(PrintableWrapperType::TransferPayload);
+    } else if wrapper.has_public_address() {
+        return Ok(PrintableWrapperType::PublicAddress);
     }
+
+    Err(B58Error::NotPrintableWrapper)
 }
 
 pub fn b58_encode(public_address: &PublicAddress) -> Result<String, B58Error> {
@@ -69,6 +69,20 @@ pub fn b58_decode(b58_public_address: &str) -> Result<PublicAddress, B58Error> {
     Ok(public_address)
 }
 
+pub fn decode_public_address_b58(public_address_b58_code: &str) -> Result<PublicAddress, B58Error> {
+    let wrapper = mc_mobilecoind_api::printable::PrintableWrapper::b58_decode(
+        public_address_b58_code.to_string(),
+    )?;
+
+    let public_address_proto = if wrapper.has_public_address() {
+        wrapper.get_public_address()
+    } else {
+        return Err(B58Error::NotPublicAddress);
+    };
+
+    Ok(PublicAddress::try_from(public_address_proto)?)
+}
+
 pub fn b58_encode_payment_request(
     public_address: &PublicAddress,
     amount_pmob: u64,
@@ -88,13 +102,11 @@ pub fn b58_encode_payment_request(
 pub fn b58_decode_payment_request(
     payment_request_b58: String,
 ) -> Result<DecodedPaymentRequest, B58Error> {
-    let wrapper = mc_mobilecoind_api::printable::PrintableWrapper::b58_decode(
-        payment_request_b58.to_string(),
-    )?;
+    let wrapper = mc_mobilecoind_api::printable::PrintableWrapper::b58_decode(payment_request_b58)?;
     let payment_request_message = if wrapper.has_payment_request() {
         wrapper.get_payment_request()
     } else {
-        return Err(B58Error::InvalidEntropy);
+        return Err(B58Error::NotPaymentRequest);
     };
 
     let public_address = PublicAddress::try_from(payment_request_message.get_public_address())?;
@@ -127,23 +139,27 @@ pub fn b58_encode_transfer_payload(
 pub fn b58_decode_transfer_payload(
     transfer_payload_b58: String,
 ) -> Result<DecodedTransferPayload, B58Error> {
-    let wrapper = mc_mobilecoind_api::printable::PrintableWrapper::b58_decode(
-        transfer_payload_b58.to_string(),
-    )?;
-    let transfer_payload = wrapper.get_transfer_payload();
+    let wrapper =
+        mc_mobilecoind_api::printable::PrintableWrapper::b58_decode(transfer_payload_b58)?;
+
+    let transfer_payload = if wrapper.has_transfer_payload() {
+        wrapper.get_transfer_payload()
+    } else {
+        return Err(B58Error::NotTransferPayload);
+    };
 
     // Must have one type of entropy.
     if transfer_payload.get_root_entropy().is_empty()
         && transfer_payload.get_bip39_entropy().is_empty()
     {
-        return Err(B58Error::InvalidEntropy);
+        return Err(B58Error::TransferPayloadRequiresSingleEntropy);
     }
 
     // Only allow one type of entropy.
     if !transfer_payload.get_root_entropy().is_empty()
         && !transfer_payload.get_bip39_entropy().is_empty()
     {
-        return Err(B58Error::InvalidEntropy);
+        return Err(B58Error::TransferPayloadRequiresSingleEntropy);
     }
 
     // This will hold the account key.
@@ -154,15 +170,13 @@ pub fn b58_decode_transfer_payload(
     let mut bip39_entropy = None;
     if !transfer_payload.get_bip39_entropy().is_empty() {
         match Mnemonic::from_entropy(transfer_payload.get_bip39_entropy(), Language::English) {
-            Err(_) => {
-                return Err(B58Error::InvalidEntropy);
-            }
             Ok(mnemonic) => {
                 bip39_entropy = Some(transfer_payload.get_bip39_entropy().to_vec());
 
                 let key = mnemonic.derive_slip10_key(0);
                 account_key = Some(AccountKey::from(key));
             }
+            Err(_) => return Err(B58Error::InvalidEntropy),
         };
     }
 
@@ -193,55 +207,4 @@ pub fn b58_decode_transfer_payload(
         txo_public_key,
         memo: transfer_payload.get_memo().to_string(),
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::db::{b58_decode, b58_encode};
-    use mc_account_keys::{AccountKey, PublicAddress};
-    use rand::{rngs::StdRng, CryptoRng, RngCore, SeedableRng};
-
-    fn get_public_address<T: RngCore + CryptoRng>(rng: &mut T) -> PublicAddress {
-        let account_key = AccountKey::random(rng);
-        account_key.default_subaddress()
-    }
-
-    #[test]
-    /// Encoding a valid PublicAddress should return Ok.
-    fn encoding_does_not_panic() {
-        // TODO: this should use property-based testing to generate random
-        // public_addresses.
-        let mut rng: StdRng = SeedableRng::from_seed([91u8; 32]);
-        let public_address = get_public_address(&mut rng);
-
-        let _encoded = b58_encode(&public_address).unwrap();
-    }
-
-    #[test]
-    #[ignore]
-    /// Encoded string should be valid b58.
-    fn encoding_produces_b58() {
-        // TODO
-        unimplemented!()
-    }
-
-    #[test]
-    /// Decoding a valid b58 string should return the correct PublicAddress.
-    fn decoding_succeeds() {
-        // TODO: this should use property-based testing to generate random
-        // public_addresses.
-        let mut rng: StdRng = SeedableRng::from_seed([91u8; 32]);
-        let public_address = get_public_address(&mut rng);
-        let encoded = b58_encode(&public_address).unwrap();
-        let decoded = b58_decode(&encoded).unwrap();
-        assert_eq!(public_address, decoded);
-    }
-
-    #[test]
-    #[ignore]
-    /// Attempting to decode invalid data should return a reasonable Error.
-    fn decoding_invalid_string_should_not_panic() {
-        // TODO
-        unimplemented!()
-    }
 }

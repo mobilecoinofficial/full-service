@@ -174,12 +174,9 @@ where
 mod tests {
     use super::*;
     use crate::{
-        db::{
-            b58_encode,
-            models::{
-                TXO_STATUS_PENDING, TXO_STATUS_SECRETED, TXO_STATUS_UNSPENT, TXO_TYPE_MINTED,
-                TXO_TYPE_RECEIVED,
-            },
+        db::models::{
+            TXO_STATUS_PENDING, TXO_STATUS_SECRETED, TXO_STATUS_UNSPENT, TXO_TYPE_MINTED,
+            TXO_TYPE_RECEIVED,
         },
         service::{
             account::AccountService, balance::BalanceService, transaction::TransactionService,
@@ -187,6 +184,7 @@ mod tests {
         test_utils::{
             add_block_to_ledger_db, get_test_ledger, setup_wallet_service, wait_for_sync, MOB,
         },
+        util::b58::b58_encode,
     };
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::{

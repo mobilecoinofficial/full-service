@@ -7,7 +7,6 @@ mod e2e {
     use crate::{
         db::{
             account::AccountID,
-            b58_decode,
             models::{TXO_STATUS_UNSPENT, TXO_TYPE_RECEIVED},
         },
         json_rpc,
@@ -16,6 +15,7 @@ mod e2e {
             add_block_to_ledger_db, add_block_with_tx_proposal,
             wait_for_sync as wait_for_account_sync, MOB,
         },
+        util::b58::b58_decode,
     };
     use bip39::{Language, Mnemonic};
     use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};

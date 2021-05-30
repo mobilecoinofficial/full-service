@@ -9,6 +9,7 @@ mod db;
 mod error;
 mod json_rpc;
 mod service;
+mod util;
 
 pub use db::WalletDb;
 pub use json_rpc::wallet;

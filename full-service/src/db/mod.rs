@@ -6,7 +6,6 @@
 pub mod account;
 pub mod account_txo_status;
 pub mod assigned_subaddress;
-pub mod b58;
 pub mod gift_code;
 pub mod models;
 pub mod schema;

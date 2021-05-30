@@ -4,7 +4,6 @@
 
 use crate::{
     db::{
-        b58::{b58_decode, B58Error},
         models::TransactionLog,
         transaction_log::{AssociatedTxos, TransactionLogModel},
         WalletDbError,
@@ -13,6 +12,7 @@ use crate::{
     service::{
         ledger::LedgerService, transaction_builder::WalletTransactionBuilder, WalletService,
     },
+    util::b58::{b58_decode, B58Error},
 };
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
@@ -314,7 +314,6 @@ mod tests {
     use crate::{
         db::{
             account::AccountID,
-            b58_encode,
             models::Txo,
             txo::{TxoDetails, TxoModel},
         },
@@ -323,6 +322,7 @@ mod tests {
             add_block_from_transaction_log, add_block_to_ledger_db, get_test_ledger,
             setup_wallet_service, wait_for_sync, MOB,
         },
+        util::b58::b58_encode,
     };
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{test_with_logger, Logger};

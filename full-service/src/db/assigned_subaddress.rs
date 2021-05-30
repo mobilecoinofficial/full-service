@@ -6,13 +6,14 @@
 use crate::db::{
     account::{AccountID, AccountModel},
     account_txo_status::AccountTxoStatusModel,
-    b58::b58_encode,
     models::{
         Account, AccountTxoStatus, AssignedSubaddress, NewAssignedSubaddress, Txo,
         TXO_STATUS_ORPHANED,
     },
     txo::TxoModel,
 };
+
+use crate::util::b58::b58_encode;
 
 use mc_transaction_core::{
     onetime_keys::{recover_onetime_private_key, recover_public_subaddress_spend_key},

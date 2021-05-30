@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
-use crate::db::{b58::B58Error, gift_code::GiftCodeDbError};
+use crate::{db::gift_code::GiftCodeDbError, util::b58::B58Error};
 
 use displaydoc::Display;
 

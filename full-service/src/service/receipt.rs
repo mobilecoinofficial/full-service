@@ -282,7 +282,6 @@ mod tests {
     use crate::{
         db::{
             account::AccountID,
-            b58_encode,
             models::{TransactionLog, TX_DIRECTION_SENT},
             transaction_log::{AssociatedTxos, TransactionLogModel},
         },
@@ -295,6 +294,7 @@ mod tests {
             add_block_to_ledger_db, add_block_with_tx_proposal, get_test_ledger,
             manually_sync_account, setup_wallet_service, MOB,
         },
+        util::b58::b58_encode,
     };
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{test_with_logger, Logger};

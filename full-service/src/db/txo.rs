@@ -2,18 +2,20 @@
 
 //! DB impl for the Txo model.
 
-use crate::db::{
-    account::{AccountID, AccountModel},
-    account_txo_status::AccountTxoStatusModel,
-    assigned_subaddress::AssignedSubaddressModel,
-    b58::b58_encode,
-    models::{
-        Account, AccountTxoStatus, AssignedSubaddress, NewAccountTxoStatus, NewTxo, Txo,
-        TXO_STATUS_ORPHANED, TXO_STATUS_PENDING, TXO_STATUS_SECRETED, TXO_STATUS_SPENT,
-        TXO_STATUS_UNSPENT, TXO_TYPE_MINTED, TXO_TYPE_RECEIVED, TXO_USED_AS_CHANGE,
-        TXO_USED_AS_OUTPUT,
+use crate::{
+    db::{
+        account::{AccountID, AccountModel},
+        account_txo_status::AccountTxoStatusModel,
+        assigned_subaddress::AssignedSubaddressModel,
+        models::{
+            Account, AccountTxoStatus, AssignedSubaddress, NewAccountTxoStatus, NewTxo, Txo,
+            TXO_STATUS_ORPHANED, TXO_STATUS_PENDING, TXO_STATUS_SECRETED, TXO_STATUS_SPENT,
+            TXO_STATUS_UNSPENT, TXO_TYPE_MINTED, TXO_TYPE_RECEIVED, TXO_USED_AS_CHANGE,
+            TXO_USED_AS_OUTPUT,
+        },
+        WalletDbError,
     },
-    WalletDbError,
+    util::b58::b58_encode,
 };
 use mc_account_keys::{AccountKey, PublicAddress};
 use mc_crypto_digestible::{Digestible, MerlinTranscript};

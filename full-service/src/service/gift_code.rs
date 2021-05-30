@@ -10,10 +10,6 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        b58::{
-            b58_decode, b58_decode_transfer_payload, b58_encode, b58_encode_transfer_payload,
-            B58Error, DecodedTransferPayload,
-        },
         gift_code::GiftCodeModel,
         models::{Account, GiftCode},
         txo::TxoID,
@@ -24,6 +20,10 @@ use crate::{
         address::{AddressService, AddressServiceError},
         transaction::{TransactionService, TransactionServiceError},
         WalletService,
+    },
+    util::b58::{
+        b58_decode, b58_decode_transfer_payload, b58_encode, b58_encode_transfer_payload, B58Error,
+        DecodedTransferPayload,
     },
 };
 use bip39::{Language, Mnemonic, MnemonicType};
@@ -381,7 +381,7 @@ where
         let gift_code_b58 = b58_encode_transfer_payload(
             gift_code_bip39_entropy_bytes.to_vec(),
             proto_tx_pubkey,
-            memo.unwrap_or("".to_string()),
+            memo.unwrap_or_else(|| "".to_string()),
         )?;
 
         Ok((tx_proposal, EncodedGiftCode(gift_code_b58)))
