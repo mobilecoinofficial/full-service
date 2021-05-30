@@ -101,12 +101,15 @@ pub enum JsonCommandRequest {
         account_id: String,
         address: Option<String>,
     },
-    check_receiver_receipt_status {
-        address: String,
-        receiver_receipt: ReceiverReceipt,
+    check_b58_type {
+        b58_code: String,
     },
     check_gift_code_status {
         gift_code_b58: String,
+    },
+    check_receiver_receipt_status {
+        address: String,
+        receiver_receipt: ReceiverReceipt,
     },
     create_account {
         name: Option<String>,

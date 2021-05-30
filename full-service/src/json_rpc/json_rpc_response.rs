@@ -21,10 +21,12 @@ use crate::{
         wallet_status::WalletStatus,
     },
     service::{gift_code::GiftCodeStatus, receipt::ReceiptTransactionStatus},
+    util::b58::PrintableWrapperType,
 };
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
+use std::collections::HashMap;
 use strum::AsStaticRef;
 use strum_macros::AsStaticStr;
 
@@ -140,6 +142,10 @@ pub enum JsonCommandResponse {
     build_transaction {
         tx_proposal: TxProposal,
         transaction_log_id: String,
+    },
+    check_b58_type {
+        b58_type: PrintableWrapperType,
+        data: HashMap<String, String>,
     },
     check_gift_code_status {
         gift_code_status: GiftCodeStatus,

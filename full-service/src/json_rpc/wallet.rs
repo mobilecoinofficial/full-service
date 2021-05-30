@@ -38,6 +38,9 @@ use crate::{
         txo::TxoService,
         WalletService,
     },
+    util::b58::{
+        b58_decode_payment_request, b58_encode, b58_printable_wrapper_type, PrintableWrapperType,
+    },
 };
 use mc_common::logger::global_log;
 use mc_connection::{
@@ -48,7 +51,7 @@ use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use rocket::{get, post, routes};
 use rocket_contrib::json::Json;
 use serde_json::Map;
-use std::{convert::TryFrom, iter::FromIterator};
+use std::{collections::HashMap, convert::TryFrom, iter::FromIterator};
 
 /// State managed by rocket.
 pub struct WalletState<
@@ -244,6 +247,29 @@ where
             JsonCommandResponse::build_transaction {
                 tx_proposal: TxProposal::from(&tx_proposal),
                 transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
+            }
+        }
+        JsonCommandRequest::check_b58_type { b58_code } => {
+            let b58_type = b58_printable_wrapper_type(b58_code.clone()).map_err(format_error)?;
+            let mut b58_data = HashMap::new();
+            match b58_type {
+                PrintableWrapperType::PublicAddress => {
+                    b58_data.insert("public_address_b58".to_string(), b58_code);
+                }
+                PrintableWrapperType::TransferPayload => {}
+                PrintableWrapperType::PaymentRequest => {
+                    let payment_request =
+                        b58_decode_payment_request(b58_code).map_err(format_error)?;
+                    let public_address_b58 =
+                        b58_encode(&payment_request.public_address).map_err(format_error)?;
+                    b58_data.insert("public_address_b58".to_string(), public_address_b58);
+                    b58_data.insert("value".to_string(), payment_request.value.to_string());
+                    b58_data.insert("memo".to_string(), payment_request.memo);
+                }
+            }
+            JsonCommandResponse::check_b58_type {
+                b58_type: b58_type,
+                data: b58_data,
             }
         }
         JsonCommandRequest::check_gift_code_status { gift_code_b58 } => {

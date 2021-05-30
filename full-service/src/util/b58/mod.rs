@@ -8,6 +8,7 @@ use bip39::{Language, Mnemonic};
 use mc_account_keys::{AccountKey, PublicAddress, RootEntropy, RootIdentity};
 use mc_account_keys_slip10::Slip10KeyGenerator;
 use mc_crypto_keys::CompressedRistrettoPublic;
+use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
 pub struct DecodedPaymentRequest {
@@ -24,15 +25,15 @@ pub struct DecodedTransferPayload {
     pub memo: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub enum PrintableWrapperType {
     PublicAddress,
     PaymentRequest,
     TransferPayload,
 }
 
-pub fn b58_printable_wrapper_type(b58_code: &str) -> Result<PrintableWrapperType, B58Error> {
-    let wrapper =
-        mc_mobilecoind_api::printable::PrintableWrapper::b58_decode(b58_code.to_string())?;
+pub fn b58_printable_wrapper_type(b58_code: String) -> Result<PrintableWrapperType, B58Error> {
+    let wrapper = mc_mobilecoind_api::printable::PrintableWrapper::b58_decode(b58_code)?;
 
     if wrapper.has_payment_request() {
         return Ok(PrintableWrapperType::PaymentRequest);
