@@ -1,6 +1,6 @@
 use displaydoc::Display;
 
-#[derive(Display, Debug)]
+#[derive(Display, Debug, PartialEq)]
 pub enum B58Error {
     /// Invalid Printable Wrapper Type
     NotPrintableWrapper,

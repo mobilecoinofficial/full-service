@@ -268,7 +268,7 @@ where
                 }
             }
             JsonCommandResponse::check_b58_type {
-                b58_type: b58_type,
+                b58_type,
                 data: b58_data,
             }
         }
