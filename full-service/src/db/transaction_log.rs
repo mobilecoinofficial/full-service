@@ -13,7 +13,7 @@ use crate::db::{
     txo::{TxoID, TxoModel},
 };
 
-use crate::util::b58::b58_encode;
+use crate::util::b58::b58_encode_public_address;
 
 use mc_account_keys::AccountKey;
 use mc_common::HashMap;
@@ -418,7 +418,7 @@ impl TransactionLogModel for TransactionLog {
                 // Get the public address for the subaddress that received these TXOs
                 let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
                 let subaddress = account_key.subaddress(*subaddress_index as u64);
-                let b58_subaddress = b58_encode(&subaddress)?;
+                let b58_subaddress = b58_encode_public_address(&subaddress)?;
                 let assigned_subaddress_b58: Option<&str> = if *subaddress_index >= 0 {
                     Some(&b58_subaddress)
                 } else {
@@ -708,7 +708,7 @@ mod tests {
         assert_eq!(associated_txos.outputs.len(), 1);
         assert_eq!(
             associated_txos.outputs[0].recipient_public_address_b58,
-            b58_encode(&recipient).unwrap()
+            b58_encode_public_address(&recipient).unwrap()
         );
         // No assigned subaddress for sent
         assert_eq!(tx_log.assigned_subaddress_b58, None);
@@ -862,7 +862,7 @@ mod tests {
         assert_eq!(associated_txos.outputs.len(), 1);
         assert_eq!(
             associated_txos.outputs[0].recipient_public_address_b58,
-            b58_encode(&recipient).unwrap()
+            b58_encode_public_address(&recipient).unwrap()
         );
         // No assigned subaddress for sent
         assert_eq!(tx_log.assigned_subaddress_b58, None);

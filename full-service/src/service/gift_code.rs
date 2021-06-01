@@ -22,8 +22,8 @@ use crate::{
         WalletService,
     },
     util::b58::{
-        b58_decode, b58_decode_transfer_payload, b58_encode, b58_encode_transfer_payload, B58Error,
-        DecodedTransferPayload,
+        b58_decode_public_address, b58_decode_transfer_payload, b58_encode_public_address,
+        b58_encode_transfer_payload, B58Error, DecodedTransferPayload,
     },
 };
 use bip39::{Language, Mnemonic, MnemonicType};
@@ -354,7 +354,7 @@ where
         // single unspent txo in its main subaddress and the b58 encoded gc will
         // contain all necessary info to generate a tx_proposal for it
         let gift_code_account_main_subaddress_b58 =
-            b58_encode(&gift_code_account_key.default_subaddress())?;
+            b58_encode_public_address(&gift_code_account_key.default_subaddress())?;
 
         let conn = self.wallet_db.get_conn()?;
         let from_account = conn.transaction(|| Account::get(&from_account_id, &conn))?;
@@ -537,7 +537,7 @@ where
             Ok(address.assigned_subaddress_b58)
         }?;
 
-        let recipient_public_address = b58_decode(&default_subaddress)?;
+        let recipient_public_address = b58_decode_public_address(&default_subaddress)?;
 
         // If the gift code value is less than the MINIMUM_FEE, well, then shucks,
         // someone messed up when they were making it. Welcome to the Lost MOB

@@ -12,7 +12,7 @@ use crate::{
     service::{
         ledger::LedgerService, transaction_builder::WalletTransactionBuilder, WalletService,
     },
-    util::b58::{b58_decode, B58Error},
+    util::b58::{b58_decode_public_address, B58Error},
 };
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
@@ -185,7 +185,7 @@ where
                     recipient_public_address.to_string(),
                 ));
             };
-            let recipient = b58_decode(recipient_public_address)?;
+            let recipient = b58_decode_public_address(recipient_public_address)?;
             builder.add_recipient(recipient, value.parse::<u64>()?)?;
         }
 
@@ -322,7 +322,7 @@ mod tests {
             add_block_from_transaction_log, add_block_to_ledger_db, get_test_ledger,
             setup_wallet_service, wait_for_sync, MOB,
         },
-        util::b58::b58_encode,
+        util::b58::b58_encode_public_address,
     };
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{test_with_logger, Logger};
@@ -452,7 +452,7 @@ mod tests {
             .build_and_submit(
                 &bob.account_id_hex,
                 &[(
-                    b58_encode(&alice_public_address).unwrap(),
+                    b58_encode_public_address(&alice_public_address).unwrap(),
                     (8 * MOB).to_string(),
                 )],
                 None,

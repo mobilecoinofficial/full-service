@@ -39,7 +39,8 @@ use crate::{
         WalletService,
     },
     util::b58::{
-        b58_decode_payment_request, b58_encode, b58_printable_wrapper_type, PrintableWrapperType,
+        b58_decode_payment_request, b58_encode_public_address, b58_printable_wrapper_type,
+        PrintableWrapperType,
     },
 };
 use mc_common::logger::global_log;
@@ -261,7 +262,8 @@ where
                     let payment_request =
                         b58_decode_payment_request(b58_code).map_err(format_error)?;
                     let public_address_b58 =
-                        b58_encode(&payment_request.public_address).map_err(format_error)?;
+                        b58_encode_public_address(&payment_request.public_address)
+                            .map_err(format_error)?;
                     b58_data.insert("public_address_b58".to_string(), public_address_b58);
                     b58_data.insert("value".to_string(), payment_request.value.to_string());
                     b58_data.insert("memo".to_string(), payment_request.memo);

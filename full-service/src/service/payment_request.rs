@@ -5,7 +5,7 @@
 use crate::{
     db::{assigned_subaddress::AssignedSubaddressModel, models::AssignedSubaddress, WalletDbError},
     service::WalletService,
-    util::b58::{b58_decode, b58_encode_payment_request, B58Error},
+    util::b58::{b58_decode_public_address, b58_encode_payment_request, B58Error},
 };
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
@@ -76,8 +76,6 @@ impl From<LedgerServiceError> for PaymentRequestServiceError {
     }
 }
 
-/// Trait defining the ways in which the wallet can interact with and manage
-/// accounts.
 pub trait PaymentRequestService {
     /// Creates a new payment request b58.
     fn create_payment_request(
@@ -102,24 +100,22 @@ where
         memo: Option<String>,
     ) -> Result<String, PaymentRequestServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        // STEP 1 - get the assigned subaddress of the account at the i^th index
+
         let assigned_subaddress = AssignedSubaddress::get_for_account_by_index(
             &account_id,
             subaddress_index.unwrap_or_default(),
             &conn,
         )?;
 
-        // STEP 2 - turn that in to a PublicAddress type
-        let public_address = b58_decode(&assigned_subaddress.assigned_subaddress_b58)?;
+        let public_address =
+            b58_decode_public_address(&assigned_subaddress.assigned_subaddress_b58)?;
 
-        // Step 3 - submit these credentials to the b58_encode_payment_request function
         let payment_request_b58 = b58_encode_payment_request(
             &public_address,
             amount_pmob,
             memo.unwrap_or_else(|| "".to_string()),
         )?;
 
-        // Step 4 - return the newly created payment_request_b58
         Ok(payment_request_b58)
     }
 }

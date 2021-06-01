@@ -8,7 +8,7 @@ use crate::{
         models::AssignedSubaddress, WalletDbError,
     },
     service::WalletService,
-    util::b58::b58_decode,
+    util::b58::b58_decode_public_address,
 };
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
@@ -126,7 +126,7 @@ where
     }
 
     fn verify_address(&self, public_address: &str) -> Result<bool, AddressServiceError> {
-        match b58_decode(public_address) {
+        match b58_decode_public_address(public_address) {
             Ok(_a) => {
                 log::info!(self.logger, "Verified address {:?}", public_address);
                 Ok(true)
@@ -149,7 +149,7 @@ mod tests {
     use super::*;
     use crate::{
         test_utils::{get_test_ledger, setup_wallet_service},
-        util::b58::b58_encode,
+        util::b58::b58_encode_public_address,
     };
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{test_with_logger, Logger};
@@ -169,7 +169,7 @@ mod tests {
         let account_key = AccountKey::random(&mut rng);
         let public_address = account_key.subaddress(rng.next_u64());
         let public_address_b58 =
-            b58_encode(&public_address).expect("Could not encode public address");
+            b58_encode_public_address(&public_address).expect("Could not encode public address");
 
         assert!(service
             .verify_address(&public_address_b58)

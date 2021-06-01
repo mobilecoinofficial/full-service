@@ -294,7 +294,7 @@ mod tests {
             add_block_to_ledger_db, add_block_with_tx_proposal, get_test_ledger,
             manually_sync_account, setup_wallet_service, MOB,
         },
-        util::b58::b58_encode,
+        util::b58::b58_encode_public_address,
     };
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{test_with_logger, Logger};
@@ -573,8 +573,8 @@ mod tests {
 
         // Status for Alice would be pending, because she never received (and never will
         // receive) the Txos.
-        let alice_address =
-            &b58_encode(&alice_public_address).expect("Could not encode Alice address");
+        let alice_address = &b58_encode_public_address(&alice_public_address)
+            .expect("Could not encode Alice address");
         let (status, _txo) = service
             .check_receipt_status(&alice_address, &receipt)
             .expect("Could not check status of receipt");
@@ -690,8 +690,8 @@ mod tests {
 
         // Status for Alice would be pending, because she never received (and never will
         // receive) the Txos.
-        let alice_address =
-            &b58_encode(&alice_public_address).expect("Could not encode alice address");
+        let alice_address = &b58_encode_public_address(&alice_public_address)
+            .expect("Could not encode alice address");
         let (status, _txo) = service
             .check_receipt_status(&alice_address, &receipt0)
             .expect("Could not check status of receipt");
@@ -788,8 +788,8 @@ mod tests {
 
         // Checking for the sender will be pending because the Txos haven't landed for
         // alice (and never will).
-        let alice_address =
-            &b58_encode(&alice_public_address).expect("Could not encode alice address");
+        let alice_address = &b58_encode_public_address(&alice_public_address)
+            .expect("Could not encode alice address");
         let (status, _txo) = service
             .check_receipt_status(&alice_address, &receipt)
             .expect("Could not check status of receipt");

@@ -321,7 +321,7 @@ mod tests {
     use crate::{
         service::{account::AccountService, address::AddressService},
         test_utils::{get_test_ledger, manually_sync_account, setup_wallet_service, MOB},
-        util::b58::b58_encode,
+        util::b58::b58_encode_public_address,
     };
     use mc_account_keys::{AccountKey, PublicAddress, RootEntropy, RootIdentity};
     use mc_common::logger::{test_with_logger, Logger};
@@ -392,7 +392,8 @@ mod tests {
             mc_util_serial::decode(&account.account_key).expect("Could not decode account key");
         let db_pub_address = db_account_key.subaddress(account.main_subaddress_index as u64);
         assert_eq!(db_pub_address, public_address0);
-        let b58_pub_address = b58_encode(&db_pub_address).expect("Could not encode public address");
+        let b58_pub_address =
+            b58_encode_public_address(&db_pub_address).expect("Could not encode public address");
         let address_balance = service
             .get_balance_for_address(&b58_pub_address)
             .expect("Could not get balance for address");
@@ -415,7 +416,7 @@ mod tests {
         // Even though subaddress 3 has funds, we are not watching it, so we should get
         // an error.
         let b58_pub_address3 =
-            b58_encode(&public_address3).expect("Could not encode public address");
+            b58_encode_public_address(&public_address3).expect("Could not encode public address");
         match service.get_balance_for_address(&b58_pub_address3) {
             Ok(_) => panic!("Should not get success getting balance for a non-assigned address"),
             Err(BalanceServiceError::Database(WalletDbError::AssignedSubaddressNotFound(_))) => {}

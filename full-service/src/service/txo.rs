@@ -184,7 +184,7 @@ mod tests {
         test_utils::{
             add_block_to_ledger_db, get_test_ledger, setup_wallet_service, wait_for_sync, MOB,
         },
-        util::b58::b58_encode,
+        util::b58::b58_encode_public_address,
     };
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::{
@@ -247,8 +247,10 @@ mod tests {
             .build_transaction(
                 &alice.account_id_hex,
                 &vec![(
-                    b58_encode(&bob_account_key.subaddress(bob.main_subaddress_index as u64))
-                        .unwrap(),
+                    b58_encode_public_address(
+                        &bob_account_key.subaddress(bob.main_subaddress_index as u64),
+                    )
+                    .unwrap(),
                     "42000000000000".to_string(),
                 )],
                 None,

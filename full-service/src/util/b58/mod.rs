@@ -7,6 +7,7 @@ pub use self::errors::B58Error;
 use bip39::{Language, Mnemonic};
 use mc_account_keys::{AccountKey, PublicAddress, RootEntropy, RootIdentity};
 use mc_account_keys_slip10::Slip10KeyGenerator;
+use mc_api::printable::{PaymentRequest, PrintableWrapper, TransferPayload};
 use mc_crypto_keys::CompressedRistrettoPublic;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -33,7 +34,7 @@ pub enum PrintableWrapperType {
 }
 
 pub fn b58_printable_wrapper_type(b58_code: String) -> Result<PrintableWrapperType, B58Error> {
-    let wrapper = mc_mobilecoind_api::printable::PrintableWrapper::b58_decode(b58_code)?;
+    let wrapper = PrintableWrapper::b58_decode(b58_code)?;
 
     if wrapper.has_payment_request() {
         return Ok(PrintableWrapperType::PaymentRequest);
@@ -46,34 +47,31 @@ pub fn b58_printable_wrapper_type(b58_code: String) -> Result<PrintableWrapperTy
     Err(B58Error::NotPrintableWrapper)
 }
 
-pub fn b58_encode(public_address: &PublicAddress) -> Result<String, B58Error> {
-    let mut wrapper = mc_mobilecoind_api::printable::PrintableWrapper::new();
+pub fn b58_encode_public_address(public_address: &PublicAddress) -> Result<String, B58Error> {
+    let mut wrapper = PrintableWrapper::new();
     wrapper.set_public_address(public_address.into());
     Ok(wrapper.b58_encode()?)
 }
 
-pub fn b58_decode(b58_public_address: &str) -> Result<PublicAddress, B58Error> {
-    let wrapper = mc_mobilecoind_api::printable::PrintableWrapper::b58_decode(
-        b58_public_address.to_string(),
-    )?;
+// pub fn b58_decode(b58_public_address: &str) -> Result<PublicAddress,
+// B58Error> {     let wrapper =
+// PrintableWrapper::b58_decode(b58_public_address.to_string())?;
 
-    let pubaddr_proto: &mc_api::external::PublicAddress = if wrapper.has_payment_request() {
-        let payment_request = wrapper.get_payment_request();
-        payment_request.get_public_address()
-    } else if wrapper.has_public_address() {
-        wrapper.get_public_address()
-    } else {
-        return Err(B58Error::NotPublicAddress);
-    };
+//     let pubaddr_proto: &mc_api::external::PublicAddress = if
+// wrapper.has_payment_request() {         let payment_request =
+// wrapper.get_payment_request();         payment_request.get_public_address()
+//     } else if wrapper.has_public_address() {
+//         wrapper.get_public_address()
+//     } else {
+//         return Err(B58Error::NotPublicAddress);
+//     };
 
-    let public_address = PublicAddress::try_from(pubaddr_proto)?;
-    Ok(public_address)
-}
+//     let public_address = PublicAddress::try_from(pubaddr_proto)?;
+//     Ok(public_address)
+// }
 
-pub fn decode_public_address_b58(public_address_b58_code: &str) -> Result<PublicAddress, B58Error> {
-    let wrapper = mc_mobilecoind_api::printable::PrintableWrapper::b58_decode(
-        public_address_b58_code.to_string(),
-    )?;
+pub fn b58_decode_public_address(public_address_b58_code: &str) -> Result<PublicAddress, B58Error> {
+    let wrapper = PrintableWrapper::b58_decode(public_address_b58_code.to_string())?;
 
     let public_address_proto = if wrapper.has_public_address() {
         wrapper.get_public_address()
@@ -89,12 +87,12 @@ pub fn b58_encode_payment_request(
     amount_pmob: u64,
     memo: String,
 ) -> Result<String, B58Error> {
-    let mut payment_request = mc_mobilecoind_api::printable::PaymentRequest::new();
+    let mut payment_request = PaymentRequest::new();
     payment_request.set_public_address(public_address.into());
     payment_request.set_value(amount_pmob);
     payment_request.set_memo(memo);
 
-    let mut wrapper = mc_mobilecoind_api::printable::PrintableWrapper::new();
+    let mut wrapper = PrintableWrapper::new();
     wrapper.set_payment_request(payment_request);
 
     Ok(wrapper.b58_encode()?)
@@ -103,7 +101,7 @@ pub fn b58_encode_payment_request(
 pub fn b58_decode_payment_request(
     payment_request_b58: String,
 ) -> Result<DecodedPaymentRequest, B58Error> {
-    let wrapper = mc_mobilecoind_api::printable::PrintableWrapper::b58_decode(payment_request_b58)?;
+    let wrapper = PrintableWrapper::b58_decode(payment_request_b58)?;
     let payment_request_message = if wrapper.has_payment_request() {
         wrapper.get_payment_request()
     } else {
@@ -126,12 +124,12 @@ pub fn b58_encode_transfer_payload(
     proto_tx_pubkey: mc_api::external::CompressedRistretto,
     memo: String,
 ) -> Result<String, B58Error> {
-    let mut transfer_payload = mc_mobilecoind_api::printable::TransferPayload::new();
+    let mut transfer_payload = TransferPayload::new();
     transfer_payload.set_bip39_entropy(bip_39_entropy_bytes);
     transfer_payload.set_tx_out_public_key(proto_tx_pubkey);
     transfer_payload.set_memo(memo);
 
-    let mut wrapper = mc_mobilecoind_api::printable::PrintableWrapper::new();
+    let mut wrapper = PrintableWrapper::new();
     wrapper.set_transfer_payload(transfer_payload);
 
     Ok(wrapper.b58_encode()?)
@@ -140,8 +138,7 @@ pub fn b58_encode_transfer_payload(
 pub fn b58_decode_transfer_payload(
     transfer_payload_b58: String,
 ) -> Result<DecodedTransferPayload, B58Error> {
-    let wrapper =
-        mc_mobilecoind_api::printable::PrintableWrapper::b58_decode(transfer_payload_b58)?;
+    let wrapper = PrintableWrapper::b58_decode(transfer_payload_b58)?;
 
     let transfer_payload = if wrapper.has_transfer_payload() {
         wrapper.get_transfer_payload()

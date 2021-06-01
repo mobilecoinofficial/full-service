@@ -13,7 +13,7 @@ description: Create a payment request b58 code to give to someone else
 
 | Optional Param | Purpose | Requirements |
 | :--- | :--- | :--- |
-| `subaddress_index` | The subaddress index on the account to send the transaction | `i64` |
+| `subaddress_index` | The subaddress index on the account to generate the request with | `i64` |
 | `memo` | Memo for the payment request |  |
 
 ## Example
@@ -27,7 +27,7 @@ description: Create a payment request b58 code to give to someone else
     "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
     "amount_pmob": 42000000000000,
     "subaddress_index": 4,
-    "memo": "Happy Birthday!"
+    "memo": "Payment for dinner with family"
   },
   "jsonrpc": "2.0",
   "id": 1

@@ -3,9 +3,9 @@ mod tests {
     use crate::{
         test_utils::create_test_txo_for_recipient,
         util::b58::{
-            b58_decode, b58_decode_payment_request, b58_decode_transfer_payload, b58_encode,
-            b58_encode_payment_request, b58_encode_transfer_payload, b58_printable_wrapper_type,
-            B58Error, PrintableWrapperType,
+            b58_decode_payment_request, b58_decode_public_address, b58_decode_transfer_payload,
+            b58_encode_payment_request, b58_encode_public_address, b58_encode_transfer_payload,
+            b58_printable_wrapper_type, B58Error, PrintableWrapperType,
         },
     };
     use bip39::{Language, Mnemonic};
@@ -35,7 +35,7 @@ mod tests {
         let mut rng: StdRng = SeedableRng::from_seed([91u8; 32]);
         let public_address = get_public_address(&mut rng);
 
-        let _encoded = b58_encode(&public_address).unwrap();
+        let _encoded = b58_encode_public_address(&public_address).unwrap();
     }
 
     #[test]
@@ -74,8 +74,8 @@ mod tests {
         // public_addresses.
         let mut rng: StdRng = SeedableRng::from_seed([91u8; 32]);
         let public_address = get_public_address(&mut rng);
-        let encoded = b58_encode(&public_address).unwrap();
-        let decoded = b58_decode(&encoded).unwrap();
+        let encoded = b58_encode_public_address(&public_address).unwrap();
+        let decoded = b58_decode_public_address(&encoded).unwrap();
         assert_eq!(public_address, decoded);
     }
 
@@ -134,7 +134,7 @@ mod tests {
         )
         .unwrap();
 
-        let error_type = b58_decode(&encoded).err();
+        let error_type = b58_decode_public_address(&encoded).err();
         assert_eq!(error_type, Some(B58Error::NotPublicAddress));
     }
 
@@ -142,7 +142,7 @@ mod tests {
     fn decoding_invalid_payment_request_returns_error() {
         let mut rng: StdRng = SeedableRng::from_seed([91u8; 32]);
         let public_address = get_public_address(&mut rng);
-        let encoded = b58_encode(&public_address).unwrap();
+        let encoded = b58_encode_public_address(&public_address).unwrap();
 
         let error_type = b58_decode_payment_request(encoded).err();
         assert_eq!(error_type, Some(B58Error::NotPaymentRequest));
@@ -152,7 +152,7 @@ mod tests {
     fn decoding_invalid_transfer_payload_returns_error() {
         let mut rng: StdRng = SeedableRng::from_seed([91u8; 32]);
         let public_address = get_public_address(&mut rng);
-        let encoded = b58_encode(&public_address).unwrap();
+        let encoded = b58_encode_public_address(&public_address).unwrap();
 
         let error_type = b58_decode_transfer_payload(encoded).err();
 
@@ -163,7 +163,7 @@ mod tests {
     fn check_public_address_printable_wrapper_type_returns_correct() {
         let mut rng: StdRng = SeedableRng::from_seed([91u8; 32]);
         let public_address = get_public_address(&mut rng);
-        let encoded = b58_encode(&public_address).unwrap();
+        let encoded = b58_encode_public_address(&public_address).unwrap();
         let b58_type = b58_printable_wrapper_type(encoded).unwrap();
 
         assert_eq!(b58_type, PrintableWrapperType::PublicAddress);
@@ -210,7 +210,7 @@ mod tests {
     fn decoding_insufficient_bytes_string() {
         let invalid_b58_string = "1234";
 
-        let error_type = b58_decode(invalid_b58_string).err();
+        let error_type = b58_decode_public_address(invalid_b58_string).err();
         assert_eq!(
             error_type,
             Some(B58Error::PrintableWrapper(
