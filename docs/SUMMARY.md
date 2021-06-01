@@ -29,6 +29,7 @@
   * [Build Transaction](transactions/transaction/build_transaction.md)
   * [Submit Transaction](transactions/transaction/submit_transaction.md)
   * [Build And Submit Transaction](transactions/transaction/build_and_submit_transaction.md)
+  * [Build Split Txo Transaction](transactions/transaction/build_split_txo_transaction.md)
 * [Transaction Output TXO](transactions/txo/README.md)
   * [Get TXO](transactions/txo/get_txo.md)
   * [Get TXOs For Account](transactions/txo/get-txos-for-account.md)
@@ -46,6 +47,9 @@
   * [Get All Transaction Logs For Account](transactions/transaction-log/get_all_transaction_logs_for_account.md)
   * [Get All Transaction Logs For Block](transactions/transaction-log/get_all_transaction_logs_for_block.md)
   * [Get All Transaction Logs Ordered By Block](transactions/transaction-log/get_all_transaction_logs_ordered_by_block.md)
+* [Payment Request](transactions/payment-request/README.md)
+  * [Create Payment Request](transactions/payment-request/create_payment_request.md)
+  * [Check B58 Type](transactions/payment-request/check_b58_type.md)
 
 ## Wallet
 
