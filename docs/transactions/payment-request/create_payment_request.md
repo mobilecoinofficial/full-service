@@ -9,15 +9,12 @@ description: Create a payment request b58 code to give to someone else
 | Required Param | Purpose | Requirements |
 | :--- | :--- | :--- |
 | `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
-| `value_pmob` | The amount of MOB to send in this transaction. |  |
+| `amount_pmob` | The amount of pMOB to send in this transaction. | `u64` |
 
 | Optional Param | Purpose | Requirements |
 | :--- | :--- | :--- |
-| `input_txo_ids` | The specific TXOs to use as inputs to this transaction. | TXO IDs \(obtain from `get_all_txos_for_account`\) |
-| `fee` | The fee amount to submit with this transaction. | If not provided, uses `MINIMUM_FEE` = .01 MOB. |
-| `tombstone_block` | The block after which this transaction expires. | If not provided, uses `cur_height` + 50. |
-| `max_spendable_value` | The maximum amount for an input TXO selected for this transaction. |  |
-| `memo` | Memo for whoever claims the gift code. |  |
+| `subaddress_index` | The subaddress index on the account to send the transaction | `i64` |
+| `memo` | Memo for the payment request |  |
 
 ## Example
 
@@ -25,10 +22,11 @@ description: Create a payment request b58 code to give to someone else
 {% tab title="Request Body" %}
 ```text
 {
-  "method": "build_gift_code",
+  "method": "create_payment_request",
   "params": {
     "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
-    "value_pmob": "42000000000000",
+    "amount_pmob": 42000000000000,
+    "subaddress_index": 4,
     "memo": "Happy Birthday!"
   },
   "jsonrpc": "2.0",
@@ -40,10 +38,9 @@ description: Create a payment request b58 code to give to someone else
 {% tab title="Response" %}
 ```text
 {
-  "method": "build_gift_code",
+  "method": "create_payment_request",
   "result": {
-    "tx_proposal": "...",
-    "gift_code_b58": "3Th9MSyznKV8VWAHAYoF8ZnVVunaTcMjRTnXvtzqeJPfAY8c7uQn71d6McViyzjLaREg7AppT7quDmBRG5E48csVhhzF4TEn1tw9Ekwr2hrq57A8cqR6sqpNC47mF7kHe",
+    "payment_request_b58": "3Th9MSyznKV8VWAHAYoF8ZnVVunaTcMjRTnXvtzqeJPfAY8c7uQn71d6McViyzjLaREg7AppT7quDmBRG5E48csVhhzF4TEn1tw9Ekwr2hrq57A8cqR6sqpNC47mF7kHe",
   },
   "error": null,
   "jsonrpc": "2.0",

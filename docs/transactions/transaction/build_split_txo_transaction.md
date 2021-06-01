@@ -1,22 +1,23 @@
 ---
 description: >-
-  This is a convenience method for building a transaction that will split a txo into multiple output txos to the origin account.
+  This is a convenience method for building a transaction that will split a txo
+  into multiple output txos to the origin account.
 ---
 
-# Build Split TXO Transaction
+# Build Split Txo Transaction
 
 ## Parameters
 
 | Required Param | Purpose | Requirements |
 | :--- | :--- | :--- |
 | `txo_id` | The TXO on which to perform this action | TXO must exist in the wallet |
-| `output_values` | The output values of the generated TXOs | |
+| `output_values` | The output values of the generated TXOs |  |
 
 | Optional Param | Purpose | Requirements |
 | :--- | :--- | :--- |
-| `destination_subaddress_index` | | |
-| `fee` | | |
-| `tombstone_block` | | |
+| `destination_subaddress_index` |  |  |
+| `fee` |  |  |
+| `tombstone_block` |  |  |
 
 ## Example
 
