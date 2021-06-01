@@ -4,7 +4,6 @@
 
 use crate::{
     db::{
-        b58_decode,
         models::TransactionLog,
         transaction_log::{AssociatedTxos, TransactionLogModel},
         WalletDbError,
@@ -13,6 +12,7 @@ use crate::{
     service::{
         ledger::LedgerService, transaction_builder::WalletTransactionBuilder, WalletService,
     },
+    util::b58::{b58_decode_public_address, B58Error},
 };
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
@@ -29,6 +29,9 @@ use diesel::Connection;
 #[derive(Display, Debug)]
 #[allow(clippy::large_enum_variant)]
 pub enum TransactionServiceError {
+    ///Error interacting with the B58 Util: {0}
+    B58(B58Error),
+
     /// Error interacting with the database: {0}
     Database(WalletDbError),
 
@@ -73,6 +76,12 @@ pub enum TransactionServiceError {
 impl From<WalletDbError> for TransactionServiceError {
     fn from(src: WalletDbError) -> Self {
         Self::Database(src)
+    }
+}
+
+impl From<B58Error> for TransactionServiceError {
+    fn from(src: B58Error) -> Self {
+        Self::B58(src)
     }
 }
 
@@ -176,7 +185,7 @@ where
                     recipient_public_address.to_string(),
                 ));
             };
-            let recipient = b58_decode(recipient_public_address)?;
+            let recipient = b58_decode_public_address(recipient_public_address)?;
             builder.add_recipient(recipient, value.parse::<u64>()?)?;
         }
 
@@ -305,7 +314,6 @@ mod tests {
     use crate::{
         db::{
             account::AccountID,
-            b58_encode,
             models::Txo,
             txo::{TxoDetails, TxoModel},
         },
@@ -314,6 +322,7 @@ mod tests {
             add_block_from_transaction_log, add_block_to_ledger_db, get_test_ledger,
             setup_wallet_service, wait_for_sync, MOB,
         },
+        util::b58::b58_encode_public_address,
     };
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{test_with_logger, Logger};
@@ -443,7 +452,7 @@ mod tests {
             .build_and_submit(
                 &bob.account_id_hex,
                 &[(
-                    b58_encode(&alice_public_address).unwrap(),
+                    b58_encode_public_address(&alice_public_address).unwrap(),
                     (8 * MOB).to_string(),
                 )],
                 None,

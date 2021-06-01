@@ -21,10 +21,12 @@ use crate::{
         wallet_status::WalletStatus,
     },
     service::{gift_code::GiftCodeStatus, receipt::ReceiptTransactionStatus},
+    util::b58::PrintableWrapperType,
 };
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
+use std::collections::HashMap;
 use strum::AsStaticRef;
 use strum_macros::AsStaticStr;
 
@@ -123,50 +125,69 @@ pub fn format_invalid_request_error<T: std::fmt::Display + std::fmt::Debug>(e: T
 #[serde(untagged)]
 #[allow(non_camel_case_types)]
 pub enum JsonCommandResponse {
-    create_account {
-        account: Account,
-    },
-    import_account {
-        account: Account,
-    },
-    import_account_from_legacy_root_entropy {
-        account: Account,
-    },
-    export_account_secrets {
-        account_secrets: AccountSecrets,
-    },
-    get_all_accounts {
-        account_ids: Vec<String>,
-        account_map: Map<String, serde_json::Value>,
-    },
-    get_account {
-        account: Account,
-    },
-    update_account_name {
-        account: Account,
-    },
-    remove_account {
-        removed: bool,
-    },
-    get_balance_for_account {
-        balance: Balance,
+    assign_address_for_account {
+        address: Address,
     },
     build_and_submit_transaction {
         transaction_log: TransactionLog,
+    },
+    build_gift_code {
+        tx_proposal: TxProposal,
+        gift_code_b58: String,
+    },
+    build_split_txo_transaction {
+        tx_proposal: TxProposal,
+        transaction_log_id: String,
     },
     build_transaction {
         tx_proposal: TxProposal,
         transaction_log_id: String,
     },
-    submit_transaction {
-        transaction_log: Option<TransactionLog>,
+    check_b58_type {
+        b58_type: PrintableWrapperType,
+        data: HashMap<String, String>,
     },
-    get_transaction_logs_for_account {
-        transaction_log_ids: Vec<String>,
-        transaction_log_map: Map<String, serde_json::Value>,
+    check_gift_code_status {
+        gift_code_status: GiftCodeStatus,
+        gift_code_value: Option<i64>,
+        gift_code_memo: String,
     },
-    get_transaction_log {
-        transaction_log: TransactionLog,
+    check_receiver_receipt_status {
+        receipt_transaction_status: ReceiptTransactionStatus,
+        txo: Option<Txo>,
+    },
+    claim_gift_code {
+        txo_id: String,
+    },
+    create_account {
+        account: Account,
+    },
+    create_payment_request {
+        payment_request_b58: String,
+    },
+    create_receiver_receipts {
+        receiver_receipts: Vec<ReceiverReceipt>,
+    },
+    export_account_secrets {
+        account_secrets: AccountSecrets,
+    },
+    get_account {
+        account: Account,
+    },
+    get_account_status {
+        account: Account,
+        balance: Balance,
+    },
+    get_addresses_for_account {
+        public_addresses: Vec<String>,
+        address_map: Map<String, serde_json::Value>,
+    },
+    get_all_accounts {
+        account_ids: Vec<String>,
+        account_map: Map<String, serde_json::Value>,
+    },
+    get_all_gift_codes {
+        gift_codes: Vec<GiftCode>,
     },
     get_all_transaction_logs_for_block {
         transaction_log_ids: Vec<String>,
@@ -175,49 +196,25 @@ pub enum JsonCommandResponse {
     get_all_transaction_logs_ordered_by_block {
         transaction_log_map: Map<String, serde_json::Value>,
     },
-    get_network_status {
-        network_status: NetworkStatus,
-    },
-    get_wallet_status {
-        wallet_status: WalletStatus,
-    },
-    get_account_status {
-        account: Account,
-        balance: Balance,
-    },
-    assign_address_for_account {
-        address: Address,
-    },
-    get_addresses_for_account {
-        public_addresses: Vec<String>,
-        address_map: Map<String, serde_json::Value>,
-    },
-    verify_address {
-        verified: bool,
-    },
-    get_balance_for_address {
-        balance: Balance,
-    },
-    get_txos_for_account {
-        txo_ids: Vec<String>,
-        txo_map: Map<String, serde_json::Value>,
-    },
-    get_txo {
-        txo: Txo,
-    },
-    build_split_txo_transaction {
-        tx_proposal: TxProposal,
-        transaction_log_id: String,
-    },
     get_all_txos_for_address {
         txo_ids: Vec<String>,
         txo_map: Map<String, serde_json::Value>,
     },
+    get_balance_for_account {
+        balance: Balance,
+    },
+    get_balance_for_address {
+        balance: Balance,
+    },
+    get_block {
+        block: Block,
+        block_contents: BlockContents,
+    },
     get_confirmations {
         confirmations: Vec<Confirmation>,
     },
-    validate_confirmation {
-        validated: bool,
+    get_gift_code {
+        gift_code: GiftCode,
     },
     get_mc_protocol_transaction {
         transaction: JsonTx,
@@ -225,39 +222,51 @@ pub enum JsonCommandResponse {
     get_mc_protocol_txo {
         txo: JsonTxOut,
     },
-    get_block {
-        block: Block,
-        block_contents: BlockContents,
+    get_network_status {
+        network_status: NetworkStatus,
     },
-    check_receiver_receipt_status {
-        receipt_transaction_status: ReceiptTransactionStatus,
-        txo: Option<Txo>,
+    get_transaction_log {
+        transaction_log: TransactionLog,
     },
-    create_receiver_receipts {
-        receiver_receipts: Vec<ReceiverReceipt>,
+    get_transaction_logs_for_account {
+        transaction_log_ids: Vec<String>,
+        transaction_log_map: Map<String, serde_json::Value>,
     },
-    build_gift_code {
-        tx_proposal: TxProposal,
-        gift_code_b58: String,
+    get_txo {
+        txo: Txo,
+    },
+    get_txos_for_account {
+        txo_ids: Vec<String>,
+        txo_map: Map<String, serde_json::Value>,
+    },
+    get_wallet_status {
+        wallet_status: WalletStatus,
+    },
+    import_account {
+        account: Account,
+    },
+    import_account_from_legacy_root_entropy {
+        account: Account,
+    },
+    remove_account {
+        removed: bool,
+    },
+    remove_gift_code {
+        removed: bool,
     },
     submit_gift_code {
         gift_code: GiftCode,
     },
-    get_gift_code {
-        gift_code: GiftCode,
+    submit_transaction {
+        transaction_log: Option<TransactionLog>,
     },
-    get_all_gift_codes {
-        gift_codes: Vec<GiftCode>,
+    update_account_name {
+        account: Account,
     },
-    check_gift_code_status {
-        gift_code_status: GiftCodeStatus,
-        gift_code_value: Option<i64>,
-        gift_code_memo: String,
+    validate_confirmation {
+        validated: bool,
     },
-    claim_gift_code {
-        txo_id: String,
-    },
-    remove_gift_code {
-        removed: bool,
+    verify_address {
+        verified: bool,
     },
 }

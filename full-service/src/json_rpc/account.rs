@@ -2,7 +2,7 @@
 
 //! API definition for the Account object.
 
-use crate::db;
+use crate::{db, util::b58::b58_encode_public_address};
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
@@ -55,7 +55,7 @@ impl TryFrom<&db::models::Account> for Account {
         let account_key: mc_account_keys::AccountKey = mc_util_serial::decode(&src.account_key)
             .map_err(|e| format!("Could not decode account key: {:?}", e))?;
         let main_address =
-            db::b58_encode(&account_key.subaddress(src.main_subaddress_index as u64))
+            b58_encode_public_address(&account_key.subaddress(src.main_subaddress_index as u64))
                 .map_err(|e| format!("Could not b58 encode public address {:?}", e))?;
 
         Ok(Account {

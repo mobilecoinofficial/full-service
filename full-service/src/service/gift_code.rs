@@ -10,7 +10,6 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        b58_decode, b58_encode,
         gift_code::GiftCodeModel,
         models::{Account, GiftCode},
         txo::TxoID,
@@ -22,15 +21,19 @@ use crate::{
         transaction::{TransactionService, TransactionServiceError},
         WalletService,
     },
+    util::b58::{
+        b58_decode_public_address, b58_decode_transfer_payload, b58_encode_public_address,
+        b58_encode_transfer_payload, B58Error, DecodedTransferPayload,
+    },
 };
 use bip39::{Language, Mnemonic, MnemonicType};
 use diesel::Connection;
 use displaydoc::Display;
-use mc_account_keys::{AccountKey, RootEntropy, RootIdentity, DEFAULT_SUBADDRESS_INDEX};
+use mc_account_keys::{AccountKey, DEFAULT_SUBADDRESS_INDEX};
 use mc_account_keys_slip10::Slip10KeyGenerator;
 use mc_common::{logger::log, HashSet};
 use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
-use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
+use mc_crypto_keys::RistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_mobilecoind::payments::TxProposal;
@@ -131,13 +134,19 @@ pub enum GiftCodeServiceError {
     /// Error with Account Service
     AddressService(AddressServiceError),
 
-    /// Gift code does not contain a valid entropy
-    InvalidEntropy,
+    /// Error with the B58 Util: {0}
+    B58(B58Error),
 }
 
 impl From<WalletDbError> for GiftCodeServiceError {
     fn from(src: WalletDbError) -> Self {
         Self::Database(src)
+    }
+}
+
+impl From<B58Error> for GiftCodeServiceError {
+    fn from(src: B58Error) -> Self {
+        Self::B58(src)
     }
 }
 
@@ -222,15 +231,6 @@ impl fmt::Display for EncodedGiftCode {
     }
 }
 
-/// The decoded details from the Gift Code.
-pub struct DecodedGiftCode {
-    root_entropy: Option<RootEntropy>,
-    bip39_entropy: Option<Vec<u8>>,
-    account_key: AccountKey,
-    txo_public_key: CompressedRistrettoPublic,
-    memo: String,
-}
-
 /// Possible states for a Gift Code in relation to accounts in this wallet.
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub enum GiftCodeStatus {
@@ -309,7 +309,7 @@ pub trait GiftCodeService {
     fn decode_gift_code(
         &self,
         gift_code_b58: &EncodedGiftCode,
-    ) -> Result<DecodedGiftCode, GiftCodeServiceError>;
+    ) -> Result<DecodedTransferPayload, GiftCodeServiceError>;
 
     fn remove_gift_code(
         &self,
@@ -354,7 +354,7 @@ where
         // single unspent txo in its main subaddress and the b58 encoded gc will
         // contain all necessary info to generate a tx_proposal for it
         let gift_code_account_main_subaddress_b58 =
-            b58_encode(&gift_code_account_key.default_subaddress())?;
+            b58_encode_public_address(&gift_code_account_key.default_subaddress())?;
 
         let conn = self.wallet_db.get_conn()?;
         let from_account = conn.transaction(|| Account::get(&from_account_id, &conn))?;
@@ -378,14 +378,11 @@ where
 
         let proto_tx_pubkey: mc_api::external::CompressedRistretto = (&txo_public_key).into();
 
-        let mut gift_code_payload = mc_mobilecoind_api::printable::TransferPayload::new();
-        gift_code_payload.set_bip39_entropy(gift_code_bip39_entropy_bytes.to_vec());
-        gift_code_payload.set_tx_out_public_key(proto_tx_pubkey);
-        gift_code_payload.set_memo(memo.unwrap_or_else(|| "".to_string()));
-
-        let mut gift_code_wrapper = mc_mobilecoind_api::printable::PrintableWrapper::new();
-        gift_code_wrapper.set_transfer_payload(gift_code_payload);
-        let gift_code_b58 = gift_code_wrapper.b58_encode()?;
+        let gift_code_b58 = b58_encode_transfer_payload(
+            gift_code_bip39_entropy_bytes.to_vec(),
+            proto_tx_pubkey,
+            memo.unwrap_or_else(|| "".to_string()),
+        )?;
 
         Ok((tx_proposal, EncodedGiftCode(gift_code_b58)))
     }
@@ -540,7 +537,7 @@ where
             Ok(address.assigned_subaddress_b58)
         }?;
 
-        let recipient_public_address = b58_decode(&default_subaddress)?;
+        let recipient_public_address = b58_decode_public_address(&default_subaddress)?;
 
         // If the gift code value is less than the MINIMUM_FEE, well, then shucks,
         // someone messed up when they were making it. Welcome to the Lost MOB
@@ -641,79 +638,14 @@ where
     fn decode_gift_code(
         &self,
         gift_code_b58: &EncodedGiftCode,
-    ) -> Result<DecodedGiftCode, GiftCodeServiceError> {
-        let wrapper =
-            mc_mobilecoind_api::printable::PrintableWrapper::b58_decode(gift_code_b58.to_string())?;
-        let transfer_payload = wrapper.get_transfer_payload();
-
-        // Must have one type of entropy.
-        if transfer_payload.get_root_entropy().is_empty()
-            && transfer_payload.get_bip39_entropy().is_empty()
-        {
-            return Err(GiftCodeServiceError::InvalidEntropy);
-        }
-
-        // Only allow one type of entropy.
-        if !transfer_payload.get_root_entropy().is_empty()
-            && !transfer_payload.get_bip39_entropy().is_empty()
-        {
-            return Err(GiftCodeServiceError::InvalidEntropy);
-        }
-
-        // This will hold the account key.
-        let mut account_key = None;
-
-        // If we were provided with bip39 entropy, ensure it can be converted into a
-        // mnemonic.
-        let mut bip39_entropy = None;
-        if !transfer_payload.get_bip39_entropy().is_empty() {
-            match Mnemonic::from_entropy(transfer_payload.get_bip39_entropy(), Language::English) {
-                Err(_) => {
-                    return Err(GiftCodeServiceError::InvalidEntropy);
-                }
-                Ok(mnemonic) => {
-                    bip39_entropy = Some(transfer_payload.get_bip39_entropy().to_vec());
-
-                    let key = mnemonic.derive_slip10_key(0);
-                    account_key = Some(AccountKey::from(key));
-                }
-            };
-        }
-
-        // If we were provided with root entropy, ensure it is 32 bytes long.
-        let mut root_entropy = None;
-        if !transfer_payload.get_root_entropy().is_empty() {
-            if transfer_payload.get_root_entropy().len() != 32 {
-                return Err(GiftCodeServiceError::InvalidEntropy);
-            }
-
-            let mut entropy = [0u8; 32];
-            entropy.copy_from_slice(transfer_payload.get_root_entropy());
-            root_entropy = Some(RootEntropy::from(&entropy));
-
-            account_key = Some(AccountKey::from(&RootIdentity::from(&RootEntropy::from(
-                &entropy,
-            ))));
-        }
-
-        let txo_public_key =
-            CompressedRistrettoPublic::try_from(transfer_payload.get_tx_out_public_key())?;
-
-        Ok(DecodedGiftCode {
-            root_entropy,
-            bip39_entropy,
-            account_key: account_key.unwrap(), /* guaranteed to succeed because the code above either manages to set it or returns an error. */
-            txo_public_key,
-            memo: transfer_payload.get_memo().to_string(),
-        })
+    ) -> Result<DecodedTransferPayload, GiftCodeServiceError> {
+        Ok(b58_decode_transfer_payload(gift_code_b58.to_string())?)
     }
 
     fn remove_gift_code(
         &self,
         gift_code_b58: &EncodedGiftCode,
     ) -> Result<bool, GiftCodeServiceError> {
-        log::info!(self.logger, "Deleting gift code {}", gift_code_b58,);
-
         let conn = self.wallet_db.get_conn()?;
         conn.transaction(|| GiftCode::get(gift_code_b58, &conn)?.delete(&conn))?;
         Ok(true)

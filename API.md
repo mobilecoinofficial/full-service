@@ -1,5 +1,9 @@
 # Full Service API
 
+WE HAVE MIGRATED THE API DOCUMENTATION TO GITBOOK. THIS FILE WILL NO LONGER BE MAINTAINED, PLEASE USE THE FOLLOWING LINK.
+
+[Full Service API](https://mobilecoin.gitbook.io/full-service-api/)
+
 The Full Service Wallet API provides JSON RPC 2.0 endpoints for interacting with your MobileCoin transactions.
 
 ## Overview

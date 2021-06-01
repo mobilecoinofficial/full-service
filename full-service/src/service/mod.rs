@@ -8,6 +8,7 @@ pub mod balance;
 pub mod confirmation_number;
 pub mod gift_code;
 pub mod ledger;
+pub mod payment_request;
 pub mod receipt;
 pub mod sync;
 pub mod transaction;

@@ -6,13 +6,14 @@
 use crate::db::{
     account::{AccountID, AccountModel},
     account_txo_status::AccountTxoStatusModel,
-    b58_encode,
     models::{
         Account, AccountTxoStatus, AssignedSubaddress, NewAssignedSubaddress, Txo,
         TXO_STATUS_ORPHANED,
     },
     txo::TxoModel,
 };
+
+use crate::util::b58::b58_encode_public_address;
 
 use mc_transaction_core::{
     onetime_keys::{recover_onetime_private_key, recover_public_subaddress_spend_key},
@@ -113,7 +114,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         let account_id = AccountID::from(account_key);
 
         let subaddress = account_key.subaddress(subaddress_index);
-        let subaddress_b58 = b58_encode(&subaddress)?;
+        let subaddress_b58 = b58_encode_public_address(&subaddress)?;
 
         let subaddress_entry = NewAssignedSubaddress {
             assigned_subaddress_b58: &subaddress_b58,
@@ -153,7 +154,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         let subaddress_index = account.next_subaddress_index;
         let subaddress = account_key.subaddress(subaddress_index as u64);
 
-        let subaddress_b58 = b58_encode(&subaddress)?;
+        let subaddress_b58 = b58_encode_public_address(&subaddress)?;
         let subaddress_entry = NewAssignedSubaddress {
             assigned_subaddress_b58: &subaddress_b58,
             account_id_hex,
@@ -271,7 +272,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
         let subaddress = account_key.subaddress(index as u64);
 
-        let subaddress_b58 = b58_encode(&subaddress)?;
+        let subaddress_b58 = b58_encode_public_address(&subaddress)?;
         Self::get(&subaddress_b58, &conn)
     }
 
@@ -371,6 +372,9 @@ mod tests {
 
         assert_eq!(matching.0, 0);
         assert_eq!(matching.1, AccountID::from(&account_key).to_string());
-        assert_eq!(subaddress_b58, b58_encode(&expected_subaddress).unwrap());
+        assert_eq!(
+            subaddress_b58,
+            b58_encode_public_address(&expected_subaddress).unwrap()
+        );
     }
 }
