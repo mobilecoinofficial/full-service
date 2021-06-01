@@ -1,11 +1,16 @@
 #[cfg(test)]
 mod tests {
-    use crate::util::b58::{
-        b58_decode, b58_decode_payment_request, b58_decode_transfer_payload, b58_encode,
-        b58_encode_payment_request, b58_encode_transfer_payload, b58_printable_wrapper_type,
-        B58Error, PrintableWrapperType,
+    use crate::{
+        test_utils::create_test_txo_for_recipient,
+        util::b58::{
+            b58_decode, b58_decode_payment_request, b58_decode_transfer_payload, b58_encode,
+            b58_encode_payment_request, b58_encode_transfer_payload, b58_printable_wrapper_type,
+            B58Error, PrintableWrapperType,
+        },
     };
+    use bip39::{Language, Mnemonic};
     use mc_account_keys::{AccountKey, PublicAddress};
+    use mc_account_keys_slip10::Slip10KeyGenerator;
     use rand::{rngs::StdRng, CryptoRng, RngCore, SeedableRng};
 
     fn get_public_address<T: RngCore + CryptoRng>(rng: &mut T) -> PublicAddress {
@@ -13,35 +18,24 @@ mod tests {
         account_key.default_subaddress()
     }
 
+    fn get_account_and_entropy_bytes() -> (AccountKey, Vec<u8>) {
+        let mnemonic = Mnemonic::from_phrase("rabbit private camp deliver word waste skill loan giant spirit auction brief possible defense spin combine butter satisfy cruise capital depth oval trim inch", Language::English).unwrap();
+        let bip39_entropy_bytes = mnemonic.entropy().to_vec();
+        let slip10_key = mnemonic.derive_slip10_key(0);
+        let account_key = AccountKey::from(slip10_key);
+
+        return (account_key, bip39_entropy_bytes);
+    }
+
     #[test]
     /// Encoding a valid PublicAddress should return Ok.
-    fn encoding_does_not_panic() {
+    fn encoding_public_address_succeeds() {
         // TODO: this should use property-based testing to generate random
         // public_addresses.
         let mut rng: StdRng = SeedableRng::from_seed([91u8; 32]);
         let public_address = get_public_address(&mut rng);
 
         let _encoded = b58_encode(&public_address).unwrap();
-    }
-
-    #[test]
-    #[ignore]
-    /// Encoded string should be valid b58.
-    fn encoding_produces_b58() {
-        // TODO
-        unimplemented!()
-    }
-
-    #[test]
-    /// Decoding a valid b58 string should return the correct PublicAddress.
-    fn decoding_succeeds() {
-        // TODO: this should use property-based testing to generate random
-        // public_addresses.
-        let mut rng: StdRng = SeedableRng::from_seed([91u8; 32]);
-        let public_address = get_public_address(&mut rng);
-        let encoded = b58_encode(&public_address).unwrap();
-        let decoded = b58_decode(&encoded).unwrap();
-        assert_eq!(public_address, decoded);
     }
 
     #[test]
@@ -54,6 +48,35 @@ mod tests {
             "This is a memo".to_string(),
         )
         .unwrap();
+    }
+
+    #[test]
+    fn encoding_transfer_payload_succeeds() {
+        let mut rng: StdRng = SeedableRng::from_seed([91u8; 32]);
+        let (account_key, bip39_entropy_bytes) = get_account_and_entropy_bytes();
+        let (txo, _key_image) =
+            create_test_txo_for_recipient(&account_key, 0, 1_000_000_000_000, &mut rng);
+
+        let proto_tx_pubkey: mc_api::external::CompressedRistretto = (&txo.public_key).into();
+
+        let _encoded = b58_encode_transfer_payload(
+            bip39_entropy_bytes,
+            proto_tx_pubkey,
+            "test transfer payload".to_string(),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    /// Decoding a valid b58 string should return the correct PublicAddress.
+    fn decoding_public_address_succeeds() {
+        // TODO: this should use property-based testing to generate random
+        // public_addresses.
+        let mut rng: StdRng = SeedableRng::from_seed([91u8; 32]);
+        let public_address = get_public_address(&mut rng);
+        let encoded = b58_encode(&public_address).unwrap();
+        let decoded = b58_decode(&encoded).unwrap();
+        assert_eq!(public_address, decoded);
     }
 
     #[test]
@@ -71,6 +94,48 @@ mod tests {
         assert_eq!(decoded.public_address, public_address);
         assert_eq!(decoded.value, 1_000_000_000_000);
         assert_eq!(decoded.memo, "This is a memo".to_string());
+    }
+
+    #[test]
+    fn decoding_transfer_payload_succeeds() {
+        let mut rng: StdRng = SeedableRng::from_seed([91u8; 32]);
+        let (account_key, bip39_entropy_bytes) = get_account_and_entropy_bytes();
+        let (txo, _key_image) =
+            create_test_txo_for_recipient(&account_key, 0, 1_000_000_000_000, &mut rng);
+
+        let proto_tx_pubkey: mc_api::external::CompressedRistretto = (&txo.public_key).into();
+
+        let encoded = b58_encode_transfer_payload(
+            bip39_entropy_bytes,
+            proto_tx_pubkey,
+            "test transfer payload".to_string(),
+        )
+        .unwrap();
+
+        let decoded = b58_decode_transfer_payload(encoded).unwrap();
+        assert_eq!(decoded.account_key, account_key);
+        assert_eq!(decoded.txo_public_key, txo.public_key);
+        assert_eq!(decoded.memo, "test transfer payload".to_string());
+    }
+
+    #[test]
+    fn decoding_invalid_public_address_returns_error() {
+        let mut rng: StdRng = SeedableRng::from_seed([91u8; 32]);
+        let (account_key, bip39_entropy_bytes) = get_account_and_entropy_bytes();
+        let (txo, _key_image) =
+            create_test_txo_for_recipient(&account_key, 0, 1_000_000_000_000, &mut rng);
+
+        let proto_tx_pubkey: mc_api::external::CompressedRistretto = (&txo.public_key).into();
+
+        let encoded = b58_encode_transfer_payload(
+            bip39_entropy_bytes,
+            proto_tx_pubkey,
+            "test transfer payload".to_string(),
+        )
+        .unwrap();
+
+        let error_type = b58_decode(&encoded).err();
+        assert_eq!(error_type, Some(B58Error::NotPublicAddress));
     }
 
     #[test]
@@ -120,23 +185,24 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn encoding_transfer_payload_succeeds() {
-        // TODO
-        unimplemented!()
-    }
-
-    #[test]
-    #[ignore]
-    fn decoding_transfer_payload_succeeds() {
-        // TODO
-        unimplemented!()
-    }
-
-    #[test]
-    #[ignore]
     fn check_transfer_payload_printable_wrapper_type_returns_correct() {
-        unimplemented!()
+        let mut rng: StdRng = SeedableRng::from_seed([91u8; 32]);
+        let (account_key, bip39_entropy_bytes) = get_account_and_entropy_bytes();
+        let (txo, _key_image) =
+            create_test_txo_for_recipient(&account_key, 0, 1_000_000_000_000, &mut rng);
+
+        let proto_tx_pubkey: mc_api::external::CompressedRistretto = (&txo.public_key).into();
+
+        let encoded = b58_encode_transfer_payload(
+            bip39_entropy_bytes,
+            proto_tx_pubkey,
+            "test transfer payload".to_string(),
+        )
+        .unwrap();
+
+        let b58_type = b58_printable_wrapper_type(encoded).unwrap();
+
+        assert_eq!(b58_type, PrintableWrapperType::TransferPayload);
     }
 
     #[test]

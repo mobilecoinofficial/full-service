@@ -63,7 +63,7 @@ pub fn b58_decode(b58_public_address: &str) -> Result<PublicAddress, B58Error> {
     } else if wrapper.has_public_address() {
         wrapper.get_public_address()
     } else {
-        return Err(B58Error::InvalidEntropy);
+        return Err(B58Error::NotPublicAddress);
     };
 
     let public_address = PublicAddress::try_from(pubaddr_proto)?;
