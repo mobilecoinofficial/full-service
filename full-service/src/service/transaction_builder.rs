@@ -165,10 +165,8 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
     }
 
     pub fn set_fee(&mut self, fee: u64) -> Result<(), WalletTransactionBuilderError> {
-        if fee < MINIMUM_FEE {
-            return Err(WalletTransactionBuilderError::InsufficientFee(
-                MINIMUM_FEE.to_string(),
-            ));
+        if fee < 1 {
+            return Err(WalletTransactionBuilderError::InsufficientFee("1".to_owned()));
         }
         self.fee = Some(fee);
         Ok(())
