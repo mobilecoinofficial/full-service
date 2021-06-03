@@ -678,7 +678,16 @@ class CommandLineInterface:
 
 
 def _format_mob(mob):
-    return '{:.4f} MOB'.format(mob)
+    return '{} MOB'.format(_format_decimal(mob))
+
+
+def _format_decimal(d):
+    # Adapted from https://stackoverflow.com/questions/11227620/drop-trailing-zeros-from-decimal
+    d = Decimal(d)
+    normalized = d.normalize()
+    sign, digit, exponent = normalized.as_tuple()
+    result = normalized if exponent <= 0 else normalized.quantize(1)
+    return '{:f}'.format(result)
 
 
 def _format_account_header(account):
