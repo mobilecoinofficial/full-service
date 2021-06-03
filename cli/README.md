@@ -44,15 +44,10 @@ confident you will not lose actual funds.
 mobcli start
 ```
 
+## Including the client library in packages
 
-## List of commands
+In order to reference the full-service Python client library for package dependencies, it is necessary to install via git, because it is not listed on PyPI. The pip install line for it is:
 
-- start
-- stop
-- create
-- rename
-- import
-- export
-- delete
-- list
-- send
+```
+git+https://github.com/mobilecoinofficial/full-service.git#subdirectory=cli
+```

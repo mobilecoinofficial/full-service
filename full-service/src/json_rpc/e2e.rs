@@ -7,7 +7,6 @@ mod e2e {
     use crate::{
         db::{
             account::AccountID,
-            b58_decode,
             models::{TXO_STATUS_UNSPENT, TXO_TYPE_RECEIVED},
         },
         json_rpc,
@@ -16,6 +15,7 @@ mod e2e {
             add_block_to_ledger_db, add_block_with_tx_proposal,
             wait_for_sync as wait_for_account_sync, MOB,
         },
+        util::b58::b58_decode_public_address,
     };
     use bip39::{Language, Mnemonic};
     use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
@@ -191,7 +191,25 @@ mod e2e {
                 "name": "",
             }
         });
-        dispatch_expect_error(&client, body, &logger, "{\"code\":-32603,\"message\":\"InternalError\",\"data\":{\"server_error\":\"UnknownKeyDerivation(3)\",\"details\":\"Unknown key version version: 3\"}}".to_string());
+        dispatch_expect_error(
+            &client,
+            body,
+            &logger,
+            json!({
+                "method": "import_account",
+                "error": json!({
+                    "code": -32603,
+                    "message": "InternalError",
+                    "data": json!({
+                        "server_error": "UnknownKeyDerivation(3)",
+                        "details": "Unknown key version version: 3",
+                    })
+                }),
+                "jsonrpc": "2.0",
+                "id": 1,
+            })
+            .to_string(),
+        );
     }
 
     #[test_with_logger]
@@ -454,7 +472,7 @@ mod e2e {
         let account_obj = result.get("account").unwrap();
         let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
         let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
-        let public_address = b58_decode(b58_public_address).unwrap();
+        let public_address = b58_decode_public_address(b58_public_address).unwrap();
 
         // Add a block with a txo for this address
         add_block_to_ledger_db(
@@ -555,7 +573,7 @@ mod e2e {
         let account_obj = result.get("account").unwrap();
         let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
         let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
-        let public_address = b58_decode(b58_public_address).unwrap();
+        let public_address = b58_decode_public_address(b58_public_address).unwrap();
 
         // Add a block with a txo for this address
         add_block_to_ledger_db(
@@ -610,7 +628,7 @@ mod e2e {
         let account_obj = result.get("account").unwrap();
         let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
         let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
-        let public_address = b58_decode(b58_public_address).unwrap();
+        let public_address = b58_decode_public_address(b58_public_address).unwrap();
 
         // Add a block with a txo for this address (note that value is smaller than
         // MINIMUM_FEE, so it is a "dust" TxOut that should get opportunistically swept
@@ -643,12 +661,17 @@ mod e2e {
             body,
             &logger,
             json!({
-                "code": -32603,
-                "message": "InternalError",
-                "data": json!({
-                    "server_error": format!("TransactionBuilder(WalletDb(InsufficientFundsUnderMaxSpendable(\"Max spendable value in wallet: 100, but target value: {}\")))", 42 + MINIMUM_FEE),
-                    "details": format!("Error building transaction: Wallet DB Error: Insufficient funds from Txos under max_spendable_value: Max spendable value in wallet: 100, but target value: {}", 42 + MINIMUM_FEE),
-                })
+                "method": "build_transaction",
+                "error": json!({
+                    "code": -32603,
+                    "message": "InternalError",
+                    "data": json!({
+                        "server_error": format!("TransactionBuilder(WalletDb(InsufficientFundsUnderMaxSpendable(\"Max spendable value in wallet: 100, but target value: {}\")))", 42 + MINIMUM_FEE),
+                        "details": format!("Error building transaction: Wallet DB Error: Insufficient funds from Txos under max_spendable_value: Max spendable value in wallet: 100, but target value: {}", 42 + MINIMUM_FEE),
+                    })
+                }),
+                "jsonrpc": "2.0",
+                "id": 1,
             }).to_string(),
         );
 
@@ -973,7 +996,7 @@ mod e2e {
         let account_obj = result.get("account").unwrap();
         let alice_account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
         let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
-        let alice_public_address = b58_decode(b58_public_address).unwrap();
+        let alice_public_address = b58_decode_public_address(b58_public_address).unwrap();
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -1317,7 +1340,7 @@ mod e2e {
         let account_obj = result.get("account").unwrap();
         let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
         let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
-        let public_address = b58_decode(b58_public_address).unwrap();
+        let public_address = b58_decode_public_address(b58_public_address).unwrap();
 
         // Add some transactions.
         for _ in 0..10 {
@@ -1508,7 +1531,7 @@ mod e2e {
         let result = res.get("result").unwrap();
         let address = result.get("address").unwrap();
         let b58_public_address = address.get("public_address").unwrap().as_str().unwrap();
-        let public_address = b58_decode(b58_public_address).unwrap();
+        let public_address = b58_decode_public_address(b58_public_address).unwrap();
 
         // Add a block to fund account at the new subaddress.
         add_block_to_ledger_db(
@@ -1677,7 +1700,7 @@ mod e2e {
         let account_obj = result.get("account").unwrap();
         let account_id_1 = account_obj.get("account_id").unwrap().as_str().unwrap();
         let b58_public_address_1 = account_obj.get("main_address").unwrap().as_str().unwrap();
-        let public_address_1 = b58_decode(b58_public_address_1).unwrap();
+        let public_address_1 = b58_decode_public_address(b58_public_address_1).unwrap();
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -1911,7 +1934,7 @@ mod e2e {
             .unwrap()
             .as_str()
             .unwrap();
-        let from_bob_public_address = b58_decode(b58_public_address).unwrap();
+        let from_bob_public_address = b58_decode_public_address(b58_public_address).unwrap();
 
         // Add a block to the ledger with a transaction "From Bob"
         add_block_to_ledger_db(
@@ -2015,8 +2038,8 @@ mod e2e {
         let account_id = res["result"]["account"]["account_id"].as_str().unwrap();
         let b58_public_address = res["result"]["account"]["main_address"].as_str().unwrap();
 
-        let alice_public_address =
-            b58_decode(&b58_public_address).expect("Could not b58_decode public address");
+        let alice_public_address = b58_decode_public_address(&b58_public_address)
+            .expect("Could not b58_decode public address");
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![alice_public_address],
@@ -2098,7 +2121,8 @@ mod e2e {
             .unwrap()
             .as_str()
             .unwrap();
-        let from_bob_public_address = b58_decode(from_bob_b58_public_address).unwrap();
+        let from_bob_public_address =
+            b58_decode_public_address(from_bob_b58_public_address).unwrap();
 
         // Add a block to the ledger with a transaction "From Bob"
         add_block_to_ledger_db(
@@ -2169,7 +2193,7 @@ mod e2e {
         let result = res.get("result").unwrap();
         let address = result.get("address").unwrap();
         let b58_public_address = address.get("public_address").unwrap().as_str().unwrap();
-        let public_address = b58_decode(b58_public_address).unwrap();
+        let public_address = b58_decode_public_address(b58_public_address).unwrap();
 
         // Add a block to fund account at the new subaddress.
         add_block_to_ledger_db(
@@ -2427,7 +2451,7 @@ mod e2e {
         let account_obj = result.get("account").unwrap();
         let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
         let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
-        let public_address = b58_decode(b58_public_address).unwrap();
+        let public_address = b58_decode_public_address(b58_public_address).unwrap();
 
         // Add a block with a txo for this address
         add_block_to_ledger_db(
@@ -2516,7 +2540,7 @@ mod e2e {
         let account_obj = result.get("account").unwrap();
         let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
         let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
-        let public_address = b58_decode(b58_public_address).unwrap();
+        let public_address = b58_decode_public_address(b58_public_address).unwrap();
 
         // Add a block with a txo for this address
         add_block_to_ledger_db(
@@ -2651,7 +2675,7 @@ mod e2e {
         let account_obj = result.get("account").unwrap();
         let alice_account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
         let alice_b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
-        let alice_public_address = b58_decode(alice_b58_public_address).unwrap();
+        let alice_public_address = b58_decode_public_address(alice_b58_public_address).unwrap();
 
         // Add a block with a txo for this address
         add_block_to_ledger_db(
@@ -2771,7 +2795,7 @@ mod e2e {
         let account_obj = result.get("account").unwrap();
         let alice_account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
         let alice_b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
-        let alice_public_address = b58_decode(alice_b58_public_address).unwrap();
+        let alice_public_address = b58_decode_public_address(alice_b58_public_address).unwrap();
 
         // Add a block with a txo for this address
         add_block_to_ledger_db(
