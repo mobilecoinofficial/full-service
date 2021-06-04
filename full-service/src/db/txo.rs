@@ -2,18 +2,20 @@
 
 //! DB impl for the Txo model.
 
-use crate::db::{
-    account::{AccountID, AccountModel},
-    account_txo_status::AccountTxoStatusModel,
-    assigned_subaddress::AssignedSubaddressModel,
-    b58_encode,
-    models::{
-        Account, AccountTxoStatus, AssignedSubaddress, NewAccountTxoStatus, NewTxo, Txo,
-        TXO_STATUS_ORPHANED, TXO_STATUS_PENDING, TXO_STATUS_SECRETED, TXO_STATUS_SPENT,
-        TXO_STATUS_UNSPENT, TXO_TYPE_MINTED, TXO_TYPE_RECEIVED, TXO_USED_AS_CHANGE,
-        TXO_USED_AS_OUTPUT,
+use crate::{
+    db::{
+        account::{AccountID, AccountModel},
+        account_txo_status::AccountTxoStatusModel,
+        assigned_subaddress::AssignedSubaddressModel,
+        models::{
+            Account, AccountTxoStatus, AssignedSubaddress, NewAccountTxoStatus, NewTxo, Txo,
+            TXO_STATUS_ORPHANED, TXO_STATUS_PENDING, TXO_STATUS_SECRETED, TXO_STATUS_SPENT,
+            TXO_STATUS_UNSPENT, TXO_TYPE_MINTED, TXO_TYPE_RECEIVED, TXO_USED_AS_CHANGE,
+            TXO_USED_AS_OUTPUT,
+        },
+        WalletDbError,
     },
-    WalletDbError,
+    util::b58::b58_encode_public_address,
 };
 use mc_account_keys::{AccountKey, PublicAddress};
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
@@ -433,7 +435,11 @@ impl TxoModel for Txo {
         // found.
         let (transaction_txo_type, log_value, recipient_public_address_b58) =
             if let Some(r) = outlay_receiver.clone() {
-                (TXO_USED_AS_OUTPUT, total_output_value, b58_encode(&r)?)
+                (
+                    TXO_USED_AS_OUTPUT,
+                    total_output_value,
+                    b58_encode_public_address(&r)?,
+                )
             } else {
                 // If not in an outlay, this output is change, according to how we build
                 // transactions.
@@ -738,7 +744,7 @@ impl TxoModel for Txo {
                     {
                         let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
                         let subaddress = account_key.subaddress(subaddress_index as u64);
-                        let subaddress_b58 = b58_encode(&subaddress)?;
+                        let subaddress_b58 = b58_encode_public_address(&subaddress)?;
                         match AssignedSubaddress::get(&subaddress_b58, conn) {
                             Ok(a) => Some(a),
                             Err(WalletDbError::AssignedSubaddressNotFound(_s)) => None,
