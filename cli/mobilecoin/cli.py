@@ -424,7 +424,7 @@ class CommandLineInterface:
         fee = pmob2mob(network_status['fee_pmob'])
 
         if unspent <= fee:
-            print('There is not enough MOB in the account {} to send a transaction.'.format(account_id[:6]))
+            print('There is not enough MOB in account {} to pay the transaction fee.'.format(account_id[:6]))
             return
 
         if amount == "all":
@@ -456,8 +456,8 @@ class CommandLineInterface:
         if total_amount > unspent:
             print('\n'.join([
                 'Cannot send this transaction, because the account only',
-                'contains {:.4f} MOB. Try sending all funds by entering amount as "all".',
-            ]).format(unspent))
+                'contains {}. Try sending all funds by entering amount as "all".',
+            ]).format(_format_mob(unspent)))
             return
 
         if build_only:
@@ -478,9 +478,9 @@ class CommandLineInterface:
 
         transaction_log = self.client.build_and_submit_transaction(account_id, amount, to_address)
 
-        print('Sent {:.4f} MOB, with a transaction fee of {:.4f} MOB'.format(
-            pmob2mob(transaction_log['value_pmob']),
-            pmob2mob(transaction_log['fee_pmob']),
+        print('Sent {}, with a transaction fee of {}'.format(
+            _format_mob(pmob2mob(transaction_log['value_pmob'])),
+            _format_mob(pmob2mob(transaction_log['fee_pmob'])),
         ))
 
     def submit(self, proposal, account_id=None):
