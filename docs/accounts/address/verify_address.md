@@ -1,19 +1,19 @@
 ---
-description: Verify whether an address is correctly b58-encoded.
+description: 验证一个地址是不是正确的 Base 58 编码。
 ---
 
-# Verify Address
+# 验证地址
 
-## Parameters
+## 参数
 
-| Required Param | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `address` | The address on which to perform this action. | Address must be assigned for an account in the wallet. |
+| `address` | 要验证的地址。 | 地址必须已分配给钱包内的账户。 |
 
-## Example
+## 示例
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "verify_address",
@@ -26,7 +26,7 @@ description: Verify whether an address is correctly b58-encoded.
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "verify_address",

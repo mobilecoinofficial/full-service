@@ -1,8 +1,5 @@
 ---
-description: >-
-  The secret keys for an account. The account secrets are returned separately
-  from other account information, to enable more careful handling of
-  cryptographically sensitive information.
+description: 出于安全考虑，账户密钥和其他的账户信息并不能同时获取。
 ---
 
 # 账户密钥

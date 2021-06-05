@@ -1,19 +1,19 @@
 ---
-description: Get all assigned addresses for a given account.
+description: 获取指定账户的全部已分配地址。
 ---
 
-# Get All Addresses For Account
+# 获取全部账户地址
 
-## Parameters
+## 参数
 
-| Required Param | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action. | The account must exist in the wallet. |
+| `account_id` | 要查询地址的账户。 | 指定的账户必须存在在钱包中。 |
 
-## Example
+## 示例
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "get_all_addresses_for_account",
@@ -26,7 +26,7 @@ description: Get all assigned addresses for a given account.
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "get_all_addresses_for_account",
