@@ -1,5 +1,5 @@
 ---
-description: 从钱包内移除指定账户
+description: 从钱包内移除指定账户。
 ---
 
 # 移除账户

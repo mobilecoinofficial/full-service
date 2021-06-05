@@ -1,5 +1,5 @@
 ---
-description: 重命名一个账户
+description: 重命名一个账户。
 ---
 
 # 重命名账户

@@ -1,23 +1,21 @@
 ---
-description: >-
-  The secret keys for an account. The account secrets are returned separately
-  from other account information, to enable more careful handling of
-  cryptographically sensitive information.
+description: 出于安全考虑，账户密钥和其他的账户信息并不能同时获取。
 ---
 
-# Account Secrets
+# 账户密钥
 
-## Attributes
+## 属性
 
-| Name | Type | Description |
+| 属性 | 类型 | 说明 |
 | :--- | :--- | :--- |
-| `object` | String, value is "account\_secrets" | String representing the object's type. Objects of the same type share the same value. |
-| `account_id` | String | The unique identifier for the account. |
-| `mnemonic` | String | A BIP39-encoded mnemonic phrase used to generate the account key. |
-| `key_derivation_version` | String \(uint64\) | The version number of the key derivation path used to generate the account key from the mnemonic. |
-| `account_key` | account\_key | The view and spend keys used to transact on the MobileCoin network. Also may contain keys to connect to the Fog ledger scanning service. |
+| `object` | 字符串，固定为 "account\_secrets" | 由字符串表示的对象类型。每个类型的 `object` 字段是固定的。 |
+| `account_id` | 字符串 | 账户的唯一标识符。 |
+| `mnemonic` | 字符串 | 以 BIP39 编码的助记词序列，用来生成账户密钥。  |
+| `key_derivation_version` | 字符串，内容为 64 位无符号整数 | 用于从助记词序列生成账户密钥的路径版本。 |
+| `account_key` | account\_key | 账户的只读（View）密钥和可花（Spend）密钥。也会包括连接到雾账簿服务所需要的 URL 和密钥。 |
 
-## Example
+
+## 示例
 
 ```text
 {
@@ -36,31 +34,29 @@ description: >-
 }
 ```
 
-## Methods
+## 方法 
 
 ### `export_account_secrets`
 
-| Required Param | Purpose | Requirements |
+| 参数 |  用途 | 说明 |
 | :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+| `account_id` | 指定导出助记词的账户。 | 指定的账户必须存在在钱包中。 |
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
-curl -s localhost:9090/wallet \
-  -d '{
-        "method": "export_account_secrets",
-        "params": {
-          "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52"
-        },
-        "jsonrpc": "2.0",
-        "id": 1
-      }' \
-  -X POST -H 'Content-type: application/json' | jq
+{
+  "method": "export_account_secrets",
+  "params": {
+    "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52"
+  },
+  "jsonrpc": "2.0",
+  "id": 1
+}
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "export_account_secrets",
@@ -89,9 +85,9 @@ curl -s localhost:9090/wallet \
 {% endtab %}
 {% endtabs %}
 
-#### Outputs
+#### 输出
 
-If the account was generated using version 1 of the key derivation, entropy will be provided as a hex-encoded string.
+如果账户创建使用的密钥生成算法版本号是 1，那么您会得到一个 16 进制编码的字符串。
 
-If the account was generated using version 2 of the key derivation, mnemonic will be provided as a 24-word mnemonic string.
+如果账户创建使用的密钥生成算法版本号是 2，那么您会得到一个由 24 个单词构成的助记词字符串。
 

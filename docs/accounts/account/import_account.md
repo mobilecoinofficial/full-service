@@ -14,7 +14,7 @@ description: 通过助记词来导入一个既存账户。
 | 可选参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
 | `name` | 账户名称。 | 账户名称可以重复，但是我们并不建议您这样做。 |
-| `next_subaddress_index` | 该账户已知的下一个可用子地址下标。  |  |
+| `next_subaddress_index` | 该账户已知的下一个可用子地址索引。  |  |
 | `first_block_index` | 账簿扫描的起始区块。 |  |
 | `fog_report_url` |  |  |
 | `fog_report_id` |  |  |
