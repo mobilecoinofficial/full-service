@@ -1,15 +1,17 @@
 ---
-description: Get the current balance for a given address.
+description: 获取指定地址的当前余额。
 ---
 
-# Get Balance For Address
+# 获取地址余额
 
-| Required Param | Purpose | Requirements |
+## 参数
+
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `address` | The address on which to perform this action. | Address must be assigned for an account in the wallet. |
+| `address` | 要查询余额的账户地址。 | 地址必须已分配给钱包内的账户。 |
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "get_balance_for_address",
@@ -23,7 +25,7 @@ description: Get the current balance for a given address.
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "get_balance_for_address",
