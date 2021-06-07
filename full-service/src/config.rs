@@ -330,7 +330,6 @@ impl APIConfig {
 
     /// Ensure local IP address is valid.
     ///
-    /// Uses icanhazip.com for getting local IP.
     /// Uses ipinfo.io for getting details about IP address.
     ///
     /// Note, both of these services are free tier and rate-limited.
