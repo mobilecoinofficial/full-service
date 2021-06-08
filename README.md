@@ -187,9 +187,11 @@ MobileCoin Full Service is available under open-source licenses. Look for the [L
 | `offline` | Use Full Service in offline mode. This mode does not download new blocks or submit transactions. | |
 | `fog-ingest-enclave-css` | Path to the Fog ingest enclave sigstruct CSS file. | Needed in order to enable sending transactions to fog addresses. |
 
-## Usage
+## Usage and Documentation
 
-For usage and API specification, see [API.md](API.md).
+For documentation, usage and API specification, see the gitbook page, see our gitbook page: [https://mobilecoin.gitbook.io/full-service-api/](https://mobilecoin.gitbook.io/full-service-api/)
+
+Single page API docs are at [API.md](API.md). (possibly out of date)
 
 For database encryption features, see [DATABASE.md](DATABASE.md).
 
