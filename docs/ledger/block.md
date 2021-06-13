@@ -1,46 +1,43 @@
 ---
-description: >-
-  The Block is an important primitive in the MobileCoin blockchain, and consists
-  of TXOs and Key Images.
+description: 区块是 MobileCoin 区块链的重要基础组成部分，每个区块都包括了交易输出（TXO）和密钥镜像（Key Images）。
 ---
 
-# Block
+# 区块
 
-## Attributes
+## 属性
 
-| _Name_ | _Type_ | _Description_ |
+| 属性 | 类型 | 说明 |
 | :--- | :--- | :--- |
-| `object` | String, value is "block" | String representing the object's type. Objects of the same type share the same value. |
-| `block` | JSON object | Contains the block header information for the block |
-| `block_contents` | JSON object | Contains the key\_images and TXOs \(outputs\) for the block. |
+| `object` | 字符串，固定为 "block" | 由字符串表示的对象类型。每个类型的 `object` 字段是固定的。 |
+| `block` | JSON 对象 | 包含了区块的头部信息。|
+| `block_contents` | JSON 对象 | 包含了区块的密钥镜像 \(key\_images\) 和交易输出 \(TXO\)。 |
 
-## Methods
+
+## 方法
 
 ### `get_block_object`
 
-Get the JSON representation of the "Block" object in the ledger.
+获取账簿中的区块对象的 JSON 表示。
 
-| Required Param | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `block_index` | The block on which to perform this action. | Block must exist in the wallet. |
+| `block_index` | 要获取的区块索引。 | 区块必须存在在钱包中。 |
 
 {% tabs %}
-{% tab title="Body Request" %}
+{% tab title="请求内容" %}
 ```text
-curl -s localhost:9090/wallet \
-  -d '{
-        "method": "get_block_object",
-        "params": {
-          "block_index": "3204",
-        },
-        "jsonrpc": "2.0",
-        "id": 1
-      }' \
-  -X POST -H 'Content-type: application/json' | jq
+{
+  "method": "get_block_object",
+  "params": {
+    "block_index": "3204",
+  },
+  "jsonrpc": "2.0",
+  "id": 1
+}
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "get_block",

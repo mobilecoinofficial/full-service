@@ -1,19 +1,19 @@
 ---
-description: Get the JSON representation of the "Block" object in the ledger.
+description: 获取账簿中的区块对象的 JSON 表示。
 ---
 
-# Get Block
+# 获取区块
 
-## Parameters
+## 参数：
 
-| Required Param | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `block_index` | The block on which to perform this action. | Block must exist in the wallet. |
+| `block_index` | 要获取的区块索引。 | 区块必须存在在钱包中。 |
 
-## Example
+## 示例
 
 {% tabs %}
-{% tab title="Body Request" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "get_block",
@@ -26,7 +26,7 @@ description: Get the JSON representation of the "Block" object in the ledger.
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "get_block",

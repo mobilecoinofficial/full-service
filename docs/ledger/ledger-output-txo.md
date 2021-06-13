@@ -1,2 +1,2 @@
-# Ledger Output TXO
+# 账簿输出 TXO
 
