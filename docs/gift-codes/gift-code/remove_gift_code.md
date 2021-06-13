@@ -1,19 +1,19 @@
 ---
-description: Remove a gift code from the database.
+description: 从数据库中移除一个红包码。
 ---
 
-# Remove Gift Code
+# 移除红包码
 
-## Parameters
+## 参数
 
-| Required Param | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `gift_code_b58` | The base58-encoded gift code contents. | Must be a valid b58-encoded gift code. |
+| `gift_code_b58` | Base 58 编码的红包码 | 必须为有效的 Base 58 编码的红包码。 |
 
-## Example
+## 示例
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "remove_gift_code",
@@ -26,7 +26,7 @@ description: Remove a gift code from the database.
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "remove_gift_code",

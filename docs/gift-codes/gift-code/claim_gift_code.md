@@ -1,20 +1,20 @@
 ---
-description: Claim a gift code to an account in the wallet.
+description: 收取红包到钱包内的指定账户。
 ---
 
-# Claim Gift Code
+# 收取红包
 
-## Parameters
+## 参数
 
-| Required Param | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `gift_code_b58` | The base58-encoded gift code contents. | Must be a valid b58-encoded gift code. |
-| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+| `gift_code_b58` | Base 58 编码的红包码 | 必须为有效的 Base 58 编码的红包码。 |
+| `account_id` | 要收取红包的账户 ID | 指定的账户必须存在在钱包中。 |
 
-## Example
+## 示例
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "claim_gift_code",
@@ -28,7 +28,7 @@ description: Claim a gift code to an account in the wallet.
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "claim_gift_code",

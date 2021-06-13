@@ -1,23 +1,21 @@
 ---
-description: >-
-  Submit a tx_proposal to the ledger that adds the gift code to the wallet_db
-  once the tx_proposal has been appended to the ledger.
+description: 向账簿提交红包的 tx_proposal 并在账簿接收后将红包码加入钱包的数据库 \(wallet_db\)。
 ---
 
-# Submit Gift Code
+# 提交红包
 
-## Parameters
+## 参数
 
-| Required Param | Purpose | Requirement |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `gift_code_b58` | The base58-encoded gift code contents. | Must be a valid b58-encoded gift code. |
-| `from_account_id` | The account on which to perform this action. | Account must exist in the wallet. |
-| `tx_proposal` | Transaction proposal to submit. | Created with`build_gift_code.` |
+| `gift_code_b58` | Base 58 编码的红包码 | 必须为有效的 Base 58 编码的红包码。 |
+| `from_account_id` | 用来提交 tx_proposal 的账户 ID | 指定的账户必须存在在钱包中。 |
+| `tx_proposal` | 要提交的交易提案 \(tx_proposal\) | 由 `build_gift_code` 创建。 |
 
-## Example
+## 示例
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "submit_gift_code",
@@ -32,7 +30,7 @@ description: >-
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "submit_gift_code",
@@ -42,7 +40,7 @@ description: >-
       "gift_code_b58": "3Th9MSyznKV8VWAHAYoF8ZnVVunaTcMjRTnXvtzqeJPfAY8c7uQn71d6McViyzjLaREg7AppT7quDmBRG5E48csVhhzF4TEn1tw9Ekwr2hrq57A8cqR6sqpNC47mF7kHe",
       "entropy": "487d6f7c3e44977c32ccf3aa74fdbe02aebf4a2845efcf994ab5f2e8072a19e3",
       "value_pmob": "42000000000000",
-      "memo": "Happy Birthday!",
+      "memo": "生日快乐！",
       "account_id": "1e7a1cf00adc278fa27b1e885e5ed6c1ff793c6bc56a9255c97d9daafdfdffeb",
       "txo_id": "46725fd1dc65f170dd8d806a942c516112c080ec87b29ef1529c2014e27cc653"
     }

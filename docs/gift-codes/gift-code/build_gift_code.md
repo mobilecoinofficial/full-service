@@ -1,35 +1,35 @@
 ---
-description: Build a gift code in a tx_proposal that you can fund and submit to the ledger.
+description: 在一个 tx_proposal 内生成一个可以放入资金并提交至账簿的红包码。
 ---
 
-# Build Gift Code
+# 生成红包码
 
-## Parameters
+## 参数
 
-| Required Param | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
-| `value_pmob` | The amount of MOB to send in this transaction. |  |
+| `account_id` | 红包的发出账户。 | 指定的账户必须存在在钱包中。 |
+| `value_pmob` | 红包内将包括的 MOB 的数量。  |  |
 
-| Optional Param | Purpose | Requirements |
+| 可选参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `input_txo_ids` | The specific TXOs to use as inputs to this transaction. | TXO IDs \(obtain from `get_all_txos_for_account`\) |
-| `fee` | The fee amount to submit with this transaction. | If not provided, uses `MINIMUM_FEE` = .01 MOB. |
-| `tombstone_block` | The block after which this transaction expires. | If not provided, uses `cur_height` + 50. |
-| `max_spendable_value` | The maximum amount for an input TXO selected for this transaction. |  |
-| `memo` | Memo for whoever claims the gift code. |  |
+| `input_txo_ids` | 作为交易输入的 MOB \(TXO\) ID。 | TXO IDs \(通过 `get_all_txos_for_account` 获取\) |
+| `fee` | 随本交易提交的手续费。 | 默认为 `MINIMUM_FEE` = .01 MOB. |
+| `tombstone_block` | 本交易的过期区块，当网络区块高于本值时，红包即失效。 | 默认为当前高度 \(`cur_height`\) + 50. |
+| `max_spendable_value` | 要选择作为交易输入的单个 TXO 最大价值。 |  |
+| `memo` | 给接收方的信息。 |  |
 
-## Example
+## 示例
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "build_gift_code",
   "params": {
     "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
     "value_pmob": "42000000000000",
-    "memo": "Happy Birthday!"
+    "memo": "生日快乐！"
   },
   "jsonrpc": "2.0",
   "id": 1
@@ -37,7 +37,7 @@ description: Build a gift code in a tx_proposal that you can fund and submit to 
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "build_gift_code",
