@@ -1,5 +1,4 @@
 -- ALTER TABLE transaction_logs ALTER COLUMN assigned_subaddress_b58 DROP NOT NULL;
-PRAGMA foreign_keys=OFF;
 CREATE TABLE NEW_transaction_logs (
     id INTEGER NOT NULL PRIMARY KEY,
     transaction_id_hex VARCHAR NOT NULL UNIQUE,
@@ -21,5 +20,3 @@ CREATE TABLE NEW_transaction_logs (
 INSERT INTO NEW_transaction_logs SELECT * FROM transaction_logs;
 DROP TABLE transaction_logs;
 ALTER TABLE NEW_transaction_logs RENAME TO transaction_logs;
-PRAGMA foreign_key_check;
-PRAGMA foreign_keys=ON;

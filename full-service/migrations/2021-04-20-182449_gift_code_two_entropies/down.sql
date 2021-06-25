@@ -1,5 +1,3 @@
-PRAGMA foreign_keys=OFF;
-
 CREATE TABLE OLD_gift_codes (
   id INTEGER NOT NULL PRIMARY KEY,
   gift_code_b58 VARCHAR NOT NULL,
@@ -26,6 +24,3 @@ FROM gift_codes;
 
 DROP TABLE gift_codes;
 ALTER TABLE OLD_gift_codes RENAME TO gift_codes;
-
-PRAGMA foreign_key_check;
-PRAGMA foreign_keys=ON;
