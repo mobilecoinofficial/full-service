@@ -3,6 +3,7 @@ use diesel::{
     connection::SimpleConnection,
     prelude::*,
     r2d2::{ConnectionManager, Pool, PooledConnection},
+    sql_types,
 };
 use mc_common::logger::{global_log, Logger};
 use std::{env, time::Duration};
@@ -121,6 +122,24 @@ impl WalletDb {
         let result = conn.batch_execute("SELECT count(*) FROM sqlite_master;");
         if result.is_err() {
             panic!("Could not access database.");
+        }
+    }
+
+    pub fn validate_foreign_keys(conn: &SqliteConnection) {
+        let invalid_foreign_keys = diesel::dsl::sql::<(
+            sql_types::Text,
+            sql_types::Int8,
+            sql_types::Text,
+            sql_types::Int8,
+        )>("PRAGMA foreign_key_check;")
+        .get_results::<(String, i64, String, i64)>(conn)
+        .expect("failed querying for invalid foreign keys");
+
+        if !invalid_foreign_keys.is_empty() {
+            panic!(
+                "Database contains invalid foreign keys: {:?}",
+                invalid_foreign_keys
+            );
         }
     }
 }

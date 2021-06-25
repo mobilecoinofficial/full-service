@@ -3,7 +3,7 @@
 //! MobileCoin wallet service
 
 #![feature(proc_macro_hygiene, decl_macro)]
-use diesel::{prelude::*, SqliteConnection};
+use diesel::{connection::SimpleConnection, prelude::*, SqliteConnection};
 use diesel_migrations::embed_migrations;
 use dotenv::dotenv;
 use mc_attest_core::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
@@ -56,7 +56,26 @@ fn main() {
     WalletDb::set_db_encryption_key_from_env(&conn);
     WalletDb::try_change_db_encryption_key_from_env(&conn);
     WalletDb::check_database_connectivity(&conn);
-    embedded_migrations::run(&conn).expect("failed running migrations");
+
+    // Our migrations sometimes violate foreign keys, so disable foreign key checks
+    // while we apply them.
+    // Unfortunately this has to happen outside the scope of a transaction. Quoting
+    // https://www.sqlite.org/pragma.html,
+    // "This pragma is a no-op within a transaction; foreign key constraint
+    // enforcement may only be enabled or disabled when there is no pending
+    // BEGIN or SAVEPOINT."
+    conn.batch_execute("PRAGMA foreign_keys = OFF;")
+        .expect("failed disabling foreign keys");
+    embedded_migrations::run_with_output(&conn, &mut std::io::stdout())
+        .expect("failed running migrations");
+
+    // Ensure the database is still in good shape. If not, we will abort until the
+    // user resolves it.
+    WalletDb::validate_foreign_keys(&conn);
+
+    conn.batch_execute("PRAGMA foreign_keys = ON;")
+        .expect("failed enabling foreign keys");
+
     log::info!(logger, "Connected to database.");
 
     let wallet_db = WalletDb::new_from_url(
