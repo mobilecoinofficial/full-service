@@ -1,6 +1,6 @@
 ---
-description: A payment request
+description: 支付请求
 ---
 
-# Payment Request
+# 支付请求
 

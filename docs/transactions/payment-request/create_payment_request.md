@@ -1,25 +1,25 @@
 ---
-description: Create a payment request b58 code to give to someone else
+description: 创建一个 Base 58 编码的可以发给别人的支付请求。
 ---
 
-# Create Payment Request
+# 创建支付请求
 
-## Parameters
+## 参数
 
-| Required Param | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
-| `amount_pmob` | The amount of pMOB to send in this transaction. | `u64` |
+| `account_id` | 用来创建支付请求的账户。 | 账户必须存在于钱包内。 |
+| `amount_pmob` | 要发送的 pMOB 数量。 | 类型为 64 位无符号整型。 |
 
-| Optional Param | Purpose | Requirements |
+| 可选参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `subaddress_index` | The subaddress index on the account to generate the request with | `i64` |
-| `memo` | Memo for the payment request |  |
+| `subaddress_index` | 用来创建支付请求的子地址索引。| 类型为 64 位有符号整型。|
+| `memo` | 支付请求附带的信息。 |  |
 
-## Example
+## 示例
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "create_payment_request",
@@ -27,7 +27,7 @@ description: Create a payment request b58 code to give to someone else
     "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
     "amount_pmob": 42000000000000,
     "subaddress_index": 4,
-    "memo": "Payment for dinner with family"
+    "memo": "家庭聚餐"
   },
   "jsonrpc": "2.0",
   "id": 1
@@ -35,7 +35,7 @@ description: Create a payment request b58 code to give to someone else
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "create_payment_request",

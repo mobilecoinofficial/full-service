@@ -1,19 +1,19 @@
 ---
-description: Check the type of the b58 code
+description: 检查一个 B58 编码的类型
 ---
 
-# Check B58 Type
+# 检查 B58 类型
 
-## Parameters
+## 参数
 
-| Required Param | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `b58_code` | The code to check | `String` |
+| `b58_code` | 要检查的编码 | 类型为字符串 |
 
-## Example
+## 示例
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "check_b58_type",
@@ -26,7 +26,7 @@ description: Check the type of the b58 code
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "check_b58_code",
