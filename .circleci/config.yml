@@ -276,10 +276,10 @@ commands:
       - env_setup
       - install-ci-deps
       - print_versions
-      # Cache is only saved when building from master. We don't restore sccache on
-      # master so that the cache is clean when saved.
+      # Cache is only saved when building from develop. We don't restore sccache on
+      # develop so that the cache is clean when saved.
       - unless:
-          condition: { equal: [ << pipeline.git.branch >>, master ] }
+          condition: { equal: [ << pipeline.git.branch >>, develop ] }
           steps: [ restore-sccache-cache ]
       - enable_sccache
       - prefetch-cargo-deps
@@ -375,7 +375,7 @@ jobs:
       - run-tests
       - check-dirty-git
       - when:
-          condition: { equal: [ << pipeline.git.branch >>, master ] }
+          condition: { equal: [ << pipeline.git.branch >>, develop ] }
           steps: [ save-sccache-cache ]
       - post-build
       - post-test
@@ -396,7 +396,7 @@ jobs:
       - generate-docs
       - check-dirty-git
       - when:
-          condition: { equal: [ << pipeline.git.branch >>, master ] }
+          condition: { equal: [ << pipeline.git.branch >>, develop ] }
           steps: [ save-cargo-cache, save-sccache-cache ]
       - post-build
 
@@ -424,7 +424,7 @@ jobs:
             cargo build --frozen --target "$HOST_TARGET_TRIPLE"
       - check-dirty-git
       - when:
-          condition: { equal: [ << pipeline.git.branch >>, master ] }
+          condition: { equal: [ << pipeline.git.branch >>, develop ] }
           steps: [ save-sccache-cache, save-cargo-cache, save-homebrew-cache ]
       - post-build
 
@@ -439,7 +439,7 @@ jobs:
           extra_args: "--release"
       - check-dirty-git
       - when:
-          condition: { equal: [ << pipeline.git.branch >>, master ] }
+          condition: { equal: [ << pipeline.git.branch >>, develop ] }
           steps: [ save-sccache-cache ]
       - post-build
 
