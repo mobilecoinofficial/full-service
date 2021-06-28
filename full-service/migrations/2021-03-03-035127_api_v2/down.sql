@@ -3,7 +3,6 @@ DROP INDEX idx_transaction_logs__finalized_block_index;
 -- ALTER TABLE accounts RENAME COLUMN first_block_index TO first_block;
 -- ALTER TABLE accounts RENAME COLUMN next_block_index TO next_block;
 -- ALTER TABLE accounts RENAME COLUMN import_block_index TO import_block;
-PRAGMA foreign_keys=OFF;
 CREATE TABLE NEW_accounts (
   id INTEGER NOT NULL PRIMARY KEY,
   account_id_hex VARCHAR NOT NULL UNIQUE,
@@ -20,14 +19,11 @@ CREATE TABLE NEW_accounts (
 INSERT INTO NEW_accounts SELECT * FROM accounts;
 DROP TABLE accounts;
 ALTER TABLE NEW_accounts RENAME TO accounts;
-PRAGMA foreign_key_check;
-PRAGMA foreign_keys=ON;
 
 
 -- ALTER TABLE txos RENAME COLUMN received_block_index TO received_block_count;
 -- ALTER TABLE txos RENAME COLUMN pending_tombstone_block_index TO pending_tombstone_block_count;
 -- ALTER TABLE txos RENAME COLUMN spent_block_index TO pending_tombstone_block_count;
-PRAGMA foreign_keys=OFF;
 CREATE TABLE NEW_txos (
   id INTEGER NOT NULL PRIMARY KEY,
   txo_id_hex VARCHAR NOT NULL UNIQUE,
@@ -46,12 +42,9 @@ CREATE TABLE NEW_txos (
 INSERT INTO NEW_txos SELECT * FROM txos;
 DROP TABLE txos;
 ALTER TABLE NEW_txos RENAME TO txos;
-PRAGMA foreign_key_check;
-PRAGMA foreign_keys=ON;
 
 -- ALTER TABLE transaction_logs RENAME COLUMN submitted_block_index TO submitted_block_count;
 -- ALTER TABLE transaction_logs RENAME COLUMN finalized_block_index TO finalized_block_count;
-PRAGMA foreign_keys=OFF;
 CREATE TABLE NEW_transaction_logs (
     id INTEGER NOT NULL PRIMARY KEY,
     transaction_id_hex VARCHAR NOT NULL UNIQUE,
@@ -73,5 +66,3 @@ CREATE TABLE NEW_transaction_logs (
 INSERT INTO NEW_transaction_logs SELECT * FROM transaction_logs;
 DROP TABLE transaction_logs;
 ALTER TABLE NEW_transaction_logs RENAME TO transaction_logs;
-PRAGMA foreign_key_check;
-PRAGMA foreign_keys=ON;

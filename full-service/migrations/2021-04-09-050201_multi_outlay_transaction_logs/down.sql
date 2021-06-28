@@ -1,5 +1,4 @@
 -- ALTER TABLE transaction_logs ADD COLUMN recipient_public_address_b58 VARCHAR NOT NULL DEFAULT '';
-PRAGMA foreign_keys=OFF;
 CREATE TABLE OLD_transaction_logs (
     id INTEGER NOT NULL PRIMARY KEY,
     transaction_id_hex VARCHAR NOT NULL UNIQUE,
@@ -36,8 +35,6 @@ INSERT INTO OLD_transaction_logs SELECT
 FROM transaction_logs;
 DROP TABLE transaction_logs;
 ALTER TABLE OLD_transaction_logs RENAME TO transaction_logs;
-PRAGMA foreign_key_check;
-PRAGMA foreign_keys=ON;
 
 -- Update the transaction_logs table from txos.recipient_public_address_b58.
 UPDATE transaction_logs
@@ -52,7 +49,6 @@ FROM (
 WHERE transaction_logs.transaction_id_hex = q.transaction_id_hex;
 
 -- ALTER TABLE txos REMOVE COLUMN recipient_public_address_b58;
-PRAGMA foreign_keys=OFF;
 CREATE TABLE OLD_txos (
     id INTEGER NOT NULL PRIMARY KEY,
     txo_id_hex VARCHAR NOT NULL UNIQUE,
@@ -85,5 +81,3 @@ INSERT INTO OLD_txos SELECT
 FROM txos;
 DROP TABLE txos;
 ALTER TABLE OLD_txos RENAME TO txos;
-PRAGMA foreign_key_check;
-PRAGMA foreign_keys=ON;

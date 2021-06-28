@@ -1,6 +1,5 @@
 -- Add the recipient address column to txos.
 -- ALTER TABLE txos ADD COLUMN recipient_public_address_b58 TEXT NOT NULL DEFAULT '';
-PRAGMA foreign_keys=OFF;
 CREATE TABLE NEW_txos (
     id INTEGER NOT NULL PRIMARY KEY,
     txo_id_hex VARCHAR NOT NULL UNIQUE,
@@ -35,8 +34,6 @@ INSERT INTO NEW_txos SELECT
 FROM txos;
 DROP TABLE txos;
 ALTER TABLE NEW_txos RENAME TO txos;
-PRAGMA foreign_key_check;
-PRAGMA foreign_keys=ON;
 
 -- Update the txos table with the relevant values from transaction_logs for recipient_public_address_b58.
 UPDATE txos
@@ -52,7 +49,6 @@ WHERE txos.txo_id_hex = q.txo_id_hex;
 
 -- Remove the recipient address column from transaction logs.
 -- ALTER TABLE transaction_logs REMOVE COLUMN recipient_public_address_b58;
-PRAGMA foreign_keys=OFF;
 CREATE TABLE NEW_transaction_logs (
     id INTEGER NOT NULL PRIMARY KEY,
     transaction_id_hex VARCHAR NOT NULL UNIQUE,
@@ -87,5 +83,3 @@ INSERT INTO NEW_transaction_logs SELECT
 FROM transaction_logs;
 DROP TABLE transaction_logs;
 ALTER TABLE NEW_transaction_logs RENAME TO transaction_logs;
-PRAGMA foreign_key_check;
-PRAGMA foreign_keys=ON;
