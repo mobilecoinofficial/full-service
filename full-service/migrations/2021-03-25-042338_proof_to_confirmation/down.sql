@@ -1,5 +1,4 @@
 -- ALTER TABLE txos RENAME COLUMN confirmation TO proof;
-PRAGMA foreign_keys=OFF;
 CREATE TABLE OLD_txos (
     id INTEGER NOT NULL PRIMARY KEY,
     txo_id_hex VARCHAR NOT NULL UNIQUE,
@@ -18,5 +17,3 @@ CREATE TABLE OLD_txos (
 INSERT INTO OLD_txos SELECT * FROM txos;
 DROP TABLE txos;
 ALTER TABLE OLD_txos RENAME TO txos;
-PRAGMA foreign_key_check;
-PRAGMA foreign_keys=ON;

@@ -1,5 +1,4 @@
 -- ALTER TABLE accounts REMOVE COLUMN key_derivation_version;
-PRAGMA foreign_keys=OFF;
 CREATE TABLE OLD_accounts (
     id INTEGER NOT NULL PRIMARY KEY,
     account_id_hex VARCHAR NOT NULL UNIQUE,
@@ -28,5 +27,3 @@ INSERT INTO OLD_accounts SELECT
 FROM accounts;
 DROP TABLE accounts;
 ALTER TABLE OLD_accounts RENAME TO accounts;
-PRAGMA foreign_key_check;
-PRAGMA foreign_keys=ON;
