@@ -1,31 +1,29 @@
 ---
-description: >-
-  Build a transaction to confirm its contents before submitting it to the
-  network.
+description: 构建可以被确认并提交的交易草案（tx_proposal）。
 ---
 
-# Build Transaction
+# 构建交易
 
-## Parameters
+## 参数
 
-| Required Param | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action | Account must exist in the wallet |
+| `account_id` | 用来构建交易的账户。 | 指定的账户必须存在在钱包中。 |
 
-| Optional Param | Purpose | Requirements |
+| 可选参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `recipient_public_address` | The recipient for this transaction | b58-encoded public address bytes |
-| `value_pmob` | The amount of MOB to send in this transaction |  |
-| `addresses_and_values` | An array of public addresses and value tuples | addresses are b58-encoded public addresses, value is in pmob |
-| `input_txo_ids` | Specific TXOs to use as inputs to this transaction | TXO IDs \(obtain from `get_all_txos_for_account`\) |
-| `fee` | The fee amount to submit with this transaction | If not provided, uses `MINIMUM_FEE` = .01 MOB |
-| `tombstone_block` | The block after which this transaction expires | If not provided, uses `cur_height` + 50 |
-| `max_spendable_value` | The maximum amount for an input TXO selected for this transaction |  |
+| `recipient_public_address` | 当笔交易的收取方。| 字节形式的经 Base 58 编码的公共地址 |
+| `value_pmob` | 当笔交易要发送的 MOB 数额。 | 单位是 pmob  |
+| `addresses_and_values` | 一个由公共地址和 MOB 数额二元组构成的数组。| 地址和数额的形式和上述两个字段一致 |
+| `input_txo_ids` | 指定当笔交易内要发送的 MOB （TXO） ID。 | TXO ID \(通过 `get_all_txos_for_account` 获取\) |
+| `fee` | 当笔交易的手续费 | 默认值 `MINIMUM_FEE` = .01 MOB |
+| `tombstone_block` | 当笔交易的失效期（区块高度） | 默认值为当前区块高度 + 50 |
+| `max_spendable_value` | 会被选入当笔交易的 TXO 的最大金额。|  |
 
-## Example
+## 示例
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "build_transaction",
@@ -40,7 +38,7 @@ description: >-
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "build_transaction",
@@ -231,7 +229,7 @@ description: >-
 {% endtabs %}
 
 {% hint style="info" %}
-Since the `tx_proposal`JSON object is quite large, you may wish to write the result to a file for use in the `submit_transaction` call, such as:
+由于交易草案的 JSON 对象比较大，把它写入一个文件用来通过 `submit_transaction` 提交是一个可行的途径。
 
 ```text
 {

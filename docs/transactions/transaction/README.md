@@ -1,16 +1,14 @@
 ---
-description: >-
-  A MobileCoin Transaction consists of inputs which are spent in order to mint
-  new outputs for the recipient.
+description: MobileCoin 的交易包括了用来给收款方构造新的 TXO 的被消费的输入。
 ---
 
-# Transaction
+# 交易
 
-Due to the privacy properties of the MobileCoin ledger, transactions are ephemeral. Once they have been created, they only exist until they are validated, and then only the outputs are written to the ledger. For this reason, the Full Service wallet stores transactions in the `transaction_log` table in order to preserve transaction history.
+基于 MobileCoin 的隐私属性，交易的存在时间很短。当一个交易被创建后，它在被验证后就会被销毁，只有交易输出会被写入到账簿上。因此，Full Service 把交易存储在 `transaction_log` 表中用来记录交易历史。
 
-## Attributes
+## 属性
 
-### Transaction Log
+### 交易日志
 
 | Name | Type | Description |
 | :--- | :--- | :--- |

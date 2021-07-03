@@ -1,28 +1,26 @@
 ---
-description: >-
-  Submit a transaction for an account with or without recording it in the
-  transaction log.
+description: 提交一笔交易并选择是否记录该交易日志。
 ---
 
-# Submit Transaction
+# 提交交易
 
-## Parameters
+## 参数
 
-| Required Param | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `tx_proposal` | Transaction proposal to submit | Created with `build_transaction` |
+| `tx_proposal` | 要提交的交易草案 | 通过 `build_transaction` 构建 |
 
-| Optional Param | Purpose | Requirements |
+| 可选参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `account_id` | Account ID for which to log the transaction. If omitted, the transaction is not logged. |  |
-| `comment` | Comment to annotate this transaction in the transaction log |  |
+| `account_id` | 用来记录交易日志的账户 ID。如果留空则不会记录该笔交易。 |  |
+| `comment` | 在交易日志中标记当笔交易的备注。 |  |
 
-## Examples
+## 示例
 
-### Submit with Log
+### 提交并记录交易日志
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "submit_transaction",
@@ -36,7 +34,7 @@ description: >-
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "submit_transaction",
@@ -78,10 +76,10 @@ description: >-
 {% endtab %}
 {% endtabs %}
 
-### Submit without Log
+### 提交并不记录交易日志
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "submit_transaction",
@@ -94,7 +92,7 @@ description: >-
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "submit_transaction",

@@ -1,28 +1,26 @@
 ---
-description: >-
-  This is a convenience method for building a transaction that will split a txo
-  into multiple output txos to the origin account.
+description: 这是一个用来构建把一个 TXO 拆分成数个 TXO 的交易的便利方法。
 ---
 
-# Build Split Txo Transaction
+# 构建 TXO 拆分交易
 
-## Parameters
+## 参数
 
-| Required Param | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `txo_id` | The TXO on which to perform this action | TXO must exist in the wallet |
-| `output_values` | The output values of the generated TXOs |  |
+| `txo_id` | 要拆分的 TXO | TXO 必须存在在钱包里 |
+| `output_values` | 输出的 TXO 的价值 |  |
 
-| Optional Param | Purpose | Requirements |
+| 可选参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
 | `destination_subaddress_index` |  |  |
 | `fee` |  |  |
 | `tombstone_block` |  |  |
 
-## Example
+## 示例
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "build_split_txo_transaction",
@@ -39,7 +37,7 @@ description: >-
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="输出" %}
 ```text
 {
   "method": "build_split_txo_transaction",
@@ -230,7 +228,7 @@ description: >-
 {% endtabs %}
 
 {% hint style="warning" %}
-`If an account is not fully-synced, you may see the following error message:`
+`如果账户没有完全同步，您可能会收到如下报错信息：`
 
 ```text
 {
@@ -238,6 +236,7 @@ description: >-
 }
 ```
 
-Call `check_balance` for the account, and note the `synced_blocks` value. If that value is less than the `local_block_index` value, then your TXOs may not all be updated to their spent status.
+通过调用 `check_balance` 来查询账户的余额，并留意 `synced_blocks` 的值。如果已同步的区块高度小于 `local_block_index`，那么您的 TXO 的使用状态可能并未更新。
+
 {% endhint %}
 
