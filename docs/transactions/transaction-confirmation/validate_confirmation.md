@@ -1,19 +1,19 @@
-# Validate Confirmations
+# 检验确认编码
 
-A sender can provide the confirmation numbers from a transaction to the recipient, who then verifies for a specific TXO ID \(note that TXO ID is specific to the TXO, and is consistent across wallets. Therefore the sender and receiver will have the same TXO ID for the same TXO which was minted by the sender, and received by the receiver\).
+发送方可以向接收方提供交易的确认编码，接收方可以据此验证特定的 TXO ID（在不同钱包间，同一个 TXO 的 TXO ID 不会发生变化。因此，发送方和接收方对于同一个由发送方构建，被接收方接收的 TXO 会有同样的 TXO ID）。
 
-## Parameters
+## 参数
 
-| Param | Description |  |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
-| `txo_id` | The ID of the TXO for which to validate the confirmation number. | TXO must be a received TXO. |
-| `confirmation` | The confirmation number to validate. | The confirmation number should be delivered by the sender of the Txo in question. |
+| `account_id` | 用于验证的账户。 | 指定的账户必须存在在钱包中。 |
+| `txo_id` | 要与确认编码验证的 TXO ID。 | TXO 必须为已接收状态。 |
+| `confirmation` | 要验证的确认编码。 | 确认编码应该由发送方提供。 |
 
-## Example
+## 示例
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "validate_confirmation",
@@ -28,7 +28,7 @@ A sender can provide the confirmation numbers from a transaction to the recipien
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "validate_confirmation",

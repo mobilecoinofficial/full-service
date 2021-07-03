@@ -1,23 +1,21 @@
 ---
-description: >-
-  When constructing a transaction, the wallet produces a "confirmation number"
-  for each TXO minted by the transaction.
+description: 钱包在构建 TXO 时会生成一个确认编码。
 ---
 
-# Confirmation
+# 确认编码
 
-The confirmation number can be delivered to the recipient to prove that they received the TXO from that particular sender.
+确认编码可以由发送方提供给接收方以证明一个 TXO 确实是由发送方发出的。
 
-## Attributes
+## 属性
 
-| _Name_ | _Type_ | _Description_ |
+| 属性 | 类型 | 说明 |
 | :--- | :--- | :--- |
-| `object` | String, value is "confirmation" | String representing the object's type. Objects of the same type share the same value. |
-| `txo_id` | String | Unique identifier for the TXO. |
-| `txo_index` | String | The index of the TXO in the ledger. |
-| `confirmation` | String | A string with a confirmation number that can be validated to confirm that another party constructed or had knowledge of the construction of the associated TXO. |
+| `object` | 字符串，固定为 "confirmation" | 由字符串表示的对象类型。每个类型的 `object` 字段是固定的。 |
+| `txo_id` | 字符串 | TXO 的唯一标识符。 |
+| `txo_index` | 字符串 | TXO 在账簿上的索引。 |
+| `confirmation` | 字符串 | 一个包含确认编码的字符串，可以被验证以证明交易的另一方确实参与了该 TXO 的构造。 |
 
-## Example
+## 示例
 
 ```text
 {

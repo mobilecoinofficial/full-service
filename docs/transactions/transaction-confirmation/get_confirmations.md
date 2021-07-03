@@ -1,24 +1,21 @@
 ---
-description: >-
-  A TXO constructed by this wallet will contain a confirmation number, which can
-  be shared with the recipient to verify the association between the sender and
-  this TXO.
+description: 由钱包构建的 TXO 会包括一个确认编码，可以由发送方分享给接收方，接收方可以据此确认 TXO 和发送方的关联。
 ---
 
-# Get Confirmations
+# 获取确认编码
 
-## Parameters
+## 参数
 
-| Param | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `transaction_log_id` | The transaction log ID for which to get confirmation numbers. | The transaction log must exist in the wallet. |
+| `transaction_log_id` | 需要获取确认编码的交易日志 ID。| 该交易日志必须存在在钱包内。|
 
-## Example
+## 示例
 
-When calling `get_confirmations` for a transaction, only the confirmation numbers for the `output_txo_ids` are returned.
+当调用 `get_confirmations` 时，系统只会返回对应的确认编码（而不会包括其他的交易细节）。
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "get_confirmations",
@@ -31,7 +28,7 @@ When calling `get_confirmations` for a transaction, only the confirmation number
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "get_confirmations",
