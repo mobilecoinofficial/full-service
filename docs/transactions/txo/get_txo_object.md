@@ -1,19 +1,19 @@
 ---
-description: Get the JSON representation of the "TXO" object in the ledger.
+description: 获取账簿中的 TXO 对象的 JSON 表示。
 ---
 
-# Get All TXOs For Address
+# 获取指定地址的全部 TXO
 
-## Parameters
+## 参数
 
-| Parameter | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `address` | The address on which to perform this action. |  |
+| `address` | 要查询的地址。 |  |
 
-## Example
+## 示例
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "get_all_txos_for_address",
@@ -26,7 +26,7 @@ description: Get the JSON representation of the "TXO" object in the ledger.
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "get_txo_object",

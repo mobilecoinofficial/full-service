@@ -146,17 +146,19 @@ description: 获取一个指定账户的 TXO。
 {% endtabs %}
 
 {% hint style="info" %}
-Note, you may wish to filter TXOs using a tool like jq. For example, to get all unspent TXOs, you can use:
-
+您可以使用诸如 jq 的工具来选取您关心的 TXO。比如，若要选取全部未花的 TXO，您可以使用：
 ```text
-{
-  "method": "get_all_txos_for_account",
-  "params": {
-    "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10"
-  },
-  "jsonrpc": "2.0",
-  "id": 1,
-}
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "get_all_txos_for_account",
+        "params": {
+          "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10"
+        },
+        "jsonrpc": "2.0",
+        "id": 1,
+      }' \
+  -X POST -H 'Content-type: application/json' \
+  | jq '.result | .txo_map[] | select( . | .account_status_map[].txo_status | contains("unspent"))'
 ```
 {% endhint %}
 

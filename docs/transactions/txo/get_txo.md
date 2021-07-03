@@ -1,19 +1,19 @@
 ---
-description: Get details of a given TXO.
+description: 获取指定 TXO 的详细信息。
 ---
 
-# Get TXO
+# 获取 TXO
 
-## Parameters
+## 参数
 
-| Parameter | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `txo_id` | The TXO ID for which to get details. |  |
+| `txo_id` | 要查询的 TXO ID。 |  |
 
-## Example
+## 示例
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "get_txo",
@@ -26,7 +26,7 @@ description: Get details of a given TXO.
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "get_txo",

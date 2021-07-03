@@ -14,7 +14,7 @@ description: TXO 是“交易输出（Transaction Output）”的缩写。Mobile
 | `value_pmob` | 字符串，内容为 64 位无符号整数 | 当前账户在当前 `account_block_index` 位置的可使用的 pico MOB。 在账户完成同步后本数值可能会发生变化。 |
 | `received_block_index` | 字符串，内容为 64 位无符号整数 | TXO 被接收的区块索引。 |
 | `spent_block_index` | 字符串，内容为 64 位无符号整数 | TXO 被使用（消费）的区块索引。 |
-| `is_spent_recovered` | 布尔型 | 指示 `spent_block_index` 是否被从账簿恢复。当 TXO 未被花费时未 `null`。 If true, some information may not be available on the TXO without user input. If true, the confirmation number will be null without user input. |
+| `is_spent_recovered` | 布尔型 | 指示 `spent_block_index` 是否被从账簿恢复。当 TXO 未被花费时未 `null`。 为 `true` 时，在没有用户输入的情况下一些信息（比如确认代码）可能不可用。|
 | `received_account_id` | 字符串 | 接收本 TXO 的账户的 `account_id`。该账户拥有使用本 TXO 的权力。 |
 | `minted_account_id` | 字符串 | 本 TXO 被铸（Mint）的账户的 `account_id`。 |
 | `account_status_map` | 散列表 | 一个规范化的从 `account_id` 到账户对象的散列映射。键值包括 "type" 和 "status"。 |
@@ -56,8 +56,8 @@ description: TXO 是“交易输出（Transaction Output）”的缩写。Mobile
   "assigned_subaddress": "7BeDc5jpZ...",
   "key_image": "6d6f6269...",
   "confirmation": "23fd34a...",
-  "offset_count": 284
-}
+  "offset_count": 284jjk
+jjjjjjjjjjjj}
 ```
 
 ### 在同一个钱包内的两个账户间花费的 TXO
@@ -97,29 +97,27 @@ description: TXO 是“交易输出（Transaction Output）”的缩写。Mobile
 
 ### `get_txo_object`
 
-Get the JSON representation of the "TXO" object in the ledger.
+获取账簿中的 TXO 对象的 JSON 表示。
 
-| Parameter | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `txo_id` | A TXO identifier. |  |
+| `txo_id` | 一个 TXO 标识符。 |  |
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
-curl -s localhost:9090/wallet \
-  -d '{
-        "method": "get_txo_object",
-        "params": {
-          "txo_id": "4b4fd11738c03bf5179781aeb27d725002fb67d8a99992920d3654ac00ee1a2c",
-        },
-        "jsonrpc": "2.0",
-        "id": 1
-      }' \
-  -X POST -H 'Content-type: application/json' | jq
+{
+  "method": "get_txo_object",
+  "params": {
+    "txo_id": "4b4fd11738c03bf5179781aeb27d725002fb67d8a99992920d3654ac00ee1a2c",
+  },
+  "jsonrpc": "2.0",
+  "id": 1
+}
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "get_txo_object",
@@ -133,30 +131,28 @@ curl -s localhost:9090/wallet \
 
 ### `get_txo`
 
-Get details of a given TXO.
+获取指定 TXO 的详细信息。
 
-| Parameter | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
-| `txo_id` | The TXO ID for which to get details. |  |
+| `account_id` | 要查询的账户。 | 指定的账户必须存在在钱包中。 |
+| `txo_id` | 要查询的 TXO ID。 |  |
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
-curl -s localhost:9090/wallet \
-  -d '{
-        "method": "get_txo",
-        "params": {
-          "txo_id": "fff4cae55a74e5ce852b79c31576f4041d510c26e59fec178b3e45705c5b35a7"
-        },
-        "jsonrpc": "2.0",
-        "id": 1
-      }' \
-  -X POST -H 'Content-type: application/json' | jq
+{
+  "method": "get_txo",
+  "params": {
+    "txo_id": "fff4cae55a74e5ce852b79c31576f4041d510c26e59fec178b3e45705c5b35a7"
+  },
+  "jsonrpc": "2.0",
+  "id": 1
+}
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "get_txo",
@@ -193,29 +189,27 @@ curl -s localhost:9090/wallet \
 
 ### `get_all_txos_for_account`
 
-Get all TXOs for a given account.
+获取账户的全部 TXO。
 
-| Parameter | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+| `account_id` | 要查询的账户。 | 指定的账户必须存在在钱包中。 |
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
-curl -s localhost:9090/wallet \
-  -d '{
-        "method": "get_all_txos_for_account",
-        "params": {
-          "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
-        },
-        "jsonrpc": "2.0",
-        "id": 1
-      }' \
-  -X POST -H 'Content-type: application/json'  | jq
+{
+  "method": "get_all_txos_for_account",
+  "params": {
+    "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
+  },
+  "jsonrpc": "2.0",
+  "id": 1
+}
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "get_all_txos_for_account",
