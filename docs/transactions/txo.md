@@ -56,8 +56,8 @@ description: TXO 是“交易输出（Transaction Output）”的缩写。Mobile
   "assigned_subaddress": "7BeDc5jpZ...",
   "key_image": "6d6f6269...",
   "confirmation": "23fd34a...",
-  "offset_count": 284jjk
-jjjjjjjjjjjj}
+  "offset_count": 284
+}
 ```
 
 ### 在同一个钱包内的两个账户间花费的 TXO
