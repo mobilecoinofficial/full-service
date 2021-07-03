@@ -1,39 +1,37 @@
 ---
-description: >-
-  A TXO is a "Transaction Output." MobileCoin is a ledger built on the "Unspent
-  Transaction Output" model (UTXO).
+description: TXO 是“交易输出（Transaction Output）”的缩写。MobileCoin 是一个基于 UTXO （未花交易输出）模型的账簿。
 ---
 
-# Transaction Output TXO
+# 交易输出 TXO
 
-In order to construct a transaction, the wallet will select "Unspent Transaction Outputs" and perform a cryptographic operation to mark them as "spent" in the ledger. Then, it will mint new TXOs for the recipient.
+在构造交易时，钱包会选择未花的 TXO 并通过一些密码学操作将它们在账簿内标记为“已花”。在此之后为收款方铸（Mint）新的 TXO。
 
-## Attributes <a id="object_method"></a>
+## 属性 <a id="object_method"></a>
 
-| _Name_ | _Type_ | _Description_ |
+| 属性 | 类型 | 说明 |
 | :--- | :--- | :--- |
-| `object` | string, value is "txo" | String representing the object's type. Objects of the same type share the same value. |
-| `value_pmob` | string \(uint64\) | Available pico MOB for this account at the current `account_block_index`. If the account is syncing, this value may change. |
-| `received_block_index` | string \(uint64\) | Block index in which the TXO was received by an account. |
-| `spent_block_index` | string \(uint64\) | Block index in which the TXO was spent by an account. |
-| `is_spent_recovered` | boolean | Flag that indicates if the `spent_block_index` was recovered from the ledger. This value is null if the TXO is unspent. If true, some information may not be available on the TXO without user input. If true, the confirmation number will be null without user input. |
-| `received_account_id` | string | The `account_id` for the account which has received this TXO. This account has spend authority. |
-| `minted_account_i` | string | The `account_id` for the account which minted this TXO. |
-| `account_status_map` | hash map | A normalized hash mapping account\_id to account objects. Keys include "type" and "status". |
-| `txo_type` | string \(enum\) | With respect to this account, the TXO may be "minted" or "received". |
-| `txo_status` | string \(enum\) | With respect to this account, the TXO may be "unspent", "pending", "spent", "secreted" or "orphaned". For received TXOs received as an assigned address, the lifecycle is "unspent" -&gt; "pending" -&gt; "spent". For outbound, minted TXOs, we cannot monitor its received lifecycle status with respect to the minting account, we note its status as "secreted". If a TXO is received at an address unassigned \(likely due to a recovered account or using the account on another client\), the TXO is considered "orphaned" until its address is calculated -- in this case, there are manual ways to discover the missing assigned address for orphaned TXOs or to recover an entire account. |
-| `target_key` | string \(hex\) | A cryptographic key for this TXO. |
-| `public_key` | string \(hex\) | The public key for this TXO, can be used as an identifier to find the TXO in the ledger. |
-| `e_fog_hint` | string \(hex\) | The encrypted fog hint for this TXO. |
-| `subaddress_index` | string \(uint64\) | The assigned subaddress index for this TXO with respect to its received account. |
-| `assigned_address` | string \(uint64\) | The address corresponding to the subaddress index which was assigned as an intended sender for this TXO. |
-| `key_image` \(only on pending/spent\) | string \(hex\) | A fingerprint of the TXO derived from your private spend key materials, required to spend a TXO |
-| `confirmation` | string \(hex\) | A confirmation that the sender of the TXO can provide to validate that they participated in the construction of this TXO. |
-| `offset_count` | integer | The value to offset pagination requests. Requests will exclude all list items up to and including this object. |
+| `object` | 字符串，固定为 "txo" | 由字符串表示的对象类型。每个类型的 `object` 字段是固定的。 |
+| `value_pmob` | 字符串，内容为 64 位无符号整数 | 当前账户在当前 `account_block_index` 位置的可使用的 pico MOB。 在账户完成同步后本数值可能会发生变化。 |
+| `received_block_index` | 字符串，内容为 64 位无符号整数 | TXO 被接收的区块索引。 |
+| `spent_block_index` | 字符串，内容为 64 位无符号整数 | TXO 被使用（消费）的区块索引。 |
+| `is_spent_recovered` | 布尔型 | 指示 `spent_block_index` 是否被从账簿恢复。当 TXO 未被花费时未 `null`。 为 `true` 时，在没有用户输入的情况下一些信息（比如确认代码）可能不可用。|
+| `received_account_id` | 字符串 | 接收本 TXO 的账户的 `account_id`。该账户拥有使用本 TXO 的权力。 |
+| `minted_account_id` | 字符串 | 本 TXO 被铸（Mint）的账户的 `account_id`。 |
+| `account_status_map` | 散列表 | 一个规范化的从 `account_id` 到账户对象的散列映射。键值包括 "type" 和 "status"。 |
+| `txo_type` | 由字符串表示的枚举类型 | 对于当前账户，一个 TXO 可能为 "minted" 或 "received"。 |
+| `txo_status` | 由字符串表示的枚举类型  | 对于当前账户, 一个 TXO 可能为 "unspent", "pending", "spent", "secreted" 或 "orphaned"。 通过指定地址接收到的 TXO 的生命周期为："unspent" -&gt; "pending" -&gt; "spent"。 对于花出的 TXO，我们并不能监控其接收状态，因此记为 "secreted"。如果一个 TXO 是通过未分配的地址接收的（可能是由于账户信息恢复不完整导致），在对应的子地址被重新计算之前，TXO 的状态将为 "orphaned"，在这种情况下，您可以通过手动途径找回该子地址，或是恢复整个账户。 |
+| `target_key` | 字符串 \(hex\) | 本 TXO 的密码学键值。 A cryptographic key for this TXO. |
+| `public_key` | 字符串 \(hex\) | 本 TXO 的公钥，可以作为本 TXO 在账簿上的标识符。|
+| `e_fog_hint` | 字符串 \(hex\) | 本 TXO 的加密的雾信息（Fog hint）。  |
+| `subaddress_index` | 字符串，内容为 64 位无符号整数 | 为本 TXO 指定的接收方的子地址索引。|
+| `assigned_address` | 字符串，内容为 64 位无符号整数 | 为本 TXO 指定的发送方的地址。|
+| `key_image` \(只会出现在发送中/已花费 TXO 中\) | 字符串 \(hex\) | 从可花（Spend）私钥计算出的 TXO 指纹，是发送 TXO 的必要信息。|
+| `confirmation` | 字符串 \(hex\) | 发送者参与了 TXO 构造的证明。|
+| `offset_count` | 整型 | 请求的分页偏移量。请求将只会返回当前对象之后的内容（不包括当前对象）。 |
 
-## Example <a id="object_method"></a>
+## 示例 <a id="object_method"></a>
 
-### Received and Spent TXO
+### 接收的并已花费的 TXO
 
 ```text
 {
@@ -62,7 +60,7 @@ In order to construct a transaction, the wallet will select "Unspent Transaction
 }
 ```
 
-### TXO Spent Between Accounts in the Same Wallet
+### 在同一个钱包内的两个账户间花费的 TXO
 
 ```text
 {
