@@ -40,6 +40,7 @@ class CommandLineInterface:
 
         # Dispatch command.
         setattr(self, 'import', self.import_)  # Can't name a function "import".
+        command = command.translate(str.maketrans('-','_'))
         command_func = getattr(self, command)
         try:
             command_func(**args)
@@ -121,6 +122,7 @@ class CommandLineInterface:
         self.submit_args = command_sp.add_parser('submit', help='Submit a transaction proposal.')
         self.submit_args.add_argument('proposal', help='A tx_proposal.json file.')
         self.submit_args.add_argument('account_id', nargs='?', help='Source account ID. Only used for logging the transaction.')
+        self.submit_args.add_argument('--receipt', action='store_true', help='Also create a receiver receipt for the transaction.')
 
         # Address QR code.
         self.qr_args = command_sp.add_parser('qr', help='Show account address as a QR code')
@@ -461,8 +463,7 @@ class CommandLineInterface:
             return
 
         if build_only:
-            tombstone_block = int(balance['network_block_index']) + delay + MAX_TOMBSTONE_BLOCKS
-            tx_proposal = self.client.build_transaction(account_id, amount, to_address, tombstone_block)
+            tx_proposal = self.client.build_transaction(account_id, amount, to_address)
             path = Path('tx_proposal.json')
             if path.exists():
                 print(f'The file {path} already exists. Please rename the existing file and retry.')
@@ -483,7 +484,7 @@ class CommandLineInterface:
             _format_mob(pmob2mob(transaction_log['fee_pmob'])),
         ))
 
-    def submit(self, proposal, account_id=None):
+    def submit(self, proposal, account_id=None, receipt=False):
         if account_id is not None:
             account = self._load_account_prefix(account_id)
             account_id = account['account_id']
@@ -495,13 +496,25 @@ class CommandLineInterface:
         tombstone_block = int(tx_proposal['tx']['prefix']['tombstone_block'])
         network_status = self.client.get_network_status()
         lo = int(network_status['network_block_index']) + 1
-        hi = lo + MAX_TOMBSTONE_BLOCKS
+        hi = lo + MAX_TOMBSTONE_BLOCKS - 1
         if lo >= tombstone_block:
             print('This transaction has expired, and can no longer be submitted.')
             return
         if tombstone_block > hi:
             print('This transaction cannot be submitted yet. Wait for {} more blocks.'.format(
                 tombstone_block - hi))
+
+        # Generate a receipt for the transaction.
+        if receipt:
+            receipt = self.client.create_receiver_receipts(tx_proposal)
+            path = Path('receipt.json')
+            if path.exists():
+                print(f'The file {path} already exists. Please rename the existing file and retry.')
+                return
+            else:
+                with path.open('w') as f:
+                    json.dump(receipt, f, indent=2)
+                print(f'Wrote {path}')
 
         # Confirm and submit.
         if account_id is None:
