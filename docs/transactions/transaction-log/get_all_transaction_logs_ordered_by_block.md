@@ -1,15 +1,13 @@
 ---
-description: >-
-  Get the transaction logs, grouped by the finalized_block_index, in ascending
-  order.
+description: 获取全部的交易日志，以 `finalized_block_index` 升序排列。
 ---
 
-# Get All Transaction Logs Ordered By Block
+# 以区块顺序获取全部交易日志
 
-## Example
+## 示例
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
     "method": "get_all_transaction_logs_ordered_by_block",
@@ -19,7 +17,7 @@ description: >-
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "get_all_transaction_logs_ordered_by_block",

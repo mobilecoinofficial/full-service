@@ -1,19 +1,19 @@
 ---
-description: Get the JSON representation of the TXO object in the transaction log.
+description: 获取交易日志中 TXO 对象的 JSON 表示。
 ---
 
-# Get Transaction Object
+# 获取交易对象 
 
-## Parameters
+## 参数
 
-| Required Param | Purpose | Requirement |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `transaction_log_id` | The transaction log ID to get. | Transaction log must exist in the wallet. |
+| `transaction_log_id` | 要查询的交易日志 ID。 | 交易日志必须存在在钱包中。 |
 
-## Example
+## 示例
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "get_transaction_object",
@@ -26,7 +26,7 @@ description: Get the JSON representation of the TXO object in the transaction lo
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "get_transaction_object",

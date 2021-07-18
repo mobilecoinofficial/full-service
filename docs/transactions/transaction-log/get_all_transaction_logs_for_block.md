@@ -1,21 +1,21 @@
 ---
-description: Get all transaction logs for a given block.
+description: 获取一个指定区块的全部交易日志。
 ---
 
-# Get All Transaction Logs For Block
+# 获取区块的全部交易日志
 
-## Parameters
+## 参数
 
-| Required Param | Purpose | Requirements |
+| 参数 | 用途 | 说明|
 | :--- | :--- | :--- |
-| `block_index` | The block on which to perform this action. | Block must exist in the wallet. |
+| `block_index` | 要查询的区块。 | 区块必须存在在钱包中。 |
 
-## Example
+## 示例
 
-In the below example, the account in the wallet sent a transaction to itself. Therefore, there is one sent `transaction_log` in the block, and two received \(one for the change, and one for the output TXO sent to the same account that constructed the transaction\).
+如下例子中的账户给自己发送了一笔交易，因此在该区块中有一个 `sent` 日志（`ff1c85e7a488c2821110597ba75db30d913bb1595de549f83c6e8c56b06d70d1`）和两个 `received` 日志（一个是给发送方的找零：`58729797de0929eed37acb45225d3631235933b709c00015f46bfc002d5754fc`，一个是发送到接收方的转账：`243494a0030bcbac40e87670b9288834047ef0727bcc6630a2fe2799439879ab`）。
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "get_all_transaction_logs_for_block",
@@ -28,7 +28,7 @@ In the below example, the account in the wallet sent a transaction to itself. Th
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "get_all_transaction_logs_for_block",

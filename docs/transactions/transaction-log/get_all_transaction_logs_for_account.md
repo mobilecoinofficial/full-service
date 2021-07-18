@@ -1,19 +1,19 @@
 ---
-description: Get all transaction logs for a given account.
+description: 获取一个指定账户的全部交易日志。
 ---
 
-# Get All Transaction Logs For Account
+# 获取账户的全部交易日志
 
-## Parameters
+## 参数
 
-| Required Param | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+| `account_id` | 要查询的账户。 | 账户必须存在在钱包中。 |
 
-## Example
+## 示例
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "get_all_transaction_logs_for_account",
@@ -26,7 +26,7 @@ description: Get all transaction logs for a given account.
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "get_all_transaction_logs_for_account",
