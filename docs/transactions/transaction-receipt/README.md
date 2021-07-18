@@ -1,22 +1,20 @@
 ---
-description: >-
-  A receiver receipt contains the confirmation number and recipients can poll
-  the receiver receipt for the status of the transaction.
+description: 交易收据包含了确认编码，收款方可以通过收据来查询交易状态。
 ---
 
-# Receiver Receipt
+# 交易收据
 
-## Attributes
+## 属性
 
-| _Name_ | _Type_ | _Description_ |
+| 属性 | 类型 | 说明 |
 | :--- | :--- | :--- |
-| `object` | string, value is "receiver\_receipt" | String representing the object's type. Objects of the same type share the same value. |
-| `public_key` | string | Hex-encoded public key for the TXO. |
-| `tombstone_block` | string | The block index after which this TXO would be rejected by consensus. |
-| `confirmation` | string | Hex-encoded confirmation that can be validated to confirm that another party constructed or had knowledge of the construction of the associated TXO. |
-| `amount` | string | The encrypted amount in the TXO referenced by this receipt. |
+| `object` | 字符串，固定为 "receiver\_receipt"  | 由字符串表示的对象类型。每个类型的 `object` 字段是固定的。 |
+| `public_key` | 字符串 | 16 进制编码的 TXO 的公钥。 |
+| `tombstone_block` | 字符串 | TXO 的有效期（在区块链高度大于此指定区块后当前 TXO 将会被共识系统拒绝）。|
+| `confirmation` | 字符串 | 16 进制编码的确认信息，可以用来验证交易的另一方参与了该 TXO 的构建。 |
+| `amount` | 字符串 | 此收据所指向的 TXO 的总值。 |
 
-## Example
+## 示例
 
 ```text
 {

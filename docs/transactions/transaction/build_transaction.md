@@ -9,11 +9,11 @@ description: 构建可以被确认并提交的交易草案（tx_proposal）。
 | 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
 | `account_id` | 用来构建交易的账户。 | 指定的账户必须存在在钱包中。 |
+| `recipient_public_address` | 当笔交易的收取方。| 字节形式的经 Base 58 编码的公共地址 |
+| `value_pmob` | 当笔交易要发送的 MOB 数额。 | 单位是 pmob  |
 
 | 可选参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `recipient_public_address` | 当笔交易的收取方。| 字节形式的经 Base 58 编码的公共地址 |
-| `value_pmob` | 当笔交易要发送的 MOB 数额。 | 单位是 pmob  |
 | `addresses_and_values` | 一个由公共地址和 MOB 数额二元组构成的数组。| 地址和数额的形式和上述两个字段一致 |
 | `input_txo_ids` | 指定当笔交易内要发送的 MOB （TXO） ID。 | TXO ID \(通过 `get_all_txos_for_account` 获取\) |
 | `fee` | 当笔交易的手续费 | 默认值 `MINIMUM_FEE` = .01 MOB |
@@ -229,19 +229,21 @@ description: 构建可以被确认并提交的交易草案（tx_proposal）。
 {% endtabs %}
 
 {% hint style="info" %}
-由于交易草案的 JSON 对象比较大，把它写入一个文件用来通过 `submit_transaction` 提交是一个可行的途径。
+由于交易草案的 JSON 对象比较大，把它写入一个文件用来通过 `submit_transaction` 提交是一个可行的途径，比如：
 
 ```text
-{
-  "method": "build_transaction",
-  "params": {
-    "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
-    "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-    "value_pmob": "42000000000000"
-  },
-  "jsonrpc": "2.0",
-  "id": 1
-}
+curl -s localhost:9090/wallet \
+  -d '{
+        "method": "build_transaction",
+        "params": {
+          "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
+          "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+          "value_pmob": "42000000000000"
+        },
+        "jsonrpc": "2.0",
+        "id": 1
+      }' \
+  -X POST -H 'Content-type: application/json' | jq -c '.result | .tx_proposal' > test-tx-proposal.json
 ```
 {% endhint %}
 

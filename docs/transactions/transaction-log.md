@@ -22,9 +22,9 @@ description: 交易日志记录了在钱包内构造并发送以及被钱包内�
 | `submitted_block_index` | 字符串 \(uint64\) | 当交易被提交时网络上的最高的区块高度。 |
 | `finalized_block_index` | 字符串 \(uint64\) | 交易被记录在区块网络上的区块索引。 |
 | `status` | 字符串 | 表示交易状态的字符串。当交易是发出的时，全部有效的状态为： "built"， "pending"， "succeeded" 或 "failed"。当交易是接收的时，状态为 "succeeded"。 |
-| `input_txo_ids` | 列表 | 交易输入的 TXO ID 列表。 |
-| `output_txo_ids` | 列表 | 交易输出的 TXO ID 列表。  |
-| `change_txo_ids` | 列表 | 在该交易中产生的找零 TXO ID 列表。 |
+| `input_txo_ids` | TxoAbbrev 列表 | 交易输入的 TXO ID 列表。 |
+| `output_txo_ids` | TxoAbbrev 列表 | 交易输出的 TXO ID 列表。  |
+| `change_txo_ids` | TxoAbbrev 列表 | 在该交易中产生的找零 TXO ID 列表。 |
 | `sent_time` | 时间戳 | 交易日志被创建的时间戳。只有交易是发送的时有效。当交易为接收的，或是交易被从账簿上恢复时（`is_sent_recovered = true`）为 null。|
 | `comment` | 字符串 | 对象附带的任意字符串。 |
 | `failure_code` | 整数 | "failed" 状态的错误码。 |

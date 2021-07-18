@@ -1,13 +1,13 @@
 ---
-description: Check the status of a receiver receipt.
+description: 检查一个收据的状态。
 ---
 
-# Check Receiver Receipt Status
+# 检查收据状态
 
-## Example
+## 示例
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
 {
   "method": "check_receiver_receipt_status",
@@ -31,7 +31,7 @@ description: Check the status of a receiver receipt.
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "check_receiver_receipt_status",

@@ -10,34 +10,35 @@ description: MobileCoin 的交易包括了用来给收款方构造新的 TXO 的
 
 ### 交易日志
 
-| Name | Type | Description |
+| 属性 | 类型 | 说明 |
 | :--- | :--- | :--- |
-| object | string | String representing the object's type. Objects of the same type share the same value |
-| `transaction_log_id` | string | Unique identifier for the transaction log. This value is not associated to the ledger |
-| `direction` | string | A string that identifies if this transaction log was sent or received. Valid values are "sent" or "received" |
-| `is_sent_recovered` | bool \(optional\) | Flag that indicates if the sent transaction log was recovered from the ledger. This is "null" for received transaction logs. If true, some information may not be available on the transaction log and its txos without user input. |
-| `account_id` | string | Unique identifier for the assigned associated account. If the transaction is outgoing, this account is from whence the txo came. If received, this is the receiving account. |
-| `input_txos` | \[TxoAbbrev\] | A list of txos which were inputs to this transaction |
-| `output_txos` | \[TxoAbbrev\] | A list of txos which were outputs to this transaction |
-| `change_txos` | \[TxoAbbrev\] | A list of txos which were change in this transaction |
-| `assigned_address_id` | string \(optional\) | Unique identifier for the assigned associated account. Only available if direction is "received" |
-| `value_pmob` | string \(optional\) | Value in pico MOB associated to this transaction log |
-| `fee_pmob` | string \(optional\) | Fee in pico MOB associated to this transaction log. Only on outgoing transaction log . Only available if direction is "sent" |
-| `submitted_block_index` | string \(optional\) | The block index of the highest block on the network at the time the transaction was submitted |
-| `finalized_block_index` | string \(optional\) | The scanned block index in which this transaction occurred |
-| `status` | string | String representing the transaction log status. On `send`, valid statuses are `built`, `pending`, `succeeded`, `failed`. On `received`, the status is `succeeded`. |
-| `sent_time` | string \(optional\) | Time at which sent transaction log was created. Only available if direction is `sent`. This value is `null` if received or if the sent transactions were recovered from the ledger`is_sent_recovered = true` |
-| `comment` | string | An arbitrary string attached to the object |
-| `failure_code` | i32 \(optional\) | Code representing the cause of `failed` status |
-| `failure_message` | string \(optional\) | Human parsable explanation of `failed` status |
+| `object` | 字符串，固定为  "transaction\_log" | 由字符串表示的对象类型。每个类型的 `object` 字段是固定的。 |
+| `transaction_log_id` | 整数 | 交易日志的唯一标识符。该标识符与账簿无关。 |
+| `direction` | 字符串 | 标记交易日志的来源，为接收（"received"）或发送（"sent"）。 |
+| `is_sent_recovered` | 布尔型 | 指示一个发送的交易是否被从账簿上恢复。如果一个交易是被钱包接收的，本字段为 null。当本字段为真时，在没有用户输入的情况下，一些信息在交易日志和该交易的 TXOs 上可能会不可用，而且字段 `receipient_address_id`，`fee` 和 `sent_time` 在没有用户输入的情况下会为 null。 |
+| `account_id` | 字符串 | 与交易关联的账户 ID。如果交易是发出的，那么本字段为 TXO 的来源；如果交易是接收的，那么本字段为接收交易的账户。 |
+| `recipient_address_id` | 字符串 | 与交易关联的接收方账户，只有当该交易为发送的交易时有效。 |
+| `assigned_address_id` | 字符串 | 与交易关联的指定账户，只有当该交易为接收的交易时有效。 |
+| `value_pmob` | 字符串 \(uint64\) | 交易日志对应的交易价值。单位为 Pico Mob。 |
+| `fee_pmob` | 字符串 \(uint64\) | 交易日志对应的交易手续费，只有当该交易为发送的交易时有效。单位为 Pico Mob。|
+| `submitted_block_index` | 字符串 \(uint64\) | 当交易被提交时网络上的最高的区块高度。 |
+| `finalized_block_index` | 字符串 \(uint64\) | 交易被记录在区块网络上的区块索引。 |
+| `status` | 字符串 | 表示交易状态的字符串。当交易是发出的时，全部有效的状态为： "built"， "pending"， "succeeded" 或 "failed"。当交易是接收的时，状态为 "succeeded"。 |
+| `input_txo_ids` | TxoAbbrev 列表 | 交易输入的 TXO ID 列表。 |
+| `output_txo_ids` | TxoAbbrev 列表 | 交易输出的 TXO ID 列表。  |
+| `change_txo_ids` | TxoAbbrev 列表 | 在该交易中产生的找零 TXO ID 列表。 |
+| `sent_time` | 时间戳 | 交易日志被创建的时间戳。只有交易是发送的时有效。当交易为接收的，或是交易被从账簿上恢复时（`is_sent_recovered = true`）为 null。|
+| `comment` | 字符串 | 对象附带的任意字符串。 |
+| `failure_code` | 整数 | "failed" 状态的错误码。 |
+| `failure_message` | 字符串 | 人类可读的 "failed" 状态解释。 |
 
 ### TxoAbbrev
 
-| Name | Type | Description |
+| 属性 | 类型 | 说明 |
 | :--- | :--- | :--- |
-| `txo_id_hex` | string | Unique identifier for the txo |
-| `recipient_address_id` | string | Unique identifier for the recipient associated account. Blank unless direction is `sent` |
-| `value_pmob` | string | Available pico MOB for this Txo. If the account is syncing, this value may change |
+| `txo_id_hex` | 字符串 | TXO 的唯一标识符。|
+| `recipient_address_id` | 字符串 | 接收方的账户。只有当交易为发送时才生效。|
+| `value_pmob` | 字符串 | 本 TXO 的价值，单位为 Pico Mob。如果账户尚未完全同步，本字段可能会发生变化。|
 
 ## Example
 

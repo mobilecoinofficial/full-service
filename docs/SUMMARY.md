@@ -1,79 +1,79 @@
-# Table of contents
+# 目录
 
-* [Welcome!](README.md)
+* [欢迎！](README.md)
 
-## Accounts
+## 账户
 
-* [Account](accounts/account/README.md)
-  * [Create Account](accounts/account/create_account.md)
-  * [Import Account](accounts/account/import_account.md)
-  * [Import Account Legacy](accounts/account/import_account_from_legacy_root_entropy-deprecated.md)
-  * [Get Account](accounts/account/get_account.md)
-  * [Get All Accounts](accounts/account/get_all_accounts.md)
-  * [Get Account Status](accounts/account/get_account_status.md)
-  * [Update Account Name](accounts/account/update_account_name.md)
-  * [Remove Account](accounts/account/remove_account.md)
-* [Account Secrets](accounts/account-secrets/README.md)
-  * [Export Account Secrets](accounts/account-secrets/export_account_secrets.md)
-* [Address](accounts/address/README.md)
-  * [Assign Address For Account](accounts/address/assign_address_for_account.md)
-  * [Get All Addresses For Account](accounts/address/get_all_addresses_for_account.md)
-  * [Verify Address](accounts/address/verify_address.md)
-* [Balance](accounts/balance/README.md)
-  * [Get Balance For Account](accounts/balance/get_balance_for_account.md)
-  * [Get Balance For Address](accounts/balance/get_balance_for_address.md)
+* [账户](accounts/account/README.md)
+  * [创建账户](accounts/account/create_account.md)
+  * [导入账户](accounts/account/import_account.md)
+  * [导入账户（旧版）](accounts/account/import_account_from_legacy_root_entropy-deprecated.md)
+  * [获取账户](accounts/account/get_account.md)
+  * [获取全部账户](accounts/account/get_all_accounts.md)
+  * [获取账户状态](accounts/account/get_account_status.md)
+  * [更改账户名](accounts/account/update_account_name.md)
+  * [移除账户](accounts/account/remove_account.md)
+* [账户密钥](accounts/account-secrets/README.md)
+  * [导出账户密钥](accounts/account-secrets/export_account_secrets.md)
+* [账户地址](accounts/address/README.md)
+  * [为账户分配地址](accounts/address/assign_address_for_account.md)
+  * [获取账户的全部地址](accounts/address/get_all_addresses_for_account.md)
+  * [验证地址](accounts/address/verify_address.md)
+* [余额](accounts/balance/README.md)
+  * [获取账户余额](accounts/balance/get_balance_for_account.md)
+  * [获取地址余额](accounts/balance/get_balance_for_address.md)
 
-## Transactions
+## 交易
 
-* [Transaction](transactions/transaction/README.md)
-  * [Build Transaction](transactions/transaction/build_transaction.md)
-  * [Submit Transaction](transactions/transaction/submit_transaction.md)
-  * [Build And Submit Transaction](transactions/transaction/build_and_submit_transaction.md)
-  * [Build Split Txo Transaction](transactions/transaction/build_split_txo_transaction.md)
-* [Transaction Output TXO](transactions/txo/README.md)
-  * [Get TXO](transactions/txo/get_txo.md)
-  * [Get TXOs For Account](transactions/txo/get-txos-for-account.md)
-  * [Get All TXOs For Account](transactions/txo/get_all_txos_for_account.md)
-  * [Get All TXOs For Address](transactions/txo/get_txo_object.md)
-* [Confirmation](transactions/transaction-confirmation/README.md)
-  * [Get Confirmations](transactions/transaction-confirmation/get_confirmations.md)
-  * [Validate Confirmations](transactions/transaction-confirmation/validate_confirmation.md)
-* [Receiver Receipt](transactions/transaction-receipt/README.md)
-  * [Check Receiver Receipt Status](transactions/transaction-receipt/check_receiver_receipt_status.md)
-  * [Create Receiver Receipts](transactions/transaction-receipt/create_receiver_receipts.md)
-* [Transaction Log](transactions/transaction-log/README.md)
-  * [Get Transaction Object](transactions/transaction-log/get_transaction_object.md)
-  * [Get Transaction Log](transactions/transaction-log/get_transaction_log.md)
-  * [Get All Transaction Logs For Account](transactions/transaction-log/get_all_transaction_logs_for_account.md)
-  * [Get All Transaction Logs For Block](transactions/transaction-log/get_all_transaction_logs_for_block.md)
-  * [Get All Transaction Logs Ordered By Block](transactions/transaction-log/get_all_transaction_logs_ordered_by_block.md)
-* [Payment Request](transactions/payment-request/README.md)
-  * [Create Payment Request](transactions/payment-request/create_payment_request.md)
-  * [Check B58 Type](transactions/payment-request/check_b58_type.md)
+* [交易](transactions/transaction/README.md)
+  * [创建交易](transactions/transaction/build_transaction.md)
+  * [提交交易](transactions/transaction/submit_transaction.md)
+  * [创建并提交交易](transactions/transaction/build_and_submit_transaction.md)
+  * [创建 TXO 拆分交易](transactions/transaction/build_split_txo_transaction.md)
+* [交易输出 TXO](transactions/txo/README.md)
+  * [获取 TXO](transactions/txo/get_txo.md)
+  * [获取账户的 TXO](transactions/txo/get-txos-for-account.md)
+  * [获取账户的全部 TXO](transactions/txo/get_all_txos_for_account.md)
+  * [获取地址的全部 TXO](transactions/txo/get_txo_object.md)
+* [确认编码](transactions/transaction-confirmation/README.md)
+  * [获取确认编码](transactions/transaction-confirmation/get_confirmations.md)
+  * [验证确认编码](transactions/transaction-confirmation/validate_confirmation.md)
+* [交易收据](transactions/transaction-receipt/README.md)
+  * [检查收据状态](transactions/transaction-receipt/check_receiver_receipt_status.md)
+  * [创建收据](transactions/transaction-receipt/create_receiver_receipts.md)
+* [交易日志](transactions/transaction-log/README.md)
+  * [获取交易对象](transactions/transaction-log/get_transaction_object.md)
+  * [获取交易日志](transactions/transaction-log/get_transaction_log.md)
+  * [获取账户的全部交易](transactions/transaction-log/get_all_transaction_logs_for_account.md)
+  * [获取区块的全部交易](transactions/transaction-log/get_all_transaction_logs_for_block.md)
+  * [以区块顺序获取全部交易](transactions/transaction-log/get_all_transaction_logs_ordered_by_block.md)
+* [支付请求](transactions/payment-request/README.md)
+  * [创建支付请求](transactions/payment-request/create_payment_request.md)
+  * [检查 B58 类型](transactions/payment-request/check_b58_type.md)
 
-## Wallet
+## 钱包
 
-* [Wallet Status](wallet/wallet-status/README.md)
-  * [Get Wallet Status](wallet/wallet-status/get_wallet_status.md)
+* [钱包状态](wallet/wallet-status/README.md)
+  * [获取钱包状态](wallet/wallet-status/get_wallet_status.md)
 
-## Ledger
+## 账簿
 
-* [Block](ledger/block/README.md)
-  * [Get Block](ledger/block/get_block.md)
+* [区块](ledger/block/README.md)
+  * [获取区块](ledger/block/get_block.md)
 
-## Gift Codes
+## 红包
 
-* [Gift Code](gift-codes/gift-code/README.md)
-  * [Build Gift Code](gift-codes/gift-code/build_gift_code.md)
-  * [Submit Gift Code](gift-codes/gift-code/submit_gift_code.md)
-  * [Get Gift Code](gift-codes/gift-code/get_gift_code.md)
-  * [Get All Gift Codes](gift-codes/gift-code/get_all_gift_codes.md)
-  * [Check Gift Code Status](gift-codes/gift-code/check_gift_code_status.md)
-  * [Claim Gift Code](gift-codes/gift-code/claim_gift_code.md)
-  * [Remove Gift Code](gift-codes/gift-code/remove_gift_code.md)
+* [红包](gift-codes/gift-code/README.md)
+  * [构建红包](gift-codes/gift-code/build_gift_code.md)
+  * [提交红包](gift-codes/gift-code/submit_gift_code.md)
+  * [获取红包](gift-codes/gift-code/get_gift_code.md)
+  * [获取全部红包](gift-codes/gift-code/get_all_gift_codes.md)
+  * [检查红包状态](gift-codes/gift-code/check_gift_code_status.md)
+  * [打开红包](gift-codes/gift-code/claim_gift_code.md)
+  * [移除红包](gift-codes/gift-code/remove_gift_code.md)
 
-## Tutorials
+## 教程
 
-* [Environment Setup](tutorials/environment-setup.md)
-* [Run Full Service](tutorials/recieve-mob.md)
+* [环境搭建](tutorials/environment-setup.md)
+* [运行 Full Service](tutorials/recieve-mob.md)
 

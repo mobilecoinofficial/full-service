@@ -1,36 +1,32 @@
 ---
-description: >-
-  After building a tx_proposal, you can get the receipts for that transaction
-  and provide it to the recipient so they can poll for the transaction status.
+description: 在构建了交易提案（`tx_proposal`）后，您可以生成该交易对应的收据并提供给收款方，这样对方就可以通过收据来查询交易的状态。
 ---
 
-# Create Receiver Receipts
+# 创建收据
 
-## Parameters
+## 参数
 
-| Required Param | Purpose | Description |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
 | `tx_proposal` |  |  |
 
-## Example
+## 示例
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
-curl -s localhost:9090/wallet \
-  -d '{
-        "method": "create_receiver_receipts",
-        "params": {
-          "tx_proposal": '$(cat tx_proposal.json)',
-        },
-        "jsonrpc": "2.0",
-        "id": 1
-      }' \
-  -X POST -H 'Content-type: application/json' | jq
+{
+  "method": "create_receiver_receipts",
+  "params": {
+    "tx_proposal": '$(cat tx_proposal.json)',
+  },
+  "jsonrpc": "2.0",
+  "id": 1
+}
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "create_receiver_receipts",

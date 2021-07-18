@@ -1,51 +1,48 @@
 ---
-description: >-
-  A MobileCoin Transaction consists of inputs which are spent in order to mint
-  new outputs for the recipient.
+description: MobileCoin 的交易包括了用来给收款方构造新的 TXO 的被消费的输入。
 ---
 
-# Transaction
+# 交易
 
-Due to the privacy properties of the MobileCoin ledger, Transactions are ephemeral. Once they have been created, they only exist until they are validated, and then only the outputs are written to the ledger. For this reason, the Full Service wallet stores Transactions in the `transaction_log` table in order to preserve transaction history.
+基于 MobileCoin 的隐私属性，交易的存在时间很短。当一个交易被创建后，它在被验证后就会被销毁，只有交易输出会被写入到账簿上。因此，Full Service 把交易存储在 `transaction_log` 表中用来记录交易历史。
 
-## Methods
+## 方法
 
 ### `build_transaction`
 
-Build a transaction to confirm its contents before submitting it to the network.
+构建可以被确认并提交的交易草案（tx_proposal）。
 
-| Required Param | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action | Account must exist in the wallet |
-| `recipient_public_address` | The recipient for this transaction | b58-encoded public address bytes |
-| `value_pmob` | The amount of MOB to send in this transaction |  |
+| `account_id` | 用来构建交易的账户。 | 指定的账户必须存在在钱包中。 |
+| `recipient_public_address` | 当笔交易的收取方。| 字节形式的经 Base 58 编码的公共地址 |
+| `value_pmob` | 当笔交易要发送的 MOB 数额。 | 单位是 pmob  |
 
-| Optional Param | Purpose | Requirements |
+| 可选参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `input_txo_ids` | Specific TXOs to use as inputs to this transaction | TXO IDs \(obtain from `get_all_txos_for_account`\) |
-| `fee` | The fee amount to submit with this transaction | If not provided, uses `MINIMUM_FEE` = .01 MOB |
-| `tombstone_block` | The block after which this transaction expires | If not provided, uses `cur_height` + 50 |
-| `max_spendable_value` | The maximum amount for an input TXO selected for this transaction |  |
+| `addresses_and_values` | 一个由公共地址和 MOB 数额二元组构成的数组。| 地址和数额的形式和上述两个字段一致 |
+| `input_txo_ids` | 指定当笔交易内要发送的 MOB （TXO） ID。 | TXO ID \(通过 `get_all_txos_for_account` 获取\) |
+| `fee` | 当笔交易的手续费 | 默认值 `MINIMUM_FEE` = .01 MOB |
+| `tombstone_block` | 当笔交易的失效期（区块高度） | 默认值为当前区块高度 + 50 |
+| `max_spendable_value` | 会被选入当笔交易的 TXO 的最大金额。|  |
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
-curl -s localhost:9090/wallet \
-  -d '{
-        "method": "build_transaction",
-        "params": {
-          "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
-          "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-          "value_pmob": "42000000000000"
-        },
-        "jsonrpc": "2.0",
-        "id": 1
-      }' \
-  -X POST -H 'Content-type: application/json' | jq
+{
+  "method": "build_transaction",
+  "params": {
+    "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
+    "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+    "value_pmob": "42000000000000"
+  },
+  "jsonrpc": "2.0",
+  "id": 1
+}
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "build_transaction",
@@ -236,7 +233,7 @@ curl -s localhost:9090/wallet \
 {% endtabs %}
 
 {% hint style="info" %}
-Since the `tx_proposal`JSON object is quite large, you may wish to write the result to a file for use in the `submit_transaction` call, such as:
+由于交易草案的 JSON 对象比较大，把它写入一个文件用来通过 `submit_transaction` 提交是一个可行的途径，比如：
 
 ```text
 curl -s localhost:9090/wallet \
@@ -256,37 +253,35 @@ curl -s localhost:9090/wallet \
 
 ### `submit_transaction`
 
-Submit a transaction for an account with or without recording it in the transaction log.
+提交一笔交易并选择是否记录该交易日志。
 
-| Required Param | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `tx_proposal` | Transaction proposal to submit | Created with `build_transaction` |
+| `tx_proposal` | 要提交的交易草案 | 通过 `build_transaction` 构建 |
 
-| Optional Param | Purpose | Requirements |
+| 可选参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `account_id` | Account ID for which to log the transaction. If omitted, the transaction is not logged. |  |
-| `comment` | Comment to annotate this transaction in the transaction log |  |
+| `account_id` | 用来记录交易日志的账户 ID。如果留空则不会记录该笔交易。 |  |
+| `comment` | 在交易日志中标记当笔交易的备注。 |  |
 
-#### Example with Log
+#### 提交并记录交易日志
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
-curl -s localhost:9090/wallet \
-  -d '{
-        "method": "submit_transaction",
-        "params": {
-          "tx_proposal": '$(cat test-tx-proposal.json)',
-          "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
-        },
-        "jsonrpc": "2.0",
-        "id": 1
-      }' \
-  -X POST -H 'Content-type: application/json'
+{
+  "method": "submit_transaction",
+  "params": {
+    "tx_proposal": '$(cat test-tx-proposal.json)',
+    "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
+  },
+  "jsonrpc": "2.0",
+  "id": 1
+}
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "submit_transaction",
@@ -328,29 +323,23 @@ curl -s localhost:9090/wallet \
 {% endtab %}
 {% endtabs %}
 
-#### Example without Log
+#### 提交并不记录交易日志
 
 {% tabs %}
-{% tab title="Request Body" %}
-
-
+{% tab title="请求内容" %}
 ```text
-curl -s localhost:9090/wallet \
-  -d '{
-        "method": "submit_transaction",
-        "params": {
-          "tx_proposal": '$(cat test-tx-proposal.json)'
-        },
-        "jsonrpc": "2.0",
-        "id": 1
-      }' \
-  -X POST -H 'Content-type: application/json'
+{
+  "method": "submit_transaction",
+  "params": {
+    "tx_proposal": '$(cat test-tx-proposal.json)'
+  },
+  "jsonrpc": "2.0",
+  "id": 1
+}
 ```
 {% endtab %}
 
-{% tab title="Response" %}
-
-
+{% tab title="返回" %}
 ```text
 {
   "method": "submit_transaction",
@@ -367,41 +356,40 @@ curl -s localhost:9090/wallet \
 
 ### `build_and_submit_transaction`
 
-Sending a transaction is a convenience method that first builds and then submits a transaction.
+一个同时进行构建交易和提交交易的便利方法。
 
-| Required Param | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action | Account must exist in the wallet |
-| `recipient_public_address` | The recipient for this transaction | b58-encoded public address bytes |
-| `value_pmob` | The amount of MOB to send in this transaction |  |
+| `account_id` | 用来构建并提交交易的账户。 | 指定的账户必须存在在钱包中。 |
+| `recipient_public_address` | 当笔交易的收取方。| 字节形式的经 Base 58 编码的公共地址 |
+| `value_pmob` | 当笔交易要发送的 MOB 数额。 | 单位是 pmob  |
 
-| Optional Param | Purpose | Requirements |
+| 可选参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `input_txo_ids` | Specific TXOs to use as inputs to this transaction | TXO IDs \(obtain from `get_all_txos_for_account`\) |
-| `fee` | The fee amount to submit with this transaction | If not provided, uses `MINIMUM_FEE` = .01 MOB |
-| `tombstone_block` | The block after which this transaction expires | If not provided, uses `cur_height` + 50 |
-| `max_spendable_value` | The maximum amount for an input TXO selected for this transaction |  |
-| `comment` | Comment to annotate this transaction in the transaction log |  |
+| `addresses_and_values` | 一个由公共地址和 MOB 数额二元组构成的数组。| 地址和数额的形式和上述两个字段一致 |
+| `input_txo_ids` | 指定当笔交易内要发送的 MOB （TXO） ID。 | TXO ID \(通过 `get_all_txos_for_account` 获取\) |
+| `fee` | 当笔交易的手续费 | 默认值 `MINIMUM_FEE` = .01 MOB |
+| `tombstone_block` | 当笔交易的失效期（区块高度） | 默认值为当前区块高度 + 50 |
+| `max_spendable_value` | 会被选入当笔交易的 TXO 的最大金额。|  |
+| `comment` | 在交易日志中标记当笔交易的备注。 |  |
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
-curl -s localhost:9090/wallet \
-  -d '{
-        "method": "build_and_submit_transaction",
-        "params": {
-          "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
-          "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-          "value_pmob": "42000000000000"
-        },
-        "jsonrpc": "2.0",
-        "id": 1
-      }' \
-  -X POST -H 'Content-type: application/json' | jq
+{
+  "method": "build_and_submit_transaction",
+  "params": {
+    "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
+    "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+    "value_pmob": "42000000000000"
+  },
+  "jsonrpc": "2.0",
+  "id": 1
+}
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "build_and_submit_transaction",
@@ -444,7 +432,7 @@ curl -s localhost:9090/wallet \
 {% endtabs %}
 
 {% hint style="warning" %}
-`If an account is not fully-synced, you may see the following error message:`
+`如果账户没有完全同步，您可能会看到如下错误信息：`
 
 ```text
 {
@@ -452,6 +440,6 @@ curl -s localhost:9090/wallet \
 }
 ```
 
-Call `check_balance` for the account, and note the `synced_blocks` value. If that value is less than the `local_block_index` value, then your TXOs may not all be updated to their spent status.
+调用 `check_balance` 来查看该账户的余额并注意 `synced_blocked` 字段。如果该值小于 `local_block_index` 字段，那么您所持有的 MOB 状态可能并没有完全同步。
 {% endhint %}
 

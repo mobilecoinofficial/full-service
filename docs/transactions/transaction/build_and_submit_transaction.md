@@ -1,6 +1,5 @@
 ---
-description: >-
-  一个同时进行构建交易和提交交易的便利方法。
+description: 一个同时进行构建交易和提交交易的便利方法。
 ---
 
 # 构建并提交交易
@@ -10,11 +9,11 @@ description: >-
 | 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
 | `account_id` | 用来构建并提交交易的账户。 | 指定的账户必须存在在钱包中。 |
+| `recipient_public_address` | 当笔交易的收取方。| 字节形式的经 Base 58 编码的公共地址 |
+| `value_pmob` | 当笔交易要发送的 MOB 数额。 | 单位是 pmob  |
 
 | 可选参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `recipient_public_address` | 当笔交易的收取方。| 字节形式的经 Base 58 编码的公共地址 |
-| `value_pmob` | 当笔交易要发送的 MOB 数额。 | 单位是 pmob  |
 | `addresses_and_values` | 一个由公共地址和 MOB 数额二元组构成的数组。| 地址和数额的形式和上述两个字段一致 |
 | `input_txo_ids` | 指定当笔交易内要发送的 MOB （TXO） ID。 | TXO ID \(通过 `get_all_txos_for_account` 获取\) |
 | `fee` | 当笔交易的手续费 | 默认值 `MINIMUM_FEE` = .01 MOB |

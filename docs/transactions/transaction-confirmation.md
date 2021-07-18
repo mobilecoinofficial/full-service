@@ -1,23 +1,21 @@
 ---
-description: >-
-  When constructing a transaction, the wallet produces a "confirmation number"
-  for each TXO minted by the transaction.
+description: 钱包在构建 TXO 时会生成一个确认编码。
 ---
 
-# Confirmation
+# 确认编码
 
-The confirmation number can be delivered to the recipient to prove that they received the TXO from that particular sender.
+确认编码可以由发送方提供给接收方以证明一个 TXO 确实是由发送方发出的。
 
-## Attributes
+## 属性
 
-| _Name_ | _Type_ | _Description_ |
+| 属性 | 类型 | 说明 |
 | :--- | :--- | :--- |
-| `object` | String, value is "confirmation" | String representing the object's type. Objects of the same type share the same value. |
-| `txo_id` | String | Unique identifier for the TXO. |
-| `txo_index` | String | The index of the TXO in the ledger. |
-| `confirmation` | String | A string with a confirmation number that can be validated to confirm that another party constructed or had knowledge of the construction of the associated TXO. |
+| `object` | 字符串，固定为 "confirmation" | 由字符串表示的对象类型。每个类型的 `object` 字段是固定的。 |
+| `txo_id` | 字符串 | TXO 的唯一标识符。 |
+| `txo_index` | 字符串 | TXO 在账簿上的索引。 |
+| `confirmation` | 字符串 | 一个包含确认编码的字符串，可以被验证以证明交易的另一方确实参与了该 TXO 的构造。 |
 
-## Example
+## 示例
 
 ```text
 {
@@ -28,33 +26,32 @@ The confirmation number can be delivered to the recipient to prove that they rec
 }
 ```
 
-## Methods
+## 方法
 
 ### `get_confirmations`
 
-A TXO constructed by this wallet will contain a confirmation number, which can be shared with the recipient to verify the association between the sender and this TXO. When calling `get_confirmations` for a transaction, only the confirmation numbers for the `output_txo_ids` are returned.
+由钱包构建的 TXO 会包括一个确认编码，可以由发送方分享给接收方，接收方可以据此确认 TXO 和发送方的关联。
+当调用 `get_confirmations` 时，系统只会返回对应的确认编码（而不会包括其他的交易细节）。
 
-| Param | Purpose | Requirements |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `transaction_log_id` | The transaction log ID for which to get confirmation numbers. | The transaction log must exist in the wallet. |
+| `transaction_log_id` | 需要获取确认编码的交易日志 ID。| 该交易日志必须存在在钱包内。|
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
-curl -s localhost:9090/wallet \
-  -d '{
-        "method": "get_confirmations",
-        "params": {
-          "transaction_log_id": "0db5ac892ed796bb11e52d3842f83c05f4993f2f9d7da5fc9f40c8628c7859a4"
-        },
-        "jsonrpc": "2.0",
-        "id": 1
-      }' \
-  -X POST -H 'Content-type: application/json' | jq
+{
+  "method": "get_confirmations",
+  "params": {
+    "transaction_log_id": "0db5ac892ed796bb11e52d3842f83c05f4993f2f9d7da5fc9f40c8628c7859a4"
+  },
+  "jsonrpc": "2.0",
+  "id": 1
+}
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "get_confirmations",
@@ -78,33 +75,32 @@ curl -s localhost:9090/wallet \
 
 ### `validate_confirmation`
 
-A sender can provide the confirmation numbers from a transaction to the recipient, who then verifies for a specific TXO ID \(note that TXO ID is specific to the TXO, and is consistent across wallets. Therefore the sender and receiver will have the same TXO ID for the same TXO which was minted by the sender, and received by the receiver\) with the following:
+发送方可以向接收方提供交易的确认编码，接收方可以据此验证特定的 TXO ID（在不同钱包间，同一个 TXO 的 TXO ID 不会发生变化。因此，发送方和接收方对于同一个由发送方构建，被接收方接收的 TXO 会有同样的 TXO ID）。
 
-| Param | Description |  |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
-| `txo_id` | The ID of the TXO for which to validate the confirmation number. | TXO must be a received TXO. |
-| `confirmation` | The confirmation number to validate. | The confirmation number should be delivered by the sender of the Txo in question. |
+| `account_id` | 用于验证的账户。 | 指定的账户必须存在在钱包中。 |
+| `txo_id` | 要与确认编码验证的 TXO ID。 | TXO 必须为已接收状态。 |
+| `confirmation` | 要验证的确认编码。 | 确认编码应该由发送方提供。 |
+
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
-curl -s localhost:9090/wallet \
-  -d '{
-        "method": "validate_confirmation",
-        "params": {
-          "account_id": "4b4fd11738c03bf5179781aeb27d725002fb67d8a99992920d3654ac00ee1a2c",
-          "txo_id": "bbee8b70e80837fc3e10bde47f63de41768ee036263907325ef9a8d45d851f15",
-          "confirmation": "0a2005ba1d9d871c7fb0d5ba7df17391a1e14aad1b4aa2319c997538f8e338a670bb"
-        },
-        "jsonrpc": "2.0",
-        "id": 1
-      }' \
-  -X POST -H 'Content-type: application/json' | jq
+{
+  "method": "validate_confirmation",
+  "params": {
+    "account_id": "4b4fd11738c03bf5179781aeb27d725002fb67d8a99992920d3654ac00ee1a2c",
+    "txo_id": "bbee8b70e80837fc3e10bde47f63de41768ee036263907325ef9a8d45d851f15",
+    "confirmation": "0a2005ba1d9d871c7fb0d5ba7df17391a1e14aad1b4aa2319c997538f8e338a670bb"
+  },
+  "jsonrpc": "2.0",
+  "id": 1
+}
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "validate_confirmation",

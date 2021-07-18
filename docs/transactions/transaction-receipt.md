@@ -1,22 +1,20 @@
 ---
-description: >-
-  A receiver receipt contains the confirmation number and recipients can poll
-  the receiver receipt for the status of the transaction.
+description: 交易收据包含了确认编码，收款方可以通过收据来查询交易状态。
 ---
 
-# Receiver Receipt
+# 交易收据
 
-## Attributes
+## 属性
 
-| _Name_ | _Type_ | _Description_ |
+| 属性 | 类型 | 说明 |
 | :--- | :--- | :--- |
-| `object` | string, value is "receiver\_receipt" | String representing the object's type. Objects of the same type share the same value. |
-| `public_key` | string | Hex-encoded public key for the TXO. |
-| `tombstone_block` | string | The block index after which this TXO would be rejected by consensus. |
-| `confirmation` | string | Hex-encoded confirmation that can be validated to confirm that another party constructed or had knowledge of the construction of the associated TXO. |
-| `amount` | string | The encrypted amount in the TXO referenced by this receipt. |
+| `object` | 字符串，固定为 "receiver\_receipt"  | 由字符串表示的对象类型。每个类型的 `object` 字段是固定的。 |
+| `public_key` | 字符串 | 16 进制编码的 TXO 的公钥。 |
+| `tombstone_block` | 字符串 | TXO 的有效期（在区块链高度大于此指定区块后当前 TXO 将会被共识系统拒绝）。|
+| `confirmation` | 字符串 | 16 进制编码的确认信息，可以用来验证交易的另一方参与了该 TXO 的构建。 |
+| `amount` | 字符串 | 此收据所指向的 TXO 的总值。 |
 
-## Example
+## 示例
 
 ```text
 {
@@ -32,40 +30,38 @@ description: >-
 }
 ```
 
-## Methods
+## 方法
 
 ### `check_receiver_receipt_status`
 
-Check the status of a receiver receipt.
+检查一个收据的状态。
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
-curl -s localhost:9090/wallet \
-  -d '{
-        "method": "check_receiver_receipt_status",
-        "params": {
-          "address": "3Dg4iFavKJScgCUeqb1VnET5ADmKjZgWz15fN7jfeCCWb72serxKE7fqz7htQvRirN4yeU2xxtcHRAN2zbF6V9n7FomDm69VX3FghvkDfpq",
-          "receiver_receipt": {
-            "object": "receiver_receipt",
-            "public_key": "0a20d2118a065192f11e228e0fce39e90a878b5aa628b7613a4556c193461ebd4f67",
-            "confirmation": "0a205e5ca2fa40f837d7aff6d37e9314329d21bad03d5fac2ec1fc844a09368c33e5",
-            "tombstone_block": "154512",
-            "amount": {
-              "object": "amount",
-              "commitment": "782c575ed7d893245d10d7dd49dcffc3515a7ed252bcade74e719a17d639092d",
-              "masked_value": "12052895925511073331"
-            }
-          }
-        },
-        "jsonrpc": "2.0",
-        "id": 1
-      }' \
-  -X POST -H 'Content-type: application/json' | jq
+{
+  "method": "check_receiver_receipt_status",
+  "params": {
+    "address": "3Dg4iFavKJScgCUeqb1VnET5ADmKjZgWz15fN7jfeCCWb72serxKE7fqz7htQvRirN4yeU2xxtcHRAN2zbF6V9n7FomDm69VX3FghvkDfpq",
+    "receiver_receipt": {
+      "object": "receiver_receipt",
+      "public_key": "0a20d2118a065192f11e228e0fce39e90a878b5aa628b7613a4556c193461ebd4f67",
+      "confirmation": "0a205e5ca2fa40f837d7aff6d37e9314329d21bad03d5fac2ec1fc844a09368c33e5",
+      "tombstone_block": "154512",
+      "amount": {
+        "object": "amount",
+        "commitment": "782c575ed7d893245d10d7dd49dcffc3515a7ed252bcade74e719a17d639092d",
+        "masked_value": "12052895925511073331"
+      }
+    }
+  },
+  "jsonrpc": "2.0",
+  "id": 1
+}
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "check_receiver_receipt_status",
@@ -106,29 +102,27 @@ curl -s localhost:9090/wallet \
 
 ### `create_receiver_receipts`
 
-After building a `tx_proposal`, you can get the receipts for that transaction and provide it to the recipient so they can poll for the transaction status.
+在构建了交易提案（`tx_proposal`）后，您可以生成该交易对应的收据并提供给收款方，这样对方就可以通过收据来查询交易的状态。
 
-| Required Param | Purpose | Description |
+| 参数 | 用途 | 说明 |
 | :--- | :--- | :--- |
 | `tx_proposal` |  |  |
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="请求内容" %}
 ```text
-curl -s localhost:9090/wallet \
-  -d '{
-        "method": "create_receiver_receipts",
-        "params": {
-          "tx_proposal": '$(cat tx_proposal.json)',
-        },
-        "jsonrpc": "2.0",
-        "id": 1
-      }' \
-  -X POST -H 'Content-type: application/json' | jq
+{
+  "method": "create_receiver_receipts",
+  "params": {
+    "tx_proposal": '$(cat tx_proposal.json)',
+  },
+  "jsonrpc": "2.0",
+  "id": 1
+}
 ```
 {% endtab %}
 
-{% tab title="Response" %}
+{% tab title="返回" %}
 ```text
 {
   "method": "create_receiver_receipts",
