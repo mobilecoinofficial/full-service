@@ -55,7 +55,7 @@ def b58_wrapper_to_b64_public_address(b58_string):
     public_address_bytes = public_address.SerializeToString()
     return base64.b64encode(public_address_bytes).decode('utf-8')
 
-def is_b58_string_valid(b58_string):
+def b58_string_passes_checksum(b58_string):
     checksum_and_wrapper_bytes = base58.b58decode(b58_string)
     wrapper_bytes = checksum_and_wrapper_bytes[4:]
     checksum_bytes = checksum_and_wrapper_bytes[0:4]
@@ -63,3 +63,17 @@ def is_b58_string_valid(b58_string):
     new_checksum_bytes = new_checksum.to_bytes(4, byteorder="little")
 
     return checksum_bytes == new_checksum_bytes
+
+def b58_string_is_public_address(b58_string):
+    if not b58_string_passes_checksum(b58_string):
+        return False
+    
+    checksum_and_wrapper_bytes = base58.b58decode(b58_string)
+    wrapper_bytes = checksum_and_wrapper_bytes[4:]
+    wrapper = printable_pb2.PrintableWrapper()
+
+    try:
+        wrapper.ParseFromString(wrapper_bytes)
+        return wrapper.PublicAddress is not None
+    except:
+        return False
