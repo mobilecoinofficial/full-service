@@ -14,5 +14,6 @@ setup(
     install_requires=[
         'requests',
         'base58',
+        'protobuf',
     ],
 )
