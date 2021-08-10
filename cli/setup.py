@@ -13,5 +13,7 @@ setup(
     scripts=['bin/mobcli'],
     install_requires=[
         'requests',
+        'base58',
+        'protobuf',
     ],
 )

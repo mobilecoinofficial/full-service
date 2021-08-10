@@ -2,8 +2,8 @@ from decimal import Decimal
 import zlib
 import base58
 import base64
-import external_pb2
-import printable_pb2
+from mobilecoin import external_pb2
+from mobilecoin import printable_pb2
 
 
 PMOB = Decimal("1e12")
