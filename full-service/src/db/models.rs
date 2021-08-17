@@ -117,8 +117,11 @@ pub struct NewAccount<'a> {
     pub name: &'a str,
 }
 
-/// A received transaction output entity that belongs to a an Account in this
-/// wallet. Also maybe a transaction output that hasn't been sent yet?
+/// A transaction output entity that either was received to an Account in this
+/// wallet, or originated from an Account in this wallet. A transaction 
+/// output can be in one of many states with respect to multiple accounts.
+/// Managinig these relationships and states is one of the main goals of 
+/// the Full-Service wallet.
 #[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
 #[primary_key(id)]
 pub struct Txo {
