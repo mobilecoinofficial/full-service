@@ -5,7 +5,6 @@ A MobileCoin service for wallet implementations.
 * You must read and accept the [Terms of Use for MobileCoins and MobileCoin Wallets](./TERMS-OF-USE.md) to use MobileCoin Software.
 
 #### Note to Developers
-* MobileCoin Full Service is a prototype. Expect substantial changes before the release.
 * Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for notes on contributing bug reports and code.
 
 ##### License
