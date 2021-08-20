@@ -2,10 +2,21 @@
 Command line interface and client library for MobileCoin full-service node.
 
 
-## Installation
+## Install Python3 and Pip
 
+Ubuntu:
 ```shell
 sudo apt install python3-pip
+```
+
+Mac:
+```shell
+brew install python3
+```
+
+## Install mobcli
+
+```shell
 pip3 install .
 ```
 
@@ -14,7 +25,7 @@ Check that it is installed.
 mobcli -h
 ```
 
-## Set up environment variables.
+## Configure mobcli
 
 Copy the config file to your home directory.
 ```shell
@@ -29,6 +40,7 @@ fi
 ```
 
 The CLI sends its requests to the wallet service executable. Download it from https://github.com/mobilecoinofficial/full-service/releases. Copy the file to the correct location.
+
 ```shell
 cp full-service ~/.mobilecoin/testnet/full-service-testnet
 ```

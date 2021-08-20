@@ -96,7 +96,7 @@ class CommandLineInterface:
                                       help='The version number of the key derivation path which the mnemonic was created with.')
 
         # Export account.
-        self.export_args = command_sp.add_parser('export', help='Export seed phrase.')
+        self.export_args = command_sp.add_parser('export', help='Export secret entropy mnemonic.')
         self.export_args.add_argument('account_id', help='ID of the account to export.')
 
         # Remove account.
@@ -329,19 +329,19 @@ class CommandLineInterface:
         account_id = account['account_id']
         balance = self.client.get_balance_for_account(account_id)
 
-        print('You are about to export the seed phrase for this account:')
+        print('You are about to export the secret entropy mnemonic for this account:')
         print()
         _print_account(account, balance)
         print()
-        print('Keep the exported seed phrase file safe and private!')
-        print('Anyone who has access to the seed phrase can spend all the')
+        print('Keep the exported entropy file safe and private!')
+        print('Anyone who has access to the entropy can spend all the')
         print('funds in the account.')
-        if not self.confirm('Really write account seed phrase to a file? (Y/N) '):
+        if not self.confirm('Really write account entropy mnemonic to a file? (Y/N) '):
             print('Cancelled.')
             return
 
         secrets = self.client.export_account_secrets(account_id)
-        filename = 'mobilecoin_seed_phrase_{}.json'.format(account_id[:16])
+        filename = 'mobilecoin_secret_entropy_{}.json'.format(account_id[:16])
         try:
             _save_export(account, secrets, filename)
         except OSError as e:
@@ -360,7 +360,7 @@ class CommandLineInterface:
         _print_account(account, balance)
         print()
         print('You will lose access to the funds in this account unless you')
-        print('restore it from the seed phrase.')
+        print('restore it from the mnemonic phrase.')
         if not self.confirm('Continue? (Y/N) '):
             print('Cancelled.')
             return
