@@ -7,13 +7,10 @@ from pathlib import Path
 import subprocess
 from textwrap import indent
 
-from .utility import (
-    pmob2mob,
-)
 from .client import (
-    Client,
-    WalletAPIError,
+    Client, WalletAPIError,
     MAX_TOMBSTONE_BLOCKS,
+    pmob2mob,
 )
 
 
