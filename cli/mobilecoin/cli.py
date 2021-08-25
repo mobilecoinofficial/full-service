@@ -250,6 +250,10 @@ class CommandLineInterface:
         network_status = self.client.get_network_status()
         fee = pmob2mob(network_status['fee_pmob'])
 
+        # Work around 64-bit integer wrapping bug in local_block_index.
+        if int(network_status['local_block_index']) == (1 << 64) - 1:
+            network_status['local_block_index'] = 0
+
         if int(network_status['network_block_index']) == 0:
             print('Offline.')
             print('Local ledger has {} blocks.'.format(network_status['local_block_index']))
