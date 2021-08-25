@@ -106,6 +106,7 @@ class CommandLineInterface:
         # Send transaction.
         self.send_args = command_sp.add_parser('send', help='Send a transaction.')
         self.send_args.add_argument('--build-only', action='store_true', help='Just build the transaction, do not submit it.')
+        self.send_args.add_argument('--fee', type=str, default=None, help='The fee paid to the network.')
         self.send_args.add_argument('account_id', help='Source account ID.')
         self.send_args.add_argument('amount', help='Amount of MOB to send.')
         self.send_args.add_argument('to_address', help='Address to send to.')
@@ -411,14 +412,18 @@ class CommandLineInterface:
                 print('paying a fee of {}'.format(_format_mob(pmob2mob(t['fee_pmob']))))
         print()
 
-    def send(self, account_id, amount, to_address, build_only=False):
+    def send(self, account_id, amount, to_address, build_only=False, fee=None):
         account = self._load_account_prefix(account_id)
         account_id = account['account_id']
         balance = self.client.get_balance_for_account(account_id)
         unspent = pmob2mob(balance['unspent_pmob'])
 
         network_status = self.client.get_network_status()
-        fee = pmob2mob(network_status['fee_pmob'])
+
+        if fee is None:
+            fee = pmob2mob(network_status['fee_pmob'])
+        else:
+            fee = Decimal(fee)
 
         if unspent <= fee:
             print('There is not enough MOB in account {} to pay the transaction fee.'.format(account_id[:6]))
