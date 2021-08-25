@@ -106,10 +106,6 @@ class CommandLineInterface:
         # Send transaction.
         self.send_args = command_sp.add_parser('send', help='Send a transaction.')
         self.send_args.add_argument('--build-only', action='store_true', help='Just build the transaction, do not submit it.')
-        self.send_args.add_argument(
-            '--delay', type=int, default=0,
-            help='Make a transaction which cannot be submitted until after the given number of blocks.'
-        )
         self.send_args.add_argument('account_id', help='Source account ID.')
         self.send_args.add_argument('amount', help='Amount of MOB to send.')
         self.send_args.add_argument('to_address', help='Address to send to.')
@@ -415,7 +411,7 @@ class CommandLineInterface:
                 print('paying a fee of {}'.format(_format_mob(pmob2mob(t['fee_pmob']))))
         print()
 
-    def send(self, account_id, amount, to_address, build_only=False, delay=0):
+    def send(self, account_id, amount, to_address, build_only=False):
         account = self._load_account_prefix(account_id)
         account_id = account['account_id']
         balance = self.client.get_balance_for_account(account_id)
@@ -462,8 +458,7 @@ class CommandLineInterface:
             return
 
         if build_only:
-            tombstone_block = int(balance['network_block_index']) + delay + MAX_TOMBSTONE_BLOCKS
-            tx_proposal = self.client.build_transaction(account_id, amount, to_address, tombstone_block)
+            tx_proposal = self.client.build_transaction(account_id, amount, to_address)
             path = Path('tx_proposal.json')
             if path.exists():
                 print(f'The file {path} already exists. Please rename the existing file and retry.')
