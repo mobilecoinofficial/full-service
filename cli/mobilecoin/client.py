@@ -1,12 +1,8 @@
-import http
-
+from decimal import Decimal
+import http.client
 import json
 import time
-
-import requests
-
-from .utility import mob2pmob
-
+from urllib.parse import urlparse
 
 DEFAULT_URL = 'http://127.0.0.1:9090/wallet'
 
@@ -41,17 +37,21 @@ class Client:
             print()
 
         try:
-            r = requests.post(self.url, json=request_data)
-        except requests.ConnectionError:
+            parsed_url = urlparse(self.url)
+            connection = http.client.HTTPConnection(parsed_url.netloc)
+            connection.request('POST', parsed_url.path, json.dumps(request_data), {'Content-Type': 'application/json'})
+            r = connection.getresponse()
+
+        except ConnectionError:
             raise ConnectionError(f'Could not connect to wallet server at {self.url}.')
 
         try:
-            response_data = r.json()
+            response_data = json.load(r)
         except ValueError:
             raise ValueError('API returned invalid JSON:', r.text)
 
         if self.verbose:
-            print(r.status_code, http.client.responses[r.status_code])
+            print(r.status, http.client.responses[r.status])
             print(json.dumps(response_data, indent=2))
             print()
 
@@ -373,3 +373,21 @@ class Client:
             time.sleep(1)
         else:
             raise Exception('Txo {} never landed.'.format(txo_id))
+
+
+
+PMOB = Decimal("1e12")
+
+
+def mob2pmob(x):
+    """Convert from MOB to picoMOB."""
+    return round(Decimal(x) * PMOB)
+
+
+def pmob2mob(x):
+    """Convert from picoMOB to MOB."""
+    result = int(x) / PMOB
+    if result == 0:
+        return Decimal("0")
+    else:
+        return result

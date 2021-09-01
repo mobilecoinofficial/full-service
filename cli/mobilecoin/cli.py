@@ -7,13 +7,10 @@ from pathlib import Path
 import subprocess
 from textwrap import indent
 
-from .utility import (
-    pmob2mob,
-)
 from .client import (
-    Client,
-    WalletAPIError,
+    Client, WalletAPIError,
     MAX_TOMBSTONE_BLOCKS,
+    pmob2mob,
 )
 
 
@@ -96,7 +93,7 @@ class CommandLineInterface:
                                       help='The version number of the key derivation path which the mnemonic was created with.')
 
         # Export account.
-        self.export_args = command_sp.add_parser('export', help='Export seed phrase.')
+        self.export_args = command_sp.add_parser('export', help='Export secret entropy mnemonic.')
         self.export_args.add_argument('account_id', help='ID of the account to export.')
 
         # Remove account.
@@ -109,10 +106,7 @@ class CommandLineInterface:
         # Send transaction.
         self.send_args = command_sp.add_parser('send', help='Send a transaction.')
         self.send_args.add_argument('--build-only', action='store_true', help='Just build the transaction, do not submit it.')
-        self.send_args.add_argument(
-            '--delay', type=int, default=0,
-            help='Make a transaction which cannot be submitted until after the given number of blocks.'
-        )
+        self.send_args.add_argument('--fee', type=str, default=None, help='The fee paid to the network.')
         self.send_args.add_argument('account_id', help='Source account ID.')
         self.send_args.add_argument('amount', help='Amount of MOB to send.')
         self.send_args.add_argument('to_address', help='Address to send to.')
@@ -253,6 +247,10 @@ class CommandLineInterface:
         network_status = self.client.get_network_status()
         fee = pmob2mob(network_status['fee_pmob'])
 
+        # Work around 64-bit integer wrapping bug in local_block_index.
+        if int(network_status['local_block_index']) == (1 << 64) - 1:
+            network_status['local_block_index'] = 0
+
         if int(network_status['network_block_index']) == 0:
             print('Offline.')
             print('Local ledger has {} blocks.'.format(network_status['local_block_index']))
@@ -329,19 +327,19 @@ class CommandLineInterface:
         account_id = account['account_id']
         balance = self.client.get_balance_for_account(account_id)
 
-        print('You are about to export the seed phrase for this account:')
+        print('You are about to export the secret entropy mnemonic for this account:')
         print()
         _print_account(account, balance)
         print()
-        print('Keep the exported seed phrase file safe and private!')
-        print('Anyone who has access to the seed phrase can spend all the')
+        print('Keep the exported entropy file safe and private!')
+        print('Anyone who has access to the entropy can spend all the')
         print('funds in the account.')
-        if not self.confirm('Really write account seed phrase to a file? (Y/N) '):
+        if not self.confirm('Really write account entropy mnemonic to a file? (Y/N) '):
             print('Cancelled.')
             return
 
         secrets = self.client.export_account_secrets(account_id)
-        filename = 'mobilecoin_seed_phrase_{}.json'.format(account_id[:16])
+        filename = 'mobilecoin_secret_entropy_{}.json'.format(account_id[:16])
         try:
             _save_export(account, secrets, filename)
         except OSError as e:
@@ -360,7 +358,7 @@ class CommandLineInterface:
         _print_account(account, balance)
         print()
         print('You will lose access to the funds in this account unless you')
-        print('restore it from the seed phrase.')
+        print('restore it from the mnemonic phrase.')
         if not self.confirm('Continue? (Y/N) '):
             print('Cancelled.')
             return
@@ -414,14 +412,18 @@ class CommandLineInterface:
                 print('paying a fee of {}'.format(_format_mob(pmob2mob(t['fee_pmob']))))
         print()
 
-    def send(self, account_id, amount, to_address, build_only=False, delay=0):
+    def send(self, account_id, amount, to_address, build_only=False, fee=None):
         account = self._load_account_prefix(account_id)
         account_id = account['account_id']
         balance = self.client.get_balance_for_account(account_id)
         unspent = pmob2mob(balance['unspent_pmob'])
 
         network_status = self.client.get_network_status()
-        fee = pmob2mob(network_status['fee_pmob'])
+
+        if fee is None:
+            fee = pmob2mob(network_status['fee_pmob'])
+        else:
+            fee = Decimal(fee)
 
         if unspent <= fee:
             print('There is not enough MOB in account {} to pay the transaction fee.'.format(account_id[:6]))
@@ -461,8 +463,7 @@ class CommandLineInterface:
             return
 
         if build_only:
-            tombstone_block = int(balance['network_block_index']) + delay + MAX_TOMBSTONE_BLOCKS
-            tx_proposal = self.client.build_transaction(account_id, amount, to_address, tombstone_block)
+            tx_proposal = self.client.build_transaction(account_id, amount, to_address)
             path = Path('tx_proposal.json')
             if path.exists():
                 print(f'The file {path} already exists. Please rename the existing file and retry.')
