@@ -228,6 +228,7 @@ where
             fee,
             tombstone_block,
             max_spendable_value,
+            log_tx_proposal,
         } => {
             // The user can specify a list of addresses and values,
             // or a single address and a single value (deprecated).
@@ -243,6 +244,7 @@ where
                     fee,
                     tombstone_block,
                     max_spendable_value,
+                    log_tx_proposal,
                 )
                 .map_err(format_error)?;
             JsonCommandResponse::build_transaction {

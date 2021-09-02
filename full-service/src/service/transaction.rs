@@ -17,6 +17,7 @@ use crate::{
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
+use mc_ledger_db::Ledger;
 use mc_mobilecoind::payments::TxProposal;
 
 use crate::service::address::{AddressService, AddressServiceError};
@@ -71,6 +72,9 @@ pub enum TransactionServiceError {
 
     /// Diesel Error: {0}
     Diesel(diesel::result::Error),
+
+    /// Ledger DB Error: {0}
+    LedgerDB(mc_ledger_db::Error),
 }
 
 impl From<WalletDbError> for TransactionServiceError {
@@ -121,10 +125,17 @@ impl From<diesel::result::Error> for TransactionServiceError {
     }
 }
 
+impl From<mc_ledger_db::Error> for TransactionServiceError {
+    fn from(src: mc_ledger_db::Error) -> Self {
+        Self::LedgerDB(src)
+    }
+}
+
 /// Trait defining the ways in which the wallet can interact with and manage
 /// transactions.
 pub trait TransactionService {
     /// Builds a transaction from the given account to the specified recipients.
+    #[allow(clippy::too_many_arguments)]
     fn build_transaction(
         &self,
         account_id_hex: &str,
@@ -133,6 +144,7 @@ pub trait TransactionService {
         fee: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
+        log_tx_proposal: Option<bool>,
     ) -> Result<TxProposal, TransactionServiceError>;
 
     /// Submits a pre-built TxProposal to the MobileCoin Consensus Network.
@@ -170,6 +182,7 @@ where
         fee: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
+        log_tx_proposal: Option<bool>,
     ) -> Result<TxProposal, TransactionServiceError> {
         let mut builder = WalletTransactionBuilder::new(
             account_id_hex.to_string(),
@@ -213,8 +226,20 @@ where
 
         let tx_proposal = builder.build()?;
 
-        // FIXME: WS-32 - Might be nice to have a tx_proposal table so that you don't
-        // have to write these out to local files.
+        if let Some(should_log) = log_tx_proposal {
+            if should_log {
+                let conn = self.wallet_db.get_conn()?;
+                let block_index = self.ledger_db.num_blocks()? - 1;
+                let _transaction_log = TransactionLog::log_submitted(
+                    tx_proposal.clone(),
+                    block_index,
+                    "".to_string(),
+                    &account_id_hex,
+                    &conn,
+                )?;
+            }
+        }
+
         Ok(tx_proposal)
     }
 
@@ -297,6 +322,7 @@ where
             fee,
             tombstone_block,
             max_spendable_value,
+            None,
         )?;
         if let Some(transaction_log_and_associated_txos) =
             self.submit_transaction(tx_proposal, comment, Some(account_id_hex.to_string()))?

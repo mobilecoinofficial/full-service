@@ -21,6 +21,7 @@ description: >-
 | `fee` | The fee amount to submit with this transaction | If not provided, uses `MINIMUM_FEE` = .01 MOB |
 | `tombstone_block` | The block after which this transaction expires | If not provided, uses `cur_height` + 50 |
 | `max_spendable_value` | The maximum amount for an input TXO selected for this transaction |  |
+| `log_tx_proposal` | Whether or not to log the tx proposal on build | If not provided, is false |
 
 ## Example
 
@@ -32,7 +33,8 @@ description: >-
   "params": {
     "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
     "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-    "value_pmob": "42000000000000"
+    "value_pmob": "42000000000000",
+    "log_tx_proposal": false
   },
   "jsonrpc": "2.0",
   "id": 1
