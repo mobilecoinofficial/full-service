@@ -154,7 +154,7 @@ pub trait TransactionService {
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
-    ) -> Result<(TransactionLog, AssociatedTxos), TransactionServiceError>;
+    ) -> Result<(TransactionLog, AssociatedTxos, TxProposal), TransactionServiceError>;
 }
 
 impl<T, FPR> TransactionService for WalletService<T, FPR>
@@ -289,7 +289,7 @@ where
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
-    ) -> Result<(TransactionLog, AssociatedTxos), TransactionServiceError> {
+    ) -> Result<(TransactionLog, AssociatedTxos, TxProposal), TransactionServiceError> {
         let tx_proposal = self.build_transaction(
             account_id_hex,
             &addresses_and_values,
@@ -298,10 +298,16 @@ where
             tombstone_block,
             max_spendable_value,
         )?;
-        if let Some(transaction_log_and_associated_txos) =
-            self.submit_transaction(tx_proposal, comment, Some(account_id_hex.to_string()))?
-        {
-            Ok(transaction_log_and_associated_txos)
+        if let Some(transaction_log_and_associated_txos) = self.submit_transaction(
+            tx_proposal.clone(),
+            comment,
+            Some(account_id_hex.to_string()),
+        )? {
+            Ok((
+                transaction_log_and_associated_txos.0,
+                transaction_log_and_associated_txos.1,
+                tx_proposal,
+            ))
         } else {
             Err(TransactionServiceError::MissingAccountOnSubmit)
         }
@@ -379,7 +385,7 @@ mod tests {
             .unwrap();
 
         // Send a transaction from Alice to Bob
-        let (transaction_log, _associated_txos) = service
+        let (transaction_log, _associated_txos, _tx_proposal) = service
             .build_and_submit(
                 &alice.account_id_hex,
                 &[(
@@ -448,7 +454,7 @@ mod tests {
         assert_eq!(bob_balance.unspent, 42000000000000);
 
         // Bob should now be able to send to Alice
-        let (transaction_log, _associated_txos) = service
+        let (transaction_log, _associated_txos, _tx_proposal) = service
             .build_and_submit(
                 &bob.account_id_hex,
                 &[(
