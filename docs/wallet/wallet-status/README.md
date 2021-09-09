@@ -11,7 +11,7 @@ description: The Wallet Status provides a quick overview of the contents of the 
 | `object` | String, value is "wallet\_status" | String representing the object's type. Objects of the same type share the same value. |
 | `network_block_index` | String \(uint64\) | The block height of the MobileCoin ledger. The `local_block_index` is synced when it reaches the value. |
 | `local_block_index` | String \(uint64\) | The local block height downloaded from the ledger. The local database will sync up to the `network_block_index`. The `account_block_index` can only sync up to `local_block_index`. |
-| `is_synced_all` | Boolean | Whether ALL accounts are synced with the `network_block_index`. Balances may not appear correct if any account is still syncing. |
+| \`\`[`https://app.gitbook.com/@mobilecoin/s/full-service-api/v/feature%2Fblock-height/ledger/block`](https://app.gitbook.com/@mobilecoin/s/full-service-api/v/feature%2Fblock-height/ledger/block)`is_synced_all` | Boolean | Whether ALL accounts are synced with the `network_block_index`. Balances may not appear correct if any account is still syncing. |
 | `total_unspent_pmob` | String \(uint64\) | Unspent pico mob for ALL accounts at the `account_block_index`. If the account is syncing, this value may change. |
 | `total_pending_pmob` | String \(uint64\) | Pending outgoing pico mob from ALL accounts. Pending pico mobs will clear once the ledger processes the outgoing TXO. The `available_pmob` will reflect the change. |
 | `total_spent_pmob` | String \(uint64\) | Spent pico MOB. This is the sum of all the TXOs in the wallet which have been spent. |
