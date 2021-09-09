@@ -14,5 +14,3 @@ description: >-
 | `block` | JSON object | Contains the block header information for the block |
 | `block_contents` | JSON object | Contains the key\_images and TXOs \(outputs\) for the block. |
 
-## Example
-

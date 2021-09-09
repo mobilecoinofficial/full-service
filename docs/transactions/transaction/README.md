@@ -40,6 +40,3 @@ Due to the privacy properties of the MobileCoin ledger, transactions are ephemer
 | `txo_id_hex` | string | Unique identifier for the txo |
 | `recipient_address_id` | string | Unique identifier for the recipient associated account. Blank unless direction is `sent` |
 | `value_pmob` | string | Available pico MOB for this Txo. If the account is syncing, this value may change |
-
-## Example
-
