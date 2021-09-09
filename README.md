@@ -190,10 +190,6 @@ MobileCoin Full Service is available under open-source licenses. Look for the [L
 
 For documentation, usage and API specification, see the gitbook page, see our gitbook page: [https://mobilecoin.gitbook.io/full-service-api/](https://mobilecoin.gitbook.io/full-service-api/)
 
-Single page API docs are at [API.md](API.md). (possibly out of date)
-
-For database encryption features, see [DATABASE.md](DATABASE.md).
-
 
 ### Offline (Cold-Wallet) Transaction Flow
 

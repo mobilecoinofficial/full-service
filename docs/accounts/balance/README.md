@@ -28,7 +28,7 @@ description: >-
   "account_block_index": "152003",
   "is_synced": false,
   "local_block_index": "152918",
-  "network_block_index": "152918",https://app.gitbook.com/@mobilecoin/s/full-service-api/v/feature%2Fblock-height/ledger/block
+  "network_block_index": "152918",
   "object": "balance",
   "orphaned_pmob": "0",
   "pending_pmob": "0",
