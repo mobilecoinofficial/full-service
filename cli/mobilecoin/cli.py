@@ -37,7 +37,7 @@ class CommandLineInterface:
 
         # Dispatch command.
         setattr(self, 'import', self.import_)  # Can't name a function "import".
-        command = command.translate(str.maketrans('-','_'))
+        command = command.translate(str.maketrans('-', '_'))
         command_func = getattr(self, command)
         try:
             command_func(**args)
@@ -96,6 +96,8 @@ class CommandLineInterface:
         # Export account.
         self.export_args = command_sp.add_parser('export', help='Export secret entropy mnemonic.')
         self.export_args.add_argument('account_id', help='ID of the account to export.')
+        self.export_args.add_argument('-s', '--show', action='store_true',
+                                      help='Only show the secret entropy mnemonic, do not write it to file.')
 
         # Remove account.
         self.remove_args = command_sp.add_parser('remove', help='Remove an account from local storage.')
@@ -324,7 +326,7 @@ class CommandLineInterface:
         _print_account(account)
         print()
 
-    def export(self, account_id):
+    def export(self, account_id, show=False):
         account = self._load_account_prefix(account_id)
         account_id = account['account_id']
         balance = self.client.get_balance_for_account(account_id)
@@ -332,23 +334,38 @@ class CommandLineInterface:
         print('You are about to export the secret entropy mnemonic for this account:')
         print()
         _print_account(account, balance)
+
         print()
-        print('Keep the exported entropy file safe and private!')
-        print('Anyone who has access to the entropy can spend all the')
-        print('funds in the account.')
-        if not self.confirm('Really write account entropy mnemonic to a file? (Y/N) '):
+        if show:
+            print('The entropy will display on your screen. Make sure your screen is not being viewed or recorded.')
+        else:
+            print('Keep the exported entropy file safe and private!')
+        print('Anyone who has access to the entropy can spend all the funds in the account.')
+
+        if show:
+            confirm_message = 'Really show account entropy mnemonic? (Y/N) '
+        else:
+            confirm_message = 'Really write account entropy mnemonic to a file? (Y/N) '
+        if not self.confirm(confirm_message):
             print('Cancelled.')
             return
 
         secrets = self.client.export_account_secrets(account_id)
-        filename = 'mobilecoin_secret_entropy_{}.json'.format(account_id[:16])
-        try:
-            _save_export(account, secrets, filename)
-        except OSError as e:
-            print('Could not write file: {}'.format(e))
-            exit(1)
+        if show:
+            mnemonic_words = secrets['mnemonic'].upper().split()
+            print()
+            for i, word in enumerate(mnemonic_words, 1):
+                print('{:<2}  {}'.format(i, word))
+            print()
         else:
-            print(f'Wrote {filename}.')
+            filename = 'mobilecoin_secret_entropy_{}.json'.format(account_id[:16])
+            try:
+                _save_export(account, secrets, filename)
+            except OSError as e:
+                print('Could not write file: {}'.format(e))
+                exit(1)
+            else:
+                print(f'Wrote {filename}.')
 
     def remove(self, account_id):
         account = self._load_account_prefix(account_id)
