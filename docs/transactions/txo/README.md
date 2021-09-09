@@ -13,7 +13,7 @@ In order to construct a transaction, the wallet will select "Unspent Transaction
 | _Name_ | _Type_ | _Description_ |
 | :--- | :--- | :--- |
 | `object` | string, value is "txo" | String representing the object's type. Objects of the same type share the same value. |
-| `value_pmob` | string \(uint64\) | Available pico MOB for this account at the current `account_block_index`. If the account is syncing, this value may change. |
+| `value_pmob` | string \(uint64\) | Available pico MOB for this account at the current `account_block_height`. If the account is syncing, this value may change. |
 | `received_block_index` | string \(uint64\) | Block index in which the TXO was received by an account. |
 | `spent_block_index` | string \(uint64\) | Block index in which the TXO was spent by an account. |
 | `is_spent_recovered` | boolean | Flag that indicates if the `spent_block_index` was recovered from the ledger. This value is null if the TXO is unspent. If true, some information may not be available on the TXO without user input. If true, the confirmation number will be null without user input. |
