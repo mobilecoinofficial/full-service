@@ -530,8 +530,8 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let status = result.get("wallet_status").unwrap();
-        assert_eq!(status.get("network_block_index").unwrap(), "11");
-        assert_eq!(status.get("local_block_index").unwrap(), "11");
+        assert_eq!(status.get("network_block_height").unwrap(), "12");
+        assert_eq!(status.get("local_block_height").unwrap(), "12");
         // Syncing will have already started, so we can't determine what the min synced
         // index is.
         assert!(status.get("min_synced_block_index").is_some());

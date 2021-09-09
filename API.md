@@ -668,7 +668,7 @@ curl -s localhost:9090/wallet \
   "result": {
     "wallet_status": {
       "local_block_index": "152918",
-      "network_block_index": "152918",
+      "network_block_height": "152918",
     }
   },
   "error": null,
@@ -721,7 +721,7 @@ curl -s localhost:9090/wallet \
       },
       "is_synced_all": false,
       "local_block_index": "152918",
-      "network_block_index": "152918",
+      "network_block_height": "152918",
       "object": "wallet_status",
       "total_orphaned_pmob": "0",
       "total_pending_pmob": "70148220000000000",
@@ -757,7 +757,7 @@ curl -s localhost:9090/wallet \
   "result": {
     "balance": {
       "object": "balance",
-      "network_block_index": "152918",
+      "network_block_height": "152918",
       "local_block_index": "152918",
       "account_block_index": "152003",
       "is_synced": false,
@@ -801,7 +801,7 @@ curl -s localhost:9090/wallet \
   "result": {
     "balance": {
       "object": "balance",
-      "network_block_index": "152961",
+      "network_block_height": "152961",
       "local_block_index": "152961",
       "account_block_index": "152961",
       "is_synced": true,
@@ -858,7 +858,7 @@ curl -s localhost:9090/wallet \
       "account_block_index": "152918",
       "is_synced": true,
       "local_block_index": "152918",
-      "network_block_index": "152918",
+      "network_block_height": "152918",
       "object": "balance",
       "orphaned_pmob": "0",
       "pending_pmob": "2040016523222112112",
@@ -2457,10 +2457,10 @@ The balance for an account, as well as some information about syncing status nee
 | *Name* | *Type* | *Description*
 | :--- | :--- | :---
 | object | string, value is "balance" | String representing the object's type. Objects of the same type share the same value
-| network_block_index | string (uint64) | The block height of MobileCoin's distributed ledger. The local_block_index is synced when it reaches the network_block_index.
-| local_block_index | string (uint64) | The local block height downloaded from the ledger. The local database will sync up to the network_block_index. The account_block_index can only sync up to local_block_index.
-| account_block_index| string (uint64) | The scanned local block height for this account. This value will never be greater than the local_block_index. At fully synced, it will match network_block_index.
-| is_synced | boolean | Whether the account is synced with the network_block_index. Balances may not appear correct if the account is still syncing.
+| network_block_height | string (uint64) | The block height of MobileCoin's distributed ledger. The local_block_index is synced when it reaches the network_block_height.
+| local_block_index | string (uint64) | The local block height downloaded from the ledger. The local database will sync up to the network_block_height. The account_block_index can only sync up to local_block_index.
+| account_block_index| string (uint64) | The scanned local block height for this account. This value will never be greater than the local_block_index. At fully synced, it will match network_block_height.
+| is_synced | boolean | Whether the account is synced with the network_block_height. Balances may not appear correct if the account is still syncing.
 | unspent_pmob | string (uint64) | Unspent pico MOB for this account at the current account_block_index. If the account is syncing, this value may change.
 | pending_pmob | string (uint64) | Pending, out-going pico MOB. The pending value will clear once the ledger processes the outgoing txos. The pending_pmob will reflect the change.
 | spent_pmob | string (uint64) | Spent pico MOB. This is the sum of all the Txos in the wallet which have been spent.
@@ -2474,7 +2474,7 @@ The balance for an account, as well as some information about syncing status nee
   "account_block_index": "152003",
   "is_synced": false,
   "local_block_index": "152918",
-  "network_block_index": "152918",
+  "network_block_height": "152918",
   "object": "balance",
   "orphaned_pmob": "0",
   "pending_pmob": "0",
@@ -2495,8 +2495,8 @@ The balance for an account, as well as some information about syncing status nee
 | *Name* | *Type* | *Description*
 | :--- | :--- | :---
 | object | string, value is "account" | String representing the object's type. Objects of the same type share the same value
-| network_block_index | string (uint64) | The block height of the MobileCoin ledger. The local_block_index is synced when it reaches the value.
-| local_block_index | string (uint64) | The local block height downloaded from the ledger. The local database will sync up to the network_block_index. The account_block_index can only sync up to local_block_index.
+| network_block_height | string (uint64) | The block height of the MobileCoin ledger. The local_block_index is synced when it reaches the value.
+| local_block_index | string (uint64) | The local block height downloaded from the ledger. The local database will sync up to the network_block_height. The account_block_index can only sync up to local_block_index.
 
 #### Example Object
 
@@ -2504,7 +2504,7 @@ The balance for an account, as well as some information about syncing status nee
 {
 "wallet_status": {
   "local_block_index": "152918",
-  "network_block_index": "152918",
+  "network_block_height": "152918",
   "object": "wallet_status",
 }
 ```
@@ -2520,10 +2520,10 @@ The balance for an account, as well as some information about syncing status nee
 
 | *Name* | *Type* | *Description*
 | :--- | :--- | :---
-| network_block_index | string (uint64) | The block height of the MobileCoin ledger. The local_block_index is synced when it reaches the value.
-| local_block_index | string (uint64) | The local block height downloaded from the ledger. The local database will sync up to the network_block_index. The account_block_index can only sync up to local_block_index.
-| is_synced_all | boolean | Whether ALL accounts are synced with the network_block_index. Balances may not appear correct if any account is still syncing.
-| total_unspent_pmob | string (uint64) | Unspent pico mob for ALL accounts at the account_block_index. If the account is syncing, this value may change.
+| network_block_height | string (uint64) | The block height of the MobileCoin ledger. The local_block_index is synced when it reaches the value.
+| local_block_index | string (uint64) | The local block height downloaded from the ledger. The local database will sync up to the network_block_height. The account_block_index can only sync up to local_block_index.
+| is_synced_all | boolean | Whether ALL accounts are synced with the network_block_height. Balances may not appear correct if any account is still syncing.
+| total_unspent_pmob | string (uint64) | Unspent pico mob for ALL accounts at the account_block_height. If the account is syncing, this value may change.
 | total_pending_pmob | string (uint64) | Pending outgoing pico mob from ALL accounts. Pending pico mobs will clear once the ledger processes the outgoing txo. The available_pmob will reflect the change.
 | total_spent_pmob | string (uint64) | Spent pico MOB. This is the sum of all the Txos in the wallet which have been spent.
 | total_secreted_pmob | string (uint64) | Secreted (minted) pico MOB. This is the sum of all the Txos which have been created in the wallet for outgoing transactions.
@@ -2570,7 +2570,7 @@ The balance for an account, as well as some information about syncing status nee
   },
   "is_synced_all": false,
   "local_block_index": "152918",
-  "network_block_index": "152918",
+  "network_block_height": "152918",
   "object": "wallet_status",
   "total_orphaned_pmob": "0",
   "total_pending_pmob": "70148220000000000",
