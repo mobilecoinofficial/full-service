@@ -27,12 +27,12 @@ pub struct Balance {
     /// network_block_height.
     pub account_block_height: String,
 
-    /// Whether the account is synced with the network_block_height. Balances may
-    /// not appear correct if the account is still syncing.
+    /// Whether the account is synced with the network_block_height. Balances
+    /// may not appear correct if the account is still syncing.
     pub is_synced: bool,
 
-    /// Unspent pico MOB for this account at the current account_block_height. If
-    /// the account is syncing, this value may change.
+    /// Unspent pico MOB for this account at the current account_block_height.
+    /// If the account is syncing, this value may change.
     pub unspent_pmob: String,
 
     /// Pending, out-going pico MOB. The pending value will clear once the
