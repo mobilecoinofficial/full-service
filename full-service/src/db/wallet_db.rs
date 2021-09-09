@@ -119,7 +119,8 @@ impl WalletDb {
     }
 
     pub fn check_database_connectivity(conn: &SqliteConnection) -> bool {
-        conn.batch_execute("SELECT count(*) FROM sqlite_master;").is_ok()
+        conn.batch_execute("SELECT count(*) FROM sqlite_master;")
+            .is_ok()
     }
 
     pub fn validate_foreign_keys(conn: &SqliteConnection) {

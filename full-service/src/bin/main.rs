@@ -14,8 +14,10 @@ use mc_full_service::{
     WalletDb, WalletService,
 };
 use mc_ledger_sync::{LedgerSyncServiceThread, PollingNetworkState, ReqwestTransactionsFetcher};
-use std::sync::{Arc, RwLock};
-use std::process::exit;
+use std::{
+    process::exit,
+    sync::{Arc, RwLock},
+};
 use structopt::StructOpt;
 
 #[allow(unused_imports)] // Needed for embedded_migrations!
@@ -28,7 +30,6 @@ embed_migrations!("migrations/");
 const EXIT_NO_DATABASE_CONNECTION: i32 = 2;
 const EXIT_WRONG_PASSWORD: i32 = 3;
 const EXIT_INVALID_HOST: i32 = 4;
-
 
 fn main() {
     dotenv().ok();
@@ -55,19 +56,13 @@ fn main() {
     // Connect to the database and run the migrations
     let conn =
         SqliteConnection::establish(&config.wallet_db.to_str().unwrap()).unwrap_or_else(|err| {
-            eprintln!(
-                "Cannot open database {:?}: {:?}",
-                config.wallet_db, err
-            );
+            eprintln!("Cannot open database {:?}: {:?}", config.wallet_db, err);
             exit(EXIT_NO_DATABASE_CONNECTION);
         });
     WalletDb::set_db_encryption_key_from_env(&conn);
     WalletDb::try_change_db_encryption_key_from_env(&conn);
     if !WalletDb::check_database_connectivity(&conn) {
-        eprintln!(
-            "Incorrect password for database {:?}.",
-            config.wallet_db
-        );
+        eprintln!("Incorrect password for database {:?}.", config.wallet_db);
         exit(EXIT_WRONG_PASSWORD);
     };
 
