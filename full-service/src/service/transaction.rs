@@ -17,6 +17,7 @@ use crate::{
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
+use mc_ledger_db::Ledger;
 use mc_mobilecoind::payments::TxProposal;
 
 use crate::service::address::{AddressService, AddressServiceError};
@@ -71,6 +72,9 @@ pub enum TransactionServiceError {
 
     /// Diesel Error: {0}
     Diesel(diesel::result::Error),
+
+    /// Ledger DB Error: {0}
+    LedgerDB(mc_ledger_db::Error),
 }
 
 impl From<WalletDbError> for TransactionServiceError {
@@ -121,10 +125,17 @@ impl From<diesel::result::Error> for TransactionServiceError {
     }
 }
 
+impl From<mc_ledger_db::Error> for TransactionServiceError {
+    fn from(src: mc_ledger_db::Error) -> Self {
+        Self::LedgerDB(src)
+    }
+}
+
 /// Trait defining the ways in which the wallet can interact with and manage
 /// transactions.
 pub trait TransactionService {
     /// Builds a transaction from the given account to the specified recipients.
+    #[allow(clippy::too_many_arguments)]
     fn build_transaction(
         &self,
         account_id_hex: &str,
@@ -133,6 +144,7 @@ pub trait TransactionService {
         fee: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
+        log_tx_proposal: Option<bool>,
     ) -> Result<TxProposal, TransactionServiceError>;
 
     /// Submits a pre-built TxProposal to the MobileCoin Consensus Network.
@@ -170,6 +182,7 @@ where
         fee: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
+        log_tx_proposal: Option<bool>,
     ) -> Result<TxProposal, TransactionServiceError> {
         let mut builder = WalletTransactionBuilder::new(
             account_id_hex.to_string(),
@@ -213,8 +226,18 @@ where
 
         let tx_proposal = builder.build()?;
 
-        // FIXME: WS-32 - Might be nice to have a tx_proposal table so that you don't
-        // have to write these out to local files.
+        if log_tx_proposal.unwrap_or_default() {
+            let conn = self.wallet_db.get_conn()?;
+            let block_index = self.ledger_db.num_blocks()? - 1;
+            let _transaction_log = TransactionLog::log_submitted(
+                tx_proposal.clone(),
+                block_index,
+                "".to_string(),
+                &account_id_hex,
+                &conn,
+            )?;
+        }
+
         Ok(tx_proposal)
     }
 
@@ -297,6 +320,7 @@ where
             fee,
             tombstone_block,
             max_spendable_value,
+            None,
         )?;
         if let Some(transaction_log_and_associated_txos) = self.submit_transaction(
             tx_proposal.clone(),
@@ -323,7 +347,10 @@ mod tests {
             models::Txo,
             txo::{TxoDetails, TxoModel},
         },
-        service::{account::AccountService, address::AddressService, balance::BalanceService},
+        service::{
+            account::AccountService, address::AddressService, balance::BalanceService,
+            transaction_log::TransactionLogService,
+        },
         test_utils::{
             add_block_from_transaction_log, add_block_to_ledger_db, get_test_ledger,
             setup_wallet_service, wait_for_sync, MOB,
@@ -335,6 +362,143 @@ mod tests {
     use mc_crypto_rand::rand_core::RngCore;
     use mc_transaction_core::{constants::MINIMUM_FEE, ring_signature::KeyImage};
     use rand::{rngs::StdRng, SeedableRng};
+
+    #[test_with_logger]
+    fn test_build_transaction_and_log(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+
+        // Create our main account for the wallet
+        let alice = service
+            .create_account(Some("Alice's Main Account".to_string()))
+            .unwrap();
+
+        // Add a block with a transaction for Alice
+        let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
+        let alice_account_id = AccountID::from(&alice_account_key);
+        let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
+
+        let tx_logs = service
+            .list_transaction_logs(&alice_account_id, None, None)
+            .unwrap();
+
+        assert_eq!(0, tx_logs.len());
+
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![alice_public_address.clone()],
+            100 * MOB as u64,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        wait_for_sync(&ledger_db, &service.wallet_db, &alice_account_id, 13);
+
+        let tx_logs = service
+            .list_transaction_logs(&alice_account_id, None, None)
+            .unwrap();
+
+        assert_eq!(1, tx_logs.len());
+
+        // Verify balance for Alice
+        let balance = service
+            .get_balance_for_account(&AccountID(alice.account_id_hex.clone()))
+            .unwrap();
+        assert_eq!(balance.unspent, 100 * MOB as u128);
+
+        // Add an account for Bob
+        let bob = service
+            .create_account(Some("Bob's Main Account".to_string()))
+            .unwrap();
+        let bob_account_key: AccountKey =
+            mc_util_serial::decode(&bob.account_key).expect("Could not decode account key");
+        let _bob_account_id = AccountID::from(&bob_account_key);
+
+        // Create an assigned subaddress for Bob
+        let bob_address_from_alice = service
+            .assign_address_for_account(&AccountID(bob.account_id_hex.clone()), Some("From Alice"))
+            .unwrap();
+
+        let _tx_proposal = service
+            .build_transaction(
+                &alice.account_id_hex,
+                &[(
+                    bob_address_from_alice.assigned_subaddress_b58,
+                    (42 * MOB).to_string(),
+                )],
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+        log::info!(logger, "Built transaction from Alice");
+
+        let tx_logs = service
+            .list_transaction_logs(&alice_account_id, None, None)
+            .unwrap();
+
+        assert_eq!(1, tx_logs.len());
+
+        // Create an assigned subaddress for Bob
+        let bob_address_from_alice_2 = service
+            .assign_address_for_account(&AccountID(bob.account_id_hex.clone()), Some("From Alice"))
+            .unwrap();
+
+        let _tx_proposal = service
+            .build_transaction(
+                &alice.account_id_hex,
+                &[(
+                    bob_address_from_alice_2.assigned_subaddress_b58,
+                    (42 * MOB).to_string(),
+                )],
+                None,
+                None,
+                None,
+                None,
+                Some(false),
+            )
+            .unwrap();
+        log::info!(logger, "Built transaction from Alice");
+
+        let tx_logs = service
+            .list_transaction_logs(&alice_account_id, None, None)
+            .unwrap();
+
+        assert_eq!(1, tx_logs.len());
+
+        // Create an assigned subaddress for Bob
+        let bob_address_from_alice_3 = service
+            .assign_address_for_account(&AccountID(bob.account_id_hex.clone()), Some("From Alice"))
+            .unwrap();
+
+        let _tx_proposal = service
+            .build_transaction(
+                &alice.account_id_hex,
+                &[(
+                    bob_address_from_alice_3.clone().assigned_subaddress_b58,
+                    (42 * MOB).to_string(),
+                )],
+                None,
+                None,
+                None,
+                None,
+                Some(true),
+            )
+            .unwrap();
+        log::info!(logger, "Built transaction from Alice");
+
+        let tx_logs = service
+            .list_transaction_logs(&alice_account_id, None, None)
+            .unwrap();
+
+        assert_eq!(2, tx_logs.len());
+    }
 
     // Test sending a transaction from Alice -> Bob, and then from Bob -> Alice
     #[test_with_logger]
@@ -529,6 +693,7 @@ mod tests {
         match service.build_transaction(
             &alice.account_id_hex,
             &vec![("NOTB58".to_string(), (42 * MOB).to_string())],
+            None,
             None,
             None,
             None,
