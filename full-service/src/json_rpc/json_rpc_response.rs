@@ -124,12 +124,14 @@ pub fn format_invalid_request_error<T: std::fmt::Display + std::fmt::Debug>(e: T
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(untagged)]
 #[allow(non_camel_case_types)]
+#[allow(clippy::large_enum_variant)]
 pub enum JsonCommandResponse {
     assign_address_for_account {
         address: Address,
     },
     build_and_submit_transaction {
         transaction_log: TransactionLog,
+        tx_proposal: TxProposal,
     },
     build_gift_code {
         tx_proposal: TxProposal,
