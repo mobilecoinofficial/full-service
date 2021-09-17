@@ -496,7 +496,9 @@ class CommandLineInterface:
             print('Cancelled.')
             return
 
-        transaction_log = self.client.build_and_submit_transaction(account_id, amount, to_address)
+        transaction_log, tx_proposal = self.client.build_and_submit_transaction_with_proposal(account_id, amount, to_address)
+        print("TX Proposal:")
+        print(tx_proposal.keys())
 
         print('Sent {}, with a transaction fee of {}'.format(
             _format_mob(pmob2mob(transaction_log['value_pmob'])),
