@@ -227,7 +227,7 @@ def test_subaddresses(c, source_account_id):
     assert addresses[dest_address]['metadata'] == 'Address Name'
 
     # Send the subaddress some money.
-    transaction_log, tx_proposal = c.build_and_submit_transaction(source_account_id, 0.1, dest_address, return_proposal=True)
+    transaction_log, tx_proposal = c.build_and_submit_transaction_with_proposal(source_account_id, 0.1, dest_address)
     tx_index = int(transaction_log['submitted_block_index'])
     balance = c.poll_balance(dest_account_id, tx_index + 1)
     assert pmob2mob(balance['unspent_pmob']) == Decimal('0.1')
