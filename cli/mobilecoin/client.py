@@ -228,7 +228,7 @@ class Client:
 
     def build_and_submit_transaction_with_proposal(self, account_id, amount, to_address):
         r = self._build_and_submit_transaction(account_id, amount, to_address)
-        return r['transaction_log'], r['proposal']
+        return r['transaction_log'], r['tx_proposal']
 
     def build_transaction(self, account_id, amount, to_address, tombstone_block=None):
         amount = str(mob2pmob(amount))
