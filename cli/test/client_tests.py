@@ -227,10 +227,13 @@ def test_subaddresses(c, source_account_id):
     assert addresses[dest_address]['metadata'] == 'Address Name'
 
     # Send the subaddress some money.
-    transaction_log = c.build_and_submit_transaction(source_account_id, 0.1, dest_address)
+    transaction_log, tx_proposal = c.build_and_submit_transaction_with_proposal(source_account_id, 0.1, dest_address)
     tx_index = int(transaction_log['submitted_block_index'])
     balance = c.poll_balance(dest_account_id, tx_index + 1)
     assert pmob2mob(balance['unspent_pmob']) == Decimal('0.1')
+    assert len(tx_proposal['outlay_list']) == 1
+    receipts = c.create_receiver_receipts(tx_proposal)
+    assert len(receipts) == 1
 
     # The second address has money credited to it, but the main one doesn't.
     balance = c.get_balance_for_address(dest_address)
