@@ -2,10 +2,7 @@
 
 //! Entrypoint for Wallet API.
 
-use crate::{
-    db::{self, account::AccountID, transaction_log::TransactionID, txo::TxoID},
-    json_rpc,
-    json_rpc::{
+use crate::{db::{self, account::AccountID, transaction_log::TransactionID, txo::TxoID}, json_rpc::{self, json_rpc_response::JsonRPCErrorCodes}, json_rpc::{
         account_secrets::AccountSecrets,
         address::Address,
         balance::Balance,
@@ -22,9 +19,7 @@ use crate::{
         tx_proposal::TxProposal,
         txo::Txo,
         wallet_status::WalletStatus,
-    },
-    service,
-    service::{
+    }, service, service::{
         account::AccountService,
         address::AddressService,
         balance::BalanceService,
@@ -37,12 +32,10 @@ use crate::{
         transaction_log::TransactionLogService,
         txo::TxoService,
         WalletService,
-    },
-    util::b58::{
+    }, util::b58::{
         b58_decode_payment_request, b58_encode_public_address, b58_printable_wrapper_type,
         PrintableWrapperType,
-    },
-};
+    }};
 use mc_common::logger::global_log;
 use mc_connection::{
     BlockchainConnection, HardcodedCredentialsProvider, ThickClient, UserTxConnection,
@@ -354,11 +347,28 @@ where
             }
         }
         JsonCommandRequest::export_account_secrets { account_id } => {
-            let account = service
-                .get_account(&AccountID(account_id))
-                .map_err(format_error)?;
-            JsonCommandResponse::export_account_secrets {
-                account_secrets: AccountSecrets::try_from(&account).map_err(format_error)?,
+            // Only execute if the feature flag for the export_account_secrets command is enabled.
+            if cfg!(feature = "export_account_secrets") {
+                let account = service
+                    .get_account(&AccountID(account_id))
+                    .map_err(format_error)?;
+                JsonCommandResponse::export_account_secrets {
+                    account_secrets: AccountSecrets::try_from(&account).map_err(format_error)?,
+                }
+            }
+            else { 
+                let data: serde_json::Value = json!({
+                    "details": "This full-service binary was compiled without the 'export_account_secrets' feature.",
+                    "account_id": account_id
+                }).into();
+                // Compiled without that command, throw an error.
+                return Err(
+                    JsonRPCError::error { 
+                        code: JsonRPCErrorCodes::MethodNotFound as i32,
+                        message: "MethodDisabled".to_string(),
+                        data, 
+                    }
+                );
             }
         }
         JsonCommandRequest::get_account { account_id } => JsonCommandResponse::get_account {

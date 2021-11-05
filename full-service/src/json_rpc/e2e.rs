@@ -304,8 +304,10 @@ mod e2e {
         assert_eq!(public_address, "8JtpPPh9mV2PTLrrDz4f2j4PtUpNWnrRg8HKpnuwkZbj5j8bGqtNMNLC9E3zjzcw456215yMjkCVYK4FPZTX4gijYHiuDT31biNHrHmQmsU");
     }
 
+    #[cfg(feature = "export_account_secrets")]
     #[test_with_logger]
     fn test_export_account_secrets(logger: Logger) {
+        // Set up a DB and an account.
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -324,6 +326,7 @@ mod e2e {
         let account_obj = res["result"]["account"].clone();
         let account_id = account_obj["account_id"].clone();
 
+        // Make a json-rpc request for account secrets.
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
@@ -355,6 +358,7 @@ mod e2e {
         );
     }
 
+    #[cfg(feature = "export_account_secrets")]
     #[test_with_logger]
     fn test_export_legacy_account_secrets(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
@@ -402,6 +406,60 @@ mod e2e {
         );
     }
 
+    #[cfg(not(feature = "export_account_secrets"))]
+    #[test_with_logger]
+    fn test_export_account_secrets_deny(logger: Logger) {
+        use crate::json_rpc::json_rpc_response::JsonRPCErrorCodes;
+
+        // Set up a DB and an account.
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_account",
+            "params": {
+                "mnemonic": "sheriff odor square mistake huge skate mouse shoot purity weapon proof stuff correct concert blanket neck own shift clay mistake air viable stick group",
+                "key_derivation_version": "2",
+                "name": "Alice Main Account",
+                "first_block_index": "200",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let account_obj = res["result"]["account"].clone();
+        let account_id = account_obj["account_id"].clone();
+
+        // Make a json-rpc request for account secrets.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "export_account_secrets",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+
+        // Send our request, checking to ensure it fails. 
+        dispatch_expect_error(&client, body, &logger, 
+            json!({
+                "method": "export_account_secrets",
+                "error": json!({
+                    "code": JsonRPCErrorCodes::MethodNotFound as i32,
+                    "message": "MethodDisabled",
+                    "data": json!({
+                        "details": "This full-service binary was compiled without the 'export_account_secrets' feature.",
+                        "account_id": account_id
+                    })
+                }),
+                "jsonrpc": "2.0",
+                "id": 1,
+            })
+            .to_string(),
+        );
+    }
+
+    #[cfg(feature = "export_account_secrets")]
     #[test_with_logger]
     fn test_e2e_import_account_fog(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);

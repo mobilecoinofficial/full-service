@@ -9,7 +9,8 @@ name = "full-service"
 path = "src/bin/main.rs"
 
 [features]
-default = ["ip-check"]
+default = ["ip-check", "export_account_secrets"]
+export_account_secrets = []
 ip-check = []
 
 [dependencies]
