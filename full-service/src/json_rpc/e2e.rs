@@ -304,7 +304,7 @@ mod e2e {
         assert_eq!(public_address, "8JtpPPh9mV2PTLrrDz4f2j4PtUpNWnrRg8HKpnuwkZbj5j8bGqtNMNLC9E3zjzcw456215yMjkCVYK4FPZTX4gijYHiuDT31biNHrHmQmsU");
     }
 
-    #[cfg(feature = "export_account_secrets")]
+    #[cfg(feature = "export-account-secrets")]
     #[test_with_logger]
     fn test_export_account_secrets(logger: Logger) {
         // Set up a DB and an account.
@@ -358,7 +358,7 @@ mod e2e {
         );
     }
 
-    #[cfg(feature = "export_account_secrets")]
+    #[cfg(feature = "export-account-secrets")]
     #[test_with_logger]
     fn test_export_legacy_account_secrets(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
@@ -406,7 +406,7 @@ mod e2e {
         );
     }
 
-    #[cfg(not(feature = "export_account_secrets"))]
+    #[cfg(not(feature = "export-account-secrets"))]
     #[test_with_logger]
     fn test_export_account_secrets_deny(logger: Logger) {
         use crate::json_rpc::json_rpc_response::JsonRPCErrorCodes;

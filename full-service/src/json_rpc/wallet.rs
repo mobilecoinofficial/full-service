@@ -348,7 +348,7 @@ where
         }
         JsonCommandRequest::export_account_secrets { account_id } => {
             // Only execute if the feature flag for the export_account_secrets command is enabled.
-            if cfg!(feature = "export_account_secrets") {
+            if cfg!(feature = "export-account-secrets") {
                 let account = service
                     .get_account(&AccountID(account_id))
                     .map_err(format_error)?;
@@ -358,7 +358,7 @@ where
             }
             else { 
                 let data: serde_json::Value = json!({
-                    "details": "This full-service binary was compiled without the 'export_account_secrets' feature.",
+                    "details": "This full-service binary was compiled without the 'export-account-secrets' feature.",
                     "account_id": account_id
                 }).into();
                 // Compiled without that command, throw an error.
