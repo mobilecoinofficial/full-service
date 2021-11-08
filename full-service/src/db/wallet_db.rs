@@ -82,7 +82,8 @@ impl WalletDb {
 
     pub fn set_db_encryption_key_from_env(conn: &SqliteConnection) {
         // Send the encryption key to SQLCipher, if it is not the empty string.
-        let encryption_key = env::var("MC_PASSWORD").unwrap_or_else(|_| "".to_string());
+        // Then check that it worked, or else panic.
+        let encryption_key = env::var("MC_PASSWORD").unwrap_or_default();
         if !encryption_key.is_empty() {
             let result = conn.batch_execute(&format!(
                 "PRAGMA key = {};",
