@@ -1,17 +1,13 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
-use crate::{
-    json_rpc::{
+use crate::{json_rpc::{
         json_rpc_request::{JsonCommandRequest, JsonRPCRequest},
         json_rpc_response::JsonRPCResponse,
         wallet::wallet_api_inner,
-    },
-    service::WalletService,
-    test_utils::{
+    }, service::WalletService, test_utils::{
         get_resolver_factory, get_test_ledger, setup_peer_manager_and_network_state,
         WalletDbTestContext,
-    },
-};
+    }, wallet::ApiKeyGuard};
 use mc_account_keys::PublicAddress;
 use mc_common::logger::{log, Logger};
 use mc_connection_test_utils::MockBlockchainConnection;
@@ -47,6 +43,7 @@ pub struct TestWalletState {
 // TestWalletState, which handles Mock objects.
 #[post("/wallet", format = "json", data = "<command>")]
 fn test_wallet_api(
+    _guard: ApiKeyGuard,
     state: rocket::State<TestWalletState>,
     command: Json<JsonRPCRequest>,
 ) -> Result<Json<JsonRPCResponse>, String> {
