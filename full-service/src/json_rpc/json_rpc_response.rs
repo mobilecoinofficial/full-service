@@ -56,7 +56,7 @@ pub struct JsonRPCResponse {
     pub jsonrpc: String,
 
     /// The id of the Request object to which this response corresponds.
-    pub id: u32,
+    pub id: serde_json::Value,
 }
 
 /// A JSON RPC Error.
