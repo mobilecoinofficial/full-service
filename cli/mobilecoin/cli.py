@@ -553,7 +553,7 @@ class CommandLineInterface:
             import segno
         except ImportError:
             print('Showing QR codes requires the segno library. Try:')
-            print('$ pip install git+https://github.com/mobilecoinofficial/segno')
+            print('$ pip install segno')
             return
 
         account = self._load_account_prefix(account_id)
