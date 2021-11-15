@@ -867,7 +867,7 @@ impl TxoModel for Txo {
                     .and(txos::value.le(max_spendable_value.unwrap_or(i64::MAX)))),
             )
             .select(txos::all_columns)
-            .order_by(txos::value.desc())
+            .order_by(txos::value.asc())
             .load(conn)?;
 
         if spendable_txos.is_empty() {
@@ -879,6 +879,7 @@ impl TxoModel for Txo {
         // value we can possibly spend in one transaction.
         let max_spendable_in_wallet = spendable_txos
             .iter()
+            .rev()
             .take(MAX_INPUTS as usize)
             .map(|utxo| utxo.value as u64)
             .sum();
