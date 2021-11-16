@@ -1848,11 +1848,77 @@ mod tests {
         );
     }
 
+    #[test_with_logger]
+    fn test_max_spendable_mob(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        let (account_id, _address) = Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(0),
+            None,
+            None,
+            "",
+            None,
+            None,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        // Seed Txos
+        let mut src_txos = Vec::new();
+        // total MOB available == 210
+        // max spendable == 200 (20 + 19 + ... + 5), 16 txos total
+        for i in 1..=20 {
+            let (_txo_id, txo, _key_image) =
+                create_test_received_txo(&account_key, i, i as u64, i, &mut rng, &wallet_db);
+            src_txos.push(txo);
+        }
+
+        // testing over the total in account, should fail
+        let result = Txo::select_unspent_txos_for_value(
+            &account_id.to_string(),
+            500 as u64,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        );
+        assert!(result.is_err());
+
+        // testing over the max spendable but under the total in account, should fail
+        let result = Txo::select_unspent_txos_for_value(
+            &account_id.to_string(),
+            201 as u64,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        );
+        assert!(result.is_err());
+
+        // testing at the max spendable limit, should pass and have 16 txouts selected
+        let result = Txo::select_unspent_txos_for_value(
+            &account_id.to_string(),
+            200 as u64,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(result.len(), 16);
+        let sum = result
+            .into_iter()
+            .map(|x| x.value)
+            .reduce(|a, b| a + b)
+            .unwrap();
+        assert_eq!(200 as i64, sum);
+    }
+
     // FIXME: once we have create_minted, then select_txos test with no
     // FIXME: test update txo after tombstone block is exceeded
     // FIXME: test update txo after it has landed via key_image update
     // FIXME: test any_failed and are_all_spent
-    // FIXME: test max_spendable
     // FIXME: test for selecting utxos from multiple subaddresses in one account
     // FIXME: test for one TXO belonging to multiple accounts with get
     // FIXME: test create_received for various permutations of multiple accounts
