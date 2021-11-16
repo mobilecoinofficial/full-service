@@ -618,7 +618,7 @@ mod e2e {
     #[test_with_logger]
     fn test_build_then_submit_transaction(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -648,6 +648,12 @@ mod e2e {
         );
 
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            13,
+        );
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
 
         // Create a tx proposal to ourselves
@@ -691,6 +697,12 @@ mod e2e {
         );
 
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            14,
+        );
         assert_eq!(ledger_db.num_blocks().unwrap(), 14);
 
         // Create a tx proposal to ourselves
@@ -802,10 +814,13 @@ mod e2e {
 
         // The MockBlockchainConnection does not write to the ledger_db
         add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
-
-        // FIXME: Why after submit is the network_block_index off-by-one in
-        // wait-for-sync?
-        // wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            15,
+        );
         assert_eq!(ledger_db.num_blocks().unwrap(), 15);
 
         // Get balance after submission
@@ -841,13 +856,11 @@ mod e2e {
             .unwrap()
             .as_str()
             .unwrap();
-        assert_eq!(unspent, "0");
-        assert_eq!(pending, "100000000000100");
-        assert_eq!(spent, "0");
-        assert_eq!(secreted, &(100000000000100 - MINIMUM_FEE).to_string());
+        assert_eq!(unspent, "99999600000100");
+        assert_eq!(pending, "0");
+        assert_eq!(spent, "100000000000100");
+        assert_eq!(secreted, "0");
         assert_eq!(orphaned, "0");
-
-        // FIXME: FS-93 Increment ledger manually so tx lands.
 
         // Get the transaction_id and verify it contains what we expect
         let body = json!({
@@ -884,7 +897,7 @@ mod e2e {
         );
         assert_eq!(
             transaction_log.get("status").unwrap().as_str().unwrap(),
-            "tx_status_pending"
+            "tx_status_succeeded"
         );
         assert_eq!(
             transaction_log
@@ -920,7 +933,7 @@ mod e2e {
             .as_array()
             .unwrap();
         // We have a transaction log for each of the received, as well as the sent.
-        assert_eq!(transaction_log_ids.len(), 3);
+        assert_eq!(transaction_log_ids.len(), 5);
 
         // Check the contents of the transaction log associated txos
         let transaction_log_map = result.get("transaction_log_map").unwrap();
@@ -953,16 +966,10 @@ mod e2e {
             1
         );
 
-        // The transaction log is pending
         assert_eq!(
             transaction_log.get("status").unwrap().as_str().unwrap(),
-            "tx_status_pending"
+            "tx_status_succeeded"
         );
-
-        // FIXME: need to figure out how to get the transaction to hit the
-        // ledger after submit and get picked up
-        // assert_eq!(transaction_log.get("finalized_block_index").unwrap(),
-        // "14");
 
         // Get all Transaction Logs for a given Block
 
@@ -978,9 +985,7 @@ mod e2e {
             .unwrap()
             .as_object()
             .unwrap();
-        assert_eq!(transaction_log_map.len(), 3);
-        // FIXME: Once finalized_block_index is working, assert that they are
-        // presented in ascending order of block_index
+        assert_eq!(transaction_log_map.len(), 5);
     }
 
     #[test_with_logger]
@@ -1549,6 +1554,12 @@ mod e2e {
         );
 
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            13,
+        );
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
 
         let body = json!({
@@ -1586,13 +1597,6 @@ mod e2e {
             }
         });
         dispatch(&client, body, &logger);
-
-        wait_for_account_sync(
-            &ledger_db,
-            &db_ctx.get_db_instance(logger.clone()),
-            &AccountID(account_id.to_string()),
-            13,
-        );
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -1663,6 +1667,12 @@ mod e2e {
         dispatch(&client, body, &logger);
 
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            13,
+        );
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -2827,7 +2837,7 @@ mod e2e {
     #[test_with_logger]
     fn test_gift_codes(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -2854,7 +2864,12 @@ mod e2e {
             &mut rng,
         );
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
-
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(alice_account_id.to_string()),
+            13,
+        );
         // Create a gift code
         let body = json!({
             "jsonrpc": "2.0",
@@ -2908,6 +2923,12 @@ mod e2e {
         // The MockBlockchainConnection does not write to the ledger_db
         add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(alice_account_id.to_string()),
+            14,
+        );
 
         // Check the status of the gift code
         let body = json!({
@@ -2937,6 +2958,12 @@ mod e2e {
         let result = res.get("result").unwrap();
         let bob_account_obj = result.get("account").unwrap();
         let bob_account_id = bob_account_obj.get("account_id").unwrap().as_str().unwrap();
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(bob_account_id.to_string()),
+            14,
+        );
 
         // Get all the gift codes in the wallet
         let body = json!({

@@ -1912,6 +1912,22 @@ mod tests {
             .reduce(|a, b| a + b)
             .unwrap();
         assert_eq!(200 as i64, sum);
+
+        // testing that it correctly selects dust before larger txos first
+        let result = Txo::select_unspent_txos_for_value(
+            &account_id.to_string(),
+            3 as u64,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(result.len(), 2);
+        let sum = result
+            .into_iter()
+            .map(|x| x.value)
+            .reduce(|a, b| a + b)
+            .unwrap();
+        assert_eq!(3 as i64, sum);
     }
 
     // FIXME: once we have create_minted, then select_txos test with no
