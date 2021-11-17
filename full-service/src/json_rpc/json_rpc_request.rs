@@ -95,6 +95,7 @@ pub enum JsonCommandRequest {
         fee: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
+        log_tx_proposal: Option<bool>,
     },
     claim_gift_code {
         gift_code_b58: String,
