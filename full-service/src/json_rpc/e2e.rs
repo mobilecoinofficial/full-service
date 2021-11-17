@@ -2758,6 +2758,7 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let bob_account_obj = result.get("account").unwrap();
+        let bob_account_id = bob_account_obj.get("account_id").unwrap().as_str().unwrap();
         let bob_b58_public_address = bob_account_obj
             .get("main_address")
             .unwrap()
@@ -2822,6 +2823,12 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(alice_account_id.to_string()),
+            14,
+        );
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(bob_account_id.to_string()),
             14,
         );
 
