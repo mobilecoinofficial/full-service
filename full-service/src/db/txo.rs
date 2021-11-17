@@ -922,7 +922,8 @@ impl TxoModel for Txo {
             // Cap at maximum allowed inputs.
             if selected_utxos.len() > MAX_INPUTS as usize {
                 // Remove the lowest utxo.
-                selected_utxos.remove(0);
+                let removed = selected_utxos.remove(0);
+                total -= removed.value as u64;
             }
         }
 

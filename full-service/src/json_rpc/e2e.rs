@@ -1597,7 +1597,12 @@ mod e2e {
             }
         });
         dispatch(&client, body, &logger);
-
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            13,
+        );
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
@@ -1611,9 +1616,11 @@ mod e2e {
         let balance = result.get("balance").unwrap();
         let unspent_pmob = balance.get("unspent_pmob").unwrap().as_str().unwrap();
         let orphaned_pmob = balance.get("orphaned_pmob").unwrap().as_str().unwrap();
+        let spent_pmob = balance.get("spent_pmob").unwrap().as_str().unwrap();
 
         assert_eq!("0", unspent_pmob);
         assert_eq!("100000000000000", orphaned_pmob);
+        assert_eq!("0", spent_pmob);
 
         // assign next subaddress for account
         let body = json!({
