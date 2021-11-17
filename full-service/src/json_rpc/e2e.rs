@@ -564,7 +564,7 @@ mod e2e {
     #[test_with_logger]
     fn test_account_status(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -591,6 +591,12 @@ mod e2e {
         );
 
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            13,
+        );
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -618,7 +624,7 @@ mod e2e {
     #[test_with_logger]
     fn test_build_and_submit_transaction(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -648,6 +654,13 @@ mod e2e {
         );
 
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            13,
+        );
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
 
         // Add a block with significantly more MOB
@@ -660,6 +673,12 @@ mod e2e {
         );
 
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            14,
+        );
         assert_eq!(ledger_db.num_blocks().unwrap(), 14);
 
         // Create a tx proposal to ourselves
@@ -729,6 +748,12 @@ mod e2e {
 
         add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            15,
+        );
         assert_eq!(ledger_db.num_blocks().unwrap(), 15);
 
         // Get balance after submission
