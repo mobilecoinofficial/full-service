@@ -882,16 +882,23 @@ impl TxoModel for Txo {
         // The maximum spendable is limited by the maximal number of inputs we can use.
         // Since the txos are sorted by decreasing value, this is the maximum
         // value we can possibly spend in one transaction.
-        let max_spendable_in_wallet = spendable_txos
+        // Note, u128::Max = 340_282_366_920_938_463_463_374_607_431_768_211_455, which
+        // is far beyond the total number of pMOB in the MobileCoin system
+        // (250_000_000_000_000_000_000)
+        let max_spendable_in_wallet: u128 = spendable_txos
             .iter()
             .take(MAX_INPUTS as usize)
-            .map(|utxo| utxo.value as u64)
+            .map(|utxo| (utxo.value as u64) as u128)
             .sum();
-        if target_value > max_spendable_in_wallet {
+        // If we're trying to spend more than we have in the wallet, we may need to
+        // defrag
+        if target_value as u128 > max_spendable_in_wallet {
             // See if we merged the UTXOs we would be able to spend this amount.
-            let total_unspent_value_in_wallet: u64 =
-                spendable_txos.iter().map(|utxo| utxo.value as u64).sum();
-            if total_unspent_value_in_wallet >= target_value {
+            let total_unspent_value_in_wallet: u128 = spendable_txos
+                .iter()
+                .map(|utxo| (utxo.value as u64) as u128)
+                .sum();
+            if total_unspent_value_in_wallet >= target_value as u128 {
                 return Err(WalletDbError::InsufficientFundsFragmentedTxos);
             } else {
                 return Err(WalletDbError::InsufficientFundsUnderMaxSpendable(format!(

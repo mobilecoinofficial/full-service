@@ -503,7 +503,7 @@ impl TransactionLogModel for TransactionLog {
             .iter()
             .map(|o| o.value as u128)
             .sum::<u128>();
-        if transaction_value > i64::MAX as u128 {
+        if transaction_value > u64::MAX as u128 {
             return Err(WalletDbError::TransactionValueExceedsMax);
         }
 
@@ -585,15 +585,15 @@ mod tests {
         db::{
             account::{AccountID, AccountModel},
             models::{
-                TXO_STATUS_PENDING, TXO_STATUS_SECRETED, TXO_STATUS_UNSPENT, TXO_TYPE_MINTED,
-                TXO_TYPE_RECEIVED,
+                TXO_STATUS_PENDING, TXO_STATUS_SECRETED, TXO_STATUS_SPENT, TXO_STATUS_UNSPENT,
+                TXO_TYPE_MINTED, TXO_TYPE_RECEIVED,
             },
         },
-        service::sync::SyncThread,
+        service::{sync::SyncThread, transaction_builder::WalletTransactionBuilder},
         test_utils::{
             add_block_with_tx_outs, builder_for_random_recipient, create_test_received_txo,
-            get_test_ledger, manually_sync_account, random_account_with_seed_values,
-            WalletDbTestContext, MOB,
+            get_resolver_factory, get_test_ledger, manually_sync_account,
+            random_account_with_seed_values, WalletDbTestContext, MOB,
         },
     };
 
@@ -672,10 +672,11 @@ mod tests {
     // MobileCoin network, several things must happen for Full-Service to
     // maintain accurate transaction history.
     //
-    // 1. The minted TXO(s) were created in the txos table (outside the scope of
-    // this db test - see service tests) 1. The spent TXO(s) are marked as
-    // pending (outside the scope of this db test - see service tests)
-    // 1. The transaction_log is created and added to the transaction_log table
+    // 1. The minted TXO(s) were created in the txos table
+    // 2. The spent TXO(s) are marked as pending
+    // 3. The change TXO(s) are marked as minted, secreted
+    // 4. The transaction_log is created and added to the transaction_log table
+    // 5. Once the change is received, it is marked as minted, unspent
     fn test_log_submitted(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
@@ -982,10 +983,6 @@ mod tests {
         assert_eq!(associated.change.len(), 0);
     }
 
-    // FIXME: WS-9 - test log_submitted for transaction value > i64::Max
-    // FIXME: test_log_submitted to self and then scan
-    // FIXME: test_log_submitted for recovered
-
     #[test_with_logger]
     fn test_delete_transaction_logs_for_account(logger: Logger) {
         use crate::db::schema::{transaction_logs, transaction_txo_types};
@@ -1074,4 +1071,462 @@ mod tests {
                 .first(&wallet_db.get_conn().unwrap())
         );
     }
+
+    // Test that transaction logging can handle submitting a value greater than
+    // i64::Max Note: i64::Max is 9_223_372_036_854_775_807, or about 9.2M MOB.
+    // The biggest MOB amount that can be represented on chain is u64::MAX,
+    // 18_446_744_073_709_551_615, or about 18M MOB.
+    //
+    // This test confirms that submitting a transaction_log for < u64::Max, but >
+    // i64::Max succeeds
+    #[test_with_logger]
+    fn test_log_submitted_big_int(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        // Start sync thread
+        let _sync_thread =
+            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
+            &mut ledger_db,
+            &vec![7_000_000 * MOB as u64, 14_000_000 * MOB as u64],
+            &mut rng,
+        );
+
+        // Build a transaction for > i64::Max
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+        builder
+            .add_recipient(recipient.clone(), 10_000_000 * MOB as u64)
+            .unwrap();
+        builder.set_tombstone(0).unwrap();
+        builder.select_txos(None).unwrap();
+        let tx_proposal = builder.build().unwrap();
+
+        assert_eq!(tx_proposal.outlays[0].value, 10_000_000_000_000_000_000);
+
+        // Log submitted transaction from tx_proposal
+        let tx_log = TransactionLog::log_submitted(
+            tx_proposal.clone(),
+            ledger_db.num_blocks().unwrap(),
+            "".to_string(),
+            &AccountID::from(&account_key).to_string(),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(tx_log.value as u64, 10_000_000 * MOB as u64);
+    }
+
+    // Test that logging a submitted transaction to self results in the inputs,
+    // outputs, and change being handled correctly.
+    //
+    // By "handled correctly," we mean:
+    //
+    // 1. The inputs are marked as pending, until they are seen as spent in the
+    // processed block 2. The outputs are marked as Minted & Secreted, until
+    // they are processed, then they are    marked Minted & Unspent
+    // 3. The change is marked Minted & Secreted, until it is processed; then it is
+    // marked    Minted & Unspent
+    //
+    // Note: This is also testing 2 inputs, as opposed to the happy path test above,
+    // which tests only 1 input.
+    #[test_with_logger]
+    fn test_log_submitted_to_self(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        // Start sync thread
+        let _sync_thread =
+            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
+            &mut ledger_db,
+            &vec![7 * MOB as u64, 8 * MOB as u64],
+            &mut rng,
+        );
+
+        let mut builder = WalletTransactionBuilder::new(
+            AccountID::from(&account_key).to_string(),
+            wallet_db.clone(),
+            ledger_db.clone(),
+            get_resolver_factory(&mut rng).unwrap(),
+            logger.clone(),
+        );
+        // Add self at main subaddress as the recipient
+        builder
+            .add_recipient(account_key.subaddress(0), 12 * MOB as u64)
+            .unwrap();
+        builder.set_tombstone(0).unwrap();
+        builder.select_txos(None).unwrap();
+        let tx_proposal = builder.build().unwrap();
+
+        // Log submitted transaction from tx_proposal
+        let tx_log = TransactionLog::log_submitted(
+            tx_proposal.clone(),
+            ledger_db.num_blocks().unwrap(),
+            "".to_string(),
+            &AccountID::from(&account_key).to_string(),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        // Get the associated txos for this transaction
+        let associated_txos = tx_log
+            .get_associated_txos(&wallet_db.get_conn().unwrap())
+            .unwrap();
+
+        // There are two input TXOs to this transaction, and they are both now pending.
+        assert_eq!(associated_txos.inputs.len(), 2);
+        let input_details0 = Txo::get(
+            &associated_txos.inputs[0].txo_id_hex,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(input_details0.txo.value, 7 * MOB);
+        let input_details1 = Txo::get(
+            &associated_txos.inputs[1].txo_id_hex,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(input_details1.txo.value, 8 * MOB);
+        assert_eq!(
+            input_details0
+                .received_to_account
+                .clone()
+                .unwrap()
+                .txo_status,
+            TXO_STATUS_PENDING
+        ); // Should now be pending
+        assert_eq!(
+            input_details0.received_to_account.clone().unwrap().txo_type,
+            TXO_TYPE_RECEIVED
+        );
+        assert_eq!(
+            input_details0
+                .received_to_assigned_subaddress
+                .unwrap()
+                .subaddress_index,
+            0
+        );
+        assert!(input_details0.minted_from_account.is_none());
+        assert_eq!(
+            input_details1
+                .received_to_account
+                .clone()
+                .unwrap()
+                .txo_status,
+            TXO_STATUS_PENDING
+        ); // Should now be pending
+        assert_eq!(
+            input_details1.received_to_account.clone().unwrap().txo_type,
+            TXO_TYPE_RECEIVED
+        );
+        assert_eq!(
+            input_details1
+                .received_to_assigned_subaddress
+                .unwrap()
+                .subaddress_index,
+            0
+        );
+        assert!(input_details1.minted_from_account.is_none());
+
+        // There is one associated output TXO to this transaction, and its recipient
+        // is our own address
+        assert_eq!(associated_txos.outputs.len(), 1);
+        assert_eq!(
+            associated_txos.outputs[0].recipient_public_address_b58,
+            b58_encode_public_address(&account_key.subaddress(0)).unwrap()
+        );
+        let output_details = Txo::get(
+            &associated_txos.outputs[0].txo_id_hex,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(output_details.txo.value, 12 * MOB);
+        // The output status is "secreted"
+        assert_eq!(
+            output_details
+                .minted_from_account
+                .clone()
+                .unwrap()
+                .txo_status,
+            TXO_STATUS_SECRETED
+        );
+        // The output type is "minted"
+        assert_eq!(
+            output_details.minted_from_account.clone().unwrap().txo_type,
+            TXO_TYPE_MINTED
+        );
+        // We cannot know any details about the received_to_account for this TXO (until
+        // it is scanned)
+        assert!(output_details.received_to_account.is_none());
+        assert!(output_details.received_to_assigned_subaddress.is_none());
+
+        // Assert change is as expected
+        assert_eq!(associated_txos.change.len(), 1);
+        let change_details = Txo::get(
+            &associated_txos.change[0].txo_id_hex,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        // Change = (8 + 7) - 12 - fee
+        assert_eq!(change_details.txo.value, 3 * MOB - MINIMUM_FEE as i64);
+        assert_eq!(
+            change_details
+                .minted_from_account
+                .clone()
+                .unwrap()
+                .txo_status,
+            TXO_STATUS_SECRETED
+        ); // Note, change becomes "unspent" once scanned
+        assert_eq!(
+            change_details.minted_from_account.clone().unwrap().txo_type,
+            TXO_TYPE_MINTED
+        ); // Note, change remains "minted" after being "received," which is one way we
+           // distinguish this TXO as sent from and to ourselves. See
+           // "Txo::create_received" for the full logic
+        assert!(change_details.received_to_account.is_none()); // Note, gets filled in once scanned
+        assert!(change_details.received_to_assigned_subaddress.is_none()); // Note, gets filled in once scanned
+
+        // Now - we will add the spent Txos, outputs, and change to the ledger, so we
+        // can scan and verify
+        add_block_with_tx_outs(
+            &mut ledger_db,
+            &[
+                mc_util_serial::decode(&change_details.txo.txo).unwrap(),
+                mc_util_serial::decode(&output_details.txo.txo).unwrap(),
+            ],
+            &[
+                mc_util_serial::decode(&input_details0.txo.key_image.unwrap()).unwrap(),
+                mc_util_serial::decode(&input_details1.txo.key_image.unwrap()).unwrap(),
+            ],
+        );
+        assert_eq!(ledger_db.num_blocks().unwrap(), 15);
+        let _sync = manually_sync_account(
+            &ledger_db,
+            &wallet_db,
+            &AccountID(tx_log.account_id_hex.to_string()),
+            15,
+            &logger,
+        );
+
+        // Get the Input Txos again
+        let updated_input_details0 = Txo::get(
+            &associated_txos.inputs[0].txo_id_hex,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        let updated_input_details1 = Txo::get(
+            &associated_txos.inputs[1].txo_id_hex,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        // We cannot know where these inputs were minted from (unless we had sent them
+        // to ourselves, which we did not for this test). The outputs were sent
+        // to ourselves, so will be testing that case, in "output" form.
+        assert!(updated_input_details0.minted_from_account.is_none());
+        assert!(updated_input_details1.minted_from_account.is_none());
+
+        // The inputs are now spent
+        assert_eq!(
+            updated_input_details0
+                .received_to_account
+                .clone()
+                .unwrap()
+                .txo_status,
+            TXO_STATUS_SPENT
+        );
+        assert_eq!(
+            updated_input_details1
+                .received_to_account
+                .clone()
+                .unwrap()
+                .txo_status,
+            TXO_STATUS_SPENT
+        );
+
+        // The received_to account is ourself, which is the same as the account
+        // account_id_hex in the transaction log. The type is "Received"
+        assert_eq!(
+            updated_input_details0
+                .received_to_account
+                .clone()
+                .unwrap()
+                .account_id_hex,
+            tx_log.account_id_hex
+        );
+        assert_eq!(
+            updated_input_details0
+                .received_to_account
+                .clone()
+                .unwrap()
+                .txo_type,
+            TXO_TYPE_RECEIVED
+        );
+        assert_eq!(
+            updated_input_details0
+                .received_to_assigned_subaddress
+                .unwrap()
+                .subaddress_index,
+            0
+        );
+        assert_eq!(
+            updated_input_details1
+                .received_to_account
+                .clone()
+                .unwrap()
+                .account_id_hex,
+            tx_log.account_id_hex
+        );
+        assert_eq!(
+            updated_input_details1
+                .received_to_account
+                .clone()
+                .unwrap()
+                .txo_type,
+            TXO_TYPE_RECEIVED
+        );
+        assert_eq!(
+            updated_input_details1
+                .received_to_assigned_subaddress
+                .unwrap()
+                .subaddress_index,
+            0
+        );
+
+        // Get the output txo again
+        let updated_output_details = Txo::get(
+            &associated_txos.outputs[0].txo_id_hex,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        // The minted from account is ourself, and it is unspent, minted
+        assert_eq!(
+            updated_output_details
+                .minted_from_account
+                .clone()
+                .unwrap()
+                .txo_status,
+            TXO_STATUS_UNSPENT
+        );
+        assert_eq!(
+            updated_output_details
+                .minted_from_account
+                .clone()
+                .unwrap()
+                .txo_type,
+            TXO_TYPE_MINTED
+        );
+        assert_eq!(
+            updated_output_details
+                .received_to_account
+                .clone()
+                .unwrap()
+                .txo_status,
+            TXO_STATUS_UNSPENT
+        );
+        // The received to account is ourself, and it is unspent, minted
+        assert_eq!(
+            updated_output_details
+                .received_to_account
+                .clone()
+                .unwrap()
+                .account_id_hex,
+            tx_log.account_id_hex
+        );
+        assert_eq!(
+            updated_output_details
+                .received_to_account
+                .clone()
+                .unwrap()
+                .txo_status,
+            TXO_STATUS_UNSPENT
+        );
+        assert_eq!(
+            updated_output_details
+                .received_to_account
+                .clone()
+                .unwrap()
+                .txo_type,
+            TXO_TYPE_MINTED
+        );
+        // Received to main subaddress
+        assert_eq!(
+            updated_output_details
+                .received_to_assigned_subaddress
+                .unwrap()
+                .subaddress_index,
+            0
+        );
+
+        // Get the change txo again
+        let updated_change_details = Txo::get(
+            &associated_txos.change[0].txo_id_hex,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            updated_change_details
+                .minted_from_account
+                .clone()
+                .unwrap()
+                .txo_status,
+            TXO_STATUS_UNSPENT
+        );
+        assert_eq!(
+            updated_change_details
+                .minted_from_account
+                .clone()
+                .unwrap()
+                .txo_type,
+            TXO_TYPE_MINTED
+        );
+        assert_eq!(
+            updated_change_details
+                .received_to_account
+                .clone()
+                .unwrap()
+                .txo_status,
+            TXO_STATUS_UNSPENT
+        );
+        assert_eq!(
+            updated_change_details
+                .received_to_account
+                .clone()
+                .unwrap()
+                .account_id_hex,
+            tx_log.account_id_hex
+        );
+        assert_eq!(
+            updated_change_details
+                .received_to_account
+                .clone()
+                .unwrap()
+                .txo_type,
+            TXO_TYPE_MINTED
+        );
+        assert_eq!(
+            updated_change_details
+                .received_to_assigned_subaddress
+                .unwrap()
+                .subaddress_index,
+            1
+        );
+    }
+
+    // FIXME: test_log_submitted for recovered
+    // FIXME: test_log_submitted offline flow
 }
