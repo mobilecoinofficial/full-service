@@ -7,25 +7,8 @@
 //! a QR code for a gift code into a group chat, and the first person to
 //! consume the gift code claims the MOB.
 
-use crate::{
-    db::{
-        account::{AccountID, AccountModel},
-        gift_code::GiftCodeModel,
-        models::{Account, GiftCode},
-        txo::TxoID,
-        WalletDbError,
-    },
-    service::{
-        account::AccountServiceError,
-        address::{AddressService, AddressServiceError},
-        transaction::{TransactionService, TransactionServiceError},
-        WalletService,
-    },
-    util::b58::{
-        b58_decode_public_address, b58_decode_transfer_payload, b58_encode_public_address,
-        b58_encode_transfer_payload, B58Error, DecodedTransferPayload,
-    },
-};
+use std::{convert::TryFrom, fmt, iter::empty, sync::atomic::Ordering};
+
 use bip39::{Language, Mnemonic, MnemonicType};
 use diesel::Connection;
 use displaydoc::Display;
@@ -47,7 +30,26 @@ use mc_transaction_core::{
 use mc_transaction_std::{EmptyMemoBuilder, InputCredentials, TransactionBuilder};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use std::{convert::TryFrom, fmt, iter::empty, sync::atomic::Ordering};
+
+use crate::{
+    db::{
+        account::{AccountID, AccountModel},
+        gift_code::GiftCodeModel,
+        models::{Account, GiftCode},
+        txo::TxoID,
+        WalletDbError,
+    },
+    service::{
+        account::AccountServiceError,
+        address::{AddressService, AddressServiceError},
+        transaction::{TransactionService, TransactionServiceError},
+        WalletService,
+    },
+    util::b58::{
+        b58_decode_public_address, b58_decode_transfer_payload, b58_encode_public_address,
+        b58_encode_transfer_payload, B58Error, DecodedTransferPayload,
+    },
+};
 
 #[derive(Display, Debug)]
 #[allow(clippy::large_enum_variant)]
@@ -468,7 +470,7 @@ where
                     GiftCodeStatus::GiftCodeSubmittedPending,
                     None,
                     decoded_gift_code.memo,
-                ))
+                ));
             }
             Err(e) => return Err(e.into()),
         };
@@ -518,7 +520,7 @@ where
         match status {
             GiftCodeStatus::GiftCodeClaimed => return Err(GiftCodeServiceError::GiftCodeClaimed),
             GiftCodeStatus::GiftCodeSubmittedPending => {
-                return Err(GiftCodeServiceError::GiftCodeNotYetAvailable)
+                return Err(GiftCodeServiceError::GiftCodeNotYetAvailable);
             }
             GiftCodeStatus::GiftCodeAvailable => {}
         }
@@ -606,7 +608,7 @@ where
             &mut rng,
         )?;
 
-        transaction_builder.set_fee(MINIMUM_FEE);
+        transaction_builder.set_fee(MINIMUM_FEE)?;
 
         let num_blocks_in_ledger = self.ledger_db.num_blocks()?;
         transaction_builder.set_tombstone_block(num_blocks_in_ledger + 50);
@@ -656,7 +658,12 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use mc_account_keys::PublicAddress;
+    use mc_common::logger::{test_with_logger, Logger};
+    use mc_crypto_rand::rand_core::RngCore;
+    use mc_transaction_core::ring_signature::KeyImage;
+    use rand::{rngs::StdRng, SeedableRng};
+
     use crate::{
         service::{account::AccountService, balance::BalanceService},
         test_utils::{
@@ -664,11 +671,8 @@ mod tests {
             manually_sync_account, setup_wallet_service, MOB,
         },
     };
-    use mc_account_keys::PublicAddress;
-    use mc_common::logger::{test_with_logger, Logger};
-    use mc_crypto_rand::rand_core::RngCore;
-    use mc_transaction_core::ring_signature::KeyImage;
-    use rand::{rngs::StdRng, SeedableRng};
+
+    use super::*;
 
     #[test_with_logger]
     fn test_gift_code_lifecycle(logger: Logger) {

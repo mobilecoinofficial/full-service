@@ -591,9 +591,9 @@ impl TransactionLogModel for TransactionLog {
         txo: &Txo,
         account_id_hex: &str,
         spent_block_index: i64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        _conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
-        let new_transaction_log = NewTransactionLog {
+        let _new_transaction_log = NewTransactionLog {
             transaction_id_hex: &txo.txo_id_hex, // Use the txo_id_hex as id for recovered
             account_id_hex,
             assigned_subaddress_b58: None, // NULL for sent

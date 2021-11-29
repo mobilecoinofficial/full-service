@@ -5189,13 +5189,3 @@ dependencies = [
  "syn 1.0.81",
  "synstructure",
 ]
-
-[[patch.unused]]
-name = "packed_simd_2"
-version = "0.3.5"
-source = "git+https://github.com/rust-lang/packed_simd.git?rev=f60e900f4ceb71303baa37ff8b41ee7d490c01bf#f60e900f4ceb71303baa37ff8b41ee7d490c01bf"
-
-[[patch.unused]]
-name = "serde_cbor"
-version = "0.11.1"
-source = "git+https://github.com/mobilecoinofficial/cbor?rev=4c886a7c1d523aae1ec4aa7386f402cb2f4341b5#4c886a7c1d523aae1ec4aa7386f402cb2f4341b5"

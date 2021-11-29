@@ -53,11 +53,3 @@ schnorrkel-og = { git = "https://github.com/mobilecoinfoundation/schnorrkel.git"
 # mbedtls patched to allow certificate verification with a profile
 mbedtls = { git = "https://github.com/mobilecoinofficial/rust-mbedtls.git", rev = "ce4cf3e4814e92734434c7deaa59d649d43f442d" }
 mbedtls-sys-auto = { git = "https://github.com/mobilecoinofficial/rust-mbedtls.git", rev = "ce4cf3e4814e92734434c7deaa59d649d43f442d" }
-
-# packed_simd_2 has unreleased fixes for build issues we're experiencing
-packed_simd_2 = { git = "https://github.com/rust-lang/packed_simd.git", rev = "f60e900f4ceb71303baa37ff8b41ee7d490c01bf" }
-
-# Fixes the following:
-# * Allow enabling `serde/std` without also requiring `serde_cbor/std` to be enabled.
-#   See: https://github.com/pyfisch/cbor/pull/198
-serde_cbor = { git = "https://github.com/mobilecoinofficial/cbor", rev = "4c886a7c1d523aae1ec4aa7386f402cb2f4341b5" }

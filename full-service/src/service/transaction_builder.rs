@@ -220,7 +220,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             // Create transaction builder.
             let mut transaction_builder =
                 TransactionBuilder::new(fog_resolver, EmptyMemoBuilder::default());
-            transaction_builder.set_fee(self.fee.unwrap_or(MINIMUM_FEE));
+            transaction_builder.set_fee(self.fee.unwrap_or(MINIMUM_FEE))?;
 
             // Get membership proofs for our inputs
             let indexes = self

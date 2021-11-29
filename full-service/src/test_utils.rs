@@ -1,17 +1,13 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
-use crate::{
-    db::{
-        account::{AccountID, AccountModel},
-        models::{Account, TransactionLog, Txo, TXO_USED_AS_CHANGE, TXO_USED_AS_OUTPUT},
-        transaction_log::TransactionLogModel,
-        txo::TxoModel,
-        WalletDb, WalletDbError,
-    },
-    error::SyncError,
-    service::{sync::sync_account, transaction_builder::WalletTransactionBuilder},
-    WalletService,
+use std::{
+    convert::TryFrom,
+    env,
+    path::PathBuf,
+    sync::{Arc, RwLock},
+    time::Duration,
 };
+
 use diesel::{
     r2d2::{ConnectionManager as CM, PooledConnection},
     Connection as DSLConnection, SqliteConnection,
@@ -31,7 +27,7 @@ use mc_ledger_sync::PollingNetworkState;
 use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::{
     encrypted_fog_hint::EncryptedFogHint,
-    onetime_keys::{create_onetime_public_key, recover_onetime_private_key},
+    onetime_keys::{create_tx_out_public_key, recover_onetime_private_key},
     ring_signature::KeyImage,
     tx::{Tx, TxOut},
     Block, BlockContents, BLOCK_VERSION,
@@ -39,14 +35,20 @@ use mc_transaction_core::{
 use mc_util_from_random::FromRandom;
 use mc_util_uri::{ConnectionUri, FogUri};
 use rand::{distributions::Alphanumeric, rngs::StdRng, thread_rng, Rng, SeedableRng};
-use std::{
-    convert::TryFrom,
-    env,
-    path::PathBuf,
-    sync::{Arc, RwLock},
-    time::Duration,
-};
 use tempdir::TempDir;
+
+use crate::{
+    db::{
+        account::{AccountID, AccountModel},
+        models::{Account, TransactionLog, Txo, TXO_USED_AS_CHANGE, TXO_USED_AS_OUTPUT},
+        transaction_log::TransactionLogModel,
+        txo::TxoModel,
+        WalletDb, WalletDbError,
+    },
+    error::SyncError,
+    service::{sync::sync_account, transaction_builder::WalletTransactionBuilder},
+    WalletService,
+};
 
 embed_migrations!("migrations/");
 
@@ -443,14 +445,14 @@ pub fn create_test_txo_for_recipient(
 
     // Calculate KeyImage - note you cannot use KeyImage::from(tx_private_key)
     // because the calculation must be done with CryptoNote math (see
-    // create_onetime_public_key and recover_onetime_private_key)
+    // create_tx_out_public_key and recover_onetime_private_key)
     let onetime_private_key = recover_onetime_private_key(
         &RistrettoPublic::try_from(&tx_out.public_key).unwrap(),
         recipient_account_key.view_private_key(),
         &recipient_account_key.subaddress_spend_private(recipient_subaddress_index),
     );
     assert_eq!(
-        create_onetime_public_key(&tx_private_key, &recipient),
+        create_tx_out_public_key(&tx_private_key, &recipient.spend_public_key()),
         RistrettoPublic::from(&onetime_private_key)
     );
 
