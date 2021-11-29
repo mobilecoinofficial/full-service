@@ -8,15 +8,9 @@
 //! This module, on the other hand, builds a transaction within the context of
 //! the wallet.
 
-use crate::{
-    db::{
-        account::{AccountID, AccountModel},
-        models::{Account, Txo, TXO_STATUS_UNSPENT},
-        txo::TxoModel,
-        WalletDb,
-    },
-    error::WalletTransactionBuilderError,
-};
+use std::{convert::TryFrom, str::FromStr, sync::Arc};
+
+use diesel::prelude::*;
 use mc_account_keys::{AccountKey, PublicAddress};
 use mc_common::{
     logger::{log, Logger},
@@ -35,12 +29,19 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tx::{TxOut, TxOutMembershipProof},
 };
-use mc_transaction_std::{InputCredentials, TransactionBuilder};
+use mc_transaction_std::{EmptyMemoBuilder, InputCredentials, TransactionBuilder};
 use mc_util_uri::FogUri;
-
-use diesel::prelude::*;
 use rand::Rng;
-use std::{convert::TryFrom, str::FromStr, sync::Arc};
+
+use crate::{
+    db::{
+        account::{AccountID, AccountModel},
+        models::{Account, Txo, TXO_STATUS_UNSPENT},
+        txo::TxoModel,
+        WalletDb,
+    },
+    error::WalletTransactionBuilderError,
+};
 
 /// Default number of blocks used for calculating transaction tombstone block
 /// number.
@@ -217,7 +218,8 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             };
 
             // Create transaction builder.
-            let mut transaction_builder = TransactionBuilder::new(fog_resolver);
+            let mut transaction_builder =
+                TransactionBuilder::new(fog_resolver, EmptyMemoBuilder::default());
             transaction_builder.set_fee(self.fee.unwrap_or(MINIMUM_FEE));
 
             // Get membership proofs for our inputs
@@ -360,17 +362,17 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             let input_value = inputs_and_proofs
                 .iter()
                 .fold(0, |acc, (utxo, _proof)| acc + utxo.value);
-            if (total_value + transaction_builder.fee) > input_value as u64 {
+            if (total_value + transaction_builder.get_fee()) > input_value as u64 {
                 return Err(WalletTransactionBuilderError::InsufficientInputFunds(
                     format!(
                         "Total value required to send transaction {:?}, but only {:?} in inputs",
-                        total_value + transaction_builder.fee,
+                        total_value + transaction_builder.get_fee(),
                         input_value
                     ),
                 ));
             }
 
-            let change = input_value as u64 - total_value - transaction_builder.fee;
+            let change = input_value as u64 - total_value - transaction_builder.get_fee();
 
             // If we do, add an output for that as well.
             if change > 0 {
@@ -422,22 +424,22 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             // tedious json conversions.
             // Return the TxProposal
             let selected_utxos = inputs_and_proofs
-                    .iter()
-                    .map(|(utxo, _membership_proof)| {
-                        let decoded_tx_out = mc_util_serial::decode(&utxo.txo).unwrap();
-                        let decoded_key_image =
-                            mc_util_serial::decode(&utxo.key_image.clone().unwrap()).unwrap();
+                .iter()
+                .map(|(utxo, _membership_proof)| {
+                    let decoded_tx_out = mc_util_serial::decode(&utxo.txo).unwrap();
+                    let decoded_key_image =
+                        mc_util_serial::decode(&utxo.key_image.clone().unwrap()).unwrap();
 
-                        UnspentTxOut {
-                            tx_out: decoded_tx_out,
-                            subaddress_index: utxo.subaddress_index.unwrap() as u64, // verified not null earlier
-                            key_image: decoded_key_image,
-                            value: utxo.value as u64,
-                            attempted_spend_height: 0, // NOTE: these are null because not tracked here
-                            attempted_spend_tombstone: 0,
-                        }
-                    })
-                    .collect();
+                    UnspentTxOut {
+                        tx_out: decoded_tx_out,
+                        subaddress_index: utxo.subaddress_index.unwrap() as u64, // verified not null earlier
+                        key_image: decoded_key_image,
+                        value: utxo.value as u64,
+                        attempted_spend_height: 0, // NOTE: these are null because not tracked here
+                        attempted_spend_tombstone: 0,
+                    }
+                })
+                .collect();
             Ok(TxProposal {
                 utxos: selected_utxos,
                 outlays: self
@@ -527,7 +529,9 @@ fn extract_fog_uri(addr: &PublicAddress) -> Result<Option<FogUri>, WalletTransac
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use mc_common::logger::{test_with_logger, Logger};
+    use rand::{rngs::StdRng, SeedableRng};
+
     use crate::{
         db::WalletDbError,
         service::sync::SyncThread,
@@ -536,8 +540,8 @@ mod tests {
             WalletDbTestContext, MOB,
         },
     };
-    use mc_common::logger::{test_with_logger, Logger};
-    use rand::{rngs::StdRng, SeedableRng};
+
+    use super::*;
 
     #[test_with_logger]
     fn test_build_with_utxos(logger: Logger) {

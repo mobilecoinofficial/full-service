@@ -44,7 +44,7 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tx::{Tx, TxOut},
 };
-use mc_transaction_std::{InputCredentials, TransactionBuilder};
+use mc_transaction_std::{EmptyMemoBuilder, InputCredentials, TransactionBuilder};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, fmt, iter::empty, sync::atomic::Ordering};
@@ -597,7 +597,8 @@ where
             *gift_account_key.view_private_key(),
         )?;
 
-        let mut transaction_builder = TransactionBuilder::new(fog_resolver);
+        let mut transaction_builder =
+            TransactionBuilder::new(fog_resolver, EmptyMemoBuilder::default());
         transaction_builder.add_input(input_credentials);
         let (_tx_out, _confirmation) = transaction_builder.add_output(
             gift_value as u64 - MINIMUM_FEE,

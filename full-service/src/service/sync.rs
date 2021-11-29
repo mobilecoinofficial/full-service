@@ -24,16 +24,9 @@
 //! removing the account id from the hashset, it would be placed back into the
 //! queue to be picked up by the next available worker thread.
 
-use crate::{
-    db::{
-        account::{AccountID, AccountModel},
-        assigned_subaddress::AssignedSubaddressModel,
-        models::{Account, AssignedSubaddress, TransactionLog, Txo},
-        transaction_log::TransactionLogModel,
-        txo::TxoModel,
-        WalletDb, WalletDbError,
-    },
-    error::SyncError,
+use diesel::{
+    prelude::*,
+    r2d2::{ConnectionManager, PooledConnection},
 };
 use mc_account_keys::AccountKey;
 use mc_common::{
@@ -49,11 +42,6 @@ use mc_transaction_core::{
     tx::TxOut,
     AmountError,
 };
-
-use diesel::{
-    prelude::*,
-    r2d2::{ConnectionManager, PooledConnection},
-};
 use std::{
     convert::TryFrom,
     sync::{
@@ -62,6 +50,18 @@ use std::{
     },
     thread,
     time::Duration,
+};
+
+use crate::{
+    db::{
+        account::{AccountID, AccountModel},
+        assigned_subaddress::AssignedSubaddressModel,
+        models::{Account, AssignedSubaddress, TransactionLog, Txo},
+        transaction_log::TransactionLogModel,
+        txo::TxoModel,
+        WalletDb, WalletDbError,
+    },
+    error::SyncError,
 };
 
 ///  The maximal number of blocks a worker thread would process at once.
@@ -177,7 +177,7 @@ impl SyncThread {
                                 Ok(Account::list_all(&conn)
                                     .expect("Failed getting accounts from database"))
                             })
-                            .expect("Failed executing database transaction")
+                                .expect("Failed executing database transaction")
                         };
                         for account in accounts {
                             // If there are no new blocks for this account, don't do anything.
@@ -271,6 +271,7 @@ impl Drop for SyncThread {
         self.stop();
     }
 }
+
 /// The entry point of a sync worker thread that processes queue messages.
 fn sync_thread_entry_point(
     ledger_db: LedgerDB,
@@ -395,7 +396,7 @@ pub fn sync_account(
             // Note: Doing this here means we are updating key images multiple times, once
             // per account. We do actually want to do it this way, because each account may
             // need to process the same block at a different time, depending on when we add
-            // it to the DB.
+            // the account to the DB.
             account.update_spent_and_increment_next_block(
                 account.next_block_index,
                 block_contents.key_images,
@@ -525,15 +526,17 @@ pub fn process_txos(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::{
-        service::{account::AccountService, balance::BalanceService},
-        test_utils::{add_block_to_ledger_db, get_test_ledger, setup_wallet_service, MOB},
-    };
     use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
+
+    use crate::{
+        service::{account::AccountService, balance::BalanceService},
+        test_utils::{add_block_to_ledger_db, get_test_ledger, setup_wallet_service, MOB},
+    };
+
+    use super::*;
 
     #[test_with_logger]
     fn test_process_txo_bigint_in_origin(logger: Logger) {

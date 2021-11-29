@@ -2,6 +2,19 @@
 
 //! DB impl for the Account model.
 
+use std::fmt;
+
+use bip39::Mnemonic;
+use diesel::{
+    prelude::*,
+    r2d2::{ConnectionManager, PooledConnection},
+    RunQueryDsl,
+};
+use mc_account_keys::{AccountKey, RootEntropy, RootIdentity, DEFAULT_SUBADDRESS_INDEX};
+use mc_account_keys_slip10::Slip10Key;
+use mc_crypto_digestible::{Digestible, MerlinTranscript};
+use mc_transaction_core::ring_signature::KeyImage;
+
 use crate::db::{
     account_txo_status::AccountTxoStatusModel,
     assigned_subaddress::AssignedSubaddressModel,
@@ -13,19 +26,6 @@ use crate::db::{
     txo::TxoModel,
     WalletDbError,
 };
-
-use mc_account_keys::{AccountKey, RootEntropy, RootIdentity, DEFAULT_SUBADDRESS_INDEX};
-use mc_account_keys_slip10::Slip10Key;
-use mc_crypto_digestible::{Digestible, MerlinTranscript};
-use mc_transaction_core::ring_signature::KeyImage;
-
-use bip39::Mnemonic;
-use diesel::{
-    prelude::*,
-    r2d2::{ConnectionManager, PooledConnection},
-    RunQueryDsl,
-};
-use std::fmt;
 
 pub const DEFAULT_CHANGE_SUBADDRESS_INDEX: u64 = 1;
 pub const DEFAULT_NEXT_SUBADDRESS_INDEX: u64 = 2;
@@ -260,8 +260,9 @@ impl AccountModel for Account {
 
         let new_account = NewAccount {
             account_id_hex: &account_id.to_string(),
-            account_key: &mc_util_serial::encode(account_key), /* FIXME: WS-6 - add
-                                                                * encryption */
+            account_key: &mc_util_serial::encode(account_key),
+            /* FIXME: WS-6 - add
+             * encryption */
             entropy: &entropy,
             key_derivation_version: key_derivation_version as i32,
             main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
@@ -447,12 +448,12 @@ impl AccountModel for Account {
                     key_image
                 )));
             } else {
-                // Update the TXO
+                // Update the TXO's spent block index
                 diesel::update(txos.filter(txo_id_hex.eq(&matches[0].txo_id_hex)))
                     .set(crate::db::schema::txos::spent_block_index.eq(Some(spent_block_index)))
                     .execute(conn)?;
 
-                // Update the AccountTxoStatus
+                // Update the AccountTxoStatus to SPENT
                 diesel::update(
                     account_txo_statuses.find((&self.account_id_hex, &matches[0].txo_id_hex)),
                 )
@@ -463,13 +464,22 @@ impl AccountModel for Account {
                 .execute(conn)?;
 
                 // FIXME: WS-13 - make sure the path for all txo_statuses and txo_types exist
-                // and are tested Update the transaction status if the txos
+                // and are tested Update the transaction status if the TXOs
                 // are all spent
-                TransactionLog::update_transactions_associated_to_txo(
+                if !TransactionLog::update_spent_transactions_associated_with_txo(
                     &matches[0].txo_id_hex,
                     spent_block_index,
                     conn,
-                )?;
+                )? {
+                    // If the txo didn't have any associated TransactionLogs, then we need to
+                    // create a log, in a "recovered" fashion.
+                    TransactionLog::log_spent_recovered(
+                        &matches[0],
+                        &self.account_id_hex,
+                        spent_block_index,
+                        conn,
+                    )?;
+                }
             }
         }
         diesel::update(accounts.filter(account_id_hex.eq(&self.account_id_hex)))
@@ -505,13 +515,16 @@ impl AccountModel for Account {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::test_utils::WalletDbTestContext;
+    use std::{collections::HashSet, convert::TryFrom, iter::FromIterator};
+
     use mc_account_keys::RootIdentity;
     use mc_common::logger::{test_with_logger, Logger};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
-    use std::{collections::HashSet, convert::TryFrom, iter::FromIterator};
+
+    use crate::test_utils::WalletDbTestContext;
+
+    use super::*;
 
     #[test_with_logger]
     fn test_account_crud(logger: Logger) {

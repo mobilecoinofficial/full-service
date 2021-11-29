@@ -2,6 +2,8 @@
 
 //! Errors for the wallet service.
 
+use displaydoc::Display;
+
 use crate::{
     db::WalletDbError,
     service::{
@@ -12,7 +14,6 @@ use crate::{
         txo::TxoServiceError,
     },
 };
-use displaydoc::Display;
 
 #[derive(Display, Debug)]
 #[allow(clippy::large_enum_variant)]
@@ -184,6 +185,9 @@ pub enum SyncError {
 
     /// Error executing diesel transaction: {0}
     Diesel(diesel::result::Error),
+
+    /// Error decoding with mc_util_serial: {0}
+    Decode(mc_util_serial::DecodeError),
 }
 
 impl From<WalletDbError> for SyncError {
@@ -219,6 +223,12 @@ impl From<mc_transaction_core::AmountError> for SyncError {
 impl From<diesel::result::Error> for SyncError {
     fn from(src: diesel::result::Error) -> Self {
         Self::Diesel(src)
+    }
+}
+
+impl From<mc_util_serial::DecodeError> for SyncError {
+    fn from(src: mc_util_serial::DecodeError) -> Self {
+        Self::Decode(src)
     }
 }
 
@@ -285,6 +295,9 @@ pub enum WalletTransactionBuilderError {
 
     /// Error generating FogPubkeyResolver {0}
     FogPubkeyResolver(String),
+
+    /// Error decoding with mc_util_serial {0}
+    Decode(mc_util_serial::DecodeError),
 }
 
 impl From<mc_ledger_db::Error> for WalletTransactionBuilderError {
@@ -320,5 +333,11 @@ impl From<diesel::result::Error> for WalletTransactionBuilderError {
 impl From<mc_util_uri::UriParseError> for WalletTransactionBuilderError {
     fn from(src: mc_util_uri::UriParseError) -> Self {
         Self::UriParse(src)
+    }
+}
+
+impl From<mc_util_serial::DecodeError> for WalletTransactionBuilderError {
+    fn from(src: mc_util_serial::DecodeError) -> Self {
+        Self::Decode(src)
     }
 }

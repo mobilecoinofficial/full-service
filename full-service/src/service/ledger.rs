@@ -2,14 +2,10 @@
 
 //! Service for managing ledger materials and MobileCoin protocol objects.
 
-use crate::{
-    db::{
-        models::{TransactionLog, Txo},
-        transaction_log::TransactionLogModel,
-        txo::TxoModel,
-    },
-    WalletService,
-};
+// For par_iter
+use std::iter::empty;
+
+use displaydoc::Display;
 use mc_connection::{BlockchainConnection, RetryableBlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
@@ -20,11 +16,17 @@ use mc_transaction_core::{
     tx::{Tx, TxOut},
     Block, BlockContents,
 };
+use rayon::prelude::*;
 
-use crate::db::WalletDbError;
-use displaydoc::Display;
-use rayon::prelude::*; // For par_iter
-use std::iter::empty;
+use crate::{
+    db::{
+        models::{TransactionLog, Txo},
+        transaction_log::TransactionLogModel,
+        txo::TxoModel,
+        WalletDbError,
+    },
+    WalletService,
+};
 
 /// Errors for the Address Service.
 #[derive(Display, Debug)]
@@ -42,6 +44,9 @@ pub enum LedgerServiceError {
     /// No transaction object associated with this transaction. Note, received
     /// transactions do not have transaction objects.
     NoTxInTransaction,
+
+    /// Error decoding with mc_util_serial {0}
+    Decode(mc_util_serial::DecodeError),
 }
 
 impl From<mc_ledger_db::Error> for LedgerServiceError {
@@ -59,6 +64,12 @@ impl From<prost::DecodeError> for LedgerServiceError {
 impl From<WalletDbError> for LedgerServiceError {
     fn from(src: WalletDbError) -> Self {
         Self::Database(src)
+    }
+}
+
+impl From<mc_util_serial::DecodeError> for LedgerServiceError {
+    fn from(src: mc_util_serial::DecodeError) -> Self {
+        Self::Decode(src)
     }
 }
 

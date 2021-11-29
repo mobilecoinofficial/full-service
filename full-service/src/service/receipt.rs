@@ -58,6 +58,9 @@ pub enum ReceiptServiceError {
 
     /// Error decoding from hex: {0}
     HexDecode(hex::FromHexError),
+
+    /// Error decoding with mc_util_serial: {0}
+    Decode(mc_util_serial::DecodeError),
 }
 
 impl From<WalletDbError> for ReceiptServiceError {
@@ -93,6 +96,12 @@ impl From<mc_crypto_keys::KeyError> for ReceiptServiceError {
 impl From<hex::FromHexError> for ReceiptServiceError {
     fn from(src: hex::FromHexError) -> Self {
         Self::HexDecode(src)
+    }
+}
+
+impl From<mc_util_serial::DecodeError> for ReceiptServiceError {
+    fn from(src: mc_util_serial::DecodeError) -> Self {
+        Self::Decode(src)
     }
 }
 
