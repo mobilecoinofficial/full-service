@@ -274,7 +274,7 @@ commands:
       - install-rust
       - restore-cargo-cache
       - env_setup
-      - install-ci-deps
+      # - install-ci-deps
       - print_versions
       # Cache is only saved when building from develop. We don't restore sccache on
       # develop so that the cache is clean when saved.
@@ -455,11 +455,11 @@ workflows:
       - build-and-lint-debug
 
       # Build using macOS
-      # - build-macos:
-      #     name: build-macos-xcode-<< matrix.xcode-version >>
-      #     matrix:
-      #       parameters:
-      #         xcode-version: ["11.7.0", *default-xcode-version]
+      - build-macos:
+          name: build-macos-xcode-<< matrix.xcode-version >>
+          matrix:
+            parameters:
+              xcode-version: ["11.7.0", *default-xcode-version]
 
       # build everything in release - currently disabled since it's a waste of CPU/$
       # - build-release
