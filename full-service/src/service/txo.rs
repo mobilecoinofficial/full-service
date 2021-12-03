@@ -160,6 +160,7 @@ where
                 fee,
                 tombstone_block,
                 None,
+                None,
             )?)
         })
     }
@@ -253,6 +254,7 @@ mod tests {
                     .unwrap(),
                     "42000000000000".to_string(),
                 )],
+                None,
                 None,
                 None,
                 None,

@@ -211,7 +211,7 @@ class Client:
         })
         return r['address_map']
 
-    def build_and_submit_transaction(self, account_id, amount, to_address):
+    def _build_and_submit_transaction(self, account_id, amount, to_address):
         amount = str(mob2pmob(amount))
         r = self._req({
             "method": "build_and_submit_transaction",
@@ -220,7 +220,15 @@ class Client:
                 "addresses_and_values": [(to_address, amount)],
             }
         })
+        return r
+
+    def build_and_submit_transaction(self, account_id, amount, to_address):
+        r = self._build_and_submit_transaction(account_id, amount, to_address)
         return r['transaction_log']
+
+    def build_and_submit_transaction_with_proposal(self, account_id, amount, to_address):
+        r = self._build_and_submit_transaction(account_id, amount, to_address)
+        return r['transaction_log'], r['tx_proposal']
 
     def build_transaction(self, account_id, amount, to_address, tombstone_block=None):
         amount = str(mob2pmob(amount))

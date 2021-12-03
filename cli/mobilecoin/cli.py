@@ -492,7 +492,7 @@ class CommandLineInterface:
             print('Cancelled.')
             return
 
-        transaction_log = self.client.build_and_submit_transaction(account_id, amount, to_address)
+        transaction_log, tx_proposal = self.client.build_and_submit_transaction_with_proposal(account_id, amount, to_address)
 
         print('Sent {}, with a transaction fee of {}'.format(
             _format_mob(pmob2mob(transaction_log['value_pmob'])),
@@ -549,7 +549,7 @@ class CommandLineInterface:
             import segno
         except ImportError:
             print('Showing QR codes requires the segno library. Try:')
-            print('$ pip install git+https://github.com/mobilecoinofficial/segno')
+            print('$ pip install segno')
             return
 
         account = self._load_account_prefix(account_id)

@@ -922,7 +922,8 @@ impl TxoModel for Txo {
             // Cap at maximum allowed inputs.
             if selected_utxos.len() > MAX_INPUTS as usize {
                 // Remove the lowest utxo.
-                selected_utxos.remove(0);
+                let removed = selected_utxos.remove(0);
+                total -= removed.value as u64;
             }
         }
 
@@ -1009,6 +1010,7 @@ mod tests {
             manually_sync_account, random_account_with_seed_values, wait_for_sync,
             WalletDbTestContext, MOB,
         },
+        WalletDb,
     };
     use mc_account_keys::{AccountKey, RootIdentity};
     use mc_common::{
@@ -1847,11 +1849,137 @@ mod tests {
         );
     }
 
+    fn setup_select_unspent_txos_tests(logger: Logger, fragmented: bool) -> (AccountID, WalletDb) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        let (account_id, _address) = Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(0),
+            None,
+            None,
+            "",
+            None,
+            None,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        if fragmented {
+            let (_txo_id, _txo, _key_image) =
+                create_test_received_txo(&account_key, 0, 28922973268924, 15, &mut rng, &wallet_db);
+
+            for i in 1..=15 {
+                let (_txo_id, _txo, _key_image) =
+                    create_test_received_txo(&account_key, i, 10000000000, i, &mut rng, &wallet_db);
+            }
+
+            for i in 1..=20 {
+                let (_txo_id, _txo, _key_image) =
+                    create_test_received_txo(&account_key, i, 1000000000, i, &mut rng, &wallet_db);
+            }
+
+            for i in 1..=500 {
+                let (_txo_id, _txo, _key_image) =
+                    create_test_received_txo(&account_key, i, 100000000, i, &mut rng, &wallet_db);
+            }
+        } else {
+            for i in 1..=20 {
+                let (_txo_id, _txo, _key_image) =
+                    create_test_received_txo(&account_key, i, i as u64, i, &mut rng, &wallet_db);
+            }
+        }
+
+        (account_id, wallet_db)
+    }
+
+    #[test_with_logger]
+    fn test_select_unspent_txos_target_value_equals_max_spendable_in_account(logger: Logger) {
+        let (account_id, wallet_db) = setup_select_unspent_txos_tests(logger, false);
+
+        let result = Txo::select_unspent_txos_for_value(
+            &account_id.to_string(),
+            200 as u64,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(result.len(), 16);
+        let sum: i64 = result.iter().map(|x| x.value).sum();
+        assert_eq!(200 as i64, sum);
+    }
+
+    #[test_with_logger]
+    fn test_select_unspent_txos_target_value_over_max_spendable_in_account(logger: Logger) {
+        let (account_id, wallet_db) = setup_select_unspent_txos_tests(logger, false);
+
+        let result = Txo::select_unspent_txos_for_value(
+            &account_id.to_string(),
+            201 as u64,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        );
+
+        assert!(result.is_err());
+    }
+    #[test_with_logger]
+    fn test_select_unspent_txos_target_value_under_max_spendable_in_account_selects_dust(
+        logger: Logger,
+    ) {
+        let (account_id, wallet_db) = setup_select_unspent_txos_tests(logger, false);
+
+        let result = Txo::select_unspent_txos_for_value(
+            &account_id.to_string(),
+            3 as u64,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(result.len(), 2);
+        let sum: i64 = result.iter().map(|x| x.value).sum();
+        assert_eq!(3 as i64, sum);
+    }
+
+    #[test_with_logger]
+    fn test_select_unspent_txos_target_value_over_total_mob_in_account(logger: Logger) {
+        let (account_id, wallet_db) = setup_select_unspent_txos_tests(logger, false);
+
+        let result = Txo::select_unspent_txos_for_value(
+            &account_id.to_string(),
+            500 as u64,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        );
+        assert!(result.is_err());
+    }
+
+    #[test_with_logger]
+    fn test_select_unspent_txos_for_value_selects_correct_subset_of_txos_when_fragmented(
+        logger: Logger,
+    ) {
+        let (account_id, wallet_db) = setup_select_unspent_txos_tests(logger, true);
+
+        let result = Txo::select_unspent_txos_for_value(
+            &account_id.to_string(),
+            12400000000 as u64,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(result.len(), 16);
+        let sum: i64 = result.iter().map(|x| x.value).sum();
+        assert_eq!(12400000000 as i64, sum);
+    }
+
     // FIXME: once we have create_minted, then select_txos test with no
     // FIXME: test update txo after tombstone block is exceeded
     // FIXME: test update txo after it has landed via key_image update
     // FIXME: test any_failed and are_all_spent
-    // FIXME: test max_spendable
     // FIXME: test for selecting utxos from multiple subaddresses in one account
     // FIXME: test for one TXO belonging to multiple accounts with get
     // FIXME: test create_received for various permutations of multiple accounts
