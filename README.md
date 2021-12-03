@@ -217,6 +217,10 @@ For database encryption features, see [DATABASE.md](DATABASE.md).
 | `offline` | Use Full Service in offline mode. This mode does not download new blocks or submit transactions. | |
 | `fog-ingest-enclave-css` | Path to the Fog ingest enclave sigstruct CSS file. | Needed in order to enable sending transactions to fog addresses. |
 
+## Usage and Documentation
+
+For documentation, usage, and API specification, see our gitbook page: [https://mobilecoin.gitbook.io/full-service-api/](https://mobilecoin.gitbook.io/full-service-api/)
+
 ### Offline (Cold-Wallet) Transaction Flow
 
 Full Service supports offline transactions. This flow is recommended to keep an account key on an air-gapped machine

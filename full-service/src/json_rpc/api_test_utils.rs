@@ -187,17 +187,17 @@ pub fn wait_for_sync(
 
         let is_synced_all = status["is_synced_all"].as_bool().unwrap();
         if is_synced_all {
-            let local_height = status["local_block_index"]
+            let local_height = status["local_block_height"]
                 .as_str()
                 .unwrap()
                 .parse::<u64>()
                 .unwrap();
-            assert_eq!(local_height, ledger_db.num_blocks().unwrap() - 1);
+            assert_eq!(local_height, ledger_db.num_blocks().unwrap());
             // In the test context, we often add a block manually locally before updating
             // the network_state. In the wild, the local_height should never be
             // greater than the network_height.
             assert!(
-                status["network_block_index"]
+                status["network_block_height"]
                     .as_str()
                     .unwrap()
                     .parse::<u64>()

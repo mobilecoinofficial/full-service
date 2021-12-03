@@ -350,13 +350,13 @@ class Client:
 
     # Utility methods.
 
-    def poll_balance(self, account_id, min_block_index=None, seconds=10):
+    def poll_balance(self, account_id, min_block_height=None, seconds=10):
         for _ in range(seconds):
             balance = self.get_balance_for_account(account_id)
             if balance['is_synced']:
                 if (
-                    min_block_index is None
-                    or int(balance['account_block_index']) >= min_block_index
+                    min_block_height is None
+                    or int(balance['account_block_height']) >= min_block_height
                 ):
                     return balance
             time.sleep(1.0)
