@@ -38,7 +38,7 @@ pub struct JsonRPCRequest {
     /// The ID to be associated with this request.
     /// JSON-RPC Notification requests are not yet supported, so this field is
     /// not optional.
-    pub id: u32,
+    pub id: serde_json::Value,
 }
 
 impl TryFrom<&JsonRPCRequest> for JsonCommandRequest {
