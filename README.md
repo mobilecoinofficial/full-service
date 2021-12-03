@@ -99,7 +99,13 @@ For database encryption features, see [DATABASE.md](DATABASE.md).
     cargo build --release -p mc-full-service
     ```
 
+1. Set database password if using encryption.
+    ```sh
+    read -rs MC_PASSWORD
+    export MC_PASSWORD=$MC_PASSWORD
+    ```
 8. Run
+
 
    TestNet Example
 
@@ -216,6 +222,20 @@ For database encryption features, see [DATABASE.md](DATABASE.md).
 | `poll-interval` | How many seconds to wait between polling for new blocks. | Default: 5 |
 | `offline` | Use Full Service in offline mode. This mode does not download new blocks or submit transactions. | |
 | `fog-ingest-enclave-css` | Path to the Fog ingest enclave sigstruct CSS file. | Needed in order to enable sending transactions to fog addresses. |
+
+
+## Exit Codes
+
+The process exit code indicates why it exited:
+
+| Code | Meaning                              |
+| :--- | :----------------------------------- |
+| 1    | Unknown error                        |
+| 2    | Could not connect to database.       |
+| 3    | Wrong database password.             |
+| 4    | Connecting from a banned IP address. |
+| 101  | Rust Panic.                          |
+
 
 ## Usage and Documentation
 
