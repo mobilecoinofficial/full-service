@@ -2,6 +2,22 @@
 
 //! DB impl for the Txo model.
 
+use diesel::{
+    prelude::*,
+    r2d2::{ConnectionManager, PooledConnection},
+    RunQueryDsl,
+};
+use mc_account_keys::{AccountKey, PublicAddress};
+use mc_crypto_digestible::{Digestible, MerlinTranscript};
+use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
+use mc_mobilecoind::payments::TxProposal;
+use mc_transaction_core::{
+    constants::MAX_INPUTS,
+    ring_signature::KeyImage,
+    tx::{TxOut, TxOutConfirmationNumber},
+};
+use std::fmt;
+
 use crate::{
     db::{
         account::{AccountID, AccountModel},
@@ -17,22 +33,6 @@ use crate::{
     },
     util::b58::b58_encode_public_address,
 };
-use mc_account_keys::{AccountKey, PublicAddress};
-use mc_crypto_digestible::{Digestible, MerlinTranscript};
-use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
-use mc_mobilecoind::payments::TxProposal;
-use mc_transaction_core::{
-    constants::MAX_INPUTS,
-    ring_signature::KeyImage,
-    tx::{TxOut, TxOutConfirmationNumber},
-};
-
-use diesel::{
-    prelude::*,
-    r2d2::{ConnectionManager, PooledConnection},
-    RunQueryDsl,
-};
-use std::fmt;
 
 /// A unique ID derived from a TxOut in the ledger.
 #[derive(Debug)]
@@ -53,9 +53,13 @@ impl fmt::Display for TxoID {
 
 #[derive(Debug, Clone)]
 pub struct TxoDetails {
+    // The TXO whose details we are storing
     pub txo: Txo,
+    // The Account and Status at which this Txo was Received
     pub received_to_account: Option<AccountTxoStatus>,
+    // The subaddress at which this TXO was received
     pub received_to_assigned_subaddress: Option<AssignedSubaddress>,
+    // The Account and Status from which this TXO was minted
     pub minted_from_account: Option<AccountTxoStatus>,
 }
 
@@ -456,8 +460,9 @@ impl TxoModel for Txo {
             public_key: &mc_util_serial::encode(&output.public_key),
             e_fog_hint: &mc_util_serial::encode(&output.e_fog_hint),
             txo: &mc_util_serial::encode(output),
-            subaddress_index: None, /* Minted set subaddress_index to None. If later
-                                     * received, updates. */
+            subaddress_index: None,
+            /* Minted set subaddress_index to None. If later
+             * received, updates. */
             key_image: None, // Only the recipient can calculate the KeyImage
             received_block_index: None,
             pending_tombstone_block_index: Some(tx_proposal.tx.prefix.tombstone_block as i64),
@@ -732,7 +737,7 @@ impl TxoModel for Txo {
                 _ => {
                     return Err(WalletDbError::UnexpectedTransactionTxoType(
                         account_txo_status.txo_type,
-                    ))
+                    ));
                 }
             }
 
@@ -877,16 +882,23 @@ impl TxoModel for Txo {
         // The maximum spendable is limited by the maximal number of inputs we can use.
         // Since the txos are sorted by decreasing value, this is the maximum
         // value we can possibly spend in one transaction.
-        let max_spendable_in_wallet = spendable_txos
+        // Note, u128::Max = 340_282_366_920_938_463_463_374_607_431_768_211_455, which
+        // is far beyond the total number of pMOB in the MobileCoin system
+        // (250_000_000_000_000_000_000)
+        let max_spendable_in_wallet: u128 = spendable_txos
             .iter()
             .take(MAX_INPUTS as usize)
-            .map(|utxo| utxo.value as u64)
+            .map(|utxo| (utxo.value as u64) as u128)
             .sum();
-        if target_value > max_spendable_in_wallet {
+        // If we're trying to spend more than we have in the wallet, we may need to
+        // defrag
+        if target_value as u128 > max_spendable_in_wallet {
             // See if we merged the UTXOs we would be able to spend this amount.
-            let total_unspent_value_in_wallet: u64 =
-                spendable_txos.iter().map(|utxo| utxo.value as u64).sum();
-            if total_unspent_value_in_wallet >= target_value {
+            let total_unspent_value_in_wallet: u128 = spendable_txos
+                .iter()
+                .map(|utxo| (utxo.value as u64) as u128)
+                .sum();
+            if total_unspent_value_in_wallet >= target_value as u128 {
                 return Err(WalletDbError::InsufficientFundsFragmentedTxos);
             } else {
                 return Err(WalletDbError::InsufficientFundsUnderMaxSpendable(format!(
@@ -992,7 +1004,19 @@ impl TxoModel for Txo {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use mc_account_keys::{AccountKey, RootIdentity};
+    use mc_common::{
+        logger::{log, test_with_logger, Logger},
+        HashSet,
+    };
+    use mc_crypto_rand::RngCore;
+    use mc_fog_report_validation::MockFogPubkeyResolver;
+    use mc_ledger_db::Ledger;
+    use mc_transaction_core::constants::MINIMUM_FEE;
+    use mc_util_from_random::FromRandom;
+    use rand::{rngs::StdRng, SeedableRng};
+    use std::{iter::FromIterator, time::Duration};
+
     use crate::{
         db::{
             account::{AccountID, AccountModel, DEFAULT_CHANGE_SUBADDRESS_INDEX},
@@ -1012,18 +1036,8 @@ mod tests {
         },
         WalletDb,
     };
-    use mc_account_keys::{AccountKey, RootIdentity};
-    use mc_common::{
-        logger::{log, test_with_logger, Logger},
-        HashSet,
-    };
-    use mc_crypto_rand::RngCore;
-    use mc_fog_report_validation::MockFogPubkeyResolver;
-    use mc_ledger_db::Ledger;
-    use mc_transaction_core::constants::MINIMUM_FEE;
-    use mc_util_from_random::FromRandom;
-    use rand::{rngs::StdRng, SeedableRng};
-    use std::{iter::FromIterator, time::Duration};
+
+    use super::*;
 
     // The narrative for this test is that Alice receives a Txo, then sends a
     // transaction to Bob. We verify expected qualities of the Txos involved at
@@ -1474,7 +1488,7 @@ mod tests {
                 1500 * MOB,
                 1600 * MOB,
                 1700 * MOB,
-                1800 * MOB
+                1800 * MOB,
             ])
         );
     }
@@ -1927,6 +1941,7 @@ mod tests {
 
         assert!(result.is_err());
     }
+
     #[test_with_logger]
     fn test_select_unspent_txos_target_value_under_max_spendable_in_account_selects_dust(
         logger: Logger,

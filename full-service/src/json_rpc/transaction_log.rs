@@ -2,10 +2,10 @@
 
 //! API definition for the TransactionLog object.
 
-use crate::{db, db::transaction_log::AssociatedTxos};
-
 use chrono::{offset::TimeZone, Utc};
 use serde::{Deserialize, Serialize};
+
+use crate::{db, db::transaction_log::AssociatedTxos};
 
 /// A log of a transaction that occurred on the MobileCoin network, constructed
 /// and/or submitted from an account in this wallet.
@@ -151,3 +151,5 @@ impl TxoAbbrev {
         }
     }
 }
+
+// FIXME: Test display for >i64::MAX
