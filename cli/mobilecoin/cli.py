@@ -7,13 +7,10 @@ from pathlib import Path
 import subprocess
 from textwrap import indent
 
-from .utility import (
-    pmob2mob,
-)
 from .client import (
-    Client,
-    WalletAPIError,
+    Client, WalletAPIError,
     MAX_TOMBSTONE_BLOCKS,
+    pmob2mob,
 )
 
 
@@ -40,6 +37,7 @@ class CommandLineInterface:
 
         # Dispatch command.
         setattr(self, 'import', self.import_)  # Can't name a function "import".
+        command = command.translate(str.maketrans('-', '_'))
         command_func = getattr(self, command)
         try:
             command_func(**args)
@@ -96,8 +94,10 @@ class CommandLineInterface:
                                       help='The version number of the key derivation path which the mnemonic was created with.')
 
         # Export account.
-        self.export_args = command_sp.add_parser('export', help='Export seed phrase.')
+        self.export_args = command_sp.add_parser('export', help='Export secret entropy mnemonic.')
         self.export_args.add_argument('account_id', help='ID of the account to export.')
+        self.export_args.add_argument('-s', '--show', action='store_true',
+                                      help='Only show the secret entropy mnemonic, do not write it to file.')
 
         # Remove account.
         self.remove_args = command_sp.add_parser('remove', help='Remove an account from local storage.')
@@ -109,10 +109,7 @@ class CommandLineInterface:
         # Send transaction.
         self.send_args = command_sp.add_parser('send', help='Send a transaction.')
         self.send_args.add_argument('--build-only', action='store_true', help='Just build the transaction, do not submit it.')
-        self.send_args.add_argument(
-            '--delay', type=int, default=0,
-            help='Make a transaction which cannot be submitted until after the given number of blocks.'
-        )
+        self.send_args.add_argument('--fee', type=str, default=None, help='The fee paid to the network.')
         self.send_args.add_argument('account_id', help='Source account ID.')
         self.send_args.add_argument('amount', help='Amount of MOB to send.')
         self.send_args.add_argument('to_address', help='Address to send to.')
@@ -121,6 +118,7 @@ class CommandLineInterface:
         self.submit_args = command_sp.add_parser('submit', help='Submit a transaction proposal.')
         self.submit_args.add_argument('proposal', help='A tx_proposal.json file.')
         self.submit_args.add_argument('account_id', nargs='?', help='Source account ID. Only used for logging the transaction.')
+        self.submit_args.add_argument('--receipt', action='store_true', help='Also create a receiver receipt for the transaction.')
 
         # Address QR code.
         self.qr_args = command_sp.add_parser('qr', help='Show account address as a QR code')
@@ -253,15 +251,15 @@ class CommandLineInterface:
         network_status = self.client.get_network_status()
         fee = pmob2mob(network_status['fee_pmob'])
 
-        if int(network_status['network_block_index']) == 0:
+        if int(network_status['network_block_height']) == 0:
             print('Offline.')
-            print('Local ledger has {} blocks.'.format(network_status['local_block_index']))
+            print('Local ledger has {} blocks.'.format(network_status['local_block_height']))
             print('Expected fee is {}'.format(_format_mob(fee)))
         else:
             print('Connected to network.')
             print('Local ledger has {}/{} blocks.'.format(
-                network_status['local_block_index'],
-                network_status['network_block_index'],
+                network_status['local_block_height'],
+                network_status['network_block_height'],
             ))
             print('Network fee is {}'.format(_format_mob(fee)))
 
@@ -324,31 +322,46 @@ class CommandLineInterface:
         _print_account(account)
         print()
 
-    def export(self, account_id):
+    def export(self, account_id, show=False):
         account = self._load_account_prefix(account_id)
         account_id = account['account_id']
         balance = self.client.get_balance_for_account(account_id)
 
-        print('You are about to export the seed phrase for this account:')
+        print('You are about to export the secret entropy mnemonic for this account:')
         print()
         _print_account(account, balance)
+
         print()
-        print('Keep the exported seed phrase file safe and private!')
-        print('Anyone who has access to the seed phrase can spend all the')
-        print('funds in the account.')
-        if not self.confirm('Really write account seed phrase to a file? (Y/N) '):
+        if show:
+            print('The entropy will display on your screen. Make sure your screen is not being viewed or recorded.')
+        else:
+            print('Keep the exported entropy file safe and private!')
+        print('Anyone who has access to the entropy can spend all the funds in the account.')
+
+        if show:
+            confirm_message = 'Really show account entropy mnemonic? (Y/N) '
+        else:
+            confirm_message = 'Really write account entropy mnemonic to a file? (Y/N) '
+        if not self.confirm(confirm_message):
             print('Cancelled.')
             return
 
         secrets = self.client.export_account_secrets(account_id)
-        filename = 'mobilecoin_seed_phrase_{}.json'.format(account_id[:16])
-        try:
-            _save_export(account, secrets, filename)
-        except OSError as e:
-            print('Could not write file: {}'.format(e))
-            exit(1)
+        if show:
+            mnemonic_words = secrets['mnemonic'].upper().split()
+            print()
+            for i, word in enumerate(mnemonic_words, 1):
+                print('{:<2}  {}'.format(i, word))
+            print()
         else:
-            print(f'Wrote {filename}.')
+            filename = 'mobilecoin_secret_entropy_{}.json'.format(account_id[:16])
+            try:
+                _save_export(account, secrets, filename)
+            except OSError as e:
+                print('Could not write file: {}'.format(e))
+                exit(1)
+            else:
+                print(f'Wrote {filename}.')
 
     def remove(self, account_id):
         account = self._load_account_prefix(account_id)
@@ -360,7 +373,7 @@ class CommandLineInterface:
         _print_account(account, balance)
         print()
         print('You will lose access to the funds in this account unless you')
-        print('restore it from the seed phrase.')
+        print('restore it from the mnemonic phrase.')
         if not self.confirm('Continue? (Y/N) '):
             print('Cancelled.')
             return
@@ -414,14 +427,18 @@ class CommandLineInterface:
                 print('paying a fee of {}'.format(_format_mob(pmob2mob(t['fee_pmob']))))
         print()
 
-    def send(self, account_id, amount, to_address, build_only=False, delay=0):
+    def send(self, account_id, amount, to_address, build_only=False, fee=None):
         account = self._load_account_prefix(account_id)
         account_id = account['account_id']
         balance = self.client.get_balance_for_account(account_id)
         unspent = pmob2mob(balance['unspent_pmob'])
 
         network_status = self.client.get_network_status()
-        fee = pmob2mob(network_status['fee_pmob'])
+
+        if fee is None:
+            fee = pmob2mob(network_status['fee_pmob'])
+        else:
+            fee = Decimal(fee)
 
         if unspent <= fee:
             print('There is not enough MOB in account {} to pay the transaction fee.'.format(account_id[:6]))
@@ -461,8 +478,7 @@ class CommandLineInterface:
             return
 
         if build_only:
-            tombstone_block = int(balance['network_block_index']) + delay + MAX_TOMBSTONE_BLOCKS
-            tx_proposal = self.client.build_transaction(account_id, amount, to_address, tombstone_block)
+            tx_proposal = self.client.build_transaction(account_id, amount, to_address)
             path = Path('tx_proposal.json')
             if path.exists():
                 print(f'The file {path} already exists. Please rename the existing file and retry.')
@@ -476,14 +492,14 @@ class CommandLineInterface:
             print('Cancelled.')
             return
 
-        transaction_log = self.client.build_and_submit_transaction(account_id, amount, to_address)
+        transaction_log, tx_proposal = self.client.build_and_submit_transaction_with_proposal(account_id, amount, to_address)
 
         print('Sent {}, with a transaction fee of {}'.format(
             _format_mob(pmob2mob(transaction_log['value_pmob'])),
             _format_mob(pmob2mob(transaction_log['fee_pmob'])),
         ))
 
-    def submit(self, proposal, account_id=None):
+    def submit(self, proposal, account_id=None, receipt=False):
         if account_id is not None:
             account = self._load_account_prefix(account_id)
             account_id = account['account_id']
@@ -494,14 +510,26 @@ class CommandLineInterface:
         # Check that the tombstone block is within range.
         tombstone_block = int(tx_proposal['tx']['prefix']['tombstone_block'])
         network_status = self.client.get_network_status()
-        lo = int(network_status['network_block_index']) + 1
-        hi = lo + MAX_TOMBSTONE_BLOCKS
+        lo = int(network_status['network_block_height']) + 1
+        hi = lo + MAX_TOMBSTONE_BLOCKS - 1
         if lo >= tombstone_block:
             print('This transaction has expired, and can no longer be submitted.')
             return
         if tombstone_block > hi:
             print('This transaction cannot be submitted yet. Wait for {} more blocks.'.format(
                 tombstone_block - hi))
+
+        # Generate a receipt for the transaction.
+        if receipt:
+            receipt = self.client.create_receiver_receipts(tx_proposal)
+            path = Path('receipt.json')
+            if path.exists():
+                print(f'The file {path} already exists. Please rename the existing file and retry.')
+                return
+            else:
+                with path.open('w') as f:
+                    json.dump(receipt, f, indent=2)
+                print(f'Wrote {path}')
 
         # Confirm and submit.
         if account_id is None:
@@ -521,7 +549,7 @@ class CommandLineInterface:
             import segno
         except ImportError:
             print('Showing QR codes requires the segno library. Try:')
-            print('$ pip install git+https://github.com/mobilecoinofficial/segno')
+            print('$ pip install segno')
             return
 
         account = self._load_account_prefix(account_id)
@@ -696,16 +724,16 @@ def _format_account_header(account):
 
 def _format_balance(balance):
     offline = False
-    network_block = int(balance['network_block_index'])
+    network_block = int(balance['network_block_height'])
     if network_block == 0:
         offline = True
-        network_block = int(balance['local_block_index'])
+        network_block = int(balance['local_block_height'])
 
-    account_block = int(balance['account_block_index'])
+    account_block = int(balance['account_block_height'])
     if account_block == network_block:
         sync_status = 'synced'
     else:
-        sync_status = 'syncing, {}/{}'.format(balance['account_block_index'], network_block)
+        sync_status = 'syncing, {}/{}'.format(balance['account_block_height'], network_block)
 
     if offline:
         offline_status = ' [offline]'

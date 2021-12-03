@@ -44,8 +44,8 @@ pub enum BalanceServiceError {
     /// Error with LedgerDB: {0}
     LedgerDB(mc_ledger_db::Error),
 
-    /// Error getting network block index: {0}
-    NetworkBlockIndex(LedgerServiceError),
+    /// Error getting network block height: {0}
+    NetworkBlockHeight(LedgerServiceError),
 
     /// Unexpected Account Txo Status: {0}
     UnexpectedAccountTxoStatus(String),
@@ -71,7 +71,7 @@ impl From<mc_ledger_db::Error> for BalanceServiceError {
 
 impl From<LedgerServiceError> for BalanceServiceError {
     fn from(src: LedgerServiceError) -> Self {
-        Self::NetworkBlockIndex(src)
+        Self::NetworkBlockHeight(src)
     }
 }
 
@@ -85,16 +85,16 @@ pub struct Balance {
     pub spent: u128,
     pub secreted: u128,
     pub orphaned: u128,
-    pub network_block_index: u64,
-    pub local_block_index: u64,
+    pub network_block_height: u64,
+    pub local_block_height: u64,
     pub synced_blocks: u64,
 }
 
 /// The Network Status object.
 /// This holds the number of blocks in the ledger, on the network and locally.
 pub struct NetworkStatus {
-    pub network_block_index: u64,
-    pub local_block_index: u64,
+    pub network_block_height: u64,
+    pub local_block_height: u64,
     pub fee_pmob: u64,
 }
 
@@ -111,8 +111,8 @@ pub struct WalletStatus {
     pub spent: u128,
     pub secreted: u128,
     pub orphaned: u128,
-    pub network_block_index: u64,
-    pub local_block_index: u64,
+    pub network_block_height: u64,
+    pub local_block_height: u64,
     pub min_synced_block_index: u64,
     pub account_ids: Vec<AccountID>,
     pub account_map: HashMap<AccountID, Account>,
@@ -152,8 +152,8 @@ where
             let (unspent, pending, spent, secreted, orphaned) =
                 Self::get_balance_inner(account_id_hex, &conn)?;
 
-            let network_block_index = self.get_network_block_index()? + 1;
-            let local_block_index = self.ledger_db.num_blocks()?;
+            let network_block_height = self.get_network_block_height()?;
+            let local_block_height = self.ledger_db.num_blocks()?;
             let account = Account::get(account_id, &conn)?;
 
             Ok(Balance {
@@ -162,16 +162,16 @@ where
                 spent,
                 secreted,
                 orphaned,
-                network_block_index,
-                local_block_index,
-                synced_blocks: account.next_block_index as u64,
+                network_block_height,
+                local_block_height,
+                synced_blocks: account.next_block_index as u64 + 1,
             })
         })
     }
 
     fn get_balance_for_address(&self, address: &str) -> Result<Balance, BalanceServiceError> {
-        let network_block_index = self.get_network_block_index()? + 1;
-        let local_block_index = self.ledger_db.num_blocks()?;
+        let network_block_height = self.get_network_block_height()?;
+        let local_block_height = self.ledger_db.num_blocks()?;
 
         let conn = self.wallet_db.get_conn()?;
         conn.transaction(|| {
@@ -212,24 +212,24 @@ where
                 spent,
                 secreted,
                 orphaned,
-                network_block_index,
-                local_block_index,
-                synced_blocks: account.next_block_index as u64,
+                network_block_height,
+                local_block_height,
+                synced_blocks: account.next_block_index as u64 + 1,
             })
         })
     }
 
     fn get_network_status(&self) -> Result<NetworkStatus, BalanceServiceError> {
         Ok(NetworkStatus {
-            network_block_index: self.get_network_block_index()?,
-            local_block_index: self.ledger_db.num_blocks()? - 1,
+            network_block_height: self.get_network_block_height()?,
+            local_block_height: self.ledger_db.num_blocks()?,
             fee_pmob: self.get_network_fee(),
         })
     }
 
     // Wallet Status is an overview of the wallet's status
     fn get_wallet_status(&self) -> Result<WalletStatus, BalanceServiceError> {
-        let network_block_index = self.get_network_block_index()?;
+        let network_block_height = self.get_network_block_height()?;
 
         let conn = self.wallet_db.get_conn()?;
         conn.transaction(|| {
@@ -242,7 +242,7 @@ where
             let mut secreted: u128 = 0;
             let mut orphaned: u128 = 0;
 
-            let mut min_synced_block_index = network_block_index;
+            let mut min_synced_block_index = network_block_height - 1;
             let mut account_ids = Vec::new();
             for account in accounts {
                 let account_id = AccountID(account.account_id_hex.clone());
@@ -261,15 +261,14 @@ where
                 );
                 account_ids.push(account_id);
             }
-
             Ok(WalletStatus {
                 unspent,
                 pending,
                 spent,
                 secreted,
                 orphaned,
-                network_block_index,
-                local_block_index: self.ledger_db.num_blocks()? - 1,
+                network_block_height,
+                local_block_height: self.ledger_db.num_blocks()?,
                 min_synced_block_index: min_synced_block_index as u64,
                 account_ids,
                 account_map,

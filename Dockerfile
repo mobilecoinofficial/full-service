@@ -87,6 +87,6 @@ ENV RUST_LOG=info,rustls=warn,hyper=warn,tokio_reactor=warn,mio=warn,want=warn,r
 ENV INGEST_ENCLAVE_CSS=/usr/local/bin/ingest-enclave.css
 ENV CONSENSUS_ENCLAVE_CSS=/usr/local/bin/consensus-enclave.css
 
-ENTRYPOINT ["/usr/local/bin/full-service", "--wallet-db=/data/wallet.db", "--ledger-db=/data/ledger.db", "--listen-host=0.0.0.0" ]
+ENTRYPOINT ["/usr/local/bin/full-service", "--wallet-db=/data/wallet.db", "--ledger-db=/data/ledger.db", "--listen-host=0.0.0.0", "--fog-ingest-enclave-css=/usr/local/bin/ingest-enclave.css"]
 
 CMD [ "--help" ]

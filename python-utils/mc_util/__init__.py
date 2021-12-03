@@ -1,9 +1,11 @@
 from decimal import Decimal
 import zlib
-import base58
 import base64
-from mobilecoin import external_pb2
-from mobilecoin import printable_pb2
+
+import base58
+
+from . import external_pb2
+from . import printable_pb2
 
 
 PMOB = Decimal("1e12")
@@ -21,11 +23,6 @@ def pmob2mob(x):
         return Decimal("0")
     else:
         return result
-
-
-def try_int(x):
-    if x is not None:
-        return int(x)
 
 
 def b64_public_address_to_b58_wrapper(b64_string):
@@ -84,7 +81,7 @@ def b58_string_is_public_address(b58_string):
     try:
         wrapper.ParseFromString(wrapper_bytes)
         return wrapper.PublicAddress is not None
-    except:
+    except Exception:
         return False
 
 

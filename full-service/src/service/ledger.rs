@@ -15,7 +15,7 @@ use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_ledger_sync::NetworkState;
 use mc_transaction_core::{
-    constants::MILLIMOB_TO_PICOMOB,
+    constants::MINIMUM_FEE,
     ring_signature::KeyImage,
     tx::{Tx, TxOut},
     Block, BlockContents,
@@ -25,11 +25,6 @@ use crate::db::WalletDbError;
 use displaydoc::Display;
 use rayon::prelude::*; // For par_iter
 use std::iter::empty;
-
-/// Fallback fee if the network is not able to tell us the fee. This is set to
-/// the previous minimum fee, otherwise tx from new clients to old consensus
-/// will use the wrong fees (when not manually specified).
-const FALLBACK_FEE: u64 = 10 * MILLIMOB_TO_PICOMOB;
 
 /// Errors for the Address Service.
 #[derive(Display, Debug)]
@@ -70,9 +65,8 @@ impl From<WalletDbError> for LedgerServiceError {
 /// Trait defining the ways in which the wallet can interact with and manage
 /// ledger objects and interfaces.
 pub trait LedgerService {
-    /// Gets the network highest block index on the live MobileCoin consensus
-    /// network.
-    fn get_network_block_index(&self) -> Result<u64, LedgerServiceError>;
+    /// Get the total number of blocks on the ledger.
+    fn get_network_block_height(&self) -> Result<u64, LedgerServiceError>;
 
     fn get_transaction_object(&self, transaction_id_hex: &str) -> Result<Tx, LedgerServiceError>;
 
@@ -93,9 +87,12 @@ where
     T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
-    fn get_network_block_index(&self) -> Result<u64, LedgerServiceError> {
+    fn get_network_block_height(&self) -> Result<u64, LedgerServiceError> {
         let network_state = self.network_state.read().expect("lock poisoned");
-        Ok(network_state.highest_block_index_on_network().unwrap_or(0))
+        match network_state.highest_block_index_on_network() {
+            Some(index) => Ok(index + 1),
+            None => Ok(0),
+        }
     }
 
     fn get_transaction_object(&self, transaction_id_hex: &str) -> Result<Tx, LedgerServiceError> {
@@ -133,7 +130,7 @@ where
 
     fn get_network_fee(&self) -> u64 {
         if self.peer_manager.is_empty() {
-            FALLBACK_FEE
+            MINIMUM_FEE
         } else {
             // Iterate an owned list of connections in parallel, get the block info for
             // each, and extract the fee. If no fees are returned, use the hard-coded
@@ -151,7 +148,7 @@ where
                     }
                 })
                 .max()
-                .unwrap_or(FALLBACK_FEE)
+                .unwrap_or(MINIMUM_FEE)
         }
     }
 }

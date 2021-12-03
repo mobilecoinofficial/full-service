@@ -144,7 +144,7 @@ where
             if let (Some(a), Some(v)) = (recipient_public_address, value_pmob) {
                 addresses_and_values.push((a, v));
             }
-            let (transaction_log, associated_txos) = service
+            let (transaction_log, associated_txos, tx_proposal) = service
                 .build_and_submit(
                     &account_id,
                     &addresses_and_values,
@@ -160,6 +160,7 @@ where
                     &transaction_log,
                     &associated_txos,
                 ),
+                tx_proposal: TxProposal::from(&tx_proposal),
             }
         }
         JsonCommandRequest::build_gift_code {
@@ -228,6 +229,7 @@ where
             fee,
             tombstone_block,
             max_spendable_value,
+            log_tx_proposal,
         } => {
             // The user can specify a list of addresses and values,
             // or a single address and a single value (deprecated).
@@ -243,6 +245,7 @@ where
                     fee,
                     tombstone_block,
                     max_spendable_value,
+                    log_tx_proposal,
                 )
                 .map_err(format_error)?;
             JsonCommandResponse::build_transaction {
