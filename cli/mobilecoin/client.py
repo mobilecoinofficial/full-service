@@ -211,7 +211,7 @@ class Client:
         })
         return r['address_map']
 
-    def build_and_submit_transaction(self, account_id, amount, to_address):
+    def _build_and_submit_transaction(self, account_id, amount, to_address):
         amount = str(mob2pmob(amount))
         r = self._req({
             "method": "build_and_submit_transaction",
@@ -220,7 +220,15 @@ class Client:
                 "addresses_and_values": [(to_address, amount)],
             }
         })
+        return r
+
+    def build_and_submit_transaction(self, account_id, amount, to_address):
+        r = self._build_and_submit_transaction(account_id, amount, to_address)
         return r['transaction_log']
+
+    def build_and_submit_transaction_with_proposal(self, account_id, amount, to_address):
+        r = self._build_and_submit_transaction(account_id, amount, to_address)
+        return r['transaction_log'], r['tx_proposal']
 
     def build_transaction(self, account_id, amount, to_address, tombstone_block=None):
         amount = str(mob2pmob(amount))
@@ -342,13 +350,13 @@ class Client:
 
     # Utility methods.
 
-    def poll_balance(self, account_id, min_block_index=None, seconds=10):
+    def poll_balance(self, account_id, min_block_height=None, seconds=10):
         for _ in range(seconds):
             balance = self.get_balance_for_account(account_id)
             if balance['is_synced']:
                 if (
-                    min_block_index is None
-                    or int(balance['account_block_index']) >= min_block_index
+                    min_block_height is None
+                    or int(balance['account_block_height']) >= min_block_height
                 ):
                     return balance
             time.sleep(1.0)
