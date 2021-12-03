@@ -50,8 +50,8 @@ description: Get the current status of a wallet.
         }
       },
       "is_synced_all": false,
-      "local_block_index": "152918",
-      "network_block_index": "152918",
+      "local_block_height": "152918",
+      "network_block_height": "152918",
       "object": "wallet_status",
       "total_orphaned_pmob": "0",
       "total_pending_pmob": "70148220000000000",
