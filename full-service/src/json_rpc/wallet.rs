@@ -384,13 +384,11 @@ where
             JsonCommandResponse::get_account_status { account, balance }
         }
         JsonCommandRequest::get_address_for_account { account_id, index } => {
-            let address = service
+            let assigned_subaddress = service
                 .get_address_for_account(&AccountID(account_id), index)
                 .map_err(format_error)?;
-            let address_json =
-                serde_json::to_value(&(Address::from(&address))).expect("Could not get json value");
             JsonCommandResponse::get_address_for_account {
-                address: address_json,
+                address: Address::from(&assigned_subaddress),
             }
         }
         JsonCommandRequest::get_addresses_for_account {
