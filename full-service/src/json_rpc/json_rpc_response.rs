@@ -180,6 +180,9 @@ pub enum JsonCommandResponse {
         account: Account,
         balance: Balance,
     },
+    get_address_for_account {
+        address: serde_json::Value,
+    },
     get_addresses_for_account {
         public_addresses: Vec<String>,
         address_map: Map<String, serde_json::Value>,

@@ -133,6 +133,10 @@ pub enum JsonCommandRequest {
     get_account_status {
         account_id: String,
     },
+    get_address_for_account {
+        account_id: String,
+        index: i64,
+    },
     get_addresses_for_account {
         account_id: String,
         offset: String,

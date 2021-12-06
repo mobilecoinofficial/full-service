@@ -2187,6 +2187,73 @@ mod e2e {
     }
 
     #[test_with_logger]
+    fn test_get_address_for_account(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_id = result
+            .get("account")
+            .unwrap()
+            .get("account_id")
+            .unwrap()
+            .as_str()
+            .unwrap();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_address_for_account",
+            "params": {
+                "account_id": account_id,
+                "index": 2,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let error = res.get("error").unwrap();
+        let code = error.get("code").unwrap();
+        assert_eq!(code, -32603);
+
+        // Create a subaddress
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "assign_address_for_account",
+            "params": {
+                "account_id": account_id,
+                "comment": "test",
+            }
+        });
+        dispatch(&client, body, &logger);
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_address_for_account",
+            "params": {
+                "account_id": account_id,
+                "index": 2,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let address = result.get("address").unwrap();
+        let subaddress_index = address.get("subaddress_index").unwrap().as_str().unwrap();
+
+        assert_eq!(subaddress_index, "2");
+    }
+
+    #[test_with_logger]
     fn test_verify_address(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
