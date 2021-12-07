@@ -383,6 +383,14 @@ where
             );
             JsonCommandResponse::get_account_status { account, balance }
         }
+        JsonCommandRequest::get_address_for_account { account_id, index } => {
+            let assigned_subaddress = service
+                .get_address_for_account(&AccountID(account_id), index)
+                .map_err(format_error)?;
+            JsonCommandResponse::get_address_for_account {
+                address: Address::from(&assigned_subaddress),
+            }
+        }
         JsonCommandRequest::get_addresses_for_account {
             account_id,
             offset,
