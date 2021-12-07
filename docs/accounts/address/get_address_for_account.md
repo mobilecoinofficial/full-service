@@ -45,7 +45,6 @@ description: Get an assigned address by index for an account.
   "jsonrpc": "2.0",
   "id": 1,
 }
-verify_a
 ```
 {% endtab %}
 {% endtabs %}
