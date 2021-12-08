@@ -201,7 +201,9 @@ class CommandLineInterface:
                 if new_password != confirm_password:
                     print('Passwords do not match.')
                     exit(1)
-        env = {'MC_PASSWORD': password}
+
+        env = dict(os.environ)
+        env['MC_PASSWORD'] = password
         if new_password != '':
             env['MC_CHANGED_PASSWORD'] = new_password
 
