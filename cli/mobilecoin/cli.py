@@ -219,7 +219,7 @@ class CommandLineInterface:
                 wallet_server_command += ['--tx-source-url', tx_source_url]
 
         ingest_enclave = self.config.get('fog-ingest-enclave-css')
-        if ingest_enclave is not None:
+        if ingest_enclave:
             wallet_server_command += ['--fog-ingest-enclave-css', ingest_enclave]
 
         if bg:
