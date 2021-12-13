@@ -29,7 +29,7 @@ use crate::{
 use bip39::{Language, Mnemonic, MnemonicType};
 use diesel::Connection;
 use displaydoc::Display;
-use mc_account_keys::{AccountKey, DEFAULT_SUBADDRESS_INDEX};
+use mc_account_keys::{AccountKey, PublicAddress, DEFAULT_SUBADDRESS_INDEX};
 use mc_account_keys_slip10::Slip10KeyGenerator;
 use mc_common::{logger::log, HashSet};
 use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
@@ -45,9 +45,10 @@ use mc_transaction_core::{
     tx::{Tx, TxOut},
 };
 use mc_transaction_std::{InputCredentials, TransactionBuilder};
+use mc_util_uri::FogUri;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use std::{convert::TryFrom, fmt, iter::empty, sync::atomic::Ordering};
+use std::{convert::TryFrom, fmt, iter::empty, str::FromStr, sync::atomic::Ordering};
 
 #[derive(Display, Debug)]
 #[allow(clippy::large_enum_variant)]
@@ -131,6 +132,9 @@ pub enum GiftCodeServiceError {
     /// Error with Transaction Builder
     TxBuilder(mc_transaction_std::TxBuilderError),
 
+    /// Error parsing URI {0}
+    UriParse(mc_util_uri::UriParseError),
+
     /// Error with Account Service
     AddressService(AddressServiceError),
 
@@ -207,6 +211,12 @@ impl From<mc_transaction_std::TxBuilderError> for GiftCodeServiceError {
 impl From<mc_api::ConversionError> for GiftCodeServiceError {
     fn from(src: mc_api::ConversionError) -> Self {
         Self::ProtoConversion(src)
+    }
+}
+
+impl From<mc_util_uri::UriParseError> for GiftCodeServiceError {
+    fn from(src: mc_util_uri::UriParseError) -> Self {
+        Self::UriParse(src)
     }
 }
 
@@ -556,8 +566,14 @@ where
         let mut ring: Vec<TxOut> = Vec::new();
         let mut rng = rand::thread_rng();
 
-        let fog_resolver =
-            (self.fog_resolver_factory)(&[]).map_err(GiftCodeServiceError::UnexpectedTxStatus)?;
+        let fog_resolver = {
+            let fog_uris = core::slice::from_ref(&recipient_public_address)
+                .iter()
+                .filter_map(|x| extract_fog_uri(x).transpose())
+                .collect::<Result<Vec<_>, _>>()?;
+            (self.fog_resolver_factory)(&fog_uris.as_slice())
+                .map_err(GiftCodeServiceError::UnexpectedTxStatus)?
+        };
 
         let num_txos = self.ledger_db.num_txos()?;
         let mut sampled_indices: HashSet<u64> = HashSet::default();
@@ -650,6 +666,14 @@ where
         let conn = self.wallet_db.get_conn()?;
         conn.transaction(|| GiftCode::get(gift_code_b58, &conn)?.delete(&conn))?;
         Ok(true)
+    }
+}
+
+fn extract_fog_uri(addr: &PublicAddress) -> Result<Option<FogUri>, GiftCodeServiceError> {
+    if let Some(string) = addr.fog_report_url() {
+        Ok(Some(FogUri::from_str(string)?))
+    } else {
+        Ok(None)
     }
 }
 
