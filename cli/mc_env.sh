@@ -18,6 +18,7 @@ case $MC_NETWORK in
     "ledger-db": "$MC_DATA/ledger-db",
     "wallet-db": "$MC_DATA/wallet-db/wallet.db",
     "logfile": "$MC_DATA/wallet_server_log.txt",
+    "fog-ingest-enclave-css": "",
     "peer": [
         "mc://node1.prod.mobilecoinww.com/",
         "mc://node2.prod.mobilecoinww.com/"
@@ -39,6 +40,7 @@ EOF
     "ledger-db": "$MC_DATA/ledger-db",
     "wallet-db": "$MC_DATA/wallet-db/wallet.db",
     "logfile": "$MC_DATA/wallet_server_log.txt",
+    "fog-ingest-enclave-css": "",
     "peer": [
         "mc://node1.test.mobilecoin.com/",
         "mc://node2.test.mobilecoin.com/"

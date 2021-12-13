@@ -201,7 +201,9 @@ class CommandLineInterface:
                 if new_password != confirm_password:
                     print('Passwords do not match.')
                     exit(1)
-        env = {'MC_PASSWORD': password}
+
+        env = dict(os.environ)
+        env['MC_PASSWORD'] = password
         if new_password != '':
             env['MC_CHANGED_PASSWORD'] = new_password
 
@@ -219,7 +221,7 @@ class CommandLineInterface:
                 wallet_server_command += ['--tx-source-url', tx_source_url]
 
         ingest_enclave = self.config.get('fog-ingest-enclave-css')
-        if ingest_enclave is not None:
+        if ingest_enclave:
             wallet_server_command += ['--fog-ingest-enclave-css', ingest_enclave]
 
         if bg:
