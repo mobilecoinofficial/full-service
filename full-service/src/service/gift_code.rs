@@ -29,7 +29,7 @@ use crate::{
 use bip39::{Language, Mnemonic, MnemonicType};
 use diesel::Connection;
 use displaydoc::Display;
-use mc_account_keys::{AccountKey, PublicAddress, DEFAULT_SUBADDRESS_INDEX};
+use mc_account_keys::{AccountKey, DEFAULT_SUBADDRESS_INDEX};
 use mc_account_keys_slip10::Slip10KeyGenerator;
 use mc_common::{logger::log, HashSet};
 use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
@@ -132,7 +132,7 @@ pub enum GiftCodeServiceError {
     /// Error with Transaction Builder
     TxBuilder(mc_transaction_std::TxBuilderError),
 
-    /// Error parsing URI {0}
+    /// Error parsing URI: {0}
     UriParse(mc_util_uri::UriParseError),
 
     /// Error with Account Service
@@ -140,6 +140,12 @@ pub enum GiftCodeServiceError {
 
     /// Error with the B58 Util: {0}
     B58(B58Error),
+
+    /// Error with the FogPubkeyResolver: {0}
+    FogPubkeyResolver(String),
+
+    /// Invalid Fog Uri: {0}
+    InvalidFogUri(String),
 }
 
 impl From<WalletDbError> for GiftCodeServiceError {
@@ -567,12 +573,16 @@ where
         let mut rng = rand::thread_rng();
 
         let fog_resolver = {
-            let fog_uris = core::slice::from_ref(&recipient_public_address)
-                .iter()
-                .filter_map(|x| extract_fog_uri(x).transpose())
-                .collect::<Result<Vec<_>, _>>()?;
+            let fog_uri = recipient_public_address
+                .fog_report_url()
+                .map(FogUri::from_str)
+                .transpose()?;
+            let mut fog_uris = Vec::new();
+            if let Some(uri) = fog_uri {
+                fog_uris.push(uri);
+            }
             (self.fog_resolver_factory)(&fog_uris.as_slice())
-                .map_err(GiftCodeServiceError::UnexpectedTxStatus)?
+                .map_err(GiftCodeServiceError::FogPubkeyResolver)?
         };
 
         let num_txos = self.ledger_db.num_txos()?;
@@ -666,14 +676,6 @@ where
         let conn = self.wallet_db.get_conn()?;
         conn.transaction(|| GiftCode::get(gift_code_b58, &conn)?.delete(&conn))?;
         Ok(true)
-    }
-}
-
-fn extract_fog_uri(addr: &PublicAddress) -> Result<Option<FogUri>, GiftCodeServiceError> {
-    if let Some(string) = addr.fog_report_url() {
-        Ok(Some(FogUri::from_str(string)?))
-    } else {
-        Ok(None)
     }
 }
 
