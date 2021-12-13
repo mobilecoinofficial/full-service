@@ -132,7 +132,7 @@ pub enum GiftCodeServiceError {
     /// Error with Transaction Builder
     TxBuilder(mc_transaction_std::TxBuilderError),
 
-    /// Error parsing URI {0}
+    /// Error parsing URI: {0}
     UriParse(mc_util_uri::UriParseError),
 
     /// Error with Account Service
