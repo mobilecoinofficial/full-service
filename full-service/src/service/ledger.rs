@@ -65,9 +65,8 @@ impl From<WalletDbError> for LedgerServiceError {
 /// Trait defining the ways in which the wallet can interact with and manage
 /// ledger objects and interfaces.
 pub trait LedgerService {
-    /// Gets the network highest block index on the live MobileCoin consensus
-    /// network.
-    fn get_network_block_index(&self) -> Result<u64, LedgerServiceError>;
+    /// Get the total number of blocks on the ledger.
+    fn get_network_block_height(&self) -> Result<u64, LedgerServiceError>;
 
     fn get_transaction_object(&self, transaction_id_hex: &str) -> Result<Tx, LedgerServiceError>;
 
@@ -88,9 +87,12 @@ where
     T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
-    fn get_network_block_index(&self) -> Result<u64, LedgerServiceError> {
+    fn get_network_block_height(&self) -> Result<u64, LedgerServiceError> {
         let network_state = self.network_state.read().expect("lock poisoned");
-        Ok(network_state.highest_block_index_on_network().unwrap_or(0))
+        match network_state.highest_block_index_on_network() {
+            Some(index) => Ok(index + 1),
+            None => Ok(0),
+        }
     }
 
     fn get_transaction_object(&self, transaction_id_hex: &str) -> Result<Tx, LedgerServiceError> {

@@ -456,7 +456,7 @@ mod e2e {
     #[test_with_logger]
     fn test_e2e_get_balance(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -484,6 +484,12 @@ mod e2e {
         );
 
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            13,
+        );
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -530,8 +536,8 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let status = result.get("wallet_status").unwrap();
-        assert_eq!(status.get("network_block_index").unwrap(), "11");
-        assert_eq!(status.get("local_block_index").unwrap(), "11");
+        assert_eq!(status.get("network_block_height").unwrap(), "12");
+        assert_eq!(status.get("local_block_height").unwrap(), "12");
         // Syncing will have already started, so we can't determine what the min synced
         // index is.
         assert!(status.get("min_synced_block_index").is_some());
@@ -558,7 +564,7 @@ mod e2e {
     #[test_with_logger]
     fn test_account_status(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -585,6 +591,12 @@ mod e2e {
         );
 
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            13,
+        );
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -612,7 +624,7 @@ mod e2e {
     #[test_with_logger]
     fn test_build_and_submit_transaction(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -642,6 +654,13 @@ mod e2e {
         );
 
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            13,
+        );
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
 
         // Add a block with significantly more MOB
@@ -654,6 +673,12 @@ mod e2e {
         );
 
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            14,
+        );
         assert_eq!(ledger_db.num_blocks().unwrap(), 14);
 
         // Create a tx proposal to ourselves
@@ -723,6 +748,12 @@ mod e2e {
 
         add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            15,
+        );
         assert_eq!(ledger_db.num_blocks().unwrap(), 15);
 
         // Get balance after submission
@@ -768,7 +799,7 @@ mod e2e {
     #[test_with_logger]
     fn test_build_then_submit_transaction(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -798,6 +829,12 @@ mod e2e {
         );
 
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            13,
+        );
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
 
         // Create a tx proposal to ourselves
@@ -841,6 +878,12 @@ mod e2e {
         );
 
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            14,
+        );
         assert_eq!(ledger_db.num_blocks().unwrap(), 14);
 
         // Create a tx proposal to ourselves
@@ -953,6 +996,12 @@ mod e2e {
         // The MockBlockchainConnection does not write to the ledger_db
         add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            15,
+        );
         assert_eq!(ledger_db.num_blocks().unwrap(), 15);
 
         // Get balance after submission
@@ -988,7 +1037,7 @@ mod e2e {
             .unwrap()
             .as_str()
             .unwrap();
-        assert_eq!(unspent, &(100000000000100 - MINIMUM_FEE).to_string());
+        assert_eq!(unspent, "99999600000100");
         assert_eq!(pending, "0");
         assert_eq!(spent, "100000000000100");
         assert_eq!(secreted, "0");
@@ -1686,6 +1735,12 @@ mod e2e {
         );
 
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            13,
+        );
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
 
         let body = json!({
@@ -1723,14 +1778,12 @@ mod e2e {
             }
         });
         dispatch(&client, body, &logger);
-
         wait_for_account_sync(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
             13,
         );
-
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
@@ -1744,9 +1797,11 @@ mod e2e {
         let balance = result.get("balance").unwrap();
         let unspent_pmob = balance.get("unspent_pmob").unwrap().as_str().unwrap();
         let orphaned_pmob = balance.get("orphaned_pmob").unwrap().as_str().unwrap();
+        let spent_pmob = balance.get("spent_pmob").unwrap().as_str().unwrap();
 
         assert_eq!("0", unspent_pmob);
         assert_eq!("100000000000000", orphaned_pmob);
+        assert_eq!("0", spent_pmob);
 
         // assign next subaddress for account
         let body = json!({
@@ -1800,6 +1855,12 @@ mod e2e {
         dispatch(&client, body, &logger);
 
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            13,
+        );
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -2037,7 +2098,7 @@ mod e2e {
     #[test_with_logger]
     fn test_create_assigned_subaddress(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -2089,6 +2150,12 @@ mod e2e {
         );
 
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            13,
+        );
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -2117,6 +2184,73 @@ mod e2e {
         assert_eq!(txo_type, TXO_TYPE_RECEIVED);
         let value = txo.get("value_pmob").unwrap().as_str().unwrap();
         assert_eq!(value, "42000000000000");
+    }
+
+    #[test_with_logger]
+    fn test_get_address_for_account(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_id = result
+            .get("account")
+            .unwrap()
+            .get("account_id")
+            .unwrap()
+            .as_str()
+            .unwrap();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_address_for_account",
+            "params": {
+                "account_id": account_id,
+                "index": 2,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let error = res.get("error").unwrap();
+        let code = error.get("code").unwrap();
+        assert_eq!(code, -32603);
+
+        // Create a subaddress
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "assign_address_for_account",
+            "params": {
+                "account_id": account_id,
+                "comment": "test",
+            }
+        });
+        dispatch(&client, body, &logger);
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_address_for_account",
+            "params": {
+                "account_id": account_id,
+                "index": 2,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let address = result.get("address").unwrap();
+        let subaddress_index = address.get("subaddress_index").unwrap().as_str().unwrap();
+
+        assert_eq!(subaddress_index, "2");
     }
 
     #[test_with_logger]
@@ -2165,7 +2299,7 @@ mod e2e {
     #[test_with_logger]
     fn test_balance_for_address(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -2191,6 +2325,12 @@ mod e2e {
             &mut rng,
         );
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            13,
+        );
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -2276,6 +2416,12 @@ mod e2e {
             &mut rng,
         );
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            14,
+        );
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -2356,6 +2502,12 @@ mod e2e {
         );
 
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            14,
+        );
 
         // Remove the account.
         let body = json!({
@@ -2667,7 +2819,7 @@ mod e2e {
     #[test_with_logger]
     fn test_split_txo(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -2695,6 +2847,12 @@ mod e2e {
         );
 
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            13,
+        );
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -2782,6 +2940,12 @@ mod e2e {
 
         add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            14,
+        );
 
         // Check the overall balance for the account
         let body = json!({
@@ -2802,7 +2966,7 @@ mod e2e {
     #[test_with_logger]
     fn test_receipts(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -2829,6 +2993,12 @@ mod e2e {
             &mut rng,
         );
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(alice_account_id.to_string()),
+            13,
+        );
 
         // Add Bob's account to our wallet
         let body = json!({
@@ -2842,6 +3012,7 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let bob_account_obj = result.get("account").unwrap();
+        let bob_account_id = bob_account_obj.get("account_id").unwrap().as_str().unwrap();
         let bob_b58_public_address = bob_account_obj
             .get("main_address")
             .unwrap()
@@ -2902,6 +3073,18 @@ mod e2e {
         // The MockBlockchainConnection does not write to the ledger_db
         add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(alice_account_id.to_string()),
+            14,
+        );
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(bob_account_id.to_string()),
+            14,
+        );
 
         // Bob checks status (should be successful after added to the ledger)
         let body = json!({
@@ -2922,7 +3105,7 @@ mod e2e {
     #[test_with_logger]
     fn test_gift_codes(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, _db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -2949,7 +3132,12 @@ mod e2e {
             &mut rng,
         );
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
-
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(alice_account_id.to_string()),
+            13,
+        );
         // Create a gift code
         let body = json!({
             "jsonrpc": "2.0",
@@ -3003,6 +3191,12 @@ mod e2e {
         // The MockBlockchainConnection does not write to the ledger_db
         add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
         wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(alice_account_id.to_string()),
+            14,
+        );
 
         // Check the status of the gift code
         let body = json!({
@@ -3032,6 +3226,12 @@ mod e2e {
         let result = res.get("result").unwrap();
         let bob_account_obj = result.get("account").unwrap();
         let bob_account_id = bob_account_obj.get("account_id").unwrap().as_str().unwrap();
+        wait_for_account_sync(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(bob_account_id.to_string()),
+            14,
+        );
 
         // Get all the gift codes in the wallet
         let body = json!({

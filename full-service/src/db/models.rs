@@ -9,6 +9,10 @@ use super::schema::{
 
 use serde::Serialize;
 
+// The following string constants are used in lieu of proper enum plumbing for
+// SQLite3 with Diesel at the time of authorship. Ideally, we will migrate to
+// enums at some point.
+
 /// A TXO owned by an account in this wallet that has not yet been spent.
 pub const TXO_STATUS_UNSPENT: &str = "txo_status_unspent";
 

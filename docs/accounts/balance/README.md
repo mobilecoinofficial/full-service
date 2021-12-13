@@ -11,11 +11,11 @@ description: >-
 | Name | Type | Description |
 | :--- | :--- | :--- |
 | `object` | String, value is "balance" | String representing the object's type. Objects of the same type share the same value. |
-| `network_block_index` | String \(uint64\) | The block height of MobileCoin's distributed ledger. The `local_block_index` is synced when it reaches the `network_block_index`. |
-| `local_block_index` | String \(uint64\) | The local block height downloaded from the ledger. The local database will sync up to the `network_block_index`. The `account_block_index` can only sync up to `local_block_index`. |
-| `account_block_index` | String \(uint64\) | The scanned local block height for this account. This value will never be greater than the `local_block_index`. At fully synced, it will match `network_block_index`. |
-| `is_synced` | Boolean | Whether the account is synced with the `network_block_index`. Balances may not appear correct if the account is still syncing. |
-| `unspent_pmob` | String \(uint64\) | Unspent pico MOB for this account at the current `account_block_index`. If the account is syncing, this value may change. |
+| `network_block_height` | String \(uint64\) | The block count of MobileCoin's distributed ledger. |
+| `local_block_height` | String \(uint64\) | The local block count downloaded from the ledger. The local database is synced when the `local_block_height` reaches the `network_block_height`. The `account_block_height` can only sync up to `local_block_height`. | 
+| `account_block_height` | String \(uint64\) | The scanned local block count for this account. This value will never be greater than `local_block_height`. At fully synced, it will match `network_block_height`.
+| `is_synced` | Boolean | Whether the account is synced with the `network_block_height`. Balances may not appear correct if the account is still syncing. |
+| `unspent_pmob` | String \(uint64\) | Unspent pico MOB for this account at the current `account_block_height`. If the account is syncing, this value may change. |
 | `pending_pmob` | String \(uint64\) | Pending, out-going pico MOB. The pending value will clear once the ledger processes the outgoing TXOs. The `pending_pmob` will reflect the change. |
 | `spent_pmob` | String \(uint64\) | Spent pico MOB. This is the sum of all the TXOs in the wallet which have been spent. |
 | `secreted_pmob` | String \(uint64\) | Secreted \(minted\) pico MOB. This is the sum of all the TXOs which have been created in the wallet for outgoing transactions. |
@@ -25,10 +25,10 @@ description: >-
 
 ```text
 {
-  "account_block_index": "152003",
+  "account_block_height": "152003",
   "is_synced": false,
-  "local_block_index": "152918",
-  "network_block_index": "152918",
+  "local_block_height": "152918",
+  "network_block_height": "152918",
   "object": "balance",
   "orphaned_pmob": "0",
   "pending_pmob": "0",

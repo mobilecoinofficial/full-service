@@ -253,19 +253,15 @@ class CommandLineInterface:
         network_status = self.client.get_network_status()
         fee = pmob2mob(network_status['fee_pmob'])
 
-        # Work around 64-bit integer wrapping bug in local_block_index.
-        if int(network_status['local_block_index']) == (1 << 64) - 1:
-            network_status['local_block_index'] = 0
-
-        if int(network_status['network_block_index']) == 0:
+        if int(network_status['network_block_height']) == 0:
             print('Offline.')
-            print('Local ledger has {} blocks.'.format(network_status['local_block_index']))
+            print('Local ledger has {} blocks.'.format(network_status['local_block_height']))
             print('Expected fee is {}'.format(_format_mob(fee)))
         else:
             print('Connected to network.')
             print('Local ledger has {}/{} blocks.'.format(
-                network_status['local_block_index'],
-                network_status['network_block_index'],
+                network_status['local_block_height'],
+                network_status['network_block_height'],
             ))
             print('Network fee is {}'.format(_format_mob(fee)))
 
@@ -498,7 +494,7 @@ class CommandLineInterface:
             print('Cancelled.')
             return
 
-        transaction_log = self.client.build_and_submit_transaction(account_id, amount, to_address)
+        transaction_log, tx_proposal = self.client.build_and_submit_transaction_with_proposal(account_id, amount, to_address)
 
         print('Sent {}, with a transaction fee of {}'.format(
             _format_mob(pmob2mob(transaction_log['value_pmob'])),
@@ -516,7 +512,7 @@ class CommandLineInterface:
         # Check that the tombstone block is within range.
         tombstone_block = int(tx_proposal['tx']['prefix']['tombstone_block'])
         network_status = self.client.get_network_status()
-        lo = int(network_status['network_block_index']) + 1
+        lo = int(network_status['network_block_height']) + 1
         hi = lo + MAX_TOMBSTONE_BLOCKS - 1
         if lo >= tombstone_block:
             print('This transaction has expired, and can no longer be submitted.')
@@ -555,7 +551,7 @@ class CommandLineInterface:
             import segno
         except ImportError:
             print('Showing QR codes requires the segno library. Try:')
-            print('$ pip install git+https://github.com/mobilecoinofficial/segno')
+            print('$ pip install segno')
             return
 
         account = self._load_account_prefix(account_id)
@@ -730,16 +726,16 @@ def _format_account_header(account):
 
 def _format_balance(balance):
     offline = False
-    network_block = int(balance['network_block_index'])
+    network_block = int(balance['network_block_height'])
     if network_block == 0:
         offline = True
-        network_block = int(balance['local_block_index'])
+        network_block = int(balance['local_block_height'])
 
-    account_block = int(balance['account_block_index'])
+    account_block = int(balance['account_block_height'])
     if account_block == network_block:
         sync_status = 'synced'
     else:
-        sync_status = 'syncing, {}/{}'.format(balance['account_block_index'], network_block)
+        sync_status = 'syncing, {}/{}'.format(balance['account_block_height'], network_block)
 
     if offline:
         offline_status = ' [offline]'

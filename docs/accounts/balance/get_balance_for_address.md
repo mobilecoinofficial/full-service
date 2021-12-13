@@ -30,9 +30,9 @@ description: Get the current balance for a given address.
   "result": {
     "balance": {
       "object": "balance",
-      "network_block_index": "152961",
-      "local_block_index": "152961",
-      "account_block_index": "152961",
+      "network_block_height": "152961",
+      "local_block_height": "152961",
+      "account_block_height": "152961",
       "is_synced": true,
       "unspent_pmob": "11881402222024",
       "pending_pmob": "0",

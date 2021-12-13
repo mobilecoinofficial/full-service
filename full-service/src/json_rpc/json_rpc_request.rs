@@ -38,7 +38,7 @@ pub struct JsonRPCRequest {
     /// The ID to be associated with this request.
     /// JSON-RPC Notification requests are not yet supported, so this field is
     /// not optional.
-    pub id: u32,
+    pub id: serde_json::Value,
 }
 
 impl TryFrom<&JsonRPCRequest> for JsonCommandRequest {
@@ -132,6 +132,10 @@ pub enum JsonCommandRequest {
     },
     get_account_status {
         account_id: String,
+    },
+    get_address_for_account {
+        account_id: String,
+        index: i64,
     },
     get_addresses_for_account {
         account_id: String,

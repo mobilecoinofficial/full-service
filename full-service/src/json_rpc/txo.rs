@@ -20,7 +20,7 @@ pub struct Txo {
     /// TxOut in the ledger representation.
     pub txo_id_hex: String,
 
-    /// Available pico MOB for this account at the current account_block_index.
+    /// Available pico MOB for this account at the current account_block_height.
     /// If the account is syncing, this value may change.
     pub value_pmob: String,
 

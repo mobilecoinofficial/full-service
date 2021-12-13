@@ -270,6 +270,6 @@ description: >-
 }
 ```
 
-Call `check_balance` for the account, and note the `synced_blocks` value. If that value is less than the `local_block_index` value, then your TXOs may not all be updated to their spent status.
+Call `check_balance` for the account, and note the `synced_blocks` value. If that value is less than the `local_block_height` value, then your TXOs may not all be updated to their spent status.
 {% endhint %}
 

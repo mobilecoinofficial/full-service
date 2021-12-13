@@ -35,9 +35,9 @@ curl -s localhost:9090/wallet \
   "result": {
     "balance": {
       "object": "balance",
-      "network_block_index": "152918",
-      "local_block_index": "152918",
-      "account_block_index": "152003",
+      "network_block_height": "152918",
+      "local_block_height": "152918",
+      "account_block_height": "152003",
       "is_synced": false,
       "unspent_pmob": "110000000000000000",
       "pending_pmob": "0",

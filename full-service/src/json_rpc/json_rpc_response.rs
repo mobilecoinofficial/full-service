@@ -56,7 +56,7 @@ pub struct JsonRPCResponse {
     pub jsonrpc: String,
 
     /// The id of the Request object to which this response corresponds.
-    pub id: u32,
+    pub id: serde_json::Value,
 }
 
 /// A JSON RPC Error.
@@ -179,6 +179,9 @@ pub enum JsonCommandResponse {
     get_account_status {
         account: Account,
         balance: Balance,
+    },
+    get_address_for_account {
+        address: Address,
     },
     get_addresses_for_account {
         public_addresses: Vec<String>,
