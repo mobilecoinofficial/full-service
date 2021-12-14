@@ -151,6 +151,8 @@ pub struct Txo {
     pub confirmation: Option<Vec<u8>>,
     /// The recipient public address. Blank for unknown.
     pub recipient_public_address_b58: String,
+    pub minted_account_id_hex: Option<String>,
+    pub received_account_id_hex: Option<String>,
 }
 
 /// A structure that can be inserted to create a new entity in the `txos` table.
