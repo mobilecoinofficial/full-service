@@ -164,7 +164,7 @@ where
                 orphaned,
                 network_block_height,
                 local_block_height,
-                synced_blocks: account.next_block_index as u64 + 1,
+                synced_blocks: account.next_block_index as u64,
             })
         })
     }
@@ -214,7 +214,7 @@ where
                 orphaned,
                 network_block_height,
                 local_block_height,
-                synced_blocks: account.next_block_index as u64 + 1,
+                synced_blocks: account.next_block_index as u64,
             })
         })
     }
