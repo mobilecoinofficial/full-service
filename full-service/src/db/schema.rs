@@ -93,6 +93,8 @@ table! {
         spent_block_index -> Nullable<BigInt>,
         confirmation -> Nullable<Binary>,
         recipient_public_address_b58 -> Text,
+        minted_account_id_hex -> Nullable<Text>,
+        received_account_id_hex -> Nullable<Text>,
     }
 }
 
