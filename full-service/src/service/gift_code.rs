@@ -45,9 +45,10 @@ use mc_transaction_core::{
     tx::{Tx, TxOut},
 };
 use mc_transaction_std::{InputCredentials, TransactionBuilder};
+use mc_util_uri::FogUri;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use std::{convert::TryFrom, fmt, iter::empty, sync::atomic::Ordering};
+use std::{convert::TryFrom, fmt, iter::empty, str::FromStr, sync::atomic::Ordering};
 
 #[derive(Display, Debug)]
 #[allow(clippy::large_enum_variant)]
@@ -131,11 +132,20 @@ pub enum GiftCodeServiceError {
     /// Error with Transaction Builder
     TxBuilder(mc_transaction_std::TxBuilderError),
 
+    /// Error parsing URI: {0}
+    UriParse(mc_util_uri::UriParseError),
+
     /// Error with Account Service
     AddressService(AddressServiceError),
 
     /// Error with the B58 Util: {0}
     B58(B58Error),
+
+    /// Error with the FogPubkeyResolver: {0}
+    FogPubkeyResolver(String),
+
+    /// Invalid Fog Uri: {0}
+    InvalidFogUri(String),
 }
 
 impl From<WalletDbError> for GiftCodeServiceError {
@@ -207,6 +217,12 @@ impl From<mc_transaction_std::TxBuilderError> for GiftCodeServiceError {
 impl From<mc_api::ConversionError> for GiftCodeServiceError {
     fn from(src: mc_api::ConversionError) -> Self {
         Self::ProtoConversion(src)
+    }
+}
+
+impl From<mc_util_uri::UriParseError> for GiftCodeServiceError {
+    fn from(src: mc_util_uri::UriParseError) -> Self {
+        Self::UriParse(src)
     }
 }
 
@@ -556,8 +572,18 @@ where
         let mut ring: Vec<TxOut> = Vec::new();
         let mut rng = rand::thread_rng();
 
-        let fog_resolver =
-            (self.fog_resolver_factory)(&[]).map_err(GiftCodeServiceError::UnexpectedTxStatus)?;
+        let fog_resolver = {
+            let fog_uri = recipient_public_address
+                .fog_report_url()
+                .map(FogUri::from_str)
+                .transpose()?;
+            let mut fog_uris = Vec::new();
+            if let Some(uri) = fog_uri {
+                fog_uris.push(uri);
+            }
+            (self.fog_resolver_factory)(&fog_uris.as_slice())
+                .map_err(GiftCodeServiceError::FogPubkeyResolver)?
+        };
 
         let num_txos = self.ledger_db.num_txos()?;
         let mut sampled_indices: HashSet<u64> = HashSet::default();
