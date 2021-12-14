@@ -569,7 +569,10 @@ class CommandLineInterface:
         print()
 
     def address(self, action, **args):
-        getattr(self, 'address_' + action)(**args)
+        try:
+            getattr(self, 'address_' + action)(**args)
+        except TypeError:
+            self.address_args.print_help()
 
     def address_list(self, account_id):
         account = self._load_account_prefix(account_id)
