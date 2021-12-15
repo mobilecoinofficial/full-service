@@ -192,7 +192,7 @@ pub trait TxoModel {
     fn select_by_id(
         txo_ids: &[String],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Vec<(Txo, AccountTxoStatus)>, WalletDbError>;
+    ) -> Result<Vec<Txo>, WalletDbError>;
 
     /// Check whether all of the given Txos are spent.
     fn are_all_spent(
@@ -651,16 +651,11 @@ impl TxoModel for Txo {
     fn select_by_id(
         txo_ids: &[String],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Vec<(Txo, AccountTxoStatus)>, WalletDbError> {
-        use crate::db::schema::{account_txo_statuses, txos};
+    ) -> Result<Vec<Txo>, WalletDbError> {
+        use crate::db::schema::txos;
 
-        let txos: Vec<(Txo, AccountTxoStatus)> = txos::table
-            .inner_join(
-                account_txo_statuses::table.on(txos::txo_id_hex
-                    .eq(account_txo_statuses::txo_id_hex)
-                    .and(txos::txo_id_hex.eq_any(txo_ids))),
-            )
-            .select((txos::all_columns, account_txo_statuses::all_columns))
+        let txos = txos::table
+            .filter(txos::txo_id_hex.eq_any(txo_ids))
             .load(conn)?;
         Ok(txos)
     }

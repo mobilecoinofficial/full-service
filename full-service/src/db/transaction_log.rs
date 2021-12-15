@@ -405,7 +405,7 @@ impl TransactionLogModel for TransactionLog {
 
         for (subaddress_index, output_txo_ids) in subaddress_to_output_txo_ids {
             let txos = Txo::select_by_id(&output_txo_ids, conn)?;
-            for (txo, _account_txo_status) in txos {
+            for txo in txos {
                 let transaction_id = TransactionID::from(txo.txo_id_hex.clone());
 
                 // Check that we haven't already logged this transaction on a previous sync
