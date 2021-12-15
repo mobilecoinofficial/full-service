@@ -176,15 +176,14 @@ pub trait TxoModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Txo, WalletDbError>;
 
-    /// Get several Txos by Txo public_keys, specific to an account.
+    /// Get several Txos by Txo public_keys
     ///
     /// Returns:
     /// * Vec<Txo>
     fn select_by_public_key(
-        account_id: &AccountID,
         public_keys: &[&CompressedRistrettoPublic],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Vec<(Txo, AccountTxoStatus)>, WalletDbError>;
+    ) -> Result<Vec<Txo>, WalletDbError>;
 
     /// Select several Txos by their TxoIds
     ///
@@ -634,24 +633,17 @@ impl TxoModel for Txo {
     }
 
     fn select_by_public_key(
-        account_id: &AccountID,
         public_keys: &[&CompressedRistrettoPublic],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Vec<(Txo, AccountTxoStatus)>, WalletDbError> {
-        use crate::db::schema::{account_txo_statuses, txos};
+    ) -> Result<Vec<Txo>, WalletDbError> {
+        use crate::db::schema::txos;
 
         let public_key_blobs: Vec<Vec<u8>> = public_keys
             .iter()
             .map(|p| mc_util_serial::encode(*p))
             .collect();
-        let selected: Vec<(Txo, AccountTxoStatus)> = txos::table
-            .inner_join(
-                account_txo_statuses::table.on(txos::txo_id_hex
-                    .eq(account_txo_statuses::txo_id_hex)
-                    .and(account_txo_statuses::account_id_hex.eq(account_id.to_string()))
-                    .and(txos::public_key.eq_any(public_key_blobs))),
-            )
-            .select((txos::all_columns, account_txo_statuses::all_columns))
+        let selected = txos::table
+            .filter(txos::public_key.eq_any(public_key_blobs))
             .load(conn)?;
         Ok(selected)
     }
@@ -1654,12 +1646,12 @@ mod tests {
             src_txos.iter().map(|t| &t.public_key).collect();
 
         let txos_and_status =
-            Txo::select_by_public_key(&account_id, &pubkeys, &wallet_db.get_conn().unwrap())
+            Txo::select_by_public_key(&pubkeys, &wallet_db.get_conn().unwrap())
                 .expect("Could not get txos by public keys");
         assert_eq!(txos_and_status.len(), 10);
 
         let txos_and_status =
-            Txo::select_by_public_key(&account_id, &pubkeys[0..5], &wallet_db.get_conn().unwrap())
+            Txo::select_by_public_key(&pubkeys[0..5], &wallet_db.get_conn().unwrap())
                 .expect("Could not get txos by public keys");
         assert_eq!(txos_and_status.len(), 5);
     }

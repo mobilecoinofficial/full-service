@@ -12,8 +12,8 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        models::{Account, AssignedSubaddress, Txo, TXO_STATUS_SECRETED, TXO_TYPE_MINTED},
-        txo::{TxoDetails, TxoModel},
+        models::{Account, AssignedSubaddress, Txo},
+        txo::TxoModel,
         WalletDbError,
     },
     WalletService,
@@ -167,7 +167,7 @@ pub trait ReceiptService {
         &self,
         address: &str,
         receiver_receipt: &ReceiverReceipt,
-    ) -> Result<(ReceiptTransactionStatus, Option<TxoDetails>), ReceiptServiceError>;
+    ) -> Result<(ReceiptTransactionStatus, Option<Txo>), ReceiptServiceError>;
 
     /// Create a receipt from a given TxProposal
     fn create_receiver_receipts(
@@ -185,29 +185,26 @@ where
         &self,
         address: &str,
         receiver_receipt: &ReceiverReceipt,
-    ) -> Result<(ReceiptTransactionStatus, Option<TxoDetails>), ReceiptServiceError> {
+    ) -> Result<(ReceiptTransactionStatus, Option<Txo>), ReceiptServiceError> {
         let conn = &self.wallet_db.get_conn()?;
         conn.transaction(|| {
             let assigned_address = AssignedSubaddress::get(address, &conn)?;
             let account_id = AccountID(assigned_address.account_id_hex);
             let account = Account::get(&account_id, &conn)?;
             // Get the transaction from the database, with status.
-            let txos_and_statuses =
-                Txo::select_by_public_key(&account_id, &[&receiver_receipt.public_key], &conn)?;
+            let txos =
+                Txo::select_by_public_key(&[&receiver_receipt.public_key], &conn)?;
 
             // Return if the Txo from the receipt is not in this wallet yet.
-            if txos_and_statuses.is_empty() {
+            if txos.is_empty() {
                 return Ok((ReceiptTransactionStatus::TransactionPending, None));
             }
-            let (txo, status) = &txos_and_statuses[0];
+            let txo = txos[0].clone();
 
-            // Figure out whether the Txo was minted by us, and has not yet been received by
-            // us. (For to-self transactions). If the Txo was minted by us, this
-            // transaction is pending.
-            if status.txo_type == TXO_TYPE_MINTED && status.txo_status == TXO_STATUS_SECRETED {
-                return Ok((ReceiptTransactionStatus::TransactionPending, None));
+            // Return if the Txo from the receipt has a pending tombstone block index
+            if let Some(_) = txo.pending_tombstone_block_index {
+                return Ok((ReceiptTransactionStatus::TransactionPending, Some(txo)));
             }
-            let details = Txo::get(&txo.txo_id_hex, &conn)?;
 
             // Decrypt the amount to get the expected value
             let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
@@ -220,7 +217,7 @@ where
                 Err(AmountError::InconsistentCommitment) => {
                     return Ok((
                         ReceiptTransactionStatus::FailedAmountDecryption,
-                        Some(details),
+                        Some(txo),
                     ))
                 }
             };
@@ -231,7 +228,7 @@ where
                         "Expected: {}, Got: {}",
                         expected_value, txo.value
                     )),
-                    Some(details),
+                    Some(txo),
                 ));
             }
 
@@ -246,10 +243,10 @@ where
                 &confirmation,
                 &conn,
             )? {
-                return Ok((ReceiptTransactionStatus::InvalidConfirmation, Some(details)));
+                return Ok((ReceiptTransactionStatus::InvalidConfirmation, Some(txo)));
             }
 
-            Ok((ReceiptTransactionStatus::TransactionSuccess, Some(details)))
+            Ok((ReceiptTransactionStatus::TransactionSuccess, Some(txo)))
         })
     }
 

@@ -2,9 +2,9 @@
 
 //! API definition for the Txo object.
 
+use crate::db;
 use crate::db::txo::TxoDetails;
 use serde_derive::{Deserialize, Serialize};
-use serde_json::Map;
 
 /// An Txo in the wallet.
 ///
@@ -47,25 +47,6 @@ pub struct Txo {
     /// The account_id for the account which minted this Txo.
     pub minted_account_id: Option<String>,
 
-    /// A normalized hash mapping account_id to account objects. Keys include
-    /// "type" and "status".
-    ///
-    /// * `txo_type`: With respect to this account, the Txo may be
-    /// "minted" or "received".
-    ///
-    /// * `txo_status`: With respect to this account, the Txo may be "unspent",
-    ///   "pending", "spent", "secreted" or "orphaned". For received Txos
-    ///   received as an assigned address, the lifecycle is "unspent" ->
-    ///   "pending" -> "spent". For outbound, minted Txos, we cannot monitor its
-    ///   received lifecycle status with respect to the minting account, we note
-    ///   its status as "secreted". If a Txo is received at an address
-    ///   unassigned (likely due to a recovered account or using the account on
-    ///   another client), the Txo is considered "orphaned" until its address is
-    ///   calculated -- in this case, there are manual ways to discover the
-    ///   missing assigned address for orphaned Txos or to recover an entire
-    ///   account.
-    pub account_status_map: Map<String, serde_json::Value>,
-
     /// A cryptographic key for this Txo.
     pub target_key: String,
 
@@ -93,24 +74,37 @@ pub struct Txo {
     pub confirmation: Option<String>,
 }
 
+impl From<&db::models::Txo> for Txo {
+    fn from(txo: &db::models::Txo) -> Txo {
+        Txo {
+            object: "txo".to_string(),
+            txo_id_hex: txo.txo_id_hex.clone(),
+            value_pmob: (txo.value as u64).to_string(),
+            recipient_address_id: None,
+            received_block_index: txo
+                .received_block_index
+                .map(|x| (x as u64).to_string()),
+            spent_block_index: txo
+                .spent_block_index
+                .map(|x| (x as u64).to_string()),
+            is_spent_recovered: false,
+            received_account_id: txo.received_account_id_hex.clone(),
+            minted_account_id: txo.minted_account_id_hex.clone(),
+            target_key: hex::encode(&txo.target_key),
+            public_key: hex::encode(&txo.public_key),
+            e_fog_hint: hex::encode(&txo.e_fog_hint),
+            subaddress_index: txo
+                .subaddress_index
+                .map(|s| (s as u64).to_string()),
+            assigned_address: None,
+            key_image: txo.key_image.as_ref().map(|k| hex::encode(&k)),
+            confirmation: txo.confirmation.as_ref().map(hex::encode),
+        }
+    }
+}
+
 impl From<&TxoDetails> for Txo {
     fn from(txo_details: &TxoDetails) -> Txo {
-        let mut account_status_map: Map<String, serde_json::Value> = Map::new();
-
-        if let Some(received) = txo_details.received_to_account.clone() {
-            account_status_map.insert(
-                received.account_id_hex,
-                json!({"txo_type": received.txo_type, "txo_status": received.txo_status}).into(),
-            );
-        }
-
-        if let Some(spent) = txo_details.minted_from_account.clone() {
-            account_status_map.insert(
-                spent.account_id_hex,
-                json!({"txo_type": spent.txo_type, "txo_status": spent.txo_status}).into(),
-            );
-        }
-
         let recipient_address_id = txo_details.txo.recipient_public_address_b58.clone();
 
         Txo {
@@ -140,7 +134,6 @@ impl From<&TxoDetails> for Txo {
                 .minted_from_account
                 .as_ref()
                 .map(|a| a.account_id_hex.clone()),
-            account_status_map,
             target_key: hex::encode(&txo_details.txo.target_key),
             public_key: hex::encode(&txo_details.txo.public_key),
             e_fog_hint: hex::encode(&txo_details.txo.e_fog_hint),
