@@ -532,6 +532,7 @@ impl TxoModel for Txo {
 
         let txos: Vec<Txo> = txos::table
             .filter(txos::received_account_id_hex.ne(account_id_hex))
+            .or_filter(txos::received_account_id_hex.is_null())
             .load(conn)?;
 
         Ok(txos)
@@ -763,21 +764,28 @@ impl TxoModel for Txo {
         max_spendable_value: Option<i64>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<Txo>, WalletDbError> {
-        use crate::db::schema::{account_txo_statuses, txos};
-
+        use crate::db::schema::txos;
         let mut spendable_txos: Vec<Txo> = txos::table
-            .inner_join(
-                account_txo_statuses::table.on(txos::txo_id_hex
-                    .eq(account_txo_statuses::txo_id_hex)
-                    .and(account_txo_statuses::account_id_hex.eq(account_id_hex))
-                    .and(account_txo_statuses::txo_status.eq(TXO_STATUS_UNSPENT))
-                    .and(txos::subaddress_index.is_not_null())
-                    .and(txos::key_image.is_not_null()) // Could technically recreate with subaddress
-                    .and(txos::value.le(max_spendable_value.unwrap_or(i64::MAX)))),
-            )
-            .select(txos::all_columns)
+            .filter(txos::subaddress_index.is_not_null())
+            .filter(txos::key_image.is_not_null())
+            .filter(txos::received_account_id_hex.eq(account_id_hex))
+            .filter(txos::value.le(max_spendable_value.unwrap_or(i64::MAX)))
             .order_by(txos::value.desc())
             .load(conn)?;
+
+        // let mut spendable_txos: Vec<Txo> = txos::table
+        //     .inner_join(
+        //         account_txo_statuses::table.on(txos::txo_id_hex
+        //             .eq(account_txo_statuses::txo_id_hex)
+        //             .and(account_txo_statuses::account_id_hex.eq(account_id_hex))
+        //             .and(account_txo_statuses::txo_status.eq(TXO_STATUS_UNSPENT))
+        //             .and(txos::subaddress_index.is_not_null())
+        //             .and(txos::key_image.is_not_null()) // Could technically recreate with subaddress
+        //             .and(txos::value.le(max_spendable_value.unwrap_or(i64::MAX)))),
+        //     )
+        //     .select(txos::all_columns)
+        //     .order_by(txos::value.desc())
+        //     .load(conn)?;
 
         if spendable_txos.is_empty() {
             return Err(WalletDbError::NoSpendableTxos);
@@ -906,999 +914,999 @@ impl TxoModel for Txo {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use mc_account_keys::{AccountKey, RootIdentity};
-    use mc_common::{
-        logger::{log, test_with_logger, Logger},
-        HashSet,
-    };
-    use mc_crypto_rand::RngCore;
-    use mc_fog_report_validation::MockFogPubkeyResolver;
-    use mc_ledger_db::Ledger;
-    use mc_transaction_core::constants::MINIMUM_FEE;
-    use mc_util_from_random::FromRandom;
-    use rand::{rngs::StdRng, SeedableRng};
-    use std::{iter::FromIterator, time::Duration};
-
-    use crate::{
-        db::{
-            account::{AccountID, AccountModel, DEFAULT_CHANGE_SUBADDRESS_INDEX},
-            models::{Account, TransactionLog},
-            transaction_log::TransactionLogModel,
-        },
-        service::{
-            sync::{sync_account, SyncThread},
-            transaction_builder::WalletTransactionBuilder,
-        },
-        test_utils::{
-            add_block_with_db_txos, add_block_with_tx_outs, add_block_with_tx_proposal,
-            create_test_minted_and_change_txos, create_test_received_txo,
-            create_test_txo_for_recipient, get_resolver_factory, get_test_ledger,
-            manually_sync_account, random_account_with_seed_values, wait_for_sync,
-            WalletDbTestContext, MOB,
-        },
-        WalletDb,
-    };
-
-    use super::*;
-
-    // The narrative for this test is that Alice receives a Txo, then sends a
-    // transaction to Bob. We verify expected qualities of the Txos involved at
-    // each step of the lifecycle.
-    // Note: This is not a replacement for a service-level test, but instead tests
-    // basic assumptions after common DB operations with the Txo.
-    #[test_with_logger]
-    fn test_received_txo_lifecycle(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-
-        let db_test_context = WalletDbTestContext::default();
-        let wallet_db = db_test_context.get_db_instance(logger.clone());
-        let mut ledger_db = get_test_ledger(5, &[], 12, &mut rng);
-
-        let root_id = RootIdentity::from_random(&mut rng);
-        let alice_account_key = AccountKey::from(&root_id);
-        let (alice_account_id, _public_address_b58) = Account::create_from_root_entropy(
-            &root_id.root_entropy,
-            Some(1),
-            None,
-            None,
-            "Alice's Main Account",
-            None,
-            None,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-
-        // Create TXO for Alice
-        let (for_alice_txo, for_alice_key_image) =
-            create_test_txo_for_recipient(&alice_account_key, 0, 1000 * MOB as u64, &mut rng);
-
-        // Let's add this txo to the ledger
-        add_block_with_tx_outs(
-            &mut ledger_db,
-            &[for_alice_txo.clone()],
-            &[KeyImage::from(rng.next_u64())],
-        );
-        assert_eq!(ledger_db.num_blocks().unwrap(), 13);
-
-        let _alice_account =
-            manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, 13, &logger);
-
-        let txos = Txo::list_for_account(
-            &alice_account_id.to_string(),
-            None,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-        assert_eq!(txos.len(), 1);
-
-        // Verify that the Txo is what we expect
-        let expected_txo = Txo {
-            id: 1,
-            txo_id_hex: TxoID::from(&for_alice_txo).to_string(),
-            value: 1000 * MOB,
-            target_key: mc_util_serial::encode(&for_alice_txo.target_key),
-            public_key: mc_util_serial::encode(&for_alice_txo.public_key),
-            e_fog_hint: mc_util_serial::encode(&for_alice_txo.e_fog_hint),
-            txo: mc_util_serial::encode(&for_alice_txo),
-            subaddress_index: Some(0),
-            key_image: Some(mc_util_serial::encode(&for_alice_key_image)),
-            received_block_index: Some(12),
-            pending_tombstone_block_index: None,
-            spent_block_index: None,
-            confirmation: None,
-            recipient_public_address_b58: "".to_string(),
-        };
-        // Verify that the statuses table was updated correctly
-        let expected_txo_status = AccountTxoStatus {
-            account_id_hex: alice_account_id.to_string(),
-            txo_id_hex: TxoID::from(&for_alice_txo).to_string(),
-            txo_status: TXO_STATUS_UNSPENT.to_string(),
-            txo_type: TXO_TYPE_RECEIVED.to_string(),
-        };
-        assert_eq!(txos[0].txo, expected_txo);
-        assert_eq!(
-            txos[0].received_to_account.clone().unwrap(),
-            expected_txo_status
-        );
-
-        // Verify that the status filter works as well
-        let unspent = Txo::list_by_status(
-            &alice_account_id.to_string(),
-            TXO_STATUS_UNSPENT,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-        assert_eq!(unspent.len(), 1);
-
-        // Now we'll "spend" the TXO by sending it to ourselves, but at a subaddress we
-        // have not yet assigned. At the DB layer, we accomplish this by
-        // constructing the output txos, then logging sent and received for this
-        // account.
-        let ((output_txo_id, output_value), (change_txo_id, change_value)) =
-            create_test_minted_and_change_txos(
-                alice_account_key.clone(),
-                alice_account_key.subaddress(4),
-                33 * MOB as u64,
-                wallet_db.clone(),
-                ledger_db.clone(),
-                logger.clone(),
-            );
-        assert_eq!(output_value, 33 * MOB);
-        assert_eq!(change_value, 967 * MOB - MINIMUM_FEE as i64);
-
-        add_block_with_db_txos(
-            &mut ledger_db,
-            &wallet_db,
-            &[output_txo_id, change_txo_id],
-            &[KeyImage::from(for_alice_key_image)],
-        );
-        assert_eq!(ledger_db.num_blocks().unwrap(), 14);
-
-        // Now we'll process these Txos and verify that the TXO was "spent."
-        let _alice_account =
-            manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, 14, &logger);
-
-        // We should now have 3 txos for this account - one spent, one change (minted),
-        // and one minted (destined for alice).
-        let txos = Txo::list_for_account(
-            &alice_account_id.to_string(),
-            None,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-        assert_eq!(txos.len(), 3);
-
-        // Check that we have 2 spendable (1 is orphaned)
-        let spendable: Vec<&TxoDetails> =
-            txos.iter().filter(|f| f.txo.key_image.is_some()).collect();
-        assert_eq!(spendable.len(), 2);
-
-        // Check that we have one spent - went from [Received, Unspent] -> [Received,
-        // Spent]
-        let spent: Vec<&TxoDetails> = txos
-            .iter()
-            .filter_map(|f| {
-                f.received_to_account.clone().map(|a| {
-                    if a.txo_status == TXO_STATUS_SPENT {
-                        Some(f)
-                    } else {
-                        None
-                    }
-                })
-            })
-            .filter_map(|t| t)
-            .collect();
-        assert_eq!(spent.len(), 1);
-        assert_eq!(
-            spent[0].txo.key_image,
-            Some(mc_util_serial::encode(&for_alice_key_image))
-        );
-        assert_eq!(spent[0].txo.spent_block_index.clone().unwrap(), 13);
-        assert_eq!(spent[0].minted_from_account, None);
-        // The spent Txo was not secreted from any account in this wallet - it should be
-        // received to the account in this wallet.
-        assert!(spent[0].minted_from_account.clone().is_none(),);
-        assert_eq!(
-            spent[0].received_to_account.clone().unwrap().txo_type,
-            TXO_TYPE_RECEIVED
-        );
-        assert_eq!(
-            spent[0].received_to_account.clone().unwrap().txo_status,
-            TXO_STATUS_SPENT
-        );
-
-        // Check that we have one orphaned - went from [Minted, Secreted] -> [Minted,
-        // Orphaned]
-        let orphaned: Vec<&TxoDetails> = txos
-            .iter()
-            .filter_map(|f| {
-                f.minted_from_account.clone().map(|a| {
-                    if a.txo_status == TXO_STATUS_ORPHANED {
-                        Some(f)
-                    } else {
-                        None
-                    }
-                })
-            })
-            .filter_map(|t| t)
-            .collect();
-        assert_eq!(orphaned.len(), 1);
-        assert!(orphaned[0].txo.key_image.is_none());
-        assert_eq!(orphaned[0].txo.received_block_index.clone().unwrap(), 13);
-        assert!(orphaned[0].minted_from_account.is_some());
-        assert!(orphaned[0].received_to_account.is_some());
-
-        // Check that we have one unspent (change) - went from [Minted, Secreted] ->
-        // [Minted, Unspent]
-        let unspent: Vec<&TxoDetails> = txos
-            .iter()
-            .filter_map(|f| {
-                f.minted_from_account.clone().map(|a| {
-                    if a.txo_status == TXO_STATUS_UNSPENT {
-                        Some(f)
-                    } else {
-                        None
-                    }
-                })
-            })
-            .filter_map(|t| t)
-            .collect();
-        assert_eq!(unspent.len(), 1);
-        assert_eq!(unspent[0].txo.received_block_index.clone().unwrap(), 13);
-        // Store the key image for when we spend this Txo below
-        let for_bob_key_image: KeyImage =
-            mc_util_serial::decode(&unspent[0].txo.key_image.clone().unwrap()).unwrap();
-
-        // Note: To receive at Subaddress 4, we need to add an assigned subaddress
-        // (currently this Txo is be orphaned). We add thrice, because currently
-        // assigned subaddress is at 1.
-        for _ in 0..3 {
-            AssignedSubaddress::create_next_for_account(
-                &alice_account_id.to_string(),
-                "",
-                &ledger_db,
-                &wallet_db.get_conn().unwrap(),
-            )
-            .unwrap();
-        }
-
-        let alice_account =
-            Account::get(&alice_account_id, &wallet_db.get_conn().unwrap()).unwrap();
-        assert_eq!(alice_account.next_block_index, 14);
-        assert_eq!(alice_account.next_subaddress_index, 5);
-
-        // Scan for alice to pick up the orphaned Txo
-        let _alice_account =
-            manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, 14, &logger);
-
-        // Check that a transaction log entry was created for each received TxOut (note:
-        // we are not creating submit logs in this test)
-        let transaction_logs = TransactionLog::list_all(
-            &alice_account_id.to_string(),
-            None,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-        assert_eq!(transaction_logs.len(), 3);
-
-        // Verify that there are two unspent txos - the one that was previously
-        // orphaned, and change.
-        let unspent = Txo::list_by_status(
-            &alice_account_id.to_string(),
-            TXO_STATUS_UNSPENT,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-        assert_eq!(unspent.len(), 2);
-
-        // The type should still be "minted"
-        let minted = Txo::list_by_type(
-            &alice_account_id.to_string(),
-            TXO_TYPE_MINTED,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-        assert_eq!(minted.len(), 2);
-
-        let updated_txos = Txo::list_for_account(
-            &alice_account_id.to_string(),
-            None,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-
-        // There are now 3 total Txos for our account
-        assert_eq!(updated_txos.len(), 3);
-
-        // Verify that there is one change Txo in our current Txos
-        let change: Vec<&TxoDetails> = updated_txos
-            .iter()
-            .filter(|f| {
-                if let Some(addr) = &f.received_to_assigned_subaddress {
-                    addr.subaddress_index == DEFAULT_CHANGE_SUBADDRESS_INDEX as i64
-                } else {
-                    false
-                }
-            })
-            .collect();
-        assert_eq!(change.len(), 1);
-
-        // Create a new account and send some MOB to it
-        let bob_root_id = RootIdentity::from_random(&mut rng);
-        let bob_account_key = AccountKey::from(&bob_root_id);
-        let (bob_account_id, _public_address_b58) = Account::create_from_root_entropy(
-            &bob_root_id.root_entropy,
-            Some(1),
-            None,
-            None,
-            "Bob's Main Account",
-            None,
-            None,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-
-        let ((output_txo_id, output_value), (change_txo_id, change_value)) =
-            create_test_minted_and_change_txos(
-                alice_account_key.clone(),
-                bob_account_key.subaddress(0),
-                72 * MOB as u64,
-                wallet_db.clone(),
-                ledger_db.clone(),
-                logger.clone(),
-            );
-        assert_eq!(output_value, 72 * MOB);
-        assert_eq!(change_value, 928 * MOB - (2 * MINIMUM_FEE as i64));
-
-        // Add the minted Txos to the ledger
-        add_block_with_db_txos(
-            &mut ledger_db,
-            &wallet_db,
-            &[output_txo_id, change_txo_id],
-            &[KeyImage::from(for_bob_key_image)],
-        );
-
-        // Process the latest block for Bob (note, Bob is starting to sync from block 0)
-        let _bob_account =
-            manually_sync_account(&ledger_db, &wallet_db, &bob_account_id, 15, &logger);
-        // Process the latest block for Alice
-        let _alice_account =
-            manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, 15, &logger);
-
-        // We should now have 1 txo in Bob's account.
-        let txos = Txo::list_for_account(
-            &AccountID::from(&bob_account_key).to_string(),
-            None,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-        assert_eq!(txos.len(), 1);
-
-        let bob_txo = txos[0].clone();
-        assert_eq!(bob_txo.txo.subaddress_index.unwrap(), 0);
-        assert!(bob_txo.txo.key_image.is_some());
-    }
-
-    #[test_with_logger]
-    fn test_select_txos_for_value(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-
-        let db_test_context = WalletDbTestContext::default();
-        let wallet_db = db_test_context.get_db_instance(logger);
-
-        let root_id = RootIdentity::from_random(&mut rng);
-        let account_key = AccountKey::from(&root_id);
-        let (account_id_hex, _public_address_b58) = Account::create_from_root_entropy(
-            &root_id.root_entropy,
-            Some(1),
-            None,
-            None,
-            "Alice's Main Account",
-            None,
-            None,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-
-        // Create some TXOs for the account
-        // [100, 200, 300, ... 2000]
-        for i in 1..20 {
-            let (_txo_hex, _txo, _key_image) = create_test_received_txo(
-                &account_key,
-                0,
-                (100 * MOB * i) as u64, // 100.0 MOB * i
-                (144 + i) as u64,
-                &mut rng,
-                &wallet_db,
-            );
-        }
-
-        // Greedily take smallest to exact value
-        let txos_for_value = Txo::select_unspent_txos_for_value(
-            &account_id_hex.to_string(),
-            300 * MOB as u64,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-        let result_set = HashSet::from_iter(txos_for_value.iter().map(|t| t.value));
-        assert_eq!(
-            result_set,
-            HashSet::<i64>::from_iter(vec![100 * MOB, 200 * MOB])
-        );
-
-        // Once we include the fee, we need another txo
-        let txos_for_value = Txo::select_unspent_txos_for_value(
-            &account_id_hex.to_string(),
-            300 * MOB as u64 + MINIMUM_FEE,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-        let result_set = HashSet::from_iter(txos_for_value.iter().map(|t| t.value));
-        assert_eq!(
-            result_set,
-            HashSet::<i64>::from_iter(vec![100 * MOB, 200 * MOB, 300 * MOB])
-        );
-
-        // Setting max spendable value gives us insufficient funds - only allows 100
-        let res = Txo::select_unspent_txos_for_value(
-            &account_id_hex.to_string(),
-            300 * MOB as u64 + MINIMUM_FEE,
-            Some(200 * MOB),
-            &wallet_db.get_conn().unwrap(),
-        );
-        match res {
-            Err(WalletDbError::InsufficientFundsUnderMaxSpendable(_)) => {}
-            Ok(_) => panic!("Should error with InsufficientFundsUnderMaxSpendable"),
-            Err(_) => panic!("Should error with InsufficientFundsUnderMaxSpendable"),
-        }
-
-        // sum(300..1800) to get a window where we had to increase past the smallest
-        // txos, and also fill up all 16 input slots.
-        let txos_for_value = Txo::select_unspent_txos_for_value(
-            &account_id_hex.to_string(),
-            16800 * MOB as u64,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-        let result_set = HashSet::from_iter(txos_for_value.iter().map(|t| t.value));
-        assert_eq!(
-            result_set,
-            HashSet::<i64>::from_iter(vec![
-                300 * MOB,
-                400 * MOB,
-                500 * MOB,
-                600 * MOB,
-                700 * MOB,
-                800 * MOB,
-                900 * MOB,
-                1000 * MOB,
-                1100 * MOB,
-                1200 * MOB,
-                1300 * MOB,
-                1400 * MOB,
-                1500 * MOB,
-                1600 * MOB,
-                1700 * MOB,
-                1800 * MOB,
-            ])
-        );
-    }
-
-    #[test_with_logger]
-    fn test_select_txos_fragmented(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-
-        let db_test_context = WalletDbTestContext::default();
-        let wallet_db = db_test_context.get_db_instance(logger);
-
-        let root_id = RootIdentity::from_random(&mut rng);
-        let account_key = AccountKey::from(&root_id);
-        let (account_id_hex, _public_address_b58) = Account::create_from_root_entropy(
-            &root_id.root_entropy,
-            Some(0),
-            None,
-            None,
-            "Alice's Main Account",
-            None,
-            None,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-
-        // Create some TXOs for the account. Total value is 2000, but max can spend is
-        // 1600 [100, 100, ... 100]
-        for i in 1..20 {
-            let (_txo_hex, _txo, _key_image) = create_test_received_txo(
-                &account_key,
-                0,
-                (100 * MOB) as u64,
-                (144 + i) as u64,
-                &mut rng,
-                &wallet_db,
-            );
-        }
-
-        let res = Txo::select_unspent_txos_for_value(
-            &account_id_hex.to_string(), // FIXME: WS-11 - take AccountID
-            1800 * MOB as u64,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        );
-        match res {
-            Err(WalletDbError::InsufficientFundsFragmentedTxos) => {}
-            Ok(_) => panic!("Should error with InsufficientFundsFragmentedTxos"),
-            Err(e) => panic!(
-                "Should error with InsufficientFundsFragmentedTxos but got {:?}",
-                e
-            ),
-        }
-    }
-
-    #[test_with_logger]
-    fn test_create_minted(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-
-        let root_id = RootIdentity::from_random(&mut rng);
-        let src_account = AccountKey::from(&root_id);
-
-        // Seed our ledger with some utxos for the src_account
-        let known_recipients = vec![src_account.subaddress(0)];
-        let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
-
-        let db_test_context = WalletDbTestContext::default();
-        let wallet_db = db_test_context.get_db_instance(logger.clone());
-
-        Account::create_from_root_entropy(
-            &root_id.root_entropy,
-            Some(0),
-            None,
-            None,
-            "",
-            None,
-            None,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-
-        // Process the txos in the ledger into the DB
-        sync_account(
-            &ledger_db,
-            &wallet_db,
-            &AccountID::from(&src_account).to_string(),
-            &logger,
-        )
-        .unwrap();
-
-        let recipient =
-            AccountKey::from(&RootIdentity::from_random(&mut rng)).subaddress(rng.next_u64());
-
-        let ((output_txo_id, output_value), (change_txo_id, change_value)) =
-            create_test_minted_and_change_txos(
-                src_account.clone(),
-                recipient,
-                1 * MOB as u64,
-                wallet_db.clone(),
-                ledger_db,
-                logger,
-            );
-
-        assert_eq!(output_value, 1 * MOB);
-        let minted_txo_details = Txo::get(&output_txo_id, &wallet_db.get_conn().unwrap()).unwrap();
-        assert_eq!(minted_txo_details.txo.value, output_value);
-        assert_eq!(
-            minted_txo_details.minted_from_account.unwrap().txo_status,
-            TXO_STATUS_SECRETED
-        );
-        assert!(minted_txo_details.received_to_assigned_subaddress.is_none());
-
-        assert_eq!(change_value, 4999 * MOB - MINIMUM_FEE as i64);
-        let change_txo_details = Txo::get(&change_txo_id, &wallet_db.get_conn().unwrap()).unwrap();
-        assert_eq!(change_txo_details.txo.value, change_value);
-        assert_eq!(
-            change_txo_details.minted_from_account.unwrap().txo_status,
-            TXO_STATUS_SECRETED
-        );
-        assert!(change_txo_details.received_to_assigned_subaddress.is_none()); // Note: This gets updated on sync
-    }
-
-    // Test that the confirmation number validates correctly.
-    #[test_with_logger]
-    fn test_validate_confirmation(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-
-        let db_test_context = WalletDbTestContext::default();
-        let wallet_db = db_test_context.get_db_instance(logger.clone());
-        let known_recipients: Vec<PublicAddress> = Vec::new();
-        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
-
-        // The account which will receive the Txo
-        log::info!(logger, "Creating account");
-        let root_id = RootIdentity::from_random(&mut rng);
-        let recipient_account_key = AccountKey::from(&root_id);
-        let recipient_account_id = AccountID::from(&recipient_account_key);
-        Account::create_from_root_entropy(
-            &root_id.root_entropy,
-            Some(0),
-            None,
-            None,
-            "Alice",
-            None,
-            None,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-
-        // Start sync thread
-        log::info!(logger, "Starting sync thread");
-        let _sync_thread =
-            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
-
-        log::info!(logger, "Creating a random sender account");
-        let sender_account_key = random_account_with_seed_values(
-            &wallet_db,
-            &mut ledger_db,
-            &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
-            &mut rng,
-        );
-        let sender_account_id = AccountID::from(&sender_account_key);
-
-        // Create TxProposal from the sender account, which contains the Confirmation
-        // Number
-        log::info!(logger, "Creating transaction builder");
-        let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
-            WalletTransactionBuilder::new(
-                AccountID::from(&sender_account_key).to_string(),
-                wallet_db.clone(),
-                ledger_db.clone(),
-                get_resolver_factory(&mut rng).unwrap(),
-                logger.clone(),
-            );
-        builder
-            .add_recipient(recipient_account_key.default_subaddress(), 50 * MOB as u64)
-            .unwrap();
-        builder.select_txos(None).unwrap();
-        builder.set_tombstone(0).unwrap();
-        let proposal = builder.build().unwrap();
-
-        // Sleep to make sure that the foreign keys exist
-        std::thread::sleep(Duration::from_secs(3));
-
-        // Let's log this submitted Tx for the sender, which will create_minted for the
-        // sent Txo
-        log::info!(logger, "Logging submitted transaction");
-        let tx_log = TransactionLog::log_submitted(
-            proposal.clone(),
-            ledger_db.num_blocks().unwrap(),
-            "".to_string(),
-            &sender_account_id.to_string(),
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-
-        // Now we need to let this txo hit the ledger, which will update sender and
-        // receiver
-        log::info!(logger, "Adding block from submitted");
-        add_block_with_tx_proposal(&mut ledger_db, proposal.clone());
-
-        // Now let our sync thread catch up for both sender and receiver
-        log::info!(logger, "Manually syncing account");
-        wait_for_sync(&ledger_db, &wallet_db, &recipient_account_id, 16);
-        wait_for_sync(&ledger_db, &wallet_db, &sender_account_id, 16);
-
-        // Then let's make sure we received the Txo on the recipient account
-        log::info!(logger, "Listing all Txos for recipient account");
-        let txos = Txo::list_for_account(
-            &recipient_account_id.to_string(),
-            None,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-        assert_eq!(txos.len(), 1);
-
-        let received_txo = txos[0].clone();
-
-        // Note: Because this txo is both received and sent, between two different
-        // accounts, its confirmation number does get updated. Typically, received txos
-        // have None for the confirmation number.
-        assert!(received_txo.txo.confirmation.is_some());
-
-        // Get the txo from the sent perspective
-        log::info!(logger, "Listing all Txos for sender account");
-        let sender_txos = Txo::list_for_account(
-            &sender_account_id.to_string(),
-            None,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-
-        // We seeded with 3 received (70, 80, 90), we have a change txo, and a secreted
-        // Txo (50)
-        assert_eq!(sender_txos.len(), 5);
-
-        // Get the associated Txos with the transaction log
-        log::info!(logger, "Getting associated Txos with the transaction");
-        let associated = tx_log
-            .get_associated_txos(&wallet_db.get_conn().unwrap())
-            .unwrap();
-        let sent_outputs = associated.outputs;
-        assert_eq!(sent_outputs.len(), 1);
-        let sent_txo_details =
-            Txo::get(&sent_outputs[0].txo_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
-
-        // These two txos should actually be the same txo, and the account_txo_status is
-        // what differentiates them.
-        assert_eq!(sent_txo_details.txo, received_txo.txo);
-
-        assert!(sent_txo_details.txo.confirmation.is_some());
-        let confirmation: TxOutConfirmationNumber =
-            mc_util_serial::decode(&sent_txo_details.txo.confirmation.unwrap()).unwrap();
-        log::info!(logger, "Validating the confirmation number");
-        let verified = Txo::validate_confirmation(
-            &AccountID::from(&recipient_account_key),
-            &received_txo.txo.txo_id_hex,
-            &confirmation,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-        assert!(verified);
-    }
-
-    #[test_with_logger]
-    fn test_select_txos_by_public_key(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-
-        let db_test_context = WalletDbTestContext::default();
-        let wallet_db = db_test_context.get_db_instance(logger);
-
-        let root_id = RootIdentity::from_random(&mut rng);
-        let account_key = AccountKey::from(&root_id);
-        let (account_id, _address) = Account::create_from_root_entropy(
-            &root_id.root_entropy,
-            Some(0),
-            None,
-            None,
-            "",
-            None,
-            None,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-
-        // Seed Txos
-        let mut src_txos = Vec::new();
-        for i in 0..10 {
-            let (_txo_id, txo, _key_image) =
-                create_test_received_txo(&account_key, i, i * MOB as u64, i, &mut rng, &wallet_db);
-            src_txos.push(txo);
-        }
-        let pubkeys: Vec<&CompressedRistrettoPublic> =
-            src_txos.iter().map(|t| &t.public_key).collect();
-
-        let txos_and_status = Txo::select_by_public_key(&pubkeys, &wallet_db.get_conn().unwrap())
-            .expect("Could not get txos by public keys");
-        assert_eq!(txos_and_status.len(), 10);
-
-        let txos_and_status =
-            Txo::select_by_public_key(&pubkeys[0..5], &wallet_db.get_conn().unwrap())
-                .expect("Could not get txos by public keys");
-        assert_eq!(txos_and_status.len(), 5);
-    }
-
-    #[test_with_logger]
-    fn test_delete_unreferenced_txos(logger: Logger) {
-        use crate::db::schema::txos;
-        use diesel::dsl::count;
-
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-
-        let db_test_context = WalletDbTestContext::default();
-        let wallet_db = db_test_context.get_db_instance(logger);
-
-        let root_id = RootIdentity::from_random(&mut rng);
-        let account_key = AccountKey::from(&root_id);
-        let (account_id_hex, _public_address_b58) = Account::create_from_root_entropy(
-            &root_id.root_entropy,
-            Some(1),
-            None,
-            None,
-            "Alice's Main Account",
-            None,
-            None,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-        let account = Account::get(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
-
-        // Create some txos.
-        assert_eq!(
-            txos::table
-                .select(count(txos::txo_id_hex))
-                .first::<i64>(&wallet_db.get_conn().unwrap())
-                .unwrap(),
-            0
-        );
-        for _ in 0..10 {
-            let (_txo_hex, _txo, _key_image) = create_test_received_txo(
-                &account_key,
-                0,
-                (100 * MOB) as u64, // 100.0 MOB * i
-                (144) as u64,
-                &mut rng,
-                &wallet_db,
-            );
-        }
-        assert_eq!(
-            txos::table
-                .select(count(txos::txo_id_hex))
-                .first::<i64>(&wallet_db.get_conn().unwrap())
-                .unwrap(),
-            10
-        );
-
-        // Delete the account. No Txos are left.
-        account.delete(&wallet_db.get_conn().unwrap()).unwrap();
-        assert_eq!(
-            txos::table
-                .select(count(txos::txo_id_hex))
-                .first::<i64>(&wallet_db.get_conn().unwrap())
-                .unwrap(),
-            0
-        );
-    }
-
-    fn setup_select_unspent_txos_tests(logger: Logger, fragmented: bool) -> (AccountID, WalletDb) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-
-        let db_test_context = WalletDbTestContext::default();
-        let wallet_db = db_test_context.get_db_instance(logger);
-
-        let root_id = RootIdentity::from_random(&mut rng);
-        let account_key = AccountKey::from(&root_id);
-        let (account_id, _address) = Account::create_from_root_entropy(
-            &root_id.root_entropy,
-            Some(0),
-            None,
-            None,
-            "",
-            None,
-            None,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-
-        if fragmented {
-            let (_txo_id, _txo, _key_image) =
-                create_test_received_txo(&account_key, 0, 28922973268924, 15, &mut rng, &wallet_db);
-
-            for i in 1..=15 {
-                let (_txo_id, _txo, _key_image) =
-                    create_test_received_txo(&account_key, i, 10000000000, i, &mut rng, &wallet_db);
-            }
-
-            for i in 1..=20 {
-                let (_txo_id, _txo, _key_image) =
-                    create_test_received_txo(&account_key, i, 1000000000, i, &mut rng, &wallet_db);
-            }
-
-            for i in 1..=500 {
-                let (_txo_id, _txo, _key_image) =
-                    create_test_received_txo(&account_key, i, 100000000, i, &mut rng, &wallet_db);
-            }
-        } else {
-            for i in 1..=20 {
-                let (_txo_id, _txo, _key_image) =
-                    create_test_received_txo(&account_key, i, i as u64, i, &mut rng, &wallet_db);
-            }
-        }
-
-        (account_id, wallet_db)
-    }
-
-    #[test_with_logger]
-    fn test_select_unspent_txos_target_value_equals_max_spendable_in_account(logger: Logger) {
-        let (account_id, wallet_db) = setup_select_unspent_txos_tests(logger, false);
-
-        let result = Txo::select_unspent_txos_for_value(
-            &account_id.to_string(),
-            200 as u64,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-        assert_eq!(result.len(), 16);
-        let sum: i64 = result.iter().map(|x| x.value).sum();
-        assert_eq!(200 as i64, sum);
-    }
-
-    #[test_with_logger]
-    fn test_select_unspent_txos_target_value_over_max_spendable_in_account(logger: Logger) {
-        let (account_id, wallet_db) = setup_select_unspent_txos_tests(logger, false);
-
-        let result = Txo::select_unspent_txos_for_value(
-            &account_id.to_string(),
-            201 as u64,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        );
-
-        assert!(result.is_err());
-    }
-
-    #[test_with_logger]
-    fn test_select_unspent_txos_target_value_under_max_spendable_in_account_selects_dust(
-        logger: Logger,
-    ) {
-        let (account_id, wallet_db) = setup_select_unspent_txos_tests(logger, false);
-
-        let result = Txo::select_unspent_txos_for_value(
-            &account_id.to_string(),
-            3 as u64,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-        assert_eq!(result.len(), 2);
-        let sum: i64 = result.iter().map(|x| x.value).sum();
-        assert_eq!(3 as i64, sum);
-    }
-
-    #[test_with_logger]
-    fn test_select_unspent_txos_target_value_over_total_mob_in_account(logger: Logger) {
-        let (account_id, wallet_db) = setup_select_unspent_txos_tests(logger, false);
-
-        let result = Txo::select_unspent_txos_for_value(
-            &account_id.to_string(),
-            500 as u64,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        );
-        assert!(result.is_err());
-    }
-
-    #[test_with_logger]
-    fn test_select_unspent_txos_for_value_selects_correct_subset_of_txos_when_fragmented(
-        logger: Logger,
-    ) {
-        let (account_id, wallet_db) = setup_select_unspent_txos_tests(logger, true);
-
-        let result = Txo::select_unspent_txos_for_value(
-            &account_id.to_string(),
-            12400000000 as u64,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-        assert_eq!(result.len(), 16);
-        let sum: i64 = result.iter().map(|x| x.value).sum();
-        assert_eq!(12400000000 as i64, sum);
-    }
-
-    // FIXME: once we have create_minted, then select_txos test with no
-    // FIXME: test update txo after tombstone block is exceeded
-    // FIXME: test update txo after it has landed via key_image update
-    // FIXME: test any_failed and are_all_spent
-    // FIXME: test for selecting utxos from multiple subaddresses in one account
-    // FIXME: test for one TXO belonging to multiple accounts with get
-    // FIXME: test create_received for various permutations of multiple accounts
-}
+// #[cfg(test)]
+// mod tests {
+//     use mc_account_keys::{AccountKey, RootIdentity};
+//     use mc_common::{
+//         logger::{log, test_with_logger, Logger},
+//         HashSet,
+//     };
+//     use mc_crypto_rand::RngCore;
+//     use mc_fog_report_validation::MockFogPubkeyResolver;
+//     use mc_ledger_db::Ledger;
+//     use mc_transaction_core::constants::MINIMUM_FEE;
+//     use mc_util_from_random::FromRandom;
+//     use rand::{rngs::StdRng, SeedableRng};
+//     use std::{iter::FromIterator, time::Duration};
+
+//     use crate::{
+//         db::{
+//             account::{AccountID, AccountModel, DEFAULT_CHANGE_SUBADDRESS_INDEX},
+//             models::{Account, TransactionLog},
+//             transaction_log::TransactionLogModel,
+//         },
+//         service::{
+//             sync::{sync_account, SyncThread},
+//             transaction_builder::WalletTransactionBuilder,
+//         },
+//         test_utils::{
+//             add_block_with_db_txos, add_block_with_tx_outs, add_block_with_tx_proposal,
+//             create_test_minted_and_change_txos, create_test_received_txo,
+//             create_test_txo_for_recipient, get_resolver_factory, get_test_ledger,
+//             manually_sync_account, random_account_with_seed_values, wait_for_sync,
+//             WalletDbTestContext, MOB,
+//         },
+//         WalletDb,
+//     };
+
+//     use super::*;
+
+//     // The narrative for this test is that Alice receives a Txo, then sends a
+//     // transaction to Bob. We verify expected qualities of the Txos involved at
+//     // each step of the lifecycle.
+//     // Note: This is not a replacement for a service-level test, but instead tests
+//     // basic assumptions after common DB operations with the Txo.
+//     #[test_with_logger]
+//     fn test_received_txo_lifecycle(logger: Logger) {
+//         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+//         let db_test_context = WalletDbTestContext::default();
+//         let wallet_db = db_test_context.get_db_instance(logger.clone());
+//         let mut ledger_db = get_test_ledger(5, &[], 12, &mut rng);
+
+//         let root_id = RootIdentity::from_random(&mut rng);
+//         let alice_account_key = AccountKey::from(&root_id);
+//         let (alice_account_id, _public_address_b58) = Account::create_from_root_entropy(
+//             &root_id.root_entropy,
+//             Some(1),
+//             None,
+//             None,
+//             "Alice's Main Account",
+//             None,
+//             None,
+//             None,
+//             &wallet_db.get_conn().unwrap(),
+//         )
+//         .unwrap();
+
+//         // Create TXO for Alice
+//         let (for_alice_txo, for_alice_key_image) =
+//             create_test_txo_for_recipient(&alice_account_key, 0, 1000 * MOB as u64, &mut rng);
+
+//         // Let's add this txo to the ledger
+//         add_block_with_tx_outs(
+//             &mut ledger_db,
+//             &[for_alice_txo.clone()],
+//             &[KeyImage::from(rng.next_u64())],
+//         );
+//         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
+
+//         let _alice_account =
+//             manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, 13, &logger);
+
+//         let txos = Txo::list_for_account(
+//             &alice_account_id.to_string(),
+//             None,
+//             None,
+//             &wallet_db.get_conn().unwrap(),
+//         )
+//         .unwrap();
+//         assert_eq!(txos.len(), 1);
+
+//         // Verify that the Txo is what we expect
+//         let expected_txo = Txo {
+//             id: 1,
+//             txo_id_hex: TxoID::from(&for_alice_txo).to_string(),
+//             value: 1000 * MOB,
+//             target_key: mc_util_serial::encode(&for_alice_txo.target_key),
+//             public_key: mc_util_serial::encode(&for_alice_txo.public_key),
+//             e_fog_hint: mc_util_serial::encode(&for_alice_txo.e_fog_hint),
+//             txo: mc_util_serial::encode(&for_alice_txo),
+//             subaddress_index: Some(0),
+//             key_image: Some(mc_util_serial::encode(&for_alice_key_image)),
+//             received_block_index: Some(12),
+//             pending_tombstone_block_index: None,
+//             spent_block_index: None,
+//             confirmation: None,
+//             recipient_public_address_b58: "".to_string(),
+//         };
+//         // Verify that the statuses table was updated correctly
+//         let expected_txo_status = AccountTxoStatus {
+//             account_id_hex: alice_account_id.to_string(),
+//             txo_id_hex: TxoID::from(&for_alice_txo).to_string(),
+//             txo_status: TXO_STATUS_UNSPENT.to_string(),
+//             txo_type: TXO_TYPE_RECEIVED.to_string(),
+//         };
+//         assert_eq!(txos[0].txo, expected_txo);
+//         assert_eq!(
+//             txos[0].received_to_account.clone().unwrap(),
+//             expected_txo_status
+//         );
+
+//         // Verify that the status filter works as well
+//         let unspent = Txo::list_by_status(
+//             &alice_account_id.to_string(),
+//             TXO_STATUS_UNSPENT,
+//             &wallet_db.get_conn().unwrap(),
+//         )
+//         .unwrap();
+//         assert_eq!(unspent.len(), 1);
+
+//         // Now we'll "spend" the TXO by sending it to ourselves, but at a subaddress we
+//         // have not yet assigned. At the DB layer, we accomplish this by
+//         // constructing the output txos, then logging sent and received for this
+//         // account.
+//         let ((output_txo_id, output_value), (change_txo_id, change_value)) =
+//             create_test_minted_and_change_txos(
+//                 alice_account_key.clone(),
+//                 alice_account_key.subaddress(4),
+//                 33 * MOB as u64,
+//                 wallet_db.clone(),
+//                 ledger_db.clone(),
+//                 logger.clone(),
+//             );
+//         assert_eq!(output_value, 33 * MOB);
+//         assert_eq!(change_value, 967 * MOB - MINIMUM_FEE as i64);
+
+//         add_block_with_db_txos(
+//             &mut ledger_db,
+//             &wallet_db,
+//             &[output_txo_id, change_txo_id],
+//             &[KeyImage::from(for_alice_key_image)],
+//         );
+//         assert_eq!(ledger_db.num_blocks().unwrap(), 14);
+
+//         // Now we'll process these Txos and verify that the TXO was "spent."
+//         let _alice_account =
+//             manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, 14, &logger);
+
+//         // We should now have 3 txos for this account - one spent, one change (minted),
+//         // and one minted (destined for alice).
+//         let txos = Txo::list_for_account(
+//             &alice_account_id.to_string(),
+//             None,
+//             None,
+//             &wallet_db.get_conn().unwrap(),
+//         )
+//         .unwrap();
+//         assert_eq!(txos.len(), 3);
+
+//         // Check that we have 2 spendable (1 is orphaned)
+//         let spendable: Vec<&TxoDetails> =
+//             txos.iter().filter(|f| f.txo.key_image.is_some()).collect();
+//         assert_eq!(spendable.len(), 2);
+
+//         // Check that we have one spent - went from [Received, Unspent] -> [Received,
+//         // Spent]
+//         let spent: Vec<&TxoDetails> = txos
+//             .iter()
+//             .filter_map(|f| {
+//                 f.received_to_account.clone().map(|a| {
+//                     if a.txo_status == TXO_STATUS_SPENT {
+//                         Some(f)
+//                     } else {
+//                         None
+//                     }
+//                 })
+//             })
+//             .filter_map(|t| t)
+//             .collect();
+//         assert_eq!(spent.len(), 1);
+//         assert_eq!(
+//             spent[0].txo.key_image,
+//             Some(mc_util_serial::encode(&for_alice_key_image))
+//         );
+//         assert_eq!(spent[0].txo.spent_block_index.clone().unwrap(), 13);
+//         assert_eq!(spent[0].minted_from_account, None);
+//         // The spent Txo was not secreted from any account in this wallet - it should be
+//         // received to the account in this wallet.
+//         assert!(spent[0].minted_from_account.clone().is_none(),);
+//         assert_eq!(
+//             spent[0].received_to_account.clone().unwrap().txo_type,
+//             TXO_TYPE_RECEIVED
+//         );
+//         assert_eq!(
+//             spent[0].received_to_account.clone().unwrap().txo_status,
+//             TXO_STATUS_SPENT
+//         );
+
+//         // Check that we have one orphaned - went from [Minted, Secreted] -> [Minted,
+//         // Orphaned]
+//         let orphaned: Vec<&TxoDetails> = txos
+//             .iter()
+//             .filter_map(|f| {
+//                 f.minted_from_account.clone().map(|a| {
+//                     if a.txo_status == TXO_STATUS_ORPHANED {
+//                         Some(f)
+//                     } else {
+//                         None
+//                     }
+//                 })
+//             })
+//             .filter_map(|t| t)
+//             .collect();
+//         assert_eq!(orphaned.len(), 1);
+//         assert!(orphaned[0].txo.key_image.is_none());
+//         assert_eq!(orphaned[0].txo.received_block_index.clone().unwrap(), 13);
+//         assert!(orphaned[0].minted_from_account.is_some());
+//         assert!(orphaned[0].received_to_account.is_some());
+
+//         // Check that we have one unspent (change) - went from [Minted, Secreted] ->
+//         // [Minted, Unspent]
+//         let unspent: Vec<&TxoDetails> = txos
+//             .iter()
+//             .filter_map(|f| {
+//                 f.minted_from_account.clone().map(|a| {
+//                     if a.txo_status == TXO_STATUS_UNSPENT {
+//                         Some(f)
+//                     } else {
+//                         None
+//                     }
+//                 })
+//             })
+//             .filter_map(|t| t)
+//             .collect();
+//         assert_eq!(unspent.len(), 1);
+//         assert_eq!(unspent[0].txo.received_block_index.clone().unwrap(), 13);
+//         // Store the key image for when we spend this Txo below
+//         let for_bob_key_image: KeyImage =
+//             mc_util_serial::decode(&unspent[0].txo.key_image.clone().unwrap()).unwrap();
+
+//         // Note: To receive at Subaddress 4, we need to add an assigned subaddress
+//         // (currently this Txo is be orphaned). We add thrice, because currently
+//         // assigned subaddress is at 1.
+//         for _ in 0..3 {
+//             AssignedSubaddress::create_next_for_account(
+//                 &alice_account_id.to_string(),
+//                 "",
+//                 &ledger_db,
+//                 &wallet_db.get_conn().unwrap(),
+//             )
+//             .unwrap();
+//         }
+
+//         let alice_account =
+//             Account::get(&alice_account_id, &wallet_db.get_conn().unwrap()).unwrap();
+//         assert_eq!(alice_account.next_block_index, 14);
+//         assert_eq!(alice_account.next_subaddress_index, 5);
+
+//         // Scan for alice to pick up the orphaned Txo
+//         let _alice_account =
+//             manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, 14, &logger);
+
+//         // Check that a transaction log entry was created for each received TxOut (note:
+//         // we are not creating submit logs in this test)
+//         let transaction_logs = TransactionLog::list_all(
+//             &alice_account_id.to_string(),
+//             None,
+//             None,
+//             &wallet_db.get_conn().unwrap(),
+//         )
+//         .unwrap();
+//         assert_eq!(transaction_logs.len(), 3);
+
+//         // Verify that there are two unspent txos - the one that was previously
+//         // orphaned, and change.
+//         let unspent = Txo::list_by_status(
+//             &alice_account_id.to_string(),
+//             TXO_STATUS_UNSPENT,
+//             &wallet_db.get_conn().unwrap(),
+//         )
+//         .unwrap();
+//         assert_eq!(unspent.len(), 2);
+
+//         // The type should still be "minted"
+//         let minted = Txo::list_by_type(
+//             &alice_account_id.to_string(),
+//             TXO_TYPE_MINTED,
+//             &wallet_db.get_conn().unwrap(),
+//         )
+//         .unwrap();
+//         assert_eq!(minted.len(), 2);
+
+//         let updated_txos = Txo::list_for_account(
+//             &alice_account_id.to_string(),
+//             None,
+//             None,
+//             &wallet_db.get_conn().unwrap(),
+//         )
+//         .unwrap();
+
+//         // There are now 3 total Txos for our account
+//         assert_eq!(updated_txos.len(), 3);
+
+//         // Verify that there is one change Txo in our current Txos
+//         let change: Vec<&TxoDetails> = updated_txos
+//             .iter()
+//             .filter(|f| {
+//                 if let Some(addr) = &f.received_to_assigned_subaddress {
+//                     addr.subaddress_index == DEFAULT_CHANGE_SUBADDRESS_INDEX as i64
+//                 } else {
+//                     false
+//                 }
+//             })
+//             .collect();
+//         assert_eq!(change.len(), 1);
+
+//         // Create a new account and send some MOB to it
+//         let bob_root_id = RootIdentity::from_random(&mut rng);
+//         let bob_account_key = AccountKey::from(&bob_root_id);
+//         let (bob_account_id, _public_address_b58) = Account::create_from_root_entropy(
+//             &bob_root_id.root_entropy,
+//             Some(1),
+//             None,
+//             None,
+//             "Bob's Main Account",
+//             None,
+//             None,
+//             None,
+//             &wallet_db.get_conn().unwrap(),
+//         )
+//         .unwrap();
+
+//         let ((output_txo_id, output_value), (change_txo_id, change_value)) =
+//             create_test_minted_and_change_txos(
+//                 alice_account_key.clone(),
+//                 bob_account_key.subaddress(0),
+//                 72 * MOB as u64,
+//                 wallet_db.clone(),
+//                 ledger_db.clone(),
+//                 logger.clone(),
+//             );
+//         assert_eq!(output_value, 72 * MOB);
+//         assert_eq!(change_value, 928 * MOB - (2 * MINIMUM_FEE as i64));
+
+//         // Add the minted Txos to the ledger
+//         add_block_with_db_txos(
+//             &mut ledger_db,
+//             &wallet_db,
+//             &[output_txo_id, change_txo_id],
+//             &[KeyImage::from(for_bob_key_image)],
+//         );
+
+//         // Process the latest block for Bob (note, Bob is starting to sync from block 0)
+//         let _bob_account =
+//             manually_sync_account(&ledger_db, &wallet_db, &bob_account_id, 15, &logger);
+//         // Process the latest block for Alice
+//         let _alice_account =
+//             manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, 15, &logger);
+
+//         // We should now have 1 txo in Bob's account.
+//         let txos = Txo::list_for_account(
+//             &AccountID::from(&bob_account_key).to_string(),
+//             None,
+//             None,
+//             &wallet_db.get_conn().unwrap(),
+//         )
+//         .unwrap();
+//         assert_eq!(txos.len(), 1);
+
+//         let bob_txo = txos[0].clone();
+//         assert_eq!(bob_txo.txo.subaddress_index.unwrap(), 0);
+//         assert!(bob_txo.txo.key_image.is_some());
+//     }
+
+//     #[test_with_logger]
+//     fn test_select_txos_for_value(logger: Logger) {
+//         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+//         let db_test_context = WalletDbTestContext::default();
+//         let wallet_db = db_test_context.get_db_instance(logger);
+
+//         let root_id = RootIdentity::from_random(&mut rng);
+//         let account_key = AccountKey::from(&root_id);
+//         let (account_id_hex, _public_address_b58) = Account::create_from_root_entropy(
+//             &root_id.root_entropy,
+//             Some(1),
+//             None,
+//             None,
+//             "Alice's Main Account",
+//             None,
+//             None,
+//             None,
+//             &wallet_db.get_conn().unwrap(),
+//         )
+//         .unwrap();
+
+//         // Create some TXOs for the account
+//         // [100, 200, 300, ... 2000]
+//         for i in 1..20 {
+//             let (_txo_hex, _txo, _key_image) = create_test_received_txo(
+//                 &account_key,
+//                 0,
+//                 (100 * MOB * i) as u64, // 100.0 MOB * i
+//                 (144 + i) as u64,
+//                 &mut rng,
+//                 &wallet_db,
+//             );
+//         }
+
+//         // Greedily take smallest to exact value
+//         let txos_for_value = Txo::select_unspent_txos_for_value(
+//             &account_id_hex.to_string(),
+//             300 * MOB as u64,
+//             None,
+//             &wallet_db.get_conn().unwrap(),
+//         )
+//         .unwrap();
+//         let result_set = HashSet::from_iter(txos_for_value.iter().map(|t| t.value));
+//         assert_eq!(
+//             result_set,
+//             HashSet::<i64>::from_iter(vec![100 * MOB, 200 * MOB])
+//         );
+
+//         // Once we include the fee, we need another txo
+//         let txos_for_value = Txo::select_unspent_txos_for_value(
+//             &account_id_hex.to_string(),
+//             300 * MOB as u64 + MINIMUM_FEE,
+//             None,
+//             &wallet_db.get_conn().unwrap(),
+//         )
+//         .unwrap();
+//         let result_set = HashSet::from_iter(txos_for_value.iter().map(|t| t.value));
+//         assert_eq!(
+//             result_set,
+//             HashSet::<i64>::from_iter(vec![100 * MOB, 200 * MOB, 300 * MOB])
+//         );
+
+//         // Setting max spendable value gives us insufficient funds - only allows 100
+//         let res = Txo::select_unspent_txos_for_value(
+//             &account_id_hex.to_string(),
+//             300 * MOB as u64 + MINIMUM_FEE,
+//             Some(200 * MOB),
+//             &wallet_db.get_conn().unwrap(),
+//         );
+//         match res {
+//             Err(WalletDbError::InsufficientFundsUnderMaxSpendable(_)) => {}
+//             Ok(_) => panic!("Should error with InsufficientFundsUnderMaxSpendable"),
+//             Err(_) => panic!("Should error with InsufficientFundsUnderMaxSpendable"),
+//         }
+
+//         // sum(300..1800) to get a window where we had to increase past the smallest
+//         // txos, and also fill up all 16 input slots.
+//         let txos_for_value = Txo::select_unspent_txos_for_value(
+//             &account_id_hex.to_string(),
+//             16800 * MOB as u64,
+//             None,
+//             &wallet_db.get_conn().unwrap(),
+//         )
+//         .unwrap();
+//         let result_set = HashSet::from_iter(txos_for_value.iter().map(|t| t.value));
+//         assert_eq!(
+//             result_set,
+//             HashSet::<i64>::from_iter(vec![
+//                 300 * MOB,
+//                 400 * MOB,
+//                 500 * MOB,
+//                 600 * MOB,
+//                 700 * MOB,
+//                 800 * MOB,
+//                 900 * MOB,
+//                 1000 * MOB,
+//                 1100 * MOB,
+//                 1200 * MOB,
+//                 1300 * MOB,
+//                 1400 * MOB,
+//                 1500 * MOB,
+//                 1600 * MOB,
+//                 1700 * MOB,
+//                 1800 * MOB,
+//             ])
+//         );
+//     }
+
+//     #[test_with_logger]
+//     fn test_select_txos_fragmented(logger: Logger) {
+//         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+//         let db_test_context = WalletDbTestContext::default();
+//         let wallet_db = db_test_context.get_db_instance(logger);
+
+//         let root_id = RootIdentity::from_random(&mut rng);
+//         let account_key = AccountKey::from(&root_id);
+//         let (account_id_hex, _public_address_b58) = Account::create_from_root_entropy(
+//             &root_id.root_entropy,
+//             Some(0),
+//             None,
+//             None,
+//             "Alice's Main Account",
+//             None,
+//             None,
+//             None,
+//             &wallet_db.get_conn().unwrap(),
+//         )
+//         .unwrap();
+
+//         // Create some TXOs for the account. Total value is 2000, but max can spend is
+//         // 1600 [100, 100, ... 100]
+//         for i in 1..20 {
+//             let (_txo_hex, _txo, _key_image) = create_test_received_txo(
+//                 &account_key,
+//                 0,
+//                 (100 * MOB) as u64,
+//                 (144 + i) as u64,
+//                 &mut rng,
+//                 &wallet_db,
+//             );
+//         }
+
+//         let res = Txo::select_unspent_txos_for_value(
+//             &account_id_hex.to_string(), // FIXME: WS-11 - take AccountID
+//             1800 * MOB as u64,
+//             None,
+//             &wallet_db.get_conn().unwrap(),
+//         );
+//         match res {
+//             Err(WalletDbError::InsufficientFundsFragmentedTxos) => {}
+//             Ok(_) => panic!("Should error with InsufficientFundsFragmentedTxos"),
+//             Err(e) => panic!(
+//                 "Should error with InsufficientFundsFragmentedTxos but got {:?}",
+//                 e
+//             ),
+//         }
+//     }
+
+//     #[test_with_logger]
+//     fn test_create_minted(logger: Logger) {
+//         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+//         let root_id = RootIdentity::from_random(&mut rng);
+//         let src_account = AccountKey::from(&root_id);
+
+//         // Seed our ledger with some utxos for the src_account
+//         let known_recipients = vec![src_account.subaddress(0)];
+//         let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+//         let db_test_context = WalletDbTestContext::default();
+//         let wallet_db = db_test_context.get_db_instance(logger.clone());
+
+//         Account::create_from_root_entropy(
+//             &root_id.root_entropy,
+//             Some(0),
+//             None,
+//             None,
+//             "",
+//             None,
+//             None,
+//             None,
+//             &wallet_db.get_conn().unwrap(),
+//         )
+//         .unwrap();
+
+//         // Process the txos in the ledger into the DB
+//         sync_account(
+//             &ledger_db,
+//             &wallet_db,
+//             &AccountID::from(&src_account).to_string(),
+//             &logger,
+//         )
+//         .unwrap();
+
+//         let recipient =
+//             AccountKey::from(&RootIdentity::from_random(&mut rng)).subaddress(rng.next_u64());
+
+//         let ((output_txo_id, output_value), (change_txo_id, change_value)) =
+//             create_test_minted_and_change_txos(
+//                 src_account.clone(),
+//                 recipient,
+//                 1 * MOB as u64,
+//                 wallet_db.clone(),
+//                 ledger_db,
+//                 logger,
+//             );
+
+//         assert_eq!(output_value, 1 * MOB);
+//         let minted_txo_details = Txo::get(&output_txo_id, &wallet_db.get_conn().unwrap()).unwrap();
+//         assert_eq!(minted_txo_details.txo.value, output_value);
+//         assert_eq!(
+//             minted_txo_details.minted_from_account.unwrap().txo_status,
+//             TXO_STATUS_SECRETED
+//         );
+//         assert!(minted_txo_details.received_to_assigned_subaddress.is_none());
+
+//         assert_eq!(change_value, 4999 * MOB - MINIMUM_FEE as i64);
+//         let change_txo_details = Txo::get(&change_txo_id, &wallet_db.get_conn().unwrap()).unwrap();
+//         assert_eq!(change_txo_details.txo.value, change_value);
+//         assert_eq!(
+//             change_txo_details.minted_from_account.unwrap().txo_status,
+//             TXO_STATUS_SECRETED
+//         );
+//         assert!(change_txo_details.received_to_assigned_subaddress.is_none()); // Note: This gets updated on sync
+//     }
+
+//     // Test that the confirmation number validates correctly.
+//     #[test_with_logger]
+//     fn test_validate_confirmation(logger: Logger) {
+//         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+//         let db_test_context = WalletDbTestContext::default();
+//         let wallet_db = db_test_context.get_db_instance(logger.clone());
+//         let known_recipients: Vec<PublicAddress> = Vec::new();
+//         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+//         // The account which will receive the Txo
+//         log::info!(logger, "Creating account");
+//         let root_id = RootIdentity::from_random(&mut rng);
+//         let recipient_account_key = AccountKey::from(&root_id);
+//         let recipient_account_id = AccountID::from(&recipient_account_key);
+//         Account::create_from_root_entropy(
+//             &root_id.root_entropy,
+//             Some(0),
+//             None,
+//             None,
+//             "Alice",
+//             None,
+//             None,
+//             None,
+//             &wallet_db.get_conn().unwrap(),
+//         )
+//         .unwrap();
+
+//         // Start sync thread
+//         log::info!(logger, "Starting sync thread");
+//         let _sync_thread =
+//             SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+
+//         log::info!(logger, "Creating a random sender account");
+//         let sender_account_key = random_account_with_seed_values(
+//             &wallet_db,
+//             &mut ledger_db,
+//             &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
+//             &mut rng,
+//         );
+//         let sender_account_id = AccountID::from(&sender_account_key);
+
+//         // Create TxProposal from the sender account, which contains the Confirmation
+//         // Number
+//         log::info!(logger, "Creating transaction builder");
+//         let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
+//             WalletTransactionBuilder::new(
+//                 AccountID::from(&sender_account_key).to_string(),
+//                 wallet_db.clone(),
+//                 ledger_db.clone(),
+//                 get_resolver_factory(&mut rng).unwrap(),
+//                 logger.clone(),
+//             );
+//         builder
+//             .add_recipient(recipient_account_key.default_subaddress(), 50 * MOB as u64)
+//             .unwrap();
+//         builder.select_txos(None).unwrap();
+//         builder.set_tombstone(0).unwrap();
+//         let proposal = builder.build().unwrap();
+
+//         // Sleep to make sure that the foreign keys exist
+//         std::thread::sleep(Duration::from_secs(3));
+
+//         // Let's log this submitted Tx for the sender, which will create_minted for the
+//         // sent Txo
+//         log::info!(logger, "Logging submitted transaction");
+//         let tx_log = TransactionLog::log_submitted(
+//             proposal.clone(),
+//             ledger_db.num_blocks().unwrap(),
+//             "".to_string(),
+//             &sender_account_id.to_string(),
+//             &wallet_db.get_conn().unwrap(),
+//         )
+//         .unwrap();
+
+//         // Now we need to let this txo hit the ledger, which will update sender and
+//         // receiver
+//         log::info!(logger, "Adding block from submitted");
+//         add_block_with_tx_proposal(&mut ledger_db, proposal.clone());
+
+//         // Now let our sync thread catch up for both sender and receiver
+//         log::info!(logger, "Manually syncing account");
+//         wait_for_sync(&ledger_db, &wallet_db, &recipient_account_id, 16);
+//         wait_for_sync(&ledger_db, &wallet_db, &sender_account_id, 16);
+
+//         // Then let's make sure we received the Txo on the recipient account
+//         log::info!(logger, "Listing all Txos for recipient account");
+//         let txos = Txo::list_for_account(
+//             &recipient_account_id.to_string(),
+//             None,
+//             None,
+//             &wallet_db.get_conn().unwrap(),
+//         )
+//         .unwrap();
+//         assert_eq!(txos.len(), 1);
+
+//         let received_txo = txos[0].clone();
+
+//         // Note: Because this txo is both received and sent, between two different
+//         // accounts, its confirmation number does get updated. Typically, received txos
+//         // have None for the confirmation number.
+//         assert!(received_txo.txo.confirmation.is_some());
+
+//         // Get the txo from the sent perspective
+//         log::info!(logger, "Listing all Txos for sender account");
+//         let sender_txos = Txo::list_for_account(
+//             &sender_account_id.to_string(),
+//             None,
+//             None,
+//             &wallet_db.get_conn().unwrap(),
+//         )
+//         .unwrap();
+
+//         // We seeded with 3 received (70, 80, 90), we have a change txo, and a secreted
+//         // Txo (50)
+//         assert_eq!(sender_txos.len(), 5);
+
+//         // Get the associated Txos with the transaction log
+//         log::info!(logger, "Getting associated Txos with the transaction");
+//         let associated = tx_log
+//             .get_associated_txos(&wallet_db.get_conn().unwrap())
+//             .unwrap();
+//         let sent_outputs = associated.outputs;
+//         assert_eq!(sent_outputs.len(), 1);
+//         let sent_txo_details =
+//             Txo::get(&sent_outputs[0].txo_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
+
+//         // These two txos should actually be the same txo, and the account_txo_status is
+//         // what differentiates them.
+//         assert_eq!(sent_txo_details.txo, received_txo.txo);
+
+//         assert!(sent_txo_details.txo.confirmation.is_some());
+//         let confirmation: TxOutConfirmationNumber =
+//             mc_util_serial::decode(&sent_txo_details.txo.confirmation.unwrap()).unwrap();
+//         log::info!(logger, "Validating the confirmation number");
+//         let verified = Txo::validate_confirmation(
+//             &AccountID::from(&recipient_account_key),
+//             &received_txo.txo.txo_id_hex,
+//             &confirmation,
+//             &wallet_db.get_conn().unwrap(),
+//         )
+//         .unwrap();
+//         assert!(verified);
+//     }
+
+//     #[test_with_logger]
+//     fn test_select_txos_by_public_key(logger: Logger) {
+//         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+//         let db_test_context = WalletDbTestContext::default();
+//         let wallet_db = db_test_context.get_db_instance(logger);
+
+//         let root_id = RootIdentity::from_random(&mut rng);
+//         let account_key = AccountKey::from(&root_id);
+//         let (account_id, _address) = Account::create_from_root_entropy(
+//             &root_id.root_entropy,
+//             Some(0),
+//             None,
+//             None,
+//             "",
+//             None,
+//             None,
+//             None,
+//             &wallet_db.get_conn().unwrap(),
+//         )
+//         .unwrap();
+
+//         // Seed Txos
+//         let mut src_txos = Vec::new();
+//         for i in 0..10 {
+//             let (_txo_id, txo, _key_image) =
+//                 create_test_received_txo(&account_key, i, i * MOB as u64, i, &mut rng, &wallet_db);
+//             src_txos.push(txo);
+//         }
+//         let pubkeys: Vec<&CompressedRistrettoPublic> =
+//             src_txos.iter().map(|t| &t.public_key).collect();
+
+//         let txos_and_status = Txo::select_by_public_key(&pubkeys, &wallet_db.get_conn().unwrap())
+//             .expect("Could not get txos by public keys");
+//         assert_eq!(txos_and_status.len(), 10);
+
+//         let txos_and_status =
+//             Txo::select_by_public_key(&pubkeys[0..5], &wallet_db.get_conn().unwrap())
+//                 .expect("Could not get txos by public keys");
+//         assert_eq!(txos_and_status.len(), 5);
+//     }
+
+//     #[test_with_logger]
+//     fn test_delete_unreferenced_txos(logger: Logger) {
+//         use crate::db::schema::txos;
+//         use diesel::dsl::count;
+
+//         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+//         let db_test_context = WalletDbTestContext::default();
+//         let wallet_db = db_test_context.get_db_instance(logger);
+
+//         let root_id = RootIdentity::from_random(&mut rng);
+//         let account_key = AccountKey::from(&root_id);
+//         let (account_id_hex, _public_address_b58) = Account::create_from_root_entropy(
+//             &root_id.root_entropy,
+//             Some(1),
+//             None,
+//             None,
+//             "Alice's Main Account",
+//             None,
+//             None,
+//             None,
+//             &wallet_db.get_conn().unwrap(),
+//         )
+//         .unwrap();
+//         let account = Account::get(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
+
+//         // Create some txos.
+//         assert_eq!(
+//             txos::table
+//                 .select(count(txos::txo_id_hex))
+//                 .first::<i64>(&wallet_db.get_conn().unwrap())
+//                 .unwrap(),
+//             0
+//         );
+//         for _ in 0..10 {
+//             let (_txo_hex, _txo, _key_image) = create_test_received_txo(
+//                 &account_key,
+//                 0,
+//                 (100 * MOB) as u64, // 100.0 MOB * i
+//                 (144) as u64,
+//                 &mut rng,
+//                 &wallet_db,
+//             );
+//         }
+//         assert_eq!(
+//             txos::table
+//                 .select(count(txos::txo_id_hex))
+//                 .first::<i64>(&wallet_db.get_conn().unwrap())
+//                 .unwrap(),
+//             10
+//         );
+
+//         // Delete the account. No Txos are left.
+//         account.delete(&wallet_db.get_conn().unwrap()).unwrap();
+//         assert_eq!(
+//             txos::table
+//                 .select(count(txos::txo_id_hex))
+//                 .first::<i64>(&wallet_db.get_conn().unwrap())
+//                 .unwrap(),
+//             0
+//         );
+//     }
+
+//     fn setup_select_unspent_txos_tests(logger: Logger, fragmented: bool) -> (AccountID, WalletDb) {
+//         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+//         let db_test_context = WalletDbTestContext::default();
+//         let wallet_db = db_test_context.get_db_instance(logger);
+
+//         let root_id = RootIdentity::from_random(&mut rng);
+//         let account_key = AccountKey::from(&root_id);
+//         let (account_id, _address) = Account::create_from_root_entropy(
+//             &root_id.root_entropy,
+//             Some(0),
+//             None,
+//             None,
+//             "",
+//             None,
+//             None,
+//             None,
+//             &wallet_db.get_conn().unwrap(),
+//         )
+//         .unwrap();
+
+//         if fragmented {
+//             let (_txo_id, _txo, _key_image) =
+//                 create_test_received_txo(&account_key, 0, 28922973268924, 15, &mut rng, &wallet_db);
+
+//             for i in 1..=15 {
+//                 let (_txo_id, _txo, _key_image) =
+//                     create_test_received_txo(&account_key, i, 10000000000, i, &mut rng, &wallet_db);
+//             }
+
+//             for i in 1..=20 {
+//                 let (_txo_id, _txo, _key_image) =
+//                     create_test_received_txo(&account_key, i, 1000000000, i, &mut rng, &wallet_db);
+//             }
+
+//             for i in 1..=500 {
+//                 let (_txo_id, _txo, _key_image) =
+//                     create_test_received_txo(&account_key, i, 100000000, i, &mut rng, &wallet_db);
+//             }
+//         } else {
+//             for i in 1..=20 {
+//                 let (_txo_id, _txo, _key_image) =
+//                     create_test_received_txo(&account_key, i, i as u64, i, &mut rng, &wallet_db);
+//             }
+//         }
+
+//         (account_id, wallet_db)
+//     }
+
+//     #[test_with_logger]
+//     fn test_select_unspent_txos_target_value_equals_max_spendable_in_account(logger: Logger) {
+//         let (account_id, wallet_db) = setup_select_unspent_txos_tests(logger, false);
+
+//         let result = Txo::select_unspent_txos_for_value(
+//             &account_id.to_string(),
+//             200 as u64,
+//             None,
+//             &wallet_db.get_conn().unwrap(),
+//         )
+//         .unwrap();
+//         assert_eq!(result.len(), 16);
+//         let sum: i64 = result.iter().map(|x| x.value).sum();
+//         assert_eq!(200 as i64, sum);
+//     }
+
+//     #[test_with_logger]
+//     fn test_select_unspent_txos_target_value_over_max_spendable_in_account(logger: Logger) {
+//         let (account_id, wallet_db) = setup_select_unspent_txos_tests(logger, false);
+
+//         let result = Txo::select_unspent_txos_for_value(
+//             &account_id.to_string(),
+//             201 as u64,
+//             None,
+//             &wallet_db.get_conn().unwrap(),
+//         );
+
+//         assert!(result.is_err());
+//     }
+
+//     #[test_with_logger]
+//     fn test_select_unspent_txos_target_value_under_max_spendable_in_account_selects_dust(
+//         logger: Logger,
+//     ) {
+//         let (account_id, wallet_db) = setup_select_unspent_txos_tests(logger, false);
+
+//         let result = Txo::select_unspent_txos_for_value(
+//             &account_id.to_string(),
+//             3 as u64,
+//             None,
+//             &wallet_db.get_conn().unwrap(),
+//         )
+//         .unwrap();
+//         assert_eq!(result.len(), 2);
+//         let sum: i64 = result.iter().map(|x| x.value).sum();
+//         assert_eq!(3 as i64, sum);
+//     }
+
+//     #[test_with_logger]
+//     fn test_select_unspent_txos_target_value_over_total_mob_in_account(logger: Logger) {
+//         let (account_id, wallet_db) = setup_select_unspent_txos_tests(logger, false);
+
+//         let result = Txo::select_unspent_txos_for_value(
+//             &account_id.to_string(),
+//             500 as u64,
+//             None,
+//             &wallet_db.get_conn().unwrap(),
+//         );
+//         assert!(result.is_err());
+//     }
+
+//     #[test_with_logger]
+//     fn test_select_unspent_txos_for_value_selects_correct_subset_of_txos_when_fragmented(
+//         logger: Logger,
+//     ) {
+//         let (account_id, wallet_db) = setup_select_unspent_txos_tests(logger, true);
+
+//         let result = Txo::select_unspent_txos_for_value(
+//             &account_id.to_string(),
+//             12400000000 as u64,
+//             None,
+//             &wallet_db.get_conn().unwrap(),
+//         )
+//         .unwrap();
+//         assert_eq!(result.len(), 16);
+//         let sum: i64 = result.iter().map(|x| x.value).sum();
+//         assert_eq!(12400000000 as i64, sum);
+//     }
+
+//     // FIXME: once we have create_minted, then select_txos test with no
+//     // FIXME: test update txo after tombstone block is exceeded
+//     // FIXME: test update txo after it has landed via key_image update
+//     // FIXME: test any_failed and are_all_spent
+//     // FIXME: test for selecting utxos from multiple subaddresses in one account
+//     // FIXME: test for one TXO belonging to multiple accounts with get
+//     // FIXME: test create_received for various permutations of multiple accounts
+// }

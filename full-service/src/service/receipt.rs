@@ -269,527 +269,527 @@ where
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{
-        db::{
-            account::AccountID,
-            models::{TransactionLog, TX_DIRECTION_SENT},
-            transaction_log::{AssociatedTxos, TransactionLogModel},
-        },
-        service::{
-            account::AccountService, address::AddressService,
-            confirmation_number::ConfirmationService, transaction::TransactionService,
-            transaction_log::TransactionLogService, txo::TxoService,
-        },
-        test_utils::{
-            add_block_to_ledger_db, add_block_with_tx_proposal, get_test_ledger,
-            manually_sync_account, setup_wallet_service, MOB,
-        },
-        util::b58::b58_encode_public_address,
-    };
-    use mc_account_keys::{AccountKey, PublicAddress};
-    use mc_common::logger::{test_with_logger, Logger};
-    use mc_crypto_keys::{ReprBytes, RistrettoPrivate, RistrettoPublic};
-    use mc_crypto_rand::RngCore;
-    use mc_transaction_core::{ring_signature::KeyImage, tx::TxOut};
-    use mc_util_from_random::FromRandom;
-    use rand::{rngs::StdRng, SeedableRng};
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use crate::{
+//         db::{
+//             account::AccountID,
+//             models::{TransactionLog, TX_DIRECTION_SENT},
+//             transaction_log::{AssociatedTxos, TransactionLogModel},
+//         },
+//         service::{
+//             account::AccountService, address::AddressService,
+//             confirmation_number::ConfirmationService, transaction::TransactionService,
+//             transaction_log::TransactionLogService, txo::TxoService,
+//         },
+//         test_utils::{
+//             add_block_to_ledger_db, add_block_with_tx_proposal, get_test_ledger,
+//             manually_sync_account, setup_wallet_service, MOB,
+//         },
+//         util::b58::b58_encode_public_address,
+//     };
+//     use mc_account_keys::{AccountKey, PublicAddress};
+//     use mc_common::logger::{test_with_logger, Logger};
+//     use mc_crypto_keys::{ReprBytes, RistrettoPrivate, RistrettoPublic};
+//     use mc_crypto_rand::RngCore;
+//     use mc_transaction_core::{ring_signature::KeyImage, tx::TxOut};
+//     use mc_util_from_random::FromRandom;
+//     use rand::{rngs::StdRng, SeedableRng};
 
-    // The receipt should convert between the rust and proto representations.
-    #[test]
-    fn test_receipt_round_trip() {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+//     // The receipt should convert between the rust and proto representations.
+//     #[test]
+//     fn test_receipt_round_trip() {
+//         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
-        let account_key = AccountKey::random(&mut rng);
-        let public_address = account_key.default_subaddress();
-        let txo = TxOut::new(
-            rng.next_u64(),
-            &public_address,
-            &RistrettoPrivate::from_random(&mut rng),
-            Default::default(),
-        )
-        .expect("Could not make TxOut");
-        let tombstone = rng.next_u64();
-        let mut confirmation_bytes = [0u8; 32];
-        rng.fill_bytes(&mut confirmation_bytes);
-        let confirmation_number = TxOutConfirmationNumber::from(confirmation_bytes);
+//         let account_key = AccountKey::random(&mut rng);
+//         let public_address = account_key.default_subaddress();
+//         let txo = TxOut::new(
+//             rng.next_u64(),
+//             &public_address,
+//             &RistrettoPrivate::from_random(&mut rng),
+//             Default::default(),
+//         )
+//         .expect("Could not make TxOut");
+//         let tombstone = rng.next_u64();
+//         let mut confirmation_bytes = [0u8; 32];
+//         rng.fill_bytes(&mut confirmation_bytes);
+//         let confirmation_number = TxOutConfirmationNumber::from(confirmation_bytes);
 
-        let mut proto_tx_receipt = mc_api::external::Receipt::new();
-        proto_tx_receipt.set_public_key((&txo.public_key).into());
-        proto_tx_receipt.set_tombstone_block(tombstone);
-        let mut proto_confirmation = mc_api::external::TxOutConfirmationNumber::new();
-        proto_confirmation.set_hash(confirmation_number.to_vec());
-        proto_tx_receipt.set_confirmation(proto_confirmation);
-        let mut proto_commitment = mc_api::external::CompressedRistretto::new();
-        proto_commitment.set_data(txo.amount.commitment.to_bytes().to_vec());
-        let mut proto_amount = mc_api::external::Amount::new();
-        proto_amount.set_commitment(proto_commitment);
-        proto_amount.set_masked_value(txo.amount.masked_value);
-        proto_tx_receipt.set_amount(proto_amount);
+//         let mut proto_tx_receipt = mc_api::external::Receipt::new();
+//         proto_tx_receipt.set_public_key((&txo.public_key).into());
+//         proto_tx_receipt.set_tombstone_block(tombstone);
+//         let mut proto_confirmation = mc_api::external::TxOutConfirmationNumber::new();
+//         proto_confirmation.set_hash(confirmation_number.to_vec());
+//         proto_tx_receipt.set_confirmation(proto_confirmation);
+//         let mut proto_commitment = mc_api::external::CompressedRistretto::new();
+//         proto_commitment.set_data(txo.amount.commitment.to_bytes().to_vec());
+//         let mut proto_amount = mc_api::external::Amount::new();
+//         proto_amount.set_commitment(proto_commitment);
+//         proto_amount.set_masked_value(txo.amount.masked_value);
+//         proto_tx_receipt.set_amount(proto_amount);
 
-        let tx_receipt =
-            ReceiverReceipt::try_from(&proto_tx_receipt).expect("Could not convert tx receipt");
-        assert_eq!(txo.public_key, tx_receipt.public_key);
-        assert_eq!(tombstone, tx_receipt.tombstone_block);
-        assert_eq!(confirmation_number, tx_receipt.confirmation);
-        assert_eq!(txo.amount, tx_receipt.amount);
-    }
+//         let tx_receipt =
+//             ReceiverReceipt::try_from(&proto_tx_receipt).expect("Could not convert tx receipt");
+//         assert_eq!(txo.public_key, tx_receipt.public_key);
+//         assert_eq!(tombstone, tx_receipt.tombstone_block);
+//         assert_eq!(confirmation_number, tx_receipt.confirmation);
+//         assert_eq!(txo.amount, tx_receipt.amount);
+//     }
 
-    #[test_with_logger]
-    fn test_create_receipt(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+//     #[test_with_logger]
+//     fn test_create_receipt(logger: Logger) {
+//         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
-        let known_recipients: Vec<PublicAddress> = Vec::new();
-        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+//         let known_recipients: Vec<PublicAddress> = Vec::new();
+//         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
-        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
-        let alice = service
-            .create_account(Some("Alice's Main Account".to_string()))
-            .unwrap();
+//         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+//         let alice = service
+//             .create_account(Some("Alice's Main Account".to_string()))
+//             .unwrap();
 
-        // Fund Alice
-        let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
-        let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
-        add_block_to_ledger_db(
-            &mut ledger_db,
-            &vec![alice_public_address.clone()],
-            100 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
-            &mut rng,
-        );
-        manually_sync_account(
-            &ledger_db,
-            &service.wallet_db,
-            &AccountID(alice.account_id_hex.to_string()),
-            13,
-            &logger,
-        );
+//         // Fund Alice
+//         let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
+//         let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
+//         add_block_to_ledger_db(
+//             &mut ledger_db,
+//             &vec![alice_public_address.clone()],
+//             100 * MOB as u64,
+//             &vec![KeyImage::from(rng.next_u64())],
+//             &mut rng,
+//         );
+//         manually_sync_account(
+//             &ledger_db,
+//             &service.wallet_db,
+//             &AccountID(alice.account_id_hex.to_string()),
+//             13,
+//             &logger,
+//         );
 
-        let bob = service
-            .create_account(Some("Bob's Main Account".to_string()))
-            .unwrap();
-        let bob_addresses = service
-            .get_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
-            .expect("Could not get addresses for Bob");
-        let bob_address = bob_addresses[0].assigned_subaddress_b58.clone();
+//         let bob = service
+//             .create_account(Some("Bob's Main Account".to_string()))
+//             .unwrap();
+//         let bob_addresses = service
+//             .get_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
+//             .expect("Could not get addresses for Bob");
+//         let bob_address = bob_addresses[0].assigned_subaddress_b58.clone();
 
-        // Create a TxProposal to Bob
-        let tx_proposal = service
-            .build_transaction(
-                &alice.account_id_hex,
-                &vec![(bob_address.to_string(), (24 * MOB).to_string())],
-                None,
-                None,
-                None,
-                None,
-                None,
-            )
-            .expect("Could not build transaction");
+//         // Create a TxProposal to Bob
+//         let tx_proposal = service
+//             .build_transaction(
+//                 &alice.account_id_hex,
+//                 &vec![(bob_address.to_string(), (24 * MOB).to_string())],
+//                 None,
+//                 None,
+//                 None,
+//                 None,
+//                 None,
+//             )
+//             .expect("Could not build transaction");
 
-        let receipts = service
-            .create_receiver_receipts(&tx_proposal)
-            .expect("Could not create receiver receipts");
-        let receipt = &receipts[0];
+//         let receipts = service
+//             .create_receiver_receipts(&tx_proposal)
+//             .expect("Could not create receiver receipts");
+//         let receipt = &receipts[0];
 
-        // Note: Since we manually added the block rather than using "Submit," we need
-        // to manually log submitted. This needs to happen before it hits the ledger, or
-        // else we will get a Unique constraint failed if we had already scanned
-        // before logging submitted.
-        TransactionLog::log_submitted(
-            tx_proposal.clone(),
-            14,
-            "".to_string(),
-            &alice.account_id_hex,
-            &service.wallet_db.get_conn().unwrap(),
-        )
-        .expect("Could not log submitted");
+//         // Note: Since we manually added the block rather than using "Submit," we need
+//         // to manually log submitted. This needs to happen before it hits the ledger, or
+//         // else we will get a Unique constraint failed if we had already scanned
+//         // before logging submitted.
+//         TransactionLog::log_submitted(
+//             tx_proposal.clone(),
+//             14,
+//             "".to_string(),
+//             &alice.account_id_hex,
+//             &service.wallet_db.get_conn().unwrap(),
+//         )
+//         .expect("Could not log submitted");
 
-        // Add the txo to the ledger
-        add_block_with_tx_proposal(&mut ledger_db, tx_proposal);
-        manually_sync_account(
-            &ledger_db,
-            &service.wallet_db,
-            &AccountID(alice.account_id_hex.to_string()),
-            14,
-            &logger,
-        );
-        manually_sync_account(
-            &ledger_db,
-            &service.wallet_db,
-            &AccountID(bob.account_id_hex.to_string()),
-            14,
-            &logger,
-        );
+//         // Add the txo to the ledger
+//         add_block_with_tx_proposal(&mut ledger_db, tx_proposal);
+//         manually_sync_account(
+//             &ledger_db,
+//             &service.wallet_db,
+//             &AccountID(alice.account_id_hex.to_string()),
+//             14,
+//             &logger,
+//         );
+//         manually_sync_account(
+//             &ledger_db,
+//             &service.wallet_db,
+//             &AccountID(bob.account_id_hex.to_string()),
+//             14,
+//             &logger,
+//         );
 
-        // Get corresponding Txo for Bob
-        let txos = service
-            .list_txos(&AccountID(bob.account_id_hex), None, None)
-            .expect("Could not get Bob Txos");
-        assert_eq!(txos.len(), 1);
+//         // Get corresponding Txo for Bob
+//         let txos = service
+//             .list_txos(&AccountID(bob.account_id_hex), None, None)
+//             .expect("Could not get Bob Txos");
+//         assert_eq!(txos.len(), 1);
 
-        // Get the corresponding TransactionLog for Alice's Account - only the sender
-        // has the confirmation number.
-        let transaction_logs = service
-            .list_transaction_logs(&AccountID(alice.account_id_hex), None, None)
-            .expect("Could not get transaction logs");
-        // Alice should have two received (initial and change), and one sent
-        // TransactionLog.
-        assert_eq!(transaction_logs.len(), 3);
-        let sent_transaction_logs_and_associated_txos: Vec<&(TransactionLog, AssociatedTxos)> =
-            transaction_logs
-                .iter()
-                .filter(|t| t.0.direction == TX_DIRECTION_SENT)
-                .collect();
-        assert_eq!(sent_transaction_logs_and_associated_txos.len(), 1);
-        let sent_transaction_log: TransactionLog =
-            sent_transaction_logs_and_associated_txos[0].0.clone();
+//         // Get the corresponding TransactionLog for Alice's Account - only the sender
+//         // has the confirmation number.
+//         let transaction_logs = service
+//             .list_transaction_logs(&AccountID(alice.account_id_hex), None, None)
+//             .expect("Could not get transaction logs");
+//         // Alice should have two received (initial and change), and one sent
+//         // TransactionLog.
+//         assert_eq!(transaction_logs.len(), 3);
+//         let sent_transaction_logs_and_associated_txos: Vec<&(TransactionLog, AssociatedTxos)> =
+//             transaction_logs
+//                 .iter()
+//                 .filter(|t| t.0.direction == TX_DIRECTION_SENT)
+//                 .collect();
+//         assert_eq!(sent_transaction_logs_and_associated_txos.len(), 1);
+//         let sent_transaction_log: TransactionLog =
+//             sent_transaction_logs_and_associated_txos[0].0.clone();
 
-        let confirmations = service
-            .get_confirmations(&sent_transaction_log.transaction_id_hex)
-            .expect("Could not get confirmations");
-        assert_eq!(confirmations.len(), 1);
+//         let confirmations = service
+//             .get_confirmations(&sent_transaction_log.transaction_id_hex)
+//             .expect("Could not get confirmations");
+//         assert_eq!(confirmations.len(), 1);
 
-        let txo_pubkey =
-            mc_util_serial::decode(&txos[0].txo.public_key).expect("Could not decode pubkey");
-        assert_eq!(receipt.public_key, txo_pubkey);
-        assert_eq!(receipt.tombstone_block, 63); // Ledger seeded with 12 blocks at tx construction, then one appended + 50
-        let txo: TxOut = mc_util_serial::decode(&txos[0].txo.txo).expect("Could not decode txo");
-        assert_eq!(receipt.amount, txo.amount);
-        assert_eq!(receipt.confirmation, confirmations[0].confirmation);
-    }
+//         let txo_pubkey =
+//             mc_util_serial::decode(&txos[0].txo.public_key).expect("Could not decode pubkey");
+//         assert_eq!(receipt.public_key, txo_pubkey);
+//         assert_eq!(receipt.tombstone_block, 63); // Ledger seeded with 12 blocks at tx construction, then one appended + 50
+//         let txo: TxOut = mc_util_serial::decode(&txos[0].txo.txo).expect("Could not decode txo");
+//         assert_eq!(receipt.amount, txo.amount);
+//         assert_eq!(receipt.confirmation, confirmations[0].confirmation);
+//     }
 
-    // All txos received should return TransactionSuccess, and TransactionPending
-    // until they are received.
-    #[test_with_logger]
-    fn test_check_receiver_receipt_status_success(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+//     // All txos received should return TransactionSuccess, and TransactionPending
+//     // until they are received.
+//     #[test_with_logger]
+//     fn test_check_receiver_receipt_status_success(logger: Logger) {
+//         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
-        let known_recipients: Vec<PublicAddress> = Vec::new();
-        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+//         let known_recipients: Vec<PublicAddress> = Vec::new();
+//         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
-        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
-        let alice = service
-            .create_account(Some("Alice's Main Account".to_string()))
-            .unwrap();
+//         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+//         let alice = service
+//             .create_account(Some("Alice's Main Account".to_string()))
+//             .unwrap();
 
-        // Fund Alice
-        let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
-        let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
-        add_block_to_ledger_db(
-            &mut ledger_db,
-            &vec![alice_public_address.clone()],
-            100 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
-            &mut rng,
-        );
-        manually_sync_account(
-            &ledger_db,
-            &service.wallet_db,
-            &AccountID(alice.account_id_hex.to_string()),
-            13,
-            &logger,
-        );
+//         // Fund Alice
+//         let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
+//         let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
+//         add_block_to_ledger_db(
+//             &mut ledger_db,
+//             &vec![alice_public_address.clone()],
+//             100 * MOB as u64,
+//             &vec![KeyImage::from(rng.next_u64())],
+//             &mut rng,
+//         );
+//         manually_sync_account(
+//             &ledger_db,
+//             &service.wallet_db,
+//             &AccountID(alice.account_id_hex.to_string()),
+//             13,
+//             &logger,
+//         );
 
-        let bob = service
-            .create_account(Some("Bob's Main Account".to_string()))
-            .unwrap();
-        let bob_addresses = service
-            .get_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
-            .expect("Could not get addresses for Bob");
-        let bob_address = &bob_addresses[0].assigned_subaddress_b58.clone();
+//         let bob = service
+//             .create_account(Some("Bob's Main Account".to_string()))
+//             .unwrap();
+//         let bob_addresses = service
+//             .get_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
+//             .expect("Could not get addresses for Bob");
+//         let bob_address = &bob_addresses[0].assigned_subaddress_b58.clone();
 
-        // Create a TxProposal to Bob
-        let tx_proposal = service
-            .build_transaction(
-                &alice.account_id_hex,
-                &vec![(bob_address.to_string(), (24 * MOB).to_string())],
-                None,
-                None,
-                None,
-                None,
-                None,
-            )
-            .expect("Could not build transaction");
+//         // Create a TxProposal to Bob
+//         let tx_proposal = service
+//             .build_transaction(
+//                 &alice.account_id_hex,
+//                 &vec![(bob_address.to_string(), (24 * MOB).to_string())],
+//                 None,
+//                 None,
+//                 None,
+//                 None,
+//                 None,
+//             )
+//             .expect("Could not build transaction");
 
-        let receipts = service
-            .create_receiver_receipts(&tx_proposal)
-            .expect("Could not create receiver receipts");
-        let receipt = &receipts[0];
+//         let receipts = service
+//             .create_receiver_receipts(&tx_proposal)
+//             .expect("Could not create receiver receipts");
+//         let receipt = &receipts[0];
 
-        // Bob checks the status of the receipts.
-        let (status, _txo) = service
-            .check_receipt_status(&bob_address, &receipt)
-            .expect("Could not check status of receipt");
+//         // Bob checks the status of the receipts.
+//         let (status, _txo) = service
+//             .check_receipt_status(&bob_address, &receipt)
+//             .expect("Could not check status of receipt");
 
-        // Status should be pending until block lands and is scanned
-        assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
+//         // Status should be pending until block lands and is scanned
+//         assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
 
-        // Land the Txo in the ledger - only sync for the sender
-        TransactionLog::log_submitted(
-            tx_proposal.clone(),
-            14,
-            "".to_string(),
-            &alice.account_id_hex,
-            &service.wallet_db.get_conn().unwrap(),
-        )
-        .expect("Could not log submitted");
+//         // Land the Txo in the ledger - only sync for the sender
+//         TransactionLog::log_submitted(
+//             tx_proposal.clone(),
+//             14,
+//             "".to_string(),
+//             &alice.account_id_hex,
+//             &service.wallet_db.get_conn().unwrap(),
+//         )
+//         .expect("Could not log submitted");
 
-        // Status for Bob should still be pending, even though the Txos will show up in
-        // the wallet, but under Alice's account.
-        let (status, _txo) = service
-            .check_receipt_status(&bob_address, &receipt)
-            .expect("Could not check status of receipt");
-        assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
+//         // Status for Bob should still be pending, even though the Txos will show up in
+//         // the wallet, but under Alice's account.
+//         let (status, _txo) = service
+//             .check_receipt_status(&bob_address, &receipt)
+//             .expect("Could not check status of receipt");
+//         assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
 
-        // Add the txo to the ledger
-        add_block_with_tx_proposal(&mut ledger_db, tx_proposal);
-        manually_sync_account(
-            &ledger_db,
-            &service.wallet_db,
-            &AccountID(alice.account_id_hex.to_string()),
-            14,
-            &logger,
-        );
-        manually_sync_account(
-            &ledger_db,
-            &service.wallet_db,
-            &AccountID(bob.account_id_hex.to_string()),
-            14,
-            &logger,
-        );
+//         // Add the txo to the ledger
+//         add_block_with_tx_proposal(&mut ledger_db, tx_proposal);
+//         manually_sync_account(
+//             &ledger_db,
+//             &service.wallet_db,
+//             &AccountID(alice.account_id_hex.to_string()),
+//             14,
+//             &logger,
+//         );
+//         manually_sync_account(
+//             &ledger_db,
+//             &service.wallet_db,
+//             &AccountID(bob.account_id_hex.to_string()),
+//             14,
+//             &logger,
+//         );
 
-        // Status for Bob is succeeded.
-        let (status, _txo) = service
-            .check_receipt_status(&bob_address, &receipt)
-            .expect("Could not check status of receipt");
-        assert_eq!(status, ReceiptTransactionStatus::TransactionSuccess);
+//         // Status for Bob is succeeded.
+//         let (status, _txo) = service
+//             .check_receipt_status(&bob_address, &receipt)
+//             .expect("Could not check status of receipt");
+//         assert_eq!(status, ReceiptTransactionStatus::TransactionSuccess);
 
-        // Status for Alice would be pending, because she never received (and never will
-        // receive) the Txos.
-        let alice_address = &b58_encode_public_address(&alice_public_address)
-            .expect("Could not encode Alice address");
-        let (status, _txo) = service
-            .check_receipt_status(&alice_address, &receipt)
-            .expect("Could not check status of receipt");
-        assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
-    }
+//         // Status for Alice would be pending, because she never received (and never will
+//         // receive) the Txos.
+//         let alice_address = &b58_encode_public_address(&alice_public_address)
+//             .expect("Could not encode Alice address");
+//         let (status, _txo) = service
+//             .check_receipt_status(&alice_address, &receipt)
+//             .expect("Could not check status of receipt");
+//         assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
+//     }
 
-    #[test_with_logger]
-    fn test_check_receiver_receipt_status_wrong_value(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+//     #[test_with_logger]
+//     fn test_check_receiver_receipt_status_wrong_value(logger: Logger) {
+//         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
-        let known_recipients: Vec<PublicAddress> = Vec::new();
-        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+//         let known_recipients: Vec<PublicAddress> = Vec::new();
+//         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
-        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
-        let alice = service
-            .create_account(Some("Alice's Main Account".to_string()))
-            .unwrap();
+//         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+//         let alice = service
+//             .create_account(Some("Alice's Main Account".to_string()))
+//             .unwrap();
 
-        // Fund Alice
-        let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
-        let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
-        add_block_to_ledger_db(
-            &mut ledger_db,
-            &vec![alice_public_address.clone()],
-            100 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
-            &mut rng,
-        );
-        manually_sync_account(
-            &ledger_db,
-            &service.wallet_db,
-            &AccountID(alice.account_id_hex.to_string()),
-            13,
-            &logger,
-        );
+//         // Fund Alice
+//         let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
+//         let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
+//         add_block_to_ledger_db(
+//             &mut ledger_db,
+//             &vec![alice_public_address.clone()],
+//             100 * MOB as u64,
+//             &vec![KeyImage::from(rng.next_u64())],
+//             &mut rng,
+//         );
+//         manually_sync_account(
+//             &ledger_db,
+//             &service.wallet_db,
+//             &AccountID(alice.account_id_hex.to_string()),
+//             13,
+//             &logger,
+//         );
 
-        let bob = service
-            .create_account(Some("Bob's Main Account".to_string()))
-            .unwrap();
-        let bob_addresses = service
-            .get_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
-            .expect("Could not get addresses for Bob");
-        let bob_address = &bob_addresses[0].assigned_subaddress_b58.clone();
-        let bob_account_id = AccountID(bob.account_id_hex.to_string());
+//         let bob = service
+//             .create_account(Some("Bob's Main Account".to_string()))
+//             .unwrap();
+//         let bob_addresses = service
+//             .get_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
+//             .expect("Could not get addresses for Bob");
+//         let bob_address = &bob_addresses[0].assigned_subaddress_b58.clone();
+//         let bob_account_id = AccountID(bob.account_id_hex.to_string());
 
-        // Create a TxProposal to Bob
-        let tx_proposal0 = service
-            .build_transaction(
-                &alice.account_id_hex,
-                &vec![(bob_address.to_string(), (24 * MOB).to_string())],
-                None,
-                None,
-                None,
-                None,
-                None,
-            )
-            .expect("Could not build transaction");
+//         // Create a TxProposal to Bob
+//         let tx_proposal0 = service
+//             .build_transaction(
+//                 &alice.account_id_hex,
+//                 &vec![(bob_address.to_string(), (24 * MOB).to_string())],
+//                 None,
+//                 None,
+//                 None,
+//                 None,
+//                 None,
+//             )
+//             .expect("Could not build transaction");
 
-        let receipts = service
-            .create_receiver_receipts(&tx_proposal0)
-            .expect("Could not create receiver receipt");
-        let mut receipt0 = receipts[0].clone();
+//         let receipts = service
+//             .create_receiver_receipts(&tx_proposal0)
+//             .expect("Could not create receiver receipt");
+//         let mut receipt0 = receipts[0].clone();
 
-        // Land the Txo in the ledger - only sync for the sender
-        TransactionLog::log_submitted(
-            tx_proposal0.clone(),
-            14,
-            "".to_string(),
-            &alice.account_id_hex,
-            &service.wallet_db.get_conn().unwrap(),
-        )
-        .expect("Could not log submitted");
-        add_block_with_tx_proposal(&mut ledger_db, tx_proposal0);
-        manually_sync_account(
-            &ledger_db,
-            &service.wallet_db,
-            &AccountID(alice.account_id_hex.to_string()),
-            14,
-            &logger,
-        );
-        manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, 14, &logger);
+//         // Land the Txo in the ledger - only sync for the sender
+//         TransactionLog::log_submitted(
+//             tx_proposal0.clone(),
+//             14,
+//             "".to_string(),
+//             &alice.account_id_hex,
+//             &service.wallet_db.get_conn().unwrap(),
+//         )
+//         .expect("Could not log submitted");
+//         add_block_with_tx_proposal(&mut ledger_db, tx_proposal0);
+//         manually_sync_account(
+//             &ledger_db,
+//             &service.wallet_db,
+//             &AccountID(alice.account_id_hex.to_string()),
+//             14,
+//             &logger,
+//         );
+//         manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, 14, &logger);
 
-        // Bob checks the status, and is expecting an incorrect value, from a
-        // transaction with a different shared secret
-        receipt0.amount = Amount::new(18 * MOB as u64, &RistrettoPublic::from_random(&mut rng))
-            .expect("Could not create Amount");
-        let (status, _txo) = service
-            .check_receipt_status(&bob_address, &receipt0)
-            .expect("Could not check status of receipt");
-        assert_eq!(status, ReceiptTransactionStatus::FailedAmountDecryption);
+//         // Bob checks the status, and is expecting an incorrect value, from a
+//         // transaction with a different shared secret
+//         receipt0.amount = Amount::new(18 * MOB as u64, &RistrettoPublic::from_random(&mut rng))
+//             .expect("Could not create Amount");
+//         let (status, _txo) = service
+//             .check_receipt_status(&bob_address, &receipt0)
+//             .expect("Could not check status of receipt");
+//         assert_eq!(status, ReceiptTransactionStatus::FailedAmountDecryption);
 
-        // Now check status with a correct shared secret, but the wrong value
-        let bob_account_key: AccountKey = mc_util_serial::decode(
-            &Account::get(&bob_account_id, &service.wallet_db.get_conn().unwrap())
-                .expect("Could not get bob account")
-                .account_key,
-        )
-        .expect("Could not decode");
-        let public_key: RistrettoPublic = RistrettoPublic::try_from(&receipt0.public_key)
-            .expect("Could not get ristretto public from compressed");
-        let shared_secret =
-            get_tx_out_shared_secret(bob_account_key.view_private_key(), &public_key);
-        receipt0.amount =
-            Amount::new(18 * MOB as u64, &shared_secret).expect("Could not create Amount");
-        let (status, _txo) = service
-            .check_receipt_status(&bob_address, &receipt0)
-            .expect("Could not check status of receipt");
-        assert_eq!(
-            status,
-            ReceiptTransactionStatus::AmountMismatch(
-                "Expected: 18000000000000, Got: 24000000000000".to_string()
-            )
-        );
+//         // Now check status with a correct shared secret, but the wrong value
+//         let bob_account_key: AccountKey = mc_util_serial::decode(
+//             &Account::get(&bob_account_id, &service.wallet_db.get_conn().unwrap())
+//                 .expect("Could not get bob account")
+//                 .account_key,
+//         )
+//         .expect("Could not decode");
+//         let public_key: RistrettoPublic = RistrettoPublic::try_from(&receipt0.public_key)
+//             .expect("Could not get ristretto public from compressed");
+//         let shared_secret =
+//             get_tx_out_shared_secret(bob_account_key.view_private_key(), &public_key);
+//         receipt0.amount =
+//             Amount::new(18 * MOB as u64, &shared_secret).expect("Could not create Amount");
+//         let (status, _txo) = service
+//             .check_receipt_status(&bob_address, &receipt0)
+//             .expect("Could not check status of receipt");
+//         assert_eq!(
+//             status,
+//             ReceiptTransactionStatus::AmountMismatch(
+//                 "Expected: 18000000000000, Got: 24000000000000".to_string()
+//             )
+//         );
 
-        // Status for Alice would be pending, because she never received (and never will
-        // receive) the Txos.
-        let alice_address = &b58_encode_public_address(&alice_public_address)
-            .expect("Could not encode alice address");
-        let (status, _txo) = service
-            .check_receipt_status(&alice_address, &receipt0)
-            .expect("Could not check status of receipt");
-        assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
-    }
+//         // Status for Alice would be pending, because she never received (and never will
+//         // receive) the Txos.
+//         let alice_address = &b58_encode_public_address(&alice_public_address)
+//             .expect("Could not encode alice address");
+//         let (status, _txo) = service
+//             .check_receipt_status(&alice_address, &receipt0)
+//             .expect("Could not check status of receipt");
+//         assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
+//     }
 
-    #[test_with_logger]
-    fn test_check_receiver_receipt_status_invalid_confirmation(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+//     #[test_with_logger]
+//     fn test_check_receiver_receipt_status_invalid_confirmation(logger: Logger) {
+//         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
-        let known_recipients: Vec<PublicAddress> = Vec::new();
-        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+//         let known_recipients: Vec<PublicAddress> = Vec::new();
+//         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
-        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
-        let alice = service
-            .create_account(Some("Alice's Main Account".to_string()))
-            .unwrap();
+//         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+//         let alice = service
+//             .create_account(Some("Alice's Main Account".to_string()))
+//             .unwrap();
 
-        // Fund Alice
-        let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
-        let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
-        add_block_to_ledger_db(
-            &mut ledger_db,
-            &vec![alice_public_address.clone()],
-            100 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
-            &mut rng,
-        );
-        manually_sync_account(
-            &ledger_db,
-            &service.wallet_db,
-            &AccountID(alice.account_id_hex.to_string()),
-            13,
-            &logger,
-        );
+//         // Fund Alice
+//         let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
+//         let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
+//         add_block_to_ledger_db(
+//             &mut ledger_db,
+//             &vec![alice_public_address.clone()],
+//             100 * MOB as u64,
+//             &vec![KeyImage::from(rng.next_u64())],
+//             &mut rng,
+//         );
+//         manually_sync_account(
+//             &ledger_db,
+//             &service.wallet_db,
+//             &AccountID(alice.account_id_hex.to_string()),
+//             13,
+//             &logger,
+//         );
 
-        let bob = service
-            .create_account(Some("Bob's Main Account".to_string()))
-            .unwrap();
-        let bob_addresses = service
-            .get_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
-            .expect("Could not get addresses for Bob");
-        let bob_address = &bob_addresses[0].assigned_subaddress_b58.clone();
-        let bob_account_id = AccountID(bob.account_id_hex.to_string());
+//         let bob = service
+//             .create_account(Some("Bob's Main Account".to_string()))
+//             .unwrap();
+//         let bob_addresses = service
+//             .get_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
+//             .expect("Could not get addresses for Bob");
+//         let bob_address = &bob_addresses[0].assigned_subaddress_b58.clone();
+//         let bob_account_id = AccountID(bob.account_id_hex.to_string());
 
-        // Create a TxProposal to Bob
-        let tx_proposal0 = service
-            .build_transaction(
-                &alice.account_id_hex,
-                &vec![(bob_address.to_string(), (24 * MOB).to_string())],
-                None,
-                None,
-                None,
-                None,
-                None,
-            )
-            .expect("Could not build transaction");
+//         // Create a TxProposal to Bob
+//         let tx_proposal0 = service
+//             .build_transaction(
+//                 &alice.account_id_hex,
+//                 &vec![(bob_address.to_string(), (24 * MOB).to_string())],
+//                 None,
+//                 None,
+//                 None,
+//                 None,
+//                 None,
+//             )
+//             .expect("Could not build transaction");
 
-        let receipts = service
-            .create_receiver_receipts(&tx_proposal0)
-            .expect("Could not create receiver receipts");
-        let receipt0 = &receipts[0];
+//         let receipts = service
+//             .create_receiver_receipts(&tx_proposal0)
+//             .expect("Could not create receiver receipts");
+//         let receipt0 = &receipts[0];
 
-        // Land the Txo in the ledger - only sync for the sender
-        TransactionLog::log_submitted(
-            tx_proposal0.clone(),
-            14,
-            "".to_string(),
-            &alice.account_id_hex,
-            &service.wallet_db.get_conn().unwrap(),
-        )
-        .expect("Could not log submitted");
-        add_block_with_tx_proposal(&mut ledger_db, tx_proposal0);
-        manually_sync_account(
-            &ledger_db,
-            &service.wallet_db,
-            &AccountID(alice.account_id_hex.to_string()),
-            14,
-            &logger,
-        );
-        manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, 14, &logger);
+//         // Land the Txo in the ledger - only sync for the sender
+//         TransactionLog::log_submitted(
+//             tx_proposal0.clone(),
+//             14,
+//             "".to_string(),
+//             &alice.account_id_hex,
+//             &service.wallet_db.get_conn().unwrap(),
+//         )
+//         .expect("Could not log submitted");
+//         add_block_with_tx_proposal(&mut ledger_db, tx_proposal0);
+//         manually_sync_account(
+//             &ledger_db,
+//             &service.wallet_db,
+//             &AccountID(alice.account_id_hex.to_string()),
+//             14,
+//             &logger,
+//         );
+//         manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, 14, &logger);
 
-        // Construct an invalid receipt with an incorrect confirmation number.
-        let mut receipt = receipt0.clone();
-        let mut bad_confirmation_bytes = [0u8; 32];
-        rng.fill_bytes(&mut bad_confirmation_bytes);
-        let bad_confirmation = TxOutConfirmationNumber::from(bad_confirmation_bytes);
-        receipt.confirmation = bad_confirmation;
+//         // Construct an invalid receipt with an incorrect confirmation number.
+//         let mut receipt = receipt0.clone();
+//         let mut bad_confirmation_bytes = [0u8; 32];
+//         rng.fill_bytes(&mut bad_confirmation_bytes);
+//         let bad_confirmation = TxOutConfirmationNumber::from(bad_confirmation_bytes);
+//         receipt.confirmation = bad_confirmation;
 
-        // Bob checks the status, and is expecting an incorrect value
-        let (status, _txo) = service
-            .check_receipt_status(&bob_address, &receipt)
-            .expect("Could not check status of receipt");
-        assert_eq!(status, ReceiptTransactionStatus::InvalidConfirmation);
+//         // Bob checks the status, and is expecting an incorrect value
+//         let (status, _txo) = service
+//             .check_receipt_status(&bob_address, &receipt)
+//             .expect("Could not check status of receipt");
+//         assert_eq!(status, ReceiptTransactionStatus::InvalidConfirmation);
 
-        // Checking for the sender will be pending because the Txos haven't landed for
-        // alice (and never will).
-        let alice_address = &b58_encode_public_address(&alice_public_address)
-            .expect("Could not encode alice address");
-        let (status, _txo) = service
-            .check_receipt_status(&alice_address, &receipt)
-            .expect("Could not check status of receipt");
-        assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
-    }
-}
+//         // Checking for the sender will be pending because the Txos haven't landed for
+//         // alice (and never will).
+//         let alice_address = &b58_encode_public_address(&alice_public_address)
+//             .expect("Could not encode alice address");
+//         let (status, _txo) = service
+//             .check_receipt_status(&alice_address, &receipt)
+//             .expect("Could not check status of receipt");
+//         assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
+//     }
+// }
