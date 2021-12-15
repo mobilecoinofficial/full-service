@@ -172,6 +172,8 @@ pub struct NewTxo<'a> {
     pub spent_block_index: Option<i64>,
     pub confirmation: Option<&'a [u8]>,
     pub recipient_public_address_b58: String,
+    pub minted_account_id_hex: Option<String>,
+    pub received_account_id_hex: Option<String>,
 }
 
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]

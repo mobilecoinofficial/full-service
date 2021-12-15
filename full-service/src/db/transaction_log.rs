@@ -483,7 +483,8 @@ impl TransactionLogModel for TransactionLog {
         // key_image hits the ledger or their tombstone block is exceeded.
         for utxo in tx_proposal.utxos.iter() {
             let txo_id = TxoID::from(&utxo.tx_out);
-            Txo::update_to_pending(&txo_id, conn)?;
+            let txo = Txo::get_new(&txo_id.to_string(), conn)?;
+            txo.update_to_pending(tx_proposal.tx.prefix.tombstone_block as i64, conn)?;
             txo_ids.push((txo_id.to_string(), TXO_USED_AS_INPUT.to_string()));
         }
 
