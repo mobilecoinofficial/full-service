@@ -69,7 +69,7 @@ pub trait TxoService {
         account_id: &AccountID,
         limit: Option<i64>,
         offset: Option<i64>,
-    ) -> Result<Vec<TxoDetails>, TxoServiceError>;
+    ) -> Result<Vec<Txo>, TxoServiceError>;
 
     /// Get a Txo from the wallet.
     fn get_txo(&self, txo_id: &TxoID) -> Result<TxoDetails, TxoServiceError>;
@@ -98,7 +98,7 @@ where
         account_id: &AccountID,
         limit: Option<i64>,
         offset: Option<i64>,
-    ) -> Result<Vec<TxoDetails>, TxoServiceError> {
+    ) -> Result<Vec<Txo>, TxoServiceError> {
         let conn = self.wallet_db.get_conn()?;
         conn.transaction(|| {
             Ok(Txo::list_for_account(

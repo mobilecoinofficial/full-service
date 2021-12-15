@@ -141,7 +141,7 @@ pub trait TxoModel {
         offset: Option<i64>,
         limit: Option<i64>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Vec<TxoDetails>, WalletDbError>;
+    ) -> Result<Vec<Txo>, WalletDbError>;
 
     fn list_for_address(
         assigned_subaddress_b58: &str,
@@ -431,27 +431,20 @@ impl TxoModel for Txo {
         offset: Option<i64>,
         limit: Option<i64>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Vec<TxoDetails>, WalletDbError> {
-        use crate::db::schema::{
-            account_txo_statuses as cols, account_txo_statuses::dsl::account_txo_statuses,
-        };
+    ) -> Result<Vec<Txo>, WalletDbError> {
+        use crate::db::schema::txos;
 
-        let statuses_query = account_txo_statuses
-            .filter(cols::account_id_hex.eq(account_id_hex))
-            .select(cols::txo_id_hex);
+        let txos_query = txos::table
+            .filter(txos::received_account_id_hex.eq(account_id_hex))
+            .or_filter(txos::minted_account_id_hex.eq(account_id_hex));
 
-        // Optionally add limit and offset.
-        let statuses: Vec<String> = if let (Some(o), Some(l)) = (offset, limit) {
-            statuses_query.offset(o).limit(l).load(conn)?
+        let txos: Vec<Txo> = if let (Some(o), Some(l)) = (offset, limit) {
+            txos_query.offset(o).limit(l).load(conn)?
         } else {
-            statuses_query.load(conn)?
+            txos_query.load(conn)?
         };
-
-        // TODO: This loop queries the txo and account_txo_statuses table N times. Use a
-        // join instead.
-        let details: Result<Vec<TxoDetails>, WalletDbError> =
-            statuses.iter().map(|t| Txo::get(t, &conn)).collect();
-        details
+        
+        Ok(txos)
     }
 
     fn list_for_address(
