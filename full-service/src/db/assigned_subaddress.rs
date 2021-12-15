@@ -8,7 +8,6 @@ use crate::db::{
     account_txo_status::AccountTxoStatusModel,
     models::{
         Account, AccountTxoStatus, AssignedSubaddress, NewAssignedSubaddress, Txo,
-        TXO_STATUS_ORPHANED,
     },
     txo::TxoModel,
 };
@@ -176,7 +175,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
             .execute(conn)?;
 
         // Find and repair orphaned txos at this subaddress.
-        let orphaned_txos = Txo::list_by_status(&account_id_hex, &TXO_STATUS_ORPHANED, &conn)?;
+        let orphaned_txos = Txo::list_orphaned(&account_id_hex, &conn)?;
 
         for orphaned_txo in orphaned_txos.iter() {
             let tx_out_target_key: RistrettoPublic =

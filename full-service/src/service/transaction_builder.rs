@@ -110,7 +110,9 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let txos = Txo::select_by_id(&input_txo_ids.to_vec(), &self.wallet_db.get_conn()?)?;
         let unspent: Vec<Txo> = txos
             .iter()
-            .filter(|txo| txo.pending_tombstone_block_index == None && txo.spent_block_index == None)
+            .filter(|txo| {
+                txo.pending_tombstone_block_index == None && txo.spent_block_index == None
+            })
             .map(|txo| txo.clone())
             .collect();
         if unspent.iter().map(|t| t.value as u128).sum::<u128>() > u64::MAX as u128 {

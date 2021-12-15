@@ -573,7 +573,7 @@ where
                 txos.iter()
                     .map(|t| {
                         (
-                            t.txo.txo_id_hex.clone(),
+                            t.txo_id_hex.clone(),
                             serde_json::to_value(Txo::from(t)).expect("Could not get json value"),
                         )
                     })
@@ -581,7 +581,7 @@ where
             );
 
             JsonCommandResponse::get_all_txos_for_address {
-                txo_ids: txos.iter().map(|t| t.txo.txo_id_hex.clone()).collect(),
+                txo_ids: txos.iter().map(|t| t.txo_id_hex.clone()).collect(),
                 txo_map,
             }
         }

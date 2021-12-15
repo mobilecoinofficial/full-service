@@ -85,7 +85,7 @@ pub trait TxoService {
     ) -> Result<TxProposal, TxoServiceError>;
 
     /// List the Txos for a given address for an account in the wallet.
-    fn get_all_txos_for_address(&self, address: &str) -> Result<Vec<TxoDetails>, TxoServiceError>;
+    fn get_all_txos_for_address(&self, address: &str) -> Result<Vec<Txo>, TxoServiceError>;
 }
 
 impl<T, FPR> TxoService for WalletService<T, FPR>
@@ -165,7 +165,7 @@ where
         })
     }
 
-    fn get_all_txos_for_address(&self, address: &str) -> Result<Vec<TxoDetails>, TxoServiceError> {
+    fn get_all_txos_for_address(&self, address: &str) -> Result<Vec<Txo>, TxoServiceError> {
         let conn = self.wallet_db.get_conn()?;
         conn.transaction(|| Ok(Txo::list_for_address(address, &conn)?))
     }

@@ -5,12 +5,8 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        account_txo_status::AccountTxoStatusModel,
         assigned_subaddress::AssignedSubaddressModel,
-        models::{
-            Account, AccountTxoStatus, AssignedSubaddress, Txo, TXO_STATUS_ORPHANED,
-            TXO_STATUS_PENDING, TXO_STATUS_SECRETED, TXO_STATUS_SPENT, TXO_STATUS_UNSPENT,
-        },
+        models::{Account, AssignedSubaddress, Txo},
         txo::TxoModel,
         WalletDbError,
     },
@@ -175,34 +171,28 @@ where
 
         let conn = self.wallet_db.get_conn()?;
         conn.transaction(|| {
-            let txos = Txo::list_for_address(&address.to_string(), &conn)?;
             let assigned_address = AssignedSubaddress::get(address, &conn)?;
 
-            let mut unspent: u128 = 0;
-            let mut pending: u128 = 0;
-            let mut spent: u128 = 0;
-            let mut secreted: u128 = 0;
-            let mut orphaned: u128 = 0;
+            let orphaned: u128 = 0;
 
-            for txo in txos {
-                let status = AccountTxoStatus::get(
-                    &assigned_address.account_id_hex,
-                    &txo.txo.txo_id_hex,
-                    &conn,
-                )?;
-                match status.txo_status.as_str() {
-                    TXO_STATUS_UNSPENT => unspent += txo.txo.value as u128,
-                    TXO_STATUS_PENDING => pending += txo.txo.value as u128,
-                    TXO_STATUS_SPENT => spent += txo.txo.value as u128,
-                    TXO_STATUS_SECRETED => secreted += txo.txo.value as u128,
-                    TXO_STATUS_ORPHANED => orphaned += txo.txo.value as u128,
-                    _ => {
-                        return Err(BalanceServiceError::UnexpectedAccountTxoStatus(
-                            status.txo_status,
-                        ))
-                    }
-                }
-            }
+            let unspent =
+                Txo::list_unspent(&assigned_address.account_id_hex, Some(address), &conn)?
+                    .iter()
+                    .map(|txo| (txo.value as u64) as u128)
+                    .sum::<u128>();
+            let pending =
+                Txo::list_pending(&assigned_address.account_id_hex, Some(address), &conn)?
+                    .iter()
+                    .map(|txo| (txo.value as u64) as u128)
+                    .sum::<u128>();
+            let spent = Txo::list_spent(&assigned_address.account_id_hex, Some(address), &conn)?
+                .iter()
+                .map(|txo| (txo.value as u64) as u128)
+                .sum::<u128>();
+            let secreted = Txo::list_secreted(&assigned_address.account_id_hex, &conn)?
+                .iter()
+                .map(|txo| (txo.value as u64) as u128)
+                .sum::<u128>();
 
             let account = Account::get(&AccountID(assigned_address.account_id_hex), &conn)?;
 
@@ -288,23 +278,23 @@ where
     ) -> Result<(u128, u128, u128, u128, u128), BalanceServiceError> {
         // Note: We need to cast to u64 first, because i64 could have wrapped, then to
         // u128
-        let unspent = Txo::list_by_status(account_id_hex, TXO_STATUS_UNSPENT, &conn)?
+        let unspent = Txo::list_unspent(account_id_hex, None, &conn)?
             .iter()
             .map(|t| (t.value as u64) as u128)
             .sum::<u128>();
-        let spent = Txo::list_by_status(account_id_hex, TXO_STATUS_SPENT, &conn)?
+        let spent = Txo::list_spent(account_id_hex, None, &conn)?
             .iter()
             .map(|t| (t.value as u64) as u128)
             .sum::<u128>();
-        let secreted = Txo::list_by_status(account_id_hex, TXO_STATUS_SECRETED, &conn)?
+        let secreted = Txo::list_secreted(account_id_hex, &conn)?
             .iter()
             .map(|t| (t.value as u64) as u128)
             .sum::<u128>();
-        let orphaned = Txo::list_by_status(account_id_hex, TXO_STATUS_ORPHANED, &conn)?
+        let orphaned = Txo::list_orphaned(account_id_hex, &conn)?
             .iter()
             .map(|t| (t.value as u64) as u128)
             .sum::<u128>();
-        let pending = Txo::list_by_status(account_id_hex, TXO_STATUS_PENDING, &conn)?
+        let pending = Txo::list_pending(account_id_hex, None, &conn)?
             .iter()
             .map(|t| (t.value as u64) as u128)
             .sum::<u128>();

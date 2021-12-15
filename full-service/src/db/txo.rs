@@ -146,19 +146,33 @@ pub trait TxoModel {
     fn list_for_address(
         assigned_subaddress_b58: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Vec<TxoDetails>, WalletDbError>;
+    ) -> Result<Vec<Txo>, WalletDbError>;
 
-    /// Get a Vec<Txo> for all txos in a given account with a given txo_status.
-    fn list_by_status(
+    fn list_unspent(
         account_id_hex: &str,
-        status: &str,
+        assigned_subaddress_b58: Option<&str>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
-    /// Get a Vec<Txo> for all txos in a given account with a given txo_type.
-    fn list_by_type(
+    fn list_spent(
         account_id_hex: &str,
-        txo_type: &str,
+        assigned_subaddress_b58: Option<&str>,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<Txo>, WalletDbError>;
+
+    fn list_secreted(
+        account_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<Txo>, WalletDbError>;
+
+    fn list_orphaned(
+        account_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<Txo>, WalletDbError>;
+
+    fn list_pending(
+        account_id_hex: &str,
+        assigned_subaddress_b58: Option<&str>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
@@ -443,77 +457,123 @@ impl TxoModel for Txo {
         } else {
             txos_query.load(conn)?
         };
-        
+
         Ok(txos)
     }
 
     fn list_for_address(
         assigned_subaddress_b58: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Vec<TxoDetails>, WalletDbError> {
-        use crate::db::schema::{account_txo_statuses, txos};
+    ) -> Result<Vec<Txo>, WalletDbError> {
+        use crate::db::schema::txos;
         let subaddress = AssignedSubaddress::get(&assigned_subaddress_b58, conn)?;
-
-        // Note: The Same Txo may be referenced in the account_txo_statuses multiple
-        // times due to its relationship with multiple accounts or serving
-        // multiple roles within payments (for example, change - minted,
-        // received, unspent, spent).
-        let results: Vec<Txo> = txos::table
-            .inner_join(
-                account_txo_statuses::table
-                    .on(txos::txo_id_hex.eq(account_txo_statuses::txo_id_hex)),
-            )
-            .select(txos::all_columns)
-            .filter(account_txo_statuses::account_id_hex.eq(subaddress.account_id_hex))
+        let results = txos::table
             .filter(txos::subaddress_index.eq(subaddress.subaddress_index))
-            .distinct()
+            .filter(txos::received_account_id_hex.eq(subaddress.account_id_hex))
             .load(conn)?;
-
-        let details: Result<Vec<TxoDetails>, WalletDbError> = results
-            .iter()
-            .map(|t| Txo::get(&t.txo_id_hex, &conn))
-            .collect();
-        details
-    }
-
-    fn list_by_status(
-        account_id_hex: &str,
-        status: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Vec<Txo>, WalletDbError> {
-        use crate::db::schema::{account_txo_statuses, txos};
-
-        let results: Vec<Txo> = txos::table
-            .inner_join(
-                account_txo_statuses::table.on(txos::txo_id_hex
-                    .eq(account_txo_statuses::txo_id_hex)
-                    .and(account_txo_statuses::account_id_hex.eq(account_id_hex))
-                    .and(account_txo_statuses::txo_status.eq(status))),
-            )
-            .select(txos::all_columns)
-            .load(conn)?;
-
         Ok(results)
     }
 
-    fn list_by_type(
+    fn list_unspent(
         account_id_hex: &str,
-        txo_type: &str,
+        assigned_subaddress_b58: Option<&str>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<Txo>, WalletDbError> {
-        use crate::db::schema::{account_txo_statuses, txos};
+        use crate::db::schema::txos;
 
-        let results: Vec<Txo> = txos::table
-            .inner_join(
-                account_txo_statuses::table.on(txos::txo_id_hex
-                    .eq(account_txo_statuses::txo_id_hex)
-                    .and(account_txo_statuses::account_id_hex.eq(account_id_hex))
-                    .and(account_txo_statuses::txo_type.eq(txo_type))),
-            )
-            .select(txos::all_columns)
+        let results = txos::table
+            .filter(txos::received_account_id_hex.eq(account_id_hex))
+            .filter(txos::subaddress_index.is_not_null())
+            .filter(txos::pending_tombstone_block_index.is_null())
+            .filter(txos::spent_block_index.is_null());
+
+        let txos: Vec<Txo> = if let Some(subaddress_b58) = assigned_subaddress_b58 {
+            let subaddress = AssignedSubaddress::get(&subaddress_b58, conn)?;
+            results
+                .filter(txos::subaddress_index.eq(subaddress.subaddress_index))
+                .load(conn)?
+        } else {
+            results.load(conn)?
+        };
+
+        Ok(txos)
+    }
+
+    fn list_spent(
+        account_id_hex: &str,
+        assigned_subaddress_b58: Option<&str>,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<Txo>, WalletDbError> {
+        use crate::db::schema::txos;
+
+        let results = txos::table
+            .filter(txos::received_account_id_hex.eq(account_id_hex))
+            .filter(txos::subaddress_index.is_not_null())
+            .filter(txos::pending_tombstone_block_index.is_null())
+            .filter(txos::spent_block_index.is_not_null());
+
+        let txos: Vec<Txo> = if let Some(subaddress_b58) = assigned_subaddress_b58 {
+            let subaddress = AssignedSubaddress::get(&subaddress_b58, conn)?;
+            results
+                .filter(txos::subaddress_index.eq(subaddress.subaddress_index))
+                .load(conn)?
+        } else {
+            results.load(conn)?
+        };
+
+        Ok(txos)
+    }
+
+    fn list_secreted(
+        account_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<Txo>, WalletDbError> {
+        use crate::db::schema::txos;
+
+        let txos: Vec<Txo> = txos::table
+            .filter(txos::received_account_id_hex.ne(account_id_hex))
             .load(conn)?;
 
-        Ok(results)
+        Ok(txos)
+    }
+
+    fn list_orphaned(
+        account_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<Txo>, WalletDbError> {
+        use crate::db::schema::txos;
+
+        let txos: Vec<Txo> = txos::table
+            .filter(txos::received_account_id_hex.eq(account_id_hex))
+            .filter(txos::subaddress_index.is_null())
+            .load(conn)?;
+
+        Ok(txos)
+    }
+
+    fn list_pending(
+        account_id_hex: &str,
+        assigned_subaddress_b58: Option<&str>,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<Txo>, WalletDbError> {
+        use crate::db::schema::txos;
+
+        let results = txos::table
+            .filter(txos::received_account_id_hex.eq(account_id_hex))
+            .filter(txos::subaddress_index.is_not_null())
+            .filter(txos::pending_tombstone_block_index.is_not_null())
+            .filter(txos::spent_block_index.is_null());
+
+        let txos: Vec<Txo> = if let Some(subaddress_b58) = assigned_subaddress_b58 {
+            let subaddress = AssignedSubaddress::get(&subaddress_b58, conn)?;
+            results
+                .filter(txos::subaddress_index.eq(subaddress.subaddress_index))
+                .load(conn)?
+        } else {
+            results.load(conn)?
+        };
+
+        Ok(txos)
     }
 
     fn get_new(
@@ -1633,9 +1693,8 @@ mod tests {
         let pubkeys: Vec<&CompressedRistrettoPublic> =
             src_txos.iter().map(|t| &t.public_key).collect();
 
-        let txos_and_status =
-            Txo::select_by_public_key(&pubkeys, &wallet_db.get_conn().unwrap())
-                .expect("Could not get txos by public keys");
+        let txos_and_status = Txo::select_by_public_key(&pubkeys, &wallet_db.get_conn().unwrap())
+            .expect("Could not get txos by public keys");
         assert_eq!(txos_and_status.len(), 10);
 
         let txos_and_status =

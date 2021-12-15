@@ -192,8 +192,7 @@ where
             let account_id = AccountID(assigned_address.account_id_hex);
             let account = Account::get(&account_id, &conn)?;
             // Get the transaction from the database, with status.
-            let txos =
-                Txo::select_by_public_key(&[&receiver_receipt.public_key], &conn)?;
+            let txos = Txo::select_by_public_key(&[&receiver_receipt.public_key], &conn)?;
 
             // Return if the Txo from the receipt is not in this wallet yet.
             if txos.is_empty() {
@@ -215,10 +214,7 @@ where
             let expected_value = match receiver_receipt.amount.get_value(&shared_secret) {
                 Ok((v, _blinding)) => v,
                 Err(AmountError::InconsistentCommitment) => {
-                    return Ok((
-                        ReceiptTransactionStatus::FailedAmountDecryption,
-                        Some(txo),
-                    ))
+                    return Ok((ReceiptTransactionStatus::FailedAmountDecryption, Some(txo)))
                 }
             };
             // Check that the value of the received Txo matches the expected value.

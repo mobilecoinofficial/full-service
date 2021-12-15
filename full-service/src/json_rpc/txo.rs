@@ -2,8 +2,7 @@
 
 //! API definition for the Txo object.
 
-use crate::db;
-use crate::db::txo::TxoDetails;
+use crate::{db, db::txo::TxoDetails};
 use serde_derive::{Deserialize, Serialize};
 
 /// An Txo in the wallet.
@@ -81,21 +80,15 @@ impl From<&db::models::Txo> for Txo {
             txo_id_hex: txo.txo_id_hex.clone(),
             value_pmob: (txo.value as u64).to_string(),
             recipient_address_id: None,
-            received_block_index: txo
-                .received_block_index
-                .map(|x| (x as u64).to_string()),
-            spent_block_index: txo
-                .spent_block_index
-                .map(|x| (x as u64).to_string()),
+            received_block_index: txo.received_block_index.map(|x| (x as u64).to_string()),
+            spent_block_index: txo.spent_block_index.map(|x| (x as u64).to_string()),
             is_spent_recovered: false,
             received_account_id: txo.received_account_id_hex.clone(),
             minted_account_id: txo.minted_account_id_hex.clone(),
             target_key: hex::encode(&txo.target_key),
             public_key: hex::encode(&txo.public_key),
             e_fog_hint: hex::encode(&txo.e_fog_hint),
-            subaddress_index: txo
-                .subaddress_index
-                .map(|s| (s as u64).to_string()),
+            subaddress_index: txo.subaddress_index.map(|s| (s as u64).to_string()),
             assigned_address: None,
             key_image: txo.key_image.as_ref().map(|k| hex::encode(&k)),
             confirmation: txo.confirmation.as_ref().map(hex::encode),
