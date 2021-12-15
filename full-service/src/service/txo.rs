@@ -72,7 +72,7 @@ pub trait TxoService {
     ) -> Result<Vec<Txo>, TxoServiceError>;
 
     /// Get a Txo from the wallet.
-    fn get_txo(&self, txo_id: &TxoID) -> Result<TxoDetails, TxoServiceError>;
+    fn get_txo(&self, txo_id: &TxoID) -> Result<Txo, TxoServiceError>;
 
     /// Split a Txo
     fn split_txo(
@@ -110,7 +110,7 @@ where
         })
     }
 
-    fn get_txo(&self, txo_id: &TxoID) -> Result<TxoDetails, TxoServiceError> {
+    fn get_txo(&self, txo_id: &TxoID) -> Result<Txo, TxoServiceError> {
         let conn = self.wallet_db.get_conn()?;
         conn.transaction(|| Ok(Txo::get(&txo_id.to_string(), &conn)?))
     }
@@ -128,14 +128,10 @@ where
         let conn = self.wallet_db.get_conn()?;
         conn.transaction(|| {
             let txo_details = Txo::get(&txo_id.to_string(), &conn)?;
-            let received_to_account_txo_status = match txo_details.received_to_account {
-                Some(account_status) => Ok(account_status),
-                None => Err(TxoNotSpendableByAnyAccount(txo_details.txo.txo_id_hex)),
-            }?;
 
-            let account_id_hex = match received_to_account_txo_status.txo_status.as_str() {
-                TXO_STATUS_UNSPENT => Ok(received_to_account_txo_status.account_id_hex),
-                _ => Err(TxoNotSpendable(received_to_account_txo_status.txo_status)),
+            let account_id_hex = match txo_details.received_account_id_hex {
+                Some(received_account_id_hex) => Ok(received_account_id_hex),
+                None => Err(TxoNotSpendableByAnyAccount(txo_details.txo_id_hex)),
             }?;
 
             let address_to_split_into: AssignedSubaddress =

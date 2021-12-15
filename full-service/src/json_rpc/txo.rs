@@ -191,7 +191,7 @@ mod tests {
 
         let txo_details = db::models::Txo::get(&txo_hex, &wallet_db.get_conn().unwrap())
             .expect("Could not get Txo");
-        assert_eq!(txo_details.txo.value as u64, 15_625_000 * MOB as u64);
+        assert_eq!(txo_details.value as u64, 15_625_000 * MOB as u64);
         let json_txo = Txo::from(&txo_details);
         assert_eq!(json_txo.value_pmob, "15625000000000000000");
     }

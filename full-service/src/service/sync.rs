@@ -606,7 +606,7 @@ mod tests {
         let expected_value: u64 = 15_625_000 * MOB as u64;
         for txo_id in subaddress_to_txo_ids[&0].clone() {
             let txo = Txo::get(&txo_id, &wallet_db.get_conn().unwrap()).expect("Could not get txo");
-            assert_eq!(txo.txo.value as u64, expected_value);
+            assert_eq!(txo.value as u64, expected_value);
         }
 
         // Now verify that the service gets the balance with the correct value

@@ -179,13 +179,8 @@ pub trait TxoModel {
     /// Get the details for a specific Txo.
     ///
     /// Returns:
-    /// * TxoDetails
+    /// * Txo
     fn get(
-        txo_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<TxoDetails, WalletDbError>;
-
-    fn get_new(
         txo_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Txo, WalletDbError>;
@@ -263,7 +258,7 @@ impl TxoModel for Txo {
         Account::get(&AccountID(account_id_hex.to_string()), &conn)?;
 
         let txo_id = TxoID::from(&txo);
-        match Txo::get_new(&txo_id.to_string(), conn) {
+        match Txo::get(&txo_id.to_string(), conn) {
             // If we already have this TXO for this account (e.g. from minting in a previous
             // transaction), we need to update it
             Ok(txo) => {
@@ -398,9 +393,9 @@ impl TxoModel for Txo {
 
         // Verify that we have a subaddress, otherwise this transaction will be
         // unspendable.
-        if received_subaddress_index.is_none() || received_key_image.is_none() {
-            return Err(WalletDbError::NullSubaddressOnReceived);
-        }
+        // if received_subaddress_index.is_none() || received_key_image.is_none() {
+        //     return Err(WalletDbError::NullSubaddressOnReceived);
+        // }
 
         let encoded_key_image = received_key_image.map(|k| mc_util_serial::encode(&k));
 
@@ -577,7 +572,7 @@ impl TxoModel for Txo {
         Ok(txos)
     }
 
-    fn get_new(
+    fn get(
         txo_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Txo, WalletDbError> {
@@ -597,93 +592,6 @@ impl TxoModel for Txo {
         };
 
         Ok(txo)
-    }
-
-    fn get(
-        txo_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<TxoDetails, WalletDbError> {
-        use crate::db::schema::txos::dsl::{txo_id_hex as dsl_txo_id_hex, txos};
-
-        let txo: Txo = match txos
-            .filter(dsl_txo_id_hex.eq(txo_id_hex))
-            .get_result::<Txo>(conn)
-        {
-            Ok(t) => t,
-            // Match on NotFound to get a more informative NotFound Error
-            Err(diesel::result::Error::NotFound) => {
-                return Err(WalletDbError::TxoNotFound(txo_id_hex.to_string()));
-            }
-            Err(e) => {
-                return Err(e.into());
-            }
-        };
-
-        // Get all the accounts associated with this Txo
-        let account_txo_statuses =
-            AccountTxoStatus::get_all_associated_accounts(txo_id_hex, &conn)?;
-
-        if account_txo_statuses.len() > 2 {
-            return Err(WalletDbError::TxoAssociatedWithTooManyAccounts(format!(
-                "({}: {:?})",
-                txo_id_hex, account_txo_statuses
-            )));
-        }
-        let mut txo_details = TxoDetails {
-            txo: txo.clone(),
-            received_to_account: None,
-            received_to_assigned_subaddress: None,
-            minted_from_account: None,
-        };
-
-        for account_txo_status in account_txo_statuses {
-            match account_txo_status.txo_type.as_str() {
-                TXO_TYPE_MINTED => {
-                    txo_details.minted_from_account = Some(account_txo_status.clone());
-                    // Note: Minted & Unspent/Pending/Spent means that this Txo was also
-                    // received, and is either change, or a Txo that we sent to ourselves.
-                    match account_txo_status.txo_status.as_str() {
-                        TXO_STATUS_SECRETED => {}
-                        // TXO_UNSPENT, TXO_PENDING, TXO_SPENT, TXO_ORPHANED
-                        _ => txo_details.received_to_account = Some(account_txo_status.clone()),
-                    }
-                }
-                TXO_TYPE_RECEIVED => {
-                    txo_details.received_to_account = Some(account_txo_status.clone());
-                }
-                _ => {
-                    return Err(WalletDbError::UnexpectedTransactionTxoType(
-                        account_txo_status.txo_type,
-                    ));
-                }
-            }
-
-            // Get the subaddress details if assigned
-            let assigned_subaddress: Option<AssignedSubaddress> =
-                if let Some(subaddress_index) = txo.subaddress_index {
-                    if let Ok(account) =
-                        Account::get(&AccountID(account_txo_status.account_id_hex), conn)
-                    {
-                        let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
-                        let subaddress = account_key.subaddress(subaddress_index as u64);
-                        let subaddress_b58 = b58_encode_public_address(&subaddress)?;
-                        match AssignedSubaddress::get(&subaddress_b58, conn) {
-                            Ok(a) => Some(a),
-                            Err(WalletDbError::AssignedSubaddressNotFound(_s)) => None,
-                            Err(e) => {
-                                return Err(e);
-                            }
-                        }
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                };
-            txo_details.received_to_assigned_subaddress = assigned_subaddress;
-        }
-
-        Ok(txo_details)
     }
 
     fn select_by_public_key(
@@ -852,7 +760,7 @@ impl TxoModel for Txo {
         confirmation: &TxOutConfirmationNumber,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError> {
-        let txo = Txo::get_new(txo_id_hex, conn)?;
+        let txo = Txo::get(txo_id_hex, conn)?;
         let public_key: RistrettoPublic = mc_util_serial::decode(&txo.public_key)?;
         let account = Account::get(account_id, conn)?;
         let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
@@ -1467,13 +1375,13 @@ mod tests {
             );
 
         assert_eq!(output_value, 1 * MOB);
-        let minted_txo = Txo::get_new(&output_txo_id, &wallet_db.get_conn().unwrap()).unwrap();
+        let minted_txo = Txo::get(&output_txo_id, &wallet_db.get_conn().unwrap()).unwrap();
         assert_eq!(minted_txo.value, output_value);
         assert!(minted_txo.minted_account_id_hex.is_some());
         assert!(minted_txo.received_account_id_hex.is_none());
 
         assert_eq!(change_value, 4999 * MOB - MINIMUM_FEE as i64);
-        let change_txo = Txo::get_new(&change_txo_id, &wallet_db.get_conn().unwrap()).unwrap();
+        let change_txo = Txo::get(&change_txo_id, &wallet_db.get_conn().unwrap()).unwrap();
         assert_eq!(change_txo.value, change_value);
         assert!(change_txo.minted_account_id_hex.is_some());
         assert!(change_txo.received_account_id_hex.is_none()); // Note: This gets updated on sync
@@ -1604,7 +1512,7 @@ mod tests {
         let sent_outputs = associated.outputs;
         assert_eq!(sent_outputs.len(), 1);
         let sent_txo_details =
-            Txo::get_new(&sent_outputs[0].txo_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
+            Txo::get(&sent_outputs[0].txo_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
 
         // These two txos should actually be the same txo, and the account_txo_status is
         // what differentiates them.
