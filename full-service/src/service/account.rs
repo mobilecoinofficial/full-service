@@ -297,7 +297,7 @@ where
 mod tests {
     use super::*;
     use crate::{
-        db::{txo::TxoModel, models::Txo},
+        db::{models::Txo, txo::TxoModel},
         test_utils::{create_test_received_txo, get_test_ledger, setup_wallet_service, MOB},
     };
     use mc_account_keys::{AccountKey, PublicAddress};
@@ -329,7 +329,13 @@ mod tests {
             &wallet_db,
         );
 
-        let txos = Txo::list_for_account(&account.account_id_hex, None, None, &wallet_db.get_conn().unwrap()).unwrap();
+        let txos = Txo::list_for_account(
+            &account.account_id_hex,
+            None,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
         assert_eq!(txos.len(), 1);
 
         // Delete the account. The transaction status referring to it is also cleared.
@@ -337,7 +343,13 @@ mod tests {
         let result = service.remove_account(&account_id);
         assert!(result.is_ok());
 
-        let txos = Txo::list_for_account(&account.account_id_hex, None, None, &wallet_db.get_conn().unwrap()).unwrap();
+        let txos = Txo::list_for_account(
+            &account.account_id_hex,
+            None,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
         assert_eq!(txos.len(), 0);
     }
 }

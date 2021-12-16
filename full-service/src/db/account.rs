@@ -4,7 +4,7 @@
 
 use crate::db::{
     assigned_subaddress::AssignedSubaddressModel,
-    models::{Account, AssignedSubaddress, NewAccount, TransactionLog, Txo, TXO_STATUS_SPENT},
+    models::{Account, AssignedSubaddress, NewAccount, TransactionLog, Txo},
     transaction_log::TransactionLogModel,
     txo::TxoModel,
     WalletDbError,
@@ -419,7 +419,6 @@ impl AccountModel for Account {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::{
-            account_txo_statuses::dsl::account_txo_statuses,
             accounts::dsl::{account_id_hex, accounts},
             txos::dsl::{txo_id_hex, txos},
         };
@@ -449,16 +448,6 @@ impl AccountModel for Account {
                             .eq::<Option<i64>>(None),
                     ))
                     .execute(conn)?;
-
-                // Update the AccountTxoStatus
-                diesel::update(
-                    account_txo_statuses.find((&self.account_id_hex, &matches[0].txo_id_hex)),
-                )
-                .set(
-                    crate::db::schema::account_txo_statuses::txo_status
-                        .eq(TXO_STATUS_SPENT.to_string()),
-                )
-                .execute(conn)?;
 
                 // FIXME: WS-13 - make sure the path for all txo_statuses and txo_types exist
                 // and are tested Update the transaction status if the txos

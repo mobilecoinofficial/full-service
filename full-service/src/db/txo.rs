@@ -640,13 +640,13 @@ impl TxoModel for Txo {
     ) -> Result<bool, WalletDbError> {
         use crate::db::schema::txos;
 
-        let txos: i64 = txos::table
+        let spent_txos_count: i64 = txos::table
             .filter(txos::txo_id_hex.eq_any(txo_ids))
-            .filter(txos::spent_block_index.ne::<Option<i64>>(None))
+            .filter(txos::spent_block_index.is_not_null())
             .select(diesel::dsl::count(txos::txo_id_hex))
             .first(conn)?;
 
-        Ok(txos == txo_ids.len() as i64)
+        Ok(spent_txos_count == txo_ids.len() as i64)
     }
 
     fn any_failed(
