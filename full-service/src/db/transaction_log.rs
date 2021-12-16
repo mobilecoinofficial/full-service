@@ -657,7 +657,7 @@ impl TransactionLogModel for TransactionLog {
 // txo_id_hex);
 
 //                 let txo_details = Txo::get(txo_id_hex,
-// &wallet_db.get_conn().unwrap()).unwrap();                 
+// &wallet_db.get_conn().unwrap()).unwrap();
 // assert_eq!(transaction_logs[0].value, txo_details.txo.value);
 
 //                 // Make the sure the types are correct - all received should
@@ -1329,9 +1329,9 @@ impl TransactionLogModel for TransactionLog {
 //                 mc_util_serial::decode(&output_details.txo.txo).unwrap(),
 //             ],
 //             &[
-//                 
+//
 // mc_util_serial::decode(&input_details0.txo.key_image.unwrap()).unwrap(),
-//                 
+//
 // mc_util_serial::decode(&input_details1.txo.key_image.unwrap()).unwrap(),
 //             ],
 //         );

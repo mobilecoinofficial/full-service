@@ -2,7 +2,7 @@
 
 //! API definition for the Txo object.
 
-use crate::{db, db::txo::TxoDetails};
+use crate::db;
 use serde_derive::{Deserialize, Serialize};
 
 /// An Txo in the wallet.
@@ -92,54 +92,6 @@ impl From<&db::models::Txo> for Txo {
             assigned_address: None,
             key_image: txo.key_image.as_ref().map(|k| hex::encode(&k)),
             confirmation: txo.confirmation.as_ref().map(hex::encode),
-        }
-    }
-}
-
-impl From<&TxoDetails> for Txo {
-    fn from(txo_details: &TxoDetails) -> Txo {
-        let recipient_address_id = txo_details.txo.recipient_public_address_b58.clone();
-
-        Txo {
-            object: "txo".to_string(),
-            txo_id_hex: txo_details.txo.txo_id_hex.clone(),
-            value_pmob: (txo_details.txo.value as u64).to_string(),
-            recipient_address_id: if recipient_address_id.is_empty() {
-                None
-            } else {
-                Some(recipient_address_id)
-            },
-            received_block_index: txo_details
-                .txo
-                .received_block_index
-                .map(|x| (x as u64).to_string()),
-            spent_block_index: txo_details
-                .txo
-                .spent_block_index
-                .map(|x| (x as u64).to_string()),
-            is_spent_recovered: false,
-            received_account_id: txo_details
-                .received_to_account
-                .as_ref()
-                .map(|a| a.account_id_hex.clone()),
-            minted_account_id: txo_details
-                .clone()
-                .minted_from_account
-                .as_ref()
-                .map(|a| a.account_id_hex.clone()),
-            target_key: hex::encode(&txo_details.txo.target_key),
-            public_key: hex::encode(&txo_details.txo.public_key),
-            e_fog_hint: hex::encode(&txo_details.txo.e_fog_hint),
-            subaddress_index: txo_details
-                .txo
-                .subaddress_index
-                .map(|s| (s as u64).to_string()),
-            assigned_address: txo_details
-                .received_to_assigned_subaddress
-                .clone()
-                .map(|a| a.assigned_subaddress_b58),
-            key_image: txo_details.txo.key_image.as_ref().map(|k| hex::encode(&k)),
-            confirmation: txo_details.txo.confirmation.as_ref().map(hex::encode),
         }
     }
 }

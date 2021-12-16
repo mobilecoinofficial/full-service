@@ -23,9 +23,7 @@ use crate::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
         models::{
-            Account, AccountTxoStatus, AssignedSubaddress, NewTxo, Txo,
-            TXO_STATUS_SPENT,
-            TXO_USED_AS_CHANGE, TXO_USED_AS_OUTPUT,
+            Account, AssignedSubaddress, NewTxo, Txo, TXO_USED_AS_CHANGE, TXO_USED_AS_OUTPUT,
         },
         WalletDbError,
     },
@@ -47,18 +45,6 @@ impl fmt::Display for TxoID {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0)
     }
-}
-
-#[derive(Debug, Clone)]
-pub struct TxoDetails {
-    // The TXO whose details we are storing
-    pub txo: Txo,
-    // The Account and Status at which this Txo was Received
-    pub received_to_account: Option<AccountTxoStatus>,
-    // The subaddress at which this TXO was received
-    pub received_to_assigned_subaddress: Option<AssignedSubaddress>,
-    // The Account and Status from which this TXO was minted
-    pub minted_from_account: Option<AccountTxoStatus>,
 }
 
 #[derive(Debug, Clone)]
@@ -647,17 +633,23 @@ impl TxoModel for Txo {
         txo_ids: &[String],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError> {
-        use crate::db::schema::{account_txo_statuses, txos};
+        use crate::db::schema::txos;
 
         let txos: i64 = txos::table
-            .inner_join(
-                account_txo_statuses::table.on(txos::txo_id_hex
-                    .eq(account_txo_statuses::txo_id_hex)
-                    .and(txos::txo_id_hex.eq_any(txo_ids))
-                    .and(account_txo_statuses::txo_status.eq(TXO_STATUS_SPENT))),
-            )
+            .filter(txos::txo_id_hex.eq_any(txo_ids))
+            .filter(txos::spent_block_index.ne::<Option<i64>>(None))
             .select(diesel::dsl::count(txos::txo_id_hex))
             .first(conn)?;
+
+        // let txos: i64 = txos::table
+        //     .inner_join(
+        //         account_txo_statuses::table.on(txos::txo_id_hex
+        //             .eq(account_txo_statuses::txo_id_hex)
+        //             .and(txos::txo_id_hex.eq_any(txo_ids))
+        //             .and(account_txo_statuses::txo_status.eq(TXO_STATUS_SPENT))),
+        //     )
+        //     .select(diesel::dsl::count(txos::txo_id_hex))
+        //     .first(conn)?;
 
         Ok(txos == txo_ids.len() as i64)
     }

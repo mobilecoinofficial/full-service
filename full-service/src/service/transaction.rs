@@ -342,11 +342,7 @@ where
 mod tests {
     use super::*;
     use crate::{
-        db::{
-            account::AccountID,
-            models::Txo,
-            txo::TxoModel,
-        },
+        db::{account::AccountID, models::Txo, txo::TxoModel},
         service::{
             account::AccountService, address::AddressService, balance::BalanceService,
             transaction_log::TransactionLogService,
