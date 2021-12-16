@@ -259,15 +259,22 @@ mod tests {
             .list_txos(&AccountID(alice.account_id_hex.clone()), None, None)
             .unwrap();
         assert_eq!(txos.len(), 3);
-        assert_eq!(txos[0].received_account_id_hex, Some(alice.account_id_hex.clone()));
-        assert_eq!(txos[1].minted_account_id_hex, Some(alice.account_id_hex.clone()));
-        assert_eq!(txos[2].minted_account_id_hex, Some(alice.account_id_hex.clone()));
+        assert_eq!(
+            txos[0].received_account_id_hex,
+            Some(alice.account_id_hex.clone())
+        );
+        assert_eq!(
+            txos[1].minted_account_id_hex,
+            Some(alice.account_id_hex.clone())
+        );
+        assert_eq!(
+            txos[2].minted_account_id_hex,
+            Some(alice.account_id_hex.clone())
+        );
         let pending: Vec<Txo> = txos
             .iter()
             .cloned()
-            .filter(|txo| {
-                txo.received_account_id_hex == Some(alice.account_id_hex.clone())
-            })
+            .filter(|txo| txo.received_account_id_hex == Some(alice.account_id_hex.clone()))
             .collect();
         assert_eq!(pending.len(), 1);
         assert_eq!(pending[0].value, 100000000000000);

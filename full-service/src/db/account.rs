@@ -449,7 +449,11 @@ impl AccountModel for Account {
             } else {
                 // Update the TXO
                 diesel::update(txos.filter(txo_id_hex.eq(&matches[0].txo_id_hex)))
-                    .set(crate::db::schema::txos::spent_block_index.eq(Some(spent_block_index)))
+                    .set((
+                        crate::db::schema::txos::spent_block_index.eq(Some(spent_block_index)),
+                        crate::db::schema::txos::pending_tombstone_block_index
+                            .eq::<Option<i64>>(None),
+                    ))
                     .execute(conn)?;
 
                 // Update the AccountTxoStatus

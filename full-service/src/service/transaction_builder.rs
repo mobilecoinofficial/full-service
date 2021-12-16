@@ -666,7 +666,8 @@ mod tests {
             None,
             None,
             &wallet_db.get_conn().unwrap(),
-        ).unwrap();
+        )
+        .unwrap();
 
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);

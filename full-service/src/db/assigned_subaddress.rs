@@ -6,9 +6,7 @@
 use crate::db::{
     account::{AccountID, AccountModel},
     account_txo_status::AccountTxoStatusModel,
-    models::{
-        Account, AccountTxoStatus, AssignedSubaddress, NewAssignedSubaddress, Txo,
-    },
+    models::{Account, AccountTxoStatus, AssignedSubaddress, NewAssignedSubaddress, Txo},
     txo::TxoModel,
 };
 
@@ -20,7 +18,7 @@ use mc_transaction_core::{
 };
 
 use mc_account_keys::AccountKey;
-use mc_crypto_keys::RistrettoPublic;
+use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
 use mc_ledger_db::{Ledger, LedgerDB};
 
 use crate::db::WalletDbError;
@@ -182,6 +180,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
                 mc_util_serial::decode(&orphaned_txo.target_key).unwrap();
             let tx_public_key: RistrettoPublic =
                 mc_util_serial::decode(&orphaned_txo.public_key).unwrap();
+            let txo_public_key = CompressedRistrettoPublic::from(tx_public_key);
 
             let txo_subaddress_spk: RistrettoPublic = recover_public_subaddress_spend_key(
                 &account_view_key.view_private_key,
@@ -190,11 +189,6 @@ impl AssignedSubaddressModel for AssignedSubaddress {
             );
 
             if txo_subaddress_spk == *subaddress.spend_public_key() {
-                // Get the current account status mapping.
-                let account_txo_status =
-                    AccountTxoStatus::get(&account_id_hex, &orphaned_txo.txo_id_hex, &conn)
-                        .unwrap();
-
                 let onetime_private_key = recover_onetime_private_key(
                     &tx_public_key,
                     account_key.view_private_key(),
@@ -204,9 +198,13 @@ impl AssignedSubaddressModel for AssignedSubaddress {
                 let key_image = KeyImage::from(&onetime_private_key);
 
                 if ledger_db.contains_key_image(&key_image)? {
-                    account_txo_status.set_spent(&conn)?;
-                } else {
-                    account_txo_status.set_unspent(&conn)?;
+                    let txo_index = ledger_db.get_tx_out_index_by_public_key(&txo_public_key)?;
+                    let block_index = ledger_db.get_block_index_by_tx_out_index(txo_index)?;
+                    diesel::update(orphaned_txo)
+                        .set(
+                            crate::db::schema::txos::spent_block_index.eq(Some(block_index as i64)),
+                        )
+                        .execute(conn)?;
                 }
 
                 let key_image_bytes = mc_util_serial::encode(&key_image);
