@@ -20,7 +20,7 @@ use std::fmt;
 
 use crate::{
     db::{
-        account::{AccountID, AccountModel},
+        account::{AccountID, AccountModel, DEFAULT_CHANGE_SUBADDRESS_INDEX},
         assigned_subaddress::AssignedSubaddressModel,
         models::{
             Account, AssignedSubaddress, NewTxo, Txo, TXO_USED_AS_CHANGE, TXO_USED_AS_OUTPUT,
@@ -238,6 +238,20 @@ pub trait TxoModel {
     fn delete_unreferenced(
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
+
+    fn is_change(&self) -> bool;
+
+    fn is_minted(&self) -> bool;
+
+    fn is_received(&self) -> bool;
+
+    fn is_unspent(&self) -> bool;
+
+    fn is_pending(&self) -> bool;
+
+    fn is_spent(&self) -> bool;
+
+    fn is_orphaned(&self) -> bool;
 }
 
 impl TxoModel for Txo {
@@ -801,6 +815,35 @@ impl TxoModel for Txo {
         diesel::delete(unreferenced_txos).execute(conn)?;
 
         Ok(())
+    }
+
+    fn is_change(&self) -> bool {
+        self.minted_account_id_hex == self.received_account_id_hex
+            && self.subaddress_index == Some(DEFAULT_CHANGE_SUBADDRESS_INDEX as i64)
+    }
+
+    fn is_minted(&self) -> bool {
+        self.minted_account_id_hex.is_some()
+    }
+
+    fn is_received(&self) -> bool {
+        self.received_account_id_hex.is_some()
+    }
+
+    fn is_unspent(&self) -> bool {
+        !self.is_pending() && !self.is_spent() && !self.is_orphaned()
+    }
+
+    fn is_pending(&self) -> bool {
+        self.pending_tombstone_block_index.is_some()
+    }
+
+    fn is_spent(&self) -> bool {
+        self.spent_block_index.is_some()
+    }
+
+    fn is_orphaned(&self) -> bool {
+        self.subaddress_index.is_none() && self.is_received()
     }
 }
 
