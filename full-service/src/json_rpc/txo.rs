@@ -4,7 +4,13 @@
 
 use crate::{
     db,
-    db::models::{TXO_STATUS_SECRETED, TXO_STATUS_UNSPENT, TXO_TYPE_MINTED, TXO_TYPE_RECEIVED},
+    db::{
+        models::{
+            TXO_STATUS_ORPHANED, TXO_STATUS_PENDING, TXO_STATUS_SECRETED, TXO_STATUS_SPENT,
+            TXO_STATUS_UNSPENT, TXO_TYPE_MINTED, TXO_TYPE_RECEIVED,
+        },
+        txo::TxoModel,
+    },
 };
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Map;
@@ -101,16 +107,38 @@ impl From<&db::models::Txo> for Txo {
         let mut account_status_map: Map<String, serde_json::Value> = Map::new();
 
         if let Some(received_account_id_hex) = &txo.received_account_id_hex {
+            let txo_status = if txo.is_spent() {
+                TXO_STATUS_SPENT
+            } else if txo.is_pending() {
+                TXO_STATUS_PENDING
+            } else if txo.is_orphaned() {
+                TXO_STATUS_ORPHANED
+            } else {
+                TXO_STATUS_UNSPENT
+            };
+
             account_status_map.insert(
                 received_account_id_hex.to_string(),
-                json!({"txo_type": TXO_TYPE_RECEIVED, "txo_status": TXO_STATUS_UNSPENT}).into(),
+                json!({"txo_type": TXO_TYPE_RECEIVED, "txo_status": txo_status}).into(),
             );
         }
 
         if let Some(minted_account_id_hex) = &txo.minted_account_id_hex {
+            let txo_status = if Some(minted_account_id_hex.clone()) != txo.received_account_id_hex {
+                TXO_STATUS_SECRETED
+            } else if txo.is_spent() {
+                TXO_STATUS_SPENT
+            } else if txo.is_pending() {
+                TXO_STATUS_PENDING
+            } else if txo.is_orphaned() {
+                TXO_STATUS_ORPHANED
+            } else {
+                TXO_STATUS_UNSPENT
+            };
+
             account_status_map.insert(
                 minted_account_id_hex.to_string(),
-                json!({"txo_type": TXO_TYPE_MINTED, "txo_status": TXO_STATUS_SECRETED}).into(),
+                json!({"txo_type": TXO_TYPE_MINTED, "txo_status": txo_status}).into(),
             );
         }
 
