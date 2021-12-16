@@ -6,8 +6,8 @@ use crate::{
     db::{
         account::AccountID,
         assigned_subaddress::AssignedSubaddressModel,
-        models::{AssignedSubaddress, Txo, TXO_STATUS_UNSPENT},
-        txo::{TxoDetails, TxoID, TxoModel},
+        models::{AssignedSubaddress, Txo},
+        txo::{TxoID, TxoModel},
         WalletDbError,
     },
     service::transaction::{TransactionService, TransactionServiceError},
@@ -123,7 +123,7 @@ where
         fee: Option<String>,
         tombstone_block: Option<String>,
     ) -> Result<TxProposal, TxoServiceError> {
-        use crate::service::txo::TxoServiceError::{TxoNotSpendable, TxoNotSpendableByAnyAccount};
+        use crate::service::txo::TxoServiceError::TxoNotSpendableByAnyAccount;
 
         let conn = self.wallet_db.get_conn()?;
         conn.transaction(|| {

@@ -21,12 +21,11 @@ use std::fmt;
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        account_txo_status::AccountTxoStatusModel,
         assigned_subaddress::AssignedSubaddressModel,
         models::{
-            Account, AccountTxoStatus, AssignedSubaddress, NewTxo, Txo, TXO_STATUS_PENDING,
-            TXO_STATUS_SECRETED, TXO_STATUS_SPENT, TXO_STATUS_UNSPENT, TXO_TYPE_MINTED,
-            TXO_TYPE_RECEIVED, TXO_USED_AS_CHANGE, TXO_USED_AS_OUTPUT,
+            Account, AccountTxoStatus, AssignedSubaddress, NewTxo, Txo,
+            TXO_STATUS_SPENT,
+            TXO_USED_AS_CHANGE, TXO_USED_AS_OUTPUT,
         },
         WalletDbError,
     },
@@ -668,20 +667,11 @@ impl TxoModel for Txo {
         block_index: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError> {
-        use crate::db::schema::{account_txo_statuses, txos};
+        use crate::db::schema::txos;
 
         let txos: Vec<Txo> = txos::table
-            .inner_join(
-                account_txo_statuses::table.on(txos::txo_id_hex
-                    .eq(account_txo_statuses::txo_id_hex)
-                    .and(txos::txo_id_hex.eq_any(txo_ids))
-                    .and(
-                        account_txo_statuses::txo_status
-                            .eq_any(vec![TXO_STATUS_UNSPENT, TXO_STATUS_PENDING]),
-                    )
-                    .and(txos::pending_tombstone_block_index.lt(Some(block_index)))),
-            )
-            .select(txos::all_columns)
+            .filter(txos::txo_id_hex.eq_any(txo_ids))
+            .filter(txos::pending_tombstone_block_index.lt(Some(block_index)))
             .load(conn)?;
 
         // Report true if any txos have expired
@@ -939,6 +929,8 @@ mod tests {
             received_account_id_hex: Some(alice_account_id.to_string()),
         };
 
+        assert_eq!(expected_txo, txos[0]);
+
         // Verify that the status filter works as well
         let unspent = Txo::list_unspent(
             &alice_account_id.to_string(),
@@ -1083,15 +1075,6 @@ mod tests {
         )
         .unwrap();
         assert_eq!(minted.len(), 2);
-
-        // The type should still be "minted"
-        // let minted = Txo::list_by_type(
-        //     &alice_account_id.to_string(),
-        //     TXO_TYPE_MINTED,
-        //     &wallet_db.get_conn().unwrap(),
-        // )
-        // .unwrap();
-        // assert_eq!(minted.len(), 2);
 
         let updated_txos = Txo::list_for_account(
             &alice_account_id.to_string(),
@@ -1553,7 +1536,7 @@ mod tests {
 
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
-        let (account_id, _address) = Account::create_from_root_entropy(
+        let (_account_id, _address) = Account::create_from_root_entropy(
             &root_id.root_entropy,
             Some(0),
             None,

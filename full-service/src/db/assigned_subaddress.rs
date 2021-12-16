@@ -5,8 +5,7 @@
 
 use crate::db::{
     account::{AccountID, AccountModel},
-    account_txo_status::AccountTxoStatusModel,
-    models::{Account, AccountTxoStatus, AssignedSubaddress, NewAssignedSubaddress, Txo},
+    models::{Account, AssignedSubaddress, NewAssignedSubaddress, Txo},
     txo::TxoModel,
 };
 

@@ -345,7 +345,7 @@ mod tests {
         db::{
             account::AccountID,
             models::Txo,
-            txo::{TxoDetails, TxoModel},
+            txo::TxoModel,
         },
         service::{
             account::AccountService, address::AddressService, balance::BalanceService,
