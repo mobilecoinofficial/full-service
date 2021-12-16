@@ -795,8 +795,8 @@ impl TxoModel for Txo {
         use crate::db::schema::txos;
 
         let unreferenced_txos = txos::table
-            .filter(txos::minted_account_id_hex.eq::<Option<String>>(None))
-            .filter(txos::received_account_id_hex.eq::<Option<String>>(None));
+            .filter(txos::minted_account_id_hex.is_null())
+            .filter(txos::received_account_id_hex.is_null());
 
         diesel::delete(unreferenced_txos).execute(conn)?;
 
@@ -1625,19 +1625,6 @@ mod tests {
         )
         .unwrap();
         assert_eq!(txos.len(), 0);
-
-        // let unreferenced_txos_count = txos::table
-        //     .filter(txos::minted_account_id_hex.eq::<Option<String>>(None))
-        //     .filter(txos::received_account_id_hex.eq::<Option<String>>(None));
-
-        // let referenced_txos_count = txos::table
-        //     .filter(txos::minted_account_id_hex.ne::<Option<String>>(None))
-        //     .or_filter(txos::received_account_id_hex.ne::<Option<String>>(None));
-
-        // let all_txos_count = txos::table
-        //     .select(count(txos::txo_id_hex))
-        //     .first::<i64>(&wallet_db.get_conn().unwrap())
-        //     .unwrap();
 
         assert_eq!(
             txos::table
