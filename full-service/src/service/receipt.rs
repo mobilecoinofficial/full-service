@@ -201,7 +201,7 @@ where
             let txo = txos[0].clone();
 
             // Return if the Txo from the receipt has a pending tombstone block index
-            if let Some(_) = txo.pending_tombstone_block_index {
+            if txo.pending_tombstone_block_index.is_some() {
                 return Ok((ReceiptTransactionStatus::TransactionPending, Some(txo)));
             }
 
@@ -235,7 +235,7 @@ where
                 mc_util_serial::decode(&hex::decode(confirmation_hex)?)?;
             if !Txo::validate_confirmation(
                 &account_id,
-                &txo.txo_id_hex.clone(),
+                &txo.txo_id_hex,
                 &confirmation,
                 &conn,
             )? {

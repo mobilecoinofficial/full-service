@@ -113,7 +113,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             .filter(|txo| {
                 txo.pending_tombstone_block_index == None && txo.spent_block_index == None
             })
-            .map(|txo| txo.clone())
+            .cloned()
             .collect();
         if unspent.iter().map(|t| t.value as u128).sum::<u128>() > u64::MAX as u128 {
             return Err(WalletTransactionBuilderError::OutboundValueTooLarge);
