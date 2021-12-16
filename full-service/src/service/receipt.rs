@@ -189,7 +189,7 @@ where
         let conn = &self.wallet_db.get_conn()?;
         conn.transaction(|| {
             let assigned_address = AssignedSubaddress::get(address, &conn)?;
-            let account_id = AccountID(assigned_address.account_id_hex);
+            let account_id = AccountID(assigned_address.account_id_hex.clone());
             let account = Account::get(&account_id, &conn)?;
             // Get the transaction from the database, with status.
             let txos = Txo::select_by_public_key(&[&receiver_receipt.public_key], &conn)?;
@@ -202,6 +202,15 @@ where
 
             // Return if the Txo from the receipt has a pending tombstone block index
             if txo.pending_tombstone_block_index.is_some() {
+                return Ok((ReceiptTransactionStatus::TransactionPending, Some(txo)));
+            }
+
+            // We are reproducing a bug with this logic and it is not how the
+            // feature is intended to work
+            // TODO - remove this and it will work as expected
+            if txo.minted_account_id_hex == Some(assigned_address.account_id_hex.clone())
+                && txo.received_account_id_hex != Some(assigned_address.account_id_hex)
+            {
                 return Ok((ReceiptTransactionStatus::TransactionPending, Some(txo)));
             }
 
@@ -233,12 +242,7 @@ where
                 hex::encode(mc_util_serial::encode(&receiver_receipt.confirmation));
             let confirmation: TxOutConfirmationNumber =
                 mc_util_serial::decode(&hex::decode(confirmation_hex)?)?;
-            if !Txo::validate_confirmation(
-                &account_id,
-                &txo.txo_id_hex,
-                &confirmation,
-                &conn,
-            )? {
+            if !Txo::validate_confirmation(&account_id, &txo.txo_id_hex, &confirmation, &conn)? {
                 return Ok((ReceiptTransactionStatus::InvalidConfirmation, Some(txo)));
             }
 
@@ -574,6 +578,8 @@ mod tests {
             .check_receipt_status(&alice_address, &receipt)
             .expect("Could not check status of receipt");
         assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
+
+        // assert_eq!(status, ReceiptTransactionStatus::FailedAmountDecryption);
     }
 
     #[test_with_logger]
@@ -684,14 +690,16 @@ mod tests {
             )
         );
 
-        // Status for Alice would be pending, because she never received (and never will
-        // receive) the Txos.
+        // Status for Alice would be pending, because she never received (and
+        // never will receive) the Txos.
         let alice_address = &b58_encode_public_address(&alice_public_address)
             .expect("Could not encode alice address");
         let (status, _txo) = service
             .check_receipt_status(&alice_address, &receipt0)
             .expect("Could not check status of receipt");
         assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
+
+        // assert_eq!(status, ReceiptTransactionStatus::FailedAmountDecryption);
     }
 
     #[test_with_logger]
@@ -783,13 +791,15 @@ mod tests {
             .expect("Could not check status of receipt");
         assert_eq!(status, ReceiptTransactionStatus::InvalidConfirmation);
 
-        // Checking for the sender will be pending because the Txos haven't landed for
-        // alice (and never will).
+        // Checking for the sender will be pending because the Txos haven't
+        // landed for alice (and never will).
         let alice_address = &b58_encode_public_address(&alice_public_address)
             .expect("Could not encode alice address");
         let (status, _txo) = service
             .check_receipt_status(&alice_address, &receipt)
             .expect("Could not check status of receipt");
         assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
+
+        // assert_eq!(status, ReceiptTransactionStatus::FailedAmountDecryption);
     }
 }
