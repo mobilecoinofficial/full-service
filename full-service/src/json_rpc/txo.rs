@@ -2,8 +2,12 @@
 
 //! API definition for the Txo object.
 
-use crate::db;
+use crate::{
+    db,
+    db::models::{TXO_STATUS_SECRETED, TXO_STATUS_UNSPENT, TXO_TYPE_MINTED, TXO_TYPE_RECEIVED},
+};
 use serde_derive::{Deserialize, Serialize};
+use serde_json::Map;
 
 /// An Txo in the wallet.
 ///
@@ -46,6 +50,25 @@ pub struct Txo {
     /// The account_id for the account which minted this Txo.
     pub minted_account_id: Option<String>,
 
+    /// A normalized hash mapping account_id to account objects. Keys include
+    /// "type" and "status".
+    ///
+    /// * `txo_type`: With respect to this account, the Txo may be
+    /// "minted" or "received".
+    ///
+    /// * `txo_status`: With respect to this account, the Txo may be "unspent",
+    ///   "pending", "spent", "secreted" or "orphaned". For received Txos
+    ///   received as an assigned address, the lifecycle is "unspent" ->
+    ///   "pending" -> "spent". For outbound, minted Txos, we cannot monitor its
+    ///   received lifecycle status with respect to the minting account, we note
+    ///   its status as "secreted". If a Txo is received at an address
+    ///   unassigned (likely due to a recovered account or using the account on
+    ///   another client), the Txo is considered "orphaned" until its address is
+    ///   calculated -- in this case, there are manual ways to discover the
+    ///   missing assigned address for orphaned Txos or to recover an entire
+    ///   account.
+    pub account_status_map: Map<String, serde_json::Value>,
+
     /// A cryptographic key for this Txo.
     pub target_key: String,
 
@@ -75,6 +98,22 @@ pub struct Txo {
 
 impl From<&db::models::Txo> for Txo {
     fn from(txo: &db::models::Txo) -> Txo {
+        let mut account_status_map: Map<String, serde_json::Value> = Map::new();
+
+        if let Some(received_account_id_hex) = &txo.received_account_id_hex {
+            account_status_map.insert(
+                received_account_id_hex.to_string(),
+                json!({"txo_type": TXO_TYPE_RECEIVED, "txo_status": TXO_STATUS_UNSPENT}).into(),
+            );
+        }
+
+        if let Some(minted_account_id_hex) = &txo.minted_account_id_hex {
+            account_status_map.insert(
+                minted_account_id_hex.to_string(),
+                json!({"txo_type": TXO_TYPE_MINTED, "txo_status": TXO_STATUS_SECRETED}).into(),
+            );
+        }
+
         Txo {
             object: "txo".to_string(),
             txo_id_hex: txo.txo_id_hex.clone(),
@@ -92,6 +131,7 @@ impl From<&db::models::Txo> for Txo {
             assigned_address: None,
             key_image: txo.key_image.as_ref().map(|k| hex::encode(&k)),
             confirmation: txo.confirmation.as_ref().map(hex::encode),
+            account_status_map,
         }
     }
 }

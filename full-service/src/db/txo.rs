@@ -229,6 +229,11 @@ pub trait TxoModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<bool, WalletDbError>;
 
+    fn scrub_account(
+        account_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError>;
+
     /// Delete txos which are not referenced by any account or transaction.
     fn delete_unreferenced(
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
@@ -641,16 +646,6 @@ impl TxoModel for Txo {
             .select(diesel::dsl::count(txos::txo_id_hex))
             .first(conn)?;
 
-        // let txos: i64 = txos::table
-        //     .inner_join(
-        //         account_txo_statuses::table.on(txos::txo_id_hex
-        //             .eq(account_txo_statuses::txo_id_hex)
-        //             .and(txos::txo_id_hex.eq_any(txo_ids))
-        //             .and(account_txo_statuses::txo_status.eq(TXO_STATUS_SPENT))),
-        //     )
-        //     .select(diesel::dsl::count(txos::txo_id_hex))
-        //     .first(conn)?;
-
         Ok(txos == txo_ids.len() as i64)
     }
 
@@ -771,42 +766,39 @@ impl TxoModel for Txo {
         Ok(confirmation.validate(&public_key, account_key.view_private_key()))
     }
 
+    fn scrub_account(
+        account_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::txos;
+
+        let txos_received_by_account =
+            txos::table.filter(txos::received_account_id_hex.eq(account_id_hex));
+
+        diesel::update(txos_received_by_account)
+            .set(txos::received_account_id_hex.eq::<Option<String>>(None))
+            .execute(conn)?;
+
+        let txos_minted_by_account =
+            txos::table.filter(txos::minted_account_id_hex.eq(account_id_hex));
+
+        diesel::update(txos_minted_by_account)
+            .set(txos::minted_account_id_hex.eq::<Option<String>>(None))
+            .execute(conn)?;
+
+        Ok(())
+    }
+
     fn delete_unreferenced(
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::{account_txo_statuses, transaction_txo_types, txos};
-        // DELETE FROM txos
-        //     WHERE txo_id_hex IN (
-        //         SELECT
-        //             txos.txo_id_hex
-        //         FROM txos
-        //             LEFT JOIN account_txo_statuses ats
-        //                 ON txos.txo_id_hex = ats.txo_id_hex
-        //             LEFT JOIN transaction_txo_types ttt
-        //                 ON txos.txo_id_hex = ttt.txo_id_hex
-        //         WHERE
-        //             ats.txo_id_hex IS NULL
-        //             AND ttt.txo_id_hex IS NULL
-        //     );
-        diesel::delete(
-            txos::table.filter(
-                txos::txo_id_hex.eq_any(
-                    txos::table
-                        .left_join(
-                            account_txo_statuses::table
-                                .on(txos::txo_id_hex.eq(account_txo_statuses::txo_id_hex)),
-                        )
-                        .left_join(
-                            transaction_txo_types::table
-                                .on(txos::txo_id_hex.eq(transaction_txo_types::txo_id_hex)),
-                        )
-                        .filter(account_txo_statuses::txo_id_hex.is_null())
-                        .filter(transaction_txo_types::txo_id_hex.is_null())
-                        .select(txos::txo_id_hex),
-                ),
-            ),
-        )
-        .execute(conn)?;
+        use crate::db::schema::txos;
+
+        let unreferenced_txos = txos::table
+            .filter(txos::minted_account_id_hex.eq::<Option<String>>(None))
+            .filter(txos::received_account_id_hex.eq::<Option<String>>(None));
+
+        diesel::delete(unreferenced_txos).execute(conn)?;
 
         Ok(())
     }
@@ -1613,8 +1605,40 @@ mod tests {
             10
         );
 
+        let txos = Txo::list_for_account(
+            &account_id_hex.to_string(),
+            None,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(txos.len(), 10);
+
         // Delete the account. No Txos are left.
         account.delete(&wallet_db.get_conn().unwrap()).unwrap();
+
+        let txos = Txo::list_for_account(
+            &account_id_hex.to_string(),
+            None,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(txos.len(), 0);
+
+        // let unreferenced_txos_count = txos::table
+        //     .filter(txos::minted_account_id_hex.eq::<Option<String>>(None))
+        //     .filter(txos::received_account_id_hex.eq::<Option<String>>(None));
+
+        // let referenced_txos_count = txos::table
+        //     .filter(txos::minted_account_id_hex.ne::<Option<String>>(None))
+        //     .or_filter(txos::received_account_id_hex.ne::<Option<String>>(None));
+
+        // let all_txos_count = txos::table
+        //     .select(count(txos::txo_id_hex))
+        //     .first::<i64>(&wallet_db.get_conn().unwrap())
+        //     .unwrap();
+
         assert_eq!(
             txos::table
                 .select(count(txos::txo_id_hex))
