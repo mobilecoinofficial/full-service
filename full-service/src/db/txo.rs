@@ -687,6 +687,8 @@ impl TxoModel for Txo {
     ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
         let mut spendable_txos: Vec<Txo> = txos::table
+            .filter(txos::spent_block_index.is_null())
+            .filter(txos::pending_tombstone_block_index.is_null())
             .filter(txos::subaddress_index.is_not_null())
             .filter(txos::key_image.is_not_null())
             .filter(txos::received_account_id_hex.eq(account_id_hex))
