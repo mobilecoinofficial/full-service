@@ -582,8 +582,6 @@ class CommandLineInterface:
         print(_format_account_header(account))
 
         for address in addresses.values():
-            if int(address['subaddress_index']) == 1:
-                continue  # Don't show change address.
             print(indent(
                 '{} {}'.format(address['public_address'], address['metadata']),
                 ' '*2,
