@@ -1,0 +1,23 @@
+[package]
+name = "mc-validator-api"
+version = "1.2.0-pre0"
+authors = ["MobileCoin"]
+build = "build.rs"
+edition = "2018"
+links = "mc-validator-api"
+
+[dependencies]
+mc-api = { path = "../../mobilecoin/api" }
+mc-attest-api = { path = "../../mobilecoin/attest/api" }
+mc-mobilecoind-api = { path = "../../mobilecoin/mobilecoind/api" }
+mc-transaction-core = { path = "../../mobilecoin/transaction/core" }
+
+futures = "0.3"
+grpcio = "0.9.0"
+protobuf = "2.22.1"
+
+[build-dependencies]
+mc-util-build-grpc = { path = "../../mobilecoin/util/build/grpc" }
+mc-util-build-script = { path = "../../mobilecoin/util/build/script" }
+
+cargo-emit = "0.2.1"

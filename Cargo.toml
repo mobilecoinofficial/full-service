@@ -4,6 +4,8 @@ cargo-features = ["resolver"]
 resolver = "2"
 members = [
     "full-service",
+    "validator-service/service",
+    "validator-service/api",
 ]
 exclude = [
     "mobilecoin",

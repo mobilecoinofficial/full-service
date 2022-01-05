@@ -362,6 +362,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4d1d6b8077d27443822a547d1ef816eadd2dc4a75de9105aff614192729cf6d3"
 
 [[package]]
+name = "cargo-emit"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1582e1c9e755dd6ad6b224dcffb135d199399a4568d454bd89fe515ca8425695"
+
+[[package]]
 name = "cargo-platform"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1761,7 +1767,7 @@ name = "mc-api"
 version = "1.1.0"
 dependencies = [
  "bs58",
- "cargo-emit",
+ "cargo-emit 0.1.1",
  "crc",
  "curve25519-dalek",
  "displaydoc 0.2.1",
@@ -1782,7 +1788,7 @@ name = "mc-attest-ake"
 version = "1.1.0"
 dependencies = [
  "aead",
- "cargo-emit",
+ "cargo-emit 0.1.1",
  "digest",
  "displaydoc 0.2.1",
  "mc-attest-core",
@@ -1800,7 +1806,7 @@ name = "mc-attest-api"
 version = "1.1.0"
 dependencies = [
  "aead",
- "cargo-emit",
+ "cargo-emit 0.1.1",
  "digest",
  "futures",
  "grpcio",
@@ -1819,7 +1825,7 @@ version = "1.1.0"
 dependencies = [
  "binascii",
  "bitflags",
- "cargo-emit",
+ "cargo-emit 0.1.1",
  "cfg-if 0.1.10",
  "chrono",
  "digest",
@@ -1932,7 +1938,7 @@ dependencies = [
 name = "mc-consensus-api"
 version = "1.1.0"
 dependencies = [
- "cargo-emit",
+ "cargo-emit 0.1.1",
  "futures",
  "grpcio",
  "mc-api",
@@ -1947,7 +1953,7 @@ dependencies = [
 name = "mc-consensus-enclave-measurement"
 version = "1.1.0"
 dependencies = [
- "cargo-emit",
+ "cargo-emit 0.1.1",
  "mc-attest-core",
  "mc-sgx-css",
  "mc-util-build-enclave",
@@ -2107,7 +2113,7 @@ dependencies = [
 name = "mc-fog-api"
 version = "1.1.0"
 dependencies = [
- "cargo-emit",
+ "cargo-emit 0.1.1",
  "futures",
  "grpcio",
  "mc-api",
@@ -2371,7 +2377,7 @@ dependencies = [
 name = "mc-mobilecoind-api"
 version = "1.1.0"
 dependencies = [
- "cargo-emit",
+ "cargo-emit 0.1.1",
  "futures",
  "grpcio",
  "mc-api",
@@ -2496,7 +2502,7 @@ dependencies = [
 name = "mc-util-build-enclave"
 version = "1.1.0"
 dependencies = [
- "cargo-emit",
+ "cargo-emit 0.1.1",
  "cargo_metadata 0.9.1",
  "displaydoc 0.2.1",
  "mbedtls",
@@ -2524,7 +2530,7 @@ version = "1.1.0"
 name = "mc-util-build-script"
 version = "1.1.0"
 dependencies = [
- "cargo-emit",
+ "cargo-emit 0.1.1",
  "failure",
  "lazy_static",
  "url 2.2.2",
@@ -2535,7 +2541,7 @@ dependencies = [
 name = "mc-util-build-sgx"
 version = "1.1.0"
 dependencies = [
- "cargo-emit",
+ "cargo-emit 0.1.1",
  "cc",
  "displaydoc 0.2.1",
  "mc-util-build-script",
@@ -2657,6 +2663,22 @@ dependencies = [
  "percent-encoding 2.1.0",
  "serde",
  "url 2.2.2",
+]
+
+[[package]]
+name = "mc-validator-api"
+version = "1.2.0-pre0"
+dependencies = [
+ "cargo-emit 0.2.1",
+ "futures",
+ "grpcio",
+ "mc-api",
+ "mc-attest-api",
+ "mc-mobilecoind-api",
+ "mc-transaction-core",
+ "mc-util-build-grpc",
+ "mc-util-build-script",
+ "protobuf",
 ]
 
 [[package]]
@@ -4864,6 +4886,66 @@ checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
 dependencies = [
  "getrandom 0.2.2",
  "serde",
+]
+
+[[package]]
+name = "validator-ledger-service"
+version = "1.0.0"
+dependencies = [
+ "bs58",
+ "chrono",
+ "crossbeam-channel 0.4.4",
+ "diesel",
+ "diesel-derive-enum",
+ "diesel_migrations",
+ "displaydoc 0.1.7",
+ "dotenv",
+ "grpcio",
+ "hex",
+ "mc-account-keys",
+ "mc-account-keys-slip10",
+ "mc-api",
+ "mc-attest-core",
+ "mc-common",
+ "mc-connection",
+ "mc-connection-test-utils",
+ "mc-consensus-enclave-measurement",
+ "mc-consensus-scp",
+ "mc-crypto-digestible",
+ "mc-crypto-keys",
+ "mc-crypto-rand",
+ "mc-fog-report-connection",
+ "mc-fog-report-validation",
+ "mc-fog-report-validation-test-utils",
+ "mc-full-service",
+ "mc-ledger-db",
+ "mc-ledger-sync",
+ "mc-mobilecoind",
+ "mc-mobilecoind-api",
+ "mc-mobilecoind-json",
+ "mc-sgx-css",
+ "mc-transaction-core",
+ "mc-transaction-std",
+ "mc-util-from-random",
+ "mc-util-serial",
+ "mc-util-uri",
+ "num_cpus",
+ "prost",
+ "rand 0.8.3",
+ "rayon",
+ "reqwest",
+ "retry",
+ "rocket",
+ "rocket_contrib",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "structopt",
+ "strum",
+ "strum_macros",
+ "tempdir",
+ "tiny-bip39",
+ "uuid 0.7.4",
 ]
 
 [[package]]
