@@ -362,12 +362,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4d1d6b8077d27443822a547d1ef816eadd2dc4a75de9105aff614192729cf6d3"
 
 [[package]]
-name = "cargo-emit"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1582e1c9e755dd6ad6b224dcffb135d199399a4568d454bd89fe515ca8425695"
-
-[[package]]
 name = "cargo-platform"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1767,7 +1761,7 @@ name = "mc-api"
 version = "1.1.0"
 dependencies = [
  "bs58",
- "cargo-emit 0.1.1",
+ "cargo-emit",
  "crc",
  "curve25519-dalek",
  "displaydoc 0.2.1",
@@ -1788,7 +1782,7 @@ name = "mc-attest-ake"
 version = "1.1.0"
 dependencies = [
  "aead",
- "cargo-emit 0.1.1",
+ "cargo-emit",
  "digest",
  "displaydoc 0.2.1",
  "mc-attest-core",
@@ -1806,7 +1800,7 @@ name = "mc-attest-api"
 version = "1.1.0"
 dependencies = [
  "aead",
- "cargo-emit 0.1.1",
+ "cargo-emit",
  "digest",
  "futures",
  "grpcio",
@@ -1825,7 +1819,7 @@ version = "1.1.0"
 dependencies = [
  "binascii",
  "bitflags",
- "cargo-emit 0.1.1",
+ "cargo-emit",
  "cfg-if 0.1.10",
  "chrono",
  "digest",
@@ -1938,7 +1932,7 @@ dependencies = [
 name = "mc-consensus-api"
 version = "1.1.0"
 dependencies = [
- "cargo-emit 0.1.1",
+ "cargo-emit",
  "futures",
  "grpcio",
  "mc-api",
@@ -1953,7 +1947,7 @@ dependencies = [
 name = "mc-consensus-enclave-measurement"
 version = "1.1.0"
 dependencies = [
- "cargo-emit 0.1.1",
+ "cargo-emit",
  "mc-attest-core",
  "mc-sgx-css",
  "mc-util-build-enclave",
@@ -2113,7 +2107,7 @@ dependencies = [
 name = "mc-fog-api"
 version = "1.1.0"
 dependencies = [
- "cargo-emit 0.1.1",
+ "cargo-emit",
  "futures",
  "grpcio",
  "mc-api",
@@ -2377,7 +2371,7 @@ dependencies = [
 name = "mc-mobilecoind-api"
 version = "1.1.0"
 dependencies = [
- "cargo-emit 0.1.1",
+ "cargo-emit",
  "futures",
  "grpcio",
  "mc-api",
@@ -2502,7 +2496,7 @@ dependencies = [
 name = "mc-util-build-enclave"
 version = "1.1.0"
 dependencies = [
- "cargo-emit 0.1.1",
+ "cargo-emit",
  "cargo_metadata 0.9.1",
  "displaydoc 0.2.1",
  "mbedtls",
@@ -2530,7 +2524,7 @@ version = "1.1.0"
 name = "mc-util-build-script"
 version = "1.1.0"
 dependencies = [
- "cargo-emit 0.1.1",
+ "cargo-emit",
  "failure",
  "lazy_static",
  "url 2.2.2",
@@ -2541,7 +2535,7 @@ dependencies = [
 name = "mc-util-build-sgx"
 version = "1.1.0"
 dependencies = [
- "cargo-emit 0.1.1",
+ "cargo-emit",
  "cc",
  "displaydoc 0.2.1",
  "mc-util-build-script",
@@ -2663,22 +2657,6 @@ dependencies = [
  "percent-encoding 2.1.0",
  "serde",
  "url 2.2.2",
-]
-
-[[package]]
-name = "mc-validator-api"
-version = "1.2.0-pre0"
-dependencies = [
- "cargo-emit 0.2.1",
- "futures",
- "grpcio",
- "mc-api",
- "mc-attest-api",
- "mc-mobilecoind-api",
- "mc-transaction-core",
- "mc-util-build-grpc",
- "mc-util-build-script",
- "protobuf",
 ]
 
 [[package]]
