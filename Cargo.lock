@@ -4876,6 +4876,7 @@ dependencies = [
  "grpcio",
  "mc-common",
  "mc-full-service",
+ "mc-util-uri",
  "serde",
  "serde_derive",
  "serde_json",
