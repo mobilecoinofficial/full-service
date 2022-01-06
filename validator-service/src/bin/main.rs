@@ -2,9 +2,9 @@
 
 //! Main Method for the stub server
 
-use validator_server::{Config, Server};
 use mc_common::logger::{create_app_logger, log, o};
 use structopt::StructOpt;
+use validator_server::{Config, Server};
 
 fn main() {
     mc_common::setup_panic_handler();
@@ -15,13 +15,10 @@ fn main() {
 
     log::info!(logger, "Read Configs: {:?}", config);
 
-    let mut server = Server::new(
-        logger.clone(),
-    );
+    let mut server = Server::new(logger.clone());
     log::info!(logger, "Build server");
     server.start();
     log::info!(logger, "Started server");
-
 
     loop {
         std::thread::sleep(std::time::Duration::from_millis(1000));

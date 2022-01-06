@@ -1,12 +1,8 @@
 use futures::executor::block_on;
 use grpcio::{Server as GrpcioServer, ServerBuilder};
-use mc_common::{
-    logger::{log, Logger},
-};
-use std::{
-    sync::{Arc},
-};
-use mc_ledger_sync::{LedgerSyncServiceThread};
+use mc_common::logger::{log, Logger};
+use mc_ledger_sync::LedgerSyncServiceThread;
+use std::sync::Arc;
 
 const NETWORK: &str = "test";
 
@@ -18,9 +14,7 @@ pub struct Server {
 }
 
 impl Server {
-    pub fn new(
-        logger: Logger,
-    ) -> Self {
+    pub fn new(logger: Logger) -> Self {
         //TODO update name
         log::info!(logger, "starting, network = {}", NETWORK);
 
