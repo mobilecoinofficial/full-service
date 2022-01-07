@@ -15,8 +15,14 @@ path = "src/bin/main.rs"
 
 [dependencies]
 mc-full-service = { path = "../full-service"}
+
 mc-common = { path = "../mobilecoin/common", default-features = false, features = ["loggers"] }
+mc-consensus-api = { path = "../mobilecoin/consensus/api" }
+mc-ledger-db = { path = "../mobilecoin/ledger/db" }
+mc-ledger-sync = { path = "../mobilecoin/ledger/sync" }
+mc-util-grpc = { path = "../mobilecoin/util/grpc" }
 mc-util-uri = { path = "../mobilecoin/util/uri" }
+
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
 dotenv = "0.15.0"
 futures = "0.3"

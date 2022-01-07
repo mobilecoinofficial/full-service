@@ -1,10 +1,11 @@
 use futures::executor::block_on;
 use grpcio::{Server as GrpcioServer, ServerBuilder};
 use mc_common::logger::{log, Logger};
-use mc_consensus_api::consensus_common_grpc;
-use mc_consensus_service::api::BlockchainApiService;
+// use mc_consensus_api::consensus_common_grpc;
+// use mc_consensus_service::api::BlockchainApiService;
+use mc_ledger_db::LedgerDB;
 use mc_ledger_sync::LedgerSyncServiceThread;
-use mc_util_grpc::{AnonymousAuthenticator, Authenticator};
+// use mc_util_grpc::{AnonymousAuthenticator, Authenticator};
 use std::sync::Arc;
 
 const NETWORK: &str = "test";
@@ -17,7 +18,7 @@ pub struct Server {
 }
 
 impl Server {
-    pub fn new(ledger_db: LedgerDB, logger: Logger) -> Self {
+    pub fn new(_ledger_db: LedgerDB, logger: Logger) -> Self {
         //TODO update name
         log::info!(logger, "starting, network = {}", NETWORK);
 
@@ -27,15 +28,15 @@ impl Server {
                 .build(),
         );
         // Authenticator
-        let client_authenticator: Arc<dyn Authenticator + Sync + Send> =
-            Arc::new(AnonymousAuthenticator::default());
-        let blockchain_service =
-            consensus_common_grpc::create_blockchain_api(BlockchainApiService::new(
-                ledger_db.clone(),
-                client_authenticator.clone(),
-                logger.clone(),
-                Some(0),
-            ));
+        // let client_authenticator: Arc<dyn Authenticator + Sync + Send> =
+        //     Arc::new(AnonymousAuthenticator::default());
+        // let blockchain_service =
+        //     consensus_common_grpc::create_blockchain_api(BlockchainApiService::new(
+        //         ledger_db.clone(),
+        //         client_authenticator.clone(),
+        //         logger.clone(),
+        //         Some(0),
+        //     ));
 
         let server_builder = ServerBuilder::new(env);
         log::info!(logger, "Registered service");
