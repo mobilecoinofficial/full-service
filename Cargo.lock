@@ -2269,6 +2269,7 @@ dependencies = [
  "tempdir",
  "tiny-bip39",
  "uuid 0.7.4",
+ "validator-ledger-service",
 ]
 
 [[package]]
@@ -4870,6 +4871,34 @@ checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
 dependencies = [
  "getrandom 0.2.2",
  "serde",
+]
+
+[[package]]
+name = "validator-ledger-service"
+version = "1.0.0"
+dependencies = [
+ "chrono",
+ "diesel",
+ "dotenv",
+ "futures",
+ "grpcio",
+ "mc-common",
+ "mc-consensus-api",
+ "mc-ledger-db",
+ "mc-ledger-sync",
+ "mc-transaction-core",
+ "mc-transaction-core-test-utils",
+ "mc-util-grpc",
+ "mc-util-metrics",
+ "mc-util-uri",
+ "protobuf",
+ "rand 0.8.3",
+ "rand_core 0.6.2",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "structopt",
+ "tempdir",
 ]
 
 [[package]]

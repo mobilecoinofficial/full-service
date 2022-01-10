@@ -40,7 +40,7 @@ mc-util-grpc = { path = "../mobilecoin/util/grpc" }
 mc-util-metrics = { path = "../mobilecoin/util/metrics" }
 mc-util-serial = { path = "../mobilecoin/util/serial", default-features = false }
 mc-util-uri = { path = "../mobilecoin/util/uri" }
-
+validator-ledger-service = { path = "../validator-service"}
 
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
 crossbeam-channel = "0.4"

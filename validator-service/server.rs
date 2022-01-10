@@ -1,4 +1,4 @@
-use crate::service::validator_blockchain_service::BlockchainApiService;
+use crate::validator_blockchain_service::BlockchainApiService;
 use futures::executor::block_on;
 use grpcio::{Server as GrpcioServer, ServerBuilder};
 use mc_common::logger::{log, Logger};
