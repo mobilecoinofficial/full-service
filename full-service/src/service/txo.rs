@@ -129,10 +129,9 @@ where
         conn.transaction(|| {
             let txo_details = Txo::get(&txo_id.to_string(), &conn)?;
 
-            let account_id_hex = match txo_details.received_account_id_hex {
-                Some(received_account_id_hex) => Ok(received_account_id_hex),
-                None => Err(TxoNotSpendableByAnyAccount(txo_details.txo_id_hex)),
-            }?;
+            let account_id_hex = txo_details
+                .received_account_id_hex
+                .ok_or(TxoNotSpendableByAnyAccount(txo_details.txo_id_hex))?;
 
             let address_to_split_into: AssignedSubaddress =
                 AssignedSubaddress::get_for_account_by_index(

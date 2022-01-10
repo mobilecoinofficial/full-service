@@ -538,8 +538,8 @@ impl TxoModel for Txo {
     ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
 
-        // Secreted txos were minted by this account, but not received by this account, so they can
-        // no longer be decrypted.
+        // Secreted txos were minted by this account, but not received by this account,
+        // so they can no longer be decrypted.
         let txos: Vec<Txo> = txos::table
             .filter(txos::minted_account_id_hex.eq(account_id_hex))
             .filter(txos::received_account_id_hex.is_null())
