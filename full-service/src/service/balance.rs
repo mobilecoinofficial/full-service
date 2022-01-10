@@ -173,6 +173,8 @@ where
         conn.transaction(|| {
             let assigned_address = AssignedSubaddress::get(address, &conn)?;
 
+            // Orphaned txos have no subaddress assigned, so none of these txos can
+            // be orphaned.
             let orphaned: u128 = 0;
 
             let unspent =
