@@ -30,8 +30,8 @@ impl Server {
             Arc::new(AnonymousAuthenticator::default());
         let blockchain_service =
             consensus_common_grpc::create_blockchain_api(BlockchainApiService::new(
-                ledger_db.clone(),
-                client_authenticator.clone(),
+                ledger_db,
+                client_authenticator,
                 logger.clone(),
                 Some(0),
             ));
