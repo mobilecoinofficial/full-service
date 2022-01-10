@@ -310,7 +310,6 @@ pub fn add_block_with_db_txos(
             mc_util_serial::decode(
                 &Txo::get(&txo_id_hex.to_string(), &wallet_db.get_conn().unwrap())
                     .unwrap()
-                    .txo
                     .txo,
             )
             .unwrap()

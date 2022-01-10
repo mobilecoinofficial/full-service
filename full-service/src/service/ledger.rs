@@ -111,7 +111,7 @@ where
         let conn = self.wallet_db.get_conn()?;
         let txo_details = Txo::get(txo_id_hex, &conn)?;
 
-        let txo: TxOut = mc_util_serial::decode(&txo_details.txo.txo)?;
+        let txo: TxOut = mc_util_serial::decode(&txo_details.txo)?;
         Ok(txo)
     }
 

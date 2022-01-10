@@ -11,7 +11,7 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        models::{Account, Txo, TXO_STATUS_UNSPENT},
+        models::{Account, Txo},
         txo::TxoModel,
         WalletDb,
     },
@@ -110,8 +110,10 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let txos = Txo::select_by_id(&input_txo_ids.to_vec(), &self.wallet_db.get_conn()?)?;
         let unspent: Vec<Txo> = txos
             .iter()
-            .filter(|(_txo, status)| status.txo_status == TXO_STATUS_UNSPENT)
-            .map(|(t, _s)| t.clone())
+            .filter(|txo| {
+                txo.pending_tombstone_block_index == None && txo.spent_block_index == None
+            })
+            .cloned()
             .collect();
         if unspent.iter().map(|t| t.value as u128).sum::<u128>() > u64::MAX as u128 {
             return Err(WalletTransactionBuilderError::OutboundValueTooLarge);
@@ -613,9 +615,9 @@ mod tests {
         );
 
         // Check balance
-        let unspent = Txo::list_by_status(
+        let unspent = Txo::list_unspent(
             &AccountID::from(&account_key).to_string(),
-            TXO_STATUS_UNSPENT,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -665,10 +667,7 @@ mod tests {
             None,
             &wallet_db.get_conn().unwrap(),
         )
-        .unwrap()
-        .iter()
-        .map(|t| t.txo.clone())
-        .collect();
+        .unwrap();
 
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
