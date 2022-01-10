@@ -4867,29 +4867,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "validator-ledger-service"
-version = "1.0.0"
-dependencies = [
- "chrono",
- "diesel",
- "dotenv",
- "futures",
- "grpcio",
- "mc-common",
- "mc-consensus-api",
- "mc-full-service",
- "mc-ledger-db",
- "mc-ledger-sync",
- "mc-util-grpc",
- "mc-util-uri",
- "serde",
- "serde_derive",
- "serde_json",
- "structopt",
- "tempdir",
-]
-
-[[package]]
 name = "vcpkg"
 version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
