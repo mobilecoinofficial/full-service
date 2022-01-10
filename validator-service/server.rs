@@ -4,7 +4,6 @@ use grpcio::{Server as GrpcioServer, ServerBuilder};
 use mc_common::logger::{log, Logger};
 use mc_consensus_api::consensus_common_grpc;
 use mc_ledger_db::LedgerDB;
-use mc_ledger_sync::LedgerSyncServiceThread;
 use mc_util_grpc::{AnonymousAuthenticator, Authenticator};
 use std::sync::Arc;
 
@@ -13,7 +12,6 @@ const NETWORK: &str = "test";
 /// The application server
 pub struct Server {
     server: GrpcioServer,
-    ledger_sync: Option<LedgerSyncServiceThread>,
     logger: Logger,
 }
 
@@ -42,11 +40,7 @@ impl Server {
         log::info!(logger, "Registered service");
 
         let server = server_builder.build().unwrap();
-        Self {
-            server,
-            ledger_sync: None,
-            logger,
-        }
+        Self { server, logger }
     }
 
     pub fn start(&mut self) {
@@ -63,14 +57,6 @@ impl Server {
 
     pub fn stop(&mut self) {
         block_on(self.server.shutdown()).expect("Could not stop grpc server");
-        match &mut self.ledger_sync {
-            // The division was valid
-            Some(ledger_sync) => {
-                ledger_sync.stop();
-            }
-            // The division was invalid
-            None => println!("Cannot divide by 0"),
-        }
     }
 }
 

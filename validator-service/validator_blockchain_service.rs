@@ -1,6 +1,7 @@
-// Copyright (c) 2018-2021 The MobileCoin Foundation
+// Copyright (c) 2018-2022 The MobileCoin Foundation
 
-//! Serves blockchain-related API requests.
+//! Serves blockchain-related API requests. This is a clone of the blockchain
+//! api service in the mobilecoin repo.
 
 use grpcio::{RpcContext, RpcStatus, RpcStatusCode, UnarySink};
 use mc_common::logger::{log, Logger};

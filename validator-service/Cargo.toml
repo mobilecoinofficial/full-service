@@ -13,7 +13,6 @@ path = "lib.rs"
 mc-common = { path = "../mobilecoin/common", default-features = false, features = ["loggers"] }
 mc-consensus-api = { path = "../mobilecoin/consensus/api" }
 mc-ledger-db = { path = "../mobilecoin/ledger/db" }
-mc-ledger-sync = { path = "../mobilecoin/ledger/sync" }
 mc-transaction-core = { path = "../mobilecoin/transaction/core" }
 mc-util-grpc = { path = "../mobilecoin/util/grpc" }
 mc-util-metrics = { path = "../mobilecoin/util/metrics" }

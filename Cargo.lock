@@ -4885,7 +4885,6 @@ dependencies = [
  "mc-common",
  "mc-consensus-api",
  "mc-ledger-db",
- "mc-ledger-sync",
  "mc-transaction-core",
  "mc-transaction-core-test-utils",
  "mc-util-grpc",
