@@ -994,13 +994,13 @@ mod tests {
         );
     }
 
-    // // Test that transaction logging can handle submitting a value greater than
-    // // i64::Max Note: i64::Max is 9_223_372_036_854_775_807, or about 9.2M MOB.
-    // // The biggest MOB amount that can be represented on chain is u64::MAX,
-    // // 18_446_744_073_709_551_615, or about 18M MOB.
-    // //
-    // // This test confirms that submitting a transaction_log for < u64::Max, but >
-    // // i64::Max succeeds
+    // Test that transaction logging can handle submitting a value greater than
+    // i64::Max Note: i64::Max is 9_223_372_036_854_775_807, or about 9.2M MOB.
+    // The biggest MOB amount that can be represented on chain is u64::MAX,
+    // 18_446_744_073_709_551_615, or about 18M MOB.
+    //
+    // This test confirms that submitting a transaction_log for < u64::Max, but >
+    // i64::Max succeeds
     #[test_with_logger]
     fn test_log_submitted_big_int(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
@@ -1046,19 +1046,19 @@ mod tests {
         assert_eq!(tx_log.value as u64, 10_000_000 * MOB as u64);
     }
 
-    // // Test that logging a submitted transaction to self results in the inputs,
-    // // outputs, and change being handled correctly.
-    // //
-    // // By "handled correctly," we mean:
-    // //
-    // // 1. The inputs are marked as pending, until they are seen as spent in the
-    // // processed block 2. The outputs are marked as Minted & Secreted, until
-    // // they are processed, then they are    marked Minted & Unspent
-    // // 3. The change is marked Minted & Secreted, until it is processed; then it
-    // is // marked    Minted & Unspent
-    // //
-    // // Note: This is also testing 2 inputs, as opposed to the happy path test
-    // above, // which tests only 1 input.
+    // Test that logging a submitted transaction to self results in the inputs,
+    // outputs, and change being handled correctly.
+    //
+    // By "handled correctly," we mean:
+    //
+    // 1. The inputs are marked as pending, until they are seen as spent in the
+    // processed block 2. The outputs are marked as Minted & Secreted, until
+    // they are processed, then they are    marked Minted & Unspent
+    // 3. The change is marked Minted & Secreted, until it is processed; then it
+    // is marked    Minted & Unspent
+    //
+    // Note: This is also testing 2 inputs, as opposed to the happy path test
+    // above, which tests only 1 input.
     #[test_with_logger]
     fn test_log_submitted_to_self(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
