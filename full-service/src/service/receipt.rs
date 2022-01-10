@@ -206,7 +206,11 @@ where
             }
 
             // We are reproducing a bug with this logic and it is not how the
-            // feature is intended to work
+            // feature is intended to work. Currently, this will return a Transaction
+            // Pending result even if the txo hits the ledger but does not belong to
+            // this account. It should instead fall through to the next block of code
+            // and return a FailedAmountDecryption, since that is more truly a description
+            // of what happened.
             // TODO - remove this and it will work as expected
             if txo.minted_account_id_hex == Some(assigned_address.account_id_hex.clone())
                 && txo.received_account_id_hex != Some(assigned_address.account_id_hex)
