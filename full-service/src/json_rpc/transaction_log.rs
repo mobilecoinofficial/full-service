@@ -107,17 +107,17 @@ impl TransactionLog {
             input_txos: associated_txos
                 .inputs
                 .iter()
-                .map(|t| TxoAbbrev::new(&t))
+                .map(|t| TxoAbbrev::new(t))
                 .collect(),
             output_txos: associated_txos
                 .outputs
                 .iter()
-                .map(|t| TxoAbbrev::new(&t))
+                .map(|t| TxoAbbrev::new(t))
                 .collect(),
             change_txos: associated_txos
                 .change
                 .iter()
-                .map(|t| TxoAbbrev::new(&t))
+                .map(|t| TxoAbbrev::new(t))
                 .collect(),
             sent_time: transaction_log
                 .sent_time

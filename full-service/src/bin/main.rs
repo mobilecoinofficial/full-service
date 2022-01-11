@@ -55,7 +55,7 @@ fn main() {
 
     // Connect to the database and run the migrations
     let conn =
-        SqliteConnection::establish(&config.wallet_db.to_str().unwrap()).unwrap_or_else(|err| {
+        SqliteConnection::establish(config.wallet_db.to_str().unwrap()).unwrap_or_else(|err| {
             eprintln!("Cannot open database {:?}: {:?}", config.wallet_db, err);
             exit(EXIT_NO_DATABASE_CONNECTION);
         });

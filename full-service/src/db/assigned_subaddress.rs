@@ -172,7 +172,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
             .execute(conn)?;
 
         // Find and repair orphaned txos at this subaddress.
-        let orphaned_txos = Txo::list_orphaned(&account_id_hex, &conn)?;
+        let orphaned_txos = Txo::list_orphaned(account_id_hex, conn)?;
 
         for orphaned_txo in orphaned_txos.iter() {
             let tx_out_target_key: RistrettoPublic =
@@ -269,7 +269,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         let subaddress = account_key.subaddress(index as u64);
 
         let subaddress_b58 = b58_encode_public_address(&subaddress)?;
-        Self::get(&subaddress_b58, &conn)
+        Self::get(&subaddress_b58, conn)
     }
 
     fn find_by_subaddress_spend_public_key(

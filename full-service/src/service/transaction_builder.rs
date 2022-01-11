@@ -352,7 +352,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             let mut rng = rand::thread_rng();
             for (i, (recipient, out_value)) in self.outlays.iter().enumerate() {
                 let (tx_out, confirmation_number) =
-                    transaction_builder.add_output(*out_value as u64, &recipient, &mut rng)?;
+                    transaction_builder.add_output(*out_value as u64, recipient, &mut rng)?;
 
                 tx_out_to_outlay_index.insert(tx_out, i);
                 outlay_confirmation_numbers.push(confirmation_number);

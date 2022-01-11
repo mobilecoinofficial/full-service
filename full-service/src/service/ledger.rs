@@ -126,7 +126,7 @@ where
     }
 
     fn contains_key_image(&self, key_image: &KeyImage) -> Result<bool, LedgerServiceError> {
-        Ok(self.ledger_db.contains_key_image(&key_image)?)
+        Ok(self.ledger_db.contains_key_image(key_image)?)
     }
 
     fn get_network_fee(&self) -> u64 {

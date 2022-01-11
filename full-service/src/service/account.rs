@@ -265,7 +265,7 @@ where
 
     fn get_account(&self, account_id: &AccountID) -> Result<Account, AccountServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| Ok(Account::get(&account_id, &conn)?))
+        conn.transaction(|| Ok(Account::get(account_id, &conn)?))
     }
 
     fn update_account_name(
@@ -275,8 +275,8 @@ where
     ) -> Result<Account, AccountServiceError> {
         let conn = self.wallet_db.get_conn()?;
         conn.transaction(|| {
-            Account::get(&account_id, &conn)?.update_name(name, &conn)?;
-            Ok(Account::get(&account_id, &conn)?)
+            Account::get(account_id, &conn)?.update_name(name, &conn)?;
+            Ok(Account::get(account_id, &conn)?)
         })
     }
 

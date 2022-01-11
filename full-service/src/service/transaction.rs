@@ -234,7 +234,7 @@ where
                 tx_proposal.clone(),
                 block_index,
                 "".to_string(),
-                &account_id_hex,
+                account_id_hex,
                 &conn,
             )?;
         }
@@ -316,7 +316,7 @@ where
     ) -> Result<(TransactionLog, AssociatedTxos, TxProposal), TransactionServiceError> {
         let tx_proposal = self.build_transaction(
             account_id_hex,
-            &addresses_and_values,
+            addresses_and_values,
             input_txo_ids,
             fee,
             tombstone_block,

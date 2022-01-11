@@ -87,7 +87,7 @@ where
                 &account_id.to_string(),
                 offset,
                 limit,
-                &conn,
+                conn,
             )?)
         })
     }

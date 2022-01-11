@@ -258,7 +258,7 @@ impl AccountModel for Account {
             account_id_hex: &account_id.to_string(),
             account_key: &mc_util_serial::encode(account_key), /* FIXME: WS-6 - add
                                                                 * encryption */
-            entropy: &entropy,
+            entropy,
             key_derivation_version: key_derivation_version as i32,
             main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
             change_subaddress_index: DEFAULT_CHANGE_SUBADDRESS_INDEX as i64,
@@ -275,25 +275,25 @@ impl AccountModel for Account {
             .execute(conn)?;
 
         let main_subaddress_b58 = AssignedSubaddress::create(
-            &account_key,
+            account_key,
             None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
                    * always for main? */
             DEFAULT_SUBADDRESS_INDEX,
             "Main",
-            &conn,
+            conn,
         )?;
 
         let _change_subaddress_b58 = AssignedSubaddress::create(
-            &account_key,
+            account_key,
             None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
                    * always for main? */
             DEFAULT_CHANGE_SUBADDRESS_INDEX,
             "Change",
-            &conn,
+            conn,
         )?;
 
         for subaddress_index in 2..next_subaddress_index.unwrap_or(DEFAULT_NEXT_SUBADDRESS_INDEX) {
-            AssignedSubaddress::create(&account_key, None, subaddress_index, "", &conn)?;
+            AssignedSubaddress::create(account_key, None, subaddress_index, "", conn)?;
         }
 
         Ok((account_id, main_subaddress_b58))
@@ -321,7 +321,7 @@ impl AccountModel for Account {
             fog_authority_spki,
             conn,
         )?;
-        Account::get(&account_id, &conn)
+        Account::get(&account_id, conn)
     }
 
     fn import_legacy(
@@ -346,7 +346,7 @@ impl AccountModel for Account {
             fog_authority_spki,
             conn,
         )?;
-        Account::get(&account_id, &conn)
+        Account::get(&account_id, conn)
     }
 
     fn list_all(
@@ -382,17 +382,17 @@ impl AccountModel for Account {
         txo_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<Account>, WalletDbError> {
-        let txo = Txo::get(txo_id_hex, &conn)?;
+        let txo = Txo::get(txo_id_hex, conn)?;
 
         let mut accounts: Vec<Account> = Vec::<Account>::new();
 
         if let Some(received_account_id_hex) = txo.received_account_id_hex {
-            let account = Account::get(&AccountID(received_account_id_hex), &conn)?;
+            let account = Account::get(&AccountID(received_account_id_hex), conn)?;
             accounts.push(account);
         }
 
         if let Some(minted_account_id_hex) = txo.minted_account_id_hex {
-            let account = Account::get(&AccountID(minted_account_id_hex), &conn)?;
+            let account = Account::get(&AccountID(minted_account_id_hex), conn)?;
             accounts.push(account);
         }
 
@@ -480,7 +480,7 @@ impl AccountModel for Account {
         // Also delete the associated assigned subaddresses
         AssignedSubaddress::delete_all(&self.account_id_hex, conn)?;
 
-        Txo::scrub_account(&self.account_id_hex, &conn)?;
+        Txo::scrub_account(&self.account_id_hex, conn)?;
 
         // Delete Txos with no references.
         Txo::delete_unreferenced(conn)?;

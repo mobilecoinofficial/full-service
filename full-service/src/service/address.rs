@@ -86,10 +86,10 @@ where
                     &account_id.to_string(),
                     metadata.unwrap_or(""),
                     &self.ledger_db,
-                    &conn,
+                    conn,
                 )?;
 
-            Ok(AssignedSubaddress::get(&public_address_b58, &conn)?)
+            Ok(AssignedSubaddress::get(&public_address_b58, conn)?)
         })
     }
 

@@ -249,6 +249,7 @@ impl fmt::Display for EncodedGiftCode {
 }
 
 /// Possible states for a Gift Code in relation to accounts in this wallet.
+#[allow(clippy::enum_variant_names)]
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub enum GiftCodeStatus {
     /// The Gift Code has been submitted, but has not yet hit the ledger.
@@ -374,7 +375,7 @@ where
             b58_encode_public_address(&gift_code_account_key.default_subaddress())?;
 
         let conn = self.wallet_db.get_conn()?;
-        let from_account = conn.transaction(|| Account::get(&from_account_id, &conn))?;
+        let from_account = conn.transaction(|| Account::get(from_account_id, &conn))?;
 
         let tx_proposal = self.build_transaction(
             &from_account.account_id_hex,
@@ -424,13 +425,13 @@ where
         let conn = self.wallet_db.get_conn()?;
         let gift_code = conn.transaction(|| {
             GiftCode::create(
-                &gift_code_b58,
+                gift_code_b58,
                 decoded_gift_code.root_entropy.as_ref(),
                 decoded_gift_code.bip39_entropy.as_ref(),
                 &decoded_gift_code.txo_public_key,
                 value,
                 &decoded_gift_code.memo,
-                &from_account_id,
+                from_account_id,
                 &TxoID::from(&tx_proposal.tx.prefix.outputs[0].clone()),
                 &conn,
             )
@@ -450,7 +451,7 @@ where
         gift_code_b58: &EncodedGiftCode,
     ) -> Result<GiftCode, GiftCodeServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| Ok(GiftCode::get(&gift_code_b58, &conn)?))
+        conn.transaction(|| Ok(GiftCode::get(gift_code_b58, &conn)?))
     }
 
     fn list_gift_codes(&self) -> Result<Vec<GiftCode>, GiftCodeServiceError> {
@@ -542,14 +543,14 @@ where
 
         let gift_value = gift_value.unwrap();
 
-        let decoded_gift_code = self.decode_gift_code(&gift_code_b58)?;
+        let decoded_gift_code = self.decode_gift_code(gift_code_b58)?;
         let gift_account_key = decoded_gift_code.account_key;
 
         let default_subaddress = if assigned_subaddress_b58.is_some() {
             assigned_subaddress_b58.ok_or(GiftCodeServiceError::AccountNotFound)
         } else {
             let address = self.assign_address_for_account(
-                &account_id,
+                account_id,
                 Some(&json!({"gift_code_memo": decoded_gift_code.memo}).to_string()),
             )?;
             Ok(address.assigned_subaddress_b58)
@@ -582,7 +583,7 @@ where
             if let Some(uri) = fog_uri {
                 fog_uris.push(uri);
             }
-            (self.fog_resolver_factory)(&fog_uris.as_slice())
+            (self.fog_resolver_factory)(fog_uris.as_slice())
                 .map_err(GiftCodeServiceError::FogPubkeyResolver)?
         };
 
@@ -612,7 +613,7 @@ where
 
         let onetime_private_key = recover_onetime_private_key(
             &RistrettoPublic::try_from(&real_output.public_key)?,
-            &gift_account_key.view_private_key(),
+            gift_account_key.view_private_key(),
             &gift_account_key.subaddress_spend_private(DEFAULT_SUBADDRESS_INDEX),
         );
 
