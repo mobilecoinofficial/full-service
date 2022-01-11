@@ -48,8 +48,7 @@
       "sent_time": null,
       "comment": "",
       "failure_code": null,
-      "failure_message": null,
-      "offset_count": 37
+      "failure_message": null
     }
   },
   "error": null,

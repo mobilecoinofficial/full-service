@@ -57,8 +57,7 @@ description: Get all transaction logs for a given account.
         "sent_time": null,
         "comment": "",
         "failure_code": null,
-        "failure_message": null,
-        "offset_count": 4
+        "failure_message": null
       },
       "ff1c85e7a488c2821110597ba75db30d913bb1595de549f83c6e8c56b06d70d1": {
         "object": "transaction_log",
@@ -86,8 +85,7 @@ description: Get all transaction logs for a given account.
         "sent_time": "2021-02-28 03:05:11 UTC",
         "comment": "",
         "failure_code": null,
-        "failure_message": null,
-        "offset_count": 53
+        "failure_message": null
       }
     }
   },
