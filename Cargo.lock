@@ -294,12 +294,6 @@ dependencies = [
 
 [[package]]
 name = "bs58"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "476e9cd489f9e121e02ffa6014a8ef220ecb15c05ed23fc34cca13925dc283fb"
-
-[[package]]
-name = "bs58"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "771fe0050b883fcc3ea2359b1a96bcfbc090b7116eae7c3c512c7a083fdf23d3"
@@ -585,22 +579,12 @@ dependencies = [
 
 [[package]]
 name = "crossbeam-channel"
-version = "0.4.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b153fe7cbef478c567df0f972e02e6d736db11affe43dfc9c56a9374d1adfb87"
-dependencies = [
- "crossbeam-utils 0.7.2",
- "maybe-uninit",
-]
-
-[[package]]
-name = "crossbeam-channel"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06ed27e177f16d65f0f0c22a213e17c696ace5dd64b14258b52f9417ccb52db4"
 dependencies = [
  "cfg-if 1.0.0",
- "crossbeam-utils 0.8.5",
+ "crossbeam-utils",
 ]
 
 [[package]]
@@ -611,7 +595,7 @@ checksum = "6455c0ca19f0d2fbf751b908d5c55c1f5cbc65e03c4225427254b46890bdde1e"
 dependencies = [
  "cfg-if 1.0.0",
  "crossbeam-epoch",
- "crossbeam-utils 0.8.5",
+ "crossbeam-utils",
 ]
 
 [[package]]
@@ -621,21 +605,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4ec02e091aa634e2c3ada4a392989e7c3116673ef0ac5b72232439094d73b7fd"
 dependencies = [
  "cfg-if 1.0.0",
- "crossbeam-utils 0.8.5",
+ "crossbeam-utils",
  "lazy_static",
  "memoffset",
  "scopeguard",
-]
-
-[[package]]
-name = "crossbeam-utils"
-version = "0.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3c7c73a2d1e9fc0886a08b93e98eb643461230d5f1925e4036204d5f2e261a8"
-dependencies = [
- "autocfg 1.0.0",
- "cfg-if 0.1.10",
- "lazy_static",
 ]
 
 [[package]]
@@ -865,17 +838,6 @@ name = "discard"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "212d0f5754cb6769937f4501cc0e67f4f4483c8d2c3e1e922ee9edbe4ab4c7c0"
-
-[[package]]
-name = "displaydoc"
-version = "0.1.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "adc2ab4d5a16117f9029e9a6b5e4e79f4c67f6519bc134210d4d4a04ba31f41b"
-dependencies = [
- "proc-macro2 1.0.32",
- "quote 1.0.10",
- "syn 1.0.81",
-]
 
 [[package]]
 name = "displaydoc"
@@ -1634,7 +1596,7 @@ checksum = "d140e84730d325378912ede32d7cd53ef1542725503b3353e5ec8113c7c6f588"
 dependencies = [
  "async-channel",
  "castaway",
- "crossbeam-utils 0.8.5",
+ "crossbeam-utils",
  "curl",
  "curl-sys",
  "event-listener",
@@ -1649,15 +1611,6 @@ dependencies = [
  "tracing-futures",
  "url 2.2.2",
  "waker-fn",
-]
-
-[[package]]
-name = "itertools"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "284f18f85651fe11e8a991b2adb42cb078325c996ed026d994719efcfca1d54b"
-dependencies = [
- "either",
 ]
 
 [[package]]
@@ -1832,12 +1785,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ffc5c5338469d4d3ea17d269fa8ea3512ad247247c30bd2df69e68309ed0a08"
 
 [[package]]
-name = "maybe-uninit"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60302e4db3a61da70c0cb7991976248362f30319e88850c487b9b95bbf059e00"
-
-[[package]]
 name = "mbedtls"
 version = "0.8.1"
 source = "git+https://github.com/mobilecoinofficial/rust-mbedtls.git?rev=49a293a5f4b1ef571c71174e3fa1f301925f3915#49a293a5f4b1ef571c71174e3fa1f301925f3915"
@@ -1878,7 +1825,7 @@ version = "1.2.0-pre0"
 dependencies = [
  "blake2",
  "curve25519-dalek",
- "displaydoc 0.2.3",
+ "displaydoc",
  "hkdf",
  "mc-crypto-digestible",
  "mc-crypto-hashes",
@@ -1887,7 +1834,7 @@ dependencies = [
  "mc-util-from-random",
  "mc-util-repr-bytes",
  "mc-util-serial",
- "prost 0.9.0",
+ "prost",
  "rand_core 0.6.3",
  "subtle",
  "zeroize",
@@ -1898,7 +1845,7 @@ name = "mc-account-keys-slip10"
 version = "1.2.0-pre0"
 dependencies = [
  "curve25519-dalek",
- "displaydoc 0.2.3",
+ "displaydoc",
  "hkdf",
  "mc-account-keys",
  "mc-crypto-keys",
@@ -1912,11 +1859,11 @@ dependencies = [
 name = "mc-api"
 version = "1.2.0-pre0"
 dependencies = [
- "bs58 0.4.0",
+ "bs58",
  "cargo-emit",
  "crc",
  "curve25519-dalek",
- "displaydoc 0.2.3",
+ "displaydoc",
  "mc-account-keys",
  "mc-attest-core",
  "mc-crypto-keys",
@@ -1936,14 +1883,14 @@ dependencies = [
  "aead",
  "cargo-emit",
  "digest",
- "displaydoc 0.2.3",
+ "displaydoc",
  "mc-attest-core",
  "mc-attest-verifier",
  "mc-crypto-keys",
  "mc-crypto-noise",
  "mc-util-build-script",
  "mc-util-build-sgx",
- "prost 0.9.0",
+ "prost",
  "rand_core 0.6.3",
  "serde",
 ]
@@ -1975,7 +1922,7 @@ dependencies = [
  "cargo-emit",
  "chrono",
  "digest",
- "displaydoc 0.2.3",
+ "displaydoc",
  "hex_fmt",
  "mc-common",
  "mc-crypto-digestible",
@@ -1985,7 +1932,7 @@ dependencies = [
  "mc-util-build-script",
  "mc-util-build-sgx",
  "mc-util-encodings",
- "prost 0.9.0",
+ "prost",
  "rjson",
  "serde",
  "sha2",
@@ -1996,7 +1943,7 @@ dependencies = [
 name = "mc-attest-enclave-api"
 version = "1.2.0-pre0"
 dependencies = [
- "displaydoc 0.2.3",
+ "displaydoc",
  "mc-attest-ake",
  "mc-attest-core",
  "mc-attest-verifier",
@@ -2012,7 +1959,7 @@ dependencies = [
  "cargo-emit",
  "cfg-if 1.0.0",
  "chrono",
- "displaydoc 0.2.3",
+ "displaydoc",
  "hex",
  "lazy_static",
  "mbedtls",
@@ -2037,7 +1984,7 @@ dependencies = [
  "binascii",
  "cfg-if 1.0.0",
  "chrono",
- "displaydoc 0.2.3",
+ "displaydoc",
  "hashbrown",
  "hex_fmt",
  "hostname",
@@ -2070,7 +2017,7 @@ version = "1.2.0-pre0"
 dependencies = [
  "aes-gcm",
  "cookie 0.15.1",
- "displaydoc 0.2.3",
+ "displaydoc",
  "grpcio",
  "mc-attest-ake",
  "mc-attest-api",
@@ -2153,7 +2100,7 @@ dependencies = [
  "aead",
  "blake2",
  "digest",
- "displaydoc 0.2.3",
+ "displaydoc",
  "hkdf",
  "mc-crypto-keys",
  "mc-oblivious-aes-gcm",
@@ -2207,7 +2154,7 @@ dependencies = [
  "binascii",
  "curve25519-dalek",
  "digest",
- "displaydoc 0.2.3",
+ "displaydoc",
  "ed25519",
  "ed25519-dalek",
  "hex_fmt",
@@ -2233,7 +2180,7 @@ dependencies = [
  "aead",
  "aes-gcm",
  "digest",
- "displaydoc 0.2.3",
+ "displaydoc",
  "generic-array",
  "hkdf",
  "mc-crypto-keys",
@@ -2261,7 +2208,7 @@ dependencies = [
 name = "mc-crypto-x509-utils"
 version = "1.2.0-pre0"
 dependencies = [
- "displaydoc 0.2.3",
+ "displaydoc",
  "mc-crypto-keys",
  "pem",
  "x509-signature",
@@ -2287,7 +2234,7 @@ dependencies = [
 name = "mc-fog-report-connection"
 version = "1.2.0-pre0"
 dependencies = [
- "displaydoc 0.2.3",
+ "displaydoc",
  "grpcio",
  "mc-account-keys",
  "mc-attest-core",
@@ -2306,7 +2253,7 @@ version = "1.2.0-pre0"
 dependencies = [
  "mc-attest-core",
  "mc-crypto-digestible",
- "prost 0.9.0",
+ "prost",
  "serde",
 ]
 
@@ -2314,7 +2261,7 @@ dependencies = [
 name = "mc-fog-report-validation"
 version = "1.2.0-pre0"
 dependencies = [
- "displaydoc 0.2.3",
+ "displaydoc",
  "mc-account-keys",
  "mc-attest-core",
  "mc-attest-verifier",
@@ -2339,7 +2286,7 @@ dependencies = [
 name = "mc-fog-sig"
 version = "1.2.0-pre0"
 dependencies = [
- "displaydoc 0.2.3",
+ "displaydoc",
  "mc-account-keys",
  "mc-crypto-keys",
  "mc-crypto-x509-utils",
@@ -2363,7 +2310,7 @@ dependencies = [
 name = "mc-fog-sig-report"
 version = "1.2.0-pre0"
 dependencies = [
- "displaydoc 0.2.3",
+ "displaydoc",
  "mc-attest-core",
  "mc-crypto-digestible-signature",
  "mc-crypto-keys",
@@ -2375,13 +2322,13 @@ dependencies = [
 name = "mc-full-service"
 version = "0.1.0"
 dependencies = [
- "bs58 0.3.1",
+ "bs58",
  "chrono",
- "crossbeam-channel 0.4.4",
+ "crossbeam-channel",
  "diesel",
  "diesel-derive-enum",
  "diesel_migrations",
- "displaydoc 0.1.7",
+ "displaydoc",
  "dotenv",
  "grpcio",
  "hex",
@@ -2412,7 +2359,6 @@ dependencies = [
  "mc-util-serial",
  "mc-util-uri",
  "num_cpus",
- "prost 0.6.1",
  "rand 0.8.4",
  "rayon",
  "reqwest",
@@ -2435,7 +2381,7 @@ name = "mc-ledger-db"
 version = "1.2.0-pre0"
 dependencies = [
  "curve25519-dalek",
- "displaydoc 0.2.3",
+ "displaydoc",
  "lazy_static",
  "lmdb-rkv",
  "mc-account-keys",
@@ -2448,7 +2394,7 @@ dependencies = [
  "mc-util-serial",
  "mc-util-telemetry",
  "mockall",
- "prost 0.9.0",
+ "prost",
  "rand 0.8.4",
  "rand_core 0.6.3",
 ]
@@ -2457,8 +2403,8 @@ dependencies = [
 name = "mc-ledger-sync"
 version = "1.2.0-pre0"
 dependencies = [
- "crossbeam-channel 0.5.1",
- "displaydoc 0.2.3",
+ "crossbeam-channel",
+ "displaydoc",
  "grpcio",
  "mc-account-keys",
  "mc-api",
@@ -2488,8 +2434,8 @@ version = "1.2.0-pre0"
 dependencies = [
  "aes-gcm",
  "blake2",
- "crossbeam-channel 0.5.1",
- "displaydoc 0.2.3",
+ "crossbeam-channel",
+ "displaydoc",
  "grpcio",
  "hex_fmt",
  "libz-sys",
@@ -2525,7 +2471,7 @@ dependencies = [
  "mc-util-uri",
  "mc-watcher",
  "num_cpus",
- "prost 0.9.0",
+ "prost",
  "protobuf",
  "rand 0.8.4",
  "rayon",
@@ -2595,7 +2541,7 @@ dependencies = [
 name = "mc-sgx-css"
 version = "1.2.0-pre0"
 dependencies = [
- "displaydoc 0.2.3",
+ "displaydoc",
  "sha2",
 ]
 
@@ -2611,7 +2557,7 @@ dependencies = [
  "blake2",
  "bulletproofs-og",
  "curve25519-dalek",
- "displaydoc 0.2.3",
+ "displaydoc",
  "generic-array",
  "hex_fmt",
  "hkdf",
@@ -2626,7 +2572,7 @@ dependencies = [
  "mc-util-repr-bytes",
  "mc-util-serial",
  "merlin",
- "prost 0.9.0",
+ "prost",
  "rand_core 0.6.3",
  "serde",
  "sha2",
@@ -2656,7 +2602,7 @@ version = "1.2.0-pre0"
 dependencies = [
  "blake2",
  "curve25519-dalek",
- "displaydoc 0.2.3",
+ "displaydoc",
  "hmac 0.11.0",
  "mc-account-keys",
  "mc-crypto-keys",
@@ -2664,7 +2610,7 @@ dependencies = [
  "mc-transaction-core",
  "mc-util-from-random",
  "mc-util-serial",
- "prost 0.9.0",
+ "prost",
  "rand 0.8.4",
  "rand_core 0.6.3",
  "sha2",
@@ -2678,7 +2624,7 @@ version = "1.2.0-pre0"
 dependencies = [
  "cargo-emit",
  "cargo_metadata 0.14.1",
- "displaydoc 0.2.3",
+ "displaydoc",
  "mbedtls",
  "mbedtls-sys-auto",
  "mc-sgx-css",
@@ -2708,7 +2654,7 @@ name = "mc-util-build-script"
 version = "1.2.0-pre0"
 dependencies = [
  "cargo-emit",
- "displaydoc 0.2.3",
+ "displaydoc",
  "lazy_static",
  "url 2.2.2",
  "walkdir",
@@ -2720,7 +2666,7 @@ version = "1.2.0-pre0"
 dependencies = [
  "cargo-emit",
  "cc",
- "displaydoc 0.2.3",
+ "displaydoc",
  "mc-util-build-script",
  "pkg-config",
 ]
@@ -2731,7 +2677,7 @@ version = "1.2.0-pre0"
 dependencies = [
  "base64 0.13.0",
  "binascii",
- "displaydoc 0.2.3",
+ "displaydoc",
  "hex",
  "mc-util-repr-bytes",
  "serde",
@@ -2750,7 +2696,7 @@ version = "1.2.0-pre0"
 dependencies = [
  "base64 0.13.0",
  "cookie 0.15.1",
- "displaydoc 0.2.3",
+ "displaydoc",
  "futures",
  "grpcio",
  "hex",
@@ -2780,10 +2726,10 @@ version = "1.2.0-pre0"
 name = "mc-util-lmdb"
 version = "1.2.0-pre0"
 dependencies = [
- "displaydoc 0.2.3",
+ "displaydoc",
  "lmdb-rkv",
  "mc-util-serial",
- "prost 0.9.0",
+ "prost",
 ]
 
 [[package]]
@@ -2812,7 +2758,7 @@ dependencies = [
 name = "mc-util-parse"
 version = "1.2.0-pre0"
 dependencies = [
- "itertools 0.10.1",
+ "itertools",
  "mc-sgx-css",
 ]
 
@@ -2821,7 +2767,7 @@ name = "mc-util-repr-bytes"
 version = "1.2.0-pre0"
 dependencies = [
  "generic-array",
- "prost 0.9.0",
+ "prost",
  "serde",
 ]
 
@@ -2829,7 +2775,7 @@ dependencies = [
 name = "mc-util-serial"
 version = "1.2.0-pre0"
 dependencies = [
- "prost 0.9.0",
+ "prost",
  "serde",
  "serde_cbor",
 ]
@@ -2839,7 +2785,7 @@ name = "mc-util-telemetry"
 version = "1.2.0-pre0"
 dependencies = [
  "cfg-if 1.0.0",
- "displaydoc 0.2.3",
+ "displaydoc",
  "hostname",
  "opentelemetry",
  "opentelemetry-jaeger",
@@ -2850,7 +2796,7 @@ name = "mc-util-uri"
 version = "1.2.0-pre0"
 dependencies = [
  "base64 0.13.0",
- "displaydoc 0.2.3",
+ "displaydoc",
  "ed25519",
  "hex",
  "mc-common",
@@ -2865,7 +2811,7 @@ dependencies = [
 name = "mc-watcher"
 version = "1.2.0-pre0"
 dependencies = [
- "displaydoc 0.2.3",
+ "displaydoc",
  "futures",
  "grpcio",
  "hex",
@@ -2889,7 +2835,7 @@ dependencies = [
  "mc-util-serial",
  "mc-util-uri",
  "mc-watcher-api",
- "prost 0.9.0",
+ "prost",
  "rayon",
  "serde",
  "structopt",
@@ -2901,7 +2847,7 @@ dependencies = [
 name = "mc-watcher-api"
 version = "1.2.0-pre0"
 dependencies = [
- "displaydoc 0.2.3",
+ "displaydoc",
  "serde",
 ]
 
@@ -3190,7 +3136,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e1cf9b1c4e9a6c4de793c632496fa490bdc0e1eea73f0c91394f7b6990935d22"
 dependencies = [
  "async-trait",
- "crossbeam-channel 0.5.1",
+ "crossbeam-channel",
  "futures",
  "js-sys",
  "lazy_static",
@@ -3545,33 +3491,12 @@ dependencies = [
 
 [[package]]
 name = "prost"
-version = "0.6.1"
-source = "git+https://github.com/danburkert/prost?rev=6113789f70b69709820becba4242824b4fb3ffec#6113789f70b69709820becba4242824b4fb3ffec"
-dependencies = [
- "bytes 0.5.4",
- "prost-derive 0.6.1",
-]
-
-[[package]]
-name = "prost"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "444879275cb4fd84958b1a1d5420d15e6fcf7c235fe47f053c9c2a80aceb6001"
 dependencies = [
  "bytes 1.1.0",
- "prost-derive 0.9.0",
-]
-
-[[package]]
-name = "prost-derive"
-version = "0.6.1"
-source = "git+https://github.com/danburkert/prost?rev=6113789f70b69709820becba4242824b4fb3ffec#6113789f70b69709820becba4242824b4fb3ffec"
-dependencies = [
- "anyhow",
- "itertools 0.9.0",
- "proc-macro2 1.0.32",
- "quote 1.0.10",
- "syn 1.0.81",
+ "prost-derive",
 ]
 
 [[package]]
@@ -3581,7 +3506,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9cc1a3263e07e0bf68e96268f37665207b49560d98739662cdfaae215c720fe"
 dependencies = [
  "anyhow",
- "itertools 0.10.1",
+ "itertools",
  "proc-macro2 1.0.32",
  "quote 1.0.10",
  "syn 1.0.81",
@@ -3889,9 +3814,9 @@ version = "1.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d78120e2c850279833f1dd3582f730c4ab53ed95aeaaaa862a2a5c71b1656d8e"
 dependencies = [
- "crossbeam-channel 0.5.1",
+ "crossbeam-channel",
  "crossbeam-deque",
- "crossbeam-utils 0.8.5",
+ "crossbeam-utils",
  "lazy_static",
  "num_cpus",
 ]
@@ -4483,7 +4408,7 @@ version = "2.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "766c59b252e62a34651412870ff55d8c4e6d04df19b43eecb2703e417b097ffe"
 dependencies = [
- "crossbeam-channel 0.5.1",
+ "crossbeam-channel",
  "slog",
  "take_mut",
  "thread_local",

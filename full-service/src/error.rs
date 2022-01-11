@@ -30,7 +30,7 @@ pub enum WalletServiceError {
     LedgerDB(mc_ledger_db::Error),
 
     /// Error decoding prost: {0}
-    ProstDecode(prost::DecodeError),
+    ProstDecode(mc_util_serial::DecodeError),
 
     /// Error serializing json: {0}
     SerdeJson(serde_json::Error),
@@ -144,8 +144,8 @@ impl From<mc_ledger_db::Error> for WalletServiceError {
     }
 }
 
-impl From<prost::DecodeError> for WalletServiceError {
-    fn from(src: prost::DecodeError) -> Self {
+impl From<mc_util_serial::DecodeError> for WalletServiceError {
+    fn from(src: mc_util_serial::DecodeError) -> Self {
         Self::ProstDecode(src)
     }
 }
@@ -177,16 +177,13 @@ pub enum SyncError {
     CryptoKey(mc_crypto_keys::KeyError),
 
     /// Error decoding prost: {0}
-    ProstDecode(prost::DecodeError),
+    ProstDecode(mc_util_serial::DecodeError),
 
     /// Error with the Amount: {0}
     Amount(mc_transaction_core::AmountError),
 
     /// Error executing diesel transaction: {0}
     Diesel(diesel::result::Error),
-
-    /// Decode Error for mc util serial {0}
-    DecodeError(mc_util_serial::DecodeError),
 }
 
 impl From<WalletDbError> for SyncError {
@@ -207,8 +204,8 @@ impl From<mc_crypto_keys::KeyError> for SyncError {
     }
 }
 
-impl From<prost::DecodeError> for SyncError {
-    fn from(src: prost::DecodeError) -> Self {
+impl From<mc_util_serial::DecodeError> for SyncError {
+    fn from(src: mc_util_serial::DecodeError) -> Self {
         Self::ProstDecode(src)
     }
 }
@@ -222,12 +219,6 @@ impl From<mc_transaction_core::AmountError> for SyncError {
 impl From<diesel::result::Error> for SyncError {
     fn from(src: diesel::result::Error) -> Self {
         Self::Diesel(src)
-    }
-}
-
-impl From<mc_util_serial::DecodeError> for SyncError {
-    fn from(src: mc_util_serial::DecodeError) -> Self {
-        Self::DecodeError(src)
     }
 }
 
@@ -262,7 +253,7 @@ pub enum WalletTransactionBuilderError {
     InvalidArgument(String),
 
     /// Prost decode failed: {0}
-    ProstDecode(prost::DecodeError),
+    ProstDecode(mc_util_serial::DecodeError),
 
     /// Wallet DB Error: {0}
     WalletDb(WalletDbError),
@@ -282,8 +273,10 @@ pub enum WalletTransactionBuilderError {
     /// Outbound value + fee exceeds u64::MAX
     OutboundValueTooLarge,
 
-    /// Must set tombstone before building. Setting to 0 picks reasonable
-    /// default.
+    /**
+     * Must set tombstone before building. Setting to 0 picks reasonable
+     * default.
+     */
     TombstoneNotSet,
 
     /// Fee must be at least MINIMUM_FEE: {0}
@@ -294,9 +287,6 @@ pub enum WalletTransactionBuilderError {
 
     /// Error generating FogPubkeyResolver {0}
     FogPubkeyResolver(String),
-
-    /// Decode Error with mc util serial {0}
-    DecodeError(mc_util_serial::DecodeError),
 }
 
 impl From<mc_ledger_db::Error> for WalletTransactionBuilderError {
@@ -311,8 +301,8 @@ impl From<mc_transaction_std::TxBuilderError> for WalletTransactionBuilderError 
     }
 }
 
-impl From<prost::DecodeError> for WalletTransactionBuilderError {
-    fn from(src: prost::DecodeError) -> Self {
+impl From<mc_util_serial::DecodeError> for WalletTransactionBuilderError {
+    fn from(src: mc_util_serial::DecodeError) -> Self {
         Self::ProstDecode(src)
     }
 }
@@ -332,11 +322,5 @@ impl From<diesel::result::Error> for WalletTransactionBuilderError {
 impl From<mc_util_uri::UriParseError> for WalletTransactionBuilderError {
     fn from(src: mc_util_uri::UriParseError) -> Self {
         Self::UriParse(src)
-    }
-}
-
-impl From<mc_util_serial::DecodeError> for WalletTransactionBuilderError {
-    fn from(src: mc_util_serial::DecodeError) -> Self {
-        Self::DecodeError(src)
     }
 }

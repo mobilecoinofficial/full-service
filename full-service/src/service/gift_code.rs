@@ -63,7 +63,7 @@ pub enum GiftCodeServiceError {
     HexDecode(hex::FromHexError),
 
     /// Error decoding prost: {0}
-    ProstDecode(prost::DecodeError),
+    ProstDecode(mc_util_serial::DecodeError),
 
     /// Building the gift code failed
     BuildGiftCodeFailed,
@@ -89,8 +89,9 @@ pub enum GiftCodeServiceError {
     /// The Account is Not Found
     AccountNotFound,
 
-    /// The TxProposal for this GiftCode was constructed in an unexpected
-    /// manner.
+    /** The TxProposal for this GiftCode was constructed in an unexpected
+     * manner.
+     */
     UnexpectedTxProposalFormat,
 
     /// Diesel error: {0}
@@ -172,8 +173,8 @@ impl From<hex::FromHexError> for GiftCodeServiceError {
     }
 }
 
-impl From<prost::DecodeError> for GiftCodeServiceError {
-    fn from(src: prost::DecodeError) -> Self {
+impl From<mc_util_serial::DecodeError> for GiftCodeServiceError {
+    fn from(src: mc_util_serial::DecodeError) -> Self {
         Self::ProstDecode(src)
     }
 }

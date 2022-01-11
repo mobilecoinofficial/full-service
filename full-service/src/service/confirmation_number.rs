@@ -38,7 +38,7 @@ pub enum ConfirmationServiceError {
     LedgerDB(mc_ledger_db::Error),
 
     /// Error decoding prost: {0}
-    ProstDecode(prost::DecodeError),
+    ProstDecode(mc_util_serial::DecodeError),
 
     /// Error decoding from hex: {0}
     HexDecode(hex::FromHexError),
@@ -51,9 +51,6 @@ pub enum ConfirmationServiceError {
 
     /// Error with the TxoService: {0}
     TransactionLogService(TransactionLogServiceError),
-
-    /// Decode Error with mc_util_serial
-    DecodeError(mc_util_serial::DecodeError),
 }
 
 impl From<WalletDbError> for ConfirmationServiceError {
@@ -74,8 +71,8 @@ impl From<mc_ledger_db::Error> for ConfirmationServiceError {
     }
 }
 
-impl From<prost::DecodeError> for ConfirmationServiceError {
-    fn from(src: prost::DecodeError) -> Self {
+impl From<mc_util_serial::DecodeError> for ConfirmationServiceError {
+    fn from(src: mc_util_serial::DecodeError) -> Self {
         Self::ProstDecode(src)
     }
 }
@@ -95,12 +92,6 @@ impl From<TxoServiceError> for ConfirmationServiceError {
 impl From<TransactionLogServiceError> for ConfirmationServiceError {
     fn from(src: TransactionLogServiceError) -> Self {
         Self::TransactionLogService(src)
-    }
-}
-
-impl From<mc_util_serial::DecodeError> for ConfirmationServiceError {
-    fn from(src: mc_util_serial::DecodeError) -> Self {
-        Self::DecodeError(src)
     }
 }
 

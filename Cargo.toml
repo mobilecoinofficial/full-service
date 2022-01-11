@@ -56,9 +56,6 @@ serde_cbor = { git = "https://github.com/mobilecoinofficial/cbor", rev = "4c886a
 # Fix issues with recent nightlies, bump curve25519-dalek version
 x25519-dalek = { git = "https://github.com/mobilecoinfoundation/x25519-dalek.git", rev = "672f29ef4b3addd9a3c4888cf4b836b243bda595" }
 
-prost = { git = "https://github.com/danburkert/prost", rev = "6113789f70b69709820becba4242824b4fb3ffec" }
-prost-derive = { git = "https://github.com/danburkert/prost", rev = "6113789f70b69709820becba4242824b4fb3ffec" }
-
 # Override diesel dependency with our fork, in order to use a version of libsqlite3-sys that has bundled-sqlcipher. This allows us to
 # statically link SQLite.
 diesel = { git = "https://github.com/mobilecoinofficial/diesel", rev = "22a4a4b973db2b7aadaf088b3279dbbe52176896" }

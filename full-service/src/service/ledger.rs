@@ -37,14 +37,12 @@ pub enum LedgerServiceError {
     LedgerDB(mc_ledger_db::Error),
 
     /// Error decoding prost: {0}
-    ProstDecode(prost::DecodeError),
+    ProstDecode(mc_util_serial::DecodeError),
 
-    /// No transaction object associated with this transaction. Note, received
-    /// transactions do not have transaction objects.
+    /** No transaction object associated with this transaction. Note,
+     * received transactions do not have transaction objects.
+     */
     NoTxInTransaction,
-
-    /// Decode Error for mc_util_serial
-    DecodeError(mc_util_serial::DecodeError),
 }
 
 impl From<mc_ledger_db::Error> for LedgerServiceError {
@@ -53,8 +51,8 @@ impl From<mc_ledger_db::Error> for LedgerServiceError {
     }
 }
 
-impl From<prost::DecodeError> for LedgerServiceError {
-    fn from(src: prost::DecodeError) -> Self {
+impl From<mc_util_serial::DecodeError> for LedgerServiceError {
+    fn from(src: mc_util_serial::DecodeError) -> Self {
         Self::ProstDecode(src)
     }
 }
@@ -62,12 +60,6 @@ impl From<prost::DecodeError> for LedgerServiceError {
 impl From<WalletDbError> for LedgerServiceError {
     fn from(src: WalletDbError) -> Self {
         Self::Database(src)
-    }
-}
-
-impl From<mc_util_serial::DecodeError> for LedgerServiceError {
-    fn from(src: mc_util_serial::DecodeError) -> Self {
-        Self::DecodeError(src)
     }
 }
 

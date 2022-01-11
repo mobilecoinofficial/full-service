@@ -42,8 +42,9 @@ pub enum TransactionServiceError {
     /// Error parsing u64
     U64Parse,
 
-    /// Submit transaction expected an account to produce a transaction log on
-    /// submit.
+    /** Submit transaction expected an account to produce a transaction log
+     * on submit.
+     */
     MissingAccountOnSubmit,
 
     /// Node not found.

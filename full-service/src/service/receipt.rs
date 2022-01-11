@@ -51,16 +51,13 @@ pub enum ReceiptServiceError {
     ProtoConversionInfallible,
 
     /// Error decoding prost: {0}
-    ProstDecode(prost::DecodeError),
+    ProstDecode(mc_util_serial::DecodeError),
 
     /// Error with crypto keys: {0}
     CryptoKey(mc_crypto_keys::KeyError),
 
     /// Error decoding from hex: {0}
     HexDecode(hex::FromHexError),
-
-    /// Decode Error for mc util serial {0}
-    DecodeError(mc_util_serial::DecodeError),
 }
 
 impl From<WalletDbError> for ReceiptServiceError {
@@ -81,8 +78,8 @@ impl From<mc_api::ConversionError> for ReceiptServiceError {
     }
 }
 
-impl From<prost::DecodeError> for ReceiptServiceError {
-    fn from(src: prost::DecodeError) -> Self {
+impl From<mc_util_serial::DecodeError> for ReceiptServiceError {
+    fn from(src: mc_util_serial::DecodeError) -> Self {
         Self::ProstDecode(src)
     }
 }
@@ -96,12 +93,6 @@ impl From<mc_crypto_keys::KeyError> for ReceiptServiceError {
 impl From<hex::FromHexError> for ReceiptServiceError {
     fn from(src: hex::FromHexError) -> Self {
         Self::HexDecode(src)
-    }
-}
-
-impl From<mc_util_serial::DecodeError> for ReceiptServiceError {
-    fn from(src: mc_util_serial::DecodeError) -> Self {
-        Self::DecodeError(src)
     }
 }
 
