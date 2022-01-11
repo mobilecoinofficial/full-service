@@ -1,5 +1,5 @@
-// Copyright 2018-2021 MobileCoin, Inc.
+// Copyright 2018-2022 MobileCoin, Inc.
 
 pub mod config;
 
-pub use crate::{config::Config};
+pub use crate::config::Config;

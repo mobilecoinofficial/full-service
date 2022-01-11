@@ -14,6 +14,7 @@ use mc_fog_report_validation::FogResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::ReqwestTransactionsFetcher;
 use mc_sgx_css::Signature;
+use mc_util_parse::parse_duration_in_seconds;
 use mc_util_uri::{ConnectionUri, ConsensusClientUri, FogUri};
 
 use displaydoc::Display;
@@ -119,10 +120,6 @@ pub struct APIConfig {
     /// transactions to fog recipients).
     #[structopt(long, parse(try_from_str=load_css_file))]
     pub fog_ingest_enclave_css: Option<Signature>,
-}
-
-fn parse_duration_in_seconds(src: &str) -> Result<Duration, std::num::ParseIntError> {
-    Ok(Duration::from_secs(u64::from_str(src)?))
 }
 
 fn parse_quorum_set_from_json(src: &str) -> Result<QuorumSet<ResponderId>, String> {
