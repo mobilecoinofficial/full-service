@@ -44,7 +44,7 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tx::{Tx, TxOut},
 };
-use mc_transaction_std::{InputCredentials, TransactionBuilder};
+use mc_transaction_std::{InputCredentials, NoMemoBuilder, TransactionBuilder};
 use mc_util_uri::FogUri;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -623,7 +623,10 @@ where
             *gift_account_key.view_private_key(),
         )?;
 
-        let mut transaction_builder = TransactionBuilder::new(fog_resolver);
+        // Create transaction builder.
+        // TODO: After servers that support memos are deployed, use RTHMemoBuilder here
+        let memo_builder = NoMemoBuilder::default();
+        let mut transaction_builder = TransactionBuilder::new(fog_resolver, memo_builder);
         transaction_builder.add_input(input_credentials);
         let (_tx_out, _confirmation) = transaction_builder.add_output(
             gift_value as u64 - MINIMUM_FEE,
@@ -631,7 +634,7 @@ where
             &mut rng,
         )?;
 
-        transaction_builder.set_fee(MINIMUM_FEE);
+        transaction_builder.set_fee(MINIMUM_FEE)?;
 
         let num_blocks_in_ledger = self.ledger_db.num_blocks()?;
         transaction_builder.set_tombstone_block(num_blocks_in_ledger + 50);

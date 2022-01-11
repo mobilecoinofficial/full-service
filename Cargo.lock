@@ -2389,6 +2389,7 @@ dependencies = [
  "mc-account-keys-slip10",
  "mc-api",
  "mc-attest-core",
+ "mc-attest-verifier",
  "mc-common",
  "mc-connection",
  "mc-connection-test-utils",
@@ -5542,13 +5543,3 @@ dependencies = [
  "syn 1.0.81",
  "synstructure",
 ]
-
-[[patch.unused]]
-name = "aes-gcm"
-version = "0.6.0"
-source = "git+https://github.com/mobilecoinofficial/AEADs?rev=d1a8517d3dd867ed9c5794002add67992a42f6aa#d1a8517d3dd867ed9c5794002add67992a42f6aa"
-
-[[patch.unused]]
-name = "datatest"
-version = "0.6.4"
-source = "git+https://github.com/mobilecoinfoundation/datatest.git?rev=dc3521f692228b846a2312e7ceece50e7664be6e#dc3521f692228b846a2312e7ceece50e7664be6e"

@@ -6,7 +6,7 @@
 use diesel::{connection::SimpleConnection, prelude::*, SqliteConnection};
 use diesel_migrations::embed_migrations;
 use dotenv::dotenv;
-use mc_attest_core::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
+use mc_attest_verifier::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
 use mc_common::logger::{create_app_logger, log, o};
 use mc_full_service::{
     config::APIConfig,
