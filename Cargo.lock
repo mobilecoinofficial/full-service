@@ -2388,7 +2388,6 @@ dependencies = [
  "mc-account-keys",
  "mc-account-keys-slip10",
  "mc-api",
- "mc-attest-core",
  "mc-attest-verifier",
  "mc-common",
  "mc-connection",
