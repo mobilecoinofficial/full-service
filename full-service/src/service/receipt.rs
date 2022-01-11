@@ -51,7 +51,7 @@ pub enum ReceiptServiceError {
     ProtoConversionInfallible,
 
     /// Error decoding prost: {0}
-    ProstDecode(prost::DecodeError),
+    ProstDecode(mc_util_serial::DecodeError),
 
     /// Error with crypto keys: {0}
     CryptoKey(mc_crypto_keys::KeyError),
@@ -78,8 +78,8 @@ impl From<mc_api::ConversionError> for ReceiptServiceError {
     }
 }
 
-impl From<prost::DecodeError> for ReceiptServiceError {
-    fn from(src: prost::DecodeError) -> Self {
+impl From<mc_util_serial::DecodeError> for ReceiptServiceError {
+    fn from(src: mc_util_serial::DecodeError) -> Self {
         Self::ProstDecode(src)
     }
 }
@@ -188,11 +188,11 @@ where
     ) -> Result<(ReceiptTransactionStatus, Option<Txo>), ReceiptServiceError> {
         let conn = &self.wallet_db.get_conn()?;
         conn.transaction(|| {
-            let assigned_address = AssignedSubaddress::get(address, &conn)?;
+            let assigned_address = AssignedSubaddress::get(address, conn)?;
             let account_id = AccountID(assigned_address.account_id_hex.clone());
-            let account = Account::get(&account_id, &conn)?;
+            let account = Account::get(&account_id, conn)?;
             // Get the transaction from the database, with status.
-            let txos = Txo::select_by_public_key(&[&receiver_receipt.public_key], &conn)?;
+            let txos = Txo::select_by_public_key(&[&receiver_receipt.public_key], conn)?;
 
             // Return if the Txo from the receipt is not in this wallet yet.
             if txos.is_empty() {
@@ -246,7 +246,7 @@ where
                 hex::encode(mc_util_serial::encode(&receiver_receipt.confirmation));
             let confirmation: TxOutConfirmationNumber =
                 mc_util_serial::decode(&hex::decode(confirmation_hex)?)?;
-            if !Txo::validate_confirmation(&account_id, &txo.txo_id_hex, &confirmation, &conn)? {
+            if !Txo::validate_confirmation(&account_id, &txo.txo_id_hex, &confirmation, conn)? {
                 return Ok((ReceiptTransactionStatus::InvalidConfirmation, Some(txo)));
             }
 

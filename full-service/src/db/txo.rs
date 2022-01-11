@@ -265,7 +265,7 @@ impl TxoModel for Txo {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<String, WalletDbError> {
         // Verify that the account exists.
-        Account::get(&AccountID(account_id_hex.to_string()), &conn)?;
+        Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
         let txo_id = TxoID::from(&txo);
         match Txo::get(&txo_id.to_string(), conn) {
@@ -474,7 +474,7 @@ impl TxoModel for Txo {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
-        let subaddress = AssignedSubaddress::get(&assigned_subaddress_b58, conn)?;
+        let subaddress = AssignedSubaddress::get(assigned_subaddress_b58, conn)?;
         let results = txos::table
             .filter(txos::subaddress_index.eq(subaddress.subaddress_index))
             .filter(txos::received_account_id_hex.eq(subaddress.account_id_hex))
@@ -496,7 +496,7 @@ impl TxoModel for Txo {
             .filter(txos::spent_block_index.is_null());
 
         let txos: Vec<Txo> = if let Some(subaddress_b58) = assigned_subaddress_b58 {
-            let subaddress = AssignedSubaddress::get(&subaddress_b58, conn)?;
+            let subaddress = AssignedSubaddress::get(subaddress_b58, conn)?;
             results
                 .filter(txos::subaddress_index.eq(subaddress.subaddress_index))
                 .load(conn)?
@@ -521,7 +521,7 @@ impl TxoModel for Txo {
             .filter(txos::spent_block_index.is_not_null());
 
         let txos: Vec<Txo> = if let Some(subaddress_b58) = assigned_subaddress_b58 {
-            let subaddress = AssignedSubaddress::get(&subaddress_b58, conn)?;
+            let subaddress = AssignedSubaddress::get(subaddress_b58, conn)?;
             results
                 .filter(txos::subaddress_index.eq(subaddress.subaddress_index))
                 .load(conn)?
@@ -576,7 +576,7 @@ impl TxoModel for Txo {
             .filter(txos::spent_block_index.is_null());
 
         let txos: Vec<Txo> = if let Some(subaddress_b58) = assigned_subaddress_b58 {
-            let subaddress = AssignedSubaddress::get(&subaddress_b58, conn)?;
+            let subaddress = AssignedSubaddress::get(subaddress_b58, conn)?;
             results
                 .filter(txos::subaddress_index.eq(subaddress.subaddress_index))
                 .load(conn)?

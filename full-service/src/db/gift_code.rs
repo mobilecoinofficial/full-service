@@ -101,7 +101,7 @@ impl GiftCodeModel for GiftCode {
             .values(&new_gift_code)
             .execute(conn)?;
 
-        let gift_code = GiftCode::get(&gift_code_b58, conn)?;
+        let gift_code = GiftCode::get(gift_code_b58, conn)?;
         Ok(gift_code)
     }
 

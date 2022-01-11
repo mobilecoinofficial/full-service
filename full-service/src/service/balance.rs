@@ -280,23 +280,23 @@ where
     ) -> Result<(u128, u128, u128, u128, u128), BalanceServiceError> {
         // Note: We need to cast to u64 first, because i64 could have wrapped, then to
         // u128
-        let unspent = Txo::list_unspent(account_id_hex, None, &conn)?
+        let unspent = Txo::list_unspent(account_id_hex, None, conn)?
             .iter()
             .map(|t| (t.value as u64) as u128)
             .sum::<u128>();
-        let spent = Txo::list_spent(account_id_hex, None, &conn)?
+        let spent = Txo::list_spent(account_id_hex, None, conn)?
             .iter()
             .map(|t| (t.value as u64) as u128)
             .sum::<u128>();
-        let secreted = Txo::list_secreted(account_id_hex, &conn)?
+        let secreted = Txo::list_secreted(account_id_hex, conn)?
             .iter()
             .map(|t| (t.value as u64) as u128)
             .sum::<u128>();
-        let orphaned = Txo::list_orphaned(account_id_hex, &conn)?
+        let orphaned = Txo::list_orphaned(account_id_hex, conn)?
             .iter()
             .map(|t| (t.value as u64) as u128)
             .sum::<u128>();
-        let pending = Txo::list_pending(account_id_hex, None, &conn)?
+        let pending = Txo::list_pending(account_id_hex, None, conn)?
             .iter()
             .map(|t| (t.value as u64) as u128)
             .sum::<u128>();

@@ -404,7 +404,7 @@ impl TransactionLogModel for TransactionLog {
         use crate::db::schema::transaction_txo_types;
 
         for (subaddress_index, output_txo_ids) in subaddress_to_output_txo_ids {
-            let txos = Txo::select_by_id(&output_txo_ids, conn)?;
+            let txos = Txo::select_by_id(output_txo_ids, conn)?;
             for txo in txos {
                 let transaction_id = TransactionID::from(txo.txo_id_hex.clone());
 
@@ -467,7 +467,7 @@ impl TransactionLogModel for TransactionLog {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<TransactionLog, WalletDbError> {
         // Verify that the account exists.
-        Account::get(&AccountID(account_id_hex.to_string()), &conn)?;
+        Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
         // Store the txo_id_hex -> transaction_txo_type
         let mut txo_ids: Vec<(String, String)> = Vec::new();
@@ -491,7 +491,7 @@ impl TransactionLogModel for TransactionLog {
         // Next, add all of our minted outputs to the Txo Table
         for (i, output) in tx_proposal.tx.prefix.outputs.iter().enumerate() {
             let processed_output =
-                Txo::create_minted(account_id_hex, &output, &tx_proposal, i, conn)?;
+                Txo::create_minted(account_id_hex, output, &tx_proposal, i, conn)?;
             txo_ids.push((
                 processed_output.txo_id_hex,
                 processed_output.txo_type.to_string(),

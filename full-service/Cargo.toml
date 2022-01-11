@@ -16,7 +16,7 @@ ip-check = []
 mc-account-keys = { path = "../mobilecoin/account-keys" }
 mc-account-keys-slip10 = { path = "../mobilecoin/account-keys/slip10" }
 mc-api = { path = "../mobilecoin/api" }
-mc-attest-core = { path = "../mobilecoin/attest/core", default-features = false }
+mc-attest-verifier = { path = "../mobilecoin/attest/verifier", default-features = false }
 mc-common = { path = "../mobilecoin/common", default-features = false, features = ["loggers"] }
 mc-connection = { path = "../mobilecoin/connection" }
 mc-consensus-enclave-measurement = { path = "../mobilecoin/consensus/enclave/measurement" }
@@ -39,20 +39,19 @@ mc-util-serial = { path = "../mobilecoin/util/serial", default-features = false 
 mc-util-uri = { path = "../mobilecoin/util/uri" }
 
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
-crossbeam-channel = "0.4"
+crossbeam-channel = "0.5"
 diesel = { version = "1.4.6", features = ["sqlcipher-bundled"] }
 diesel-derive-enum = { version = "1", features = ["sqlite"] }
 diesel_migrations = { version = "1.4.0", features = ["sqlite"] }
-displaydoc = {version = "0.1", default-features = false }
+displaydoc = {version = "0.2", default-features = false }
 dotenv = "0.15.0"
 grpcio = "0.9.0"
 hex = {version = "0.4", default-features = false }
 num_cpus = "1.12"
-prost = { version = "0.6.1", default-features = false, features = ["prost-derive"] }
 rand = { version = "0.8", default-features = false }
-rayon = "1.3"
+rayon = "1.5"
 reqwest = { version = "0.10", default-features = false, features = ["rustls-tls", "gzip"] }
-retry = "1.2"
+retry = "1.3"
 rocket = { version = "0.4.5", default-features = false }
 rocket_contrib = { version = "0.4.5", default-features = false, features = ["json", "diesel_sqlite_pool"] }
 serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }
@@ -69,7 +68,7 @@ mc-connection-test-utils = { path = "../mobilecoin/connection/test-utils" }
 mc-fog-report-validation = { path = "../mobilecoin/fog/report/validation", features = ["automock"] }
 mc-fog-report-validation-test-utils = { path = "../mobilecoin/fog/report/validation/test-utils"}
 tempdir = "0.3"
-bs58 = "0.3.0"
+bs58 = "0.4.0"
 
 [build-dependencies]
 # clippy fails to run without this.

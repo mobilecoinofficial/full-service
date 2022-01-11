@@ -38,7 +38,7 @@ pub enum ConfirmationServiceError {
     LedgerDB(mc_ledger_db::Error),
 
     /// Error decoding prost: {0}
-    ProstDecode(prost::DecodeError),
+    ProstDecode(mc_util_serial::DecodeError),
 
     /// Error decoding from hex: {0}
     HexDecode(hex::FromHexError),
@@ -71,8 +71,8 @@ impl From<mc_ledger_db::Error> for ConfirmationServiceError {
     }
 }
 
-impl From<prost::DecodeError> for ConfirmationServiceError {
-    fn from(src: prost::DecodeError) -> Self {
+impl From<mc_util_serial::DecodeError> for ConfirmationServiceError {
+    fn from(src: mc_util_serial::DecodeError) -> Self {
         Self::ProstDecode(src)
     }
 }
@@ -129,7 +129,7 @@ where
         &self,
         transaction_log_id: &str,
     ) -> Result<Vec<Confirmation>, ConfirmationServiceError> {
-        let (_transaction_log, associated_txos) = self.get_transaction_log(&transaction_log_id)?;
+        let (_transaction_log, associated_txos) = self.get_transaction_log(transaction_log_id)?;
 
         let mut results = Vec::new();
         for associated_txo in associated_txos.outputs {

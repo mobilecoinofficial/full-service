@@ -42,8 +42,9 @@ pub enum TransactionServiceError {
     /// Error parsing u64
     U64Parse,
 
-    /// Submit transaction expected an account to produce a transaction log on
-    /// submit.
+    /** Submit transaction expected an account to produce a transaction log
+     * on submit.
+     */
     MissingAccountOnSubmit,
 
     /// Node not found.
@@ -233,7 +234,7 @@ where
                 tx_proposal.clone(),
                 block_index,
                 "".to_string(),
-                &account_id_hex,
+                account_id_hex,
                 &conn,
             )?;
         }
@@ -315,7 +316,7 @@ where
     ) -> Result<(TransactionLog, AssociatedTxos, TxProposal), TransactionServiceError> {
         let tx_proposal = self.build_transaction(
             account_id_hex,
-            &addresses_and_values,
+            addresses_and_values,
             input_txo_ids,
             fee,
             tombstone_block,

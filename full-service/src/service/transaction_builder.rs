@@ -35,7 +35,7 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tx::{TxOut, TxOutMembershipProof},
 };
-use mc_transaction_std::{InputCredentials, TransactionBuilder};
+use mc_transaction_std::{InputCredentials, NoMemoBuilder, TransactionBuilder};
 use mc_util_uri::FogUri;
 
 use diesel::prelude::*;
@@ -219,8 +219,10 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             };
 
             // Create transaction builder.
-            let mut transaction_builder = TransactionBuilder::new(fog_resolver);
-            transaction_builder.set_fee(self.fee.unwrap_or(MINIMUM_FEE));
+            // TODO: After servers that support memos are deployed, use RTHMemoBuilder here
+            let memo_builder = NoMemoBuilder::default();
+            let mut transaction_builder = TransactionBuilder::new(fog_resolver, memo_builder);
+            transaction_builder.set_fee(self.fee.unwrap_or(MINIMUM_FEE))?;
 
             // Get membership proofs for our inputs
             let indexes = self
@@ -350,7 +352,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             let mut rng = rand::thread_rng();
             for (i, (recipient, out_value)) in self.outlays.iter().enumerate() {
                 let (tx_out, confirmation_number) =
-                    transaction_builder.add_output(*out_value as u64, &recipient, &mut rng)?;
+                    transaction_builder.add_output(*out_value as u64, recipient, &mut rng)?;
 
                 tx_out_to_outlay_index.insert(tx_out, i);
                 outlay_confirmation_numbers.push(confirmation_number);
@@ -362,17 +364,17 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             let input_value = inputs_and_proofs
                 .iter()
                 .fold(0, |acc, (utxo, _proof)| acc + utxo.value);
-            if (total_value + transaction_builder.fee) > input_value as u64 {
+            if (total_value + transaction_builder.get_fee()) > input_value as u64 {
                 return Err(WalletTransactionBuilderError::InsufficientInputFunds(
                     format!(
                         "Total value required to send transaction {:?}, but only {:?} in inputs",
-                        total_value + transaction_builder.fee,
+                        total_value + transaction_builder.get_fee(),
                         input_value
                     ),
                 ));
             }
 
-            let change = input_value as u64 - total_value - transaction_builder.fee;
+            let change = input_value as u64 - total_value - transaction_builder.get_fee();
 
             // If we do, add an output for that as well.
             if change > 0 {
