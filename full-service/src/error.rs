@@ -184,6 +184,9 @@ pub enum SyncError {
 
     /// Error executing diesel transaction: {0}
     Diesel(diesel::result::Error),
+
+    /// Decode Error for mc util serial {0}
+    DecodeError(mc_util_serial::DecodeError),
 }
 
 impl From<WalletDbError> for SyncError {
@@ -219,6 +222,12 @@ impl From<mc_transaction_core::AmountError> for SyncError {
 impl From<diesel::result::Error> for SyncError {
     fn from(src: diesel::result::Error) -> Self {
         Self::Diesel(src)
+    }
+}
+
+impl From<mc_util_serial::DecodeError> for SyncError {
+    fn from(src: mc_util_serial::DecodeError) -> Self {
+        Self::DecodeError(src)
     }
 }
 
@@ -285,6 +294,9 @@ pub enum WalletTransactionBuilderError {
 
     /// Error generating FogPubkeyResolver {0}
     FogPubkeyResolver(String),
+
+    /// Decode Error with mc util serial {0}
+    DecodeError(mc_util_serial::DecodeError),
 }
 
 impl From<mc_ledger_db::Error> for WalletTransactionBuilderError {
@@ -320,5 +332,11 @@ impl From<diesel::result::Error> for WalletTransactionBuilderError {
 impl From<mc_util_uri::UriParseError> for WalletTransactionBuilderError {
     fn from(src: mc_util_uri::UriParseError) -> Self {
         Self::UriParse(src)
+    }
+}
+
+impl From<mc_util_serial::DecodeError> for WalletTransactionBuilderError {
+    fn from(src: mc_util_serial::DecodeError) -> Self {
+        Self::DecodeError(src)
     }
 }

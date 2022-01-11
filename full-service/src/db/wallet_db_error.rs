@@ -116,6 +116,9 @@ pub enum WalletDbError {
 
     /// Error converting to/from API protos: {0}
     ProtoConversion(mc_api::ConversionError),
+
+    /// Error decoding from mc_util_serial {0}
+    DecodeError(mc_util_serial::DecodeError),
 }
 
 impl From<diesel::result::Error> for WalletDbError {
@@ -163,5 +166,11 @@ impl From<B58Error> for WalletDbError {
 impl From<mc_ledger_db::Error> for WalletDbError {
     fn from(src: mc_ledger_db::Error) -> Self {
         Self::LedgerDB(src)
+    }
+}
+
+impl From<mc_util_serial::DecodeError> for WalletDbError {
+    fn from(src: mc_util_serial::DecodeError) -> Self {
+        Self::DecodeError(src)
     }
 }

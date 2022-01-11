@@ -51,6 +51,9 @@ pub enum ConfirmationServiceError {
 
     /// Error with the TxoService: {0}
     TransactionLogService(TransactionLogServiceError),
+
+    /// Decode Error with mc_util_serial
+    DecodeError(mc_util_serial::DecodeError),
 }
 
 impl From<WalletDbError> for ConfirmationServiceError {
@@ -92,6 +95,12 @@ impl From<TxoServiceError> for ConfirmationServiceError {
 impl From<TransactionLogServiceError> for ConfirmationServiceError {
     fn from(src: TransactionLogServiceError) -> Self {
         Self::TransactionLogService(src)
+    }
+}
+
+impl From<mc_util_serial::DecodeError> for ConfirmationServiceError {
+    fn from(src: mc_util_serial::DecodeError) -> Self {
+        Self::DecodeError(src)
     }
 }
 
