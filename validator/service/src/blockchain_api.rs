@@ -25,7 +25,10 @@ impl BlockchainApi {
         create_blockchain_api(self)
     }
 
-    fn get_last_block_info_impl(&self) -> Result<LastBlockInfoResponse, RpcStatus> {
+    fn get_last_block_info_impl(
+        &self,
+        _logger: &Logger,
+    ) -> Result<LastBlockInfoResponse, RpcStatus> {
         todo!()
     }
 }
@@ -37,8 +40,9 @@ impl GrpcBlockchainApi for BlockchainApi {
         _request: Empty,
         sink: UnarySink<LastBlockInfoResponse>,
     ) {
-        let logger = rpc_logger(&ctx, &self.logger);
-        send_result(ctx, sink, self.get_last_block_info_impl(), &logger)
+        mc_common::logger::scoped_global_logger(&rpc_logger(&ctx, &self.logger), |logger| {
+            send_result(ctx, sink, self.get_last_block_info_impl(logger), logger)
+        })
     }
 
     // TODO: GetBlocks is purposefully unimplemented since it is unclear if it will

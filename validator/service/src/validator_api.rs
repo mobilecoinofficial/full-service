@@ -33,17 +33,26 @@ impl ValidatorApi {
         create_validator_api(self)
     }
 
-    fn get_archive_blocks_impl(&self, _request: BlocksRequest) -> Result<ArchiveBlocks, RpcStatus> {
+    fn get_archive_blocks_impl(
+        &self,
+        request: BlocksRequest,
+        logger: &Logger,
+    ) -> Result<ArchiveBlocks, RpcStatus> {
         todo!()
     }
 
-    fn propose_tx_impl(&self, _request: Tx) -> Result<ProposeTxResponse, RpcStatus> {
+    fn propose_tx_impl(
+        &self,
+        _request: Tx,
+        _logger: &Logger,
+    ) -> Result<ProposeTxResponse, RpcStatus> {
         todo!()
     }
 
     fn fetch_fog_report_impl(
         &self,
         _request: FetchFogReportRequest,
+        _logger: &Logger,
     ) -> Result<ReportResponse, RpcStatus> {
         todo!()
     }
@@ -56,13 +65,20 @@ impl GrpcValidatorApi for ValidatorApi {
         request: BlocksRequest,
         sink: UnarySink<ArchiveBlocks>,
     ) {
-        let logger = rpc_logger(&ctx, &self.logger);
-        send_result(ctx, sink, self.get_archive_blocks_impl(request), &logger)
+        mc_common::logger::scoped_global_logger(&rpc_logger(&ctx, &self.logger), |logger| {
+            send_result(
+                ctx,
+                sink,
+                self.get_archive_blocks_impl(request, logger),
+                logger,
+            )
+        })
     }
 
     fn propose_tx(&mut self, ctx: RpcContext, request: Tx, sink: UnarySink<ProposeTxResponse>) {
-        let logger = rpc_logger(&ctx, &self.logger);
-        send_result(ctx, sink, self.propose_tx_impl(request), &logger)
+        mc_common::logger::scoped_global_logger(&rpc_logger(&ctx, &self.logger), |logger| {
+            send_result(ctx, sink, self.propose_tx_impl(request, logger), logger)
+        })
     }
 
     fn fetch_fog_report(
@@ -71,7 +87,13 @@ impl GrpcValidatorApi for ValidatorApi {
         request: FetchFogReportRequest,
         sink: UnarySink<ReportResponse>,
     ) {
-        let logger = rpc_logger(&ctx, &self.logger);
-        send_result(ctx, sink, self.fetch_fog_report_impl(request), &logger)
+        mc_common::logger::scoped_global_logger(&rpc_logger(&ctx, &self.logger), |logger| {
+            send_result(
+                ctx,
+                sink,
+                self.fetch_fog_report_impl(request, logger),
+                logger,
+            )
+        })
     }
 }
