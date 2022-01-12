@@ -5,12 +5,24 @@
 // ledger validator node data types and service descriptors.
 
 syntax = "proto3";
+import "blockchain.proto";
+import "consensus_common.proto";
+import "external.proto";
 import "google/protobuf/empty.proto";
-// import "external.proto";
-// import "blockchain.proto";
+import "report.proto";
 
 package validator_api;
 
 service ValidatorAPI {
-    rpc Noop (google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  rpc GetArchiveBlocks(consensus_common.BlocksRequest)
+      returns (blockchain.ArchiveBlocks);
+
+  rpc ProposeTx(external.Tx) returns (consensus_common.ProposeTxResponse);
+
+  rpc FetchFogReport(FetchFogReportRequest) returns (report.ReportResponse);
+}
+
+message FetchFogReportRequest {
+  // Fog report server URI.
+  string uri = 1;
 }

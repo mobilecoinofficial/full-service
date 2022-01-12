@@ -9,6 +9,7 @@ links = "mc-validator-api"
 [dependencies]
 mc-api = { path = "../../mobilecoin/api" }
 mc-consensus-api = { path = "../../mobilecoin/consensus/api" }
+mc-fog-report-api = { path = "../../mobilecoin/fog/report/api" }
 mc-util-uri = { path = "../../mobilecoin/util/uri" }
 
 futures = "0.3"
