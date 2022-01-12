@@ -11,6 +11,7 @@ path = "src/bin/main.rs"
 
 [dependencies]
 mc-full-service = { path = "../../full-service"}
+mc-validator-api = { path = "../api" }
 
 mc-common = { path = "../../mobilecoin/common", default-features = false, features = ["loggers"] }
 mc-util-parse = { path = "../../mobilecoin/util/parse" }

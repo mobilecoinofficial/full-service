@@ -1,5 +1,6 @@
 use mc_full_service::config::PeersConfig;
 use mc_util_parse::parse_duration_in_seconds;
+use mc_validator_api::ValidatorUri;
 use std::{path::PathBuf, time::Duration};
 use structopt::StructOpt;
 
@@ -12,7 +13,7 @@ use structopt::StructOpt;
 pub struct Config {
     /// Listening URI.
     // #[structopt(long)]
-    // pub listen_uri: ValidatorServiceUri,
+    pub listen_uri: ValidatorUri,
 
     /// Path to LedgerDB.
     #[structopt(long, parse(from_os_str))]
