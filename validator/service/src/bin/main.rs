@@ -57,9 +57,9 @@ fn main() {
 
     // Start ledger sync thread.
     let _ledger_sync_service_thread = LedgerSyncServiceThread::new(
-        ledger_db.clone(),
-        peer_manager.clone(),
-        network_state.clone(),
+        ledger_db,
+        peer_manager,
+        network_state,
         transactions_fetcher,
         config.poll_interval,
         logger.clone(),
