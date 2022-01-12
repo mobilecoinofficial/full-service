@@ -4,8 +4,15 @@
 
 use grpcio::{RpcContext, RpcStatus, Service, UnarySink};
 use mc_common::logger::{log, Logger};
+use mc_connection::{
+    ConnectionManager, Error as ConnectionError, RetryError, RetryableUserTxConnection,
+    UserTxConnection,
+};
 use mc_ledger_db::{Ledger, LedgerDB};
-use mc_util_grpc::{rpc_database_err, rpc_invalid_arg_error, rpc_logger, send_result};
+use mc_util_grpc::{
+    rpc_database_err, rpc_internal_error, rpc_invalid_arg_error, rpc_logger, rpc_permissions_error,
+    send_result,
+};
 use mc_validator_api::{
     blockchain::ArchiveBlocks,
     consensus_common::{BlocksRequest, ProposeTxResponse},
@@ -14,22 +21,51 @@ use mc_validator_api::{
     validator_api::FetchFogReportRequest,
     validator_api_grpc::{create_validator_api, ValidatorApi as GrpcValidatorApi},
 };
+use std::{
+    convert::TryFrom,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
+};
 
 /// Maximal number of blocks we will return in a single request.
 pub const MAX_BLOCKS_PER_REQUEST: u32 = 1000;
 
-#[derive(Clone)]
-pub struct ValidatorApi {
+pub struct ValidatorApi<BC: UserTxConnection + 'static> {
     /// Ledger DB.
     ledger_db: LedgerDB,
+
+    /// Connection manager.
+    conn_manager: ConnectionManager<BC>,
+
+    /// Monotonically increasing counter. This is used for node round-robin
+    /// selection.
+    submit_node_offset: Arc<AtomicUsize>,
 
     /// Logger.
     logger: Logger,
 }
 
-impl ValidatorApi {
-    pub fn new(ledger_db: LedgerDB, logger: Logger) -> Self {
-        Self { ledger_db, logger }
+impl<BC: UserTxConnection + 'static> Clone for ValidatorApi<BC> {
+    fn clone(&self) -> Self {
+        Self {
+            ledger_db: self.ledger_db.clone(),
+            conn_manager: self.conn_manager.clone(),
+            submit_node_offset: self.submit_node_offset.clone(),
+            logger: self.logger.clone(),
+        }
+    }
+}
+
+impl<BC: UserTxConnection + 'static> ValidatorApi<BC> {
+    pub fn new(ledger_db: LedgerDB, conn_manager: ConnectionManager<BC>, logger: Logger) -> Self {
+        Self {
+            ledger_db,
+            conn_manager,
+            submit_node_offset: Arc::new(AtomicUsize::new(0)),
+            logger,
+        }
     }
 
     pub fn into_service(self) -> Service {
@@ -75,12 +111,69 @@ impl ValidatorApi {
         Ok(ArchiveBlocks::from(&blocks_data[..]))
     }
 
-    fn propose_tx_impl(
-        &self,
-        _request: Tx,
-        _logger: &Logger,
-    ) -> Result<ProposeTxResponse, RpcStatus> {
-        todo!()
+    fn propose_tx_impl(&self, tx: Tx, logger: &Logger) -> Result<ProposeTxResponse, RpcStatus> {
+        // Convert Protobuf/GRPC Tx to Prost Tx
+        let tx = mc_transaction_core::tx::Tx::try_from(&tx)
+            .map_err(|_| rpc_invalid_arg_error("propose_tx", "tx", logger))?;
+
+        // Figure out which node to submit to
+        let responder_ids = self.conn_manager.responder_ids();
+        if responder_ids.is_empty() {
+            return Err(rpc_internal_error("propose_tx", "no peers", logger));
+        }
+
+        let idx = self.submit_node_offset.fetch_add(1, Ordering::SeqCst);
+        let responder_id = &responder_ids[idx % responder_ids.len()];
+
+        // Submit.
+        let tx_propose_result = self
+            .conn_manager
+            .conn(responder_id)
+            .ok_or_else(|| rpc_internal_error("propose_tx", "conn not found", logger))?
+            .propose_tx(&tx, std::iter::empty());
+
+        // Convert to GRPC response.
+        let mut result = ProposeTxResponse::new();
+
+        match tx_propose_result {
+            Ok(block_count) => {
+                result.set_block_count(block_count);
+                Ok(())
+            }
+
+            Err(RetryError::Operation { error, .. }) => {
+                match error {
+                    ConnectionError::TransactionValidation(err) => {
+                        result.set_result(err.into());
+                        Ok(())
+                    }
+
+                    err @ ConnectionError::Cipher(_) => {
+                        Err(rpc_permissions_error("propose_tx", err, logger))
+                    }
+
+                    err @ ConnectionError::Attestation(_) => {
+                        Err(rpc_permissions_error("propose_tx", err, logger))
+                    }
+
+                    // TODO do we want to handle ConnectionError::Grpc here and echo back the
+                    // RpcStatus?
+                    err => Err(rpc_internal_error(
+                        "propose_tx",
+                        format!("{:?}", err),
+                        logger,
+                    )),
+                }
+            }
+
+            Err(RetryError::Internal(err)) => Err(rpc_internal_error(
+                "propose_tx",
+                format!("retry internal error: {:?}", err),
+                logger,
+            )),
+        }?;
+
+        Ok(result)
     }
 
     fn fetch_fog_report_impl(
@@ -92,7 +185,7 @@ impl ValidatorApi {
     }
 }
 
-impl GrpcValidatorApi for ValidatorApi {
+impl<BC: UserTxConnection + 'static> GrpcValidatorApi for ValidatorApi<BC> {
     fn get_archive_blocks(
         &mut self,
         ctx: RpcContext,
