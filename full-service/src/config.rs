@@ -14,6 +14,7 @@ use mc_fog_report_validation::FogResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::ReqwestTransactionsFetcher;
 use mc_sgx_css::Signature;
+use mc_util_parse::parse_duration_in_seconds;
 use mc_util_uri::{ConnectionUri, ConsensusClientUri, FogUri};
 
 use displaydoc::Display;
@@ -26,7 +27,6 @@ use std::{
     convert::TryFrom,
     fs,
     path::{Path, PathBuf},
-    str::FromStr,
     sync::Arc,
     time::Duration,
 };
@@ -87,21 +87,6 @@ pub struct APIConfig {
     #[structopt(flatten)]
     pub peers_config: PeersConfig,
 
-    /// Quorum set for ledger syncing. By default, the quorum set would include
-    /// all peers.
-    ///
-    /// The quorum set is represented in JSON. For example:
-    /// {"threshold":1,"members":[{"type":"Node","args":"node2.test.mobilecoin.
-    /// com:443"},{"type":"Node","args":"node3.test.mobilecoin.com:443"}]}
-    #[structopt(long, parse(try_from_str=parse_quorum_set_from_json))]
-    quorum_set: Option<QuorumSet<ResponderId>>,
-
-    /// URLs to use for transaction data.
-    ///
-    /// For example: https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/
-    #[structopt(long = "tx-source-url", required_unless = "offline")]
-    pub tx_source_urls: Option<Vec<String>>,
-
     /// Number of worker threads to use for view key scanning.
     /// Defaults to number of logical CPU cores.
     #[structopt(long)]
@@ -119,10 +104,6 @@ pub struct APIConfig {
     /// transactions to fog recipients).
     #[structopt(long, parse(try_from_str=load_css_file))]
     pub fog_ingest_enclave_css: Option<Signature>,
-}
-
-fn parse_duration_in_seconds(src: &str) -> Result<Duration, std::num::ParseIntError> {
-    Ok(Duration::from_secs(u64::from_str(src)?))
 }
 
 fn parse_quorum_set_from_json(src: &str) -> Result<QuorumSet<ResponderId>, String> {
@@ -145,32 +126,6 @@ fn load_css_file(filename: &str) -> Result<Signature, String> {
 }
 
 impl APIConfig {
-    pub fn quorum_set(&self) -> QuorumSet<ResponderId> {
-        // If we have an explicit quorum set, use that.
-        if let Some(quorum_set) = &self.quorum_set {
-            return quorum_set.clone();
-        }
-
-        // Otherwise create a quorum set that includes all of the peers we know about.
-        let node_ids = self
-            .peers_config
-            .peers
-            .clone()
-            .unwrap_or_default()
-            .iter()
-            .map(|p| {
-                p.responder_id().unwrap_or_else(|e| {
-                    panic!(
-                        "Could not get responder_id from uri {}: {:?}",
-                        p.to_string(),
-                        e
-                    )
-                })
-            })
-            .collect::<Vec<ResponderId>>();
-        QuorumSet::new_with_node_ids(node_ids.len() as u32, node_ids)
-    }
-
     /// Get the attestation verifier used to verify fog reports when sending to
     /// fog recipients.
     pub fn get_fog_ingest_verifier(&self) -> Option<Verifier> {
@@ -379,9 +334,49 @@ pub struct PeersConfig {
     /// validator nodes to connect to.
     #[structopt(long = "peer", required_unless = "offline")]
     pub peers: Option<Vec<ConsensusClientUri>>,
+
+    /// Quorum set for ledger syncing. By default, the quorum set would include
+    /// all peers.
+    ///
+    /// The quorum set is represented in JSON. For example:
+    /// {"threshold":1,"members":[{"type":"Node","args":"node2.test.mobilecoin.
+    /// com:443"},{"type":"Node","args":"node3.test.mobilecoin.com:443"}]}
+    #[structopt(long, parse(try_from_str=parse_quorum_set_from_json))]
+    quorum_set: Option<QuorumSet<ResponderId>>,
+
+    /// URLs to use for transaction data.
+    ///
+    /// For example: https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/
+    #[structopt(long = "tx-source-url", required_unless = "offline")]
+    pub tx_source_urls: Option<Vec<String>>,
 }
 
 impl PeersConfig {
+    pub fn quorum_set(&self) -> QuorumSet<ResponderId> {
+        // If we have an explicit quorum set, use that.
+        if let Some(quorum_set) = &self.quorum_set {
+            return quorum_set.clone();
+        }
+
+        // Otherwise create a quorum set that includes all of the peers we know about.
+        let node_ids = self
+            .peers
+            .clone()
+            .unwrap_or_default()
+            .iter()
+            .map(|p| {
+                p.responder_id().unwrap_or_else(|e| {
+                    panic!(
+                        "Could not get responder_id from uri {}: {:?}",
+                        p.to_string(),
+                        e
+                    )
+                })
+            })
+            .collect::<Vec<ResponderId>>();
+        QuorumSet::new_with_node_ids(node_ids.len() as u32, node_ids)
+    }
+
     pub fn responder_ids(&self) -> Vec<ResponderId> {
         self.peers
             .clone()

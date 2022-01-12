@@ -2356,6 +2356,7 @@ dependencies = [
  "mc-transaction-core",
  "mc-transaction-std",
  "mc-util-from-random",
+ "mc-util-parse",
  "mc-util-serial",
  "mc-util-uri",
  "num_cpus",
@@ -2805,6 +2806,18 @@ dependencies = [
  "percent-encoding 2.1.0",
  "serde",
  "url 2.2.2",
+]
+
+[[package]]
+name = "mc-validator-service"
+version = "1.0.0"
+dependencies = [
+ "grpcio",
+ "mc-common",
+ "mc-full-service",
+ "mc-util-parse",
+ "mc-util-uri",
+ "structopt",
 ]
 
 [[package]]
