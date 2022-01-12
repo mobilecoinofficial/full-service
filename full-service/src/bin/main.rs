@@ -127,7 +127,11 @@ fn main() {
     .expect("Failed creating ReqwestTransactionsFetcher");
 
     // Create the ledger_db.
-    let ledger_db = config.create_or_open_ledger_db(&logger, &transactions_fetcher);
+    let ledger_db = config.ledger_db_config.create_or_open_ledger_db(
+        &transactions_fetcher,
+        config.offline,
+        &logger,
+    );
 
     // Start ledger sync thread unless running in offline mode.
     let _ledger_sync_service_thread = if config.offline {
