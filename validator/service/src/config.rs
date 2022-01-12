@@ -1,7 +1,7 @@
-use mc_full_service::config::PeersConfig;
+use mc_full_service::config::{LedgerDbConfig, PeersConfig};
 use mc_util_parse::parse_duration_in_seconds;
 use mc_validator_api::ValidatorUri;
-use std::{path::PathBuf, time::Duration};
+use std::time::Duration;
 use structopt::StructOpt;
 
 /// Configuration options for the validator service
@@ -12,19 +12,12 @@ use structopt::StructOpt;
 )]
 pub struct Config {
     /// Listening URI.
-    // #[structopt(long)]
+    #[structopt(long, default_value = "insecure-validator://127.0.0.1/")]
     pub listen_uri: ValidatorUri,
 
-    /// Path to LedgerDB.
-    #[structopt(long, parse(from_os_str))]
-    pub ledger_db: PathBuf,
+    #[structopt(flatten)]
+    pub ledger_db_config: LedgerDbConfig,
 
-    /// Path to existing ledger db that contains the origin block, used when
-    /// initializing new ledger dbs.
-    #[structopt(long)]
-    pub ledger_db_bootstrap: Option<String>,
-
-    /// The location for the network.toml/json configuration file.
     #[structopt(flatten)]
     pub peers_config: PeersConfig,
 
