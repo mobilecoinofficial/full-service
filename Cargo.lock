@@ -2809,14 +2809,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "mc-validator-api"
+version = "1.0.0"
+dependencies = [
+ "cargo-emit",
+ "futures",
+ "grpcio",
+ "mc-api",
+ "mc-consensus-api",
+ "mc-fog-report-api",
+ "mc-util-build-grpc",
+ "mc-util-build-script",
+ "mc-util-uri",
+ "protobuf",
+]
+
+[[package]]
 name = "mc-validator-service"
 version = "1.0.0"
 dependencies = [
  "grpcio",
  "mc-common",
  "mc-full-service",
+ "mc-util-grpc",
  "mc-util-parse",
  "mc-util-uri",
+ "mc-validator-api",
  "structopt",
 ]
 
