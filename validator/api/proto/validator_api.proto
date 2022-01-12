@@ -1,0 +1,16 @@
+// Copyright (c) 2018-2022 MobileCoin, Inc.
+
+// MUST BE KEPT IN SYNC WITH RUST CODE!
+
+// ledger validator node data types and service descriptors.
+
+syntax = "proto3";
+import "google/protobuf/empty.proto";
+// import "external.proto";
+// import "blockchain.proto";
+
+package validator_api;
+
+service ValidatorAPI {
+    rpc Noop (google.protobuf.Empty) returns (google.protobuf.Empty) {}
+}
