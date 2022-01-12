@@ -2,5 +2,6 @@
 
 mod config;
 mod service;
+mod validator_api;
 
-pub use crate::{config::Config, service::Service};
+pub use crate::{config::Config, service::Service, validator_api::ValidatorApi};
