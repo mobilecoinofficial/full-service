@@ -3,12 +3,8 @@
 //! DB impl for the Account model.
 
 use crate::db::{
-    account_txo_status::AccountTxoStatusModel,
     assigned_subaddress::AssignedSubaddressModel,
-    models::{
-        Account, AccountTxoStatus, AssignedSubaddress, NewAccount, TransactionLog, Txo,
-        TXO_STATUS_SPENT,
-    },
+    models::{Account, AssignedSubaddress, NewAccount, TransactionLog, Txo},
     transaction_log::TransactionLogModel,
     txo::TxoModel,
     WalletDbError,
@@ -262,7 +258,7 @@ impl AccountModel for Account {
             account_id_hex: &account_id.to_string(),
             account_key: &mc_util_serial::encode(account_key), /* FIXME: WS-6 - add
                                                                 * encryption */
-            entropy: &entropy,
+            entropy,
             key_derivation_version: key_derivation_version as i32,
             main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
             change_subaddress_index: DEFAULT_CHANGE_SUBADDRESS_INDEX as i64,
@@ -279,25 +275,25 @@ impl AccountModel for Account {
             .execute(conn)?;
 
         let main_subaddress_b58 = AssignedSubaddress::create(
-            &account_key,
+            account_key,
             None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
                    * always for main? */
             DEFAULT_SUBADDRESS_INDEX,
             "Main",
-            &conn,
+            conn,
         )?;
 
         let _change_subaddress_b58 = AssignedSubaddress::create(
-            &account_key,
+            account_key,
             None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
                    * always for main? */
             DEFAULT_CHANGE_SUBADDRESS_INDEX,
             "Change",
-            &conn,
+            conn,
         )?;
 
         for subaddress_index in 2..next_subaddress_index.unwrap_or(DEFAULT_NEXT_SUBADDRESS_INDEX) {
-            AssignedSubaddress::create(&account_key, None, subaddress_index, "", &conn)?;
+            AssignedSubaddress::create(account_key, None, subaddress_index, "", conn)?;
         }
 
         Ok((account_id, main_subaddress_b58))
@@ -325,7 +321,7 @@ impl AccountModel for Account {
             fog_authority_spki,
             conn,
         )?;
-        Account::get(&account_id, &conn)
+        Account::get(&account_id, conn)
     }
 
     fn import_legacy(
@@ -350,7 +346,7 @@ impl AccountModel for Account {
             fog_authority_spki,
             conn,
         )?;
-        Account::get(&account_id, &conn)
+        Account::get(&account_id, conn)
     }
 
     fn list_all(
@@ -386,23 +382,21 @@ impl AccountModel for Account {
         txo_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<Account>, WalletDbError> {
-        use crate::db::schema::account_txo_statuses::dsl::account_txo_statuses;
+        let txo = Txo::get(txo_id_hex, conn)?;
 
-        match account_txo_statuses
-            .select(crate::db::schema::account_txo_statuses::all_columns)
-            .filter(crate::db::schema::account_txo_statuses::txo_id_hex.eq(txo_id_hex))
-            .load::<AccountTxoStatus>(conn)
-        {
-            Ok(accounts) => Ok(accounts
-                .iter()
-                .map(|a| Account::get(&AccountID(a.account_id_hex.to_string()), conn))
-                .collect::<Result<Vec<Account>, WalletDbError>>()?),
-            // Match on NotFound to get a more informative NotFound Error
-            Err(diesel::result::Error::NotFound) => {
-                Err(WalletDbError::TxoNotFound(txo_id_hex.to_string()))
-            }
-            Err(e) => Err(e.into()),
+        let mut accounts: Vec<Account> = Vec::<Account>::new();
+
+        if let Some(received_account_id_hex) = txo.received_account_id_hex {
+            let account = Account::get(&AccountID(received_account_id_hex), conn)?;
+            accounts.push(account);
         }
+
+        if let Some(minted_account_id_hex) = txo.minted_account_id_hex {
+            let account = Account::get(&AccountID(minted_account_id_hex), conn)?;
+            accounts.push(account);
+        }
+
+        Ok(accounts)
     }
 
     fn update_name(
@@ -425,7 +419,6 @@ impl AccountModel for Account {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::{
-            account_txo_statuses::dsl::account_txo_statuses,
             accounts::dsl::{account_id_hex, accounts},
             txos::dsl::{txo_id_hex, txos},
         };
@@ -449,18 +442,12 @@ impl AccountModel for Account {
             } else {
                 // Update the TXO
                 diesel::update(txos.filter(txo_id_hex.eq(&matches[0].txo_id_hex)))
-                    .set(crate::db::schema::txos::spent_block_index.eq(Some(spent_block_index)))
+                    .set((
+                        crate::db::schema::txos::spent_block_index.eq(Some(spent_block_index)),
+                        crate::db::schema::txos::pending_tombstone_block_index
+                            .eq::<Option<i64>>(None),
+                    ))
                     .execute(conn)?;
-
-                // Update the AccountTxoStatus
-                diesel::update(
-                    account_txo_statuses.find((&self.account_id_hex, &matches[0].txo_id_hex)),
-                )
-                .set(
-                    crate::db::schema::account_txo_statuses::txo_status
-                        .eq(TXO_STATUS_SPENT.to_string()),
-                )
-                .execute(conn)?;
 
                 // FIXME: WS-13 - make sure the path for all txo_statuses and txo_types exist
                 // and are tested Update the transaction status if the txos
@@ -493,8 +480,7 @@ impl AccountModel for Account {
         // Also delete the associated assigned subaddresses
         AssignedSubaddress::delete_all(&self.account_id_hex, conn)?;
 
-        // Also delete txo statuses associated with this account.
-        AccountTxoStatus::delete_all_for_account(&self.account_id_hex, conn)?;
+        Txo::scrub_account(&self.account_id_hex, conn)?;
 
         // Delete Txos with no references.
         Txo::delete_unreferenced(conn)?;

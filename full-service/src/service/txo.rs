@@ -6,8 +6,8 @@ use crate::{
     db::{
         account::AccountID,
         assigned_subaddress::AssignedSubaddressModel,
-        models::{AssignedSubaddress, Txo, TXO_STATUS_UNSPENT},
-        txo::{TxoDetails, TxoID, TxoModel},
+        models::{AssignedSubaddress, Txo},
+        txo::{TxoID, TxoModel},
         WalletDbError,
     },
     service::transaction::{TransactionService, TransactionServiceError},
@@ -69,10 +69,10 @@ pub trait TxoService {
         account_id: &AccountID,
         limit: Option<i64>,
         offset: Option<i64>,
-    ) -> Result<Vec<TxoDetails>, TxoServiceError>;
+    ) -> Result<Vec<Txo>, TxoServiceError>;
 
     /// Get a Txo from the wallet.
-    fn get_txo(&self, txo_id: &TxoID) -> Result<TxoDetails, TxoServiceError>;
+    fn get_txo(&self, txo_id: &TxoID) -> Result<Txo, TxoServiceError>;
 
     /// Split a Txo
     fn split_txo(
@@ -85,7 +85,7 @@ pub trait TxoService {
     ) -> Result<TxProposal, TxoServiceError>;
 
     /// List the Txos for a given address for an account in the wallet.
-    fn get_all_txos_for_address(&self, address: &str) -> Result<Vec<TxoDetails>, TxoServiceError>;
+    fn get_all_txos_for_address(&self, address: &str) -> Result<Vec<Txo>, TxoServiceError>;
 }
 
 impl<T, FPR> TxoService for WalletService<T, FPR>
@@ -98,7 +98,7 @@ where
         account_id: &AccountID,
         limit: Option<i64>,
         offset: Option<i64>,
-    ) -> Result<Vec<TxoDetails>, TxoServiceError> {
+    ) -> Result<Vec<Txo>, TxoServiceError> {
         let conn = self.wallet_db.get_conn()?;
         conn.transaction(|| {
             Ok(Txo::list_for_account(
@@ -110,7 +110,7 @@ where
         })
     }
 
-    fn get_txo(&self, txo_id: &TxoID) -> Result<TxoDetails, TxoServiceError> {
+    fn get_txo(&self, txo_id: &TxoID) -> Result<Txo, TxoServiceError> {
         let conn = self.wallet_db.get_conn()?;
         conn.transaction(|| Ok(Txo::get(&txo_id.to_string(), &conn)?))
     }
@@ -123,20 +123,15 @@ where
         fee: Option<String>,
         tombstone_block: Option<String>,
     ) -> Result<TxProposal, TxoServiceError> {
-        use crate::service::txo::TxoServiceError::{TxoNotSpendable, TxoNotSpendableByAnyAccount};
+        use crate::service::txo::TxoServiceError::TxoNotSpendableByAnyAccount;
 
         let conn = self.wallet_db.get_conn()?;
         conn.transaction(|| {
             let txo_details = Txo::get(&txo_id.to_string(), &conn)?;
-            let received_to_account_txo_status = match txo_details.received_to_account {
-                Some(account_status) => Ok(account_status),
-                None => Err(TxoNotSpendableByAnyAccount(txo_details.txo.txo_id_hex)),
-            }?;
 
-            let account_id_hex = match received_to_account_txo_status.txo_status.as_str() {
-                TXO_STATUS_UNSPENT => Ok(received_to_account_txo_status.account_id_hex),
-                _ => Err(TxoNotSpendable(received_to_account_txo_status.txo_status)),
-            }?;
+            let account_id_hex = txo_details
+                .received_account_id_hex
+                .ok_or(TxoNotSpendableByAnyAccount(txo_details.txo_id_hex))?;
 
             let address_to_split_into: AssignedSubaddress =
                 AssignedSubaddress::get_for_account_by_index(
@@ -165,7 +160,7 @@ where
         })
     }
 
-    fn get_all_txos_for_address(&self, address: &str) -> Result<Vec<TxoDetails>, TxoServiceError> {
+    fn get_all_txos_for_address(&self, address: &str) -> Result<Vec<Txo>, TxoServiceError> {
         let conn = self.wallet_db.get_conn()?;
         conn.transaction(|| Ok(Txo::list_for_address(address, &conn)?))
     }
@@ -175,10 +170,6 @@ where
 mod tests {
     use super::*;
     use crate::{
-        db::models::{
-            TXO_STATUS_PENDING, TXO_STATUS_SECRETED, TXO_STATUS_UNSPENT, TXO_TYPE_MINTED,
-            TXO_TYPE_RECEIVED,
-        },
         service::{
             account::AccountService, balance::BalanceService, transaction::TransactionService,
         },
@@ -232,10 +223,6 @@ mod tests {
         // Verify that we have 1 txo
         let txos = service.list_txos(&alice_account_id, None, None).unwrap();
         assert_eq!(txos.len(), 1);
-        assert_eq!(
-            txos[0].received_to_account.as_ref().unwrap().txo_status,
-            TXO_STATUS_UNSPENT
-        );
 
         // Add another account
         let bob = service
@@ -271,39 +258,33 @@ mod tests {
             .list_txos(&AccountID(alice.account_id_hex.clone()), None, None)
             .unwrap();
         assert_eq!(txos.len(), 3);
-        // The Pending Tx
-        let pending: Vec<TxoDetails> = txos
+        assert_eq!(
+            txos[0].received_account_id_hex,
+            Some(alice.account_id_hex.clone())
+        );
+        assert_eq!(
+            txos[1].minted_account_id_hex,
+            Some(alice.account_id_hex.clone())
+        );
+        assert_eq!(
+            txos[2].minted_account_id_hex,
+            Some(alice.account_id_hex.clone())
+        );
+        let pending: Vec<Txo> = txos
             .iter()
             .cloned()
-            .filter(|t| {
-                if let Some(txo_deets) = &t.received_to_account {
-                    txo_deets.txo_status == TXO_STATUS_PENDING
-                } else {
-                    false
-                }
-            })
+            .filter(|txo| txo.received_account_id_hex == Some(alice.account_id_hex.clone()))
             .collect();
         assert_eq!(pending.len(), 1);
-        assert_eq!(
-            pending[0].received_to_account.as_ref().unwrap().txo_type,
-            TXO_TYPE_RECEIVED
-        );
-        assert_eq!(pending[0].txo.value, 100000000000000);
-        let minted: Vec<TxoDetails> = txos
+        assert_eq!(pending[0].value, 100000000000000);
+
+        let minted: Vec<Txo> = txos
             .iter()
             .cloned()
-            .filter(|t| t.minted_from_account.is_some())
+            .filter(|txo| txo.minted_account_id_hex.is_some())
             .collect();
         assert_eq!(minted.len(), 2);
-        assert_eq!(
-            minted[0].minted_from_account.as_ref().unwrap().txo_status,
-            TXO_STATUS_SECRETED
-        );
-        assert_eq!(
-            minted[1].minted_from_account.as_ref().unwrap().txo_type,
-            TXO_TYPE_MINTED
-        );
-        let minted_value_set = HashSet::from_iter(minted.iter().map(|m| m.txo.value.clone()));
+        let minted_value_set = HashSet::from_iter(minted.iter().map(|m| m.value.clone()));
         assert!(minted_value_set.contains(&(58 * MOB - MINIMUM_FEE as i64)));
         assert!(minted_value_set.contains(&(42 * MOB)));
 
@@ -316,7 +297,5 @@ mod tests {
         assert_eq!(balance.spent, 0);
         assert_eq!(balance.secreted, (100 * MOB - MINIMUM_FEE as i64) as u128);
         assert_eq!(balance.orphaned, 0);
-
-        // FIXME: How to make the transaction actually hit the test ledger?
     }
 }

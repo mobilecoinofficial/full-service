@@ -3,8 +3,7 @@
 //! DB Models
 
 use super::schema::{
-    account_txo_statuses, accounts, assigned_subaddresses, gift_codes, transaction_logs,
-    transaction_txo_types, txos,
+    accounts, assigned_subaddresses, gift_codes, transaction_logs, transaction_txo_types, txos,
 };
 
 use serde::Serialize;
@@ -151,6 +150,8 @@ pub struct Txo {
     pub confirmation: Option<Vec<u8>>,
     /// The recipient public address. Blank for unknown.
     pub recipient_public_address_b58: String,
+    pub minted_account_id_hex: Option<String>,
+    pub received_account_id_hex: Option<String>,
 }
 
 /// A structure that can be inserted to create a new entity in the `txos` table.
@@ -170,29 +171,8 @@ pub struct NewTxo<'a> {
     pub spent_block_index: Option<i64>,
     pub confirmation: Option<&'a [u8]>,
     pub recipient_public_address_b58: String,
-}
-
-#[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
-#[belongs_to(Account, foreign_key = "account_id_hex")]
-#[belongs_to(Txo, foreign_key = "txo_id_hex")]
-#[table_name = "account_txo_statuses"]
-#[primary_key(account_id_hex, txo_id_hex)]
-pub struct AccountTxoStatus {
-    pub account_id_hex: String,
-    pub txo_id_hex: String,
-    // Statuses: unspent, pending, spent, secreted, orphaned
-    pub txo_status: String,
-    // Types: minted, received
-    pub txo_type: String,
-}
-
-#[derive(Insertable)]
-#[table_name = "account_txo_statuses"]
-pub struct NewAccountTxoStatus<'a> {
-    pub account_id_hex: &'a str,
-    pub txo_id_hex: &'a str,
-    pub txo_status: &'a str,
-    pub txo_type: &'a str,
+    pub minted_account_id_hex: Option<String>,
+    pub received_account_id_hex: Option<String>,
 }
 
 /// A subaddress given to a particular contact, for the purpose of tracking

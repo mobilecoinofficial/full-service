@@ -18,7 +18,7 @@ use diesel::{
 };
 use diesel_migrations::embed_migrations;
 use mc_account_keys::{AccountKey, PublicAddress, RootIdentity};
-use mc_attest_core::Verifier;
+use mc_attest_verifier::Verifier;
 use mc_common::logger::{log, Logger};
 use mc_connection::{Connection, ConnectionManager, HardcodedCredentialsProvider, ThickClient};
 use mc_connection_test_utils::{test_client_uri, MockBlockchainConnection};
@@ -31,7 +31,7 @@ use mc_ledger_sync::PollingNetworkState;
 use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::{
     encrypted_fog_hint::EncryptedFogHint,
-    onetime_keys::{create_onetime_public_key, recover_onetime_private_key},
+    onetime_keys::{create_tx_out_target_key, recover_onetime_private_key},
     ring_signature::KeyImage,
     tx::{Tx, TxOut},
     Block, BlockContents, BLOCK_VERSION,
@@ -310,7 +310,6 @@ pub fn add_block_with_db_txos(
             mc_util_serial::decode(
                 &Txo::get(&txo_id_hex.to_string(), &wallet_db.get_conn().unwrap())
                     .unwrap()
-                    .txo
                     .txo,
             )
             .unwrap()
@@ -450,7 +449,7 @@ pub fn create_test_txo_for_recipient(
         &recipient_account_key.subaddress_spend_private(recipient_subaddress_index),
     );
     assert_eq!(
-        create_onetime_public_key(&tx_private_key, &recipient),
+        create_tx_out_target_key(&tx_private_key, &recipient),
         RistrettoPublic::from(&onetime_private_key)
     );
 

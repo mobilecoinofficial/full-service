@@ -21,34 +21,41 @@ debug-assertions = false
 overflow-checks = false
 
 [patch.crates-io]
-prost = { git = "https://github.com/danburkert/prost", rev = "6113789f70b69709820becba4242824b4fb3ffec" }
-prost-derive = { git = "https://github.com/danburkert/prost", rev = "6113789f70b69709820becba4242824b4fb3ffec" }
 
-# Not-yet-released version that depends on newer crates.
-bulletproofs = { git = "https://github.com/eranrund/bulletproofs", rev = "8a7c9cdd1efafa3ad68cd65676302f925de68373" }
+# Fork and rename to use "OG" dalek-cryptography.
+bulletproofs-og = { git = "https://github.com/mobilecoinfoundation/bulletproofs.git", rev = "675330c754f28876dbf94fc303fe73666cf8f8f4" }
 
-# We need to patch aes-gcm so we can make some fields/functions/structs pub in order to have a constant time decrypt
-aes-gcm = { git = "https://github.com/mobilecoinofficial/AEADs", rev = "d1a8517d3dd867ed9c5794002add67992a42f6aa" }
+# This version contains iOS build fixes
+cmake = { git = "https://github.com/alexcrichton/cmake-rs", rev = "5f89f90ee5d7789832963bffdb2dcb5939e6199c" }
+
+# Fix issues with recent nightlies, bump curve25519-dalek version
+ed25519-dalek = { git = "https://github.com/mobilecoinfoundation/ed25519-dalek.git", rev = "78bdc2a0b0af852cb4e47a0ca9be74bdf77c57b6" }
 
 # grpcio patched with metadata
 grpcio = { git = "https://github.com/mobilecoinofficial/grpc-rs", rev = "10ba9f8f4546916c7e7532c4d1c6cdcf5df62553" }
 protoc-grpcio = { git = "https://github.com/mobilecoinofficial/protoc-grpcio", rev = "9e63f09ec408722f731c9cb60bf06c3d46bcabec" }
 
+# mbedtls patched to allow certificate verification with a profile
+mbedtls = { git = "https://github.com/mobilecoinofficial/rust-mbedtls.git", rev = "49a293a5f4b1ef571c71174e3fa1f301925f3915" }
+mbedtls-sys-auto = { git = "https://github.com/mobilecoinofficial/rust-mbedtls.git", rev = "49a293a5f4b1ef571c71174e3fa1f301925f3915" }
+
+# packed_simd_2 has unreleased fixes for build issues we're experiencing
+packed_simd_2 = { git = "https://github.com/rust-lang/packed_simd.git", rev = "f60e900f4ceb71303baa37ff8b41ee7d490c01bf" }
+
+# Override lmdb-rkv for a necessary bugfix (see https://github.com/mozilla/lmdb-rs/pull/80)
+lmdb-rkv = { git = "https://github.com/mozilla/lmdb-rs", rev = "df1c2f5" }
+
+# Fork and rename to use "OG" dalek-cryptography.
+schnorrkel-og = { git = "https://github.com/mobilecoinfoundation/schnorrkel.git", rev = "9b48418556b0af476be2313309bc5a23fb8b351d" }
+
+# Fixes the following:
+# * Allow enabling `serde/std` without also requiring `serde_cbor/std` to be enabled.
+#   See: https://github.com/pyfisch/cbor/pull/198
+serde_cbor = { git = "https://github.com/mobilecoinofficial/cbor", rev = "4c886a7c1d523aae1ec4aa7386f402cb2f4341b5" }
+
+# Fix issues with recent nightlies, bump curve25519-dalek version
+x25519-dalek = { git = "https://github.com/mobilecoinfoundation/x25519-dalek.git", rev = "672f29ef4b3addd9a3c4888cf4b836b243bda595" }
+
 # Override diesel dependency with our fork, in order to use a version of libsqlite3-sys that has bundled-sqlcipher. This allows us to
 # statically link SQLite.
 diesel = { git = "https://github.com/mobilecoinofficial/diesel", rev = "22a4a4b973db2b7aadaf088b3279dbbe52176896" }
-
-# ed25519-dalek depends on rand 0.7 which in turns depends on a broken version of packed_simd
-# This is a PR that moves it to newer rand
-# See https://github.com/dalek-cryptography/ed25519-dalek/pull/160
-ed25519-dalek = { git = "https://github.com/eranrund/ed25519-dalek.git", rev = "484369672f45d776fe13fdd17618aed2f4047909" }
-
-# Bump curve25519-dalek version to 4.0.0-pre0
-x25519-dalek = { git = "https://github.com/eranrund/x25519-dalek.git", rev = "57c04e5c5aca3551c015167d8176393fbe76dc65" }
-
-# Overridden since we need a commit that uprevs a bunch of dependencies.
-schnorrkel = { git = "https://github.com/mobilecoinofficial/schnorrkel", rev = "fa27d0ed32d251a27399a23d3ef69611acb14d56" }
-
-# mbedtls patched to allow certificate verification with a profile
-mbedtls = { git = "https://github.com/mobilecoinofficial/rust-mbedtls.git", rev = "c7fa3f0c737f36af8f437e147131d1f5c8a90b0e" }
-mbedtls-sys-auto = { git = "https://github.com/mobilecoinofficial/rust-mbedtls.git", rev = "c7fa3f0c737f36af8f437e147131d1f5c8a90b0e" }

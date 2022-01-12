@@ -6,7 +6,7 @@
 use diesel::{connection::SimpleConnection, prelude::*, SqliteConnection};
 use diesel_migrations::embed_migrations;
 use dotenv::dotenv;
-use mc_attest_core::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
+use mc_attest_verifier::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
 use mc_common::logger::{create_app_logger, log, o};
 use mc_full_service::{
     config::APIConfig,
@@ -55,7 +55,7 @@ fn main() {
 
     // Connect to the database and run the migrations
     let conn =
-        SqliteConnection::establish(&config.wallet_db.to_str().unwrap()).unwrap_or_else(|err| {
+        SqliteConnection::establish(config.wallet_db.to_str().unwrap()).unwrap_or_else(|err| {
             eprintln!("Cannot open database {:?}: {:?}", config.wallet_db, err);
             exit(EXIT_NO_DATABASE_CONNECTION);
         });

@@ -37,10 +37,11 @@ pub enum LedgerServiceError {
     LedgerDB(mc_ledger_db::Error),
 
     /// Error decoding prost: {0}
-    ProstDecode(prost::DecodeError),
+    ProstDecode(mc_util_serial::DecodeError),
 
-    /// No transaction object associated with this transaction. Note, received
-    /// transactions do not have transaction objects.
+    /** No transaction object associated with this transaction. Note,
+     * received transactions do not have transaction objects.
+     */
     NoTxInTransaction,
 }
 
@@ -50,8 +51,8 @@ impl From<mc_ledger_db::Error> for LedgerServiceError {
     }
 }
 
-impl From<prost::DecodeError> for LedgerServiceError {
-    fn from(src: prost::DecodeError) -> Self {
+impl From<mc_util_serial::DecodeError> for LedgerServiceError {
+    fn from(src: mc_util_serial::DecodeError) -> Self {
         Self::ProstDecode(src)
     }
 }
@@ -111,7 +112,7 @@ where
         let conn = self.wallet_db.get_conn()?;
         let txo_details = Txo::get(txo_id_hex, &conn)?;
 
-        let txo: TxOut = mc_util_serial::decode(&txo_details.txo.txo)?;
+        let txo: TxOut = mc_util_serial::decode(&txo_details.txo)?;
         Ok(txo)
     }
 
@@ -125,7 +126,7 @@ where
     }
 
     fn contains_key_image(&self, key_image: &KeyImage) -> Result<bool, LedgerServiceError> {
-        Ok(self.ledger_db.contains_key_image(&key_image)?)
+        Ok(self.ledger_db.contains_key_image(key_image)?)
     }
 
     fn get_network_fee(&self) -> u64 {
