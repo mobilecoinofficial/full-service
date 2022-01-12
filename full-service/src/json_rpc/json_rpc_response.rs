@@ -194,12 +194,20 @@ pub enum JsonCommandResponse {
     get_all_gift_codes {
         gift_codes: Vec<GiftCode>,
     },
+    get_all_transaction_logs_for_account {
+        transaction_log_ids: Vec<String>,
+        transaction_log_map: Map<String, serde_json::Value>,
+    },
     get_all_transaction_logs_for_block {
         transaction_log_ids: Vec<String>,
         transaction_log_map: Map<String, serde_json::Value>,
     },
     get_all_transaction_logs_ordered_by_block {
         transaction_log_map: Map<String, serde_json::Value>,
+    },
+    get_all_txos_for_account {
+        txo_ids: Vec<String>,
+        txo_map: Map<String, serde_json::Value>,
     },
     get_all_txos_for_address {
         txo_ids: Vec<String>,

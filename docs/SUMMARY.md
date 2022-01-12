@@ -31,6 +31,7 @@
   * [Submit Transaction](transactions/transaction/submit_transaction.md)
   * [Build And Submit Transaction](transactions/transaction/build_and_submit_transaction.md)
   * [Build Split Txo Transaction](transactions/transaction/build_split_txo_transaction.md)
+  * [Get MobileCoin Protocol Transaction](transactions/transaction/get_mc_protocol_transaction.md)
 * [Transaction Output TXO](transactions/txo/README.md)
   * [Get TXO](transactions/txo/get_txo.md)
   * [Get TXOs For Account](transactions/txo/get-txos-for-account.md)
@@ -53,6 +54,9 @@
 * [Payment Request](transactions/payment-request/README.md)
   * [Create Payment Request](transactions/payment-request/create_payment_request.md)
   * [Check B58 Type](transactions/payment-request/check_b58_type.md)
+* [MobileCoin Protocol](transactions/mc-protocol/README.md)
+  * [Get MobileCoin Protocol Transaction](transactions/mc-protocol/get_mc_protocol_transaction.md)
+  * [Get MobileCoin Protocol TXO](transactions/mc-protocol/get_mc_protocol_txo.md)
 
 ## Wallet
 

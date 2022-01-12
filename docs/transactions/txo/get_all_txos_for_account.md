@@ -9,8 +9,6 @@ description: Get all TXOs for a given account.
 | Parameter | Purpose | Requirements |
 | :--- | :--- | :--- |
 | `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
-| `offset` | integer | The value to offset pagination requests. Requests will exclude all list items up to and including this object. |
-| `limit` | integer | The limit of returned results. |
 
 ## Example
 
@@ -20,9 +18,7 @@ description: Get all TXOs for a given account.
 {
   "method": "get_all_txos_for_account",
   "params": {
-    "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
-    "offset": "2",
-    "limit": "6"
+    "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
   },
   "jsonrpc": "2.0",
   "id": 1
