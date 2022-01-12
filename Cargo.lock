@@ -2833,6 +2833,7 @@ dependencies = [
  "mc-common",
  "mc-consensus-enclave-measurement",
  "mc-full-service",
+ "mc-ledger-db",
  "mc-ledger-sync",
  "mc-util-grpc",
  "mc-util-parse",

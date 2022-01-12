@@ -66,7 +66,7 @@ fn main() {
     );
 
     // Start GRPC service.
-    let _service = Service::new(&config.listen_uri, logger);
+    let _service = Service::new(&config.listen_uri, ledger_db, logger);
 
     // Sleep indefinitely.
     loop {

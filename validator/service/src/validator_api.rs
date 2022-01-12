@@ -4,6 +4,7 @@
 
 use grpcio::{RpcContext, RpcStatus, Service, UnarySink};
 use mc_common::logger::Logger;
+use mc_ledger_db::LedgerDB;
 use mc_util_grpc::{rpc_logger, send_result};
 use mc_validator_api::{
     blockchain::ArchiveBlocks,
@@ -16,12 +17,16 @@ use mc_validator_api::{
 
 #[derive(Clone)]
 pub struct ValidatorApi {
+    /// Ledger DB.
+    ledger_db: LedgerDB,
+
+    /// Logger.
     logger: Logger,
 }
 
 impl ValidatorApi {
-    pub fn new(logger: Logger) -> Self {
-        Self { logger }
+    pub fn new(ledger_db: LedgerDB, logger: Logger) -> Self {
+        Self { ledger_db, logger }
     }
 
     pub fn into_service(self) -> Service {
