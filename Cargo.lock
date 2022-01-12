@@ -2829,8 +2829,11 @@ name = "mc-validator-service"
 version = "1.0.0"
 dependencies = [
  "grpcio",
+ "mc-attest-verifier",
  "mc-common",
+ "mc-consensus-enclave-measurement",
  "mc-full-service",
+ "mc-ledger-sync",
  "mc-util-grpc",
  "mc-util-parse",
  "mc-util-uri",

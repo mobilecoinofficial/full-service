@@ -13,7 +13,10 @@ path = "src/bin/main.rs"
 mc-full-service = { path = "../../full-service"}
 mc-validator-api = { path = "../api" }
 
+mc-attest-verifier = { path = "../../mobilecoin/attest/verifier" }
 mc-common = { path = "../../mobilecoin/common", default-features = false, features = ["loggers"] }
+mc-consensus-enclave-measurement = { path = "../../mobilecoin/consensus/enclave/measurement" }
+mc-ledger-sync = { path = "../../mobilecoin/ledger/sync" }
 mc-util-grpc = { path = "../../mobilecoin/util/grpc" }
 mc-util-parse = { path = "../../mobilecoin/util/parse" }
 mc-util-uri = { path = "../../mobilecoin/util/uri" }
