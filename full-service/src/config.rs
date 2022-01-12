@@ -377,7 +377,7 @@ impl PeersConfig {
         QuorumSet::new_with_node_ids(node_ids.len() as u32, node_ids)
     }
 
-     pub fn responder_ids(&self) -> Vec<ResponderId> {
+    pub fn responder_ids(&self) -> Vec<ResponderId> {
         self.peers
             .clone()
             .unwrap_or_default()
