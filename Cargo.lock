@@ -2830,6 +2830,7 @@ dependencies = [
  "grpcio",
  "mc-common",
  "mc-full-service",
+ "mc-util-grpc",
  "mc-util-parse",
  "mc-util-uri",
  "mc-validator-api",
