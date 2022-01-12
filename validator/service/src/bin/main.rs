@@ -50,7 +50,10 @@ fn main() {
     .expect("Failed creating ReqwestTransactionsFetcher");
 
     // Create the ledger_db.
-    let ledger_db = config.ledger_db_config.create_or_open_ledger_db(&transactions_fetcher, false, &logger);
+    let ledger_db =
+        config
+            .ledger_db_config
+            .create_or_open_ledger_db(&transactions_fetcher, false, &logger);
 
     // Start ledger sync thread.
     let _ledger_sync_service_thread = LedgerSyncServiceThread::new(
