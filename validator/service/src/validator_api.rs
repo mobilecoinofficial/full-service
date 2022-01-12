@@ -2,27 +2,29 @@
 
 //! Validator API GRPC service implementation.
 
-use grpcio::{RpcContext, RpcStatus, Service, UnarySink};
+use grpcio::{EnvBuilder, RpcContext, RpcStatus, Service, UnarySink};
 use mc_common::logger::{log, Logger};
 use mc_connection::{
     ConnectionManager, Error as ConnectionError, RetryError, RetryableUserTxConnection,
     UserTxConnection,
 };
+use mc_fog_report_connection::{Error as FogConnectionError, GrpcFogReportConnection};
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_util_grpc::{
     rpc_database_err, rpc_internal_error, rpc_invalid_arg_error, rpc_logger, rpc_permissions_error,
     send_result,
 };
+use mc_util_uri::FogUri;
 use mc_validator_api::{
     blockchain::ArchiveBlocks,
     consensus_common::{BlocksRequest, ProposeTxResponse},
     external::Tx,
-    report::ReportResponse,
-    validator_api::FetchFogReportRequest,
+    validator_api::{FetchFogReportRequest, FetchFogReportResponse, FetchFogReportResult},
     validator_api_grpc::{create_validator_api, ValidatorApi as GrpcValidatorApi},
 };
 use std::{
     convert::TryFrom,
+    str::FromStr,
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
@@ -43,6 +45,9 @@ pub struct ValidatorApi<BC: UserTxConnection + 'static> {
     /// selection.
     submit_node_offset: Arc<AtomicUsize>,
 
+    /// Fog report connection.
+    fog_report_connection: GrpcFogReportConnection,
+
     /// Logger.
     logger: Logger,
 }
@@ -53,6 +58,7 @@ impl<BC: UserTxConnection + 'static> Clone for ValidatorApi<BC> {
             ledger_db: self.ledger_db.clone(),
             conn_manager: self.conn_manager.clone(),
             submit_node_offset: self.submit_node_offset.clone(),
+            fog_report_connection: self.fog_report_connection.clone(),
             logger: self.logger.clone(),
         }
     }
@@ -64,6 +70,14 @@ impl<BC: UserTxConnection + 'static> ValidatorApi<BC> {
             ledger_db,
             conn_manager,
             submit_node_offset: Arc::new(AtomicUsize::new(0)),
+            fog_report_connection: GrpcFogReportConnection::new(
+                Arc::new(
+                    EnvBuilder::new()
+                        .name_prefix("FogReportGrpc".to_string())
+                        .build(),
+                ),
+                logger.clone(),
+            ),
             logger,
         }
     }
@@ -178,10 +192,34 @@ impl<BC: UserTxConnection + 'static> ValidatorApi<BC> {
 
     fn fetch_fog_report_impl(
         &self,
-        _request: FetchFogReportRequest,
-        _logger: &Logger,
-    ) -> Result<ReportResponse, RpcStatus> {
-        todo!()
+        request: FetchFogReportRequest,
+        logger: &Logger,
+    ) -> Result<FetchFogReportResponse, RpcStatus> {
+        let fog_uri = FogUri::from_str(request.get_uri())
+            .map_err(|_| rpc_invalid_arg_error("fetch_fog_report", "uri", logger))?;
+
+        match self.fog_report_connection.fetch_fog_report(&fog_uri) {
+            Ok(report_response) => {
+                let mut response = FetchFogReportResponse::new();
+                response.set_result(FetchFogReportResult::Ok);
+                response.set_report(report_response.into());
+                Ok(response)
+            }
+
+            Err(FogConnectionError::NoReports(_)) => {
+                let mut response = FetchFogReportResponse::new();
+                response.set_result(FetchFogReportResult::NoReports);
+                Ok(response)
+            }
+
+            // TODO do we want a special case for
+            // Err(FogConnectionError::Grpc(Error::RpcFailure(status_code))) ?
+            err => Err(rpc_internal_error(
+                "fetch_fog_report",
+                format!("{:?}", err),
+                logger,
+            )),
+        }
     }
 }
 
@@ -212,7 +250,7 @@ impl<BC: UserTxConnection + 'static> GrpcValidatorApi for ValidatorApi<BC> {
         &mut self,
         ctx: RpcContext,
         request: FetchFogReportRequest,
-        sink: UnarySink<ReportResponse>,
+        sink: UnarySink<FetchFogReportResponse>,
     ) {
         mc_common::logger::scoped_global_logger(&rpc_logger(&ctx, &self.logger), |logger| {
             send_result(

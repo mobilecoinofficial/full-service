@@ -19,10 +19,20 @@ service ValidatorAPI {
 
   rpc ProposeTx(external.Tx) returns (consensus_common.ProposeTxResponse);
 
-  rpc FetchFogReport(FetchFogReportRequest) returns (report.ReportResponse);
+  rpc FetchFogReport(FetchFogReportRequest) returns (FetchFogReportResponse);
+}
+
+enum FetchFogReportResult {
+  Ok = 0;
+  NoReports = 1;
 }
 
 message FetchFogReportRequest {
   // Fog report server URI.
   string uri = 1;
+}
+
+message FetchFogReportResponse {
+  FetchFogReportResult result = 1;
+  report.ReportResponse report = 2;
 }
