@@ -3,8 +3,8 @@
 //! The entrypoint for the Ledger Validator Service.
 
 use mc_common::logger::{create_app_logger, log, o};
+use mc_validator_service::Config;
 use structopt::StructOpt;
-use validator_server::Config;
 
 fn main() {
     mc_common::setup_panic_handler();

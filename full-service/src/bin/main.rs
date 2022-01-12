@@ -111,13 +111,17 @@ fn main() {
 
     // Create network state, transactions fetcher and ledger sync.
     let network_state = Arc::new(RwLock::new(PollingNetworkState::new(
-        config.quorum_set(),
+        config.peers_config.quorum_set(),
         peer_manager.clone(),
         logger.clone(),
     )));
 
     let transactions_fetcher = ReqwestTransactionsFetcher::new(
-        config.tx_source_urls.clone().unwrap_or_default(),
+        config
+            .peers_config
+            .tx_source_urls
+            .clone()
+            .unwrap_or_default(),
         logger.clone(),
     )
     .expect("Failed creating ReqwestTransactionsFetcher");
