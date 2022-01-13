@@ -2359,6 +2359,7 @@ dependencies = [
  "mc-util-parse",
  "mc-util-serial",
  "mc-util-uri",
+ "mc-validator-api",
  "num_cpus",
  "rand 0.8.4",
  "rayon",

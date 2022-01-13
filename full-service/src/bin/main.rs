@@ -7,13 +7,14 @@ use diesel::{connection::SimpleConnection, prelude::*, SqliteConnection};
 use diesel_migrations::embed_migrations;
 use dotenv::dotenv;
 use mc_attest_verifier::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
-use mc_common::logger::{create_app_logger, log, o};
+use mc_common::logger::{create_app_logger, log, o, Logger};
 use mc_full_service::{
     config::APIConfig,
     wallet::{rocket, WalletState},
     WalletDb, WalletService,
 };
 use mc_ledger_sync::{LedgerSyncServiceThread, PollingNetworkState, ReqwestTransactionsFetcher};
+use mc_validator_api::ValidatorUri;
 use std::{
     process::exit,
     sync::{Arc, RwLock},
@@ -106,6 +107,28 @@ fn main() {
 
     log::debug!(logger, "Verifier: {:?}", verifier);
 
+    // Start WalletService based on our configuration
+    if let Some(validator_uri) = config.validator.as_ref() {
+        validator_backed_full_service(
+            validator_uri,
+            &config,
+            verifier,
+            wallet_db,
+            rocket_config,
+            logger,
+        );
+    } else {
+        consensus_backed_full_service(&config, verifier, wallet_db, rocket_config, logger);
+    };
+}
+
+fn consensus_backed_full_service(
+    config: &APIConfig,
+    verifier: Verifier,
+    wallet_db: WalletDb,
+    rocket_config: rocket::Config,
+    logger: Logger,
+) {
     // Create peer manager.
     let peer_manager = config.peers_config.create_peer_manager(verifier, &logger);
 
@@ -128,7 +151,11 @@ fn main() {
 
     // Create the ledger_db.
     let ledger_db = config.ledger_db_config.create_or_open_ledger_db(
-        &transactions_fetcher,
+        || {
+            transactions_fetcher
+                .get_origin_block_and_transactions()
+                .map_err(|err| err.to_string())
+        },
         config.offline,
         &logger,
     );
@@ -147,20 +174,34 @@ fn main() {
         ))
     };
 
-    let state = WalletState {
-        service: WalletService::new(
-            wallet_db,
-            ledger_db,
-            peer_manager,
-            network_state,
-            config.get_fog_resolver_factory(logger.clone()),
-            config.num_workers,
-            config.offline,
-            logger,
-        ),
-    };
+    let service = WalletService::new(
+        wallet_db,
+        ledger_db,
+        peer_manager,
+        network_state,
+        config.get_fog_resolver_factory(logger.clone()),
+        config.num_workers,
+        config.offline,
+        logger,
+    );
+
+    // Start HTTP API server
+    let state = WalletState { service };
 
     let rocket = rocket(rocket_config, state);
-
     rocket.launch();
+}
+
+fn validator_backed_full_service(
+    _validator_uri: &ValidatorUri,
+    config: &APIConfig,
+    _verifier: Verifier,
+    _wallet_db: WalletDb,
+    _rocket_config: rocket::Config,
+    logger: Logger,
+) {
+    // Create the ledger_db.
+    let _ledger_db = config
+        .ledger_db_config
+        .create_or_open_ledger_db(|| todo!(), false, &logger);
 }

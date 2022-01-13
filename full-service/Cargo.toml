@@ -13,6 +13,8 @@ default = ["ip-check"]
 ip-check = []
 
 [dependencies]
+mc-validator-api = { path = "../validator/api" }
+
 mc-account-keys = { path = "../mobilecoin/account-keys" }
 mc-account-keys-slip10 = { path = "../mobilecoin/account-keys/slip10" }
 mc-api = { path = "../mobilecoin/api" }
