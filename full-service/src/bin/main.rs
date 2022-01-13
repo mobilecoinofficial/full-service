@@ -11,7 +11,7 @@ use mc_common::logger::{create_app_logger, log, o, Logger};
 use mc_full_service::{
     config::APIConfig,
     wallet::{rocket, WalletState},
-    WalletDb, WalletService,
+    ValidatorLedgerSyncThread, WalletDb, WalletService,
 };
 use mc_ledger_sync::{LedgerSyncServiceThread, PollingNetworkState, ReqwestTransactionsFetcher};
 use mc_validator_api::ValidatorUri;
@@ -204,7 +204,7 @@ fn validator_backed_full_service(
     let validator_conn = ValidatorConnection::new(validator_uri, logger.clone());
 
     // Create the ledger_db.
-    let _ledger_db = config.ledger_db_config.create_or_open_ledger_db(
+    let ledger_db = config.ledger_db_config.create_or_open_ledger_db(
         || {
             // Get the origin block.
             let blocks_data = validator_conn
@@ -217,4 +217,12 @@ fn validator_backed_full_service(
         false,
         &logger,
     );
+
+    // Create the ledger sync thread.
+    let _ledger_sync_thread =
+        ValidatorLedgerSyncThread::new(validator_uri, config.poll_interval, ledger_db, logger);
+
+    loop {
+        std::thread::sleep(std::time::Duration::from_secs(1));
+    }
 }
