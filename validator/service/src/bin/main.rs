@@ -57,8 +57,8 @@ fn main() {
 
     // Start ledger sync thread.
     let _ledger_sync_service_thread = LedgerSyncServiceThread::new(
-        ledger_db,
-        peer_manager,
+        ledger_db.clone(),
+        peer_manager.clone(),
         network_state,
         transactions_fetcher,
         config.poll_interval,
@@ -66,7 +66,7 @@ fn main() {
     );
 
     // Start GRPC service.
-    let _service = Service::new(&config.listen_uri, logger);
+    let _service = Service::new(&config.listen_uri, ledger_db, peer_manager, logger);
 
     // Sleep indefinitely.
     loop {

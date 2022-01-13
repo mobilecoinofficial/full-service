@@ -5,6 +5,8 @@
 use crate::{blockchain_api::BlockchainApi, validator_api::ValidatorApi};
 use grpcio::{EnvBuilder, ServerBuilder};
 use mc_common::logger::{log, Logger};
+use mc_connection::{BlockchainConnection, ConnectionManager, UserTxConnection};
+use mc_ledger_db::LedgerDB;
 use mc_util_grpc::{BuildInfoService, ConnectionUriGrpcioServer, HealthService};
 use mc_validator_api::ValidatorUri;
 use std::sync::Arc;
@@ -15,7 +17,12 @@ pub struct Service {
 }
 
 impl Service {
-    pub fn new(listen_uri: &ValidatorUri, logger: Logger) -> Self {
+    pub fn new<C: BlockchainConnection + UserTxConnection + 'static>(
+        listen_uri: &ValidatorUri,
+        ledger_db: LedgerDB,
+        conn_manager: ConnectionManager<C>,
+        logger: Logger,
+    ) -> Self {
         // Build info API service.
         let build_info_service = BuildInfoService::new(logger.clone()).into_service();
 
@@ -23,10 +30,13 @@ impl Service {
         let health_service = HealthService::new(None, logger.clone()).into_service();
 
         // Validator API service.
-        let validator_service = ValidatorApi::new(logger.clone()).into_service();
+        let validator_service =
+            ValidatorApi::new(ledger_db.clone(), conn_manager.clone(), logger.clone())
+                .into_service();
 
         // Blockchain API service.
-        let blockchain_service = BlockchainApi::new(logger.clone()).into_service();
+        let blockchain_service =
+            BlockchainApi::new(ledger_db, conn_manager, logger.clone()).into_service();
 
         // Package service into grpc server.
         log::info!(logger, "Starting validator API Service on {}", listen_uri);

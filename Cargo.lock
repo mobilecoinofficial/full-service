@@ -2831,13 +2831,18 @@ dependencies = [
  "grpcio",
  "mc-attest-verifier",
  "mc-common",
+ "mc-connection",
  "mc-consensus-enclave-measurement",
+ "mc-fog-report-connection",
  "mc-full-service",
+ "mc-ledger-db",
  "mc-ledger-sync",
+ "mc-transaction-core",
  "mc-util-grpc",
  "mc-util-parse",
  "mc-util-uri",
  "mc-validator-api",
+ "rayon",
  "structopt",
 ]
 
