@@ -15,6 +15,7 @@ use mc_full_service::{
 };
 use mc_ledger_sync::{LedgerSyncServiceThread, PollingNetworkState, ReqwestTransactionsFetcher};
 use mc_validator_api::ValidatorUri;
+use mc_validator_connection::ValidatorConnection;
 use std::{
     process::exit,
     sync::{Arc, RwLock},
@@ -193,15 +194,27 @@ fn consensus_backed_full_service(
 }
 
 fn validator_backed_full_service(
-    _validator_uri: &ValidatorUri,
+    validator_uri: &ValidatorUri,
     config: &APIConfig,
     _verifier: Verifier,
     _wallet_db: WalletDb,
     _rocket_config: rocket::Config,
     logger: Logger,
 ) {
+    let validator_conn = ValidatorConnection::new(validator_uri, logger.clone());
+
     // Create the ledger_db.
-    let _ledger_db = config
-        .ledger_db_config
-        .create_or_open_ledger_db(|| todo!(), false, &logger);
+    let _ledger_db = config.ledger_db_config.create_or_open_ledger_db(
+        || {
+            // Get the origin block.
+            let blocks_data = validator_conn
+                .get_blocks_data(0, 1)
+                .map_err(|err| err.to_string())?;
+            assert_eq!(blocks_data.len(), 1);
+
+            Ok(blocks_data[0].clone())
+        },
+        false,
+        &logger,
+    );
 }
