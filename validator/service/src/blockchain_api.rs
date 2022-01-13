@@ -4,21 +4,45 @@
 
 use grpcio::{RpcContext, RpcStatus, Service, UnarySink};
 use mc_common::logger::Logger;
-use mc_util_grpc::{rpc_logger, send_result};
+use mc_connection::{BlockchainConnection, ConnectionManager, RetryableBlockchainConnection};
+use mc_ledger_db::{Ledger, LedgerDB};
+use mc_transaction_core::constants::MINIMUM_FEE;
+use mc_util_grpc::{rpc_database_err, rpc_logger, send_result};
 use mc_validator_api::{
     consensus_common::LastBlockInfoResponse,
     consensus_common_grpc::{create_blockchain_api, BlockchainApi as GrpcBlockchainApi},
     empty::Empty,
 };
+use rayon::prelude::*; // For par_iter
 
-#[derive(Clone)]
-pub struct BlockchainApi {
+pub struct BlockchainApi<BC: BlockchainConnection + 'static> {
+    /// Ledger DB.
+    ledger_db: LedgerDB,
+
+    /// Connection manager.
+    conn_manager: ConnectionManager<BC>,
+
+    /// Logger.
     logger: Logger,
 }
 
-impl BlockchainApi {
-    pub fn new(logger: Logger) -> Self {
-        Self { logger }
+impl<BC: BlockchainConnection + 'static> Clone for BlockchainApi<BC> {
+    fn clone(&self) -> Self {
+        Self {
+            ledger_db: self.ledger_db.clone(),
+            conn_manager: self.conn_manager.clone(),
+            logger: self.logger.clone(),
+        }
+    }
+}
+
+impl<BC: BlockchainConnection + 'static> BlockchainApi<BC> {
+    pub fn new(ledger_db: LedgerDB, conn_manager: ConnectionManager<BC>, logger: Logger) -> Self {
+        Self {
+            ledger_db,
+            conn_manager,
+            logger,
+        }
     }
 
     pub fn into_service(self) -> Service {
@@ -27,13 +51,42 @@ impl BlockchainApi {
 
     fn get_last_block_info_impl(
         &self,
-        _logger: &Logger,
+        logger: &Logger,
     ) -> Result<LastBlockInfoResponse, RpcStatus> {
-        todo!()
+        let num_blocks = self
+            .ledger_db
+            .num_blocks()
+            .map_err(|err| rpc_database_err(err, logger))?;
+
+        let mut resp = LastBlockInfoResponse::new();
+        resp.set_index(num_blocks - 1);
+
+        // Iterate an owned list of connections in parallel, get the block info for
+        // each, and extract the fee. If no fees are returned, use the hard-coded
+        // minimum.
+        let minimum_fee = self
+            .conn_manager
+            .conns()
+            .par_iter()
+            .filter_map(|conn| conn.fetch_block_info(std::iter::empty()).ok())
+            .filter_map(|block_info| {
+                // Cleanup the protobuf default fee
+                if block_info.minimum_fee == 0 {
+                    None
+                } else {
+                    Some(block_info.minimum_fee)
+                }
+            })
+            .max()
+            .unwrap_or(MINIMUM_FEE);
+
+        resp.set_minimum_fee(minimum_fee);
+
+        Ok(resp)
     }
 }
 
-impl GrpcBlockchainApi for BlockchainApi {
+impl<BC: BlockchainConnection + 'static> GrpcBlockchainApi for BlockchainApi<BC> {
     fn get_last_block_info(
         &mut self,
         ctx: RpcContext,

@@ -2842,6 +2842,7 @@ dependencies = [
  "mc-util-parse",
  "mc-util-uri",
  "mc-validator-api",
+ "rayon",
  "structopt",
 ]
 

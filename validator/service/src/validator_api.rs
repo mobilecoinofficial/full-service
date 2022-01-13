@@ -34,12 +34,12 @@ use std::{
 /// Maximal number of blocks we will return in a single request.
 pub const MAX_BLOCKS_PER_REQUEST: u32 = 1000;
 
-pub struct ValidatorApi<BC: UserTxConnection + 'static> {
+pub struct ValidatorApi<UTC: UserTxConnection + 'static> {
     /// Ledger DB.
     ledger_db: LedgerDB,
 
     /// Connection manager.
-    conn_manager: ConnectionManager<BC>,
+    conn_manager: ConnectionManager<UTC>,
 
     /// Monotonically increasing counter. This is used for node round-robin
     /// selection.
@@ -52,7 +52,7 @@ pub struct ValidatorApi<BC: UserTxConnection + 'static> {
     logger: Logger,
 }
 
-impl<BC: UserTxConnection + 'static> Clone for ValidatorApi<BC> {
+impl<UTC: UserTxConnection + 'static> Clone for ValidatorApi<UTC> {
     fn clone(&self) -> Self {
         Self {
             ledger_db: self.ledger_db.clone(),
@@ -64,8 +64,8 @@ impl<BC: UserTxConnection + 'static> Clone for ValidatorApi<BC> {
     }
 }
 
-impl<BC: UserTxConnection + 'static> ValidatorApi<BC> {
-    pub fn new(ledger_db: LedgerDB, conn_manager: ConnectionManager<BC>, logger: Logger) -> Self {
+impl<UTC: UserTxConnection + 'static> ValidatorApi<UTC> {
+    pub fn new(ledger_db: LedgerDB, conn_manager: ConnectionManager<UTC>, logger: Logger) -> Self {
         Self {
             ledger_db,
             conn_manager,
@@ -223,7 +223,7 @@ impl<BC: UserTxConnection + 'static> ValidatorApi<BC> {
     }
 }
 
-impl<BC: UserTxConnection + 'static> GrpcValidatorApi for ValidatorApi<BC> {
+impl<UTC: UserTxConnection + 'static> GrpcValidatorApi for ValidatorApi<UTC> {
     fn get_archive_blocks(
         &mut self,
         ctx: RpcContext,
