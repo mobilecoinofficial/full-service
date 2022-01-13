@@ -9,6 +9,7 @@ mc-validator-api = { path = "../api" }
 
 mc-api = { path = "../../mobilecoin/api" }
 mc-common = { path = "../../mobilecoin/common", features = ["log"] }
+mc-connection = { path = "../../mobilecoin/connection" }
 mc-transaction-core = { path = "../../mobilecoin/transaction/core" }
 mc-util-grpc = { path = "../../mobilecoin/util/grpc" }
 mc-util-uri = { path = "../../mobilecoin/util/uri" }

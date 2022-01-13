@@ -15,9 +15,17 @@ impl From<grpcio::Error> for Error {
     }
 }
 
-impl From<mc_api::ConversionError> for Error  {
+impl From<mc_api::ConversionError> for Error {
     fn from(src: mc_api::ConversionError) -> Self {
         Self::ApiConversion(src)
     }
 }
 
+impl From<Error> for mc_connection::Error {
+    fn from(src: Error) -> Self {
+        match src {
+            Error::Rpc(src) => mc_connection::Error::Grpc(src),
+            Error::ApiConversion(src) => mc_connection::Error::Conversion(src),
+        }
+    }
+}

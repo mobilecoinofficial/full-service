@@ -2835,6 +2835,7 @@ dependencies = [
  "grpcio",
  "mc-api",
  "mc-common",
+ "mc-connection",
  "mc-transaction-core",
  "mc-util-grpc",
  "mc-util-uri",
