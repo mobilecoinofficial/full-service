@@ -31,7 +31,6 @@
   * [Submit Transaction](transactions/transaction/submit_transaction.md)
   * [Build And Submit Transaction](transactions/transaction/build_and_submit_transaction.md)
   * [Build Split Txo Transaction](transactions/transaction/build_split_txo_transaction.md)
-  * [Get MobileCoin Protocol Transaction](transactions/transaction/get_mc_protocol_transaction.md)
 * [Transaction Output TXO](transactions/txo/README.md)
   * [Get TXO](transactions/txo/get_txo.md)
   * [Get TXOs For Account](transactions/txo/get-txos-for-account.md)
