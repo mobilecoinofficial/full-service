@@ -4,13 +4,14 @@
 
 use mc_common::logger::{log, Logger};
 use mc_ledger_db::{Ledger, LedgerDB};
+use mc_ledger_sync::{NetworkState, PollingNetworkState};
 use mc_transaction_core::{Block, BlockContents};
 use mc_validator_api::ValidatorUri;
 use mc_validator_connection::ValidatorConnection;
 use std::{
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc,
+        Arc, RwLock,
     },
     thread,
     time::Duration,
@@ -29,6 +30,7 @@ impl ValidatorLedgerSyncThread {
         validator_uri: &ValidatorUri,
         poll_interval: Duration,
         ledger_db: LedgerDB,
+        network_state: Arc<RwLock<PollingNetworkState<ValidatorConnection>>>,
         logger: Logger,
     ) -> Self {
         let stop_requested = Arc::new(AtomicBool::new(false));
@@ -44,6 +46,7 @@ impl ValidatorLedgerSyncThread {
                         validator_conn,
                         poll_interval,
                         ledger_db,
+                        network_state,
                         logger,
                         thread_stop_requested,
                     );
@@ -68,6 +71,7 @@ impl ValidatorLedgerSyncThread {
         validator_conn: ValidatorConnection,
         poll_interval: Duration,
         mut ledger_db: LedgerDB,
+        mut network_state: Arc<RwLock<PollingNetworkState<ValidatorConnection>>>,
         logger: Logger,
         stop_requested: Arc<AtomicBool>,
     ) {
@@ -79,7 +83,8 @@ impl ValidatorLedgerSyncThread {
                 break;
             }
 
-            let blocks_and_contents = Self::get_next_blocks(&ledger_db, &validator_conn, &logger);
+            let blocks_and_contents =
+                Self::get_next_blocks(&ledger_db, &validator_conn, &mut network_state, &logger);
             if !blocks_and_contents.is_empty() {
                 Self::append_safe_blocks(&mut ledger_db, &blocks_and_contents, &logger);
             }
@@ -97,12 +102,36 @@ impl ValidatorLedgerSyncThread {
     fn get_next_blocks(
         ledger_db: &LedgerDB,
         validator_conn: &ValidatorConnection,
+        network_state: &mut Arc<RwLock<PollingNetworkState<ValidatorConnection>>>,
         logger: &Logger,
     ) -> Vec<(Block, BlockContents)> {
         let num_blocks = ledger_db
             .num_blocks()
             .expect("Failed getting the number of blocks in ledger");
 
+        let (highest_block_index_on_network, is_behind) = {
+            let mut network_state = network_state.write().expect("network_state lock poisoned");
+            network_state.poll();
+            (
+                network_state
+                    .highest_block_index_on_network()
+                    .unwrap_or_default(),
+                network_state.is_behind(num_blocks - 1),
+            )
+        };
+
+        log::trace!(
+            logger,
+            "local ledger has {} blocks, network highest block index is {}, is_behind:{}",
+            num_blocks,
+            highest_block_index_on_network,
+            is_behind
+        );
+        if !is_behind {
+            return Vec::new();
+        }
+
+        log::debug!(logger, "network state is behind, local ledger has {} blocks, network highest block index is {}", num_blocks, highest_block_index_on_network);
         let blocks_data =
             match validator_conn.get_blocks_data(num_blocks, MAX_BLOCKS_PER_SYNC_ITERATION) {
                 Ok(blocks_data) => blocks_data,
@@ -121,13 +150,7 @@ impl ValidatorLedgerSyncThread {
             .map(|block_data| (block_data.block().clone(), block_data.contents().clone()))
             .collect();
 
-        match mc_ledger_sync::identify_safe_blocks(ledger_db, &blocks_and_contents, logger) {
-            Ok(safe_blocks) => safe_blocks,
-            Err(err) => {
-                log::error!(logger, "Failed identifying safe blocks: {:?}", err);
-                Vec::new()
-            }
-        }
+        mc_ledger_sync::identify_safe_blocks(ledger_db, &blocks_and_contents, logger)
     }
 
     fn append_safe_blocks(

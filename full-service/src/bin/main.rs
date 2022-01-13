@@ -8,9 +8,11 @@ use diesel_migrations::embed_migrations;
 use dotenv::dotenv;
 use mc_attest_verifier::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
 use mc_common::logger::{create_app_logger, log, o, Logger};
+use mc_connection::ConnectionManager;
+use mc_consensus_scp::QuorumSet;
 use mc_full_service::{
     config::APIConfig,
-    wallet::{rocket, WalletState},
+    wallet::{consensus_backed_rocket, validator_backed_rocket, WalletState},
     ValidatorLedgerSyncThread, WalletDb, WalletService,
 };
 use mc_ledger_sync::{LedgerSyncServiceThread, PollingNetworkState, ReqwestTransactionsFetcher};
@@ -99,6 +101,21 @@ fn main() {
     )
     .expect("Could not access wallet db");
 
+    // Start WalletService based on our configuration
+    if let Some(validator_uri) = config.validator.as_ref() {
+        validator_backed_full_service(validator_uri, &config, wallet_db, rocket_config, logger);
+    } else {
+        consensus_backed_full_service(&config, wallet_db, rocket_config, logger);
+    };
+}
+
+fn consensus_backed_full_service(
+    config: &APIConfig,
+    wallet_db: WalletDb,
+    rocket_config: rocket::Config,
+    logger: Logger,
+) {
+    // Verifier
     let mut mr_signer_verifier =
         MrSignerVerifier::from(mc_consensus_enclave_measurement::sigstruct());
     mr_signer_verifier.allow_hardening_advisory("INTEL-SA-00334");
@@ -108,28 +125,6 @@ fn main() {
 
     log::debug!(logger, "Verifier: {:?}", verifier);
 
-    // Start WalletService based on our configuration
-    if let Some(validator_uri) = config.validator.as_ref() {
-        validator_backed_full_service(
-            validator_uri,
-            &config,
-            verifier,
-            wallet_db,
-            rocket_config,
-            logger,
-        );
-    } else {
-        consensus_backed_full_service(&config, verifier, wallet_db, rocket_config, logger);
-    };
-}
-
-fn consensus_backed_full_service(
-    config: &APIConfig,
-    verifier: Verifier,
-    wallet_db: WalletDb,
-    rocket_config: rocket::Config,
-    logger: Logger,
-) {
     // Create peer manager.
     let peer_manager = config.peers_config.create_peer_manager(verifier, &logger);
 
@@ -189,16 +184,15 @@ fn consensus_backed_full_service(
     // Start HTTP API server
     let state = WalletState { service };
 
-    let rocket = rocket(rocket_config, state);
+    let rocket = consensus_backed_rocket(rocket_config, state);
     rocket.launch();
 }
 
 fn validator_backed_full_service(
     validator_uri: &ValidatorUri,
     config: &APIConfig,
-    _verifier: Verifier,
-    _wallet_db: WalletDb,
-    _rocket_config: rocket::Config,
+    wallet_db: WalletDb,
+    rocket_config: rocket::Config,
     logger: Logger,
 ) {
     let validator_conn = ValidatorConnection::new(validator_uri, logger.clone());
@@ -218,11 +212,43 @@ fn validator_backed_full_service(
         &logger,
     );
 
-    // Create the ledger sync thread.
-    let _ledger_sync_thread =
-        ValidatorLedgerSyncThread::new(validator_uri, config.poll_interval, ledger_db, logger);
+    // Create connections manager.
+    let conn_manager = ConnectionManager::new(vec![validator_conn], logger.clone());
 
-    loop {
-        std::thread::sleep(std::time::Duration::from_secs(1));
-    }
+    // Create network state
+    // Note: There's onlu one node but we still need a quorum set.
+    let node_ids = conn_manager.responder_ids();
+    let quorum_set = QuorumSet::new_with_node_ids(node_ids.len() as u32, node_ids);
+
+    let network_state = Arc::new(RwLock::new(PollingNetworkState::new(
+        quorum_set,
+        conn_manager.clone(),
+        logger.clone(),
+    )));
+
+    // Create the ledger sync thread.
+    let _ledger_sync_thread = ValidatorLedgerSyncThread::new(
+        validator_uri,
+        config.poll_interval,
+        ledger_db.clone(),
+        network_state.clone(),
+        logger.clone(),
+    );
+
+    let service = WalletService::new(
+        wallet_db,
+        ledger_db,
+        conn_manager,
+        network_state,
+        config.get_fog_resolver_factory(logger.clone()), // TODO
+        config.num_workers,
+        false,
+        logger,
+    );
+
+    // Start HTTP API server
+    let state = WalletState { service };
+
+    let rocket = validator_backed_rocket(rocket_config, state);
+    rocket.launch();
 }
