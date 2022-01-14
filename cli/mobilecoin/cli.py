@@ -480,7 +480,7 @@ class CommandLineInterface:
             return
 
         if build_only:
-            tx_proposal = self.client.build_transaction(account_id, amount, to_address)
+            tx_proposal = self.client.build_transaction(account_id, amount, to_address, fee=fee)
             path = Path('tx_proposal.json')
             if path.exists():
                 print(f'The file {path} already exists. Please rename the existing file and retry.')
@@ -494,7 +494,12 @@ class CommandLineInterface:
             print('Cancelled.')
             return
 
-        transaction_log, tx_proposal = self.client.build_and_submit_transaction_with_proposal(account_id, amount, to_address)
+        transaction_log, tx_proposal = self.client.build_and_submit_transaction_with_proposal(
+            account_id,
+            amount,
+            to_address,
+            fee=fee,
+        )
 
         print('Sent {}, with a transaction fee of {}'.format(
             _format_mob(pmob2mob(transaction_log['value_pmob'])),
