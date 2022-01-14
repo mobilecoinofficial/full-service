@@ -54,7 +54,7 @@ Notice how `--validator` replaced `--peer` and `--tx-source-url`.
 
 ## TLS between full-service and LVN
 
-The GRPC connection between `full-service` and `mc-ledger-validator` can optionally be TLS-encrypted. If you wish to use TLS for that, you'll a certificate file and the matching private key for it. For testing purposes you can generate your own self-signed certificate:
+The GRPC connection between `full-service` and `mc-ledger-validator` can optionally be TLS-encrypted. If you wish to use TLS for that, you'll need a certificate file and the matching private key for it. For testing purposes you can generate your own self-signed certificate:
 
 ```
 $ openssl req -x509 -sha256 -nodes -newkey rsa:2048 -days 365 -keyout server.key -out server.crt
