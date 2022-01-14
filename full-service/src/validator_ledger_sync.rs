@@ -170,10 +170,9 @@ impl ValidatorLedgerSyncThread {
         for (block, contents) in blocks_and_contents {
             ledger_db
                 .append_block(block, contents, None)
-                .expect(&format!(
-                    "Failed appending block #{} to ledger",
-                    block.index
-                ));
+                .unwrap_or_else(|err| {
+                    panic!("Failed appending block #{} to ledger: {}", block.index, err)
+                });
         }
     }
 }

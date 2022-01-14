@@ -100,7 +100,8 @@ pub struct APIConfig {
     #[structopt(long, parse(try_from_str=load_css_file))]
     pub fog_ingest_enclave_css: Option<Signature>,
 
-    /// Validator service to connect to, when not connecting to the consensus network directly.
+    /// Validator service to connect to, when not connecting to the consensus
+    /// network directly.
     #[structopt(long)]
     pub validator: Option<ValidatorUri>,
 }
