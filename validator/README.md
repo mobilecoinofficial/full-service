@@ -19,7 +19,7 @@ Note that when building full-service you need to change the build command (`carg
     cargo build --release -p mc-validator-service
 ```
 
-1. Run the LVN
+1. Run the Ledger Validator Node (LVN)
 
 
 TestNet example
@@ -31,7 +31,7 @@ TestNet example
         --peer mc://node2.test.mobilecoin.com/ \
         --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
         --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
-        --listen-uri insecure-validator://0.0.0.0:5554/
+        --listen-uri insecure-validator://localhost:5554/
 ```
 
 NOTE: the `insecure-` prefix indicates the connection is going over plaintext, as opposed to TLS.
@@ -45,7 +45,7 @@ At this point the LVN is running and accepting connections on port 5554.
     ./target/release/full-service \
         --wallet-db /tmp/wallet-db/wallet.db \
         --ledger-db /tmp/ledger-db/ \
-        --validator insecure-validator://127.0.0.1:5554/
+        --validator insecure-validator://localhost:5554/
         --fog-ingest-enclave-css $(pwd)/ingest-enclave.css
 ```
 
@@ -90,7 +90,7 @@ Now, you can run the LVN with TLS enabled:
         --peer mc://node2.test.mobilecoin.com/ \
         --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
         --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
-        --listen-uri "validator://0.0.0.0:5554/?tls-chain=server.crt&tls-key=server.key"
+        --listen-uri "validator://localhost:5554/?tls-chain=server.crt&tls-key=server.key"
 ```
 Notice that the `--listen-uri` argument has changed and points to the key and certificate you generated.
 
