@@ -94,7 +94,7 @@ Now, you can run the LVN with TLS enabled:
 ```
 Notice that the `--listen-uri` argument has changed and points to the key and certificate you generated.
 
-Once the LVNis running, you will need to run `full-service`:
+Once the LVN is running, you will need to run `full-service`:
 ```sh
     mkdir -p /tmp/wallet-db/
     ./target/release/full-service \
