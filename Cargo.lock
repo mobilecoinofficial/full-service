@@ -2359,6 +2359,8 @@ dependencies = [
  "mc-util-parse",
  "mc-util-serial",
  "mc-util-uri",
+ "mc-validator-api",
+ "mc-validator-connection",
  "num_cpus",
  "rand 0.8.4",
  "rayon",
@@ -2821,6 +2823,24 @@ dependencies = [
  "mc-util-build-grpc",
  "mc-util-build-script",
  "mc-util-uri",
+ "protobuf",
+]
+
+[[package]]
+name = "mc-validator-connection"
+version = "1.0.0"
+dependencies = [
+ "displaydoc",
+ "futures",
+ "grpcio",
+ "mc-api",
+ "mc-common",
+ "mc-connection",
+ "mc-fog-report-validation",
+ "mc-transaction-core",
+ "mc-util-grpc",
+ "mc-util-uri",
+ "mc-validator-api",
  "protobuf",
 ]
 

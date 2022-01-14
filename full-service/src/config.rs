@@ -12,10 +12,11 @@ use mc_consensus_scp::QuorumSet;
 use mc_fog_report_connection::GrpcFogReportConnection;
 use mc_fog_report_validation::FogResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
-use mc_ledger_sync::ReqwestTransactionsFetcher;
 use mc_sgx_css::Signature;
+use mc_transaction_core::BlockData;
 use mc_util_parse::parse_duration_in_seconds;
 use mc_util_uri::{ConnectionUri, ConsensusClientUri, FogUri};
+use mc_validator_api::ValidatorUri;
 
 use displaydoc::Display;
 #[cfg(feature = "ip-check")]
@@ -98,6 +99,11 @@ pub struct APIConfig {
     /// transactions to fog recipients).
     #[structopt(long, parse(try_from_str=load_css_file))]
     pub fog_ingest_enclave_css: Option<Signature>,
+
+    /// Validator service to connect to, when not connecting to the consensus
+    /// network directly.
+    #[structopt(long)]
+    pub validator: Option<ValidatorUri>,
 }
 
 fn parse_quorum_set_from_json(src: &str) -> Result<QuorumSet<ResponderId>, String> {
@@ -227,7 +233,7 @@ impl APIConfig {
 #[structopt()]
 pub struct PeersConfig {
     /// validator nodes to connect to.
-    #[structopt(long = "peer", required_unless = "offline")]
+    #[structopt(long = "peer", required_unless_one = &["offline", "validator"], conflicts_with_all = &["offline", "validator"])]
     pub peers: Option<Vec<ConsensusClientUri>>,
 
     /// Quorum set for ledger syncing. By default, the quorum set would include
@@ -236,13 +242,13 @@ pub struct PeersConfig {
     /// The quorum set is represented in JSON. For example:
     /// {"threshold":1,"members":[{"type":"Node","args":"node2.test.mobilecoin.
     /// com:443"},{"type":"Node","args":"node3.test.mobilecoin.com:443"}]}
-    #[structopt(long, parse(try_from_str=parse_quorum_set_from_json))]
+    #[structopt(long, parse(try_from_str=parse_quorum_set_from_json), conflicts_with_all = &["offline", "validator"])]
     quorum_set: Option<QuorumSet<ResponderId>>,
 
     /// URLs to use for transaction data.
     ///
     /// For example: https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/
-    #[structopt(long = "tx-source-url", required_unless = "offline")]
+    #[structopt(long = "tx-source-url", required_unless_one = &["offline", "validator"], conflicts_with_all = &["offline", "validator"])]
     pub tx_source_urls: Option<Vec<String>>,
 }
 
@@ -340,7 +346,7 @@ pub struct LedgerDbConfig {
 impl LedgerDbConfig {
     pub fn create_or_open_ledger_db(
         &self,
-        transactions_fetcher: &ReqwestTransactionsFetcher,
+        get_origin_block_and_transactions: impl Fn() -> Result<BlockData, String>,
         offline: bool,
         logger: &Logger,
     ) -> LedgerDB {
@@ -400,8 +406,7 @@ impl LedgerDbConfig {
                         "Ledger DB {:?} does not exist, bootstrapping from peer, this may take a few minutes",
                         self.ledger_db
                     );
-                    let block_data = transactions_fetcher
-                        .get_origin_block_and_transactions()
+                    let block_data = get_origin_block_and_transactions()
                         .expect("Failed to download initial transactions");
                     let mut db = LedgerDB::open(&self.ledger_db).expect("Could not open ledger_db");
                     db.append_block(
