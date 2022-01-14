@@ -7,6 +7,9 @@ pub enum Error {
 
     /// Api Conversion: {0}
     ApiConversion(mc_api::ConversionError),
+
+    /// No reports returned from fog
+    NoReports,
 }
 
 impl From<grpcio::Error> for Error {
@@ -26,6 +29,9 @@ impl From<Error> for mc_connection::Error {
         match src {
             Error::Rpc(src) => mc_connection::Error::Grpc(src),
             Error::ApiConversion(src) => mc_connection::Error::Conversion(src),
+            Error::NoReports => {
+                mc_connection::Error::Other("No reports returned from fog".to_string())
+            }
         }
     }
 }

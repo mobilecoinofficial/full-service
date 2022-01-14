@@ -10,14 +10,17 @@ use mc_connection::{
     BlockInfo, BlockchainConnection, Connection, Error as ConnectionError,
     Result as ConnectionResult, UserTxConnection,
 };
+use mc_fog_report_validation::FogReportResponses;
 use mc_transaction_core::{tx::Tx, Block, BlockData, BlockID, BlockIndex};
 use mc_util_grpc::ConnectionUriGrpcioChannel;
-use mc_util_uri::ConnectionUri;
+use mc_util_uri::{ConnectionUri, FogUri};
 use mc_validator_api::{
     blockchain::ArchiveBlock,
     consensus_common::{BlocksRequest, ProposeTxResult},
     consensus_common_grpc::BlockchainApiClient,
     empty::Empty,
+    report::ReportResponse,
+    validator_api::{FetchFogReportRequest, FetchFogReportResult},
     validator_api_grpc::ValidatorApiClient,
     ValidatorUri,
 };
@@ -75,6 +78,39 @@ impl ValidatorConnection {
             .map(BlockData::try_from)
             .collect::<Result<Vec<_>, _>>()?;
         Ok(blocks_data)
+    }
+
+    /// Given a fog report uri, fetch its response over grpc, or return an
+    /// error.
+    pub fn fetch_fog_report(&self, uri: &FogUri) -> Result<ReportResponse, Error> {
+        let mut request = FetchFogReportRequest::new();
+        request.set_uri(uri.to_string());
+
+        let response = self.validator_api_client.fetch_fog_report(&request)?;
+
+        match response.get_result() {
+            FetchFogReportResult::Ok => Ok(response.get_report().clone()),
+
+            FetchFogReportResult::NoReports => Err(Error::NoReports),
+        }
+    }
+
+    /// Fetch multiple fog reports.
+    pub fn fetch_fog_reports(
+        &self,
+        uris: impl Iterator<Item = FogUri>,
+    ) -> Result<FogReportResponses, Error> {
+        let mut responses = FogReportResponses::default();
+        for uri in uris {
+            if responses.contains_key(&uri.to_string()) {
+                continue;
+            }
+
+            let response = self.fetch_fog_report(&uri)?;
+            responses.insert(uri.to_string(), response.into());
+        }
+
+        Ok(responses)
     }
 }
 

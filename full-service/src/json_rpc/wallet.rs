@@ -44,12 +44,12 @@ use crate::{
     },
 };
 use mc_common::logger::global_log;
-use mc_validator_connection::ValidatorConnection;
 use mc_connection::{
     BlockchainConnection, HardcodedCredentialsProvider, ThickClient, UserTxConnection,
 };
 use mc_fog_report_validation::{FogPubkeyResolver, FogResolver};
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
+use mc_validator_connection::ValidatorConnection;
 use rocket::{get, post, routes};
 use rocket_contrib::json::Json;
 use serde_json::Map;
@@ -118,8 +118,6 @@ pub fn validator_backed_wallet_api(
 ) -> Result<Json<JsonRPCResponse>, String> {
     generic_wallet_api(state, command)
 }
-
-
 
 /// The Wallet API inner method, which handles switching on the method enum.
 ///
@@ -921,7 +919,10 @@ pub fn consensus_backed_rocket(
     state: WalletState<ThickClient<HardcodedCredentialsProvider>, FogResolver>,
 ) -> rocket::Rocket {
     rocket::custom(rocket_config)
-        .mount("/", routes![consensus_backed_wallet_api, wallet_help, health])
+        .mount(
+            "/",
+            routes![consensus_backed_wallet_api, wallet_help, health],
+        )
         .manage(state)
 }
 
@@ -930,6 +931,9 @@ pub fn validator_backed_rocket(
     state: WalletState<ValidatorConnection, FogResolver>,
 ) -> rocket::Rocket {
     rocket::custom(rocket_config)
-        .mount("/", routes![validator_backed_wallet_api, wallet_help, health])
+        .mount(
+            "/",
+            routes![validator_backed_wallet_api, wallet_help, health],
+        )
         .manage(state)
 }

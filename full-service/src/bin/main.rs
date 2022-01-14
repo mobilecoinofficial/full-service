@@ -10,6 +10,7 @@ use mc_attest_verifier::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
 use mc_common::logger::{create_app_logger, log, o, Logger};
 use mc_connection::ConnectionManager;
 use mc_consensus_scp::QuorumSet;
+use mc_fog_report_validation::FogResolver;
 use mc_full_service::{
     config::APIConfig,
     wallet::{consensus_backed_rocket, validator_backed_rocket, WalletState},
@@ -213,7 +214,7 @@ fn validator_backed_full_service(
     );
 
     // Create connections manager.
-    let conn_manager = ConnectionManager::new(vec![validator_conn], logger.clone());
+    let conn_manager = ConnectionManager::new(vec![validator_conn.clone()], logger.clone());
 
     // Create network state
     // Note: There's onlu one node but we still need a quorum set.
@@ -235,12 +236,33 @@ fn validator_backed_full_service(
         logger.clone(),
     );
 
+    let fog_ingest_verifier = config.get_fog_ingest_verifier();
+    let logger2 = logger.clone();
     let service = WalletService::new(
         wallet_db,
         ledger_db,
         conn_manager,
         network_state,
-        config.get_fog_resolver_factory(logger.clone()), // TODO
+        Arc::new(move |fog_uris| -> Result<FogResolver, String> {
+            if fog_uris.is_empty() {
+                Ok(Default::default())
+            } else if let Some(verifier) = fog_ingest_verifier.as_ref() {
+                let report_responses = validator_conn
+                    .fetch_fog_reports(fog_uris.iter().cloned())
+                    .map_err(|err| {
+                    format!("Error fetching fog reports for {:?}: {}", fog_uris, err)
+                })?;
+
+                log::debug!(logger2, "Got report responses {:?}", report_responses);
+                Ok(FogResolver::new(report_responses, verifier)
+                    .expect("Could not construct fog resolver"))
+            } else {
+                Err(
+                    "Some recipients have fog, but no fog ingest report verifier was configured"
+                        .to_string(),
+                )
+            }
+        }),
         config.num_workers,
         false,
         logger,

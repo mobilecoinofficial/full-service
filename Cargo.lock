@@ -2836,6 +2836,7 @@ dependencies = [
  "mc-api",
  "mc-common",
  "mc-connection",
+ "mc-fog-report-validation",
  "mc-transaction-core",
  "mc-util-grpc",
  "mc-util-uri",
