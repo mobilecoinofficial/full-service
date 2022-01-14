@@ -99,7 +99,8 @@ pub struct APIConfig {
     /// transactions to fog recipients).
     #[structopt(long, parse(try_from_str=load_css_file))]
     pub fog_ingest_enclave_css: Option<Signature>,
-    /// TODO
+
+    /// Validator service to connect to, when not connecting to the consensus network directly.
     #[structopt(long)]
     pub validator: Option<ValidatorUri>,
 }
