@@ -20,15 +20,6 @@ def main():
 
     source_wallet = sys.argv[1]
 
-    # Create a test wallet database, and start the server.
-    db_file = tempfile.NamedTemporaryFile(suffix='.db', prefix='test_wallet_', delete=False)
-    cli = CommandLineInterface()
-    cli.config['wallet-db'] = db_file.name
-    cli.stop()
-    time.sleep(0.5)  # Wait for other servers to stop.
-    cli.start(bg=True, unencrypted=True)
-    time.sleep(1.5)  # Wait for the server to start listening.
-
     # Start and end with an empty wallet.
     try:
         check_wallet_empty(c)
@@ -118,7 +109,7 @@ def tests_with_wallet(c, source_wallet):
     source_account_id = source_account['account_id']
 
     # Check its balance and make sure it has txos.
-    balance = c.poll_balance(source_account_id)
+    balance = c.poll_balance(source_account_id, seconds=60)
     assert pmob2mob(balance['unspent_pmob']) >= 1
     txos = c.get_all_txos_for_account(source_account_id)
     assert len(txos) > 0
@@ -293,6 +284,17 @@ def test_gift_codes(c, source_account_id):
     c.remove_account(dest_account_id)
 
     print('PASS')
+
+
+def _start_test_server():
+    # Create a test wallet database, and start the server.
+    db_file = tempfile.NamedTemporaryFile(suffix='.db', prefix='test_wallet_', delete=False)
+    cli = CommandLineInterface()
+    cli.config['wallet-db'] = db_file.name
+    cli.stop()
+    time.sleep(0.5)  # Wait for other servers to stop.
+    cli.start(bg=True, unencrypted=True)
+    time.sleep(1.5)  # Wait for the server to start listening.
 
 
 def check_wallet_empty(c):
