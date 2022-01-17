@@ -732,6 +732,12 @@ def _format_balance(balance):
         offline = True
         network_block = int(balance['local_block_height'])
 
+    orphaned = pmob2mob(balance['orphaned_pmob'])
+    if orphaned > 0:
+        orphaned_status = ', {} orphaned'.format(_format_mob(orphaned))
+    else:
+        orphaned_status = ''
+
     account_block = int(balance['account_block_height'])
     if account_block == network_block:
         sync_status = 'synced'
@@ -743,11 +749,13 @@ def _format_balance(balance):
     else:
         offline_status = ''
 
-    return '{} ({}) {}'.format(
+    result = '{}{} ({}){}'.format(
         _format_mob(pmob2mob(balance['unspent_pmob'])),
+        orphaned_status,
         sync_status,
         offline_status,
     )
+    return result
 
 
 def _format_gift_code_status(status):
