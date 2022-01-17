@@ -31,9 +31,17 @@ description: Rename an account.
 {% tab title="Response" %}
 ```text
 {
-  "method": "remove_account",
+  "method": "update_account_name",
   "result": {
-    "removed": true
+    "account": {
+      "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
+      "main_address": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
+      "name": "Carol",
+      "next_subaddress_index": "2",
+      "first_block_index": "3500",
+      "object": "account",
+      "recovery_mode": false
+    }
   },
   "error": null,
   "jsonrpc": "2.0",

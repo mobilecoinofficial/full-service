@@ -4,6 +4,13 @@ description: Check the status of a receiver receipt.
 
 # Check Receiver Receipt Status
 
+## Parameters
+
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `address` | The account's public address. | Must be a valid account address. |
+| `receiver_receipt` | The receipt whose status is being checked. | |
+
 ## Example
 
 {% tabs %}

@@ -1,14 +1,14 @@
 ---
-description: Get all TXOs for a given account.
+description: Get all TXOs for a given address.
 ---
 
-# Get All TXOs For Account
+# Get All TXOs For Address
 
 ## Parameters
 
 | Parameter | Purpose | Requirements |
 | :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+| `address` | The public address on which to perform this action. | Account must exist in the wallet. |
 
 ## Example
 
@@ -16,9 +16,9 @@ description: Get all TXOs for a given account.
 {% tab title="Request Body" %}
 ```text
 {
-  "method": "get_all_txos_for_account",
+  "method": "get_all_txos_for_address",
   "params": {
-    "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
+    "address": "996ucua1TCxcSWTgvrwit9duR2oXk25ZAF41xh5QnkkEkwmNQfiFW8XXm7Uu3kCM2aVW9krJRtCWA9ZeMCYiLnNvajfB6hbLzvYF4HJD6ak"
   },
   "jsonrpc": "2.0",
   "id": 1
@@ -29,7 +29,7 @@ description: Get all TXOs for a given account.
 {% tab title="Response" %}
 ```text
 {
-  "method": "get_all_txos_for_account",
+  "method": "get_all_txos_for_address",
   "result": {
     "txo_ids": [
       "001cdcc1f0a22dc0ddcdaac6020cc03d919cbc3c36923f157b4a6bf0dc980167",
@@ -140,19 +140,3 @@ description: Get all TXOs for a given account.
 ```
 {% endtab %}
 {% endtabs %}
-
-{% hint style="info" %}
-Note, you may wish to filter TXOs using a tool like jq. For example, to get all unspent TXOs, you can use:
-
-```text
-{
-  "method": "get_all_txos_for_account",
-  "params": {
-    "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10"
-  },
-  "jsonrpc": "2.0",
-  "id": 1,
-}
-```
-{% endhint %}
-

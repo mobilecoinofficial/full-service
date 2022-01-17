@@ -97,11 +97,6 @@ pub enum JsonCommandRequest {
         max_spendable_value: Option<String>,
         log_tx_proposal: Option<bool>,
     },
-    claim_gift_code {
-        gift_code_b58: String,
-        account_id: String,
-        address: Option<String>,
-    },
     check_b58_type {
         b58_code: String,
     },
@@ -111,6 +106,11 @@ pub enum JsonCommandRequest {
     check_receiver_receipt_status {
         address: String,
         receiver_receipt: ReceiverReceipt,
+    },
+    claim_gift_code {
+        gift_code_b58: String,
+        account_id: String,
+        address: Option<String>,
     },
     create_account {
         name: Option<String>,

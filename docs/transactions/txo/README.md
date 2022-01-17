@@ -29,7 +29,8 @@ In order to construct a transaction, the wallet will select "Unspent Transaction
 | `assigned_address` | string \(uint64\) | The address corresponding to the subaddress index which was assigned as an intended sender for this TXO. |
 | `key_image` \(only on pending/spent\) | string \(hex\) | A fingerprint of the TXO derived from your private spend key materials, required to spend a TXO |
 | `confirmation` | string \(hex\) | A confirmation that the sender of the TXO can provide to validate that they participated in the construction of this TXO. |
-| `offset_count` | integer | The value to offset pagination requests. Requests will exclude all list items up to and including this object. |
+| `offset` | integer | The value to offset pagination requests. Requests will exclude all list items up to and including this object. |
+| `limit` | integer | The limit of returned results. |
 
 ## Example <a id="object_method"></a>
 
@@ -57,8 +58,7 @@ In order to construct a transaction, the wallet will select "Unspent Transaction
   "subaddress_index": "20",
   "assigned_subaddress": "7BeDc5jpZ...",
   "key_image": "6d6f6269...",
-  "confirmation": "23fd34a...",
-  "offset_count": 284
+  "confirmation": "23fd34a..."
 }
 ```
 
@@ -90,8 +90,7 @@ In order to construct a transaction, the wallet will select "Unspent Transaction
   "subaddress_index": null,
   "assigned_subaddress": null,
   "key_image": null,
-  "confirmation": "0a2044...",
-  "offset_count": 501
+  "confirmation": "0a2044..."
 }
 ```
 

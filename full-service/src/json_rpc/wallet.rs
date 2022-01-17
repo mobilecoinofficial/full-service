@@ -491,7 +491,7 @@ where
                     .collect::<Vec<(String, serde_json::Value)>>(),
             );
 
-            JsonCommandResponse::get_transaction_logs_for_account {
+            JsonCommandResponse::get_all_transaction_logs_for_account {
                 transaction_log_ids: transaction_logs_and_txos
                     .iter()
                     .map(|(t, _a)| t.transaction_id_hex.to_string())
@@ -560,7 +560,7 @@ where
                     .collect::<Vec<(String, serde_json::Value)>>(),
             );
 
-            JsonCommandResponse::get_txos_for_account {
+            JsonCommandResponse::get_all_txos_for_account {
                 txo_ids: txos.iter().map(|t| t.txo_id_hex.clone()).collect(),
                 txo_map,
             }

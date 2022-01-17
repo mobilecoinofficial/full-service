@@ -1,14 +1,14 @@
 ---
-description: Get details of a given TXO.
+description: 'Get the MobileCoin transaction TXO'
 ---
 
-# Get TXO
+# Get MobileCoin Protocol TXO
 
 ## Parameters
 
-| Parameter | Purpose | Requirements |
+| Required Param | Purpose | Requirements |
 | :--- | :--- | :--- |
-| `txo_id` | The TXO ID for which to get details. |  |
+| `txo_id` | The id of the TXO. | Must be a valid id for a TXO. |
 
 ## Example
 
@@ -16,7 +16,7 @@ description: Get details of a given TXO.
 {% tab title="Request Body" %}
 ```text
 {
-  "method": "get_txo",
+  "method": "get_mc_protocol_txo",
   "params": {
     "txo_id": "fff4cae55a74e5ce852b79c31576f4041d510c26e59fec178b3e45705c5b35a7"
   },
@@ -29,7 +29,7 @@ description: Get details of a given TXO.
 {% tab title="Response" %}
 ```text
 {
-  "method": "get_txo",
+  "method": "get_mc_protocol_txo",
   "result": {
     "txo": {
       "object": "txo",
@@ -54,7 +54,10 @@ description: Get details of a given TXO.
       "key_image": "0a205445b406012d26baebb51cbcaaaceb0d56387a67353637d07265f4e886f33419",
       "confirmation": null
     }
-  }
+  },
+  "error": null,
+  "jsonrpc": "2.0",
+  "id": 1
 }
 ```
 {% endtab %}

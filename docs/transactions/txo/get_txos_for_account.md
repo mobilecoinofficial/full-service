@@ -1,14 +1,16 @@
 ---
-description: Get all TXOs for a given account.
+description: Get TXOs for a given account with offset and limit parameters
 ---
 
-# Get All TXOs For Account
+# Get TXOs For Account
 
 ## Parameters
 
 | Parameter | Purpose | Requirements |
 | :--- | :--- | :--- |
 | `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+| `offset` | The value to offset pagination requests. Requests will exclude all list items up to and including this object. | |
+| `limit` | The limit of returned results. | |
 
 ## Example
 
@@ -16,9 +18,11 @@ description: Get all TXOs for a given account.
 {% tab title="Request Body" %}
 ```text
 {
-  "method": "get_all_txos_for_account",
+  "method": "get_txos_for_account",
   "params": {
-    "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
+    "account_id": "b59b3d0efd6840ace19cdc258f035cc87e6a63b6c24498763c478c417c1f44ca",
+    "offset": "2",
+    "limit": "8"
   },
   "jsonrpc": "2.0",
   "id": 1
@@ -29,13 +33,12 @@ description: Get all TXOs for a given account.
 {% tab title="Response" %}
 ```text
 {
-  "method": "get_all_txos_for_account",
+  "method": "get_txos_for_account",
   "result": {
     "txo_ids": [
       "001cdcc1f0a22dc0ddcdaac6020cc03d919cbc3c36923f157b4a6bf0dc980167",
       "00408833347550b046f0996afe92313745f76e307904686e93de5bab3590e9da",
-      "005b41a40be1401426f9a00965cc334e4703e4089adb8fa00616e7b25b92c6e5",
-      ...
+      "005b41a40be1401426f9a00965cc334e4703e4089adb8fa00616e7b25b92c6e5"
     ],
     "txo_map": {
       "001cdcc1f0a22dc0ddcdaac6020cc03d919cbc3c36923f157b4a6bf0dc980167": {
@@ -134,25 +137,11 @@ description: Get all TXOs for a given account.
         "txo_id": "b496f4f3ec3159bf48517aa7d9cda193ef8bfcac343f81eaed0e0a55849e4726",
         "value_pmob": "980000000000"
       }
-    ]
-  }
+    }
+  },
+  "jsonrpc": "2.0",
+  "id": 1
 }
 ```
 {% endtab %}
 {% endtabs %}
-
-{% hint style="info" %}
-Note, you may wish to filter TXOs using a tool like jq. For example, to get all unspent TXOs, you can use:
-
-```text
-{
-  "method": "get_all_txos_for_account",
-  "params": {
-    "account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10"
-  },
-  "jsonrpc": "2.0",
-  "id": 1,
-}
-```
-{% endhint %}
-

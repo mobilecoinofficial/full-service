@@ -1,26 +1,24 @@
----
-description: Get all transaction logs for a given block.
----
-
-# Get All Transaction Logs For Block
+# Get Transaction Logs For Account
 
 ## Parameters
 
-| Required Param | Purpose | Requirements |
+| Required Param | Purpose | Requirement |
 | :--- | :--- | :--- |
-| `block_index` | The block on which to perform this action. | Block must exist in the wallet. |
+| `transaction_log_id` | The transaction log ID to get. | Transaction log must exist in the wallet. |
+| `offset` | integer | The value to offset pagination requests. Requests will exclude all list items up to and including this object. |
+| `limit` | integer | The limit of returned results. |
 
 ## Example
-
-In the below example, the account in the wallet sent a transaction to itself. Therefore, there is one sent `transaction_log` in the block, and two received \(one for the change, and one for the output TXO sent to the same account that constructed the transaction\).
 
 {% tabs %}
 {% tab title="Request Body" %}
 ```text
 {
-  "method": "get_all_transaction_logs_for_block",
+  "method": "get_transaction_logs_for_account",
   "params": {
-    "block_index": "152951"
+    "account_id": "b59b3d0efd6840ace19cdc258f035cc87e6a63b6c24498763c478c417c1f44ca",
+    "offset": "2",
+    "limit": "1"
   },
   "jsonrpc": "2.0",
   "id": 1
@@ -31,7 +29,7 @@ In the below example, the account in the wallet sent a transaction to itself. Th
 {% tab title="Response" %}
 ```text
 {
-  "method": "get_all_transaction_logs_for_block",
+  "method": "get_transaction_logs_for_account",
   "result": {
     "transaction_log_ids": [
       "ff1c85e7a488c2821110597ba75db30d913bb1595de549f83c6e8c56b06d70d1",
@@ -115,11 +113,9 @@ In the below example, the account in the wallet sent a transaction to itself. Th
       }
     }
   },
-  "error": null,
   "jsonrpc": "2.0",
-  "id": 1,
+  "id": 1
 }
 ```
 {% endtab %}
 {% endtabs %}
-
