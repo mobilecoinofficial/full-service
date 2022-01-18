@@ -540,7 +540,11 @@ impl TxoModel for Txo {
         // so they can no longer be decrypted.
         let txos: Vec<Txo> = txos::table
             .filter(txos::minted_account_id_hex.eq(account_id_hex))
-            .filter(txos::received_account_id_hex.ne(account_id_hex).or(txos::received_account_id_hex.is_null()))
+            .filter(
+                txos::received_account_id_hex
+                    .ne(account_id_hex)
+                    .or(txos::received_account_id_hex.is_null()),
+            )
             .load(conn)?;
 
         Ok(txos)
