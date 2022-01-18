@@ -205,19 +205,6 @@ where
                 return Ok((ReceiptTransactionStatus::TransactionPending, Some(txo)));
             }
 
-            // We are reproducing a bug with this logic and it is not how the
-            // feature is intended to work. Currently, this will return a Transaction
-            // Pending result even if the txo hits the ledger but does not belong to
-            // this account. It should instead fall through to the next block of code
-            // and return a FailedAmountDecryption, since that is more truly a description
-            // of what happened.
-            // TODO - remove this and it will work as expected
-            if txo.minted_account_id_hex == Some(assigned_address.account_id_hex.clone())
-                && txo.received_account_id_hex != Some(assigned_address.account_id_hex)
-            {
-                return Ok((ReceiptTransactionStatus::TransactionPending, Some(txo)));
-            }
-
             // Decrypt the amount to get the expected value
             let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
             let public_key: RistrettoPublic =
@@ -574,16 +561,14 @@ mod tests {
             .expect("Could not check status of receipt");
         assert_eq!(status, ReceiptTransactionStatus::TransactionSuccess);
 
-        // Status for Alice would be pending, because she never received (and never will
-        // receive) the Txos.
+        // Status for Alice will not work, because she never received (and never will receive) the
+        // Txos.
         let alice_address = &b58_encode_public_address(&alice_public_address)
             .expect("Could not encode Alice address");
         let (status, _txo) = service
             .check_receipt_status(&alice_address, &receipt)
             .expect("Could not check status of receipt");
-        assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
-
-        // assert_eq!(status, ReceiptTransactionStatus::FailedAmountDecryption);
+        assert_eq!(status, ReceiptTransactionStatus::FailedAmountDecryption);
     }
 
     #[test_with_logger]
@@ -694,16 +679,14 @@ mod tests {
             )
         );
 
-        // Status for Alice would be pending, because she never received (and
-        // never will receive) the Txos.
+        // Status for Alice will not work, because she never received (and never will receive) the
+        // Txos.
         let alice_address = &b58_encode_public_address(&alice_public_address)
             .expect("Could not encode alice address");
         let (status, _txo) = service
             .check_receipt_status(&alice_address, &receipt0)
             .expect("Could not check status of receipt");
-        assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
-
-        // assert_eq!(status, ReceiptTransactionStatus::FailedAmountDecryption);
+        assert_eq!(status, ReceiptTransactionStatus::FailedAmountDecryption);
     }
 
     #[test_with_logger]
@@ -795,15 +778,13 @@ mod tests {
             .expect("Could not check status of receipt");
         assert_eq!(status, ReceiptTransactionStatus::InvalidConfirmation);
 
-        // Checking for the sender will be pending because the Txos haven't
+        // Checking for the sender will not work because the Txos haven't
         // landed for alice (and never will).
         let alice_address = &b58_encode_public_address(&alice_public_address)
             .expect("Could not encode alice address");
         let (status, _txo) = service
             .check_receipt_status(&alice_address, &receipt)
             .expect("Could not check status of receipt");
-        assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
-
-        // assert_eq!(status, ReceiptTransactionStatus::FailedAmountDecryption);
+        assert_eq!(status, ReceiptTransactionStatus::FailedAmountDecryption);
     }
 }
