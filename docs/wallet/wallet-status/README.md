@@ -9,10 +9,10 @@ description: The Wallet Status provides a quick overview of the contents of the 
 | _Name_ | _Type_ | _Description_ |
 | :--- | :--- | :--- |
 | `object` | String, value is "wallet\_status" | String representing the object's type. Objects of the same type share the same value. |
-| `network_block_index` | String \(uint64\) | The block height of the MobileCoin ledger. The `local_block_index` is synced when it reaches the value. |
-| `local_block_index` | String \(uint64\) | The local block height downloaded from the ledger. The local database will sync up to the `network_block_index`. The `account_block_index` can only sync up to `local_block_index`. |
-| `is_synced_all` | Boolean | Whether ALL accounts are synced with the `network_block_index`. Balances may not appear correct if any account is still syncing. |
-| `total_unspent_pmob` | String \(uint64\) | Unspent pico mob for ALL accounts at the `account_block_index`. If the account is syncing, this value may change. |
+| `network_block_height` | String \(uint64\) | The block count of MobileCoin's distributed ledger. |
+| `local_block_height` | String \(uint64\) | The local block count downloaded from the ledger. The local database is synced when the `local_block_height` reaches the `network_block_height`. The account_block_height can only sync up to `local_block_height`. |
+| `is_synced_all` | Boolean | Whether ALL accounts are synced with the `network_block_height`. Balances may not appear correct if any account is still syncing. |
+| `total_unspent_pmob` | String \(uint64\) | Unspent pico mob for ALL accounts at the `account_block_height`. If the account is syncing, this value may change. |
 | `total_pending_pmob` | String \(uint64\) | Pending outgoing pico mob from ALL accounts. Pending pico mobs will clear once the ledger processes the outgoing TXO. The `available_pmob` will reflect the change. |
 | `total_spent_pmob` | String \(uint64\) | Spent pico MOB. This is the sum of all the TXOs in the wallet which have been spent. |
 | `total_secreted_pmob` | String \(uint64\) | Secreted \(minted\) pico MOB. This is the sum of all the TXOs which have been created in the wallet for outgoing transactions. |
@@ -52,8 +52,8 @@ description: The Wallet Status provides a quick overview of the contents of the 
     }
   },
   "is_synced_all": false,
-  "local_block_index": "152918",
-  "network_block_index": "152918",
+  "local_block_height": "152918",
+  "network_block_height": "152918",
   "object": "wallet_status",
   "total_orphaned_pmob": "0",
   "total_pending_pmob": "70148220000000000",

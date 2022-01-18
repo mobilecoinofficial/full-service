@@ -11,7 +11,7 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        models::{Account, Txo, TXO_STATUS_UNSPENT},
+        models::{Account, Txo},
         txo::TxoModel,
         WalletDb,
     },
@@ -35,7 +35,7 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tx::{TxOut, TxOutMembershipProof},
 };
-use mc_transaction_std::{InputCredentials, TransactionBuilder};
+use mc_transaction_std::{InputCredentials, NoMemoBuilder, TransactionBuilder};
 use mc_util_uri::FogUri;
 
 use diesel::prelude::*;
@@ -110,8 +110,10 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let txos = Txo::select_by_id(&input_txo_ids.to_vec(), &self.wallet_db.get_conn()?)?;
         let unspent: Vec<Txo> = txos
             .iter()
-            .filter(|(_txo, status)| status.txo_status == TXO_STATUS_UNSPENT)
-            .map(|(t, _s)| t.clone())
+            .filter(|txo| {
+                txo.pending_tombstone_block_index == None && txo.spent_block_index == None
+            })
+            .cloned()
             .collect();
         if unspent.iter().map(|t| t.value as u128).sum::<u128>() > u64::MAX as u128 {
             return Err(WalletTransactionBuilderError::OutboundValueTooLarge);
@@ -217,8 +219,10 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             };
 
             // Create transaction builder.
-            let mut transaction_builder = TransactionBuilder::new(fog_resolver);
-            transaction_builder.set_fee(self.fee.unwrap_or(MINIMUM_FEE));
+            // TODO: After servers that support memos are deployed, use RTHMemoBuilder here
+            let memo_builder = NoMemoBuilder::default();
+            let mut transaction_builder = TransactionBuilder::new(fog_resolver, memo_builder);
+            transaction_builder.set_fee(self.fee.unwrap_or(MINIMUM_FEE))?;
 
             // Get membership proofs for our inputs
             let indexes = self
@@ -348,7 +352,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             let mut rng = rand::thread_rng();
             for (i, (recipient, out_value)) in self.outlays.iter().enumerate() {
                 let (tx_out, confirmation_number) =
-                    transaction_builder.add_output(*out_value as u64, &recipient, &mut rng)?;
+                    transaction_builder.add_output(*out_value as u64, recipient, &mut rng)?;
 
                 tx_out_to_outlay_index.insert(tx_out, i);
                 outlay_confirmation_numbers.push(confirmation_number);
@@ -360,17 +364,17 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             let input_value = inputs_and_proofs
                 .iter()
                 .fold(0, |acc, (utxo, _proof)| acc + utxo.value);
-            if (total_value + transaction_builder.fee) > input_value as u64 {
+            if (total_value + transaction_builder.get_fee()) > input_value as u64 {
                 return Err(WalletTransactionBuilderError::InsufficientInputFunds(
                     format!(
                         "Total value required to send transaction {:?}, but only {:?} in inputs",
-                        total_value + transaction_builder.fee,
+                        total_value + transaction_builder.get_fee(),
                         input_value
                     ),
                 ));
             }
 
-            let change = input_value as u64 - total_value - transaction_builder.fee;
+            let change = input_value as u64 - total_value - transaction_builder.get_fee();
 
             // If we do, add an output for that as well.
             if change > 0 {
@@ -613,9 +617,9 @@ mod tests {
         );
 
         // Check balance
-        let unspent = Txo::list_by_status(
+        let unspent = Txo::list_unspent(
             &AccountID::from(&account_key).to_string(),
-            TXO_STATUS_UNSPENT,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -665,10 +669,7 @@ mod tests {
             None,
             &wallet_db.get_conn().unwrap(),
         )
-        .unwrap()
-        .iter()
-        .map(|t| t.txo.clone())
-        .collect();
+        .unwrap();
 
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);

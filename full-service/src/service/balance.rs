@@ -5,12 +5,8 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        account_txo_status::AccountTxoStatusModel,
         assigned_subaddress::AssignedSubaddressModel,
-        models::{
-            Account, AccountTxoStatus, AssignedSubaddress, Txo, TXO_STATUS_ORPHANED,
-            TXO_STATUS_PENDING, TXO_STATUS_SECRETED, TXO_STATUS_SPENT, TXO_STATUS_UNSPENT,
-        },
+        models::{Account, AssignedSubaddress, Txo},
         txo::TxoModel,
         WalletDbError,
     },
@@ -44,8 +40,8 @@ pub enum BalanceServiceError {
     /// Error with LedgerDB: {0}
     LedgerDB(mc_ledger_db::Error),
 
-    /// Error getting network block index: {0}
-    NetworkBlockIndex(LedgerServiceError),
+    /// Error getting network block height: {0}
+    NetworkBlockHeight(LedgerServiceError),
 
     /// Unexpected Account Txo Status: {0}
     UnexpectedAccountTxoStatus(String),
@@ -71,7 +67,7 @@ impl From<mc_ledger_db::Error> for BalanceServiceError {
 
 impl From<LedgerServiceError> for BalanceServiceError {
     fn from(src: LedgerServiceError) -> Self {
-        Self::NetworkBlockIndex(src)
+        Self::NetworkBlockHeight(src)
     }
 }
 
@@ -85,16 +81,16 @@ pub struct Balance {
     pub spent: u128,
     pub secreted: u128,
     pub orphaned: u128,
-    pub network_block_index: u64,
-    pub local_block_index: u64,
+    pub network_block_height: u64,
+    pub local_block_height: u64,
     pub synced_blocks: u64,
 }
 
 /// The Network Status object.
 /// This holds the number of blocks in the ledger, on the network and locally.
 pub struct NetworkStatus {
-    pub network_block_index: u64,
-    pub local_block_index: u64,
+    pub network_block_height: u64,
+    pub local_block_height: u64,
     pub fee_pmob: u64,
 }
 
@@ -111,8 +107,8 @@ pub struct WalletStatus {
     pub spent: u128,
     pub secreted: u128,
     pub orphaned: u128,
-    pub network_block_index: u64,
-    pub local_block_index: u64,
+    pub network_block_height: u64,
+    pub local_block_height: u64,
     pub min_synced_block_index: u64,
     pub account_ids: Vec<AccountID>,
     pub account_map: HashMap<AccountID, Account>,
@@ -152,8 +148,8 @@ where
             let (unspent, pending, spent, secreted, orphaned) =
                 Self::get_balance_inner(account_id_hex, &conn)?;
 
-            let network_block_index = self.get_network_block_index()? + 1;
-            let local_block_index = self.ledger_db.num_blocks()?;
+            let network_block_height = self.get_network_block_height()?;
+            let local_block_height = self.ledger_db.num_blocks()?;
             let account = Account::get(account_id, &conn)?;
 
             Ok(Balance {
@@ -162,47 +158,43 @@ where
                 spent,
                 secreted,
                 orphaned,
-                network_block_index,
-                local_block_index,
+                network_block_height,
+                local_block_height,
                 synced_blocks: account.next_block_index as u64,
             })
         })
     }
 
     fn get_balance_for_address(&self, address: &str) -> Result<Balance, BalanceServiceError> {
-        let network_block_index = self.get_network_block_index()? + 1;
-        let local_block_index = self.ledger_db.num_blocks()?;
+        let network_block_height = self.get_network_block_height()?;
+        let local_block_height = self.ledger_db.num_blocks()?;
 
         let conn = self.wallet_db.get_conn()?;
         conn.transaction(|| {
-            let txos = Txo::list_for_address(&address.to_string(), &conn)?;
             let assigned_address = AssignedSubaddress::get(address, &conn)?;
 
-            let mut unspent: u128 = 0;
-            let mut pending: u128 = 0;
-            let mut spent: u128 = 0;
-            let mut secreted: u128 = 0;
-            let mut orphaned: u128 = 0;
+            // Orphaned txos have no subaddress assigned, so none of these txos can
+            // be orphaned.
+            let orphaned: u128 = 0;
 
-            for txo in txos {
-                let status = AccountTxoStatus::get(
-                    &assigned_address.account_id_hex,
-                    &txo.txo.txo_id_hex,
-                    &conn,
-                )?;
-                match status.txo_status.as_str() {
-                    TXO_STATUS_UNSPENT => unspent += txo.txo.value as u128,
-                    TXO_STATUS_PENDING => pending += txo.txo.value as u128,
-                    TXO_STATUS_SPENT => spent += txo.txo.value as u128,
-                    TXO_STATUS_SECRETED => secreted += txo.txo.value as u128,
-                    TXO_STATUS_ORPHANED => orphaned += txo.txo.value as u128,
-                    _ => {
-                        return Err(BalanceServiceError::UnexpectedAccountTxoStatus(
-                            status.txo_status,
-                        ))
-                    }
-                }
-            }
+            let unspent =
+                Txo::list_unspent(&assigned_address.account_id_hex, Some(address), &conn)?
+                    .iter()
+                    .map(|txo| (txo.value as u64) as u128)
+                    .sum::<u128>();
+            let pending =
+                Txo::list_pending(&assigned_address.account_id_hex, Some(address), &conn)?
+                    .iter()
+                    .map(|txo| (txo.value as u64) as u128)
+                    .sum::<u128>();
+            let spent = Txo::list_spent(&assigned_address.account_id_hex, Some(address), &conn)?
+                .iter()
+                .map(|txo| (txo.value as u64) as u128)
+                .sum::<u128>();
+            let secreted = Txo::list_secreted(&assigned_address.account_id_hex, &conn)?
+                .iter()
+                .map(|txo| (txo.value as u64) as u128)
+                .sum::<u128>();
 
             let account = Account::get(&AccountID(assigned_address.account_id_hex), &conn)?;
 
@@ -212,8 +204,8 @@ where
                 spent,
                 secreted,
                 orphaned,
-                network_block_index,
-                local_block_index,
+                network_block_height,
+                local_block_height,
                 synced_blocks: account.next_block_index as u64,
             })
         })
@@ -221,15 +213,15 @@ where
 
     fn get_network_status(&self) -> Result<NetworkStatus, BalanceServiceError> {
         Ok(NetworkStatus {
-            network_block_index: self.get_network_block_index()?,
-            local_block_index: self.ledger_db.num_blocks()? - 1,
+            network_block_height: self.get_network_block_height()?,
+            local_block_height: self.ledger_db.num_blocks()?,
             fee_pmob: self.get_network_fee(),
         })
     }
 
     // Wallet Status is an overview of the wallet's status
     fn get_wallet_status(&self) -> Result<WalletStatus, BalanceServiceError> {
-        let network_block_index = self.get_network_block_index()?;
+        let network_block_height = self.get_network_block_height()?;
 
         let conn = self.wallet_db.get_conn()?;
         conn.transaction(|| {
@@ -242,7 +234,7 @@ where
             let mut secreted: u128 = 0;
             let mut orphaned: u128 = 0;
 
-            let mut min_synced_block_index = network_block_index;
+            let mut min_synced_block_index = network_block_height - 1;
             let mut account_ids = Vec::new();
             for account in accounts {
                 let account_id = AccountID(account.account_id_hex.clone());
@@ -261,15 +253,14 @@ where
                 );
                 account_ids.push(account_id);
             }
-
             Ok(WalletStatus {
                 unspent,
                 pending,
                 spent,
                 secreted,
                 orphaned,
-                network_block_index,
-                local_block_index: self.ledger_db.num_blocks()? - 1,
+                network_block_height,
+                local_block_height: self.ledger_db.num_blocks()?,
                 min_synced_block_index: min_synced_block_index as u64,
                 account_ids,
                 account_map,
@@ -289,23 +280,23 @@ where
     ) -> Result<(u128, u128, u128, u128, u128), BalanceServiceError> {
         // Note: We need to cast to u64 first, because i64 could have wrapped, then to
         // u128
-        let unspent = Txo::list_by_status(account_id_hex, TXO_STATUS_UNSPENT, &conn)?
+        let unspent = Txo::list_unspent(account_id_hex, None, conn)?
             .iter()
             .map(|t| (t.value as u64) as u128)
             .sum::<u128>();
-        let spent = Txo::list_by_status(account_id_hex, TXO_STATUS_SPENT, &conn)?
+        let spent = Txo::list_spent(account_id_hex, None, conn)?
             .iter()
             .map(|t| (t.value as u64) as u128)
             .sum::<u128>();
-        let secreted = Txo::list_by_status(account_id_hex, TXO_STATUS_SECRETED, &conn)?
+        let secreted = Txo::list_secreted(account_id_hex, conn)?
             .iter()
             .map(|t| (t.value as u64) as u128)
             .sum::<u128>();
-        let orphaned = Txo::list_by_status(account_id_hex, TXO_STATUS_ORPHANED, &conn)?
+        let orphaned = Txo::list_orphaned(account_id_hex, conn)?
             .iter()
             .map(|t| (t.value as u64) as u128)
             .sum::<u128>();
-        let pending = Txo::list_by_status(account_id_hex, TXO_STATUS_PENDING, &conn)?
+        let pending = Txo::list_pending(account_id_hex, None, conn)?
             .iter()
             .map(|t| (t.value as u64) as u128)
             .sum::<u128>();

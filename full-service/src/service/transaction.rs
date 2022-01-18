@@ -42,8 +42,9 @@ pub enum TransactionServiceError {
     /// Error parsing u64
     U64Parse,
 
-    /// Submit transaction expected an account to produce a transaction log on
-    /// submit.
+    /** Submit transaction expected an account to produce a transaction log
+     * on submit.
+     */
     MissingAccountOnSubmit,
 
     /// Node not found.
@@ -233,7 +234,7 @@ where
                 tx_proposal.clone(),
                 block_index,
                 "".to_string(),
-                &account_id_hex,
+                account_id_hex,
                 &conn,
             )?;
         }
@@ -315,7 +316,7 @@ where
     ) -> Result<(TransactionLog, AssociatedTxos, TxProposal), TransactionServiceError> {
         let tx_proposal = self.build_transaction(
             account_id_hex,
-            &addresses_and_values,
+            addresses_and_values,
             input_txo_ids,
             fee,
             tombstone_block,
@@ -342,11 +343,7 @@ where
 mod tests {
     use super::*;
     use crate::{
-        db::{
-            account::AccountID,
-            models::Txo,
-            txo::{TxoDetails, TxoModel},
-        },
+        db::{account::AccountID, models::Txo, txo::TxoModel},
         service::{
             account::AccountService, address::AddressService, balance::BalanceService,
             transaction_log::TransactionLogService,
@@ -585,25 +582,25 @@ mod tests {
             .outputs
             .iter()
             .map(|t| Txo::get(&t.txo_id_hex, &service.wallet_db.get_conn().unwrap()).unwrap())
-            .collect::<Vec<TxoDetails>>();
+            .collect::<Vec<Txo>>();
         assert_eq!(secreted.len(), 1);
-        assert_eq!(secreted[0].txo.value, 42 * MOB);
+        assert_eq!(secreted[0].value, 42 * MOB);
 
         let change = transaction_txos
             .change
             .iter()
             .map(|t| Txo::get(&t.txo_id_hex, &service.wallet_db.get_conn().unwrap()).unwrap())
-            .collect::<Vec<TxoDetails>>();
+            .collect::<Vec<Txo>>();
         assert_eq!(change.len(), 1);
-        assert_eq!(change[0].txo.value, 58 * MOB - MINIMUM_FEE as i64);
+        assert_eq!(change[0].value, 58 * MOB - MINIMUM_FEE as i64);
 
         let inputs = transaction_txos
             .inputs
             .iter()
             .map(|t| Txo::get(&t.txo_id_hex, &service.wallet_db.get_conn().unwrap()).unwrap())
-            .collect::<Vec<TxoDetails>>();
+            .collect::<Vec<Txo>>();
         assert_eq!(inputs.len(), 1);
-        assert_eq!(inputs[0].txo.value, 100 * MOB);
+        assert_eq!(inputs[0].value, 100 * MOB);
 
         // Verify balance for Alice = original balance - fee - txo_value
         let balance = service

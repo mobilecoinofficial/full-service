@@ -2,7 +2,16 @@
 
 //! API definition for the Txo object.
 
-use crate::db::txo::TxoDetails;
+use crate::{
+    db,
+    db::{
+        models::{
+            TXO_STATUS_ORPHANED, TXO_STATUS_PENDING, TXO_STATUS_SECRETED, TXO_STATUS_SPENT,
+            TXO_STATUS_UNSPENT, TXO_TYPE_MINTED, TXO_TYPE_RECEIVED,
+        },
+        txo::TxoModel,
+    },
+};
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Map;
 
@@ -20,7 +29,7 @@ pub struct Txo {
     /// TxOut in the ledger representation.
     pub txo_id_hex: String,
 
-    /// Available pico MOB for this account at the current account_block_index.
+    /// Available pico MOB for this account at the current account_block_height.
     /// If the account is syncing, this value may change.
     pub value_pmob: String,
 
@@ -93,67 +102,64 @@ pub struct Txo {
     pub confirmation: Option<String>,
 }
 
-impl From<&TxoDetails> for Txo {
-    fn from(txo_details: &TxoDetails) -> Txo {
+impl From<&db::models::Txo> for Txo {
+    fn from(txo: &db::models::Txo) -> Txo {
         let mut account_status_map: Map<String, serde_json::Value> = Map::new();
 
-        if let Some(received) = txo_details.received_to_account.clone() {
+        if let Some(received_account_id_hex) = &txo.received_account_id_hex {
+            let txo_status = if txo.is_spent() {
+                TXO_STATUS_SPENT
+            } else if txo.is_pending() {
+                TXO_STATUS_PENDING
+            } else if txo.is_orphaned() {
+                TXO_STATUS_ORPHANED
+            } else {
+                TXO_STATUS_UNSPENT
+            };
+
             account_status_map.insert(
-                received.account_id_hex,
-                json!({"txo_type": received.txo_type, "txo_status": received.txo_status}).into(),
+                received_account_id_hex.to_string(),
+                json!({"txo_type": TXO_TYPE_RECEIVED, "txo_status": txo_status}).into(),
             );
         }
 
-        if let Some(spent) = txo_details.minted_from_account.clone() {
+        if let Some(minted_account_id_hex) = &txo.minted_account_id_hex {
+            let txo_status = if Some(minted_account_id_hex.clone()) != txo.received_account_id_hex {
+                TXO_STATUS_SECRETED
+            } else if txo.is_spent() {
+                TXO_STATUS_SPENT
+            } else if txo.is_pending() {
+                TXO_STATUS_PENDING
+            } else if txo.is_orphaned() {
+                TXO_STATUS_ORPHANED
+            } else {
+                TXO_STATUS_UNSPENT
+            };
+
             account_status_map.insert(
-                spent.account_id_hex,
-                json!({"txo_type": spent.txo_type, "txo_status": spent.txo_status}).into(),
+                minted_account_id_hex.to_string(),
+                json!({"txo_type": TXO_TYPE_MINTED, "txo_status": txo_status}).into(),
             );
         }
-
-        let recipient_address_id = txo_details.txo.recipient_public_address_b58.clone();
 
         Txo {
             object: "txo".to_string(),
-            txo_id_hex: txo_details.txo.txo_id_hex.clone(),
-            value_pmob: (txo_details.txo.value as u64).to_string(),
-            recipient_address_id: if recipient_address_id.is_empty() {
-                None
-            } else {
-                Some(recipient_address_id)
-            },
-            received_block_index: txo_details
-                .txo
-                .received_block_index
-                .map(|x| (x as u64).to_string()),
-            spent_block_index: txo_details
-                .txo
-                .spent_block_index
-                .map(|x| (x as u64).to_string()),
+            txo_id_hex: txo.txo_id_hex.clone(),
+            value_pmob: (txo.value as u64).to_string(),
+            recipient_address_id: None,
+            received_block_index: txo.received_block_index.map(|x| (x as u64).to_string()),
+            spent_block_index: txo.spent_block_index.map(|x| (x as u64).to_string()),
             is_spent_recovered: false,
-            received_account_id: txo_details
-                .received_to_account
-                .as_ref()
-                .map(|a| a.account_id_hex.clone()),
-            minted_account_id: txo_details
-                .clone()
-                .minted_from_account
-                .as_ref()
-                .map(|a| a.account_id_hex.clone()),
+            received_account_id: txo.received_account_id_hex.clone(),
+            minted_account_id: txo.minted_account_id_hex.clone(),
+            target_key: hex::encode(&txo.target_key),
+            public_key: hex::encode(&txo.public_key),
+            e_fog_hint: hex::encode(&txo.e_fog_hint),
+            subaddress_index: txo.subaddress_index.map(|s| (s as u64).to_string()),
+            assigned_address: None,
+            key_image: txo.key_image.as_ref().map(|k| hex::encode(&k)),
+            confirmation: txo.confirmation.as_ref().map(hex::encode),
             account_status_map,
-            target_key: hex::encode(&txo_details.txo.target_key),
-            public_key: hex::encode(&txo_details.txo.public_key),
-            e_fog_hint: hex::encode(&txo_details.txo.e_fog_hint),
-            subaddress_index: txo_details
-                .txo
-                .subaddress_index
-                .map(|s| (s as u64).to_string()),
-            assigned_address: txo_details
-                .received_to_assigned_subaddress
-                .clone()
-                .map(|a| a.assigned_subaddress_b58),
-            key_image: txo_details.txo.key_image.as_ref().map(|k| hex::encode(&k)),
-            confirmation: txo_details.txo.confirmation.as_ref().map(hex::encode),
         }
     }
 }
@@ -205,7 +211,7 @@ mod tests {
 
         let txo_details = db::models::Txo::get(&txo_hex, &wallet_db.get_conn().unwrap())
             .expect("Could not get Txo");
-        assert_eq!(txo_details.txo.value as u64, 15_625_000 * MOB as u64);
+        assert_eq!(txo_details.value as u64, 15_625_000 * MOB as u64);
         let json_txo = Txo::from(&txo_details);
         assert_eq!(json_txo.value_pmob, "15625000000000000000");
     }

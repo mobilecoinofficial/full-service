@@ -65,8 +65,7 @@ In the below example, the account in the wallet sent a transaction to itself. Th
         "sent_time": "2021-02-28 03:05:11 UTC",
         "comment": "",
         "failure_code": null,
-        "failure_message": null,
-        "offset_count": 53
+        "failure_message": null
       },
       "58729797de0929eed37acb45225d3631235933b709c00015f46bfc002d5754fc": {
         "object": "transaction_log",
@@ -89,8 +88,7 @@ In the below example, the account in the wallet sent a transaction to itself. Th
         "sent_time": null,
         "comment": "",
         "failure_code": null,
-        "failure_message": null,
-        "offset_count": 54
+        "failure_message": null
       },
       "243494a0030bcbac40e87670b9288834047ef0727bcc6630a2fe2799439879ab": {
         "object": "transaction_log",
@@ -113,8 +111,7 @@ In the below example, the account in the wallet sent a transaction to itself. Th
         "sent_time": null,
         "comment": "",
         "failure_code": null,
-        "failure_message": null,
-        "offset_count": 55
+        "failure_message": null
       }
     }
   },

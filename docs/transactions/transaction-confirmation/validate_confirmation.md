@@ -33,7 +33,7 @@ A sender can provide the confirmation numbers from a transaction to the recipien
 {
   "method": "validate_confirmation",
   "result": {
-    "verified": true
+    "validated": true
   },
   "error": null,
   "jsonrpc": "2.0",

@@ -6,7 +6,7 @@
 use diesel::{connection::SimpleConnection, prelude::*, SqliteConnection};
 use diesel_migrations::embed_migrations;
 use dotenv::dotenv;
-use mc_attest_core::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
+use mc_attest_verifier::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
 use mc_common::logger::{create_app_logger, log, o};
 use mc_full_service::{
     config::APIConfig,
@@ -14,7 +14,10 @@ use mc_full_service::{
     WalletDb, WalletService,
 };
 use mc_ledger_sync::{LedgerSyncServiceThread, PollingNetworkState, ReqwestTransactionsFetcher};
-use std::sync::{Arc, RwLock};
+use std::{
+    process::exit,
+    sync::{Arc, RwLock},
+};
 use structopt::StructOpt;
 
 #[allow(unused_imports)] // Needed for embedded_migrations!
@@ -22,6 +25,11 @@ use structopt::StructOpt;
 extern crate diesel_migrations;
 
 embed_migrations!("migrations/");
+
+// Exit codes.
+const EXIT_NO_DATABASE_CONNECTION: i32 = 2;
+const EXIT_WRONG_PASSWORD: i32 = 3;
+const EXIT_INVALID_HOST: i32 = 4;
 
 fn main() {
     dotenv().ok();
@@ -33,8 +41,8 @@ fn main() {
 
     // Exit if the user is not in an authorized country.
     if !cfg!(debug_assertions) && !config.offline && config.validate_host().is_err() {
-        println!("Could not validate host");
-        return;
+        eprintln!("Could not validate host");
+        exit(EXIT_INVALID_HOST);
     }
 
     let (logger, _global_logger_guard) = create_app_logger(o!());
@@ -47,15 +55,16 @@ fn main() {
 
     // Connect to the database and run the migrations
     let conn =
-        SqliteConnection::establish(&config.wallet_db.to_str().unwrap()).unwrap_or_else(|err| {
-            panic!(
-                "Cannot connect to {:?} database: {:?}",
-                config.wallet_db, err
-            )
+        SqliteConnection::establish(config.wallet_db.to_str().unwrap()).unwrap_or_else(|err| {
+            eprintln!("Cannot open database {:?}: {:?}", config.wallet_db, err);
+            exit(EXIT_NO_DATABASE_CONNECTION);
         });
     WalletDb::set_db_encryption_key_from_env(&conn);
     WalletDb::try_change_db_encryption_key_from_env(&conn);
-    WalletDb::check_database_connectivity(&conn);
+    if !WalletDb::check_database_connectivity(&conn) {
+        eprintln!("Incorrect password for database {:?}.", config.wallet_db);
+        exit(EXIT_WRONG_PASSWORD);
+    };
 
     // Our migrations sometimes violate foreign keys, so disable foreign key checks
     // while we apply them.

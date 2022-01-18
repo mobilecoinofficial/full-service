@@ -2,7 +2,8 @@ from mobilecoin.cli import _format_decimal
 
 
 def test_format_decimal():
-    f = lambda x: str(_format_decimal(x))
+    def f(x):
+        return str(_format_decimal(x))
     assert f('4200') == '4200'
     assert f('42') == '42'
     assert f('42.0') == '42'

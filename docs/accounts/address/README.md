@@ -22,7 +22,8 @@ Important: If you receive funds at a subaddress that has not yet been assigned, 
 | `account_id` | String | A unique identifier for the assigned associated account. |
 | `metadata` | String | An arbitrary string attached to the object. |
 | `subaddress_index` | String \(uint64\) | The assigned subaddress index on the associated account. |
-| `offset_count` | Integer | The value to offset pagination requests for assigned\_address list. Requests will exclude all list items up to and including this object. |
+| `offset` | integer | The value to offset pagination requests. Requests will exclude all list items up to and including this object. |
+| `limit` | integer | The limit of returned results. |
 
 ## Example
 
@@ -33,7 +34,8 @@ Important: If you receive funds at a subaddress that has not yet been assigned, 
   "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
   "metadata": "",
   "subaddress_index": "2",
-  "offset_count": "7"
+  "offset": "7",
+  "limit": "6"
 }
 ```
 

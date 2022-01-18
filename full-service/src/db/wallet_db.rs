@@ -82,7 +82,6 @@ impl WalletDb {
 
     pub fn set_db_encryption_key_from_env(conn: &SqliteConnection) {
         // Send the encryption key to SQLCipher, if it is not the empty string.
-        // Then check that it worked, or else panic.
         let encryption_key = env::var("MC_PASSWORD").unwrap_or_else(|_| "".to_string());
         if !encryption_key.is_empty() {
             let result = conn.batch_execute(&format!(
@@ -118,11 +117,9 @@ impl WalletDb {
         }
     }
 
-    pub fn check_database_connectivity(conn: &SqliteConnection) {
-        let result = conn.batch_execute("SELECT count(*) FROM sqlite_master;");
-        if result.is_err() {
-            panic!("Could not access database.");
-        }
+    pub fn check_database_connectivity(conn: &SqliteConnection) -> bool {
+        conn.batch_execute("SELECT count(*) FROM sqlite_master;")
+            .is_ok()
     }
 
     pub fn validate_foreign_keys(conn: &SqliteConnection) {

@@ -18,6 +18,7 @@
 * [Address](accounts/address/README.md)
   * [Assign Address For Account](accounts/address/assign_address_for_account.md)
   * [Get All Addresses For Account](accounts/address/get_all_addresses_for_account.md)
+  * [Get Addresses For Account](accounts/address/get_addresses_for_account.md)
   * [Verify Address](accounts/address/verify_address.md)
 * [Balance](accounts/balance/README.md)
   * [Get Balance For Account](accounts/balance/get_balance_for_account.md)
@@ -32,8 +33,10 @@
   * [Build Split Txo Transaction](transactions/transaction/build_split_txo_transaction.md)
 * [Transaction Output TXO](transactions/txo/README.md)
   * [Get TXO](transactions/txo/get_txo.md)
-  * [Get TXOs For Account](transactions/txo/get-txos-for-account.md)
+  * [Get MobileCoin Protocol TXO](transactions/txo/get_mc_protocol_txo.md)
+  * [Get TXOs For Account](transactions/txo/get_txos_for_account.md)
   * [Get All TXOs For Account](transactions/txo/get_all_txos_for_account.md)
+  * [Get TXOs For Account](transactions/txo/get_txos_for_account.md)
   * [Get All TXOs For Address](transactions/txo/get_txo_object.md)
 * [Confirmation](transactions/transaction-confirmation/README.md)
   * [Get Confirmations](transactions/transaction-confirmation/get_confirmations.md)
@@ -45,11 +48,15 @@
   * [Get Transaction Object](transactions/transaction-log/get_transaction_object.md)
   * [Get Transaction Log](transactions/transaction-log/get_transaction_log.md)
   * [Get All Transaction Logs For Account](transactions/transaction-log/get_all_transaction_logs_for_account.md)
+  * [Get Transaction Logs For Account](transactions/transaction-log/get_transaction_logs_for_account.md)
   * [Get All Transaction Logs For Block](transactions/transaction-log/get_all_transaction_logs_for_block.md)
   * [Get All Transaction Logs Ordered By Block](transactions/transaction-log/get_all_transaction_logs_ordered_by_block.md)
+  * [Get MobileCoin Protocol Transaction](transactions/transaction-log/get_mc_protocol_transaction.md)
 * [Payment Request](transactions/payment-request/README.md)
   * [Create Payment Request](transactions/payment-request/create_payment_request.md)
   * [Check B58 Type](transactions/payment-request/check_b58_type.md)
+  
+
 
 ## Wallet
 
@@ -76,4 +83,5 @@
 
 * [Environment Setup](tutorials/environment-setup.md)
 * [Run Full Service](tutorials/recieve-mob.md)
+* [Database Usage](tutorials/database-usage.md)
 

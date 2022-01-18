@@ -52,8 +52,7 @@ description: Get details of a given TXO.
       "subaddress_index": "0",
       "assigned_subaddress": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
       "key_image": "0a205445b406012d26baebb51cbcaaaceb0d56387a67353637d07265f4e886f33419",
-      "confirmation": null,
-      "offset_count": 25
+      "confirmation": null
     }
   }
 }

@@ -201,7 +201,9 @@ class CommandLineInterface:
                 if new_password != confirm_password:
                     print('Passwords do not match.')
                     exit(1)
-        env = {'MC_PASSWORD': password}
+
+        env = dict(os.environ)
+        env['MC_PASSWORD'] = password
         if new_password != '':
             env['MC_CHANGED_PASSWORD'] = new_password
 
@@ -219,7 +221,7 @@ class CommandLineInterface:
                 wallet_server_command += ['--tx-source-url', tx_source_url]
 
         ingest_enclave = self.config.get('fog-ingest-enclave-css')
-        if ingest_enclave is not None:
+        if ingest_enclave:
             wallet_server_command += ['--fog-ingest-enclave-css', ingest_enclave]
 
         if bg:
@@ -251,19 +253,15 @@ class CommandLineInterface:
         network_status = self.client.get_network_status()
         fee = pmob2mob(network_status['fee_pmob'])
 
-        # Work around 64-bit integer wrapping bug in local_block_index.
-        if int(network_status['local_block_index']) == (1 << 64) - 1:
-            network_status['local_block_index'] = 0
-
-        if int(network_status['network_block_index']) == 0:
+        if int(network_status['network_block_height']) == 0:
             print('Offline.')
-            print('Local ledger has {} blocks.'.format(network_status['local_block_index']))
+            print('Local ledger has {} blocks.'.format(network_status['local_block_height']))
             print('Expected fee is {}'.format(_format_mob(fee)))
         else:
             print('Connected to network.')
             print('Local ledger has {}/{} blocks.'.format(
-                network_status['local_block_index'],
-                network_status['network_block_index'],
+                network_status['local_block_height'],
+                network_status['network_block_height'],
             ))
             print('Network fee is {}'.format(_format_mob(fee)))
 
@@ -482,7 +480,7 @@ class CommandLineInterface:
             return
 
         if build_only:
-            tx_proposal = self.client.build_transaction(account_id, amount, to_address)
+            tx_proposal = self.client.build_transaction(account_id, amount, to_address, fee=fee)
             path = Path('tx_proposal.json')
             if path.exists():
                 print(f'The file {path} already exists. Please rename the existing file and retry.')
@@ -496,7 +494,12 @@ class CommandLineInterface:
             print('Cancelled.')
             return
 
-        transaction_log = self.client.build_and_submit_transaction(account_id, amount, to_address)
+        transaction_log, tx_proposal = self.client.build_and_submit_transaction_with_proposal(
+            account_id,
+            amount,
+            to_address,
+            fee=fee,
+        )
 
         print('Sent {}, with a transaction fee of {}'.format(
             _format_mob(pmob2mob(transaction_log['value_pmob'])),
@@ -514,7 +517,7 @@ class CommandLineInterface:
         # Check that the tombstone block is within range.
         tombstone_block = int(tx_proposal['tx']['prefix']['tombstone_block'])
         network_status = self.client.get_network_status()
-        lo = int(network_status['network_block_index']) + 1
+        lo = int(network_status['network_block_height']) + 1
         hi = lo + MAX_TOMBSTONE_BLOCKS - 1
         if lo >= tombstone_block:
             print('This transaction has expired, and can no longer be submitted.')
@@ -553,7 +556,7 @@ class CommandLineInterface:
             import segno
         except ImportError:
             print('Showing QR codes requires the segno library. Try:')
-            print('$ pip install git+https://github.com/mobilecoinofficial/segno')
+            print('$ pip install segno')
             return
 
         account = self._load_account_prefix(account_id)
@@ -571,7 +574,10 @@ class CommandLineInterface:
         print()
 
     def address(self, action, **args):
-        getattr(self, 'address_' + action)(**args)
+        try:
+            getattr(self, 'address_' + action)(**args)
+        except TypeError:
+            self.address_args.print_help()
 
     def address_list(self, account_id):
         account = self._load_account_prefix(account_id)
@@ -581,8 +587,6 @@ class CommandLineInterface:
         print(_format_account_header(account))
 
         for address in addresses.values():
-            if int(address['subaddress_index']) == 1:
-                continue  # Don't show change address.
             print(indent(
                 '{} {}'.format(address['public_address'], address['metadata']),
                 ' '*2,
@@ -728,27 +732,35 @@ def _format_account_header(account):
 
 def _format_balance(balance):
     offline = False
-    network_block = int(balance['network_block_index'])
+    network_block = int(balance['network_block_height'])
     if network_block == 0:
         offline = True
-        network_block = int(balance['local_block_index'])
+        network_block = int(balance['local_block_height'])
 
-    account_block = int(balance['account_block_index'])
+    orphaned = pmob2mob(balance['orphaned_pmob'])
+    if orphaned > 0:
+        orphaned_status = ', {} orphaned'.format(_format_mob(orphaned))
+    else:
+        orphaned_status = ''
+
+    account_block = int(balance['account_block_height'])
     if account_block == network_block:
         sync_status = 'synced'
     else:
-        sync_status = 'syncing, {}/{}'.format(balance['account_block_index'], network_block)
+        sync_status = 'syncing, {}/{}'.format(balance['account_block_height'], network_block)
 
     if offline:
         offline_status = ' [offline]'
     else:
         offline_status = ''
 
-    return '{} ({}) {}'.format(
+    result = '{}{} ({}){}'.format(
         _format_mob(pmob2mob(balance['unspent_pmob'])),
+        orphaned_status,
         sync_status,
         offline_status,
     )
+    return result
 
 
 def _format_gift_code_status(status):

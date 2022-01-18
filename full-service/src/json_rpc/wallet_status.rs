@@ -16,23 +16,22 @@ pub struct WalletStatus {
     /// the same value.
     pub object: String,
 
-    /// The block count of MobileCoin's distributed ledger. The
-    /// local_block_index is synced when it reaches the network_block_index.
-    pub network_block_index: String,
+    /// The block count of MobileCoin's distributed ledger.
+    pub network_block_height: String,
 
     /// The local block count downloaded from the ledger. The local database
-    /// will sync up to the network_block_index. The account_block_index can
-    /// only sync up to local_block_index.
-    pub local_block_index: String,
+    /// is synced when the local_block_height reaches the network_block_height.
+    /// The account_block_height can only sync up to local_block_height.
+    pub local_block_height: String,
 
-    /// Whether ALL accounts are synced with the network_block_index. Balances
+    /// Whether ALL accounts are synced up to the network_block_height. Balances
     /// may not appear correct if any account is still syncing.
     pub is_synced_all: bool,
 
     /// The minimum synced block across all accounts
     pub min_synced_block_index: String,
 
-    /// Unspent pico mob for ALL accounts at the account_block_index. If the
+    /// Unspent pico mob for ALL accounts at the account_block_height. If the
     /// account is syncing, this value may change.
     pub total_unspent_pmob: String,
 
@@ -79,9 +78,9 @@ impl TryFrom<&service::balance::WalletStatus> for WalletStatus {
 
         Ok(WalletStatus {
             object: "wallet_status".to_string(),
-            network_block_index: src.network_block_index.to_string(),
-            local_block_index: src.local_block_index.to_string(),
-            is_synced_all: src.min_synced_block_index >= src.network_block_index - 1,
+            network_block_height: src.network_block_height.to_string(),
+            local_block_height: src.local_block_height.to_string(),
+            is_synced_all: src.min_synced_block_index + 1 >= src.network_block_height,
             min_synced_block_index: src.min_synced_block_index.to_string(),
             total_unspent_pmob: src.unspent.to_string(),
             total_pending_pmob: src.pending.to_string(),
