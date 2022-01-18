@@ -30,6 +30,6 @@ cargo build -p mc-full-service --release --manifest-path $PROJECT_ROOT/Cargo.tom
 
 # Create release dir
 cp $PROJECT_ROOT/target/release/full-service $RELEASE_DIR/
-tar -czvf release/$RELEASE_NAME.tar.gz $RELEASE_DIR/
+(cd release && tar -czvf $RELEASE_NAME.tar.gz $RELEASE_NAME/)
 
 echo Created $RELEASE_NAME.tar.gz
