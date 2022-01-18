@@ -516,8 +516,6 @@ impl TxoModel for Txo {
 
         let results = txos::table
             .filter(txos::received_account_id_hex.eq(account_id_hex))
-            .filter(txos::subaddress_index.is_not_null())
-            .filter(txos::pending_tombstone_block_index.is_null())
             .filter(txos::spent_block_index.is_not_null());
 
         let txos: Vec<Txo> = if let Some(subaddress_b58) = assigned_subaddress_b58 {
@@ -542,7 +540,11 @@ impl TxoModel for Txo {
         // so they can no longer be decrypted.
         let txos: Vec<Txo> = txos::table
             .filter(txos::minted_account_id_hex.eq(account_id_hex))
-            .filter(txos::received_account_id_hex.is_null())
+            .filter(
+                txos::received_account_id_hex
+                    .ne(account_id_hex)
+                    .or(txos::received_account_id_hex.is_null()),
+            )
             .load(conn)?;
 
         Ok(txos)
