@@ -561,8 +561,8 @@ mod tests {
             .expect("Could not check status of receipt");
         assert_eq!(status, ReceiptTransactionStatus::TransactionSuccess);
 
-        // Status for Alice will not work, because she never received (and never will receive) the
-        // Txos.
+        // Status for Alice will not work, because she never received (and never will
+        // receive) the Txos.
         let alice_address = &b58_encode_public_address(&alice_public_address)
             .expect("Could not encode Alice address");
         let (status, _txo) = service
@@ -679,8 +679,8 @@ mod tests {
             )
         );
 
-        // Status for Alice will not work, because she never received (and never will receive) the
-        // Txos.
+        // Status for Alice will not work, because she never received (and never will
+        // receive) the Txos.
         let alice_address = &b58_encode_public_address(&alice_public_address)
             .expect("Could not encode alice address");
         let (status, _txo) = service
@@ -778,8 +778,8 @@ mod tests {
             .expect("Could not check status of receipt");
         assert_eq!(status, ReceiptTransactionStatus::InvalidConfirmation);
 
-        // Checking for the sender will not work because the Txos haven't
-        // landed for alice (and never will).
+        // Status for Alice will not work, because she never received (and never will
+        // receive) the Txos.
         let alice_address = &b58_encode_public_address(&alice_public_address)
             .expect("Could not encode alice address");
         let (status, _txo) = service
