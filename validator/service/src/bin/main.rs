@@ -13,6 +13,7 @@ use std::{
 };
 use structopt::StructOpt;
 
+// Exit codes.
 const EXIT_INVALID_HOST: i32 = 4;
 
 fn main() {

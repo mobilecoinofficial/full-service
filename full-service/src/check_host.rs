@@ -1,3 +1,7 @@
+// Copyright (c) 2018-2022 MobileCoin, Inc.
+
+//! Utility for IP check related logic.
+
 use reqwest::{
     blocking::Client,
     header::{HeaderMap, HeaderValue, CONTENT_TYPE},
