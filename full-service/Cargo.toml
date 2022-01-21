@@ -8,10 +8,6 @@ edition = "2018"
 name = "full-service"
 path = "src/bin/main.rs"
 
-[features]
-default = ["ip-check"]
-ip-check = []
-
 [dependencies]
 mc-validator-api = { path = "../validator/api" }
 mc-validator-connection = { path = "../validator/connection" }

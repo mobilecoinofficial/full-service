@@ -12,6 +12,7 @@ use mc_connection::ConnectionManager;
 use mc_consensus_scp::QuorumSet;
 use mc_fog_report_validation::FogResolver;
 use mc_full_service::{
+    check_host,
     config::APIConfig,
     wallet::{consensus_backed_rocket, validator_backed_rocket, WalletState},
     ValidatorLedgerSyncThread, WalletDb, WalletService,
@@ -45,7 +46,11 @@ fn main() {
     let config = APIConfig::from_args();
 
     // Exit if the user is not in an authorized country.
-    if !cfg!(debug_assertions) && !config.offline && config.validate_host().is_err() {
+    if !cfg!(debug_assertions)
+        && !config.offline
+        && config.validator.is_none()
+        && check_host::check_host_is_allowed_country_and_region().is_err()
+    {
         eprintln!("Could not validate host");
         exit(EXIT_INVALID_HOST);
     }

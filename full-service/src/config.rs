@@ -18,12 +18,6 @@ use mc_util_parse::parse_duration_in_seconds;
 use mc_util_uri::{ConnectionUri, ConsensusClientUri, FogUri};
 use mc_validator_api::ValidatorUri;
 
-use displaydoc::Display;
-#[cfg(feature = "ip-check")]
-use reqwest::{
-    blocking::Client,
-    header::{HeaderMap, HeaderValue, CONTENT_TYPE},
-};
 use std::{
     convert::TryFrom,
     fs,
@@ -32,34 +26,6 @@ use std::{
     time::Duration,
 };
 use structopt::StructOpt;
-
-#[derive(Display, Debug)]
-pub enum ConfigError {
-    /// Error parsing json {0}
-    Json(serde_json::Error),
-
-    /// Error handling reqwest {0}
-    Reqwest(reqwest::Error),
-
-    /// Invalid country
-    InvalidCountry,
-
-    /// Data missing in the response {0}
-    DataMissing(String),
-}
-
-impl From<serde_json::Error> for ConfigError {
-    fn from(e: serde_json::Error) -> Self {
-        Self::Json(e)
-    }
-}
-
-impl From<reqwest::Error> for ConfigError {
-    fn from(e: reqwest::Error) -> Self {
-        Self::Reqwest(e)
-    }
-}
-
 /// Command line config for the Wallet API
 #[derive(Clone, Debug, StructOpt)]
 #[structopt(name = "full-service", about = "An HTTP wallet service for MobileCoin")]
@@ -182,50 +148,6 @@ impl APIConfig {
                 )
             }
         })
-    }
-
-    /// Ensure local IP address is valid.
-    ///
-    /// Uses ipinfo.io for getting details about IP address.
-    ///
-    /// Note, both of these services are free tier and rate-limited.
-    #[cfg(feature = "ip-check")]
-    pub fn validate_host(&self) -> Result<(), ConfigError> {
-        let client = Client::builder().gzip(true).use_rustls_tls().build()?;
-        let mut json_headers = HeaderMap::new();
-        json_headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-        let response = client
-            .get("https://ipinfo.io/json/")
-            .headers(json_headers)
-            .send()?
-            .error_for_status()?;
-        let data = response.text()?;
-        let data_json: serde_json::Value = serde_json::from_str(&data)?;
-
-        let data_missing_err = Err(ConfigError::DataMissing(data_json.to_string()));
-        let country: &str = match data_json["country"].as_str() {
-            Some(c) => c,
-            None => return data_missing_err,
-        };
-        let region: &str = match data_json["region"].as_str() {
-            Some(r) => r,
-            None => return data_missing_err,
-        };
-
-        let err = Err(ConfigError::InvalidCountry);
-        match country {
-            "IR" | "SY" | "CU" | "KP" => err,
-            "UA" => match region {
-                "Crimea" => err,
-                _ => Ok(()),
-            },
-            _ => Ok(()),
-        }
-    }
-
-    #[cfg(not(feature = "ip-check"))]
-    pub fn validate_host(&self) -> Result<(), ConfigError> {
-        Ok(())
     }
 }
 
