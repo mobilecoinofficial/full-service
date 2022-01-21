@@ -45,7 +45,11 @@ fn main() {
     let config = APIConfig::from_args();
 
     // Exit if the user is not in an authorized country.
-    if !cfg!(debug_assertions) && !config.offline && config.validate_host().is_err() {
+    if !cfg!(debug_assertions)
+        && !config.offline
+        && !config.validator.is_some()
+        && APIConfig::validate_host().is_err()
+    {
         eprintln!("Could not validate host");
         exit(EXIT_INVALID_HOST);
     }

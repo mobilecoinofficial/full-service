@@ -6,8 +6,14 @@ use mc_attest_verifier::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
 use mc_common::logger::{create_app_logger, log, o};
 use mc_ledger_sync::{LedgerSyncServiceThread, PollingNetworkState, ReqwestTransactionsFetcher};
 use mc_validator_service::{Config, Service};
-use std::sync::{Arc, RwLock};
+use std::{
+    process::exit,
+    sync::{Arc, RwLock},
+};
 use structopt::StructOpt;
+
+// Exit codes.
+const EXIT_INVALID_HOST: i32 = 4;
 
 fn main() {
     mc_common::setup_panic_handler();
@@ -17,7 +23,11 @@ fn main() {
 
     let config = Config::from_args();
 
-    log::info!(logger, "Read Configs: {:?}", config);
+    // Exit if the user is not in an authorized country.
+    if !cfg!(debug_assertions) && mc_full_service::config::APIConfig::validate_host().is_err() {
+        eprintln!("Could not validate host");
+        exit(EXIT_INVALID_HOST);
+    }
 
     // Create enclave verifier.
     let mut mr_signer_verifier =
