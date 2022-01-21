@@ -12,9 +12,11 @@ use mc_consensus_scp::QuorumSet;
 use mc_fog_report_connection::GrpcFogReportConnection;
 use mc_fog_report_validation::FogResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
-use mc_ledger_sync::ReqwestTransactionsFetcher;
 use mc_sgx_css::Signature;
+use mc_transaction_core::BlockData;
+use mc_util_parse::parse_duration_in_seconds;
 use mc_util_uri::{ConnectionUri, ConsensusClientUri, FogUri};
+use mc_validator_api::ValidatorUri;
 
 use displaydoc::Display;
 #[cfg(feature = "ip-check")]
@@ -26,7 +28,6 @@ use std::{
     convert::TryFrom,
     fs,
     path::{Path, PathBuf},
-    str::FromStr,
     sync::Arc,
     time::Duration,
 };
@@ -75,32 +76,11 @@ pub struct APIConfig {
     #[structopt(long, parse(from_os_str))]
     pub wallet_db: PathBuf,
 
-    /// Path to LedgerDB
-    #[structopt(long, parse(from_os_str))]
-    pub ledger_db: PathBuf,
-
-    /// Path to existing ledger db that contains the origin block, used when
-    /// initializing new ledger dbs.
-    #[structopt(long)]
-    pub ledger_db_bootstrap: Option<String>,
+    #[structopt(flatten)]
+    pub ledger_db_config: LedgerDbConfig,
 
     #[structopt(flatten)]
     pub peers_config: PeersConfig,
-
-    /// Quorum set for ledger syncing. By default, the quorum set would include
-    /// all peers.
-    ///
-    /// The quorum set is represented in JSON. For example:
-    /// {"threshold":1,"members":[{"type":"Node","args":"node2.test.mobilecoin.
-    /// com:443"},{"type":"Node","args":"node3.test.mobilecoin.com:443"}]}
-    #[structopt(long, parse(try_from_str=parse_quorum_set_from_json))]
-    quorum_set: Option<QuorumSet<ResponderId>>,
-
-    /// URLs to use for transaction data.
-    ///
-    /// For example: https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/
-    #[structopt(long = "tx-source-url", required_unless = "offline")]
-    pub tx_source_urls: Option<Vec<String>>,
 
     /// Number of worker threads to use for view key scanning.
     /// Defaults to number of logical CPU cores.
@@ -119,10 +99,11 @@ pub struct APIConfig {
     /// transactions to fog recipients).
     #[structopt(long, parse(try_from_str=load_css_file))]
     pub fog_ingest_enclave_css: Option<Signature>,
-}
 
-fn parse_duration_in_seconds(src: &str) -> Result<Duration, std::num::ParseIntError> {
-    Ok(Duration::from_secs(u64::from_str(src)?))
+    /// Validator service to connect to, when not connecting to the consensus
+    /// network directly.
+    #[structopt(long)]
+    pub validator: Option<ValidatorUri>,
 }
 
 fn parse_quorum_set_from_json(src: &str) -> Result<QuorumSet<ResponderId>, String> {
@@ -145,32 +126,6 @@ fn load_css_file(filename: &str) -> Result<Signature, String> {
 }
 
 impl APIConfig {
-    pub fn quorum_set(&self) -> QuorumSet<ResponderId> {
-        // If we have an explicit quorum set, use that.
-        if let Some(quorum_set) = &self.quorum_set {
-            return quorum_set.clone();
-        }
-
-        // Otherwise create a quorum set that includes all of the peers we know about.
-        let node_ids = self
-            .peers_config
-            .peers
-            .clone()
-            .unwrap_or_default()
-            .iter()
-            .map(|p| {
-                p.responder_id().unwrap_or_else(|e| {
-                    panic!(
-                        "Could not get responder_id from uri {}: {:?}",
-                        p.to_string(),
-                        e
-                    )
-                })
-            })
-            .collect::<Vec<ResponderId>>();
-        QuorumSet::new_with_node_ids(node_ids.len() as u32, node_ids)
-    }
-
     /// Get the attestation verifier used to verify fog reports when sending to
     /// fog recipients.
     pub fn get_fog_ingest_verifier(&self) -> Option<Verifier> {
@@ -229,10 +184,171 @@ impl APIConfig {
         })
     }
 
+    /// Ensure local IP address is valid.
+    ///
+    /// Uses ipinfo.io for getting details about IP address.
+    ///
+    /// Note, both of these services are free tier and rate-limited.
+    #[cfg(feature = "ip-check")]
+    pub fn validate_host(&self) -> Result<(), ConfigError> {
+        let client = Client::builder().gzip(true).use_rustls_tls().build()?;
+        let mut json_headers = HeaderMap::new();
+        json_headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        let response = client
+            .get("https://ipinfo.io/json/")
+            .headers(json_headers)
+            .send()?
+            .error_for_status()?;
+        let data = response.text()?;
+        let data_json: serde_json::Value = serde_json::from_str(&data)?;
+
+        let data_missing_err = Err(ConfigError::DataMissing(data_json.to_string()));
+        let country: &str = match data_json["country"].as_str() {
+            Some(c) => c,
+            None => return data_missing_err,
+        };
+        let region: &str = match data_json["region"].as_str() {
+            Some(r) => r,
+            None => return data_missing_err,
+        };
+
+        let err = Err(ConfigError::InvalidCountry);
+        match country {
+            "IR" | "SY" | "CU" | "KP" => err,
+            "UA" => match region {
+                "Crimea" => err,
+                _ => Ok(()),
+            },
+            _ => Ok(()),
+        }
+    }
+
+    #[cfg(not(feature = "ip-check"))]
+    pub fn validate_host(&self) -> Result<(), ConfigError> {
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug, StructOpt)]
+#[structopt()]
+pub struct PeersConfig {
+    /// validator nodes to connect to.
+    #[structopt(long = "peer", required_unless_one = &["offline", "validator"], conflicts_with_all = &["offline", "validator"])]
+    pub peers: Option<Vec<ConsensusClientUri>>,
+
+    /// Quorum set for ledger syncing. By default, the quorum set would include
+    /// all peers.
+    ///
+    /// The quorum set is represented in JSON. For example:
+    /// {"threshold":1,"members":[{"type":"Node","args":"node2.test.mobilecoin.
+    /// com:443"},{"type":"Node","args":"node3.test.mobilecoin.com:443"}]}
+    #[structopt(long, parse(try_from_str=parse_quorum_set_from_json), conflicts_with_all = &["offline", "validator"])]
+    quorum_set: Option<QuorumSet<ResponderId>>,
+
+    /// URLs to use for transaction data.
+    ///
+    /// For example: https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/
+    #[structopt(long = "tx-source-url", required_unless_one = &["offline", "validator"], conflicts_with_all = &["offline", "validator"])]
+    pub tx_source_urls: Option<Vec<String>>,
+}
+
+impl PeersConfig {
+    pub fn quorum_set(&self) -> QuorumSet<ResponderId> {
+        // If we have an explicit quorum set, use that.
+        if let Some(quorum_set) = &self.quorum_set {
+            return quorum_set.clone();
+        }
+
+        // Otherwise create a quorum set that includes all of the peers we know about.
+        let node_ids = self
+            .peers
+            .clone()
+            .unwrap_or_default()
+            .iter()
+            .map(|p| {
+                p.responder_id().unwrap_or_else(|e| {
+                    panic!(
+                        "Could not get responder_id from uri {}: {:?}",
+                        p.to_string(),
+                        e
+                    )
+                })
+            })
+            .collect::<Vec<ResponderId>>();
+        QuorumSet::new_with_node_ids(node_ids.len() as u32, node_ids)
+    }
+
+    pub fn responder_ids(&self) -> Vec<ResponderId> {
+        self.peers
+            .clone()
+            .unwrap_or_default()
+            .iter()
+            .map(|peer| {
+                peer.responder_id()
+                    .expect("Could not get responder_id from peer")
+            })
+            .collect()
+    }
+
+    pub fn create_peers(
+        &self,
+        verifier: Verifier,
+        grpc_env: Arc<grpcio::Environment>,
+        logger: Logger,
+    ) -> Vec<ThickClient<HardcodedCredentialsProvider>> {
+        self.peers
+            .clone()
+            .unwrap_or_default()
+            .iter()
+            .map(|client_uri| {
+                ThickClient::new(
+                    client_uri.clone(),
+                    verifier.clone(),
+                    grpc_env.clone(),
+                    HardcodedCredentialsProvider::from(client_uri),
+                    logger.clone(),
+                )
+                .expect("Could not create thick client.")
+            })
+            .collect()
+    }
+
+    pub fn create_peer_manager(
+        &self,
+        verifier: Verifier,
+        logger: &Logger,
+    ) -> ConnectionManager<ThickClient<HardcodedCredentialsProvider>> {
+        let grpc_env = Arc::new(
+            grpcio::EnvBuilder::new()
+                .cq_count(1)
+                .name_prefix("peer")
+                .build(),
+        );
+        let peers = self.create_peers(verifier, grpc_env, logger.clone());
+
+        ConnectionManager::new(peers, logger.clone())
+    }
+}
+
+#[derive(Clone, Debug, StructOpt)]
+#[structopt()]
+pub struct LedgerDbConfig {
+    /// Path to LedgerDB
+    #[structopt(long, parse(from_os_str))]
+    pub ledger_db: PathBuf,
+
+    /// Path to existing ledger db that contains the origin block, used when
+    /// initializing new ledger dbs.
+    #[structopt(long)]
+    pub ledger_db_bootstrap: Option<String>,
+}
+
+impl LedgerDbConfig {
     pub fn create_or_open_ledger_db(
         &self,
+        get_origin_block_and_transactions: impl Fn() -> Result<BlockData, String>,
+        offline: bool,
         logger: &Logger,
-        transactions_fetcher: &ReqwestTransactionsFetcher,
     ) -> LedgerDB {
         // Attempt to open the ledger and see if it has anything in it.
         if let Ok(ledger_db) = LedgerDB::open(&self.ledger_db) {
@@ -284,14 +400,13 @@ impl APIConfig {
                 std::fs::create_dir_all(self.ledger_db.clone())
                     .expect("Could not create ledger dir");
                 LedgerDB::create(&self.ledger_db).expect("Could not create ledger_db");
-                if !self.offline {
+                if !offline {
                     log::info!(
                         logger,
                         "Ledger DB {:?} does not exist, bootstrapping from peer, this may take a few minutes",
                         self.ledger_db
                     );
-                    let block_data = transactions_fetcher
-                        .get_origin_block_and_transactions()
+                    let block_data = get_origin_block_and_transactions()
                         .expect("Failed to download initial transactions");
                     let mut db = LedgerDB::open(&self.ledger_db).expect("Could not open ledger_db");
                     db.append_block(
@@ -326,110 +441,5 @@ impl APIConfig {
         );
 
         ledger_db
-    }
-
-    /// Ensure local IP address is valid.
-    ///
-    /// Uses ipinfo.io for getting details about IP address.
-    ///
-    /// Note, both of these services are free tier and rate-limited.
-    #[cfg(feature = "ip-check")]
-    pub fn validate_host(&self) -> Result<(), ConfigError> {
-        let client = Client::builder().gzip(true).use_rustls_tls().build()?;
-        let mut json_headers = HeaderMap::new();
-        json_headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-        let response = client
-            .get("https://ipinfo.io/json/")
-            .headers(json_headers)
-            .send()?
-            .error_for_status()?;
-        let data = response.text()?;
-        let data_json: serde_json::Value = serde_json::from_str(&data)?;
-
-        let data_missing_err = Err(ConfigError::DataMissing(data_json.to_string()));
-        let country: &str = match data_json["country"].as_str() {
-            Some(c) => c,
-            None => return data_missing_err,
-        };
-        let region: &str = match data_json["region"].as_str() {
-            Some(r) => r,
-            None => return data_missing_err,
-        };
-
-        let err = Err(ConfigError::InvalidCountry);
-        match country {
-            "IR" | "SY" | "CU" | "KP" => err,
-            "UA" => match region {
-                "Crimea" => err,
-                _ => Ok(()),
-            },
-            _ => Ok(()),
-        }
-    }
-
-    #[cfg(not(feature = "ip-check"))]
-    pub fn validate_host(&self) -> Result<(), ConfigError> {
-        Ok(())
-    }
-}
-
-#[derive(Clone, Debug, StructOpt)]
-#[structopt()]
-pub struct PeersConfig {
-    /// validator nodes to connect to.
-    #[structopt(long = "peer", required_unless = "offline")]
-    pub peers: Option<Vec<ConsensusClientUri>>,
-}
-
-impl PeersConfig {
-    pub fn responder_ids(&self) -> Vec<ResponderId> {
-        self.peers
-            .clone()
-            .unwrap_or_default()
-            .iter()
-            .map(|peer| {
-                peer.responder_id()
-                    .expect("Could not get responder_id from peer")
-            })
-            .collect()
-    }
-
-    pub fn create_peers(
-        &self,
-        verifier: Verifier,
-        grpc_env: Arc<grpcio::Environment>,
-        logger: Logger,
-    ) -> Vec<ThickClient<HardcodedCredentialsProvider>> {
-        self.peers
-            .clone()
-            .unwrap_or_default()
-            .iter()
-            .map(|client_uri| {
-                ThickClient::new(
-                    client_uri.clone(),
-                    verifier.clone(),
-                    grpc_env.clone(),
-                    HardcodedCredentialsProvider::from(client_uri),
-                    logger.clone(),
-                )
-                .expect("Could not create thick client.")
-            })
-            .collect()
-    }
-
-    pub fn create_peer_manager(
-        &self,
-        verifier: Verifier,
-        logger: &Logger,
-    ) -> ConnectionManager<ThickClient<HardcodedCredentialsProvider>> {
-        let grpc_env = Arc::new(
-            grpcio::EnvBuilder::new()
-                .cq_count(1)
-                .name_prefix("peer")
-                .build(),
-        );
-        let peers = self.create_peers(verifier, grpc_env, logger.clone());
-
-        ConnectionManager::new(peers, logger.clone())
     }
 }

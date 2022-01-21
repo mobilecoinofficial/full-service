@@ -2356,8 +2356,11 @@ dependencies = [
  "mc-transaction-core",
  "mc-transaction-std",
  "mc-util-from-random",
+ "mc-util-parse",
  "mc-util-serial",
  "mc-util-uri",
+ "mc-validator-api",
+ "mc-validator-connection",
  "num_cpus",
  "rand 0.8.4",
  "rayon",
@@ -2805,6 +2808,62 @@ dependencies = [
  "percent-encoding 2.1.0",
  "serde",
  "url 2.2.2",
+]
+
+[[package]]
+name = "mc-validator-api"
+version = "1.0.0"
+dependencies = [
+ "cargo-emit",
+ "futures",
+ "grpcio",
+ "mc-api",
+ "mc-consensus-api",
+ "mc-fog-report-api",
+ "mc-util-build-grpc",
+ "mc-util-build-script",
+ "mc-util-uri",
+ "protobuf",
+]
+
+[[package]]
+name = "mc-validator-connection"
+version = "1.0.0"
+dependencies = [
+ "displaydoc",
+ "futures",
+ "grpcio",
+ "mc-api",
+ "mc-common",
+ "mc-connection",
+ "mc-fog-report-validation",
+ "mc-transaction-core",
+ "mc-util-grpc",
+ "mc-util-uri",
+ "mc-validator-api",
+ "protobuf",
+]
+
+[[package]]
+name = "mc-validator-service"
+version = "1.0.0"
+dependencies = [
+ "grpcio",
+ "mc-attest-verifier",
+ "mc-common",
+ "mc-connection",
+ "mc-consensus-enclave-measurement",
+ "mc-fog-report-connection",
+ "mc-full-service",
+ "mc-ledger-db",
+ "mc-ledger-sync",
+ "mc-transaction-core",
+ "mc-util-grpc",
+ "mc-util-parse",
+ "mc-util-uri",
+ "mc-validator-api",
+ "rayon",
+ "structopt",
 ]
 
 [[package]]
