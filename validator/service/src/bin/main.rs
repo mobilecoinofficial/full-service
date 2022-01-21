@@ -4,10 +4,16 @@
 
 use mc_attest_verifier::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
 use mc_common::logger::{create_app_logger, log, o};
+use mc_full_service::check_host;
 use mc_ledger_sync::{LedgerSyncServiceThread, PollingNetworkState, ReqwestTransactionsFetcher};
 use mc_validator_service::{Config, Service};
-use std::sync::{Arc, RwLock};
+use std::{
+    process::exit,
+    sync::{Arc, RwLock},
+};
 use structopt::StructOpt;
+
+const EXIT_INVALID_HOST: i32 = 4;
 
 fn main() {
     mc_common::setup_panic_handler();
@@ -16,6 +22,12 @@ fn main() {
     let (logger, _global_logger_guard) = create_app_logger(o!());
 
     let config = Config::from_args();
+
+    // Exit if the user is not in an authorized country.
+    if check_host::check_host_is_allowed_country_and_region().is_err() {
+        eprintln!("Could not validate host");
+        exit(EXIT_INVALID_HOST);
+    }
 
     log::info!(logger, "Read Configs: {:?}", config);
 
