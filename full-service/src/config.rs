@@ -18,8 +18,6 @@ use mc_util_parse::parse_duration_in_seconds;
 use mc_util_uri::{ConnectionUri, ConsensusClientUri, FogUri};
 use mc_validator_api::ValidatorUri;
 
-use displaydoc::Display;
-
 use std::{
     convert::TryFrom,
     fs,
@@ -28,9 +26,6 @@ use std::{
     time::Duration,
 };
 use structopt::StructOpt;
-
-use crate::check_host::{self, CheckHostError};
-
 /// Command line config for the Wallet API
 #[derive(Clone, Debug, StructOpt)]
 #[structopt(name = "full-service", about = "An HTTP wallet service for MobileCoin")]
@@ -153,18 +148,6 @@ impl APIConfig {
                 )
             }
         })
-    }
-
-    /// Ensure local IP address is valid.
-    ///
-    /// Uses ipinfo.io for getting details about IP address.
-    ///
-    /// Note, both of these services are free tier and rate-limited.
-    pub fn validate_host(&self) -> Result<(), CheckHostError> {
-        if self.validator.is_some() {
-            return Ok(());
-        }
-        check_host::check_host_is_allowed_country_and_region()
     }
 }
 

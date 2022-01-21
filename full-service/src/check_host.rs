@@ -33,6 +33,11 @@ impl From<reqwest::Error> for CheckHostError {
     }
 }
 
+/// Ensure local IP address is valid.
+///
+/// Uses ipinfo.io for getting details about IP address.
+///
+/// Note, both of these services are free tier and rate-limited.
 pub fn check_host_is_allowed_country_and_region() -> Result<(), CheckHostError> {
     let client = Client::builder().gzip(true).use_rustls_tls().build()?;
     let mut json_headers = HeaderMap::new();
