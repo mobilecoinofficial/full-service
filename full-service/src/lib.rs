@@ -4,16 +4,19 @@
 
 #![feature(proc_macro_hygiene, decl_macro)]
 
+pub mod check_host;
 pub mod config;
 mod db;
 mod error;
 mod json_rpc;
 mod service;
 mod util;
+mod validator_ledger_sync;
 
 pub use db::WalletDb;
 pub use json_rpc::wallet;
 pub use service::WalletService;
+pub use validator_ledger_sync::ValidatorLedgerSyncThread;
 
 extern crate alloc;
 #[macro_use]
