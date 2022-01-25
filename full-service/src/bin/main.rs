@@ -255,7 +255,10 @@ fn validator_backed_full_service(
                 let report_responses = validator_conn
                     .fetch_fog_reports(fog_uris.iter().cloned())
                     .map_err(|err| {
-                    format!("Error fetching fog reports for {:?}: {}", fog_uris, err)
+                    format!(
+                        "Error fetching fog reports (via validator) for {:?}: {}",
+                        fog_uris, err
+                    )
                 })?;
 
                 log::debug!(logger2, "Got report responses {:?}", report_responses);
