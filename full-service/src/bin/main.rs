@@ -66,24 +66,24 @@ fn main() {
         exit(EXIT_WRONG_PASSWORD);
     };
 
-    // Our migrations sometimes violate foreign keys, so disable foreign key checks
-    // while we apply them.
-    // Unfortunately this has to happen outside the scope of a transaction. Quoting
-    // https://www.sqlite.org/pragma.html,
-    // "This pragma is a no-op within a transaction; foreign key constraint
-    // enforcement may only be enabled or disabled when there is no pending
-    // BEGIN or SAVEPOINT."
-    conn.batch_execute("PRAGMA foreign_keys = OFF;")
-        .expect("failed disabling foreign keys");
-    embedded_migrations::run_with_output(&conn, &mut std::io::stdout())
-        .expect("failed running migrations");
+    // // Our migrations sometimes violate foreign keys, so disable foreign key checks
+    // // while we apply them.
+    // // Unfortunately this has to happen outside the scope of a transaction. Quoting
+    // // https://www.sqlite.org/pragma.html,
+    // // "This pragma is a no-op within a transaction; foreign key constraint
+    // // enforcement may only be enabled or disabled when there is no pending
+    // // BEGIN or SAVEPOINT."
+    // conn.batch_execute("PRAGMA foreign_keys = OFF;")
+    //     .expect("failed disabling foreign keys");
+    // embedded_migrations::run_with_output(&conn, &mut std::io::stdout())
+    //     .expect("failed running migrations");
 
-    // Ensure the database is still in good shape. If not, we will abort until the
-    // user resolves it.
-    WalletDb::validate_foreign_keys(&conn);
+    // // Ensure the database is still in good shape. If not, we will abort until the
+    // // user resolves it.
+    // WalletDb::validate_foreign_keys(&conn);
 
-    conn.batch_execute("PRAGMA foreign_keys = ON;")
-        .expect("failed enabling foreign keys");
+    // conn.batch_execute("PRAGMA foreign_keys = ON;")
+    //     .expect("failed enabling foreign keys");
 
     log::info!(logger, "Connected to database.");
 
@@ -125,6 +125,14 @@ fn main() {
     // Create the ledger_db.
     let ledger_db = config.create_or_open_ledger_db(&logger, &transactions_fetcher);
 
+    use mc_full_service::service::sync::sync_all_accounts;
+    sync_all_accounts(
+        &ledger_db,
+        &wallet_db,
+        &logger,
+    );
+    return;
+
     // Start ledger sync thread unless running in offline mode.
     let _ledger_sync_service_thread = if config.offline {
         None
@@ -146,7 +154,6 @@ fn main() {
             peer_manager,
             network_state,
             config.get_fog_resolver_factory(logger.clone()),
-            config.num_workers,
             config.offline,
             logger,
         ),

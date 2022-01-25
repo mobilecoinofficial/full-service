@@ -8,7 +8,7 @@ pub mod config;
 mod db;
 mod error;
 mod json_rpc;
-mod service;
+pub mod service;
 mod util;
 
 pub use db::WalletDb;

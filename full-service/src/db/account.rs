@@ -564,14 +564,14 @@ mod tests {
 
         // Verify that we can get the correct subaddress index from the spend public key
         let main_subaddress = account_key.subaddress(0);
-        let (retrieved_index, retrieved_acocunt_id_hex) =
+        let (retrieved_index, retrieved_account_id_hex) =
             AssignedSubaddress::find_by_subaddress_spend_public_key(
                 main_subaddress.spend_public_key(),
                 &wallet_db.get_conn().unwrap(),
             )
             .unwrap();
         assert_eq!(retrieved_index, 0);
-        assert_eq!(retrieved_acocunt_id_hex, account_id_hex.to_string());
+        assert_eq!(retrieved_account_id_hex, account_id_hex.to_string());
 
         // Add another account with no name, scanning from later
         let root_id_secondary = RootIdentity::from_random(&mut rng);

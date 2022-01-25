@@ -8,6 +8,9 @@ edition = "2018"
 name = "full-service"
 path = "src/bin/main.rs"
 
+[profile.release]
+debug = true
+
 [features]
 default = ["ip-check"]
 ip-check = []

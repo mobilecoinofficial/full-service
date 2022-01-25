@@ -65,7 +65,6 @@ impl<
         peer_manager: McConnectionManager<T>,
         network_state: Arc<RwLock<PollingNetworkState<T>>>,
         fog_resolver_factory: Arc<dyn Fn(&[FogUri]) -> Result<FPR, String> + Send + Sync>,
-        num_workers: Option<usize>,
         offline: bool,
         logger: Logger,
     ) -> Self {
@@ -73,7 +72,6 @@ impl<
         let sync_thread = SyncThread::start(
             ledger_db.clone(),
             wallet_db.clone(),
-            num_workers,
             logger.clone(),
         );
         let mut rng = rand::thread_rng();

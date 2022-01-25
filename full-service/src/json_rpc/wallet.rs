@@ -114,7 +114,6 @@ where
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
     global_log::trace!("Running command {:?}", command);
-    println!("Running command {:?}", command);
 
     let response = match command {
         JsonCommandRequest::assign_address_for_account {
