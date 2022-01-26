@@ -27,6 +27,7 @@ use mc_transaction_core::{
     tx::TxOut,
     AmountError,
 };
+use rayon::prelude::*;
 
 use diesel::{
     prelude::*,
@@ -152,7 +153,8 @@ fn sync_account(
 
             // Load subaddresses for this account into a hash map.
             let mut subaddress_keys: HashMap<RistrettoPublic, u64> = HashMap::default();
-            let subaddresses: Vec<_> = AssignedSubaddress::list_all(account_id_hex, None, None, &conn)?;
+            let subaddresses: Vec<_> =
+                AssignedSubaddress::list_all(account_id_hex, None, None, &conn)?;
             for s in subaddresses {
                 let subaddress_key = mc_util_serial::decode(s.subaddress_spend_key.as_slice())?;
                 subaddress_keys.insert(subaddress_key, s.subaddress_index as u64);
@@ -162,13 +164,12 @@ fn sync_account(
             let start_time = Instant::now();
             let first_block_index = account.next_block_index;
             let mut last_block_index = account.next_block_index;
-            
-            // Sync transactions, one block at a time.
-            let mut matched_txos = Vec::new();
+
+            // Load transaction outputs for this chunk.
+            let mut tx_outs: Vec<_> = Vec::new();
             for block_index in
                 (account.next_block_index..account.next_block_index + BLOCKS_CHUNK_SIZE)
             {
-                // Load block contents. 
                 let block_contents = match ledger_db.get_block_contents(block_index as u64) {
                     Ok(block_contents) => block_contents,
                     Err(mc_ledger_db::Error::NotFound) => {
@@ -180,22 +181,24 @@ fn sync_account(
                 };
                 last_block_index = block_index;
 
-                // Attempt to decode each transaction.
                 for tx_out in block_contents.outputs {
-                    let amount = match decode_amount(&tx_out, &account_key) {
-                        None => continue,
-                        Some(a) => a,
-                    };
-                    let (subaddress_index, key_image) = decode_subaddress_and_key_image(&tx_out, &account_key, &subaddress_keys);
-                    matched_txos.push((block_index, tx_out, amount, subaddress_index, key_image));
+                    tx_outs.push((block_index, tx_out));
                 }
             }
 
-            // Write matched transactions to the database.
-            // STUB
-
-            // Update the account record.
-            // STUB
+            // Attempt to decode each transaction as received by this account.
+            let matched_txos: Vec<_> = tx_outs
+                .into_par_iter()
+                .filter_map(|(block_index, tx_out)| {
+                    let amount = match decode_amount(&tx_out, &account_key) {
+                        None => return None,
+                        Some(a) => a,
+                    };
+                    let (subaddress_index, key_image) =
+                        decode_subaddress_and_key_image(&tx_out, &account_key, &subaddress_keys);
+                    Some((block_index, tx_out, amount, subaddress_index, key_image))
+                })
+                .collect();
 
             let duration = start_time.elapsed();
             log::trace!(
@@ -209,15 +212,24 @@ fn sync_account(
                 matched_txos.len(),
             );
 
-            // // Note: Doing this here means we are updating key images multiple times,
-            // once // per account. We do actually want to do it this way,
-            // because each account may // need to process the same block at a
-            // different time, depending on when we add // it to the DB.
-            // account.update_spent_and_increment_next_block(
-            //     account.next_block_index,
-            //     block_contents.key_images,
-            //     &conn,
-            // )?;
+            account.update_next_block_index(
+                account.next_block_index,
+                block_contents.key_images,
+                &conn,
+            )?;
+
+            // Write matched transactions to the database.
+            for (block_index, tx_out, amount, subaddress_index, key_image) in matched_txos {
+                let txo_id = Txo::create_received(
+                    tx_out.clone(),
+                    subaddress_index.map(|i| i as i64),
+                    key_image,
+                    amount,
+                    block_index,
+                    &account_id_hex,
+                    &conn,
+                )?;
+            }
 
             // // Add a transaction for the received TXOs
             // TransactionLog::log_received(
@@ -232,18 +244,14 @@ fn sync_account(
     }
 }
 
-/// Attempt to decode the transaction amount. If we can't, then this transaction does not belong to
-/// this account.
-pub fn decode_amount(
-    tx_out: &TxOut,
-    account_key: &AccountKey,
-) -> Option<u64> {
+/// Attempt to decode the transaction amount. If we can't, then this transaction
+/// does not belong to this account.
+pub fn decode_amount(tx_out: &TxOut, account_key: &AccountKey) -> Option<u64> {
     let tx_public_key = match RistrettoPublic::try_from(&tx_out.public_key) {
         Err(_) => return None,
         Ok(k) => k,
     };
-    let shared_secret =
-        get_tx_out_shared_secret(account_key.view_private_key(), &tx_public_key);
+    let shared_secret = get_tx_out_shared_secret(account_key.view_private_key(), &tx_public_key);
     let amount = match tx_out.amount.get_value(&shared_secret) {
         Ok((a, _)) => Some(a),
         Err(AmountError::InconsistentCommitment) => return None,
@@ -251,9 +259,10 @@ pub fn decode_amount(
     amount
 }
 
-/// Attempt to match the target address with one of our subaddresses. This should only be done on
-/// tx-outs that have already had their amounts decoded. If this fails, then the transaction is
-/// "orphaned", meaning we haven't generated the correct subaddress yet.
+/// Attempt to match the target address with one of our subaddresses. This
+/// should only be done on tx-outs that have already had their amounts decoded.
+/// If this fails, then the transaction is "orphaned", meaning we haven't
+/// generated the correct subaddress yet.
 pub fn decode_subaddress_and_key_image(
     tx_out: &TxOut,
     account_key: &AccountKey,
@@ -288,44 +297,6 @@ pub fn decode_subaddress_and_key_image(
     (subaddress_index, key_image)
 }
 
-// /// Helper function for matching a list of TxOuts to a given account.
-// pub fn process_txos(
-//     outputs: &[TxOut],
-//     account: &Account,
-//     received_block_index: i64,
-//     logger: &Logger,
-// ) -> Result<HashMap<i64, Vec<String>>, SyncError> {
-//     let mut output_txo_ids: HashMap<i64, Vec<String>> = HashMap::default();
-
-//     for tx_out in outputs {
-//         // Insert received txo
-//         let txo_id = Txo::create_received(
-//             tx_out.clone(),
-//             subaddress_index,
-//             key_image,
-//             value,
-//             received_block_index,
-//             &account_id_hex,
-//             conn,
-//         )?;
-
-//         // If we couldn't find an assigned subaddress for this value, store for -1
-//         let subaddress_key: i64 = subaddress_index.unwrap_or(-1) as i64;
-//         if output_txo_ids.get(&(subaddress_key)).is_none() {
-//             output_txo_ids.insert(subaddress_key, Vec::new());
-//         }
-
-//         output_txo_ids
-//             .get_mut(&(subaddress_key))
-//             .unwrap() // We know the key exists because we inserted above
-//             .push(txo_id);
-//     }
-
-//     Ok(output_txo_ids)
-// }
-
-// FIXME: test select received txo by value
-// FIXME: test syncing after removing account
 
 #[cfg(test)]
 mod tests {

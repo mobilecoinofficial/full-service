@@ -158,12 +158,10 @@ pub trait AccountModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
-    /// Update key-image-matching txos associated with this account to spent for
-    /// a given block height.
-    fn update_spent_and_increment_next_block(
+    /// Update the next block index this account will need to sync.
+    fn update_next_block_index(
         &self,
-        spent_block_index: i64,
-        key_images: Vec<KeyImage>,
+        next_block_index: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
@@ -412,60 +410,20 @@ impl AccountModel for Account {
         Ok(())
     }
 
-    fn update_spent_and_increment_next_block(
+    fn update_next_block_index(
         &self,
-        spent_block_index: i64,
-        key_images: Vec<KeyImage>,
+        next_block_index: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::{
             accounts::dsl::{account_id_hex, accounts},
-            txos::dsl::{txo_id_hex, txos},
         };
-
-        for key_image in key_images {
-            // Get the txo by key_image
-            let matches = crate::db::schema::txos::table
-                .select(crate::db::schema::txos::all_columns)
-                .filter(crate::db::schema::txos::key_image.eq(mc_util_serial::encode(&key_image)))
-                .load::<Txo>(conn)?;
-
-            if matches.is_empty() {
-                // Not Found is ok - this means it's a key_image not associated with any of our
-                // txos
-                continue;
-            } else if matches.len() > 1 {
-                return Err(WalletDbError::DuplicateEntries(format!(
-                    "Key Image: {:?}",
-                    key_image
-                )));
-            } else {
-                // Update the TXO
-                diesel::update(txos.filter(txo_id_hex.eq(&matches[0].txo_id_hex)))
-                    .set((
-                        crate::db::schema::txos::spent_block_index.eq(Some(spent_block_index)),
-                        crate::db::schema::txos::pending_tombstone_block_index
-                            .eq::<Option<i64>>(None),
-                    ))
-                    .execute(conn)?;
-
-                // FIXME: WS-13 - make sure the path for all txo_statuses and txo_types exist
-                // and are tested Update the transaction status if the txos
-                // are all spent
-                TransactionLog::update_transactions_associated_to_txo(
-                    &matches[0].txo_id_hex,
-                    spent_block_index,
-                    conn,
-                )?;
-            }
-        }
         diesel::update(accounts.filter(account_id_hex.eq(&self.account_id_hex)))
-            .set(crate::db::schema::accounts::next_block_index.eq(spent_block_index + 1))
+            .set(crate::db::schema::accounts::next_block_index.eq(next_block_index))
             .execute(conn)?;
         Ok(())
     }
 
-    /// Delete an account.
     fn delete(
         self,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
