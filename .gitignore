@@ -66,3 +66,5 @@ ingest-enclave.css
 *.db-wal
 
 *.mdb
+
+release/

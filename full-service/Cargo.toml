@@ -8,11 +8,10 @@ edition = "2018"
 name = "full-service"
 path = "src/bin/main.rs"
 
-[features]
-default = ["ip-check"]
-ip-check = []
-
 [dependencies]
+mc-validator-api = { path = "../validator/api" }
+mc-validator-connection = { path = "../validator/connection" }
+
 mc-account-keys = { path = "../mobilecoin/account-keys" }
 mc-account-keys-slip10 = { path = "../mobilecoin/account-keys/slip10" }
 mc-api = { path = "../mobilecoin/api" }
@@ -35,6 +34,7 @@ mc-sgx-css = { path = "../mobilecoin/sgx/css" }
 mc-transaction-core = { path = "../mobilecoin/transaction/core" }
 mc-transaction-std = { path = "../mobilecoin/transaction/std" }
 mc-util-from-random = { path = "../mobilecoin/util/from-random" }
+mc-util-parse = { path = "../mobilecoin/util/parse" }
 mc-util-serial = { path = "../mobilecoin/util/serial", default-features = false }
 mc-util-uri = { path = "../mobilecoin/util/uri" }
 
