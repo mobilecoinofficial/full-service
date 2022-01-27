@@ -14,10 +14,11 @@ case $MC_NETWORK in
         MOBILECOIN_CONFIG=$(cat <<EOF
 {
     "api-url": "http://127.0.0.1:9090/wallet",
-    "executable": "$MC_DATA/full-service-$MC_NETWORK",
+    "executable": "$MC_DATA/full-service",
     "ledger-db": "$MC_DATA/ledger-db",
     "wallet-db": "$MC_DATA/wallet-db/wallet.db",
     "logfile": "$MC_DATA/wallet_server_log.txt",
+    "fog-ingest-enclave-css": "",
     "peer": [
         "mc://node1.prod.mobilecoinww.com/",
         "mc://node2.prod.mobilecoinww.com/"
@@ -35,10 +36,11 @@ EOF
         MOBILECOIN_CONFIG=$(cat <<EOF
 {
     "api-url": "http://127.0.0.1:9090/wallet",
-    "executable": "$MC_DATA/full-service-$MC_NETWORK",
+    "executable": "$MC_DATA/full-service",
     "ledger-db": "$MC_DATA/ledger-db",
     "wallet-db": "$MC_DATA/wallet-db/wallet.db",
     "logfile": "$MC_DATA/wallet_server_log.txt",
+    "fog-ingest-enclave-css": "",
     "peer": [
         "mc://node1.test.mobilecoin.com/",
         "mc://node2.test.mobilecoin.com/"

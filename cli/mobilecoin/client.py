@@ -1,12 +1,8 @@
-import http
-
+from decimal import Decimal
+import http.client
 import json
 import time
-
-import requests
-
-from .utility import mob2pmob
-
+from urllib.parse import urlparse
 
 DEFAULT_URL = 'http://127.0.0.1:9090/wallet'
 
@@ -41,17 +37,21 @@ class Client:
             print()
 
         try:
-            r = requests.post(self.url, json=request_data)
-        except requests.ConnectionError:
+            parsed_url = urlparse(self.url)
+            connection = http.client.HTTPConnection(parsed_url.netloc)
+            connection.request('POST', parsed_url.path, json.dumps(request_data), {'Content-Type': 'application/json'})
+            r = connection.getresponse()
+
+        except ConnectionError:
             raise ConnectionError(f'Could not connect to wallet server at {self.url}.')
 
         try:
-            response_data = r.json()
+            response_data = json.load(r)
         except ValueError:
             raise ValueError('API returned invalid JSON:', r.text)
 
         if self.verbose:
-            print(r.status_code, http.client.responses[r.status_code])
+            print(r.status, http.client.responses[r.status])
             print(json.dumps(response_data, indent=2))
             print()
 
@@ -211,18 +211,29 @@ class Client:
         })
         return r['address_map']
 
-    def build_and_submit_transaction(self, account_id, amount, to_address):
+    def _build_and_submit_transaction(self, account_id, amount, to_address, fee):
         amount = str(mob2pmob(amount))
+        params = {
+            "account_id": account_id,
+            "addresses_and_values": [(to_address, amount)],
+        }
+        if fee is not None:
+            params['fee'] = str(mob2pmob(fee))
         r = self._req({
             "method": "build_and_submit_transaction",
-            "params": {
-                "account_id": account_id,
-                "addresses_and_values": [(to_address, amount)],
-            }
+            "params": params,
         })
+        return r
+
+    def build_and_submit_transaction(self, account_id, amount, to_address, fee=None):
+        r = self._build_and_submit_transaction(account_id, amount, to_address, fee)
         return r['transaction_log']
 
-    def build_transaction(self, account_id, amount, to_address, tombstone_block=None):
+    def build_and_submit_transaction_with_proposal(self, account_id, amount, to_address, fee=None):
+        r = self._build_and_submit_transaction(account_id, amount, to_address, fee)
+        return r['transaction_log'], r['tx_proposal']
+
+    def build_transaction(self, account_id, amount, to_address, tombstone_block=None, fee=None):
         amount = str(mob2pmob(amount))
         params = {
             "account_id": account_id,
@@ -230,6 +241,8 @@ class Client:
         }
         if tombstone_block is not None:
             params['tombstone_block'] = str(int(tombstone_block))
+        if fee is not None:
+            params['fee'] = str(mob2pmob(fee))
         r = self._req({
             "method": "build_transaction",
             "params": params,
@@ -342,13 +355,13 @@ class Client:
 
     # Utility methods.
 
-    def poll_balance(self, account_id, min_block_index=None, seconds=10):
+    def poll_balance(self, account_id, min_block_height=None, seconds=10):
         for _ in range(seconds):
             balance = self.get_balance_for_account(account_id)
             if balance['is_synced']:
                 if (
-                    min_block_index is None
-                    or int(balance['account_block_index']) >= min_block_index
+                    min_block_height is None
+                    or int(balance['account_block_height']) >= min_block_height
                 ):
                     return balance
             time.sleep(1.0)
@@ -373,3 +386,21 @@ class Client:
             time.sleep(1)
         else:
             raise Exception('Txo {} never landed.'.format(txo_id))
+
+
+PMOB = Decimal("1e12")
+
+
+def mob2pmob(x):
+    """Convert from MOB to picoMOB."""
+    result = round(Decimal(x) * PMOB)
+    assert 0 <= result < 2**64
+    return result
+
+
+def pmob2mob(x):
+    """Convert from picoMOB to MOB."""
+    result = int(x) / PMOB
+    if result == 0:
+        result = Decimal("0")
+    return result

@@ -6,15 +6,24 @@
 use diesel::{connection::SimpleConnection, prelude::*, SqliteConnection};
 use diesel_migrations::embed_migrations;
 use dotenv::dotenv;
-use mc_attest_core::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
-use mc_common::logger::{create_app_logger, log, o};
+use mc_attest_verifier::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
+use mc_common::logger::{create_app_logger, log, o, Logger};
+use mc_connection::ConnectionManager;
+use mc_consensus_scp::QuorumSet;
+use mc_fog_report_validation::FogResolver;
 use mc_full_service::{
+    check_host,
     config::APIConfig,
-    wallet::{rocket, WalletState},
-    WalletDb, WalletService,
+    wallet::{consensus_backed_rocket, validator_backed_rocket, WalletState},
+    ValidatorLedgerSyncThread, WalletDb, WalletService,
 };
 use mc_ledger_sync::{LedgerSyncServiceThread, PollingNetworkState, ReqwestTransactionsFetcher};
-use std::sync::{Arc, RwLock};
+use mc_validator_api::ValidatorUri;
+use mc_validator_connection::ValidatorConnection;
+use std::{
+    process::exit,
+    sync::{Arc, RwLock},
+};
 use structopt::StructOpt;
 
 #[allow(unused_imports)] // Needed for embedded_migrations!
@@ -22,6 +31,11 @@ use structopt::StructOpt;
 extern crate diesel_migrations;
 
 embed_migrations!("migrations/");
+
+// Exit codes.
+const EXIT_NO_DATABASE_CONNECTION: i32 = 2;
+const EXIT_WRONG_PASSWORD: i32 = 3;
+const EXIT_INVALID_HOST: i32 = 4;
 
 fn main() {
     dotenv().ok();
@@ -32,9 +46,13 @@ fn main() {
     let config = APIConfig::from_args();
 
     // Exit if the user is not in an authorized country.
-    if !cfg!(debug_assertions) && !config.offline && config.validate_host().is_err() {
-        println!("Could not validate host");
-        return;
+    if !cfg!(debug_assertions)
+        && !config.offline
+        && config.validator.is_none()
+        && check_host::check_host_is_allowed_country_and_region().is_err()
+    {
+        eprintln!("Could not validate host");
+        exit(EXIT_INVALID_HOST);
     }
 
     let (logger, _global_logger_guard) = create_app_logger(o!());
@@ -47,15 +65,16 @@ fn main() {
 
     // Connect to the database and run the migrations
     let conn =
-        SqliteConnection::establish(&config.wallet_db.to_str().unwrap()).unwrap_or_else(|err| {
-            panic!(
-                "Cannot connect to {:?} database: {:?}",
-                config.wallet_db, err
-            )
+        SqliteConnection::establish(config.wallet_db.to_str().unwrap()).unwrap_or_else(|err| {
+            eprintln!("Cannot open database {:?}: {:?}", config.wallet_db, err);
+            exit(EXIT_NO_DATABASE_CONNECTION);
         });
     WalletDb::set_db_encryption_key_from_env(&conn);
     WalletDb::try_change_db_encryption_key_from_env(&conn);
-    WalletDb::check_database_connectivity(&conn);
+    if !WalletDb::check_database_connectivity(&conn) {
+        eprintln!("Incorrect password for database {:?}.", config.wallet_db);
+        exit(EXIT_WRONG_PASSWORD);
+    };
 
     // Our migrations sometimes violate foreign keys, so disable foreign key checks
     // while we apply them.
@@ -88,6 +107,21 @@ fn main() {
     )
     .expect("Could not access wallet db");
 
+    // Start WalletService based on our configuration
+    if let Some(validator_uri) = config.validator.as_ref() {
+        validator_backed_full_service(validator_uri, &config, wallet_db, rocket_config, logger);
+    } else {
+        consensus_backed_full_service(&config, wallet_db, rocket_config, logger);
+    };
+}
+
+fn consensus_backed_full_service(
+    config: &APIConfig,
+    wallet_db: WalletDb,
+    rocket_config: rocket::Config,
+    logger: Logger,
+) {
+    // Verifier
     let mut mr_signer_verifier =
         MrSignerVerifier::from(mc_consensus_enclave_measurement::sigstruct());
     mr_signer_verifier.allow_hardening_advisory("INTEL-SA-00334");
@@ -102,19 +136,31 @@ fn main() {
 
     // Create network state, transactions fetcher and ledger sync.
     let network_state = Arc::new(RwLock::new(PollingNetworkState::new(
-        config.quorum_set(),
+        config.peers_config.quorum_set(),
         peer_manager.clone(),
         logger.clone(),
     )));
 
     let transactions_fetcher = ReqwestTransactionsFetcher::new(
-        config.tx_source_urls.clone().unwrap_or_default(),
+        config
+            .peers_config
+            .tx_source_urls
+            .clone()
+            .unwrap_or_default(),
         logger.clone(),
     )
     .expect("Failed creating ReqwestTransactionsFetcher");
 
     // Create the ledger_db.
-    let ledger_db = config.create_or_open_ledger_db(&logger, &transactions_fetcher);
+    let ledger_db = config.ledger_db_config.create_or_open_ledger_db(
+        || {
+            transactions_fetcher
+                .get_origin_block_and_transactions()
+                .map_err(|err| err.to_string())
+        },
+        config.offline,
+        &logger,
+    );
 
     // Start ledger sync thread unless running in offline mode.
     let _ledger_sync_service_thread = if config.offline {
@@ -130,20 +176,109 @@ fn main() {
         ))
     };
 
-    let state = WalletState {
-        service: WalletService::new(
-            wallet_db,
-            ledger_db,
-            peer_manager,
-            network_state,
-            config.get_fog_resolver_factory(logger.clone()),
-            config.num_workers,
-            config.offline,
-            logger,
-        ),
-    };
+    let service = WalletService::new(
+        wallet_db,
+        ledger_db,
+        peer_manager,
+        network_state,
+        config.get_fog_resolver_factory(logger.clone()),
+        config.num_workers,
+        config.offline,
+        logger,
+    );
 
-    let rocket = rocket(rocket_config, state);
+    // Start HTTP API server
+    let state = WalletState { service };
 
+    let rocket = consensus_backed_rocket(rocket_config, state);
+    rocket.launch();
+}
+
+fn validator_backed_full_service(
+    validator_uri: &ValidatorUri,
+    config: &APIConfig,
+    wallet_db: WalletDb,
+    rocket_config: rocket::Config,
+    logger: Logger,
+) {
+    let validator_conn = ValidatorConnection::new(validator_uri, logger.clone());
+
+    // Create the ledger_db.
+    let ledger_db = config.ledger_db_config.create_or_open_ledger_db(
+        || {
+            // Get the origin block.
+            let blocks_data = validator_conn
+                .get_blocks_data(0, 1)
+                .map_err(|err| err.to_string())?;
+            assert_eq!(blocks_data.len(), 1);
+
+            Ok(blocks_data[0].clone())
+        },
+        false,
+        &logger,
+    );
+
+    // Create connections manager.
+    let conn_manager = ConnectionManager::new(vec![validator_conn.clone()], logger.clone());
+
+    // Create network state
+    // Note: There's onlu one node but we still need a quorum set.
+    let node_ids = conn_manager.responder_ids();
+    let quorum_set = QuorumSet::new_with_node_ids(node_ids.len() as u32, node_ids);
+
+    let network_state = Arc::new(RwLock::new(PollingNetworkState::new(
+        quorum_set,
+        conn_manager.clone(),
+        logger.clone(),
+    )));
+
+    // Create the ledger sync thread.
+    let _ledger_sync_thread = ValidatorLedgerSyncThread::new(
+        validator_uri,
+        config.poll_interval,
+        ledger_db.clone(),
+        network_state.clone(),
+        logger.clone(),
+    );
+
+    let fog_ingest_verifier = config.get_fog_ingest_verifier();
+    let logger2 = logger.clone();
+    let service = WalletService::new(
+        wallet_db,
+        ledger_db,
+        conn_manager,
+        network_state,
+        Arc::new(move |fog_uris| -> Result<FogResolver, String> {
+            if fog_uris.is_empty() {
+                Ok(Default::default())
+            } else if let Some(verifier) = fog_ingest_verifier.as_ref() {
+                let report_responses = validator_conn
+                    .fetch_fog_reports(fog_uris.iter().cloned())
+                    .map_err(|err| {
+                    format!(
+                        "Error fetching fog reports (via validator) for {:?}: {}",
+                        fog_uris, err
+                    )
+                })?;
+
+                log::debug!(logger2, "Got report responses {:?}", report_responses);
+                Ok(FogResolver::new(report_responses, verifier)
+                    .expect("Could not construct fog resolver"))
+            } else {
+                Err(
+                    "Some recipients have fog, but no fog ingest report verifier was configured"
+                        .to_string(),
+                )
+            }
+        }),
+        config.num_workers,
+        false,
+        logger,
+    );
+
+    // Start HTTP API server
+    let state = WalletState { service };
+
+    let rocket = validator_backed_rocket(rocket_config, state);
     rocket.launch();
 }

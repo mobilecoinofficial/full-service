@@ -139,7 +139,7 @@ where
         // Since we are creating the account from randomness, it is highly unlikely that
         // it would have collided with another account that already received funds. For
         // this reason, start scanning at the current network block index.
-        let first_block_index = self.get_network_block_index()?;
+        let first_block_index = self.get_network_block_height()? - 1;
 
         // The earliest we could start scanning is the current highest block index of
         // the local ledger.
@@ -265,7 +265,7 @@ where
 
     fn get_account(&self, account_id: &AccountID) -> Result<Account, AccountServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| Ok(Account::get(&account_id, &conn)?))
+        conn.transaction(|| Ok(Account::get(account_id, &conn)?))
     }
 
     fn update_account_name(
@@ -275,8 +275,8 @@ where
     ) -> Result<Account, AccountServiceError> {
         let conn = self.wallet_db.get_conn()?;
         conn.transaction(|| {
-            Account::get(&account_id, &conn)?.update_name(name, &conn)?;
-            Ok(Account::get(&account_id, &conn)?)
+            Account::get(account_id, &conn)?.update_name(name, &conn)?;
+            Ok(Account::get(account_id, &conn)?)
         })
     }
 
@@ -297,7 +297,7 @@ where
 mod tests {
     use super::*;
     use crate::{
-        db::{account_txo_status::AccountTxoStatusModel, models::AccountTxoStatus},
+        db::{models::Txo, txo::TxoModel},
         test_utils::{create_test_received_txo, get_test_ledger, setup_wallet_service, MOB},
     };
     use mc_account_keys::{AccountKey, PublicAddress};
@@ -305,7 +305,7 @@ mod tests {
     use rand::{rngs::StdRng, SeedableRng};
 
     #[test_with_logger]
-    fn test_remove_account_txo_status(logger: Logger) {
+    fn test_remove_account_from_txo(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -316,13 +316,6 @@ mod tests {
 
         // Create an account.
         let account = service.create_account(Some("A".to_string())).unwrap();
-
-        let statuses = AccountTxoStatus::get_all_for_account(
-            &account.account_id_hex,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-        assert_eq!(statuses.len(), 0);
 
         // Add a transaction, with transaction status.
         let account_key: AccountKey = mc_util_serial::decode(&account.account_key).unwrap();
@@ -336,23 +329,27 @@ mod tests {
             &wallet_db,
         );
 
-        let statuses = AccountTxoStatus::get_all_for_account(
+        let txos = Txo::list_for_account(
             &account.account_id_hex,
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(statuses.len(), 1);
+        assert_eq!(txos.len(), 1);
 
         // Delete the account. The transaction status referring to it is also cleared.
         let account_id = AccountID(account.account_id_hex.clone().to_string());
         let result = service.remove_account(&account_id);
         assert!(result.is_ok());
 
-        let statuses = AccountTxoStatus::get_all_for_account(
+        let txos = Txo::list_for_account(
             &account.account_id_hex,
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(statuses.len(), 0);
+        assert_eq!(txos.len(), 0);
     }
 }

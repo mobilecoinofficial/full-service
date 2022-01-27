@@ -32,7 +32,7 @@ Due to the privacy properties of the MobileCoin ledger, transactions are ephemer
 | `comment` | String | An arbitrary string attached to the object. |
 | `failure_code` | Integer | Code representing the cause of "failed" status. |
 | `failure_message` | String | Human parsable explanation of "failed" status. |
-| `offset_count` | Integer | The value to offset pagination requests for `transaction_log` list. Requests will exclude all list items up to and including this object. |
+| `offset` | Integer | The value to offset pagination requests for `transaction_log` list. Requests will exclude all list items up to and including this object. |
 
 ## Example
 
@@ -64,8 +64,7 @@ Due to the privacy properties of the MobileCoin ledger, transactions are ephemer
   "sent_time": "2021-02-28 01:42:28 UTC",
   "comment": "",
   "failure_code": null,
-  "failure_message": null,
-  "offset_count": 2252
+  "failure_message": null
 }
 ```
 {% endtab %}
@@ -97,8 +96,7 @@ Due to the privacy properties of the MobileCoin ledger, transactions are ephemer
   "sent_time": "2021-02-28 01:42:28 UTC",
   "comment": "This is an example of a failed sent transaction log of 1.288 MOB and 0.01 MOB fee!",
   "failure_code": 3,
-  "failure_message:": "Contains sent key image.",
-  "offset_count": 2252
+  "failure_message:": "Contains sent key image."
 }
 ```
 {% endtab %}
@@ -130,8 +128,7 @@ Due to the privacy properties of the MobileCoin ledger, transactions are ephemer
   "sent_time": "2021-02-28 01:42:28 UTC",
   "comment": "",
   "failure_code": null,
-  "failure_message": null,
-  "offset_count": 2252
+  "failure_message": null
 }
 ```
 {% endtab %}

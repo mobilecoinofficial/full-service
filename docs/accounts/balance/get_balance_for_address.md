@@ -14,7 +14,7 @@ description: Get the current balance for a given address.
 {
   "method": "get_balance_for_address",
   "params": {
-     "address": "3P4GtGkp5UVBXUzBqirgj7QFetWn4PsFPsHBXbC6A8AXw1a9CMej969jneiN1qKcwdn6e1VtD64EruGVSFQ8wHk5xuBHndpV9WUGQ78vV7Z"
+    "address": "3P4GtGkp5UVBXUzBqirgj7QFetWn4PsFPsHBXbC6A8AXw1a9CMej969jneiN1qKcwdn6e1VtD64EruGVSFQ8wHk5xuBHndpV9WUGQ78vV7Z"
   },
   "jsonrpc": "2.0",
   "api_version": "2",
@@ -30,9 +30,9 @@ description: Get the current balance for a given address.
   "result": {
     "balance": {
       "object": "balance",
-      "network_block_index": "152961",
-      "local_block_index": "152961",
-      "account_block_index": "152961",
+      "network_block_height": "152961",
+      "local_block_height": "152961",
+      "account_block_height": "152961",
       "is_synced": true,
       "unspent_pmob": "11881402222024",
       "pending_pmob": "0",

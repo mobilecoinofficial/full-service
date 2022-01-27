@@ -1,13 +1,4 @@
 table! {
-    account_txo_statuses (account_id_hex, txo_id_hex) {
-        account_id_hex -> Text,
-        txo_id_hex -> Text,
-        txo_status -> Text,
-        txo_type -> Text,
-    }
-}
-
-table! {
     accounts (id) {
         id -> Integer,
         account_id_hex -> Text,
@@ -93,11 +84,12 @@ table! {
         spent_block_index -> Nullable<BigInt>,
         confirmation -> Nullable<Binary>,
         recipient_public_address_b58 -> Text,
+        minted_account_id_hex -> Nullable<Text>,
+        received_account_id_hex -> Nullable<Text>,
     }
 }
 
 allow_tables_to_appear_in_same_query!(
-    account_txo_statuses,
     accounts,
     assigned_subaddresses,
     gift_codes,

@@ -174,7 +174,7 @@ impl SyncThread {
                                 .get_conn()
                                 .expect("Could not get connection to DB");
                             conn.transaction::<Vec<Account>, WalletDbError, _>(|| {
-                                Ok(Account::list_all(&conn)
+                                Ok(Account::list_all(conn)
                                     .expect("Failed getting accounts from database"))
                             })
                             .expect("Failed executing database transaction")
@@ -447,7 +447,7 @@ pub fn process_txos(
 
         // See if it matches any of our assigned subaddresses.
         let subaddress_index =
-            match AssignedSubaddress::find_by_subaddress_spend_public_key(&subaddress_spk, &conn) {
+            match AssignedSubaddress::find_by_subaddress_spend_public_key(&subaddress_spk, conn) {
                 Ok((index, account_id)) => {
                     log::trace!(
                         logger,
@@ -502,7 +502,7 @@ pub fn process_txos(
             value,
             received_block_index,
             &account_id_hex,
-            &conn,
+            conn,
         )?;
 
         // If we couldn't find an assigned subaddress for this value, store for -1
@@ -606,7 +606,7 @@ mod tests {
         let expected_value: u64 = 15_625_000 * MOB as u64;
         for txo_id in subaddress_to_txo_ids[&0].clone() {
             let txo = Txo::get(&txo_id, &wallet_db.get_conn().unwrap()).expect("Could not get txo");
-            assert_eq!(txo.txo.value as u64, expected_value);
+            assert_eq!(txo.value as u64, expected_value);
         }
 
         // Now verify that the service gets the balance with the correct value

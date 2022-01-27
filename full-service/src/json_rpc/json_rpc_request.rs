@@ -38,7 +38,7 @@ pub struct JsonRPCRequest {
     /// The ID to be associated with this request.
     /// JSON-RPC Notification requests are not yet supported, so this field is
     /// not optional.
-    pub id: u32,
+    pub id: serde_json::Value,
 }
 
 impl TryFrom<&JsonRPCRequest> for JsonCommandRequest {
@@ -95,11 +95,7 @@ pub enum JsonCommandRequest {
         fee: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
-    },
-    claim_gift_code {
-        gift_code_b58: String,
-        account_id: String,
-        address: Option<String>,
+        log_tx_proposal: Option<bool>,
     },
     check_b58_type {
         b58_code: String,
@@ -110,6 +106,11 @@ pub enum JsonCommandRequest {
     check_receiver_receipt_status {
         address: String,
         receiver_receipt: ReceiverReceipt,
+    },
+    claim_gift_code {
+        gift_code_b58: String,
+        account_id: String,
+        address: Option<String>,
     },
     create_account {
         name: Option<String>,
@@ -131,6 +132,10 @@ pub enum JsonCommandRequest {
     },
     get_account_status {
         account_id: String,
+    },
+    get_address_for_account {
+        account_id: String,
+        index: i64,
     },
     get_addresses_for_account {
         account_id: String,

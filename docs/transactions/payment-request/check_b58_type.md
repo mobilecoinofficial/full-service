@@ -31,7 +31,7 @@ description: Check the type of the b58 code
 {
   "method": "check_b58_code",
   "result": {
-    "type": "PaymentRequest",
+    "b58_type": "PaymentRequest",
     "data": {
       "value": "1000000000000",
       "public_address_b58": "4BfAQbahn9Bs8on7RrWkpargtVUiGNnLrbsmCVFyeqFHHATbwV4CRtjQvhhzpyrkbWBU2HqWK8Fg6boZ235YLEzkGJNFBEVGTKAnCN6vNGV",

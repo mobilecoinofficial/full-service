@@ -27,12 +27,13 @@ pub enum WalletDbError {
     /// Constructed a transaction with no recipient
     TransactionLacksRecipient,
 
-    /// Constructed a transaction that is not linked to any account in the
-    /// wallet
+    /** Constructed a transaction that is not linked to any account in the
+     * wallet
+     */
     TransactionLacksAccount,
 
     /// Error decoding prost: {0}
-    ProstDecode(prost::DecodeError),
+    ProstDecode(mc_util_serial::DecodeError),
 
     /// We expect one change output per TxProposal
     UnexpectedNumberOfChangeOutputs,
@@ -46,8 +47,9 @@ pub enum WalletDbError {
     /// No unspent Txos in the wallet
     NoSpendableTxos,
 
-    /// Txos are too fragmented to construct a transaction with MAX_INPUTS.
-    /// Please combine txos.
+    /** Txos are too fragmented to construct a transaction with MAX_INPUTS.
+     * Please combine txos.
+     */
     InsufficientFundsFragmentedTxos,
 
     /// Insufficient Funds: {0}
@@ -101,8 +103,9 @@ pub enum WalletDbError {
     /// The account key and the entropy provided to create account do not match.
     AccountSecretsDoNotMatch,
 
-    /// The account cannot be created without either an entropy or an account
-    /// key.
+    /** The account cannot be created without either an entropy or an account
+     * key.
+     */
     InsufficientSecretsToCreateAccount,
 
     /// Error with the GiftCode service: {0}
@@ -142,8 +145,8 @@ impl From<mc_api::display::Error> for WalletDbError {
     }
 }
 
-impl From<prost::DecodeError> for WalletDbError {
-    fn from(src: prost::DecodeError) -> Self {
+impl From<mc_util_serial::DecodeError> for WalletDbError {
+    fn from(src: mc_util_serial::DecodeError) -> Self {
         Self::ProstDecode(src)
     }
 }

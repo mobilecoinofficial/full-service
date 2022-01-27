@@ -49,6 +49,7 @@ use mc_connection::{
 };
 use mc_fog_report_validation::{FogPubkeyResolver, FogResolver};
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
+use mc_validator_connection::ValidatorConnection;
 use rocket::{get, post, routes};
 use rocket_contrib::json::Json;
 use serde_json::Map;
@@ -63,12 +64,14 @@ pub struct WalletState<
     pub service: WalletService<T, FPR>,
 }
 
-/// The route for the Full Service Wallet API.
-#[post("/wallet", format = "json", data = "<command>")]
-fn wallet_api(
-    state: rocket::State<WalletState<ThickClient<HardcodedCredentialsProvider>, FogResolver>>,
+fn generic_wallet_api<T, FPR>(
+    state: rocket::State<WalletState<T, FPR>>,
     command: Json<JsonRPCRequest>,
-) -> Result<Json<JsonRPCResponse>, String> {
+) -> Result<Json<JsonRPCResponse>, String>
+where
+    T: BlockchainConnection + UserTxConnection + 'static,
+    FPR: FogPubkeyResolver + Send + Sync + 'static,
+{
     let req: JsonRPCRequest = command.0.clone();
 
     let mut response = JsonRPCResponse {
@@ -97,6 +100,23 @@ fn wallet_api(
     };
 
     Ok(Json(response))
+}
+
+/// The route for the Full Service Wallet API.
+#[post("/wallet", format = "json", data = "<command>")]
+pub fn consensus_backed_wallet_api(
+    state: rocket::State<WalletState<ThickClient<HardcodedCredentialsProvider>, FogResolver>>,
+    command: Json<JsonRPCRequest>,
+) -> Result<Json<JsonRPCResponse>, String> {
+    generic_wallet_api(state, command)
+}
+
+#[post("/wallet", format = "json", data = "<command>")]
+pub fn validator_backed_wallet_api(
+    state: rocket::State<WalletState<ValidatorConnection, FogResolver>>,
+    command: Json<JsonRPCRequest>,
+) -> Result<Json<JsonRPCResponse>, String> {
+    generic_wallet_api(state, command)
 }
 
 /// The Wallet API inner method, which handles switching on the method enum.
@@ -144,7 +164,7 @@ where
             if let (Some(a), Some(v)) = (recipient_public_address, value_pmob) {
                 addresses_and_values.push((a, v));
             }
-            let (transaction_log, associated_txos) = service
+            let (transaction_log, associated_txos, tx_proposal) = service
                 .build_and_submit(
                     &account_id,
                     &addresses_and_values,
@@ -160,6 +180,7 @@ where
                     &transaction_log,
                     &associated_txos,
                 ),
+                tx_proposal: TxProposal::from(&tx_proposal),
             }
         }
         JsonCommandRequest::build_gift_code {
@@ -228,6 +249,7 @@ where
             fee,
             tombstone_block,
             max_spendable_value,
+            log_tx_proposal,
         } => {
             // The user can specify a list of addresses and values,
             // or a single address and a single value (deprecated).
@@ -243,6 +265,7 @@ where
                     fee,
                     tombstone_block,
                     max_spendable_value,
+                    log_tx_proposal,
                 )
                 .map_err(format_error)?;
             JsonCommandResponse::build_transaction {
@@ -380,6 +403,14 @@ where
             );
             JsonCommandResponse::get_account_status { account, balance }
         }
+        JsonCommandRequest::get_address_for_account { account_id, index } => {
+            let assigned_subaddress = service
+                .get_address_for_account(&AccountID(account_id), index)
+                .map_err(format_error)?;
+            JsonCommandResponse::get_address_for_account {
+                address: Address::from(&assigned_subaddress),
+            }
+        }
         JsonCommandRequest::get_addresses_for_account {
             account_id,
             offset,
@@ -480,7 +511,7 @@ where
                     .collect::<Vec<(String, serde_json::Value)>>(),
             );
 
-            JsonCommandResponse::get_transaction_logs_for_account {
+            JsonCommandResponse::get_all_transaction_logs_for_account {
                 transaction_log_ids: transaction_logs_and_txos
                     .iter()
                     .map(|(t, _a)| t.transaction_id_hex.to_string())
@@ -542,15 +573,15 @@ where
                 txos.iter()
                     .map(|t| {
                         (
-                            t.txo.txo_id_hex.clone(),
+                            t.txo_id_hex.clone(),
                             serde_json::to_value(Txo::from(t)).expect("Could not get json value"),
                         )
                     })
                     .collect::<Vec<(String, serde_json::Value)>>(),
             );
 
-            JsonCommandResponse::get_txos_for_account {
-                txo_ids: txos.iter().map(|t| t.txo.txo_id_hex.clone()).collect(),
+            JsonCommandResponse::get_all_txos_for_account {
+                txo_ids: txos.iter().map(|t| t.txo_id_hex.clone()).collect(),
                 txo_map,
             }
         }
@@ -562,7 +593,7 @@ where
                 txos.iter()
                     .map(|t| {
                         (
-                            t.txo.txo_id_hex.clone(),
+                            t.txo_id_hex.clone(),
                             serde_json::to_value(Txo::from(t)).expect("Could not get json value"),
                         )
                     })
@@ -570,7 +601,7 @@ where
             );
 
             JsonCommandResponse::get_all_txos_for_address {
-                txo_ids: txos.iter().map(|t| t.txo.txo_id_hex.clone()).collect(),
+                txo_ids: txos.iter().map(|t| t.txo_id_hex.clone()).collect(),
                 txo_map,
             }
         }
@@ -701,7 +732,7 @@ where
                 txos.iter()
                     .map(|t| {
                         (
-                            t.txo.txo_id_hex.clone(),
+                            t.txo_id_hex.clone(),
                             serde_json::to_value(Txo::from(t)).expect("Could not get json value"),
                         )
                     })
@@ -709,7 +740,7 @@ where
             );
 
             JsonCommandResponse::get_txos_for_account {
-                txo_ids: txos.iter().map(|t| t.txo.txo_id_hex.clone()).collect(),
+                txo_ids: txos.iter().map(|t| t.txo_id_hex.clone()).collect(),
                 txo_map,
             }
         }
@@ -883,11 +914,26 @@ fn health() -> Result<(), ()> {
 }
 
 /// Returns an instance of a Rocket server.
-pub fn rocket(
+pub fn consensus_backed_rocket(
     rocket_config: rocket::Config,
     state: WalletState<ThickClient<HardcodedCredentialsProvider>, FogResolver>,
 ) -> rocket::Rocket {
     rocket::custom(rocket_config)
-        .mount("/", routes![wallet_api, wallet_help, health])
+        .mount(
+            "/",
+            routes![consensus_backed_wallet_api, wallet_help, health],
+        )
+        .manage(state)
+}
+
+pub fn validator_backed_rocket(
+    rocket_config: rocket::Config,
+    state: WalletState<ValidatorConnection, FogResolver>,
+) -> rocket::Rocket {
+    rocket::custom(rocket_config)
+        .mount(
+            "/",
+            routes![validator_backed_wallet_api, wallet_help, health],
+        )
         .manage(state)
 }
