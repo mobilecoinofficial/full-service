@@ -863,7 +863,7 @@ mod tests {
     use mc_crypto_rand::RngCore;
     use mc_fog_report_validation::MockFogPubkeyResolver;
     use mc_ledger_db::Ledger;
-    use mc_transaction_core::constants::MINIMUM_FEE;
+    use mc_transaction_core::{tokens::Mob, Token};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
     use std::{iter::FromIterator, time::Duration};
@@ -987,7 +987,7 @@ mod tests {
                 logger.clone(),
             );
         assert_eq!(output_value, 33 * MOB);
-        assert_eq!(change_value, 967 * MOB - MINIMUM_FEE as i64);
+        assert_eq!(change_value, 967 * MOB - Mob::MINIMUM_FEE as i64);
 
         add_block_with_db_txos(
             &mut ledger_db,
@@ -1159,7 +1159,7 @@ mod tests {
                 logger.clone(),
             );
         assert_eq!(output_value, 72 * MOB);
-        assert_eq!(change_value, 928 * MOB - (2 * MINIMUM_FEE as i64));
+        assert_eq!(change_value, 928 * MOB - (2 * Mob::MINIMUM_FEE as i64));
 
         // Add the minted Txos to the ledger
         add_block_with_db_txos(
@@ -1243,7 +1243,7 @@ mod tests {
         // Once we include the fee, we need another txo
         let txos_for_value = Txo::select_unspent_txos_for_value(
             &account_id_hex.to_string(),
-            300 * MOB as u64 + MINIMUM_FEE,
+            300 * MOB as u64 + Mob::MINIMUM_FEE,
             None,
             &wallet_db.get_conn().unwrap(),
         )
@@ -1257,7 +1257,7 @@ mod tests {
         // Setting max spendable value gives us insufficient funds - only allows 100
         let res = Txo::select_unspent_txos_for_value(
             &account_id_hex.to_string(),
-            300 * MOB as u64 + MINIMUM_FEE,
+            300 * MOB as u64 + Mob::MINIMUM_FEE,
             Some(200 * MOB),
             &wallet_db.get_conn().unwrap(),
         );
@@ -1406,7 +1406,7 @@ mod tests {
         assert!(minted_txo.minted_account_id_hex.is_some());
         assert!(minted_txo.received_account_id_hex.is_none());
 
-        assert_eq!(change_value, 4999 * MOB - MINIMUM_FEE as i64);
+        assert_eq!(change_value, 4999 * MOB - Mob::MINIMUM_FEE as i64);
         let change_txo = Txo::get(&change_txo_id, &wallet_db.get_conn().unwrap()).unwrap();
         assert_eq!(change_txo.value, change_value);
         assert!(change_txo.minted_account_id_hex.is_some());
