@@ -208,19 +208,6 @@ pub trait TxoModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
-    /// Check whether all of the given Txos are spent.
-    fn are_all_spent(
-        txo_ids: &[String],
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<bool, WalletDbError>;
-
-    /// Check whether any of the given Txos failed.
-    fn any_failed(
-        txo_ids: &[String],
-        block_index: i64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<bool, WalletDbError>;
-
     /// Select a set of unspent Txos to reach a given value.
     ///
     /// Returns:
@@ -705,37 +692,6 @@ impl TxoModel for Txo {
             .filter(txos::txo_id_hex.eq_any(txo_ids))
             .load(conn)?;
         Ok(txos)
-    }
-
-    fn are_all_spent(
-        txo_ids: &[String],
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<bool, WalletDbError> {
-        use crate::db::schema::txos;
-
-        let spent_txos_count: i64 = txos::table
-            .filter(txos::txo_id_hex.eq_any(txo_ids))
-            .filter(txos::spent_block_index.is_not_null())
-            .select(diesel::dsl::count(txos::txo_id_hex))
-            .first(conn)?;
-
-        Ok(spent_txos_count == txo_ids.len() as i64)
-    }
-
-    fn any_failed(
-        txo_ids: &[String],
-        block_index: i64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<bool, WalletDbError> {
-        use crate::db::schema::txos;
-
-        let txos: Vec<Txo> = txos::table
-            .filter(txos::txo_id_hex.eq_any(txo_ids))
-            .filter(txos::pending_tombstone_block_index.lt(Some(block_index)))
-            .load(conn)?;
-
-        // Report true if any txos have expired
-        Ok(!txos.is_empty())
     }
 
     fn select_unspent_txos_for_value(
@@ -1870,7 +1826,6 @@ mod tests {
     // FIXME: once we have create_minted, then select_txos test with no
     // FIXME: test update txo after tombstone block is exceeded
     // FIXME: test update txo after it has landed via key_image update
-    // FIXME: test any_failed and are_all_spent
     // FIXME: test for selecting utxos from multiple subaddresses in one account
     // FIXME: test for one TXO belonging to multiple accounts with get
     // FIXME: test create_received for various permutations of multiple accounts
