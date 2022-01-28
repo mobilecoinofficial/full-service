@@ -456,11 +456,11 @@ impl TxoModel for Txo {
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::txos;
 
-        diesel::update(
-            txos::table
-                .filter(txos::txo_id_hex.eq(txo_id_hex))
-        )
-            .set(txos::spent_block_index.eq(Some(spent_block_index)))
+        diesel::update(txos::table.filter(txos::txo_id_hex.eq(txo_id_hex)))
+            .set((
+                txos::spent_block_index.eq(Some(spent_block_index)),
+                txos::pending_tombstone_block_index.eq::<Option<i64>>(None),
+            ))
             .execute(conn)?;
         Ok(())
     }
@@ -545,7 +545,7 @@ impl TxoModel for Txo {
                 Some(key_image_encoded) => {
                     let key_image = mc_util_serial::decode(key_image_encoded.as_slice()).ok()?;
                     Some((key_image, txo_id_hex))
-                },
+                }
                 None => None,
             })
             .collect())
