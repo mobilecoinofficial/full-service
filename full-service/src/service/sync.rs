@@ -40,7 +40,7 @@ use std::{
         Arc, Mutex,
     },
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 const BLOCKS_CHUNK_SIZE: i64 = 10_000;
@@ -72,8 +72,10 @@ impl SyncThread {
                             log::debug!(logger, "SyncThread stop requested.");
                             break;
                         }
-
-                        sync_all_accounts(&ledger_db, &wallet_db, &logger).unwrap(); // TODO: error logging
+                        match sync_all_accounts(&ledger_db, &wallet_db, &logger) {
+                            Ok(()) => (),
+                            Err(e) => log::error!(&logger, "Error during account sync:\n{:?}", e),
+                        }
 
                         thread::sleep(std::time::Duration::from_secs(1));
                     }
@@ -112,27 +114,29 @@ pub fn sync_all_accounts(
         .num_blocks()
         .expect("failed getting number of blocks");
 
-    dbg!(num_blocks);
-
     // Go over our list of accounts and see which ones need to process more blocks.
     let accounts = {
         let conn = &wallet_db
             .get_conn()
             .expect("Could not get connection to DB");
-        conn.transaction::<Vec<Account>, WalletDbError, _>(|| {
-            Ok(Account::list_all(conn).expect("Failed getting accounts from database"))
-        })
-        .expect("Failed executing database transaction")
+        Account::list_all(conn).expect("Failed getting accounts from database")
     };
+
     for account in accounts {
         // If there are no new blocks for this account, don't do anything.
-        if account.next_block_index >= num_blocks as i64 {
+        if account.next_block_index as u64 >= num_blocks - 1 {
             continue;
         }
         sync_account(&ledger_db, &wallet_db, &account.account_id_hex, &logger)?;
     }
 
     Ok(())
+}
+
+#[derive(Debug)]
+enum SyncStatus {
+    ChunkFinished,
+    NoMoreBlocks,
 }
 
 /// Sync a single account.
@@ -145,103 +149,140 @@ fn sync_account(
     let conn = wallet_db.get_conn()?;
     loop {
         // Sync one chunk of blocks for this account each iteration of the loop.
-        conn.transaction::<(), SyncError, _>(|| {
-            // Get the account data. If it is no longer available, the account has been
-            // removed and we can simply return.
-            let account = Account::get(&AccountID(account_id_hex.to_string()), &conn)?;
-            let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+        match sync_account_next_chunk(ledger_db, &conn, logger, account_id_hex)? {
+            SyncStatus::ChunkFinished => continue,
+            SyncStatus::NoMoreBlocks => break,
+        }
+    }
+    Ok(())
+}
 
-            // Load subaddresses for this account into a hash map.
-            let mut subaddress_keys: HashMap<RistrettoPublic, u64> = HashMap::default();
-            let subaddresses: Vec<_> =
-                AssignedSubaddress::list_all(account_id_hex, None, None, &conn)?;
-            for s in subaddresses {
-                let subaddress_key = mc_util_serial::decode(s.subaddress_spend_key.as_slice())?;
-                subaddress_keys.insert(subaddress_key, s.subaddress_index as u64);
-            }
+fn sync_account_next_chunk(
+    ledger_db: &LedgerDB,
+    conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    logger: &Logger,
+    account_id_hex: &str,
+) -> Result<SyncStatus, SyncError> {
+    conn.transaction::<SyncStatus, SyncError, _>(|| {
+        // Get the account data. If it is no longer available, the account has been
+        // removed and we can simply return.
+        let account = Account::get(&AccountID(account_id_hex.to_string()), &conn)?;
+        let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
 
-            use std::time::{Duration, Instant};
-            let start_time = Instant::now();
-            let first_block_index = account.next_block_index;
-            let mut last_block_index = account.next_block_index;
+        // Load subaddresses for this account into a hash map.
+        let mut subaddress_keys: HashMap<RistrettoPublic, u64> = HashMap::default();
+        let subaddresses: Vec<_> =
+            AssignedSubaddress::list_all(account_id_hex, None, None, &conn)?;
+        for s in subaddresses {
+            let subaddress_key = mc_util_serial::decode(s.subaddress_spend_key.as_slice())?;
+            subaddress_keys.insert(subaddress_key, s.subaddress_index as u64);
+        }
 
-            // Load transaction outputs for this chunk.
-            let mut tx_outs: Vec<_> = Vec::new();
-            for block_index in
-                (account.next_block_index..account.next_block_index + BLOCKS_CHUNK_SIZE)
-            {
-                let block_contents = match ledger_db.get_block_contents(block_index as u64) {
-                    Ok(block_contents) => block_contents,
-                    Err(mc_ledger_db::Error::NotFound) => {
-                        break;
-                    }
-                    Err(err) => {
-                        return Err(err.into());
-                    }
-                };
-                last_block_index = block_index;
+        let start_time = Instant::now();
+        let first_block_index = account.next_block_index;
+        let mut last_block_index = account.next_block_index;
 
-                for tx_out in block_contents.outputs {
-                    tx_outs.push((block_index, tx_out));
+        // Load transaction outputs and key images for this chunk.
+        let mut tx_outs: Vec<(i64, TxOut)> = Vec::new();
+        let mut key_images: Vec<(i64, KeyImage)> = Vec::new();
+        for block_index in
+            (account.next_block_index..account.next_block_index + BLOCKS_CHUNK_SIZE)
+        {
+            let block_contents = match ledger_db.get_block_contents(block_index as u64) {
+                Ok(block_contents) => block_contents,
+                Err(mc_ledger_db::Error::NotFound) => {
+                    break;
                 }
+                Err(err) => {
+                    return Err(err.into());
+                }
+            };
+            last_block_index = block_index;
+
+            for tx_out in block_contents.outputs {
+                tx_outs.push((block_index, tx_out));
             }
 
-            // Attempt to decode each transaction as received by this account.
-            let matched_txos: Vec<_> = tx_outs
-                .into_par_iter()
-                .filter_map(|(block_index, tx_out)| {
-                    let amount = match decode_amount(&tx_out, &account_key) {
-                        None => return None,
-                        Some(a) => a,
-                    };
-                    let (subaddress_index, key_image) =
-                        decode_subaddress_and_key_image(&tx_out, &account_key, &subaddress_keys);
-                    Some((block_index, tx_out, amount, subaddress_index, key_image))
-                })
-                .collect();
+            for key_image in block_contents.key_images {
+                key_images.push((block_index, key_image));
+            }
+        }
+        if tx_outs.is_empty() {
+            return Ok(SyncStatus::NoMoreBlocks);
+        }
 
-            let duration = start_time.elapsed();
-            log::trace!(
-                logger,
-                "Synced {} blocks ({}-{}) for account {} in {:?}. {} txos found.",
-                last_block_index - first_block_index + 1,
-                first_block_index,
-                last_block_index,
-                account_id_hex.chars().take(6).collect::<String>(),
-                duration,
-                matched_txos.len(),
-            );
+        // Attempt to decode each transaction as received by this account.
+        let received_txos: Vec<_> = tx_outs
+            .into_par_iter()
+            .filter_map(|(block_index, tx_out)| {
+                let amount = match decode_amount(&tx_out, &account_key) {
+                    None => return None,
+                    Some(a) => a,
+                };
+                let (subaddress_index, key_image) =
+                    decode_subaddress_and_key_image(&tx_out, &account_key, &subaddress_keys);
+                Some((block_index, tx_out, amount, subaddress_index, key_image))
+            })
+            .collect();
+        let num_received_txos = received_txos.len();
 
-            account.update_next_block_index(
-                account.next_block_index,
-                block_contents.key_images,
+        // Write received transactions to the database.
+        for (block_index, tx_out, amount, subaddress_index, key_image) in received_txos {
+            let txo_id = Txo::create_received(
+                tx_out.clone(),
+                subaddress_index.map(|i| i as i64),
+                key_image,
+                amount,
+                block_index,
+                &account_id_hex,
                 &conn,
             )?;
+        }
+        // TransactionLog::log_received(
+        //     &output_txo_ids,
+        //     &account,
+        //     account.next_block_index as u64,
+        //     &conn,
+        // )?;
 
-            // Write matched transactions to the database.
-            for (block_index, tx_out, amount, subaddress_index, key_image) in matched_txos {
-                let txo_id = Txo::create_received(
-                    tx_out.clone(),
-                    subaddress_index.map(|i| i as i64),
-                    key_image,
-                    amount,
-                    block_index,
-                    &account_id_hex,
-                    &conn,
-                )?;
-            }
+        // Match key images to mark existing unspent transactions as spent.
+        let unspent_key_images: HashMap<KeyImage, String> =
+            Txo::list_unspent_key_images(&account_id_hex, &conn)?;
+        let spent_txos: Vec<_> = key_images
+            .par_iter()
+            .filter_map(
+                |(block_index, key_image)| match unspent_key_images.get(&key_image) {
+                    Some(txo_id_hex) => Some((block_index, txo_id_hex)),
+                    None => None,
+                },
+            )
+            .collect();
+        let num_spent_txos = spent_txos.len();
+        for (block_index, txo_id_hex) in spent_txos {
+            Txo::update_to_spent(txo_id_hex, block_index, &conn)?;
+        }
 
-            // // Add a transaction for the received TXOs
-            // TransactionLog::log_received(
-            //     &output_txo_ids,
-            //     &account,
-            //     account.next_block_index as u64,
-            //     &conn,
-            // )?;
+        // Done syncing this chunk. Mark these blocks as synced for this account.
+        account
+            .update_next_block_index(last_block_index + 1, &conn)?;
 
-            Ok(())
-        })?;
-    }
+        let duration = start_time.elapsed();
+
+        log::debug!(
+            logger,
+            "Synced {} blocks ({}-{}) for account {} in {:?}. {} txos received, {}/{} txos spent.",
+            last_block_index - first_block_index + 1,
+            first_block_index,
+            last_block_index,
+            account_id_hex.chars().take(6).collect::<String>(),
+            duration,
+            num_received_txos,
+            num_spent_txos,
+            unspent_key_images.len(),
+        );
+
+        Ok(SyncStatus::ChunkFinished)
+    })
 }
 
 /// Attempt to decode the transaction amount. If we can't, then this transaction
@@ -296,7 +337,6 @@ pub fn decode_subaddress_and_key_image(
 
     (subaddress_index, key_image)
 }
-
 
 #[cfg(test)]
 mod tests {

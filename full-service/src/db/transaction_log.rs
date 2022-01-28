@@ -106,13 +106,6 @@ pub trait TransactionLogModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletDbError>;
 
-    /// Update the transactions associated with a Txo for a given block index.
-    fn update_transactions_associated_to_txo(
-        txo_id_hex: &str,
-        cur_block_index: i64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<(), WalletDbError>;
-
     /// Log a received transaction.
     fn log_received(
         subaddress_to_output_txo_ids: &HashMap<i64, Vec<String>>,
@@ -341,58 +334,6 @@ impl TransactionLogModel for TransactionLog {
 
         results.sort_by_key(|r| r.0.id);
         Ok(results)
-    }
-
-    // FIXME: WS-30 - We may be doing n^2 work here
-    fn update_transactions_associated_to_txo(
-        txo_id_hex: &str,
-        cur_block_index: i64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<(), WalletDbError> {
-        use crate::db::schema::transaction_logs::dsl::{transaction_id_hex, transaction_logs};
-
-        let associated_transaction_logs = Self::select_for_txo(txo_id_hex, conn)?;
-
-        for transaction_log in associated_transaction_logs {
-            let associated = transaction_log.get_associated_txos(conn)?;
-
-            // Only update transaction_log status if built or pending
-            if transaction_log.status != TX_STATUS_BUILT
-                && transaction_log.status != TX_STATUS_PENDING
-            {
-                continue;
-            }
-
-            // Check whether all the inputs have been spent or if any failed, and update
-            // accordingly
-            let input_txo_ids: Vec<String> = associated
-                .inputs
-                .iter()
-                .map(|t| t.txo_id_hex.clone())
-                .collect();
-            if Txo::are_all_spent(&input_txo_ids, conn)? {
-                diesel::update(
-                    transaction_logs
-                        .filter(transaction_id_hex.eq(&transaction_log.transaction_id_hex)),
-                )
-                .set((
-                    crate::db::schema::transaction_logs::status.eq(TX_STATUS_SUCCEEDED),
-                    crate::db::schema::transaction_logs::finalized_block_index
-                        .eq(Some(cur_block_index)),
-                ))
-                .execute(conn)?;
-            } else if Txo::any_failed(&input_txo_ids, cur_block_index, conn)? {
-                // FIXME: WS-18, WS-17 - Do we want to store and update the "failed_block_index"
-                // as min(tombstones)?
-                diesel::update(
-                    transaction_logs
-                        .filter(transaction_id_hex.eq(&transaction_log.transaction_id_hex)),
-                )
-                .set(crate::db::schema::transaction_logs::status.eq(TX_STATUS_FAILED))
-                .execute(conn)?;
-            }
-        }
-        Ok(())
     }
 
     fn log_received(

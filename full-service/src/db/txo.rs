@@ -8,6 +8,7 @@ use diesel::{
     RunQueryDsl,
 };
 use mc_account_keys::{AccountKey, PublicAddress};
+use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
 use mc_mobilecoind::payments::TxProposal;
@@ -16,7 +17,7 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tx::{TxOut, TxOutConfirmationNumber},
 };
-use std::fmt;
+use std::{convert::TryFrom, fmt};
 
 use crate::{
     db::{
@@ -121,6 +122,13 @@ pub trait TxoModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
+    /// Update a Txo's status to spent
+    fn update_to_spent(
+        txo_id_hex: &String,
+        spent_block_index: &i64,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError>;
+
     /// Get all Txos associated with a given account.
     fn list_for_account(
         account_id_hex: &str,
@@ -139,6 +147,12 @@ pub trait TxoModel {
         assigned_subaddress_b58: Option<&str>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<Txo>, WalletDbError>;
+
+    /// Get a map from key images to unspent txos for this account.
+    fn list_unspent_key_images(
+        account_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<HashMap<KeyImage, String>, WalletDbError>;
 
     fn list_spent(
         account_id_hex: &str,
@@ -448,6 +462,22 @@ impl TxoModel for Txo {
         Ok(())
     }
 
+    fn update_to_spent(
+        txo_id_hex: &String,
+        spent_block_index: &i64,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::txos;
+
+        diesel::update(
+            txos::table
+                .filter(txos::txo_id_hex.eq(txo_id_hex))
+        )
+            .set(txos::spent_block_index.eq(Some(spent_block_index)))
+            .execute(conn)?;
+        Ok(())
+    }
+
     fn list_for_account(
         account_id_hex: &str,
         offset: Option<i64>,
@@ -505,6 +535,33 @@ impl TxoModel for Txo {
         };
 
         Ok(txos)
+    }
+
+    fn list_unspent_key_images(
+        account_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<HashMap<KeyImage, String>, WalletDbError> {
+        use crate::db::schema::txos;
+
+        let results: Vec<(Option<Vec<u8>>, String)> = txos::table
+            .select((txos::key_image, txos::txo_id_hex))
+            .filter(txos::key_image.is_not_null())
+            .filter(txos::received_account_id_hex.eq(account_id_hex))
+            .filter(txos::subaddress_index.is_not_null())
+            .filter(txos::pending_tombstone_block_index.is_null())
+            .filter(txos::spent_block_index.is_null())
+            .load(conn)?;
+
+        Ok(results
+            .into_iter()
+            .filter_map(|(key_image, txo_id_hex)| match key_image {
+                Some(key_image_encoded) => {
+                    let key_image = mc_util_serial::decode(key_image_encoded.as_slice()).ok()?;
+                    Some((key_image, txo_id_hex))
+                },
+                None => None,
+            })
+            .collect())
     }
 
     fn list_spent(
