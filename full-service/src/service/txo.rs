@@ -184,7 +184,7 @@ mod tests {
         HashSet,
     };
     use mc_crypto_rand::RngCore;
-    use mc_transaction_core::{constants::MINIMUM_FEE, ring_signature::KeyImage};
+    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
     use std::iter::FromIterator;
 
@@ -285,7 +285,7 @@ mod tests {
             .collect();
         assert_eq!(minted.len(), 2);
         let minted_value_set = HashSet::from_iter(minted.iter().map(|m| m.value.clone()));
-        assert!(minted_value_set.contains(&(58 * MOB - MINIMUM_FEE as i64)));
+        assert!(minted_value_set.contains(&(58 * MOB - Mob::MINIMUM_FEE as i64)));
         assert!(minted_value_set.contains(&(42 * MOB)));
 
         // Our balance should reflect the various statuses of our txos
@@ -295,7 +295,10 @@ mod tests {
         assert_eq!(balance.unspent, 0);
         assert_eq!(balance.pending, 100 * MOB as u128);
         assert_eq!(balance.spent, 0);
-        assert_eq!(balance.secreted, (100 * MOB - MINIMUM_FEE as i64) as u128);
+        assert_eq!(
+            balance.secreted,
+            (100 * MOB - Mob::MINIMUM_FEE as i64) as u128
+        );
         assert_eq!(balance.orphaned, 0);
     }
 }

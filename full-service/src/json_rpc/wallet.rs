@@ -49,6 +49,7 @@ use mc_connection::{
 };
 use mc_fog_report_validation::{FogPubkeyResolver, FogResolver};
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
+use mc_validator_connection::ValidatorConnection;
 use rocket::{get, post, routes};
 use rocket_contrib::json::Json;
 use serde_json::Map;
@@ -63,12 +64,14 @@ pub struct WalletState<
     pub service: WalletService<T, FPR>,
 }
 
-/// The route for the Full Service Wallet API.
-#[post("/wallet", format = "json", data = "<command>")]
-fn wallet_api(
-    state: rocket::State<WalletState<ThickClient<HardcodedCredentialsProvider>, FogResolver>>,
+fn generic_wallet_api<T, FPR>(
+    state: rocket::State<WalletState<T, FPR>>,
     command: Json<JsonRPCRequest>,
-) -> Result<Json<JsonRPCResponse>, String> {
+) -> Result<Json<JsonRPCResponse>, String>
+where
+    T: BlockchainConnection + UserTxConnection + 'static,
+    FPR: FogPubkeyResolver + Send + Sync + 'static,
+{
     let req: JsonRPCRequest = command.0.clone();
 
     let mut response = JsonRPCResponse {
@@ -97,6 +100,23 @@ fn wallet_api(
     };
 
     Ok(Json(response))
+}
+
+/// The route for the Full Service Wallet API.
+#[post("/wallet", format = "json", data = "<command>")]
+pub fn consensus_backed_wallet_api(
+    state: rocket::State<WalletState<ThickClient<HardcodedCredentialsProvider>, FogResolver>>,
+    command: Json<JsonRPCRequest>,
+) -> Result<Json<JsonRPCResponse>, String> {
+    generic_wallet_api(state, command)
+}
+
+#[post("/wallet", format = "json", data = "<command>")]
+pub fn validator_backed_wallet_api(
+    state: rocket::State<WalletState<ValidatorConnection, FogResolver>>,
+    command: Json<JsonRPCRequest>,
+) -> Result<Json<JsonRPCResponse>, String> {
+    generic_wallet_api(state, command)
 }
 
 /// The Wallet API inner method, which handles switching on the method enum.
@@ -490,7 +510,7 @@ where
                     .collect::<Vec<(String, serde_json::Value)>>(),
             );
 
-            JsonCommandResponse::get_transaction_logs_for_account {
+            JsonCommandResponse::get_all_transaction_logs_for_account {
                 transaction_log_ids: transaction_logs_and_txos
                     .iter()
                     .map(|(t, _a)| t.transaction_id_hex.to_string())
@@ -559,7 +579,7 @@ where
                     .collect::<Vec<(String, serde_json::Value)>>(),
             );
 
-            JsonCommandResponse::get_txos_for_account {
+            JsonCommandResponse::get_all_txos_for_account {
                 txo_ids: txos.iter().map(|t| t.txo_id_hex.clone()).collect(),
                 txo_map,
             }
@@ -893,11 +913,26 @@ fn health() -> Result<(), ()> {
 }
 
 /// Returns an instance of a Rocket server.
-pub fn rocket(
+pub fn consensus_backed_rocket(
     rocket_config: rocket::Config,
     state: WalletState<ThickClient<HardcodedCredentialsProvider>, FogResolver>,
 ) -> rocket::Rocket {
     rocket::custom(rocket_config)
-        .mount("/", routes![wallet_api, wallet_help, health])
+        .mount(
+            "/",
+            routes![consensus_backed_wallet_api, wallet_help, health],
+        )
+        .manage(state)
+}
+
+pub fn validator_backed_rocket(
+    rocket_config: rocket::Config,
+    state: WalletState<ValidatorConnection, FogResolver>,
+) -> rocket::Rocket {
+    rocket::custom(rocket_config)
+        .mount(
+            "/",
+            routes![validator_backed_wallet_api, wallet_help, health],
+        )
         .manage(state)
 }

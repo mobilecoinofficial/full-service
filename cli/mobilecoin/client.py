@@ -211,26 +211,29 @@ class Client:
         })
         return r['address_map']
 
-    def _build_and_submit_transaction(self, account_id, amount, to_address):
+    def _build_and_submit_transaction(self, account_id, amount, to_address, fee):
         amount = str(mob2pmob(amount))
+        params = {
+            "account_id": account_id,
+            "addresses_and_values": [(to_address, amount)],
+        }
+        if fee is not None:
+            params['fee'] = str(mob2pmob(fee))
         r = self._req({
             "method": "build_and_submit_transaction",
-            "params": {
-                "account_id": account_id,
-                "addresses_and_values": [(to_address, amount)],
-            }
+            "params": params,
         })
         return r
 
-    def build_and_submit_transaction(self, account_id, amount, to_address):
-        r = self._build_and_submit_transaction(account_id, amount, to_address)
+    def build_and_submit_transaction(self, account_id, amount, to_address, fee=None):
+        r = self._build_and_submit_transaction(account_id, amount, to_address, fee)
         return r['transaction_log']
 
-    def build_and_submit_transaction_with_proposal(self, account_id, amount, to_address):
-        r = self._build_and_submit_transaction(account_id, amount, to_address)
+    def build_and_submit_transaction_with_proposal(self, account_id, amount, to_address, fee=None):
+        r = self._build_and_submit_transaction(account_id, amount, to_address, fee)
         return r['transaction_log'], r['tx_proposal']
 
-    def build_transaction(self, account_id, amount, to_address, tombstone_block=None):
+    def build_transaction(self, account_id, amount, to_address, tombstone_block=None, fee=None):
         amount = str(mob2pmob(amount))
         params = {
             "account_id": account_id,
@@ -238,6 +241,8 @@ class Client:
         }
         if tombstone_block is not None:
             params['tombstone_block'] = str(int(tombstone_block))
+        if fee is not None:
+            params['fee'] = str(mob2pmob(fee))
         r = self._req({
             "method": "build_transaction",
             "params": params,
@@ -383,19 +388,19 @@ class Client:
             raise Exception('Txo {} never landed.'.format(txo_id))
 
 
-
 PMOB = Decimal("1e12")
 
 
 def mob2pmob(x):
     """Convert from MOB to picoMOB."""
-    return round(Decimal(x) * PMOB)
+    result = round(Decimal(x) * PMOB)
+    assert 0 <= result < 2**64
+    return result
 
 
 def pmob2mob(x):
     """Convert from picoMOB to MOB."""
     result = int(x) / PMOB
     if result == 0:
-        return Decimal("0")
-    else:
-        return result
+        result = Decimal("0")
+    return result

@@ -23,7 +23,7 @@ mod e2e {
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
     use mc_ledger_db::Ledger;
-    use mc_transaction_core::{constants::MINIMUM_FEE, ring_signature::KeyImage};
+    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
     use std::convert::TryFrom;
 
@@ -703,7 +703,7 @@ mod e2e {
         let fee = tx_proposal.get("fee").unwrap();
         // FIXME: WS-9 - Note, minimum fee does not fit into i32 - need to make sure we
         // are not losing precision with the JsonTxProposal treating Fee as number
-        assert_eq!(fee, &MINIMUM_FEE.to_string());
+        assert_eq!(fee, &Mob::MINIMUM_FEE.to_string());
         assert_eq!(fee, prefix_fee);
 
         // Transaction builder attempts to use as many inputs as we have txos
@@ -789,7 +789,7 @@ mod e2e {
             .unwrap()
             .as_str()
             .unwrap();
-        assert_eq!(unspent, &(100000000000100 - MINIMUM_FEE).to_string());
+        assert_eq!(unspent, &(100000000000100 - Mob::MINIMUM_FEE).to_string());
         assert_eq!(pending, "0");
         assert_eq!(spent, "100000000000100");
         assert_eq!(secreted, "0");
@@ -859,8 +859,8 @@ mod e2e {
                     "code": -32603,
                     "message": "InternalError",
                     "data": json!({
-                        "server_error": format!("TransactionBuilder(WalletDb(InsufficientFundsUnderMaxSpendable(\"Max spendable value in wallet: 100, but target value: {}\")))", 42 + MINIMUM_FEE),
-                        "details": format!("Error building transaction: Wallet DB Error: Insufficient funds from Txos under max_spendable_value: Max spendable value in wallet: 100, but target value: {}", 42 + MINIMUM_FEE),
+                        "server_error": format!("TransactionBuilder(WalletDb(InsufficientFundsUnderMaxSpendable(\"Max spendable value in wallet: 100, but target value: {}\")))", 42 + Mob::MINIMUM_FEE),
+                        "details": format!("Error building transaction: Wallet DB Error: Insufficient funds from Txos under max_spendable_value: Max spendable value in wallet: 100, but target value: {}", 42 + Mob::MINIMUM_FEE),
                     })
                 }),
                 "jsonrpc": "2.0",
@@ -908,7 +908,7 @@ mod e2e {
         let fee = tx_proposal.get("fee").unwrap();
         // FIXME: WS-9 - Note, minimum fee does not fit into i32 - need to make sure we
         // are not losing precision with the JsonTxProposal treating Fee as number
-        assert_eq!(fee, &MINIMUM_FEE.to_string());
+        assert_eq!(fee, &Mob::MINIMUM_FEE.to_string());
         assert_eq!(fee, prefix_fee);
 
         // Transaction builder attempts to use as many inputs as we have txos
@@ -1074,7 +1074,7 @@ mod e2e {
         transaction_log.get("account_id").unwrap().as_str().unwrap();
         assert_eq!(
             transaction_log.get("fee_pmob").unwrap().as_str().unwrap(),
-            &MINIMUM_FEE.to_string()
+            &Mob::MINIMUM_FEE.to_string()
         );
         assert_eq!(
             transaction_log.get("status").unwrap().as_str().unwrap(),
@@ -1259,7 +1259,7 @@ mod e2e {
         let fee = tx_proposal.get("fee").unwrap();
         // FIXME: WS-9 - Note, minimum fee does not fit into i32 - need to make sure we
         // are not losing precision with the JsonTxProposal treating Fee as number
-        assert_eq!(fee, &MINIMUM_FEE.to_string());
+        assert_eq!(fee, &Mob::MINIMUM_FEE.to_string());
         assert_eq!(fee, prefix_fee);
 
         // Two destinations.
@@ -1408,7 +1408,7 @@ mod e2e {
             .unwrap()
             .as_str()
             .unwrap();
-        assert_eq!(unspent, &(15 * MOB - MINIMUM_FEE as i64).to_string());
+        assert_eq!(unspent, &(15 * MOB - Mob::MINIMUM_FEE as i64).to_string());
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -1489,7 +1489,7 @@ mod e2e {
         transaction_log.get("account_id").unwrap().as_str().unwrap();
         assert_eq!(
             transaction_log.get("fee_pmob").unwrap().as_str().unwrap(),
-            &MINIMUM_FEE.to_string()
+            &Mob::MINIMUM_FEE.to_string()
         );
         assert_eq!(
             transaction_log.get("status").unwrap().as_str().unwrap(),

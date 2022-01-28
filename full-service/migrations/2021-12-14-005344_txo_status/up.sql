@@ -19,4 +19,22 @@ FROM (
 ) as status
 WHERE txos.txo_id_hex = status.txo_id_hex;
 
+UPDATE txos
+SET pending_tombstone_block_index = NULL
+FROM (
+    SELECT txo_id_hex
+    FROM account_txo_statuses
+    WHERE txo_status='txo_status_unspent'
+) as status
+WHERE txos.txo_id_hex = status.txo_id_hex;
+
+UPDATE txos
+SET received_account_id_hex = account_id_hex
+FROM (
+    SELECT txo_id_hex, account_id_hex
+    FROM account_txo_statuses
+    WHERE txo_type='txo_type_minted' AND (txo_status='txo_status_unspent' OR txo_status='txo_status_spent')
+) as status
+WHERE txos.txo_id_hex = status.txo_id_hex;
+
 DROP TABLE account_txo_statuses;

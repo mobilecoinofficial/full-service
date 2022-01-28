@@ -519,7 +519,7 @@ mod tests {
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::RngCore;
     use mc_ledger_db::Ledger;
-    use mc_transaction_core::{constants::MINIMUM_FEE, ring_signature::KeyImage};
+    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
@@ -662,7 +662,7 @@ mod tests {
         // Value is the amount sent, not including fee and change
         assert_eq!(tx_log.value, 50 * MOB);
         // Fee exists for submitted
-        assert_eq!(tx_log.fee, Some(MINIMUM_FEE as i64));
+        assert_eq!(tx_log.fee, Some(Mob::MINIMUM_FEE as i64));
         // Created and sent transaction is "pending" until it lands
         assert_eq!(tx_log.status, TX_STATUS_PENDING);
         assert!(tx_log.sent_time.unwrap() > 0);
@@ -724,7 +724,7 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(change_details.value, 20 * MOB - MINIMUM_FEE as i64);
+        assert_eq!(change_details.value, 20 * MOB - Mob::MINIMUM_FEE as i64);
 
         // Note, this will still be marked as not change until the txo
         // appears on the ledger and the account syncs.
@@ -791,7 +791,7 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
         // Add outlays all to the same recipient, so that we exceed u64::MAX in this tx
-        let value = 100 * MOB as u64 - MINIMUM_FEE;
+        let value = 100 * MOB as u64 - Mob::MINIMUM_FEE;
         builder.add_recipient(recipient.clone(), value).unwrap();
 
         builder.set_tombstone(0).unwrap();
@@ -824,7 +824,7 @@ mod tests {
         // Value is the amount sent, not including fee and change
         assert_eq!(tx_log.value, value as i64);
         // Fee exists for submitted
-        assert_eq!(tx_log.fee, Some(MINIMUM_FEE as i64));
+        assert_eq!(tx_log.fee, Some(Mob::MINIMUM_FEE as i64));
         // Created and sent transaction is "pending" until it lands
         assert_eq!(tx_log.status, TX_STATUS_PENDING);
         assert!(tx_log.sent_time.unwrap() > 0);
@@ -1105,7 +1105,7 @@ mod tests {
         )
         .unwrap();
         // Change = (8 + 7) - 12 - fee
-        assert_eq!(change_details.value, 3 * MOB - MINIMUM_FEE as i64);
+        assert_eq!(change_details.value, 3 * MOB - Mob::MINIMUM_FEE as i64);
         assert!(change_details.is_minted());
         assert!(!change_details.is_received());
         assert!(change_details.subaddress_index.is_none());

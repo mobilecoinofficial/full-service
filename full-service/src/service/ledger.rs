@@ -15,10 +15,10 @@ use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_ledger_sync::NetworkState;
 use mc_transaction_core::{
-    constants::MINIMUM_FEE,
     ring_signature::KeyImage,
+    tokens::Mob,
     tx::{Tx, TxOut},
-    Block, BlockContents,
+    Block, BlockContents, Token,
 };
 
 use crate::db::WalletDbError;
@@ -131,7 +131,7 @@ where
 
     fn get_network_fee(&self) -> u64 {
         if self.peer_manager.is_empty() {
-            MINIMUM_FEE
+            Mob::MINIMUM_FEE
         } else {
             // Iterate an owned list of connections in parallel, get the block info for
             // each, and extract the fee. If no fees are returned, use the hard-coded
@@ -149,7 +149,7 @@ where
                     }
                 })
                 .max()
-                .unwrap_or(MINIMUM_FEE)
+                .unwrap_or(Mob::MINIMUM_FEE)
         }
     }
 }

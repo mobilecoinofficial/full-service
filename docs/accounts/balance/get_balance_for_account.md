@@ -15,16 +15,14 @@ description: Get the current balance for a given account.
 {% tabs %}
 {% tab title="Request Body" %}
 ```text
-curl -s localhost:9090/wallet \
-  -d '{
-        "method": "get_balance_for_account",
-        "params": {
-           "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
-        },
-        "jsonrpc": "2.0",
-        "id": 1
-      }' \
-  -X POST -H 'Content-type: application/json' | jq
+{
+  "method": "get_balance_for_account",
+  "params": {
+    "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
+  },
+  "jsonrpc": "2.0",
+  "id": 1
+}
 ```
 {% endtab %}
 
