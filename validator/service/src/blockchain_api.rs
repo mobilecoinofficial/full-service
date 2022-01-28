@@ -6,7 +6,7 @@ use grpcio::{RpcContext, RpcStatus, Service, UnarySink};
 use mc_common::logger::Logger;
 use mc_connection::{BlockchainConnection, ConnectionManager, RetryableBlockchainConnection};
 use mc_ledger_db::{Ledger, LedgerDB};
-use mc_transaction_core::constants::MINIMUM_FEE;
+use mc_transaction_core::{tokens::Mob, Token};
 use mc_util_grpc::{rpc_database_err, rpc_logger, send_result};
 use mc_validator_api::{
     consensus_common::LastBlockInfoResponse,
@@ -78,7 +78,7 @@ impl<BC: BlockchainConnection + 'static> BlockchainApi<BC> {
                 }
             })
             .max()
-            .unwrap_or(MINIMUM_FEE);
+            .unwrap_or(Mob::MINIMUM_FEE);
 
         resp.set_minimum_fee(minimum_fee);
 
