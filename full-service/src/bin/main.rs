@@ -190,7 +190,6 @@ fn consensus_backed_full_service(
         peer_manager,
         network_state,
         config.get_fog_resolver_factory(logger.clone()),
-        config.num_workers,
         config.offline,
         logger,
     );
@@ -279,7 +278,6 @@ fn validator_backed_full_service(
                 )
             }
         }),
-        config.num_workers,
         false,
         logger,
     );
