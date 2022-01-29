@@ -108,8 +108,10 @@ pub trait TransactionLogModel {
 
     /// Log a received transaction.
     fn log_received(
-        subaddress_to_output_txo_ids: &HashMap<i64, Vec<String>>,
-        account: &Account,
+        account_id_hex: &str,
+        assigned_subaddress_b58: Option<&str>,
+        txo_id_hex: &str,
+        amount: i64,
         block_index: u64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
@@ -337,66 +339,45 @@ impl TransactionLogModel for TransactionLog {
     }
 
     fn log_received(
-        subaddress_to_output_txo_ids: &HashMap<i64, Vec<String>>,
-        account: &Account,
+        account_id_hex: &str,
+        assigned_subaddress_b58: Option<&str>,
+        txo_id_hex: &str,
+        amount: i64,
         block_index: u64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::transaction_txo_types;
 
-        for (subaddress_index, output_txo_ids) in subaddress_to_output_txo_ids {
-            let txos = Txo::select_by_id(output_txo_ids, conn)?;
-            for txo in txos {
-                let transaction_id = TransactionID::from(txo.txo_id_hex.clone());
+        let new_transaction_log = NewTransactionLog {
+            transaction_id_hex: &txo_id_hex.to_string(),
+            account_id_hex: &account_id_hex,
+            assigned_subaddress_b58,
+            value: amount,
+            fee: None, // Impossible to recover fee from received transaction
+            status: TX_STATUS_SUCCEEDED,
+            sent_time: None, // NULL for received
+            submitted_block_index: None,
+            finalized_block_index: Some(block_index as i64),
+            comment: "", // NULL for received
+            direction: TX_DIRECTION_RECEIVED,
+            tx: None, // NULL for received
+        };
 
-                // Check that we haven't already logged this transaction on a previous sync
-                match TransactionLog::get(&transaction_id.to_string(), conn) {
-                    Ok(_) => continue, // Processed this transaction on a previous sync.
-                    Err(WalletDbError::TransactionLogNotFound(_)) => {} // Insert below
-                    Err(e) => return Err(e),
-                }
+        diesel::insert_into(crate::db::schema::transaction_logs::table)
+            .values(&new_transaction_log)
+            .execute(conn)?;
 
-                // Get the public address for the subaddress that received these TXOs
-                let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
-                let subaddress = account_key.subaddress(*subaddress_index as u64);
-                let b58_subaddress = b58_encode_public_address(&subaddress)?;
-                let assigned_subaddress_b58: Option<&str> = if *subaddress_index >= 0 {
-                    Some(&b58_subaddress)
-                } else {
-                    None
-                };
+        // Create an entry per TXO for the TransactionTxoTypes
+        let new_transaction_txo = NewTransactionTxoType {
+            transaction_id_hex: &txo_id_hex.to_string(),
+            txo_id_hex: &txo_id_hex,
+            transaction_txo_type: TXO_USED_AS_OUTPUT,
+        };
 
-                // Create a TransactionLogs entry for every TXO
-                let new_transaction_log = NewTransactionLog {
-                    transaction_id_hex: &transaction_id.to_string(),
-                    account_id_hex: &account.account_id_hex,
-                    assigned_subaddress_b58,
-                    value: txo.value,
-                    fee: None, // Impossible to recover fee from received transaction
-                    status: TX_STATUS_SUCCEEDED,
-                    sent_time: None, // NULL for received
-                    submitted_block_index: None,
-                    finalized_block_index: Some(block_index as i64),
-                    comment: "", // NULL for received
-                    direction: TX_DIRECTION_RECEIVED,
-                    tx: None, // NULL for received
-                };
-                diesel::insert_into(crate::db::schema::transaction_logs::table)
-                    .values(&new_transaction_log)
-                    .execute(conn)?;
+        diesel::insert_into(transaction_txo_types::table)
+            .values(&new_transaction_txo)
+            .execute(conn)?;
 
-                // Create an entry per TXO for the TransactionTxoTypes
-                let new_transaction_txo = NewTransactionTxoType {
-                    transaction_id_hex: &transaction_id.to_string(),
-                    txo_id_hex: &txo.txo_id_hex,
-                    transaction_txo_type: TXO_USED_AS_OUTPUT,
-                };
-                // Note: SQLite backend does not support batch insert, so within iter is fine
-                diesel::insert_into(transaction_txo_types::table)
-                    .values(&new_transaction_txo)
-                    .execute(conn)?;
-            }
-        }
         Ok(())
     }
 

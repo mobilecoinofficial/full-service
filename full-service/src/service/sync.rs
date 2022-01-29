@@ -10,8 +10,10 @@ use crate::{
         transaction_log::TransactionLogModel,
         txo::TxoModel,
         WalletDb, WalletDbError,
+        
     },
     error::SyncError,
+    util::b58::b58_encode_public_address,
 };
 use mc_account_keys::AccountKey;
 use mc_common::{
@@ -237,13 +239,38 @@ fn sync_account_next_chunk(
                 &account_id_hex,
                 &conn,
             )?;
+
+            // TODO: What's the best way to get the assigned_subaddress_b58?
+            // Do we even care about saving this in the database at all? We
+            // should be able to look up any relevant information about the
+            // txo directly from the txo table. This will also hinder us
+            // from supporting recoverable transaction history in the case that
+            // there are txo's that go to multiple different subaddresses in the
+            // same transaction.
+            // My thoughts are to remove assigned_subaddress_b58 entirely from
+            // this table and use the TransactionTxoType table to look up info
+            // about each of the txo's independently, since each on could
+            // be at a different subaddress.
+            // In fact, do we even want to be creating a TransactionLog for
+            // individual txo's at all, since all of this information is
+            // derivable from the txo's table? The only thing that's necessary
+            // to store in the database WRT a transaction is when we send,
+            // because that requires extra meta data that isn't derivable
+            // from the ledger.
+            // 
+            // TL;DR
+            // Reconsider creating a TransactionLog in favor of deriving the
+            // information from the txo's table when necessary, and only
+            // store information about sent transactions.
+            TransactionLog::log_received(
+                account_id_hex,
+                None,
+                txo_id.as_str(),
+                amount as i64,
+                block_index as u64,
+                &conn,
+            )?;
         }
-        // TransactionLog::log_received(
-        //     &output_txo_ids,
-        //     &account,
-        //     account.next_block_index as u64,
-        //     &conn,
-        // )?;
 
         // Match key images to mark existing unspent transactions as spent.
         let unspent_key_images: HashMap<KeyImage, String> =
