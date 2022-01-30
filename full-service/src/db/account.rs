@@ -13,7 +13,6 @@ use crate::db::{
 use mc_account_keys::{AccountKey, RootEntropy, RootIdentity, DEFAULT_SUBADDRESS_INDEX};
 use mc_account_keys_slip10::Slip10Key;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
-use mc_transaction_core::ring_signature::KeyImage;
 
 use bip39::Mnemonic;
 use diesel::{
@@ -415,9 +414,7 @@ impl AccountModel for Account {
         next_block_index: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::{
-            accounts::dsl::{account_id_hex, accounts},
-        };
+        use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
         diesel::update(accounts.filter(account_id_hex.eq(&self.account_id_hex)))
             .set(crate::db::schema::accounts::next_block_index.eq(next_block_index))
             .execute(conn)?;

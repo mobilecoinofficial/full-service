@@ -9,8 +9,7 @@ use crate::{
         models::{Account, AssignedSubaddress, TransactionLog, Txo},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
-        WalletDb, WalletDbError,
-        
+        WalletDb,
     },
     error::SyncError,
     util::b58::b58_encode_public_address,
@@ -18,9 +17,9 @@ use crate::{
 use mc_account_keys::AccountKey;
 use mc_common::{
     logger::{log, Logger},
-    HashMap, HashSet,
+    HashMap,
 };
-use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
+use mc_crypto_keys::RistrettoPublic;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_transaction_core::{
     get_tx_out_shared_secret,
@@ -39,10 +38,10 @@ use std::{
     convert::TryFrom,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc, Mutex,
+        Arc,
     },
     thread,
-    time::{Duration, Instant},
+    time::Instant,
 };
 
 const BLOCKS_CHUNK_SIZE: i64 = 10_000;
@@ -173,8 +172,7 @@ fn sync_account_next_chunk(
 
         // Load subaddresses for this account into a hash map.
         let mut subaddress_keys: HashMap<RistrettoPublic, u64> = HashMap::default();
-        let subaddresses: Vec<_> =
-            AssignedSubaddress::list_all(account_id_hex, None, None, &conn)?;
+        let subaddresses: Vec<_> = AssignedSubaddress::list_all(account_id_hex, None, None, &conn)?;
         for s in subaddresses {
             let subaddress_key = mc_util_serial::decode(s.subaddress_spend_key.as_slice())?;
             subaddress_keys.insert(subaddress_key, s.subaddress_index as u64);
@@ -187,9 +185,7 @@ fn sync_account_next_chunk(
         // Load transaction outputs and key images for this chunk.
         let mut tx_outs: Vec<(i64, TxOut)> = Vec::new();
         let mut key_images: Vec<(i64, KeyImage)> = Vec::new();
-        for block_index in
-            (account.next_block_index..account.next_block_index + BLOCKS_CHUNK_SIZE)
-        {
+        for block_index in account.next_block_index..account.next_block_index + BLOCKS_CHUNK_SIZE {
             let block_contents = match ledger_db.get_block_contents(block_index as u64) {
                 Ok(block_contents) => block_contents,
                 Err(mc_ledger_db::Error::NotFound) => {
@@ -257,14 +253,24 @@ fn sync_account_next_chunk(
             // to store in the database WRT a transaction is when we send,
             // because that requires extra meta data that isn't derivable
             // from the ledger.
-            // 
+            //
             // TL;DR
             // Reconsider creating a TransactionLog in favor of deriving the
             // information from the txo's table when necessary, and only
             // store information about sent transactions.
+
+            let assigned_subaddress_b58: Option<String> = match subaddress_index {
+                None => None,
+                Some(subaddress_index) => {
+                    let subaddress = account_key.subaddress(subaddress_index);
+                    let subaddress_b58 = b58_encode_public_address(&subaddress).unwrap();
+                    Some(subaddress_b58)
+                }
+            };
+
             TransactionLog::log_received(
                 account_id_hex,
-                None,
+                assigned_subaddress_b58.as_ref().map(|s| s.as_str()),
                 txo_id.as_str(),
                 amount as i64,
                 block_index as u64,
@@ -290,8 +296,7 @@ fn sync_account_next_chunk(
         }
 
         // Done syncing this chunk. Mark these blocks as synced for this account.
-        account
-            .update_next_block_index(last_block_index + 1, &conn)?;
+        account.update_next_block_index(last_block_index + 1, &conn)?;
 
         let duration = start_time.elapsed();
 

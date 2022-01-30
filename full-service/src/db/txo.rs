@@ -17,7 +17,7 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tx::{TxOut, TxOutConfirmationNumber},
 };
-use std::{convert::TryFrom, fmt};
+use std::fmt;
 
 use crate::{
     db::{

@@ -8,26 +8,21 @@ use diesel::{
     r2d2::{ConnectionManager, PooledConnection},
     RunQueryDsl,
 };
-use mc_account_keys::AccountKey;
 use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::tx::Tx;
 use std::fmt;
 
-use crate::{
-    db::{
-        account::{AccountID, AccountModel},
-        models::{
-            Account, NewTransactionLog, NewTransactionTxoType, TransactionLog, TransactionTxoType,
-            Txo, TXO_USED_AS_CHANGE, TXO_USED_AS_INPUT, TXO_USED_AS_OUTPUT, TX_DIRECTION_RECEIVED,
-            TX_DIRECTION_SENT, TX_STATUS_BUILT, TX_STATUS_FAILED, TX_STATUS_PENDING,
-            TX_STATUS_SUCCEEDED,
-        },
-        txo::{TxoID, TxoModel},
-        WalletDbError,
+use crate::db::{
+    account::{AccountID, AccountModel},
+    models::{
+        Account, NewTransactionLog, NewTransactionTxoType, TransactionLog, TransactionTxoType, Txo,
+        TXO_USED_AS_CHANGE, TXO_USED_AS_INPUT, TXO_USED_AS_OUTPUT, TX_DIRECTION_RECEIVED,
+        TX_DIRECTION_SENT, TX_STATUS_PENDING, TX_STATUS_SUCCEEDED,
     },
-    util::b58::b58_encode_public_address,
+    txo::{TxoID, TxoModel},
+    WalletDbError,
 };
 
 #[derive(Debug)]

@@ -69,11 +69,7 @@ impl<
         logger: Logger,
     ) -> Self {
         log::info!(logger, "Starting Wallet TXO Sync Task Thread");
-        let sync_thread = SyncThread::start(
-            ledger_db.clone(),
-            wallet_db.clone(),
-            logger.clone(),
-        );
+        let sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
         let mut rng = rand::thread_rng();
         WalletService {
             wallet_db,
