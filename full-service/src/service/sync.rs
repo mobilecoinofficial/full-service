@@ -293,10 +293,17 @@ fn sync_account_next_chunk(
         let num_spent_txos = spent_txos.len();
         for (block_index, txo_id_hex) in spent_txos {
             Txo::update_to_spent(txo_id_hex, block_index, &conn)?;
+            // TODO: Find TransactionLogs with this spent_txo and update it to TX_STATUS_SPENT
         }
 
         // Done syncing this chunk. Mark these blocks as synced for this account.
         account.update_next_block_index(last_block_index + 1, &conn)?;
+        
+        // TODO: Find txos with a pending_tombstone_block_index < the last_block_index and
+        // set them to spendable.
+
+        // TODO: Find any TransactionLogs associated with these txos and update them
+        // to TX_STATUS_FAILED
 
         let duration = start_time.elapsed();
 
