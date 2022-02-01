@@ -669,7 +669,6 @@ pub fn setup_wallet_service(
         peer_manager,
         network_state,
         get_resolver_factory(&mut rng).unwrap(),
-        None,
         false,
         logger,
     )
