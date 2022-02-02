@@ -1459,7 +1459,7 @@ mod tests {
         // Start sync thread
         log::info!(logger, "Starting sync thread");
         let _sync_thread =
-            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+            SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
 
         log::info!(logger, "Creating a random sender account");
         let sender_account_key = random_account_with_seed_values(

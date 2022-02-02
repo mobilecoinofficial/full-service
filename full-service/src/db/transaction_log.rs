@@ -491,7 +491,7 @@ impl TransactionLogModel for TransactionLog {
 
 #[cfg(test)]
 mod tests {
-    use mc_account_keys::{PublicAddress, RootIdentity};
+    use mc_account_keys::{AccountKey, PublicAddress, RootIdentity};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::RngCore;
     use mc_ledger_db::Ledger;
@@ -507,6 +507,7 @@ mod tests {
             get_resolver_factory, get_test_ledger, manually_sync_account,
             random_account_with_seed_values, WalletDbTestContext, MOB,
         },
+        util::b58::b58_encode_public_address,
     };
 
     use super::*;
@@ -598,8 +599,7 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread =
-            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
 
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -753,8 +753,7 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread =
-            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
 
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -928,8 +927,7 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread =
-            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
 
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -986,8 +984,7 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread =
-            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
 
         let account_key = random_account_with_seed_values(
             &wallet_db,
