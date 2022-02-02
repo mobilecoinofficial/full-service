@@ -345,7 +345,7 @@ impl TransactionLogModel for TransactionLog {
 
         let new_transaction_log = NewTransactionLog {
             transaction_id_hex: &txo_id_hex.to_string(),
-            account_id_hex: &account_id_hex,
+            account_id_hex,
             assigned_subaddress_b58,
             value: amount,
             fee: None, // Impossible to recover fee from received transaction
@@ -365,7 +365,7 @@ impl TransactionLogModel for TransactionLog {
         // Create an entry per TXO for the TransactionTxoTypes
         let new_transaction_txo = NewTransactionTxoType {
             transaction_id_hex: &txo_id_hex.to_string(),
-            txo_id_hex: &txo_id_hex,
+            txo_id_hex,
             transaction_txo_type: TXO_USED_AS_OUTPUT,
         };
 

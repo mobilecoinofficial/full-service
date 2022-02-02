@@ -128,7 +128,7 @@ pub fn sync_all_accounts(
         if account.next_block_index as u64 >= num_blocks - 1 {
             continue;
         }
-        sync_account(&ledger_db, &wallet_db, &account.account_id_hex, &logger)?;
+        sync_account(ledger_db, wallet_db, &account.account_id_hex, logger)?;
     }
 
     Ok(())
@@ -148,13 +148,11 @@ pub fn sync_account(
     logger: &Logger,
 ) -> Result<(), SyncError> {
     let conn = wallet_db.get_conn()?;
-    loop {
-        // Sync one chunk of blocks for this account each iteration of the loop.
-        match sync_account_next_chunk(ledger_db, &conn, logger, account_id_hex)? {
-            SyncStatus::ChunkFinished => continue,
-            SyncStatus::NoMoreBlocks => break,
-        }
-    }
+
+    while let SyncStatus::ChunkFinished =
+        sync_account_next_chunk(ledger_db, &conn, logger, account_id_hex)?
+    {}
+
     Ok(())
 }
 
@@ -167,12 +165,12 @@ fn sync_account_next_chunk(
     conn.transaction::<SyncStatus, SyncError, _>(|| {
         // Get the account data. If it is no longer available, the account has been
         // removed and we can simply return.
-        let account = Account::get(&AccountID(account_id_hex.to_string()), &conn)?;
+        let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
         let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
 
         // Load subaddresses for this account into a hash map.
         let mut subaddress_keys: HashMap<RistrettoPublic, u64> = HashMap::default();
-        let subaddresses: Vec<_> = AssignedSubaddress::list_all(account_id_hex, None, None, &conn)?;
+        let subaddresses: Vec<_> = AssignedSubaddress::list_all(account_id_hex, None, None, conn)?;
         for s in subaddresses {
             let subaddress_key = mc_util_serial::decode(s.subaddress_spend_key.as_slice())?;
             subaddress_keys.insert(subaddress_key, s.subaddress_index as u64);
@@ -232,8 +230,8 @@ fn sync_account_next_chunk(
                 key_image,
                 amount,
                 block_index,
-                &account_id_hex,
-                &conn,
+                account_id_hex,
+                conn,
             )?;
 
             // TODO: What's the best way to get the assigned_subaddress_b58?
@@ -270,35 +268,34 @@ fn sync_account_next_chunk(
 
             TransactionLog::log_received(
                 account_id_hex,
-                assigned_subaddress_b58.as_ref().map(|s| s.as_str()),
+                assigned_subaddress_b58.as_deref(),
                 txo_id.as_str(),
                 amount as i64,
                 block_index as u64,
-                &conn,
+                conn,
             )?;
         }
 
         // Match key images to mark existing unspent transactions as spent.
         let unspent_key_images: HashMap<KeyImage, String> =
-            Txo::list_unspent_key_images(&account_id_hex, &conn)?;
+            Txo::list_unspent_key_images(account_id_hex, conn)?;
         let spent_txos: Vec<_> = key_images
             .par_iter()
-            .filter_map(
-                |(block_index, key_image)| match unspent_key_images.get(&key_image) {
-                    Some(txo_id_hex) => Some((block_index, txo_id_hex)),
-                    None => None,
-                },
-            )
+            .filter_map(|(block_index, key_image)| {
+                unspent_key_images
+                    .get(key_image)
+                    .map(|txo_id_hex| (block_index, txo_id_hex))
+            })
             .collect();
         let num_spent_txos = spent_txos.len();
         for (block_index, txo_id_hex) in spent_txos {
-            Txo::update_to_spent(txo_id_hex, block_index, &conn)?;
+            Txo::update_to_spent(txo_id_hex, block_index, conn)?;
             // TODO: Find TransactionLogs with this spent_txo and update it to
             // TX_STATUS_SPENT
         }
 
         // Done syncing this chunk. Mark these blocks as synced for this account.
-        account.update_next_block_index(last_block_index + 1, &conn)?;
+        account.update_next_block_index(last_block_index + 1, conn)?;
 
         // TODO: Find txos with a pending_tombstone_block_index < the last_block_index
         // and set them to spendable.
@@ -333,11 +330,10 @@ pub fn decode_amount(tx_out: &TxOut, account_key: &AccountKey) -> Option<u64> {
         Ok(k) => k,
     };
     let shared_secret = get_tx_out_shared_secret(account_key.view_private_key(), &tx_public_key);
-    let amount = match tx_out.amount.get_value(&shared_secret) {
+    match tx_out.amount.get_value(&shared_secret) {
         Ok((a, _)) => Some(a),
-        Err(AmountError::InconsistentCommitment) => return None,
-    };
-    amount
+        Err(AmountError::InconsistentCommitment) => None,
+    }
 }
 
 /// Attempt to match the target address with one of our subaddresses. This
