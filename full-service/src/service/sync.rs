@@ -141,7 +141,7 @@ enum SyncStatus {
 }
 
 /// Sync a single account.
-fn sync_account(
+pub fn sync_account(
     ledger_db: &LedgerDB,
     wallet_db: &WalletDb,
     account_id_hex: &str,
@@ -293,14 +293,15 @@ fn sync_account_next_chunk(
         let num_spent_txos = spent_txos.len();
         for (block_index, txo_id_hex) in spent_txos {
             Txo::update_to_spent(txo_id_hex, block_index, &conn)?;
-            // TODO: Find TransactionLogs with this spent_txo and update it to TX_STATUS_SPENT
+            // TODO: Find TransactionLogs with this spent_txo and update it to
+            // TX_STATUS_SPENT
         }
 
         // Done syncing this chunk. Mark these blocks as synced for this account.
         account.update_next_block_index(last_block_index + 1, &conn)?;
-        
-        // TODO: Find txos with a pending_tombstone_block_index < the last_block_index and
-        // set them to spendable.
+
+        // TODO: Find txos with a pending_tombstone_block_index < the last_block_index
+        // and set them to spendable.
 
         // TODO: Find any TransactionLogs associated with these txos and update them
         // to TX_STATUS_FAILED
@@ -381,8 +382,11 @@ pub fn decode_subaddress_and_key_image(
 mod tests {
     use super::*;
     use crate::{
-        service::{account::AccountService, balance::BalanceService},
-        test_utils::{add_block_to_ledger_db, get_test_ledger, setup_wallet_service, MOB},
+        service::{account::AccountService, balance::BalanceService, txo::TxoService},
+        test_utils::{
+            add_block_to_ledger_db, get_test_ledger, manually_sync_account, setup_wallet_service,
+            MOB,
+        },
     };
     use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
     use mc_common::logger::{test_with_logger, Logger};
@@ -429,9 +433,8 @@ mod tests {
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
         let wallet_db = &service.wallet_db;
 
-        // Import the account (this will start it syncing, but we can still process_txos
-        // again below for the test)
-        let account = service
+        // Import the account
+        let _account = service
             .import_account_from_legacy_root_entropy(
                 hex::encode(&entropy.bytes),
                 None,
@@ -443,23 +446,22 @@ mod tests {
             )
             .expect("Could not import account entropy");
 
-        // Process the Txos for the first block
-        let subaddress_to_txo_ids = process_txos(
-            &wallet_db.get_conn().unwrap(),
-            &ledger_db.get_block_data(0).unwrap().contents().outputs,
-            &account,
-            0,
+        manually_sync_account(
+            &ledger_db,
+            &wallet_db,
+            &AccountID::from(&account_key),
+            1,
             &logger,
-        )
-        .expect("could not process txos");
-
-        assert_eq!(subaddress_to_txo_ids.len(), 1);
-        assert_eq!(subaddress_to_txo_ids[&0].len(), 16);
+        );
 
         // There should now be 16 txos. Let's get each one and verify the amount
         let expected_value: u64 = 15_625_000 * MOB as u64;
-        for txo_id in subaddress_to_txo_ids[&0].clone() {
-            let txo = Txo::get(&txo_id, &wallet_db.get_conn().unwrap()).expect("Could not get txo");
+
+        let txos = service
+            .list_txos(&AccountID::from(&account_key), None, None)
+            .unwrap();
+
+        for txo in txos {
             assert_eq!(txo.value as u64, expected_value);
         }
 

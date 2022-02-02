@@ -533,10 +533,12 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        let account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
 
         // Populate our DB with some received txos in the same block
         let mut synced: HashMap<i64, Vec<String>> = HashMap::default();
+        let subaddress = account_key.subaddress(0);
+        let assigned_subaddress_b58 = Some(b58_encode_public_address(&subaddress).unwrap());
+
         for i in 1..20 {
             let (txo_id_hex, _txo, _key_image) = create_test_received_txo(
                 &account_key,
@@ -549,12 +551,18 @@ mod tests {
             if synced.is_empty() {
                 synced.insert(0, Vec::new());
             }
-            synced.get_mut(&0).unwrap().push(txo_id_hex);
-        }
+            synced.get_mut(&0).unwrap().push(txo_id_hex.clone());
 
-        // Now we'll ingest them.
-        TransactionLog::log_received(&synced, &account, 144, &wallet_db.get_conn().unwrap())
+            TransactionLog::log_received(
+                &account_id.to_string(),
+                assigned_subaddress_b58.as_ref().map(|s| s.as_str()),
+                &txo_id_hex,
+                (100 * i * MOB) as i64,
+                144,
+                &wallet_db.get_conn().unwrap(),
+            )
             .unwrap();
+        }
 
         for (_subaddress, txos) in synced.iter() {
             for txo_id_hex in txos {
@@ -849,9 +857,11 @@ mod tests {
                 &wallet_db.get_conn().unwrap(),
             )
             .unwrap();
-            let account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
 
-            let mut synced: HashMap<i64, Vec<String>> = HashMap::default();
+            let subaddress = account_key.subaddress(0);
+            let assigned_subaddress_b58 = Some(b58_encode_public_address(&subaddress).unwrap());
+
+            // Ingest relevant txos.
             for i in 1..=10 {
                 let (txo_id_hex, _txo, _key_image) = create_test_received_txo(
                     &account_key,
@@ -861,15 +871,17 @@ mod tests {
                     &mut rng,
                     &wallet_db,
                 );
-                if synced.is_empty() {
-                    synced.insert(0, Vec::new());
-                }
-                synced.get_mut(&0).unwrap().push(txo_id_hex);
-            }
 
-            // Ingest relevant txos.
-            TransactionLog::log_received(&synced, &account, 144, &wallet_db.get_conn().unwrap())
+                TransactionLog::log_received(
+                    &account_id.to_string(),
+                    assigned_subaddress_b58.as_ref().map(|s| s.as_str()),
+                    &txo_id_hex,
+                    (100 * i * MOB) as i64,
+                    144,
+                    &wallet_db.get_conn().unwrap(),
+                )
                 .unwrap();
+            }
 
             account_ids.push(account_id);
         }
