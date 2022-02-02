@@ -61,7 +61,7 @@ RUN  --mount=type=cache,target=/root/.cargo/git \
 
 # This is the runtime container.
 # Adding/updating OS will not affect the ability to verify the build environment.
-FROM ubuntu:bionic-20210416
+FROM ubuntu:focal-20211006
 
 RUN  addgroup --system --gid 1000 app \
   && adduser --system --ingroup app --uid 1000 app \
