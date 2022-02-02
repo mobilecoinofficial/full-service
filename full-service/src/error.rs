@@ -11,6 +11,7 @@ use crate::{
         transaction::TransactionServiceError, transaction_log::TransactionLogServiceError,
         txo::TxoServiceError,
     },
+    util::b58::B58Error,
 };
 use displaydoc::Display;
 
@@ -184,6 +185,9 @@ pub enum SyncError {
 
     /// Error executing diesel transaction: {0}
     Diesel(diesel::result::Error),
+
+    /// Error with the B58 Util: {0}
+    B58(B58Error),
 }
 
 impl From<WalletDbError> for SyncError {
@@ -219,6 +223,12 @@ impl From<mc_transaction_core::AmountError> for SyncError {
 impl From<diesel::result::Error> for SyncError {
     fn from(src: diesel::result::Error) -> Self {
         Self::Diesel(src)
+    }
+}
+
+impl From<B58Error> for SyncError {
+    fn from(src: B58Error) -> Self {
+        Self::B58(src)
     }
 }
 

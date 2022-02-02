@@ -261,7 +261,7 @@ fn sync_account_next_chunk(
                 None => None,
                 Some(subaddress_index) => {
                     let subaddress = account_key.subaddress(subaddress_index);
-                    let subaddress_b58 = b58_encode_public_address(&subaddress).unwrap();
+                    let subaddress_b58 = b58_encode_public_address(&subaddress)?;
                     Some(subaddress_b58)
                 }
             };
