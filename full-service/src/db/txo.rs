@@ -125,7 +125,7 @@ pub trait TxoModel {
     /// Update a Txo's status to spent
     fn update_to_spent(
         txo_id_hex: &str,
-        spent_block_index: &i64,
+        spent_block_index: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
@@ -451,7 +451,7 @@ impl TxoModel for Txo {
 
     fn update_to_spent(
         txo_id_hex: &str,
-        spent_block_index: &i64,
+        spent_block_index: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::txos;

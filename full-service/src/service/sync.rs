@@ -280,18 +280,21 @@ fn sync_account_next_chunk(
         let unspent_key_images: HashMap<KeyImage, String> =
             Txo::list_unspent_or_pending_key_images(account_id_hex, conn)?;
         let spent_txos: Vec<_> = key_images
-            .par_iter()
+            .into_par_iter()
             .filter_map(|(block_index, key_image)| {
                 unspent_key_images
-                    .get(key_image)
-                    .map(|txo_id_hex| (block_index, txo_id_hex))
+                    .get(&key_image)
+                    .map(|txo_id_hex| (block_index, txo_id_hex.clone()))
             })
             .collect();
         let num_spent_txos = spent_txos.len();
-        for (block_index, txo_id_hex) in spent_txos {
-            Txo::update_to_spent(txo_id_hex, block_index, conn)?;
-            // TODO: Find TransactionLogs with this spent_txo and update it to
-            // TX_STATUS_SPENT
+        for (block_index, txo_id_hex) in &spent_txos {
+            Txo::update_to_spent(txo_id_hex, *block_index, conn)?;
+            TransactionLog::update_tx_logs_associated_with_txo_to_succeeded(
+                txo_id_hex,
+                *block_index,
+                conn,
+            )?;
         }
 
         // Done syncing this chunk. Mark these blocks as synced for this account.

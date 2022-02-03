@@ -19,7 +19,7 @@ use crate::db::{
     models::{
         Account, NewTransactionLog, NewTransactionTxoType, TransactionLog, TransactionTxoType, Txo,
         TXO_USED_AS_CHANGE, TXO_USED_AS_INPUT, TXO_USED_AS_OUTPUT, TX_DIRECTION_RECEIVED,
-        TX_DIRECTION_SENT, TX_STATUS_PENDING, TX_STATUS_SUCCEEDED,
+        TX_DIRECTION_SENT, TX_STATUS_BUILT, TX_STATUS_PENDING, TX_STATUS_SUCCEEDED,
     },
     txo::{TxoID, TxoModel},
     WalletDbError,
@@ -134,6 +134,12 @@ pub trait TransactionLogModel {
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
+
+    fn update_tx_logs_associated_with_txo_to_succeeded(
+        txo_id_hex: &str,
+        finalized_block_index: i64,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError>;
 }
 
 impl TransactionLogModel for TransactionLog {
@@ -234,11 +240,10 @@ impl TransactionLogModel for TransactionLog {
         use crate::db::schema::{transaction_logs, transaction_txo_types};
 
         Ok(transaction_logs::table
-            .inner_join(
-                transaction_txo_types::table.on(transaction_logs::transaction_id_hex
-                    .eq(transaction_txo_types::transaction_id_hex)
-                    .and(transaction_txo_types::txo_id_hex.eq(txo_id_hex))),
-            )
+            .inner_join(transaction_txo_types::table.on(
+                transaction_logs::transaction_id_hex.eq(transaction_txo_types::transaction_id_hex),
+            ))
+            .filter(transaction_txo_types::txo_id_hex.eq(txo_id_hex))
             .select(transaction_logs::all_columns)
             .load(conn)?)
     }
@@ -484,6 +489,38 @@ impl TransactionLogModel for TransactionLog {
 
         diesel::delete(transaction_logs.filter(cols::account_id_hex.eq(account_id_hex)))
             .execute(conn)?;
+
+        Ok(())
+    }
+
+    fn update_tx_logs_associated_with_txo_to_succeeded(
+        txo_id_hex: &str,
+        finalized_block_index: i64,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::{transaction_logs, transaction_txo_types};
+
+        // Find all transaction_logs that are BUILT or PENDING that are associated
+        // with the txo id when it is used as an input.
+        // Update the status to SUCCEEDED and update the finalized_block_index.
+        let transaction_log_ids: Vec<String> = transaction_logs::table
+            .inner_join(transaction_txo_types::table.on(
+                transaction_logs::transaction_id_hex.eq(transaction_txo_types::transaction_id_hex),
+            ))
+            .filter(transaction_txo_types::txo_id_hex.eq(txo_id_hex))
+            .filter(transaction_logs::status.eq_any(vec![TX_STATUS_BUILT, TX_STATUS_PENDING]))
+            .select(transaction_logs::transaction_id_hex)
+            .load(conn)?;
+
+        diesel::update(
+            transaction_logs::table
+                .filter(transaction_logs::transaction_id_hex.eq_any(transaction_log_ids)),
+        )
+        .set((
+            transaction_logs::status.eq(TX_STATUS_SUCCEEDED),
+            transaction_logs::finalized_block_index.eq(finalized_block_index),
+        ))
+        .execute(conn)?;
 
         Ok(())
     }
