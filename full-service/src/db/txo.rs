@@ -894,8 +894,7 @@ mod tests {
             add_block_with_db_txos, add_block_with_tx_outs, add_block_with_tx_proposal,
             create_test_minted_and_change_txos, create_test_received_txo,
             create_test_txo_for_recipient, get_resolver_factory, get_test_ledger,
-            manually_sync_account, random_account_with_seed_values, wait_for_sync,
-            WalletDbTestContext, MOB,
+            manually_sync_account, random_account_with_seed_values, WalletDbTestContext, MOB,
         },
         WalletDb,
     };
@@ -1508,8 +1507,8 @@ mod tests {
 
         // Now let our sync thread catch up for both sender and receiver
         log::info!(logger, "Manually syncing account");
-        wait_for_sync(&ledger_db, &wallet_db, &recipient_account_id, 16);
-        wait_for_sync(&ledger_db, &wallet_db, &sender_account_id, 16);
+        manually_sync_account(&ledger_db, &wallet_db, &recipient_account_id, 16, &logger);
+        manually_sync_account(&ledger_db, &wallet_db, &sender_account_id, 16, &logger);
 
         // Then let's make sure we received the Txo on the recipient account
         log::info!(logger, "Listing all Txos for recipient account");
