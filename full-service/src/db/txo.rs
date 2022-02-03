@@ -149,7 +149,7 @@ pub trait TxoModel {
     ) -> Result<Vec<Txo>, WalletDbError>;
 
     /// Get a map from key images to unspent txos for this account.
-    fn list_unspent_key_images(
+    fn list_unspent_or_pending_key_images(
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<HashMap<KeyImage, String>, WalletDbError>;
@@ -524,7 +524,7 @@ impl TxoModel for Txo {
         Ok(txos)
     }
 
-    fn list_unspent_key_images(
+    fn list_unspent_or_pending_key_images(
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<HashMap<KeyImage, String>, WalletDbError> {
@@ -535,7 +535,6 @@ impl TxoModel for Txo {
             .filter(txos::key_image.is_not_null())
             .filter(txos::received_account_id_hex.eq(account_id_hex))
             .filter(txos::subaddress_index.is_not_null())
-            .filter(txos::pending_tombstone_block_index.is_null())
             .filter(txos::spent_block_index.is_null())
             .load(conn)?;
 
