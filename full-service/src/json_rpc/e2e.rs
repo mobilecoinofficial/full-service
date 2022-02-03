@@ -10,10 +10,9 @@ mod e2e {
             models::{TXO_STATUS_UNSPENT, TXO_TYPE_RECEIVED},
         },
         json_rpc,
-        json_rpc::api_test_utils::{dispatch, dispatch_expect_error, setup, wait_for_sync},
+        json_rpc::api_test_utils::{dispatch, dispatch_expect_error, setup},
         test_utils::{
-            add_block_to_ledger_db, add_block_with_tx_proposal,
-            wait_for_sync as wait_for_account_sync, MOB,
+            add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account, MOB,
         },
         util::b58::b58_decode_public_address,
     };
@@ -456,7 +455,7 @@ mod e2e {
     #[test_with_logger]
     fn test_e2e_get_balance(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -483,12 +482,12 @@ mod e2e {
             &mut rng,
         );
 
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
-        wait_for_account_sync(
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
             13,
+            &logger,
         );
 
         let body = json!({
@@ -564,7 +563,7 @@ mod e2e {
     #[test_with_logger]
     fn test_account_status(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -590,12 +589,12 @@ mod e2e {
             &mut rng,
         );
 
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
-        wait_for_account_sync(
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
             13,
+            &logger,
         );
 
         let body = json!({
@@ -624,7 +623,7 @@ mod e2e {
     #[test_with_logger]
     fn test_build_and_submit_transaction(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -653,13 +652,12 @@ mod e2e {
             &mut rng,
         );
 
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
-
-        wait_for_account_sync(
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
             13,
+            &logger,
         );
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
 
@@ -672,12 +670,12 @@ mod e2e {
             &mut rng,
         );
 
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
-        wait_for_account_sync(
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
             14,
+            &logger,
         );
         assert_eq!(ledger_db.num_blocks().unwrap(), 14);
 
@@ -747,12 +745,12 @@ mod e2e {
             mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
 
         add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
-        wait_for_account_sync(
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
             15,
+            &logger,
         );
         assert_eq!(ledger_db.num_blocks().unwrap(), 15);
 
@@ -799,7 +797,7 @@ mod e2e {
     #[test_with_logger]
     fn test_build_then_submit_transaction(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -828,12 +826,12 @@ mod e2e {
             &mut rng,
         );
 
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
-        wait_for_account_sync(
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
             13,
+            &logger,
         );
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
 
@@ -877,12 +875,12 @@ mod e2e {
             &mut rng,
         );
 
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
-        wait_for_account_sync(
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
             14,
+            &logger,
         );
         assert_eq!(ledger_db.num_blocks().unwrap(), 14);
 
@@ -995,12 +993,12 @@ mod e2e {
 
         // The MockBlockchainConnection does not write to the ledger_db
         add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
-        wait_for_account_sync(
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
             15,
+            &logger,
         );
         assert_eq!(ledger_db.num_blocks().unwrap(), 15);
 
@@ -1227,11 +1225,12 @@ mod e2e {
             &mut rng,
         );
 
-        wait_for_account_sync(
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(alice_account_id.to_string()),
             13,
+            &logger,
         );
 
         // Create a two-output tx proposal to Bob and Charlie.
@@ -1372,23 +1371,26 @@ mod e2e {
         assert_eq!(ledger_db.num_blocks().unwrap(), 14);
 
         // Wait for accounts to sync.
-        wait_for_account_sync(
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(alice_account_id.to_string()),
             14,
+            &logger,
         );
-        wait_for_account_sync(
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(bob_account_id.to_string()),
             14,
+            &logger,
         );
-        wait_for_account_sync(
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(charlie_account_id.to_string()),
             14,
+            &logger,
         );
 
         // Get balances after submission
@@ -1516,7 +1518,7 @@ mod e2e {
     #[test_with_logger]
     fn test_paginate_transactions(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -1545,13 +1547,13 @@ mod e2e {
             );
         }
 
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
         assert_eq!(ledger_db.num_blocks().unwrap(), 22);
-        wait_for_account_sync(
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
             22,
+            &logger,
         );
 
         // Check that we can paginate txo output.
@@ -1692,7 +1694,7 @@ mod e2e {
     #[test_with_logger]
     fn test_import_account_with_next_subaddress_index(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         // create an account
         let body = json!({
@@ -1734,12 +1736,12 @@ mod e2e {
             &mut rng,
         );
 
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
-        wait_for_account_sync(
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
             13,
+            &logger,
         );
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
 
@@ -1778,11 +1780,13 @@ mod e2e {
             }
         });
         dispatch(&client, body, &logger);
-        wait_for_account_sync(
+
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
             13,
+            &logger,
         );
         let body = json!({
             "jsonrpc": "2.0",
@@ -1854,12 +1858,12 @@ mod e2e {
         });
         dispatch(&client, body, &logger);
 
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
-        wait_for_account_sync(
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
             13,
+            &logger,
         );
 
         let body = json!({
@@ -1949,11 +1953,13 @@ mod e2e {
             &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
-        wait_for_account_sync(
+
+        manually_sync_account(
             &ledger_db,
             &wallet_db,
             &AccountID(account_id_1.to_string()),
             13,
+            &logger,
         );
         assert_eq!(
             txos::table
@@ -1997,11 +2003,13 @@ mod e2e {
             mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
 
         add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
-        wait_for_account_sync(
+
+        manually_sync_account(
             &ledger_db,
             &wallet_db,
             &AccountID(account_id_2.to_string()),
             14,
+            &logger,
         );
         assert_eq!(
             txos::table
@@ -2065,11 +2073,13 @@ mod e2e {
             mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
 
         add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
-        wait_for_account_sync(
+
+        manually_sync_account(
             &ledger_db,
             &wallet_db,
             &AccountID(account_id_3.to_string()),
             15,
+            &logger,
         );
         assert_eq!(
             txos::table
@@ -2098,7 +2108,7 @@ mod e2e {
     #[test_with_logger]
     fn test_create_assigned_subaddress(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -2149,12 +2159,12 @@ mod e2e {
             &mut rng,
         );
 
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
-        wait_for_account_sync(
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
             13,
+            &logger,
         );
 
         let body = json!({
@@ -2299,7 +2309,7 @@ mod e2e {
     #[test_with_logger]
     fn test_balance_for_address(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -2324,12 +2334,13 @@ mod e2e {
             &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
-        wait_for_account_sync(
+        //
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
             13,
+            &logger,
         );
 
         let body = json!({
@@ -2415,12 +2426,13 @@ mod e2e {
             &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
-        wait_for_account_sync(
+        //
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
             14,
+            &logger,
         );
 
         let body = json!({
@@ -2450,7 +2462,7 @@ mod e2e {
     #[test_with_logger]
     fn test_mark_orphaned_txo_as_spent(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -2501,12 +2513,12 @@ mod e2e {
             &mut rng,
         );
 
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
-        wait_for_account_sync(
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
             14,
+            &logger,
         );
 
         // Remove the account.
@@ -2538,12 +2550,12 @@ mod e2e {
         let account_obj = result.get("account").unwrap();
         let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
 
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
-        wait_for_account_sync(
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
             14,
+            &logger,
         );
 
         let body = json!({
@@ -2649,12 +2661,13 @@ mod e2e {
             mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
 
         add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
-        wait_for_account_sync(
+
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
             15,
+            &logger,
         );
 
         // The first account shows the coins are spent.
@@ -2701,12 +2714,12 @@ mod e2e {
         let account_obj = result.get("account").unwrap();
         let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
 
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
-        wait_for_account_sync(
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
             15,
+            &logger,
         );
 
         // The unspent pmob shows what wasn't sent to the second account.
@@ -2757,11 +2770,12 @@ mod e2e {
             &mut rng,
         );
 
-        wait_for_account_sync(
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
             13,
+            &logger,
         );
 
         let body = json!({
@@ -2819,7 +2833,7 @@ mod e2e {
     #[test_with_logger]
     fn test_split_txo(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -2846,12 +2860,12 @@ mod e2e {
             &mut rng,
         );
 
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
-        wait_for_account_sync(
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
             13,
+            &logger,
         );
 
         let body = json!({
@@ -2939,12 +2953,13 @@ mod e2e {
             mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
 
         add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
-        wait_for_account_sync(
+
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
             14,
+            &logger,
         );
 
         // Check the overall balance for the account
@@ -2966,7 +2981,7 @@ mod e2e {
     #[test_with_logger]
     fn test_receipts(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -2992,12 +3007,13 @@ mod e2e {
             &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
-        wait_for_account_sync(
+
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(alice_account_id.to_string()),
             13,
+            &logger,
         );
 
         // Add Bob's account to our wallet
@@ -3072,18 +3088,20 @@ mod e2e {
 
         // The MockBlockchainConnection does not write to the ledger_db
         add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
-        wait_for_account_sync(
+
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(alice_account_id.to_string()),
             14,
+            &logger,
         );
-        wait_for_account_sync(
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(bob_account_id.to_string()),
             14,
+            &logger,
         );
 
         // Bob checks status (should be successful after added to the ledger)
@@ -3105,7 +3123,7 @@ mod e2e {
     #[test_with_logger]
     fn test_gift_codes(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -3131,12 +3149,13 @@ mod e2e {
             &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
-        wait_for_account_sync(
+
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(alice_account_id.to_string()),
             13,
+            &logger,
         );
         // Create a gift code
         let body = json!({
@@ -3190,12 +3209,13 @@ mod e2e {
 
         // The MockBlockchainConnection does not write to the ledger_db
         add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
-        wait_for_account_sync(
+
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(alice_account_id.to_string()),
             14,
+            &logger,
         );
 
         // Check the status of the gift code
@@ -3226,11 +3246,13 @@ mod e2e {
         let result = res.get("result").unwrap();
         let bob_account_obj = result.get("account").unwrap();
         let bob_account_id = bob_account_obj.get("account_id").unwrap().as_str().unwrap();
-        wait_for_account_sync(
+
+        manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(bob_account_id.to_string()),
             14,
+            &logger,
         );
 
         // Get all the gift codes in the wallet
