@@ -299,7 +299,6 @@ fn sync_account_next_chunk(
 
         let txos_exceeding_pending_block_index =
             Txo::list_pending_exceeding_block_index(account_id_hex, last_block_index + 1, conn)?;
-            
         TransactionLog::update_tx_logs_associated_with_txos_to_failed(
             &txos_exceeding_pending_block_index,
             conn,
