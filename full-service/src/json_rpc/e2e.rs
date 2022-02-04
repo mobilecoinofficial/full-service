@@ -1168,6 +1168,202 @@ mod e2e {
     }
 
     #[test_with_logger]
+    fn test_tx_status_failed_when_tombstone_block_index_exceeded(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+        let public_address = b58_decode_public_address(b58_public_address).unwrap();
+
+        // Add a block with a txo for this address (note that value is smaller than
+        // MINIMUM_FEE, so it is a "dust" TxOut that should get opportunistically swept
+        // up when we construct the transaction)
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![public_address.clone()],
+            100,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        manually_sync_account(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            13,
+            &logger,
+        );
+        assert_eq!(ledger_db.num_blocks().unwrap(), 13);
+
+        // Add a block with significantly more MOB
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![public_address.clone()],
+            100000000000000, // 100.0 MOB
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        manually_sync_account(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            14,
+            &logger,
+        );
+        assert_eq!(ledger_db.num_blocks().unwrap(), 14);
+
+        // Create a tx proposal to ourselves with a tombstone block of 1
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "build_and_submit_transaction",
+            "params": {
+                "account_id": account_id,
+                "recipient_public_address": b58_public_address,
+                "value_pmob": "42000000000000", // 42.0 MOB
+                "tombstone_block": "16",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let tx_proposal = result.get("tx_proposal").unwrap();
+        let tx = tx_proposal.get("tx").unwrap();
+        let tx_prefix = tx.get("prefix").unwrap();
+
+        // Add a block with significantly more MOB
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![public_address.clone()],
+            1, // 100.0 MOB
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        manually_sync_account(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            15,
+            &logger,
+        );
+
+        // Get balance after submission
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_account",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance_status = result.get("balance").unwrap();
+        let unspent = balance_status
+            .get("unspent_pmob")
+            .unwrap()
+            .as_str()
+            .unwrap();
+        let pending = balance_status
+            .get("pending_pmob")
+            .unwrap()
+            .as_str()
+            .unwrap();
+        let spent = balance_status.get("spent_pmob").unwrap().as_str().unwrap();
+        let secreted = balance_status
+            .get("secreted_pmob")
+            .unwrap()
+            .as_str()
+            .unwrap();
+        let orphaned = balance_status
+            .get("orphaned_pmob")
+            .unwrap()
+            .as_str()
+            .unwrap();
+        assert_eq!(unspent, "1");
+        assert_eq!(pending, "100000000000100");
+
+        // Add a block with 1 MOB to increment height 2 times,
+        // which should cause the previous transaction to
+        // become invalid and free up the TXO as well as mark
+        // the transaction log as TX_STATUS_FAILED
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![public_address.clone()],
+            1, // 100.0 MOB
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![public_address.clone()],
+            1, // 100.0 MOB
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+        manually_sync_account(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            17,
+            &logger,
+        );
+
+        assert_eq!(ledger_db.num_blocks().unwrap(), 17);
+
+        // Get balance after submission
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_account",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance_status = result.get("balance").unwrap();
+        let unspent = balance_status
+            .get("unspent_pmob")
+            .unwrap()
+            .as_str()
+            .unwrap();
+        let pending = balance_status
+            .get("pending_pmob")
+            .unwrap()
+            .as_str()
+            .unwrap();
+        let spent = balance_status.get("spent_pmob").unwrap().as_str().unwrap();
+        let secreted = balance_status
+            .get("secreted_pmob")
+            .unwrap()
+            .as_str()
+            .unwrap();
+        let orphaned = balance_status
+            .get("orphaned_pmob")
+            .unwrap()
+            .as_str()
+            .unwrap();
+        assert_eq!(unspent, "100000000000103".to_string());
+        assert_eq!(pending, "0");
+        assert_eq!(spent, "0");
+    }
+
+    #[test_with_logger]
     fn test_multiple_outlay_transaction(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());

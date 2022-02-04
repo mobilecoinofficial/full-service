@@ -299,9 +299,11 @@ fn sync_account_next_chunk(
 
         // Done syncing this chunk. Mark these blocks as synced for this account.
         account.update_next_block_index(last_block_index + 1, conn)?;
-
-        // TODO: Find txos with a pending_tombstone_block_index < the last_block_index
-        // and set them to spendable.
+        
+        Txo::update_txos_exceeding_pending_tombstone_block_index_to_unspent(
+            last_block_index + 1,
+            conn,
+        )?;
 
         // TODO: Find any TransactionLogs associated with these txos and update them
         // to TX_STATUS_FAILED

@@ -129,6 +129,13 @@ pub trait TxoModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
+    /// Update all Txo's that are pending with a pending_tombstone_block_index
+    /// less than the target block index to unspent
+    fn update_txos_exceeding_pending_tombstone_block_index_to_unspent(
+        block_index: i64,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError>;
+
     /// Get all Txos associated with a given account.
     fn list_for_account(
         account_id_hex: &str,
@@ -462,6 +469,23 @@ impl TxoModel for Txo {
                 txos::pending_tombstone_block_index.eq::<Option<i64>>(None),
             ))
             .execute(conn)?;
+        Ok(())
+    }
+
+    fn update_txos_exceeding_pending_tombstone_block_index_to_unspent(
+        block_index: i64,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::txos;
+
+        diesel::update(
+            txos::table
+                .filter(txos::pending_tombstone_block_index.is_not_null())
+                .filter(txos::pending_tombstone_block_index.lt(block_index)),
+        )
+        .set(txos::pending_tombstone_block_index.eq::<Option<i64>>(None))
+        .execute(conn)?;
+
         Ok(())
     }
 
