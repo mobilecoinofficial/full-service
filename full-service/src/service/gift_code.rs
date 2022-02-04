@@ -19,7 +19,7 @@ use crate::{
         account::AccountServiceError,
         address::{AddressService, AddressServiceError},
         transaction::{TransactionService, TransactionServiceError},
-        transaction_builder::{DEFAULT_NEW_TX_BLOCK_ATTEMPTS},
+        transaction_builder::DEFAULT_NEW_TX_BLOCK_ATTEMPTS,
         WalletService,
     },
     util::b58::{
@@ -642,7 +642,8 @@ where
         transaction_builder.set_fee(Mob::MINIMUM_FEE)?;
 
         let num_blocks_in_ledger = self.ledger_db.num_blocks()?;
-        transaction_builder.set_tombstone_block(num_blocks_in_ledger + DEFAULT_NEW_TX_BLOCK_ATTEMPTS);
+        transaction_builder
+            .set_tombstone_block(num_blocks_in_ledger + DEFAULT_NEW_TX_BLOCK_ATTEMPTS);
         let tx = transaction_builder.build(&mut rng)?;
 
         let responder_ids = self.peer_manager.responder_ids();
