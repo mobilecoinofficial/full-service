@@ -68,5 +68,3 @@ ingest-enclave.css
 *.mdb
 
 release/
-
-sgx_linux_x64_sdk_*.bin*
