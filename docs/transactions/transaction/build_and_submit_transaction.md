@@ -19,7 +19,7 @@ description: >-
 | `addresses_and_values` | An array of public addresses and value tuples | addresses are b58-encoded public addresses, value is in pmob |
 | `input_txo_ids` | Specific TXOs to use as inputs to this transaction | TXO IDs \(obtain from `get_all_txos_for_account`\) |
 | `fee` | The fee amount to submit with this transaction | If not provided, uses `MINIMUM_FEE` = .01 MOB |
-| `tombstone_block` | The block after which this transaction expires | If not provided, uses `cur_height` + 50 |
+| `tombstone_block` | The block after which this transaction expires | If not provided, uses `cur_height` + 10 |
 | `max_spendable_value` | The maximum amount for an input TXO selected for this transaction |  |
 | `comment` | Comment to annotate this transaction in the transaction log |  |
 
