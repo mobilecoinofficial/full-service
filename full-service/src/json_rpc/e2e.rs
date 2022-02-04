@@ -1240,11 +1240,13 @@ mod e2e {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let tx_proposal = result.get("tx_proposal").unwrap();
-        let tx = tx_proposal.get("tx").unwrap();
-        let tx_prefix = tx.get("prefix").unwrap();
+        let tx_log = result.get("transaction_log").unwrap();
+        let tx_log_status = tx_log.get("status").unwrap();
+        let tx_log_id = tx_log.get("transaction_log_id").unwrap();
 
-        // Add a block with significantly more MOB
+        assert_eq!(tx_log_status, "tx_status_pending");
+
+        // Add a block with 1 MOB
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![public_address.clone()],
@@ -1283,17 +1285,6 @@ mod e2e {
             .unwrap()
             .as_str()
             .unwrap();
-        let spent = balance_status.get("spent_pmob").unwrap().as_str().unwrap();
-        let secreted = balance_status
-            .get("secreted_pmob")
-            .unwrap()
-            .as_str()
-            .unwrap();
-        let orphaned = balance_status
-            .get("orphaned_pmob")
-            .unwrap()
-            .as_str()
-            .unwrap();
         assert_eq!(unspent, "1");
         assert_eq!(pending, "100000000000100");
 
@@ -1325,6 +1316,22 @@ mod e2e {
 
         assert_eq!(ledger_db.num_blocks().unwrap(), 17);
 
+        // Get tx log after syncing is finished
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_transaction_log",
+            "params": {
+                "transaction_log_id": tx_log_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let tx_log = result.get("transaction_log").unwrap();
+        let tx_log_status = tx_log.get("status").unwrap();
+
+        assert_eq!(tx_log_status, "tx_status_failed");
+
         // Get balance after submission
         let body = json!({
             "jsonrpc": "2.0",
@@ -1348,16 +1355,6 @@ mod e2e {
             .as_str()
             .unwrap();
         let spent = balance_status.get("spent_pmob").unwrap().as_str().unwrap();
-        let secreted = balance_status
-            .get("secreted_pmob")
-            .unwrap()
-            .as_str()
-            .unwrap();
-        let orphaned = balance_status
-            .get("orphaned_pmob")
-            .unwrap()
-            .as_str()
-            .unwrap();
         assert_eq!(unspent, "100000000000103".to_string());
         assert_eq!(pending, "0");
         assert_eq!(spent, "0");

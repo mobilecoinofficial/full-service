@@ -188,6 +188,12 @@ pub trait TxoModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
+    fn list_pending_exceeding_block_index(
+        account_id_hex: &str,
+        block_index: i64,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<Txo>, WalletDbError>;
+
     /// Get the details for a specific Txo.
     ///
     /// Returns:
@@ -652,6 +658,24 @@ impl TxoModel for Txo {
         } else {
             results.load(conn)?
         };
+
+        Ok(txos)
+    }
+
+    fn list_pending_exceeding_block_index(
+        account_id_hex: &str,
+        block_index: i64,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<Txo>, WalletDbError> {
+        use crate::db::schema::txos;
+
+        let txos = txos::table
+            .filter(txos::received_account_id_hex.eq(account_id_hex))
+            .filter(txos::subaddress_index.is_not_null())
+            .filter(txos::pending_tombstone_block_index.is_not_null())
+            .filter(txos::pending_tombstone_block_index.lt(block_index))
+            .filter(txos::spent_block_index.is_null())
+            .load(conn)?;
 
         Ok(txos)
     }

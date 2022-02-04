@@ -297,16 +297,21 @@ fn sync_account_next_chunk(
             )?;
         }
 
-        // Done syncing this chunk. Mark these blocks as synced for this account.
-        account.update_next_block_index(last_block_index + 1, conn)?;
-        
+        let txos_exceeding_pending_block_index =
+            Txo::list_pending_exceeding_block_index(account_id_hex, last_block_index + 1, conn)?;
+            
+        TransactionLog::update_tx_logs_associated_with_txos_to_failed(
+            &txos_exceeding_pending_block_index,
+            conn,
+        )?;
+
         Txo::update_txos_exceeding_pending_tombstone_block_index_to_unspent(
             last_block_index + 1,
             conn,
         )?;
 
-        // TODO: Find any TransactionLogs associated with these txos and update them
-        // to TX_STATUS_FAILED
+        // Done syncing this chunk. Mark these blocks as synced for this account.
+        account.update_next_block_index(last_block_index + 1, conn)?;
 
         let duration = start_time.elapsed();
 
