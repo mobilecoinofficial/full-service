@@ -20,6 +20,8 @@ def main():
 
     source_wallet = sys.argv[1]
 
+    cli = _start_test_server()
+
     # Start and end with an empty wallet.
     try:
         check_wallet_empty(c)
@@ -295,6 +297,7 @@ def _start_test_server():
     time.sleep(0.5)  # Wait for other servers to stop.
     cli.start(bg=True, unencrypted=True)
     time.sleep(1.5)  # Wait for the server to start listening.
+    return cli
 
 
 def check_wallet_empty(c):
