@@ -162,14 +162,6 @@ fn consensus_backed_full_service(
         &logger,
     );
 
-    // use mc_full_service::service::sync::sync_all_accounts;
-    // sync_all_accounts(
-    //     &ledger_db,
-    //     &wallet_db,
-    //     &logger,
-    // );
-    // return;
-
     // Start ledger sync thread unless running in offline mode.
     let _ledger_sync_service_thread = if config.offline {
         None
