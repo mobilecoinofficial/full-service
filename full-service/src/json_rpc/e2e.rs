@@ -734,10 +734,10 @@ mod e2e {
             .unwrap();
         assert_eq!(outlay_confirmation_numbers.len(), 1);
 
-        // Tombstone block = ledger height (12 to start + 2 new blocks + 50 default
+        // Tombstone block = ledger height (12 to start + 2 new blocks + 10 default
         // tombstone)
         let prefix_tombstone = tx_prefix.get("tombstone_block").unwrap();
-        assert_eq!(prefix_tombstone, "64");
+        assert_eq!(prefix_tombstone, "24");
 
         let json_tx_proposal: json_rpc::tx_proposal::TxProposal =
             serde_json::from_value(tx_proposal.clone()).unwrap();
@@ -939,10 +939,10 @@ mod e2e {
             .unwrap();
         assert_eq!(outlay_confirmation_numbers.len(), 1);
 
-        // Tombstone block = ledger height (12 to start + 2 new blocks + 50 default
+        // Tombstone block = ledger height (12 to start + 2 new blocks + 10 default
         // tombstone)
         let prefix_tombstone = tx_prefix.get("tombstone_block").unwrap();
-        assert_eq!(prefix_tombstone, "64");
+        assert_eq!(prefix_tombstone, "24");
 
         // Get current balance
         assert_eq!(ledger_db.num_blocks().unwrap(), 14);
