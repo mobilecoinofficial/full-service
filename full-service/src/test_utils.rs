@@ -362,7 +362,7 @@ pub fn manually_sync_account(
     account
 }
 
-pub fn wait_for_sync(
+fn wait_for_sync(
     ledger_db: &LedgerDB,
     wallet_db: &WalletDb,
     account_id: &AccountID,
@@ -669,7 +669,6 @@ pub fn setup_wallet_service(
         peer_manager,
         network_state,
         get_resolver_factory(&mut rng).unwrap(),
-        None,
         false,
         logger,
     )
