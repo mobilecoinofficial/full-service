@@ -2308,7 +2308,7 @@ dependencies = [
 
 [[package]]
 name = "mc-full-service"
-version = "0.1.0"
+version = "1.4.0"
 dependencies = [
  "bs58",
  "chrono",
