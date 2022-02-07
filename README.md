@@ -218,7 +218,6 @@ For database encryption features, see [DATABASE.md](DATABASE.md).
 | `listen-port` | Port to start webserver on. | Default: 9090 |
 | `ledger-db-bootstrap` | Path to existing ledger_db that contains the origin block, <br /> used when initializing new ledger dbs. |  |
 | `quorum-set` | Quorum set for ledger syncing. | Default includes all `peers` |
-| `num-workers` | Number of worker threads to use for view key scanning. | Defaults to number of logical CPU cores. |
 | `poll-interval` | How many seconds to wait between polling for new blocks. | Default: 5 |
 | `offline` | Use Full Service in offline mode. This mode does not download new blocks or submit transactions. | |
 | `fog-ingest-enclave-css` | Path to the Fog ingest enclave sigstruct CSS file. | Needed in order to enable sending transactions to fog addresses. |

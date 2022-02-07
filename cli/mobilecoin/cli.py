@@ -820,7 +820,8 @@ def _load_import(backup):
     try:
         return _load_import_file(backup)
     except FileNotFoundError:
-        pass
+        if backup.endswith('.json'):
+            raise
 
     # Try to use the legacy import system, treating the string as hexadecimal root entropy.
     try:
