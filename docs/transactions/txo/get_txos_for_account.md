@@ -10,7 +10,7 @@ description: Get TXOs for a given account with offset and limit parameters
 | :--- | :--- | :--- |
 | `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
 | `offset` | The value to offset pagination requests. Requests will exclude all list items up to and including this object. | |
-| `limit` | The limit of returned results. | |
+| `limit` | The limit of returned results. | This has a max value of 1000, and will return an error if exceeded. |
 
 ## Example
 
