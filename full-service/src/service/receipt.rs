@@ -189,7 +189,7 @@ where
         let conn = &self.wallet_db.get_conn()?;
         conn.transaction(|| {
             let assigned_address = AssignedSubaddress::get(address, conn)?;
-            let account_id = AccountID(assigned_address.account_id_hex.clone());
+            let account_id = AccountID(assigned_address.account_id_hex);
             let account = Account::get(&account_id, conn)?;
             // Get the transaction from the database, with status.
             let txos = Txo::select_by_public_key(&[&receiver_receipt.public_key], conn)?;
@@ -202,19 +202,6 @@ where
 
             // Return if the Txo from the receipt has a pending tombstone block index
             if txo.pending_tombstone_block_index.is_some() {
-                return Ok((ReceiptTransactionStatus::TransactionPending, Some(txo)));
-            }
-
-            // We are reproducing a bug with this logic and it is not how the
-            // feature is intended to work. Currently, this will return a Transaction
-            // Pending result even if the txo hits the ledger but does not belong to
-            // this account. It should instead fall through to the next block of code
-            // and return a FailedAmountDecryption, since that is more truly a description
-            // of what happened.
-            // TODO - remove this and it will work as expected
-            if txo.minted_account_id_hex == Some(assigned_address.account_id_hex.clone())
-                && txo.received_account_id_hex != Some(assigned_address.account_id_hex)
-            {
                 return Ok((ReceiptTransactionStatus::TransactionPending, Some(txo)));
             }
 
@@ -462,7 +449,7 @@ mod tests {
         let txo_pubkey =
             mc_util_serial::decode(&txos[0].public_key).expect("Could not decode pubkey");
         assert_eq!(receipt.public_key, txo_pubkey);
-        assert_eq!(receipt.tombstone_block, 63); // Ledger seeded with 12 blocks at tx construction, then one appended + 50
+        assert_eq!(receipt.tombstone_block, 23); // Ledger seeded with 12 blocks at tx construction, then one appended + 10
         let txo: TxOut = mc_util_serial::decode(&txos[0].txo).expect("Could not decode txo");
         assert_eq!(receipt.amount, txo.amount);
         assert_eq!(receipt.confirmation, confirmations[0].confirmation);
@@ -574,16 +561,14 @@ mod tests {
             .expect("Could not check status of receipt");
         assert_eq!(status, ReceiptTransactionStatus::TransactionSuccess);
 
-        // Status for Alice would be pending, because she never received (and never will
+        // Status for Alice will not work, because she never received (and never will
         // receive) the Txos.
         let alice_address = &b58_encode_public_address(&alice_public_address)
             .expect("Could not encode Alice address");
         let (status, _txo) = service
             .check_receipt_status(&alice_address, &receipt)
             .expect("Could not check status of receipt");
-        assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
-
-        // assert_eq!(status, ReceiptTransactionStatus::FailedAmountDecryption);
+        assert_eq!(status, ReceiptTransactionStatus::FailedAmountDecryption);
     }
 
     #[test_with_logger]
@@ -694,16 +679,14 @@ mod tests {
             )
         );
 
-        // Status for Alice would be pending, because she never received (and
-        // never will receive) the Txos.
+        // Status for Alice will not work, because she never received (and never will
+        // receive) the Txos.
         let alice_address = &b58_encode_public_address(&alice_public_address)
             .expect("Could not encode alice address");
         let (status, _txo) = service
             .check_receipt_status(&alice_address, &receipt0)
             .expect("Could not check status of receipt");
-        assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
-
-        // assert_eq!(status, ReceiptTransactionStatus::FailedAmountDecryption);
+        assert_eq!(status, ReceiptTransactionStatus::FailedAmountDecryption);
     }
 
     #[test_with_logger]
@@ -795,15 +778,13 @@ mod tests {
             .expect("Could not check status of receipt");
         assert_eq!(status, ReceiptTransactionStatus::InvalidConfirmation);
 
-        // Checking for the sender will be pending because the Txos haven't
-        // landed for alice (and never will).
+        // Status for Alice will not work, because she never received (and never will
+        // receive) the Txos.
         let alice_address = &b58_encode_public_address(&alice_public_address)
             .expect("Could not encode alice address");
         let (status, _txo) = service
             .check_receipt_status(&alice_address, &receipt)
             .expect("Could not check status of receipt");
-        assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
-
-        // assert_eq!(status, ReceiptTransactionStatus::FailedAmountDecryption);
+        assert_eq!(status, ReceiptTransactionStatus::FailedAmountDecryption);
     }
 }

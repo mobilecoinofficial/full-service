@@ -8,26 +8,22 @@ use diesel::{
     r2d2::{ConnectionManager, PooledConnection},
     RunQueryDsl,
 };
-use mc_account_keys::AccountKey;
 use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::tx::Tx;
 use std::fmt;
 
-use crate::{
-    db::{
-        account::{AccountID, AccountModel},
-        models::{
-            Account, NewTransactionLog, NewTransactionTxoType, TransactionLog, TransactionTxoType,
-            Txo, TXO_USED_AS_CHANGE, TXO_USED_AS_INPUT, TXO_USED_AS_OUTPUT, TX_DIRECTION_RECEIVED,
-            TX_DIRECTION_SENT, TX_STATUS_BUILT, TX_STATUS_FAILED, TX_STATUS_PENDING,
-            TX_STATUS_SUCCEEDED,
-        },
-        txo::{TxoID, TxoModel},
-        WalletDbError,
+use crate::db::{
+    account::{AccountID, AccountModel},
+    models::{
+        Account, NewTransactionLog, NewTransactionTxoType, TransactionLog, TransactionTxoType, Txo,
+        TXO_USED_AS_CHANGE, TXO_USED_AS_INPUT, TXO_USED_AS_OUTPUT, TX_DIRECTION_RECEIVED,
+        TX_DIRECTION_SENT, TX_STATUS_BUILT, TX_STATUS_FAILED, TX_STATUS_PENDING,
+        TX_STATUS_SUCCEEDED,
     },
-    util::b58::b58_encode_public_address,
+    txo::{TxoID, TxoModel},
+    WalletDbError,
 };
 
 #[derive(Debug)]
@@ -106,17 +102,12 @@ pub trait TransactionLogModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletDbError>;
 
-    /// Update the transactions associated with a Txo for a given block index.
-    fn update_transactions_associated_to_txo(
-        txo_id_hex: &str,
-        cur_block_index: i64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<(), WalletDbError>;
-
     /// Log a received transaction.
     fn log_received(
-        subaddress_to_output_txo_ids: &HashMap<i64, Vec<String>>,
-        account: &Account,
+        account_id_hex: &str,
+        assigned_subaddress_b58: Option<&str>,
+        txo_id_hex: &str,
+        amount: i64,
         block_index: u64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
@@ -142,6 +133,17 @@ pub trait TransactionLogModel {
     /// Remove all logs for an account
     fn delete_all_for_account(
         account_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError>;
+
+    fn update_tx_logs_associated_with_txo_to_succeeded(
+        txo_id_hex: &str,
+        finalized_block_index: i64,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError>;
+
+    fn update_tx_logs_associated_with_txos_to_failed(
+        txos: &[Txo],
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 }
@@ -244,11 +246,10 @@ impl TransactionLogModel for TransactionLog {
         use crate::db::schema::{transaction_logs, transaction_txo_types};
 
         Ok(transaction_logs::table
-            .inner_join(
-                transaction_txo_types::table.on(transaction_logs::transaction_id_hex
-                    .eq(transaction_txo_types::transaction_id_hex)
-                    .and(transaction_txo_types::txo_id_hex.eq(txo_id_hex))),
-            )
+            .inner_join(transaction_txo_types::table.on(
+                transaction_logs::transaction_id_hex.eq(transaction_txo_types::transaction_id_hex),
+            ))
+            .filter(transaction_txo_types::txo_id_hex.eq(txo_id_hex))
             .select(transaction_logs::all_columns)
             .load(conn)?)
     }
@@ -343,119 +344,46 @@ impl TransactionLogModel for TransactionLog {
         Ok(results)
     }
 
-    // FIXME: WS-30 - We may be doing n^2 work here
-    fn update_transactions_associated_to_txo(
-        txo_id_hex: &str,
-        cur_block_index: i64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<(), WalletDbError> {
-        use crate::db::schema::transaction_logs::dsl::{transaction_id_hex, transaction_logs};
-
-        let associated_transaction_logs = Self::select_for_txo(txo_id_hex, conn)?;
-
-        for transaction_log in associated_transaction_logs {
-            let associated = transaction_log.get_associated_txos(conn)?;
-
-            // Only update transaction_log status if built or pending
-            if transaction_log.status != TX_STATUS_BUILT
-                && transaction_log.status != TX_STATUS_PENDING
-            {
-                continue;
-            }
-
-            // Check whether all the inputs have been spent or if any failed, and update
-            // accordingly
-            let input_txo_ids: Vec<String> = associated
-                .inputs
-                .iter()
-                .map(|t| t.txo_id_hex.clone())
-                .collect();
-            if Txo::are_all_spent(&input_txo_ids, conn)? {
-                diesel::update(
-                    transaction_logs
-                        .filter(transaction_id_hex.eq(&transaction_log.transaction_id_hex)),
-                )
-                .set((
-                    crate::db::schema::transaction_logs::status.eq(TX_STATUS_SUCCEEDED),
-                    crate::db::schema::transaction_logs::finalized_block_index
-                        .eq(Some(cur_block_index)),
-                ))
-                .execute(conn)?;
-            } else if Txo::any_failed(&input_txo_ids, cur_block_index, conn)? {
-                // FIXME: WS-18, WS-17 - Do we want to store and update the "failed_block_index"
-                // as min(tombstones)?
-                diesel::update(
-                    transaction_logs
-                        .filter(transaction_id_hex.eq(&transaction_log.transaction_id_hex)),
-                )
-                .set(crate::db::schema::transaction_logs::status.eq(TX_STATUS_FAILED))
-                .execute(conn)?;
-            }
-        }
-        Ok(())
-    }
-
     fn log_received(
-        subaddress_to_output_txo_ids: &HashMap<i64, Vec<String>>,
-        account: &Account,
+        account_id_hex: &str,
+        assigned_subaddress_b58: Option<&str>,
+        txo_id_hex: &str,
+        amount: i64,
         block_index: u64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::transaction_txo_types;
 
-        for (subaddress_index, output_txo_ids) in subaddress_to_output_txo_ids {
-            let txos = Txo::select_by_id(output_txo_ids, conn)?;
-            for txo in txos {
-                let transaction_id = TransactionID::from(txo.txo_id_hex.clone());
+        let new_transaction_log = NewTransactionLog {
+            transaction_id_hex: &txo_id_hex.to_string(),
+            account_id_hex,
+            assigned_subaddress_b58,
+            value: amount,
+            fee: None, // Impossible to recover fee from received transaction
+            status: TX_STATUS_SUCCEEDED,
+            sent_time: None, // NULL for received
+            submitted_block_index: None,
+            finalized_block_index: Some(block_index as i64),
+            comment: "", // NULL for received
+            direction: TX_DIRECTION_RECEIVED,
+            tx: None, // NULL for received
+        };
 
-                // Check that we haven't already logged this transaction on a previous sync
-                match TransactionLog::get(&transaction_id.to_string(), conn) {
-                    Ok(_) => continue, // Processed this transaction on a previous sync.
-                    Err(WalletDbError::TransactionLogNotFound(_)) => {} // Insert below
-                    Err(e) => return Err(e),
-                }
+        diesel::insert_into(crate::db::schema::transaction_logs::table)
+            .values(&new_transaction_log)
+            .execute(conn)?;
 
-                // Get the public address for the subaddress that received these TXOs
-                let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
-                let subaddress = account_key.subaddress(*subaddress_index as u64);
-                let b58_subaddress = b58_encode_public_address(&subaddress)?;
-                let assigned_subaddress_b58: Option<&str> = if *subaddress_index >= 0 {
-                    Some(&b58_subaddress)
-                } else {
-                    None
-                };
+        // Create an entry per TXO for the TransactionTxoTypes
+        let new_transaction_txo = NewTransactionTxoType {
+            transaction_id_hex: &txo_id_hex.to_string(),
+            txo_id_hex,
+            transaction_txo_type: TXO_USED_AS_OUTPUT,
+        };
 
-                // Create a TransactionLogs entry for every TXO
-                let new_transaction_log = NewTransactionLog {
-                    transaction_id_hex: &transaction_id.to_string(),
-                    account_id_hex: &account.account_id_hex,
-                    assigned_subaddress_b58,
-                    value: txo.value,
-                    fee: None, // Impossible to recover fee from received transaction
-                    status: TX_STATUS_SUCCEEDED,
-                    sent_time: None, // NULL for received
-                    submitted_block_index: None,
-                    finalized_block_index: Some(block_index as i64),
-                    comment: "", // NULL for received
-                    direction: TX_DIRECTION_RECEIVED,
-                    tx: None, // NULL for received
-                };
-                diesel::insert_into(crate::db::schema::transaction_logs::table)
-                    .values(&new_transaction_log)
-                    .execute(conn)?;
+        diesel::insert_into(transaction_txo_types::table)
+            .values(&new_transaction_txo)
+            .execute(conn)?;
 
-                // Create an entry per TXO for the TransactionTxoTypes
-                let new_transaction_txo = NewTransactionTxoType {
-                    transaction_id_hex: &transaction_id.to_string(),
-                    txo_id_hex: &txo.txo_id_hex,
-                    transaction_txo_type: TXO_USED_AS_OUTPUT,
-                };
-                // Note: SQLite backend does not support batch insert, so within iter is fine
-                diesel::insert_into(transaction_txo_types::table)
-                    .values(&new_transaction_txo)
-                    .execute(conn)?;
-            }
-        }
         Ok(())
     }
 
@@ -570,15 +498,77 @@ impl TransactionLogModel for TransactionLog {
 
         Ok(())
     }
+
+    fn update_tx_logs_associated_with_txo_to_succeeded(
+        txo_id_hex: &str,
+        finalized_block_index: i64,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::{transaction_logs, transaction_txo_types};
+
+        // Find all transaction_logs that are BUILT or PENDING that are associated
+        // with the txo id when it is used as an input.
+        // Update the status to SUCCEEDED and update the finalized_block_index.
+        let transaction_log_ids: Vec<String> = transaction_logs::table
+            .inner_join(transaction_txo_types::table.on(
+                transaction_logs::transaction_id_hex.eq(transaction_txo_types::transaction_id_hex),
+            ))
+            .filter(transaction_txo_types::txo_id_hex.eq(txo_id_hex))
+            .filter(transaction_logs::status.eq_any(vec![TX_STATUS_BUILT, TX_STATUS_PENDING]))
+            .select(transaction_logs::transaction_id_hex)
+            .load(conn)?;
+
+        diesel::update(
+            transaction_logs::table
+                .filter(transaction_logs::transaction_id_hex.eq_any(transaction_log_ids)),
+        )
+        .set((
+            transaction_logs::status.eq(TX_STATUS_SUCCEEDED),
+            transaction_logs::finalized_block_index.eq(finalized_block_index),
+        ))
+        .execute(conn)?;
+
+        Ok(())
+    }
+
+    fn update_tx_logs_associated_with_txos_to_failed(
+        txos: &[Txo],
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::{transaction_logs, transaction_txo_types};
+
+        let txo_ids: Vec<String> = txos.iter().map(|txo| txo.txo_id_hex.clone()).collect();
+
+        // Find all transaction_logs that are BUILT or PENDING that are associated
+        // with the txo id when it is used as an input.
+        // Update the status to FAILED
+        let transaction_log_ids: Vec<String> = transaction_logs::table
+            .inner_join(transaction_txo_types::table.on(
+                transaction_logs::transaction_id_hex.eq(transaction_txo_types::transaction_id_hex),
+            ))
+            .filter(transaction_txo_types::txo_id_hex.eq_any(txo_ids))
+            .filter(transaction_logs::status.eq_any(vec![TX_STATUS_BUILT, TX_STATUS_PENDING]))
+            .select(transaction_logs::transaction_id_hex)
+            .load(conn)?;
+
+        diesel::update(
+            transaction_logs::table
+                .filter(transaction_logs::transaction_id_hex.eq_any(transaction_log_ids)),
+        )
+        .set((transaction_logs::status.eq(TX_STATUS_FAILED),))
+        .execute(conn)?;
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use mc_account_keys::{PublicAddress, RootIdentity};
+    use mc_account_keys::{AccountKey, PublicAddress, RootIdentity};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::RngCore;
     use mc_ledger_db::Ledger;
-    use mc_transaction_core::{constants::MINIMUM_FEE, ring_signature::KeyImage};
+    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
@@ -590,6 +580,7 @@ mod tests {
             get_resolver_factory, get_test_ledger, manually_sync_account,
             random_account_with_seed_values, WalletDbTestContext, MOB,
         },
+        util::b58::b58_encode_public_address,
     };
 
     use super::*;
@@ -615,10 +606,12 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        let account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
 
         // Populate our DB with some received txos in the same block
         let mut synced: HashMap<i64, Vec<String>> = HashMap::default();
+        let subaddress = account_key.subaddress(0);
+        let assigned_subaddress_b58 = Some(b58_encode_public_address(&subaddress).unwrap());
+
         for i in 1..20 {
             let (txo_id_hex, _txo, _key_image) = create_test_received_txo(
                 &account_key,
@@ -631,12 +624,18 @@ mod tests {
             if synced.is_empty() {
                 synced.insert(0, Vec::new());
             }
-            synced.get_mut(&0).unwrap().push(txo_id_hex);
-        }
+            synced.get_mut(&0).unwrap().push(txo_id_hex.clone());
 
-        // Now we'll ingest them.
-        TransactionLog::log_received(&synced, &account, 144, &wallet_db.get_conn().unwrap())
+            TransactionLog::log_received(
+                &account_id.to_string(),
+                assigned_subaddress_b58.as_ref().map(|s| s.as_str()),
+                &txo_id_hex,
+                (100 * i * MOB) as i64,
+                144,
+                &wallet_db.get_conn().unwrap(),
+            )
             .unwrap();
+        }
 
         for (_subaddress, txos) in synced.iter() {
             for txo_id_hex in txos {
@@ -681,8 +680,7 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread =
-            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
 
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -721,7 +719,7 @@ mod tests {
         // Value is the amount sent, not including fee and change
         assert_eq!(tx_log.value, 50 * MOB);
         // Fee exists for submitted
-        assert_eq!(tx_log.fee, Some(MINIMUM_FEE as i64));
+        assert_eq!(tx_log.fee, Some(Mob::MINIMUM_FEE as i64));
         // Created and sent transaction is "pending" until it lands
         assert_eq!(tx_log.status, TX_STATUS_PENDING);
         assert!(tx_log.sent_time.unwrap() > 0);
@@ -783,7 +781,7 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(change_details.value, 20 * MOB - MINIMUM_FEE as i64);
+        assert_eq!(change_details.value, 20 * MOB - Mob::MINIMUM_FEE as i64);
 
         // Note, this will still be marked as not change until the txo
         // appears on the ledger and the account syncs.
@@ -836,8 +834,7 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread =
-            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
 
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -850,7 +847,7 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
         // Add outlays all to the same recipient, so that we exceed u64::MAX in this tx
-        let value = 100 * MOB as u64 - MINIMUM_FEE;
+        let value = 100 * MOB as u64 - Mob::MINIMUM_FEE;
         builder.add_recipient(recipient.clone(), value).unwrap();
 
         builder.set_tombstone(0).unwrap();
@@ -883,7 +880,7 @@ mod tests {
         // Value is the amount sent, not including fee and change
         assert_eq!(tx_log.value, value as i64);
         // Fee exists for submitted
-        assert_eq!(tx_log.fee, Some(MINIMUM_FEE as i64));
+        assert_eq!(tx_log.fee, Some(Mob::MINIMUM_FEE as i64));
         // Created and sent transaction is "pending" until it lands
         assert_eq!(tx_log.status, TX_STATUS_PENDING);
         assert!(tx_log.sent_time.unwrap() > 0);
@@ -933,9 +930,11 @@ mod tests {
                 &wallet_db.get_conn().unwrap(),
             )
             .unwrap();
-            let account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
 
-            let mut synced: HashMap<i64, Vec<String>> = HashMap::default();
+            let subaddress = account_key.subaddress(0);
+            let assigned_subaddress_b58 = Some(b58_encode_public_address(&subaddress).unwrap());
+
+            // Ingest relevant txos.
             for i in 1..=10 {
                 let (txo_id_hex, _txo, _key_image) = create_test_received_txo(
                     &account_key,
@@ -945,15 +944,17 @@ mod tests {
                     &mut rng,
                     &wallet_db,
                 );
-                if synced.is_empty() {
-                    synced.insert(0, Vec::new());
-                }
-                synced.get_mut(&0).unwrap().push(txo_id_hex);
-            }
 
-            // Ingest relevant txos.
-            TransactionLog::log_received(&synced, &account, 144, &wallet_db.get_conn().unwrap())
+                TransactionLog::log_received(
+                    &account_id.to_string(),
+                    assigned_subaddress_b58.as_ref().map(|s| s.as_str()),
+                    &txo_id_hex,
+                    (100 * i * MOB) as i64,
+                    144,
+                    &wallet_db.get_conn().unwrap(),
+                )
                 .unwrap();
+            }
 
             account_ids.push(account_id);
         }
@@ -1011,8 +1012,7 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread =
-            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
 
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -1069,8 +1069,7 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread =
-            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
 
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -1164,7 +1163,7 @@ mod tests {
         )
         .unwrap();
         // Change = (8 + 7) - 12 - fee
-        assert_eq!(change_details.value, 3 * MOB - MINIMUM_FEE as i64);
+        assert_eq!(change_details.value, 3 * MOB - Mob::MINIMUM_FEE as i64);
         assert!(change_details.is_minted());
         assert!(!change_details.is_received());
         assert!(change_details.subaddress_index.is_none());

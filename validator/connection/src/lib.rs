@@ -5,7 +5,7 @@
 mod error;
 
 use grpcio::{ChannelBuilder, EnvBuilder};
-use mc_common::logger::Logger;
+use mc_common::logger::{log, Logger};
 use mc_connection::{
     BlockInfo, BlockchainConnection, Connection, Error as ConnectionError,
     Result as ConnectionResult, UserTxConnection,
@@ -40,6 +40,7 @@ pub struct ValidatorConnection {
     uri: ValidatorUri,
     validator_api_client: ValidatorApiClient,
     blockchain_api_client: BlockchainApiClient,
+    logger: Logger,
 }
 
 impl ValidatorConnection {
@@ -57,6 +58,7 @@ impl ValidatorConnection {
             uri: uri.clone(),
             validator_api_client,
             blockchain_api_client,
+            logger,
         }
     }
 
@@ -65,7 +67,17 @@ impl ValidatorConnection {
         request.set_offset(offset);
         request.set_limit(limit);
 
-        let response = self.validator_api_client.get_archive_blocks(&request)?;
+        let response = self
+            .validator_api_client
+            .get_archive_blocks(&request)
+            .map_err(|err| {
+                log::warn!(
+                    self.logger,
+                    "validator get_archive_blocks RPC call failed: {}",
+                    err
+                );
+                err
+            })?;
 
         Ok(response.get_blocks().to_vec())
     }
@@ -86,7 +98,17 @@ impl ValidatorConnection {
         let mut request = FetchFogReportRequest::new();
         request.set_uri(uri.to_string());
 
-        let response = self.validator_api_client.fetch_fog_report(&request)?;
+        let response = self
+            .validator_api_client
+            .fetch_fog_report(&request)
+            .map_err(|err| {
+                log::warn!(
+                    self.logger,
+                    "validator fetch_fog_report RPC call failed: {}",
+                    err
+                );
+                err
+            })?;
 
         match response.get_result() {
             FetchFogReportResult::Ok => Ok(response.get_report().clone()),
@@ -178,7 +200,15 @@ impl BlockchainConnection for ValidatorConnection {
     fn fetch_block_height(&mut self) -> ConnectionResult<BlockIndex> {
         let response = self
             .blockchain_api_client
-            .get_last_block_info(&Empty::new())?;
+            .get_last_block_info(&Empty::new())
+            .map_err(|err| {
+                log::warn!(
+                    self.logger,
+                    "validator get_last_block_info RPC call failed: {}",
+                    err
+                );
+                err
+            })?;
         Ok(response.get_index())
     }
 
@@ -186,14 +216,28 @@ impl BlockchainConnection for ValidatorConnection {
     fn fetch_block_info(&mut self) -> ConnectionResult<BlockInfo> {
         let response = self
             .blockchain_api_client
-            .get_last_block_info(&Empty::new())?;
+            .get_last_block_info(&Empty::new())
+            .map_err(|err| {
+                log::warn!(
+                    self.logger,
+                    "validator get_last_block_info RPC call failed: {}",
+                    err
+                );
+                err
+            })?;
         Ok(response.into())
     }
 }
 
 impl UserTxConnection for ValidatorConnection {
     fn propose_tx(&mut self, tx: &Tx) -> ConnectionResult<u64> {
-        let response = self.validator_api_client.propose_tx(&tx.into())?;
+        let response = self
+            .validator_api_client
+            .propose_tx(&tx.into())
+            .map_err(|err| {
+                log::warn!(self.logger, "validator propose_tx RPC call failed: {}", err);
+                err
+            })?;
         if response.get_result() == ProposeTxResult::Ok {
             Ok(response.get_block_count())
         } else {

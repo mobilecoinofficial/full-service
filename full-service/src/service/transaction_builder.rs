@@ -30,10 +30,12 @@ use mc_mobilecoind::{
     UnspentTxOut,
 };
 use mc_transaction_core::{
-    constants::{MINIMUM_FEE, RING_SIZE},
+    constants::RING_SIZE,
     onetime_keys::recover_onetime_private_key,
     ring_signature::KeyImage,
+    tokens::Mob,
     tx::{TxOut, TxOutMembershipProof},
+    Token,
 };
 use mc_transaction_std::{InputCredentials, NoMemoBuilder, TransactionBuilder};
 use mc_util_uri::FogUri;
@@ -45,7 +47,7 @@ use std::{convert::TryFrom, str::FromStr, sync::Arc};
 /// Default number of blocks used for calculating transaction tombstone block
 /// number.
 // TODO support for making this configurable
-pub const DEFAULT_NEW_TX_BLOCK_ATTEMPTS: u64 = 50;
+pub const DEFAULT_NEW_TX_BLOCK_ATTEMPTS: u64 = 10;
 
 /// A builder of transactions constructed from this wallet.
 pub struct WalletTransactionBuilder<FPR: FogPubkeyResolver + 'static> {
@@ -129,7 +131,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
     ) -> Result<(), WalletTransactionBuilderError> {
         let outlay_value_sum = self.outlays.iter().map(|(_r, v)| *v as u128).sum::<u128>();
 
-        let fee = self.fee.unwrap_or(MINIMUM_FEE);
+        let fee = self.fee.unwrap_or(Mob::MINIMUM_FEE);
         if outlay_value_sum > u64::MAX as u128 || outlay_value_sum > u64::MAX as u128 - fee as u128
         {
             return Err(WalletTransactionBuilderError::OutboundValueTooLarge);
@@ -222,7 +224,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             // TODO: After servers that support memos are deployed, use RTHMemoBuilder here
             let memo_builder = NoMemoBuilder::default();
             let mut transaction_builder = TransactionBuilder::new(fog_resolver, memo_builder);
-            transaction_builder.set_fee(self.fee.unwrap_or(MINIMUM_FEE))?;
+            transaction_builder.set_fee(self.fee.unwrap_or(Mob::MINIMUM_FEE))?;
 
             // Get membership proofs for our inputs
             let indexes = self
@@ -553,8 +555,7 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread =
-            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
 
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -586,7 +587,7 @@ mod tests {
         assert_eq!(proposal.outlays[0].receiver, recipient);
         assert_eq!(proposal.outlays[0].value, value);
         assert_eq!(proposal.tx.prefix.inputs.len(), 2);
-        assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE);
+        assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
         assert_eq!(proposal.tx.prefix.outputs.len(), 2);
     }
 
@@ -601,8 +602,7 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread =
-            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
 
         // Give ourselves enough MOB that we have more than u64::MAX, 18_446_745 MOB
         let account_key = random_account_with_seed_values(
@@ -652,8 +652,7 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread =
-            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
 
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -710,7 +709,7 @@ mod tests {
         assert_eq!(proposal.outlays[0].receiver, recipient);
         assert_eq!(proposal.outlays[0].value, txos[0].value as u64 + 10);
         assert_eq!(proposal.tx.prefix.inputs.len(), 2); // need one more for fee
-        assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE);
+        assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
         assert_eq!(proposal.tx.prefix.outputs.len(), 2); // self and change
     }
 
@@ -725,8 +724,7 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread =
-            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
 
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -769,7 +767,7 @@ mod tests {
         assert_eq!(proposal.outlays[0].receiver, recipient);
         assert_eq!(proposal.outlays[0].value, 80 * MOB as u64);
         assert_eq!(proposal.tx.prefix.inputs.len(), 2); // uses both 70 and 80
-        assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE);
+        assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
         assert_eq!(proposal.tx.prefix.outputs.len(), 2); // self and change
     }
 
@@ -784,8 +782,7 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread =
-            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
 
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -826,7 +823,7 @@ mod tests {
         // Not setting the tombstone results in tombstone = 0. This is an acceptable
         // value,
         let proposal = builder.build().unwrap();
-        assert_eq!(proposal.tx.prefix.tombstone_block, 63);
+        assert_eq!(proposal.tx.prefix.tombstone_block, 23);
 
         // Build a transaction and explicitly set tombstone
         let (recipient, mut builder) =
@@ -857,8 +854,7 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread =
-            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
 
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -878,7 +874,7 @@ mod tests {
 
         // Verify that not setting fee results in default fee
         let proposal = builder.build().unwrap();
-        assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE);
+        assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
 
         // You cannot set fee to 0
         let (recipient, mut builder) =
@@ -897,7 +893,7 @@ mod tests {
 
         // Verify that not setting fee results in default fee
         let proposal = builder.build().unwrap();
-        assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE);
+        assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
 
         // Setting fee less than minimum fee should fail
         let (recipient, mut builder) =
@@ -923,9 +919,9 @@ mod tests {
             .unwrap();
         builder.select_txos(None).unwrap();
         builder.set_tombstone(0).unwrap();
-        builder.set_fee(MINIMUM_FEE * 10).unwrap();
+        builder.set_fee(Mob::MINIMUM_FEE * 10).unwrap();
         let proposal = builder.build().unwrap();
-        assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE * 10);
+        assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE * 10);
     }
 
     // We should be able to create a transaction without any change outputs
@@ -939,8 +935,7 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread =
-            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
 
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -953,14 +948,14 @@ mod tests {
             builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
 
         // Set value to consume the whole TXO and not produce change
-        let value = 70 * MOB as u64 - MINIMUM_FEE;
+        let value = 70 * MOB as u64 - Mob::MINIMUM_FEE;
         builder.add_recipient(recipient.clone(), value).unwrap();
         builder.select_txos(None).unwrap();
         builder.set_tombstone(0).unwrap();
 
         // Verify that not setting fee results in default fee
         let proposal = builder.build().unwrap();
-        assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE);
+        assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
         assert_eq!(proposal.outlays.len(), 1);
         assert_eq!(proposal.outlays[0].receiver, recipient);
         assert_eq!(proposal.outlays[0].value, value);
@@ -981,8 +976,7 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread =
-            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
 
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -1012,7 +1006,7 @@ mod tests {
 
         // Verify that not setting fee results in default fee
         let proposal = builder.build().unwrap();
-        assert_eq!(proposal.tx.prefix.fee, MINIMUM_FEE);
+        assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
         assert_eq!(proposal.outlays.len(), 4);
         assert_eq!(proposal.outlays[0].receiver, recipient);
         assert_eq!(proposal.outlays[0].value, 10 * MOB as u64);
@@ -1037,8 +1031,7 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread =
-            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
 
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -1083,8 +1076,7 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread =
-            SyncThread::start(ledger_db.clone(), wallet_db.clone(), None, logger.clone());
+        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
 
         let account_key = random_account_with_seed_values(
             &wallet_db,

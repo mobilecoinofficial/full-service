@@ -19,6 +19,7 @@ use crate::{
         account::AccountServiceError,
         address::{AddressService, AddressServiceError},
         transaction::{TransactionService, TransactionServiceError},
+        transaction_builder::DEFAULT_NEW_TX_BLOCK_ATTEMPTS,
         WalletService,
     },
     util::b58::{
@@ -38,11 +39,13 @@ use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::{
-    constants::{MINIMUM_FEE, RING_SIZE},
+    constants::RING_SIZE,
     get_tx_out_shared_secret,
     onetime_keys::recover_onetime_private_key,
     ring_signature::KeyImage,
+    tokens::Mob,
     tx::{Tx, TxOut},
+    Token,
 };
 use mc_transaction_std::{InputCredentials, NoMemoBuilder, TransactionBuilder};
 use mc_util_uri::FogUri;
@@ -561,7 +564,7 @@ where
         // If the gift code value is less than the MINIMUM_FEE, well, then shucks,
         // someone messed up when they were making it. Welcome to the Lost MOB
         // club :)
-        if (gift_value as u64) < MINIMUM_FEE {
+        if (gift_value as u64) < Mob::MINIMUM_FEE {
             return Err(GiftCodeServiceError::InsufficientValueForFee(
                 gift_value as u64,
             ));
@@ -631,16 +634,16 @@ where
         let mut transaction_builder = TransactionBuilder::new(fog_resolver, memo_builder);
         transaction_builder.add_input(input_credentials);
         let (_tx_out, _confirmation) = transaction_builder.add_output(
-            gift_value as u64 - MINIMUM_FEE,
+            gift_value as u64 - Mob::MINIMUM_FEE,
             &recipient_public_address,
             &mut rng,
         )?;
 
-        transaction_builder.set_fee(MINIMUM_FEE)?;
+        transaction_builder.set_fee(Mob::MINIMUM_FEE)?;
 
         let num_blocks_in_ledger = self.ledger_db.num_blocks()?;
-        transaction_builder.set_tombstone_block(num_blocks_in_ledger + 50);
-
+        transaction_builder
+            .set_tombstone_block(num_blocks_in_ledger + DEFAULT_NEW_TX_BLOCK_ATTEMPTS);
         let tx = transaction_builder.build(&mut rng)?;
 
         let responder_ids = self.peer_manager.responder_ids();
@@ -808,7 +811,10 @@ mod tests {
         let balance = service
             .get_balance_for_account(&AccountID(alice.account_id_hex.clone()))
             .unwrap();
-        assert_eq!(balance.unspent, (98 * MOB - MINIMUM_FEE as i64) as u128);
+        assert_eq!(
+            balance.unspent,
+            (98 * MOB - Mob::MINIMUM_FEE as i64) as u128
+        );
 
         // Verify that we can get the gift_code
         log::info!(logger, "Getting gift code from database");
@@ -872,7 +878,10 @@ mod tests {
         let bob_balance = service
             .get_balance_for_account(&AccountID(bob.account_id_hex))
             .unwrap();
-        assert_eq!(bob_balance.unspent, (2 * MOB - MINIMUM_FEE as i64) as u128)
+        assert_eq!(
+            bob_balance.unspent,
+            (2 * MOB - Mob::MINIMUM_FEE as i64) as u128
+        )
     }
 
     #[test_with_logger]

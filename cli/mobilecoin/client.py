@@ -355,7 +355,7 @@ class Client:
 
     # Utility methods.
 
-    def poll_balance(self, account_id, min_block_height=None, seconds=10):
+    def poll_balance(self, account_id, min_block_height=None, seconds=10, poll_delay=1.0):
         for _ in range(seconds):
             balance = self.get_balance_for_account(account_id)
             if balance['is_synced']:
@@ -364,26 +364,26 @@ class Client:
                     or int(balance['account_block_height']) >= min_block_height
                 ):
                     return balance
-            time.sleep(1.0)
+            time.sleep(poll_delay)
         else:
             raise Exception('Could not sync account {}'.format(account_id))
 
-    def poll_gift_code_status(self, gift_code_b58, target_status, seconds=10):
+    def poll_gift_code_status(self, gift_code_b58, target_status, seconds=10, poll_delay=1.0):
         for _ in range(seconds):
             response = self.check_gift_code_status(gift_code_b58)
             if response['gift_code_status'] == target_status:
                 return response
-            time.sleep(1.0)
+            time.sleep(poll_delay)
         else:
             raise Exception('Gift code {} never reached status {}.'.format(gift_code_b58, target_status))
 
-    def poll_txo(self, txo_id, seconds=10):
+    def poll_txo(self, txo_id, seconds=10, poll_delay=1.0):
         for _ in range(10):
             try:
                 return self.get_txo(txo_id)
             except WalletAPIError:
                 pass
-            time.sleep(1)
+            time.sleep(poll_delay)
         else:
             raise Exception('Txo {} never landed.'.format(txo_id))
 

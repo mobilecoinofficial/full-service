@@ -134,7 +134,6 @@ where
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
     global_log::trace!("Running command {:?}", command);
-    println!("Running command {:?}", command);
 
     let response = match command {
         JsonCommandRequest::assign_address_for_account {
@@ -418,6 +417,11 @@ where
         } => {
             let o = offset.parse::<i64>().map_err(format_error)?;
             let l = limit.parse::<i64>().map_err(format_error)?;
+
+            if l > 1000 {
+                return Err(format_error("limit must not exceed 1000"));
+            }
+
             let addresses = service
                 .get_addresses_for_account(&AccountID(account_id), Some(o), Some(l))
                 .map_err(format_error)?;
@@ -689,6 +693,11 @@ where
         } => {
             let o = offset.parse::<i64>().map_err(format_error)?;
             let l = limit.parse::<i64>().map_err(format_error)?;
+
+            if l > 1000 {
+                return Err(format_error("limit must not exceed 1000"));
+            }
+
             let transaction_logs_and_txos = service
                 .list_transaction_logs(&AccountID(account_id), Some(o), Some(l))
                 .map_err(format_error)?;
@@ -725,6 +734,11 @@ where
         } => {
             let o = offset.parse::<i64>().map_err(format_error)?;
             let l = limit.parse::<i64>().map_err(format_error)?;
+
+            if l > 1000 {
+                return Err(format_error("limit must not exceed 1000"));
+            }
+
             let txos = service
                 .list_txos(&AccountID(account_id), Some(o), Some(l))
                 .map_err(format_error)?;

@@ -350,14 +350,14 @@ mod tests {
         },
         test_utils::{
             add_block_from_transaction_log, add_block_to_ledger_db, get_test_ledger,
-            setup_wallet_service, wait_for_sync, MOB,
+            manually_sync_account, setup_wallet_service, MOB,
         },
         util::b58::b58_encode_public_address,
     };
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
-    use mc_transaction_core::{constants::MINIMUM_FEE, ring_signature::KeyImage};
+    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
 
     #[test_with_logger]
@@ -393,7 +393,13 @@ mod tests {
             &mut rng,
         );
 
-        wait_for_sync(&ledger_db, &service.wallet_db, &alice_account_id, 13);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db,
+            &alice_account_id,
+            13,
+            &logger,
+        );
 
         let tx_logs = service
             .list_transaction_logs(&alice_account_id, None, None)
@@ -524,7 +530,13 @@ mod tests {
             &mut rng,
         );
 
-        wait_for_sync(&ledger_db, &service.wallet_db, &alice_account_id, 13);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db,
+            &alice_account_id,
+            13,
+            &logger,
+        );
 
         // Verify balance for Alice
         let balance = service
@@ -571,8 +583,14 @@ mod tests {
             add_block_from_transaction_log(&mut ledger_db, &conn, &transaction_log);
         }
 
-        wait_for_sync(&ledger_db, &service.wallet_db, &alice_account_id, 14);
-        wait_for_sync(&ledger_db, &service.wallet_db, &bob_account_id, 14);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db,
+            &alice_account_id,
+            14,
+            &logger,
+        );
+        manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, 14, &logger);
 
         // Get the Txos from the transaction log
         let transaction_txos = transaction_log
@@ -592,7 +610,7 @@ mod tests {
             .map(|t| Txo::get(&t.txo_id_hex, &service.wallet_db.get_conn().unwrap()).unwrap())
             .collect::<Vec<Txo>>();
         assert_eq!(change.len(), 1);
-        assert_eq!(change[0].value, 58 * MOB - MINIMUM_FEE as i64);
+        assert_eq!(change[0].value, 58 * MOB - Mob::MINIMUM_FEE as i64);
 
         let inputs = transaction_txos
             .inputs
@@ -606,7 +624,10 @@ mod tests {
         let balance = service
             .get_balance_for_account(&AccountID(alice.account_id_hex.clone()))
             .unwrap();
-        assert_eq!(balance.unspent, (58 * MOB - MINIMUM_FEE as i64) as u128);
+        assert_eq!(
+            balance.unspent,
+            (58 * MOB - Mob::MINIMUM_FEE as i64) as u128
+        );
 
         // Bob's balance should be = output_txo_value
         let bob_balance = service
@@ -640,22 +661,31 @@ mod tests {
             add_block_from_transaction_log(&mut ledger_db, &conn, &transaction_log);
         }
 
-        wait_for_sync(&ledger_db, &service.wallet_db, &alice_account_id, 15);
-        wait_for_sync(&ledger_db, &service.wallet_db, &bob_account_id, 15);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db,
+            &alice_account_id,
+            15,
+            &logger,
+        );
+        manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, 15, &logger);
 
         let alice_balance = service
             .get_balance_for_account(&AccountID(alice.account_id_hex))
             .unwrap();
         assert_eq!(
             alice_balance.unspent,
-            (66 * MOB - MINIMUM_FEE as i64) as u128
+            (66 * MOB - Mob::MINIMUM_FEE as i64) as u128
         );
 
         // Bob's balance should be = output_txo_value
         let bob_balance = service
             .get_balance_for_account(&AccountID(bob.account_id_hex))
             .unwrap();
-        assert_eq!(bob_balance.unspent, (34 * MOB - MINIMUM_FEE as i64) as u128);
+        assert_eq!(
+            bob_balance.unspent,
+            (34 * MOB - Mob::MINIMUM_FEE as i64) as u128
+        );
     }
 
     // Building a transaction for an invalid public address should fail.
@@ -685,7 +715,13 @@ mod tests {
             &mut rng,
         );
 
-        wait_for_sync(&ledger_db, &service.wallet_db, &alice_account_id, 13);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db,
+            &alice_account_id,
+            13,
+            &logger,
+        );
 
         match service.build_transaction(
             &alice.account_id_hex,

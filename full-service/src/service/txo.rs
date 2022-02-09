@@ -174,7 +174,8 @@ mod tests {
             account::AccountService, balance::BalanceService, transaction::TransactionService,
         },
         test_utils::{
-            add_block_to_ledger_db, get_test_ledger, setup_wallet_service, wait_for_sync, MOB,
+            add_block_to_ledger_db, get_test_ledger, manually_sync_account, setup_wallet_service,
+            MOB,
         },
         util::b58::b58_encode_public_address,
     };
@@ -184,7 +185,7 @@ mod tests {
         HashSet,
     };
     use mc_crypto_rand::RngCore;
-    use mc_transaction_core::{constants::MINIMUM_FEE, ring_signature::KeyImage};
+    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
     use std::iter::FromIterator;
 
@@ -195,7 +196,7 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
-        let service = setup_wallet_service(ledger_db.clone(), logger);
+        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
         let alice = service
             .create_account(Some("Alice's Main Account".to_string()))
             .unwrap();
@@ -213,7 +214,13 @@ mod tests {
             &mut rng,
         );
 
-        wait_for_sync(&ledger_db, &service.wallet_db, &alice_account_id, 13);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db,
+            &alice_account_id,
+            13,
+            &logger,
+        );
 
         // Verify balance for Alice
         let balance = service.get_balance_for_account(&alice_account_id).unwrap();
@@ -285,7 +292,7 @@ mod tests {
             .collect();
         assert_eq!(minted.len(), 2);
         let minted_value_set = HashSet::from_iter(minted.iter().map(|m| m.value.clone()));
-        assert!(minted_value_set.contains(&(58 * MOB - MINIMUM_FEE as i64)));
+        assert!(minted_value_set.contains(&(58 * MOB - Mob::MINIMUM_FEE as i64)));
         assert!(minted_value_set.contains(&(42 * MOB)));
 
         // Our balance should reflect the various statuses of our txos
@@ -295,7 +302,10 @@ mod tests {
         assert_eq!(balance.unspent, 0);
         assert_eq!(balance.pending, 100 * MOB as u128);
         assert_eq!(balance.spent, 0);
-        assert_eq!(balance.secreted, (100 * MOB - MINIMUM_FEE as i64) as u128);
+        assert_eq!(
+            balance.secreted,
+            (100 * MOB - Mob::MINIMUM_FEE as i64) as u128
+        );
         assert_eq!(balance.orphaned, 0);
     }
 }

@@ -182,7 +182,6 @@ fn consensus_backed_full_service(
         peer_manager,
         network_state,
         config.get_fog_resolver_factory(logger.clone()),
-        config.num_workers,
         config.offline,
         logger,
     );
@@ -255,7 +254,10 @@ fn validator_backed_full_service(
                 let report_responses = validator_conn
                     .fetch_fog_reports(fog_uris.iter().cloned())
                     .map_err(|err| {
-                    format!("Error fetching fog reports for {:?}: {}", fog_uris, err)
+                    format!(
+                        "Error fetching fog reports (via validator) for {:?}: {}",
+                        fog_uris, err
+                    )
                 })?;
 
                 log::debug!(logger2, "Got report responses {:?}", report_responses);
@@ -268,7 +270,6 @@ fn validator_backed_full_service(
                 )
             }
         }),
-        config.num_workers,
         false,
         logger,
     );
