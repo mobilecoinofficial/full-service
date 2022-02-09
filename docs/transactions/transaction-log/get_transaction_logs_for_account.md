@@ -6,7 +6,7 @@
 | :--- | :--- | :--- |
 | `transaction_log_id` | The transaction log ID to get. | Transaction log must exist in the wallet. |
 | `offset` | integer | The value to offset pagination requests. Requests will exclude all list items up to and including this object. |
-| `limit` | integer | The limit of returned results. |
+| `limit` | integer | The limit of returned results. This has a max value of 1000, and will return an error if exceeded. |
 
 ## Example
 
