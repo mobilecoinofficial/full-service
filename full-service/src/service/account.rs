@@ -327,7 +327,9 @@ mod tests {
         let wallet_db = &service.wallet_db;
 
         // Create an account.
-        let account = service.create_account(Some("A".to_string())).unwrap();
+        let account = service
+            .create_account(Some("A".to_string()), None, None, None)
+            .unwrap();
 
         // Add a transaction, with transaction status.
         let account_key: AccountKey = mc_util_serial::decode(&account.account_key).unwrap();

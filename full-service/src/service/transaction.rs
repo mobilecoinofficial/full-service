@@ -371,7 +371,7 @@ mod tests {
 
         // Create our main account for the wallet
         let alice = service
-            .create_account(Some("Alice's Main Account".to_string()))
+            .create_account(Some("Alice's Main Account".to_string()), None, None, None)
             .unwrap();
 
         // Add a block with a transaction for Alice
@@ -415,7 +415,7 @@ mod tests {
 
         // Add an account for Bob
         let bob = service
-            .create_account(Some("Bob's Main Account".to_string()))
+            .create_account(Some("Bob's Main Account".to_string()), None, None, None)
             .unwrap();
         let bob_account_key: AccountKey =
             mc_util_serial::decode(&bob.account_key).expect("Could not decode account key");
@@ -515,7 +515,7 @@ mod tests {
 
         // Create our main account for the wallet
         let alice = service
-            .create_account(Some("Alice's Main Account".to_string()))
+            .create_account(Some("Alice's Main Account".to_string()), None, None, None)
             .unwrap();
 
         // Add a block with a transaction for Alice
@@ -546,7 +546,7 @@ mod tests {
 
         // Add an account for Bob
         let bob = service
-            .create_account(Some("Bob's Main Account".to_string()))
+            .create_account(Some("Bob's Main Account".to_string()), None, None, None)
             .unwrap();
         let bob_account_key: AccountKey =
             mc_util_serial::decode(&bob.account_key).expect("Could not decode account key");
@@ -700,7 +700,7 @@ mod tests {
 
         // Create our main account for the wallet
         let alice = service
-            .create_account(Some("Alice's Main Account".to_string()))
+            .create_account(Some("Alice's Main Account".to_string()), None, None, None)
             .unwrap();
 
         // Add a block with a transaction for Alice

@@ -198,7 +198,7 @@ mod tests {
 
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
         let alice = service
-            .create_account(Some("Alice's Main Account".to_string()))
+            .create_account(Some("Alice's Main Account".to_string()), None, None, None)
             .unwrap();
 
         // Add a block with a transaction for this recipient
@@ -233,7 +233,7 @@ mod tests {
 
         // Add another account
         let bob = service
-            .create_account(Some("Bob's Main Account".to_string()))
+            .create_account(Some("Bob's Main Account".to_string()), None, None, None)
             .unwrap();
 
         // Construct a new transaction to Bob

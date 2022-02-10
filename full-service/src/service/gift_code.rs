@@ -714,7 +714,7 @@ mod tests {
 
         // Create our main account for the wallet
         let alice = service
-            .create_account(Some("Alice's Main Account".to_string()))
+            .create_account(Some("Alice's Main Account".to_string()), None, None, None)
             .unwrap();
 
         // Add a block with a transaction for Alice
@@ -831,7 +831,7 @@ mod tests {
         // Claim the gift code to another account
         log::info!(logger, "Creating new account to receive gift code");
         let bob = service
-            .create_account(Some("Bob's Main Account".to_string()))
+            .create_account(Some("Bob's Main Account".to_string()), None, None, None)
             .unwrap();
         manually_sync_account(
             &ledger_db,
@@ -895,7 +895,7 @@ mod tests {
 
         // Create our main account for the wallet
         let alice = service
-            .create_account(Some("Alice's Main Account".to_string()))
+            .create_account(Some("Alice's Main Account".to_string()), None, None, None)
             .unwrap();
 
         // Add a block with a transaction for Alice
