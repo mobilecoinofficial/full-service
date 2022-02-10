@@ -336,9 +336,15 @@ where
                 txo_id: TxoID::from(&tx.prefix.outputs[0]).to_string(),
             }
         }
-        JsonCommandRequest::create_account { name } => {
-            let account: db::models::Account =
-                service.create_account(name).map_err(format_error)?;
+        JsonCommandRequest::create_account {
+            name,
+            fog_report_url,
+            fog_report_id,
+            fog_authority_spki,
+        } => {
+            let account: db::models::Account = service
+                .create_account(name, fog_report_url, fog_report_id, fog_authority_spki)
+                .map_err(format_error)?;
 
             JsonCommandResponse::create_account {
                 account: json_rpc::account::Account::try_from(&account).map_err(|e| {
