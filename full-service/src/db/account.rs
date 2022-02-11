@@ -187,10 +187,8 @@ impl AccountModel for Account {
             .try_into_account_key(
                 &fog_report_url.unwrap_or_else(|| "".to_string()),
                 &fog_report_id.unwrap_or_else(|| "".to_string()),
-                &base64::decode(fog_authority_spki.unwrap_or_else(|| "".to_string()))
-                    .expect("invalid spki"),
-            )
-            .unwrap();
+                &base64::decode(fog_authority_spki.unwrap_or_else(|| "".to_string()))?,
+            )?;
 
         Account::create(
             mnemonic.entropy(),
