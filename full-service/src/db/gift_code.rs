@@ -44,13 +44,7 @@ pub trait GiftCodeModel {
     #[allow(clippy::too_many_arguments)]
     fn create(
         gift_code_b58: &EncodedGiftCode,
-        root_entropy: Option<&RootEntropy>,
-        bip39_entropy: Option<&Vec<u8>>,
-        txo_public_key: &CompressedRistrettoPublic,
         value: i64,
-        memo: &str,
-        account_id: &AccountID,
-        txo_id: &TxoID,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<GiftCode, WalletDbError>;
 
@@ -75,13 +69,7 @@ pub trait GiftCodeModel {
 impl GiftCodeModel for GiftCode {
     fn create(
         gift_code_b58: &EncodedGiftCode,
-        root_entropy: Option<&RootEntropy>,
-        bip39_entropy: Option<&Vec<u8>>,
-        txo_public_key: &CompressedRistrettoPublic,
         value: i64,
-        memo: &str,
-        account_id: &AccountID,
-        txo_id: &TxoID,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<GiftCode, WalletDbError> {
         use crate::db::schema::gift_codes;
@@ -89,13 +77,7 @@ impl GiftCodeModel for GiftCode {
         // Insert the gift code to our gift code table.
         let new_gift_code = NewGiftCode {
             gift_code_b58: &gift_code_b58.to_string(),
-            root_entropy: root_entropy.map(|entropy| entropy.bytes.to_vec()),
-            bip39_entropy: bip39_entropy.cloned(),
-            txo_public_key: &mc_util_serial::encode(txo_public_key),
             value,
-            memo,
-            account_id_hex: &account_id.to_string(),
-            txo_id_hex: &txo_id.to_string(),
         };
         diesel::insert_into(gift_codes::table)
             .values(&new_gift_code)
@@ -148,7 +130,10 @@ impl GiftCodeModel for GiftCode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::{create_test_txo_for_recipient, WalletDbTestContext};
+    use crate::{
+        service::gift_code::decode_transfer_payload,
+        test_utils::{create_test_txo_for_recipient, WalletDbTestContext},
+    };
     use mc_account_keys::{AccountKey, RootIdentity};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_keys::RistrettoPublic;
@@ -185,13 +170,7 @@ mod tests {
 
         let gift_code = GiftCode::create(
             &EncodedGiftCode("gk7CcXuK5RKNW13LvrWY156ZLjaoHaXxLedqACZsw3w6FfF6TR4TVzaAQkH5EHxaw54DnGWRJPA31PpcmvGLoArZbDRj1kBhcTusE8AVW4Mj7QT5".to_string()),
-            Some(&entropy),
-            None,
-            &txo_public_key,
             value as i64,
-            &memo,
-            &AccountID::from(&gift_code_account_key),
-            &TxoID::from(&tx_out),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -205,17 +184,9 @@ mod tests {
         let expected_gift_code = GiftCode {
             id: 1,
             gift_code_b58: gotten.gift_code_b58.clone(),
-            root_entropy: Some(entropy.bytes.to_vec()),
-            bip39_entropy: None,
-            txo_public_key: mc_util_serial::encode(&txo_public_key),
             value: value as i64,
-            memo,
-            account_id_hex: AccountID::from(&gift_code_account_key).to_string(),
-            txo_id_hex: TxoID::from(&tx_out).to_string(),
         };
         assert_eq!(gotten, expected_gift_code);
-        assert_eq!(gotten.root_entropy, Some(entropy.bytes.to_vec()));
-        assert_eq!(gotten.bip39_entropy, None);
 
         let all_gift_codes = GiftCode::list_all(&wallet_db.get_conn().unwrap()).unwrap();
         assert_eq!(all_gift_codes.len(), 1);
