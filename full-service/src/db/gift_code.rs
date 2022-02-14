@@ -126,13 +126,9 @@ impl GiftCodeModel for GiftCode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        service::gift_code::decode_transfer_payload,
-        test_utils::{create_test_txo_for_recipient, WalletDbTestContext},
-    };
+    use crate::test_utils::{create_test_txo_for_recipient, WalletDbTestContext};
     use mc_account_keys::{AccountKey, RootIdentity};
     use mc_common::logger::{test_with_logger, Logger};
-    use mc_crypto_keys::RistrettoPublic;
     use mc_crypto_rand::rand_core::RngCore;
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
@@ -147,19 +143,13 @@ mod tests {
 
         let root_identity = RootIdentity::from_random(&mut rng);
         let gift_code_account_key = AccountKey::from(&root_identity);
-        let entropy = root_identity.root_entropy;
 
-        // The Txo we would have sent to fund this entropy
-        let txo_public_key: CompressedRistrettoPublic =
-            RistrettoPublic::from_random(&mut rng).into();
         // Note: This value isn't actually associated with the txo_public_key, but is
         // sufficient for this test to merely log a value.
         let value = rng.next_u64();
 
-        let (tx_out, _key_image) =
+        let (_tx_out, _key_image) =
             create_test_txo_for_recipient(&gift_code_account_key, 0, value, &mut rng);
-
-        let memo = String::from("Test");
 
         let mut tx_log_bytes = [0u8; 32];
         rng.fill_bytes(&mut tx_log_bytes);
