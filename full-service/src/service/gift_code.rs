@@ -12,7 +12,6 @@ use crate::{
         account::{AccountID, AccountModel},
         gift_code::GiftCodeModel,
         models::{Account, GiftCode},
-        txo::TxoID,
         WalletDbError,
     },
     service::{

@@ -4,9 +4,7 @@
 
 use crate::{
     db::{
-        account::AccountID,
         models::{GiftCode, NewGiftCode},
-        txo::TxoID,
         WalletDbError,
     },
     service::gift_code::EncodedGiftCode,
@@ -17,8 +15,6 @@ use diesel::{
     RunQueryDsl,
 };
 use displaydoc::Display;
-use mc_account_keys::RootEntropy;
-use mc_crypto_keys::CompressedRistrettoPublic;
 
 #[derive(Display, Debug)]
 pub enum GiftCodeDbError {
