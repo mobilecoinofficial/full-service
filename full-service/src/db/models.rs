@@ -281,24 +281,12 @@ pub struct NewTransactionTxoType<'a> {
 pub struct GiftCode {
     pub id: i32,
     pub gift_code_b58: String,
-    pub root_entropy: Option<Vec<u8>>,
-    pub bip39_entropy: Option<Vec<u8>>,
-    pub txo_public_key: Vec<u8>,
     pub value: i64,
-    pub memo: String,
-    pub account_id_hex: String,
-    pub txo_id_hex: String,
 }
 
 #[derive(Insertable)]
 #[table_name = "gift_codes"]
 pub struct NewGiftCode<'a> {
     pub gift_code_b58: &'a str,
-    pub root_entropy: Option<Vec<u8>>,
-    pub bip39_entropy: Option<Vec<u8>>,
-    pub txo_public_key: &'a Vec<u8>,
     pub value: i64,
-    pub memo: &'a str,
-    pub account_id_hex: &'a str,
-    pub txo_id_hex: &'a str,
 }

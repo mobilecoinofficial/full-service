@@ -146,14 +146,12 @@ pub fn b58_decode_transfer_payload(
         return Err(B58Error::NotTransferPayload);
     };
 
-    // Must have one type of entropy.
+    // Must have exactly one type of entropy.
     if transfer_payload.get_root_entropy().is_empty()
         && transfer_payload.get_bip39_entropy().is_empty()
     {
         return Err(B58Error::TransferPayloadRequiresSingleEntropy);
     }
-
-    // Only allow one type of entropy.
     if !transfer_payload.get_root_entropy().is_empty()
         && !transfer_payload.get_bip39_entropy().is_empty()
     {
