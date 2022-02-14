@@ -12,7 +12,6 @@ use crate::{
         account::{AccountID, AccountModel},
         gift_code::GiftCodeModel,
         models::{Account, GiftCode},
-        txo::TxoID,
         WalletDbError,
     },
     service::{
@@ -251,6 +250,34 @@ impl fmt::Display for EncodedGiftCode {
     }
 }
 
+#[derive(Debug, Eq, PartialEq)]
+pub struct DecodedGiftCode {
+    pub gift_code_b58: String,
+    pub root_entropy: Option<Vec<u8>>,
+    pub bip39_entropy: Option<Vec<u8>>,
+    pub txo_public_key: Vec<u8>,
+    pub value: u64,
+    pub memo: String,
+}
+
+impl TryFrom<GiftCode> for DecodedGiftCode {
+    type Error = GiftCodeServiceError;
+
+    fn try_from(src: GiftCode) -> Result<Self, GiftCodeServiceError> {
+        let gift_code = EncodedGiftCode(src.gift_code_b58);
+        let transfer_payload = decode_transfer_payload(&gift_code)?;
+
+        Ok(DecodedGiftCode {
+            gift_code_b58: gift_code.to_string(),
+            root_entropy: transfer_payload.root_entropy.map(|e| e.bytes.to_vec()),
+            bip39_entropy: transfer_payload.bip39_entropy,
+            txo_public_key: mc_util_serial::encode(&transfer_payload.txo_public_key),
+            value: src.value as u64,
+            memo: transfer_payload.memo,
+        })
+    }
+}
+
 /// Possible states for a Gift Code in relation to accounts in this wallet.
 #[allow(clippy::enum_variant_names)]
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
@@ -297,16 +324,16 @@ pub trait GiftCodeService {
         from_account_id: &AccountID,
         gift_code_b58: &EncodedGiftCode,
         tx_proposal: &TxProposal,
-    ) -> Result<GiftCode, GiftCodeServiceError>;
+    ) -> Result<DecodedGiftCode, GiftCodeServiceError>;
 
     /// Get the details for a specific gift code.
     fn get_gift_code(
         &self,
         gift_code_b58: &EncodedGiftCode,
-    ) -> Result<GiftCode, GiftCodeServiceError>;
+    ) -> Result<DecodedGiftCode, GiftCodeServiceError>;
 
     /// List all gift codes in the wallet.
-    fn list_gift_codes(&self) -> Result<Vec<GiftCode>, GiftCodeServiceError>;
+    fn list_gift_codes(&self) -> Result<Vec<DecodedGiftCode>, GiftCodeServiceError>;
 
     /// Check the status of a gift code currently in your wallet. If the gift
     /// code is not yet in the wallet, add it.
@@ -325,12 +352,6 @@ pub trait GiftCodeService {
         account_id: &AccountID,
         assigned_subaddress_b58: Option<String>,
     ) -> Result<Tx, GiftCodeServiceError>;
-
-    /// Decode the gift code from b58 to its component parts.
-    fn decode_gift_code(
-        &self,
-        gift_code_b58: &EncodedGiftCode,
-    ) -> Result<DecodedTransferPayload, GiftCodeServiceError>;
 
     fn remove_gift_code(
         &self,
@@ -354,12 +375,12 @@ where
         max_spendable_value: Option<u64>,
     ) -> Result<(TxProposal, EncodedGiftCode), GiftCodeServiceError> {
         // First we need to generate a new random bip39 entropy. The way that gift codes
-        // work currently is that the sender creates a middle_man account and
+        // work currently is that the sender creates a middleman account and
         // sends that account the amount of MOB desired, plus extra to cover the
-        // receivers fee Then, that account and all of its secrets get encoded
-        // into a b58 string, and when the receiver gets that they can decode it
+        // receivers fee. Then, that account and all of its secrets get encoded
+        // into a b58 string, and when the receiver gets that they can decode it,
         // and create a new transaction liquidating the gift account of all
-        // of the MOB on its primary account.
+        // of the MOB.
         // There should never be a reason to check any other sub_address besides the
         // main one. If there ever is any on a different subaddress, either
         // something went terribly wrong and we messed up, or someone is being
@@ -414,8 +435,8 @@ where
         from_account_id: &AccountID,
         gift_code_b58: &EncodedGiftCode,
         tx_proposal: &TxProposal,
-    ) -> Result<GiftCode, GiftCodeServiceError> {
-        let decoded_gift_code = self.decode_gift_code(gift_code_b58)?;
+    ) -> Result<DecodedGiftCode, GiftCodeServiceError> {
+        let transfer_payload = decode_transfer_payload(gift_code_b58)?;
         let value = tx_proposal.outlays[0].value as i64;
 
         log::info!(
@@ -426,40 +447,39 @@ where
 
         // Save the gift code to the database before attempting to send it out.
         let conn = self.wallet_db.get_conn()?;
-        let gift_code = conn.transaction(|| {
-            GiftCode::create(
-                gift_code_b58,
-                decoded_gift_code.root_entropy.as_ref(),
-                decoded_gift_code.bip39_entropy.as_ref(),
-                &decoded_gift_code.txo_public_key,
-                value,
-                &decoded_gift_code.memo,
-                from_account_id,
-                &TxoID::from(&tx_proposal.tx.prefix.outputs[0].clone()),
-                &conn,
-            )
-        })?;
+        let gift_code = conn.transaction(|| GiftCode::create(gift_code_b58, value, &conn))?;
 
         self.submit_transaction(
             tx_proposal.clone(),
-            Some(json!({"gift_code_memo": decoded_gift_code.memo}).to_string()),
+            Some(json!({"gift_code_memo": transfer_payload.memo}).to_string()),
             Some(from_account_id.clone().0),
         )?;
 
-        Ok(gift_code)
+        Ok(DecodedGiftCode {
+            gift_code_b58: gift_code.gift_code_b58,
+            root_entropy: transfer_payload.root_entropy.map(|e| e.bytes.to_vec()),
+            bip39_entropy: transfer_payload.bip39_entropy,
+            txo_public_key: mc_util_serial::encode(&transfer_payload.txo_public_key),
+            value: tx_proposal.outlays[0].value,
+            memo: transfer_payload.memo,
+        })
     }
 
     fn get_gift_code(
         &self,
         gift_code_b58: &EncodedGiftCode,
-    ) -> Result<GiftCode, GiftCodeServiceError> {
+    ) -> Result<DecodedGiftCode, GiftCodeServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| Ok(GiftCode::get(gift_code_b58, &conn)?))
+        let gift_code = GiftCode::get(gift_code_b58, &conn)?;
+        DecodedGiftCode::try_from(gift_code)
     }
 
-    fn list_gift_codes(&self) -> Result<Vec<GiftCode>, GiftCodeServiceError> {
+    fn list_gift_codes(&self) -> Result<Vec<DecodedGiftCode>, GiftCodeServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| Ok(GiftCode::list_all(&conn)?))
+        GiftCode::list_all(&conn)?
+            .into_iter()
+            .map(DecodedGiftCode::try_from)
+            .collect()
     }
 
     fn check_gift_code_status(
@@ -468,27 +488,27 @@ where
     ) -> Result<(GiftCodeStatus, Option<i64>, String), GiftCodeServiceError> {
         log::info!(self.logger, "encoded_gift_code: {:?}", gift_code_b58);
 
-        let decoded_gift_code = self.decode_gift_code(gift_code_b58)?;
-        let gift_account_key = decoded_gift_code.account_key;
+        let transfer_payload = decode_transfer_payload(gift_code_b58)?;
+        let gift_account_key = transfer_payload.account_key;
 
         log::info!(
             self.logger,
-            "decoded_gift_code.pubKey: {:?}, account_key: {:?}",
-            decoded_gift_code.txo_public_key,
+            "transfer_payload.pubKey: {:?}, account_key: {:?}",
+            transfer_payload.txo_public_key,
             gift_account_key
         );
 
         // Check if the GiftCode is in the local ledger.
         let gift_txo = match self
             .ledger_db
-            .get_tx_out_index_by_public_key(&decoded_gift_code.txo_public_key)
+            .get_tx_out_index_by_public_key(&transfer_payload.txo_public_key)
         {
             Ok(tx_out_index) => self.ledger_db.get_tx_out_by_index(tx_out_index)?,
             Err(mc_ledger_db::Error::NotFound) => {
                 return Ok((
                     GiftCodeStatus::GiftCodeSubmittedPending,
                     None,
-                    decoded_gift_code.memo,
+                    transfer_payload.memo,
                 ))
             }
             Err(e) => return Err(e.into()),
@@ -506,7 +526,7 @@ where
         // anywhere else. If they do, that's not good :,)
         let gift_code_key_image = {
             let onetime_private_key = recover_onetime_private_key(
-                &RistrettoPublic::try_from(&decoded_gift_code.txo_public_key)?,
+                &RistrettoPublic::try_from(&transfer_payload.txo_public_key)?,
                 gift_account_key.view_private_key(),
                 &gift_account_key.subaddress_spend_private(DEFAULT_SUBADDRESS_INDEX as u64),
             );
@@ -517,14 +537,14 @@ where
             return Ok((
                 GiftCodeStatus::GiftCodeClaimed,
                 Some(value as i64),
-                decoded_gift_code.memo,
+                transfer_payload.memo,
             ));
         }
 
         Ok((
             GiftCodeStatus::GiftCodeAvailable,
             Some(value as i64),
-            decoded_gift_code.memo,
+            transfer_payload.memo,
         ))
     }
 
@@ -546,15 +566,15 @@ where
 
         let gift_value = gift_value.unwrap();
 
-        let decoded_gift_code = self.decode_gift_code(gift_code_b58)?;
-        let gift_account_key = decoded_gift_code.account_key;
+        let transfer_payload = decode_transfer_payload(gift_code_b58)?;
+        let gift_account_key = transfer_payload.account_key;
 
         let default_subaddress = if assigned_subaddress_b58.is_some() {
             assigned_subaddress_b58.ok_or(GiftCodeServiceError::AccountNotFound)
         } else {
             let address = self.assign_address_for_account(
                 account_id,
-                Some(&json!({"gift_code_memo": decoded_gift_code.memo}).to_string()),
+                Some(&json!({"gift_code_memo": transfer_payload.memo}).to_string()),
             )?;
             Ok(address.assigned_subaddress_b58)
         }?;
@@ -572,7 +592,7 @@ where
 
         let gift_txo_index = self
             .ledger_db
-            .get_tx_out_index_by_public_key(&decoded_gift_code.txo_public_key)?;
+            .get_tx_out_index_by_public_key(&transfer_payload.txo_public_key)?;
 
         let mut ring: Vec<TxOut> = Vec::new();
         let mut rng = rand::thread_rng();
@@ -670,13 +690,6 @@ where
         Ok(tx)
     }
 
-    fn decode_gift_code(
-        &self,
-        gift_code_b58: &EncodedGiftCode,
-    ) -> Result<DecodedTransferPayload, GiftCodeServiceError> {
-        Ok(b58_decode_transfer_payload(gift_code_b58.to_string())?)
-    }
-
     fn remove_gift_code(
         &self,
         gift_code_b58: &EncodedGiftCode,
@@ -685,6 +698,13 @@ where
         conn.transaction(|| GiftCode::get(gift_code_b58, &conn)?.delete(&conn))?;
         Ok(true)
     }
+}
+
+/// Decode the gift code from b58 to its component parts.
+pub fn decode_transfer_payload(
+    gift_code_b58: &EncodedGiftCode,
+) -> Result<DecodedTransferPayload, GiftCodeServiceError> {
+    Ok(b58_decode_transfer_payload(gift_code_b58.to_string())?)
 }
 
 #[cfg(test)]
@@ -789,9 +809,7 @@ mod tests {
         assert_eq!(status, GiftCodeStatus::GiftCodeAvailable);
         assert!(gift_code_value_opt.is_some());
 
-        let decoded = service
-            .decode_gift_code(&gift_code_b58)
-            .expect("Could not decode gift code");
+        let decoded = decode_transfer_payload(&gift_code_b58).expect("Could not decode gift code");
         let gift_code_account_key = decoded.account_key;
 
         // Get the tx_out from the ledger and check that it matches expectations
@@ -819,7 +837,7 @@ mod tests {
         // Verify that we can get the gift_code
         log::info!(logger, "Getting gift code from database");
         let gotten_gift_code = service.get_gift_code(&gift_code_b58).unwrap();
-        assert_eq!(gotten_gift_code.value, value as i64);
+        assert_eq!(gotten_gift_code.value, value);
         assert_eq!(gotten_gift_code.gift_code_b58, gift_code_b58.to_string());
 
         // Check that we can list all

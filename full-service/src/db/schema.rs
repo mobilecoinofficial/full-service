@@ -32,13 +32,7 @@ table! {
     gift_codes (id) {
         id -> Integer,
         gift_code_b58 -> Text,
-        root_entropy -> Nullable<Binary>,
-        bip39_entropy -> Nullable<Binary>,
-        txo_public_key -> Binary,
         value -> BigInt,
-        memo -> Text,
-        account_id_hex -> Text,
-        txo_id_hex -> Text,
     }
 }
 
