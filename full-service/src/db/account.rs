@@ -427,15 +427,16 @@ impl AccountModel for Account {
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
 
-        diesel::delete(accounts.filter(account_id_hex.eq(&self.account_id_hex))).execute(conn)?;
-
-        // Also delete transaction logs associated with this account
+        // Delete transaction logs associated with this account
         TransactionLog::delete_all_for_account(&self.account_id_hex, conn)?;
 
-        // Also delete the associated assigned subaddresses
+        // Delete associated assigned subaddresses
         AssignedSubaddress::delete_all(&self.account_id_hex, conn)?;
 
+        // Delete references to the account in the Txos table.
         Txo::scrub_account(&self.account_id_hex, conn)?;
+
+        diesel::delete(accounts.filter(account_id_hex.eq(&self.account_id_hex))).execute(conn)?;
 
         // Delete Txos with no references.
         Txo::delete_unreferenced(conn)?;
