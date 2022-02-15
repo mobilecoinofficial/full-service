@@ -527,6 +527,7 @@ mod tests {
             next_block_index: 0,
             import_block_index: None,
             name: "Alice's Main Account".to_string(),
+            fog_enabled: false,
         };
         assert_eq!(expected_account, acc);
 
@@ -589,6 +590,7 @@ mod tests {
             next_block_index: 51,
             import_block_index: Some(50),
             name: "".to_string(),
+            fog_enabled: false,
         };
         assert_eq!(expected_account_secondary, acc_secondary);
 
