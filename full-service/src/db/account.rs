@@ -94,6 +94,7 @@ pub trait AccountModel {
         import_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
         name: &str,
+        fog_enabled: bool,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(AccountID, String), WalletDbError>;
 
@@ -183,6 +184,11 @@ impl AccountModel for Account {
         fog_authority_spki: Option<String>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(AccountID, String), WalletDbError> {
+        let fog_enabled = match fog_report_url {
+            Some(_) => true,
+            None => false,
+        };
+
         let account_key = Slip10Key::from(mnemonic.clone()).try_into_account_key(
             &fog_report_url.unwrap_or_else(|| "".to_string()),
             &fog_report_id.unwrap_or_else(|| "".to_string()),
@@ -197,6 +203,7 @@ impl AccountModel for Account {
             import_block_index,
             next_subaddress_index,
             name,
+            fog_enabled,
             conn,
         )
     }
@@ -212,6 +219,11 @@ impl AccountModel for Account {
         fog_authority_spki: Option<String>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(AccountID, String), WalletDbError> {
+        let fog_enabled = match fog_report_url {
+            Some(_) => true,
+            None => false,
+        };
+
         let root_id = RootIdentity {
             root_entropy: entropy.clone(),
             fog_report_url: fog_report_url.unwrap_or_else(|| "".to_string()),
@@ -231,6 +243,7 @@ impl AccountModel for Account {
             import_block_index,
             next_subaddress_index,
             name,
+            fog_enabled,
             conn,
         )
     }
@@ -243,6 +256,7 @@ impl AccountModel for Account {
         import_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
         name: &str,
+        fog_enabled: bool,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(AccountID, String), WalletDbError> {
         use crate::db::schema::accounts;
@@ -264,6 +278,7 @@ impl AccountModel for Account {
             next_block_index: fb as i64,
             import_block_index: import_block_index.map(|i| i as i64),
             name,
+            fog_enabled,
         };
 
         diesel::insert_into(accounts::table)
