@@ -125,6 +125,9 @@ pub enum WalletDbError {
 
     /// Decode from Base64 error: {0}
     Base64Decode(base64::DecodeError),
+
+    /// Subaddresses are not supported for FOG enabled accounts
+    SubaddressesNotSupportedForFOGEnabledAccounts,
 }
 
 impl From<diesel::result::Error> for WalletDbError {

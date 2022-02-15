@@ -145,6 +145,10 @@ impl AssignedSubaddressModel for AssignedSubaddress {
 
         let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
+        if account.fog_enabled {
+            return Err(WalletDbError::SubaddressesNotSupportedForFOGEnabledAccounts);
+        }
+
         let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
         let account_view_key = account_key.view_key();
         let subaddress_index = account.next_subaddress_index;

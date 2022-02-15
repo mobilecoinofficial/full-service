@@ -264,6 +264,18 @@ impl AccountModel for Account {
         let account_id = AccountID::from(account_key);
         let fb = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX);
 
+        let change_subaddress_index = if fog_enabled {
+            DEFAULT_SUBADDRESS_INDEX as i64
+        } else {
+            DEFAULT_CHANGE_SUBADDRESS_INDEX as i64
+        };
+
+        let next_subaddress_index = if fog_enabled {
+            1
+        } else {
+            next_subaddress_index.unwrap_or(DEFAULT_NEXT_SUBADDRESS_INDEX) as i64
+        };
+
         let new_account = NewAccount {
             account_id_hex: &account_id.to_string(),
             account_key: &mc_util_serial::encode(account_key), /* FIXME: WS-6 - add
@@ -271,9 +283,8 @@ impl AccountModel for Account {
             entropy,
             key_derivation_version: key_derivation_version as i32,
             main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
-            change_subaddress_index: DEFAULT_CHANGE_SUBADDRESS_INDEX as i64,
-            next_subaddress_index: next_subaddress_index.unwrap_or(DEFAULT_NEXT_SUBADDRESS_INDEX)
-                as i64,
+            change_subaddress_index,
+            next_subaddress_index,
             first_block_index: fb as i64,
             next_block_index: fb as i64,
             import_block_index: import_block_index.map(|i| i as i64),
@@ -293,18 +304,19 @@ impl AccountModel for Account {
             "Main",
             conn,
         )?;
+        if !fog_enabled {
+            AssignedSubaddress::create(
+                account_key,
+                None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
+                       * always for main? */
+                DEFAULT_CHANGE_SUBADDRESS_INDEX,
+                "Change",
+                conn,
+            )?;
 
-        let _change_subaddress_b58 = AssignedSubaddress::create(
-            account_key,
-            None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
-                   * always for main? */
-            DEFAULT_CHANGE_SUBADDRESS_INDEX,
-            "Change",
-            conn,
-        )?;
-
-        for subaddress_index in 2..next_subaddress_index.unwrap_or(DEFAULT_NEXT_SUBADDRESS_INDEX) {
-            AssignedSubaddress::create(account_key, None, subaddress_index, "", conn)?;
+            for subaddress_index in 2..next_subaddress_index {
+                AssignedSubaddress::create(account_key, None, subaddress_index as u64, "", conn)?;
+            }
         }
 
         Ok((account_id, main_subaddress_b58))
