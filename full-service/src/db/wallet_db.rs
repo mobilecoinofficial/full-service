@@ -66,7 +66,7 @@ impl WalletDb {
             .max_size(db_connections)
             .connection_customizer(Box::new(ConnectionOptions {
                 enable_wal: true,
-                enable_foreign_keys: false,
+                enable_foreign_keys: true,
                 busy_timeout: Some(Duration::from_secs(30)),
             }))
             .test_on_check_out(true)
