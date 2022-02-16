@@ -1060,6 +1060,8 @@ mod tests {
         let _alice_account =
             manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, 14, &logger);
 
+        manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, 14, &logger);
+
         // We should now have 3 txos for this account - one spent, one change (minted),
         // and one minted (destined for alice).
         let txos = Txo::list_for_account(
