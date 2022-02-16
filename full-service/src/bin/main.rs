@@ -83,9 +83,8 @@ fn main() {
     // "This pragma is a no-op within a transaction; foreign key constraint
     // enforcement may only be enabled or disabled when there is no pending
     // BEGIN or SAVEPOINT."
-    // Check foreign key constraints before and after the migration. If they fail,
+    // Check foreign key constraints after the migration. If they fail,
     // we will abort until the user resolves it.
-    WalletDb::validate_foreign_keys(&conn);
     conn.batch_execute("PRAGMA foreign_keys = OFF;")
         .expect("failed disabling foreign keys");
     embedded_migrations::run_with_output(&conn, &mut std::io::stdout())
