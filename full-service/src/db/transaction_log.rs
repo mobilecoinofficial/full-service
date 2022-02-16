@@ -687,6 +687,7 @@ mod tests {
             &mut ledger_db,
             &vec![70 * MOB as u64],
             &mut rng,
+            &logger,
         );
 
         // Build a transaction
@@ -841,6 +842,7 @@ mod tests {
             &mut ledger_db,
             &vec![100 * MOB as u64, 200 * MOB as u64],
             &mut rng,
+            &logger,
         );
 
         // Build a transaction
@@ -1019,6 +1021,7 @@ mod tests {
             &mut ledger_db,
             &vec![7_000_000 * MOB as u64, 14_000_000 * MOB as u64],
             &mut rng,
+            &logger,
         );
 
         // Build a transaction for > i64::Max
@@ -1076,6 +1079,7 @@ mod tests {
             &mut ledger_db,
             &vec![7 * MOB as u64, 8 * MOB as u64],
             &mut rng,
+            &logger,
         );
 
         let mut builder = WalletTransactionBuilder::new(

@@ -1136,10 +1136,6 @@ mod tests {
         assert_eq!(alice_account.next_block_index, 14);
         assert_eq!(alice_account.next_subaddress_index, 5);
 
-        // Scan for alice to pick up the orphaned Txo
-        let _alice_account =
-            manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, 14, &logger);
-
         // Check that a transaction log entry was created for each received TxOut (note:
         // we are not creating submit logs in this test)
         let transaction_logs = TransactionLog::list_all(
@@ -1512,6 +1508,7 @@ mod tests {
             &mut ledger_db,
             &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
             &mut rng,
+            &logger,
         );
         let sender_account_id = AccountID::from(&sender_account_key);
 
