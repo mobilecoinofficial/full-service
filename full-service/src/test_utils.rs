@@ -319,6 +319,12 @@ pub fn add_block_with_db_txos(
     add_block_with_tx_outs(ledger_db, &outputs, key_images)
 }
 
+// Not entirely sure what the expected functionality of this is supposed to be.
+// Do we want this to sync to a specific target block, or just sync to the most
+// current block? I think it makes more sense to sync to the most current one,
+// and we can ditch the target_block_index entirely. No need to check that. If
+// it's syncing correctly, the information will be correct regardless, and if
+// it's not, then it won't be.
 pub fn manually_sync_account(
     ledger_db: &LedgerDB,
     wallet_db: &WalletDb,
@@ -327,6 +333,15 @@ pub fn manually_sync_account(
     logger: &Logger,
 ) -> Account {
     let mut account: Account;
+
+    account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
+
+    // Check if the account is already synced to the target block. If so, return
+    // without doing anything further.
+    if account.next_block_index as u64 >= target_block_index {
+        return account;
+    }
+
     loop {
         match sync_account(&ledger_db, &wallet_db, &account_id.to_string(), &logger) {
             Ok(_) => {}
@@ -354,28 +369,12 @@ pub fn manually_sync_account(
             Err(e) => panic!("Could not sync account due to {:?}", e),
         }
         account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
-        if account.next_block_index as u64 == ledger_db.num_blocks().unwrap() {
+        if account.next_block_index as u64 >= ledger_db.num_blocks().unwrap() {
             break;
         }
     }
     assert_eq!(account.next_block_index as u64, target_block_index);
     account
-}
-
-fn wait_for_sync(
-    ledger_db: &LedgerDB,
-    wallet_db: &WalletDb,
-    account_id: &AccountID,
-    target_block_index: u64,
-) {
-    let mut account: Account;
-    loop {
-        account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
-        if account.next_block_index as u64 == ledger_db.num_blocks().unwrap() {
-            break;
-        }
-    }
-    assert_eq!(account.next_block_index as u64, target_block_index);
 }
 
 pub fn setup_grpc_peer_manager_and_network_state(
@@ -552,6 +551,7 @@ pub fn random_account_with_seed_values(
     mut ledger_db: &mut LedgerDB,
     seed_values: &[u64],
     mut rng: &mut StdRng,
+    logger: &Logger,
 ) -> AccountKey {
     let root_id = RootIdentity::from_random(&mut rng);
     let account_key = AccountKey::from(&root_id);
@@ -580,11 +580,12 @@ pub fn random_account_with_seed_values(
         );
     }
 
-    wait_for_sync(
+    manually_sync_account(
         &ledger_db,
         &wallet_db,
         &AccountID::from(&account_key),
         ledger_db.num_blocks().unwrap(),
+        logger,
     );
 
     // Make sure we have all our TXOs
