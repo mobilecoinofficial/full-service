@@ -3467,4 +3467,14 @@ mod e2e {
         let result = res["result"]["gift_codes"].as_array().unwrap();
         assert_eq!(result.len(), 0);
     }
+
+    // TODO - Add test to make sure fog account imports successfully with both
+    // import styles
+
+    // TODO - Add test to make sure fog account creates successfully
+
+    // TODO - Add test to make sure fog account sends change to main subaddress
+    // (index 0)
+
+    // TODO - Add test to make sure fog accounts fail to assign next subaddress
 }
