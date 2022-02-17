@@ -184,10 +184,7 @@ impl AccountModel for Account {
         fog_authority_spki: Option<String>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(AccountID, String), WalletDbError> {
-        let fog_enabled = match fog_report_url {
-            Some(_) => true,
-            None => false,
-        };
+        let fog_enabled = fog_report_url.is_some();
 
         let account_key = Slip10Key::from(mnemonic.clone()).try_into_account_key(
             &fog_report_url.unwrap_or_else(|| "".to_string()),
@@ -219,10 +216,7 @@ impl AccountModel for Account {
         fog_authority_spki: Option<String>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(AccountID, String), WalletDbError> {
-        let fog_enabled = match fog_report_url {
-            Some(_) => true,
-            None => false,
-        };
+        let fog_enabled = fog_report_url.is_some();
 
         let root_id = RootIdentity {
             root_entropy: entropy.clone(),
@@ -657,5 +651,64 @@ mod tests {
         assert_eq!(decoded_entropy, root_id.root_entropy);
         let decoded_account_key: AccountKey = mc_util_serial::decode(&account.account_key).unwrap();
         assert_eq!(decoded_account_key, account_key);
+    }
+
+    #[test_with_logger]
+    fn test_create_fog_account(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_id_hex = {
+            let conn = wallet_db.get_conn().unwrap();
+            let (account_id_hex, _public_address_b58) = Account::create_from_root_entropy(
+                &root_id.root_entropy,
+                Some(0),
+                None,
+                None,
+                "Alice's FOG Account",
+                Some("fog//some.fog.url".to_string()),
+                Some("".to_string()),
+                Some("DefinitelyARealFOGAuthoritySPKI".to_string()),
+                &conn,
+            )
+            .unwrap();
+            account_id_hex
+        };
+
+        {
+            let conn = wallet_db.get_conn().unwrap();
+            let res = Account::list_all(&conn).unwrap();
+            assert_eq!(res.len(), 1);
+        }
+
+        let acc = Account::get(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
+        let expected_account = Account {
+            id: 1,
+            account_id_hex: account_id_hex.to_string(),
+            account_key: [
+                10, 34, 10, 32, 129, 223, 141, 215, 200, 104, 120, 117, 123, 154, 151, 210, 253,
+                23, 148, 151, 2, 18, 182, 100, 83, 138, 144, 99, 225, 74, 214, 14, 175, 68, 167, 4,
+                18, 34, 10, 32, 24, 98, 18, 92, 9, 50, 142, 184, 114, 99, 34, 125, 211, 54, 146,
+                33, 98, 71, 179, 56, 136, 67, 98, 97, 230, 228, 31, 194, 119, 169, 189, 8, 26, 17,
+                102, 111, 103, 47, 47, 115, 111, 109, 101, 46, 102, 111, 103, 46, 117, 114, 108,
+                42, 23, 13, 231, 226, 158, 43, 94, 151, 32, 17, 121, 169, 69, 56, 96, 46, 182, 26,
+                43, 138, 220, 146, 60, 162,
+            ]
+            .to_vec(),
+            entropy: root_id.root_entropy.bytes.to_vec(),
+            key_derivation_version: 1,
+            main_subaddress_index: 0,
+            change_subaddress_index: 0,
+            next_subaddress_index: 1,
+            first_block_index: 0,
+            next_block_index: 0,
+            import_block_index: None,
+            name: "Alice's FOG Account".to_string(),
+            fog_enabled: true,
+        };
+        assert_eq!(expected_account, acc);
     }
 }
