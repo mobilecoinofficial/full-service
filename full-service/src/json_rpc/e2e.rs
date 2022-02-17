@@ -50,6 +50,7 @@ mod e2e {
         assert!(account_obj.get("main_address").is_some());
         assert_eq!(account_obj.get("next_subaddress_index").unwrap(), "2");
         assert_eq!(account_obj.get("recovery_mode").unwrap(), false);
+        assert_eq!(account_obj.get("fog_enabled").unwrap(), false);
 
         let account_id = account_obj.get("account_id").unwrap();
 
@@ -143,6 +144,36 @@ mod e2e {
     }
 
     #[test_with_logger]
+    fn test_e2e_create_account_with_fog(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+        // Create Account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+                "fog_report_url": "fog://fog-report.example.com",
+                "fog_report_id": "",
+                "fog_authority_spki": "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0IFnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ=="
+            },
+        });
+
+        let res = dispatch(&client, body, &logger);
+        assert_eq!(res.get("jsonrpc").unwrap(), "2.0");
+
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        assert!(account_obj.get("account_id").is_some());
+        assert_eq!(account_obj.get("name").unwrap(), "Alice Main Account");
+        assert_eq!(account_obj.get("recovery_mode").unwrap(), false);
+        assert!(account_obj.get("main_address").is_some());
+        assert_eq!(account_obj.get("next_subaddress_index").unwrap(), "1");
+        assert_eq!(account_obj.get("fog_enabled").unwrap(), true);
+    }
+
+    #[test_with_logger]
     fn test_e2e_import_account(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
@@ -173,6 +204,8 @@ mod e2e {
             *account_obj.get("first_block_index").unwrap(),
             serde_json::json!("200")
         );
+        assert_eq!(account_obj.get("next_subaddress_index").unwrap(), "2");
+        assert_eq!(account_obj.get("fog_enabled").unwrap(), false);
     }
 
     #[test_with_logger]
@@ -242,6 +275,77 @@ mod e2e {
             *account_obj.get("first_block_index").unwrap(),
             serde_json::json!("200")
         );
+        assert_eq!(account_obj.get("next_subaddress_index").unwrap(), "2");
+        assert_eq!(account_obj.get("fog_enabled").unwrap(), false);
+    }
+
+    #[test_with_logger]
+    fn test_e2e_import_account_fog(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        // Import an account with fog info.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_account",
+            "params": {
+                "mnemonic": "sheriff odor square mistake huge skate mouse shoot purity weapon proof stuff correct concert blanket neck own shift clay mistake air viable stick group",
+                "key_derivation_version": "2",
+                "name": "Alice Main Account",
+                "first_block_index": "200",
+                "fog_report_url": "fog://fog-report.example.com",
+                "fog_report_id": "",
+                "fog_authority_spki": "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0IFnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ=="
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+        assert_eq!(public_address, "2kD4vRp3DaBdRrNLNhJ5BKf5FsZxcAijoMt5pxjJpbk5jQRubngUXnd92vuXWkFyezuLgjCiKu4JHjpjNCnmzf1gAdW6PbqXsecQtp8Qr8uoeeDKrd1a5PtA6apXuDVtnrKsDCcHiJqdeSt3bRsPBvkBP4JqpGyAeKFsC7s2LQwuZ88BxFe2kyeZp5G3zENfvLaMripxTKkWGDopok2LCyA9NiCDf1vwjA5opLU7eqaRfh9");
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        assert_eq!(
+            account_id,
+            "0b8a95253a7d57faf8510d8092ab55fb8610a9d691a7fa3bfafbf49945b845a2"
+        );
+
+        assert_eq!(account_obj.get("next_subaddress_index").unwrap(), "1");
+        assert_eq!(account_obj.get("fog_enabled").unwrap(), true);
+    }
+
+    #[test_with_logger]
+    fn test_e2e_import_account_legacy_fog(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_account_from_legacy_root_entropy",
+            "params": {
+                "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
+                "name": "Alice Main Account",
+                "first_block_index": "200",
+                "fog_report_url": "fog://fog-report.example.com",
+                "fog_report_id": "",
+                "fog_authority_spki": "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0IFnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ=="
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+        assert_eq!(public_address, "d3FhtyUQDYJFpEmzoXmRtF9VA5FTLycgQBKf1JEJJj8K6UXCuwzGD2uVYw1cxzZpbSivZLSxf9nZpMgUnuRxSpJA9qCDpDZd2qtc7j2N2x4758dQ91jrSCxzyuR1aJR7zgdcgdF2KwSShUhQ5n7M9uebf2HqiCWt8vttqESJ7aRNDwiW8TVmeKWviWunzYG46c8vo4DeZYK4wFfLNdwmeSn9HXKkQVpNgzsMz87cKpHRnzn");
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        // Catches if a change results in changed accounts_ids, which should always be
+        // made to be backward compatible.
+        assert_eq!(
+            account_id,
+            "9111a17691a1eecb85bbeaa789c69471e7c8b9789e0068de02204f9d7264263d"
+        );
+        assert_eq!(account_obj.get("next_subaddress_index").unwrap(), "1");
+        assert_eq!(account_obj.get("fog_enabled").unwrap(), true);
     }
 
     #[test_with_logger]
@@ -398,57 +502,6 @@ mod e2e {
         assert_eq!(
             serde_json::json!(json_rpc::account_key::AccountKey::try_from(&account_key).unwrap()),
             secrets["account_key"]
-        );
-    }
-
-    #[test_with_logger]
-    fn test_e2e_import_account_fog(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
-
-        // Import an account with fog info.
-        let body = json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "import_account",
-            "params": {
-                "mnemonic": "sheriff odor square mistake huge skate mouse shoot purity weapon proof stuff correct concert blanket neck own shift clay mistake air viable stick group",
-                "key_derivation_version": "2",
-                "name": "Alice Main Account",
-                "first_block_index": "200",
-                "fog_report_url": "fog://fog-report.example.com",
-                "fog_report_id": "",
-                "fog_authority_spki": "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0IFnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ=="
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let account_obj = result.get("account").unwrap();
-        let public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
-        assert_eq!(public_address, "2kD4vRp3DaBdRrNLNhJ5BKf5FsZxcAijoMt5pxjJpbk5jQRubngUXnd92vuXWkFyezuLgjCiKu4JHjpjNCnmzf1gAdW6PbqXsecQtp8Qr8uoeeDKrd1a5PtA6apXuDVtnrKsDCcHiJqdeSt3bRsPBvkBP4JqpGyAeKFsC7s2LQwuZ88BxFe2kyeZp5G3zENfvLaMripxTKkWGDopok2LCyA9NiCDf1vwjA5opLU7eqaRfh9");
-        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
-        assert_eq!(
-            account_id,
-            "0b8a95253a7d57faf8510d8092ab55fb8610a9d691a7fa3bfafbf49945b845a2"
-        );
-
-        // Export account secrets and check fog info.
-        let body = json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "export_account_secrets",
-            "params": {
-                "account_id": account_id,
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let secrets = result.get("account_secrets").unwrap();
-        let account_key = secrets.get("account_key").unwrap();
-
-        assert_eq!(
-            *account_key.get("fog_report_url").unwrap(),
-            serde_json::json!("fog://fog-report.example.com")
         );
     }
 
@@ -1865,6 +1918,49 @@ mod e2e {
         let addresses_page = result.get("public_addresses").unwrap().as_array().unwrap();
         assert_eq!(addresses_page.len(), 4);
         assert_eq!(addresses_page[..], addresses_all[1..5]);
+    }
+
+    #[test_with_logger]
+    fn test_next_subaddress_fails_with_fog(logger: Logger) {
+        use crate::db::WalletDbError::SubaddressesNotSupportedForFOGEnabledAccounts as subaddress_error;
+
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        // Create Account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+                "fog_report_url": "fog://fog-report.example.com",
+                "fog_report_id": "",
+                "fog_authority_spki": "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0IFnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ=="
+            },
+        });
+
+        let creation_res = dispatch(&client, body, &logger);
+        let creation_result = creation_res.get("result").unwrap();
+        let account_obj = creation_result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        assert_eq!(creation_res.get("jsonrpc").unwrap(), "2.0");
+
+        // assign next subaddress for account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "assign_address_for_account",
+            "params": {
+                "account_id": account_id,
+                "metadata": "subaddress_index_2",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let error = res.get("error").unwrap();
+        let data = error.get("data").unwrap();
+        let details = data.get("details").unwrap();
+        assert!(details.to_string().contains(&subaddress_error.to_string()));
     }
 
     #[test_with_logger]
@@ -3467,14 +3563,4 @@ mod e2e {
         let result = res["result"]["gift_codes"].as_array().unwrap();
         assert_eq!(result.len(), 0);
     }
-
-    // TODO - Add test to make sure fog account imports successfully with both
-    // import styles
-
-    // TODO - Add test to make sure fog account creates successfully
-
-    // TODO - Add test to make sure fog account sends change to main subaddress
-    // (index 0)
-
-    // TODO - Add test to make sure fog accounts fail to assign next subaddress
 }
