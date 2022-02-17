@@ -486,7 +486,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
-            13,
             &logger,
         );
 
@@ -593,7 +592,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
-            13,
             &logger,
         );
 
@@ -656,7 +654,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
-            13,
             &logger,
         );
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
@@ -674,7 +671,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
-            14,
             &logger,
         );
         assert_eq!(ledger_db.num_blocks().unwrap(), 14);
@@ -749,7 +745,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
-            15,
             &logger,
         );
         assert_eq!(ledger_db.num_blocks().unwrap(), 15);
@@ -830,7 +825,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
-            13,
             &logger,
         );
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
@@ -879,7 +873,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
-            14,
             &logger,
         );
         assert_eq!(ledger_db.num_blocks().unwrap(), 14);
@@ -997,7 +990,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
-            15,
             &logger,
         );
         assert_eq!(ledger_db.num_blocks().unwrap(), 15);
@@ -1203,7 +1195,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
-            13,
             &logger,
         );
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
@@ -1221,7 +1212,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
-            14,
             &logger,
         );
         assert_eq!(ledger_db.num_blocks().unwrap(), 14);
@@ -1259,7 +1249,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
-            15,
             &logger,
         );
 
@@ -1310,7 +1299,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
-            17,
             &logger,
         );
 
@@ -1422,7 +1410,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(alice_account_id.to_string()),
-            13,
             &logger,
         );
 
@@ -1568,21 +1555,18 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(alice_account_id.to_string()),
-            14,
             &logger,
         );
         manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(bob_account_id.to_string()),
-            14,
             &logger,
         );
         manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(charlie_account_id.to_string()),
-            14,
             &logger,
         );
 
@@ -1745,7 +1729,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
-            22,
             &logger,
         );
 
@@ -1933,7 +1916,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
-            13,
             &logger,
         );
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
@@ -1978,7 +1960,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
-            13,
             &logger,
         );
         let body = json!({
@@ -2055,7 +2036,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
-            13,
             &logger,
         );
 
@@ -2151,7 +2131,6 @@ mod e2e {
             &ledger_db,
             &wallet_db,
             &AccountID(account_id_1.to_string()),
-            13,
             &logger,
         );
         assert_eq!(
@@ -2201,7 +2180,6 @@ mod e2e {
             &ledger_db,
             &wallet_db,
             &AccountID(account_id_2.to_string()),
-            14,
             &logger,
         );
         assert_eq!(
@@ -2271,7 +2249,6 @@ mod e2e {
             &ledger_db,
             &wallet_db,
             &AccountID(account_id_3.to_string()),
-            15,
             &logger,
         );
         assert_eq!(
@@ -2356,7 +2333,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
-            13,
             &logger,
         );
 
@@ -2532,7 +2508,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
-            13,
             &logger,
         );
 
@@ -2624,7 +2599,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
-            14,
             &logger,
         );
 
@@ -2710,7 +2684,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
-            14,
             &logger,
         );
 
@@ -2747,7 +2720,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
-            14,
             &logger,
         );
 
@@ -2859,7 +2831,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
-            15,
             &logger,
         );
 
@@ -2911,7 +2882,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
-            15,
             &logger,
         );
 
@@ -2967,7 +2937,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
-            13,
             &logger,
         );
 
@@ -3057,7 +3026,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
-            13,
             &logger,
         );
 
@@ -3151,7 +3119,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(account_id.to_string()),
-            14,
             &logger,
         );
 
@@ -3205,7 +3172,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(alice_account_id.to_string()),
-            13,
             &logger,
         );
 
@@ -3286,14 +3252,12 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(alice_account_id.to_string()),
-            14,
             &logger,
         );
         manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(bob_account_id.to_string()),
-            14,
             &logger,
         );
 
@@ -3347,7 +3311,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(alice_account_id.to_string()),
-            13,
             &logger,
         );
         // Create a gift code
@@ -3407,7 +3370,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(alice_account_id.to_string()),
-            14,
             &logger,
         );
 
@@ -3444,7 +3406,6 @@ mod e2e {
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
             &AccountID(bob_account_id.to_string()),
-            14,
             &logger,
         );
 

@@ -393,13 +393,7 @@ mod tests {
             &mut rng,
         );
 
-        manually_sync_account(
-            &ledger_db,
-            &service.wallet_db,
-            &alice_account_id,
-            13,
-            &logger,
-        );
+        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
 
         let tx_logs = service
             .list_transaction_logs(&alice_account_id, None, None)
@@ -530,13 +524,7 @@ mod tests {
             &mut rng,
         );
 
-        manually_sync_account(
-            &ledger_db,
-            &service.wallet_db,
-            &alice_account_id,
-            13,
-            &logger,
-        );
+        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
 
         // Verify balance for Alice
         let balance = service
@@ -583,14 +571,8 @@ mod tests {
             add_block_from_transaction_log(&mut ledger_db, &conn, &transaction_log);
         }
 
-        manually_sync_account(
-            &ledger_db,
-            &service.wallet_db,
-            &alice_account_id,
-            14,
-            &logger,
-        );
-        manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, 14, &logger);
+        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+        manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, &logger);
 
         // Get the Txos from the transaction log
         let transaction_txos = transaction_log
@@ -661,14 +643,8 @@ mod tests {
             add_block_from_transaction_log(&mut ledger_db, &conn, &transaction_log);
         }
 
-        manually_sync_account(
-            &ledger_db,
-            &service.wallet_db,
-            &alice_account_id,
-            15,
-            &logger,
-        );
-        manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, 15, &logger);
+        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+        manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, &logger);
 
         let alice_balance = service
             .get_balance_for_account(&AccountID(alice.account_id_hex))
@@ -715,13 +691,7 @@ mod tests {
             &mut rng,
         );
 
-        manually_sync_account(
-            &ledger_db,
-            &service.wallet_db,
-            &alice_account_id,
-            13,
-            &logger,
-        );
+        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
 
         match service.build_transaction(
             &alice.account_id_hex,

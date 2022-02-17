@@ -802,7 +802,6 @@ mod tests {
             &ledger_db,
             &wallet_db,
             &AccountID(tx_log.account_id_hex.to_string()),
-            14,
             &logger,
         );
 
@@ -1190,7 +1189,6 @@ mod tests {
             &ledger_db,
             &wallet_db,
             &AccountID(tx_log.account_id_hex.to_string()),
-            15,
             &logger,
         );
 

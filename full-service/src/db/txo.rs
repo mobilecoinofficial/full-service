@@ -990,7 +990,7 @@ mod tests {
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
 
         let _alice_account =
-            manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, 13, &logger);
+            manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, &logger);
 
         let txos = Txo::list_for_account(
             &alice_account_id.to_string(),
@@ -1058,9 +1058,7 @@ mod tests {
 
         // Now we'll process these Txos and verify that the TXO was "spent."
         let _alice_account =
-            manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, 14, &logger);
-
-        manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, 14, &logger);
+            manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, &logger);
 
         // We should now have 3 txos for this account - one spent, one change (minted),
         // and one minted (destined for alice).
@@ -1227,11 +1225,10 @@ mod tests {
         );
 
         // Process the latest block for Bob (note, Bob is starting to sync from block 0)
-        let _bob_account =
-            manually_sync_account(&ledger_db, &wallet_db, &bob_account_id, 15, &logger);
+        let _bob_account = manually_sync_account(&ledger_db, &wallet_db, &bob_account_id, &logger);
         // Process the latest block for Alice
         let _alice_account =
-            manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, 15, &logger);
+            manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, &logger);
 
         // We should now have 1 txo in Bob's account.
         let txos = Txo::list_for_account(
@@ -1554,8 +1551,8 @@ mod tests {
 
         // Now let our sync thread catch up for both sender and receiver
         log::info!(logger, "Manually syncing account");
-        manually_sync_account(&ledger_db, &wallet_db, &recipient_account_id, 16, &logger);
-        manually_sync_account(&ledger_db, &wallet_db, &sender_account_id, 16, &logger);
+        manually_sync_account(&ledger_db, &wallet_db, &recipient_account_id, &logger);
+        manually_sync_account(&ledger_db, &wallet_db, &sender_account_id, &logger);
 
         // Then let's make sure we received the Txo on the recipient account
         log::info!(logger, "Listing all Txos for recipient account");

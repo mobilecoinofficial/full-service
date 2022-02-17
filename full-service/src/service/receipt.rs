@@ -358,7 +358,6 @@ mod tests {
             &ledger_db,
             &service.wallet_db,
             &AccountID(alice.account_id_hex.to_string()),
-            13,
             &logger,
         );
 
@@ -407,14 +406,12 @@ mod tests {
             &ledger_db,
             &service.wallet_db,
             &AccountID(alice.account_id_hex.to_string()),
-            14,
             &logger,
         );
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,
             &AccountID(bob.account_id_hex.to_string()),
-            14,
             &logger,
         );
 
@@ -483,7 +480,6 @@ mod tests {
             &ledger_db,
             &service.wallet_db,
             &AccountID(alice.account_id_hex.to_string()),
-            13,
             &logger,
         );
 
@@ -544,14 +540,12 @@ mod tests {
             &ledger_db,
             &service.wallet_db,
             &AccountID(alice.account_id_hex.to_string()),
-            14,
             &logger,
         );
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,
             &AccountID(bob.account_id_hex.to_string()),
-            14,
             &logger,
         );
 
@@ -597,7 +591,6 @@ mod tests {
             &ledger_db,
             &service.wallet_db,
             &AccountID(alice.account_id_hex.to_string()),
-            13,
             &logger,
         );
 
@@ -642,10 +635,9 @@ mod tests {
             &ledger_db,
             &service.wallet_db,
             &AccountID(alice.account_id_hex.to_string()),
-            14,
             &logger,
         );
-        manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, 14, &logger);
+        manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, &logger);
 
         // Bob checks the status, and is expecting an incorrect value, from a
         // transaction with a different shared secret
@@ -715,7 +707,6 @@ mod tests {
             &ledger_db,
             &service.wallet_db,
             &AccountID(alice.account_id_hex.to_string()),
-            13,
             &logger,
         );
 
@@ -760,10 +751,9 @@ mod tests {
             &ledger_db,
             &service.wallet_db,
             &AccountID(alice.account_id_hex.to_string()),
-            14,
             &logger,
         );
-        manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, 14, &logger);
+        manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, &logger);
 
         // Construct an invalid receipt with an incorrect confirmation number.
         let mut receipt = receipt0.clone();
