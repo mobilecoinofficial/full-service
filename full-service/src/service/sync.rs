@@ -457,7 +457,6 @@ mod tests {
             &ledger_db,
             &wallet_db,
             &AccountID::from(&account_key),
-            1,
             &logger,
         );
 
