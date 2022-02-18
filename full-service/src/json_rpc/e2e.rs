@@ -10,7 +10,10 @@ mod e2e {
             models::{TXO_STATUS_UNSPENT, TXO_TYPE_RECEIVED},
         },
         json_rpc,
-        json_rpc::api_test_utils::{dispatch, dispatch_expect_error, setup},
+        json_rpc::api_test_utils::{
+            dispatch, dispatch_expect_error, dispatch_with_header,
+            dispatch_with_header_expect_error, setup,
+        },
         test_utils::{
             add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account, MOB,
         },
@@ -24,7 +27,8 @@ mod e2e {
     use mc_ledger_db::Ledger;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
-    use std::convert::TryFrom;
+    use rocket::http::{Header, Status};
+    use std::{convert::TryFrom, env};
 
     #[test_with_logger]
     fn test_e2e_account_crud(logger: Logger) {
@@ -3466,5 +3470,44 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let result = res["result"]["gift_codes"].as_array().unwrap();
         assert_eq!(result.len(), 0);
+    }
+
+    #[test_with_logger]
+    fn test_request_with_correct_api_key(logger: Logger) {
+        env::set_var("MC_API_KEY", "mobilecats");
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            },
+        });
+
+        let header = Header::new("X-API-KEY", "mobilecats");
+
+        dispatch_with_header(&client, body, header, &logger);
+    }
+
+    #[test_with_logger]
+    fn test_request_with_bad_api_key(logger: Logger) {
+        env::set_var("MC_API_KEY", "mobilecats");
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            },
+        });
+
+        let header = Header::new("X-API-KEY", "wrong-header");
+        dispatch_with_header_expect_error(&client, body, header, &logger, Status::Unauthorized);
     }
 }

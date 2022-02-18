@@ -1,13 +1,18 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
-use crate::{json_rpc::{
+use crate::{
+    json_rpc::{
         json_rpc_request::{JsonCommandRequest, JsonRPCRequest},
         json_rpc_response::JsonRPCResponse,
         wallet::wallet_api_inner,
-    }, service::WalletService, test_utils::{
+    },
+    service::WalletService,
+    test_utils::{
         get_resolver_factory, get_test_ledger, setup_peer_manager_and_network_state,
         WalletDbTestContext,
-    }, wallet::ApiKeyGuard};
+    },
+    wallet::ApiKeyGuard,
+};
 use mc_account_keys::PublicAddress;
 use mc_common::logger::{log, Logger};
 use mc_connection_test_utils::MockBlockchainConnection;
@@ -16,7 +21,7 @@ use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::PollingNetworkState;
 use rand::rngs::StdRng;
 use rocket::{
-    http::{ContentType, Status},
+    http::{ContentType, Header, Status},
     local::Client,
     post, routes,
 };
@@ -135,6 +140,47 @@ pub fn dispatch(client: &Client, request_body: JsonValue, logger: &Logger) -> Js
 
     let res: JsonValue = serde_json::from_str(&response_body).unwrap();
     res
+}
+
+pub fn dispatch_with_header(
+    client: &Client,
+    request_body: JsonValue,
+    header: Header<'static>,
+    logger: &Logger,
+) -> JsonValue {
+    log::info!(logger, "Attempting dispatch of\n{:?}\n", request_body,);
+    let request_body = request_body.to_string();
+    log::info!(logger, "Attempting dispatch of\n{}\n", request_body,);
+
+    let mut res = client
+        .post("/wallet")
+        .header(ContentType::JSON)
+        .header(header)
+        .body(request_body)
+        .dispatch();
+    assert_eq!(res.status(), Status::Ok);
+
+    let response_body = res.body().unwrap().into_string().unwrap();
+    log::info!(logger, "Got response\n{}\n", response_body);
+
+    let res: JsonValue = serde_json::from_str(&response_body).unwrap();
+    res
+}
+
+pub fn dispatch_with_header_expect_error(
+    client: &Client,
+    request_body: JsonValue,
+    header: Header<'static>,
+    _logger: &Logger,
+    expected_err: Status,
+) {
+    let res = client
+        .post("/wallet")
+        .header(ContentType::JSON)
+        .header(header)
+        .body(request_body.to_string())
+        .dispatch();
+    assert_eq!(res.status(), expected_err);
 }
 
 pub fn dispatch_expect_error(
