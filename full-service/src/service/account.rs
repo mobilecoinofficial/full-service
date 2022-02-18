@@ -79,7 +79,13 @@ impl From<LedgerServiceError> for AccountServiceError {
 /// accounts.
 pub trait AccountService {
     /// Creates a new account with default values.
-    fn create_account(&self, name: Option<String>) -> Result<Account, AccountServiceError>;
+    fn create_account(
+        &self,
+        name: Option<String>,
+        fog_report_url: Option<String>,
+        fog_report_id: Option<String>,
+        fog_authority_spki: Option<String>,
+    ) -> Result<Account, AccountServiceError>;
 
     /// Import an existing account to the wallet using the entropy.
     #[allow(clippy::too_many_arguments)]
@@ -130,7 +136,13 @@ where
     T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
-    fn create_account(&self, name: Option<String>) -> Result<Account, AccountServiceError> {
+    fn create_account(
+        &self,
+        name: Option<String>,
+        fog_report_url: Option<String>,
+        fog_report_id: Option<String>,
+        fog_authority_spki: Option<String>,
+    ) -> Result<Account, AccountServiceError> {
         log::info!(self.logger, "Creating account {:?}", name,);
 
         // Generate entropy for the account
@@ -153,9 +165,9 @@ where
                 Some(import_block_index),
                 None,
                 &name.unwrap_or_else(|| "".to_string()),
-                None,
-                None,
-                None,
+                fog_report_url,
+                fog_report_id,
+                fog_authority_spki,
                 &conn,
             )?;
 
@@ -315,7 +327,9 @@ mod tests {
         let wallet_db = &service.wallet_db;
 
         // Create an account.
-        let account = service.create_account(Some("A".to_string())).unwrap();
+        let account = service
+            .create_account(Some("A".to_string()), None, None, None)
+            .unwrap();
 
         // Add a transaction, with transaction status.
         let account_key: AccountKey = mc_util_serial::decode(&account.account_key).unwrap();

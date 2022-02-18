@@ -341,7 +341,7 @@ mod tests {
 
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
         let alice = service
-            .create_account(Some("Alice's Main Account".to_string()))
+            .create_account(Some("Alice's Main Account".to_string()), None, None, None)
             .unwrap();
 
         // Fund Alice
@@ -362,7 +362,7 @@ mod tests {
         );
 
         let bob = service
-            .create_account(Some("Bob's Main Account".to_string()))
+            .create_account(Some("Bob's Main Account".to_string()), None, None, None)
             .unwrap();
         let bob_addresses = service
             .get_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
@@ -463,7 +463,7 @@ mod tests {
 
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
         let alice = service
-            .create_account(Some("Alice's Main Account".to_string()))
+            .create_account(Some("Alice's Main Account".to_string()), None, None, None)
             .unwrap();
 
         // Fund Alice
@@ -484,7 +484,7 @@ mod tests {
         );
 
         let bob = service
-            .create_account(Some("Bob's Main Account".to_string()))
+            .create_account(Some("Bob's Main Account".to_string()), None, None, None)
             .unwrap();
         let bob_addresses = service
             .get_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
@@ -574,7 +574,7 @@ mod tests {
 
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
         let alice = service
-            .create_account(Some("Alice's Main Account".to_string()))
+            .create_account(Some("Alice's Main Account".to_string()), None, None, None)
             .unwrap();
 
         // Fund Alice
@@ -595,7 +595,7 @@ mod tests {
         );
 
         let bob = service
-            .create_account(Some("Bob's Main Account".to_string()))
+            .create_account(Some("Bob's Main Account".to_string()), None, None, None)
             .unwrap();
         let bob_addresses = service
             .get_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
@@ -690,7 +690,7 @@ mod tests {
 
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
         let alice = service
-            .create_account(Some("Alice's Main Account".to_string()))
+            .create_account(Some("Alice's Main Account".to_string()), None, None, None)
             .unwrap();
 
         // Fund Alice
@@ -711,7 +711,7 @@ mod tests {
         );
 
         let bob = service
-            .create_account(Some("Bob's Main Account".to_string()))
+            .create_account(Some("Bob's Main Account".to_string()), None, None, None)
             .unwrap();
         let bob_addresses = service
             .get_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)

@@ -12,6 +12,7 @@ table! {
         next_block_index -> BigInt,
         import_block_index -> Nullable<BigInt>,
         name -> Text,
+        fog_enabled -> Bool,
     }
 }
 
