@@ -88,7 +88,7 @@ impl<'a, 'r> FromRequest<'a, 'r> for ApiKeyGuard {
         if local_key == client_key {
             Outcome::Success(ApiKeyGuard {})
         } else {
-            Outcome::Failure((Status::BadRequest, ApiKeyError::Invalid))
+            Outcome::Failure((Status::Unauthorized, ApiKeyError::Invalid))
         }
     }
 }
@@ -135,18 +135,20 @@ where
 /// The route for the Full Service Wallet API.
 #[post("/wallet", format = "json", data = "<command>")]
 pub fn consensus_backed_wallet_api(
+    _api_key_guard: ApiKeyGuard,
     state: rocket::State<WalletState<ThickClient<HardcodedCredentialsProvider>, FogResolver>>,
     command: Json<JsonRPCRequest>,
 ) -> Result<Json<JsonRPCResponse>, String> {
-    generic_wallet_api(state, command)
+    generic_wallet_api(_api_key_guard, state, command)
 }
 
 #[post("/wallet", format = "json", data = "<command>")]
 pub fn validator_backed_wallet_api(
+    _api_key_guard: ApiKeyGuard,
     state: rocket::State<WalletState<ValidatorConnection, FogResolver>>,
     command: Json<JsonRPCRequest>,
 ) -> Result<Json<JsonRPCResponse>, String> {
-    generic_wallet_api(state, command)
+    generic_wallet_api(_api_key_guard, state, command)
 }
 
 /// The Wallet API inner method, which handles switching on the method enum.

@@ -68,3 +68,5 @@ ingest-enclave.css
 *.mdb
 
 release/
+
+.env
