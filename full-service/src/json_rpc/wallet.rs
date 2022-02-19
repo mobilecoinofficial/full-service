@@ -343,7 +343,12 @@ where
             fog_authority_spki,
         } => {
             let account: db::models::Account = service
-                .create_account(name, fog_report_url, fog_report_id, fog_authority_spki)
+                .create_account(
+                    name,
+                    fog_report_url.unwrap_or_default(),
+                    fog_report_id.unwrap_or_default(),
+                    fog_authority_spki.unwrap_or_default(),
+                )
                 .map_err(format_error)?;
 
             JsonCommandResponse::create_account {
@@ -799,9 +804,9 @@ where
                             name,
                             fb,
                             ns,
-                            fog_report_url,
-                            fog_report_id,
-                            fog_authority_spki,
+                            fog_report_url.unwrap_or_default(),
+                            fog_report_id.unwrap_or_default(),
+                            fog_authority_spki.unwrap_or_default(),
                         )
                         .map_err(format_error)?,
                 )
@@ -834,9 +839,9 @@ where
                             name,
                             fb,
                             ns,
-                            fog_report_url,
-                            fog_report_id,
-                            fog_authority_spki,
+                            fog_report_url.unwrap_or_default(),
+                            fog_report_id.unwrap_or_default(),
+                            fog_authority_spki.unwrap_or_default(),
                         )
                         .map_err(format_error)?,
                 )
