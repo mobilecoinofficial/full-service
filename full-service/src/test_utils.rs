@@ -546,9 +546,9 @@ pub fn random_account_with_seed_values(
             None,
             None,
             &format!("SeedAccount{}", rng.next_u32()),
-            None,
-            None,
-            None,
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();

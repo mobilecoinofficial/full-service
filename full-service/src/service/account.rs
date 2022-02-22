@@ -328,7 +328,12 @@ mod tests {
 
         // Create an account.
         let account = service
-            .create_account(Some("A".to_string()), None, None, None)
+            .create_account(
+                Some("A".to_string()),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            )
             .unwrap();
 
         // Add a transaction, with transaction status.

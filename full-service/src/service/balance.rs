@@ -349,9 +349,9 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
-                None,
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
             )
             .expect("Could not import account entropy");
 

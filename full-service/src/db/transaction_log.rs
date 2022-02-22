@@ -600,9 +600,9 @@ mod tests {
             None,
             None,
             "",
-            None,
-            None,
-            None,
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -925,9 +925,9 @@ mod tests {
                 None,
                 None,
                 "",
-                None,
-                None,
-                None,
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
                 &wallet_db.get_conn().unwrap(),
             )
             .unwrap();

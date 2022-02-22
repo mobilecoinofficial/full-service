@@ -184,7 +184,7 @@ impl AccountModel for Account {
         fog_authority_spki: String,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(AccountID, String), WalletDbError> {
-        let fog_enabled = fog_report_url.is_empty();
+        let fog_enabled = !fog_report_url.is_empty();
 
         let account_key = Slip10Key::from(mnemonic.clone()).try_into_account_key(
             &fog_report_url,
@@ -216,7 +216,7 @@ impl AccountModel for Account {
         fog_authority_spki: String,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(AccountID, String), WalletDbError> {
-        let fog_enabled = fog_report_url.is_empty();
+        let fog_enabled = !fog_report_url.is_empty();
 
         let root_id = RootIdentity {
             root_entropy: entropy.clone(),
@@ -489,9 +489,9 @@ mod tests {
                 None,
                 None,
                 "Alice's Main Account",
-                None,
-                None,
-                None,
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
                 &conn,
             )
             .unwrap();
@@ -557,9 +557,9 @@ mod tests {
                 Some(50),
                 None,
                 "",
-                None,
-                None,
-                None,
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
                 &wallet_db.get_conn().unwrap(),
             )
             .unwrap();
@@ -635,9 +635,9 @@ mod tests {
                 None,
                 None,
                 "Alice's Main Account",
-                None,
-                None,
-                None,
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
                 &conn,
             )
             .unwrap();
@@ -666,9 +666,9 @@ mod tests {
                 None,
                 None,
                 "Alice's FOG Account",
-                Some("fog//some.fog.url".to_string()),
-                Some("".to_string()),
-                Some("DefinitelyARealFOGAuthoritySPKI".to_string()),
+                "fog//some.fog.url".to_string(),
+                "".to_string(),
+                "DefinitelyARealFOGAuthoritySPKI".to_string(),
                 &conn,
             )
             .unwrap();
