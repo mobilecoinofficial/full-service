@@ -220,8 +220,8 @@ impl AccountModel for Account {
 
         let root_id = RootIdentity {
             root_entropy: entropy.clone(),
-            fog_report_url: fog_report_url,
-            fog_report_id: fog_report_id,
+            fog_report_url,
+            fog_report_id,
             fog_authority_spki: base64::decode(fog_authority_spki).expect("invalid spki"),
         };
         let account_key = AccountKey::from(&root_id);
