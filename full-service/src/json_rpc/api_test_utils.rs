@@ -11,7 +11,7 @@ use crate::{
         get_resolver_factory, get_test_ledger, setup_peer_manager_and_network_state,
         WalletDbTestContext,
     },
-    wallet::ApiKeyGuard,
+    wallet::{APIKeyState, ApiKeyGuard},
 };
 use mc_account_keys::PublicAddress;
 use mc_common::logger::{log, Logger};
@@ -83,11 +83,11 @@ pub fn test_rocket(rocket_config: rocket::Config, state: TestWalletState) -> roc
         .manage(state)
 }
 
-pub fn setup(
+pub fn create_test_setup(
     mut rng: &mut StdRng,
     logger: Logger,
 ) -> (
-    Client,
+    rocket::Rocket,
     LedgerDB,
     WalletDbTestContext,
     Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
@@ -99,22 +99,62 @@ pub fn setup(
     let (peer_manager, network_state) =
         setup_peer_manager_and_network_state(ledger_db.clone(), logger.clone());
 
-    let service: WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> =
-        WalletService::new(
-            wallet_db,
-            ledger_db.clone(),
-            peer_manager,
-            network_state.clone(),
-            get_resolver_factory(&mut rng).unwrap(),
-            false,
-            logger,
-        );
+    let service = WalletService::new(
+        wallet_db,
+        ledger_db.clone(),
+        peer_manager,
+        network_state.clone(),
+        get_resolver_factory(&mut rng).unwrap(),
+        false,
+        logger,
+    );
 
     let rocket_config: rocket::Config =
         rocket::Config::build(rocket::config::Environment::Development)
             .port(get_free_port())
             .unwrap();
-    let rocket = test_rocket(rocket_config, TestWalletState { service });
+
+    let rocket_instance = test_rocket(rocket_config, TestWalletState { service });
+
+    (rocket_instance, ledger_db, db_test_context, network_state)
+}
+
+pub fn setup(
+    rng: &mut StdRng,
+    logger: Logger,
+) -> (
+    Client,
+    LedgerDB,
+    WalletDbTestContext,
+    Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
+) {
+    let (rocket_instance, ledger_db, db_test_context, network_state) =
+        create_test_setup(rng, logger);
+
+    let rocket = rocket_instance.manage(APIKeyState("".to_string()));
+    (
+        Client::new(rocket).expect("valid rocket instance"),
+        ledger_db,
+        db_test_context,
+        network_state,
+    )
+}
+
+pub fn setup_with_api_key(
+    rng: &mut StdRng,
+    logger: Logger,
+    api_key: String,
+) -> (
+    Client,
+    LedgerDB,
+    WalletDbTestContext,
+    Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
+) {
+    let (rocket_instance, ledger_db, db_test_context, network_state) =
+        create_test_setup(rng, logger);
+
+    let rocket = rocket_instance.manage(APIKeyState(api_key));
+
     (
         Client::new(rocket).expect("valid rocket instance"),
         ledger_db,

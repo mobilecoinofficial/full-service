@@ -12,7 +12,7 @@ mod e2e {
         json_rpc,
         json_rpc::api_test_utils::{
             dispatch, dispatch_expect_error, dispatch_with_header,
-            dispatch_with_header_expect_error, setup,
+            dispatch_with_header_expect_error, setup, setup_with_api_key,
         },
         test_utils::{
             add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account, MOB,
@@ -28,7 +28,7 @@ mod e2e {
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
     use rocket::http::{Header, Status};
-    use std::{convert::TryFrom, env};
+    use std::convert::TryFrom;
 
     #[test_with_logger]
     fn test_e2e_account_crud(logger: Logger) {
@@ -3474,9 +3474,11 @@ mod e2e {
 
     #[test_with_logger]
     fn test_request_with_correct_api_key(logger: Logger) {
-        env::set_var("MC_API_KEY", "mobilecats");
+        let api_key = "mobilecats";
+
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+        let (client, _ledger_db, _db_ctx, _network_state) =
+            setup_with_api_key(&mut rng, logger.clone(), api_key.to_string());
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -3487,16 +3489,18 @@ mod e2e {
             },
         });
 
-        let header = Header::new("X-API-KEY", "mobilecats");
+        let header = Header::new("X-API-KEY", api_key);
 
         dispatch_with_header(&client, body, header, &logger);
     }
 
     #[test_with_logger]
     fn test_request_with_bad_api_key(logger: Logger) {
-        env::set_var("MC_API_KEY", "mobilecats");
+        let api_key = "mobilecats";
+
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+        let (client, _ledger_db, _db_ctx, _network_state) =
+            setup_with_api_key(&mut rng, logger.clone(), api_key.to_string());
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -3508,6 +3512,7 @@ mod e2e {
         });
 
         let header = Header::new("X-API-KEY", "wrong-header");
+
         dispatch_with_header_expect_error(&client, body, header, &logger, Status::Unauthorized);
     }
 }

@@ -51,7 +51,7 @@ use mc_fog_report_validation::{FogPubkeyResolver, FogResolver};
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use mc_validator_connection::ValidatorConnection;
 use rocket::{
-    self, get, http::Status, outcome::Outcome, post, request::FromRequest, routes, Request,
+    self, get, http::Status, outcome::Outcome, post, request::FromRequest, routes, Request, State,
 };
 use rocket_contrib::json::Json;
 use serde_json::Map;
@@ -66,7 +66,9 @@ pub struct WalletState<
     pub service: WalletService<T, FPR>,
 }
 
-pub const API_KEY_HEADER: &'static str = "X-API-KEY";
+pub const API_KEY_HEADER: &str = "X-API-KEY";
+
+pub struct APIKeyState(pub String);
 
 /// Ensures check for a pre-shared symmetric API key for the JsonRPC loop on the
 /// Mobilecoin wallet.
@@ -84,7 +86,10 @@ impl<'a, 'r> FromRequest<'a, 'r> for ApiKeyGuard {
         req: &'a Request<'r>,
     ) -> Outcome<Self, (rocket::http::Status, Self::Error), ()> {
         let client_key = req.headers().get_one(API_KEY_HEADER).unwrap_or_default();
-        let local_key = std::env::var("MC_API_KEY").unwrap_or_default();
+        let local_key = &req
+            .guard::<State<APIKeyState>>()
+            .expect("api key state config is bad. see main.rs")
+            .0;
         if local_key == client_key {
             Outcome::Success(ApiKeyGuard {})
         } else {
