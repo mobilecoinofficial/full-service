@@ -349,9 +349,9 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
-                None,
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
             )
             .expect("Could not import account entropy");
 
@@ -364,7 +364,6 @@ mod tests {
             &ledger_db,
             &service.wallet_db,
             &AccountID(account.account_id_hex.to_string()),
-            12,
             &logger,
         );
 

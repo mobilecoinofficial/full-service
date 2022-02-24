@@ -371,7 +371,12 @@ mod tests {
 
         // Create our main account for the wallet
         let alice = service
-            .create_account(Some("Alice's Main Account".to_string()))
+            .create_account(
+                Some("Alice's Main Account".to_string()),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            )
             .unwrap();
 
         // Add a block with a transaction for Alice
@@ -393,13 +398,7 @@ mod tests {
             &mut rng,
         );
 
-        manually_sync_account(
-            &ledger_db,
-            &service.wallet_db,
-            &alice_account_id,
-            13,
-            &logger,
-        );
+        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
 
         let tx_logs = service
             .list_transaction_logs(&alice_account_id, None, None)
@@ -415,7 +414,12 @@ mod tests {
 
         // Add an account for Bob
         let bob = service
-            .create_account(Some("Bob's Main Account".to_string()))
+            .create_account(
+                Some("Bob's Main Account".to_string()),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            )
             .unwrap();
         let bob_account_key: AccountKey =
             mc_util_serial::decode(&bob.account_key).expect("Could not decode account key");
@@ -515,7 +519,12 @@ mod tests {
 
         // Create our main account for the wallet
         let alice = service
-            .create_account(Some("Alice's Main Account".to_string()))
+            .create_account(
+                Some("Alice's Main Account".to_string()),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            )
             .unwrap();
 
         // Add a block with a transaction for Alice
@@ -530,13 +539,7 @@ mod tests {
             &mut rng,
         );
 
-        manually_sync_account(
-            &ledger_db,
-            &service.wallet_db,
-            &alice_account_id,
-            13,
-            &logger,
-        );
+        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
 
         // Verify balance for Alice
         let balance = service
@@ -546,7 +549,12 @@ mod tests {
 
         // Add an account for Bob
         let bob = service
-            .create_account(Some("Bob's Main Account".to_string()))
+            .create_account(
+                Some("Bob's Main Account".to_string()),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            )
             .unwrap();
         let bob_account_key: AccountKey =
             mc_util_serial::decode(&bob.account_key).expect("Could not decode account key");
@@ -583,14 +591,8 @@ mod tests {
             add_block_from_transaction_log(&mut ledger_db, &conn, &transaction_log);
         }
 
-        manually_sync_account(
-            &ledger_db,
-            &service.wallet_db,
-            &alice_account_id,
-            14,
-            &logger,
-        );
-        manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, 14, &logger);
+        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+        manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, &logger);
 
         // Get the Txos from the transaction log
         let transaction_txos = transaction_log
@@ -661,14 +663,8 @@ mod tests {
             add_block_from_transaction_log(&mut ledger_db, &conn, &transaction_log);
         }
 
-        manually_sync_account(
-            &ledger_db,
-            &service.wallet_db,
-            &alice_account_id,
-            15,
-            &logger,
-        );
-        manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, 15, &logger);
+        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+        manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, &logger);
 
         let alice_balance = service
             .get_balance_for_account(&AccountID(alice.account_id_hex))
@@ -700,7 +696,12 @@ mod tests {
 
         // Create our main account for the wallet
         let alice = service
-            .create_account(Some("Alice's Main Account".to_string()))
+            .create_account(
+                Some("Alice's Main Account".to_string()),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            )
             .unwrap();
 
         // Add a block with a transaction for Alice
@@ -715,13 +716,7 @@ mod tests {
             &mut rng,
         );
 
-        manually_sync_account(
-            &ledger_db,
-            &service.wallet_db,
-            &alice_account_id,
-            13,
-            &logger,
-        );
+        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
 
         match service.build_transaction(
             &alice.account_id_hex,

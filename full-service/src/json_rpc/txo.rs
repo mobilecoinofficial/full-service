@@ -192,9 +192,9 @@ mod tests {
             None,
             None,
             "Alice's Main Account",
-            None,
-            None,
-            None,
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();

@@ -198,7 +198,12 @@ mod tests {
 
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
         let alice = service
-            .create_account(Some("Alice's Main Account".to_string()))
+            .create_account(
+                Some("Alice's Main Account".to_string()),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            )
             .unwrap();
 
         // Add a block with a transaction for this recipient
@@ -214,13 +219,7 @@ mod tests {
             &mut rng,
         );
 
-        manually_sync_account(
-            &ledger_db,
-            &service.wallet_db,
-            &alice_account_id,
-            13,
-            &logger,
-        );
+        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
 
         // Verify balance for Alice
         let balance = service.get_balance_for_account(&alice_account_id).unwrap();
@@ -233,7 +232,12 @@ mod tests {
 
         // Add another account
         let bob = service
-            .create_account(Some("Bob's Main Account".to_string()))
+            .create_account(
+                Some("Bob's Main Account".to_string()),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            )
             .unwrap();
 
         // Construct a new transaction to Bob

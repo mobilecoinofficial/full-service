@@ -2310,6 +2310,7 @@ dependencies = [
 name = "mc-full-service"
 version = "1.4.0"
 dependencies = [
+ "base64 0.13.0",
  "bs58",
  "chrono",
  "crossbeam-channel",

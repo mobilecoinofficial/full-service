@@ -46,6 +46,12 @@ pub struct Account {
     /// found TXOs. It is recommended to move all MOB to another account after
     /// recovery if the user is unsure of the assigned addresses.
     pub recovery_mode: bool,
+
+    /// A flag that indicates if this account is FOG enabled, which means that
+    /// it will send any change to it's main subaddress (index 0) instead of
+    /// the default change subaddress (index 1). It also generates
+    /// PublicAddressB58's with fog credentials.
+    pub fog_enabled: bool,
 }
 
 impl TryFrom<&db::models::Account> for Account {
@@ -68,6 +74,7 @@ impl TryFrom<&db::models::Account> for Account {
             first_block_index: (src.first_block_index as u64).to_string(),
             next_block_index: (src.next_block_index as u64).to_string(),
             recovery_mode: false,
+            fog_enabled: src.fog_enabled,
         })
     }
 }
