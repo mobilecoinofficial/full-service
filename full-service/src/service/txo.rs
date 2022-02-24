@@ -125,39 +125,35 @@ where
     ) -> Result<TxProposal, TxoServiceError> {
         use crate::service::txo::TxoServiceError::TxoNotSpendableByAnyAccount;
 
-        let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| {
-            let txo_details = Txo::get(&txo_id.to_string(), &conn)?;
+        let txo_details = Txo::get(&txo_id.to_string(), &self.wallet_db.get_conn()?)?;
+        let account_id_hex = txo_details
+            .received_account_id_hex
+            .ok_or(TxoNotSpendableByAnyAccount(txo_details.txo_id_hex))?;
 
-            let account_id_hex = txo_details
-                .received_account_id_hex
-                .ok_or(TxoNotSpendableByAnyAccount(txo_details.txo_id_hex))?;
-
-            let address_to_split_into: AssignedSubaddress =
-                AssignedSubaddress::get_for_account_by_index(
-                    &account_id_hex,
-                    subaddress_index.unwrap_or(0),
-                    &conn,
-                )?;
-
-            let mut addresses_and_values = Vec::new();
-            for output_value in output_values.iter() {
-                addresses_and_values.push((
-                    address_to_split_into.assigned_subaddress_b58.clone(),
-                    output_value.to_string(),
-                ))
-            }
-
-            Ok(self.build_transaction(
+        let address_to_split_into: AssignedSubaddress =
+            AssignedSubaddress::get_for_account_by_index(
                 &account_id_hex,
-                &addresses_and_values,
-                Some(&[txo_id.to_string()].to_vec()),
-                fee,
-                tombstone_block,
-                None,
-                None,
-            )?)
-        })
+                subaddress_index.unwrap_or(0),
+                &self.wallet_db.get_conn()?,
+            )?;
+
+        let mut addresses_and_values = Vec::new();
+        for output_value in output_values.iter() {
+            addresses_and_values.push((
+                address_to_split_into.assigned_subaddress_b58.clone(),
+                output_value.to_string(),
+            ))
+        }
+
+        Ok(self.build_transaction(
+            &account_id_hex,
+            &addresses_and_values,
+            Some(&[txo_id.to_string()].to_vec()),
+            fee,
+            tombstone_block,
+            None,
+            None,
+        )?)
     }
 
     fn get_all_txos_for_address(&self, address: &str) -> Result<Vec<Txo>, TxoServiceError> {

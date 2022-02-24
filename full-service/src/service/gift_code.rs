@@ -27,7 +27,6 @@ use crate::{
     },
 };
 use bip39::{Language, Mnemonic, MnemonicType};
-use diesel::Connection;
 use displaydoc::Display;
 use mc_account_keys::{AccountKey, DEFAULT_SUBADDRESS_INDEX};
 use mc_account_keys_slip10::Slip10KeyGenerator;
@@ -398,8 +397,7 @@ where
         let gift_code_account_main_subaddress_b58 =
             b58_encode_public_address(&gift_code_account_key.default_subaddress())?;
 
-        let conn = self.wallet_db.get_conn()?;
-        let from_account = conn.transaction(|| Account::get(from_account_id, &conn))?;
+        let from_account = Account::get(from_account_id, &self.wallet_db.get_conn()?)?;
 
         let tx_proposal = self.build_transaction(
             &from_account.account_id_hex,
@@ -446,8 +444,7 @@ where
         );
 
         // Save the gift code to the database before attempting to send it out.
-        let conn = self.wallet_db.get_conn()?;
-        let gift_code = conn.transaction(|| GiftCode::create(gift_code_b58, value, &conn))?;
+        let gift_code = GiftCode::create(gift_code_b58, value, &self.wallet_db.get_conn()?)?;
 
         self.submit_transaction(
             tx_proposal.clone(),
@@ -695,7 +692,7 @@ where
         gift_code_b58: &EncodedGiftCode,
     ) -> Result<bool, GiftCodeServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| GiftCode::get(gift_code_b58, &conn)?.delete(&conn))?;
+        GiftCode::delete(gift_code_b58, &conn)?;
         Ok(true)
     }
 }

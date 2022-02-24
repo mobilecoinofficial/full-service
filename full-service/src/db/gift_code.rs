@@ -57,7 +57,7 @@ pub trait GiftCodeModel {
 
     /// Delete a gift code.
     fn delete(
-        self,
+        gift_code_b58: &EncodedGiftCode,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 }
@@ -113,12 +113,13 @@ impl GiftCodeModel for GiftCode {
     }
 
     fn delete(
-        self,
+        gift_code_b58: &EncodedGiftCode,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::gift_codes::dsl::{gift_code_b58, gift_codes};
+        use crate::db::schema::gift_codes::dsl::{gift_code_b58 as dsl_gift_code_b58, gift_codes};
 
-        diesel::delete(gift_codes.filter(gift_code_b58.eq(&self.gift_code_b58))).execute(conn)?;
+        diesel::delete(gift_codes.filter(dsl_gift_code_b58.eq(gift_code_b58.to_string())))
+            .execute(conn)?;
         Ok(())
     }
 }

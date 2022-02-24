@@ -92,7 +92,7 @@ impl WalletDbTestContext {
     pub fn get_db_instance(&self, logger: Logger) -> WalletDb {
         // Note: Setting db_connections too high results in IO Error: Too many open
         // files.
-        WalletDb::new_from_url(&format!("{}/{}", self.base_url, self.db_name), 7, logger)
+        WalletDb::new_from_url(&format!("{}/{}", self.base_url, self.db_name), logger)
             .expect("failed creating new SqlRecoveryDb")
     }
 }

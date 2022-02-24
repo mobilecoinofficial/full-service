@@ -56,14 +56,10 @@ impl WalletDb {
         Self { pool, logger }
     }
 
-    pub fn new_from_url(
-        database_url: &str,
-        db_connections: u32,
-        logger: Logger,
-    ) -> Result<Self, WalletDbError> {
+    pub fn new_from_url(database_url: &str, logger: Logger) -> Result<Self, WalletDbError> {
         let manager = ConnectionManager::<SqliteConnection>::new(database_url);
         let pool = Pool::builder()
-            .max_size(db_connections)
+            .max_size(1)
             .connection_customizer(Box::new(ConnectionOptions {
                 enable_wal: true,
                 enable_foreign_keys: true,
