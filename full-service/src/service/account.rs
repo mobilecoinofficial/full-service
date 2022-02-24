@@ -82,9 +82,9 @@ pub trait AccountService {
     fn create_account(
         &self,
         name: Option<String>,
-        fog_report_url: Option<String>,
-        fog_report_id: Option<String>,
-        fog_authority_spki: Option<String>,
+        fog_report_url: String,
+        fog_report_id: String,
+        fog_authority_spki: String,
     ) -> Result<Account, AccountServiceError>;
 
     /// Import an existing account to the wallet using the entropy.
@@ -96,9 +96,9 @@ pub trait AccountService {
         name: Option<String>,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
-        fog_report_url: Option<String>,
-        fog_report_id: Option<String>,
-        fog_authority_spki: Option<String>,
+        fog_report_url: String,
+        fog_report_id: String,
+        fog_authority_spki: String,
     ) -> Result<Account, AccountServiceError>;
 
     /// Import an existing account to the wallet using the entropy.
@@ -109,9 +109,9 @@ pub trait AccountService {
         name: Option<String>,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
-        fog_report_url: Option<String>,
-        fog_report_id: Option<String>,
-        fog_authority_spki: Option<String>,
+        fog_report_url: String,
+        fog_report_id: String,
+        fog_authority_spki: String,
     ) -> Result<Account, AccountServiceError>;
 
     /// List accounts in the wallet.
@@ -139,9 +139,9 @@ where
     fn create_account(
         &self,
         name: Option<String>,
-        fog_report_url: Option<String>,
-        fog_report_id: Option<String>,
-        fog_authority_spki: Option<String>,
+        fog_report_url: String,
+        fog_report_id: String,
+        fog_authority_spki: String,
     ) -> Result<Account, AccountServiceError> {
         log::info!(self.logger, "Creating account {:?}", name,);
 
@@ -183,9 +183,9 @@ where
         name: Option<String>,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
-        fog_report_url: Option<String>,
-        fog_report_id: Option<String>,
-        fog_authority_spki: Option<String>,
+        fog_report_url: String,
+        fog_report_id: String,
+        fog_authority_spki: String,
     ) -> Result<Account, AccountServiceError> {
         log::info!(
             self.logger,
@@ -236,9 +236,9 @@ where
         name: Option<String>,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
-        fog_report_url: Option<String>,
-        fog_report_id: Option<String>,
-        fog_authority_spki: Option<String>,
+        fog_report_url: String,
+        fog_report_id: String,
+        fog_authority_spki: String,
     ) -> Result<Account, AccountServiceError> {
         log::info!(
             self.logger,
@@ -328,7 +328,12 @@ mod tests {
 
         // Create an account.
         let account = service
-            .create_account(Some("A".to_string()), None, None, None)
+            .create_account(
+                Some("A".to_string()),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            )
             .unwrap();
 
         // Add a transaction, with transaction status.
