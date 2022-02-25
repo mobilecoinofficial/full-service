@@ -15,7 +15,7 @@ use crate::{
         json_rpc_request::{help_str, JsonCommandRequest, JsonRPCRequest},
         json_rpc_response::{
             format_error, format_invalid_request_error, JsonCommandResponse, JsonRPCError,
-            JsonRPCResponse,
+            JsonRPCResponse, ViewOnlyAccount, ViewOnlyAccountSecrets,
         },
         network_status::NetworkStatus,
         receiver_receipt::ReceiverReceipt,
@@ -428,6 +428,12 @@ where
                 account_secrets: AccountSecrets::try_from(&account).map_err(format_error)?,
             }
         }
+        // TODO(CC) impliment
+        JsonCommandRequest::export_view_only_account_secrets { view_private_key } => {
+            JsonCommandResponse::export_view_only_account_secrets {
+                account_secrets: ViewOnlyAccountSecrets,
+            }
+        }
         JsonCommandRequest::get_account { account_id } => JsonCommandResponse::get_account {
             account: json_rpc::account::Account::try_from(
                 &service
@@ -436,6 +442,12 @@ where
             )
             .map_err(format_error)?,
         },
+        // TODO(CC) impliment
+        JsonCommandRequest::get_view_only_account { view_private_key } => {
+            JsonCommandResponse::get_view_only_account {
+                account: ViewOnlyAccount,
+            }
+        }
         JsonCommandRequest::get_account_status { account_id } => {
             let account = json_rpc::account::Account::try_from(
                 &service
@@ -449,6 +461,24 @@ where
                     .map_err(format_error)?,
             );
             JsonCommandResponse::get_account_status { account, balance }
+        }
+        // TODO(CC) impliment
+        JsonCommandRequest::get_view_only_account_status { view_private_key } => {
+            JsonCommandResponse::get_view_only_account_status {
+                account: ViewOnlyAccount,
+                balance: Balance {
+                    object: "".to_string(),
+                    network_block_height: "".to_string(),
+                    local_block_height: "".to_string(),
+                    account_block_height: "".to_string(),
+                    is_synced: true,
+                    unspent_pmob: "".to_string(),
+                    pending_pmob: "".to_string(),
+                    spent_pmob: "".to_string(),
+                    secreted_pmob: "".to_string(),
+                    orphaned_pmob: "".to_string(),
+                },
+            }
         }
         JsonCommandRequest::get_address_for_account { account_id, index } => {
             let assigned_subaddress = service
@@ -666,6 +696,23 @@ where
                 ),
             }
         }
+        // TODO(CC) impliment
+        JsonCommandRequest::get_balance_for_view_only_account { view_private_key } => {
+            JsonCommandResponse::get_balance_for_view_only_account {
+                balance: Balance {
+                    object: "".to_string(),
+                    network_block_height: "".to_string(),
+                    local_block_height: "".to_string(),
+                    account_block_height: "".to_string(),
+                    is_synced: true,
+                    unspent_pmob: "".to_string(),
+                    pending_pmob: "".to_string(),
+                    spent_pmob: "".to_string(),
+                    secreted_pmob: "".to_string(),
+                    orphaned_pmob: "".to_string(),
+                },
+            }
+        }
         JsonCommandRequest::get_balance_for_address { address } => {
             JsonCommandResponse::get_balance_for_address {
                 balance: Balance::from(
@@ -775,6 +822,15 @@ where
                 txo: Txo::from(&result),
             }
         }
+        // TODO(CC) impliment
+        JsonCommandRequest::get_txos_for_view_only_account {
+            view_private_key,
+            offset,
+            limit,
+        } => JsonCommandResponse::get_txos_for_account {
+            txo_ids: Vec::from(["".to_string()]),
+            txo_map: Map::new(),
+        },
         JsonCommandRequest::get_txos_for_account {
             account_id,
             offset,
@@ -811,6 +867,14 @@ where
                 &service.get_wallet_status().map_err(format_error)?,
             )
             .map_err(format_error)?,
+        },
+        JsonCommandRequest::import_view_only_account {
+            view_private_key,
+            name,
+            first_block_index,
+        } => JsonCommandResponse::import_view_only_account {
+            // TODO(CC) impliment
+            account: ViewOnlyAccount,
         },
         JsonCommandRequest::import_account {
             mnemonic,
@@ -890,6 +954,10 @@ where
                 .remove_account(&AccountID(account_id))
                 .map_err(format_error)?,
         },
+        // TODO(CC) impliment this
+        JsonCommandRequest::remove_view_only_account { view_private_key } => {
+            JsonCommandResponse::remove_view_only_account { removed: true }
+        }
         JsonCommandRequest::remove_gift_code { gift_code_b58 } => {
             JsonCommandResponse::remove_gift_code {
                 removed: service
@@ -947,6 +1015,12 @@ where
                 .map_err(format_error)?,
             }
         }
+        JsonCommandRequest::update_view_only_account_name {
+            view_private_key,
+            name,
+        } => JsonCommandResponse::update_view_only_account_name {
+            account: ViewOnlyAccount,
+        },
         JsonCommandRequest::validate_confirmation {
             account_id,
             txo_id,

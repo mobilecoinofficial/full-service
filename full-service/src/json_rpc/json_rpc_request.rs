@@ -130,11 +130,20 @@ pub enum JsonCommandRequest {
     export_account_secrets {
         account_id: String,
     },
+    export_view_only_account_secrets {
+        view_private_key: String,
+    },
     get_account {
         account_id: String,
     },
+    get_view_only_account {
+        view_private_key: String,
+    },
     get_account_status {
         account_id: String,
+    },
+    get_view_only_account_status {
+        view_private_key: String,
     },
     get_address_for_account {
         account_id: String,
@@ -145,6 +154,7 @@ pub enum JsonCommandRequest {
         offset: String,
         limit: String,
     },
+    // TODO(cc) decide if get_all_accounts needs a separate endpoint for view-only accounts
     get_all_accounts,
     get_all_addresses_for_account {
         account_id: String,
@@ -165,6 +175,9 @@ pub enum JsonCommandRequest {
     },
     get_balance_for_account {
         account_id: String,
+    },
+    get_balance_for_view_only_account {
+        view_private_key: String,
     },
     get_balance_for_address {
         address: String,
@@ -201,6 +214,11 @@ pub enum JsonCommandRequest {
         offset: String,
         limit: String,
     },
+    get_txos_for_view_only_account {
+        view_private_key: String,
+        offset: String,
+        limit: String,
+    },
     get_wallet_status,
     import_account {
         mnemonic: String,
@@ -221,8 +239,16 @@ pub enum JsonCommandRequest {
         fog_report_id: Option<String>,
         fog_authority_spki: Option<String>,
     },
+    import_view_only_account {
+        view_private_key: String,
+        name: Option<String>,
+        first_block_index: Option<String>,
+    },
     remove_account {
         account_id: String,
+    },
+    remove_view_only_account {
+        view_private_key: String,
     },
     remove_gift_code {
         gift_code_b58: String,
@@ -239,6 +265,10 @@ pub enum JsonCommandRequest {
     },
     update_account_name {
         account_id: String,
+        name: String,
+    },
+    update_view_only_account_name {
+        view_private_key: String,
         name: String,
     },
     validate_confirmation {

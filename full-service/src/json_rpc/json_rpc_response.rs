@@ -30,6 +30,12 @@ use std::collections::HashMap;
 use strum::AsStaticRef;
 use strum_macros::AsStaticStr;
 
+// TODO(CC) impliment these models
+#[derive(Deserialize, Serialize, Debug)]
+pub struct ViewOnlyAccount;
+#[derive(Deserialize, Serialize, Debug)]
+pub struct ViewOnlyAccountSecrets;
+
 /// A JSON RPC 2.0 Response.
 #[derive(Deserialize, Serialize, Debug)]
 pub struct JsonRPCResponse {
@@ -173,11 +179,21 @@ pub enum JsonCommandResponse {
     export_account_secrets {
         account_secrets: AccountSecrets,
     },
+    export_view_only_account_secrets {
+        account_secrets: ViewOnlyAccountSecrets,
+    },
     get_account {
         account: Account,
     },
+    get_view_only_account {
+        account: ViewOnlyAccount,
+    },
     get_account_status {
         account: Account,
+        balance: Balance,
+    },
+    get_view_only_account_status {
+        account: ViewOnlyAccount,
         balance: Balance,
     },
     get_address_for_account {
@@ -187,6 +203,7 @@ pub enum JsonCommandResponse {
         public_addresses: Vec<String>,
         address_map: Map<String, serde_json::Value>,
     },
+    // TODO(cc) decide if this needs a separate endpoint for view-only accounts
     get_all_accounts {
         account_ids: Vec<String>,
         account_map: Map<String, serde_json::Value>,
@@ -214,6 +231,9 @@ pub enum JsonCommandResponse {
         txo_map: Map<String, serde_json::Value>,
     },
     get_balance_for_account {
+        balance: Balance,
+    },
+    get_balance_for_view_only_account {
         balance: Balance,
     },
     get_balance_for_address {
@@ -252,6 +272,10 @@ pub enum JsonCommandResponse {
         txo_ids: Vec<String>,
         txo_map: Map<String, serde_json::Value>,
     },
+    get_txos_for_view_only_account {
+        txo_ids: Vec<String>,
+        txo_map: Map<String, serde_json::Value>,
+    },
     get_wallet_status {
         wallet_status: WalletStatus,
     },
@@ -261,7 +285,13 @@ pub enum JsonCommandResponse {
     import_account_from_legacy_root_entropy {
         account: Account,
     },
+    import_view_only_account {
+        account: ViewOnlyAccount,
+    },
     remove_account {
+        removed: bool,
+    },
+    remove_view_only_account {
         removed: bool,
     },
     remove_gift_code {
@@ -275,6 +305,9 @@ pub enum JsonCommandResponse {
     },
     update_account_name {
         account: Account,
+    },
+    update_view_only_account_name {
+        account: ViewOnlyAccount,
     },
     validate_confirmation {
         validated: bool,
