@@ -203,6 +203,7 @@ fn sync_account_next_chunk(
                 key_images.push((block_index, key_image));
             }
         }
+      
         // Attempt to decode each transaction as received by this account.
         let received_txos: Vec<_> = tx_outs
             .into_par_iter()
