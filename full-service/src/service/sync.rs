@@ -125,7 +125,7 @@ pub fn sync_all_accounts(
 
     for account in accounts {
         // If there are no new blocks for this account, don't do anything.
-        if account.next_block_index as u64 >= num_blocks - 1 {
+        if account.next_block_index as u64 > num_blocks - 1 {
             continue;
         }
         sync_account(ledger_db, wallet_db, &account.account_id_hex, logger)?;
