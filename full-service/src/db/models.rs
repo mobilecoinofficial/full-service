@@ -4,6 +4,7 @@
 
 use super::schema::{
     accounts, assigned_subaddresses, gift_codes, transaction_logs, transaction_txo_types, txos,
+    view_only_accounts,
 };
 
 use serde::Serialize;
@@ -102,6 +103,41 @@ pub struct Account {
     pub name: String, /* empty string for nullable */
     /// Fog enabled address
     pub fog_enabled: bool,
+}
+
+/// A View Only Account entity.
+///
+/// Contains the account view private key
+#[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
+#[primary_key(id)]
+pub struct ViewOnlyAccount {
+    /// Primary key
+    pub id: i32,
+    /// private key for viewing MobileCoin belonging to an account.
+    pub view_private_key: String,
+    /// Index of the first block where this account may have held funds.
+    pub first_block_index: i64,
+    /// Index of the next block to inspect for transactions related to this
+    /// account.
+    pub next_block_index: i64,
+    /// account history prior to this block index is derived from the public
+    /// ledger, and does not reflect client-side
+    /// user events.
+    pub import_block_index: i64,
+    /// Name of this account.
+    pub name: String, /* empty string for nullable */
+}
+
+/// A structure that can be inserted to create a new entity in the
+/// `view_only_accounts` table.
+#[derive(Insertable)]
+#[table_name = "view_only_accounts"]
+pub struct NewViewOnlyAccount<'a> {
+    pub view_private_key: &'a str,
+    pub first_block_index: i64,
+    pub next_block_index: i64,
+    pub import_block_index: i64,
+    pub name: &'a str,
 }
 
 /// A structure that can be inserted to create a new entity in the `accounts`

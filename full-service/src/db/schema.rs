@@ -17,6 +17,17 @@ table! {
 }
 
 table! {
+    view_only_accounts (id) {
+        id -> Integer,
+        view_private_key -> Text,
+        first_block_index -> BigInt,
+        next_block_index -> BigInt,
+        import_block_index -> BigInt,
+        name -> Text,
+    }
+}
+
+table! {
     assigned_subaddresses (id) {
         id -> Integer,
         assigned_subaddress_b58 -> Text,

@@ -18,6 +18,7 @@ use crate::{
         transaction_log::TransactionLog,
         tx_proposal::TxProposal,
         txo::Txo,
+        view_only_account::ViewOnlyAccount,
         wallet_status::WalletStatus,
     },
     service::{gift_code::GiftCodeStatus, receipt::ReceiptTransactionStatus},
@@ -29,12 +30,6 @@ use serde_json::Map;
 use std::collections::HashMap;
 use strum::AsStaticRef;
 use strum_macros::AsStaticStr;
-
-// TODO(CC) impliment these models
-#[derive(Deserialize, Serialize, Debug)]
-pub struct ViewOnlyAccount;
-#[derive(Deserialize, Serialize, Debug)]
-pub struct ViewOnlyAccountSecrets;
 
 /// A JSON RPC 2.0 Response.
 #[derive(Deserialize, Serialize, Debug)]
@@ -179,23 +174,23 @@ pub enum JsonCommandResponse {
     export_account_secrets {
         account_secrets: AccountSecrets,
     },
-    export_view_only_account_secrets {
-        account_secrets: ViewOnlyAccountSecrets,
-    },
+    // export_view_only_account_secrets {
+    //     account_secrets: ViewOnlyAccountSecrets,
+    // },
     get_account {
         account: Account,
     },
-    get_view_only_account {
-        account: ViewOnlyAccount,
-    },
+    // get_view_only_account {
+    //     account: ViewOnlyAccount,
+    // },
     get_account_status {
         account: Account,
         balance: Balance,
     },
-    get_view_only_account_status {
-        account: ViewOnlyAccount,
-        balance: Balance,
-    },
+    // get_view_only_account_status {
+    //     account: ViewOnlyAccount,
+    //     balance: Balance,
+    // },
     get_address_for_account {
         address: Address,
     },
@@ -233,9 +228,9 @@ pub enum JsonCommandResponse {
     get_balance_for_account {
         balance: Balance,
     },
-    get_balance_for_view_only_account {
-        balance: Balance,
-    },
+    // get_balance_for_view_only_account {
+    //     balance: Balance,
+    // },
     get_balance_for_address {
         balance: Balance,
     },
@@ -272,10 +267,10 @@ pub enum JsonCommandResponse {
         txo_ids: Vec<String>,
         txo_map: Map<String, serde_json::Value>,
     },
-    get_txos_for_view_only_account {
-        txo_ids: Vec<String>,
-        txo_map: Map<String, serde_json::Value>,
-    },
+    // get_txos_for_view_only_account {
+    //     txo_ids: Vec<String>,
+    //     txo_map: Map<String, serde_json::Value>,
+    // },
     get_wallet_status {
         wallet_status: WalletStatus,
     },
@@ -286,14 +281,14 @@ pub enum JsonCommandResponse {
         account: Account,
     },
     import_view_only_account {
-        account: ViewOnlyAccount,
+        view_only_account: ViewOnlyAccount,
     },
     remove_account {
         removed: bool,
     },
-    remove_view_only_account {
-        removed: bool,
-    },
+    // remove_view_only_account {
+    //     removed: bool,
+    // },
     remove_gift_code {
         removed: bool,
     },
@@ -306,9 +301,9 @@ pub enum JsonCommandResponse {
     update_account_name {
         account: Account,
     },
-    update_view_only_account_name {
-        account: ViewOnlyAccount,
-    },
+    // update_view_only_account_name {
+    //     account: ViewOnlyAccount,
+    // },
     validate_confirmation {
         validated: bool,
     },

@@ -3769,4 +3769,32 @@ mod e2e {
 
         dispatch_with_header_expect_error(&client, body, header, &logger, Status::Unauthorized);
     }
+
+    #[test_with_logger]
+    fn test_e2e_import_view_only_account(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        let name = "Coins for cats";
+        let view_key = "privateviewkey";
+        // Import Account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_view_only_account",
+            "params": {
+                "name": name,
+                "view_private_key": view_key,
+            },
+        });
+        let res = dispatch(&client, body, &logger);
+        assert_eq!(res.get("jsonrpc").unwrap(), "2.0");
+
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("view_only_account").unwrap();
+        assert_eq!(account_obj.get("name").unwrap(), name);
+        assert_eq!(account_obj.get("view_private_key").unwrap(), view_key);
+        assert_eq!(account_obj.get("first_block_index").unwrap(), "0");
+        assert_eq!(account_obj.get("next_block_index").unwrap(), "0");
+    }
 }
