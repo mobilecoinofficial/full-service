@@ -443,12 +443,19 @@ where
             )
             .map_err(format_error)?,
         },
-        // // TODO(CC) impliment
-        // JsonCommandRequest::get_view_only_account {
-        //     view_private_key: _,
-        // } => JsonCommandResponse::get_view_only_account {
-        //     account: ViewOnlyAccount,
-        // },
+        JsonCommandRequest::get_view_only_account { view_private_key } => {
+            let decoded_key =
+                b58_decode_view_private_key(&view_private_key).map_err(format_error)?;
+
+            JsonCommandResponse::get_view_only_account {
+                view_only_account: json_rpc::view_only_account::ViewOnlyAccount::try_from(
+                    &service
+                        .get_view_only_account(decoded_key)
+                        .map_err(format_error)?,
+                )
+                .map_err(format_error)?,
+            }
+        }
         JsonCommandRequest::get_account_status { account_id } => {
             let account = json_rpc::account::Account::try_from(
                 &service

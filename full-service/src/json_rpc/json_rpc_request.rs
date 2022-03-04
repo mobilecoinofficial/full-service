@@ -136,9 +136,9 @@ pub enum JsonCommandRequest {
     get_account {
         account_id: String,
     },
-    // get_view_only_account {
-    //     view_private_key: String,
-    // },
+    get_view_only_account {
+        view_private_key: String,
+    },
     get_account_status {
         account_id: String,
     },

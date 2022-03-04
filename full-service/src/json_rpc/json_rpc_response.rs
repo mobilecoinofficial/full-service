@@ -180,9 +180,9 @@ pub enum JsonCommandResponse {
     get_account {
         account: Account,
     },
-    // get_view_only_account {
-    //     account: ViewOnlyAccount,
-    // },
+    get_view_only_account {
+        view_only_account: ViewOnlyAccount,
+    },
     get_account_status {
         account: Account,
         balance: Balance,
