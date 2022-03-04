@@ -2,7 +2,7 @@
 
 //! API definition for the View Only Account object.
 
-use crate::db;
+use crate::{db, util::b58::b58_encode_view_private_key};
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
@@ -38,7 +38,7 @@ impl TryFrom<&db::models::ViewOnlyAccount> for ViewOnlyAccount {
             name: src.name.clone(),
             first_block_index: (src.first_block_index as u64).to_string(),
             next_block_index: (src.next_block_index as u64).to_string(),
-            view_private_key: src.view_private_key.clone(),
+            view_private_key: b58_encode_view_private_key(src.view_private_key.clone()),
         })
     }
 }

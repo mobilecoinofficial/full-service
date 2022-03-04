@@ -21,7 +21,7 @@ pub const MNEMONIC_KEY_DERIVATION_VERSION: u8 = 2;
 pub trait ViewOnlyAccountModel {
     // insert new view-only-account in the db
     fn create(
-        view_private_key: &str,
+        view_private_key: Vec<u8>,
         first_block_index: i64,
         import_block_index: i64,
         name: &str,
@@ -41,7 +41,7 @@ pub trait ViewOnlyAccountModel {
     /// Returns:
     /// * Account
     fn get(
-        view_private_key: &str,
+        view_private_key: Vec<u8>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<ViewOnlyAccount, WalletDbError>;
 
@@ -76,7 +76,7 @@ pub trait ViewOnlyAccountModel {
 
 impl ViewOnlyAccountModel for ViewOnlyAccount {
     fn create(
-        view_private_key: &str,
+        view_private_key: Vec<u8>,
         first_block_index: i64,
         import_block_index: i64,
         name: &str,
@@ -85,8 +85,10 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
         use crate::db::schema::view_only_accounts;
 
         let new_view_only_account = NewViewOnlyAccount {
-            view_private_key,
+            view_private_key: &view_private_key,
             first_block_index,
+            // next block index will always be the same as
+            // first block index when importing an account
             next_block_index: first_block_index,
             import_block_index,
             name,
@@ -96,11 +98,14 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
             .values(&new_view_only_account)
             .execute(conn.clone())?;
 
-        ViewOnlyAccount::get(new_view_only_account.view_private_key, conn.clone())
+        ViewOnlyAccount::get(
+            new_view_only_account.view_private_key.to_vec(),
+            conn.clone(),
+        )
     }
 
     fn get(
-        view_private_key: &str,
+        view_private_key: Vec<u8>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<ViewOnlyAccount, WalletDbError> {
         use crate::db::schema::view_only_accounts::dsl::{
@@ -164,13 +169,13 @@ mod tests {
         let conn = wallet_db.get_conn().unwrap();
 
         let name = "Coins for cats";
-        let view_private_key = "secret key";
+        let view_private_key: Vec<u8> = [1, 2, 3].to_vec();
         let first_block_index: i64 = 25;
         let import_block_index: i64 = 26;
 
         let expected_account = ViewOnlyAccount {
             id: 1,
-            view_private_key: view_private_key.to_string(),
+            view_private_key: view_private_key.clone(),
             first_block_index,
             next_block_index: first_block_index,
             import_block_index,
@@ -178,7 +183,7 @@ mod tests {
         };
 
         let created = ViewOnlyAccount::create(
-            &view_private_key,
+            view_private_key,
             first_block_index,
             import_block_index,
             &name,

@@ -40,8 +40,8 @@ use crate::{
         WalletService,
     },
     util::b58::{
-        b58_decode_payment_request, b58_encode_public_address, b58_printable_wrapper_type,
-        PrintableWrapperType,
+        b58_decode_payment_request, b58_decode_view_private_key, b58_encode_public_address,
+        b58_printable_wrapper_type, PrintableWrapperType,
     },
 };
 use mc_common::logger::global_log;
@@ -879,10 +879,15 @@ where
                 .transpose()
                 .map_err(format_error)?;
 
+            let n = name.unwrap_or_default();
+
+            let decoded_key =
+                b58_decode_view_private_key(&view_private_key).map_err(format_error)?;
+
             JsonCommandResponse::import_view_only_account {
                 view_only_account: json_rpc::view_only_account::ViewOnlyAccount::try_from(
                     &service
-                        .import_view_only_account(view_private_key, name, fb)
+                        .import_view_only_account(decoded_key, n, fb)
                         .map_err(format_error)?,
                 )
                 .map_err(format_error)?,

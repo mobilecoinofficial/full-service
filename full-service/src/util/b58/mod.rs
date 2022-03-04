@@ -5,6 +5,7 @@ mod tests;
 pub use self::errors::B58Error;
 
 use bip39::{Language, Mnemonic};
+use bs58;
 use mc_account_keys::{AccountKey, PublicAddress, RootEntropy, RootIdentity};
 use mc_account_keys_slip10::Slip10KeyGenerator;
 use mc_api::printable::{PaymentRequest, PrintableWrapper, TransferPayload};
@@ -203,4 +204,12 @@ pub fn b58_decode_transfer_payload(
         txo_public_key,
         memo: transfer_payload.get_memo().to_string(),
     })
+}
+
+pub fn b58_encode_view_private_key(view_private_key: Vec<u8>) -> String {
+    bs58::encode(view_private_key).into_string()
+}
+
+pub fn b58_decode_view_private_key(view_private_key: &str) -> Result<Vec<u8>, bs58::decode::Error> {
+    bs58::decode(view_private_key).into_vec()
 }

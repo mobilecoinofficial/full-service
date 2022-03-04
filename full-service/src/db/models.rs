@@ -114,7 +114,7 @@ pub struct ViewOnlyAccount {
     /// Primary key
     pub id: i32,
     /// private key for viewing MobileCoin belonging to an account.
-    pub view_private_key: String,
+    pub view_private_key: Vec<u8>,
     /// Index of the first block where this account may have held funds.
     pub first_block_index: i64,
     /// Index of the next block to inspect for transactions related to this
@@ -133,7 +133,7 @@ pub struct ViewOnlyAccount {
 #[derive(Insertable)]
 #[table_name = "view_only_accounts"]
 pub struct NewViewOnlyAccount<'a> {
-    pub view_private_key: &'a str,
+    pub view_private_key: &'a [u8],
     pub first_block_index: i64,
     pub next_block_index: i64,
     pub import_block_index: i64,
