@@ -2,7 +2,7 @@
 
 //! API definition for the GiftCode object.
 
-use crate::db;
+use crate::service::gift_code::DecodedGiftCode;
 
 use serde::{Deserialize, Serialize};
 
@@ -21,7 +21,7 @@ pub struct GiftCode {
     /// The root entropy for the account in this gift code.
     pub root_entropy: String,
 
-    /// The root entropy for the account in this gift code.
+    /// The entropy mnemonic for the account in this gift code.
     pub bip39_entropy: String,
 
     /// The amount of MOB contained in the gift code account.
@@ -29,17 +29,10 @@ pub struct GiftCode {
 
     /// A memo associated with this gift code.
     pub memo: String,
-
-    /// The account ID of the ephemeral account in this wallet which holds the
-    /// Gift Code funds.
-    pub account_id: String,
-
-    /// The Txo ID of the Txo in the Gift Code.
-    pub txo_id_hex: String,
 }
 
-impl From<&db::models::GiftCode> for GiftCode {
-    fn from(src: &db::models::GiftCode) -> GiftCode {
+impl From<&DecodedGiftCode> for GiftCode {
+    fn from(src: &DecodedGiftCode) -> GiftCode {
         GiftCode {
             object: "gift_code".to_string(),
             gift_code_b58: src.gift_code_b58.clone(),
@@ -55,8 +48,6 @@ impl From<&db::models::GiftCode> for GiftCode {
                 .unwrap_or_default(),
             value_pmob: src.value.to_string(),
             memo: src.memo.clone(),
-            account_id: src.account_id_hex.to_string(),
-            txo_id_hex: src.txo_id_hex.to_string(),
         }
     }
 }

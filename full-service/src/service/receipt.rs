@@ -341,7 +341,12 @@ mod tests {
 
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
         let alice = service
-            .create_account(Some("Alice's Main Account".to_string()))
+            .create_account(
+                Some("Alice's Main Account".to_string()),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            )
             .unwrap();
 
         // Fund Alice
@@ -358,12 +363,16 @@ mod tests {
             &ledger_db,
             &service.wallet_db,
             &AccountID(alice.account_id_hex.to_string()),
-            13,
             &logger,
         );
 
         let bob = service
-            .create_account(Some("Bob's Main Account".to_string()))
+            .create_account(
+                Some("Bob's Main Account".to_string()),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            )
             .unwrap();
         let bob_addresses = service
             .get_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
@@ -407,14 +416,12 @@ mod tests {
             &ledger_db,
             &service.wallet_db,
             &AccountID(alice.account_id_hex.to_string()),
-            14,
             &logger,
         );
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,
             &AccountID(bob.account_id_hex.to_string()),
-            14,
             &logger,
         );
 
@@ -466,7 +473,12 @@ mod tests {
 
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
         let alice = service
-            .create_account(Some("Alice's Main Account".to_string()))
+            .create_account(
+                Some("Alice's Main Account".to_string()),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            )
             .unwrap();
 
         // Fund Alice
@@ -483,12 +495,16 @@ mod tests {
             &ledger_db,
             &service.wallet_db,
             &AccountID(alice.account_id_hex.to_string()),
-            13,
             &logger,
         );
 
         let bob = service
-            .create_account(Some("Bob's Main Account".to_string()))
+            .create_account(
+                Some("Bob's Main Account".to_string()),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            )
             .unwrap();
         let bob_addresses = service
             .get_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
@@ -544,14 +560,12 @@ mod tests {
             &ledger_db,
             &service.wallet_db,
             &AccountID(alice.account_id_hex.to_string()),
-            14,
             &logger,
         );
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,
             &AccountID(bob.account_id_hex.to_string()),
-            14,
             &logger,
         );
 
@@ -580,7 +594,12 @@ mod tests {
 
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
         let alice = service
-            .create_account(Some("Alice's Main Account".to_string()))
+            .create_account(
+                Some("Alice's Main Account".to_string()),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            )
             .unwrap();
 
         // Fund Alice
@@ -597,12 +616,16 @@ mod tests {
             &ledger_db,
             &service.wallet_db,
             &AccountID(alice.account_id_hex.to_string()),
-            13,
             &logger,
         );
 
         let bob = service
-            .create_account(Some("Bob's Main Account".to_string()))
+            .create_account(
+                Some("Bob's Main Account".to_string()),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            )
             .unwrap();
         let bob_addresses = service
             .get_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
@@ -642,10 +665,9 @@ mod tests {
             &ledger_db,
             &service.wallet_db,
             &AccountID(alice.account_id_hex.to_string()),
-            14,
             &logger,
         );
-        manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, 14, &logger);
+        manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, &logger);
 
         // Bob checks the status, and is expecting an incorrect value, from a
         // transaction with a different shared secret
@@ -698,7 +720,12 @@ mod tests {
 
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
         let alice = service
-            .create_account(Some("Alice's Main Account".to_string()))
+            .create_account(
+                Some("Alice's Main Account".to_string()),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            )
             .unwrap();
 
         // Fund Alice
@@ -715,12 +742,16 @@ mod tests {
             &ledger_db,
             &service.wallet_db,
             &AccountID(alice.account_id_hex.to_string()),
-            13,
             &logger,
         );
 
         let bob = service
-            .create_account(Some("Bob's Main Account".to_string()))
+            .create_account(
+                Some("Bob's Main Account".to_string()),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            )
             .unwrap();
         let bob_addresses = service
             .get_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
@@ -760,10 +791,9 @@ mod tests {
             &ledger_db,
             &service.wallet_db,
             &AccountID(alice.account_id_hex.to_string()),
-            14,
             &logger,
         );
-        manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, 14, &logger);
+        manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, &logger);
 
         // Construct an invalid receipt with an incorrect confirmation number.
         let mut receipt = receipt0.clone();

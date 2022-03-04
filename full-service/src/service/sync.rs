@@ -125,7 +125,7 @@ pub fn sync_all_accounts(
 
     for account in accounts {
         // If there are no new blocks for this account, don't do anything.
-        if account.next_block_index as u64 >= num_blocks - 1 {
+        if account.next_block_index as u64 > num_blocks - 1 {
             continue;
         }
         sync_account(ledger_db, wallet_db, &account.account_id_hex, logger)?;
@@ -203,10 +203,6 @@ fn sync_account_next_chunk(
                 key_images.push((block_index, key_image));
             }
         }
-        if tx_outs.is_empty() {
-            return Ok(SyncStatus::NoMoreBlocks);
-        }
-
         // Attempt to decode each transaction as received by this account.
         let received_txos: Vec<_> = tx_outs
             .into_par_iter()
@@ -312,12 +308,14 @@ fn sync_account_next_chunk(
         // Done syncing this chunk. Mark these blocks as synced for this account.
         account.update_next_block_index(last_block_index + 1, conn)?;
 
+        let num_blocks_synced = last_block_index - first_block_index + 1;
+
         let duration = start_time.elapsed();
 
         log::debug!(
             logger,
             "Synced {} blocks ({}-{}) for account {} in {:?}. {} txos received, {}/{} txos spent.",
-            last_block_index - first_block_index + 1,
+            num_blocks_synced,
             first_block_index,
             last_block_index,
             account_id_hex.chars().take(6).collect::<String>(),
@@ -327,7 +325,11 @@ fn sync_account_next_chunk(
             unspent_key_images.len(),
         );
 
-        Ok(SyncStatus::ChunkFinished)
+        if num_blocks_synced < BLOCKS_CHUNK_SIZE {
+            Ok(SyncStatus::NoMoreBlocks)
+        } else {
+            Ok(SyncStatus::ChunkFinished)
+        }
     })
 }
 
@@ -445,9 +447,9 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
-                None,
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
             )
             .expect("Could not import account entropy");
 
@@ -455,7 +457,6 @@ mod tests {
             &ledger_db,
             &wallet_db,
             &AccountID::from(&account_key),
-            1,
             &logger,
         );
 

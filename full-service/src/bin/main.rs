@@ -14,13 +14,14 @@ use mc_fog_report_validation::FogResolver;
 use mc_full_service::{
     check_host,
     config::APIConfig,
-    wallet::{consensus_backed_rocket, validator_backed_rocket, WalletState},
+    wallet::{consensus_backed_rocket, validator_backed_rocket, APIKeyState, WalletState},
     ValidatorLedgerSyncThread, WalletDb, WalletService,
 };
 use mc_ledger_sync::{LedgerSyncServiceThread, PollingNetworkState, ReqwestTransactionsFetcher};
 use mc_validator_api::ValidatorUri;
 use mc_validator_connection::ValidatorConnection;
 use std::{
+    env,
     process::exit,
     sync::{Arc, RwLock},
 };
@@ -83,15 +84,13 @@ fn main() {
     // "This pragma is a no-op within a transaction; foreign key constraint
     // enforcement may only be enabled or disabled when there is no pending
     // BEGIN or SAVEPOINT."
+    // Check foreign key constraints after the migration. If they fail,
+    // we will abort until the user resolves it.
     conn.batch_execute("PRAGMA foreign_keys = OFF;")
         .expect("failed disabling foreign keys");
     embedded_migrations::run_with_output(&conn, &mut std::io::stdout())
         .expect("failed running migrations");
-
-    // Ensure the database is still in good shape. If not, we will abort until the
-    // user resolves it.
     WalletDb::validate_foreign_keys(&conn);
-
     conn.batch_execute("PRAGMA foreign_keys = ON;")
         .expect("failed enabling foreign keys");
 
@@ -109,9 +108,9 @@ fn main() {
 
     // Start WalletService based on our configuration
     if let Some(validator_uri) = config.validator.as_ref() {
-        validator_backed_full_service(validator_uri, &config, wallet_db, rocket_config, logger);
+        validator_backed_full_service(validator_uri, &config, wallet_db, rocket_config, logger)
     } else {
-        consensus_backed_full_service(&config, wallet_db, rocket_config, logger);
+        consensus_backed_full_service(&config, wallet_db, rocket_config, logger)
     };
 }
 
@@ -185,12 +184,11 @@ fn consensus_backed_full_service(
         config.offline,
         logger,
     );
-
-    // Start HTTP API server
     let state = WalletState { service };
 
     let rocket = consensus_backed_rocket(rocket_config, state);
-    rocket.launch();
+    let api_key = env::var("MC_API_KEY").unwrap_or_default();
+    rocket.manage(APIKeyState(api_key)).launch();
 }
 
 fn validator_backed_full_service(
@@ -273,10 +271,9 @@ fn validator_backed_full_service(
         false,
         logger,
     );
-
-    // Start HTTP API server
     let state = WalletState { service };
 
     let rocket = validator_backed_rocket(rocket_config, state);
-    rocket.launch();
+    let api_key = env::var("MC_API_KEY").unwrap_or_default();
+    rocket.manage(APIKeyState(api_key)).launch();
 }

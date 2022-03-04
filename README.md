@@ -2,6 +2,11 @@
 
 A MobileCoin service for wallet implementations.
 
+The Full-Service Node provides ledger syncing and validation, account management, and funds transfer and receiving. It uses a JSONRPC API, so you can connect to it from command line tools or build services around its functionality. It serves the use cases of single user (and is the backing to the MobileCoin Desktop Wallet), while also serving high performance, multi-account, multi-subaddress needs (such as backing merchant services platforms).
+
+Please see the full API documentation at: [High-Performance Wallet API](https://mobilecoin.gitbook.io/full-service-api/)
+
+
 * You must read and accept the [Terms of Use for MobileCoins and MobileCoin Wallets](./TERMS-OF-USE.md) to use
   MobileCoin Software.
 
@@ -37,6 +42,11 @@ Deprecated docs are being phased out, but remain at [API.md](API.md) (possibly i
 For database encryption features, see [DATABASE.md](DATABASE.md).
 
 ### Build and Run
+
+Note: Full-Service and mobilecoin are not currently compatible with Xcode 13 (the Xcode that ships with OSX Monterey). Make sure you are using Xcode 12 before building and running Full-service. You can [download Xcode 12 from apple's developer downloads page](https://developer.apple.com/download/all/?q=xcode%2012). Download Xcode 12, add it to your applications folder, then set your system to use it with:
+```sh
+sudo xcode-select -s /Applications/<name of xcode application>.app/Contents/Developer
+```
 
 1. Install Rust from https://www.rust-lang.org/tools/install
 
@@ -222,6 +232,9 @@ For database encryption features, see [DATABASE.md](DATABASE.md).
 | `offline` | Use Full Service in offline mode. This mode does not download new blocks or submit transactions. | |
 | `fog-ingest-enclave-css` | Path to the Fog ingest enclave sigstruct CSS file. | Needed in order to enable sending transactions to fog addresses. |
 
+## API Key
+
+You can add an optional API key to full service by adding a `.env` file to the root of this repo. The variable you need to set is: `MC_API_KEY="<api key of your choosing>"`. If you set this env var, you must provide the `X-API-KEY` header in your requests to full-service.
 
 ## Exit Codes
 

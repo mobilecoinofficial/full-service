@@ -114,6 +114,9 @@ pub enum JsonCommandRequest {
     },
     create_account {
         name: Option<String>,
+        fog_report_url: Option<String>,
+        fog_report_id: Option<String>,
+        fog_authority_spki: Option<String>,
     },
     create_payment_request {
         account_id: String,

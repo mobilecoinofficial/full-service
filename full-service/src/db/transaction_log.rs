@@ -600,9 +600,9 @@ mod tests {
             None,
             None,
             "",
-            None,
-            None,
-            None,
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -687,6 +687,7 @@ mod tests {
             &mut ledger_db,
             &vec![70 * MOB as u64],
             &mut rng,
+            &logger,
         );
 
         // Build a transaction
@@ -801,7 +802,6 @@ mod tests {
             &ledger_db,
             &wallet_db,
             &AccountID(tx_log.account_id_hex.to_string()),
-            14,
             &logger,
         );
 
@@ -841,6 +841,7 @@ mod tests {
             &mut ledger_db,
             &vec![100 * MOB as u64, 200 * MOB as u64],
             &mut rng,
+            &logger,
         );
 
         // Build a transaction
@@ -924,9 +925,9 @@ mod tests {
                 None,
                 None,
                 "",
-                None,
-                None,
-                None,
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
                 &wallet_db.get_conn().unwrap(),
             )
             .unwrap();
@@ -1019,6 +1020,7 @@ mod tests {
             &mut ledger_db,
             &vec![7_000_000 * MOB as u64, 14_000_000 * MOB as u64],
             &mut rng,
+            &logger,
         );
 
         // Build a transaction for > i64::Max
@@ -1076,6 +1078,7 @@ mod tests {
             &mut ledger_db,
             &vec![7 * MOB as u64, 8 * MOB as u64],
             &mut rng,
+            &logger,
         );
 
         let mut builder = WalletTransactionBuilder::new(
@@ -1186,7 +1189,6 @@ mod tests {
             &ledger_db,
             &wallet_db,
             &AccountID(tx_log.account_id_hex.to_string()),
-            15,
             &logger,
         );
 

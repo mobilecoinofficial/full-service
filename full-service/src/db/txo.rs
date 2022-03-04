@@ -970,9 +970,9 @@ mod tests {
             None,
             None,
             "Alice's Main Account",
-            None,
-            None,
-            None,
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -990,7 +990,7 @@ mod tests {
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
 
         let _alice_account =
-            manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, 13, &logger);
+            manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, &logger);
 
         let txos = Txo::list_for_account(
             &alice_account_id.to_string(),
@@ -1058,7 +1058,7 @@ mod tests {
 
         // Now we'll process these Txos and verify that the TXO was "spent."
         let _alice_account =
-            manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, 14, &logger);
+            manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, &logger);
 
         // We should now have 3 txos for this account - one spent, one change (minted),
         // and one minted (destined for alice).
@@ -1136,10 +1136,6 @@ mod tests {
         assert_eq!(alice_account.next_block_index, 14);
         assert_eq!(alice_account.next_subaddress_index, 5);
 
-        // Scan for alice to pick up the orphaned Txo
-        let _alice_account =
-            manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, 14, &logger);
-
         // Check that a transaction log entry was created for each received TxOut (note:
         // we are not creating submit logs in this test)
         let transaction_logs = TransactionLog::list_all(
@@ -1201,9 +1197,9 @@ mod tests {
             None,
             None,
             "Bob's Main Account",
-            None,
-            None,
-            None,
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1229,11 +1225,10 @@ mod tests {
         );
 
         // Process the latest block for Bob (note, Bob is starting to sync from block 0)
-        let _bob_account =
-            manually_sync_account(&ledger_db, &wallet_db, &bob_account_id, 15, &logger);
+        let _bob_account = manually_sync_account(&ledger_db, &wallet_db, &bob_account_id, &logger);
         // Process the latest block for Alice
         let _alice_account =
-            manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, 15, &logger);
+            manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, &logger);
 
         // We should now have 1 txo in Bob's account.
         let txos = Txo::list_for_account(
@@ -1265,9 +1260,9 @@ mod tests {
             None,
             None,
             "Alice's Main Account",
-            None,
-            None,
-            None,
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1374,9 +1369,9 @@ mod tests {
             None,
             None,
             "Alice's Main Account",
-            None,
-            None,
-            None,
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1430,9 +1425,9 @@ mod tests {
             None,
             None,
             "",
-            None,
-            None,
-            None,
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1495,9 +1490,9 @@ mod tests {
             None,
             None,
             "Alice",
-            None,
-            None,
-            None,
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1512,6 +1507,7 @@ mod tests {
             &mut ledger_db,
             &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
             &mut rng,
+            &logger,
         );
         let sender_account_id = AccountID::from(&sender_account_key);
 
@@ -1555,8 +1551,8 @@ mod tests {
 
         // Now let our sync thread catch up for both sender and receiver
         log::info!(logger, "Manually syncing account");
-        manually_sync_account(&ledger_db, &wallet_db, &recipient_account_id, 16, &logger);
-        manually_sync_account(&ledger_db, &wallet_db, &sender_account_id, 16, &logger);
+        manually_sync_account(&ledger_db, &wallet_db, &recipient_account_id, &logger);
+        manually_sync_account(&ledger_db, &wallet_db, &sender_account_id, &logger);
 
         // Then let's make sure we received the Txo on the recipient account
         log::info!(logger, "Listing all Txos for recipient account");
@@ -1633,9 +1629,9 @@ mod tests {
             None,
             None,
             "",
-            None,
-            None,
-            None,
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1678,9 +1674,9 @@ mod tests {
             None,
             None,
             "Alice's Main Account",
-            None,
-            None,
-            None,
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1756,9 +1752,9 @@ mod tests {
             None,
             None,
             "",
-            None,
-            None,
-            None,
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
