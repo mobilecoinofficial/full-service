@@ -18,6 +18,9 @@ pub struct ViewOnlyAccount {
     /// Display name for the account.
     pub name: String,
 
+    /// Display name for the account.
+    pub account_id: String,
+
     /// The private key used for viewing transactions for this account
     pub view_private_key: String,
 
@@ -36,6 +39,7 @@ impl TryFrom<&db::models::ViewOnlyAccount> for ViewOnlyAccount {
         Ok(ViewOnlyAccount {
             object: "view_only_account".to_string(),
             name: src.name.clone(),
+            account_id: src.account_id_hex.clone(),
             first_block_index: (src.first_block_index as u64).to_string(),
             next_block_index: (src.next_block_index as u64).to_string(),
             view_private_key: b58_encode_view_private_key(src.view_private_key.clone()),

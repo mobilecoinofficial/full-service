@@ -10,16 +10,15 @@ use crate::db::{
     WalletDbError,
 };
 
-use mc_account_keys::{AccountKey, RootEntropy, RootIdentity, DEFAULT_SUBADDRESS_INDEX};
-use mc_account_keys_slip10::Slip10Key;
-use mc_crypto_digestible::{Digestible, MerlinTranscript};
-
 use bip39::Mnemonic;
 use diesel::{
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},
     RunQueryDsl,
 };
+use mc_account_keys::{AccountKey, RootEntropy, RootIdentity, DEFAULT_SUBADDRESS_INDEX};
+use mc_account_keys_slip10::Slip10Key;
+use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use std::fmt;
 
 pub const DEFAULT_CHANGE_SUBADDRESS_INDEX: u64 = 1;

@@ -113,6 +113,8 @@ pub struct Account {
 pub struct ViewOnlyAccount {
     /// Primary key
     pub id: i32,
+    /// An additional ID, derived from the account data.
+    pub account_id_hex: String,
     /// private key for viewing MobileCoin belonging to an account.
     pub view_private_key: Vec<u8>,
     /// Index of the first block where this account may have held funds.
@@ -133,6 +135,7 @@ pub struct ViewOnlyAccount {
 #[derive(Insertable)]
 #[table_name = "view_only_accounts"]
 pub struct NewViewOnlyAccount<'a> {
+    pub account_id_hex: &'a str,
     pub view_private_key: &'a [u8],
     pub first_block_index: i64,
     pub next_block_index: i64,

@@ -8,8 +8,13 @@ use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 
-use crate::{db::view_only_account::ViewOnlyAccountModel, service::account::AccountServiceError};
+use crate::{
+    db::view_only_account::{ViewOnlyAccountID, ViewOnlyAccountModel},
+    service::account::AccountServiceError,
+};
 use diesel::Connection;
+use mc_crypto_keys::RistrettoPrivate;
+use std::convert::TryFrom;
 
 const DEFAULT_FIRST_BLOCK_INDEX: i64 = 0;
 /// Trait defining the ways in which the wallet can interact with and manage
@@ -48,6 +53,10 @@ where
             first_block_index,
         );
 
+        let account_id_hex =
+            ViewOnlyAccountID::from(&RistrettoPrivate::try_from(view_private_key.as_slice())?)
+                .to_string();
+
         // We record the local highest block index because that is the earliest we could
         // start scanning.
         let import_block_index: i64 = self.ledger_db.num_blocks()? as i64 - 1;
@@ -58,6 +67,7 @@ where
         let conn = self.wallet_db.get_conn()?;
         conn.transaction(|| {
             Ok(ViewOnlyAccount::create(
+                &account_id_hex,
                 view_private_key,
                 first_block_i,
                 import_block_index,
@@ -115,17 +125,27 @@ mod tests {
         let current_block_height: i64 = 12;
         let service = get_test_service(logger, current_block_height);
 
-        let view_key: Vec<u8> = [1, 2, 3].to_vec();
+        let view_private_key: Vec<u8> = [0; 32].to_vec();
         let name = "coins for cats";
         let first_block_index = 25;
 
+        let account_id_hex = ViewOnlyAccountID::from(
+            &RistrettoPrivate::try_from(view_private_key.as_slice()).unwrap(),
+        )
+        .to_string();
+
         let view_only_account = service
-            .import_view_only_account(view_key.clone(), name.to_string(), Some(first_block_index))
+            .import_view_only_account(
+                view_private_key.clone(),
+                name.to_string(),
+                Some(first_block_index),
+            )
             .unwrap();
 
         let expected_account = ViewOnlyAccount {
             id: 1,
-            view_private_key: view_key,
+            account_id_hex,
+            view_private_key,
             first_block_index,
             next_block_index: first_block_index,
             import_block_index: current_block_height - 1,
@@ -140,24 +160,33 @@ mod tests {
         let current_block_height: i64 = 12;
         let service = get_test_service(logger, current_block_height);
 
-        let view_key: Vec<u8> = [1, 2, 3].to_vec();
+        let view_private_key: Vec<u8> = [0; 32].to_vec();
         let name = "coins for cats";
         let first_block_index = 25;
+        let account_id_hex = ViewOnlyAccountID::from(
+            &RistrettoPrivate::try_from(view_private_key.as_slice()).unwrap(),
+        )
+        .to_string();
 
         service
-            .import_view_only_account(view_key.clone(), name.to_string(), Some(first_block_index))
+            .import_view_only_account(
+                view_private_key.clone(),
+                name.to_string(),
+                Some(first_block_index),
+            )
             .unwrap();
 
         let expected_account = ViewOnlyAccount {
             id: 1,
-            view_private_key: view_key.clone(),
+            account_id_hex,
+            view_private_key: view_private_key.clone(),
             first_block_index,
             next_block_index: first_block_index,
             import_block_index: current_block_height - 1,
             name: name.to_string(),
         };
 
-        let gotten_account = service.get_view_only_account(view_key).unwrap();
+        let gotten_account = service.get_view_only_account(view_private_key).unwrap();
 
         assert_eq!(gotten_account, expected_account);
     }

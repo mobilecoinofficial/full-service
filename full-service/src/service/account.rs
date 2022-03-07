@@ -21,6 +21,7 @@ use mc_account_keys::RootEntropy;
 use mc_account_keys_slip10;
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
+use mc_crypto_keys::KeyError;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 
@@ -47,8 +48,11 @@ pub enum AccountServiceError {
     /// Invalid BIP39 english mnemonic: {0}
     InvalidMnemonic(String),
 
-    /// Error decoding base64
+    /// Error decoding base64 {0}
     Base64DecodeError(String),
+
+    /// Error decoding private view key {0}
+    DecodePrivateKeyError(String),
 }
 
 impl From<WalletDbError> for AccountServiceError {
@@ -90,6 +94,12 @@ impl From<base64::DecodeError> for AccountServiceError {
 impl From<mc_account_keys_slip10::Error> for AccountServiceError {
     fn from(src: mc_account_keys_slip10::Error) -> Self {
         Self::Base64DecodeError(src.to_string())
+    }
+}
+
+impl From<KeyError> for AccountServiceError {
+    fn from(src: KeyError) -> Self {
+        Self::DecodePrivateKeyError(src.to_string())
     }
 }
 

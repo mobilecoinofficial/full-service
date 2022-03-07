@@ -19,6 +19,7 @@ table! {
 table! {
     view_only_accounts (id) {
         id -> Integer,
+        account_id_hex -> Text,
         view_private_key -> Binary,
         first_block_index -> BigInt,
         next_block_index -> BigInt,
