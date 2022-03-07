@@ -130,14 +130,14 @@ pub enum JsonCommandRequest {
     export_account_secrets {
         account_id: String,
     },
-    // export_view_only_account_secrets {
-    //     view_private_key: String,
-    // },
+    export_view_only_account_secrets {
+        account_id: String,
+    },
     get_account {
         account_id: String,
     },
     get_view_only_account {
-        view_private_key: String,
+        account_id: String,
     },
     get_account_status {
         account_id: String,

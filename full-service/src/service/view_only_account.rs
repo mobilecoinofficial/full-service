@@ -2,14 +2,17 @@
 
 //! Service for managing view-only-accounts.
 
-use crate::{db::models::ViewOnlyAccount, service::WalletService};
+use crate::service::WalletService;
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 
 use crate::{
-    db::view_only_account::{ViewOnlyAccountID, ViewOnlyAccountModel},
+    db::{
+        models::ViewOnlyAccount,
+        view_only_account::{ViewOnlyAccountID, ViewOnlyAccountModel},
+    },
     service::account::AccountServiceError,
 };
 use diesel::Connection;
@@ -31,7 +34,8 @@ pub trait ViewOnlyAccountService {
     /// Get a view only account by view private key
     fn get_view_only_account(
         &self,
-        view_private_key: Vec<u8>,
+        // TODO(cc) better to use String or &str here?
+        account_id: &str,
     ) -> Result<ViewOnlyAccount, AccountServiceError>;
 }
 
@@ -79,16 +83,12 @@ where
 
     fn get_view_only_account(
         &self,
-        view_private_key: Vec<u8>,
+        account_id: &str,
     ) -> Result<ViewOnlyAccount, AccountServiceError> {
-        log::info!(
-            self.logger,
-            "fetching view-only-account {:?}",
-            view_private_key
-        );
+        log::info!(self.logger, "fetching view-only-account {:?}", account_id);
 
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| Ok(ViewOnlyAccount::get(view_private_key, &conn)?))
+        conn.transaction(|| Ok(ViewOnlyAccount::get(account_id, &conn)?))
     }
 }
 
@@ -178,15 +178,15 @@ mod tests {
 
         let expected_account = ViewOnlyAccount {
             id: 1,
-            account_id_hex,
-            view_private_key: view_private_key.clone(),
+            account_id_hex: account_id_hex.clone(),
+            view_private_key,
             first_block_index,
             next_block_index: first_block_index,
             import_block_index: current_block_height - 1,
             name: name.to_string(),
         };
 
-        let gotten_account = service.get_view_only_account(view_private_key).unwrap();
+        let gotten_account = service.get_view_only_account(&account_id_hex).unwrap();
 
         assert_eq!(gotten_account, expected_account);
     }

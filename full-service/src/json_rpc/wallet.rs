@@ -429,12 +429,17 @@ where
                 account_secrets: AccountSecrets::try_from(&account).map_err(format_error)?,
             }
         }
-        // // TODO(CC) impliment
-        // JsonCommandRequest::export_view_only_account_secrets {
-        //     view_private_key: _,
-        // } => JsonCommandResponse::export_view_only_account_secrets {
-        //     account_secrets: ViewOnlyAccountSecrets,
-        // },
+        JsonCommandRequest::export_view_only_account_secrets { account_id } => {
+            let account = service
+                .get_view_only_account(&account_id)
+                .map_err(format_error)?;
+            JsonCommandResponse::export_view_only_account_secrets {
+                view_only_account_secrets:
+                    json_rpc::view_only_account::ViewOnlyAccountSecrets::try_from(&account)
+                        .map_err(format_error)?,
+            }
+        }
+
         JsonCommandRequest::get_account { account_id } => JsonCommandResponse::get_account {
             account: json_rpc::account::Account::try_from(
                 &service
@@ -443,14 +448,11 @@ where
             )
             .map_err(format_error)?,
         },
-        JsonCommandRequest::get_view_only_account { view_private_key } => {
-            let decoded_key =
-                b58_decode_view_private_key(&view_private_key).map_err(format_error)?;
-
+        JsonCommandRequest::get_view_only_account { account_id } => {
             JsonCommandResponse::get_view_only_account {
                 view_only_account: json_rpc::view_only_account::ViewOnlyAccount::try_from(
                     &service
-                        .get_view_only_account(decoded_key)
+                        .get_view_only_account(&account_id)
                         .map_err(format_error)?,
                 )
                 .map_err(format_error)?,

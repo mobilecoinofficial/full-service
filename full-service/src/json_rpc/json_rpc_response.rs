@@ -18,7 +18,7 @@ use crate::{
         transaction_log::TransactionLog,
         tx_proposal::TxProposal,
         txo::Txo,
-        view_only_account::ViewOnlyAccount,
+        view_only_account::{ViewOnlyAccount, ViewOnlyAccountSecrets},
         wallet_status::WalletStatus,
     },
     service::{gift_code::GiftCodeStatus, receipt::ReceiptTransactionStatus},
@@ -174,9 +174,9 @@ pub enum JsonCommandResponse {
     export_account_secrets {
         account_secrets: AccountSecrets,
     },
-    // export_view_only_account_secrets {
-    //     account_secrets: ViewOnlyAccountSecrets,
-    // },
+    export_view_only_account_secrets {
+        view_only_account_secrets: ViewOnlyAccountSecrets,
+    },
     get_account {
         account: Account,
     },

@@ -3817,7 +3817,10 @@ mod e2e {
                 "view_private_key": view_key,
             },
         });
-        dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("view_only_account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap();
 
         // get account
         let body = json!({
@@ -3825,7 +3828,7 @@ mod e2e {
             "id": 1,
             "method": "get_view_only_account",
             "params": {
-                "view_private_key": view_key,
+                "account_id": account_id,
             },
         });
         let res = dispatch(&client, body, &logger);
@@ -3833,8 +3836,47 @@ mod e2e {
         let result = res.get("result").unwrap();
         let account_obj = result.get("view_only_account").unwrap();
         assert_eq!(account_obj.get("name").unwrap(), name);
-        assert_eq!(account_obj.get("view_private_key").unwrap(), view_key);
+        assert_eq!(account_obj.get("account_id").unwrap(), account_id);
         assert_eq!(account_obj.get("first_block_index").unwrap(), "0");
         assert_eq!(account_obj.get("next_block_index").unwrap(), "0");
+    }
+
+    #[test_with_logger]
+    fn test_e2e_export_view_only_account_secrets(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        let name = "Coins for cats";
+        let view_key = "11111111111111111111111111111111";
+        // Import Account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_view_only_account",
+            "params": {
+                "name": name,
+                "view_private_key": view_key,
+            },
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("view_only_account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap();
+
+        // get account secrets
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "export_view_only_account_secrets",
+            "params": {
+                "account_id": account_id,
+            },
+        });
+        let res = dispatch(&client, body, &logger);
+
+        let result = res.get("result").unwrap();
+        let secrets = result.get("view_only_account_secrets").unwrap();
+        let key = secrets["view_private_key"].as_str().unwrap();
+        assert_eq!(key, view_key);
     }
 }

@@ -21,9 +21,6 @@ pub struct ViewOnlyAccount {
     /// Display name for the account.
     pub account_id: String,
 
-    /// The private key used for viewing transactions for this account
-    pub view_private_key: String,
-
     /// Index of the first block when this account may have received funds.
     /// No transactions before this point will be synchronized.
     pub first_block_index: String,
@@ -42,6 +39,24 @@ impl TryFrom<&db::models::ViewOnlyAccount> for ViewOnlyAccount {
             account_id: src.account_id_hex.clone(),
             first_block_index: (src.first_block_index as u64).to_string(),
             next_block_index: (src.next_block_index as u64).to_string(),
+        })
+    }
+}
+
+// TODO(cc) figure how to convey account vs single subaddress stuff in
+// documentation?
+/// private view key for the account
+#[derive(Deserialize, Serialize, Default, Debug, Clone)]
+pub struct ViewOnlyAccountSecrets {
+    /// The private key used for viewing transactions for this account
+    pub view_private_key: String,
+}
+
+impl TryFrom<&db::models::ViewOnlyAccount> for ViewOnlyAccountSecrets {
+    type Error = String;
+
+    fn try_from(src: &db::models::ViewOnlyAccount) -> Result<ViewOnlyAccountSecrets, String> {
+        Ok(ViewOnlyAccountSecrets {
             view_private_key: b58_encode_view_private_key(src.view_private_key.clone()),
         })
     }

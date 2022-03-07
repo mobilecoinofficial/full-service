@@ -60,7 +60,7 @@ pub trait ViewOnlyAccountModel {
     /// Returns:
     /// * Account
     fn get(
-        view_private_key: Vec<u8>,
+        account_id: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<ViewOnlyAccount, WalletDbError>;
 
@@ -105,7 +105,7 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
         use crate::db::schema::view_only_accounts;
 
         let new_view_only_account = NewViewOnlyAccount {
-            account_id_hex,
+            account_id_hex: &account_id_hex,
             view_private_key: &view_private_key,
             first_block_index,
             // next block index will always be the same as
@@ -119,27 +119,25 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
             .values(&new_view_only_account)
             .execute(conn.clone())?;
 
-        ViewOnlyAccount::get(
-            new_view_only_account.view_private_key.to_vec(),
-            conn.clone(),
-        )
+        ViewOnlyAccount::get(&account_id_hex, conn.clone())
     }
 
     fn get(
-        view_private_key: Vec<u8>,
+        account_id: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<ViewOnlyAccount, WalletDbError> {
         use crate::db::schema::view_only_accounts::dsl::{
-            view_only_accounts, view_private_key as dsl_view_key,
+            account_id_hex as dsl_account_id, view_only_accounts,
         };
 
         match view_only_accounts
-            .filter((dsl_view_key).eq(view_private_key))
+            .filter((dsl_account_id).eq(account_id))
             .get_result::<ViewOnlyAccount>(conn)
         {
             Ok(a) => Ok(a),
             // Match on NotFound to get a more informative NotFound Error
             Err(diesel::result::Error::NotFound) => Err(WalletDbError::AccountNotFound(
+                // TODO(cc) improve this error handling
                 // str::from_utf8(view_private_key)?,
                 "account not found".to_string(),
             )),
