@@ -154,8 +154,8 @@ pub enum JsonCommandRequest {
         offset: String,
         limit: String,
     },
-    // TODO(cc) decide if get_all_accounts needs a separate endpoint for view-only accounts
     get_all_accounts,
+    get_all_view_only_accounts,
     get_all_addresses_for_account {
         account_id: String,
     },
@@ -247,9 +247,9 @@ pub enum JsonCommandRequest {
     remove_account {
         account_id: String,
     },
-    // remove_view_only_account {
-    //     view_private_key: String,
-    // },
+    remove_view_only_account {
+        account_id: String,
+    },
     remove_gift_code {
         gift_code_b58: String,
     },
@@ -267,10 +267,10 @@ pub enum JsonCommandRequest {
         account_id: String,
         name: String,
     },
-    // update_view_only_account_name {
-    //     view_private_key: String,
-    //     name: String,
-    // },
+    update_view_only_account_name {
+        account_id: String,
+        name: String,
+    },
     validate_confirmation {
         account_id: String,
         txo_id: String,

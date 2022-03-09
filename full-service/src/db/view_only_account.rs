@@ -47,22 +47,36 @@ pub trait ViewOnlyAccountModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<ViewOnlyAccount, WalletDbError>;
 
-    // /// List all view-only-accounts.
-    // ///
-    // /// Returns:
-    // /// * Vector of all Accounts in the DB
-    // fn list_all(
-    //     conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    // ) -> Result<Vec<ViewOnlyAccount>, WalletDbError>;
-
     /// Get a specific account.
-    ///
     /// Returns:
-    /// * Account
+    /// * ViewOnlyAccount
     fn get(
         account_id: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<ViewOnlyAccount, WalletDbError>;
+
+    // TODO(cc) should this be paginated instead?
+    /// List all view-only-accounts.
+    /// Returns:
+    /// * Vector of all View Only Accounts in the DB
+    fn list_all(
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<ViewOnlyAccount>, WalletDbError>;
+
+    /// Update an view-only-account name.
+    /// The only updatable field is the name. Any other desired update requires
+    /// adding a new account, and deleting the existing if desired.
+    fn update_name(
+        &self,
+        new_name: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError>;
+
+    /// Delete a view-only-account.
+    fn delete(
+        self,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError>;
 
     // /// Get the accounts associated with the given Txo.
     // fn get_by_txo_id(
@@ -70,25 +84,10 @@ pub trait ViewOnlyAccountModel {
     //     conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     // ) -> Result<Vec<ViewOnlyAccount>, WalletDbError>;
 
-    // /// Update an account.
-    // /// The only updatable field is the name. Any other desired update requires
-    // /// adding a new account, and deleting the existing if desired.
-    // fn update_name(
-    //     &self,
-    //     new_name: String,
-    //     conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    // ) -> Result<(), WalletDbError>;
-
     // /// Update the next block index this account will need to sync.
     // fn update_next_block_index(
     //     &self,
     //     next_block_index: i64,
-    //     conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    // ) -> Result<(), WalletDbError>;
-
-    // /// Delete an account.
-    // fn delete(
-    //     self,
     //     conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     // ) -> Result<(), WalletDbError>;
 }
@@ -145,31 +144,55 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
         }
     }
 
+    fn list_all(
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<ViewOnlyAccount>, WalletDbError> {
+        use crate::db::schema::view_only_accounts;
+
+        Ok(view_only_accounts::table
+            .select(view_only_accounts::all_columns)
+            .load::<ViewOnlyAccount>(conn)?)
+    }
+
+    fn update_name(
+        &self,
+        new_name: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::view_only_accounts::dsl::{
+            account_id_hex as dsl_account_id, view_only_accounts,
+        };
+
+        diesel::update(view_only_accounts.filter(dsl_account_id.eq(&self.account_id_hex)))
+            .set(crate::db::schema::view_only_accounts::name.eq(new_name))
+            .execute(conn)?;
+        Ok(())
+    }
+
+    fn delete(
+        self,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::view_only_accounts::dsl::{
+            account_id_hex as dsl_account_id, view_only_accounts,
+        };
+
+        diesel::delete(view_only_accounts.filter(dsl_account_id.eq(&self.account_id_hex)))
+            .execute(conn)?;
+
+        Ok(())
+    }
+
     // /// Get the accounts associated with the given Txo.
     // fn get_by_txo_id(
     //     txo_id_hex: &str,
     //     conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     // ) -> Result<Vec<ViewOnlyAccount>, WalletDbError>;
 
-    // /// Update an account.
-    // /// The only updatable field is the name. Any other desired update requires
-    // /// adding a new account, and deleting the existing if desired.
-    // fn update_name(
-    //     &self,
-    //     new_name: String,
-    //     conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    // ) -> Result<(), WalletDbError>;
-
     // /// Update the next block index this account will need to sync.
     // fn update_next_block_index(
     //     &self,
     //     next_block_index: i64,
-    //     conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    // ) -> Result<(), WalletDbError>;
-
-    // /// Delete an account.
-    // fn delete(
-    //     self,
     //     conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     // ) -> Result<(), WalletDbError>;
 }
@@ -182,10 +205,12 @@ mod tests {
     use mc_common::logger::{test_with_logger, Logger};
 
     #[test_with_logger]
-    fn test_view_only_account_create_and_get_model(logger: Logger) {
+    fn test_view_only_account_crud(logger: Logger) {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
         let conn = wallet_db.get_conn().unwrap();
+
+        // test account creation
 
         let name = "Coins for cats";
         let view_private_key: Vec<u8> = [1, 2, 3].to_vec();
@@ -205,7 +230,7 @@ mod tests {
 
         let created = ViewOnlyAccount::create(
             account_id_hex,
-            view_private_key,
+            view_private_key.clone(),
             first_block_index,
             import_block_index,
             &name,
@@ -213,5 +238,40 @@ mod tests {
         )
         .unwrap();
         assert_eq!(expected_account, created);
+
+        // test account name update
+
+        let new_name = "coins for dogs";
+
+        created.update_name(&new_name, &conn).unwrap();
+
+        // test getting an account
+
+        let updated: ViewOnlyAccount = ViewOnlyAccount::get(&account_id_hex, &conn).unwrap();
+
+        assert_eq!(&updated.name, &new_name);
+
+        // test getting all accounts
+
+        ViewOnlyAccount::create(
+            "some_account_id",
+            view_private_key.clone(),
+            first_block_index,
+            import_block_index,
+            "catcoin_name",
+            &conn,
+        )
+        .unwrap();
+
+        let all_accounts = ViewOnlyAccount::list_all(&conn).unwrap();
+
+        assert_eq!(all_accounts.len(), 2);
+
+        // test deleting the account
+
+        created.delete(&conn).unwrap();
+
+        let not_found = ViewOnlyAccount::get(&account_id_hex, &conn);
+        assert!(not_found.is_err());
     }
 }

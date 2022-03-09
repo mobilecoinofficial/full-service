@@ -2,7 +2,7 @@
 
 //! API definition for the View Only Account object.
 
-use crate::{db, util::b58::b58_encode_view_private_key};
+use crate::db;
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
@@ -55,9 +55,11 @@ pub struct ViewOnlyAccountSecrets {
 impl TryFrom<&db::models::ViewOnlyAccount> for ViewOnlyAccountSecrets {
     type Error = String;
 
+    // TODO(cc) extrapolate encoding/decoding keys into own function to share
+    // between account and view-only-account
     fn try_from(src: &db::models::ViewOnlyAccount) -> Result<ViewOnlyAccountSecrets, String> {
         Ok(ViewOnlyAccountSecrets {
-            view_private_key: b58_encode_view_private_key(src.view_private_key.clone()),
+            view_private_key: hex::encode(mc_util_serial::encode(&src.view_private_key)),
         })
     }
 }

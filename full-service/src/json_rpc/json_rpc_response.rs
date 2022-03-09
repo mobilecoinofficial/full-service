@@ -198,8 +198,11 @@ pub enum JsonCommandResponse {
         public_addresses: Vec<String>,
         address_map: Map<String, serde_json::Value>,
     },
-    // TODO(cc) decide if this needs a separate endpoint for view-only accounts
     get_all_accounts {
+        account_ids: Vec<String>,
+        account_map: Map<String, serde_json::Value>,
+    },
+    get_all_view_only_accounts {
         account_ids: Vec<String>,
         account_map: Map<String, serde_json::Value>,
     },
@@ -286,9 +289,9 @@ pub enum JsonCommandResponse {
     remove_account {
         removed: bool,
     },
-    // remove_view_only_account {
-    //     removed: bool,
-    // },
+    remove_view_only_account {
+        removed: bool,
+    },
     remove_gift_code {
         removed: bool,
     },
@@ -301,9 +304,9 @@ pub enum JsonCommandResponse {
     update_account_name {
         account: Account,
     },
-    // update_view_only_account_name {
-    //     account: ViewOnlyAccount,
-    // },
+    update_view_only_account_name {
+        view_only_account: ViewOnlyAccount,
+    },
     validate_confirmation {
         validated: bool,
     },

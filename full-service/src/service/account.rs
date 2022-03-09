@@ -21,7 +21,6 @@ use mc_account_keys::RootEntropy;
 use mc_account_keys_slip10;
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
-use mc_crypto_keys::KeyError;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 
@@ -97,8 +96,8 @@ impl From<mc_account_keys_slip10::Error> for AccountServiceError {
     }
 }
 
-impl From<KeyError> for AccountServiceError {
-    fn from(src: KeyError) -> Self {
+impl From<mc_util_serial::DecodeError> for AccountServiceError {
+    fn from(src: mc_util_serial::DecodeError) -> Self {
         Self::DecodePrivateKeyError(src.to_string())
     }
 }

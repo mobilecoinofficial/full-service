@@ -40,8 +40,8 @@ use crate::{
         WalletService,
     },
     util::b58::{
-        b58_decode_payment_request, b58_decode_view_private_key, b58_encode_public_address,
-        b58_printable_wrapper_type, PrintableWrapperType,
+        b58_decode_payment_request, b58_encode_public_address, b58_printable_wrapper_type,
+        PrintableWrapperType,
     },
 };
 use mc_common::logger::global_log;
@@ -554,6 +554,28 @@ where
                 account_map,
             }
         }
+        JsonCommandRequest::get_all_view_only_accounts => {
+            // TODO(cc) how to refactor this so that view_only and regular accounts can
+            // re-use the mapping logic?
+            let accounts = service.list_view_only_accounts().map_err(format_error)?;
+            let json_accounts: Vec<(String, serde_json::Value)> = accounts
+                .iter()
+                .map(|a| {
+                    json_rpc::view_only_account::ViewOnlyAccount::try_from(a)
+                        .map_err(format_error)
+                        .and_then(|v| {
+                            serde_json::to_value(v)
+                                .map(|v| (a.account_id_hex.clone(), v))
+                                .map_err(format_error)
+                        })
+                })
+                .collect::<Result<Vec<(String, serde_json::Value)>, JsonRPCError>>()?;
+            let account_map: Map<String, serde_json::Value> = Map::from_iter(json_accounts);
+            JsonCommandResponse::get_all_view_only_accounts {
+                account_ids: accounts.iter().map(|a| a.account_id_hex.clone()).collect(),
+                account_map,
+            }
+        }
         JsonCommandRequest::get_all_addresses_for_account { account_id } => {
             let addresses = service
                 .get_addresses_for_account(&AccountID(account_id), None, None)
@@ -890,13 +912,12 @@ where
 
             let n = name.unwrap_or_default();
 
-            let decoded_key =
-                b58_decode_view_private_key(&view_private_key).map_err(format_error)?;
+            let decoded_key = hex::decode(&view_private_key).map_err(format_error)?;
 
             JsonCommandResponse::import_view_only_account {
                 view_only_account: json_rpc::view_only_account::ViewOnlyAccount::try_from(
                     &service
-                        .import_view_only_account(decoded_key, n, fb)
+                        .import_view_only_account(decoded_key.to_vec(), n, fb)
                         .map_err(format_error)?,
                 )
                 .map_err(format_error)?,
@@ -980,10 +1001,13 @@ where
                 .remove_account(&AccountID(account_id))
                 .map_err(format_error)?,
         },
-        // // TODO(CC) impliment this
-        // JsonCommandRequest::remove_view_only_account {
-        //     view_private_key: _,
-        // } => JsonCommandResponse::remove_view_only_account { removed: true },
+        JsonCommandRequest::remove_view_only_account { account_id } => {
+            JsonCommandResponse::remove_view_only_account {
+                removed: service
+                    .remove_view_only_account(&account_id)
+                    .map_err(format_error)?,
+            }
+        }
         JsonCommandRequest::remove_gift_code { gift_code_b58 } => {
             JsonCommandResponse::remove_gift_code {
                 removed: service
@@ -1041,12 +1065,16 @@ where
                 .map_err(format_error)?,
             }
         }
-        // JsonCommandRequest::update_view_only_account_name {
-        //     view_private_key: _,
-        //     name: _,
-        // } => JsonCommandResponse::update_view_only_account_name {
-        //     account: ViewOnlyAccount,
-        // },
+        JsonCommandRequest::update_view_only_account_name { account_id, name } => {
+            JsonCommandResponse::update_view_only_account_name {
+                view_only_account: json_rpc::view_only_account::ViewOnlyAccount::try_from(
+                    &service
+                        .update_view_only_account_name(&account_id, &name)
+                        .map_err(format_error)?,
+                )
+                .map_err(format_error)?,
+            }
+        }
         JsonCommandRequest::validate_confirmation {
             account_id,
             txo_id,

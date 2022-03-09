@@ -3771,14 +3771,14 @@ mod e2e {
     }
 
     #[test_with_logger]
-    fn test_e2e_import_view_only_account(logger: Logger) {
+    fn test_e2e_view_only_account_crud(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         let name = "Coins for cats";
-        let view_key = "11111111111111111111111111111111";
+        let view_key = "0a20928c29f916586c0fae22de17784b2b9ac573a1b1d75c2ba531838650ca0a5302";
 
-        // Import Account
+        // test import Account
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
@@ -3789,40 +3789,17 @@ mod e2e {
             },
         });
         let res = dispatch(&client, body, &logger);
-        println!("ERROR {:?}", res.get("jsonrpc"));
         assert_eq!(res.get("jsonrpc").unwrap(), "2.0");
 
         let result = res.get("result").unwrap();
         let account_obj = result.get("view_only_account").unwrap();
         assert_eq!(account_obj.get("name").unwrap(), name);
-        assert_eq!(account_obj.get("view_private_key").unwrap(), view_key);
         assert_eq!(account_obj.get("first_block_index").unwrap(), "0");
         assert_eq!(account_obj.get("next_block_index").unwrap(), "0");
-    }
 
-    #[test_with_logger]
-    fn test_e2e_get_view_only_account(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
-
-        let name = "Coins for cats";
-        let view_key = "11111111111111111111111111111111";
-        // Import Account
-        let body = json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "import_view_only_account",
-            "params": {
-                "name": name,
-                "view_private_key": view_key,
-            },
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let account_obj = result.get("view_only_account").unwrap();
         let account_id = account_obj.get("account_id").unwrap();
 
-        // get account
+        // test get account
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
@@ -3839,6 +3816,89 @@ mod e2e {
         assert_eq!(account_obj.get("account_id").unwrap(), account_id);
         assert_eq!(account_obj.get("first_block_index").unwrap(), "0");
         assert_eq!(account_obj.get("next_block_index").unwrap(), "0");
+
+        // test update name
+        let new_name = "new_account_name";
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "update_view_only_account_name",
+            "params": {
+                "account_id": account_id,
+                "name": new_name,
+            },
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("view_only_account").unwrap();
+        assert_eq!(account_obj.get("name").unwrap(), new_name);
+
+        // test list all view only accounts
+        let second_view_key =
+            "0a20928c29f916586c0fae22de17784b2b9ac573a1b1d75c2ba531838650ca0a5302";
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_view_only_account",
+            "params": {
+                "name": name,
+                "view_private_key": second_view_key,
+            },
+        });
+        let res = dispatch(&client, body, &logger);
+        assert_eq!(res.get("jsonrpc").unwrap(), "2.0");
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_all_view_only_accounts",
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let ids = result.get("account_ids").unwrap().as_array().unwrap();
+        println!("RESULT {:?}", result);
+        assert_eq!(ids.len(), 2);
+
+        // test removing an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "remove_view_only_account",
+            "params": {
+                "account_id": account_id,
+            },
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        assert!(result.get("removed").unwrap().as_bool().unwrap());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_view_only_account",
+            "params": {
+                "account_id": account_id,
+            },
+        });
+        dispatch_expect_error(
+            &client,
+            body,
+            &logger,
+            json!({
+                "method": "get_view_only_account",
+                "error": json!({
+                    "code": -32603,
+                    "message": "InternalError",
+                    "data": json!({
+                        "server_error": "Database(AccountNotFound(\"account not found\"))",
+                        "details": "Error interacting with the database: Account Not Found: account not found",
+                    })
+                }),
+                "jsonrpc": "2.0",
+                "id": 1,
+            })
+            .to_string(),
+        );
     }
 
     #[test_with_logger]
@@ -3847,7 +3907,7 @@ mod e2e {
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         let name = "Coins for cats";
-        let view_key = "11111111111111111111111111111111";
+        let view_key = "0a20928c29f916586c0fae22de17784b2b9ac573a1b1d75c2ba531838650ca0a5302";
         // Import Account
         let body = json!({
             "jsonrpc": "2.0",

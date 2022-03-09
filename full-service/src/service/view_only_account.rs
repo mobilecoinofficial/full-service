@@ -17,7 +17,6 @@ use crate::{
 };
 use diesel::Connection;
 use mc_crypto_keys::RistrettoPrivate;
-use std::convert::TryFrom;
 
 const DEFAULT_FIRST_BLOCK_INDEX: i64 = 0;
 /// Trait defining the ways in which the wallet can interact with and manage
@@ -37,6 +36,19 @@ pub trait ViewOnlyAccountService {
         // TODO(cc) better to use String or &str here?
         account_id: &str,
     ) -> Result<ViewOnlyAccount, AccountServiceError>;
+
+    // List all view only accounts
+    fn list_view_only_accounts(&self) -> Result<Vec<ViewOnlyAccount>, AccountServiceError>;
+
+    /// Update the name for a view only account.
+    fn update_view_only_account_name(
+        &self,
+        account_id: &str,
+        name: &str,
+    ) -> Result<ViewOnlyAccount, AccountServiceError>;
+
+    /// Remove a view only account from the wallet.
+    fn remove_view_only_account(&self, account_id: &str) -> Result<bool, AccountServiceError>;
 }
 
 impl<T, FPR> ViewOnlyAccountService for WalletService<T, FPR>
@@ -57,9 +69,8 @@ where
             first_block_index,
         );
 
-        let account_id_hex =
-            ViewOnlyAccountID::from(&RistrettoPrivate::try_from(view_private_key.as_slice())?)
-                .to_string();
+        let decoded_key: RistrettoPrivate = mc_util_serial::decode(&view_private_key)?;
+        let account_id_hex = ViewOnlyAccountID::from(&decoded_key).to_string();
 
         // We record the local highest block index because that is the earliest we could
         // start scanning.
@@ -72,7 +83,7 @@ where
         conn.transaction(|| {
             Ok(ViewOnlyAccount::create(
                 &account_id_hex,
-                view_private_key,
+                decoded_key.to_bytes().to_vec(),
                 first_block_i,
                 import_block_index,
                 &name,
@@ -89,6 +100,35 @@ where
 
         let conn = self.wallet_db.get_conn()?;
         conn.transaction(|| Ok(ViewOnlyAccount::get(account_id, &conn)?))
+    }
+
+    fn list_view_only_accounts(&self) -> Result<Vec<ViewOnlyAccount>, AccountServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+        conn.transaction(|| Ok(ViewOnlyAccount::list_all(&conn)?))
+    }
+
+    fn update_view_only_account_name(
+        &self,
+        account_id: &str,
+        name: &str,
+    ) -> Result<ViewOnlyAccount, AccountServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+        conn.transaction(|| {
+            ViewOnlyAccount::get(account_id, &conn)?.update_name(name, &conn)?;
+            Ok(ViewOnlyAccount::get(account_id, &conn)?)
+        })
+    }
+
+    fn remove_view_only_account(&self, account_id: &str) -> Result<bool, AccountServiceError> {
+        log::info!(self.logger, "Deleting view only account {}", account_id,);
+
+        let conn = self.wallet_db.get_conn()?;
+        conn.transaction(|| {
+            let account = ViewOnlyAccount::get(account_id, &conn)?;
+            account.delete(&conn)?;
+
+            Ok(true)
+        })
     }
 }
 
@@ -129,10 +169,8 @@ mod tests {
         let name = "coins for cats";
         let first_block_index = 25;
 
-        let account_id_hex = ViewOnlyAccountID::from(
-            &RistrettoPrivate::try_from(view_private_key.as_slice()).unwrap(),
-        )
-        .to_string();
+        let account_id_hex =
+            "0a20928c29f916586c0fae22de17784b2b9ac573a1b1d75c2ba531838650ca0a5302".to_string();
 
         let view_only_account = service
             .import_view_only_account(
@@ -156,17 +194,17 @@ mod tests {
     }
 
     #[test_with_logger]
-    fn get_view_only_account(logger: Logger) {
+    fn service_view_only_account_crud(logger: Logger) {
         let current_block_height: i64 = 12;
         let service = get_test_service(logger, current_block_height);
 
         let view_private_key: Vec<u8> = [0; 32].to_vec();
         let name = "coins for cats";
         let first_block_index = 25;
-        let account_id_hex = ViewOnlyAccountID::from(
-            &RistrettoPrivate::try_from(view_private_key.as_slice()).unwrap(),
-        )
-        .to_string();
+        let account_id_hex =
+            "0a20928c29f916586c0fae22de17784b2b9ac573a1b1d75c2ba531838650ca0a5302".to_string();
+
+        // test import
 
         service
             .import_view_only_account(
@@ -179,15 +217,44 @@ mod tests {
         let expected_account = ViewOnlyAccount {
             id: 1,
             account_id_hex: account_id_hex.clone(),
-            view_private_key,
+            view_private_key: view_private_key.clone(),
             first_block_index,
             next_block_index: first_block_index,
             import_block_index: current_block_height - 1,
             name: name.to_string(),
         };
 
+        // test get
+
         let gotten_account = service.get_view_only_account(&account_id_hex).unwrap();
 
         assert_eq!(gotten_account, expected_account);
+
+        // test update name
+
+        let new_name = "coinzzzz";
+        let updated = service
+            .update_view_only_account_name(&account_id_hex, new_name)
+            .unwrap();
+        assert_eq!(updated.name, new_name.to_string());
+
+        // test list all
+
+        service
+            .import_view_only_account(
+                view_private_key.clone(),
+                name.to_string(),
+                Some(first_block_index),
+            )
+            .unwrap();
+
+        let all_accounts = service.list_view_only_accounts().unwrap();
+        assert_eq!(all_accounts.len(), 2);
+
+        // test remove account
+
+        assert!(service.remove_view_only_account(&account_id_hex).unwrap());
+        let not_found = service.get_view_only_account(&account_id_hex);
+        assert!(not_found.is_err());
     }
 }
