@@ -6,9 +6,10 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        models::{Account, AssignedSubaddress, TransactionLog, Txo},
+        models::{Account, AssignedSubaddress, TransactionLog, Txo, ViewOnlyAccount},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
+        view_only_account::ViewOnlyAccountModel,
         WalletDb,
     },
     error::SyncError,
@@ -116,11 +117,18 @@ pub fn sync_all_accounts(
         .expect("failed getting number of blocks");
 
     // Go over our list of accounts and see which ones need to process more blocks.
-    let accounts = {
+    let accounts: Vec<Account> = {
         let conn = &wallet_db
             .get_conn()
             .expect("Could not get connection to DB");
         Account::list_all(conn).expect("Failed getting accounts from database")
+    };
+
+    let view_only_accounts: Vec<ViewOnlyAccount> = {
+        let conn = &wallet_db
+            .get_conn()
+            .expect("Could not get connection to DB");
+        ViewOnlyAccount::list_all(conn).expect("Failed getting view only accounts from database")
     };
 
     for account in accounts {
@@ -131,6 +139,14 @@ pub fn sync_all_accounts(
         sync_account(ledger_db, wallet_db, &account.account_id_hex, logger)?;
     }
 
+    for account in view_only_accounts {
+        // If there are no new blocks for this account, don't do anything.
+        if account.next_block_index as u64 > num_blocks - 1 {
+            continue;
+        }
+        sync_view_only_account(ledger_db, wallet_db, &account.account_id_hex, logger)?;
+    }
+
     Ok(())
 }
 
@@ -138,6 +154,90 @@ pub fn sync_all_accounts(
 enum SyncStatus {
     ChunkFinished,
     NoMoreBlocks,
+}
+
+/// Sync a single view only account.
+pub fn sync_view_only_account(
+    ledger_db: &LedgerDB,
+    wallet_db: &WalletDb,
+    account_id_hex: &str,
+    logger: &Logger,
+) -> Result<(), SyncError> {
+    let conn = wallet_db.get_conn()?;
+
+    while let SyncStatus::ChunkFinished =
+        sync_view_only_account_next_chunk(ledger_db, &conn, logger, account_id_hex)?
+    {}
+
+    Ok(())
+}
+
+fn sync_view_only_account_next_chunk(
+    ledger_db: &LedgerDB,
+    conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    logger: &Logger,
+    account_id_hex: &str,
+) -> Result<SyncStatus, SyncError> {
+    conn.transaction::<SyncStatus, SyncError, _>(|| {
+        // Get the account data. If it is no longer available, the account has been
+        // removed and we can simply return.
+        let account = ViewOnlyAccount::get(account_id_hex, conn)?;
+        // TODO(cc) this should really be extrapolated and named.
+        // it's used in a few places.
+        let view_private_key: RistrettoPrivate = mc_util_serial::decode(account.view_private_key)?;
+
+        let start_time = Instant::now();
+        let first_block_index = account.next_block_index;
+        let mut last_block_index = account.next_block_index;
+
+        // Load transaction outputs for this chunk. View only accounts have a view
+        // private key but no spend private key, so they can scan TXOs but
+        // not key images
+        let mut tx_outs: Vec<(i64, TxOut)> = Vec::new();
+
+        for block_index in account.next_block_index..account.next_block_index + BLOCKS_CHUNK_SIZE {
+            let block_contents = match ledger_db.get_block_contents(block_index as u64) {
+                Ok(block_contents) => block_contents,
+                Err(mc_ledger_db::Error::NotFound) => {
+                    break;
+                }
+                Err(err) => {
+                    return Err(err.into());
+                }
+            };
+            last_block_index = block_index;
+
+            for tx_out in block_contents.outputs {
+                tx_outs.push((block_index, tx_out));
+            }
+
+            // Attempt to decode each transaction as received by this account.
+            let received_txos: Vec<_> = tx_outs
+                .into_par_iter()
+                .filter_map(|(block_index, tx_out)| {
+                    let amount = match decode_amount(&tx_out, view_private_key) {
+                        None => return None,
+                        Some(a) => a,
+                    };
+                    Some((block_index, tx_out, amount))
+                })
+                .collect();
+            let num_received_txos = received_txos.len();
+        }
+
+        // new bareebones TXO table: txo blob, account_id, amount
+        // look unto account lifecycle for testring examples. look for examples of
+        // sync_account in unit testing
+        // e2e: create account, create transaction for said account, export view key
+        // from that account, create view-only account with key, do key scanning
+        //
+
+        if num_blocks_synced < BLOCKS_CHUNK_SIZE {
+            Ok(SyncStatus::NoMoreBlocks)
+        } else {
+            Ok(SyncStatus::ChunkFinished)
+        }
+    })
 }
 
 /// Sync a single account.
@@ -211,7 +311,7 @@ fn sync_account_next_chunk(
         let received_txos: Vec<_> = tx_outs
             .into_par_iter()
             .filter_map(|(block_index, tx_out)| {
-                let amount = match decode_amount(&tx_out, &account_key) {
+                let amount = match decode_amount(&tx_out, account_key.view_private_key()) {
                     None => return None,
                     Some(a) => a,
                 };
@@ -339,12 +439,12 @@ fn sync_account_next_chunk(
 
 /// Attempt to decode the transaction amount. If we can't, then this transaction
 /// does not belong to this account.
-pub fn decode_amount(tx_out: &TxOut, account_key: &AccountKey) -> Option<u64> {
+pub fn decode_amount(tx_out: &TxOut, view_private_key: &RistrettoPrivate) -> Option<u64> {
     let tx_public_key = match RistrettoPublic::try_from(&tx_out.public_key) {
         Err(_) => return None,
         Ok(k) => k,
     };
-    let shared_secret = get_tx_out_shared_secret(account_key.view_private_key(), &tx_public_key);
+    let shared_secret = get_tx_out_shared_secret(view_private_key, &tx_public_key);
     match tx_out.amount.get_value(&shared_secret) {
         Ok((a, _)) => Some(a),
         Err(AmountError::InconsistentCommitment) => None,

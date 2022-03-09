@@ -72,6 +72,13 @@ pub trait ViewOnlyAccountModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
+    /// Update the next block index this account will need to sync.
+    fn update_next_block_index(
+        &self,
+        next_block_index: i64,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError>;
+
     /// Delete a view-only-account.
     fn delete(
         self,
@@ -160,11 +167,26 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::view_only_accounts::dsl::{
-            account_id_hex as dsl_account_id, view_only_accounts,
+            account_id_hex as dsl_account_id, name as dsl_name, view_only_accounts,
         };
 
         diesel::update(view_only_accounts.filter(dsl_account_id.eq(&self.account_id_hex)))
-            .set(crate::db::schema::view_only_accounts::name.eq(new_name))
+            .set(dsl_name.eq(new_name))
+            .execute(conn)?;
+        Ok(())
+    }
+
+    fn update_next_block_index(
+        &self,
+        next_block_index: i64,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::view_only_accounts::dsl::{
+            account_id_hex as dsl_account_id, next_block_index as dsl_next_block,
+            view_only_accounts,
+        };
+        diesel::update(view_only_accounts.filter(dsl_account_id.eq(&self.account_id_hex)))
+            .set(dsl_next_block.eq(next_block_index))
             .execute(conn)?;
         Ok(())
     }
@@ -245,11 +267,20 @@ mod tests {
 
         created.update_name(&new_name, &conn).unwrap();
 
+        // test updating next block index
+
+        let new_next_block = 100;
+
+        created
+            .update_next_block_index(new_next_block, &conn)
+            .unwrap();
+
         // test getting an account
 
         let updated: ViewOnlyAccount = ViewOnlyAccount::get(&account_id_hex, &conn).unwrap();
 
         assert_eq!(&updated.name, &new_name);
+        assert_eq!(updated.next_block_index, new_next_block);
 
         // test getting all accounts
 
