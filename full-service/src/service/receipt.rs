@@ -355,7 +355,7 @@ mod tests {
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![alice_public_address.clone()],
-            100 * MOB as u64,
+            100 * MOB,
             &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
@@ -487,7 +487,7 @@ mod tests {
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![alice_public_address.clone()],
-            100 * MOB as u64,
+            100 * MOB,
             &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
@@ -608,7 +608,7 @@ mod tests {
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![alice_public_address.clone()],
-            100 * MOB as u64,
+            100 * MOB,
             &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
@@ -671,7 +671,7 @@ mod tests {
 
         // Bob checks the status, and is expecting an incorrect value, from a
         // transaction with a different shared secret
-        receipt0.amount = Amount::new(18 * MOB as u64, &RistrettoPublic::from_random(&mut rng))
+        receipt0.amount = Amount::new(18 * MOB, &RistrettoPublic::from_random(&mut rng))
             .expect("Could not create Amount");
         let (status, _txo) = service
             .check_receipt_status(&bob_address, &receipt0)
@@ -690,7 +690,7 @@ mod tests {
         let shared_secret =
             get_tx_out_shared_secret(bob_account_key.view_private_key(), &public_key);
         receipt0.amount =
-            Amount::new(18 * MOB as u64, &shared_secret).expect("Could not create Amount");
+            Amount::new(18 * MOB, &shared_secret).expect("Could not create Amount");
         let (status, _txo) = service
             .check_receipt_status(&bob_address, &receipt0)
             .expect("Could not check status of receipt");
@@ -734,7 +734,7 @@ mod tests {
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![alice_public_address.clone()],
-            100 * MOB as u64,
+            100 * MOB,
             &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );

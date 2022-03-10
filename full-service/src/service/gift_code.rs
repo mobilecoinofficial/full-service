@@ -824,7 +824,7 @@ mod tests {
             .unwrap();
         assert_eq!(
             balance.unspent,
-            (98 * MOB - Mob::MINIMUM_FEE as i64) as u128
+            (98 * MOB - Mob::MINIMUM_FEE) as u128
         );
 
         // Verify that we can get the gift_code
@@ -894,7 +894,7 @@ mod tests {
             .unwrap();
         assert_eq!(
             bob_balance.unspent,
-            (2 * MOB - Mob::MINIMUM_FEE as i64) as u128
+            (2 * MOB - Mob::MINIMUM_FEE) as u128
         )
     }
 

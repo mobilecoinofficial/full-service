@@ -203,7 +203,7 @@ mod tests {
         let (txo_hex, _txo, _key_image) = create_test_received_txo(
             &account_key,
             0,
-            15_625_000 * MOB as u64,
+            15_625_000 * MOB,
             0,
             &mut rng,
             &wallet_db,

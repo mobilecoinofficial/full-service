@@ -44,7 +44,7 @@ use std::{
     time::Instant,
 };
 
-const BLOCKS_CHUNK_SIZE: i64 = 10_000;
+const BLOCKS_CHUNK_SIZE: u64 = 10_000;
 
 /// Sync thread - holds objects needed to cleanly terminate the sync thread.
 pub struct SyncThread {
@@ -177,13 +177,17 @@ fn sync_account_next_chunk(
         }
 
         let start_time = Instant::now();
-        let first_block_index = account.next_block_index;
-        let mut last_block_index = account.next_block_index;
+        let first_block_index = account.next_block_index as u64;
+        let mut last_block_index = account.next_block_index as u64 ;
 
         // Load transaction outputs and key images for this chunk.
-        let mut tx_outs: Vec<(i64, TxOut)> = Vec::new();
-        let mut key_images: Vec<(i64, KeyImage)> = Vec::new();
-        for block_index in account.next_block_index..account.next_block_index + BLOCKS_CHUNK_SIZE {
+        let mut tx_outs: Vec<(u64, TxOut)> = Vec::new();
+        let mut key_images: Vec<(u64, KeyImage)> = Vec::new();
+
+        let start = account.next_block_index as u64;
+        let end = start + BLOCKS_CHUNK_SIZE;
+        for block_index in start..end {
+            let block_index = block_index as u64;
             let block_contents = match ledger_db.get_block_contents(block_index as u64) {
                 Ok(block_contents) => block_contents,
                 Err(mc_ledger_db::Error::NotFound) => {
@@ -222,7 +226,7 @@ fn sync_account_next_chunk(
         for (block_index, tx_out, amount, subaddress_index, key_image) in received_txos {
             let txo_id = Txo::create_received(
                 tx_out.clone(),
-                subaddress_index.map(|i| i as i64),
+                subaddress_index,
                 key_image,
                 amount,
                 block_index,
@@ -266,7 +270,7 @@ fn sync_account_next_chunk(
                 account_id_hex,
                 assigned_subaddress_b58.as_deref(),
                 txo_id.as_str(),
-                amount as i64,
+                amount,
                 block_index as u64,
                 conn,
             )?;
@@ -275,7 +279,7 @@ fn sync_account_next_chunk(
         // Match key images to mark existing unspent transactions as spent.
         let unspent_key_images: HashMap<KeyImage, String> =
             Txo::list_unspent_or_pending_key_images(account_id_hex, conn)?;
-        let spent_txos: Vec<_> = key_images
+        let spent_txos: Vec<(u64, String)> = key_images
             .into_par_iter()
             .filter_map(|(block_index, key_image)| {
                 unspent_key_images
@@ -285,7 +289,7 @@ fn sync_account_next_chunk(
             .collect();
         let num_spent_txos = spent_txos.len();
         for (block_index, txo_id_hex) in &spent_txos {
-            Txo::update_to_spent(txo_id_hex, *block_index, conn)?;
+            Txo::update_to_spent(txo_id_hex, *block_index as u64, conn)?;
             TransactionLog::update_tx_logs_associated_with_txo_to_succeeded(
                 txo_id_hex,
                 *block_index,
@@ -461,7 +465,7 @@ mod tests {
         );
 
         // There should now be 16 txos. Let's get each one and verify the amount
-        let expected_value: u64 = 15_625_000 * MOB as u64;
+        let expected_value = 15_625_000 * MOB;
 
         let txos = service
             .list_txos(&AccountID::from(&account_key), None, None)
