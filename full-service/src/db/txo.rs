@@ -1387,6 +1387,67 @@ mod tests {
     }
 
     #[test_with_logger]
+    fn test_select_txos_locked_when_flagged(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        let (account_id_hex, _public_address_b58) = Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(1),
+            None,
+            None,
+            "Alice's Main Account",
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        // Create some TXOs for the account
+        // [100, 200, 300, ... 2000]
+        for i in 1..20 {
+            let (_txo_hex, _txo, _key_image) = create_test_received_txo(
+                &account_key,
+                0,
+                (100 * MOB * i) as u64, // 100.0 MOB * i
+                (144 + i) as u64,
+                &mut rng,
+                &wallet_db,
+            );
+        }
+
+        // sum(300..1800) to get a window where we had to increase past the smallest
+        // txos, and also fill up all 16 input slots.
+        Txo::select_unspent_txos_for_value(
+            &account_id_hex.to_string(),
+            16800 * MOB,
+            None,
+            Some(100),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        let res = Txo::select_unspent_txos_for_value(
+            &account_id_hex.to_string(),
+            16800 * MOB,
+            None,
+            Some(100),
+            &wallet_db.get_conn().unwrap(),
+        );
+
+        match res {
+            Err(WalletDbError::InsufficientFundsUnderMaxSpendable(_)) => {}
+            Ok(_) => panic!("Should error with InsufficientFundsUnderMaxSpendable"),
+            Err(_) => panic!("Should error with InsufficientFundsUnderMaxSpendable"),
+        }
+    }
+
+    #[test_with_logger]
     fn test_select_txos_fragmented(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
