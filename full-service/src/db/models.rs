@@ -4,7 +4,7 @@
 
 use super::schema::{
     accounts, assigned_subaddresses, gift_codes, transaction_logs, transaction_txo_types, txos,
-    view_only_accounts,
+    view_only_accounts, view_only_txos,
 };
 
 use serde::Serialize;
@@ -218,6 +218,38 @@ pub struct NewTxo<'a> {
     pub recipient_public_address_b58: String,
     pub minted_account_id_hex: Option<String>,
     pub received_account_id_hex: Option<String>,
+}
+
+/// TXOs that can be decrypted with the view-pirvate-key for a
+/// view-only-account.
+#[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug, Associations)]
+#[belongs_to(ViewOnlyAccount, foreign_key = "view_only_account_id_hex")]
+#[primary_key(id)]
+pub struct ViewOnlyTxo {
+    /// Primary key
+    pub id: i32,
+    /// id derrived from txo contents - will be the same for a given txo across
+    /// databases
+    pub txo_id_hex: String,
+    /// The serialized TxOut.
+    pub txo: Vec<u8>,
+    /// The value of this transaction output, in picoMob.
+    pub value: i64,
+    /// account_id_hex of the view_only_account that received this txo
+    pub view_only_account_id_hex: String,
+    // whether or not this txo has been spent
+    pub spent: bool,
+}
+
+/// A structure that can be inserted to create a new entity in the
+/// `view_only_txos` table.
+#[derive(Insertable)]
+#[table_name = "view_only_txos"]
+pub struct NewViewOnlyTxo<'a> {
+    pub txo: &'a [u8],
+    pub txo_id_hex: &'a str,
+    pub value: i64,
+    pub view_only_account_id_hex: &'a str,
 }
 
 /// A subaddress given to a particular contact, for the purpose of tracking

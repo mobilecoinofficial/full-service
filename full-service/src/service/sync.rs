@@ -20,7 +20,7 @@ use mc_common::{
     logger::{log, Logger},
     HashMap,
 };
-use mc_crypto_keys::RistrettoPublic;
+use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_transaction_core::{
     get_tx_out_shared_secret,
@@ -184,7 +184,7 @@ fn sync_view_only_account_next_chunk(
         let account = ViewOnlyAccount::get(account_id_hex, conn)?;
         // TODO(cc) this should really be extrapolated and named.
         // it's used in a few places.
-        let view_private_key: RistrettoPrivate = mc_util_serial::decode(account.view_private_key)?;
+        let view_private_key: RistrettoPrivate = mc_util_serial::decode(&account.view_private_key)?;
 
         let start_time = Instant::now();
         let first_block_index = account.next_block_index;
@@ -194,6 +194,8 @@ fn sync_view_only_account_next_chunk(
         // private key but no spend private key, so they can scan TXOs but
         // not key images
         let mut tx_outs: Vec<(i64, TxOut)> = Vec::new();
+
+        let num_blocks_synced = last_block_index - first_block_index + 1;
 
         for block_index in account.next_block_index..account.next_block_index + BLOCKS_CHUNK_SIZE {
             let block_contents = match ledger_db.get_block_contents(block_index as u64) {
@@ -212,17 +214,17 @@ fn sync_view_only_account_next_chunk(
             }
 
             // Attempt to decode each transaction as received by this account.
-            let received_txos: Vec<_> = tx_outs
-                .into_par_iter()
-                .filter_map(|(block_index, tx_out)| {
-                    let amount = match decode_amount(&tx_out, view_private_key) {
-                        None => return None,
-                        Some(a) => a,
-                    };
-                    Some((block_index, tx_out, amount))
-                })
-                .collect();
-            let num_received_txos = received_txos.len();
+            // let received_txos: Vec<_> = tx_outs
+            //     .into_par_iter()
+            //     .filter_map(|(block_index, tx_out)| {
+            //         let amount = match decode_amount(&tx_out,
+            // &view_private_key) {             None => return None,
+            //             Some(a) => a,
+            //         };
+            //         Some((block_index, tx_out, amount))
+            //     })
+            //     .collect();
+            // let num_received_txos = received_txos.len();
         }
 
         // new bareebones TXO table: txo blob, account_id, amount
@@ -230,7 +232,6 @@ fn sync_view_only_account_next_chunk(
         // sync_account in unit testing
         // e2e: create account, create transaction for said account, export view key
         // from that account, create view-only account with key, do key scanning
-        //
 
         if num_blocks_synced < BLOCKS_CHUNK_SIZE {
             Ok(SyncStatus::NoMoreBlocks)
