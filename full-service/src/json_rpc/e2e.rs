@@ -898,8 +898,6 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let tx_proposal = result.get("tx_proposal").unwrap();
-        let tx = tx_proposal.get("tx").unwrap();
-        let tx_prefix = tx.get("prefix").unwrap();
 
         // Check that the value was recorded correctly.
         let transaction_log = result.get("transaction_log").unwrap();

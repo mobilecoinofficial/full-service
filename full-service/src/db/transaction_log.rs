@@ -359,7 +359,7 @@ impl TransactionLogModel for TransactionLog {
             account_id_hex,
             assigned_subaddress_b58,
             value: amount as i64, // We store numbers between 2^63 and 2^64 as negative.
-            fee: None, // Impossible to recover fee from received transaction
+            fee: None,            // Impossible to recover fee from received transaction
             status: TX_STATUS_SUCCEEDED,
             sent_time: None, // NULL for received
             submitted_block_index: None,
@@ -630,7 +630,7 @@ mod tests {
                 &account_id.to_string(),
                 assigned_subaddress_b58.as_ref().map(|s| s.as_str()),
                 &txo_id_hex,
-                (100 * i * MOB),
+                100 * i * MOB,
                 144,
                 &wallet_db.get_conn().unwrap(),
             )
@@ -693,9 +693,7 @@ mod tests {
         // Build a transaction
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
-        builder
-            .add_recipient(recipient.clone(), 50 * MOB)
-            .unwrap();
+        builder.add_recipient(recipient.clone(), 50 * MOB).unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(None).unwrap();
         let tx_proposal = builder.build().unwrap();
@@ -940,7 +938,7 @@ mod tests {
                 let (txo_id_hex, _txo, _key_image) = create_test_received_txo(
                     &account_key,
                     0, // All to the same subaddress
-                    (100 * i * MOB),
+                    100 * i * MOB,
                     144,
                     &mut rng,
                     &wallet_db,
@@ -950,7 +948,7 @@ mod tests {
                     &account_id.to_string(),
                     assigned_subaddress_b58.as_ref().map(|s| s.as_str()),
                     &txo_id_hex,
-                    (100 * i * MOB),
+                    100 * i * MOB,
                     144,
                     &wallet_db.get_conn().unwrap(),
                 )

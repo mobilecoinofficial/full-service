@@ -178,7 +178,7 @@ fn sync_account_next_chunk(
 
         let start_time = Instant::now();
         let first_block_index = account.next_block_index as u64;
-        let mut last_block_index = account.next_block_index as u64 ;
+        let mut last_block_index = account.next_block_index as u64;
 
         // Load transaction outputs and key images for this chunk.
         let mut tx_outs: Vec<(u64, TxOut)> = Vec::new();

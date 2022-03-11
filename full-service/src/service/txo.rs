@@ -306,10 +306,7 @@ mod tests {
         assert_eq!(balance.unspent, 0);
         assert_eq!(balance.pending, 100 * MOB as u128);
         assert_eq!(balance.spent, 0);
-        assert_eq!(
-            balance.secreted,
-            (100 * MOB - Mob::MINIMUM_FEE) as u128
-        );
+        assert_eq!(balance.secreted, (100 * MOB - Mob::MINIMUM_FEE) as u128);
         assert_eq!(balance.orphaned, 0);
     }
 }

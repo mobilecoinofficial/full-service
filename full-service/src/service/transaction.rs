@@ -626,10 +626,7 @@ mod tests {
         let balance = service
             .get_balance_for_account(&AccountID(alice.account_id_hex.clone()))
             .unwrap();
-        assert_eq!(
-            balance.unspent,
-            (58 * MOB - Mob::MINIMUM_FEE) as u128
-        );
+        assert_eq!(balance.unspent, (58 * MOB - Mob::MINIMUM_FEE) as u128);
 
         // Bob's balance should be = output_txo_value
         let bob_balance = service
@@ -669,19 +666,13 @@ mod tests {
         let alice_balance = service
             .get_balance_for_account(&AccountID(alice.account_id_hex))
             .unwrap();
-        assert_eq!(
-            alice_balance.unspent,
-            (66 * MOB - Mob::MINIMUM_FEE) as u128
-        );
+        assert_eq!(alice_balance.unspent, (66 * MOB - Mob::MINIMUM_FEE) as u128);
 
         // Bob's balance should be = output_txo_value
         let bob_balance = service
             .get_balance_for_account(&AccountID(bob.account_id_hex))
             .unwrap();
-        assert_eq!(
-            bob_balance.unspent,
-            (34 * MOB - Mob::MINIMUM_FEE) as u128
-        );
+        assert_eq!(bob_balance.unspent, (34 * MOB - Mob::MINIMUM_FEE) as u128);
     }
 
     // Building a transaction for an invalid public address should fail.

@@ -689,8 +689,7 @@ mod tests {
             .expect("Could not get ristretto public from compressed");
         let shared_secret =
             get_tx_out_shared_secret(bob_account_key.view_private_key(), &public_key);
-        receipt0.amount =
-            Amount::new(18 * MOB, &shared_secret).expect("Could not create Amount");
+        receipt0.amount = Amount::new(18 * MOB, &shared_secret).expect("Could not create Amount");
         let (status, _txo) = service
             .check_receipt_status(&bob_address, &receipt0)
             .expect("Could not check status of receipt");
