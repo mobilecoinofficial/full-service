@@ -203,21 +203,21 @@ where
             builder.add_recipient(recipient, value.parse::<u64>()?)?;
         }
 
+        if let Some(tombstone) = tombstone_block {
+            builder.set_tombstone(tombstone.parse::<u64>()?)?;
+        } else {
+            builder.set_tombstone(0)?;
+        }
+
         if let Some(inputs) = input_txo_ids {
-            builder.set_txos(inputs)?;
+            builder.set_txos(inputs, log_tx_proposal.unwrap_or_default())?;
         } else {
             let max_spendable = if let Some(msv) = max_spendable_value {
                 Some(msv.parse::<u64>()?)
             } else {
                 None
             };
-            builder.select_txos(max_spendable)?;
-        }
-
-        if let Some(tombstone) = tombstone_block {
-            builder.set_tombstone(tombstone.parse::<u64>()?)?;
-        } else {
-            builder.set_tombstone(0)?;
+            builder.select_txos(max_spendable, log_tx_proposal.unwrap_or_default())?;
         }
 
         builder.set_fee(match fee {
