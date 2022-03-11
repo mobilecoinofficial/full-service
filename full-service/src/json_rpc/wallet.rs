@@ -780,8 +780,8 @@ where
             offset,
             limit,
         } => {
-            let o = offset.parse::<i64>().map_err(format_error)?;
-            let l = limit.parse::<i64>().map_err(format_error)?;
+            let o = offset.parse::<u64>().map_err(format_error)?;
+            let l = limit.parse::<u64>().map_err(format_error)?;
 
             if l > 1000 {
                 return Err(format_error("limit must not exceed 1000"));

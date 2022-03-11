@@ -161,7 +161,7 @@ pub trait AccountModel {
     /// Update the next block index this account will need to sync.
     fn update_next_block_index(
         &self,
-        next_block_index: i64,
+        next_block_index: u64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
@@ -428,12 +428,12 @@ impl AccountModel for Account {
 
     fn update_next_block_index(
         &self,
-        next_block_index: i64,
+        next_block_index: u64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
         diesel::update(accounts.filter(account_id_hex.eq(&self.account_id_hex)))
-            .set(crate::db::schema::accounts::next_block_index.eq(next_block_index))
+            .set(crate::db::schema::accounts::next_block_index.eq(next_block_index as i64))
             .execute(conn)?;
         Ok(())
     }

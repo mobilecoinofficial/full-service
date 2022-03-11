@@ -146,7 +146,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         self.inputs = Txo::select_unspent_txos_for_value(
             &self.account_id_hex,
             total_value,
-            max_spendable_value.map(|v| v as i64),
+            max_spendable_value,
             &self.wallet_db.get_conn()?,
         )?;
 
@@ -560,12 +560,7 @@ mod tests {
         let account_key = random_account_with_seed_values(
             &wallet_db,
             &mut ledger_db,
-            &vec![
-                11 * MOB as u64,
-                11 * MOB as u64,
-                11 * MOB as u64,
-                111111 * MOB as u64,
-            ],
+            &vec![11 * MOB, 11 * MOB, 11 * MOB, 111111 * MOB],
             &mut rng,
             &logger,
         );
@@ -576,7 +571,7 @@ mod tests {
 
         // Send value specifically for your smallest Txo size. Should take 2 inputs
         // and also make change.
-        let value = 11 * MOB as u64;
+        let value = 11 * MOB;
         builder.add_recipient(recipient.clone(), value).unwrap();
 
         // Select the txos for the recipient
@@ -609,11 +604,7 @@ mod tests {
         let account_key = random_account_with_seed_values(
             &wallet_db,
             &mut ledger_db,
-            &vec![
-                7_000_000 * MOB as u64,
-                7_000_000 * MOB as u64,
-                7_000_000 * MOB as u64,
-            ],
+            &vec![7_000_000 * MOB, 7_000_000 * MOB, 7_000_000 * MOB],
             &mut rng,
             &logger,
         );
@@ -659,7 +650,7 @@ mod tests {
         let account_key = random_account_with_seed_values(
             &wallet_db,
             &mut ledger_db,
-            &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
+            &vec![70 * MOB, 80 * MOB, 90 * MOB],
             &mut rng,
             &logger,
         );
@@ -732,7 +723,7 @@ mod tests {
         let account_key = random_account_with_seed_values(
             &wallet_db,
             &mut ledger_db,
-            &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
+            &vec![70 * MOB, 80 * MOB, 90 * MOB],
             &mut rng,
             &logger,
         );
@@ -741,9 +732,7 @@ mod tests {
             builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
 
         // Setting value to exactly the input will fail because you need funds for fee
-        builder
-            .add_recipient(recipient.clone(), 80 * MOB as u64)
-            .unwrap();
+        builder.add_recipient(recipient.clone(), 80 * MOB).unwrap();
 
         // Test that selecting Txos with max_spendable < all our txo values fails
         match builder.select_txos(Some(10)) {
@@ -754,7 +743,7 @@ mod tests {
 
         // We should be able to try again, with max_spendable at 70, but will not hit
         // our outlay target (80 * MOB)
-        match builder.select_txos(Some(70 * MOB as u64)) {
+        match builder.select_txos(Some(70 * MOB)) {
             Ok(_) => panic!("Should not be able to construct tx when max_spendable < all txos"),
             Err(WalletTransactionBuilderError::WalletDb(
                 WalletDbError::InsufficientFundsUnderMaxSpendable(_),
@@ -764,12 +753,12 @@ mod tests {
 
         // Now, we should succeed if we set max_spendable = 80 * MOB, because we will
         // pick up both 70 and 80
-        builder.select_txos(Some(80 * MOB as u64)).unwrap();
+        builder.select_txos(Some(80 * MOB)).unwrap();
         builder.set_tombstone(0).unwrap();
         let proposal = builder.build().unwrap();
         assert_eq!(proposal.outlays.len(), 1);
         assert_eq!(proposal.outlays[0].receiver, recipient);
-        assert_eq!(proposal.outlays[0].value, 80 * MOB as u64);
+        assert_eq!(proposal.outlays[0].value, 80 * MOB);
         assert_eq!(proposal.tx.prefix.inputs.len(), 2); // uses both 70 and 80
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
         assert_eq!(proposal.tx.prefix.outputs.len(), 2); // self and change
@@ -791,7 +780,7 @@ mod tests {
         let account_key = random_account_with_seed_values(
             &wallet_db,
             &mut ledger_db,
-            &vec![70 * MOB as u64],
+            &vec![70 * MOB],
             &mut rng,
             &logger,
         );
@@ -799,9 +788,7 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
 
-        builder
-            .add_recipient(recipient.clone(), 10 * MOB as u64)
-            .unwrap();
+        builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
         builder.select_txos(None).unwrap();
 
         // Sanity check that our ledger is the height we think it is
@@ -817,9 +804,7 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
 
-        builder
-            .add_recipient(recipient.clone(), 10 * MOB as u64)
-            .unwrap();
+        builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
         builder.select_txos(None).unwrap();
 
         // Set to default
@@ -834,9 +819,7 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
 
-        builder
-            .add_recipient(recipient.clone(), 10 * MOB as u64)
-            .unwrap();
+        builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
         builder.select_txos(None).unwrap();
 
         // Set to default
@@ -864,7 +847,7 @@ mod tests {
         let account_key = random_account_with_seed_values(
             &wallet_db,
             &mut ledger_db,
-            &vec![70 * MOB as u64],
+            &vec![70 * MOB],
             &mut rng,
             &logger,
         );
@@ -872,9 +855,7 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
 
-        builder
-            .add_recipient(recipient.clone(), 10 * MOB as u64)
-            .unwrap();
+        builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
         builder.select_txos(None).unwrap();
         builder.set_tombstone(0).unwrap();
 
@@ -886,9 +867,7 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
 
-        builder
-            .add_recipient(recipient.clone(), 10 * MOB as u64)
-            .unwrap();
+        builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
         builder.select_txos(None).unwrap();
         builder.set_tombstone(0).unwrap();
         match builder.set_fee(0) {
@@ -905,9 +884,7 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
 
-        builder
-            .add_recipient(recipient.clone(), 10 * MOB as u64)
-            .unwrap();
+        builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
         builder.select_txos(None).unwrap();
         builder.set_tombstone(0).unwrap();
         match builder.set_fee(0) {
@@ -920,9 +897,7 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
 
-        builder
-            .add_recipient(recipient.clone(), 10 * MOB as u64)
-            .unwrap();
+        builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
         builder.select_txos(None).unwrap();
         builder.set_tombstone(0).unwrap();
         builder.set_fee(Mob::MINIMUM_FEE * 10).unwrap();
@@ -946,7 +921,7 @@ mod tests {
         let account_key = random_account_with_seed_values(
             &wallet_db,
             &mut ledger_db,
-            &vec![70 * MOB as u64],
+            &vec![70 * MOB],
             &mut rng,
             &logger,
         );
@@ -955,7 +930,7 @@ mod tests {
             builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
 
         // Set value to consume the whole TXO and not produce change
-        let value = 70 * MOB as u64 - Mob::MINIMUM_FEE;
+        let value = 70 * MOB - Mob::MINIMUM_FEE;
         builder.add_recipient(recipient.clone(), value).unwrap();
         builder.select_txos(None).unwrap();
         builder.set_tombstone(0).unwrap();
@@ -988,7 +963,7 @@ mod tests {
         let account_key = random_account_with_seed_values(
             &wallet_db,
             &mut ledger_db,
-            &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
+            &vec![70 * MOB, 80 * MOB, 90 * MOB],
             &mut rng,
             &logger,
         );
@@ -996,18 +971,10 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
 
-        builder
-            .add_recipient(recipient.clone(), 10 * MOB as u64)
-            .unwrap();
-        builder
-            .add_recipient(recipient.clone(), 20 * MOB as u64)
-            .unwrap();
-        builder
-            .add_recipient(recipient.clone(), 30 * MOB as u64)
-            .unwrap();
-        builder
-            .add_recipient(recipient.clone(), 40 * MOB as u64)
-            .unwrap();
+        builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
+        builder.add_recipient(recipient.clone(), 20 * MOB).unwrap();
+        builder.add_recipient(recipient.clone(), 30 * MOB).unwrap();
+        builder.add_recipient(recipient.clone(), 40 * MOB).unwrap();
 
         builder.select_txos(None).unwrap();
         builder.set_tombstone(0).unwrap();
@@ -1017,13 +984,13 @@ mod tests {
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
         assert_eq!(proposal.outlays.len(), 4);
         assert_eq!(proposal.outlays[0].receiver, recipient);
-        assert_eq!(proposal.outlays[0].value, 10 * MOB as u64);
+        assert_eq!(proposal.outlays[0].value, 10 * MOB);
         assert_eq!(proposal.outlays[1].receiver, recipient);
-        assert_eq!(proposal.outlays[1].value, 20 * MOB as u64);
+        assert_eq!(proposal.outlays[1].value, 20 * MOB);
         assert_eq!(proposal.outlays[2].receiver, recipient);
-        assert_eq!(proposal.outlays[2].value, 30 * MOB as u64);
+        assert_eq!(proposal.outlays[2].value, 30 * MOB);
         assert_eq!(proposal.outlays[3].receiver, recipient);
-        assert_eq!(proposal.outlays[3].value, 40 * MOB as u64);
+        assert_eq!(proposal.outlays[3].value, 40 * MOB);
         assert_eq!(proposal.tx.prefix.inputs.len(), 2);
         assert_eq!(proposal.tx.prefix.outputs.len(), 5); // outlays + change
     }
@@ -1045,10 +1012,10 @@ mod tests {
             &wallet_db,
             &mut ledger_db,
             &vec![
-                7_000_000 * MOB as u64,
-                7_000_000 * MOB as u64,
-                7_000_000 * MOB as u64,
-                7_000_000 * MOB as u64,
+                7_000_000 * MOB,
+                7_000_000 * MOB,
+                7_000_000 * MOB,
+                7_000_000 * MOB,
             ],
             &mut rng,
             &logger,
@@ -1058,13 +1025,13 @@ mod tests {
             builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
 
         builder
-            .add_recipient(recipient.clone(), 7_000_000 * MOB as u64)
+            .add_recipient(recipient.clone(), 7_000_000 * MOB)
             .unwrap();
         builder
-            .add_recipient(recipient.clone(), 7_000_000 * MOB as u64)
+            .add_recipient(recipient.clone(), 7_000_000 * MOB)
             .unwrap();
         builder
-            .add_recipient(recipient.clone(), 7_000_000 * MOB as u64)
+            .add_recipient(recipient.clone(), 7_000_000 * MOB)
             .unwrap();
 
         match builder.select_txos(None) {
@@ -1090,7 +1057,7 @@ mod tests {
         let account_key = random_account_with_seed_values(
             &wallet_db,
             &mut ledger_db,
-            &vec![70 * MOB as u64, 80 * MOB as u64, 90 * MOB as u64],
+            &vec![70 * MOB, 80 * MOB, 90 * MOB],
             &mut rng,
             &logger,
         );
@@ -1098,14 +1065,12 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
 
-        builder
-            .add_recipient(recipient.clone(), 10 * MOB as u64)
-            .unwrap();
+        builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
 
         // Create a new recipient
         let second_recipient = AccountKey::random(&mut rng).subaddress(0);
         builder
-            .add_recipient(second_recipient.clone(), 40 * MOB as u64)
+            .add_recipient(second_recipient.clone(), 40 * MOB)
             .unwrap();
     }
 }

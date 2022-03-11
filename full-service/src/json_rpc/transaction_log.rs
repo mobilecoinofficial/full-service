@@ -147,9 +147,7 @@ impl TxoAbbrev {
         Self {
             txo_id_hex: txo.txo_id_hex.clone(),
             recipient_address_id: txo.recipient_public_address_b58.clone(),
-            value_pmob: txo.value.to_string(),
+            value_pmob: (txo.value as u64).to_string(),
         }
     }
 }
-
-// FIXME: Test display for >i64::MAX
