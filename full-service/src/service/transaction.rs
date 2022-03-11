@@ -393,7 +393,7 @@ mod tests {
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![alice_public_address.clone()],
-            100 * MOB as u64,
+            100 * MOB,
             &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
@@ -534,7 +534,7 @@ mod tests {
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![alice_public_address.clone()],
-            100 * MOB as u64,
+            100 * MOB,
             &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
@@ -604,7 +604,7 @@ mod tests {
             .map(|t| Txo::get(&t.txo_id_hex, &service.wallet_db.get_conn().unwrap()).unwrap())
             .collect::<Vec<Txo>>();
         assert_eq!(secreted.len(), 1);
-        assert_eq!(secreted[0].value, 42 * MOB);
+        assert_eq!(secreted[0].value as u64, 42 * MOB);
 
         let change = transaction_txos
             .change
@@ -612,7 +612,7 @@ mod tests {
             .map(|t| Txo::get(&t.txo_id_hex, &service.wallet_db.get_conn().unwrap()).unwrap())
             .collect::<Vec<Txo>>();
         assert_eq!(change.len(), 1);
-        assert_eq!(change[0].value, 58 * MOB - Mob::MINIMUM_FEE as i64);
+        assert_eq!(change[0].value as u64, 58 * MOB - Mob::MINIMUM_FEE);
 
         let inputs = transaction_txos
             .inputs
@@ -620,16 +620,13 @@ mod tests {
             .map(|t| Txo::get(&t.txo_id_hex, &service.wallet_db.get_conn().unwrap()).unwrap())
             .collect::<Vec<Txo>>();
         assert_eq!(inputs.len(), 1);
-        assert_eq!(inputs[0].value, 100 * MOB);
+        assert_eq!(inputs[0].value as u64, 100 * MOB);
 
         // Verify balance for Alice = original balance - fee - txo_value
         let balance = service
             .get_balance_for_account(&AccountID(alice.account_id_hex.clone()))
             .unwrap();
-        assert_eq!(
-            balance.unspent,
-            (58 * MOB - Mob::MINIMUM_FEE as i64) as u128
-        );
+        assert_eq!(balance.unspent, (58 * MOB - Mob::MINIMUM_FEE) as u128);
 
         // Bob's balance should be = output_txo_value
         let bob_balance = service
@@ -669,19 +666,13 @@ mod tests {
         let alice_balance = service
             .get_balance_for_account(&AccountID(alice.account_id_hex))
             .unwrap();
-        assert_eq!(
-            alice_balance.unspent,
-            (66 * MOB - Mob::MINIMUM_FEE as i64) as u128
-        );
+        assert_eq!(alice_balance.unspent, (66 * MOB - Mob::MINIMUM_FEE) as u128);
 
         // Bob's balance should be = output_txo_value
         let bob_balance = service
             .get_balance_for_account(&AccountID(bob.account_id_hex))
             .unwrap();
-        assert_eq!(
-            bob_balance.unspent,
-            (34 * MOB - Mob::MINIMUM_FEE as i64) as u128
-        );
+        assert_eq!(bob_balance.unspent, (34 * MOB - Mob::MINIMUM_FEE) as u128);
     }
 
     // Building a transaction for an invalid public address should fail.
@@ -711,7 +702,7 @@ mod tests {
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![alice_public_address.clone()],
-            100 * MOB as u64,
+            100 * MOB,
             &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );

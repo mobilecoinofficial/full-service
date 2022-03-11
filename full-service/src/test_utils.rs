@@ -50,10 +50,10 @@ use tempdir::TempDir;
 
 embed_migrations!("migrations/");
 
-pub const MOB: i64 = 1_000_000_000_000;
+pub const MOB: u64 = 1_000_000_000_000;
 
 /// The amount each recipient gets in the test ledger.
-pub const DEFAULT_PER_RECIPIENT_AMOUNT: u64 = 5_000 * MOB as u64;
+pub const DEFAULT_PER_RECIPIENT_AMOUNT: u64 = 5_000 * MOB;
 
 pub struct WalletDbTestContext {
     base_url: String,
@@ -453,10 +453,10 @@ pub fn create_test_received_txo(
 
     let txo_id_hex = Txo::create_received(
         txo.clone(),
-        Some(recipient_subaddress_index as i64),
+        Some(recipient_subaddress_index),
         Some(key_image),
         value,
-        received_block_index as i64,
+        received_block_index,
         &AccountID::from(account_key).to_string(),
         &wallet_db.get_conn().unwrap(),
     )
@@ -474,7 +474,7 @@ pub fn create_test_minted_and_change_txos(
     wallet_db: WalletDb,
     ledger_db: LedgerDB,
     logger: Logger,
-) -> ((String, i64), (String, i64)) {
+) -> ((String, u64), (String, u64)) {
     let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
     // Use the builder to create valid TxOuts for this account
@@ -524,8 +524,8 @@ pub fn create_test_minted_and_change_txos(
     // Change starts as an output, and is updated to change when scanned.
     assert_eq!(processed_change.txo_type, TXO_USED_AS_CHANGE);
     (
-        (processed_output.txo_id_hex, processed_output.value),
-        (processed_change.txo_id_hex, processed_change.value),
+        (processed_output.txo_id_hex, processed_output.value as u64),
+        (processed_change.txo_id_hex, processed_change.value as u64),
     )
 }
 

@@ -67,8 +67,8 @@ pub trait TxoService {
     fn list_txos(
         &self,
         account_id: &AccountID,
-        limit: Option<i64>,
-        offset: Option<i64>,
+        limit: Option<u64>,
+        offset: Option<u64>,
     ) -> Result<Vec<Txo>, TxoServiceError>;
 
     /// Get a Txo from the wallet.
@@ -96,8 +96,8 @@ where
     fn list_txos(
         &self,
         account_id: &AccountID,
-        limit: Option<i64>,
-        offset: Option<i64>,
+        limit: Option<u64>,
+        offset: Option<u64>,
     ) -> Result<Vec<Txo>, TxoServiceError> {
         let conn = self.wallet_db.get_conn()?;
         conn.transaction(|| {
@@ -214,7 +214,7 @@ mod tests {
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![alice_public_address.clone()],
-            100 * MOB as u64,
+            100 * MOB,
             &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
@@ -295,8 +295,8 @@ mod tests {
             .filter(|txo| txo.minted_account_id_hex.is_some())
             .collect();
         assert_eq!(minted.len(), 2);
-        let minted_value_set = HashSet::from_iter(minted.iter().map(|m| m.value.clone()));
-        assert!(minted_value_set.contains(&(58 * MOB - Mob::MINIMUM_FEE as i64)));
+        let minted_value_set = HashSet::from_iter(minted.iter().map(|m| m.value as u64));
+        assert!(minted_value_set.contains(&(58 * MOB - Mob::MINIMUM_FEE)));
         assert!(minted_value_set.contains(&(42 * MOB)));
 
         // Our balance should reflect the various statuses of our txos
@@ -306,10 +306,7 @@ mod tests {
         assert_eq!(balance.unspent, 0);
         assert_eq!(balance.pending, 100 * MOB as u128);
         assert_eq!(balance.spent, 0);
-        assert_eq!(
-            balance.secreted,
-            (100 * MOB - Mob::MINIMUM_FEE as i64) as u128
-        );
+        assert_eq!(balance.secreted, (100 * MOB - Mob::MINIMUM_FEE) as u128);
         assert_eq!(balance.orphaned, 0);
     }
 }
