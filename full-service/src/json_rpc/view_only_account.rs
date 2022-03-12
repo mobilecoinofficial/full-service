@@ -59,7 +59,7 @@ impl TryFrom<&db::models::ViewOnlyAccount> for ViewOnlyAccountSecrets {
     // between account and view-only-account
     fn try_from(src: &db::models::ViewOnlyAccount) -> Result<ViewOnlyAccountSecrets, String> {
         Ok(ViewOnlyAccountSecrets {
-            view_private_key: hex::encode(mc_util_serial::encode(&src.view_private_key)),
+            view_private_key: hex::encode(&src.view_private_key),
         })
     }
 }

@@ -42,6 +42,17 @@ pub trait ViewOnlyTxoModel {
         &self,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
+
+    /// list view only txos for a view only account
+    ///
+    /// Returns:
+    /// * Vec<ViewOnlyTxo>
+    fn list_for_account(
+        account_id_hex: &str,
+        offset: Option<i64>,
+        limit: Option<i64>,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<ViewOnlyTxo>, WalletDbError>;
 }
 
 impl ViewOnlyTxoModel for ViewOnlyTxo {
@@ -94,6 +105,26 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         Ok(txo)
     }
 
+    fn list_for_account(
+        account_id_hex: &str,
+        offset: Option<i64>,
+        limit: Option<i64>,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<Vec<ViewOnlyTxo>, WalletDbError> {
+        use crate::db::schema::view_only_txos;
+
+        let txos_query = view_only_txos::table
+            .filter(view_only_txos::view_only_account_id_hex.eq(account_id_hex));
+
+        let txos: Vec<ViewOnlyTxo> = if let (Some(o), Some(l)) = (offset, limit) {
+            txos_query.offset(o).limit(l).load(conn)?
+        } else {
+            txos_query.load(conn)?
+        };
+
+        Ok(txos)
+    }
+
     fn mark_spent(
         &self,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
@@ -112,10 +143,7 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::{
-        create_test_received_txo, create_test_txo_for_recipient, get_resolver_factory,
-        get_test_ledger, WalletDbTestContext,
-    };
+    use crate::test_utils::WalletDbTestContext;
 
     use crate::db::models::ViewOnlyAccount;
 
@@ -155,7 +183,7 @@ mod tests {
 
         let foo = ViewOnlyAccount::create(
             view_only_account_id,
-            [1, 2, 3].to_vec(),
+            &RistrettoPrivate::from_random(&mut rng),
             0 as i64,
             0 as i64,
             "catcoin_name",

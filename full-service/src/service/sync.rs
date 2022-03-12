@@ -6,10 +6,11 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        models::{Account, AssignedSubaddress, TransactionLog, Txo, ViewOnlyAccount},
+        models::{Account, AssignedSubaddress, TransactionLog, Txo, ViewOnlyAccount, ViewOnlyTxo},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
         view_only_account::ViewOnlyAccountModel,
+        view_only_txo::ViewOnlyTxoModel,
         WalletDb,
     },
     error::SyncError,
@@ -178,26 +179,41 @@ fn sync_view_only_account_next_chunk(
     logger: &Logger,
     account_id_hex: &str,
 ) -> Result<SyncStatus, SyncError> {
+    println!("AT L182");
+
     conn.transaction::<SyncStatus, SyncError, _>(|| {
         // Get the account data. If it is no longer available, the account has been
         // removed and we can simply return.
-        let account = ViewOnlyAccount::get(account_id_hex, conn)?;
+        let view_only_account = ViewOnlyAccount::get(account_id_hex, conn)?;
+        println!("VOA {:?}", view_only_account.view_private_key);
+        let foo =
+            hex::decode("0a20928c29f916586c0fae22de17784b2b9ac573a1b1d75c2ba531838650ca0a5302")
+                .unwrap();
+        println!("FOO {:?}", foo);
         // TODO(cc) this should really be extrapolated and named.
         // it's used in a few places.
-        let view_private_key: RistrettoPrivate = mc_util_serial::decode(&account.view_private_key)?;
-
+        // let view_private_key: RistrettoPrivate = mc_util_serial::decode(
+        //     &hex::decode("
+        // 0a20928c29f916586c0fae22de17784b2b9ac573a1b1d75c2ba531838650ca0a5302")
+        //         .unwrap(),
+        // )?;
+        let vector = &view_only_account.view_private_key;
+        let view_private_key: RistrettoPrivate = mc_util_serial::decode(vector)?;
+        println!("AT L192");
         let start_time = Instant::now();
-        let first_block_index = account.next_block_index;
-        let mut last_block_index = account.next_block_index;
+        let first_block_index = view_only_account.next_block_index;
+        let mut last_block_index = view_only_account.next_block_index;
+
+        println!("AT L195");
 
         // Load transaction outputs for this chunk. View only accounts have a view
         // private key but no spend private key, so they can scan TXOs but
         // not key images
-        let mut tx_outs: Vec<(i64, TxOut)> = Vec::new();
+        let mut tx_outs: Vec<TxOut> = Vec::new();
 
-        let num_blocks_synced = last_block_index - first_block_index + 1;
-
-        for block_index in account.next_block_index..account.next_block_index + BLOCKS_CHUNK_SIZE {
+        for block_index in view_only_account.next_block_index
+            ..view_only_account.next_block_index + BLOCKS_CHUNK_SIZE
+        {
             let block_contents = match ledger_db.get_block_contents(block_index as u64) {
                 Ok(block_contents) => block_contents,
                 Err(mc_ledger_db::Error::NotFound) => {
@@ -210,28 +226,48 @@ fn sync_view_only_account_next_chunk(
             last_block_index = block_index;
 
             for tx_out in block_contents.outputs {
-                tx_outs.push((block_index, tx_out));
+                tx_outs.push(tx_out);
             }
-
-            // Attempt to decode each transaction as received by this account.
-            // let received_txos: Vec<_> = tx_outs
-            //     .into_par_iter()
-            //     .filter_map(|(block_index, tx_out)| {
-            //         let amount = match decode_amount(&tx_out,
-            // &view_private_key) {             None => return None,
-            //             Some(a) => a,
-            //         };
-            //         Some((block_index, tx_out, amount))
-            //     })
-            //     .collect();
-            // let num_received_txos = received_txos.len();
         }
 
-        // new bareebones TXO table: txo blob, account_id, amount
-        // look unto account lifecycle for testring examples. look for examples of
-        // sync_account in unit testing
-        // e2e: create account, create transaction for said account, export view key
-        // from that account, create view-only account with key, do key scanning
+        println!("AT L221");
+
+        // Attempt to decode each transaction as received by this account.
+        let received_txos: Vec<_> = tx_outs
+            .into_par_iter()
+            .filter_map(|tx_out| {
+                let amount = match decode_amount(&tx_out, &view_private_key) {
+                    None => return None,
+                    Some(a) => a,
+                };
+                Some((tx_out, amount))
+            })
+            .collect();
+        let num_received_txos = received_txos.len();
+
+        // Write received txos to db
+        for (tx_out, amount) in received_txos {
+            ViewOnlyTxo::create(tx_out.clone(), amount as i64, account_id_hex, conn)?;
+        }
+
+        // Done syncing this chunk. Mark these blocks as synced for this account.
+
+        view_only_account.update_next_block_index(last_block_index + 1, conn)?;
+
+        let num_blocks_synced = last_block_index - first_block_index + 1;
+
+        let duration = start_time.elapsed();
+
+        log::debug!(
+            logger,
+            "Synced {} blocks ({}-{}) for view only account {} in {:?}. {} txos received.",
+            num_blocks_synced,
+            first_block_index,
+            last_block_index,
+            account_id_hex.chars().take(6).collect::<String>(),
+            duration,
+            num_received_txos,
+        );
 
         if num_blocks_synced < BLOCKS_CHUNK_SIZE {
             Ok(SyncStatus::NoMoreBlocks)
@@ -494,10 +530,13 @@ pub fn decode_subaddress_and_key_image(
 mod tests {
     use super::*;
     use crate::{
-        service::{account::AccountService, balance::BalanceService, txo::TxoService},
+        service::{
+            account::AccountService, balance::BalanceService, txo::TxoService,
+            view_only_account::ViewOnlyAccountService,
+        },
         test_utils::{
-            add_block_to_ledger_db, get_test_ledger, manually_sync_account, setup_wallet_service,
-            MOB,
+            add_block_to_ledger_db, get_test_ledger, manually_sync_account,
+            manually_sync_view_only_account, setup_wallet_service, MOB,
         },
     };
     use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
@@ -581,5 +620,73 @@ mod tests {
             .get_balance_for_account(&AccountID::from(&account_key))
             .expect("Could not get balance");
         assert_eq!(balance.unspent, 250_000_000 * MOB as u128);
+    }
+
+    #[test_with_logger]
+    fn test_sync_view_only_account(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let view_private_key = RistrettoPrivate::from_random(&mut rng);
+        // let key =
+        //     hex::decode("
+        // 0a20928c29f916586c0fae22de17784b2b9ac573a1b1d75c2ba531838650ca0a5302")
+        //         .unwrap();
+        // let view_private_key = mc_util_serial::decode(&key).unwrap();
+
+        let spend_private_key = RistrettoPrivate::from_random(&mut rng);
+
+        let account_key = AccountKey::new(&spend_private_key, &view_private_key);
+
+        let mut ledger_db = get_test_ledger(0, &vec![], 0, &mut rng);
+
+        let origin_block_amount: u128 = 250_000_000 * MOB as u128;
+        let origin_block_txo_amount = origin_block_amount / 16;
+        let o = account_key.subaddress(0);
+        let _new_block_index = add_block_to_ledger_db(
+            &mut ledger_db,
+            &[
+                o.clone(),
+                o.clone(),
+                o.clone(),
+                o.clone(),
+                o.clone(),
+                o.clone(),
+                o.clone(),
+                o.clone(),
+                o.clone(),
+                o.clone(),
+                o.clone(),
+                o.clone(),
+                o.clone(),
+                o.clone(),
+                o.clone(),
+                o.clone(),
+            ],
+            origin_block_txo_amount as u64,
+            &vec![],
+            &mut rng,
+        );
+
+        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+        let wallet_db = &service.wallet_db;
+
+        println!("DB SET UP");
+
+        // create view only account
+        let account = service
+            .import_view_only_account(view_private_key.clone(), "catsaccount".to_string(), None)
+            .unwrap();
+
+        println!("IMPORTED ACCOUNT");
+
+        manually_sync_view_only_account(&ledger_db, &wallet_db, &account.account_id_hex, &logger);
+
+        println!("SYNCED ACCOUNT");
+
+        // Now verify that the service gets the balance with the correct value
+        let balance = service
+            .get_balance_for_view_only_account(&account.account_id_hex)
+            .expect("Could not get balance");
+        assert_eq!(balance.received, 250_000_000 * MOB as u128);
     }
 }

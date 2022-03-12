@@ -40,7 +40,7 @@ pub trait ViewOnlyAccountModel {
     // insert new view-only-account in the db
     fn create(
         account_id_hex: &str,
-        view_private_key: Vec<u8>,
+        view_private_key: &RistrettoPrivate,
         first_block_index: i64,
         import_block_index: i64,
         name: &str,
@@ -102,7 +102,7 @@ pub trait ViewOnlyAccountModel {
 impl ViewOnlyAccountModel for ViewOnlyAccount {
     fn create(
         account_id_hex: &str,
-        view_private_key: Vec<u8>,
+        view_private_key: &RistrettoPrivate,
         first_block_index: i64,
         import_block_index: i64,
         name: &str,
@@ -110,9 +110,11 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
     ) -> Result<ViewOnlyAccount, WalletDbError> {
         use crate::db::schema::view_only_accounts;
 
+        let encoded_key = mc_util_serial::encode(view_private_key);
+
         let new_view_only_account = NewViewOnlyAccount {
             account_id_hex: &account_id_hex,
-            view_private_key: &view_private_key,
+            view_private_key: &encoded_key,
             first_block_index,
             // next block index will always be the same as
             // first block index when importing an account
@@ -223,8 +225,10 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
 mod tests {
     use super::*;
     use crate::test_utils::WalletDbTestContext;
-
     use mc_common::logger::{test_with_logger, Logger};
+    use mc_crypto_keys::RistrettoPrivate;
+    use mc_util_from_random::FromRandom;
+    use rand::{rngs::StdRng, SeedableRng};
 
     #[test_with_logger]
     fn test_view_only_account_crud(logger: Logger) {
@@ -232,10 +236,12 @@ mod tests {
         let wallet_db = db_test_context.get_db_instance(logger);
         let conn = wallet_db.get_conn().unwrap();
 
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
         // test account creation
 
         let name = "Coins for cats";
-        let view_private_key: Vec<u8> = [1, 2, 3].to_vec();
+        let view_private_key = RistrettoPrivate::from_random(&mut rng);
         let first_block_index: i64 = 25;
         let import_block_index: i64 = 26;
         let account_id_hex = "abcd";
@@ -243,7 +249,7 @@ mod tests {
         let expected_account = ViewOnlyAccount {
             id: 1,
             account_id_hex: account_id_hex.to_string(),
-            view_private_key: view_private_key.clone(),
+            view_private_key: mc_util_serial::encode(&view_private_key),
             first_block_index,
             next_block_index: first_block_index,
             import_block_index,
@@ -252,7 +258,7 @@ mod tests {
 
         let created = ViewOnlyAccount::create(
             account_id_hex,
-            view_private_key.clone(),
+            &view_private_key,
             first_block_index,
             import_block_index,
             &name,
@@ -286,7 +292,7 @@ mod tests {
 
         ViewOnlyAccount::create(
             "some_account_id",
-            view_private_key.clone(),
+            &view_private_key,
             first_block_index,
             import_block_index,
             "catcoin_name",

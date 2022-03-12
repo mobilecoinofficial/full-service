@@ -3835,7 +3835,7 @@ mod e2e {
 
         // test list all view only accounts
         let second_view_key =
-            "0a20928c29f916586c0fae22de17784b2b9ac573a1b1d75c2ba531838650ca0a5302";
+            "0a20928c29f916586c0fae22de17784b2b9ac553a1b1f75c2ba531838650ca0a5302";
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,

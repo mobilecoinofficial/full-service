@@ -6,8 +6,10 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        models::{Account, AssignedSubaddress, Txo},
+        models::{Account, AssignedSubaddress, Txo, ViewOnlyAccount, ViewOnlyTxo},
         txo::TxoModel,
+        view_only_account::ViewOnlyAccountModel,
+        view_only_txo::ViewOnlyTxoModel,
         WalletDbError,
     },
     service::{
@@ -86,6 +88,14 @@ pub struct Balance {
     pub synced_blocks: u64,
 }
 
+// The balance object for view-only-accounts
+pub struct ViewOnlyBalance {
+    pub received: u128,
+    pub network_block_height: u64,
+    pub local_block_height: u64,
+    pub synced_blocks: u64,
+}
+
 /// The Network Status object.
 /// This holds the number of blocks in the ledger, on the network and locally.
 pub struct NetworkStatus {
@@ -125,6 +135,11 @@ pub trait BalanceService {
         account_id: &AccountID,
     ) -> Result<Balance, BalanceServiceError>;
 
+    fn get_balance_for_view_only_account(
+        &self,
+        account_id: &str,
+    ) -> Result<ViewOnlyBalance, BalanceServiceError>;
+
     fn get_balance_for_address(&self, address: &str) -> Result<Balance, BalanceServiceError>;
 
     fn get_network_status(&self) -> Result<NetworkStatus, BalanceServiceError>;
@@ -158,6 +173,28 @@ where
                 spent,
                 secreted,
                 orphaned,
+                network_block_height,
+                local_block_height,
+                synced_blocks: account.next_block_index as u64,
+            })
+        })
+    }
+
+    fn get_balance_for_view_only_account(
+        &self,
+        account_id: &str,
+    ) -> Result<ViewOnlyBalance, BalanceServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+        conn.transaction(|| {
+            let txos = ViewOnlyTxo::list_for_account(&account_id, None, None, &conn)?;
+            let total_value = txos.iter().map(|t| (t.value as u64) as u128).sum::<u128>();
+
+            let network_block_height = self.get_network_block_height()?;
+            let local_block_height = self.ledger_db.num_blocks()?;
+            let account = ViewOnlyAccount::get(account_id, &conn)?;
+
+            Ok(ViewOnlyBalance {
+                received: total_value,
                 network_block_height,
                 local_block_height,
                 synced_blocks: account.next_block_index as u64,
