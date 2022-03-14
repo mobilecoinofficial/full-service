@@ -211,7 +211,7 @@ pub enum JsonCommandResponse {
         transaction_log_map: Map<String, serde_json::Value>,
     },
     // deprecated: true
-    get_all_transaction_logs_for_block { // untested
+    get_all_transaction_logs_for_block {
         deprecated: bool,
         transaction_log_ids: Vec<String>,
         transaction_log_map: Map<String, serde_json::Value>,
@@ -228,7 +228,7 @@ pub enum JsonCommandResponse {
         txo_map: Map<String, serde_json::Value>,
     },
     // deprecated: true
-    get_all_txos_for_address { // untested
+    get_all_txos_for_address {
         deprecated: bool,
         txo_ids: Vec<String>,
         txo_map: Map<String, serde_json::Value>,

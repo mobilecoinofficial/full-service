@@ -49,7 +49,7 @@
   * [Get Transaction Log](transactions/transaction-log/get_transaction_log.md)
   * [Get All Transaction Logs For Account](transactions/transaction-log/get_all_transaction_logs_for_account.md) (deprecated)
   * [Get Transaction Logs For Account](transactions/transaction-log/get_transaction_logs_for_account.md)
-  * [Get All Transaction Logs For Block](transactions/transaction-log/get_all_transaction_logs_for_block.md)
+  * [Get All Transaction Logs For Block](transactions/transaction-log/get_all_transaction_logs_for_block.md) (deprecated)
   * [Get All Transaction Logs Ordered By Block](transactions/transaction-log/get_all_transaction_logs_ordered_by_block.md) (deprecated)
   * [Get MobileCoin Protocol Transaction](transactions/transaction-log/get_mc_protocol_transaction.md)
 * [Payment Request](transactions/payment-request/README.md)
