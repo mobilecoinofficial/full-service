@@ -77,6 +77,7 @@ mod e2e {
                 .unwrap(),
             &account_id.clone()
         );
+        assert_eq!(result.get("deprecated").unwrap().as_bool().unwrap(), true,);
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -145,6 +146,7 @@ mod e2e {
         let result = res.get("result").unwrap();
         let accounts = result.get("account_ids").unwrap().as_array().unwrap();
         assert_eq!(accounts.len(), 0);
+        assert_eq!(result.get("deprecated").unwrap().as_bool().unwrap(), true,);
     }
 
     #[test_with_logger]
@@ -1357,6 +1359,8 @@ mod e2e {
             "tx_status_succeeded"
         );
 
+        assert_eq!(result.get("deprecated").unwrap().as_bool().unwrap(), true,);
+
         // Get all Transaction Logs for a given Block
 
         let body = json!({
@@ -1372,6 +1376,7 @@ mod e2e {
             .as_object()
             .unwrap();
         assert_eq!(transaction_log_map.len(), 5);
+        assert_eq!(result.get("deprecated").unwrap().as_bool().unwrap(), true,);
     }
 
     #[test_with_logger]
@@ -1960,6 +1965,7 @@ mod e2e {
         let result = res.get("result").unwrap();
         let txos_all = result.get("txo_ids").unwrap().as_array().unwrap();
         assert_eq!(txos_all.len(), 10);
+        assert_eq!(result.get("deprecated").unwrap().as_bool().unwrap(), true,);
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -1995,6 +2001,7 @@ mod e2e {
             .as_array()
             .unwrap();
         assert_eq!(tx_logs_all.len(), 10);
+        assert_eq!(result.get("deprecated").unwrap().as_bool().unwrap(), true,);
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -2064,6 +2071,7 @@ mod e2e {
         let result = res.get("result").unwrap();
         let addresses_all = result.get("public_addresses").unwrap().as_array().unwrap();
         assert_eq!(addresses_all.len(), 12); // Accounts start with 2 addresses, then we created 10.
+        assert_eq!(result.get("deprecated").unwrap().as_bool().unwrap(), true,);
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -2621,6 +2629,7 @@ mod e2e {
         assert_eq!(txo_type, TXO_TYPE_RECEIVED);
         let value = txo.get("value_pmob").unwrap().as_str().unwrap();
         assert_eq!(value, "42000000000000");
+        assert_eq!(result.get("deprecated").unwrap().as_bool().unwrap(), true,);
     }
 
     #[test_with_logger]
@@ -3233,6 +3242,7 @@ mod e2e {
         assert_eq!(txo_type, TXO_TYPE_RECEIVED);
         let value = txo.get("value_pmob").unwrap().as_str().unwrap();
         assert_eq!(value, "100");
+        assert_eq!(result.get("deprecated").unwrap().as_bool().unwrap(), true,);
 
         // Check the overall balance for the account
         let body = json!({
@@ -3323,6 +3333,7 @@ mod e2e {
         let value = txo.get("value_pmob").unwrap().as_str().unwrap();
         assert_eq!(value, "250000000000");
         let txo_id = &txos[0];
+        assert_eq!(result.get("deprecated").unwrap().as_bool().unwrap(), true,);
 
         // Check the overall balance for the account
         let body = json!({
@@ -3674,8 +3685,9 @@ mod e2e {
             "method": "get_all_gift_codes",
         });
         let res = dispatch(&client, body, &logger);
-        let result = res["result"]["gift_codes"].as_array().unwrap();
-        assert_eq!(result.len(), 1);
+        let result = res.get("result").unwrap();
+        assert_eq!(result.get("gift_codes").unwrap().as_array().unwrap().len(), 1);
+        assert_eq!(result.get("deprecated").unwrap().as_bool().unwrap(), true,);
 
         // Get the specific gift code
         let body = json!({
@@ -3722,8 +3734,9 @@ mod e2e {
             "method": "get_all_gift_codes",
         });
         let res = dispatch(&client, body, &logger);
-        let result = res["result"]["gift_codes"].as_array().unwrap();
-        assert_eq!(result.len(), 0);
+        let result = res.get("result").unwrap();
+        assert_eq!(result.get("gift_codes").unwrap().as_array().unwrap().len(), 0);
+        assert_eq!(result.get("deprecated").unwrap().as_bool().unwrap(), true,);
     }
 
     #[test_with_logger]

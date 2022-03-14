@@ -510,6 +510,7 @@ where
                 .collect::<Result<Vec<(String, serde_json::Value)>, JsonRPCError>>()?;
             let account_map: Map<String, serde_json::Value> = Map::from_iter(json_accounts);
             JsonCommandResponse::get_all_accounts {
+                deprecated: true,
                 account_ids: accounts.iter().map(|a| a.account_id_hex.clone()).collect(),
                 account_map,
             }
@@ -531,7 +532,8 @@ where
                     .collect::<Vec<(String, serde_json::Value)>>(),
             );
 
-            JsonCommandResponse::get_addresses_for_account {
+            JsonCommandResponse::get_all_addresses_for_account {
+                deprecated: true,
                 public_addresses: addresses
                     .iter()
                     .map(|a| a.assigned_subaddress_b58.clone())
@@ -540,6 +542,7 @@ where
             }
         }
         JsonCommandRequest::get_all_gift_codes {} => JsonCommandResponse::get_all_gift_codes {
+            deprecated: true,
             gift_codes: service
                 .list_gift_codes()
                 .map_err(format_error)?
@@ -564,6 +567,7 @@ where
             );
 
             JsonCommandResponse::get_all_transaction_logs_for_account {
+                deprecated: true,
                 transaction_log_ids: transaction_logs_and_txos
                     .iter()
                     .map(|(t, _a)| t.transaction_id_hex.to_string())
@@ -590,6 +594,7 @@ where
             );
 
             JsonCommandResponse::get_all_transaction_logs_for_block {
+                deprecated: true,
                 transaction_log_ids: transaction_logs_and_txos
                     .iter()
                     .map(|(t, _a)| t.transaction_id_hex.to_string())
@@ -614,6 +619,7 @@ where
             );
 
             JsonCommandResponse::get_all_transaction_logs_ordered_by_block {
+                deprecated: true,
                 transaction_log_map,
             }
         }
@@ -633,6 +639,7 @@ where
             );
 
             JsonCommandResponse::get_all_txos_for_account {
+                deprecated: true,
                 txo_ids: txos.iter().map(|t| t.txo_id_hex.clone()).collect(),
                 txo_map,
             }
@@ -653,6 +660,7 @@ where
             );
 
             JsonCommandResponse::get_all_txos_for_address {
+                deprecated: true,
                 txo_ids: txos.iter().map(|t| t.txo_id_hex.clone()).collect(),
                 txo_map,
             }

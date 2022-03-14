@@ -187,29 +187,49 @@ pub enum JsonCommandResponse {
         public_addresses: Vec<String>,
         address_map: Map<String, serde_json::Value>,
     },
+    // deprecated: true
     get_all_accounts {
+        deprecated: bool,
         account_ids: Vec<String>,
         account_map: Map<String, serde_json::Value>,
     },
+    // deprecated: true
+    get_all_addresses_for_account {
+        deprecated: bool,
+        public_addresses: Vec<String>,
+        address_map: Map<String, serde_json::Value>,
+    },
+    // deprecated: true
     get_all_gift_codes {
+        deprecated: bool,
         gift_codes: Vec<GiftCode>,
     },
+    // deprecated: true
     get_all_transaction_logs_for_account {
+        deprecated: bool,
         transaction_log_ids: Vec<String>,
         transaction_log_map: Map<String, serde_json::Value>,
     },
-    get_all_transaction_logs_for_block {
+    // deprecated: true
+    get_all_transaction_logs_for_block { // untested
+        deprecated: bool,
         transaction_log_ids: Vec<String>,
         transaction_log_map: Map<String, serde_json::Value>,
     },
+    // deprecated: true
     get_all_transaction_logs_ordered_by_block {
+        deprecated: bool,
         transaction_log_map: Map<String, serde_json::Value>,
     },
+    // deprecated: true
     get_all_txos_for_account {
+        deprecated: bool,
         txo_ids: Vec<String>,
         txo_map: Map<String, serde_json::Value>,
     },
-    get_all_txos_for_address {
+    // deprecated: true
+    get_all_txos_for_address { // untested
+        deprecated: bool,
         txo_ids: Vec<String>,
         txo_map: Map<String, serde_json::Value>,
     },
