@@ -3,6 +3,7 @@ description: Get all transaction logs for a given account.
 ---
 
 # Get All Transaction Logs For Account
+### DEPRECATED
 
 ## Parameters
 
@@ -87,7 +88,8 @@ description: Get all transaction logs for a given account.
         "failure_code": null,
         "failure_message": null
       }
-    }
+    },
+    "deprecated": true
   },
   "error": null,
   "jsonrpc": "2.0",

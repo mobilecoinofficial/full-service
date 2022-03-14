@@ -3,6 +3,7 @@ description: Get all the gift codes currently in the database.
 ---
 
 # Get All Gift Codes
+### DEPRECATED
 
 ## Example
 
@@ -41,7 +42,8 @@ description: Get all the gift codes currently in the database.
         "account_id": "dba3d3b99fe9ce6bc666490b8176be91ace0f4166853b0327ea39928640ea840",
         "txo_id": "ab917ed9e69fa97bd9422452b1a2f615c2405301b220f7a81eb091f75eba3f54"
       }
-    ]
+    ],
+    "deprecated": true
   },
   "error": null,
   "jsonrpc": "2.0",

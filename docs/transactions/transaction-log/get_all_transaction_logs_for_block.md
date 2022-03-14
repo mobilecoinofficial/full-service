@@ -3,6 +3,7 @@ description: Get all transaction logs for a given block.
 ---
 
 # Get All Transaction Logs For Block
+### DEPRECATED
 
 ## Parameters
 
@@ -113,7 +114,8 @@ In the below example, the account in the wallet sent a transaction to itself. Th
         "failure_code": null,
         "failure_message": null
       }
-    }
+    },
+    "deprecated": true
   },
   "error": null,
   "jsonrpc": "2.0",

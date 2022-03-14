@@ -3,6 +3,7 @@ description: Get all TXOs for a given account.
 ---
 
 # Get All TXOs For Account
+### DEPRECATED
 
 ## Parameters
 
@@ -134,7 +135,8 @@ description: Get all TXOs for a given account.
         "txo_id": "b496f4f3ec3159bf48517aa7d9cda193ef8bfcac343f81eaed0e0a55849e4726",
         "value_pmob": "980000000000"
       }
-    ]
+    ],
+    "deprecated": true
   }
 }
 ```

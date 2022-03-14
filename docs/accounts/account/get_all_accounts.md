@@ -3,6 +3,7 @@ description: Get the details of all accounts in a given wallet.
 ---
 
 # Get All Accounts
+### DEPRECATED
 
 ## Example
 
@@ -46,7 +47,8 @@ description: Get the details of all accounts in a given wallet.
         "first_block_index": "3500",
         "object": "account",
         "recovery_mode": false
-      }
+      },
+      "deprecated": true
     }
   },
   "error": null,

@@ -3,6 +3,7 @@ description: Get the JSON representation of the "TXO" object in the ledger.
 ---
 
 # Get All TXOs For Address
+### DEPRECATED
 
 ## Parameters
 
@@ -31,7 +32,8 @@ description: Get the JSON representation of the "TXO" object in the ledger.
 {
   "method": "get_txo_object",
   "result": {
-    "txo": ...
+    "txo": ...,
+    "deprecated": true
   }
 }
 ```

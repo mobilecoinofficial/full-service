@@ -3,6 +3,7 @@ description: Get all assigned addresses for a given account.
 ---
 
 # Get All Addresses For Account
+### DEPRECATED
 
 ## Parameters
 
@@ -58,7 +59,8 @@ description: Get all assigned addresses for a given account.
         "metadata": "",
         "subaddress_index": "2"
       }
-    }
+    },
+    "deprecated": true
   },
   "error": null,
   "jsonrpc": "2.0",

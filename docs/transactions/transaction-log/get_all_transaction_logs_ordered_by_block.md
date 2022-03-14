@@ -5,6 +5,7 @@ description: >-
 ---
 
 # Get All Transaction Logs Ordered By Block
+### DEPRECATED
 
 ## Example
 
@@ -99,7 +100,8 @@ description: >-
         "failure_code": null,
         "failure_message": null
       }
-    }
+    },
+    "deprecated": true
   },
   "error": null,
   "jsonrpc": "2.0",
