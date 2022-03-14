@@ -181,7 +181,7 @@ mod tests {
 
         // make sure it passes with a matching account
 
-        let foo = ViewOnlyAccount::create(
+        let view_only_account = ViewOnlyAccount::create(
             view_only_account_id,
             &RistrettoPrivate::from_random(&mut rng),
             0 as i64,
@@ -195,14 +195,19 @@ mod tests {
         let expected = ViewOnlyTxo {
             id: 1,
             txo_id_hex: txo_id.to_string(),
-            view_only_account_id_hex: foo.account_id_hex.to_string(),
+            view_only_account_id_hex: view_only_account.account_id_hex.to_string(),
             txo: mc_util_serial::encode(&fake_tx_out),
             value,
             spent: false,
         };
 
-        let created =
-            ViewOnlyTxo::create(fake_tx_out.clone(), value, &foo.account_id_hex, &conn).unwrap();
+        let created = ViewOnlyTxo::create(
+            fake_tx_out.clone(),
+            value,
+            &view_only_account.account_id_hex,
+            &conn,
+        )
+        .unwrap();
 
         assert_eq!(expected, created);
 
@@ -213,5 +218,31 @@ mod tests {
         let updated = ViewOnlyTxo::get(&txo_id.to_string(), &conn).unwrap();
 
         assert!(updated.spent);
+
+        // test list for account
+
+        let value: i64 = 420;
+        let tx_private_key = RistrettoPrivate::from_random(&mut rng);
+        let hint = EncryptedFogHint::fake_onetime_hint(&mut rng);
+        let public_address = PublicAddress::new(
+            &RistrettoPublic::from_random(&mut rng),
+            &RistrettoPublic::from_random(&mut rng),
+        );
+        let fake_txo_two =
+            TxOut::new(value as u64, &public_address, &tx_private_key, hint).unwrap();
+
+        ViewOnlyTxo::create(
+            fake_txo_two.clone(),
+            value,
+            &view_only_account.account_id_hex,
+            &conn,
+        )
+        .unwrap();
+
+        let listed =
+            ViewOnlyTxo::list_for_account(&view_only_account.account_id_hex, None, None, &conn)
+                .unwrap();
+
+        assert_eq!(listed.len(), 2);
     }
 }

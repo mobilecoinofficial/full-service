@@ -187,10 +187,6 @@ pub enum JsonCommandResponse {
         account: Account,
         balance: Balance,
     },
-    // get_view_only_account_status {
-    //     account: ViewOnlyAccount,
-    //     balance: Balance,
-    // },
     get_address_for_account {
         address: Address,
     },
@@ -270,10 +266,10 @@ pub enum JsonCommandResponse {
         txo_ids: Vec<String>,
         txo_map: Map<String, serde_json::Value>,
     },
-    // get_txos_for_view_only_account {
-    //     txo_ids: Vec<String>,
-    //     txo_map: Map<String, serde_json::Value>,
-    // },
+    get_txos_for_view_only_account {
+        txo_ids: Vec<String>,
+        txo_map: Map<String, serde_json::Value>,
+    },
     get_wallet_status {
         wallet_status: WalletStatus,
     },

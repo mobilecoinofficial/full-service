@@ -21,6 +21,7 @@ use crate::{
         receiver_receipt::ReceiverReceipt,
         tx_proposal::TxProposal,
         txo::Txo,
+        view_only_txo::ViewOnlyTxo,
         wallet_status::WalletStatus,
     },
     service,
@@ -37,6 +38,7 @@ use crate::{
         transaction_log::TransactionLogService,
         txo::TxoService,
         view_only_account::ViewOnlyAccountService,
+        view_only_txo::ViewOnlyTxoService,
         WalletService,
     },
     util::b58::{
@@ -829,15 +831,6 @@ where
                 txo: Txo::from(&result),
             }
         }
-        // // TODO(CC) impliment
-        // JsonCommandRequest::get_txos_for_view_only_account {
-        //     view_private_key: _,
-        //     offset: _,
-        //     limit: _,
-        // } => JsonCommandResponse::get_txos_for_account {
-        //     txo_ids: Vec::from(["".to_string()]),
-        //     txo_map: Map::new(),
-        // },
         JsonCommandRequest::get_txos_for_account {
             account_id,
             offset,
@@ -859,6 +852,39 @@ where
                         (
                             t.txo_id_hex.clone(),
                             serde_json::to_value(Txo::from(t)).expect("Could not get json value"),
+                        )
+                    })
+                    .collect::<Vec<(String, serde_json::Value)>>(),
+            );
+
+            JsonCommandResponse::get_txos_for_account {
+                txo_ids: txos.iter().map(|t| t.txo_id_hex.clone()).collect(),
+                txo_map,
+            }
+        }
+        JsonCommandRequest::get_txos_for_view_only_account {
+            account_id,
+            offset,
+            limit,
+        } => {
+            // TODO(cc) share logic between this and regular account get txos
+            let o = offset.parse::<i64>().map_err(format_error)?;
+            let l = limit.parse::<i64>().map_err(format_error)?;
+
+            if l > 1000 {
+                return Err(format_error("limit must not exceed 1000"));
+            }
+
+            let txos = service
+                .list_view_only_txos(&account_id, Some(o), Some(l))
+                .map_err(format_error)?;
+            let txo_map: Map<String, serde_json::Value> = Map::from_iter(
+                txos.iter()
+                    .map(|t| {
+                        (
+                            t.txo_id_hex.clone(),
+                            serde_json::to_value(ViewOnlyTxo::from(t))
+                                .expect("Could not get json value"),
                         )
                     })
                     .collect::<Vec<(String, serde_json::Value)>>(),

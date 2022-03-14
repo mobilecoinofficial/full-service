@@ -211,11 +211,11 @@ pub enum JsonCommandRequest {
         offset: String,
         limit: String,
     },
-    // get_txos_for_view_only_account {
-    //     view_private_key: String,
-    //     offset: String,
-    //     limit: String,
-    // },
+    get_txos_for_view_only_account {
+        account_id: String,
+        offset: String,
+        limit: String,
+    },
     get_wallet_status,
     import_account {
         mnemonic: String,
