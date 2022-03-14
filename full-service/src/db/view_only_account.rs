@@ -84,19 +84,6 @@ pub trait ViewOnlyAccountModel {
         self,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
-
-    // /// Get the accounts associated with the given Txo.
-    // fn get_by_txo_id(
-    //     txo_id_hex: &str,
-    //     conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    // ) -> Result<Vec<ViewOnlyAccount>, WalletDbError>;
-
-    // /// Update the next block index this account will need to sync.
-    // fn update_next_block_index(
-    //     &self,
-    //     next_block_index: i64,
-    //     conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    // ) -> Result<(), WalletDbError>;
 }
 
 impl ViewOnlyAccountModel for ViewOnlyAccount {
@@ -206,19 +193,6 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
 
         Ok(())
     }
-
-    // /// Get the accounts associated with the given Txo.
-    // fn get_by_txo_id(
-    //     txo_id_hex: &str,
-    //     conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    // ) -> Result<Vec<ViewOnlyAccount>, WalletDbError>;
-
-    // /// Update the next block index this account will need to sync.
-    // fn update_next_block_index(
-    //     &self,
-    //     next_block_index: i64,
-    //     conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    // ) -> Result<(), WalletDbError>;
 }
 
 #[cfg(test)]
