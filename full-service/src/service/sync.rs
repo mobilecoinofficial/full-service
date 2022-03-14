@@ -179,32 +179,15 @@ fn sync_view_only_account_next_chunk(
     logger: &Logger,
     account_id_hex: &str,
 ) -> Result<SyncStatus, SyncError> {
-    println!("AT L182");
-
     conn.transaction::<SyncStatus, SyncError, _>(|| {
         // Get the account data. If it is no longer available, the account has been
         // removed and we can simply return.
         let view_only_account = ViewOnlyAccount::get(account_id_hex, conn)?;
-        println!("VOA {:?}", view_only_account.view_private_key);
-        let foo =
-            hex::decode("0a20928c29f916586c0fae22de17784b2b9ac573a1b1d75c2ba531838650ca0a5302")
-                .unwrap();
-        println!("FOO {:?}", foo);
-        // TODO(cc) this should really be extrapolated and named.
-        // it's used in a few places.
-        // let view_private_key: RistrettoPrivate = mc_util_serial::decode(
-        //     &hex::decode("
-        // 0a20928c29f916586c0fae22de17784b2b9ac573a1b1d75c2ba531838650ca0a5302")
-        //         .unwrap(),
-        // )?;
-        let vector = &view_only_account.view_private_key;
-        let view_private_key: RistrettoPrivate = mc_util_serial::decode(vector)?;
-        println!("AT L192");
+        let view_private_key: RistrettoPrivate =
+            mc_util_serial::decode(&view_only_account.view_private_key)?;
         let start_time = Instant::now();
         let first_block_index = view_only_account.next_block_index;
         let mut last_block_index = view_only_account.next_block_index;
-
-        println!("AT L195");
 
         // Load transaction outputs for this chunk. View only accounts have a view
         // private key but no spend private key, so they can scan TXOs but
@@ -229,8 +212,6 @@ fn sync_view_only_account_next_chunk(
                 tx_outs.push(tx_out);
             }
         }
-
-        println!("AT L221");
 
         // Attempt to decode each transaction as received by this account.
         let received_txos: Vec<_> = tx_outs
@@ -670,18 +651,12 @@ mod tests {
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
         let wallet_db = &service.wallet_db;
 
-        println!("DB SET UP");
-
         // create view only account
         let account = service
             .import_view_only_account(view_private_key.clone(), "catsaccount".to_string(), None)
             .unwrap();
 
-        println!("IMPORTED ACCOUNT");
-
         manually_sync_view_only_account(&ledger_db, &wallet_db, &account.account_id_hex, &logger);
-
-        println!("SYNCED ACCOUNT");
 
         // Now verify that the service gets the balance with the correct value
         let balance = service

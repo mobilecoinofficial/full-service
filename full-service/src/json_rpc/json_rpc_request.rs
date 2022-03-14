@@ -142,9 +142,6 @@ pub enum JsonCommandRequest {
     get_account_status {
         account_id: String,
     },
-    // get_view_only_account_status {
-    //     view_private_key: String,
-    // },
     get_address_for_account {
         account_id: String,
         index: i64,
@@ -176,9 +173,9 @@ pub enum JsonCommandRequest {
     get_balance_for_account {
         account_id: String,
     },
-    // get_balance_for_view_only_account {
-    //     view_private_key: String,
-    // },
+    get_balance_for_view_only_account {
+        account_id: String,
+    },
     get_balance_for_address {
         address: String,
     },

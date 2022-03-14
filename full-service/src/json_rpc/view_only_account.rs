@@ -43,8 +43,6 @@ impl TryFrom<&db::models::ViewOnlyAccount> for ViewOnlyAccount {
     }
 }
 
-// TODO(cc) figure how to convey account vs single subaddress stuff in
-// documentation?
 /// private view key for the account
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct ViewOnlyAccountSecrets {

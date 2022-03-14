@@ -186,7 +186,7 @@ where
     ) -> Result<ViewOnlyBalance, BalanceServiceError> {
         let conn = self.wallet_db.get_conn()?;
         conn.transaction(|| {
-            let txos = ViewOnlyTxo::list_for_account(&account_id, None, None, &conn)?;
+            let txos = ViewOnlyTxo::list_for_account(account_id, None, None, &conn)?;
             let total_value = txos.iter().map(|t| (t.value as u64) as u128).sum::<u128>();
 
             let network_block_height = self.get_network_block_height()?;

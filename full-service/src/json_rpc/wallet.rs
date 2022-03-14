@@ -8,7 +8,7 @@ use crate::{
     json_rpc::{
         account_secrets::AccountSecrets,
         address::Address,
-        balance::Balance,
+        balance::{Balance, ViewOnlyBalance},
         block::{Block, BlockContents},
         confirmation_number::Confirmation,
         gift_code::GiftCode,
@@ -473,24 +473,6 @@ where
             );
             JsonCommandResponse::get_account_status { account, balance }
         }
-        // // TODO(CC) impliment
-        // JsonCommandRequest::get_view_only_account_status {
-        //     view_private_key: _,
-        // } => JsonCommandResponse::get_view_only_account_status {
-        //     account: ViewOnlyAccount,
-        //     balance: Balance {
-        //         object: "".to_string(),
-        //         network_block_height: "".to_string(),
-        //         local_block_height: "".to_string(),
-        //         account_block_height: "".to_string(),
-        //         is_synced: true,
-        //         unspent_pmob: "".to_string(),
-        //         pending_pmob: "".to_string(),
-        //         spent_pmob: "".to_string(),
-        //         secreted_pmob: "".to_string(),
-        //         orphaned_pmob: "".to_string(),
-        //     },
-        // },
         JsonCommandRequest::get_address_for_account { account_id, index } => {
             let assigned_subaddress = service
                 .get_address_for_account(&AccountID(account_id), index)
@@ -729,23 +711,15 @@ where
                 ),
             }
         }
-        // // TODO(CC) impliment
-        // JsonCommandRequest::get_balance_for_view_only_account {
-        //     view_private_key: _,
-        // } => JsonCommandResponse::get_balance_for_view_only_account {
-        //     balance: Balance {
-        //         object: "".to_string(),
-        //         network_block_height: "".to_string(),
-        //         local_block_height: "".to_string(),
-        //         account_block_height: "".to_string(),
-        //         is_synced: true,
-        //         unspent_pmob: "".to_string(),
-        //         pending_pmob: "".to_string(),
-        //         spent_pmob: "".to_string(),
-        //         secreted_pmob: "".to_string(),
-        //         orphaned_pmob: "".to_string(),
-        //     },
-        // },
+        JsonCommandRequest::get_balance_for_view_only_account { account_id } => {
+            JsonCommandResponse::get_balance_for_view_only_account {
+                balance: ViewOnlyBalance::from(
+                    &service
+                        .get_balance_for_view_only_account(&account_id)
+                        .map_err(format_error)?,
+                ),
+            }
+        }
         JsonCommandRequest::get_balance_for_address { address } => {
             JsonCommandResponse::get_balance_for_address {
                 balance: Balance::from(

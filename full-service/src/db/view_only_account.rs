@@ -113,7 +113,7 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
         let encoded_key = mc_util_serial::encode(view_private_key);
 
         let new_view_only_account = NewViewOnlyAccount {
-            account_id_hex: &account_id_hex,
+            account_id_hex,
             view_private_key: &encoded_key,
             first_block_index,
             // next block index will always be the same as
@@ -125,9 +125,9 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
 
         diesel::insert_into(view_only_accounts::table)
             .values(&new_view_only_account)
-            .execute(conn.clone())?;
+            .execute(conn)?;
 
-        ViewOnlyAccount::get(&account_id_hex, conn.clone())
+        ViewOnlyAccount::get(account_id_hex, conn)
     }
 
     fn get(

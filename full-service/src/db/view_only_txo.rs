@@ -78,7 +78,7 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
 
         diesel::insert_into(view_only_txos::table)
             .values(&new_txo)
-            .execute(conn.clone())?;
+            .execute(conn)?;
 
         ViewOnlyTxo::get(&txo_id.to_string(), conn)
     }
