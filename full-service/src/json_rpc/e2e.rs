@@ -3686,7 +3686,10 @@ mod e2e {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        assert_eq!(result.get("gift_codes").unwrap().as_array().unwrap().len(), 1);
+        assert_eq!(
+            result.get("gift_codes").unwrap().as_array().unwrap().len(),
+            1
+        );
         assert_eq!(result.get("deprecated").unwrap().as_bool().unwrap(), true,);
 
         // Get the specific gift code
@@ -3735,7 +3738,10 @@ mod e2e {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        assert_eq!(result.get("gift_codes").unwrap().as_array().unwrap().len(), 0);
+        assert_eq!(
+            result.get("gift_codes").unwrap().as_array().unwrap().len(),
+            0
+        );
         assert_eq!(result.get("deprecated").unwrap().as_bool().unwrap(), true,);
     }
 
