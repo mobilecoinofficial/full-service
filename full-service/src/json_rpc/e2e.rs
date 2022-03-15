@@ -3887,14 +3887,14 @@ mod e2e {
             &logger,
             json!({
                 "method": "get_view_only_account",
-                "error": json!({
+                "error": {
                     "code": -32603,
                     "message": "InternalError",
-                    "data": json!({
+                    "data": {
                         "server_error": "Database(AccountNotFound(\"account not found\"))",
                         "details": "Error interacting with the database: Account Not Found: account not found",
-                    })
-                }),
+                    },
+                },
                 "jsonrpc": "2.0",
                 "id": 1,
             })

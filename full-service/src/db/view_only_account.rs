@@ -1,10 +1,10 @@
-// Copyright (c) 2020-2021 MobileCoin Inc.
+// Copyright (c) 2020-2022 MobileCoin Inc.
 
 //! DB impl for the View Only Account model.
 
 use crate::db::{
     models::{NewViewOnlyAccount, ViewOnlyAccount},
-    WalletDbError,
+    schema, WalletDbError,
 };
 use diesel::{
     prelude::*,
@@ -95,7 +95,7 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
         name: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<ViewOnlyAccount, WalletDbError> {
-        use crate::db::schema::view_only_accounts;
+        use schema::view_only_accounts;
 
         let encoded_key = mc_util_serial::encode(view_private_key);
 
@@ -121,7 +121,7 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
         account_id: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<ViewOnlyAccount, WalletDbError> {
-        use crate::db::schema::view_only_accounts::dsl::{
+        use schema::view_only_accounts::dsl::{
             account_id_hex as dsl_account_id, view_only_accounts,
         };
 
@@ -143,7 +143,7 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
     fn list_all(
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<ViewOnlyAccount>, WalletDbError> {
-        use crate::db::schema::view_only_accounts;
+        use schema::view_only_accounts;
 
         Ok(view_only_accounts::table
             .select(view_only_accounts::all_columns)
@@ -155,7 +155,7 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
         new_name: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::view_only_accounts::dsl::{
+        use schema::view_only_accounts::dsl::{
             account_id_hex as dsl_account_id, name as dsl_name, view_only_accounts,
         };
 
@@ -170,7 +170,7 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
         next_block_index: i64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::view_only_accounts::dsl::{
+        use schema::view_only_accounts::dsl::{
             account_id_hex as dsl_account_id, next_block_index as dsl_next_block,
             view_only_accounts,
         };
@@ -184,7 +184,7 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
         self,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::view_only_accounts::dsl::{
+        use schema::view_only_accounts::dsl::{
             account_id_hex as dsl_account_id, view_only_accounts,
         };
 

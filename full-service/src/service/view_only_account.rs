@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 MobileCoin Inc.
+// Copyright (c) 2020-2022 MobileCoin Inc.
 
 //! Service for managing view-only-accounts.
 
@@ -167,14 +167,11 @@ mod tests {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let view_private_key = RistrettoPrivate::from_random(&mut rng);
-        // let view_private_key = mc_util_serial::encode(&expected_key);
-
         let account_id_hex = ViewOnlyAccountID::from(&view_private_key).to_string();
         let name = "coins for cats";
         let first_block_index = 25;
 
         // test import
-
         service
             .import_view_only_account(
                 view_private_key.clone(),
@@ -184,7 +181,6 @@ mod tests {
             .unwrap();
 
         // test get
-
         let expected_account = ViewOnlyAccount {
             id: 1,
             account_id_hex: account_id_hex.clone(),
@@ -200,7 +196,6 @@ mod tests {
         assert_eq!(gotten_account, expected_account);
 
         // test update name
-
         let new_name = "coinzzzz";
         let updated = service
             .update_view_only_account_name(&account_id_hex, new_name)
@@ -217,7 +212,6 @@ mod tests {
         assert_eq!(all_accounts.len(), 2);
 
         // test remove account
-
         assert!(service.remove_view_only_account(&account_id_hex).unwrap());
         let not_found = service.get_view_only_account(&account_id_hex);
         assert!(not_found.is_err());

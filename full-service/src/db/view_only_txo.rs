@@ -1,9 +1,10 @@
-// Copyright (c) 2020-2021 MobileCoin Inc.
+// Copyright (c) 2020-2022 MobileCoin Inc.
 
 //! DB impl for the Txo model.
 
 use crate::db::{
     models::{NewViewOnlyTxo, ViewOnlyAccount, ViewOnlyTxo},
+    schema,
     txo::TxoID,
     view_only_account::ViewOnlyAccountModel,
     WalletDbError,
@@ -62,7 +63,7 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         view_only_account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<ViewOnlyTxo, WalletDbError> {
-        use crate::db::schema::view_only_txos;
+        use schema::view_only_txos;
 
         // Verify that the account exists.
         ViewOnlyAccount::get(view_only_account_id_hex, conn)?;
@@ -87,7 +88,7 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         txo_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<ViewOnlyTxo, WalletDbError> {
-        use crate::db::schema::view_only_txos;
+        use schema::view_only_txos;
 
         let txo = match view_only_txos::table
             .filter(view_only_txos::txo_id_hex.eq(txo_id_hex))
@@ -111,7 +112,7 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         limit: Option<i64>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<ViewOnlyTxo>, WalletDbError> {
-        use crate::db::schema::view_only_txos;
+        use schema::view_only_txos;
 
         let txos_query = view_only_txos::table
             .filter(view_only_txos::view_only_account_id_hex.eq(account_id_hex));
@@ -129,7 +130,7 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         &self,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::view_only_txos::dsl::{
+        use schema::view_only_txos::dsl::{
             spent as dsl_spent, txo_id_hex as dsl_txo_id, view_only_txos,
         };
 

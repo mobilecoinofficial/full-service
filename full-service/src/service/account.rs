@@ -47,10 +47,10 @@ pub enum AccountServiceError {
     /// Invalid BIP39 english mnemonic: {0}
     InvalidMnemonic(String),
 
-    /// Error decoding base64 {0}
+    /// Error decoding base64: {0}
     Base64DecodeError(String),
 
-    /// Error decoding private view key {0}
+    /// Error decoding private view key: {0}
     DecodePrivateKeyError(String),
 }
 

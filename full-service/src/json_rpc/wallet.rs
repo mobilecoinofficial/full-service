@@ -540,8 +540,6 @@ where
             }
         }
         JsonCommandRequest::get_all_view_only_accounts => {
-            // TODO(cc) how to refactor this so that view_only and regular accounts can
-            // re-use the mapping logic?
             let accounts = service.list_view_only_accounts().map_err(format_error)?;
             let json_accounts: Vec<(String, serde_json::Value)> = accounts
                 .iter()
@@ -836,8 +834,10 @@ where
             offset,
             limit,
         } => {
-            let o = offset.parse::<u64>().map_err(format_error)?;
-            let l = limit.parse::<u64>().map_err(format_error)?;
+            let o = offset
+                .parse::<u64>()
+                .map_err(format_invalid_request_error)?;
+            let l = limit.parse::<u64>().map_err(format_invalid_request_error)?;
 
             if l > 1000 {
                 return Err(format_error("limit must not exceed 1000"));
@@ -867,9 +867,10 @@ where
             offset,
             limit,
         } => {
-            // TODO(cc) share logic between this and regular account get txos
-            let o = offset.parse::<i64>().map_err(format_error)?;
-            let l = limit.parse::<i64>().map_err(format_error)?;
+            let o = offset
+                .parse::<i64>()
+                .map_err(format_invalid_request_error)?;
+            let l = limit.parse::<i64>().map_err(format_invalid_request_error)?;
 
             if l > 1000 {
                 return Err(format_error("limit must not exceed 1000"));

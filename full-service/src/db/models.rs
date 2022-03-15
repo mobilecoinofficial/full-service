@@ -220,7 +220,7 @@ pub struct NewTxo<'a> {
     pub received_account_id_hex: Option<String>,
 }
 
-/// TXOs that can be decrypted with the view-pirvate-key for a
+/// TXOs that can be decrypted with the view-private-key for a
 /// view-only-account.
 #[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug, Associations)]
 #[belongs_to(ViewOnlyAccount, foreign_key = "view_only_account_id_hex")]

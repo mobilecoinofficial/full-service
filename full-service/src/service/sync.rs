@@ -608,11 +608,6 @@ mod tests {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let view_private_key = RistrettoPrivate::from_random(&mut rng);
-        // let key =
-        //     hex::decode("
-        // 0a20928c29f916586c0fae22de17784b2b9ac573a1b1d75c2ba531838650ca0a5302")
-        //         .unwrap();
-        // let view_private_key = mc_util_serial::decode(&key).unwrap();
 
         let spend_private_key = RistrettoPrivate::from_random(&mut rng);
 
@@ -625,24 +620,7 @@ mod tests {
         let o = account_key.subaddress(0);
         let _new_block_index = add_block_to_ledger_db(
             &mut ledger_db,
-            &[
-                o.clone(),
-                o.clone(),
-                o.clone(),
-                o.clone(),
-                o.clone(),
-                o.clone(),
-                o.clone(),
-                o.clone(),
-                o.clone(),
-                o.clone(),
-                o.clone(),
-                o.clone(),
-                o.clone(),
-                o.clone(),
-                o.clone(),
-                o.clone(),
-            ],
+            &(0..16).map(|_| o.clone()).collect::<Vec<_>>(),
             origin_block_txo_amount as u64,
             &vec![],
             &mut rng,

@@ -338,23 +338,8 @@ pub fn manually_sync_account(
             Ok(_) => {}
             Err(SyncError::Database(WalletDbError::Diesel(
                 diesel::result::Error::DatabaseError(kind, info),
-            ))) => {
-                match info.message() {
-                    "database is locked" => log::trace!(logger, "Database locked. Will retry"),
-                    _ => {
-                        log::error!(
-                            logger,
-                            "Unexpected database error {:?} {:?} {:?} {:?} {:?} {:?}",
-                            kind,
-                            info,
-                            info.details(),
-                            info.column_name(),
-                            info.table_name(),
-                            info.hint(),
-                        );
-                        panic!("Could not manually sync account.");
-                    }
-                };
+            ))) if info.message() == "database is locked" => {
+                log::trace!(logger, "Database locked. Will retry");
                 std::thread::sleep(Duration::from_millis(500));
             }
             Err(e) => panic!("Could not sync account due to {:?}", e),
@@ -367,8 +352,6 @@ pub fn manually_sync_account(
     account
 }
 
-// TODO(cc) refactor so regular and view only account manual sync utilities
-// share some code.
 // Sync view-only-account to most recent block
 pub fn manually_sync_view_only_account(
     ledger_db: &LedgerDB,
@@ -382,23 +365,8 @@ pub fn manually_sync_view_only_account(
             Ok(_) => {}
             Err(SyncError::Database(WalletDbError::Diesel(
                 diesel::result::Error::DatabaseError(kind, info),
-            ))) => {
-                match info.message() {
-                    "database is locked" => log::trace!(logger, "Database locked. Will retry"),
-                    _ => {
-                        log::error!(
-                            logger,
-                            "Unexpected database error {:?} {:?} {:?} {:?} {:?} {:?}",
-                            kind,
-                            info,
-                            info.details(),
-                            info.column_name(),
-                            info.table_name(),
-                            info.hint(),
-                        );
-                        panic!("Could not manually sync account.");
-                    }
-                };
+            ))) if info.message() == "database is locked" => {
+                log::trace!(logger, "Database locked. Will retry");
                 std::thread::sleep(Duration::from_millis(500));
             }
             Err(e) => panic!("Could not sync account due to {:?}", e),
