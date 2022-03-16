@@ -8,7 +8,7 @@ In some cases, when sending a transaction, the recipient will report not having 
 
 ## Verify Transaction Success
 
-First, verify whether the transaction was a success by examining the `transaction_log` for the transaction, using the [`get_transaction_logs`](../transactions/transaction-confirmation/get_transaction_logs.md) endpoint, which will provide an example result as below:
+First, verify whether the transaction was a success by examining the `transaction_log` for the transaction, using the [`get_transaction_logs_for_account`](../transactions/transaction-log/get_transaction_logs_for_account.md) endpoint, which will provide an example result as below:
 
 * Note, you can filter for sent transactions using a tool such as jq, and piping the result to `| jq '.result | .transaction_log_map[] | select(. | .direction=="tx_direction_sent")'`
 
@@ -57,7 +57,7 @@ The `output_txos` for the transaction contain details about the txo itself, incl
 
 ### Confirm with the Block Explorer
 
-You can use the `txo_id_hex` from the `output_txos` to get more information about the specific txo over which there may be a dispute, with the [`get_txo`](../transactions/transaction-confirmation/get_txo.md) endpoint.
+You can use the `txo_id_hex` from the `output_txos` to get more information about the specific txo over which there may be a dispute, with the [`get_txo`](../transactions/txo/get_txo.md) endpoint.
 
 ```
 $ curl -s localhost:9090/wallet -d '{"method": "get_txo", "params": {"txo_id": "c50c2d1fbeae481e8bf68e90692f537a9d9fca62177d411d37dbb88e19a8f4d6"}, "jsonrpc": "2.0", "id": 1}' -X POST -H 'Content-type: application/json'  | jq
@@ -97,7 +97,7 @@ $ curl -s localhost:9090/wallet -d '{"method": "get_txo", "params": {"txo_id": "
 
 You can use the `public_key` to confirm with the block explorer. The MobileCoin Foundation hosts a public block explorer at [https://block-explorer.mobilecoin.foundation/](https://block-explorer.mobilecoin.foundation/). 
 
-For the example above, we can go to the block index indicated in the `transaction_log`: `318163`, here: [https://block-explorer.mobilecoin.foundation/block/318163](https://block-explorer.mobilecoin.foundation/318163), and scroll down to the Transaction Outputs section, where we see the public key `8e279a2326d585a9c8b24c0b3c9d356e63f1c4276b22bb97f25b45bb58ec810d` (with the prefix `0a20` removed)
+For the example above, we can go to the block index indicated in the `transaction_log`: `318163`, here: [https://block-explorer.mobilecoin.foundation/block/318163](https://block-explorer.mobilecoin.foundation/block/318163), and scroll down to the Transaction Outputs section, where we see the public key `8e279a2326d585a9c8b24c0b3c9d356e63f1c4276b22bb97f25b45bb58ec810d` (with the prefix `0a20` removed)
 
 ![alt text](../img/BlockExplorer.png)
 
