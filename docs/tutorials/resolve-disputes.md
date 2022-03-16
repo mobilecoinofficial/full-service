@@ -95,9 +95,9 @@ $ curl -s localhost:9090/wallet -d '{"method": "get_txo", "params": {"txo_id": "
 }
 ```
 
-You can use the `public_key` to confirm with the block explorer. The MobileCoin Foundation hosts a public block explorer at https://block-explorer.mobilecoin.foundation/. 
+You can use the `public_key` to confirm with the block explorer. The MobileCoin Foundation hosts a public block explorer at [https://block-explorer.mobilecoin.foundation/](https://block-explorer.mobilecoin.foundation/). 
 
-For the example above, we can go to the block index indicated in the `transaction_log`: `318163`, here: https://block-explorer.mobilecoin.foundation/block/318163, and scroll down to the Transaction Outputs section, where we see the public key `8e279a2326d585a9c8b24c0b3c9d356e63f1c4276b22bb97f25b45bb58ec810d` (with the prefix `0a20` removed)
+For the example above, we can go to the block index indicated in the `transaction_log`: `318163`, here: [https://block-explorer.mobilecoin.foundation/block/318163](https://block-explorer.mobilecoin.foundation/318163), and scroll down to the Transaction Outputs section, where we see the public key `8e279a2326d585a9c8b24c0b3c9d356e63f1c4276b22bb97f25b45bb58ec810d` (with the prefix `0a20` removed)
 
 ![alt text](../img/BlockExplorer.png)
 
