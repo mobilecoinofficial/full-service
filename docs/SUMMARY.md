@@ -84,5 +84,5 @@
 * [Environment Setup](tutorials/environment-setup.md)
 * [Run Full Service](tutorials/recieve-mob.md)
 * [Database Usage](tutorials/database-usage.md)
-* [TXO Confirmation](tutorials/get-and-validate-txo-confirmations.md)
+* [Resolve Disputes](tutorials/resolve-disputes.md)
 
