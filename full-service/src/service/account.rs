@@ -4,7 +4,7 @@
 
 use crate::{
     db::{
-        account::{AccountID, AccountModel, MNEMONIC_KEY_DERIVATION_VERSION},
+        account::{AccountID, AccountModel},
         models::Account,
         WalletDbError,
     },
@@ -12,6 +12,7 @@ use crate::{
         ledger::{LedgerService, LedgerServiceError},
         WalletService,
     },
+    util::constants::MNEMONIC_KEY_DERIVATION_VERSION,
 };
 use base64;
 use bip39::{Language, Mnemonic, MnemonicType};

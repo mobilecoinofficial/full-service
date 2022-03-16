@@ -73,7 +73,7 @@ where
         let import_block_index: i64 = self.ledger_db.num_blocks()? as i64 - 1;
 
         // set first block to 0 if none provided
-        let first_block_i: i64 = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX);
+        let first_block_i: i64 = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX as i64);
 
         let conn = self.wallet_db.get_conn()?;
         conn.transaction(|| {
@@ -82,7 +82,7 @@ where
                 &view_private_key,
                 first_block_i,
                 import_block_index,
-                &name,
+                name,
                 &conn,
             )?)
         })

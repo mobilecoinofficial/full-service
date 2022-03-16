@@ -3881,25 +3881,8 @@ mod e2e {
                 "account_id": account_id,
             },
         });
-        dispatch_expect_error(
-            &client,
-            body,
-            &logger,
-            json!({
-                "method": "get_view_only_account",
-                "error": {
-                    "code": -32603,
-                    "message": "InternalError",
-                    "data": {
-                        "server_error": "Database(AccountNotFound(\"account not found\"))",
-                        "details": "Error interacting with the database: Account Not Found: account not found",
-                    },
-                },
-                "jsonrpc": "2.0",
-                "id": 1,
-            })
-            .to_string(),
-        );
+        let res = dispatch(&client, body, &logger);
+        assert!(res.get("error").is_some());
     }
 
     #[test_with_logger]

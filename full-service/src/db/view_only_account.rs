@@ -7,13 +7,7 @@ use crate::{
         models::{NewViewOnlyAccount, ViewOnlyAccount},
         schema, WalletDbError,
     },
-    util::{
-        constants::{
-            DEFAULT_FIRST_BLOCK_INDEX, MNEMONIC_KEY_DERIVATION_VERSION,
-            ROOT_ENTROPY_KEY_DERIVATION_VERSION,
-        },
-        encoding_helpers::{ristretto_to_vec, vec_to_hex},
-    },
+    util::encoding_helpers::{ristretto_to_vec, vec_to_hex},
 };
 use diesel::{
     prelude::*,

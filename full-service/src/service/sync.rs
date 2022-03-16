@@ -186,17 +186,19 @@ fn sync_view_only_account_next_chunk(
         let view_private_key: RistrettoPrivate =
             mc_util_serial::decode(&view_only_account.view_private_key)?;
         let start_time = Instant::now();
-        let first_block_index = view_only_account.next_block_index;
-        let mut last_block_index = view_only_account.next_block_index;
+        let first_block_index = view_only_account.next_block_index as u64;
+        let mut last_block_index = view_only_account.next_block_index as u64;
 
         // Load transaction outputs for this chunk. View only accounts have a view
         // private key but no spend private key, so they can scan TXOs but
         // not key images
         let mut tx_outs: Vec<TxOut> = Vec::new();
 
-        for block_index in view_only_account.next_block_index
-            ..view_only_account.next_block_index + BLOCKS_CHUNK_SIZE
-        {
+        let start = view_only_account.next_block_index as u64;
+        let end = start + BLOCKS_CHUNK_SIZE;
+
+        for block_index in start..end {
+            let block_index = block_index as u64;
             let block_contents = match ledger_db.get_block_contents(block_index as u64) {
                 Ok(block_contents) => block_contents,
                 Err(mc_ledger_db::Error::NotFound) => {
@@ -233,7 +235,7 @@ fn sync_view_only_account_next_chunk(
 
         // Done syncing this chunk. Mark these blocks as synced for this account.
 
-        view_only_account.update_next_block_index(last_block_index + 1, conn)?;
+        view_only_account.update_next_block_index((last_block_index + 1) as i64, conn)?;
 
         let num_blocks_synced = last_block_index - first_block_index + 1;
 
