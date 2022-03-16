@@ -71,10 +71,9 @@ impl From<&service::balance::Balance> for Balance {
     }
 }
 
-// TODO(CC) different word than "balance" here? I think balance implies received
-// - spent, but this is just received
 /// The "balance" for a view-only-account, as well as some information about
-/// syncing status needed to interpret the balance correctly.
+/// syncing status needed to interpret the balance correctly. In order for the
+/// balance to be accurate, you must mark view_only_txos as spent
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct ViewOnlyBalance {
     /// String representing the object's type. Objects of the same type share

@@ -4051,21 +4051,16 @@ mod e2e {
         let public_address = b58_decode_public_address(b58_public_address).unwrap();
 
         // Add blocks with a txo for this address
-        add_block_to_ledger_db(
-            &mut ledger_db,
-            &vec![public_address.clone()],
-            42 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
-            &mut rng,
-        );
-
-        add_block_to_ledger_db(
-            &mut ledger_db,
-            &vec![public_address],
-            42 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
-            &mut rng,
-        );
+        let total_txos = 10;
+        for _ in 0..total_txos {
+            add_block_to_ledger_db(
+                &mut ledger_db,
+                &vec![public_address.clone()],
+                42 * MOB as u64,
+                &vec![KeyImage::from(rng.next_u64())],
+                &mut rng,
+            );
+        }
 
         // import view-only-account from account
         let body = json!({
@@ -4110,15 +4105,29 @@ mod e2e {
             "params": {
                 "account_id": view_only_account_id,
                 "offset": "0",
-                "limit": "5",
+                "limit": total_txos.to_string(),
             }
         });
-
-        // TODO(cc) test pagination
 
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let txo_ids = result.get("txo_ids").unwrap().as_array().unwrap();
-        assert_eq!(txo_ids.len(), 2);
+        assert_eq!(txo_ids.len(), total_txos);
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_txos_for_view_only_account",
+            "params": {
+                "account_id": view_only_account_id,
+                "offset": "9",
+                "limit": "4",
+            }
+        });
+
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let txo_ids = result.get("txo_ids").unwrap().as_array().unwrap();
+        assert_eq!(txo_ids.len(), 1);
     }
 }

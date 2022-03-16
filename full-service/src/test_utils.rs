@@ -337,7 +337,7 @@ pub fn manually_sync_account(
         match sync_account(&ledger_db, &wallet_db, &account_id.to_string(), &logger) {
             Ok(_) => {}
             Err(SyncError::Database(WalletDbError::Diesel(
-                diesel::result::Error::DatabaseError(kind, info),
+                diesel::result::Error::DatabaseError(_kind, info),
             ))) if info.message() == "database is locked" => {
                 log::trace!(logger, "Database locked. Will retry");
                 std::thread::sleep(Duration::from_millis(500));
@@ -364,7 +364,7 @@ pub fn manually_sync_view_only_account(
         match sync_view_only_account(&ledger_db, &wallet_db, &view_only_account_id, &logger) {
             Ok(_) => {}
             Err(SyncError::Database(WalletDbError::Diesel(
-                diesel::result::Error::DatabaseError(kind, info),
+                diesel::result::Error::DatabaseError(_kind, info),
             ))) if info.message() == "database is locked" => {
                 log::trace!(logger, "Database locked. Will retry");
                 std::thread::sleep(Duration::from_millis(500));

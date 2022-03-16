@@ -631,7 +631,7 @@ mod tests {
 
         // create view only account
         let account = service
-            .import_view_only_account(view_private_key.clone(), "catsaccount".to_string(), None)
+            .import_view_only_account(view_private_key.clone(), "catsaccount", None)
             .unwrap();
 
         manually_sync_view_only_account(&ledger_db, &wallet_db, &account.account_id_hex, &logger);

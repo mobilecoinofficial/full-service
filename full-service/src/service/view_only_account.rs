@@ -26,14 +26,13 @@ pub trait ViewOnlyAccountService {
     fn import_view_only_account(
         &self,
         view_private_key: RistrettoPrivate,
-        name: String,
+        name: &str,
         first_block_index: Option<i64>,
     ) -> Result<ViewOnlyAccount, AccountServiceError>;
 
     /// Get a view only account by view private key
     fn get_view_only_account(
         &self,
-        // TODO(cc) better to use String or &str here?
         account_id: &str,
     ) -> Result<ViewOnlyAccount, AccountServiceError>;
 
@@ -59,7 +58,7 @@ where
     fn import_view_only_account(
         &self,
         view_private_key: RistrettoPrivate,
-        name: String,
+        name: &str,
         first_block_index: Option<i64>,
     ) -> Result<ViewOnlyAccount, AccountServiceError> {
         log::info!(
@@ -134,7 +133,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::{get_test_ledger, setup_wallet_service};
+    use crate::{
+        test_utils::{get_test_ledger, setup_wallet_service},
+        util::encoding_helpers::ristretto_to_vec,
+    };
     use mc_account_keys::PublicAddress;
     use mc_common::logger::{test_with_logger, Logger};
     use mc_connection_test_utils::MockBlockchainConnection;
@@ -173,18 +175,14 @@ mod tests {
 
         // test import
         service
-            .import_view_only_account(
-                view_private_key.clone(),
-                name.to_string(),
-                Some(first_block_index),
-            )
+            .import_view_only_account(view_private_key.clone(), &name, Some(first_block_index))
             .unwrap();
 
         // test get
         let expected_account = ViewOnlyAccount {
             id: 1,
             account_id_hex: account_id_hex.clone(),
-            view_private_key: view_private_key.to_bytes().to_vec(),
+            view_private_key: ristretto_to_vec(&view_private_key),
             first_block_index,
             next_block_index: first_block_index,
             import_block_index: current_block_height - 1,
@@ -205,7 +203,7 @@ mod tests {
         // test list all
         let view_private_key2 = RistrettoPrivate::from_random(&mut rng);
         service
-            .import_view_only_account(view_private_key2, name.to_string(), Some(first_block_index))
+            .import_view_only_account(view_private_key2, &name, Some(first_block_index))
             .unwrap();
 
         let all_accounts = service.list_view_only_accounts().unwrap();

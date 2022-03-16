@@ -23,8 +23,6 @@ pub struct ViewOnlyTxo {
     /// the view-only-account id for this txo
     pub view_only_account_id_hex: String,
 
-    // TODO(CC) should we change this field to make it more obvious that marking spent has to
-    // happen manually?
     /// Flag that indicates if the the TXO has been manually marked as spent
     pub spent: bool,
 }

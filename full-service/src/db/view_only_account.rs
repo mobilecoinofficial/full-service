@@ -2,9 +2,12 @@
 
 //! DB impl for the View Only Account model.
 
-use crate::db::{
-    models::{NewViewOnlyAccount, ViewOnlyAccount},
-    schema, WalletDbError,
+use crate::{
+    db::{
+        models::{NewViewOnlyAccount, ViewOnlyAccount},
+        schema, WalletDbError,
+    },
+    util::encoding_helpers::{ristretto_to_vec, vec_to_hex},
 };
 use diesel::{
     prelude::*,
@@ -25,8 +28,10 @@ pub struct ViewOnlyAccountID(pub String);
 impl From<&RistrettoPrivate> for ViewOnlyAccountID {
     fn from(src: &RistrettoPrivate) -> ViewOnlyAccountID {
         let view_public_key = RistrettoPublic::from(src);
-        let temp: [u8; 32] = view_public_key.digest32::<MerlinTranscript>(b"view_account_data");
-        Self(hex::encode(temp))
+        let temp: Vec<u8> = view_public_key
+            .digest32::<MerlinTranscript>(b"view_account_data")
+            .to_vec();
+        Self(vec_to_hex(&temp))
     }
 }
 
@@ -55,7 +60,6 @@ pub trait ViewOnlyAccountModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<ViewOnlyAccount, WalletDbError>;
 
-    // TODO(cc) should this be paginated instead?
     /// List all view-only-accounts.
     /// Returns:
     /// * Vector of all View Only Accounts in the DB
@@ -97,7 +101,7 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
     ) -> Result<ViewOnlyAccount, WalletDbError> {
         use schema::view_only_accounts;
 
-        let encoded_key = mc_util_serial::encode(view_private_key);
+        let encoded_key = ristretto_to_vec(view_private_key);
 
         let new_view_only_account = NewViewOnlyAccount {
             account_id_hex,
@@ -126,16 +130,14 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
         };
 
         match view_only_accounts
-            .filter((dsl_account_id).eq(account_id))
+            .filter((dsl_account_id).eq(&account_id))
             .get_result::<ViewOnlyAccount>(conn)
         {
             Ok(a) => Ok(a),
             // Match on NotFound to get a more informative NotFound Error
-            Err(diesel::result::Error::NotFound) => Err(WalletDbError::AccountNotFound(
-                // TODO(cc) improve this error handling
-                // str::from_utf8(view_private_key)?,
-                "account not found".to_string(),
-            )),
+            Err(diesel::result::Error::NotFound) => {
+                Err(WalletDbError::AccountNotFound(account_id.to_string()))
+            }
             Err(e) => Err(e.into()),
         }
     }
@@ -223,7 +225,7 @@ mod tests {
         let expected_account = ViewOnlyAccount {
             id: 1,
             account_id_hex: account_id_hex.to_string(),
-            view_private_key: mc_util_serial::encode(&view_private_key),
+            view_private_key: ristretto_to_vec(&view_private_key),
             first_block_index,
             next_block_index: first_block_index,
             import_block_index,

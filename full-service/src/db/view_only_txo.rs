@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2022 MobileCoin Inc.
 
-//! DB impl for the Txo model.
+//! DB impl for the view-only Txo model.
 
 use crate::db::{
     models::{NewViewOnlyTxo, ViewOnlyAccount, ViewOnlyTxo},
@@ -14,7 +14,6 @@ use diesel::{
     r2d2::{ConnectionManager, PooledConnection},
     RunQueryDsl,
 };
-
 use mc_transaction_core::tx::TxOut;
 
 pub trait ViewOnlyTxoModel {
