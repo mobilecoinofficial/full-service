@@ -180,9 +180,6 @@ pub enum JsonCommandResponse {
     get_account {
         account: Account,
     },
-    get_view_only_account {
-        view_only_account: ViewOnlyAccount,
-    },
     get_account_status {
         account: Account,
         balance: Balance,
@@ -195,10 +192,6 @@ pub enum JsonCommandResponse {
         address_map: Map<String, serde_json::Value>,
     },
     get_all_accounts {
-        account_ids: Vec<String>,
-        account_map: Map<String, serde_json::Value>,
-    },
-    get_all_view_only_accounts {
         account_ids: Vec<String>,
         account_map: Map<String, serde_json::Value>,
     },
@@ -224,14 +217,18 @@ pub enum JsonCommandResponse {
         txo_ids: Vec<String>,
         txo_map: Map<String, serde_json::Value>,
     },
+    get_all_view_only_accounts {
+        account_ids: Vec<String>,
+        account_map: Map<String, serde_json::Value>,
+    },
     get_balance_for_account {
+        balance: Balance,
+    },
+    get_balance_for_address {
         balance: Balance,
     },
     get_balance_for_view_only_account {
         balance: ViewOnlyBalance,
-    },
-    get_balance_for_address {
-        balance: Balance,
     },
     get_block {
         block: Block,
@@ -270,6 +267,9 @@ pub enum JsonCommandResponse {
         txo_ids: Vec<String>,
         txo_map: Map<String, serde_json::Value>,
     },
+    get_view_only_account {
+        view_only_account: ViewOnlyAccount,
+    },
     get_wallet_status {
         wallet_status: WalletStatus,
     },
@@ -285,10 +285,10 @@ pub enum JsonCommandResponse {
     remove_account {
         removed: bool,
     },
-    remove_view_only_account {
+    remove_gift_code {
         removed: bool,
     },
-    remove_gift_code {
+    remove_view_only_account {
         removed: bool,
     },
     submit_gift_code {

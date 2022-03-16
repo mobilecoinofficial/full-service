@@ -453,16 +453,6 @@ where
             )
             .map_err(format_error)?,
         },
-        JsonCommandRequest::get_view_only_account { account_id } => {
-            JsonCommandResponse::get_view_only_account {
-                view_only_account: json_rpc::view_only_account::ViewOnlyAccount::try_from(
-                    &service
-                        .get_view_only_account(&account_id)
-                        .map_err(format_error)?,
-                )
-                .map_err(format_error)?,
-            }
-        }
         JsonCommandRequest::get_account_status { account_id } => {
             let account = json_rpc::account::Account::try_from(
                 &service
@@ -537,26 +527,6 @@ where
                 .collect::<Result<Vec<(String, serde_json::Value)>, JsonRPCError>>()?;
             let account_map: Map<String, serde_json::Value> = Map::from_iter(json_accounts);
             JsonCommandResponse::get_all_accounts {
-                account_ids: accounts.iter().map(|a| a.account_id_hex.clone()).collect(),
-                account_map,
-            }
-        }
-        JsonCommandRequest::get_all_view_only_accounts => {
-            let accounts = service.list_view_only_accounts().map_err(format_error)?;
-            let json_accounts: Vec<(String, serde_json::Value)> = accounts
-                .iter()
-                .map(|a| {
-                    json_rpc::view_only_account::ViewOnlyAccount::try_from(a)
-                        .map_err(format_error)
-                        .and_then(|v| {
-                            serde_json::to_value(v)
-                                .map(|v| (a.account_id_hex.clone(), v))
-                                .map_err(format_error)
-                        })
-                })
-                .collect::<Result<Vec<(String, serde_json::Value)>, JsonRPCError>>()?;
-            let account_map: Map<String, serde_json::Value> = Map::from_iter(json_accounts);
-            JsonCommandResponse::get_all_view_only_accounts {
                 account_ids: accounts.iter().map(|a| a.account_id_hex.clone()).collect(),
                 account_map,
             }
@@ -704,6 +674,26 @@ where
                 txo_map,
             }
         }
+        JsonCommandRequest::get_all_view_only_accounts => {
+            let accounts = service.list_view_only_accounts().map_err(format_error)?;
+            let json_accounts: Vec<(String, serde_json::Value)> = accounts
+                .iter()
+                .map(|a| {
+                    json_rpc::view_only_account::ViewOnlyAccount::try_from(a)
+                        .map_err(format_error)
+                        .and_then(|v| {
+                            serde_json::to_value(v)
+                                .map(|v| (a.account_id_hex.clone(), v))
+                                .map_err(format_error)
+                        })
+                })
+                .collect::<Result<Vec<(String, serde_json::Value)>, JsonRPCError>>()?;
+            let account_map: Map<String, serde_json::Value> = Map::from_iter(json_accounts);
+            JsonCommandResponse::get_all_view_only_accounts {
+                account_ids: accounts.iter().map(|a| a.account_id_hex.clone()).collect(),
+                account_map,
+            }
+        }
         JsonCommandRequest::get_balance_for_account { account_id } => {
             JsonCommandResponse::get_balance_for_account {
                 balance: Balance::from(
@@ -713,20 +703,20 @@ where
                 ),
             }
         }
-        JsonCommandRequest::get_balance_for_view_only_account { account_id } => {
-            JsonCommandResponse::get_balance_for_view_only_account {
-                balance: ViewOnlyBalance::from(
-                    &service
-                        .get_balance_for_view_only_account(&account_id)
-                        .map_err(format_error)?,
-                ),
-            }
-        }
         JsonCommandRequest::get_balance_for_address { address } => {
             JsonCommandResponse::get_balance_for_address {
                 balance: Balance::from(
                     &service
                         .get_balance_for_address(&address)
+                        .map_err(format_error)?,
+                ),
+            }
+        }
+        JsonCommandRequest::get_balance_for_view_only_account { account_id } => {
+            JsonCommandResponse::get_balance_for_view_only_account {
+                balance: ViewOnlyBalance::from(
+                    &service
+                        .get_balance_for_view_only_account(&account_id)
                         .map_err(format_error)?,
                 ),
             }
@@ -904,24 +894,11 @@ where
             )
             .map_err(format_error)?,
         },
-        JsonCommandRequest::import_view_only_account {
-            view_private_key,
-            name,
-            first_block_index,
-        } => {
-            let fb = first_block_index
-                .map(|fb| fb.parse::<i64>())
-                .transpose()
-                .map_err(format_error)?;
-
-            let n = name.unwrap_or_default();
-
-            let decoded_key = hex_to_ristretto(&view_private_key).map_err(format_error)?;
-
-            JsonCommandResponse::import_view_only_account {
+        JsonCommandRequest::get_view_only_account { account_id } => {
+            JsonCommandResponse::get_view_only_account {
                 view_only_account: json_rpc::view_only_account::ViewOnlyAccount::try_from(
                     &service
-                        .import_view_only_account(decoded_key, &n, fb)
+                        .get_view_only_account(&account_id)
                         .map_err(format_error)?,
                 )
                 .map_err(format_error)?,
@@ -1000,22 +977,45 @@ where
                 .map_err(format_error)?,
             }
         }
+        JsonCommandRequest::import_view_only_account {
+            view_private_key,
+            name,
+            first_block_index,
+        } => {
+            let fb = first_block_index
+                .map(|fb| fb.parse::<i64>())
+                .transpose()
+                .map_err(format_error)?;
+
+            let n = name.unwrap_or_default();
+
+            let decoded_key = hex_to_ristretto(&view_private_key).map_err(format_error)?;
+
+            JsonCommandResponse::import_view_only_account {
+                view_only_account: json_rpc::view_only_account::ViewOnlyAccount::try_from(
+                    &service
+                        .import_view_only_account(decoded_key, &n, fb)
+                        .map_err(format_error)?,
+                )
+                .map_err(format_error)?,
+            }
+        }
         JsonCommandRequest::remove_account { account_id } => JsonCommandResponse::remove_account {
             removed: service
                 .remove_account(&AccountID(account_id))
                 .map_err(format_error)?,
         },
-        JsonCommandRequest::remove_view_only_account { account_id } => {
-            JsonCommandResponse::remove_view_only_account {
-                removed: service
-                    .remove_view_only_account(&account_id)
-                    .map_err(format_error)?,
-            }
-        }
         JsonCommandRequest::remove_gift_code { gift_code_b58 } => {
             JsonCommandResponse::remove_gift_code {
                 removed: service
                     .remove_gift_code(&EncodedGiftCode(gift_code_b58))
+                    .map_err(format_error)?,
+            }
+        }
+        JsonCommandRequest::remove_view_only_account { account_id } => {
+            JsonCommandResponse::remove_view_only_account {
+                removed: service
+                    .remove_view_only_account(&account_id)
                     .map_err(format_error)?,
             }
         }
