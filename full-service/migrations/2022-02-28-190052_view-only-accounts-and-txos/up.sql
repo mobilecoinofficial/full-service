@@ -18,3 +18,4 @@ CREATE TABLE view_only_txos (
   FOREIGN KEY (view_only_account_id_hex) REFERENCES view_only_accounts(account_id_hex)
 );
 
+

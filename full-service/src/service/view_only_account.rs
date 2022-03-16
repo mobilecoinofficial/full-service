@@ -2,23 +2,21 @@
 
 //! Service for managing view-only-accounts.
 
-use crate::service::WalletService;
-use mc_common::logger::log;
-use mc_connection::{BlockchainConnection, UserTxConnection};
-use mc_fog_report_validation::FogPubkeyResolver;
-use mc_ledger_db::Ledger;
-
 use crate::{
     db::{
         models::ViewOnlyAccount,
         view_only_account::{ViewOnlyAccountID, ViewOnlyAccountModel},
     },
-    service::account::AccountServiceError,
+    service::{account::AccountServiceError, WalletService},
+    util::constants::DEFAULT_FIRST_BLOCK_INDEX,
 };
 use diesel::Connection;
+use mc_common::logger::log;
+use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_crypto_keys::RistrettoPrivate;
+use mc_fog_report_validation::FogPubkeyResolver;
+use mc_ledger_db::Ledger;
 
-const DEFAULT_FIRST_BLOCK_INDEX: i64 = 0;
 /// Trait defining the ways in which the wallet can interact with and manage
 /// view-only accounts.
 pub trait ViewOnlyAccountService {
