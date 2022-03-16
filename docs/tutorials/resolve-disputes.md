@@ -8,7 +8,7 @@ In some cases, when sending a transaction, the recipient will report not having 
 
 ## Verify Transaction Success
 
-First, verify whether the transaction was a success by examining the `transaction_log` for the transaction, using the `get_transaction_logs` endpoint, which will provide an example result as below:
+First, verify whether the transaction was a success by examining the `transaction_log` for the transaction, using the [`get_transaction_logs`](../transactions/transaction-confirmation/get_transaction_logs.md) endpoint, which will provide an example result as below:
 
 * Note, you can filter for sent transactions using a tool such as jq, and piping the result to `| jq '.result | .transaction_log_map[] | select(. | .direction=="tx_direction_sent")'`
 
@@ -57,7 +57,7 @@ The `output_txos` for the transaction contain details about the txo itself, incl
 
 ### Confirm with the Block Explorer
 
-You can use the `txo_id_hex` from the `output_txos` to get more information about the specific txo over which there may be a dispute, with the `get_txo` endpoint.
+You can use the `txo_id_hex` from the `output_txos` to get more information about the specific txo over which there may be a dispute, with the [`get_txo`](../transactions/transaction-confirmation/get_txo.md) endpoint.
 
 ```
 $ curl -s localhost:9090/wallet -d '{"method": "get_txo", "params": {"txo_id": "c50c2d1fbeae481e8bf68e90692f537a9d9fca62177d411d37dbb88e19a8f4d6"}, "jsonrpc": "2.0", "id": 1}' -X POST -H 'Content-type: application/json'  | jq
@@ -104,27 +104,37 @@ For the example above, we can go to the block index indicated in the `transactio
 
 ## Provide Confirmation Receipt to the Receiver
 
-### Account Prep
+After you have confirmed that the `transaction_log` indicates that you sent the transaction to the correct recipient, and you confirmed that the transaction outputs are in the blockchain, the next step of dispute resolution involves providing a cryptographic proof that you created the transaction, called a *confirmation*. You can follow the steps below to create a confirmation:
 
-Make sure you have 2 accounts ready, with one of them funded with some MOB. If you still need to set up some accounts, refer to the [`Run Full Service`](./environment-setup.md) section.
-
-It is only important that 1 account has MOB on it, which we will call `account_a` from here on out. `account_a` will be the sending account, and `account_b` will be the receiving account.
-
-### Send a Transaction
-
-Send a transaction from `account_a` to `account_b` by calling [`build_and_submit_transaction`](../transactions/transaction/build_and_submit_transaction.md) and providing the main public address of `account_b`
-
-This will return a response that will include the `transaction_log_id`, which we will need for the next step
-
-### Get The TXO Confirmations
+### Sender Provides the TXO Confirmations
 
 1. Using the `transaction_log_id` obtained from the previous step, call [`get_confirmations`](../transactions/transaction-confirmation/get_confirmations.md)
 
 2. This will return a response that has an array of confirmations. In most cases, there will only be 1, but if you created a multi-output transaction there will be more.
 
+```
+$ curl -s localhost:9090/wallet -d '{"method": "get_confirmations", "params": {"account_id": "09edc0d0392c8b4c5924187304f4dbc88729d3dd2a03832b4d30e5328bdb5fa9", "transaction_log_id": "c3e516eb1b9813041a621ee505e34ed206bae81b9553b32dbf2c94605a5cea34"}, "jsonrpc": "2.0", "api_version": "2", "id": 1}' | jq
+
+{
+  "method": "get_confirmations",
+  "result": {
+    "confirmations": [
+      {
+        "object": "confirmation",
+        "txo_id_hex": "c50c2d1fbeae481e8bf68e90692f537a9d9fca62177d411d37dbb88e19a8f4d6",
+        "txo_index": "949838",
+        "confirmation": "0a209d298c11da7d6f3798c7ddef69aea407170cc8f917c5cbfb4e8651513995db31"
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 1
+}
+```
+
 3. For the TXO that you wish to confirm, this is where you would send the recipient the txo_id and confirmation pairing for each txo you wish to have them validate.
 
-### Validate The TXO Confirmation
+### Receiver Validates the TXO Confirmation
 
 1. For each of the txo_id and confirmation pairings generated in the previous step, call [`validate_confirmation`](../transactions/transaction-confirmation/validate_confirmation.md) using the `account_id` of `account_b`, which is the receiving account.
 
