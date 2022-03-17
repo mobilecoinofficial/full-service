@@ -4,8 +4,9 @@
 
 use crate::{
     db::{
-        models::ViewOnlyAccount,
+        models::{ViewOnlyAccount, ViewOnlyTxo},
         view_only_account::{ViewOnlyAccountID, ViewOnlyAccountModel},
+        view_only_txo::ViewOnlyTxoModel,
     },
     service::{account::AccountServiceError, WalletService},
     util::constants::DEFAULT_FIRST_BLOCK_INDEX,
@@ -120,6 +121,9 @@ where
 
         let conn = self.wallet_db.get_conn()?;
         conn.transaction(|| {
+            // delete associated view-only-txos
+            ViewOnlyTxo::delete_all_for_account(account_id, &conn)?;
+
             let account = ViewOnlyAccount::get(account_id, &conn)?;
             account.delete(&conn)?;
 

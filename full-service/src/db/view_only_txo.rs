@@ -53,6 +53,12 @@ pub trait ViewOnlyTxoModel {
         limit: Option<i64>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<ViewOnlyTxo>, WalletDbError>;
+
+    /// delete all view only txos for a view-only account
+    fn delete_all_for_account(
+        account_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError>;
 }
 
 impl ViewOnlyTxoModel for ViewOnlyTxo {
@@ -136,6 +142,19 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         diesel::update(view_only_txos.filter(dsl_txo_id.eq(&self.txo_id_hex)))
             .set(dsl_spent.eq(true))
             .execute(conn)?;
+        Ok(())
+    }
+
+    fn delete_all_for_account(
+        account_id_hex: &str,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<(), WalletDbError> {
+        use schema::view_only_txos::dsl::{
+            view_only_account_id_hex as dsl_account_id, view_only_txos,
+        };
+
+        diesel::delete(view_only_txos.filter(dsl_account_id.eq(account_id_hex))).execute(conn)?;
+
         Ok(())
     }
 }
@@ -244,5 +263,13 @@ mod tests {
                 .unwrap();
 
         assert_eq!(listed.len(), 2);
+
+        // test delete all for account
+
+        ViewOnlyTxo::delete_all_for_account(&view_only_account.account_id_hex, &conn).unwrap();
+        let listed =
+            ViewOnlyTxo::list_for_account(&view_only_account.account_id_hex, None, None, &conn)
+                .unwrap();
+        assert_eq!(listed.len(), 0);
     }
 }
