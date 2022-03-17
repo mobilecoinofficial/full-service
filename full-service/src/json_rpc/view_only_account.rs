@@ -47,7 +47,9 @@ impl TryFrom<&db::models::ViewOnlyAccount> for ViewOnlyAccount {
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct ViewOnlyAccountSecrets {
     /// The private key used for viewing transactions for this account
+    pub object: String,
     pub view_private_key: String,
+    pub account_id: String,
 }
 
 impl TryFrom<&db::models::ViewOnlyAccount> for ViewOnlyAccountSecrets {
@@ -55,6 +57,8 @@ impl TryFrom<&db::models::ViewOnlyAccount> for ViewOnlyAccountSecrets {
 
     fn try_from(src: &db::models::ViewOnlyAccount) -> Result<ViewOnlyAccountSecrets, String> {
         Ok(ViewOnlyAccountSecrets {
+            object: "view_only_account_secrets".to_string(),
+            account_id: src.account_id_hex.clone(),
             view_private_key: vec_to_hex(&src.view_private_key),
         })
     }

@@ -30,7 +30,7 @@ pub struct ViewOnlyTxo {
 impl From<&db::models::ViewOnlyTxo> for ViewOnlyTxo {
     fn from(txo: &db::models::ViewOnlyTxo) -> ViewOnlyTxo {
         ViewOnlyTxo {
-            object: "txo".to_string(),
+            object: "view_only_txo".to_string(),
             txo_id_hex: txo.txo_id_hex.clone(),
             value_pmob: (txo.value as u64).to_string(),
             view_only_account_id_hex: txo.view_only_account_id_hex.to_string(),
