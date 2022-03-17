@@ -1,5 +1,5 @@
 ---
-description: Get the current status of a wallet.
+description: Get the current status of a wallet. Note that pmob calculations do not include view-only-accounts
 ---
 
 # Get Wallet Status
@@ -47,6 +47,18 @@ description: Get the current status of a wallet.
           "first_block_index": "3500",
           "object": "account",
           "recovery_mode": false
+        }
+      },
+      "view_only_account_ids": [
+        "b0be5377a2f45b1573586ed530b2901a559d9952ea8a02f8c2dbb033a935ac17",
+      ],
+      "view_only_account_map": {
+        "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470": {
+          "account_id": "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470",
+          "name": "Look at these cats",
+          "first_block_index": "3500",
+          "last_block_index": "3500",
+          "object": "view_only_account",
         }
       },
       "is_synced_all": false,

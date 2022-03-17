@@ -1,5 +1,5 @@
 ---
-description: The Wallet Status provides a quick overview of the contents of the wallet.
+description: The Wallet Status provides a quick overview of the contents of the wallet. Note that pmob calculations do not include view-only-accounts
 ---
 
 # Wallet Status
@@ -19,6 +19,8 @@ description: The Wallet Status provides a quick overview of the contents of the 
 | `total_orphaned_pmob` | String \(uint64\) | Orphaned pico MOB. The orphaned value represents the TXOs which were view-key matched, but which can not be spent until their subaddress index is recovered. |
 | `account_ids` | List | A list of all `account_ids` imported into the wallet in order of import. |
 | `account_map` | Hash map | A normalized hash mapping `account_id` to account objects. |
+| `view_only_account_ids` | List | A list of all `account_ids` for view only accounts imported into the wallet in order of import. |
+| `view_only_account_map` | Hash map | A normalized hash mapping view only `account_id` to view only account objects. |
 
 ## ​Example
 
@@ -49,6 +51,18 @@ description: The Wallet Status provides a quick overview of the contents of the 
       "first_block_index": "3500",
       "object": "account",
       "recovery_mode": false
+    }
+  },
+  "view_only_account_ids": [
+    "b0be5377a2f45b1573586ed530b2901a559d9952ea8a02f8c2dbb033a935ac17",
+  ],
+  "view_only_account_map": {
+    "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470": {
+      "account_id": "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470",
+      "name": "Look at these cats",
+      "first_block_index": "3500",
+      "last_block_index": "3500",
+      "object": "view_only_account",
     }
   },
   "is_synced_all": false,
