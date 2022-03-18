@@ -2,7 +2,7 @@
 
 //! API definition for the Account Key object.
 
-use mc_crypto_keys::RistrettoPrivate;
+use crate::util::encoding_helpers::{hex_to_ristretto, hex_to_vec, ristretto_to_hex, vec_to_hex};
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
@@ -37,11 +37,11 @@ impl From<&mc_account_keys::AccountKey> for AccountKey {
     fn from(src: &mc_account_keys::AccountKey) -> AccountKey {
         AccountKey {
             object: "account_key".to_string(),
-            view_private_key: hex::encode(mc_util_serial::encode(src.view_private_key())),
-            spend_private_key: hex::encode(mc_util_serial::encode(src.spend_private_key())),
+            view_private_key: ristretto_to_hex(src.view_private_key()),
+            spend_private_key: ristretto_to_hex(src.spend_private_key()),
             fog_report_url: src.fog_report_url().unwrap_or("").to_string(),
             fog_report_id: src.fog_report_id().unwrap_or("").to_string(),
-            fog_authority_spki: hex::encode(&src.fog_authority_spki().unwrap_or(&[])),
+            fog_authority_spki: vec_to_hex(&src.fog_authority_spki().unwrap_or(&[]).to_vec()),
         }
     }
 }
@@ -50,18 +50,10 @@ impl TryFrom<&AccountKey> for mc_account_keys::AccountKey {
     type Error = String;
 
     fn try_from(src: &AccountKey) -> Result<mc_account_keys::AccountKey, String> {
-        let view_private_key: RistrettoPrivate = mc_util_serial::decode(
-            &hex::decode(&src.view_private_key)
-                .map_err(|err| format!("Could not hex decode spend_private_key: {:?}", err))?,
-        )
-        .map_err(|err| format!("Could not prost decode spend_private_key: {:?}", err))?;
-        let spend_private_key: RistrettoPrivate = mc_util_serial::decode(
-            &hex::decode(&src.spend_private_key)
-                .map_err(|err| format!("Could not hex decode spend_private_key: {:?}", err))?,
-        )
-        .map_err(|err| format!("Could not prost decode spend_private_key: {:?}", err))?;
-        let fog_authority_spki = hex::decode(&src.fog_authority_spki)
-            .map_err(|err| format!("Could not hex decode fog_authority_spki: {:?}", err))?;
+        let view_private_key = hex_to_ristretto(&src.view_private_key)?;
+        let spend_private_key = hex_to_ristretto(&src.spend_private_key)?;
+        let fog_authority_spki = hex_to_vec(&src.fog_authority_spki)?;
+
         Ok(mc_account_keys::AccountKey::new_with_fog(
             &spend_private_key,
             &view_private_key,

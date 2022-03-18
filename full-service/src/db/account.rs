@@ -2,17 +2,20 @@
 
 //! DB impl for the Account model.
 
-use crate::db::{
-    assigned_subaddress::AssignedSubaddressModel,
-    models::{Account, AssignedSubaddress, NewAccount, TransactionLog, Txo},
-    transaction_log::TransactionLogModel,
-    txo::TxoModel,
-    WalletDbError,
+use crate::{
+    db::{
+        assigned_subaddress::AssignedSubaddressModel,
+        models::{Account, AssignedSubaddress, NewAccount, TransactionLog, Txo},
+        transaction_log::TransactionLogModel,
+        txo::TxoModel,
+        WalletDbError,
+    },
+    util::constants::{
+        DEFAULT_CHANGE_SUBADDRESS_INDEX, DEFAULT_FIRST_BLOCK_INDEX, DEFAULT_NEXT_SUBADDRESS_INDEX,
+        DEFAULT_SUBADDRESS_INDEX, MNEMONIC_KEY_DERIVATION_VERSION,
+        ROOT_ENTROPY_KEY_DERIVATION_VERSION,
+    },
 };
-
-use mc_account_keys::{AccountKey, RootEntropy, RootIdentity, DEFAULT_SUBADDRESS_INDEX};
-use mc_account_keys_slip10::Slip10Key;
-use mc_crypto_digestible::{Digestible, MerlinTranscript};
 
 use bip39::Mnemonic;
 use diesel::{
@@ -20,14 +23,10 @@ use diesel::{
     r2d2::{ConnectionManager, PooledConnection},
     RunQueryDsl,
 };
+use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
+use mc_account_keys_slip10::Slip10Key;
+use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use std::fmt;
-
-pub const DEFAULT_CHANGE_SUBADDRESS_INDEX: u64 = 1;
-pub const DEFAULT_NEXT_SUBADDRESS_INDEX: u64 = 2;
-pub const DEFAULT_FIRST_BLOCK_INDEX: u64 = 0;
-
-pub const ROOT_ENTROPY_KEY_DERIVATION_VERSION: u8 = 1;
-pub const MNEMONIC_KEY_DERIVATION_VERSION: u8 = 2;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct AccountID(pub String);

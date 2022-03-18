@@ -21,14 +21,14 @@ use std::fmt;
 
 use crate::{
     db::{
-        account::{AccountID, AccountModel, DEFAULT_CHANGE_SUBADDRESS_INDEX},
+        account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
         models::{
             Account, AssignedSubaddress, NewTxo, Txo, TXO_USED_AS_CHANGE, TXO_USED_AS_OUTPUT,
         },
         WalletDbError,
     },
-    util::b58::b58_encode_public_address,
+    util::{b58::b58_encode_public_address, constants::DEFAULT_CHANGE_SUBADDRESS_INDEX},
 };
 
 /// A unique ID derived from a TxOut in the ledger.
@@ -961,7 +961,7 @@ mod tests {
 
     use crate::{
         db::{
-            account::{AccountID, AccountModel, DEFAULT_CHANGE_SUBADDRESS_INDEX},
+            account::{AccountID, AccountModel},
             models::{Account, TransactionLog},
             transaction_log::TransactionLogModel,
         },
@@ -975,6 +975,7 @@ mod tests {
             create_test_txo_for_recipient, get_resolver_factory, get_test_ledger,
             manually_sync_account, random_account_with_seed_values, WalletDbTestContext, MOB,
         },
+        util::constants::DEFAULT_CHANGE_SUBADDRESS_INDEX,
         WalletDb,
     };
 
