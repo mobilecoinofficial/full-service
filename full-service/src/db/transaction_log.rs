@@ -573,14 +573,14 @@ mod tests {
     use rand::{rngs::StdRng, SeedableRng};
 
     use crate::{
-        db::account::{AccountID, AccountModel, DEFAULT_CHANGE_SUBADDRESS_INDEX},
+        db::account::{AccountID, AccountModel},
         service::{sync::SyncThread, transaction_builder::WalletTransactionBuilder},
         test_utils::{
             add_block_with_tx_outs, builder_for_random_recipient, create_test_received_txo,
             get_resolver_factory, get_test_ledger, manually_sync_account,
             random_account_with_seed_values, WalletDbTestContext, MOB,
         },
-        util::b58::b58_encode_public_address,
+        util::{b58::b58_encode_public_address, constants::DEFAULT_CHANGE_SUBADDRESS_INDEX},
     };
 
     use super::*;
