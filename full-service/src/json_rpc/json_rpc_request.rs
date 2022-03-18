@@ -249,4 +249,5 @@ pub enum JsonCommandRequest {
     verify_address {
         address: String,
     },
+    version,
 }

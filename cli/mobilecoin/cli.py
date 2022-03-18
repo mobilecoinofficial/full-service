@@ -162,6 +162,10 @@ class CommandLineInterface:
         self.gift_remove_args = gift_action.add_parser('remove', help='Remove a gift code.')
         self.gift_remove_args.add_argument('gift_code', help='Gift code to remove.')
 
+        # Version
+        self.version_args = command_sp.add_parser('version', help='Show version number.')
+
+
     def _load_account_prefix(self, prefix):
         accounts = self.client.get_all_accounts()
         matching_ids = [
@@ -711,6 +715,10 @@ class CommandLineInterface:
             if 'GiftCodeNotFound' in e.response['data']['server_error']:
                 print('Gift code not found; nothing to remove.')
                 return
+
+    def version(self):
+        version = self.client.version()
+        print(version['string'])
 
 
 def _format_mob(mob):

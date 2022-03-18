@@ -353,6 +353,10 @@ class Client:
         })
         return r['removed']
 
+    def version(self):
+        r = self._req({"method": "version"})
+        return r
+
     # Utility methods.
 
     def poll_balance(self, account_id, min_block_height=None, seconds=10, poll_delay=1.0):
