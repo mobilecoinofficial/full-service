@@ -285,5 +285,6 @@ pub enum JsonCommandResponse {
     version {
         string: String,
         number: (String, String, String, String),
+        commit: String,
     },
 }
