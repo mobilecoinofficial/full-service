@@ -65,17 +65,6 @@
   * [Check B58 Type](transactions/payment-request/check_b58_type.md)
   
 
-
-## Wallet
-
-* [Wallet Status](wallet/wallet-status/README.md)
-  * [Get Wallet Status](wallet/wallet-status/get_wallet_status.md)
-
-## Ledger
-
-* [Block](ledger/block/README.md)
-  * [Get Block](ledger/block/get_block.md)
-
 ## Gift Codes
 
 * [Gift Code](gift-codes/gift-code/README.md)
@@ -86,6 +75,17 @@
   * [Check Gift Code Status](gift-codes/gift-code/check_gift_code_status.md)
   * [Claim Gift Code](gift-codes/gift-code/claim_gift_code.md)
   * [Remove Gift Code](gift-codes/gift-code/remove_gift_code.md)
+
+## Other
+
+* [Block](other/block/README.md)
+  * [Get Block](other/block/get_block.md)
+* [Network Status](other/network-status/README.md)
+    * [Get Network Status](other/network-status/get_network_status.md)
+* [Wallet Status](other/wallet-status/README.md)
+  * [Get Wallet Status](other/wallet-status/get_wallet_status.md)
+* [Version](other/version/README.md)
+  * [Get Version](other/version/version.md)
 
 ## Tutorials
 

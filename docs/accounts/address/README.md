@@ -17,11 +17,11 @@ Important: If you receive funds at a subaddress that has not yet been assigned, 
 
 | Name | Type | Description |
 | :--- | :--- | :--- |
-| `object` | String, value is "address" | String representing the object's type. Objects of the same type share the same value. |
-| `public_address` | String | A shareable B58-encoded string representing the address. |
-| `account_id` | String | A unique identifier for the assigned associated account. |
-| `metadata` | String | An arbitrary string attached to the object. |
-| `subaddress_index` | String \(uint64\) | The assigned subaddress index on the associated account. |
+| `object` | string, value is "address" | String representing the object's type. Objects of the same type share the same value. |
+| `public_address` | string | A shareable B58-encoded string representing the address. |
+| `account_id` | string | A unique identifier for the assigned associated account. |
+| `metadata` | string | An arbitrary string attached to the object. |
+| `subaddress_index` | string \(uint64\) | The assigned subaddress index on the associated account. |
 | `offset` | integer | The value to offset pagination requests. Requests will exclude all list items up to and including this object. |
 | `limit` | integer | The limit of returned results. |
 

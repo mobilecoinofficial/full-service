@@ -1092,6 +1092,16 @@ where
         JsonCommandRequest::verify_address { address } => JsonCommandResponse::verify_address {
             verified: service.verify_address(&address).map_err(format_error)?,
         },
+        JsonCommandRequest::version => JsonCommandResponse::version {
+            string: env!("CARGO_PKG_VERSION").to_string(),
+            number: (
+                env!("CARGO_PKG_VERSION_MAJOR").to_string(),
+                env!("CARGO_PKG_VERSION_MINOR").to_string(),
+                env!("CARGO_PKG_VERSION_PATCH").to_string(),
+                env!("CARGO_PKG_VERSION_PRE").to_string(),
+            ),
+            commit: env!("VERGEN_GIT_SHA").to_string(),
+        },
     };
 
     Ok(response)

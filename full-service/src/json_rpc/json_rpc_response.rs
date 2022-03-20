@@ -309,4 +309,9 @@ pub enum JsonCommandResponse {
     verify_address {
         verified: bool,
     },
+    version {
+        string: String,
+        number: (String, String, String, String),
+        commit: String,
+    },
 }
