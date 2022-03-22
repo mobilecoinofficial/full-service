@@ -45,6 +45,7 @@ description: Get view only TXOs for a given view only account with offset and li
         "object": "view_only_txo",
         "txo_id_hex": "84eab721b7eeb4dc6f6d73c0504182a06ccfb98e2d341acac2dfe22d831fae44",
         "value_pmob": "10000000000000",
+        "public_key": "ef3e04533424fd181e8039ec4e2df0bc67c2f59dbbe55d660202d0fc588638d2",
         "view_only_account_id_hex": "324a0969a356a81916eecb3aa002da2bbc79154a835c9f6df61d71f67dc5f632",
         "spent": false
       }
@@ -52,6 +53,7 @@ description: Get view only TXOs for a given view only account with offset and li
         "object": "view_only_txo",
         "txo_id_hex": "27eab721b7eeb4dc6f6d73c0504182a06ccfb98e2d341acac2dfe22d831fae44",
         "value_pmob": "20000000000000",
+        "public_key": "222204533424fd181e8039ec4e2df0bc67c2f59dbbe55d660202d0fc588638d2",
         "view_only_account_id_hex": "324a0969a356a81916eecb3aa002da2bbc79154a835c9f6df61d71f67dc5f632",
         "spent": false
       }
@@ -59,6 +61,7 @@ description: Get view only TXOs for a given view only account with offset and li
         "object": "view_only_txo",
         "txo_id_hex": "93eab721b7eeb4dc6f6d73c0504182a06ccfb98e2d341acac2dfe22d831fae44",
         "value_pmob": "30000000000000",
+        "public_key": "123454533424fd181e8039ec4e2df0bc67c2f59dbbe55d660202d0fc588638d2",
         "view_only_account_id_hex": "324a0969a356a81916eecb3aa002da2bbc79154a835c9f6df61d71f67dc5f632",
         "spent": false
       }

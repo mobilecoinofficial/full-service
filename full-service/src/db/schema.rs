@@ -34,6 +34,7 @@ table! {
         txo_id_hex -> Text,
         txo -> Binary,
         value -> BigInt,
+        public_key -> Binary,
         view_only_account_id_hex -> Text,
         spent -> Bool,
     }

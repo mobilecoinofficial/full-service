@@ -20,6 +20,10 @@ pub struct ViewOnlyTxo {
     /// If the account is syncing, this value may change.
     pub value_pmob: String,
 
+    /// The public key for this txo, can be used as an identifier to find the
+    /// txo in the ledger.
+    pub public_key: String,
+
     /// the view-only-account id for this txo
     pub view_only_account_id_hex: String,
 
@@ -33,6 +37,7 @@ impl From<&db::models::ViewOnlyTxo> for ViewOnlyTxo {
             object: "view_only_txo".to_string(),
             txo_id_hex: txo.txo_id_hex.clone(),
             value_pmob: (txo.value as u64).to_string(),
+            public_key: hex::encode(&txo.public_key),
             view_only_account_id_hex: txo.view_only_account_id_hex.to_string(),
             spent: txo.spent,
         }

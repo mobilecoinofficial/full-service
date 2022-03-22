@@ -103,6 +103,7 @@ a minimal txo entity useful for view-only-accounts
 | _Name_ | _Type_ | _Description_ |
 | :--- | :--- | :--- |
 | `object` | string, value is "view_only_txo" | String representing the object's type. Objects of the same type share the same value. |
+| `public_key` | string \(hex\) | The public key for this TXO, can be used as an identifier to find the TXO in the ledger. |
 | `value_pmob` | string \(uint64\) | Available pico MOB for this account at the current `account_block_height`. If the account is syncing, this value may change. |
 | `view_only_account_id_hex` | string | The local ID for view only account that has the private view key capable of decrypting this txo. |
 | `spent` | string | Whether or not this txo has been manually marked as spent. |

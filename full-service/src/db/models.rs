@@ -235,6 +235,8 @@ pub struct ViewOnlyTxo {
     pub txo: Vec<u8>,
     /// The value of this transaction output, in picoMob.
     pub value: i64,
+    /// The serialized public_key of the TxOut.
+    pub public_key: Vec<u8>,
     /// account_id_hex of the view_only_account that received this txo
     pub view_only_account_id_hex: String,
     // whether or not this txo has been spent
@@ -249,6 +251,7 @@ pub struct NewViewOnlyTxo<'a> {
     pub txo: &'a [u8],
     pub txo_id_hex: &'a str,
     pub value: i64,
+    pub public_key: &'a [u8],
     pub view_only_account_id_hex: &'a str,
 }
 
