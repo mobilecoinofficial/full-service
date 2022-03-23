@@ -4259,20 +4259,208 @@ mod e2e {
 
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let txo_map = result.get("txo_map").unwrap().as_object().unwrap();
-        assert!(txo_map
+        let _txo_map = result.get("txo_map").unwrap().as_object().unwrap();
+        assert!(_txo_map
             .get(spent_txo_ids[0].as_str().unwrap())
             .unwrap()
             .get("spent")
             .unwrap()
             .as_bool()
             .unwrap());
-        assert!(txo_map
+        assert!(_txo_map
             .get(spent_txo_ids[1].as_str().unwrap())
             .unwrap()
             .get("spent")
             .unwrap()
             .as_bool()
             .unwrap());
+    }
+
+    #[test_with_logger]
+    fn test_e2e_hot_and_cold_view_only_flow(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+        let public_address = b58_decode_public_address(b58_public_address).unwrap();
+
+        // add block with some MOB for this account
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![public_address],
+            100 * MOB,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+        manually_sync_account(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            &logger,
+        );
+        assert_eq!(
+            ledger_db.num_blocks().unwrap(),
+            (BASE_TEST_BLOCK_HEIGHT + 1) as u64
+        );
+
+        // Create a tx proposal to random address
+        let target_public_address = PublicAddress::new(
+            &RistrettoPublic::from_random(&mut rng),
+            &RistrettoPublic::from_random(&mut rng),
+        );
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "build_transaction",
+            "params": {
+                "account_id": account_id,
+                "recipient_public_address": b58_encode_public_address(&target_public_address).unwrap(),
+                "value_pmob": "40000000000000", // 40.0 MOB
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let tx_proposal = result.get("tx_proposal").unwrap();
+
+        // import view-only-account from account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "export_account_secrets",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let secrets = result.get("account_secrets").unwrap();
+        let account_key = secrets.get("account_key").unwrap();
+        let view_private_key = account_key["view_private_key"].as_str().unwrap();
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_view_only_account",
+            "params": {
+                "view_private_key": view_private_key,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("view_only_account").unwrap();
+        let view_only_account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+
+        // sync view-only account and check balance
+        manually_sync_view_only_account(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &view_only_account_id,
+            &logger,
+        );
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_view_only_account",
+            "params": {
+                "account_id": view_only_account_id,
+            }
+        });
+
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance = result.get("balance").unwrap();
+
+        assert_eq!(
+            balance
+                .get("balance")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_string(),
+            (100 * MOB).to_string()
+        );
+
+        // delete full-access account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "remove_account",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        assert!(result.get("removed").unwrap().as_bool().unwrap());
+
+        // submit transaciton without an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "submit_transaction",
+            "params": {
+                "tx_proposal": tx_proposal,
+            }
+        });
+        dispatch(&client, body, &logger);
+
+        // The MockBlockchainConnection does not write to the ledger_db
+        // write to ledger and sync account
+        let json_tx_proposal: json_rpc::tx_proposal::TxProposal =
+            serde_json::from_value(tx_proposal.clone()).unwrap();
+        let payments_tx_proposal =
+            mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
+        add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
+        manually_sync_view_only_account(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &view_only_account_id,
+            &logger,
+        );
+        assert_eq!(
+            ledger_db.num_blocks().unwrap(),
+            (BASE_TEST_BLOCK_HEIGHT + 2) as u64
+        );
+
+        // // sleep to avoid race condition with balance request happening before
+        // // transaction and sync updates finish
+        // std::thread::sleep(Duration::from_millis(3000));
+
+        // check balance again
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_view_only_account",
+            "params": {
+                "account_id": view_only_account_id,
+            }
+        });
+
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance = result.get("balance").unwrap();
+
+        assert_eq!(
+            balance
+                .get("balance")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_string(),
+            ((100 * MOB) - ((40 * MOB) + &Mob::MINIMUM_FEE)).to_string()
+        );
     }
 }
