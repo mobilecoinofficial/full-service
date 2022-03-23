@@ -174,6 +174,9 @@ pub enum JsonCommandResponse {
     export_account_secrets {
         account_secrets: AccountSecrets,
     },
+    export_spent_txo_ids {
+        spent_txo_ids: Vec<String>,
+    },
     export_view_only_account_secrets {
         view_only_account_secrets: ViewOnlyAccountSecrets,
     },

@@ -4113,4 +4113,87 @@ mod e2e {
         let txo_ids = result.get("txo_ids").unwrap().as_array().unwrap();
         assert_eq!(txo_ids.len(), 1);
     }
+
+    #[test_with_logger]
+    fn test_txo_export_import(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+        let public_address = b58_decode_public_address(b58_public_address).unwrap();
+
+        // Add blocks with a txo for this address
+        let total_txos = 3;
+        for _ in 0..total_txos {
+            add_block_to_ledger_db(
+                &mut ledger_db,
+                &vec![public_address.clone()],
+                80 * MOB as u64,
+                &vec![KeyImage::from(rng.next_u64())],
+                &mut rng,
+            );
+        }
+        manually_sync_account(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            &logger,
+        );
+
+        // Create a tx proposal to ourselves
+        // should spend 2 txos
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "build_transaction",
+            "params": {
+                "account_id": account_id,
+                "recipient_public_address": b58_public_address,
+                "value_pmob": "90000000000000", // 90.0 MOB
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let tx_proposal = result.get("tx_proposal").unwrap();
+        let json_tx_proposal: json_rpc::tx_proposal::TxProposal =
+            serde_json::from_value(tx_proposal.clone()).unwrap();
+        let payments_tx_proposal =
+            mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
+
+        add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
+        manually_sync_account(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            &logger,
+        );
+
+        // export spent txo ids
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "export_spent_txo_ids",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let spent_txo_ids = result.get("spent_txo_ids").unwrap().as_array().unwrap();
+        assert_eq!(spent_txo_ids.len(), 2);
+    }
 }

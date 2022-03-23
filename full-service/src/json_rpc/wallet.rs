@@ -434,6 +434,17 @@ where
                 account_secrets: AccountSecrets::try_from(&account).map_err(format_error)?,
             }
         }
+        JsonCommandRequest::export_spent_txo_ids { account_id } => {
+            let txos = service
+                .list_spent_txos(&AccountID(account_id))
+                .map_err(format_error)?;
+            let spent_txo_ids: Vec<String> = txos
+                .iter()
+                .map(|txo| txo.txo_id_hex.clone())
+                .collect::<Vec<String>>();
+
+            JsonCommandResponse::export_spent_txo_ids { spent_txo_ids }
+        }
         JsonCommandRequest::export_view_only_account_secrets { account_id } => {
             let account = service
                 .get_view_only_account(&account_id)
