@@ -294,6 +294,9 @@ pub enum JsonCommandResponse {
     remove_view_only_account {
         removed: bool,
     },
+    set_view_only_txos_spent {
+        success: bool,
+    },
     submit_gift_code {
         gift_code: GiftCode,
     },

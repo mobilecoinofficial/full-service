@@ -34,12 +34,12 @@ pub trait ViewOnlyTxoModel {
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<ViewOnlyTxo, WalletDbError>;
 
-    /// mark a view-only-txo as spent
+    /// mark a group of view-only-txo as spent
     ///
     /// Returns:
     /// * ()
-    fn mark_spent(
-        &self,
+    fn set_spent(
+        txo_ids: Vec<String>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
@@ -132,15 +132,20 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         Ok(txos)
     }
 
-    fn mark_spent(
-        &self,
+    fn set_spent(
+        txo_ids: Vec<String>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
         use schema::view_only_txos::dsl::{
             spent as dsl_spent, txo_id_hex as dsl_txo_id, view_only_txos,
         };
 
-        diesel::update(view_only_txos.filter(dsl_txo_id.eq(&self.txo_id_hex)))
+        // assert all txos exist
+        for txo_id in txo_ids.clone() {
+            ViewOnlyTxo::get(&txo_id, conn)?;
+        }
+
+        diesel::update(view_only_txos.filter(dsl_txo_id.eq_any(txo_ids)))
             .set(dsl_spent.eq(true))
             .execute(conn)?;
         Ok(())
@@ -234,11 +239,15 @@ mod tests {
 
         // test marking as spent
 
-        created.mark_spent(&conn).unwrap();
+        ViewOnlyTxo::set_spent(vec![txo_id.to_string()], &conn).unwrap();
 
         let updated = ViewOnlyTxo::get(&txo_id.to_string(), &conn).unwrap();
 
         assert!(updated.spent);
+
+        // expect error if attempting to mark txo that does not exist
+        let err = ViewOnlyTxo::set_spent(vec!["abcd123".to_string()], &conn);
+        assert!(err.is_err());
 
         // test list for account
 

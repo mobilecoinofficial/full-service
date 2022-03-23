@@ -1030,6 +1030,13 @@ where
                     .map_err(format_error)?,
             }
         }
+        JsonCommandRequest::set_view_only_txos_spent { txo_ids } => {
+            JsonCommandResponse::set_view_only_txos_spent {
+                success: service
+                    .set_view_only_txos_spent(txo_ids)
+                    .map_err(format_error)?,
+            }
+        }
         JsonCommandRequest::submit_gift_code {
             from_account_id,
             gift_code_b58,

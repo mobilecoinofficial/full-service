@@ -4181,6 +4181,40 @@ mod e2e {
             &logger,
         );
 
+        // import view-only-account from account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "export_account_secrets",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let secrets = result.get("account_secrets").unwrap();
+        let account_key = secrets.get("account_key").unwrap();
+        let view_private_key = account_key["view_private_key"].as_str().unwrap();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_view_only_account",
+            "params": {
+                "view_private_key": view_private_key,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("view_only_account").unwrap();
+        let view_only_account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        manually_sync_view_only_account(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &view_only_account_id,
+            &logger,
+        );
+
         // export spent txo ids
         let body = json!({
             "jsonrpc": "2.0",
@@ -4195,5 +4229,50 @@ mod e2e {
         let result = res.get("result").unwrap();
         let spent_txo_ids = result.get("spent_txo_ids").unwrap().as_array().unwrap();
         assert_eq!(spent_txo_ids.len(), 2);
+
+        // set view only txos to spent
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "set_view_only_txos_spent",
+            "params": {
+                "txo_ids": spent_txo_ids,
+            }
+        });
+
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let success = result.get("success").unwrap().as_bool().unwrap();
+        assert!(success);
+
+        // confirm marked as spent
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_txos_for_view_only_account",
+            "params": {
+                "account_id": view_only_account_id,
+                "limit": "10",
+                "offset": "0"
+            }
+        });
+
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let txo_map = result.get("txo_map").unwrap().as_object().unwrap();
+        assert!(txo_map
+            .get(spent_txo_ids[0].as_str().unwrap())
+            .unwrap()
+            .get("spent")
+            .unwrap()
+            .as_bool()
+            .unwrap());
+        assert!(txo_map
+            .get(spent_txo_ids[1].as_str().unwrap())
+            .unwrap()
+            .get("spent")
+            .unwrap()
+            .as_bool()
+            .unwrap());
     }
 }
