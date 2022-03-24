@@ -4,6 +4,13 @@ description: Set up your environment to run full service on Mac or Linux.
 
 # Environment Setup
 
+## SQLite3
+
+1. Confirm [Homebrew](https://brew.sh/) is installed.
+2. Run `brew info sqlite` to see which version, if any, you have installed.
+   * If you do not yet have sqlite, run `brew install sqlite`
+   * If your version is outdated, run `brew upgrade sqlite`
+
 ## Binaries
 
 1. Download [TestNet or MainNet binaries](https://github.com/mobilecoinofficial/full-service/releases). 
@@ -40,13 +47,6 @@ description: Set up your environment to run full service on Mac or Linux.
 {% hint style="info" %}
 Replace our default peers or tx-source-urls if you would prefer to establish your own source of truth.
 {% endhint %}
-
-## SQLite3
-
-1. Confirm [Homebrew](https://brew.sh/) is installed.
-2. Run `brew info sqlite` to see which version, if any, you have installed.
-   * If you do not yet have sqlite, run `brew install sqlite`
-   * If your version is outdated, run `brew upgrade sqlite`
 
 ## **HTTP Request Service**
 
