@@ -506,7 +506,7 @@ pub fn create_test_minted_and_change_txos(
     );
 
     builder.add_recipient(recipient, value).unwrap();
-    builder.select_txos(None).unwrap();
+    builder.select_txos(None, false).unwrap();
     builder.set_tombstone(0).unwrap();
     let tx_proposal = builder.build().unwrap();
 

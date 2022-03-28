@@ -8,26 +8,26 @@ description: >-
 
 ## Parameters
 
-| Required Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action | Account must exist in the wallet |
+| Required Param | Purpose                                     | Requirements                     |
+| -------------- | ------------------------------------------- | -------------------------------- |
+| `account_id`   | The account on which to perform this action | Account must exist in the wallet |
 
-| Optional Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `recipient_public_address` | The recipient for this transaction | b58-encoded public address bytes |
-| `value_pmob` | The amount of MOB to send in this transaction |  |
-| `addresses_and_values` | An array of public addresses and value tuples | addresses are b58-encoded public addresses, value is in pmob |
-| `input_txo_ids` | Specific TXOs to use as inputs to this transaction | TXO IDs \(obtain from `get_all_txos_for_account`\) |
-| `fee` | The fee amount to submit with this transaction | If not provided, uses `MINIMUM_FEE` = .01 MOB |
-| `tombstone_block` | The block after which this transaction expires | If not provided, uses `cur_height` + 10 |
-| `max_spendable_value` | The maximum amount for an input TXO selected for this transaction |  |
-| `log_tx_proposal` | Whether or not to log the tx proposal on build | If not provided, is false |
+| Optional Param             | Purpose                                                                                                                                                                                                                            | Requirements                                                 |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `recipient_public_address` | The recipient for this transaction                                                                                                                                                                                                 | b58-encoded public address bytes                             |
+| `value_pmob`               | The amount of MOB to send in this transaction                                                                                                                                                                                      |                                                              |
+| `addresses_and_values`     | An array of public addresses and value tuples                                                                                                                                                                                      | addresses are b58-encoded public addresses, value is in pmob |
+| `input_txo_ids`            | Specific TXOs to use as inputs to this transaction                                                                                                                                                                                 | TXO IDs (obtain from `get_all_txos_for_account`)             |
+| `fee`                      | The fee amount to submit with this transaction                                                                                                                                                                                     | If not provided, uses `MINIMUM_FEE` = .01 MOB                |
+| `tombstone_block`          | The block after which this transaction expires                                                                                                                                                                                     | If not provided, uses `cur_height` + 10                      |
+| `max_spendable_value`      | The maximum amount for an input TXO selected for this transaction                                                                                                                                                                  |                                                              |
+| `log_tx_proposal`          | Whether or not to log the tx proposal on build. If this is false, it will not lock the txos in this step and other build and build-and-submit calls may use the same txos, causing one of them to fail if they are both submitted. | If not provided, is false                                    |
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
-```text
+```
 {
   "method": "build_transaction",
   "params": {
@@ -43,7 +43,7 @@ description: >-
 {% endtab %}
 
 {% tab title="Response" %}
-```text
+```
 {
   "method": "build_transaction",
   "result": {
@@ -235,7 +235,7 @@ description: >-
 {% hint style="info" %}
 Since the `tx_proposal`JSON object is quite large, you may wish to write the result to a file for use in the `submit_transaction` call, such as:
 
-```text
+```
 {
   "method": "build_transaction",
   "params": {
@@ -248,4 +248,3 @@ Since the `tx_proposal`JSON object is quite large, you may wish to write the res
 }
 ```
 {% endhint %}
-
