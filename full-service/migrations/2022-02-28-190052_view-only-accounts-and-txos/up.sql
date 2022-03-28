@@ -14,8 +14,10 @@ CREATE TABLE view_only_txos (
   txo BLOB NOT NULL,
   value INT NOT NULL,
   view_only_account_id_hex TEXT NOT NULL,
+  public_key BLOB NOT NULL,
   spent BOOLEAN NOT NULL DEFAULT FALSE,
   FOREIGN KEY (view_only_account_id_hex) REFERENCES view_only_accounts(account_id_hex)
 );
 
+CREATE UNIQUE INDEX idx_view_only_txos__public_key ON view_only_txos(public_key);
 

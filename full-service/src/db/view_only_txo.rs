@@ -79,6 +79,7 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
             txo: &mc_util_serial::encode(&tx_out),
             txo_id_hex: &txo_id.to_string(),
             value,
+            public_key: &mc_util_serial::encode(&tx_out.public_key),
             view_only_account_id_hex,
         };
 
@@ -216,6 +217,7 @@ mod tests {
             txo_id_hex: txo_id.to_string(),
             view_only_account_id_hex: view_only_account.account_id_hex.to_string(),
             txo: mc_util_serial::encode(&fake_tx_out),
+            public_key: mc_util_serial::encode(&fake_tx_out.public_key),
             value,
             spent: false,
         };
