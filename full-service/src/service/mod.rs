@@ -16,6 +16,7 @@ pub mod transaction_builder;
 pub mod transaction_log;
 pub mod txo;
 pub mod view_only_account;
+pub mod view_only_transaction_log;
 pub mod view_only_txo;
 mod wallet_service;
 

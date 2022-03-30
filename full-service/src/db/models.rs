@@ -4,7 +4,7 @@
 
 use super::schema::{
     accounts, assigned_subaddresses, gift_codes, transaction_logs, transaction_txo_types, txos,
-    view_only_accounts, view_only_txos,
+    view_only_accounts, view_only_transaction_logs, view_only_txos,
 };
 
 use serde::Serialize;
@@ -253,6 +253,27 @@ pub struct NewViewOnlyTxo<'a> {
     pub value: i64,
     pub public_key: &'a [u8],
     pub view_only_account_id_hex: &'a str,
+}
+
+/// A temporary log used for tracking txos involved in transactions submitted
+/// without an account
+#[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
+#[primary_key(id)]
+pub struct ViewOnlyTransactionLog {
+    /// Primary key
+    pub id: i32,
+    /// txo id for the change txo for the transaction
+    pub change_txo_id_hex: String,
+    /// txo id for a txos used as input for the transaction
+    pub input_txo_id_hex: String,
+}
+
+/// a new view only transaction log
+#[derive(Insertable)]
+#[table_name = "view_only_transaction_logs"]
+pub struct NewViewOnlyTransactionLog<'a> {
+    pub change_txo_id_hex: &'a str,
+    pub input_txo_id_hex: &'a str,
 }
 
 /// A subaddress given to a particular contact, for the purpose of tracking
