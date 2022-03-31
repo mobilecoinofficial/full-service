@@ -4,16 +4,9 @@
 
 use crate::{
     db::{
-        models::{
-            ViewOnlyTransactionLog, ViewOnlyTxo, TXO_USED_AS_CHANGE, TXO_USED_AS_INPUT,
-            TXO_USED_AS_OUTPUT,
-        },
-        txo::TxoID,
-        view_only_transaction_log::ViewOnlyTransactionLogModel,
-        view_only_txo::ViewOnlyTxoModel,
-        WalletDbError,
+        models::ViewOnlyTransactionLog, txo::TxoID,
+        view_only_transaction_log::ViewOnlyTransactionLogModel, WalletDbError,
     },
-    service::transaction::TransactionServiceError,
     WalletService,
 };
 use diesel::prelude::*;
@@ -98,10 +91,10 @@ fn get_change_txout_from_proposal(tx_proposal: &TxProposal) -> Option<&TxOut> {
         .outputs
         .iter()
         .enumerate()
-        .find(|(index, output)| !tx_proposal.outlay_index_to_tx_out_index.contains_key(index));
+        .find(|(index, _output)| !tx_proposal.outlay_index_to_tx_out_index.contains_key(index));
 
     match found {
-        Some((index, change)) => Some(change),
+        Some((_index, change)) => Some(change),
         None => None,
     }
 }
@@ -109,44 +102,22 @@ fn get_change_txout_from_proposal(tx_proposal: &TxProposal) -> Option<&TxOut> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::{
-        models::{ViewOnlyAccount, ViewOnlyTransactionLog, ViewOnlyTxo},
-        view_only_account::ViewOnlyAccountModel,
-        view_only_txo::ViewOnlyTxoModel,
-    };
     use mc_account_keys::{AccountKey, PublicAddress, RootIdentity};
-    use mc_common::{
-        logger::{log, test_with_logger, Logger},
-        HashSet,
-    };
-    use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
-    use mc_crypto_rand::RngCore;
+    use mc_common::logger::{log, test_with_logger, Logger};
     use mc_fog_report_validation::MockFogPubkeyResolver;
-    use mc_ledger_db::Ledger;
-    use mc_transaction_core::{encrypted_fog_hint::EncryptedFogHint, tokens::Mob, Token};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
-    use std::{iter::FromIterator, time::Duration};
 
     use crate::{
         db::{
             account::{AccountID, AccountModel},
-            models::{Account, TransactionLog},
-            transaction_log::TransactionLogModel,
+            models::Account,
         },
-        service::{
-            sync::{sync_account, SyncThread},
-            transaction_builder::WalletTransactionBuilder,
-        },
+        service::{sync::SyncThread, transaction_builder::WalletTransactionBuilder},
         test_utils::{
-            add_block_with_db_txos, add_block_with_tx_outs, add_block_with_tx_proposal,
-            create_test_minted_and_change_txos, create_test_received_txo,
-            create_test_txo_for_recipient, get_resolver_factory, get_test_ledger,
-            manually_sync_account, random_account_with_seed_values, setup_wallet_service,
-            WalletDbTestContext, MOB,
+            get_resolver_factory, get_test_ledger, random_account_with_seed_values,
+            setup_wallet_service, WalletDbTestContext, MOB,
         },
-        util::constants::DEFAULT_CHANGE_SUBADDRESS_INDEX,
-        WalletDb,
     };
 
     #[test_with_logger]
@@ -163,7 +134,6 @@ mod tests {
         log::info!(logger, "Creating account");
         let root_id = RootIdentity::from_random(&mut rng);
         let recipient_account_key = AccountKey::from(&root_id);
-        let recipient_account_id = AccountID::from(&recipient_account_key);
         Account::create_from_root_entropy(
             &root_id.root_entropy,
             Some(0),
@@ -189,7 +159,6 @@ mod tests {
             &mut rng,
             &logger,
         );
-        let sender_account_id = AccountID::from(&sender_account_key);
 
         // Create TxProposal from the sender account, which contains the Confirmation
         // Number
@@ -214,7 +183,9 @@ mod tests {
         let change_txo_id = TxoID::from(change_txo).to_string();
 
         // create logs from proposal
-        service.create_view_only_transaction_logs_from_proposal(proposal.clone());
+        service
+            .create_view_only_transaction_logs_from_proposal(proposal.clone())
+            .unwrap();
 
         // find view only tx logs
         let found_logs = service

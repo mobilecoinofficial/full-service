@@ -3,20 +3,14 @@
 //! DB impl for the view-only transaction log model.
 
 use crate::db::{
-    models::{
-        NewViewOnlyTransactionLog, ViewOnlyTransactionLog, TXO_USED_AS_CHANGE, TXO_USED_AS_INPUT,
-        TXO_USED_AS_OUTPUT,
-    },
-    schema,
-    txo::TxoID,
-    WalletDbError,
+    models::{NewViewOnlyTransactionLog, ViewOnlyTransactionLog},
+    schema, WalletDbError,
 };
 use diesel::{
     prelude::*,
     r2d2::{ConnectionManager, PooledConnection},
     RunQueryDsl,
 };
-use mc_transaction_core::tx::TxOut;
 
 pub trait ViewOnlyTransactionLogModel {
     /// insert a new view only transaction log
@@ -107,16 +101,16 @@ mod tests {
     use super::*;
     use crate::{
         db::{
-            models::{ViewOnlyAccount, ViewOnlyTransactionLog, ViewOnlyTxo},
+            models::{ViewOnlyAccount, ViewOnlyTransactionLog},
+            txo::TxoID,
             view_only_account::ViewOnlyAccountModel,
-            view_only_txo::ViewOnlyTxoModel,
         },
         test_utils::WalletDbTestContext,
     };
     use mc_account_keys::PublicAddress;
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
-    use mc_transaction_core::encrypted_fog_hint::EncryptedFogHint;
+    use mc_transaction_core::{encrypted_fog_hint::EncryptedFogHint, tx::TxOut};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
@@ -152,7 +146,7 @@ mod tests {
         )
         .unwrap();
 
-        let view_only_account = ViewOnlyAccount::create(
+        ViewOnlyAccount::create(
             view_only_account_id,
             &RistrettoPrivate::from_random(&mut rng),
             0 as i64,
