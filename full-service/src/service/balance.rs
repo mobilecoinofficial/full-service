@@ -91,6 +91,8 @@ pub struct Balance {
 // The balance object for view-only-accounts
 pub struct ViewOnlyBalance {
     pub received: u128,
+    pub spent: u128,
+    pub unspent: u128,
     pub network_block_height: u64,
     pub local_block_height: u64,
     pub synced_blocks: u64,
@@ -190,6 +192,11 @@ where
         conn.transaction(|| {
             let txos = ViewOnlyTxo::list_for_account(account_id, None, None, &conn)?;
             let total_value = txos.iter().map(|t| (t.value as u64) as u128).sum::<u128>();
+            let spent = txos
+                .iter()
+                .filter(|t| t.spent)
+                .map(|t| (t.value as u64) as u128)
+                .sum::<u128>();
 
             let network_block_height = self.get_network_block_height()?;
             let local_block_height = self.ledger_db.num_blocks()?;
@@ -197,6 +204,8 @@ where
 
             Ok(ViewOnlyBalance {
                 received: total_value,
+                spent,
+                unspent: total_value - spent,
                 network_block_height,
                 local_block_height,
                 synced_blocks: account.next_block_index as u64,

@@ -245,8 +245,8 @@ fn sync_view_only_account_next_chunk(
 
             // Update view only txos recorded as inputs for that transaction as spent
             for log in input_logs {
-                let txo = ViewOnlyTxo::get(&log.input_txo_id_hex, conn);
-                ViewOnlyTxo::mark_spent(conn);
+                let txo = ViewOnlyTxo::get(&log.input_txo_id_hex, conn)?;
+                ViewOnlyTxo::set_spent([txo.txo_id_hex].to_vec(), conn)?;
             }
         }
 

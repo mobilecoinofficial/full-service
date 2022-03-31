@@ -4010,6 +4010,87 @@ mod e2e {
                 .to_string(),
             (42 * MOB).to_string()
         );
+        assert_eq!(
+            balance.get("spent").unwrap().as_str().unwrap().to_string(),
+            (0).to_string()
+        );
+        assert_eq!(
+            balance
+                .get("unspent")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_string(),
+            (42 * MOB).to_string()
+        );
+
+        // mark all txos as spent
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_txos_for_view_only_account",
+            "params": {
+                "account_id": view_only_account_id,
+                "offset": "0",
+                "limit": "100"
+            }
+        });
+
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let txo_map = result.get("txo_map").unwrap();
+        let txo_ids = result.get("txo_ids").unwrap().as_array().unwrap();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "set_view_only_txos_spent",
+            "params": {
+                "txo_ids": txo_ids,
+            }
+        });
+
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let success = result.get("success").unwrap().as_bool().unwrap();
+        assert!(success);
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_view_only_account",
+            "params": {
+                "account_id": view_only_account_id,
+            }
+        });
+
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance = result.get("balance").unwrap();
+
+        assert_eq!(
+            balance
+                .get("received")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_string(),
+            (42 * MOB).to_string()
+        );
+        assert_eq!(
+            balance.get("spent").unwrap().as_str().unwrap().to_string(),
+            (42 * MOB).to_string()
+        );
+        assert_eq!(
+            balance
+                .get("unspent")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_string(),
+            (0).to_string()
+        );
     }
 
     #[test_with_logger]
