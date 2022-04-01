@@ -255,8 +255,9 @@ pub struct NewViewOnlyTxo<'a> {
     pub view_only_account_id_hex: &'a str,
 }
 
-/// A temporary log used for tracking txos involved in transactions submitted
-/// without an account
+/// A log used for tracking txos involved in transactions submitted
+/// without an account. Used for updating view-only account balances based
+/// on transaction proposals
 #[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
 #[primary_key(id)]
 pub struct ViewOnlyTransactionLog {

@@ -66,7 +66,6 @@ impl ViewOnlyTransactionLogModel for ViewOnlyTransactionLog {
             .get_result::<ViewOnlyTransactionLog>(conn)
         {
             Ok(a) => Ok(a),
-            // Match on NotFound to get a more informative NotFound Error
             Err(diesel::result::Error::NotFound) => Err(WalletDbError::TransactionLogNotFound(
                 txo_id_hex.to_string(),
             )),

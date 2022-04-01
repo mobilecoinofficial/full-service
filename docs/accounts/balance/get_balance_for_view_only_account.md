@@ -33,7 +33,7 @@ description: Get the current balance for a given view only account.
   "result": {
     "balance": {
         "object": "balance",
-        "received": "10000000000000",
+        "balance": "10000000000000",
         "network_block_height": "468847",
         "local_block_height": "468847",
         "account_block_height": "468847",
