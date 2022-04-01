@@ -4490,10 +4490,6 @@ mod e2e {
             (BASE_TEST_BLOCK_HEIGHT + 2) as u64
         );
 
-        // // sleep to avoid race condition with balance request happening before
-        // // transaction and sync updates finish
-        // std::thread::sleep(Duration::from_millis(3000));
-
         // check balance again
         let body = json!({
             "jsonrpc": "2.0",
