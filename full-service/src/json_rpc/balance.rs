@@ -80,16 +80,9 @@ pub struct ViewOnlyBalance {
     /// the same value.
     pub object: String,
 
-    /// Total pico MOB sent to this account. Does not subtract MOB sent from
-    /// this account
-    pub received: String,
-
-    /// Total pico MOB marked as spent for this account
-    pub spent: String,
-
     /// Total pico MOB sent to this account minus the total amount marked as
     /// spent
-    pub unspent: String,
+    pub balance: String,
 
     /// The block count of MobileCoin's distributed ledger.
     pub network_block_height: String,
@@ -113,9 +106,7 @@ impl From<&service::balance::ViewOnlyBalance> for ViewOnlyBalance {
     fn from(src: &service::balance::ViewOnlyBalance) -> ViewOnlyBalance {
         ViewOnlyBalance {
             object: "balance".to_string(),
-            received: src.received.to_string(),
-            spent: src.spent.to_string(),
-            unspent: src.unspent.to_string(),
+            balance: src.balance.to_string(),
             network_block_height: src.network_block_height.to_string(),
             local_block_height: src.local_block_height.to_string(),
             account_block_height: src.synced_blocks.to_string(),

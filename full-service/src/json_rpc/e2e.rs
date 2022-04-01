@@ -12,21 +12,23 @@ mod e2e {
         json_rpc,
         json_rpc::api_test_utils::{
             dispatch, dispatch_expect_error, dispatch_with_header,
-            dispatch_with_header_expect_error, setup, setup_with_api_key,
+            dispatch_with_header_expect_error, setup, setup_with_api_key, BASE_TEST_BLOCK_HEIGHT,
         },
         test_utils::{
             add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account,
             manually_sync_view_only_account, MOB,
         },
-        util::b58::b58_decode_public_address,
+        util::b58::{b58_decode_public_address, b58_encode_public_address},
     };
     use bip39::{Language, Mnemonic};
-    use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
+    use mc_account_keys::{AccountKey, PublicAddress, RootEntropy, RootIdentity};
     use mc_account_keys_slip10::Slip10Key;
     use mc_common::logger::{test_with_logger, Logger};
+    use mc_crypto_keys::RistrettoPublic;
     use mc_crypto_rand::rand_core::RngCore;
     use mc_ledger_db::Ledger;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
+    use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
     use rocket::http::{Header, Status};
     use std::convert::TryFrom;
@@ -3857,7 +3859,6 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let ids = result.get("account_ids").unwrap().as_array().unwrap();
-        println!("RESULT {:?}", result);
         assert_eq!(ids.len(), 2);
 
         // test removing an account
@@ -4003,20 +4004,7 @@ mod e2e {
         let balance = result.get("balance").unwrap();
         assert_eq!(
             balance
-                .get("received")
-                .unwrap()
-                .as_str()
-                .unwrap()
-                .to_string(),
-            (42 * MOB).to_string()
-        );
-        assert_eq!(
-            balance.get("spent").unwrap().as_str().unwrap().to_string(),
-            (0).to_string()
-        );
-        assert_eq!(
-            balance
-                .get("unspent")
+                .get("balance")
                 .unwrap()
                 .as_str()
                 .unwrap()
@@ -4039,7 +4027,6 @@ mod e2e {
 
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let txo_map = result.get("txo_map").unwrap();
         let txo_ids = result.get("txo_ids").unwrap().as_array().unwrap();
 
         let body = json!({
@@ -4071,25 +4058,12 @@ mod e2e {
 
         assert_eq!(
             balance
-                .get("received")
+                .get("balance")
                 .unwrap()
                 .as_str()
                 .unwrap()
                 .to_string(),
             (42 * MOB).to_string()
-        );
-        assert_eq!(
-            balance.get("spent").unwrap().as_str().unwrap().to_string(),
-            (42 * MOB).to_string()
-        );
-        assert_eq!(
-            balance
-                .get("unspent")
-                .unwrap()
-                .as_str()
-                .unwrap()
-                .to_string(),
-            (0).to_string()
         );
     }
 

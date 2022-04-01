@@ -83,6 +83,8 @@ pub fn test_rocket(rocket_config: rocket::Config, state: TestWalletState) -> roc
         .manage(state)
 }
 
+pub const BASE_TEST_BLOCK_HEIGHT: usize = 12;
+
 pub fn create_test_setup(
     mut rng: &mut StdRng,
     logger: Logger,
@@ -95,7 +97,7 @@ pub fn create_test_setup(
     let db_test_context = WalletDbTestContext::default();
     let wallet_db = db_test_context.get_db_instance(logger.clone());
     let known_recipients: Vec<PublicAddress> = Vec::new();
-    let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+    let ledger_db = get_test_ledger(5, &known_recipients, BASE_TEST_BLOCK_HEIGHT, &mut rng);
     let (peer_manager, network_state) =
         setup_peer_manager_and_network_state(ledger_db.clone(), logger.clone());
 

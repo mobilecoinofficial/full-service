@@ -51,11 +51,12 @@ where
 
         // get change txo
         if let Some(change_txo) = get_change_txout_from_proposal(&transaction_proposal) {
-            let mut logs = vec![];
             let change_txo_id = TxoID::from(change_txo).to_string();
 
             // create a view only log for each input txo
             conn.transaction::<Vec<ViewOnlyTransactionLog>, WalletDbError, _>(|| {
+                let mut logs = vec![];
+
                 for txo_id in input_txo_ids {
                     logs.push(ViewOnlyTransactionLog::create(
                         &change_txo_id,
@@ -85,17 +86,29 @@ where
 }
 
 fn get_change_txout_from_proposal(tx_proposal: &TxProposal) -> Option<&TxOut> {
-    let found = tx_proposal
+    // The change TXO is the output txo that is not present as a value in the outlay
+    // index to output index map.
+    let change: Vec<(usize, &TxOut)> = tx_proposal
         .tx
         .prefix
         .outputs
         .iter()
         .enumerate()
-        .find(|(index, _output)| !tx_proposal.outlay_index_to_tx_out_index.contains_key(index));
+        .filter(|(index, _output)| {
+            !tx_proposal
+                .outlay_index_to_tx_out_index
+                .values()
+                .any(|&value| &value == index)
+        })
+        .collect::<Vec<(usize, &TxOut)>>();
 
-    match found {
-        Some((_index, change)) => Some(change),
-        None => None,
+    // If there is none or more than one txo that meets our definition of change,
+    // return None and let the function calling this handle it/throw an error
+    if change.len() != 1 {
+        None
+    } else {
+        let (_index, txo) = change[0];
+        Some(txo)
     }
 }
 

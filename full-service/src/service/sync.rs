@@ -235,14 +235,14 @@ fn sync_view_only_account_next_chunk(
         // Write received txos to db
         for (tx_out, amount) in received_txos {
             let new_txo = ViewOnlyTxo::create(tx_out.clone(), amount as i64, account_id_hex, conn)?;
-
             // If this txo is change from a transaction that was submitted to this wallet
             // without an account-id, we should have some logs associating the
             // change txo with txos used as inputs for that transaction. See cold wallet/hot
             // wallet flow for more details
             let input_logs =
                 ViewOnlyTransactionLog::find_all_by_change_txo_id(&new_txo.txo_id_hex, conn)?;
-
+            println!("change TXO we are saerching for: {:?}", new_txo.txo_id_hex);
+            println!("input logs found: {:?}", input_logs);
             // Update view only txos recorded as inputs for that transaction as spent
             for log in input_logs {
                 let txo = ViewOnlyTxo::get(&log.input_txo_id_hex, conn)?;
@@ -659,6 +659,6 @@ mod tests {
         let balance = service
             .get_balance_for_view_only_account(&account.account_id_hex)
             .expect("Could not get balance");
-        assert_eq!(balance.received, 250_000_000 * MOB as u128);
+        assert_eq!(balance.balance, 250_000_000 * MOB as u128);
     }
 }
