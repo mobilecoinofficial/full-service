@@ -77,11 +77,7 @@ where
     ) -> Result<Vec<ViewOnlyTransactionLog>, WalletDbError> {
         let conn = self.wallet_db.get_conn()?;
 
-        conn.transaction(|| {
-            Ok(ViewOnlyTransactionLog::find_all_by_change_txo_id(
-                txo_id, &conn,
-            )?)
-        })
+        conn.transaction(|| ViewOnlyTransactionLog::find_all_by_change_txo_id(txo_id, &conn))
     }
 }
 

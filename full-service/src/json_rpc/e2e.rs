@@ -4063,7 +4063,7 @@ mod e2e {
                 .as_str()
                 .unwrap()
                 .to_string(),
-            (42 * MOB).to_string()
+            (0).to_string()
         );
     }
 
