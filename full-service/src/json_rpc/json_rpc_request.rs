@@ -130,6 +130,9 @@ pub enum JsonCommandRequest {
     export_account_secrets {
         account_id: String,
     },
+    export_spent_txo_ids {
+        account_id: String,
+    },
     export_view_only_account_secrets {
         account_id: String,
     },
@@ -249,6 +252,9 @@ pub enum JsonCommandRequest {
     },
     remove_view_only_account {
         account_id: String,
+    },
+    set_view_only_txos_spent {
+        txo_ids: Vec<String>,
     },
     submit_gift_code {
         from_account_id: String,
