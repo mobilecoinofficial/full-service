@@ -194,9 +194,7 @@ pub enum JsonCommandResponse {
         public_addresses: Vec<String>,
         address_map: Map<String, serde_json::Value>,
     },
-    // deprecated: true
     get_all_accounts {
-        deprecated: bool,
         account_ids: Vec<String>,
         account_map: Map<String, serde_json::Value>,
     },
