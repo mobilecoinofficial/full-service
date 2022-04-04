@@ -71,6 +71,9 @@ pub trait TxoService {
         offset: Option<u64>,
     ) -> Result<Vec<Txo>, TxoServiceError>;
 
+    /// list all spent txos
+    fn list_spent_txos(&self, account_id: &AccountID) -> Result<Vec<Txo>, TxoServiceError>;
+
     /// Get a Txo from the wallet.
     fn get_txo(&self, txo_id: &TxoID) -> Result<Txo, TxoServiceError>;
 
@@ -108,6 +111,11 @@ where
                 &conn,
             )?)
         })
+    }
+
+    fn list_spent_txos(&self, account_id: &AccountID) -> Result<Vec<Txo>, TxoServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+        conn.transaction(|| Ok(Txo::list_spent(&account_id.to_string(), None, &conn)?))
     }
 
     fn get_txo(&self, txo_id: &TxoID) -> Result<Txo, TxoServiceError> {

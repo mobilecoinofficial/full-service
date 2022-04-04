@@ -573,14 +573,14 @@ mod tests {
     use rand::{rngs::StdRng, SeedableRng};
 
     use crate::{
-        db::account::{AccountID, AccountModel, DEFAULT_CHANGE_SUBADDRESS_INDEX},
+        db::account::{AccountID, AccountModel},
         service::{sync::SyncThread, transaction_builder::WalletTransactionBuilder},
         test_utils::{
             add_block_with_tx_outs, builder_for_random_recipient, create_test_received_txo,
             get_resolver_factory, get_test_ledger, manually_sync_account,
             random_account_with_seed_values, WalletDbTestContext, MOB,
         },
-        util::b58::b58_encode_public_address,
+        util::{b58::b58_encode_public_address, constants::DEFAULT_CHANGE_SUBADDRESS_INDEX},
     };
 
     use super::*;
@@ -695,7 +695,7 @@ mod tests {
             builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
         builder.add_recipient(recipient.clone(), 50 * MOB).unwrap();
         builder.set_tombstone(0).unwrap();
-        builder.select_txos(None).unwrap();
+        builder.select_txos(None, false).unwrap();
         let tx_proposal = builder.build().unwrap();
 
         // Log submitted transaction from tx_proposal
@@ -850,7 +850,7 @@ mod tests {
         builder.add_recipient(recipient.clone(), value).unwrap();
 
         builder.set_tombstone(0).unwrap();
-        builder.select_txos(None).unwrap();
+        builder.select_txos(None, false).unwrap();
         let tx_proposal = builder.build().unwrap();
 
         let tx_log = TransactionLog::log_submitted(
@@ -1028,7 +1028,7 @@ mod tests {
             .add_recipient(recipient.clone(), 10_000_000 * MOB)
             .unwrap();
         builder.set_tombstone(0).unwrap();
-        builder.select_txos(None).unwrap();
+        builder.select_txos(None, false).unwrap();
         let tx_proposal = builder.build().unwrap();
 
         assert_eq!(tx_proposal.outlays[0].value, 10_000_000_000_000_000_000);
@@ -1091,7 +1091,7 @@ mod tests {
             .add_recipient(account_key.subaddress(0), 12 * MOB)
             .unwrap();
         builder.set_tombstone(0).unwrap();
-        builder.select_txos(None).unwrap();
+        builder.select_txos(None, false).unwrap();
         let tx_proposal = builder.build().unwrap();
 
         // Log submitted transaction from tx_proposal

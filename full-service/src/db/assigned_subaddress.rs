@@ -150,7 +150,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         }
 
         let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
-        let account_view_key = account_key.view_key();
+        let view_private_key = account_key.view_private_key();
         let subaddress_index = account.next_subaddress_index;
         let subaddress = account_key.subaddress(subaddress_index as u64);
 
@@ -186,7 +186,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
             let txo_public_key = CompressedRistrettoPublic::from(tx_public_key);
 
             let txo_subaddress_spk: RistrettoPublic = recover_public_subaddress_spend_key(
-                &account_view_key.view_private_key,
+                view_private_key,
                 &tx_out_target_key,
                 &tx_public_key,
             );

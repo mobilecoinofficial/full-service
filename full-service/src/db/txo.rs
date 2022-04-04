@@ -21,14 +21,14 @@ use std::fmt;
 
 use crate::{
     db::{
-        account::{AccountID, AccountModel, DEFAULT_CHANGE_SUBADDRESS_INDEX},
+        account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
         models::{
             Account, AssignedSubaddress, NewTxo, Txo, TXO_USED_AS_CHANGE, TXO_USED_AS_OUTPUT,
         },
         WalletDbError,
     },
-    util::b58::b58_encode_public_address,
+    util::{b58::b58_encode_public_address, constants::DEFAULT_CHANGE_SUBADDRESS_INDEX},
 };
 
 /// A unique ID derived from a TxOut in the ledger.
@@ -218,6 +218,7 @@ pub trait TxoModel {
     /// * Vec<(Txo, TxoStatus)>
     fn select_by_id(
         txo_ids: &[String],
+        pending_tombstone_block_index: Option<u64>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
@@ -229,6 +230,7 @@ pub trait TxoModel {
         account_id_hex: &str,
         target_value: u64,
         max_spendable_value: Option<u64>,
+        pending_tombstone_block_index: Option<u64>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
@@ -733,114 +735,133 @@ impl TxoModel for Txo {
 
     fn select_by_id(
         txo_ids: &[String],
+        pending_tombstone_block_index: Option<u64>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
 
-        let txos = txos::table
-            .filter(txos::txo_id_hex.eq_any(txo_ids))
-            .load(conn)?;
-        Ok(txos)
+        conn.transaction(|| {
+            let txos: Vec<Txo> = txos::table
+                .filter(txos::txo_id_hex.eq_any(txo_ids))
+                .load(conn)?;
+
+            if let Some(pending_tombstone_block_index) = pending_tombstone_block_index {
+                for txo in &txos {
+                    txo.update_to_pending(pending_tombstone_block_index, conn)?;
+                }
+            }
+
+            Ok(txos)
+        })
     }
 
     fn select_unspent_txos_for_value(
         account_id_hex: &str,
         target_value: u64,
         max_spendable_value: Option<u64>,
+        pending_tombstone_block_index: Option<u64>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
-        let spendable_txos: Vec<Txo> = txos::table
-            .filter(txos::spent_block_index.is_null())
-            .filter(txos::pending_tombstone_block_index.is_null())
-            .filter(txos::subaddress_index.is_not_null())
-            .filter(txos::key_image.is_not_null())
-            .filter(txos::received_account_id_hex.eq(account_id_hex))
-            .order_by(txos::value.desc())
-            .load(conn)?;
+        conn.transaction(|| {
+            let spendable_txos: Vec<Txo> = txos::table
+                .filter(txos::spent_block_index.is_null())
+                .filter(txos::pending_tombstone_block_index.is_null())
+                .filter(txos::subaddress_index.is_not_null())
+                .filter(txos::key_image.is_not_null())
+                .filter(txos::received_account_id_hex.eq(account_id_hex))
+                .order_by(txos::value.desc())
+                .load(conn)?;
 
-        // The SQLite database cannot filter effectively on a u64 value, so filter for
-        // maximum value in memory.
-        let mut spendable_txos = if let Some(msv) = max_spendable_value {
-            spendable_txos
-                .into_iter()
-                .filter(|txo| (txo.value as u64) <= msv)
-                .collect()
-        } else {
-            spendable_txos
-        };
+            // The SQLite database cannot filter effectively on a u64 value, so filter for
+            // maximum value in memory.
+            let mut spendable_txos = if let Some(msv) = max_spendable_value {
+                spendable_txos
+                    .into_iter()
+                    .filter(|txo| (txo.value as u64) <= msv)
+                    .collect()
+            } else {
+                spendable_txos
+            };
 
-        if spendable_txos.is_empty() {
-            return Err(WalletDbError::NoSpendableTxos);
-        }
+            if spendable_txos.is_empty() {
+                return Err(WalletDbError::NoSpendableTxos);
+            }
 
-        // The maximum spendable is limited by the maximal number of inputs we can use.
-        // Since the txos are sorted by decreasing value, this is the maximum
-        // value we can possibly spend in one transaction.
-        // Note, u128::Max = 340_282_366_920_938_463_463_374_607_431_768_211_455, which
-        // is far beyond the total number of pMOB in the MobileCoin system
-        // (250_000_000_000_000_000_000)
-        let max_spendable_in_wallet: u128 = spendable_txos
-            .iter()
-            .take(MAX_INPUTS as usize)
-            .map(|utxo| (utxo.value as u64) as u128)
-            .sum();
-        // If we're trying to spend more than we have in the wallet, we may need to
-        // defrag
-        if target_value as u128 > max_spendable_in_wallet {
-            // See if we merged the UTXOs we would be able to spend this amount.
-            let total_unspent_value_in_wallet: u128 = spendable_txos
+            // The maximum spendable is limited by the maximal number of inputs we can use.
+            // Since the txos are sorted by decreasing value, this is the maximum
+            // value we can possibly spend in one transaction.
+            // Note, u128::Max = 340_282_366_920_938_463_463_374_607_431_768_211_455, which
+            // is far beyond the total number of pMOB in the MobileCoin system
+            // (250_000_000_000_000_000_000)
+            let max_spendable_in_wallet: u128 = spendable_txos
                 .iter()
+                .take(MAX_INPUTS as usize)
                 .map(|utxo| (utxo.value as u64) as u128)
                 .sum();
-            if total_unspent_value_in_wallet >= target_value as u128 {
-                return Err(WalletDbError::InsufficientFundsFragmentedTxos);
-            } else {
-                return Err(WalletDbError::InsufficientFundsUnderMaxSpendable(format!(
-                    "Max spendable value in wallet: {:?}, but target value: {:?}",
-                    max_spendable_in_wallet, target_value
-                )));
-            }
-        }
-
-        // Select the actual Txos to spend. We want to opportunistically fill up the
-        // input slots with dust, from any subaddress, so we take from the back
-        // of the Txo vec. This is a knapsack problem, and the selection could
-        // be improved. For now, we simply move the window of MAX_INPUTS up from
-        // the back of the sorted vector until we have a window with
-        // a large enough sum.
-        let mut selected_utxos: Vec<Txo> = Vec::new();
-        let mut total: u64 = 0;
-        loop {
-            if total >= target_value {
-                break;
+            // If we're trying to spend more than we have in the wallet, we may need to
+            // defrag
+            if target_value as u128 > max_spendable_in_wallet {
+                // See if we merged the UTXOs we would be able to spend this amount.
+                let total_unspent_value_in_wallet: u128 = spendable_txos
+                    .iter()
+                    .map(|utxo| (utxo.value as u64) as u128)
+                    .sum();
+                if total_unspent_value_in_wallet >= target_value as u128 {
+                    return Err(WalletDbError::InsufficientFundsFragmentedTxos);
+                } else {
+                    return Err(WalletDbError::InsufficientFundsUnderMaxSpendable(format!(
+                        "Max spendable value in wallet: {:?}, but target value: {:?}",
+                        max_spendable_in_wallet, target_value
+                    )));
+                }
             }
 
-            // Grab the next (smallest) utxo, in order to opportunistically sweep up dust
-            let next_utxo = spendable_txos.pop().ok_or_else(|| {
-                WalletDbError::InsufficientFunds(format!(
-                    "Not enough Txos to sum to target value: {:?}",
-                    target_value
-                ))
-            })?;
-            selected_utxos.push(next_utxo.clone());
-            total += next_utxo.value as u64;
+            // Select the actual Txos to spend. We want to opportunistically fill up the
+            // input slots with dust, from any subaddress, so we take from the back
+            // of the Txo vec. This is a knapsack problem, and the selection could
+            // be improved. For now, we simply move the window of MAX_INPUTS up from
+            // the back of the sorted vector until we have a window with
+            // a large enough sum.
+            let mut selected_utxos: Vec<Txo> = Vec::new();
+            let mut total: u64 = 0;
+            loop {
+                if total >= target_value {
+                    break;
+                }
 
-            // Cap at maximum allowed inputs.
-            if selected_utxos.len() > MAX_INPUTS as usize {
-                // Remove the lowest utxo.
-                let removed = selected_utxos.remove(0);
-                total -= removed.value as u64;
+                // Grab the next (smallest) utxo, in order to opportunistically sweep up dust
+                let next_utxo = spendable_txos.pop().ok_or_else(|| {
+                    WalletDbError::InsufficientFunds(format!(
+                        "Not enough Txos to sum to target value: {:?}",
+                        target_value
+                    ))
+                })?;
+                selected_utxos.push(next_utxo.clone());
+                total += next_utxo.value as u64;
+
+                // Cap at maximum allowed inputs.
+                if selected_utxos.len() > MAX_INPUTS as usize {
+                    // Remove the lowest utxo.
+                    let removed = selected_utxos.remove(0);
+                    total -= removed.value as u64;
+                }
             }
-        }
 
-        if selected_utxos.is_empty() || selected_utxos.len() > MAX_INPUTS as usize {
-            return Err(WalletDbError::InsufficientFunds(
-                "Logic error. Could not select Txos despite having sufficient funds".to_string(),
-            ));
-        }
+            if selected_utxos.is_empty() || selected_utxos.len() > MAX_INPUTS as usize {
+                return Err(WalletDbError::InsufficientFunds(
+                    "Logic error. Could not select Txos despite having sufficient funds"
+                        .to_string(),
+                ));
+            }
+            if let Some(pending_tombstone_block_index) = pending_tombstone_block_index {
+                for txo in &selected_utxos {
+                    txo.update_to_pending(pending_tombstone_block_index, conn)?;
+                }
+            }
 
-        Ok(selected_utxos)
+            Ok(selected_utxos)
+        })
     }
 
     fn validate_confirmation(
@@ -940,7 +961,7 @@ mod tests {
 
     use crate::{
         db::{
-            account::{AccountID, AccountModel, DEFAULT_CHANGE_SUBADDRESS_INDEX},
+            account::{AccountID, AccountModel},
             models::{Account, TransactionLog},
             transaction_log::TransactionLogModel,
         },
@@ -954,6 +975,7 @@ mod tests {
             create_test_txo_for_recipient, get_resolver_factory, get_test_ledger,
             manually_sync_account, random_account_with_seed_values, WalletDbTestContext, MOB,
         },
+        util::constants::DEFAULT_CHANGE_SUBADDRESS_INDEX,
         WalletDb,
     };
 
@@ -1295,6 +1317,7 @@ mod tests {
             &account_id_hex.to_string(),
             300 * MOB,
             None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1305,6 +1328,7 @@ mod tests {
         let txos_for_value = Txo::select_unspent_txos_for_value(
             &account_id_hex.to_string(),
             300 * MOB + Mob::MINIMUM_FEE,
+            None,
             None,
             &wallet_db.get_conn().unwrap(),
         )
@@ -1320,6 +1344,7 @@ mod tests {
             &account_id_hex.to_string(),
             300 * MOB + Mob::MINIMUM_FEE,
             Some(200 * MOB),
+            None,
             &wallet_db.get_conn().unwrap(),
         );
         match res {
@@ -1333,6 +1358,7 @@ mod tests {
         let txos_for_value = Txo::select_unspent_txos_for_value(
             &account_id_hex.to_string(),
             16800 * MOB,
+            None,
             None,
             &wallet_db.get_conn().unwrap(),
         )
@@ -1359,6 +1385,67 @@ mod tests {
                 1800 * MOB,
             ])
         );
+    }
+
+    #[test_with_logger]
+    fn test_select_txos_locked_when_flagged(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        let (account_id_hex, _public_address_b58) = Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(1),
+            None,
+            None,
+            "Alice's Main Account",
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        // Create some TXOs for the account
+        // [100, 200, 300, ... 2000]
+        for i in 1..20 {
+            let (_txo_hex, _txo, _key_image) = create_test_received_txo(
+                &account_key,
+                0,
+                (100 * MOB * i) as u64, // 100.0 MOB * i
+                (144 + i) as u64,
+                &mut rng,
+                &wallet_db,
+            );
+        }
+
+        // sum(300..1800) to get a window where we had to increase past the smallest
+        // txos, and also fill up all 16 input slots.
+        Txo::select_unspent_txos_for_value(
+            &account_id_hex.to_string(),
+            16800 * MOB,
+            None,
+            Some(100),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        let res = Txo::select_unspent_txos_for_value(
+            &account_id_hex.to_string(),
+            16800 * MOB,
+            None,
+            Some(100),
+            &wallet_db.get_conn().unwrap(),
+        );
+
+        match res {
+            Err(WalletDbError::InsufficientFundsUnderMaxSpendable(_)) => {}
+            Ok(_) => panic!("Should error with InsufficientFundsUnderMaxSpendable"),
+            Err(_) => panic!("Should error with InsufficientFundsUnderMaxSpendable"),
+        }
     }
 
     #[test_with_logger]
@@ -1399,6 +1486,7 @@ mod tests {
         let res = Txo::select_unspent_txos_for_value(
             &account_id_hex.to_string(), // FIXME: WS-11 - take AccountID
             1800 * MOB,
+            None,
             None,
             &wallet_db.get_conn().unwrap(),
         );
@@ -1532,7 +1620,7 @@ mod tests {
         builder
             .add_recipient(recipient_account_key.default_subaddress(), 50 * MOB)
             .unwrap();
-        builder.select_txos(None).unwrap();
+        builder.select_txos(None, false).unwrap();
         builder.set_tombstone(0).unwrap();
         let proposal = builder.build().unwrap();
 
@@ -1802,6 +1890,7 @@ mod tests {
             &account_id.to_string(),
             200 as u64,
             None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1817,6 +1906,7 @@ mod tests {
         let result = Txo::select_unspent_txos_for_value(
             &account_id.to_string(),
             201 as u64,
+            None,
             None,
             &wallet_db.get_conn().unwrap(),
         );
@@ -1834,6 +1924,7 @@ mod tests {
             &account_id.to_string(),
             3 as u64,
             None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1850,6 +1941,7 @@ mod tests {
             &account_id.to_string(),
             500 as u64,
             None,
+            None,
             &wallet_db.get_conn().unwrap(),
         );
         assert!(result.is_err());
@@ -1864,6 +1956,7 @@ mod tests {
         let result = Txo::select_unspent_txos_for_value(
             &account_id.to_string(),
             12400000000 as u64,
+            None,
             None,
             &wallet_db.get_conn().unwrap(),
         )

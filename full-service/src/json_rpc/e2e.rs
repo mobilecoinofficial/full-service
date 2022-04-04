@@ -15,7 +15,8 @@ mod e2e {
             dispatch_with_header_expect_error, setup, setup_with_api_key,
         },
         test_utils::{
-            add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account, MOB,
+            add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account,
+            manually_sync_view_only_account, MOB,
         },
         util::b58::b58_decode_public_address,
     };
@@ -147,6 +148,36 @@ mod e2e {
         let accounts = result.get("account_ids").unwrap().as_array().unwrap();
         assert_eq!(accounts.len(), 0);
         assert_eq!(result.get("deprecated").unwrap().as_bool().unwrap(), true,);
+    }
+
+    #[test_with_logger]
+    fn test_e2e_create_account_with_fog(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+        // Create Account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+                "fog_report_url": "fog://fog-report.example.com",
+                "fog_report_id": "",
+                "fog_authority_spki": "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0IFnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ=="
+            },
+        });
+
+        let res = dispatch(&client, body, &logger);
+        assert_eq!(res.get("jsonrpc").unwrap(), "2.0");
+
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        assert!(account_obj.get("account_id").is_some());
+        assert_eq!(account_obj.get("name").unwrap(), "Alice Main Account");
+        assert_eq!(account_obj.get("recovery_mode").unwrap(), false);
+        assert!(account_obj.get("main_address").is_some());
+        assert_eq!(account_obj.get("next_subaddress_index").unwrap(), "1");
+        assert_eq!(account_obj.get("fog_enabled").unwrap(), true);
     }
 
     #[test_with_logger]
@@ -3787,5 +3818,554 @@ mod e2e {
         let header = Header::new("X-API-KEY", "wrong-header");
 
         dispatch_with_header_expect_error(&client, body, header, &logger, Status::Unauthorized);
+    }
+
+    #[test_with_logger]
+    fn test_request_with_correct_api_key(logger: Logger) {
+        let api_key = "mobilecats";
+
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) =
+            setup_with_api_key(&mut rng, logger.clone(), api_key.to_string());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            },
+        });
+
+        let header = Header::new("X-API-KEY", api_key);
+
+        dispatch_with_header(&client, body, header, &logger);
+    }
+
+    #[test_with_logger]
+    fn test_request_with_bad_api_key(logger: Logger) {
+        let api_key = "mobilecats";
+
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) =
+            setup_with_api_key(&mut rng, logger.clone(), api_key.to_string());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            },
+        });
+
+        let header = Header::new("X-API-KEY", "wrong-header");
+
+        dispatch_with_header_expect_error(&client, body, header, &logger, Status::Unauthorized);
+    }
+
+    #[test_with_logger]
+    fn test_e2e_view_only_account_crud(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        let name = "Coins for cats";
+        let view_key = "0a20928c29f916586c0fae22de17784b2b9ac573a1b1d75c2ba531838650ca0a5302";
+
+        // test import Account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_view_only_account",
+            "params": {
+                "name": name,
+                "view_private_key": view_key,
+            },
+        });
+        let res = dispatch(&client, body, &logger);
+        assert_eq!(res.get("jsonrpc").unwrap(), "2.0");
+
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("view_only_account").unwrap();
+        assert_eq!(account_obj.get("name").unwrap(), name);
+        assert_eq!(account_obj.get("first_block_index").unwrap(), "0");
+        assert_eq!(account_obj.get("next_block_index").unwrap(), "0");
+
+        let account_id = account_obj.get("account_id").unwrap();
+
+        // test get account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_view_only_account",
+            "params": {
+                "account_id": account_id,
+            },
+        });
+        let res = dispatch(&client, body, &logger);
+
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("view_only_account").unwrap();
+        assert_eq!(account_obj.get("name").unwrap(), name);
+        assert_eq!(account_obj.get("account_id").unwrap(), account_id);
+        assert_eq!(account_obj.get("first_block_index").unwrap(), "0");
+        assert_eq!(account_obj.get("next_block_index").unwrap(), "0");
+
+        // test update name
+        let new_name = "new_account_name";
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "update_view_only_account_name",
+            "params": {
+                "account_id": account_id,
+                "name": new_name,
+            },
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("view_only_account").unwrap();
+        assert_eq!(account_obj.get("name").unwrap(), new_name);
+
+        // test list all view only accounts
+        let second_view_key =
+            "0a20928c29f916586c0fae22de17784b2b9ac553a1b1f75c2ba531838650ca0a5302";
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_view_only_account",
+            "params": {
+                "name": name,
+                "view_private_key": second_view_key,
+            },
+        });
+        let res = dispatch(&client, body, &logger);
+        assert_eq!(res.get("jsonrpc").unwrap(), "2.0");
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_all_view_only_accounts",
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let ids = result.get("account_ids").unwrap().as_array().unwrap();
+        println!("RESULT {:?}", result);
+        assert_eq!(ids.len(), 2);
+
+        // test removing an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "remove_view_only_account",
+            "params": {
+                "account_id": account_id,
+            },
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        assert!(result.get("removed").unwrap().as_bool().unwrap());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_view_only_account",
+            "params": {
+                "account_id": account_id,
+            },
+        });
+        let res = dispatch(&client, body, &logger);
+        assert!(res.get("error").is_some());
+    }
+
+    #[test_with_logger]
+    fn test_e2e_export_view_only_account_secrets(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        let name = "Coins for cats";
+        let view_key = "0a20928c29f916586c0fae22de17784b2b9ac573a1b1d75c2ba531838650ca0a5302";
+        // Import Account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_view_only_account",
+            "params": {
+                "name": name,
+                "view_private_key": view_key,
+            },
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("view_only_account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap();
+
+        // get account secrets
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "export_view_only_account_secrets",
+            "params": {
+                "account_id": account_id,
+            },
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let secrets = result.get("view_only_account_secrets").unwrap();
+        let key = secrets["view_private_key"].as_str().unwrap();
+        assert_eq!(key, view_key);
+    }
+
+    #[test_with_logger]
+    fn test_e2e_get_view_only_balance(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+        let public_address = b58_decode_public_address(b58_public_address).unwrap();
+
+        // Add a block with a txo for this address
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![public_address],
+            42 * MOB as u64,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        // import view-only-account from account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "export_account_secrets",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let secrets = result.get("account_secrets").unwrap();
+        let account_key = secrets.get("account_key").unwrap();
+        let view_private_key = account_key["view_private_key"].as_str().unwrap();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_view_only_account",
+            "params": {
+                "view_private_key": view_private_key,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("view_only_account").unwrap();
+        let view_only_account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+
+        // sync view-only-account
+        manually_sync_view_only_account(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &view_only_account_id,
+            &logger,
+        );
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_view_only_account",
+            "params": {
+                "account_id": view_only_account_id,
+            }
+        });
+
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance = result.get("balance").unwrap();
+        assert_eq!(
+            balance
+                .get("received")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_string(),
+            (42 * MOB).to_string()
+        );
+    }
+
+    #[test_with_logger]
+    fn test_e2e_get_txos_for_view_only_account(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+        let public_address = b58_decode_public_address(b58_public_address).unwrap();
+
+        // Add blocks with a txo for this address
+        let total_txos = 10;
+        for _ in 0..total_txos {
+            add_block_to_ledger_db(
+                &mut ledger_db,
+                &vec![public_address.clone()],
+                42 * MOB as u64,
+                &vec![KeyImage::from(rng.next_u64())],
+                &mut rng,
+            );
+        }
+
+        // import view-only-account from account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "export_account_secrets",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let secrets = result.get("account_secrets").unwrap();
+        let account_key = secrets.get("account_key").unwrap();
+        let view_private_key = account_key["view_private_key"].as_str().unwrap();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_view_only_account",
+            "params": {
+                "view_private_key": view_private_key,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("view_only_account").unwrap();
+        let view_only_account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+
+        // sync view-only-account
+        manually_sync_view_only_account(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &view_only_account_id,
+            &logger,
+        );
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_txos_for_view_only_account",
+            "params": {
+                "account_id": view_only_account_id,
+                "offset": "0",
+                "limit": total_txos.to_string(),
+            }
+        });
+
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let txo_ids = result.get("txo_ids").unwrap().as_array().unwrap();
+        assert_eq!(txo_ids.len(), total_txos);
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_txos_for_view_only_account",
+            "params": {
+                "account_id": view_only_account_id,
+                "offset": "9",
+                "limit": "4",
+            }
+        });
+
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let txo_ids = result.get("txo_ids").unwrap().as_array().unwrap();
+        assert_eq!(txo_ids.len(), 1);
+    }
+
+    #[test_with_logger]
+    fn test_txo_export_import(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+        let public_address = b58_decode_public_address(b58_public_address).unwrap();
+
+        // Add blocks with a txo for this address
+        let total_txos = 3;
+        for _ in 0..total_txos {
+            add_block_to_ledger_db(
+                &mut ledger_db,
+                &vec![public_address.clone()],
+                80 * MOB as u64,
+                &vec![KeyImage::from(rng.next_u64())],
+                &mut rng,
+            );
+        }
+        manually_sync_account(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            &logger,
+        );
+
+        // Create a tx proposal to ourselves
+        // should spend 2 txos
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "build_transaction",
+            "params": {
+                "account_id": account_id,
+                "recipient_public_address": b58_public_address,
+                "value_pmob": "90000000000000", // 90.0 MOB
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let tx_proposal = result.get("tx_proposal").unwrap();
+        let json_tx_proposal: json_rpc::tx_proposal::TxProposal =
+            serde_json::from_value(tx_proposal.clone()).unwrap();
+        let payments_tx_proposal =
+            mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
+
+        add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
+        manually_sync_account(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            &logger,
+        );
+
+        // import view-only-account from account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "export_account_secrets",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let secrets = result.get("account_secrets").unwrap();
+        let account_key = secrets.get("account_key").unwrap();
+        let view_private_key = account_key["view_private_key"].as_str().unwrap();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_view_only_account",
+            "params": {
+                "view_private_key": view_private_key,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("view_only_account").unwrap();
+        let view_only_account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        manually_sync_view_only_account(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &view_only_account_id,
+            &logger,
+        );
+
+        // export spent txo ids
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "export_spent_txo_ids",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let spent_txo_ids = result.get("spent_txo_ids").unwrap().as_array().unwrap();
+        assert_eq!(spent_txo_ids.len(), 2);
+
+        // set view only txos to spent
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "set_view_only_txos_spent",
+            "params": {
+                "txo_ids": spent_txo_ids,
+            }
+        });
+
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let success = result.get("success").unwrap().as_bool().unwrap();
+        assert!(success);
+
+        // confirm marked as spent
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_txos_for_view_only_account",
+            "params": {
+                "account_id": view_only_account_id,
+                "limit": "10",
+                "offset": "0"
+            }
+        });
+
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let txo_map = result.get("txo_map").unwrap().as_object().unwrap();
+        assert!(txo_map
+            .get(spent_txo_ids[0].as_str().unwrap())
+            .unwrap()
+            .get("spent")
+            .unwrap()
+            .as_bool()
+            .unwrap());
+        assert!(txo_map
+            .get(spent_txo_ids[1].as_str().unwrap())
+            .unwrap()
+            .get("spent")
+            .unwrap()
+            .as_bool()
+            .unwrap());
     }
 }

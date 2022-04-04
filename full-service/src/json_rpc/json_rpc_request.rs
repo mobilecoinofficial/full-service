@@ -130,6 +130,12 @@ pub enum JsonCommandRequest {
     export_account_secrets {
         account_id: String,
     },
+    export_spent_txo_ids {
+        account_id: String,
+    },
+    export_view_only_account_secrets {
+        account_id: String,
+    },
     get_account {
         account_id: String,
     },
@@ -163,11 +169,15 @@ pub enum JsonCommandRequest {
     get_all_txos_for_address {
         address: String,
     },
+    get_all_view_only_accounts,
     get_balance_for_account {
         account_id: String,
     },
     get_balance_for_address {
         address: String,
+    },
+    get_balance_for_view_only_account {
+        account_id: String,
     },
     get_block {
         block_index: String,
@@ -201,6 +211,14 @@ pub enum JsonCommandRequest {
         offset: String,
         limit: String,
     },
+    get_txos_for_view_only_account {
+        account_id: String,
+        offset: String,
+        limit: String,
+    },
+    get_view_only_account {
+        account_id: String,
+    },
     get_wallet_status,
     import_account {
         mnemonic: String,
@@ -221,11 +239,22 @@ pub enum JsonCommandRequest {
         fog_report_id: Option<String>,
         fog_authority_spki: Option<String>,
     },
+    import_view_only_account {
+        view_private_key: String,
+        name: Option<String>,
+        first_block_index: Option<String>,
+    },
     remove_account {
         account_id: String,
     },
     remove_gift_code {
         gift_code_b58: String,
+    },
+    remove_view_only_account {
+        account_id: String,
+    },
+    set_view_only_txos_spent {
+        txo_ids: Vec<String>,
     },
     submit_gift_code {
         from_account_id: String,
@@ -241,6 +270,10 @@ pub enum JsonCommandRequest {
         account_id: String,
         name: String,
     },
+    update_view_only_account_name {
+        account_id: String,
+        name: String,
+    },
     validate_confirmation {
         account_id: String,
         txo_id: String,
@@ -249,4 +282,5 @@ pub enum JsonCommandRequest {
     verify_address {
         address: String,
     },
+    version,
 }
