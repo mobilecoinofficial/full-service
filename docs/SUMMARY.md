@@ -10,7 +10,7 @@
   * [Import Account Legacy](accounts/account/import_account_from_legacy_root_entropy-deprecated.md)
   * [Import View Only Account](accounts/account/import_view_only_account.md)
   * [Get Account](accounts/account/get_account.md)
-  * [Get All Accounts](accounts/account/get_all_accounts.md) (deprecated)
+  * [Get All Accounts](accounts/account/get_all_accounts.md)
   * [Get All View Only Accounts](accounts/account/get_all_view_only_accounts.md)
   * [Get Account Status](accounts/account/get_account_status.md)
   * [Get View Only Account](accounts/account/get_view_only_account.md)

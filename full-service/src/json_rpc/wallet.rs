@@ -538,7 +538,6 @@ where
                 .collect::<Result<Vec<(String, serde_json::Value)>, JsonRPCError>>()?;
             let account_map: Map<String, serde_json::Value> = Map::from_iter(json_accounts);
             JsonCommandResponse::get_all_accounts {
-                deprecated: true,
                 account_ids: accounts.iter().map(|a| a.account_id_hex.clone()).collect(),
                 account_map,
             }
