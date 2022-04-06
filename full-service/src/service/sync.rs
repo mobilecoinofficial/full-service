@@ -241,8 +241,6 @@ fn sync_view_only_account_next_chunk(
             // wallet flow for more details
             let input_logs =
                 ViewOnlyTransactionLog::find_all_by_change_txo_id(&new_txo.txo_id_hex, conn)?;
-            println!("change TXO we are saerching for: {:?}", new_txo.txo_id_hex);
-            println!("input logs found: {:?}", input_logs);
             // Update view only txos recorded as inputs for that transaction as spent
             for log in input_logs {
                 let txo = ViewOnlyTxo::get(&log.input_txo_id_hex, conn)?;
