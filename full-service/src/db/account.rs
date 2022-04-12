@@ -253,10 +253,14 @@ impl AccountModel for Account {
 
         let account_id = AccountID::from(account_key);
 
-        // The next block for scanning should should start one after the current block, unless we
-        // are starting at the beginning of the ledger.
+        // The next block for scanning should should start one after the current block,
+        // unless we are starting at the beginning of the ledger.
         let fb = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX);
-        let nb = if fb == DEFAULT_FIRST_BLOCK_INDEX { 0 } else { fb + 1 };
+        let nb = if fb == DEFAULT_FIRST_BLOCK_INDEX {
+            0
+        } else {
+            fb + 1
+        };
 
         let change_subaddress_index = if fog_enabled {
             DEFAULT_SUBADDRESS_INDEX as i64

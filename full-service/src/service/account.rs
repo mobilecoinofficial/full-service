@@ -436,14 +436,10 @@ mod tests {
         assert_eq!(account.next_block_index, 12);
         assert_eq!(account.import_block_index, Some(11));
 
-        // Syncing the account does nothing to the block indices since there are no new blocks.
+        // Syncing the account does nothing to the block indices since there are no new
+        // blocks.
         let account_id = AccountID(account.account_id_hex);
-        manually_sync_account(
-            &ledger_db,
-            &service.wallet_db,
-            &account_id,
-            &logger,
-        );
+        manually_sync_account(&ledger_db, &service.wallet_db, &account_id, &logger);
         let account = service.get_account(&account_id).unwrap();
         assert_eq!(account.first_block_index, 11);
         assert_eq!(account.next_block_index, 12);
@@ -465,22 +461,17 @@ mod tests {
             )
             .unwrap();
 
-
-        // The block indices are set to zero because we have no ledger information whatsoever.
+        // The block indices are set to zero because we have no ledger information
+        // whatsoever.
         assert_eq!(service.ledger_db.num_blocks().unwrap(), 0);
         assert_eq!(account.first_block_index, 0);
         assert_eq!(account.next_block_index, 0);
         assert_eq!(account.import_block_index, Some(0));
 
-        // Syncing the account does nothing to the block indices since there are no blocks in the
-        // ledger.
+        // Syncing the account does nothing to the block indices since there are no
+        // blocks in the ledger.
         let account_id = AccountID(account.account_id_hex);
-        manually_sync_account(
-            &ledger_db,
-            &service.wallet_db,
-            &account_id,
-            &logger,
-        );
+        manually_sync_account(&ledger_db, &service.wallet_db, &account_id, &logger);
         let account = service.get_account(&account_id).unwrap();
         assert_eq!(account.first_block_index, 0);
         assert_eq!(account.next_block_index, 0);
