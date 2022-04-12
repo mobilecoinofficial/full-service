@@ -252,7 +252,11 @@ impl AccountModel for Account {
         use crate::db::schema::accounts;
 
         let account_id = AccountID::from(account_key);
+
+        // The next block for scanning should should start one after the current block, unless we
+        // are starting at the beginning of the ledger.
         let fb = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX);
+        let nb = if fb == DEFAULT_FIRST_BLOCK_INDEX { 0 } else { fb + 1 };
 
         let change_subaddress_index = if fog_enabled {
             DEFAULT_SUBADDRESS_INDEX as i64
@@ -276,7 +280,7 @@ impl AccountModel for Account {
             change_subaddress_index,
             next_subaddress_index,
             first_block_index: fb as i64,
-            next_block_index: fb as i64,
+            next_block_index: nb as i64,
             import_block_index: import_block_index.map(|i| i as i64),
             name,
             fog_enabled,
@@ -577,7 +581,7 @@ mod tests {
             change_subaddress_index: 1,
             next_subaddress_index: 2,
             first_block_index: 51,
-            next_block_index: 51,
+            next_block_index: 52,
             import_block_index: Some(50),
             name: "".to_string(),
             fog_enabled: false,

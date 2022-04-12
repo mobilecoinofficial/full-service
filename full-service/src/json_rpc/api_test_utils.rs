@@ -99,7 +99,7 @@ pub fn create_test_setup(
     let known_recipients: Vec<PublicAddress> = Vec::new();
     let ledger_db = get_test_ledger(5, &known_recipients, BASE_TEST_BLOCK_HEIGHT, &mut rng);
     let (peer_manager, network_state) =
-        setup_peer_manager_and_network_state(ledger_db.clone(), logger.clone());
+        setup_peer_manager_and_network_state(ledger_db.clone(), logger.clone(), false);
 
     let service = WalletService::new(
         wallet_db,

@@ -313,7 +313,7 @@ fn sync_account_next_chunk(
 
         let start_time = Instant::now();
         let first_block_index = account.next_block_index as u64;
-        let mut last_block_index = account.next_block_index as u64;
+        let mut last_block_index: Option<u64> = None;
 
         // Load transaction outputs and key images for this chunk.
         let mut tx_outs: Vec<(u64, TxOut)> = Vec::new();
@@ -332,7 +332,7 @@ fn sync_account_next_chunk(
                     return Err(err.into());
                 }
             };
-            last_block_index = block_index;
+            last_block_index = Some(block_index);
 
             for tx_out in block_contents.outputs {
                 tx_outs.push((block_index, tx_out));
@@ -342,6 +342,13 @@ fn sync_account_next_chunk(
                 key_images.push((block_index, key_image));
             }
         }
+
+        // If no blocks were found, exit.
+        if last_block_index.is_none() {
+            return Ok(SyncStatus::NoMoreBlocks);
+        }
+        let last_block_index = last_block_index.unwrap();
+
         // Attempt to decode each transaction as received by this account.
         let received_txos: Vec<_> = tx_outs
             .into_par_iter()
