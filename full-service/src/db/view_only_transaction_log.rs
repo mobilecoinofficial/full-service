@@ -130,20 +130,10 @@ mod tests {
             &RistrettoPublic::from_random(&mut rng),
             &RistrettoPublic::from_random(&mut rng),
         );
-        let fake_input_tx_out = TxOut::new(
-            value,
-            &public_address,
-            &tx_private_key_1,
-            hint.clone(),
-        )
-        .unwrap();
-        let fake_change_tx_out = TxOut::new(
-            value,
-            &public_address,
-            &tx_private_key_2,
-            hint.clone(),
-        )
-        .unwrap();
+        let fake_input_tx_out =
+            TxOut::new(value, &public_address, &tx_private_key_1, hint.clone()).unwrap();
+        let fake_change_tx_out =
+            TxOut::new(value, &public_address, &tx_private_key_2, hint.clone()).unwrap();
 
         ViewOnlyAccount::create(
             view_only_account_id,

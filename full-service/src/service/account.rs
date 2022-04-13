@@ -188,12 +188,12 @@ where
         // Since we are creating the account from randomness, it is astronomically
         // improbable that it would have collided with another account that
         // already received funds. For this reason, start scanning after the
-        // current network block index. Only perform account scanning on blocks that are newer than
-        // the account.
-        // The index of the previously published block is one less than the ledger height, and the
-        // next block after that has an index of one more.
-        let first_block_index = network_block_height; // - 1 + 1
-        let import_block_index = local_block_height; // - 1 + 1;
+        // current network block index. Only perform account scanning on blocks that are
+        // newer than the account.
+        // The index of the previously published block is one less than the ledger
+        // height, and the next block after that has an index of one more.
+        let first_block_index = network_block_height; // -1 +1
+        let import_block_index = local_block_height; // -1 +1
 
         let conn = self.wallet_db.get_conn()?;
         conn.transaction(|| {

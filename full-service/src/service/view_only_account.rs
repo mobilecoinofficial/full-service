@@ -69,10 +69,11 @@ where
 
         let account_id_hex = ViewOnlyAccountID::from(&view_private_key).to_string();
 
-        // We record one block after the local highest block index, because that is the earliest we
-        // could start scanning. Set first block to 0 if none is provided.
+        // We record one block after the local highest block index, because that is the
+        // earliest we could start scanning. Set first block to 0 if none is
+        // provided.
         let local_block_height = self.ledger_db.num_blocks()?;
-        let import_block_index = local_block_height; // - 1 + 1;
+        let import_block_index = local_block_height; // -1 +1
         let first_block_index = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX);
 
         let conn = self.wallet_db.get_conn()?;
