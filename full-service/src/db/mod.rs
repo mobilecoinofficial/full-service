@@ -20,4 +20,4 @@ pub use wallet_db::WalletDb;
 pub use wallet_db_error::WalletDbError;
 
 #[cfg(any(test))]
-pub mod test_latest_migration;
+pub mod migration_testing;
