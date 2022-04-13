@@ -80,17 +80,14 @@ where
         metadata: Option<&str>,
     ) -> Result<AssignedSubaddress, AddressServiceError> {
         let conn = &self.wallet_db.get_conn()?;
-        conn.transaction(|| {
-            let (public_address_b58, _subaddress_index) =
-                AssignedSubaddress::create_next_for_account(
-                    &account_id.to_string(),
-                    metadata.unwrap_or(""),
-                    &self.ledger_db,
-                    conn,
-                )?;
-
-            Ok(AssignedSubaddress::get(&public_address_b58, conn)?)
-        })
+        let (public_address_b58, _subaddress_index) =
+            AssignedSubaddress::create_next_for_account(
+                &account_id.to_string(),
+                metadata.unwrap_or(""),
+                &self.ledger_db,
+                conn,
+            )?;
+        Ok(AssignedSubaddress::get(&public_address_b58, conn)?)
     }
 
     fn get_addresses_for_account(
