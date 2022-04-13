@@ -187,12 +187,13 @@ where
 
         // Since we are creating the account from randomness, it is astronomically
         // improbable that it would have collided with another account that
-        // already received funds. For this reason, start scanning at the
-        // current network block index.
-        let first_block_index = network_block_height.saturating_sub(1);
-
-        // Only perform account scanning on blocks that are newer than the account.
-        let import_block_index = local_block_height.saturating_sub(1);
+        // already received funds. For this reason, start scanning after the
+        // current network block index. Only perform account scanning on blocks that are newer than
+        // the account.
+        // The index of the previously published block is one less than the ledger height, and the
+        // next block after that has an index of one more.
+        let first_block_index = network_block_height; // - 1 + 1
+        let import_block_index = local_block_height; // - 1 + 1;
 
         let conn = self.wallet_db.get_conn()?;
         conn.transaction(|| {
@@ -432,18 +433,18 @@ mod tests {
         // Even though we don't have a network connection, it sets the block indices
         // based on the ledger height.
         assert_eq!(service.ledger_db.num_blocks().unwrap(), 12);
-        assert_eq!(account.first_block_index, 11);
+        assert_eq!(account.first_block_index, 12);
         assert_eq!(account.next_block_index, 12);
-        assert_eq!(account.import_block_index, Some(11));
+        assert_eq!(account.import_block_index, Some(12));
 
         // Syncing the account does nothing to the block indices since there are no new
         // blocks.
         let account_id = AccountID(account.account_id_hex);
         manually_sync_account(&ledger_db, &service.wallet_db, &account_id, &logger);
         let account = service.get_account(&account_id).unwrap();
-        assert_eq!(account.first_block_index, 11);
+        assert_eq!(account.first_block_index, 12);
         assert_eq!(account.next_block_index, 12);
-        assert_eq!(account.import_block_index, Some(11));
+        assert_eq!(account.import_block_index, Some(12));
     }
 
     #[test_with_logger]

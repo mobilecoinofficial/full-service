@@ -26,7 +26,7 @@ pub trait ViewOnlyAccountService {
         &self,
         view_private_key: RistrettoPrivate,
         name: &str,
-        first_block_index: Option<i64>,
+        first_block_index: Option<u64>,
     ) -> Result<ViewOnlyAccount, AccountServiceError>;
 
     /// Get a view only account by view private key
@@ -58,7 +58,7 @@ where
         &self,
         view_private_key: RistrettoPrivate,
         name: &str,
-        first_block_index: Option<i64>,
+        first_block_index: Option<u64>,
     ) -> Result<ViewOnlyAccount, AccountServiceError> {
         log::info!(
             self.logger,
@@ -69,19 +69,18 @@ where
 
         let account_id_hex = ViewOnlyAccountID::from(&view_private_key).to_string();
 
-        // We record the local highest block index because that is the earliest we could
-        // start scanning.
-        let import_block_index: i64 = self.ledger_db.num_blocks()? as i64 - 1;
-
-        // set first block to 0 if none provided
-        let first_block_i: i64 = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX as i64);
+        // We record one block after the local highest block index, because that is the earliest we
+        // could start scanning. Set first block to 0 if none is provided.
+        let local_block_height = self.ledger_db.num_blocks()?;
+        let import_block_index = local_block_height; // - 1 + 1;
+        let first_block_index = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX);
 
         let conn = self.wallet_db.get_conn()?;
         conn.transaction(|| {
             Ok(ViewOnlyAccount::create(
                 &account_id_hex,
                 &view_private_key,
-                first_block_i,
+                first_block_index,
                 import_block_index,
                 name,
                 &conn,
@@ -150,7 +149,7 @@ mod tests {
 
     fn get_test_service(
         logger: Logger,
-        current_block_height: i64,
+        current_block_height: u64,
     ) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -166,7 +165,7 @@ mod tests {
 
     #[test_with_logger]
     fn service_view_only_account_crud(logger: Logger) {
-        let current_block_height: i64 = 12;
+        let current_block_height = 12;
         let service = get_test_service(logger, current_block_height);
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
@@ -185,9 +184,9 @@ mod tests {
             id: 1,
             account_id_hex: account_id_hex.clone(),
             view_private_key: ristretto_to_vec(&view_private_key),
-            first_block_index,
-            next_block_index: first_block_index,
-            import_block_index: current_block_height - 1,
+            first_block_index: first_block_index as i64,
+            next_block_index: first_block_index as i64,
+            import_block_index: (current_block_height - 1 + 1) as i64,
             name: name.to_string(),
         };
 

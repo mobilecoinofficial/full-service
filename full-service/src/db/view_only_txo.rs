@@ -20,7 +20,7 @@ pub trait ViewOnlyTxoModel {
     /// insert a new txo linked to a view-only-account
     fn create(
         tx_out: TxOut,
-        value: i64,
+        value: u64,
         view_only_account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<ViewOnlyTxo, WalletDbError>;
@@ -64,7 +64,7 @@ pub trait ViewOnlyTxoModel {
 impl ViewOnlyTxoModel for ViewOnlyTxo {
     fn create(
         tx_out: TxOut,
-        value: i64,
+        value: u64,
         view_only_account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<ViewOnlyTxo, WalletDbError> {
@@ -78,7 +78,7 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         let new_txo = NewViewOnlyTxo {
             txo: &mc_util_serial::encode(&tx_out),
             txo_id_hex: &txo_id.to_string(),
-            value,
+            value: value as i64,
             public_key: &mc_util_serial::encode(&tx_out.public_key),
             view_only_account_id_hex,
         };
@@ -187,7 +187,7 @@ mod tests {
         let conn = wallet_db.get_conn().unwrap();
 
         // make fake txo
-        let value: i64 = 420;
+        let value = 420;
         let tx_private_key = RistrettoPrivate::from_random(&mut rng);
         let hint = EncryptedFogHint::fake_onetime_hint(&mut rng);
         let public_address = PublicAddress::new(
@@ -209,8 +209,8 @@ mod tests {
         let view_only_account = ViewOnlyAccount::create(
             view_only_account_id,
             &RistrettoPrivate::from_random(&mut rng),
-            0 as i64,
-            0 as i64,
+            0,
+            0,
             "catcoin_name",
             &conn,
         )
@@ -223,7 +223,7 @@ mod tests {
             view_only_account_id_hex: view_only_account.account_id_hex.to_string(),
             txo: mc_util_serial::encode(&fake_tx_out),
             public_key: mc_util_serial::encode(&fake_tx_out.public_key),
-            value,
+            value: value as i64,
             spent: false,
         };
 
@@ -251,7 +251,7 @@ mod tests {
 
         // test list for account
 
-        let value: i64 = 420;
+        let value = 420;
         let tx_private_key = RistrettoPrivate::from_random(&mut rng);
         let hint = EncryptedFogHint::fake_onetime_hint(&mut rng);
         let public_address = PublicAddress::new(
