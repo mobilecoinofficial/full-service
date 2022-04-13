@@ -6,9 +6,7 @@ use diesel::{
     sql_types,
 };
 use mc_common::logger::{global_log, Logger};
-use std::{env, time::Duration};
-use std::thread::sleep;
-
+use std::{env, thread::sleep, time::Duration};
 
 pub type Conn = PooledConnection<ConnectionManager<SqliteConnection>>;
 
@@ -145,7 +143,6 @@ impl WalletDb {
     }
 }
 
-
 /// Create an immediate SQLite transaction with retry.
 pub fn transaction<T, E, F>(conn: &Conn, f: F) -> Result<T, E>
 where
@@ -164,12 +161,9 @@ where
 const BASE_DELAY_MS: u32 = 10;
 const NUM_RETRIES: u32 = 5;
 
-
 /// Escape a string for consumption by SQLite.
 /// This function doubles all single quote characters within the string, then
 /// wraps the string in single quotes on the front and back.
 fn sql_escape_string(s: &str) -> String {
     format!("'{}'", s.replace("'", "''"))
 }
-
-

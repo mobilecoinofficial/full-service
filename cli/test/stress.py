@@ -1,34 +1,59 @@
 import aiohttp
 import asyncio
-import time
+from time import perf_counter
 
 
 async def main():
-        c = StressClient()
-
-        account = await c.create_account()
-        account_id = account['account_id']
-
-        await test_addresses(c, account_id, n=100)
-
-        await c.remove_account(account_id)
+    c = StressClient()
+    await test_account_create(c)
+    await test_subaddresses(c)
 
 
-async def test_addresses(c, account_id, n=10):
+async def test_account_create(c, n=10):
+    accounts = await c.get_all_accounts()
+    num_accounts_before = len(accounts)
+
+    account_ids = []
+    async def create_one(i):
+        account = await c.create_account(str(i))
+        account_ids.append(account['account_id'])
+
+    with Timer() as timer:
+        await asyncio.gather(*[
+            create_one(i)
+            for i in range(1, n+1)
+        ])
+
+    accounts = await c.get_all_accounts()
+    assert len(accounts) == num_accounts_before + n
+
+    await asyncio.gather(*[
+        c.remove_account(account_id)
+        for account_id in account_ids
+    ])
+
+    print('Created {} accounts in {:.3f}s'.format(n, timer.elapsed))
+
+
+async def test_subaddresses(c, n=10):
+    account = await c.create_account()
+    account_id = account['account_id']
+
     addresses = await c.get_addresses_for_account(account_id)
     assert len(addresses) == 2
 
-    start = time.time()
-    await asyncio.gather(*[
-        c.assign_address(account_id, str(i))
-        for i in range(1, n+1)
-    ])
-    end = time.time()
+    with Timer() as timer:
+        await asyncio.gather(*[
+            c.assign_address(account_id, str(i))
+            for i in range(1, n+1)
+        ])
 
     addresses = await c.get_addresses_for_account(account_id)
-    assert len(addresses) == n + 2
+    assert len(addresses) == 2 + n
 
-    print('Created {} addresses in {:.3f}s'.format(n, end - start))
+    await c.remove_account(account_id)
+
+    print('Created {} addresses in {:.3f}s'.format(n, timer.elapsed))
 
 
 class StressClient:
@@ -43,12 +68,20 @@ class StressClient:
         async with aiohttp.ClientSession() as session:
             async with session.post('http://localhost:9090/wallet', json=request_data) as response:
                 r = await response.json()
-        return r['result']
+        try:
+            return r['result']
+        except KeyError:
+            print(r)
+            raise
 
-    async def create_account(self):
+    async def get_all_accounts(self):
+        r = await self._req({"method": "get_all_accounts"})
+        return r['account_map']
+
+    async def create_account(self, name=''):
         r = await self._req({
             "method": "create_account",
-            "params": {"name": ""}
+            "params": {"name": name}
         })
         return r['account']
 
@@ -79,5 +112,15 @@ class StressClient:
         return r['address_map']
 
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
+class Timer:
+    def __enter__(self):
+        self._start_time = perf_counter()
+        return self
+
+    def __exit__(self, *_):
+        end_time = perf_counter()
+        self.elapsed = end_time - self._start_time
+
+
+if __name__ == '__main__':
+    asyncio.run(main())

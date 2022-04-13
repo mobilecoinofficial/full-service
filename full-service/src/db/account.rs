@@ -6,6 +6,7 @@ use crate::{
     db::{
         assigned_subaddress::AssignedSubaddressModel,
         models::{Account, AssignedSubaddress, NewAccount, TransactionLog, Txo},
+        transaction,
         transaction_log::TransactionLogModel,
         txo::TxoModel,
         WalletDbError,
@@ -284,34 +285,42 @@ impl AccountModel for Account {
             fog_enabled,
         };
 
-        diesel::insert_into(accounts::table)
-            .values(&new_account)
-            .execute(conn)?;
+        transaction(conn, || {
+            diesel::insert_into(accounts::table)
+                .values(&new_account)
+                .execute(conn)?;
 
-        let main_subaddress_b58 = AssignedSubaddress::create(
-            account_key,
-            None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
-                   * always for main? */
-            DEFAULT_SUBADDRESS_INDEX,
-            "Main",
-            conn,
-        )?;
-        if !fog_enabled {
-            AssignedSubaddress::create(
+            let main_subaddress_b58 = AssignedSubaddress::create(
                 account_key,
                 None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
                        * always for main? */
-                DEFAULT_CHANGE_SUBADDRESS_INDEX,
-                "Change",
+                DEFAULT_SUBADDRESS_INDEX,
+                "Main",
                 conn,
             )?;
+            if !fog_enabled {
+                AssignedSubaddress::create(
+                    account_key,
+                    None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
+                           * always for main? */
+                    DEFAULT_CHANGE_SUBADDRESS_INDEX,
+                    "Change",
+                    conn,
+                )?;
 
-            for subaddress_index in 2..next_subaddress_index {
-                AssignedSubaddress::create(account_key, None, subaddress_index as u64, "", conn)?;
+                for subaddress_index in 2..next_subaddress_index {
+                    AssignedSubaddress::create(
+                        account_key,
+                        None,
+                        subaddress_index as u64,
+                        "",
+                        conn,
+                    )?;
+                }
             }
-        }
 
-        Ok((account_id, main_subaddress_b58))
+            Ok((account_id, main_subaddress_b58))
+        })
     }
 
     fn import(
@@ -445,21 +454,24 @@ impl AccountModel for Account {
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
 
-        // Delete transaction logs associated with this account
-        TransactionLog::delete_all_for_account(&self.account_id_hex, conn)?;
+        transaction(conn, || {
+            // Delete transaction logs associated with this account
+            TransactionLog::delete_all_for_account(&self.account_id_hex, conn)?;
 
-        // Delete associated assigned subaddresses
-        AssignedSubaddress::delete_all(&self.account_id_hex, conn)?;
+            // Delete associated assigned subaddresses
+            AssignedSubaddress::delete_all(&self.account_id_hex, conn)?;
 
-        // Delete references to the account in the Txos table.
-        Txo::scrub_account(&self.account_id_hex, conn)?;
+            // Delete references to the account in the Txos table.
+            Txo::scrub_account(&self.account_id_hex, conn)?;
 
-        diesel::delete(accounts.filter(account_id_hex.eq(&self.account_id_hex))).execute(conn)?;
+            diesel::delete(accounts.filter(account_id_hex.eq(&self.account_id_hex)))
+                .execute(conn)?;
 
-        // Delete Txos with no references.
-        Txo::delete_unreferenced(conn)?;
+            // Delete Txos with no references.
+            Txo::delete_unreferenced(conn)?;
 
-        Ok(())
+            Ok(())
+        })
     }
 }
 

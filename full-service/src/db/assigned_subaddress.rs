@@ -193,11 +193,13 @@ impl AssignedSubaddressModel for AssignedSubaddress {
                     let key_image = KeyImage::from(&onetime_private_key);
 
                     if ledger_db.contains_key_image(&key_image)? {
-                        let txo_index = ledger_db.get_tx_out_index_by_public_key(&txo_public_key)?;
+                        let txo_index =
+                            ledger_db.get_tx_out_index_by_public_key(&txo_public_key)?;
                         let block_index = ledger_db.get_block_index_by_tx_out_index(txo_index)?;
                         diesel::update(orphaned_txo)
                             .set(
-                                crate::db::schema::txos::spent_block_index.eq(Some(block_index as i64)),
+                                crate::db::schema::txos::spent_block_index
+                                    .eq(Some(block_index as i64)),
                             )
                             .execute(conn)?;
                     }
