@@ -190,8 +190,8 @@ fn sync_view_only_account_next_chunk(
         let view_private_key: RistrettoPrivate =
             mc_util_serial::decode(&view_only_account.view_private_key)?;
         let start_time = Instant::now();
-        let first_block_index = view_only_account.next_block_index as u64;
-        let mut last_block_index = view_only_account.next_block_index as u64;
+        let start_block_index = view_only_account.next_block_index as u64;
+        let mut end_block_index = view_only_account.next_block_index as u64;
 
         // Load transaction outputs for this chunk. View only accounts have a view
         // private key but no spend private key, so they can scan TXOs but
@@ -200,7 +200,6 @@ fn sync_view_only_account_next_chunk(
 
         let start = view_only_account.next_block_index as u64;
         let end = start + BLOCKS_CHUNK_SIZE;
-
         for block_index in start..end {
             let block_index = block_index as u64;
             let block_contents = match ledger_db.get_block_contents(block_index as u64) {
@@ -212,7 +211,7 @@ fn sync_view_only_account_next_chunk(
                     return Err(err.into());
                 }
             };
-            last_block_index = block_index;
+            end_block_index = block_index;
 
             for tx_out in block_contents.outputs {
                 tx_outs.push(tx_out);
@@ -234,7 +233,7 @@ fn sync_view_only_account_next_chunk(
 
         // Write received txos to db
         for (tx_out, amount) in received_txos {
-            let new_txo = ViewOnlyTxo::create(tx_out.clone(), amount as i64, account_id_hex, conn)?;
+            let new_txo = ViewOnlyTxo::create(tx_out.clone(), amount, account_id_hex, conn)?;
             // If this txo is change from a transaction that was submitted to this wallet
             // without an account-id, we should have some logs associating the
             // change txo with txos used as inputs for that transaction. See cold wallet/hot
@@ -249,10 +248,8 @@ fn sync_view_only_account_next_chunk(
         }
 
         // Done syncing this chunk. Mark these blocks as synced for this account.
-
-        view_only_account.update_next_block_index((last_block_index + 1) as i64, conn)?;
-
-        let num_blocks_synced = last_block_index - first_block_index + 1;
+        view_only_account.update_next_block_index(end_block_index + 1, conn)?;
+        let num_blocks_synced = end_block_index - start_block_index + 1;
 
         let duration = start_time.elapsed();
 
@@ -260,8 +257,8 @@ fn sync_view_only_account_next_chunk(
             logger,
             "Synced {} blocks ({}-{}) for view only account {} in {:?}. {} txos received.",
             num_blocks_synced,
-            first_block_index,
-            last_block_index,
+            start_block_index,
+            end_block_index,
             account_id_hex.chars().take(6).collect::<String>(),
             duration,
             num_received_txos,
@@ -312,8 +309,8 @@ fn sync_account_next_chunk(
         }
 
         let start_time = Instant::now();
-        let first_block_index = account.next_block_index as u64;
-        let mut last_block_index = account.next_block_index as u64;
+        let start_block_index = account.next_block_index as u64;
+        let mut end_block_index: Option<u64> = None;
 
         // Load transaction outputs and key images for this chunk.
         let mut tx_outs: Vec<(u64, TxOut)> = Vec::new();
@@ -332,7 +329,7 @@ fn sync_account_next_chunk(
                     return Err(err.into());
                 }
             };
-            last_block_index = block_index;
+            end_block_index = Some(block_index);
 
             for tx_out in block_contents.outputs {
                 tx_outs.push((block_index, tx_out));
@@ -342,6 +339,13 @@ fn sync_account_next_chunk(
                 key_images.push((block_index, key_image));
             }
         }
+
+        // If no blocks were found, exit.
+        if end_block_index.is_none() {
+            return Ok(SyncStatus::NoMoreBlocks);
+        }
+        let end_block_index = end_block_index.unwrap();
+
         // Attempt to decode each transaction as received by this account.
         let received_txos: Vec<_> = tx_outs
             .into_par_iter()
@@ -433,21 +437,21 @@ fn sync_account_next_chunk(
         }
 
         let txos_exceeding_pending_block_index =
-            Txo::list_pending_exceeding_block_index(account_id_hex, last_block_index + 1, conn)?;
+            Txo::list_pending_exceeding_block_index(account_id_hex, end_block_index + 1, conn)?;
         TransactionLog::update_tx_logs_associated_with_txos_to_failed(
             &txos_exceeding_pending_block_index,
             conn,
         )?;
 
         Txo::update_txos_exceeding_pending_tombstone_block_index_to_unspent(
-            last_block_index + 1,
+            end_block_index + 1,
             conn,
         )?;
 
         // Done syncing this chunk. Mark these blocks as synced for this account.
-        account.update_next_block_index(last_block_index + 1, conn)?;
+        account.update_next_block_index(end_block_index + 1, conn)?;
 
-        let num_blocks_synced = last_block_index - first_block_index + 1;
+        let num_blocks_synced = end_block_index - start_block_index + 1;
 
         let duration = start_time.elapsed();
 
@@ -455,8 +459,8 @@ fn sync_account_next_chunk(
             logger,
             "Synced {} blocks ({}-{}) for account {} in {:?}. {} txos received, {}/{} txos spent.",
             num_blocks_synced,
-            first_block_index,
-            last_block_index,
+            start_block_index,
+            end_block_index,
             account_id_hex.chars().take(6).collect::<String>(),
             duration,
             num_received_txos,

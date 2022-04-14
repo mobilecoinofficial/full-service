@@ -122,7 +122,7 @@ mod tests {
 
         // make fake txos, view only txos & account
         let view_only_account_id = "accountId";
-        let value: i64 = 420;
+        let value = 420;
         let tx_private_key_1 = RistrettoPrivate::from_random(&mut rng);
         let tx_private_key_2 = RistrettoPrivate::from_random(&mut rng);
         let hint = EncryptedFogHint::fake_onetime_hint(&mut rng);
@@ -130,26 +130,16 @@ mod tests {
             &RistrettoPublic::from_random(&mut rng),
             &RistrettoPublic::from_random(&mut rng),
         );
-        let fake_input_tx_out = TxOut::new(
-            value as u64,
-            &public_address,
-            &tx_private_key_1,
-            hint.clone(),
-        )
-        .unwrap();
-        let fake_change_tx_out = TxOut::new(
-            value as u64,
-            &public_address,
-            &tx_private_key_2,
-            hint.clone(),
-        )
-        .unwrap();
+        let fake_input_tx_out =
+            TxOut::new(value, &public_address, &tx_private_key_1, hint.clone()).unwrap();
+        let fake_change_tx_out =
+            TxOut::new(value, &public_address, &tx_private_key_2, hint.clone()).unwrap();
 
         ViewOnlyAccount::create(
             view_only_account_id,
             &RistrettoPrivate::from_random(&mut rng),
-            0 as i64,
-            0 as i64,
+            0,
+            0,
             "catcoin_name",
             &conn,
         )

@@ -994,7 +994,7 @@ where
             first_block_index,
         } => {
             let fb = first_block_index
-                .map(|fb| fb.parse::<i64>())
+                .map(|fb| fb.parse::<u64>())
                 .transpose()
                 .map_err(format_error)?;
 
