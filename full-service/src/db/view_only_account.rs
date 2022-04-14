@@ -42,8 +42,8 @@ pub trait ViewOnlyAccountModel {
     fn create(
         account_id_hex: &str,
         view_private_key: &RistrettoPrivate,
-        first_block_index: i64,
-        import_block_index: i64,
+        first_block_index: u64,
+        import_block_index: u64,
         name: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<ViewOnlyAccount, WalletDbError>;
@@ -75,7 +75,7 @@ pub trait ViewOnlyAccountModel {
     /// Update the next block index this account will need to sync.
     fn update_next_block_index(
         &self,
-        next_block_index: i64,
+        next_block_index: u64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
@@ -90,8 +90,8 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
     fn create(
         account_id_hex: &str,
         view_private_key: &RistrettoPrivate,
-        first_block_index: i64,
-        import_block_index: i64,
+        first_block_index: u64,
+        import_block_index: u64,
         name: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<ViewOnlyAccount, WalletDbError> {
@@ -102,11 +102,11 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
         let new_view_only_account = NewViewOnlyAccount {
             account_id_hex,
             view_private_key: &encoded_key,
-            first_block_index,
-            // next block index will always be the same as
-            // first block index when importing an account
-            next_block_index: first_block_index,
-            import_block_index,
+            first_block_index: first_block_index as i64,
+            // Next block index will always be the same as first block index when importing
+            // an account.
+            next_block_index: first_block_index as i64,
+            import_block_index: import_block_index as i64,
             name,
         };
 
@@ -165,7 +165,7 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
 
     fn update_next_block_index(
         &self,
-        next_block_index: i64,
+        next_block_index: u64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
         use schema::view_only_accounts::dsl::{
@@ -173,7 +173,7 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
             view_only_accounts,
         };
         diesel::update(view_only_accounts.filter(dsl_account_id.eq(&self.account_id_hex)))
-            .set(dsl_next_block.eq(next_block_index))
+            .set(dsl_next_block.eq(next_block_index as i64))
             .execute(conn)?;
         Ok(())
     }
@@ -214,17 +214,17 @@ mod tests {
 
         let name = "Coins for cats";
         let view_private_key = RistrettoPrivate::from_random(&mut rng);
-        let first_block_index: i64 = 25;
-        let import_block_index: i64 = 26;
+        let first_block_index: u64 = 25;
+        let import_block_index: u64 = 26;
         let account_id_hex = "abcd";
 
         let expected_account = ViewOnlyAccount {
             id: 1,
             account_id_hex: account_id_hex.to_string(),
             view_private_key: ristretto_to_vec(&view_private_key),
-            first_block_index,
-            next_block_index: first_block_index,
-            import_block_index,
+            first_block_index: first_block_index as i64,
+            next_block_index: first_block_index as i64,
+            import_block_index: import_block_index as i64,
             name: name.to_string(),
         };
 
@@ -258,7 +258,7 @@ mod tests {
         let updated: ViewOnlyAccount = ViewOnlyAccount::get(&account_id_hex, &conn).unwrap();
 
         assert_eq!(&updated.name, &new_name);
-        assert_eq!(updated.next_block_index, new_next_block);
+        assert_eq!(updated.next_block_index as u64, new_next_block);
 
         // test getting all accounts
 
