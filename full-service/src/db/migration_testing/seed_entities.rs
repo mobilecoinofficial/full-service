@@ -35,17 +35,26 @@ use std::collections::HashMap;
 
 pub fn seed_accounts(
     service: &WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver>,
-) -> Vec<Account> {
-    service
+) -> (Account, Account) {
+    let txo_account = service
         .create_account(
-            Some("test-account-1".to_string()),
+            Some("txo_account".to_string()),
             "".to_string(),
             "".to_string(),
             "".to_string(),
         )
         .unwrap();
 
-    service.list_accounts().unwrap()
+    let gift_code_account = service
+        .create_account(
+            Some("gift_code_account".to_string()),
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
+        )
+        .unwrap();
+
+    (txo_account, gift_code_account)
 }
 
 // create 1 spent, 1 change (minted), and 1 orphaned txo
@@ -144,4 +153,13 @@ pub fn test_txos(
     let transaction_logs =
         TransactionLog::list_all(&account_id.to_string(), None, None, &conn).unwrap();
     assert_eq!(transaction_logs.len(), 3);
+}
+
+pub fn seed_gift_codes(
+    conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ledger_db: &mut LedgerDB,
+    wallet_db: &WalletDb,
+    logger: &Logger,
+    account: &Account,
+) {
 }

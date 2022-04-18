@@ -3,7 +3,9 @@ mod migration_testing {
     use crate::{
         db::{
             account::AccountID,
-            migration_testing::seed_entities::{seed_accounts, seed_txos, test_txos},
+            migration_testing::seed_entities::{
+                seed_accounts, seed_gift_codes, seed_txos, test_txos,
+            },
             models::{Account, Txo},
             txo::{TxoID, TxoModel},
         },
@@ -30,19 +32,26 @@ mod migration_testing {
         revert_latest_migration(&conn).unwrap();
 
         // seed the entities
-        let accounts = seed_accounts(&service);
-        let txos = seed_txos(&conn, &mut ledger_db, &wallet_db, &logger, &accounts[0]);
+        let (txo_account, gift_code_account) = seed_accounts(&service);
+        seed_txos(&conn, &mut ledger_db, &wallet_db, &logger, &txo_account);
+        seed_gift_codes(
+            &conn,
+            &mut ledger_db,
+            &wallet_db,
+            &logger,
+            &gift_code_account,
+        );
 
         // validate expected txo states
-        let account_id =
-            AccountID::from(&mc_util_serial::decode(&accounts[0].account_key).unwrap());
-        test_txos(account_id.clone(), &conn);
+        let txo_account_id =
+            AccountID::from(&mc_util_serial::decode(&txo_account.account_key).unwrap());
+        test_txos(txo_account_id.clone(), &conn);
 
         // run the last migration
         run_pending_migrations(&conn).unwrap();
 
         // validate expected txo states again
-        test_txos(account_id, &conn);
+        test_txos(txo_account_id, &conn);
 
         // compare entities from seeding to entities found now
         // assert_eq!(accounts, service.list_accounts().unwrap());
