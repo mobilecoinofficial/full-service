@@ -4,7 +4,7 @@ mod migration_testing {
         db::{
             account::AccountID,
             migration_testing::{
-                seed_accounts::seed_accounts,
+                seed_accounts::{seed_accounts, test_accounts},
                 seed_gift_codes::{seed_gift_codes, test_gift_codes},
                 seed_txos::{seed_txos, test_txos},
             },
@@ -34,7 +34,7 @@ mod migration_testing {
         revert_latest_migration(&conn).unwrap();
 
         // seed the entities
-        let (txo_account, gift_code_account) = seed_accounts(&service);
+        let (txo_account, gift_code_account, gift_code_receiver_account) = seed_accounts(&service);
         seed_txos(&conn, &mut ledger_db, &wallet_db, &logger, &txo_account);
         let gift_codes = seed_gift_codes(
             &conn,
@@ -43,23 +43,23 @@ mod migration_testing {
             &service,
             &logger,
             &gift_code_account,
+            &gift_code_receiver_account,
         );
 
+        // validate accounts
+        test_accounts(&service);
         // validate expected txo states
         let txo_account_id =
             AccountID::from(&mc_util_serial::decode(&txo_account.account_key).unwrap());
         test_txos(txo_account_id.clone(), &conn);
-
         // validate gift code states
         test_gift_codes(&gift_codes, &service);
 
         // run the last migration
         run_pending_migrations(&conn).unwrap();
 
-        // validate expected txo states again
+        test_accounts(&service);
         test_txos(txo_account_id, &conn);
-
-        // validate gift code states again
         test_gift_codes(&gift_codes, &service);
 
         // compare entities from seeding to entities found now

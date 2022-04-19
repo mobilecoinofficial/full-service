@@ -50,6 +50,7 @@ pub fn seed_gift_codes(
     service: &WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver>,
     logger: &Logger,
     account: &Account,
+    receiver_account: &Account,
 ) -> SeedGiftCodesResult {
     let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
@@ -131,25 +132,17 @@ pub fn seed_gift_codes(
         .unwrap();
 
     // Claim the gift code to another account
-    let giftee = service
-        .create_account(
-            Some("giftee account".to_string()),
-            "".to_string(),
-            "".to_string(),
-            "".to_string(),
-        )
-        .unwrap();
     manually_sync_account(
         &ledger_db,
         &service.wallet_db,
-        &AccountID(giftee.account_id_hex.clone()),
+        &AccountID(receiver_account.account_id_hex.clone()),
         &logger,
     );
 
     let tx = service
         .claim_gift_code(
             &EncodedGiftCode(gift_code_2_claimed.gift_code_b58.clone()),
-            &AccountID(giftee.account_id_hex.clone()),
+            &AccountID(receiver_account.account_id_hex.clone()),
             None,
         )
         .unwrap();
@@ -157,7 +150,7 @@ pub fn seed_gift_codes(
     manually_sync_account(
         &ledger_db,
         &service.wallet_db,
-        &AccountID(giftee.account_id_hex.clone()),
+        &AccountID(receiver_account.account_id_hex.clone()),
         &logger,
     );
 
