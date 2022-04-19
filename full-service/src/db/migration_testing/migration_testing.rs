@@ -3,8 +3,10 @@ mod migration_testing {
     use crate::{
         db::{
             account::AccountID,
-            migration_testing::seed_entities::{
-                seed_accounts, seed_gift_codes, seed_txos, test_txos,
+            migration_testing::{
+                seed_accounts::seed_accounts,
+                seed_gift_codes::{seed_gift_codes, test_gift_codes},
+                seed_txos::{seed_txos, test_txos},
             },
             models::{Account, Txo},
             txo::{TxoID, TxoModel},
@@ -34,10 +36,11 @@ mod migration_testing {
         // seed the entities
         let (txo_account, gift_code_account) = seed_accounts(&service);
         seed_txos(&conn, &mut ledger_db, &wallet_db, &logger, &txo_account);
-        seed_gift_codes(
+        let gift_codes = seed_gift_codes(
             &conn,
             &mut ledger_db,
             &wallet_db,
+            &service,
             &logger,
             &gift_code_account,
         );
@@ -47,11 +50,17 @@ mod migration_testing {
             AccountID::from(&mc_util_serial::decode(&txo_account.account_key).unwrap());
         test_txos(txo_account_id.clone(), &conn);
 
+        // validate gift code states
+        test_gift_codes(&gift_codes, &service);
+
         // run the last migration
         run_pending_migrations(&conn).unwrap();
 
         // validate expected txo states again
         test_txos(txo_account_id, &conn);
+
+        // validate gift code states again
+        test_gift_codes(&gift_codes, &service);
 
         // compare entities from seeding to entities found now
         // assert_eq!(accounts, service.list_accounts().unwrap());
