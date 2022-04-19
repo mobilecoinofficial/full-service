@@ -6,8 +6,10 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        models::{Account, AssignedSubaddress, Txo},
+        models::{Account, AssignedSubaddress, Txo, ViewOnlyAccount, ViewOnlyTxo},
         txo::TxoModel,
+        view_only_account::ViewOnlyAccountModel,
+        view_only_txo::ViewOnlyTxoModel,
         WalletDbError,
     },
     service::{
@@ -86,6 +88,14 @@ pub struct Balance {
     pub synced_blocks: u64,
 }
 
+// The balance object for view-only-accounts
+pub struct ViewOnlyBalance {
+    pub balance: u128,
+    pub network_block_height: u64,
+    pub local_block_height: u64,
+    pub synced_blocks: u64,
+}
+
 /// The Network Status object.
 /// This holds the number of blocks in the ledger, on the network and locally.
 pub struct NetworkStatus {
@@ -112,6 +122,8 @@ pub struct WalletStatus {
     pub min_synced_block_index: u64,
     pub account_ids: Vec<AccountID>,
     pub account_map: HashMap<AccountID, Account>,
+    pub view_only_account_ids: Vec<String>,
+    pub view_only_account_map: HashMap<String, ViewOnlyAccount>,
 }
 
 /// Trait defining the ways in which the wallet can interact with and manage
@@ -124,6 +136,11 @@ pub trait BalanceService {
         &self,
         account_id: &AccountID,
     ) -> Result<Balance, BalanceServiceError>;
+
+    fn get_balance_for_view_only_account(
+        &self,
+        account_id: &str,
+    ) -> Result<ViewOnlyBalance, BalanceServiceError>;
 
     fn get_balance_for_address(&self, address: &str) -> Result<Balance, BalanceServiceError>;
 
@@ -158,6 +175,33 @@ where
                 spent,
                 secreted,
                 orphaned,
+                network_block_height,
+                local_block_height,
+                synced_blocks: account.next_block_index as u64,
+            })
+        })
+    }
+
+    fn get_balance_for_view_only_account(
+        &self,
+        account_id: &str,
+    ) -> Result<ViewOnlyBalance, BalanceServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+        conn.transaction(|| {
+            let txos = ViewOnlyTxo::list_for_account(account_id, None, None, &conn)?;
+            let total_value = txos.iter().map(|t| (t.value as u64) as u128).sum::<u128>();
+            let spent = txos
+                .iter()
+                .filter(|t| t.spent)
+                .map(|t| (t.value as u64) as u128)
+                .sum::<u128>();
+
+            let network_block_height = self.get_network_block_height()?;
+            let local_block_height = self.ledger_db.num_blocks()?;
+            let account = ViewOnlyAccount::get(account_id, &conn)?;
+
+            Ok(ViewOnlyBalance {
+                balance: total_value - spent,
                 network_block_height,
                 local_block_height,
                 synced_blocks: account.next_block_index as u64,
@@ -227,6 +271,8 @@ where
         conn.transaction(|| {
             let accounts = Account::list_all(&conn)?;
             let mut account_map = HashMap::default();
+            let view_only_accounts = ViewOnlyAccount::list_all(&conn)?;
+            let mut view_only_account_map = HashMap::default();
 
             let mut unspent: u128 = 0;
             let mut pending: u128 = 0;
@@ -253,6 +299,14 @@ where
                 );
                 account_ids.push(account_id);
             }
+
+            let mut view_only_account_ids = Vec::new();
+            for account in view_only_accounts {
+                let account_id = account.account_id_hex.clone();
+                view_only_account_map.insert(account_id.clone(), account.clone());
+                view_only_account_ids.push(account_id);
+            }
+
             Ok(WalletStatus {
                 unspent,
                 pending,
@@ -264,6 +318,8 @@ where
                 min_synced_block_index: min_synced_block_index as u64,
                 account_ids,
                 account_map,
+                view_only_account_ids,
+                view_only_account_map,
             })
         })
     }

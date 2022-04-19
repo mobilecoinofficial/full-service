@@ -2,17 +2,20 @@
 
 //! DB impl for the Account model.
 
-use crate::db::{
-    assigned_subaddress::AssignedSubaddressModel,
-    models::{Account, AssignedSubaddress, NewAccount, TransactionLog, Txo},
-    transaction_log::TransactionLogModel,
-    txo::TxoModel,
-    WalletDbError,
+use crate::{
+    db::{
+        assigned_subaddress::AssignedSubaddressModel,
+        models::{Account, AssignedSubaddress, NewAccount, TransactionLog, Txo},
+        transaction_log::TransactionLogModel,
+        txo::TxoModel,
+        WalletDbError,
+    },
+    util::constants::{
+        DEFAULT_CHANGE_SUBADDRESS_INDEX, DEFAULT_FIRST_BLOCK_INDEX, DEFAULT_NEXT_SUBADDRESS_INDEX,
+        DEFAULT_SUBADDRESS_INDEX, MNEMONIC_KEY_DERIVATION_VERSION,
+        ROOT_ENTROPY_KEY_DERIVATION_VERSION,
+    },
 };
-
-use mc_account_keys::{AccountKey, RootEntropy, RootIdentity, DEFAULT_SUBADDRESS_INDEX};
-use mc_account_keys_slip10::Slip10Key;
-use mc_crypto_digestible::{Digestible, MerlinTranscript};
 
 use bip39::Mnemonic;
 use diesel::{
@@ -20,14 +23,10 @@ use diesel::{
     r2d2::{ConnectionManager, PooledConnection},
     RunQueryDsl,
 };
+use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
+use mc_account_keys_slip10::Slip10Key;
+use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use std::fmt;
-
-pub const DEFAULT_CHANGE_SUBADDRESS_INDEX: u64 = 1;
-pub const DEFAULT_NEXT_SUBADDRESS_INDEX: u64 = 2;
-pub const DEFAULT_FIRST_BLOCK_INDEX: u64 = 0;
-
-pub const ROOT_ENTROPY_KEY_DERIVATION_VERSION: u8 = 1;
-pub const MNEMONIC_KEY_DERIVATION_VERSION: u8 = 2;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct AccountID(pub String);
@@ -161,7 +160,7 @@ pub trait AccountModel {
     /// Update the next block index this account will need to sync.
     fn update_next_block_index(
         &self,
-        next_block_index: i64,
+        next_block_index: u64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
@@ -253,7 +252,9 @@ impl AccountModel for Account {
         use crate::db::schema::accounts;
 
         let account_id = AccountID::from(account_key);
-        let fb = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX);
+
+        let first_block_index = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX);
+        let next_block_index = first_block_index;
 
         let change_subaddress_index = if fog_enabled {
             DEFAULT_SUBADDRESS_INDEX as i64
@@ -276,8 +277,8 @@ impl AccountModel for Account {
             main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
             change_subaddress_index,
             next_subaddress_index,
-            first_block_index: fb as i64,
-            next_block_index: fb as i64,
+            first_block_index: first_block_index as i64,
+            next_block_index: next_block_index as i64,
             import_block_index: import_block_index.map(|i| i as i64),
             name,
             fog_enabled,
@@ -428,12 +429,12 @@ impl AccountModel for Account {
 
     fn update_next_block_index(
         &self,
-        next_block_index: i64,
+        next_block_index: u64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
         diesel::update(accounts.filter(account_id_hex.eq(&self.account_id_hex)))
-            .set(crate::db::schema::accounts::next_block_index.eq(next_block_index))
+            .set(crate::db::schema::accounts::next_block_index.eq(next_block_index as i64))
             .execute(conn)?;
         Ok(())
     }
@@ -553,7 +554,7 @@ mod tests {
         let (account_id_hex_secondary, _public_address_b58_secondary) =
             Account::create_from_root_entropy(
                 &root_id_secondary.root_entropy,
-                Some(51),
+                Some(50),
                 Some(50),
                 None,
                 "",
@@ -577,8 +578,8 @@ mod tests {
             main_subaddress_index: 0,
             change_subaddress_index: 1,
             next_subaddress_index: 2,
-            first_block_index: 51,
-            next_block_index: 51,
+            first_block_index: 50,
+            next_block_index: 50,
             import_block_index: Some(50),
             name: "".to_string(),
             fog_enabled: false,

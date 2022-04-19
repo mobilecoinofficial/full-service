@@ -17,6 +17,30 @@ table! {
 }
 
 table! {
+    view_only_accounts (id) {
+        id -> Integer,
+        account_id_hex -> Text,
+        view_private_key -> Binary,
+        first_block_index -> BigInt,
+        next_block_index -> BigInt,
+        import_block_index -> BigInt,
+        name -> Text,
+    }
+}
+
+table! {
+    view_only_txos (id) {
+        id -> Integer,
+        txo_id_hex -> Text,
+        txo -> Binary,
+        value -> BigInt,
+        public_key -> Binary,
+        view_only_account_id_hex -> Text,
+        spent -> Bool,
+    }
+}
+
+table! {
     assigned_subaddresses (id) {
         id -> Integer,
         assigned_subaddress_b58 -> Text,
@@ -64,6 +88,14 @@ table! {
 }
 
 table! {
+    view_only_transaction_logs (id) {
+        id -> Integer,
+        change_txo_id_hex -> Text,
+        input_txo_id_hex -> Text,
+    }
+}
+
+table! {
     txos (id) {
         id -> Integer,
         txo_id_hex -> Text,
@@ -83,6 +115,8 @@ table! {
         received_account_id_hex -> Nullable<Text>,
     }
 }
+
+allow_tables_to_appear_in_same_query!(view_only_accounts, view_only_txos,);
 
 allow_tables_to_appear_in_same_query!(
     accounts,

@@ -4,22 +4,26 @@
 
 use crate::{
     db::{
-        account::{AccountID, AccountModel, MNEMONIC_KEY_DERIVATION_VERSION},
+        account::{AccountID, AccountModel},
         models::Account,
         WalletDbError,
     },
-    service::{ledger::LedgerService, WalletService},
+    service::{
+        ledger::{LedgerService, LedgerServiceError},
+        WalletService,
+    },
+    util::constants::MNEMONIC_KEY_DERIVATION_VERSION,
 };
+use base64;
+use bip39::{Language, Mnemonic, MnemonicType};
+use diesel::Connection;
+use displaydoc::Display;
 use mc_account_keys::RootEntropy;
+use mc_account_keys_slip10;
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
-
-use crate::service::ledger::LedgerServiceError;
-use bip39::{Language, Mnemonic, MnemonicType};
-use diesel::Connection;
-use displaydoc::Display;
 
 #[derive(Display, Debug)]
 pub enum AccountServiceError {
@@ -43,6 +47,12 @@ pub enum AccountServiceError {
 
     /// Invalid BIP39 english mnemonic: {0}
     InvalidMnemonic(String),
+
+    /// Error decoding base64: {0}
+    Base64DecodeError(String),
+
+    /// Error decoding private view key: {0}
+    DecodePrivateKeyError(String),
 }
 
 impl From<WalletDbError> for AccountServiceError {
@@ -75,6 +85,24 @@ impl From<LedgerServiceError> for AccountServiceError {
     }
 }
 
+impl From<base64::DecodeError> for AccountServiceError {
+    fn from(src: base64::DecodeError) -> Self {
+        Self::Base64DecodeError(src.to_string())
+    }
+}
+
+impl From<mc_account_keys_slip10::Error> for AccountServiceError {
+    fn from(src: mc_account_keys_slip10::Error) -> Self {
+        Self::Base64DecodeError(src.to_string())
+    }
+}
+
+impl From<mc_util_serial::DecodeError> for AccountServiceError {
+    fn from(src: mc_util_serial::DecodeError) -> Self {
+        Self::DecodePrivateKeyError(src.to_string())
+    }
+}
+
 /// Trait defining the ways in which the wallet can interact with and manage
 /// accounts.
 pub trait AccountService {
@@ -87,7 +115,7 @@ pub trait AccountService {
         fog_authority_spki: String,
     ) -> Result<Account, AccountServiceError>;
 
-    /// Import an existing account to the wallet using the entropy.
+    /// Import an existing account to the wallet using the mnemonic.
     #[allow(clippy::too_many_arguments)]
     fn import_account(
         &self,
@@ -148,14 +176,24 @@ where
         // Generate entropy for the account
         let mnemonic = Mnemonic::new(MnemonicType::Words24, Language::English);
 
-        // Since we are creating the account from randomness, it is highly unlikely that
-        // it would have collided with another account that already received funds. For
-        // this reason, start scanning at the current network block index.
-        let first_block_index = self.get_network_block_height()? - 1;
+        // Determine bounds for account syncing. If we are offline, assume the network
+        // has at least as many blocks as our local ledger.
+        let local_block_height = self.ledger_db.num_blocks()?;
+        let network_block_height = if self.offline {
+            local_block_height
+        } else {
+            self.get_network_block_height()?
+        };
 
-        // The earliest we could start scanning is the current highest block index of
-        // the local ledger.
-        let import_block_index = self.ledger_db.num_blocks()? - 1;
+        // Since we are creating the account from randomness, it is astronomically
+        // improbable that it would have collided with another account that
+        // already received funds. For this reason, start scanning after the
+        // current network block index. Only perform account scanning on blocks that are
+        // newer than the account.
+        // The index of the previously published block is one less than the ledger
+        // height, and the next block after that has an index of one more.
+        let first_block_index = network_block_height; // -1 +1
+        let import_block_index = local_block_height; // -1 +1
 
         let conn = self.wallet_db.get_conn()?;
         conn.transaction(|| {
@@ -310,7 +348,10 @@ mod tests {
     use super::*;
     use crate::{
         db::{models::Txo, txo::TxoModel},
-        test_utils::{create_test_received_txo, get_test_ledger, setup_wallet_service, MOB},
+        test_utils::{
+            create_test_received_txo, get_empty_test_ledger, get_test_ledger,
+            manually_sync_account, setup_wallet_service, setup_wallet_service_offline, MOB,
+        },
     };
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{test_with_logger, Logger};
@@ -370,5 +411,71 @@ mod tests {
         )
         .unwrap();
         assert_eq!(txos.len(), 0);
+    }
+
+    #[test_with_logger]
+    fn test_create_account_offline(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+        let service = setup_wallet_service_offline(ledger_db.clone(), logger.clone());
+
+        // Create an account.
+        let account = service
+            .create_account(
+                Some("A".to_string()),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            )
+            .unwrap();
+
+        // Even though we don't have a network connection, it sets the block indices
+        // based on the ledger height.
+        assert_eq!(service.ledger_db.num_blocks().unwrap(), 12);
+        assert_eq!(account.first_block_index, 12);
+        assert_eq!(account.next_block_index, 12);
+        assert_eq!(account.import_block_index, Some(12));
+
+        // Syncing the account does nothing to the block indices since there are no new
+        // blocks.
+        let account_id = AccountID(account.account_id_hex);
+        manually_sync_account(&ledger_db, &service.wallet_db, &account_id, &logger);
+        let account = service.get_account(&account_id).unwrap();
+        assert_eq!(account.first_block_index, 12);
+        assert_eq!(account.next_block_index, 12);
+        assert_eq!(account.import_block_index, Some(12));
+    }
+
+    #[test_with_logger]
+    fn test_create_account_offline_no_ledger(logger: Logger) {
+        let ledger_db = get_empty_test_ledger();
+        let service = setup_wallet_service_offline(ledger_db.clone(), logger.clone());
+
+        // Create an account.
+        let account = service
+            .create_account(
+                Some("A".to_string()),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            )
+            .unwrap();
+
+        // The block indices are set to zero because we have no ledger information
+        // whatsoever.
+        assert_eq!(service.ledger_db.num_blocks().unwrap(), 0);
+        assert_eq!(account.first_block_index, 0);
+        assert_eq!(account.next_block_index, 0);
+        assert_eq!(account.import_block_index, Some(0));
+
+        // Syncing the account does nothing to the block indices since there are no
+        // blocks in the ledger.
+        let account_id = AccountID(account.account_id_hex);
+        manually_sync_account(&ledger_db, &service.wallet_db, &account_id, &logger);
+        let account = service.get_account(&account_id).unwrap();
+        assert_eq!(account.first_block_index, 0);
+        assert_eq!(account.next_block_index, 0);
+        assert_eq!(account.import_block_index, Some(0));
     }
 }

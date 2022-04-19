@@ -9,7 +9,7 @@ use crate::{
         account::Account,
         account_secrets::AccountSecrets,
         address::Address,
-        balance::Balance,
+        balance::{Balance, ViewOnlyBalance},
         block::{Block, BlockContents},
         confirmation_number::Confirmation,
         gift_code::GiftCode,
@@ -18,6 +18,7 @@ use crate::{
         transaction_log::TransactionLog,
         tx_proposal::TxProposal,
         txo::Txo,
+        view_only_account::{ViewOnlyAccount, ViewOnlyAccountSecrets},
         wallet_status::WalletStatus,
     },
     service::{gift_code::GiftCodeStatus, receipt::ReceiptTransactionStatus},
@@ -173,6 +174,12 @@ pub enum JsonCommandResponse {
     export_account_secrets {
         account_secrets: AccountSecrets,
     },
+    export_spent_txo_ids {
+        spent_txo_ids: Vec<String>,
+    },
+    export_view_only_account_secrets {
+        view_only_account_secrets: ViewOnlyAccountSecrets,
+    },
     get_account {
         account: Account,
     },
@@ -213,11 +220,18 @@ pub enum JsonCommandResponse {
         txo_ids: Vec<String>,
         txo_map: Map<String, serde_json::Value>,
     },
+    get_all_view_only_accounts {
+        account_ids: Vec<String>,
+        account_map: Map<String, serde_json::Value>,
+    },
     get_balance_for_account {
         balance: Balance,
     },
     get_balance_for_address {
         balance: Balance,
+    },
+    get_balance_for_view_only_account {
+        balance: ViewOnlyBalance,
     },
     get_block {
         block: Block,
@@ -252,6 +266,13 @@ pub enum JsonCommandResponse {
         txo_ids: Vec<String>,
         txo_map: Map<String, serde_json::Value>,
     },
+    get_txos_for_view_only_account {
+        txo_ids: Vec<String>,
+        txo_map: Map<String, serde_json::Value>,
+    },
+    get_view_only_account {
+        view_only_account: ViewOnlyAccount,
+    },
     get_wallet_status {
         wallet_status: WalletStatus,
     },
@@ -261,11 +282,20 @@ pub enum JsonCommandResponse {
     import_account_from_legacy_root_entropy {
         account: Account,
     },
+    import_view_only_account {
+        view_only_account: ViewOnlyAccount,
+    },
     remove_account {
         removed: bool,
     },
     remove_gift_code {
         removed: bool,
+    },
+    remove_view_only_account {
+        removed: bool,
+    },
+    set_view_only_txos_spent {
+        success: bool,
     },
     submit_gift_code {
         gift_code: GiftCode,
@@ -276,10 +306,18 @@ pub enum JsonCommandResponse {
     update_account_name {
         account: Account,
     },
+    update_view_only_account_name {
+        view_only_account: ViewOnlyAccount,
+    },
     validate_confirmation {
         validated: bool,
     },
     verify_address {
         verified: bool,
+    },
+    version {
+        string: String,
+        number: (String, String, String, String),
+        commit: String,
     },
 }

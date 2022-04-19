@@ -8,13 +8,19 @@
   * [Create Account](accounts/account/create_account.md)
   * [Import Account](accounts/account/import_account.md)
   * [Import Account Legacy](accounts/account/import_account_from_legacy_root_entropy-deprecated.md)
+  * [Import View Only Account](accounts/account/import_view_only_account.md)
   * [Get Account](accounts/account/get_account.md)
   * [Get All Accounts](accounts/account/get_all_accounts.md)
+  * [Get All View Only Accounts](accounts/account/get_all_view_only_accounts.md)
   * [Get Account Status](accounts/account/get_account_status.md)
+  * [Get View Only Account](accounts/account/get_view_only_account.md)
   * [Update Account Name](accounts/account/update_account_name.md)
+  * [Update View Only Account Name](accounts/account/update_view_only_account_name.md)
   * [Remove Account](accounts/account/remove_account.md)
+  * [Remove View Only Account](accounts/account/remove_view_only_account.md)
 * [Account Secrets](accounts/account-secrets/README.md)
   * [Export Account Secrets](accounts/account-secrets/export_account_secrets.md)
+  * [Export View Only Account Secrets](accounts/account-secrets/export_view_only_account_secrets.md)
 * [Address](accounts/address/README.md)
   * [Assign Address For Account](accounts/address/assign_address_for_account.md)
   * [Get All Addresses For Account](accounts/address/get_all_addresses_for_account.md)
@@ -23,6 +29,7 @@
 * [Balance](accounts/balance/README.md)
   * [Get Balance For Account](accounts/balance/get_balance_for_account.md)
   * [Get Balance For Address](accounts/balance/get_balance_for_address.md)
+  * [Get Balance For View Only Account](accounts/balance/get_balance_for_view_only_account.md)
 
 ## Transactions
 
@@ -37,6 +44,7 @@
   * [Get TXOs For Account](transactions/txo/get_txos_for_account.md)
   * [Get All TXOs For Account](transactions/txo/get_all_txos_for_account.md)
   * [Get TXOs For Account](transactions/txo/get_txos_for_account.md)
+  * [Get TXOs For View Only Account](transactions/txo/get_txos_for_view_only_account.md)
   * [Get All TXOs For Address](transactions/txo/get_txo_object.md)
 * [Confirmation](transactions/transaction-confirmation/README.md)
   * [Get Confirmations](transactions/transaction-confirmation/get_confirmations.md)
@@ -57,17 +65,6 @@
   * [Check B58 Type](transactions/payment-request/check_b58_type.md)
   
 
-
-## Wallet
-
-* [Wallet Status](wallet/wallet-status/README.md)
-  * [Get Wallet Status](wallet/wallet-status/get_wallet_status.md)
-
-## Ledger
-
-* [Block](ledger/block/README.md)
-  * [Get Block](ledger/block/get_block.md)
-
 ## Gift Codes
 
 * [Gift Code](gift-codes/gift-code/README.md)
@@ -79,9 +76,21 @@
   * [Claim Gift Code](gift-codes/gift-code/claim_gift_code.md)
   * [Remove Gift Code](gift-codes/gift-code/remove_gift_code.md)
 
+## Other
+
+* [Block](other/block/README.md)
+  * [Get Block](other/block/get_block.md)
+* [Network Status](other/network-status/README.md)
+    * [Get Network Status](other/network-status/get_network_status.md)
+* [Wallet Status](other/wallet-status/README.md)
+  * [Get Wallet Status](other/wallet-status/get_wallet_status.md)
+* [Version](other/version/README.md)
+  * [Get Version](other/version/version.md)
+
 ## Tutorials
 
 * [Environment Setup](tutorials/environment-setup.md)
 * [Run Full Service](tutorials/recieve-mob.md)
 * [Database Usage](tutorials/database-usage.md)
+* [Resolve Disputes](tutorials/resolve-disputes.md)
 

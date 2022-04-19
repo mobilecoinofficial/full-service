@@ -37,8 +37,6 @@ information.
 For documentation, usage, and API specification, see our gitbook
 page: [https://mobilecoin.gitbook.io/full-service-api/](https://mobilecoin.gitbook.io/full-service-api/)
 
-Deprecated docs are being phased out, but remain at [API.md](API.md) (possibly increasingly out of date)
-
 For database encryption features, see [DATABASE.md](DATABASE.md).
 
 ### Build and Run

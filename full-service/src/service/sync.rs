@@ -6,9 +6,15 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        models::{Account, AssignedSubaddress, TransactionLog, Txo},
+        models::{
+            Account, AssignedSubaddress, TransactionLog, Txo, ViewOnlyAccount,
+            ViewOnlyTransactionLog, ViewOnlyTxo,
+        },
         transaction_log::TransactionLogModel,
         txo::TxoModel,
+        view_only_account::ViewOnlyAccountModel,
+        view_only_transaction_log::ViewOnlyTransactionLogModel,
+        view_only_txo::ViewOnlyTxoModel,
         WalletDb,
     },
     error::SyncError,
@@ -19,7 +25,7 @@ use mc_common::{
     logger::{log, Logger},
     HashMap,
 };
-use mc_crypto_keys::RistrettoPublic;
+use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_transaction_core::{
     get_tx_out_shared_secret,
@@ -44,7 +50,7 @@ use std::{
     time::Instant,
 };
 
-const BLOCKS_CHUNK_SIZE: i64 = 10_000;
+const BLOCKS_CHUNK_SIZE: u64 = 10_000;
 
 /// Sync thread - holds objects needed to cleanly terminate the sync thread.
 pub struct SyncThread {
@@ -116,11 +122,18 @@ pub fn sync_all_accounts(
         .expect("failed getting number of blocks");
 
     // Go over our list of accounts and see which ones need to process more blocks.
-    let accounts = {
+    let accounts: Vec<Account> = {
         let conn = &wallet_db
             .get_conn()
             .expect("Could not get connection to DB");
         Account::list_all(conn).expect("Failed getting accounts from database")
+    };
+
+    let view_only_accounts: Vec<ViewOnlyAccount> = {
+        let conn = &wallet_db
+            .get_conn()
+            .expect("Could not get connection to DB");
+        ViewOnlyAccount::list_all(conn).expect("Failed getting view only accounts from database")
     };
 
     for account in accounts {
@@ -131,6 +144,14 @@ pub fn sync_all_accounts(
         sync_account(ledger_db, wallet_db, &account.account_id_hex, logger)?;
     }
 
+    for account in view_only_accounts {
+        // If there are no new blocks for this account, don't do anything.
+        if account.next_block_index as u64 > num_blocks - 1 {
+            continue;
+        }
+        sync_view_only_account(ledger_db, wallet_db, &account.account_id_hex, logger)?;
+    }
+
     Ok(())
 }
 
@@ -138,6 +159,117 @@ pub fn sync_all_accounts(
 enum SyncStatus {
     ChunkFinished,
     NoMoreBlocks,
+}
+
+/// Sync a single view only account.
+pub fn sync_view_only_account(
+    ledger_db: &LedgerDB,
+    wallet_db: &WalletDb,
+    account_id_hex: &str,
+    logger: &Logger,
+) -> Result<(), SyncError> {
+    let conn = wallet_db.get_conn()?;
+
+    while let SyncStatus::ChunkFinished =
+        sync_view_only_account_next_chunk(ledger_db, &conn, logger, account_id_hex)?
+    {}
+
+    Ok(())
+}
+
+fn sync_view_only_account_next_chunk(
+    ledger_db: &LedgerDB,
+    conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    logger: &Logger,
+    account_id_hex: &str,
+) -> Result<SyncStatus, SyncError> {
+    conn.transaction::<SyncStatus, SyncError, _>(|| {
+        // Get the account data. If it is no longer available, the account has been
+        // removed and we can simply return.
+        let view_only_account = ViewOnlyAccount::get(account_id_hex, conn)?;
+        let view_private_key: RistrettoPrivate =
+            mc_util_serial::decode(&view_only_account.view_private_key)?;
+        let start_time = Instant::now();
+        let start_block_index = view_only_account.next_block_index as u64;
+        let mut end_block_index = view_only_account.next_block_index as u64;
+
+        // Load transaction outputs for this chunk. View only accounts have a view
+        // private key but no spend private key, so they can scan TXOs but
+        // not key images
+        let mut tx_outs: Vec<TxOut> = Vec::new();
+
+        let start = view_only_account.next_block_index as u64;
+        let end = start + BLOCKS_CHUNK_SIZE;
+        for block_index in start..end {
+            let block_index = block_index as u64;
+            let block_contents = match ledger_db.get_block_contents(block_index as u64) {
+                Ok(block_contents) => block_contents,
+                Err(mc_ledger_db::Error::NotFound) => {
+                    break;
+                }
+                Err(err) => {
+                    return Err(err.into());
+                }
+            };
+            end_block_index = block_index;
+
+            for tx_out in block_contents.outputs {
+                tx_outs.push(tx_out);
+            }
+        }
+
+        // Attempt to decode each transaction as received by this account.
+        let received_txos: Vec<_> = tx_outs
+            .into_par_iter()
+            .filter_map(|tx_out| {
+                let amount = match decode_amount(&tx_out, &view_private_key) {
+                    None => return None,
+                    Some(a) => a,
+                };
+                Some((tx_out, amount))
+            })
+            .collect();
+        let num_received_txos = received_txos.len();
+
+        // Write received txos to db
+        for (tx_out, amount) in received_txos {
+            let new_txo = ViewOnlyTxo::create(tx_out.clone(), amount, account_id_hex, conn)?;
+            // If this txo is change from a transaction that was submitted to this wallet
+            // without an account-id, we should have some logs associating the
+            // change txo with txos used as inputs for that transaction. See cold wallet/hot
+            // wallet flow for more details
+            let input_logs =
+                ViewOnlyTransactionLog::find_all_by_change_txo_id(&new_txo.txo_id_hex, conn)?;
+            // Update view only txos recorded as inputs for that transaction as spent
+            for log in input_logs {
+                let txo = ViewOnlyTxo::get(&log.input_txo_id_hex, conn)?;
+                ViewOnlyTxo::set_spent([txo.txo_id_hex].to_vec(), conn)?;
+            }
+        }
+
+        // Done syncing this chunk. Mark these blocks as synced for this account.
+        view_only_account.update_next_block_index(end_block_index + 1, conn)?;
+        let num_blocks_synced = end_block_index - start_block_index + 1;
+
+        let duration = start_time.elapsed();
+
+        log::debug!(
+            logger,
+            "Synced {} blocks ({}-{}) for view only account {} in {:?}. {} txos received.",
+            num_blocks_synced,
+            start_block_index,
+            end_block_index,
+            account_id_hex.chars().take(6).collect::<String>(),
+            duration,
+            num_received_txos,
+        );
+
+        if num_blocks_synced < BLOCKS_CHUNK_SIZE {
+            Ok(SyncStatus::NoMoreBlocks)
+        } else {
+            Ok(SyncStatus::ChunkFinished)
+        }
+    })
 }
 
 /// Sync a single account.
@@ -177,13 +309,17 @@ fn sync_account_next_chunk(
         }
 
         let start_time = Instant::now();
-        let first_block_index = account.next_block_index;
-        let mut last_block_index = account.next_block_index;
+        let start_block_index = account.next_block_index as u64;
+        let mut end_block_index: Option<u64> = None;
 
         // Load transaction outputs and key images for this chunk.
-        let mut tx_outs: Vec<(i64, TxOut)> = Vec::new();
-        let mut key_images: Vec<(i64, KeyImage)> = Vec::new();
-        for block_index in account.next_block_index..account.next_block_index + BLOCKS_CHUNK_SIZE {
+        let mut tx_outs: Vec<(u64, TxOut)> = Vec::new();
+        let mut key_images: Vec<(u64, KeyImage)> = Vec::new();
+
+        let start = account.next_block_index as u64;
+        let end = start + BLOCKS_CHUNK_SIZE;
+        for block_index in start..end {
+            let block_index = block_index as u64;
             let block_contents = match ledger_db.get_block_contents(block_index as u64) {
                 Ok(block_contents) => block_contents,
                 Err(mc_ledger_db::Error::NotFound) => {
@@ -193,7 +329,7 @@ fn sync_account_next_chunk(
                     return Err(err.into());
                 }
             };
-            last_block_index = block_index;
+            end_block_index = Some(block_index);
 
             for tx_out in block_contents.outputs {
                 tx_outs.push((block_index, tx_out));
@@ -203,11 +339,18 @@ fn sync_account_next_chunk(
                 key_images.push((block_index, key_image));
             }
         }
+
+        // If no blocks were found, exit.
+        if end_block_index.is_none() {
+            return Ok(SyncStatus::NoMoreBlocks);
+        }
+        let end_block_index = end_block_index.unwrap();
+
         // Attempt to decode each transaction as received by this account.
         let received_txos: Vec<_> = tx_outs
             .into_par_iter()
             .filter_map(|(block_index, tx_out)| {
-                let amount = match decode_amount(&tx_out, &account_key) {
+                let amount = match decode_amount(&tx_out, account_key.view_private_key()) {
                     None => return None,
                     Some(a) => a,
                 };
@@ -222,7 +365,7 @@ fn sync_account_next_chunk(
         for (block_index, tx_out, amount, subaddress_index, key_image) in received_txos {
             let txo_id = Txo::create_received(
                 tx_out.clone(),
-                subaddress_index.map(|i| i as i64),
+                subaddress_index,
                 key_image,
                 amount,
                 block_index,
@@ -266,7 +409,7 @@ fn sync_account_next_chunk(
                 account_id_hex,
                 assigned_subaddress_b58.as_deref(),
                 txo_id.as_str(),
-                amount as i64,
+                amount,
                 block_index as u64,
                 conn,
             )?;
@@ -275,7 +418,7 @@ fn sync_account_next_chunk(
         // Match key images to mark existing unspent transactions as spent.
         let unspent_key_images: HashMap<KeyImage, String> =
             Txo::list_unspent_or_pending_key_images(account_id_hex, conn)?;
-        let spent_txos: Vec<_> = key_images
+        let spent_txos: Vec<(u64, String)> = key_images
             .into_par_iter()
             .filter_map(|(block_index, key_image)| {
                 unspent_key_images
@@ -285,7 +428,7 @@ fn sync_account_next_chunk(
             .collect();
         let num_spent_txos = spent_txos.len();
         for (block_index, txo_id_hex) in &spent_txos {
-            Txo::update_to_spent(txo_id_hex, *block_index, conn)?;
+            Txo::update_to_spent(txo_id_hex, *block_index as u64, conn)?;
             TransactionLog::update_tx_logs_associated_with_txo_to_succeeded(
                 txo_id_hex,
                 *block_index,
@@ -294,21 +437,21 @@ fn sync_account_next_chunk(
         }
 
         let txos_exceeding_pending_block_index =
-            Txo::list_pending_exceeding_block_index(account_id_hex, last_block_index + 1, conn)?;
+            Txo::list_pending_exceeding_block_index(account_id_hex, end_block_index + 1, conn)?;
         TransactionLog::update_tx_logs_associated_with_txos_to_failed(
             &txos_exceeding_pending_block_index,
             conn,
         )?;
 
         Txo::update_txos_exceeding_pending_tombstone_block_index_to_unspent(
-            last_block_index + 1,
+            end_block_index + 1,
             conn,
         )?;
 
         // Done syncing this chunk. Mark these blocks as synced for this account.
-        account.update_next_block_index(last_block_index + 1, conn)?;
+        account.update_next_block_index(end_block_index + 1, conn)?;
 
-        let num_blocks_synced = last_block_index - first_block_index + 1;
+        let num_blocks_synced = end_block_index - start_block_index + 1;
 
         let duration = start_time.elapsed();
 
@@ -316,8 +459,8 @@ fn sync_account_next_chunk(
             logger,
             "Synced {} blocks ({}-{}) for account {} in {:?}. {} txos received, {}/{} txos spent.",
             num_blocks_synced,
-            first_block_index,
-            last_block_index,
+            start_block_index,
+            end_block_index,
             account_id_hex.chars().take(6).collect::<String>(),
             duration,
             num_received_txos,
@@ -335,12 +478,12 @@ fn sync_account_next_chunk(
 
 /// Attempt to decode the transaction amount. If we can't, then this transaction
 /// does not belong to this account.
-pub fn decode_amount(tx_out: &TxOut, account_key: &AccountKey) -> Option<u64> {
+pub fn decode_amount(tx_out: &TxOut, view_private_key: &RistrettoPrivate) -> Option<u64> {
     let tx_public_key = match RistrettoPublic::try_from(&tx_out.public_key) {
         Err(_) => return None,
         Ok(k) => k,
     };
-    let shared_secret = get_tx_out_shared_secret(account_key.view_private_key(), &tx_public_key);
+    let shared_secret = get_tx_out_shared_secret(view_private_key, &tx_public_key);
     match tx_out.amount.get_value(&shared_secret) {
         Ok((a, _)) => Some(a),
         Err(AmountError::InconsistentCommitment) => None,
@@ -389,10 +532,13 @@ pub fn decode_subaddress_and_key_image(
 mod tests {
     use super::*;
     use crate::{
-        service::{account::AccountService, balance::BalanceService, txo::TxoService},
+        service::{
+            account::AccountService, balance::BalanceService, txo::TxoService,
+            view_only_account::ViewOnlyAccountService,
+        },
         test_utils::{
-            add_block_to_ledger_db, get_test_ledger, manually_sync_account, setup_wallet_service,
-            MOB,
+            add_block_to_ledger_db, get_test_ledger, manually_sync_account,
+            manually_sync_view_only_account, setup_wallet_service, MOB,
         },
     };
     use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
@@ -461,7 +607,7 @@ mod tests {
         );
 
         // There should now be 16 txos. Let's get each one and verify the amount
-        let expected_value: u64 = 15_625_000 * MOB as u64;
+        let expected_value = 15_625_000 * MOB;
 
         let txos = service
             .list_txos(&AccountID::from(&account_key), None, None)
@@ -476,5 +622,45 @@ mod tests {
             .get_balance_for_account(&AccountID::from(&account_key))
             .expect("Could not get balance");
         assert_eq!(balance.unspent, 250_000_000 * MOB as u128);
+    }
+
+    #[test_with_logger]
+    fn test_sync_view_only_account(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let view_private_key = RistrettoPrivate::from_random(&mut rng);
+
+        let spend_private_key = RistrettoPrivate::from_random(&mut rng);
+
+        let account_key = AccountKey::new(&spend_private_key, &view_private_key);
+
+        let mut ledger_db = get_test_ledger(0, &vec![], 0, &mut rng);
+
+        let origin_block_amount: u128 = 250_000_000 * MOB as u128;
+        let origin_block_txo_amount = origin_block_amount / 16;
+        let o = account_key.subaddress(0);
+        let _new_block_index = add_block_to_ledger_db(
+            &mut ledger_db,
+            &(0..16).map(|_| o.clone()).collect::<Vec<_>>(),
+            origin_block_txo_amount as u64,
+            &vec![],
+            &mut rng,
+        );
+
+        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+        let wallet_db = &service.wallet_db;
+
+        // create view only account
+        let account = service
+            .import_view_only_account(view_private_key.clone(), "catsaccount", None)
+            .unwrap();
+
+        manually_sync_view_only_account(&ledger_db, &wallet_db, &account.account_id_hex, &logger);
+
+        // Now verify that the service gets the balance with the correct value
+        let balance = service
+            .get_balance_for_view_only_account(&account.account_id_hex)
+            .expect("Could not get balance");
+        assert_eq!(balance.balance, 250_000_000 * MOB as u128);
     }
 }

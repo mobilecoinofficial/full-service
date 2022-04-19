@@ -822,10 +822,7 @@ mod tests {
         let balance = service
             .get_balance_for_account(&AccountID(alice.account_id_hex.clone()))
             .unwrap();
-        assert_eq!(
-            balance.unspent,
-            (98 * MOB - Mob::MINIMUM_FEE as i64) as u128
-        );
+        assert_eq!(balance.unspent, (98 * MOB - Mob::MINIMUM_FEE) as u128);
 
         // Verify that we can get the gift_code
         log::info!(logger, "Getting gift code from database");
@@ -892,10 +889,7 @@ mod tests {
         let bob_balance = service
             .get_balance_for_account(&AccountID(bob.account_id_hex))
             .unwrap();
-        assert_eq!(
-            bob_balance.unspent,
-            (2 * MOB - Mob::MINIMUM_FEE as i64) as u128
-        )
+        assert_eq!(bob_balance.unspent, (2 * MOB - Mob::MINIMUM_FEE) as u128)
     }
 
     #[test_with_logger]

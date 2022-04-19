@@ -1,8 +1,9 @@
 [package]
 name = "mc-full-service"
-version = "1.5.0"
+version = "1.6.0"
 authors = ["MobileCoin"]
 edition = "2018"
+build = "build.rs"
 
 [[bin]]
 name = "full-service"
@@ -74,3 +75,5 @@ bs58 = "0.4.0"
 [build-dependencies]
 # clippy fails to run without this.
 diesel = { version = "1.4.6", features = ["sqlite-bundled"] }
+vergen = "7.0.0"
+anyhow = "1.0"

@@ -3,13 +3,19 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        models::{Account, TransactionLog, Txo, TXO_USED_AS_CHANGE, TXO_USED_AS_OUTPUT},
+        models::{
+            Account, TransactionLog, Txo, ViewOnlyAccount, TXO_USED_AS_CHANGE, TXO_USED_AS_OUTPUT,
+        },
         transaction_log::TransactionLogModel,
         txo::TxoModel,
+        view_only_account::ViewOnlyAccountModel,
         WalletDb, WalletDbError,
     },
     error::SyncError,
-    service::{sync::sync_account, transaction_builder::WalletTransactionBuilder},
+    service::{
+        sync::{sync_account, sync_view_only_account},
+        transaction_builder::WalletTransactionBuilder,
+    },
     WalletService,
 };
 use diesel::{
@@ -50,10 +56,10 @@ use tempdir::TempDir;
 
 embed_migrations!("migrations/");
 
-pub const MOB: i64 = 1_000_000_000_000;
+pub const MOB: u64 = 1_000_000_000_000;
 
 /// The amount each recipient gets in the test ledger.
-pub const DEFAULT_PER_RECIPIENT_AMOUNT: u64 = 5_000 * MOB as u64;
+pub const DEFAULT_PER_RECIPIENT_AMOUNT: u64 = 5_000 * MOB;
 
 pub struct WalletDbTestContext {
     base_url: String,
@@ -120,15 +126,7 @@ pub fn get_test_ledger(
 
     public_addresses.extend(known_recipients.iter().cloned());
 
-    // Note that TempDir manages uniqueness by constructing paths
-    // like: /tmp/ledger_db.tvF0XHTKsilx
-    let ledger_db_tmp = TempDir::new("ledger_db").expect("Could not make tempdir for ledger db");
-    let ledger_db_path = ledger_db_tmp
-        .path()
-        .to_str()
-        .expect("Could not get path as string");
-
-    let mut ledger_db = generate_ledger_db(&ledger_db_path);
+    let mut ledger_db = get_empty_test_ledger();
 
     for block_index in 0..num_blocks {
         let key_images = if block_index == 0 {
@@ -146,6 +144,18 @@ pub fn get_test_ledger(
     }
 
     ledger_db
+}
+
+/// Set up an empty test ledger.
+pub fn get_empty_test_ledger() -> LedgerDB {
+    // Note that TempDir manages uniqueness by constructing paths
+    // like: /tmp/ledger_db.tvF0XHTKsilx
+    let ledger_db_tmp = TempDir::new("ledger_db").expect("Could not make tempdir for ledger db");
+    let ledger_db_path = ledger_db_tmp
+        .path()
+        .to_str()
+        .expect("Could not get path as string");
+    generate_ledger_db(&ledger_db_path)
 }
 
 /// Creates an empty LedgerDB.
@@ -268,22 +278,29 @@ pub fn add_block_with_tx_outs(
 pub fn setup_peer_manager_and_network_state(
     ledger_db: LedgerDB,
     logger: Logger,
+    offline: bool,
 ) -> (
     ConnectionManager<MockBlockchainConnection<LedgerDB>>,
     Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
 ) {
-    let peer1 = MockBlockchainConnection::new(test_client_uri(1), ledger_db.clone(), 0);
-    let peer2 = MockBlockchainConnection::new(test_client_uri(2), ledger_db.clone(), 0);
+    let (peers, node_ids) = if offline {
+        (vec![], vec![])
+    } else {
+        let peer1 = MockBlockchainConnection::new(test_client_uri(1), ledger_db.clone(), 0);
+        let peer2 = MockBlockchainConnection::new(test_client_uri(2), ledger_db.clone(), 0);
 
-    let peer_manager = ConnectionManager::new(vec![peer1.clone(), peer2.clone()], logger.clone());
+        (
+            vec![peer1.clone(), peer2.clone()],
+            vec![
+                peer1.uri().responder_id().unwrap(),
+                peer2.uri().responder_id().unwrap(),
+            ],
+        )
+    };
 
-    let quorum_set = QuorumSet::new_with_node_ids(
-        2,
-        vec![
-            peer1.uri().responder_id().unwrap(),
-            peer2.uri().responder_id().unwrap(),
-        ],
-    );
+    let peer_manager = ConnectionManager::new(peers, logger.clone());
+
+    let quorum_set = QuorumSet::new_with_node_ids(2, node_ids);
     let network_state = Arc::new(RwLock::new(PollingNetworkState::new(
         quorum_set,
         peer_manager.clone(),
@@ -331,29 +348,42 @@ pub fn manually_sync_account(
         match sync_account(&ledger_db, &wallet_db, &account_id.to_string(), &logger) {
             Ok(_) => {}
             Err(SyncError::Database(WalletDbError::Diesel(
-                diesel::result::Error::DatabaseError(kind, info),
-            ))) => {
-                match info.message() {
-                    "database is locked" => log::trace!(logger, "Database locked. Will retry"),
-                    _ => {
-                        log::error!(
-                            logger,
-                            "Unexpected database error {:?} {:?} {:?} {:?} {:?} {:?}",
-                            kind,
-                            info,
-                            info.details(),
-                            info.column_name(),
-                            info.table_name(),
-                            info.hint(),
-                        );
-                        panic!("Could not manually sync account.");
-                    }
-                };
+                diesel::result::Error::DatabaseError(_kind, info),
+            ))) if info.message() == "database is locked" => {
+                log::trace!(logger, "Database locked. Will retry");
                 std::thread::sleep(Duration::from_millis(500));
             }
             Err(e) => panic!("Could not sync account due to {:?}", e),
         }
         account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
+        if account.next_block_index as u64 >= ledger_db.num_blocks().unwrap() {
+            break;
+        }
+    }
+    account
+}
+
+// Sync view-only-account to most recent block
+pub fn manually_sync_view_only_account(
+    ledger_db: &LedgerDB,
+    wallet_db: &WalletDb,
+    view_only_account_id: &str,
+    logger: &Logger,
+) -> ViewOnlyAccount {
+    let mut account: ViewOnlyAccount;
+    loop {
+        match sync_view_only_account(&ledger_db, &wallet_db, &view_only_account_id, &logger) {
+            Ok(_) => {}
+            Err(SyncError::Database(WalletDbError::Diesel(
+                diesel::result::Error::DatabaseError(_kind, info),
+            ))) if info.message() == "database is locked" => {
+                log::trace!(logger, "Database locked. Will retry");
+                std::thread::sleep(Duration::from_millis(500));
+            }
+            Err(e) => panic!("Could not sync account due to {:?}", e),
+        }
+        account =
+            ViewOnlyAccount::get(&view_only_account_id, &wallet_db.get_conn().unwrap()).unwrap();
         if account.next_block_index as u64 >= ledger_db.num_blocks().unwrap() {
             break;
         }
@@ -453,10 +483,10 @@ pub fn create_test_received_txo(
 
     let txo_id_hex = Txo::create_received(
         txo.clone(),
-        Some(recipient_subaddress_index as i64),
+        Some(recipient_subaddress_index),
         Some(key_image),
         value,
-        received_block_index as i64,
+        received_block_index,
         &AccountID::from(account_key).to_string(),
         &wallet_db.get_conn().unwrap(),
     )
@@ -474,7 +504,7 @@ pub fn create_test_minted_and_change_txos(
     wallet_db: WalletDb,
     ledger_db: LedgerDB,
     logger: Logger,
-) -> ((String, i64), (String, i64)) {
+) -> ((String, u64), (String, u64)) {
     let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
     // Use the builder to create valid TxOuts for this account
@@ -487,7 +517,7 @@ pub fn create_test_minted_and_change_txos(
     );
 
     builder.add_recipient(recipient, value).unwrap();
-    builder.select_txos(None).unwrap();
+    builder.select_txos(None, false).unwrap();
     builder.set_tombstone(0).unwrap();
     let tx_proposal = builder.build().unwrap();
 
@@ -524,8 +554,8 @@ pub fn create_test_minted_and_change_txos(
     // Change starts as an output, and is updated to change when scanned.
     assert_eq!(processed_change.txo_type, TXO_USED_AS_CHANGE);
     (
-        (processed_output.txo_id_hex, processed_output.value),
-        (processed_change.txo_id_hex, processed_change.value),
+        (processed_output.txo_id_hex, processed_output.value as u64),
+        (processed_change.txo_id_hex, processed_change.value as u64),
     )
 }
 
@@ -640,12 +670,27 @@ pub fn setup_wallet_service(
     ledger_db: LedgerDB,
     logger: Logger,
 ) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
+    setup_wallet_service_impl(ledger_db, logger, false)
+}
+
+pub fn setup_wallet_service_offline(
+    ledger_db: LedgerDB,
+    logger: Logger,
+) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
+    setup_wallet_service_impl(ledger_db, logger, true)
+}
+
+fn setup_wallet_service_impl(
+    ledger_db: LedgerDB,
+    logger: Logger,
+    offline: bool,
+) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
     let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
     let db_test_context = WalletDbTestContext::default();
     let wallet_db = db_test_context.get_db_instance(logger.clone());
     let (peer_manager, network_state) =
-        setup_peer_manager_and_network_state(ledger_db.clone(), logger.clone());
+        setup_peer_manager_and_network_state(ledger_db.clone(), logger.clone(), offline);
 
     WalletService::new(
         wallet_db,
@@ -653,7 +698,7 @@ pub fn setup_wallet_service(
         peer_manager,
         network_state,
         get_resolver_factory(&mut rng).unwrap(),
-        false,
+        offline,
         logger,
     )
 }

@@ -107,7 +107,7 @@ pub trait TransactionLogModel {
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
         txo_id_hex: &str,
-        amount: i64,
+        amount: u64,
         block_index: u64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
@@ -138,7 +138,7 @@ pub trait TransactionLogModel {
 
     fn update_tx_logs_associated_with_txo_to_succeeded(
         txo_id_hex: &str,
-        finalized_block_index: i64,
+        finalized_block_index: u64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError>;
 
@@ -348,7 +348,7 @@ impl TransactionLogModel for TransactionLog {
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
         txo_id_hex: &str,
-        amount: i64,
+        amount: u64,
         block_index: u64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
@@ -358,8 +358,8 @@ impl TransactionLogModel for TransactionLog {
             transaction_id_hex: &txo_id_hex.to_string(),
             account_id_hex,
             assigned_subaddress_b58,
-            value: amount,
-            fee: None, // Impossible to recover fee from received transaction
+            value: amount as i64, // We store numbers between 2^63 and 2^64 as negative.
+            fee: None,            // Impossible to recover fee from received transaction
             status: TX_STATUS_SUCCEEDED,
             sent_time: None, // NULL for received
             submitted_block_index: None,
@@ -412,7 +412,7 @@ impl TransactionLogModel for TransactionLog {
         for utxo in tx_proposal.utxos.iter() {
             let txo_id = TxoID::from(&utxo.tx_out);
             let txo = Txo::get(&txo_id.to_string(), conn)?;
-            txo.update_to_pending(tx_proposal.tx.prefix.tombstone_block as i64, conn)?;
+            txo.update_to_pending(tx_proposal.tx.prefix.tombstone_block, conn)?;
             txo_ids.push((txo_id.to_string(), TXO_USED_AS_INPUT.to_string()));
         }
 
@@ -501,7 +501,7 @@ impl TransactionLogModel for TransactionLog {
 
     fn update_tx_logs_associated_with_txo_to_succeeded(
         txo_id_hex: &str,
-        finalized_block_index: i64,
+        finalized_block_index: u64,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::{transaction_logs, transaction_txo_types};
@@ -524,7 +524,7 @@ impl TransactionLogModel for TransactionLog {
         )
         .set((
             transaction_logs::status.eq(TX_STATUS_SUCCEEDED),
-            transaction_logs::finalized_block_index.eq(finalized_block_index),
+            transaction_logs::finalized_block_index.eq(finalized_block_index as i64),
         ))
         .execute(conn)?;
 
@@ -573,14 +573,14 @@ mod tests {
     use rand::{rngs::StdRng, SeedableRng};
 
     use crate::{
-        db::account::{AccountID, AccountModel, DEFAULT_CHANGE_SUBADDRESS_INDEX},
+        db::account::{AccountID, AccountModel},
         service::{sync::SyncThread, transaction_builder::WalletTransactionBuilder},
         test_utils::{
             add_block_with_tx_outs, builder_for_random_recipient, create_test_received_txo,
             get_resolver_factory, get_test_ledger, manually_sync_account,
             random_account_with_seed_values, WalletDbTestContext, MOB,
         },
-        util::b58::b58_encode_public_address,
+        util::{b58::b58_encode_public_address, constants::DEFAULT_CHANGE_SUBADDRESS_INDEX},
     };
 
     use super::*;
@@ -630,7 +630,7 @@ mod tests {
                 &account_id.to_string(),
                 assigned_subaddress_b58.as_ref().map(|s| s.as_str()),
                 &txo_id_hex,
-                (100 * i * MOB) as i64,
+                100 * i * MOB,
                 144,
                 &wallet_db.get_conn().unwrap(),
             )
@@ -685,7 +685,7 @@ mod tests {
         let account_key = random_account_with_seed_values(
             &wallet_db,
             &mut ledger_db,
-            &vec![70 * MOB as u64],
+            &vec![70 * MOB],
             &mut rng,
             &logger,
         );
@@ -693,11 +693,9 @@ mod tests {
         // Build a transaction
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
-        builder
-            .add_recipient(recipient.clone(), 50 * MOB as u64)
-            .unwrap();
+        builder.add_recipient(recipient.clone(), 50 * MOB).unwrap();
         builder.set_tombstone(0).unwrap();
-        builder.select_txos(None).unwrap();
+        builder.select_txos(None, false).unwrap();
         let tx_proposal = builder.build().unwrap();
 
         // Log submitted transaction from tx_proposal
@@ -718,9 +716,9 @@ mod tests {
         // No assigned subaddress for sent
         assert_eq!(tx_log.assigned_subaddress_b58, None);
         // Value is the amount sent, not including fee and change
-        assert_eq!(tx_log.value, 50 * MOB);
+        assert_eq!(tx_log.value as u64, 50 * MOB);
         // Fee exists for submitted
-        assert_eq!(tx_log.fee, Some(Mob::MINIMUM_FEE as i64));
+        assert_eq!(tx_log.fee.unwrap() as u64, Mob::MINIMUM_FEE);
         // Created and sent transaction is "pending" until it lands
         assert_eq!(tx_log.status, TX_STATUS_PENDING);
         assert!(tx_log.sent_time.unwrap() > 0);
@@ -749,7 +747,7 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(input_details.value, 70 * MOB);
+        assert_eq!(input_details.value as u64, 70 * MOB);
         assert!(input_details.is_pending()); // Should now be pending
         assert!(input_details.is_received());
         assert_eq!(input_details.subaddress_index.unwrap(), 0);
@@ -767,7 +765,7 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(output_details.value, 50 * MOB);
+        assert_eq!(output_details.value as u64, 50 * MOB);
 
         // We cannot know any details about the received_to_account for this TXO, as it
         // was sent out of the wallet
@@ -782,7 +780,7 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(change_details.value, 20 * MOB - Mob::MINIMUM_FEE as i64);
+        assert_eq!(change_details.value as u64, 20 * MOB - Mob::MINIMUM_FEE);
 
         // Note, this will still be marked as not change until the txo
         // appears on the ledger and the account syncs.
@@ -839,7 +837,7 @@ mod tests {
         let account_key = random_account_with_seed_values(
             &wallet_db,
             &mut ledger_db,
-            &vec![100 * MOB as u64, 200 * MOB as u64],
+            &vec![100 * MOB, 200 * MOB],
             &mut rng,
             &logger,
         );
@@ -848,11 +846,11 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
         // Add outlays all to the same recipient, so that we exceed u64::MAX in this tx
-        let value = 100 * MOB as u64 - Mob::MINIMUM_FEE;
+        let value = 100 * MOB - Mob::MINIMUM_FEE;
         builder.add_recipient(recipient.clone(), value).unwrap();
 
         builder.set_tombstone(0).unwrap();
-        builder.select_txos(None).unwrap();
+        builder.select_txos(None, false).unwrap();
         let tx_proposal = builder.build().unwrap();
 
         let tx_log = TransactionLog::log_submitted(
@@ -879,15 +877,15 @@ mod tests {
         // No assigned subaddress for sent
         assert_eq!(tx_log.assigned_subaddress_b58, None);
         // Value is the amount sent, not including fee and change
-        assert_eq!(tx_log.value, value as i64);
+        assert_eq!(tx_log.value as u64, value);
         // Fee exists for submitted
-        assert_eq!(tx_log.fee, Some(Mob::MINIMUM_FEE as i64));
+        assert_eq!(tx_log.fee.unwrap() as u64, Mob::MINIMUM_FEE);
         // Created and sent transaction is "pending" until it lands
         assert_eq!(tx_log.status, TX_STATUS_PENDING);
         assert!(tx_log.sent_time.unwrap() > 0);
         assert_eq!(
-            tx_log.submitted_block_index,
-            Some(ledger_db.num_blocks().unwrap() as i64)
+            tx_log.submitted_block_index.unwrap() as u64,
+            ledger_db.num_blocks().unwrap()
         );
         assert_eq!(tx_log.comment, "");
         assert_eq!(tx_log.direction, TX_DIRECTION_SENT);
@@ -940,7 +938,7 @@ mod tests {
                 let (txo_id_hex, _txo, _key_image) = create_test_received_txo(
                     &account_key,
                     0, // All to the same subaddress
-                    (100 * i * MOB) as u64,
+                    100 * i * MOB,
                     144,
                     &mut rng,
                     &wallet_db,
@@ -950,7 +948,7 @@ mod tests {
                     &account_id.to_string(),
                     assigned_subaddress_b58.as_ref().map(|s| s.as_str()),
                     &txo_id_hex,
-                    (100 * i * MOB) as i64,
+                    100 * i * MOB,
                     144,
                     &wallet_db.get_conn().unwrap(),
                 )
@@ -1018,7 +1016,7 @@ mod tests {
         let account_key = random_account_with_seed_values(
             &wallet_db,
             &mut ledger_db,
-            &vec![7_000_000 * MOB as u64, 14_000_000 * MOB as u64],
+            &vec![7_000_000 * MOB, 14_000_000 * MOB],
             &mut rng,
             &logger,
         );
@@ -1027,10 +1025,10 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
         builder
-            .add_recipient(recipient.clone(), 10_000_000 * MOB as u64)
+            .add_recipient(recipient.clone(), 10_000_000 * MOB)
             .unwrap();
         builder.set_tombstone(0).unwrap();
-        builder.select_txos(None).unwrap();
+        builder.select_txos(None, false).unwrap();
         let tx_proposal = builder.build().unwrap();
 
         assert_eq!(tx_proposal.outlays[0].value, 10_000_000_000_000_000_000);
@@ -1045,7 +1043,7 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(tx_log.value as u64, 10_000_000 * MOB as u64);
+        assert_eq!(tx_log.value as u64, 10_000_000 * MOB);
     }
 
     // Test that logging a submitted transaction to self results in the inputs,
@@ -1076,7 +1074,7 @@ mod tests {
         let account_key = random_account_with_seed_values(
             &wallet_db,
             &mut ledger_db,
-            &vec![7 * MOB as u64, 8 * MOB as u64],
+            &vec![7 * MOB, 8 * MOB],
             &mut rng,
             &logger,
         );
@@ -1090,10 +1088,10 @@ mod tests {
         );
         // Add self at main subaddress as the recipient
         builder
-            .add_recipient(account_key.subaddress(0), 12 * MOB as u64)
+            .add_recipient(account_key.subaddress(0), 12 * MOB)
             .unwrap();
         builder.set_tombstone(0).unwrap();
-        builder.select_txos(None).unwrap();
+        builder.select_txos(None, false).unwrap();
         let tx_proposal = builder.build().unwrap();
 
         // Log submitted transaction from tx_proposal
@@ -1118,11 +1116,11 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(input_details0.value, 7 * MOB);
+        assert_eq!(input_details0.value as u64, 7 * MOB);
 
         assert!(input_details0.is_pending());
         assert!(input_details0.is_received());
-        assert_eq!(input_details0.subaddress_index, Some(0 as i64));
+        assert_eq!(input_details0.subaddress_index, Some(0));
         assert!(!input_details0.is_minted());
 
         let input_details1 = Txo::get(
@@ -1130,11 +1128,11 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(input_details1.value, 8 * MOB);
+        assert_eq!(input_details1.value as u64, 8 * MOB);
 
         assert!(input_details1.is_pending());
         assert!(input_details1.is_received());
-        assert_eq!(input_details1.subaddress_index, Some(0 as i64));
+        assert_eq!(input_details1.subaddress_index, Some(0));
         assert!(!input_details1.is_minted());
 
         // There is one associated output TXO to this transaction, and its recipient
@@ -1149,7 +1147,7 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(output_details.value, 12 * MOB);
+        assert_eq!(output_details.value as u64, 12 * MOB);
 
         // The output type is "minted"
         assert!(output_details.is_minted());
@@ -1166,7 +1164,7 @@ mod tests {
         )
         .unwrap();
         // Change = (8 + 7) - 12 - fee
-        assert_eq!(change_details.value, 3 * MOB - Mob::MINIMUM_FEE as i64);
+        assert_eq!(change_details.value as u64, 3 * MOB - Mob::MINIMUM_FEE);
         assert!(change_details.is_minted());
         assert!(!change_details.is_received());
         assert!(change_details.subaddress_index.is_none());
