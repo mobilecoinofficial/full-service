@@ -1,21 +1,17 @@
 use crate::{
     db::{
         account::AccountID,
-        models::{Account, TransactionLog, Txo},
-        transaction_log::TransactionLogModel,
-        txo::{TxoID, TxoModel},
+        models::{Account},
         WalletDb,
     },
     service::{
-        account::AccountService,
         gift_code::{EncodedGiftCode, GiftCodeService, GiftCodeStatus},
         WalletService,
     },
     test_utils::{
-        add_block_to_ledger_db, add_block_with_db_txos, add_block_with_tx, add_block_with_tx_outs,
-        add_block_with_tx_proposal, create_test_minted_and_change_txos, create_test_received_txo,
-        create_test_txo_for_recipient, get_resolver_factory, get_test_ledger,
-        manually_sync_account, random_account_with_seed_values, WalletDbTestContext, MOB,
+        add_block_to_ledger_db, add_block_with_tx,
+        add_block_with_tx_proposal,
+        manually_sync_account, MOB,
     },
 };
 use diesel::{
@@ -29,14 +25,10 @@ use mc_crypto_rand::RngCore;
 use mc_fog_report_validation::MockFogPubkeyResolver;
 use mc_ledger_db::LedgerDB;
 use mc_transaction_core::{
-    encrypted_fog_hint::EncryptedFogHint,
-    onetime_keys::{create_tx_out_target_key, recover_onetime_private_key},
     ring_signature::KeyImage,
-    tx::{Tx, TxOut},
-    Block, BlockContents, BLOCK_VERSION,
 };
 use rand::{rngs::StdRng, SeedableRng};
-use std::collections::HashMap;
+
 
 pub struct SeedGiftCodesResult {
     unsubmitted: EncodedGiftCode,
@@ -44,7 +36,7 @@ pub struct SeedGiftCodesResult {
     claimed: EncodedGiftCode,
 }
 pub fn seed_gift_codes(
-    conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    _conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ledger_db: &mut LedgerDB,
     wallet_db: &WalletDb,
     service: &WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver>,
@@ -119,7 +111,7 @@ pub fn seed_gift_codes(
     manually_sync_account(&ledger_db, &service.wallet_db, &gifter_account_id, &logger);
 
     // leave this code as pending
-    let (tx_proposal, gift_code_b58_pending) = service
+    let (_tx_proposal, gift_code_b58_pending) = service
         .build_gift_code(
             &gifter_account_id,
             2 * MOB as u64,

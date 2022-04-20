@@ -8,10 +8,7 @@ mod migration_testing {
                 seed_gift_codes::{seed_gift_codes, test_gift_codes},
                 seed_txos::{seed_txos, test_txos},
             },
-            models::{Account, Txo},
-            txo::{TxoID, TxoModel},
         },
-        service::account::AccountService,
         test_utils::{get_test_ledger, setup_wallet_service, WalletDbTestContext},
     };
     use diesel_migrations::{revert_latest_migration, run_pending_migrations};
@@ -25,7 +22,7 @@ mod migration_testing {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
-        let db_test_context = WalletDbTestContext::default();
+        let _db_test_context = WalletDbTestContext::default();
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
         let wallet_db = &service.wallet_db;
         let conn = wallet_db.get_conn().unwrap();
@@ -46,24 +43,20 @@ mod migration_testing {
             &gift_code_receiver_account,
         );
 
-        // validate accounts
-        test_accounts(&service);
-        // validate expected txo states
         let txo_account_id =
             AccountID::from(&mc_util_serial::decode(&txo_account.account_key).unwrap());
+
+        // validate expected state of entities in DB
+        test_accounts(&service);
         test_txos(txo_account_id.clone(), &conn);
-        // validate gift code states
         test_gift_codes(&gift_codes, &service);
 
         // run the last migration
         run_pending_migrations(&conn).unwrap();
 
+        // validate expected state of entities in DB again, post-migration
         test_accounts(&service);
         test_txos(txo_account_id, &conn);
         test_gift_codes(&gift_codes, &service);
-
-        // compare entities from seeding to entities found now
-        // assert_eq!(accounts, service.list_accounts().unwrap());
-        // test_entities(service, seeded);
     }
 }
