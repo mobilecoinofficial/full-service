@@ -3,30 +3,23 @@ use crate::{
         account::AccountID,
         models::{Account, TransactionLog, Txo},
         transaction_log::TransactionLogModel,
-        txo::{TxoModel},
+        txo::TxoModel,
         WalletDb,
     },
     test_utils::{
         add_block_with_db_txos, add_block_with_tx_outs, create_test_minted_and_change_txos,
-        create_test_txo_for_recipient,
-        manually_sync_account, MOB,
+        create_test_txo_for_recipient, manually_sync_account, MOB,
     },
 };
 use diesel::{
     r2d2::{ConnectionManager, PooledConnection},
     SqliteConnection,
 };
-
 use mc_common::logger::Logger;
-
 use mc_crypto_rand::RngCore;
-
 use mc_ledger_db::LedgerDB;
-use mc_transaction_core::{
-    ring_signature::KeyImage,
-};
+use mc_transaction_core::ring_signature::KeyImage;
 use rand::{rngs::StdRng, SeedableRng};
-
 
 // create 1 spent, 1 change (minted), and 1 orphaned txo
 pub fn seed_txos(

@@ -1,22 +1,10 @@
 use crate::{
-    db::{
-        models::{Account},
-    },
-    service::{
-        account::AccountService,
-        WalletService,
-    },
+    db::models::Account,
+    service::{account::AccountService, WalletService},
 };
-
-
-
 use mc_connection_test_utils::MockBlockchainConnection;
-
 use mc_fog_report_validation::MockFogPubkeyResolver;
 use mc_ledger_db::LedgerDB;
-
-
-
 
 pub fn seed_accounts(
     service: &WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver>,
