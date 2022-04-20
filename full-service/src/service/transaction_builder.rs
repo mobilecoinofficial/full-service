@@ -224,7 +224,6 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         }
 
         let conn = self.wallet_db.get_conn()?;
-
         conn.transaction::<TxProposal, WalletTransactionBuilderError, _>(|| {
             let account: Account =
                 Account::get(&AccountID(self.account_id_hex.to_string()), &conn)?;

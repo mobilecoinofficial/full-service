@@ -250,19 +250,17 @@ where
         let import_block = self.ledger_db.num_blocks()? - 1;
 
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| {
-            Ok(Account::import(
-                &mnemonic,
-                name,
-                import_block,
-                first_block_index,
-                next_subaddress_index,
-                fog_report_url,
-                fog_report_id,
-                fog_authority_spki,
-                &conn,
-            )?)
-        })
+        Ok(Account::import(
+            &mnemonic,
+            name,
+            import_block,
+            first_block_index,
+            next_subaddress_index,
+            fog_report_url,
+            fog_report_id,
+            fog_authority_spki,
+            &conn,
+        )?)
     }
 
     fn import_account_from_legacy_root_entropy(
@@ -290,29 +288,27 @@ where
         let import_block = self.ledger_db.num_blocks()? - 1;
 
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| {
-            Ok(Account::import_legacy(
-                &RootEntropy::from(&entropy_bytes),
-                name,
-                import_block,
-                first_block_index,
-                next_subaddress_index,
-                fog_report_url,
-                fog_report_id,
-                fog_authority_spki,
-                &conn,
-            )?)
-        })
+        Ok(Account::import_legacy(
+            &RootEntropy::from(&entropy_bytes),
+            name,
+            import_block,
+            first_block_index,
+            next_subaddress_index,
+            fog_report_url,
+            fog_report_id,
+            fog_authority_spki,
+            &conn,
+        )?)
     }
 
     fn list_accounts(&self) -> Result<Vec<Account>, AccountServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| Ok(Account::list_all(&conn)?))
+        Ok(Account::list_all(&conn)?)
     }
 
     fn get_account(&self, account_id: &AccountID) -> Result<Account, AccountServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| Ok(Account::get(account_id, &conn)?))
+        Ok(Account::get(account_id, &conn)?)
     }
 
     fn update_account_name(
@@ -321,10 +317,8 @@ where
         name: String,
     ) -> Result<Account, AccountServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| {
-            Account::get(account_id, &conn)?.update_name(name, &conn)?;
-            Ok(Account::get(account_id, &conn)?)
-        })
+        Account::get(account_id, &conn)?.update_name(name, &conn)?;
+        Ok(Account::get(account_id, &conn)?)
     }
 
     fn remove_account(&self, account_id: &AccountID) -> Result<bool, AccountServiceError> {
