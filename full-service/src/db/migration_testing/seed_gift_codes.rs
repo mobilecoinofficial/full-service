@@ -1,16 +1,11 @@
 use crate::{
-    db::{
-        account::AccountID,
-        models::{Account},
-        WalletDb,
-    },
+    db::{account::AccountID, models::Account, WalletDb},
     service::{
         gift_code::{EncodedGiftCode, GiftCodeService, GiftCodeStatus},
         WalletService,
     },
     test_utils::{
-        add_block_to_ledger_db, add_block_with_tx,
-        add_block_with_tx_proposal,
+        add_block_to_ledger_db, add_block_with_tx, add_block_with_tx_proposal,
         manually_sync_account, MOB,
     },
 };
@@ -24,11 +19,8 @@ use mc_connection_test_utils::MockBlockchainConnection;
 use mc_crypto_rand::RngCore;
 use mc_fog_report_validation::MockFogPubkeyResolver;
 use mc_ledger_db::LedgerDB;
-use mc_transaction_core::{
-    ring_signature::KeyImage,
-};
+use mc_transaction_core::ring_signature::KeyImage;
 use rand::{rngs::StdRng, SeedableRng};
-
 
 pub struct SeedGiftCodesResult {
     unsubmitted: EncodedGiftCode,
