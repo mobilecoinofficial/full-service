@@ -17,8 +17,6 @@ use crate::{
         WalletService,
     },
 };
-
-use diesel::Connection;
 use displaydoc::Display;
 use mc_common::HashMap;
 use mc_connection::{BlockchainConnection, UserTxConnection};
@@ -157,24 +155,22 @@ where
         let account_id_hex = &account_id.to_string();
 
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| {
-            let (unspent, pending, spent, secreted, orphaned) =
-                Self::get_balance_inner(account_id_hex, &conn)?;
+        let (unspent, pending, spent, secreted, orphaned) =
+            Self::get_balance_inner(account_id_hex, &conn)?;
 
-            let network_block_height = self.get_network_block_height()?;
-            let local_block_height = self.ledger_db.num_blocks()?;
-            let account = Account::get(account_id, &conn)?;
+        let network_block_height = self.get_network_block_height()?;
+        let local_block_height = self.ledger_db.num_blocks()?;
+        let account = Account::get(account_id, &conn)?;
 
-            Ok(Balance {
-                unspent,
-                pending,
-                spent,
-                secreted,
-                orphaned,
-                network_block_height,
-                local_block_height,
-                synced_blocks: account.next_block_index as u64,
-            })
+        Ok(Balance {
+            unspent,
+            pending,
+            spent,
+            secreted,
+            orphaned,
+            network_block_height,
+            local_block_height,
+            synced_blocks: account.next_block_index as u64,
         })
     }
 
@@ -183,25 +179,23 @@ where
         account_id: &str,
     ) -> Result<ViewOnlyBalance, BalanceServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| {
-            let txos = ViewOnlyTxo::list_for_account(account_id, None, None, &conn)?;
-            let total_value = txos.iter().map(|t| (t.value as u64) as u128).sum::<u128>();
-            let spent = txos
-                .iter()
-                .filter(|t| t.spent)
-                .map(|t| (t.value as u64) as u128)
-                .sum::<u128>();
+        let txos = ViewOnlyTxo::list_for_account(account_id, None, None, &conn)?;
+        let total_value = txos.iter().map(|t| (t.value as u64) as u128).sum::<u128>();
+        let spent = txos
+            .iter()
+            .filter(|t| t.spent)
+            .map(|t| (t.value as u64) as u128)
+            .sum::<u128>();
 
-            let network_block_height = self.get_network_block_height()?;
-            let local_block_height = self.ledger_db.num_blocks()?;
-            let account = ViewOnlyAccount::get(account_id, &conn)?;
+        let network_block_height = self.get_network_block_height()?;
+        let local_block_height = self.ledger_db.num_blocks()?;
+        let account = ViewOnlyAccount::get(account_id, &conn)?;
 
-            Ok(ViewOnlyBalance {
-                balance: total_value - spent,
-                network_block_height,
-                local_block_height,
-                synced_blocks: account.next_block_index as u64,
-            })
+        Ok(ViewOnlyBalance {
+            balance: total_value - spent,
+            network_block_height,
+            local_block_height,
+            synced_blocks: account.next_block_index as u64,
         })
     }
 
@@ -210,44 +204,40 @@ where
         let local_block_height = self.ledger_db.num_blocks()?;
 
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| {
-            let assigned_address = AssignedSubaddress::get(address, &conn)?;
+        let assigned_address = AssignedSubaddress::get(address, &conn)?;
 
-            // Orphaned txos have no subaddress assigned, so none of these txos can
-            // be orphaned.
-            let orphaned: u128 = 0;
+        // Orphaned txos have no subaddress assigned, so none of these txos can
+        // be orphaned.
+        let orphaned: u128 = 0;
 
-            let unspent =
-                Txo::list_unspent(&assigned_address.account_id_hex, Some(address), &conn)?
-                    .iter()
-                    .map(|txo| (txo.value as u64) as u128)
-                    .sum::<u128>();
-            let pending =
-                Txo::list_pending(&assigned_address.account_id_hex, Some(address), &conn)?
-                    .iter()
-                    .map(|txo| (txo.value as u64) as u128)
-                    .sum::<u128>();
-            let spent = Txo::list_spent(&assigned_address.account_id_hex, Some(address), &conn)?
-                .iter()
-                .map(|txo| (txo.value as u64) as u128)
-                .sum::<u128>();
-            let secreted = Txo::list_secreted(&assigned_address.account_id_hex, &conn)?
-                .iter()
-                .map(|txo| (txo.value as u64) as u128)
-                .sum::<u128>();
+        let unspent = Txo::list_unspent(&assigned_address.account_id_hex, Some(address), &conn)?
+            .iter()
+            .map(|txo| (txo.value as u64) as u128)
+            .sum::<u128>();
+        let pending = Txo::list_pending(&assigned_address.account_id_hex, Some(address), &conn)?
+            .iter()
+            .map(|txo| (txo.value as u64) as u128)
+            .sum::<u128>();
+        let spent = Txo::list_spent(&assigned_address.account_id_hex, Some(address), &conn)?
+            .iter()
+            .map(|txo| (txo.value as u64) as u128)
+            .sum::<u128>();
+        let secreted = Txo::list_secreted(&assigned_address.account_id_hex, &conn)?
+            .iter()
+            .map(|txo| (txo.value as u64) as u128)
+            .sum::<u128>();
 
-            let account = Account::get(&AccountID(assigned_address.account_id_hex), &conn)?;
+        let account = Account::get(&AccountID(assigned_address.account_id_hex), &conn)?;
 
-            Ok(Balance {
-                unspent,
-                pending,
-                spent,
-                secreted,
-                orphaned,
-                network_block_height,
-                local_block_height,
-                synced_blocks: account.next_block_index as u64,
-            })
+        Ok(Balance {
+            unspent,
+            pending,
+            spent,
+            secreted,
+            orphaned,
+            network_block_height,
+            local_block_height,
+            synced_blocks: account.next_block_index as u64,
         })
     }
 
@@ -264,59 +254,57 @@ where
         let network_block_height = self.get_network_block_height()?;
 
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| {
-            let accounts = Account::list_all(&conn)?;
-            let mut account_map = HashMap::default();
-            let view_only_accounts = ViewOnlyAccount::list_all(&conn)?;
-            let mut view_only_account_map = HashMap::default();
+        let accounts = Account::list_all(&conn)?;
+        let mut account_map = HashMap::default();
+        let view_only_accounts = ViewOnlyAccount::list_all(&conn)?;
+        let mut view_only_account_map = HashMap::default();
 
-            let mut unspent: u128 = 0;
-            let mut pending: u128 = 0;
-            let mut spent: u128 = 0;
-            let mut secreted: u128 = 0;
-            let mut orphaned: u128 = 0;
+        let mut unspent: u128 = 0;
+        let mut pending: u128 = 0;
+        let mut spent: u128 = 0;
+        let mut secreted: u128 = 0;
+        let mut orphaned: u128 = 0;
 
-            let mut min_synced_block_index = network_block_height - 1;
-            let mut account_ids = Vec::new();
-            for account in accounts {
-                let account_id = AccountID(account.account_id_hex.clone());
-                let balance = Self::get_balance_inner(&account_id.to_string(), &conn)?;
-                account_map.insert(account_id.clone(), account.clone());
-                unspent += balance.0;
-                pending += balance.1;
-                spent += balance.2;
-                secreted += balance.3;
-                orphaned += balance.4;
+        let mut min_synced_block_index = network_block_height - 1;
+        let mut account_ids = Vec::new();
+        for account in accounts {
+            let account_id = AccountID(account.account_id_hex.clone());
+            let balance = Self::get_balance_inner(&account_id.to_string(), &conn)?;
+            account_map.insert(account_id.clone(), account.clone());
+            unspent += balance.0;
+            pending += balance.1;
+            spent += balance.2;
+            secreted += balance.3;
+            orphaned += balance.4;
 
-                // account.next_block_index is an index in range [0..ledger_db.num_blocks()]
-                min_synced_block_index = std::cmp::min(
-                    min_synced_block_index,
-                    (account.next_block_index as u64).saturating_sub(1),
-                );
-                account_ids.push(account_id);
-            }
+            // account.next_block_index is an index in range [0..ledger_db.num_blocks()]
+            min_synced_block_index = std::cmp::min(
+                min_synced_block_index,
+                (account.next_block_index as u64).saturating_sub(1),
+            );
+            account_ids.push(account_id);
+        }
 
-            let mut view_only_account_ids = Vec::new();
-            for account in view_only_accounts {
-                let account_id = account.account_id_hex.clone();
-                view_only_account_map.insert(account_id.clone(), account.clone());
-                view_only_account_ids.push(account_id);
-            }
+        let mut view_only_account_ids = Vec::new();
+        for account in view_only_accounts {
+            let account_id = account.account_id_hex.clone();
+            view_only_account_map.insert(account_id.clone(), account.clone());
+            view_only_account_ids.push(account_id);
+        }
 
-            Ok(WalletStatus {
-                unspent,
-                pending,
-                spent,
-                secreted,
-                orphaned,
-                network_block_height,
-                local_block_height: self.ledger_db.num_blocks()?,
-                min_synced_block_index: min_synced_block_index as u64,
-                account_ids,
-                account_map,
-                view_only_account_ids,
-                view_only_account_map,
-            })
+        Ok(WalletStatus {
+            unspent,
+            pending,
+            spent,
+            secreted,
+            orphaned,
+            network_block_height,
+            local_block_height: self.ledger_db.num_blocks()?,
+            min_synced_block_index: min_synced_block_index as u64,
+            account_ids,
+            account_map,
+            view_only_account_ids,
+            view_only_account_map,
         })
     }
 }

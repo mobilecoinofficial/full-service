@@ -18,7 +18,6 @@ use crate::{
     },
     WalletService,
 };
-use diesel::Connection;
 use displaydoc::Display;
 use mc_account_keys::AccountKey;
 use mc_connection::{BlockchainConnection, UserTxConnection};
@@ -187,58 +186,53 @@ where
         receiver_receipt: &ReceiverReceipt,
     ) -> Result<(ReceiptTransactionStatus, Option<Txo>), ReceiptServiceError> {
         let conn = &self.wallet_db.get_conn()?;
-        conn.transaction(|| {
-            let assigned_address = AssignedSubaddress::get(address, conn)?;
-            let account_id = AccountID(assigned_address.account_id_hex);
-            let account = Account::get(&account_id, conn)?;
-            // Get the transaction from the database, with status.
-            let txos = Txo::select_by_public_key(&[&receiver_receipt.public_key], conn)?;
+        let assigned_address = AssignedSubaddress::get(address, conn)?;
+        let account_id = AccountID(assigned_address.account_id_hex);
+        let account = Account::get(&account_id, conn)?;
+        // Get the transaction from the database, with status.
+        let txos = Txo::select_by_public_key(&[&receiver_receipt.public_key], conn)?;
 
-            // Return if the Txo from the receipt is not in this wallet yet.
-            if txos.is_empty() {
-                return Ok((ReceiptTransactionStatus::TransactionPending, None));
+        // Return if the Txo from the receipt is not in this wallet yet.
+        if txos.is_empty() {
+            return Ok((ReceiptTransactionStatus::TransactionPending, None));
+        }
+        let txo = txos[0].clone();
+
+        // Return if the Txo from the receipt has a pending tombstone block index
+        if txo.pending_tombstone_block_index.is_some() {
+            return Ok((ReceiptTransactionStatus::TransactionPending, Some(txo)));
+        }
+
+        // Decrypt the amount to get the expected value
+        let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+        let public_key: RistrettoPublic = RistrettoPublic::try_from(&receiver_receipt.public_key)?;
+        let shared_secret = get_tx_out_shared_secret(account_key.view_private_key(), &public_key);
+        let expected_value = match receiver_receipt.amount.get_value(&shared_secret) {
+            Ok((v, _blinding)) => v,
+            Err(AmountError::InconsistentCommitment) => {
+                return Ok((ReceiptTransactionStatus::FailedAmountDecryption, Some(txo)))
             }
-            let txo = txos[0].clone();
+        };
+        // Check that the value of the received Txo matches the expected value.
+        if (txo.value as u64) != expected_value {
+            return Ok((
+                ReceiptTransactionStatus::AmountMismatch(format!(
+                    "Expected: {}, Got: {}",
+                    expected_value, txo.value
+                )),
+                Some(txo),
+            ));
+        }
 
-            // Return if the Txo from the receipt has a pending tombstone block index
-            if txo.pending_tombstone_block_index.is_some() {
-                return Ok((ReceiptTransactionStatus::TransactionPending, Some(txo)));
-            }
+        // Validate the confirmation number.
+        let confirmation_hex = hex::encode(mc_util_serial::encode(&receiver_receipt.confirmation));
+        let confirmation: TxOutConfirmationNumber =
+            mc_util_serial::decode(&hex::decode(confirmation_hex)?)?;
+        if !Txo::validate_confirmation(&account_id, &txo.txo_id_hex, &confirmation, conn)? {
+            return Ok((ReceiptTransactionStatus::InvalidConfirmation, Some(txo)));
+        }
 
-            // Decrypt the amount to get the expected value
-            let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
-            let public_key: RistrettoPublic =
-                RistrettoPublic::try_from(&receiver_receipt.public_key)?;
-            let shared_secret =
-                get_tx_out_shared_secret(account_key.view_private_key(), &public_key);
-            let expected_value = match receiver_receipt.amount.get_value(&shared_secret) {
-                Ok((v, _blinding)) => v,
-                Err(AmountError::InconsistentCommitment) => {
-                    return Ok((ReceiptTransactionStatus::FailedAmountDecryption, Some(txo)))
-                }
-            };
-            // Check that the value of the received Txo matches the expected value.
-            if (txo.value as u64) != expected_value {
-                return Ok((
-                    ReceiptTransactionStatus::AmountMismatch(format!(
-                        "Expected: {}, Got: {}",
-                        expected_value, txo.value
-                    )),
-                    Some(txo),
-                ));
-            }
-
-            // Validate the confirmation number.
-            let confirmation_hex =
-                hex::encode(mc_util_serial::encode(&receiver_receipt.confirmation));
-            let confirmation: TxOutConfirmationNumber =
-                mc_util_serial::decode(&hex::decode(confirmation_hex)?)?;
-            if !Txo::validate_confirmation(&account_id, &txo.txo_id_hex, &confirmation, conn)? {
-                return Ok((ReceiptTransactionStatus::InvalidConfirmation, Some(txo)));
-            }
-
-            Ok((ReceiptTransactionStatus::TransactionSuccess, Some(txo)))
-        })
+        Ok((ReceiptTransactionStatus::TransactionSuccess, Some(txo)))
     }
 
     fn create_receiver_receipts(
