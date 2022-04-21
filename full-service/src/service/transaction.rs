@@ -26,8 +26,6 @@ use crate::service::address::{AddressService, AddressServiceError};
 use displaydoc::Display;
 use std::{convert::TryFrom, iter::empty, sync::atomic::Ordering};
 
-use diesel::Connection;
-
 /// Errors for the Transaction Service.
 #[derive(Display, Debug)]
 #[allow(clippy::large_enum_variant)]
@@ -282,7 +280,7 @@ where
         // Log the transaction.
         let result = if let Some(a) = account_id_hex {
             let conn = self.wallet_db.get_conn()?;
-            conn.transaction(|| {
+            transaction(&conn, || {
                 let transaction_log = TransactionLog::log_submitted(
                     tx_proposal,
                     block_index,
