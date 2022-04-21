@@ -3,7 +3,7 @@
 //! Service for managing view-only Txos.
 
 use crate::{
-    db::{models::ViewOnlyTxo, view_only_txo::ViewOnlyTxoModel},
+    db::{models::ViewOnlyTxo, transaction, view_only_txo::ViewOnlyTxoModel},
     service::txo::TxoServiceError,
     WalletService,
 };
@@ -38,16 +38,14 @@ where
         offset: Option<i64>,
     ) -> Result<Vec<ViewOnlyTxo>, TxoServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| {
-            Ok(ViewOnlyTxo::list_for_account(
-                account_id, limit, offset, &conn,
-            )?)
-        })
+        Ok(ViewOnlyTxo::list_for_account(
+            account_id, limit, offset, &conn,
+        )?)
     }
 
     fn set_view_only_txos_spent(&self, txo_ids: Vec<String>) -> Result<bool, TxoServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| {
+        transaction(&conn, || {
             ViewOnlyTxo::set_spent(txo_ids, &conn)?;
             Ok(true)
         })

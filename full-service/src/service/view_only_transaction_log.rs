@@ -5,6 +5,7 @@
 use crate::{
     db::{
         models::ViewOnlyTransactionLog, txo::TxoID,
+        transaction,
         view_only_transaction_log::ViewOnlyTransactionLogModel, WalletDbError,
     },
     WalletService,
@@ -39,8 +40,6 @@ where
         &self,
         transaction_proposal: TxProposal,
     ) -> Result<Vec<ViewOnlyTransactionLog>, WalletDbError> {
-        let conn = self.wallet_db.get_conn()?;
-
         let mut input_txo_ids: Vec<String> = vec![];
 
         // get all of the inputs for the transaction
@@ -54,7 +53,8 @@ where
             let change_txo_id = TxoID::from(change_txo).to_string();
 
             // create a view only log for each input txo
-            conn.transaction::<Vec<ViewOnlyTransactionLog>, WalletDbError, _>(|| {
+            let conn = self.wallet_db.get_conn()?;
+            transaction(&conn, || {
                 let mut logs = vec![];
 
                 for txo_id in input_txo_ids {
@@ -76,8 +76,7 @@ where
         txo_id: &str,
     ) -> Result<Vec<ViewOnlyTransactionLog>, WalletDbError> {
         let conn = self.wallet_db.get_conn()?;
-
-        conn.transaction(|| ViewOnlyTransactionLog::find_all_by_change_txo_id(txo_id, &conn))
+        ViewOnlyTransactionLog::find_all_by_change_txo_id(txo_id, &conn)
     }
 }
 

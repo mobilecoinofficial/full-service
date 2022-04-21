@@ -160,7 +160,6 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         };
 
         diesel::delete(view_only_txos.filter(dsl_account_id.eq(account_id_hex))).execute(conn)?;
-
         Ok(())
     }
 }
