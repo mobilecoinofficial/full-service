@@ -12,6 +12,7 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         models::{Account, Txo},
+        transaction,
         txo::TxoModel,
         WalletDb,
     },
@@ -166,13 +167,17 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             None
         };
 
-        self.inputs = Txo::select_unspent_txos_for_value(
-            &self.account_id_hex,
-            total_value,
-            max_spendable_value,
-            pending_tombstone_block_index,
-            &self.wallet_db.get_conn()?,
-        )?;
+        let conn = self.wallet_db.get_conn()?;
+
+        self.inputs = transaction(&conn, || {
+            Txo::select_unspent_txos_for_value(
+                &self.account_id_hex,
+                total_value,
+                max_spendable_value,
+                pending_tombstone_block_index,
+                &conn,
+            )
+        })?;
 
         Ok(())
     }
@@ -224,6 +229,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         }
 
         let conn = self.wallet_db.get_conn()?;
+
         conn.transaction::<TxProposal, WalletTransactionBuilderError, _>(|| {
             let account: Account =
                 Account::get(&AccountID(self.account_id_hex.to_string()), &conn)?;
