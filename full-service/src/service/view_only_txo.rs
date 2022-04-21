@@ -7,7 +7,6 @@ use crate::{
     service::txo::TxoServiceError,
     WalletService,
 };
-use diesel::prelude::*;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 

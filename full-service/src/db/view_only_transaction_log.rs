@@ -3,33 +3,30 @@
 //! DB impl for the view-only transaction log model.
 
 use crate::db::{
+    Conn,
     models::{NewViewOnlyTransactionLog, ViewOnlyTransactionLog},
     schema, WalletDbError,
 };
-use diesel::{
-    prelude::*,
-    r2d2::{ConnectionManager, PooledConnection},
-    RunQueryDsl,
-};
+use diesel::prelude::*;
 
 pub trait ViewOnlyTransactionLogModel {
     /// insert a new view only transaction log
     fn create(
         change_txo_id_hex: &str,
         input_txo_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<ViewOnlyTransactionLog, WalletDbError>;
 
     /// get a view only transaction log by change txo id
     fn get_by_change_txo_id(
         change_txo_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<ViewOnlyTransactionLog, WalletDbError>;
 
     /// get a all view only transaction logs for a change txo id
     fn find_all_by_change_txo_id(
         change_txo_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Vec<ViewOnlyTransactionLog>, WalletDbError>;
 }
 
@@ -37,7 +34,7 @@ impl ViewOnlyTransactionLogModel for ViewOnlyTransactionLog {
     fn create(
         change_txo_id_hex: &str,
         input_txo_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<ViewOnlyTransactionLog, WalletDbError> {
         use schema::view_only_transaction_logs;
 
@@ -55,7 +52,7 @@ impl ViewOnlyTransactionLogModel for ViewOnlyTransactionLog {
 
     fn get_by_change_txo_id(
         txo_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<ViewOnlyTransactionLog, WalletDbError> {
         use schema::view_only_transaction_logs::dsl::{
             change_txo_id_hex, view_only_transaction_logs,
@@ -75,7 +72,7 @@ impl ViewOnlyTransactionLogModel for ViewOnlyTransactionLog {
 
     fn find_all_by_change_txo_id(
         txo_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Vec<ViewOnlyTransactionLog>, WalletDbError> {
         use schema::view_only_transaction_logs::dsl::{
             change_txo_id_hex, view_only_transaction_logs,

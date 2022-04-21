@@ -10,7 +10,6 @@ use crate::{
     },
     WalletService,
 };
-use diesel::prelude::*;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_mobilecoind::payments::TxProposal;

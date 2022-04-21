@@ -78,7 +78,7 @@ impl WalletDb {
 
     pub fn get_conn(
         &self,
-    ) -> Result<PooledConnection<ConnectionManager<SqliteConnection>>, WalletDbError> {
+    ) -> Result<Conn, WalletDbError> {
         Ok(self.pool.get()?)
     }
 

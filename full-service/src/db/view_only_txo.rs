@@ -3,17 +3,14 @@
 //! DB impl for the view-only Txo model.
 
 use crate::db::{
+    Conn,
     models::{NewViewOnlyTxo, ViewOnlyAccount, ViewOnlyTxo},
     schema,
     txo::TxoID,
     view_only_account::ViewOnlyAccountModel,
     WalletDbError,
 };
-use diesel::{
-    prelude::*,
-    r2d2::{ConnectionManager, PooledConnection},
-    RunQueryDsl,
-};
+use diesel::prelude::*;
 use mc_transaction_core::tx::TxOut;
 
 pub trait ViewOnlyTxoModel {
@@ -22,7 +19,7 @@ pub trait ViewOnlyTxoModel {
         tx_out: TxOut,
         value: u64,
         view_only_account_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<ViewOnlyTxo, WalletDbError>;
 
     /// Get the details for a specific view only Txo.
@@ -31,7 +28,7 @@ pub trait ViewOnlyTxoModel {
     /// * ViewOnlyTxo
     fn get(
         txo_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<ViewOnlyTxo, WalletDbError>;
 
     /// mark a group of view-only-txo as spent
@@ -40,7 +37,7 @@ pub trait ViewOnlyTxoModel {
     /// * ()
     fn set_spent(
         txo_ids: Vec<String>,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
     /// list view only txos for a view only account
@@ -51,13 +48,13 @@ pub trait ViewOnlyTxoModel {
         account_id_hex: &str,
         offset: Option<i64>,
         limit: Option<i64>,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Vec<ViewOnlyTxo>, WalletDbError>;
 
     /// delete all view only txos for a view-only account
     fn delete_all_for_account(
         account_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(), WalletDbError>;
 }
 
@@ -66,7 +63,7 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         tx_out: TxOut,
         value: u64,
         view_only_account_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<ViewOnlyTxo, WalletDbError> {
         use schema::view_only_txos;
 
@@ -92,7 +89,7 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
 
     fn get(
         txo_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<ViewOnlyTxo, WalletDbError> {
         use schema::view_only_txos;
 
@@ -116,7 +113,7 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         account_id_hex: &str,
         offset: Option<i64>,
         limit: Option<i64>,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Vec<ViewOnlyTxo>, WalletDbError> {
         use schema::view_only_txos;
 
@@ -134,7 +131,7 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
 
     fn set_spent(
         txo_ids: Vec<String>,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(), WalletDbError> {
         use schema::view_only_txos::dsl::{
             spent as dsl_spent, txo_id_hex as dsl_txo_id, view_only_txos,
@@ -153,7 +150,7 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
 
     fn delete_all_for_account(
         account_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(), WalletDbError> {
         use schema::view_only_txos::dsl::{
             view_only_account_id_hex as dsl_account_id, view_only_txos,

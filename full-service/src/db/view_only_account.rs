@@ -4,17 +4,14 @@
 
 use crate::{
     db::{
+        Conn,
         models::{NewViewOnlyAccount, ViewOnlyAccount, ViewOnlyTxo},
         view_only_txo::ViewOnlyTxoModel,
         schema, WalletDbError,
     },
     util::encoding_helpers::{ristretto_to_vec, vec_to_hex},
 };
-use diesel::{
-    prelude::*,
-    r2d2::{ConnectionManager, PooledConnection},
-    RunQueryDsl,
-};
+use diesel::prelude::*;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use std::{fmt, str};
@@ -46,7 +43,7 @@ pub trait ViewOnlyAccountModel {
         first_block_index: u64,
         import_block_index: u64,
         name: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<ViewOnlyAccount, WalletDbError>;
 
     /// Get a specific account.
@@ -54,14 +51,14 @@ pub trait ViewOnlyAccountModel {
     /// * ViewOnlyAccount
     fn get(
         account_id: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<ViewOnlyAccount, WalletDbError>;
 
     /// List all view-only-accounts.
     /// Returns:
     /// * Vector of all View Only Accounts in the DB
     fn list_all(
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Vec<ViewOnlyAccount>, WalletDbError>;
 
     /// Update an view-only-account name.
@@ -70,20 +67,20 @@ pub trait ViewOnlyAccountModel {
     fn update_name(
         &self,
         new_name: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
     /// Update the next block index this account will need to sync.
     fn update_next_block_index(
         &self,
         next_block_index: u64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
     /// Delete a view-only-account.
     fn delete(
         self,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(), WalletDbError>;
 }
 
@@ -94,7 +91,7 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
         first_block_index: u64,
         import_block_index: u64,
         name: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<ViewOnlyAccount, WalletDbError> {
         use schema::view_only_accounts;
 
@@ -120,7 +117,7 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
 
     fn get(
         account_id: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<ViewOnlyAccount, WalletDbError> {
         use schema::view_only_accounts::dsl::{
             account_id_hex as dsl_account_id, view_only_accounts,
@@ -140,7 +137,7 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
     }
 
     fn list_all(
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Vec<ViewOnlyAccount>, WalletDbError> {
         use schema::view_only_accounts;
 
@@ -152,7 +149,7 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
     fn update_name(
         &self,
         new_name: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(), WalletDbError> {
         use schema::view_only_accounts::dsl::{
             account_id_hex as dsl_account_id, name as dsl_name, view_only_accounts,
@@ -167,7 +164,7 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
     fn update_next_block_index(
         &self,
         next_block_index: u64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(), WalletDbError> {
         use schema::view_only_accounts::dsl::{
             account_id_hex as dsl_account_id, next_block_index as dsl_next_block,
@@ -181,7 +178,7 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
 
     fn delete(
         self,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(), WalletDbError> {
         use schema::view_only_accounts::dsl::{
             account_id_hex as dsl_account_id, view_only_accounts,

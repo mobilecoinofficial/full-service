@@ -6,6 +6,7 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
+        Conn,
         models::{Account, AssignedSubaddress, Txo, ViewOnlyAccount, ViewOnlyTxo},
         txo::TxoModel,
         view_only_account::ViewOnlyAccountModel,
@@ -18,11 +19,7 @@ use crate::{
     },
 };
 
-use diesel::{
-    prelude::*,
-    r2d2::{ConnectionManager, PooledConnection},
-    Connection,
-};
+use diesel::Connection;
 use displaydoc::Display;
 use mc_common::HashMap;
 use mc_connection::{BlockchainConnection, UserTxConnection};
@@ -332,7 +329,7 @@ where
 {
     fn get_balance_inner(
         account_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(u128, u128, u128, u128, u128), BalanceServiceError> {
         // Note: We need to cast to u64 first, because i64 could have wrapped, then to
         // u128

@@ -6,6 +6,7 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
+        Conn,
         models::{
             Account, AssignedSubaddress, TransactionLog, Txo, ViewOnlyAccount,
             ViewOnlyTransactionLog, ViewOnlyTxo,
@@ -36,10 +37,7 @@ use mc_transaction_core::{
 };
 use rayon::prelude::*;
 
-use diesel::{
-    prelude::*,
-    r2d2::{ConnectionManager, PooledConnection},
-};
+use diesel::prelude::*;
 use std::{
     convert::TryFrom,
     sync::{
@@ -179,7 +177,7 @@ pub fn sync_view_only_account(
 
 fn sync_view_only_account_next_chunk(
     ledger_db: &LedgerDB,
-    conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    conn: &Conn,
     logger: &Logger,
     account_id_hex: &str,
 ) -> Result<SyncStatus, SyncError> {
@@ -290,7 +288,7 @@ pub fn sync_account(
 
 fn sync_account_next_chunk(
     ledger_db: &LedgerDB,
-    conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    conn: &Conn,
     logger: &Logger,
     account_id_hex: &str,
 ) -> Result<SyncStatus, SyncError> {

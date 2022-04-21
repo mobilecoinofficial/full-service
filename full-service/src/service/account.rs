@@ -16,7 +16,6 @@ use crate::{
 };
 use base64;
 use bip39::{Language, Mnemonic, MnemonicType};
-use diesel::Connection;
 use displaydoc::Display;
 use mc_account_keys::RootEntropy;
 use mc_account_keys_slip10;
