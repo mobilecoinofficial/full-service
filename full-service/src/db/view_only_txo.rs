@@ -3,12 +3,11 @@
 //! DB impl for the view-only Txo model.
 
 use crate::db::{
-    Conn,
     models::{NewViewOnlyTxo, ViewOnlyAccount, ViewOnlyTxo},
     schema,
     txo::TxoID,
     view_only_account::ViewOnlyAccountModel,
-    WalletDbError,
+    Conn, WalletDbError,
 };
 use diesel::prelude::*;
 use mc_transaction_core::tx::TxOut;
@@ -26,19 +25,13 @@ pub trait ViewOnlyTxoModel {
     ///
     /// Returns:
     /// * ViewOnlyTxo
-    fn get(
-        txo_id_hex: &str,
-        conn: &Conn,
-    ) -> Result<ViewOnlyTxo, WalletDbError>;
+    fn get(txo_id_hex: &str, conn: &Conn) -> Result<ViewOnlyTxo, WalletDbError>;
 
     /// mark a group of view-only-txo as spent
     ///
     /// Returns:
     /// * ()
-    fn set_spent(
-        txo_ids: Vec<String>,
-        conn: &Conn,
-    ) -> Result<(), WalletDbError>;
+    fn set_spent(txo_ids: Vec<String>, conn: &Conn) -> Result<(), WalletDbError>;
 
     /// list view only txos for a view only account
     ///
@@ -52,10 +45,7 @@ pub trait ViewOnlyTxoModel {
     ) -> Result<Vec<ViewOnlyTxo>, WalletDbError>;
 
     /// delete all view only txos for a view-only account
-    fn delete_all_for_account(
-        account_id_hex: &str,
-        conn: &Conn,
-    ) -> Result<(), WalletDbError>;
+    fn delete_all_for_account(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError>;
 }
 
 impl ViewOnlyTxoModel for ViewOnlyTxo {
@@ -87,10 +77,7 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         ViewOnlyTxo::get(&txo_id.to_string(), conn)
     }
 
-    fn get(
-        txo_id_hex: &str,
-        conn: &Conn,
-    ) -> Result<ViewOnlyTxo, WalletDbError> {
+    fn get(txo_id_hex: &str, conn: &Conn) -> Result<ViewOnlyTxo, WalletDbError> {
         use schema::view_only_txos;
 
         let txo = match view_only_txos::table
@@ -129,10 +116,7 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         Ok(txos)
     }
 
-    fn set_spent(
-        txo_ids: Vec<String>,
-        conn: &Conn,
-    ) -> Result<(), WalletDbError> {
+    fn set_spent(txo_ids: Vec<String>, conn: &Conn) -> Result<(), WalletDbError> {
         use schema::view_only_txos::dsl::{
             spent as dsl_spent, txo_id_hex as dsl_txo_id, view_only_txos,
         };
@@ -148,10 +132,7 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         Ok(())
     }
 
-    fn delete_all_for_account(
-        account_id_hex: &str,
-        conn: &Conn,
-    ) -> Result<(), WalletDbError> {
+    fn delete_all_for_account(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError> {
         use schema::view_only_txos::dsl::{
             view_only_account_id_hex as dsl_account_id, view_only_txos,
         };

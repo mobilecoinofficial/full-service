@@ -6,12 +6,11 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        Conn,
         models::{Account, AssignedSubaddress, Txo, ViewOnlyAccount, ViewOnlyTxo},
         txo::TxoModel,
         view_only_account::ViewOnlyAccountModel,
         view_only_txo::ViewOnlyTxoModel,
-        WalletDbError,
+        Conn, WalletDbError,
     },
     service::{
         ledger::{LedgerService, LedgerServiceError},

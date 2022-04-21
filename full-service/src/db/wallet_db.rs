@@ -76,9 +76,7 @@ impl WalletDb {
         Ok(Self::new(pool, logger))
     }
 
-    pub fn get_conn(
-        &self,
-    ) -> Result<Conn, WalletDbError> {
+    pub fn get_conn(&self) -> Result<Conn, WalletDbError> {
         Ok(self.pool.get()?)
     }
 

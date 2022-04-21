@@ -5,6 +5,7 @@
 use crate::{
     db::{
         models::TransactionLog,
+        transaction,
         transaction_log::{AssociatedTxos, TransactionLogModel},
         WalletDbError,
     },
@@ -186,61 +187,62 @@ where
         max_spendable_value: Option<String>,
         log_tx_proposal: Option<bool>,
     ) -> Result<TxProposal, TransactionServiceError> {
-        let mut builder = WalletTransactionBuilder::new(
-            account_id_hex.to_string(),
-            self.wallet_db.clone(),
-            self.ledger_db.clone(),
-            self.fog_resolver_factory.clone(),
-            self.logger.clone(),
-        );
+        let conn = self.wallet_db.get_conn()?;
+        transaction(&conn, || {
+            let mut builder = WalletTransactionBuilder::new(
+                account_id_hex.to_string(),
+                self.ledger_db.clone(),
+                self.fog_resolver_factory.clone(),
+                self.logger.clone(),
+            );
 
-        for (recipient_public_address, value) in addresses_and_values {
-            if !self.verify_address(recipient_public_address)? {
-                return Err(TransactionServiceError::InvalidPublicAddress(
-                    recipient_public_address.to_string(),
-                ));
-            };
-            let recipient = b58_decode_public_address(recipient_public_address)?;
-            builder.add_recipient(recipient, value.parse::<u64>()?)?;
-        }
+            for (recipient_public_address, value) in addresses_and_values {
+                if !self.verify_address(recipient_public_address)? {
+                    return Err(TransactionServiceError::InvalidPublicAddress(
+                        recipient_public_address.to_string(),
+                    ));
+                };
+                let recipient = b58_decode_public_address(recipient_public_address)?;
+                builder.add_recipient(recipient, value.parse::<u64>()?)?;
+            }
 
-        if let Some(tombstone) = tombstone_block {
-            builder.set_tombstone(tombstone.parse::<u64>()?)?;
-        } else {
-            builder.set_tombstone(0)?;
-        }
-
-        if let Some(inputs) = input_txo_ids {
-            builder.set_txos(inputs, log_tx_proposal.unwrap_or_default())?;
-        } else {
-            let max_spendable = if let Some(msv) = max_spendable_value {
-                Some(msv.parse::<u64>()?)
+            if let Some(tombstone) = tombstone_block {
+                builder.set_tombstone(tombstone.parse::<u64>()?)?;
             } else {
-                None
-            };
-            builder.select_txos(max_spendable, log_tx_proposal.unwrap_or_default())?;
-        }
+                builder.set_tombstone(0)?;
+            }
 
-        builder.set_fee(match fee {
-            Some(f) => f.parse()?,
-            None => self.get_network_fee(),
-        })?;
+            builder.set_fee(match fee {
+                Some(f) => f.parse()?,
+                None => self.get_network_fee(),
+            })?;
 
-        let tx_proposal = builder.build()?;
+            if let Some(inputs) = input_txo_ids {
+                builder.set_txos(&conn, inputs, log_tx_proposal.unwrap_or_default())?;
+            } else {
+                let max_spendable = if let Some(msv) = max_spendable_value {
+                    Some(msv.parse::<u64>()?)
+                } else {
+                    None
+                };
+                builder.select_txos(&conn, max_spendable, log_tx_proposal.unwrap_or_default())?;
+            }
 
-        if log_tx_proposal.unwrap_or_default() {
-            let conn = self.wallet_db.get_conn()?;
-            let block_index = self.ledger_db.num_blocks()? - 1;
-            let _transaction_log = TransactionLog::log_submitted(
-                tx_proposal.clone(),
-                block_index,
-                "".to_string(),
-                account_id_hex,
-                &conn,
-            )?;
-        }
+            let tx_proposal = builder.build(&conn)?;
 
-        Ok(tx_proposal)
+            if log_tx_proposal.unwrap_or_default() {
+                let block_index = self.ledger_db.num_blocks()? - 1;
+                let _transaction_log = TransactionLog::log_submitted(
+                    tx_proposal.clone(),
+                    block_index,
+                    "".to_string(),
+                    account_id_hex,
+                    &conn,
+                )?;
+            }
+
+            Ok(tx_proposal)
+        })
     }
 
     fn submit_transaction(

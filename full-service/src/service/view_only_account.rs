@@ -5,8 +5,8 @@
 use crate::{
     db::{
         models::ViewOnlyAccount,
-        view_only_account::{ViewOnlyAccountID, ViewOnlyAccountModel},
         transaction,
+        view_only_account::{ViewOnlyAccountID, ViewOnlyAccountModel},
     },
     service::{account::AccountServiceError, WalletService},
     util::constants::DEFAULT_FIRST_BLOCK_INDEX,

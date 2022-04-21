@@ -6,7 +6,7 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         models::Account,
-        WalletDbError,
+        transaction, WalletDbError,
     },
     service::{
         ledger::{LedgerService, LedgerServiceError},
@@ -195,19 +195,21 @@ where
         let import_block_index = local_block_height; // -1 +1
 
         let conn = self.wallet_db.get_conn()?;
-        let (account_id, _public_address_b58) = Account::create_from_mnemonic(
-            &mnemonic,
-            Some(first_block_index),
-            Some(import_block_index),
-            None,
-            &name.unwrap_or_else(|| "".to_string()),
-            fog_report_url,
-            fog_report_id,
-            fog_authority_spki,
-            &conn,
-        )?;
-        let account = Account::get(&account_id, &conn)?;
-        Ok(account)
+        transaction(&conn, || {
+            let (account_id, _public_address_b58) = Account::create_from_mnemonic(
+                &mnemonic,
+                Some(first_block_index),
+                Some(import_block_index),
+                None,
+                &name.unwrap_or_else(|| "".to_string()),
+                fog_report_url,
+                fog_report_id,
+                fog_authority_spki,
+                &conn,
+            )?;
+            let account = Account::get(&account_id, &conn)?;
+            Ok(account)
+        })
     }
 
     fn import_account(
@@ -249,17 +251,19 @@ where
         let import_block = self.ledger_db.num_blocks()? - 1;
 
         let conn = self.wallet_db.get_conn()?;
-        Ok(Account::import(
-            &mnemonic,
-            name,
-            import_block,
-            first_block_index,
-            next_subaddress_index,
-            fog_report_url,
-            fog_report_id,
-            fog_authority_spki,
-            &conn,
-        )?)
+        transaction(&conn, || {
+            Ok(Account::import(
+                &mnemonic,
+                name,
+                import_block,
+                first_block_index,
+                next_subaddress_index,
+                fog_report_url,
+                fog_report_id,
+                fog_authority_spki,
+                &conn,
+            )?)
+        })
     }
 
     fn import_account_from_legacy_root_entropy(
@@ -287,17 +291,19 @@ where
         let import_block = self.ledger_db.num_blocks()? - 1;
 
         let conn = self.wallet_db.get_conn()?;
-        Ok(Account::import_legacy(
-            &RootEntropy::from(&entropy_bytes),
-            name,
-            import_block,
-            first_block_index,
-            next_subaddress_index,
-            fog_report_url,
-            fog_report_id,
-            fog_authority_spki,
-            &conn,
-        )?)
+        transaction(&conn, || {
+            Ok(Account::import_legacy(
+                &RootEntropy::from(&entropy_bytes),
+                name,
+                import_block,
+                first_block_index,
+                next_subaddress_index,
+                fog_report_url,
+                fog_report_id,
+                fog_authority_spki,
+                &conn,
+            )?)
+        })
     }
 
     fn list_accounts(&self) -> Result<Vec<Account>, AccountServiceError> {
@@ -323,9 +329,11 @@ where
     fn remove_account(&self, account_id: &AccountID) -> Result<bool, AccountServiceError> {
         log::info!(self.logger, "Deleting account {}", account_id,);
         let conn = self.wallet_db.get_conn()?;
-        let account = Account::get(account_id, &conn)?;
-        account.delete(&conn)?;
-        Ok(true)
+        transaction(&conn, || {
+            let account = Account::get(account_id, &conn)?;
+            account.delete(&conn)?;
+            Ok(true)
+        })
     }
 }
 

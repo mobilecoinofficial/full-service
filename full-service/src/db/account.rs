@@ -5,12 +5,10 @@
 use crate::{
     db::{
         assigned_subaddress::AssignedSubaddressModel,
-        Conn,
         models::{Account, AssignedSubaddress, NewAccount, TransactionLog, Txo},
-        transaction,
         transaction_log::TransactionLogModel,
         txo::TxoModel,
-        WalletDbError,
+        Conn, WalletDbError,
     },
     util::constants::{
         DEFAULT_CHANGE_SUBADDRESS_INDEX, DEFAULT_FIRST_BLOCK_INDEX, DEFAULT_NEXT_SUBADDRESS_INDEX,
@@ -127,33 +125,21 @@ pub trait AccountModel {
     ///
     /// Returns:
     /// * Vector of all Accounts in the DB
-    fn list_all(
-        conn: &Conn,
-    ) -> Result<Vec<Account>, WalletDbError>;
+    fn list_all(conn: &Conn) -> Result<Vec<Account>, WalletDbError>;
 
     /// Get a specific account.
     ///
     /// Returns:
     /// * Account
-    fn get(
-        account_id: &AccountID,
-        conn: &Conn,
-    ) -> Result<Account, WalletDbError>;
+    fn get(account_id: &AccountID, conn: &Conn) -> Result<Account, WalletDbError>;
 
     /// Get the accounts associated with the given Txo.
-    fn get_by_txo_id(
-        txo_id_hex: &str,
-        conn: &Conn,
-    ) -> Result<Vec<Account>, WalletDbError>;
+    fn get_by_txo_id(txo_id_hex: &str, conn: &Conn) -> Result<Vec<Account>, WalletDbError>;
 
     /// Update an account.
     /// The only updatable field is the name. Any other desired update requires
     /// adding a new account, and deleting the existing if desired.
-    fn update_name(
-        &self,
-        new_name: String,
-        conn: &Conn,
-    ) -> Result<(), WalletDbError>;
+    fn update_name(&self, new_name: String, conn: &Conn) -> Result<(), WalletDbError>;
 
     /// Update the next block index this account will need to sync.
     fn update_next_block_index(
@@ -163,10 +149,7 @@ pub trait AccountModel {
     ) -> Result<(), WalletDbError>;
 
     /// Delete an account.
-    fn delete(
-        self,
-        conn: &Conn,
-    ) -> Result<(), WalletDbError>;
+    fn delete(self, conn: &Conn) -> Result<(), WalletDbError>;
 }
 
 impl AccountModel for Account {
@@ -282,42 +265,34 @@ impl AccountModel for Account {
             fog_enabled,
         };
 
-        transaction(conn, || {
-            diesel::insert_into(accounts::table)
-                .values(&new_account)
-                .execute(conn)?;
+        diesel::insert_into(accounts::table)
+            .values(&new_account)
+            .execute(conn)?;
 
-            let main_subaddress_b58 = AssignedSubaddress::create(
+        let main_subaddress_b58 = AssignedSubaddress::create(
+            account_key,
+            None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
+                   * always for main? */
+            DEFAULT_SUBADDRESS_INDEX,
+            "Main",
+            conn,
+        )?;
+        if !fog_enabled {
+            AssignedSubaddress::create(
                 account_key,
                 None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
                        * always for main? */
-                DEFAULT_SUBADDRESS_INDEX,
-                "Main",
+                DEFAULT_CHANGE_SUBADDRESS_INDEX,
+                "Change",
                 conn,
             )?;
-            if !fog_enabled {
-                AssignedSubaddress::create(
-                    account_key,
-                    None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
-                           * always for main? */
-                    DEFAULT_CHANGE_SUBADDRESS_INDEX,
-                    "Change",
-                    conn,
-                )?;
 
-                for subaddress_index in 2..next_subaddress_index {
-                    AssignedSubaddress::create(
-                        account_key,
-                        None,
-                        subaddress_index as u64,
-                        "",
-                        conn,
-                    )?;
-                }
+            for subaddress_index in 2..next_subaddress_index {
+                AssignedSubaddress::create(account_key, None, subaddress_index as u64, "", conn)?;
             }
+        }
 
-            Ok((account_id, main_subaddress_b58))
-        })
+        Ok((account_id, main_subaddress_b58))
     }
 
     fn import(
@@ -370,9 +345,7 @@ impl AccountModel for Account {
         Account::get(&account_id, conn)
     }
 
-    fn list_all(
-        conn: &Conn,
-    ) -> Result<Vec<Account>, WalletDbError> {
+    fn list_all(conn: &Conn) -> Result<Vec<Account>, WalletDbError> {
         use crate::db::schema::accounts;
 
         Ok(accounts::table
@@ -380,10 +353,7 @@ impl AccountModel for Account {
             .load::<Account>(conn)?)
     }
 
-    fn get(
-        account_id: &AccountID,
-        conn: &Conn,
-    ) -> Result<Account, WalletDbError> {
+    fn get(account_id: &AccountID, conn: &Conn) -> Result<Account, WalletDbError> {
         use crate::db::schema::accounts::dsl::{account_id_hex as dsl_account_id_hex, accounts};
 
         match accounts
@@ -399,10 +369,7 @@ impl AccountModel for Account {
         }
     }
 
-    fn get_by_txo_id(
-        txo_id_hex: &str,
-        conn: &Conn,
-    ) -> Result<Vec<Account>, WalletDbError> {
+    fn get_by_txo_id(txo_id_hex: &str, conn: &Conn) -> Result<Vec<Account>, WalletDbError> {
         let txo = Txo::get(txo_id_hex, conn)?;
 
         let mut accounts: Vec<Account> = Vec::<Account>::new();
@@ -420,11 +387,7 @@ impl AccountModel for Account {
         Ok(accounts)
     }
 
-    fn update_name(
-        &self,
-        new_name: String,
-        conn: &Conn,
-    ) -> Result<(), WalletDbError> {
+    fn update_name(&self, new_name: String, conn: &Conn) -> Result<(), WalletDbError> {
         use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
 
         diesel::update(accounts.filter(account_id_hex.eq(&self.account_id_hex)))
@@ -445,30 +408,24 @@ impl AccountModel for Account {
         Ok(())
     }
 
-    fn delete(
-        self,
-        conn: &Conn,
-    ) -> Result<(), WalletDbError> {
+    fn delete(self, conn: &Conn) -> Result<(), WalletDbError> {
         use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
 
-        transaction(conn, || {
-            // Delete transaction logs associated with this account
-            TransactionLog::delete_all_for_account(&self.account_id_hex, conn)?;
+        // Delete transaction logs associated with this account
+        TransactionLog::delete_all_for_account(&self.account_id_hex, conn)?;
 
-            // Delete associated assigned subaddresses
-            AssignedSubaddress::delete_all(&self.account_id_hex, conn)?;
+        // Delete associated assigned subaddresses
+        AssignedSubaddress::delete_all(&self.account_id_hex, conn)?;
 
-            // Delete references to the account in the Txos table.
-            Txo::scrub_account(&self.account_id_hex, conn)?;
+        // Delete references to the account in the Txos table.
+        Txo::scrub_account(&self.account_id_hex, conn)?;
 
-            diesel::delete(accounts.filter(account_id_hex.eq(&self.account_id_hex)))
-                .execute(conn)?;
+        diesel::delete(accounts.filter(account_id_hex.eq(&self.account_id_hex))).execute(conn)?;
 
-            // Delete Txos with no references.
-            Txo::delete_unreferenced(conn)?;
+        // Delete Txos with no references.
+        Txo::delete_unreferenced(conn)?;
 
-            Ok(())
-        })
+        Ok(())
     }
 }
 

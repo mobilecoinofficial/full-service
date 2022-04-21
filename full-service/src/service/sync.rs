@@ -6,7 +6,6 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        Conn,
         models::{
             Account, AssignedSubaddress, TransactionLog, Txo, ViewOnlyAccount,
             ViewOnlyTransactionLog, ViewOnlyTxo,
@@ -16,7 +15,7 @@ use crate::{
         view_only_account::ViewOnlyAccountModel,
         view_only_transaction_log::ViewOnlyTransactionLogModel,
         view_only_txo::ViewOnlyTxoModel,
-        WalletDb,
+        Conn, WalletDb,
     },
     error::SyncError,
     util::b58::b58_encode_public_address,

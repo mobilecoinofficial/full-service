@@ -3,9 +3,8 @@
 //! DB impl for the view-only transaction log model.
 
 use crate::db::{
-    Conn,
     models::{NewViewOnlyTransactionLog, ViewOnlyTransactionLog},
-    schema, WalletDbError,
+    schema, Conn, WalletDbError,
 };
 use diesel::prelude::*;
 

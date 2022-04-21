@@ -4,10 +4,10 @@
 
 use crate::{
     db::{
-        Conn,
         models::{NewViewOnlyAccount, ViewOnlyAccount, ViewOnlyTxo},
+        schema,
         view_only_txo::ViewOnlyTxoModel,
-        schema, WalletDbError,
+        Conn, WalletDbError,
     },
     util::encoding_helpers::{ristretto_to_vec, vec_to_hex},
 };
@@ -49,26 +49,17 @@ pub trait ViewOnlyAccountModel {
     /// Get a specific account.
     /// Returns:
     /// * ViewOnlyAccount
-    fn get(
-        account_id: &str,
-        conn: &Conn,
-    ) -> Result<ViewOnlyAccount, WalletDbError>;
+    fn get(account_id: &str, conn: &Conn) -> Result<ViewOnlyAccount, WalletDbError>;
 
     /// List all view-only-accounts.
     /// Returns:
     /// * Vector of all View Only Accounts in the DB
-    fn list_all(
-        conn: &Conn,
-    ) -> Result<Vec<ViewOnlyAccount>, WalletDbError>;
+    fn list_all(conn: &Conn) -> Result<Vec<ViewOnlyAccount>, WalletDbError>;
 
     /// Update an view-only-account name.
     /// The only updatable field is the name. Any other desired update requires
     /// adding a new account, and deleting the existing if desired.
-    fn update_name(
-        &self,
-        new_name: &str,
-        conn: &Conn,
-    ) -> Result<(), WalletDbError>;
+    fn update_name(&self, new_name: &str, conn: &Conn) -> Result<(), WalletDbError>;
 
     /// Update the next block index this account will need to sync.
     fn update_next_block_index(
@@ -78,10 +69,7 @@ pub trait ViewOnlyAccountModel {
     ) -> Result<(), WalletDbError>;
 
     /// Delete a view-only-account.
-    fn delete(
-        self,
-        conn: &Conn,
-    ) -> Result<(), WalletDbError>;
+    fn delete(self, conn: &Conn) -> Result<(), WalletDbError>;
 }
 
 impl ViewOnlyAccountModel for ViewOnlyAccount {
@@ -115,10 +103,7 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
         ViewOnlyAccount::get(account_id_hex, conn)
     }
 
-    fn get(
-        account_id: &str,
-        conn: &Conn,
-    ) -> Result<ViewOnlyAccount, WalletDbError> {
+    fn get(account_id: &str, conn: &Conn) -> Result<ViewOnlyAccount, WalletDbError> {
         use schema::view_only_accounts::dsl::{
             account_id_hex as dsl_account_id, view_only_accounts,
         };
@@ -136,9 +121,7 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
         }
     }
 
-    fn list_all(
-        conn: &Conn,
-    ) -> Result<Vec<ViewOnlyAccount>, WalletDbError> {
+    fn list_all(conn: &Conn) -> Result<Vec<ViewOnlyAccount>, WalletDbError> {
         use schema::view_only_accounts;
 
         Ok(view_only_accounts::table
@@ -146,11 +129,7 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
             .load::<ViewOnlyAccount>(conn)?)
     }
 
-    fn update_name(
-        &self,
-        new_name: &str,
-        conn: &Conn,
-    ) -> Result<(), WalletDbError> {
+    fn update_name(&self, new_name: &str, conn: &Conn) -> Result<(), WalletDbError> {
         use schema::view_only_accounts::dsl::{
             account_id_hex as dsl_account_id, name as dsl_name, view_only_accounts,
         };
@@ -176,16 +155,13 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
         Ok(())
     }
 
-    fn delete(
-        self,
-        conn: &Conn,
-    ) -> Result<(), WalletDbError> {
+    fn delete(self, conn: &Conn) -> Result<(), WalletDbError> {
         use schema::view_only_accounts::dsl::{
             account_id_hex as dsl_account_id, view_only_accounts,
         };
 
         // delete associated view-only-txos
-        ViewOnlyTxo::delete_all_for_account(&self.account_id_hex, &conn)?;
+        ViewOnlyTxo::delete_all_for_account(&self.account_id_hex, conn)?;
         diesel::delete(view_only_accounts.filter(dsl_account_id.eq(&self.account_id_hex)))
             .execute(conn)?;
         Ok(())
