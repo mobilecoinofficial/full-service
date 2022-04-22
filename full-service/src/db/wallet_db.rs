@@ -1,10 +1,9 @@
 use crate::db::WalletDbError;
 use diesel::{
     connection::SimpleConnection,
-    SqliteConnection,
     prelude::*,
     r2d2::{ConnectionManager, Pool, PooledConnection},
-    sql_types,
+    sql_types, SqliteConnection,
 };
 use diesel_migrations::embed_migrations;
 use mc_common::logger::{global_log, Logger};
