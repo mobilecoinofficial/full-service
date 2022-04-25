@@ -163,6 +163,7 @@ impl WalletDb {
 }
 
 /// Create an immediate SQLite transaction with retry.
+/// Note: This function does not support nested transactions.
 pub fn transaction<T, E, F>(conn: &Conn, f: F) -> Result<T, E>
 where
     F: Clone + FnOnce() -> Result<T, E>,
