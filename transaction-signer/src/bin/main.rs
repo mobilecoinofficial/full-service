@@ -12,13 +12,16 @@ use mc_transaction_core::{
     AmountError,
 };
 
-use bip39::{Language, Mnemonic, MnemonicType};
+use mc_transaction_signer::UnsignedTx;
+
+use bip39::{Language, Mnemonic};
+use mc_util_serial;
 use serde::Deserialize;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    if args.len() != 6 {
+    if args.len() != 6 || args.len() != 7 {
         println!("Usage: {} <sign|check-txos>", args[0]);
         return;
     }
@@ -27,9 +30,10 @@ fn main() {
 
     if operation == "sign" {
         let unsigned_tx_file = &args[2];
-        let signed_tx_file = &args[3];
-        let account_key_config_file = &args[4];
-        let num_subaddresses_to_check = &args[5].parse::<u64>().unwrap();
+        let tombstone_block_height = &args[3];
+        let signed_tx_file = &args[4];
+        let account_key_config_file = &args[5];
+        let num_subaddresses_to_check = &args[6].parse::<u64>().unwrap();
 
         return;
     }
@@ -73,11 +77,19 @@ fn check_txos(
     subaddress_spend_public_keys: &HashMap<RistrettoPublic, u64>,
 ) {
     let input_txos_json = fs::read_to_string(input_txos_file).unwrap();
-    let input_txos: Vec<TxOut> = serde_json::from_str(&input_txos_json).unwrap();
-    let key_images =
+    let input_txos_serialized: Vec<Vec<u8>> = serde_json::from_str(&input_txos_json).unwrap();
+    let input_txos: Vec<TxOut> = input_txos_serialized
+        .iter()
+        .map(|tx_out_serialized| {
+            let tx_out: TxOut = mc_util_serial::decode(tx_out_serialized).unwrap();
+            tx_out
+        })
+        .collect();
+    let serialized_txos_and_key_images =
         get_key_images_for_txos(&input_txos, &account_key, subaddress_spend_public_keys);
-    let key_images_json = serde_json::to_string(&key_images).unwrap();
-    fs::write(output_key_images_file, key_images_json).unwrap();
+    let serialized_txos_and_key_images =
+        serde_json::to_string(&serialized_txos_and_key_images).unwrap();
+    fs::write(output_key_images_file, serialized_txos_and_key_images).unwrap();
 }
 
 fn generate_subaddress_spend_public_keys(
@@ -99,15 +111,15 @@ fn get_key_images_for_txos(
     tx_outs: &[TxOut],
     account_key: &AccountKey,
     subaddress_spend_public_keys: &HashMap<RistrettoPublic, u64>,
-) -> Vec<KeyImage> {
-    let mut key_images: Vec<KeyImage> = Vec::new();
+) -> Vec<(Vec<u8>, KeyImage)> {
+    let mut serialized_txos_and_key_images: Vec<Vec<u8>, KeyImage> = Vec::new();
 
     for tx_out in tx_outs.into_iter() {
         if tx_out_belongs_to_account(tx_out, account_key.view_private_key()) {
             if let Some(key_image) =
                 get_key_image_for_tx_out(tx_out, account_key, subaddress_spend_public_keys)
             {
-                key_images.push(key_image);
+                serialized_txos_and_key_images.push((mc_util_serial::encode(&tx_out), key_image));
             }
         }
     }

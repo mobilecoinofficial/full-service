@@ -1,18 +1,19 @@
+use mc_crypto_keys::RistrettoPublic;
+use mc_transaction_core::{
+    ring_signature::KeyImage,
+    tx::{TxIn, TxOut},
+};
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Deserialize, Eq, Hash, PartialEq, Serialize, Message, Digestible)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct UnsignedTx {
-    /// List of possible inputs for the transaction, where each owned input will
-    /// be included in the constructed transaction and each unowned input
-    /// will be used as a ring input during ring construction
-    #[prost(message, repeated, tag = "1")]
-    pub inputs: Vec<TxOut>,
+    /// List of input rings for the transaction, where each ring contains a
+    /// single real input that is associated with the corresponding KeyImage
+    pub inputs_and_key_images: Vec<(TxIn, KeyImage)>,
 
-    /// List of outputs for the transaction
-    #[prost(message, repeated, tag = "2")]
-    pub outputs: Vec<TxOut>,
+    /// List of outputs and shared secrets for the transaction
+    pub outputs_and_shared_secrets: Vec<(TxOut, RistrettoPublic)>,
 
     /// Fee paid to the foundation for this transaction
-    #[prost(uint64, tag = "3")]
     pub fee: u64,
 }
