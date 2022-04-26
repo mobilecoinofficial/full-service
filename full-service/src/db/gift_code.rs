@@ -5,15 +5,11 @@
 use crate::{
     db::{
         models::{GiftCode, NewGiftCode},
-        WalletDbError,
+        Conn, WalletDbError,
     },
     service::gift_code::EncodedGiftCode,
 };
-use diesel::{
-    prelude::*,
-    r2d2::{ConnectionManager, PooledConnection},
-    RunQueryDsl,
-};
+use diesel::prelude::*;
 use displaydoc::Display;
 
 #[derive(Display, Debug)]
@@ -41,32 +37,24 @@ pub trait GiftCodeModel {
     fn create(
         gift_code_b58: &EncodedGiftCode,
         value: i64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<GiftCode, WalletDbError>;
 
     /// Get the details of a specific Gift Code.
-    fn get(
-        gift_code_b58: &EncodedGiftCode,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<GiftCode, WalletDbError>;
+    fn get(gift_code_b58: &EncodedGiftCode, conn: &Conn) -> Result<GiftCode, WalletDbError>;
 
     /// Get all Gift Codes in this wallet.
-    fn list_all(
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Vec<GiftCode>, WalletDbError>;
+    fn list_all(conn: &Conn) -> Result<Vec<GiftCode>, WalletDbError>;
 
     /// Delete a gift code.
-    fn delete(
-        self,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<(), WalletDbError>;
+    fn delete(self, conn: &Conn) -> Result<(), WalletDbError>;
 }
 
 impl GiftCodeModel for GiftCode {
     fn create(
         gift_code_b58: &EncodedGiftCode,
         value: i64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<GiftCode, WalletDbError> {
         use crate::db::schema::gift_codes;
 
@@ -83,10 +71,7 @@ impl GiftCodeModel for GiftCode {
         Ok(gift_code)
     }
 
-    fn get(
-        gift_code_b58: &EncodedGiftCode,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<GiftCode, WalletDbError> {
+    fn get(gift_code_b58: &EncodedGiftCode, conn: &Conn) -> Result<GiftCode, WalletDbError> {
         use crate::db::schema::gift_codes::dsl::{gift_code_b58 as dsl_gift_code_b58, gift_codes};
 
         match gift_codes
@@ -102,9 +87,7 @@ impl GiftCodeModel for GiftCode {
         }
     }
 
-    fn list_all(
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Vec<GiftCode>, WalletDbError> {
+    fn list_all(conn: &Conn) -> Result<Vec<GiftCode>, WalletDbError> {
         use crate::db::schema::gift_codes;
 
         Ok(gift_codes::table
@@ -112,10 +95,7 @@ impl GiftCodeModel for GiftCode {
             .load::<GiftCode>(conn)?)
     }
 
-    fn delete(
-        self,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<(), WalletDbError> {
+    fn delete(self, conn: &Conn) -> Result<(), WalletDbError> {
         use crate::db::schema::gift_codes::dsl::{gift_code_b58, gift_codes};
 
         diesel::delete(gift_codes.filter(gift_code_b58.eq(&self.gift_code_b58))).execute(conn)?;

@@ -4,14 +4,13 @@
 
 use crate::{
     db::{
-        models::{ViewOnlyAccount, ViewOnlyTxo},
+        models::ViewOnlyAccount,
+        transaction,
         view_only_account::{ViewOnlyAccountID, ViewOnlyAccountModel},
-        view_only_txo::ViewOnlyTxoModel,
     },
     service::{account::AccountServiceError, WalletService},
     util::constants::DEFAULT_FIRST_BLOCK_INDEX,
 };
-use diesel::Connection;
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_crypto_keys::RistrettoPrivate;
@@ -77,16 +76,14 @@ where
         let first_block_index = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX);
 
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| {
-            Ok(ViewOnlyAccount::create(
-                &account_id_hex,
-                &view_private_key,
-                first_block_index,
-                import_block_index,
-                name,
-                &conn,
-            )?)
-        })
+        Ok(ViewOnlyAccount::create(
+            &account_id_hex,
+            &view_private_key,
+            first_block_index,
+            import_block_index,
+            name,
+            &conn,
+        )?)
     }
 
     fn get_view_only_account(
@@ -96,12 +93,12 @@ where
         log::info!(self.logger, "fetching view-only-account {:?}", account_id);
 
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| Ok(ViewOnlyAccount::get(account_id, &conn)?))
+        Ok(ViewOnlyAccount::get(account_id, &conn)?)
     }
 
     fn list_view_only_accounts(&self) -> Result<Vec<ViewOnlyAccount>, AccountServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| Ok(ViewOnlyAccount::list_all(&conn)?))
+        Ok(ViewOnlyAccount::list_all(&conn)?)
     }
 
     fn update_view_only_account_name(
@@ -110,23 +107,17 @@ where
         name: &str,
     ) -> Result<ViewOnlyAccount, AccountServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| {
-            ViewOnlyAccount::get(account_id, &conn)?.update_name(name, &conn)?;
-            Ok(ViewOnlyAccount::get(account_id, &conn)?)
-        })
+        ViewOnlyAccount::get(account_id, &conn)?.update_name(name, &conn)?;
+        Ok(ViewOnlyAccount::get(account_id, &conn)?)
     }
 
     fn remove_view_only_account(&self, account_id: &str) -> Result<bool, AccountServiceError> {
         log::info!(self.logger, "Deleting view only account {}", account_id,);
 
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| {
-            // delete associated view-only-txos
-            ViewOnlyTxo::delete_all_for_account(account_id, &conn)?;
-
-            let account = ViewOnlyAccount::get(account_id, &conn)?;
+        let account = ViewOnlyAccount::get(account_id, &conn)?;
+        transaction(&conn, || {
             account.delete(&conn)?;
-
             Ok(true)
         })
     }

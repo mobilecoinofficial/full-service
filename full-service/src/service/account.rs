@@ -6,7 +6,7 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         models::Account,
-        WalletDbError,
+        transaction, WalletDbError,
     },
     service::{
         ledger::{LedgerService, LedgerServiceError},
@@ -16,7 +16,6 @@ use crate::{
 };
 use base64;
 use bip39::{Language, Mnemonic, MnemonicType};
-use diesel::Connection;
 use displaydoc::Display;
 use mc_account_keys::RootEntropy;
 use mc_account_keys_slip10;
@@ -196,7 +195,7 @@ where
         let import_block_index = local_block_height; // -1 +1
 
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| {
+        transaction(&conn, || {
             let (account_id, _public_address_b58) = Account::create_from_mnemonic(
                 &mnemonic,
                 Some(first_block_index),
@@ -208,7 +207,6 @@ where
                 fog_authority_spki,
                 &conn,
             )?;
-
             let account = Account::get(&account_id, &conn)?;
             Ok(account)
         })
@@ -253,7 +251,7 @@ where
         let import_block = self.ledger_db.num_blocks()? - 1;
 
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| {
+        transaction(&conn, || {
             Ok(Account::import(
                 &mnemonic,
                 name,
@@ -293,7 +291,7 @@ where
         let import_block = self.ledger_db.num_blocks()? - 1;
 
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| {
+        transaction(&conn, || {
             Ok(Account::import_legacy(
                 &RootEntropy::from(&entropy_bytes),
                 name,
@@ -310,12 +308,12 @@ where
 
     fn list_accounts(&self) -> Result<Vec<Account>, AccountServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| Ok(Account::list_all(&conn)?))
+        Ok(Account::list_all(&conn)?)
     }
 
     fn get_account(&self, account_id: &AccountID) -> Result<Account, AccountServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| Ok(Account::get(account_id, &conn)?))
+        Ok(Account::get(account_id, &conn)?)
     }
 
     fn update_account_name(
@@ -324,20 +322,16 @@ where
         name: String,
     ) -> Result<Account, AccountServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| {
-            Account::get(account_id, &conn)?.update_name(name, &conn)?;
-            Ok(Account::get(account_id, &conn)?)
-        })
+        Account::get(account_id, &conn)?.update_name(name, &conn)?;
+        Ok(Account::get(account_id, &conn)?)
     }
 
     fn remove_account(&self, account_id: &AccountID) -> Result<bool, AccountServiceError> {
         log::info!(self.logger, "Deleting account {}", account_id,);
-
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| {
+        transaction(&conn, || {
             let account = Account::get(account_id, &conn)?;
             account.delete(&conn)?;
-
             Ok(true)
         })
     }

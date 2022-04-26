@@ -20,11 +20,8 @@ use mc_account_keys::AccountKey;
 use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
 use mc_ledger_db::{Ledger, LedgerDB};
 
-use crate::db::WalletDbError;
-use diesel::{
-    prelude::*,
-    r2d2::{ConnectionManager, PooledConnection},
-};
+use crate::db::{Conn, WalletDbError};
+use diesel::prelude::*;
 
 pub trait AssignedSubaddressModel {
     /// Assign a subaddress to a contact.
@@ -45,7 +42,7 @@ pub trait AssignedSubaddressModel {
         address_book_entry: Option<i64>,
         subaddress_index: u64,
         comment: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<String, WalletDbError>;
 
     /// Create the next subaddress for a given account.
@@ -56,21 +53,18 @@ pub trait AssignedSubaddressModel {
         account_id_hex: &str,
         comment: &str,
         ledger_db: &LedgerDB,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(String, i64), WalletDbError>;
 
     /// Get the AssignedSubaddress for a given assigned_subaddress_b58
-    fn get(
-        public_address_b58: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<AssignedSubaddress, WalletDbError>;
+    fn get(public_address_b58: &str, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError>;
 
     /// Get the Assigned Subaddress for a given index in an account, if it
     /// exists
     fn get_for_account_by_index(
         account_id_hex: &str,
         index: i64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<AssignedSubaddress, WalletDbError>;
 
     /// Find an AssignedSubaddress by the subaddress spend public key
@@ -79,7 +73,7 @@ pub trait AssignedSubaddressModel {
     /// * (subaddress_index, assigned_subaddress_b58)
     fn find_by_subaddress_spend_public_key(
         subaddress_spend_public_key: &RistrettoPublic,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(i64, String), WalletDbError>;
 
     /// List all AssignedSubaddresses for a given account.
@@ -87,14 +81,11 @@ pub trait AssignedSubaddressModel {
         account_id_hex: &str,
         offset: Option<i64>,
         limit: Option<i64>,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Vec<AssignedSubaddress>, WalletDbError>;
 
     /// Delete all AssignedSubaddresses for a given account.
-    fn delete_all(
-        account_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<(), WalletDbError>;
+    fn delete_all(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError>;
 }
 
 impl AssignedSubaddressModel for AssignedSubaddress {
@@ -103,7 +94,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         address_book_entry: Option<i64>,
         subaddress_index: u64,
         comment: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<String, WalletDbError> {
         use crate::db::schema::assigned_subaddresses;
 
@@ -132,7 +123,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         account_id_hex: &str,
         comment: &str,
         ledger_db: &LedgerDB,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(String, i64), WalletDbError> {
         use crate::db::schema::{
             accounts::dsl::{account_id_hex as dsl_account_id_hex, accounts},
@@ -236,10 +227,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         Ok((subaddress_b58, subaddress_index))
     }
 
-    fn get(
-        public_address_b58: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<AssignedSubaddress, WalletDbError> {
+    fn get(public_address_b58: &str, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError> {
         use crate::db::schema::assigned_subaddresses::dsl::{
             assigned_subaddress_b58, assigned_subaddresses,
         };
@@ -265,7 +253,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
     fn get_for_account_by_index(
         account_id_hex: &str,
         index: i64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<AssignedSubaddress, WalletDbError> {
         let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
@@ -278,7 +266,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
 
     fn find_by_subaddress_spend_public_key(
         subaddress_spend_public_key: &RistrettoPublic,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(i64, String), WalletDbError> {
         use crate::db::schema::assigned_subaddresses::{
             account_id_hex, dsl::assigned_subaddresses, subaddress_index, subaddress_spend_key,
@@ -308,7 +296,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         account_id_hex: &str,
         offset: Option<i64>,
         limit: Option<i64>,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Vec<AssignedSubaddress>, WalletDbError> {
         use crate::db::schema::assigned_subaddresses::{
             account_id_hex as schema_account_id_hex, all_columns, dsl::assigned_subaddresses,
@@ -327,10 +315,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         Ok(addresses)
     }
 
-    fn delete_all(
-        account_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<(), WalletDbError> {
+    fn delete_all(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError> {
         use crate::db::schema::assigned_subaddresses::dsl::{
             account_id_hex as schema_account_id_hex, assigned_subaddresses,
         };

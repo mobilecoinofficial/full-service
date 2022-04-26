@@ -13,7 +13,7 @@ use crate::{
         account::{AccountID, AccountModel},
         models::{Account, Txo},
         txo::TxoModel,
-        WalletDb,
+        Conn,
     },
     error::WalletTransactionBuilderError,
 };
@@ -40,7 +40,6 @@ use mc_transaction_core::{
 use mc_transaction_std::{InputCredentials, NoMemoBuilder, TransactionBuilder};
 use mc_util_uri::FogUri;
 
-use diesel::prelude::*;
 use rand::Rng;
 use std::{convert::TryFrom, str::FromStr, sync::Arc};
 
@@ -53,9 +52,6 @@ pub const DEFAULT_NEW_TX_BLOCK_ATTEMPTS: u64 = 10;
 pub struct WalletTransactionBuilder<FPR: FogPubkeyResolver + 'static> {
     /// Account ID (hex-encoded) from which to construct a transaction.
     account_id_hex: String,
-
-    /// The wallet DB.
-    wallet_db: WalletDb,
 
     /// The ledger DB.
     ledger_db: LedgerDB,
@@ -85,14 +81,12 @@ pub struct WalletTransactionBuilder<FPR: FogPubkeyResolver + 'static> {
 impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
     pub fn new(
         account_id_hex: String,
-        wallet_db: WalletDb,
         ledger_db: LedgerDB,
         fog_resolver_factory: Arc<dyn Fn(&[FogUri]) -> Result<FPR, String> + Send + Sync + 'static>,
         logger: Logger,
     ) -> Self {
         WalletTransactionBuilder {
             account_id_hex,
-            wallet_db,
             ledger_db,
             inputs: vec![],
             outlays: vec![],
@@ -107,6 +101,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
     /// txos are included.
     pub fn set_txos(
         &mut self,
+        conn: &Conn,
         input_txo_ids: &[String],
         update_to_pending: bool,
     ) -> Result<(), WalletTransactionBuilderError> {
@@ -116,11 +111,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             None
         };
 
-        let txos = Txo::select_by_id(
-            &input_txo_ids.to_vec(),
-            pending_tombstone_block_index,
-            &self.wallet_db.get_conn()?,
-        )?;
+        let txos = Txo::select_by_id(&input_txo_ids.to_vec(), pending_tombstone_block_index, conn)?;
 
         let unspent: Vec<Txo> = txos
             .iter()
@@ -142,6 +133,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
     /// Selects Txos from the account.
     pub fn select_txos(
         &mut self,
+        conn: &Conn,
         max_spendable_value: Option<u64>,
         update_to_pending: bool,
     ) -> Result<(), WalletTransactionBuilderError> {
@@ -171,7 +163,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             total_value,
             max_spendable_value,
             pending_tombstone_block_index,
-            &self.wallet_db.get_conn()?,
+            conn,
         )?;
 
         Ok(())
@@ -214,7 +206,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
     }
 
     /// Consumes self
-    pub fn build(&self) -> Result<TxProposal, WalletTransactionBuilderError> {
+    pub fn build(&self, conn: &Conn) -> Result<TxProposal, WalletTransactionBuilderError> {
         if self.inputs.is_empty() {
             return Err(WalletTransactionBuilderError::NoInputs);
         }
@@ -223,265 +215,261 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             return Err(WalletTransactionBuilderError::TombstoneNotSet);
         }
 
-        let conn = self.wallet_db.get_conn()?;
+        let account: Account = Account::get(&AccountID(self.account_id_hex.to_string()), conn)?;
+        let from_account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
 
-        conn.transaction::<TxProposal, WalletTransactionBuilderError, _>(|| {
-            let account: Account =
-                Account::get(&AccountID(self.account_id_hex.to_string()), &conn)?;
-            let from_account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
-
-            // Collect all required FogUris from public addresses, then pass to resolver
-            // factory
-            let fog_resolver = {
-                let change_address =
-                    from_account_key.subaddress(account.change_subaddress_index as u64);
-                let fog_uris = core::slice::from_ref(&change_address)
-                    .iter()
-                    .chain(self.outlays.iter().map(|(receiver, _amount)| receiver))
-                    .filter_map(|x| extract_fog_uri(x).transpose())
-                    .collect::<Result<Vec<_>, _>>()?;
-                (self.fog_resolver_factory)(&fog_uris)
-                    .map_err(WalletTransactionBuilderError::FogPubkeyResolver)?
-            };
-
-            // Create transaction builder.
-            // TODO: After servers that support memos are deployed, use RTHMemoBuilder here
-            let memo_builder = NoMemoBuilder::default();
-            let mut transaction_builder = TransactionBuilder::new(fog_resolver, memo_builder);
-            transaction_builder.set_fee(self.fee.unwrap_or(Mob::MINIMUM_FEE))?;
-
-            // Get membership proofs for our inputs
-            let indexes = self
-                .inputs
+        // Collect all required FogUris from public addresses, then pass to resolver
+        // factory
+        let fog_resolver = {
+            let change_address =
+                from_account_key.subaddress(account.change_subaddress_index as u64);
+            let fog_uris = core::slice::from_ref(&change_address)
                 .iter()
-                .map(|utxo| {
-                    let txo: TxOut = mc_util_serial::decode(&utxo.txo)?;
-                    self.ledger_db.get_tx_out_index_by_hash(&txo.hash())
-                })
-                .collect::<Result<Vec<u64>, mc_ledger_db::Error>>()?;
-            let proofs = self.ledger_db.get_tx_out_proof_of_memberships(&indexes)?;
+                .chain(self.outlays.iter().map(|(receiver, _amount)| receiver))
+                .filter_map(|x| extract_fog_uri(x).transpose())
+                .collect::<Result<Vec<_>, _>>()?;
+            (self.fog_resolver_factory)(&fog_uris)
+                .map_err(WalletTransactionBuilderError::FogPubkeyResolver)?
+        };
 
-            let inputs_and_proofs: Vec<(Txo, TxOutMembershipProof)> = self
-                .inputs
-                .clone()
-                .into_iter()
-                .zip(proofs.into_iter())
-                .collect();
+        // Create transaction builder.
+        // TODO: After servers that support memos are deployed, use RTHMemoBuilder here
+        let memo_builder = NoMemoBuilder::default();
+        let mut transaction_builder = TransactionBuilder::new(fog_resolver, memo_builder);
+        transaction_builder.set_fee(self.fee.unwrap_or(Mob::MINIMUM_FEE))?;
 
-            let excluded_tx_out_indices: Vec<u64> = inputs_and_proofs
-                .iter()
-                .map(|(utxo, _membership_proof)| {
-                    let txo: TxOut = mc_util_serial::decode(&utxo.txo)?;
-                    self.ledger_db
-                        .get_tx_out_index_by_hash(&txo.hash())
-                        .map_err(WalletTransactionBuilderError::LedgerDB)
-                })
-                .collect::<Result<Vec<u64>, WalletTransactionBuilderError>>()?;
+        // Get membership proofs for our inputs
+        let indexes = self
+            .inputs
+            .iter()
+            .map(|utxo| {
+                let txo: TxOut = mc_util_serial::decode(&utxo.txo)?;
+                self.ledger_db.get_tx_out_index_by_hash(&txo.hash())
+            })
+            .collect::<Result<Vec<u64>, mc_ledger_db::Error>>()?;
+        let proofs = self.ledger_db.get_tx_out_proof_of_memberships(&indexes)?;
 
-            let rings = self.get_rings(inputs_and_proofs.len(), &excluded_tx_out_indices)?;
+        let inputs_and_proofs: Vec<(Txo, TxOutMembershipProof)> = self
+            .inputs
+            .clone()
+            .into_iter()
+            .zip(proofs.into_iter())
+            .collect();
 
-            if rings.len() != inputs_and_proofs.len() {
+        let excluded_tx_out_indices: Vec<u64> = inputs_and_proofs
+            .iter()
+            .map(|(utxo, _membership_proof)| {
+                let txo: TxOut = mc_util_serial::decode(&utxo.txo)?;
+                self.ledger_db
+                    .get_tx_out_index_by_hash(&txo.hash())
+                    .map_err(WalletTransactionBuilderError::LedgerDB)
+            })
+            .collect::<Result<Vec<u64>, WalletTransactionBuilderError>>()?;
+
+        let rings = self.get_rings(inputs_and_proofs.len(), &excluded_tx_out_indices)?;
+
+        if rings.len() != inputs_and_proofs.len() {
+            return Err(WalletTransactionBuilderError::RingSizeMismatch);
+        }
+
+        if self.outlays.is_empty() {
+            return Err(WalletTransactionBuilderError::NoRecipient);
+        }
+
+        // Unzip each vec of tuples into a tuple of vecs.
+        let mut rings_and_proofs: Vec<(Vec<TxOut>, Vec<TxOutMembershipProof>)> = rings
+            .into_iter()
+            .map(|tuples| tuples.into_iter().unzip())
+            .collect();
+
+        // Add inputs to the tx.
+        for (utxo, proof) in inputs_and_proofs.iter() {
+            let db_tx_out: TxOut = mc_util_serial::decode(&utxo.txo)?;
+            let (mut ring, mut membership_proofs) = rings_and_proofs
+                .pop()
+                .ok_or(WalletTransactionBuilderError::RingsAndProofsEmpty)?;
+            if ring.len() != membership_proofs.len() {
                 return Err(WalletTransactionBuilderError::RingSizeMismatch);
             }
 
-            if self.outlays.is_empty() {
-                return Err(WalletTransactionBuilderError::NoRecipient);
-            }
-
-            // Unzip each vec of tuples into a tuple of vecs.
-            let mut rings_and_proofs: Vec<(Vec<TxOut>, Vec<TxOutMembershipProof>)> = rings
-                .into_iter()
-                .map(|tuples| tuples.into_iter().unzip())
-                .collect();
-
-            // Add inputs to the tx.
-            for (utxo, proof) in inputs_and_proofs.iter() {
-                let db_tx_out: TxOut = mc_util_serial::decode(&utxo.txo)?;
-                let (mut ring, mut membership_proofs) = rings_and_proofs
-                    .pop()
-                    .ok_or(WalletTransactionBuilderError::RingsAndProofsEmpty)?;
-                if ring.len() != membership_proofs.len() {
-                    return Err(WalletTransactionBuilderError::RingSizeMismatch);
+            // Add the input to the ring.
+            let position_opt = ring.iter().position(|txo| *txo == db_tx_out);
+            let real_key_index = match position_opt {
+                Some(position) => {
+                    // The input is already present in the ring.
+                    // This could happen if ring elements are sampled randomly from the
+                    // ledger.
+                    position
                 }
-
-                // Add the input to the ring.
-                let position_opt = ring.iter().position(|txo| *txo == db_tx_out);
-                let real_key_index = match position_opt {
-                    Some(position) => {
-                        // The input is already present in the ring.
-                        // This could happen if ring elements are sampled randomly from the
-                        // ledger.
-                        position
+                None => {
+                    // The input is not already in the ring.
+                    if ring.is_empty() {
+                        // Append the input and its proof of membership.
+                        ring.push(db_tx_out.clone());
+                        membership_proofs.push(proof.clone());
+                    } else {
+                        // Replace the first element of the ring.
+                        ring[0] = db_tx_out.clone();
+                        membership_proofs[0] = proof.clone();
                     }
-                    None => {
-                        // The input is not already in the ring.
-                        if ring.is_empty() {
-                            // Append the input and its proof of membership.
-                            ring.push(db_tx_out.clone());
-                            membership_proofs.push(proof.clone());
-                        } else {
-                            // Replace the first element of the ring.
-                            ring[0] = db_tx_out.clone();
-                            membership_proofs[0] = proof.clone();
-                        }
-                        // The real input is always the first element. This is safe because
-                        // TransactionBuilder sorts each ring.
-                        0
-                    }
-                };
-
-                if ring.len() != membership_proofs.len() {
-                    return Err(WalletTransactionBuilderError::RingSizeMismatch);
+                    // The real input is always the first element. This is safe because
+                    // TransactionBuilder sorts each ring.
+                    0
                 }
+            };
 
-                let public_key = RistrettoPublic::try_from(&db_tx_out.public_key).unwrap();
-
-                let subaddress_index = if let Some(s) = utxo.subaddress_index {
-                    s
-                } else {
-                    return Err(WalletTransactionBuilderError::NullSubaddress(
-                        utxo.txo_id_hex.to_string(),
-                    ));
-                };
-
-                let onetime_private_key = recover_onetime_private_key(
-                    &public_key,
-                    from_account_key.view_private_key(),
-                    &from_account_key.subaddress_spend_private(subaddress_index as u64),
-                );
-
-                let key_image = KeyImage::from(&onetime_private_key);
-                log::debug!(
-                    self.logger,
-                    "Adding input: ring {:?}, utxo index {:?}, key image {:?}, pubkey {:?}",
-                    ring,
-                    real_key_index,
-                    key_image,
-                    public_key
-                );
-
-                transaction_builder.add_input(InputCredentials::new(
-                    ring,
-                    membership_proofs,
-                    real_key_index,
-                    onetime_private_key,
-                    *from_account_key.view_private_key(),
-                )?);
+            if ring.len() != membership_proofs.len() {
+                return Err(WalletTransactionBuilderError::RingSizeMismatch);
             }
 
-            // Add outputs to our destinations.
-            // Note that we make an assumption currently when logging submitted Txos that
-            // they were built  with only one recipient, and one change txo.
-            let mut total_value = 0;
-            let mut tx_out_to_outlay_index: HashMap<TxOut, usize> = HashMap::default();
-            let mut outlay_confirmation_numbers = Vec::default();
-            let mut rng = rand::thread_rng();
-            for (i, (recipient, out_value)) in self.outlays.iter().enumerate() {
-                let (tx_out, confirmation_number) =
-                    transaction_builder.add_output(*out_value as u64, recipient, &mut rng)?;
+            let public_key = RistrettoPublic::try_from(&db_tx_out.public_key).unwrap();
 
-                tx_out_to_outlay_index.insert(tx_out, i);
-                outlay_confirmation_numbers.push(confirmation_number);
-
-                total_value += *out_value;
-            }
-
-            // Figure out if we have change.
-            let input_value = inputs_and_proofs
-                .iter()
-                .fold(0, |acc, (utxo, _proof)| acc + utxo.value);
-            if (total_value + transaction_builder.get_fee()) > input_value as u64 {
-                return Err(WalletTransactionBuilderError::InsufficientInputFunds(
-                    format!(
-                        "Total value required to send transaction {:?}, but only {:?} in inputs",
-                        total_value + transaction_builder.get_fee(),
-                        input_value
-                    ),
+            let subaddress_index = if let Some(s) = utxo.subaddress_index {
+                s
+            } else {
+                return Err(WalletTransactionBuilderError::NullSubaddress(
+                    utxo.txo_id_hex.to_string(),
                 ));
-            }
+            };
 
-            let change = input_value as u64 - total_value - transaction_builder.get_fee();
+            let onetime_private_key = recover_onetime_private_key(
+                &public_key,
+                from_account_key.view_private_key(),
+                &from_account_key.subaddress_spend_private(subaddress_index as u64),
+            );
 
-            // If we do, add an output for that as well.
-            if change > 0 {
-                let change_public_address =
-                    from_account_key.subaddress(account.change_subaddress_index as u64);
-                // FIXME: verify that fog resolver knows to send change with hint encrypted to
-                // the main public address
-                transaction_builder.add_output(change, &change_public_address, &mut rng)?;
-                // FIXME: CBB - map error to indicate error with change
-            }
+            let key_image = KeyImage::from(&onetime_private_key);
+            log::debug!(
+                self.logger,
+                "Adding input: ring {:?}, utxo index {:?}, key image {:?}, pubkey {:?}",
+                ring,
+                real_key_index,
+                key_image,
+                public_key
+            );
 
-            // Set tombstone block.
-            transaction_builder.set_tombstone_block(self.tombstone);
+            transaction_builder.add_input(InputCredentials::new(
+                ring,
+                membership_proofs,
+                real_key_index,
+                onetime_private_key,
+                *from_account_key.view_private_key(),
+            )?);
+        }
 
-            // Build tx.
-            let tx = transaction_builder.build(&mut rng)?;
+        // Add outputs to our destinations.
+        // Note that we make an assumption currently when logging submitted Txos that
+        // they were built  with only one recipient, and one change txo.
+        let mut total_value = 0;
+        let mut tx_out_to_outlay_index: HashMap<TxOut, usize> = HashMap::default();
+        let mut outlay_confirmation_numbers = Vec::default();
+        let mut rng = rand::thread_rng();
+        for (i, (recipient, out_value)) in self.outlays.iter().enumerate() {
+            let (tx_out, confirmation_number) =
+                transaction_builder.add_output(*out_value as u64, recipient, &mut rng)?;
 
-            // Map each TxOut in the constructed transaction to its respective outlay.
-            let outlay_index_to_tx_out_index: HashMap<usize, usize> = tx
-                .prefix
-                .outputs
-                .iter()
-                .enumerate()
-                .filter_map(|(tx_out_index, tx_out)| {
-                    tx_out_to_outlay_index
-                        .get(tx_out)
-                        .map(|outlay_index| (*outlay_index, tx_out_index))
-                })
-                .collect();
+            tx_out_to_outlay_index.insert(tx_out, i);
+            outlay_confirmation_numbers.push(confirmation_number);
 
-            // Sanity check: All of our outlays should have a unique index in the map.
-            assert_eq!(outlay_index_to_tx_out_index.len(), self.outlays.len());
-            let mut found_tx_out_indices: HashSet<&usize> = HashSet::default();
-            for i in 0..self.outlays.len() {
-                let tx_out_index = outlay_index_to_tx_out_index
-                    .get(&i)
-                    .expect("index not in map");
-                if !found_tx_out_indices.insert(tx_out_index) {
-                    panic!("duplicate index {} found in map", tx_out_index);
-                }
-            }
+            total_value += *out_value;
+        }
 
-            // Make the UnspentTxOut for each Txo
-            // FIXME: WS-27 - I would prefer to provide just the txo_id_hex per txout, but
-            // this at least preserves some interoperability between
-            // mobilecoind and wallet-service. However, this is
-            // pretty clunky and I would rather not expose a storage
-            // type from mobilecoind just to get around having to write a bunch of
-            // tedious json conversions.
-            // Return the TxProposal
-            let selected_utxos = inputs_and_proofs
-                    .iter()
-                    .map(|(utxo, _membership_proof)| {
-                        let decoded_tx_out = mc_util_serial::decode(&utxo.txo).unwrap();
-                        let decoded_key_image =
-                            mc_util_serial::decode(&utxo.key_image.clone().unwrap()).unwrap();
+        // Figure out if we have change.
+        let input_value = inputs_and_proofs
+            .iter()
+            .fold(0, |acc, (utxo, _proof)| acc + utxo.value);
+        if (total_value + transaction_builder.get_fee()) > input_value as u64 {
+            return Err(WalletTransactionBuilderError::InsufficientInputFunds(
+                format!(
+                    "Total value required to send transaction {:?}, but only {:?} in inputs",
+                    total_value + transaction_builder.get_fee(),
+                    input_value
+                ),
+            ));
+        }
 
-                        UnspentTxOut {
-                            tx_out: decoded_tx_out,
-                            subaddress_index: utxo.subaddress_index.unwrap() as u64, // verified not null earlier
-                            key_image: decoded_key_image,
-                            value: utxo.value as u64,
-                            attempted_spend_height: 0, // NOTE: these are null because not tracked here
-                            attempted_spend_tombstone: 0,
-                        }
-                    })
-                    .collect();
-            Ok(TxProposal {
-                utxos: selected_utxos,
-                outlays: self
-                    .outlays
-                    .iter()
-                    .map(|(recipient, value)| Outlay {
-                        receiver: recipient.clone(),
-                        value: *value,
-                    })
-                    .collect::<Vec<Outlay>>(),
-                tx,
-                outlay_index_to_tx_out_index,
-                outlay_confirmation_numbers,
+        let change = input_value as u64 - total_value - transaction_builder.get_fee();
+
+        // If we do, add an output for that as well.
+        if change > 0 {
+            let change_public_address =
+                from_account_key.subaddress(account.change_subaddress_index as u64);
+            // FIXME: verify that fog resolver knows to send change with hint encrypted to
+            // the main public address
+            transaction_builder.add_output(change, &change_public_address, &mut rng)?;
+            // FIXME: CBB - map error to indicate error with change
+        }
+
+        // Set tombstone block.
+        transaction_builder.set_tombstone_block(self.tombstone);
+
+        // Build tx.
+        let tx = transaction_builder.build(&mut rng)?;
+
+        // Map each TxOut in the constructed transaction to its respective outlay.
+        let outlay_index_to_tx_out_index: HashMap<usize, usize> = tx
+            .prefix
+            .outputs
+            .iter()
+            .enumerate()
+            .filter_map(|(tx_out_index, tx_out)| {
+                tx_out_to_outlay_index
+                    .get(tx_out)
+                    .map(|outlay_index| (*outlay_index, tx_out_index))
             })
+            .collect();
+
+        // Sanity check: All of our outlays should have a unique index in the map.
+        assert_eq!(outlay_index_to_tx_out_index.len(), self.outlays.len());
+        let mut found_tx_out_indices: HashSet<&usize> = HashSet::default();
+        for i in 0..self.outlays.len() {
+            let tx_out_index = outlay_index_to_tx_out_index
+                .get(&i)
+                .expect("index not in map");
+            if !found_tx_out_indices.insert(tx_out_index) {
+                panic!("duplicate index {} found in map", tx_out_index);
+            }
+        }
+
+        // Make the UnspentTxOut for each Txo
+        // FIXME: WS-27 - I would prefer to provide just the txo_id_hex per txout, but
+        // this at least preserves some interoperability between
+        // mobilecoind and wallet-service. However, this is
+        // pretty clunky and I would rather not expose a storage
+        // type from mobilecoind just to get around having to write a bunch of
+        // tedious json conversions.
+        // Return the TxProposal
+        let selected_utxos = inputs_and_proofs
+            .iter()
+            .map(|(utxo, _membership_proof)| {
+                let decoded_tx_out = mc_util_serial::decode(&utxo.txo).unwrap();
+                let decoded_key_image =
+                    mc_util_serial::decode(&utxo.key_image.clone().unwrap()).unwrap();
+
+                UnspentTxOut {
+                    tx_out: decoded_tx_out,
+                    subaddress_index: utxo.subaddress_index.unwrap() as u64, /* verified not null
+                                                                              * earlier */
+                    key_image: decoded_key_image,
+                    value: utxo.value as u64,
+                    attempted_spend_height: 0, // NOTE: these are null because not tracked here
+                    attempted_spend_tombstone: 0,
+                }
+            })
+            .collect();
+        Ok(TxProposal {
+            utxos: selected_utxos,
+            outlays: self
+                .outlays
+                .iter()
+                .map(|(recipient, value)| Outlay {
+                    receiver: recipient.clone(),
+                    value: *value,
+                })
+                .collect::<Vec<Outlay>>(),
+            tx,
+            outlay_index_to_tx_out_index,
+            outlay_confirmation_numbers,
         })
     }
 
@@ -590,8 +578,9 @@ mod tests {
         );
 
         // Construct a transaction
+        let conn = wallet_db.get_conn().unwrap();
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         // Send value specifically for your smallest Txo size. Should take 2 inputs
         // and also make change.
@@ -599,10 +588,10 @@ mod tests {
         builder.add_recipient(recipient.clone(), value).unwrap();
 
         // Select the txos for the recipient
-        builder.select_txos(None, false).unwrap();
+        builder.select_txos(&conn, None, false).unwrap();
         builder.set_tombstone(0).unwrap();
 
-        let proposal = builder.build().unwrap();
+        let proposal = builder.build(&conn).unwrap();
         assert_eq!(proposal.outlays.len(), 1);
         assert_eq!(proposal.outlays[0].receiver, recipient);
         assert_eq!(proposal.outlays[0].value, value);
@@ -644,14 +633,15 @@ mod tests {
         assert_eq!(balance, 21_000_000 * MOB as u128);
 
         // Now try to send a transaction with a value > u64::MAX
+        let conn = wallet_db.get_conn().unwrap();
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         let value = u64::MAX;
         builder.add_recipient(recipient.clone(), value).unwrap();
 
         // Select the txos for the recipient - should error because > u64::MAX
-        match builder.select_txos(None, false) {
+        match builder.select_txos(&conn, None, false) {
             Ok(_) => panic!("Should not be allowed to construct outbound values > u64::MAX"),
             Err(WalletTransactionBuilderError::OutboundValueTooLarge) => {}
             Err(e) => panic!("Unexpected error {:?}", e),
@@ -688,8 +678,9 @@ mod tests {
         )
         .unwrap();
 
+        let conn = wallet_db.get_conn().unwrap();
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         // Setting value to exactly the input will fail because you need funds for fee
         builder
@@ -697,10 +688,10 @@ mod tests {
             .unwrap();
 
         builder
-            .set_txos(&vec![txos[0].txo_id_hex.clone()], false)
+            .set_txos(&conn, &vec![txos[0].txo_id_hex.clone()], false)
             .unwrap();
         builder.set_tombstone(0).unwrap();
-        match builder.build() {
+        match builder.build(&conn) {
             Ok(_) => {
                 panic!("Should not be able to construct Tx with > inputs value as output value")
             }
@@ -710,7 +701,7 @@ mod tests {
 
         // Now build, setting to multiple TXOs
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         // Set value to just slightly more than what fits in the one TXO
         builder
@@ -719,12 +710,13 @@ mod tests {
 
         builder
             .set_txos(
+                &conn,
                 &vec![txos[0].txo_id_hex.clone(), txos[1].txo_id_hex.clone()],
                 false,
             )
             .unwrap();
         builder.set_tombstone(0).unwrap();
-        let proposal = builder.build().unwrap();
+        let proposal = builder.build(&conn).unwrap();
         assert_eq!(proposal.outlays.len(), 1);
         assert_eq!(proposal.outlays[0].receiver, recipient);
         assert_eq!(proposal.outlays[0].value, txos[0].value as u64 + 10);
@@ -754,14 +746,15 @@ mod tests {
             &logger,
         );
 
+        let conn = wallet_db.get_conn().unwrap();
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         // Setting value to exactly the input will fail because you need funds for fee
         builder.add_recipient(recipient.clone(), 80 * MOB).unwrap();
 
         // Test that selecting Txos with max_spendable < all our txo values fails
-        match builder.select_txos(Some(10), false) {
+        match builder.select_txos(&conn, Some(10), false) {
             Ok(_) => panic!("Should not be able to construct tx when max_spendable < all txos"),
             Err(WalletTransactionBuilderError::WalletDb(WalletDbError::NoSpendableTxos)) => {}
             Err(e) => panic!("Unexpected error {:?}", e),
@@ -769,7 +762,7 @@ mod tests {
 
         // We should be able to try again, with max_spendable at 70, but will not hit
         // our outlay target (80 * MOB)
-        match builder.select_txos(Some(70 * MOB), false) {
+        match builder.select_txos(&conn, Some(70 * MOB), false) {
             Ok(_) => panic!("Should not be able to construct tx when max_spendable < all txos"),
             Err(WalletTransactionBuilderError::WalletDb(
                 WalletDbError::InsufficientFundsUnderMaxSpendable(_),
@@ -779,9 +772,9 @@ mod tests {
 
         // Now, we should succeed if we set max_spendable = 80 * MOB, because we will
         // pick up both 70 and 80
-        builder.select_txos(Some(80 * MOB), false).unwrap();
+        builder.select_txos(&conn, Some(80 * MOB), false).unwrap();
         builder.set_tombstone(0).unwrap();
-        let proposal = builder.build().unwrap();
+        let proposal = builder.build(&conn).unwrap();
         assert_eq!(proposal.outlays.len(), 1);
         assert_eq!(proposal.outlays[0].receiver, recipient);
         assert_eq!(proposal.outlays[0].value, 80 * MOB);
@@ -799,6 +792,7 @@ mod tests {
         let wallet_db = db_test_context.get_db_instance(logger.clone());
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+        let conn = wallet_db.get_conn().unwrap();
 
         // Start sync thread
         let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
@@ -812,48 +806,48 @@ mod tests {
         );
 
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
-        builder.select_txos(None, false).unwrap();
+        builder.select_txos(&conn, None, false).unwrap();
 
         // Sanity check that our ledger is the height we think it is
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
 
         // We must set tombstone block before building
-        match builder.build() {
+        match builder.build(&conn) {
             Ok(_) => panic!("Expected TombstoneNotSet error"),
             Err(WalletTransactionBuilderError::TombstoneNotSet) => {}
             Err(e) => panic!("Unexpected error {:?}", e),
         }
 
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
-        builder.select_txos(None, false).unwrap();
+        builder.select_txos(&conn, None, false).unwrap();
 
         // Set to default
         builder.set_tombstone(0).unwrap();
 
         // Not setting the tombstone results in tombstone = 0. This is an acceptable
         // value,
-        let proposal = builder.build().unwrap();
+        let proposal = builder.build(&conn).unwrap();
         assert_eq!(proposal.tx.prefix.tombstone_block, 23);
 
         // Build a transaction and explicitly set tombstone
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
-        builder.select_txos(None, false).unwrap();
+        builder.select_txos(&conn, None, false).unwrap();
 
         // Set to default
         builder.set_tombstone(20).unwrap();
 
         // Not setting the tombstone results in tombstone = 0. This is an acceptable
         // value,
-        let proposal = builder.build().unwrap();
+        let proposal = builder.build(&conn).unwrap();
         assert_eq!(proposal.tx.prefix.tombstone_block, 20);
     }
 
@@ -878,23 +872,24 @@ mod tests {
             &logger,
         );
 
+        let conn = wallet_db.get_conn().unwrap();
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
-        builder.select_txos(None, false).unwrap();
+        builder.select_txos(&conn, None, false).unwrap();
         builder.set_tombstone(0).unwrap();
 
         // Verify that not setting fee results in default fee
-        let proposal = builder.build().unwrap();
+        let proposal = builder.build(&conn).unwrap();
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
 
         // You cannot set fee to 0
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
-        builder.select_txos(None, false).unwrap();
+        builder.select_txos(&conn, None, false).unwrap();
         builder.set_tombstone(0).unwrap();
         match builder.set_fee(0) {
             Ok(_) => panic!("Should not be able to set fee to 0"),
@@ -903,15 +898,15 @@ mod tests {
         }
 
         // Verify that not setting fee results in default fee
-        let proposal = builder.build().unwrap();
+        let proposal = builder.build(&conn).unwrap();
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
 
         // Setting fee less than minimum fee should fail
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
-        builder.select_txos(None, false).unwrap();
+        builder.select_txos(&conn, None, false).unwrap();
         builder.set_tombstone(0).unwrap();
         match builder.set_fee(0) {
             Ok(_) => panic!("Should not be able to set fee to 0"),
@@ -921,13 +916,13 @@ mod tests {
 
         // Setting fee greater than MINIMUM_FEE works
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
-        builder.select_txos(None, false).unwrap();
+        builder.select_txos(&conn, None, false).unwrap();
         builder.set_tombstone(0).unwrap();
         builder.set_fee(Mob::MINIMUM_FEE * 10).unwrap();
-        let proposal = builder.build().unwrap();
+        let proposal = builder.build(&conn).unwrap();
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE * 10);
     }
 
@@ -952,17 +947,18 @@ mod tests {
             &logger,
         );
 
+        let conn = wallet_db.get_conn().unwrap();
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         // Set value to consume the whole TXO and not produce change
         let value = 70 * MOB - Mob::MINIMUM_FEE;
         builder.add_recipient(recipient.clone(), value).unwrap();
-        builder.select_txos(None, false).unwrap();
+        builder.select_txos(&conn, None, false).unwrap();
         builder.set_tombstone(0).unwrap();
 
         // Verify that not setting fee results in default fee
-        let proposal = builder.build().unwrap();
+        let proposal = builder.build(&conn).unwrap();
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
         assert_eq!(proposal.outlays.len(), 1);
         assert_eq!(proposal.outlays[0].receiver, recipient);
@@ -994,19 +990,20 @@ mod tests {
             &logger,
         );
 
+        let conn = wallet_db.get_conn().unwrap();
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
         builder.add_recipient(recipient.clone(), 20 * MOB).unwrap();
         builder.add_recipient(recipient.clone(), 30 * MOB).unwrap();
         builder.add_recipient(recipient.clone(), 40 * MOB).unwrap();
 
-        builder.select_txos(None, false).unwrap();
+        builder.select_txos(&conn, None, false).unwrap();
         builder.set_tombstone(0).unwrap();
 
         // Verify that not setting fee results in default fee
-        let proposal = builder.build().unwrap();
+        let proposal = builder.build(&conn).unwrap();
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
         assert_eq!(proposal.outlays.len(), 4);
         assert_eq!(proposal.outlays[0].receiver, recipient);
@@ -1048,7 +1045,7 @@ mod tests {
         );
 
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         builder
             .add_recipient(recipient.clone(), 7_000_000 * MOB)
@@ -1060,7 +1057,7 @@ mod tests {
             .add_recipient(recipient.clone(), 7_000_000 * MOB)
             .unwrap();
 
-        match builder.select_txos(None, false) {
+        match builder.select_txos(&wallet_db.get_conn().unwrap(), None, false) {
             Ok(_) => panic!("Should not be able to select txos with > u64::MAX output value"),
             Err(WalletTransactionBuilderError::OutboundValueTooLarge) => {}
             Err(e) => panic!("Unexpected error {:?}", e),
@@ -1089,7 +1086,7 @@ mod tests {
         );
 
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
 
