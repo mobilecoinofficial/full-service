@@ -35,6 +35,11 @@ fn main() {
         let account_key_config_file = &args[5];
         let num_subaddresses_to_check = &args[6].parse::<u64>().unwrap();
 
+        let mnemonic_phrase = fs::read_to_string(account_key_config_file).unwrap();
+        let account_key = account_key_from_mnemonic_phrase(&mnemonic_phrase);
+        let subaddress_spend_public_keys =
+            generate_subaddress_spend_public_keys(&account_key, *num_subaddresses_to_check);
+
         return;
     }
 
@@ -60,6 +65,27 @@ fn main() {
     }
 
     println!("Usage: {} <sign|check-txos>", args[0]);
+}
+
+fn sign_transaction(
+    unsigned_tx_file: &str,
+    tombstone_block_height: &u64,
+    signed_tx_file: &str,
+    account_key: &AccountKey,
+    subaddress_spend_public_keys: &HashMap<RistrettoPublic, u64>,
+) {
+    let unsigned_tx_bytes_serialized = fs::read_to_string(unsigned_tx_file).unwrap();
+    let unsigned_tx: UnsignedTx = serde_json::from_str(&unsigned_tx_bytes_serialized).unwrap();
+
+    let signed_tx = unsigned_tx.sign(
+        account_key,
+        subaddress_spend_public_keys,
+        tombstone_block_height,
+    );
+
+    let signed_tx_serialized = mc_util_serial::encode(&signed_tx);
+
+    fs::write(signed_tx_file, signed_tx_serialized).unwrap();
 }
 
 fn account_key_from_mnemonic_phrase(mnemonic_phrase: &String) -> AccountKey {
@@ -112,19 +138,19 @@ fn get_key_images_for_txos(
     account_key: &AccountKey,
     subaddress_spend_public_keys: &HashMap<RistrettoPublic, u64>,
 ) -> Vec<(Vec<u8>, KeyImage)> {
-    let mut serialized_txos_and_key_images: Vec<Vec<u8>, KeyImage> = Vec::new();
+    let mut serialized_txos_and_key_images: Vec<(Vec<u8>, KeyImage)> = Vec::new();
 
     for tx_out in tx_outs.into_iter() {
         if tx_out_belongs_to_account(tx_out, account_key.view_private_key()) {
             if let Some(key_image) =
                 get_key_image_for_tx_out(tx_out, account_key, subaddress_spend_public_keys)
             {
-                serialized_txos_and_key_images.push((mc_util_serial::encode(&tx_out), key_image));
+                serialized_txos_and_key_images.push((mc_util_serial::encode(tx_out), key_image));
             }
         }
     }
 
-    key_images
+    serialized_txos_and_key_images
 }
 
 fn get_key_image_for_tx_out(
