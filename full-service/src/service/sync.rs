@@ -10,12 +10,13 @@ use crate::{
             Account, AssignedSubaddress, TransactionLog, Txo, ViewOnlyAccount,
             ViewOnlyTransactionLog, ViewOnlyTxo,
         },
+        transaction,
         transaction_log::TransactionLogModel,
         txo::TxoModel,
         view_only_account::ViewOnlyAccountModel,
         view_only_transaction_log::ViewOnlyTransactionLogModel,
         view_only_txo::ViewOnlyTxoModel,
-        WalletDb,
+        Conn, WalletDb,
     },
     error::SyncError,
     util::b58::b58_encode_public_address,
@@ -36,10 +37,6 @@ use mc_transaction_core::{
 };
 use rayon::prelude::*;
 
-use diesel::{
-    prelude::*,
-    r2d2::{ConnectionManager, PooledConnection},
-};
 use std::{
     convert::TryFrom,
     sync::{
@@ -50,7 +47,7 @@ use std::{
     time::Instant,
 };
 
-const BLOCKS_CHUNK_SIZE: u64 = 10_000;
+const BLOCKS_CHUNK_SIZE: u64 = 1_000;
 
 /// Sync thread - holds objects needed to cleanly terminate the sync thread.
 pub struct SyncThread {
@@ -179,11 +176,11 @@ pub fn sync_view_only_account(
 
 fn sync_view_only_account_next_chunk(
     ledger_db: &LedgerDB,
-    conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    conn: &Conn,
     logger: &Logger,
     account_id_hex: &str,
 ) -> Result<SyncStatus, SyncError> {
-    conn.transaction::<SyncStatus, SyncError, _>(|| {
+    transaction(conn, || {
         // Get the account data. If it is no longer available, the account has been
         // removed and we can simply return.
         let view_only_account = ViewOnlyAccount::get(account_id_hex, conn)?;
@@ -290,11 +287,11 @@ pub fn sync_account(
 
 fn sync_account_next_chunk(
     ledger_db: &LedgerDB,
-    conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    conn: &Conn,
     logger: &Logger,
     account_id_hex: &str,
 ) -> Result<SyncStatus, SyncError> {
-    conn.transaction::<SyncStatus, SyncError, _>(|| {
+    transaction(conn, || {
         // Get the account data. If it is no longer available, the account has been
         // removed and we can simply return.
         let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;

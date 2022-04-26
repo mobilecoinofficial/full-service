@@ -2,11 +2,7 @@
 
 //! DB impl for the Txo model.
 
-use diesel::{
-    prelude::*,
-    r2d2::{ConnectionManager, PooledConnection},
-    RunQueryDsl,
-};
+use diesel::prelude::*;
 use mc_account_keys::{AccountKey, PublicAddress};
 use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
@@ -26,7 +22,7 @@ use crate::{
         models::{
             Account, AssignedSubaddress, NewTxo, Txo, TXO_USED_AS_CHANGE, TXO_USED_AS_OUTPUT,
         },
-        WalletDbError,
+        Conn, WalletDbError,
     },
     util::{b58::b58_encode_public_address, constants::DEFAULT_CHANGE_SUBADDRESS_INDEX},
 };
@@ -82,7 +78,7 @@ pub trait TxoModel {
         value: u64,
         received_block_index: u64,
         account_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<String, WalletDbError>;
 
     /// Processes a TxProposal to create a new minted Txo and a change Txo.
@@ -94,7 +90,7 @@ pub trait TxoModel {
         txo: &TxOut,
         tx_proposal: &TxProposal,
         outlay_index: usize,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<ProcessedTxProposalOutput, WalletDbError>;
 
     /// Update an existing Txo to spendable by including its subaddress_index
@@ -105,35 +101,35 @@ pub trait TxoModel {
         received_subaddress_index: Option<u64>,
         received_key_image: Option<KeyImage>,
         block_index: u64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
     /// Update a Txo's received block count.
     fn update_received_block_index(
         &self,
         block_index: u64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
     /// Update a Txo's status to pending
     fn update_to_pending(
         &self,
         pending_tombstone_block_index: u64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
     /// Update a Txo's status to spent
     fn update_to_spent(
         txo_id_hex: &str,
         spent_block_index: u64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
     /// Update all Txo's that are pending with a pending_tombstone_block_index
     /// less than the target block index to unspent
     fn update_txos_exceeding_pending_tombstone_block_index_to_unspent(
         block_index: u64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
     /// Get all Txos associated with a given account.
@@ -141,67 +137,55 @@ pub trait TxoModel {
         account_id_hex: &str,
         offset: Option<u64>,
         limit: Option<u64>,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
     fn list_for_address(
         assigned_subaddress_b58: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
     fn list_unspent(
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
     /// Get a map from key images to unspent txos for this account.
     fn list_unspent_or_pending_key_images(
         account_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<HashMap<KeyImage, String>, WalletDbError>;
 
     fn list_spent(
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
-    fn list_secreted(
-        account_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Vec<Txo>, WalletDbError>;
+    fn list_secreted(account_id_hex: &str, conn: &Conn) -> Result<Vec<Txo>, WalletDbError>;
 
-    fn list_orphaned(
-        account_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Vec<Txo>, WalletDbError>;
+    fn list_orphaned(account_id_hex: &str, conn: &Conn) -> Result<Vec<Txo>, WalletDbError>;
 
     fn list_pending(
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
-    fn list_minted(
-        account_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Vec<Txo>, WalletDbError>;
+    fn list_minted(account_id_hex: &str, conn: &Conn) -> Result<Vec<Txo>, WalletDbError>;
 
     fn list_pending_exceeding_block_index(
         account_id_hex: &str,
         block_index: u64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
     /// Get the details for a specific Txo.
     ///
     /// Returns:
     /// * Txo
-    fn get(
-        txo_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Txo, WalletDbError>;
+    fn get(txo_id_hex: &str, conn: &Conn) -> Result<Txo, WalletDbError>;
 
     /// Get several Txos by Txo public_keys
     ///
@@ -209,7 +193,7 @@ pub trait TxoModel {
     /// * Vec<Txo>
     fn select_by_public_key(
         public_keys: &[&CompressedRistrettoPublic],
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
     /// Select several Txos by their TxoIds
@@ -219,7 +203,7 @@ pub trait TxoModel {
     fn select_by_id(
         txo_ids: &[String],
         pending_tombstone_block_index: Option<u64>,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
     /// Select a set of unspent Txos to reach a given value.
@@ -231,7 +215,7 @@ pub trait TxoModel {
         target_value: u64,
         max_spendable_value: Option<u64>,
         pending_tombstone_block_index: Option<u64>,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
     /// Validate a confirmation number for a Txo
@@ -242,18 +226,13 @@ pub trait TxoModel {
         account_id: &AccountID,
         txo_id_hex: &str,
         confirmation: &TxOutConfirmationNumber,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<bool, WalletDbError>;
 
-    fn scrub_account(
-        account_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<(), WalletDbError>;
+    fn scrub_account(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError>;
 
     /// Delete txos which are not referenced by any account or transaction.
-    fn delete_unreferenced(
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<(), WalletDbError>;
+    fn delete_unreferenced(conn: &Conn) -> Result<(), WalletDbError>;
 
     fn is_change(&self) -> bool;
 
@@ -278,7 +257,7 @@ impl TxoModel for Txo {
         value: u64,
         received_block_index: u64,
         account_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<String, WalletDbError> {
         // Verify that the account exists.
         Account::get(&AccountID(account_id_hex.to_string()), conn)?;
@@ -334,7 +313,7 @@ impl TxoModel for Txo {
         output: &TxOut,
         tx_proposal: &TxProposal,
         output_index: usize,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<ProcessedTxProposalOutput, WalletDbError> {
         use crate::db::schema::txos;
 
@@ -420,7 +399,7 @@ impl TxoModel for Txo {
         received_subaddress_index: Option<u64>,
         received_key_image: Option<KeyImage>,
         block_index: u64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::txos;
 
@@ -441,7 +420,7 @@ impl TxoModel for Txo {
     fn update_received_block_index(
         &self,
         block_index: u64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::txos::received_block_index;
 
@@ -454,7 +433,7 @@ impl TxoModel for Txo {
     fn update_to_pending(
         &self,
         pending_tombstone_block_index: u64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::txos;
 
@@ -467,7 +446,7 @@ impl TxoModel for Txo {
     fn update_to_spent(
         txo_id_hex: &str,
         spent_block_index: u64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::txos;
 
@@ -482,7 +461,7 @@ impl TxoModel for Txo {
 
     fn update_txos_exceeding_pending_tombstone_block_index_to_unspent(
         block_index: u64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::txos;
 
@@ -501,7 +480,7 @@ impl TxoModel for Txo {
         account_id_hex: &str,
         offset: Option<u64>,
         limit: Option<u64>,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
 
@@ -520,7 +499,7 @@ impl TxoModel for Txo {
 
     fn list_for_address(
         assigned_subaddress_b58: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
         let subaddress = AssignedSubaddress::get(assigned_subaddress_b58, conn)?;
@@ -534,7 +513,7 @@ impl TxoModel for Txo {
     fn list_unspent(
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
 
@@ -558,7 +537,7 @@ impl TxoModel for Txo {
 
     fn list_unspent_or_pending_key_images(
         account_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<HashMap<KeyImage, String>, WalletDbError> {
         use crate::db::schema::txos;
 
@@ -585,7 +564,7 @@ impl TxoModel for Txo {
     fn list_spent(
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
 
@@ -605,10 +584,7 @@ impl TxoModel for Txo {
         Ok(txos)
     }
 
-    fn list_secreted(
-        account_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Vec<Txo>, WalletDbError> {
+    fn list_secreted(account_id_hex: &str, conn: &Conn) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
 
         // Secreted txos were minted by this account, but not received by this account,
@@ -625,10 +601,7 @@ impl TxoModel for Txo {
         Ok(txos)
     }
 
-    fn list_orphaned(
-        account_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Vec<Txo>, WalletDbError> {
+    fn list_orphaned(account_id_hex: &str, conn: &Conn) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
 
         let txos: Vec<Txo> = txos::table
@@ -642,7 +615,7 @@ impl TxoModel for Txo {
     fn list_pending(
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
 
@@ -667,7 +640,7 @@ impl TxoModel for Txo {
     fn list_pending_exceeding_block_index(
         account_id_hex: &str,
         block_index: u64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
 
@@ -682,10 +655,7 @@ impl TxoModel for Txo {
         Ok(txos)
     }
 
-    fn list_minted(
-        account_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Vec<Txo>, WalletDbError> {
+    fn list_minted(account_id_hex: &str, conn: &Conn) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
 
         let results = txos::table
@@ -695,10 +665,7 @@ impl TxoModel for Txo {
         Ok(results)
     }
 
-    fn get(
-        txo_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Txo, WalletDbError> {
+    fn get(txo_id_hex: &str, conn: &Conn) -> Result<Txo, WalletDbError> {
         use crate::db::schema::txos;
 
         let txo = match txos::table
@@ -719,7 +686,7 @@ impl TxoModel for Txo {
 
     fn select_by_public_key(
         public_keys: &[&CompressedRistrettoPublic],
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
 
@@ -736,23 +703,21 @@ impl TxoModel for Txo {
     fn select_by_id(
         txo_ids: &[String],
         pending_tombstone_block_index: Option<u64>,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
 
-        conn.transaction(|| {
-            let txos: Vec<Txo> = txos::table
-                .filter(txos::txo_id_hex.eq_any(txo_ids))
-                .load(conn)?;
+        let txos: Vec<Txo> = txos::table
+            .filter(txos::txo_id_hex.eq_any(txo_ids))
+            .load(conn)?;
 
-            if let Some(pending_tombstone_block_index) = pending_tombstone_block_index {
-                for txo in &txos {
-                    txo.update_to_pending(pending_tombstone_block_index, conn)?;
-                }
+        if let Some(pending_tombstone_block_index) = pending_tombstone_block_index {
+            for txo in &txos {
+                txo.update_to_pending(pending_tombstone_block_index, conn)?;
             }
+        }
 
-            Ok(txos)
-        })
+        Ok(txos)
     }
 
     fn select_unspent_txos_for_value(
@@ -760,115 +725,112 @@ impl TxoModel for Txo {
         target_value: u64,
         max_spendable_value: Option<u64>,
         pending_tombstone_block_index: Option<u64>,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
-        conn.transaction(|| {
-            let spendable_txos: Vec<Txo> = txos::table
-                .filter(txos::spent_block_index.is_null())
-                .filter(txos::pending_tombstone_block_index.is_null())
-                .filter(txos::subaddress_index.is_not_null())
-                .filter(txos::key_image.is_not_null())
-                .filter(txos::received_account_id_hex.eq(account_id_hex))
-                .order_by(txos::value.desc())
-                .load(conn)?;
+        let spendable_txos: Vec<Txo> = txos::table
+            .filter(txos::spent_block_index.is_null())
+            .filter(txos::pending_tombstone_block_index.is_null())
+            .filter(txos::subaddress_index.is_not_null())
+            .filter(txos::key_image.is_not_null())
+            .filter(txos::received_account_id_hex.eq(account_id_hex))
+            .order_by(txos::value.desc())
+            .load(conn)?;
 
-            // The SQLite database cannot filter effectively on a u64 value, so filter for
-            // maximum value in memory.
-            let mut spendable_txos = if let Some(msv) = max_spendable_value {
-                spendable_txos
-                    .into_iter()
-                    .filter(|txo| (txo.value as u64) <= msv)
-                    .collect()
-            } else {
-                spendable_txos
-            };
+        // The SQLite database cannot filter effectively on a u64 value, so filter for
+        // maximum value in memory.
+        let mut spendable_txos = if let Some(msv) = max_spendable_value {
+            spendable_txos
+                .into_iter()
+                .filter(|txo| (txo.value as u64) <= msv)
+                .collect()
+        } else {
+            spendable_txos
+        };
 
-            if spendable_txos.is_empty() {
-                return Err(WalletDbError::NoSpendableTxos);
-            }
+        if spendable_txos.is_empty() {
+            return Err(WalletDbError::NoSpendableTxos);
+        }
 
-            // The maximum spendable is limited by the maximal number of inputs we can use.
-            // Since the txos are sorted by decreasing value, this is the maximum
-            // value we can possibly spend in one transaction.
-            // Note, u128::Max = 340_282_366_920_938_463_463_374_607_431_768_211_455, which
-            // is far beyond the total number of pMOB in the MobileCoin system
-            // (250_000_000_000_000_000_000)
-            let max_spendable_in_wallet: u128 = spendable_txos
+        // The maximum spendable is limited by the maximal number of inputs we can use.
+        // Since the txos are sorted by decreasing value, this is the maximum
+        // value we can possibly spend in one transaction.
+        // Note, u128::Max = 340_282_366_920_938_463_463_374_607_431_768_211_455, which
+        // is far beyond the total number of pMOB in the MobileCoin system
+        // (250_000_000_000_000_000_000)
+        let max_spendable_in_wallet: u128 = spendable_txos
+            .iter()
+            .take(MAX_INPUTS as usize)
+            .map(|utxo| (utxo.value as u64) as u128)
+            .sum();
+        // If we're trying to spend more than we have in the wallet, we may need to
+        // defrag
+        if target_value as u128 > max_spendable_in_wallet {
+            // See if we merged the UTXOs we would be able to spend this amount.
+            let total_unspent_value_in_wallet: u128 = spendable_txos
                 .iter()
-                .take(MAX_INPUTS as usize)
                 .map(|utxo| (utxo.value as u64) as u128)
                 .sum();
-            // If we're trying to spend more than we have in the wallet, we may need to
-            // defrag
-            if target_value as u128 > max_spendable_in_wallet {
-                // See if we merged the UTXOs we would be able to spend this amount.
-                let total_unspent_value_in_wallet: u128 = spendable_txos
-                    .iter()
-                    .map(|utxo| (utxo.value as u64) as u128)
-                    .sum();
-                if total_unspent_value_in_wallet >= target_value as u128 {
-                    return Err(WalletDbError::InsufficientFundsFragmentedTxos);
-                } else {
-                    return Err(WalletDbError::InsufficientFundsUnderMaxSpendable(format!(
-                        "Max spendable value in wallet: {:?}, but target value: {:?}",
-                        max_spendable_in_wallet, target_value
-                    )));
-                }
+            if total_unspent_value_in_wallet >= target_value as u128 {
+                return Err(WalletDbError::InsufficientFundsFragmentedTxos);
+            } else {
+                return Err(WalletDbError::InsufficientFundsUnderMaxSpendable(format!(
+                    "Max spendable value in wallet: {:?}, but target value: {:?}",
+                    max_spendable_in_wallet, target_value
+                )));
+            }
+        }
+
+        // Select the actual Txos to spend. We want to opportunistically fill up the
+        // input slots with dust, from any subaddress, so we take from the back
+        // of the Txo vec. This is a knapsack problem, and the selection could
+        // be improved. For now, we simply move the window of MAX_INPUTS up from
+        // the back of the sorted vector until we have a window with
+        // a large enough sum.
+        let mut selected_utxos: Vec<Txo> = Vec::new();
+        let mut total: u64 = 0;
+        loop {
+            if total >= target_value {
+                break;
             }
 
-            // Select the actual Txos to spend. We want to opportunistically fill up the
-            // input slots with dust, from any subaddress, so we take from the back
-            // of the Txo vec. This is a knapsack problem, and the selection could
-            // be improved. For now, we simply move the window of MAX_INPUTS up from
-            // the back of the sorted vector until we have a window with
-            // a large enough sum.
-            let mut selected_utxos: Vec<Txo> = Vec::new();
-            let mut total: u64 = 0;
-            loop {
-                if total >= target_value {
-                    break;
-                }
+            // Grab the next (smallest) utxo, in order to opportunistically sweep up dust
+            let next_utxo = spendable_txos.pop().ok_or_else(|| {
+                WalletDbError::InsufficientFunds(format!(
+                    "Not enough Txos to sum to target value: {:?}",
+                    target_value
+                ))
+            })?;
+            selected_utxos.push(next_utxo.clone());
+            total += next_utxo.value as u64;
 
-                // Grab the next (smallest) utxo, in order to opportunistically sweep up dust
-                let next_utxo = spendable_txos.pop().ok_or_else(|| {
-                    WalletDbError::InsufficientFunds(format!(
-                        "Not enough Txos to sum to target value: {:?}",
-                        target_value
-                    ))
-                })?;
-                selected_utxos.push(next_utxo.clone());
-                total += next_utxo.value as u64;
-
-                // Cap at maximum allowed inputs.
-                if selected_utxos.len() > MAX_INPUTS as usize {
-                    // Remove the lowest utxo.
-                    let removed = selected_utxos.remove(0);
-                    total -= removed.value as u64;
-                }
+            // Cap at maximum allowed inputs.
+            if selected_utxos.len() > MAX_INPUTS as usize {
+                // Remove the lowest utxo.
+                let removed = selected_utxos.remove(0);
+                total -= removed.value as u64;
             }
+        }
 
-            if selected_utxos.is_empty() || selected_utxos.len() > MAX_INPUTS as usize {
-                return Err(WalletDbError::InsufficientFunds(
-                    "Logic error. Could not select Txos despite having sufficient funds"
-                        .to_string(),
-                ));
+        if selected_utxos.is_empty() || selected_utxos.len() > MAX_INPUTS as usize {
+            return Err(WalletDbError::InsufficientFunds(
+                "Logic error. Could not select Txos despite having sufficient funds".to_string(),
+            ));
+        }
+        if let Some(pending_tombstone_block_index) = pending_tombstone_block_index {
+            for txo in &selected_utxos {
+                txo.update_to_pending(pending_tombstone_block_index, conn)?;
             }
-            if let Some(pending_tombstone_block_index) = pending_tombstone_block_index {
-                for txo in &selected_utxos {
-                    txo.update_to_pending(pending_tombstone_block_index, conn)?;
-                }
-            }
+        }
 
-            Ok(selected_utxos)
-        })
+        Ok(selected_utxos)
     }
 
     fn validate_confirmation(
         account_id: &AccountID,
         txo_id_hex: &str,
         confirmation: &TxOutConfirmationNumber,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<bool, WalletDbError> {
         let txo = Txo::get(txo_id_hex, conn)?;
         let public_key: RistrettoPublic = mc_util_serial::decode(&txo.public_key)?;
@@ -877,10 +839,7 @@ impl TxoModel for Txo {
         Ok(confirmation.validate(&public_key, account_key.view_private_key()))
     }
 
-    fn scrub_account(
-        account_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<(), WalletDbError> {
+    fn scrub_account(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError> {
         use crate::db::schema::txos;
 
         let txos_received_by_account =
@@ -900,9 +859,7 @@ impl TxoModel for Txo {
         Ok(())
     }
 
-    fn delete_unreferenced(
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<(), WalletDbError> {
+    fn delete_unreferenced(conn: &Conn) -> Result<(), WalletDbError> {
         use crate::db::schema::txos;
 
         let unreferenced_txos = txos::table
@@ -1609,10 +1566,10 @@ mod tests {
         // Create TxProposal from the sender account, which contains the Confirmation
         // Number
         log::info!(logger, "Creating transaction builder");
+        let conn = wallet_db.get_conn().unwrap();
         let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
             WalletTransactionBuilder::new(
                 AccountID::from(&sender_account_key).to_string(),
-                wallet_db.clone(),
                 ledger_db.clone(),
                 get_resolver_factory(&mut rng).unwrap(),
                 logger.clone(),
@@ -1620,9 +1577,9 @@ mod tests {
         builder
             .add_recipient(recipient_account_key.default_subaddress(), 50 * MOB)
             .unwrap();
-        builder.select_txos(None, false).unwrap();
+        builder.select_txos(&conn, None, false).unwrap();
         builder.set_tombstone(0).unwrap();
-        let proposal = builder.build().unwrap();
+        let proposal = builder.build(&conn).unwrap();
 
         // Sleep to make sure that the foreign keys exist
         std::thread::sleep(Duration::from_secs(3));

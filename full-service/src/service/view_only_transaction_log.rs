@@ -4,12 +4,11 @@
 
 use crate::{
     db::{
-        models::ViewOnlyTransactionLog, txo::TxoID,
+        models::ViewOnlyTransactionLog, transaction, txo::TxoID,
         view_only_transaction_log::ViewOnlyTransactionLogModel, WalletDbError,
     },
     WalletService,
 };
-use diesel::prelude::*;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_mobilecoind::payments::TxProposal;
@@ -39,8 +38,6 @@ where
         &self,
         transaction_proposal: TxProposal,
     ) -> Result<Vec<ViewOnlyTransactionLog>, WalletDbError> {
-        let conn = self.wallet_db.get_conn()?;
-
         let mut input_txo_ids: Vec<String> = vec![];
 
         // get all of the inputs for the transaction
@@ -54,7 +51,8 @@ where
             let change_txo_id = TxoID::from(change_txo).to_string();
 
             // create a view only log for each input txo
-            conn.transaction::<Vec<ViewOnlyTransactionLog>, WalletDbError, _>(|| {
+            let conn = self.wallet_db.get_conn()?;
+            transaction(&conn, || {
                 let mut logs = vec![];
 
                 for txo_id in input_txo_ids {
@@ -76,8 +74,7 @@ where
         txo_id: &str,
     ) -> Result<Vec<ViewOnlyTransactionLog>, WalletDbError> {
         let conn = self.wallet_db.get_conn()?;
-
-        conn.transaction(|| ViewOnlyTransactionLog::find_all_by_change_txo_id(txo_id, &conn))
+        ViewOnlyTransactionLog::find_all_by_change_txo_id(txo_id, &conn)
     }
 }
 
@@ -172,10 +169,10 @@ mod tests {
         // Create TxProposal from the sender account, which contains the Confirmation
         // Number
         log::info!(logger, "Creating transaction builder");
+        let conn = wallet_db.get_conn().unwrap();
         let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
             WalletTransactionBuilder::new(
                 AccountID::from(&sender_account_key).to_string(),
-                wallet_db.clone(),
                 ledger_db.clone(),
                 get_resolver_factory(&mut rng).unwrap(),
                 logger.clone(),
@@ -183,9 +180,9 @@ mod tests {
         builder
             .add_recipient(recipient_account_key.default_subaddress(), 40 * MOB)
             .unwrap();
-        builder.select_txos(None, false).unwrap();
+        builder.select_txos(&conn, None, false).unwrap();
         builder.set_tombstone(0).unwrap();
-        let proposal = builder.build().unwrap();
+        let proposal = builder.build(&conn).unwrap();
 
         // find change txo from proposal
         let change_txo = get_change_txout_from_proposal(&proposal).unwrap();
