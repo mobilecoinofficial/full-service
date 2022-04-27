@@ -33,6 +33,7 @@ table! {
         id -> Integer,
         txo_id_hex -> Text,
         txo -> Binary,
+        key_image -> Nullable<Binary>,
         value -> BigInt,
         public_key -> Binary,
         view_only_account_id_hex -> Text,

@@ -16,6 +16,10 @@ pub struct ViewOnlyTxo {
     /// TxOut in the ledger representation.
     pub txo_id_hex: String,
 
+    /// A fingerprint of the txo derived from your private spend key materials,
+    /// required to spend a Txo.
+    pub key_image: Option<String>,
+
     /// Available pico MOB for this account at the current account_block_height.
     /// If the account is syncing, this value may change.
     pub value_pmob: String,
@@ -36,6 +40,7 @@ impl From<&db::models::ViewOnlyTxo> for ViewOnlyTxo {
         ViewOnlyTxo {
             object: "view_only_txo".to_string(),
             txo_id_hex: txo.txo_id_hex.clone(),
+            key_image: txo.key_image.as_ref().map(|k| hex::encode(&k)),
             value_pmob: (txo.value as u64).to_string(),
             public_key: hex::encode(&txo.public_key),
             view_only_account_id_hex: txo.view_only_account_id_hex.to_string(),
