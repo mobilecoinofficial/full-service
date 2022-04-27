@@ -8,7 +8,7 @@ use mc_transaction_core::{
     get_tx_out_shared_secret,
     onetime_keys::{recover_onetime_private_key, recover_public_subaddress_spend_key},
     ring_signature::KeyImage,
-    tx::TxOut,
+    tx::{TxOut, TxPrefix},
     AmountError,
 };
 
@@ -82,13 +82,16 @@ fn sign_transaction(
     subaddress_spend_public_keys: &HashMap<RistrettoPublic, u64>,
 ) {
     let unsigned_tx_bytes_serialized = fs::read_to_string(unsigned_tx_file).unwrap();
-    let unsigned_tx: UnsignedTx = serde_json::from_str(&unsigned_tx_bytes_serialized).unwrap();
-
-    let signed_tx = unsigned_tx.sign(
-        account_key,
-        subaddress_spend_public_keys,
-        tombstone_block_height,
+    let mut unsigned_tx: UnsignedTx = serde_json::from_str(&unsigned_tx_bytes_serialized).unwrap();
+    let updated_prefix = TxPrefix::new(
+        unsigned_tx.prefix.inputs,
+        unsigned_tx.prefix.outputs,
+        unsigned_tx.prefix.fee,
+        *tombstone_block_height,
     );
+    unsigned_tx.prefix = updated_prefix;
+
+    let signed_tx = unsigned_tx.sign(account_key, subaddress_spend_public_keys);
 
     let signed_tx_serialized = mc_util_serial::encode(&signed_tx);
 

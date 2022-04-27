@@ -16,28 +16,32 @@ use std::convert::TryFrom;
 
 #[derive(Clone, Deserialize, Serialize)]
 pub struct UnsignedTx {
-    /// List of input rings for the transaction, where each ring contains a
-    /// single real input that is associated with the corresponding KeyImage
-    pub inputs_and_key_images: Vec<(TxIn, KeyImage)>,
+    /// The fully constructed TxPrefix, to be signed
+    pub prefix: TxPrefix,
 
-    /// List of outputs and shared secrets for the transaction
-    pub outputs_and_shared_secrets: Vec<(TxOut, RistrettoPublic)>,
+    /// The list of key images for the real inputs in each ring
+    pub real_input_key_images: Vec<KeyImage>,
 
-    /// Fee paid to the foundation for this transaction
-    pub fee: u64,
+    /// The list of shared secrets for each of the outputs in the transaction
+    pub output_shared_secrets: Vec<RistrettoPublic>,
 }
 
 impl UnsignedTx {
     pub fn sign(
-        mut self,
+        self,
         account_key: &AccountKey,
         subaddress_spend_public_keys: &HashMap<RistrettoPublic, u64>,
-        tombstone_block_height: &u64,
     ) -> Tx {
         let mut rng = rand::thread_rng();
 
-        let mut input_credentials: Vec<InputCredentials> = self
-            .inputs_and_key_images
+        let inputs_and_key_images: Vec<(&TxIn, &KeyImage)> = self
+            .prefix
+            .inputs
+            .iter()
+            .zip(self.real_input_key_images.iter())
+            .collect();
+
+        let input_credentials: Vec<InputCredentials> = inputs_and_key_images
             .iter()
             .map(|(tx_in, key_image)| {
                 let (real_index, onetime_private_key) =
@@ -60,25 +64,17 @@ impl UnsignedTx {
             })
             .collect();
 
-        // Construct a list of sorted inputs.
-        // Inputs are sorted by the first ring element's public key. Note that each ring
-        // is also sorted.
-        input_credentials.sort_by(|a, b| a.ring[0].public_key.cmp(&b.ring[0].public_key));
-
-        let inputs: Vec<TxIn> = input_credentials
+        let mut outputs_and_shared_secrets: Vec<(&TxOut, RistrettoPublic)> = self
+            .prefix
+            .outputs
             .iter()
-            .map(|input_credential| TxIn {
-                ring: input_credential.ring.clone(),
-                proofs: input_credential.membership_proofs.clone(),
-            })
+            .zip(self.output_shared_secrets)
             .collect();
 
         // Sort outputs by public key.
-        self.outputs_and_shared_secrets
-            .sort_by(|(a, _), (b, _)| a.public_key.cmp(&b.public_key));
+        outputs_and_shared_secrets.sort_by(|(a, _), (b, _)| a.public_key.cmp(&b.public_key));
 
-        let output_values_and_blindings: Vec<(u64, Scalar)> = self
-            .outputs_and_shared_secrets
+        let output_values_and_blindings: Vec<(u64, Scalar)> = outputs_and_shared_secrets
             .iter()
             .map(|(tx_out, shared_secret)| {
                 let amount = &tx_out.amount;
@@ -89,13 +85,11 @@ impl UnsignedTx {
             })
             .collect();
 
-        let (outputs, _shared_serets): (Vec<TxOut>, Vec<_>) =
-            self.outputs_and_shared_secrets.into_iter().unzip();
-
-        let tx_prefix = TxPrefix::new(inputs, outputs, self.fee, *tombstone_block_height);
+        // let tx_prefix = TxPrefix::new(inputs, outputs, self.fee,
+        // *tombstone_block_height);
 
         let mut rings: Vec<Vec<(CompressedRistrettoPublic, CompressedCommitment)>> = Vec::new();
-        for input in &tx_prefix.inputs {
+        for input in &self.prefix.inputs {
             let ring: Vec<(CompressedRistrettoPublic, CompressedCommitment)> = input
                 .ring
                 .iter()
@@ -122,20 +116,20 @@ impl UnsignedTx {
             input_secrets.push((onetime_private_key, value, blinding));
         }
 
-        let message = tx_prefix.hash().0;
+        let message = self.prefix.hash().0;
         let signature = SignatureRctBulletproofs::sign(
             &message,
             &rings,
             &real_input_indices,
             &input_secrets,
             &output_values_and_blindings,
-            self.fee,
+            self.prefix.fee,
             &mut rng,
         )
         .unwrap();
 
         Tx {
-            prefix: tx_prefix,
+            prefix: self.prefix,
             signature,
         }
     }
