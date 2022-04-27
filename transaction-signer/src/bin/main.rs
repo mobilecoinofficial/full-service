@@ -16,7 +16,6 @@ use mc_transaction_signer::UnsignedTx;
 
 use bip39::{Language, Mnemonic};
 use mc_util_serial;
-use serde::Deserialize;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -30,7 +29,7 @@ fn main() {
 
     if operation == "sign" {
         let unsigned_tx_file = &args[2];
-        let tombstone_block_height = &args[3];
+        let tombstone_block_height = &args[3].parse::<u64>().unwrap();
         let signed_tx_file = &args[4];
         let account_key_config_file = &args[5];
         let num_subaddresses_to_check = &args[6].parse::<u64>().unwrap();
@@ -39,6 +38,14 @@ fn main() {
         let account_key = account_key_from_mnemonic_phrase(&mnemonic_phrase);
         let subaddress_spend_public_keys =
             generate_subaddress_spend_public_keys(&account_key, *num_subaddresses_to_check);
+
+        sign_transaction(
+            unsigned_tx_file,
+            tombstone_block_height,
+            signed_tx_file,
+            &account_key,
+            &subaddress_spend_public_keys,
+        );
 
         return;
     }

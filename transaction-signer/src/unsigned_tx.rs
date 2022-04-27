@@ -1,22 +1,18 @@
-use mc_transaction_std::{InputCredentials, NoMemoBuilder, TransactionBuilder};
-use serde::{Deserialize, Serialize};
-
-use std::{convert::TryFrom, env, fs};
-
 use mc_account_keys::AccountKey;
-use mc_account_keys_slip10::Slip10Key;
 use mc_common::HashMap;
-use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
+use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPrivate, RistrettoPublic};
 use mc_transaction_core::{
-    get_tx_out_shared_secret,
-    onetime_keys::{recover_onetime_private_key, recover_public_subaddress_spend_key},
-    ring_signature::KeyImage,
-    tx::{Tx, TxIn, TxOut},
-    AmountError,
+    onetime_keys::{
+        create_shared_secret, recover_onetime_private_key, recover_public_subaddress_spend_key,
+    },
+    ring_signature::{KeyImage, Scalar, SignatureRctBulletproofs},
+    tx::{Tx, TxIn, TxOut, TxPrefix},
+    AmountError, CompressedCommitment,
 };
+use mc_transaction_std::InputCredentials;
 
-use bip39::{Language, Mnemonic};
-use mc_util_serial;
+use serde::{Deserialize, Serialize};
+use std::convert::TryFrom;
 
 #[derive(Clone, Deserialize, Serialize)]
 pub struct UnsignedTx {
@@ -33,54 +29,115 @@ pub struct UnsignedTx {
 
 impl UnsignedTx {
     pub fn sign(
-        &self,
+        mut self,
         account_key: &AccountKey,
         subaddress_spend_public_keys: &HashMap<RistrettoPublic, u64>,
         tombstone_block_height: &u64,
     ) -> Tx {
         let mut rng = rand::thread_rng();
-        // Collect all required FogUris from public addresses, then pass to
-        // resolver factory
-        // let fog_resolver = {
-        // let fog_uris = core::slice::from_ref(&change_address)
-        //     .iter()
-        //     .chain(self.outlays.iter().map(|(receiver, _amount)|
-        // receiver))     .filter_map(|x|
-        // extract_fog_uri(x).transpose())     .collect::
-        // <Result<Vec<_>, _>>()?; (self.fog_resolver_factory)(&
-        // fog_uris)     .map_err(WalletTransactionBuilderError:
-        // :FogPubkeyResolver)?
-        // };
 
-        // Create transaction builder.
-        // TODO: After servers that support memos are deployed, use
-        // RTHMemoBuilder here
-        let memo_builder = NoMemoBuilder::default();
-        let mut transaction_builder = TransactionBuilder::new(fog_resolver, memo_builder);
-        transaction_builder.set_fee(self.fee).unwrap();
-        transaction_builder.set_tombstone_block(*tombstone_block_height);
+        let mut input_credentials: Vec<InputCredentials> = self
+            .inputs_and_key_images
+            .iter()
+            .map(|(tx_in, key_image)| {
+                let (real_index, onetime_private_key) =
+                    real_index_and_onetime_private_key_for_ring(
+                        tx_in,
+                        key_image,
+                        account_key,
+                        subaddress_spend_public_keys,
+                    )
+                    .unwrap();
+                let input_credential = InputCredentials::new(
+                    tx_in.ring.clone(),
+                    tx_in.proofs.clone(),
+                    real_index as usize,
+                    onetime_private_key,
+                    *account_key.view_private_key(),
+                )
+                .unwrap();
+                input_credential
+            })
+            .collect();
 
-        self.inputs_and_key_images.iter().map(|(tx_in, key_image)| {
-            let (real_index, onetime_private_key) = real_index_and_onetime_private_key_for_ring(
-                tx_in,
-                key_image,
-                account_key,
-                subaddress_spend_public_keys,
-            )
-            .unwrap();
-            let input_credentials = InputCredentials::new(
-                tx_in.ring,
-                tx_in.proofs,
-                real_index as usize,
-                onetime_private_key,
-                *account_key.view_private_key(),
-            )
-            .unwrap();
-            transaction_builder.add_input(input_credentials);
-        });
+        // Construct a list of sorted inputs.
+        // Inputs are sorted by the first ring element's public key. Note that each ring
+        // is also sorted.
+        input_credentials.sort_by(|a, b| a.ring[0].public_key.cmp(&b.ring[0].public_key));
 
-        transaction_builder.set_outputs_and_shared_secrets(self.outputs_and_shared_secrets);
-        transaction_builder.build(&mut rng).unwrap()
+        let inputs: Vec<TxIn> = input_credentials
+            .iter()
+            .map(|input_credential| TxIn {
+                ring: input_credential.ring.clone(),
+                proofs: input_credential.membership_proofs.clone(),
+            })
+            .collect();
+
+        // Sort outputs by public key.
+        self.outputs_and_shared_secrets
+            .sort_by(|(a, _), (b, _)| a.public_key.cmp(&b.public_key));
+
+        let output_values_and_blindings: Vec<(u64, Scalar)> = self
+            .outputs_and_shared_secrets
+            .iter()
+            .map(|(tx_out, shared_secret)| {
+                let amount = &tx_out.amount;
+                let (value, blinding) = amount
+                    .get_value(shared_secret)
+                    .expect("TransactionBuilder created an invalid Amount");
+                (value, blinding)
+            })
+            .collect();
+
+        let (outputs, _shared_serets): (Vec<TxOut>, Vec<_>) =
+            self.outputs_and_shared_secrets.into_iter().unzip();
+
+        let tx_prefix = TxPrefix::new(inputs, outputs, self.fee, *tombstone_block_height);
+
+        let mut rings: Vec<Vec<(CompressedRistrettoPublic, CompressedCommitment)>> = Vec::new();
+        for input in &tx_prefix.inputs {
+            let ring: Vec<(CompressedRistrettoPublic, CompressedCommitment)> = input
+                .ring
+                .iter()
+                .map(|tx_out| (tx_out.target_key, tx_out.amount.commitment))
+                .collect();
+            rings.push(ring);
+        }
+
+        let real_input_indices: Vec<usize> = input_credentials
+            .iter()
+            .map(|input_credential| input_credential.real_index)
+            .collect();
+
+        // One-time private key, amount value, and amount blinding for each real input.
+        let mut input_secrets: Vec<(RistrettoPrivate, u64, Scalar)> = Vec::new();
+        for input_credential in &input_credentials {
+            let onetime_private_key = input_credential.onetime_private_key;
+            let amount = &input_credential.ring[input_credential.real_index].amount;
+            let shared_secret = create_shared_secret(
+                &input_credential.real_output_public_key,
+                &input_credential.view_private_key,
+            );
+            let (value, blinding) = amount.get_value(&shared_secret).unwrap();
+            input_secrets.push((onetime_private_key, value, blinding));
+        }
+
+        let message = tx_prefix.hash().0;
+        let signature = SignatureRctBulletproofs::sign(
+            &message,
+            &rings,
+            &real_input_indices,
+            &input_secrets,
+            &output_values_and_blindings,
+            self.fee,
+            &mut rng,
+        )
+        .unwrap();
+
+        Tx {
+            prefix: tx_prefix,
+            signature,
+        }
     }
 }
 
