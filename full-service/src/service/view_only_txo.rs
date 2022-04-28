@@ -9,6 +9,7 @@ use crate::{
 };
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
+use mc_ledger_db::Ledger;
 use mc_transaction_core::{ring_signature::KeyImage, tx::TxOut};
 
 /// Trait defining the ways in which the wallet can interact with and manage
@@ -67,6 +68,10 @@ where
             for (txo, key_image) in txos_with_key_images {
                 let txo_id = TxoID::from(&txo);
                 ViewOnlyTxo::update_key_image(&txo_id.to_string(), &key_image, &conn)?;
+
+                if self.ledger_db.contains_key_image(&key_image)? {
+                    ViewOnlyTxo::set_spent([(&txo_id).to_string()].to_vec(), &conn)?;
+                }
             }
             Ok(true)
         })
@@ -78,7 +83,7 @@ mod tests {
     use super::*;
     use crate::service::view_only_account::ViewOnlyAccountService;
 
-    use crate::test_utils::{get_test_ledger, setup_wallet_service};
+    use crate::test_utils::{add_block_to_ledger_db, get_test_ledger, setup_wallet_service, MOB};
     use mc_account_keys::PublicAddress;
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
@@ -92,7 +97,7 @@ mod tests {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let current_block_height = 12;
-        let ledger_db = get_test_ledger(
+        let mut ledger_db = get_test_ledger(
             5,
             &known_recipients,
             current_block_height as usize,
@@ -107,14 +112,14 @@ mod tests {
             .import_view_only_account(view_private_key.clone(), "coins for cats", None)
             .unwrap();
 
+        let public_address = PublicAddress::new(
+            &RistrettoPublic::from_random(&mut rng),
+            &RistrettoPublic::from_random(&mut rng),
+        );
         for _ in 0..2 {
             let value = 420;
             let tx_private_key = RistrettoPrivate::from_random(&mut rng);
             let hint = EncryptedFogHint::fake_onetime_hint(&mut rng);
-            let public_address = PublicAddress::new(
-                &RistrettoPublic::from_random(&mut rng),
-                &RistrettoPublic::from_random(&mut rng),
-            );
             let fake_tx_out =
                 TxOut::new(value as u64, &public_address, &tx_private_key, hint).unwrap();
             ViewOnlyTxo::create(fake_tx_out.clone(), value, &account.account_id_hex, &conn)
@@ -127,10 +132,19 @@ mod tests {
 
         for txo in &txos {
             assert_eq!(txo.key_image, None);
+            assert_eq!(txo.spent, false);
         }
 
         let key_image_1 = KeyImage::from(rng.next_u64());
         let key_image_2 = KeyImage::from(rng.next_u64());
+
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![public_address],
+            42 * MOB,
+            &vec![key_image_1],
+            &mut rng,
+        );
 
         let input_vec = [
             (mc_util_serial::decode(&txos[0].txo).unwrap(), key_image_1),
@@ -146,6 +160,11 @@ mod tests {
 
         for txo in txos {
             assert!(txo.key_image.is_some());
+            if txo.key_image.unwrap() == mc_util_serial::encode(&key_image_1) {
+                assert!(txo.spent);
+            } else {
+                assert_eq!(txo.spent, false);
+            }
         }
     }
 }
