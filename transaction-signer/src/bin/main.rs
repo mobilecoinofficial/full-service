@@ -123,9 +123,9 @@ fn check_txos(
         .collect();
     let serialized_txos_and_key_images =
         get_key_images_for_txos(&input_txos, &account_key, subaddress_spend_public_keys);
-    let serialized_txos_and_key_images =
+    let serialized_txos_and_key_images_data =
         serde_json::to_string(&serialized_txos_and_key_images).unwrap();
-    fs::write(output_key_images_file, serialized_txos_and_key_images).unwrap();
+    fs::write(output_key_images_file, serialized_txos_and_key_images_data).unwrap();
 }
 
 fn generate_subaddress_spend_public_keys(
