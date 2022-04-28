@@ -940,6 +940,28 @@ where
                     .map_err(format_error)?,
             }
         }
+        JsonCommandRequest::set_view_only_txos_key_images {
+            txos_with_key_images,
+        } => {
+            let mut decoded = Vec::new();
+            for (txo_string, key_image_string) in txos_with_key_images {
+                let deserialized_txout: Vec<u8> =
+                    serde_json::from_str(&txo_string).map_err(format_error)?;
+                let deserialized_key_image: Vec<u8> =
+                    serde_json::from_str(&key_image_string).map_err(format_error)?;
+
+                decoded.push((
+                    mc_util_serial::decode(&deserialized_txout).map_err(format_error)?,
+                    mc_util_serial::decode(&deserialized_key_image).map_err(format_error)?,
+                ))
+            }
+
+            JsonCommandResponse::set_view_only_txos_key_images {
+                success: service
+                    .set_view_only_txos_key_images(decoded)
+                    .map_err(format_error)?,
+            }
+        }
         JsonCommandRequest::submit_gift_code {
             from_account_id,
             gift_code_b58,

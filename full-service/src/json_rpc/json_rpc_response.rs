@@ -289,6 +289,9 @@ pub enum JsonCommandResponse {
     set_view_only_txos_spent {
         success: bool,
     },
+    set_view_only_txos_key_images {
+        success: bool,
+    },
     submit_gift_code {
         gift_code: GiftCode,
     },

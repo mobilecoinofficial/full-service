@@ -26,7 +26,7 @@ pub trait ViewOnlyTxoService {
     fn set_view_only_txos_spent(&self, txo_ids: Vec<String>) -> Result<bool, TxoServiceError>;
 
     /// update the key image for a list of txos
-    fn set_view_only_txo_key_images(
+    fn set_view_only_txos_key_images(
         &self,
         txos_with_key_images: Vec<(TxOut, KeyImage)>,
     ) -> Result<bool, TxoServiceError>;
@@ -57,7 +57,7 @@ where
         })
     }
 
-    fn set_view_only_txo_key_images(
+    fn set_view_only_txos_key_images(
         &self,
         txos_with_key_images: Vec<(TxOut, KeyImage)>,
     ) -> Result<bool, TxoServiceError> {
@@ -138,7 +138,7 @@ mod tests {
         ]
         .to_vec();
 
-        service.set_view_only_txo_key_images(input_vec).unwrap();
+        service.set_view_only_txos_key_images(input_vec).unwrap();
 
         let txos = service
             .list_view_only_txos(&account.account_id_hex, None, None)

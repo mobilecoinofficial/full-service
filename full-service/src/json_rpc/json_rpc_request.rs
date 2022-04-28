@@ -252,6 +252,9 @@ pub enum JsonCommandRequest {
     set_view_only_txos_spent {
         txo_ids: Vec<String>,
     },
+    set_view_only_txos_key_images {
+        txos_with_key_images: Vec<(String, String)>,
+    },
     submit_gift_code {
         from_account_id: String,
         gift_code_b58: String,
