@@ -45,7 +45,12 @@ impl TryFrom<&JsonRPCRequest> for JsonCommandRequest {
     type Error = String;
 
     fn try_from(src: &JsonRPCRequest) -> Result<JsonCommandRequest, String> {
-        let src_json: serde_json::Value = serde_json::json!(src);
+        let mut src_json: serde_json::Value = serde_json::json!(src);
+
+        // Resolve deprecated method names to an alias.
+        let method = src_json.get_mut("method").ok_or_else(|| "Missing method")?;
+        *method = method_alias(method.as_str().ok_or_else(|| "Method is not a string")?).into();
+
         serde_json::from_value(src_json).map_err(|e| format!("Could not get value {:?}", e))
     }
 }
@@ -148,24 +153,15 @@ pub enum JsonCommandRequest {
     },
     get_addresses_for_account {
         account_id: String,
-        offset: String,
-        limit: String,
+        offset: Option<String>,
+        limit: Option<String>,
     },
     get_all_accounts,
-    get_all_addresses_for_account {
-        account_id: String,
-    },
     get_all_gift_codes,
-    get_all_transaction_logs_for_account {
-        account_id: String,
-    },
     get_all_transaction_logs_for_block {
         block_index: String,
     },
     get_all_transaction_logs_ordered_by_block,
-    get_all_txos_for_account {
-        account_id: String,
-    },
     get_all_txos_for_address {
         address: String,
     },
@@ -200,21 +196,21 @@ pub enum JsonCommandRequest {
     },
     get_transaction_logs_for_account {
         account_id: String,
-        offset: String,
-        limit: String,
+        offset: Option<String>,
+        limit: Option<String>,
     },
     get_txo {
         txo_id: String,
     },
     get_txos_for_account {
         account_id: String,
-        offset: String,
-        limit: String,
+        offset: Option<String>,
+        limit: Option<String>,
     },
     get_txos_for_view_only_account {
         account_id: String,
-        offset: String,
-        limit: String,
+        offset: Option<String>,
+        limit: Option<String>,
     },
     get_view_only_account {
         account_id: String,
@@ -283,4 +279,13 @@ pub enum JsonCommandRequest {
         address: String,
     },
     version,
+}
+
+fn method_alias(m: &str) -> &str {
+    match m {
+        "get_all_addresses_for_account" => "get_addresses_for_account",
+        "get_all_transaction_logs_for_account" => "get_transaction_logs_for_account",
+        "get_all_txos_for_account" => "get_txos_for_account",
+        _ => m,
+    }
 }

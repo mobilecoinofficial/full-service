@@ -46,8 +46,8 @@ pub trait TransactionLogService {
     fn list_transaction_logs(
         &self,
         account_id: &AccountID,
-        offset: Option<i64>,
-        limit: Option<i64>,
+        offset: Option<u64>,
+        limit: Option<u64>,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletServiceError>;
 
     /// Get a specific transaction log.
@@ -76,8 +76,8 @@ where
     fn list_transaction_logs(
         &self,
         account_id: &AccountID,
-        offset: Option<i64>,
-        limit: Option<i64>,
+        offset: Option<u64>,
+        limit: Option<u64>,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletServiceError> {
         let conn = &self.wallet_db.get_conn()?;
         Ok(TransactionLog::list_all(

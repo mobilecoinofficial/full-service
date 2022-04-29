@@ -391,7 +391,7 @@ class CommandLineInterface:
         account = self._load_account_prefix(account_id)
         account_id = account['account_id']
 
-        transactions = self.client.get_all_transaction_logs_for_account(account_id)
+        transactions = self.client.get_transaction_logs_for_account(account_id, limit=1000)
 
         def block_key(t):
             submitted = t['submitted_block_index']
@@ -585,7 +585,7 @@ class CommandLineInterface:
 
     def address_list(self, account_id):
         account = self._load_account_prefix(account_id)
-        addresses = self.client.get_addresses_for_account(account['account_id'])
+        addresses = self.client.get_addresses_for_account(account['account_id'], limit=1000)
 
         print()
         print(_format_account_header(account))

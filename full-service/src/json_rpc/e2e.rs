@@ -1309,7 +1309,7 @@ mod e2e {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_all_transaction_logs_for_account",
+            "method": "get_transaction_logs_for_account",
             "params": {
                 "account_id": account_id,
             }
@@ -1954,7 +1954,7 @@ mod e2e {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_all_txos_for_account",
+            "method": "get_txos_for_account",
             "params": {
                 "account_id": account_id,
             }
@@ -1985,7 +1985,7 @@ mod e2e {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_all_transaction_logs_for_account",
+            "method": "get_transaction_logs_for_account",
             "params": {
                 "account_id": account_id,
             }
@@ -2058,7 +2058,7 @@ mod e2e {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_all_addresses_for_account",
+            "method": "get_addresses_for_account",
             "params": {
                 "account_id": account_id,
             },
@@ -2600,7 +2600,7 @@ mod e2e {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_all_txos_for_account",
+            "method": "get_txos_for_account",
             "params": {
                 "account_id": account_id,
             }
@@ -3165,7 +3165,7 @@ mod e2e {
     }
 
     #[test_with_logger]
-    fn test_get_all_txos(logger: Logger) {
+    fn test_get_txos(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -3204,7 +3204,7 @@ mod e2e {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_all_txos_for_account",
+            "method": "get_txos_for_account",
             "params": {
                 "account_id": account_id,
             }
@@ -3293,7 +3293,7 @@ mod e2e {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_all_txos_for_account",
+            "method": "get_txos_for_account",
             "params": {
                 "account_id": account_id,
             }

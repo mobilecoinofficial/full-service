@@ -54,8 +54,8 @@ pub trait AddressService {
     fn get_addresses_for_account(
         &self,
         account_id: &AccountID,
-        offset: Option<i64>,
-        limit: Option<i64>,
+        offset: Option<u64>,
+        limit: Option<u64>,
     ) -> Result<Vec<AssignedSubaddress>, AddressServiceError>;
 
     fn get_address_for_account(
@@ -94,8 +94,8 @@ where
     fn get_addresses_for_account(
         &self,
         account_id: &AccountID,
-        offset: Option<i64>,
-        limit: Option<i64>,
+        offset: Option<u64>,
+        limit: Option<u64>,
     ) -> Result<Vec<AssignedSubaddress>, AddressServiceError> {
         let conn = self.wallet_db.get_conn()?;
         Ok(AssignedSubaddress::list_all(
