@@ -2,7 +2,7 @@
 
 //! API definition for the UnspentTxOut object.
 
-use mc_mobilecoind_json::data_types::JsonTxOut;
+use mc_mobilecoind_json::data_types::{JsonTxOut, JsonU64};
 
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -12,7 +12,7 @@ pub struct UnspentTxOut {
     pub tx_out: JsonTxOut,
     pub subaddress_index: String,
     pub key_image: String,
-    pub value: String,
+    pub value: JsonU64,
     pub attempted_spend_height: String,
     pub attempted_spend_tombstone: String,
     pub monitor_id: String,

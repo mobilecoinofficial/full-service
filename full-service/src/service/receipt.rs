@@ -25,7 +25,7 @@ use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::{
-    get_tx_out_shared_secret, tx::TxOutConfirmationNumber, Amount, AmountError,
+    get_tx_out_shared_secret, tx::TxOutConfirmationNumber, AmountError, MaskedAmount,
 };
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -109,7 +109,7 @@ pub struct ReceiverReceipt {
 
     /// The encrypted amount of this transaction.
     /// Note: This value is self-reported by the sender and is unverifiable.
-    pub amount: Amount,
+    pub amount: MaskedAmount,
 }
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Ord, PartialOrd)]
@@ -146,7 +146,7 @@ impl TryFrom<&mc_api::external::Receipt> for ReceiverReceipt {
         let public_key: CompressedRistrettoPublic =
             CompressedRistrettoPublic::try_from(src.get_public_key())?;
         let confirmation = TxOutConfirmationNumber::try_from(src.get_confirmation())?;
-        let amount = Amount::try_from(src.get_amount())?;
+        let amount = MaskedAmount::try_from(src.get_amount())?;
         Ok(ReceiverReceipt {
             public_key,
             confirmation,

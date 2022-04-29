@@ -35,9 +35,11 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tokens::Mob,
     tx::{TxOut, TxOutMembershipProof},
-    Token,
+    Amount, BlockVersion, Token,
 };
-use mc_transaction_std::{EmptyMemoBuilder, InputCredentials, TransactionBuilder};
+use mc_transaction_std::{
+    ChangeDestination, InputCredentials, RTHMemoBuilder, SenderMemoCredential, TransactionBuilder,
+};
 use mc_util_uri::FogUri;
 
 use rand::Rng;
@@ -234,9 +236,13 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
 
         // Create transaction builder.
         // TODO: After servers that support memos are deployed, use RTHMemoBuilder here
-        let memo_builder = EmptyMemoBuilder::default();
-        let mut transaction_builder = TransactionBuilder::new(fog_resolver, memo_builder);
-        transaction_builder.set_fee(self.fee.unwrap_or(Mob::MINIMUM_FEE))?;
+        let mut memo_builder = RTHMemoBuilder::default();
+        memo_builder.set_sender_credential(SenderMemoCredential::from(&from_account_key));
+        memo_builder.enable_destination_memo();
+        let block_version = BlockVersion::MAX;
+        let fee = Amount::new(self.fee.unwrap_or(Mob::MINIMUM_FEE), Mob::ID);
+        let mut transaction_builder =
+            TransactionBuilder::new(block_version, fee, fog_resolver, memo_builder)?;
 
         // Get membership proofs for our inputs
         let indexes = self
@@ -365,8 +371,11 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let mut outlay_confirmation_numbers = Vec::default();
         let mut rng = rand::thread_rng();
         for (i, (recipient, out_value)) in self.outlays.iter().enumerate() {
-            let (tx_out, confirmation_number) =
-                transaction_builder.add_output(*out_value as u64, recipient, &mut rng)?;
+            let (tx_out, confirmation_number) = transaction_builder.add_output(
+                Amount::new(*out_value as u64, Mob::ID),
+                recipient,
+                &mut rng,
+            )?;
 
             tx_out_to_outlay_index.insert(tx_out, i);
             outlay_confirmation_numbers.push(confirmation_number);
@@ -388,16 +397,15 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             ));
         }
 
-        let change = input_value as u64 - total_value - transaction_builder.get_fee();
+        let change = Amount::new(
+            input_value as u64 - total_value - transaction_builder.get_fee(),
+            Mob::ID,
+        );
 
         // If we do, add an output for that as well.
-        if change > 0 {
-            let change_public_address =
-                from_account_key.subaddress(account.change_subaddress_index as u64);
-            // FIXME: verify that fog resolver knows to send change with hint encrypted to
-            // the main public address
-            transaction_builder.add_output(change, &change_public_address, &mut rng)?;
-            // FIXME: CBB - map error to indicate error with change
+        if change.value > 0 {
+            let change_destination = ChangeDestination::from(&from_account_key);
+            transaction_builder.add_change_output(change, &change_destination, &mut rng)?;
         }
 
         // Set tombstone block.

@@ -2,7 +2,7 @@
 
 //! API definition for the ReceiverReceipt object.
 
-use crate::{json_rpc::amount::Amount, service};
+use crate::{json_rpc::amount::MaskedAmount, service};
 use mc_crypto_keys::CompressedRistrettoPublic;
 use mc_transaction_core::tx::TxOutConfirmationNumber;
 use serde_derive::{Deserialize, Serialize};
@@ -30,7 +30,7 @@ pub struct ReceiverReceipt {
 
     /// The amount of the Txo.
     /// Note: This value is self-reported by the sender and is unverifiable.
-    pub amount: Amount,
+    pub amount: MaskedAmount,
 }
 
 impl TryFrom<&service::receipt::ReceiverReceipt> for ReceiverReceipt {
@@ -42,7 +42,7 @@ impl TryFrom<&service::receipt::ReceiverReceipt> for ReceiverReceipt {
             public_key: hex::encode(&mc_util_serial::encode(&src.public_key)),
             tombstone_block: src.tombstone_block.to_string(),
             confirmation: hex::encode(&mc_util_serial::encode(&src.confirmation)),
-            amount: Amount::from(&src.amount),
+            amount: MaskedAmount::from(&src.amount),
         })
     }
 }
@@ -62,7 +62,7 @@ impl TryFrom<&ReceiverReceipt> for service::receipt::ReceiverReceipt {
         )
         .map_err(|err| format!("Could not decode proof: {:?}", err))?;
 
-        let amount = mc_transaction_core::Amount::try_from(&src.amount)
+        let amount = mc_transaction_core::MaskedAmount::try_from(&src.amount)
             .map_err(|err| format!("Could not convert amount: {:?}", err))?;
 
         Ok(service::receipt::ReceiverReceipt {
