@@ -37,7 +37,7 @@ use mc_transaction_core::{
     tx::{TxOut, TxOutMembershipProof},
     Token,
 };
-use mc_transaction_std::{InputCredentials, NoMemoBuilder, TransactionBuilder};
+use mc_transaction_std::{EmptyMemoBuilder, InputCredentials, TransactionBuilder};
 use mc_util_uri::FogUri;
 
 use rand::Rng;
@@ -234,7 +234,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
 
         // Create transaction builder.
         // TODO: After servers that support memos are deployed, use RTHMemoBuilder here
-        let memo_builder = NoMemoBuilder::default();
+        let memo_builder = EmptyMemoBuilder::default();
         let mut transaction_builder = TransactionBuilder::new(fog_resolver, memo_builder);
         transaction_builder.set_fee(self.fee.unwrap_or(Mob::MINIMUM_FEE))?;
 
