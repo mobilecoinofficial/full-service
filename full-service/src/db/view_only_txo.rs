@@ -44,6 +44,15 @@ pub trait ViewOnlyTxoModel {
         conn: &Conn,
     ) -> Result<Vec<ViewOnlyTxo>, WalletDbError>;
 
+    /// get all txouts with no key image for a given account
+    ///
+    /// Returns:
+    /// * Vec<TxOut>
+    fn export_txouts_without_key_image(
+        account_id_hex: &str,
+        conn: &Conn,
+    ) -> Result<Vec<TxOut>, WalletDbError>;
+
     /// updates the key image for a given txo
     ///
     /// Returns:
@@ -159,6 +168,29 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
             .set(dsl_key_image.eq(mc_util_serial::encode(key_image)))
             .execute(conn)?;
         Ok(())
+    }
+
+    fn export_txouts_without_key_image(
+        account_id_hex: &str,
+        conn: &Conn,
+    ) -> Result<Vec<TxOut>, WalletDbError> {
+        use schema::view_only_txos::dsl::{
+            key_image as dsl_key_image, view_only_account_id_hex as dsl_account_id,
+        };
+
+        let txos: Vec<ViewOnlyTxo> = schema::view_only_txos::table
+            .filter(dsl_account_id.eq(account_id_hex))
+            .filter(dsl_key_image.is_null())
+            .load(conn)?;
+
+        let mut txouts: Vec<TxOut> = Vec::new();
+
+        for txo in txos {
+            let txout: TxOut = mc_util_serial::decode(&txo.txo)?;
+            txouts.push(txout);
+        }
+
+        Ok(txouts)
     }
 
     fn delete_all_for_account(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError> {
@@ -311,6 +343,16 @@ mod tests {
             key_image,
             mc_util_serial::decode(&found.key_image.unwrap()).unwrap()
         );
+
+        // test export_txouts_without_key_image. assuming 2 vo txos without key image
+        // and one with from the tests above
+
+        let txouts =
+            ViewOnlyTxo::export_txouts_without_key_image(&view_only_account.account_id_hex, &conn)
+                .unwrap();
+        assert_eq!(txouts.len(), 2);
+        assert!(txouts.contains(&fake_tx_out));
+        assert!(txouts.contains(&fake_txo_two));
 
         // test delete all for account
 
