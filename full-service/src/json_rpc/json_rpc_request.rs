@@ -48,8 +48,8 @@ impl TryFrom<&JsonRPCRequest> for JsonCommandRequest {
         let mut src_json: serde_json::Value = serde_json::json!(src);
 
         // Resolve deprecated method names to an alias.
-        let method = src_json.get_mut("method").ok_or_else(|| "Missing method")?;
-        *method = method_alias(method.as_str().ok_or_else(|| "Method is not a string")?).into();
+        let method = src_json.get_mut("method").ok_or("Missing method")?;
+        *method = method_alias(method.as_str().ok_or("Method is not a string")?).into();
 
         serde_json::from_value(src_json).map_err(|e| format!("Could not get value {:?}", e))
     }
