@@ -1309,7 +1309,7 @@ mod e2e {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_all_transaction_logs_for_account",
+            "method": "get_transaction_logs_for_account",
             "params": {
                 "account_id": account_id,
             }
@@ -1954,7 +1954,7 @@ mod e2e {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_all_txos_for_account",
+            "method": "get_txos_for_account",
             "params": {
                 "account_id": account_id,
             }
@@ -1985,7 +1985,7 @@ mod e2e {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_all_transaction_logs_for_account",
+            "method": "get_transaction_logs_for_account",
             "params": {
                 "account_id": account_id,
             }
@@ -2058,7 +2058,7 @@ mod e2e {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_all_addresses_for_account",
+            "method": "get_addresses_for_account",
             "params": {
                 "account_id": account_id,
             },
@@ -2600,7 +2600,7 @@ mod e2e {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_all_txos_for_account",
+            "method": "get_txos_for_account",
             "params": {
                 "account_id": account_id,
             }
@@ -3165,7 +3165,7 @@ mod e2e {
     }
 
     #[test_with_logger]
-    fn test_get_all_txos(logger: Logger) {
+    fn test_get_txos(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -3204,7 +3204,7 @@ mod e2e {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_all_txos_for_account",
+            "method": "get_txos_for_account",
             "params": {
                 "account_id": account_id,
             }
@@ -3293,7 +3293,7 @@ mod e2e {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_all_txos_for_account",
+            "method": "get_txos_for_account",
             "params": {
                 "account_id": account_id,
             }
@@ -4335,6 +4335,7 @@ mod e2e {
     fn test_e2e_hot_and_cold_view_only_flow(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
+        let wallet_db = db_ctx.get_db_instance(logger.clone());
 
         // Add an account
         let body = json!({
@@ -4362,7 +4363,7 @@ mod e2e {
         );
         manually_sync_account(
             &ledger_db,
-            &db_ctx.get_db_instance(logger.clone()),
+            &wallet_db,
             &AccountID(account_id.to_string()),
             &logger,
         );
@@ -4420,7 +4421,7 @@ mod e2e {
         // sync view-only account and check balance
         manually_sync_view_only_account(
             &ledger_db,
-            &db_ctx.get_db_instance(logger.clone()),
+            &wallet_db,
             &view_only_account_id,
             &logger,
         );
@@ -4481,7 +4482,7 @@ mod e2e {
         add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
         manually_sync_view_only_account(
             &ledger_db,
-            &db_ctx.get_db_instance(logger.clone()),
+            &wallet_db,
             &view_only_account_id,
             &logger,
         );

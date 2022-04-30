@@ -45,13 +45,17 @@ class Client:
         except ConnectionError:
             raise ConnectionError(f'Could not connect to wallet server at {self.url}.')
 
+        raw_response = None
         try:
-            response_data = json.load(r)
+            raw_response = r.read()
+            response_data = json.loads(raw_response)
         except ValueError:
-            raise ValueError('API returned invalid JSON:', r.text)
+            raise ValueError('API returned invalid JSON:', raw_response)
 
         if self.verbose:
             print(r.status, http.client.responses[r.status])
+            print(repr(raw_response))
+            print(len(raw_response), 'bytes')
             print(json.dumps(response_data, indent=2))
             print()
 
@@ -147,10 +151,14 @@ class Client:
         })
         return r['account_secrets']
 
-    def get_all_txos_for_account(self, account_id):
+    def get_txos_for_account(self, account_id, offset=0, limit=100):
         r = self._req({
-            "method": "get_all_txos_for_account",
-            "params": {"account_id": account_id}
+            "method": "get_txos_for_account",
+            "params": {
+                "account_id": account_id,
+                "offset": offset,
+                "limit": limit,
+            }
         })
         return r['txo_map']
 
@@ -200,7 +208,7 @@ class Client:
         })
         return r['address']
 
-    def get_addresses_for_account(self, account_id, offset=0, limit=1000):
+    def get_addresses_for_account(self, account_id, offset=0, limit=100):
         r = self._req({
             "method": "get_addresses_for_account",
             "params": {
@@ -259,11 +267,13 @@ class Client:
         })
         return r['transaction_log']
 
-    def get_all_transaction_logs_for_account(self, account_id):
+    def get_transaction_logs_for_account(self, account_id, offset=0, limit=100):
         r = self._req({
-            "method": "get_all_transaction_logs_for_account",
+            "method": "get_transaction_logs_for_account",
             "params": {
                 "account_id": account_id,
+                "offset": str(int(offset)),
+                "limit": str(int(limit)),
             },
         })
         return r['transaction_log_map']

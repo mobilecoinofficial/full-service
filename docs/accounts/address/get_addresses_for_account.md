@@ -9,8 +9,8 @@ description: Get assigned addresses for an account.
 | Required Param | Purpose | Requirements |
 | :--- | :--- | :--- |
 | `account_id` | The account on which to perform this action. | The account must exist in the wallet. |
-| `offset` | integer | The value to offset pagination requests. Requests will exclude all list items up to and including this object. |
-| `limit` | integer | The limit of returned results. This has a max value of 1000, and will return an error if exceeded. |
+| `offset` | The pagination offset. Results start at the offset index. Optional, defaults to 0. | |
+| `limit` | Limit for the number of results. Optional, defaults to 100 | |
 
 ## Example
 

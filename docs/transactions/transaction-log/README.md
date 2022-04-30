@@ -32,7 +32,6 @@ Due to the privacy properties of the MobileCoin ledger, transactions are ephemer
 | `comment` | string | An arbitrary string attached to the object. |
 | `failure_code` | integer | Code representing the cause of "failed" status. |
 | `failure_message` | string | Human parsable explanation of "failed" status. |
-| `offset` | integer | The value to offset pagination requests for `transaction_log` list. Requests will exclude all list items up to and including this object. |
 
 ## Example
 

@@ -17,8 +17,8 @@ pub trait ViewOnlyTxoService {
     fn list_view_only_txos(
         &self,
         account_id: &str,
-        limit: Option<i64>,
-        offset: Option<i64>,
+        limit: Option<u64>,
+        offset: Option<u64>,
     ) -> Result<Vec<ViewOnlyTxo>, TxoServiceError>;
 
     /// set a group of txos as spent.
@@ -33,8 +33,8 @@ where
     fn list_view_only_txos(
         &self,
         account_id: &str,
-        limit: Option<i64>,
-        offset: Option<i64>,
+        limit: Option<u64>,
+        offset: Option<u64>,
     ) -> Result<Vec<ViewOnlyTxo>, TxoServiceError> {
         let conn = self.wallet_db.get_conn()?;
         Ok(ViewOnlyTxo::list_for_account(
