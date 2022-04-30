@@ -184,11 +184,7 @@ impl PeersConfig {
             .iter()
             .map(|p| {
                 p.responder_id().unwrap_or_else(|e| {
-                    panic!(
-                        "Could not get responder_id from uri {}: {:?}",
-                        p.to_string(),
-                        e
-                    )
+                    panic!("Could not get responder_id from uri {}: {:?}", p, e)
                 })
             })
             .collect::<Vec<ResponderId>>();

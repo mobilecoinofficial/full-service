@@ -46,7 +46,7 @@ impl ViewOnlyTransactionLogModel for ViewOnlyTransactionLog {
             .values(&new_log)
             .execute(conn)?;
 
-        ViewOnlyTransactionLog::get_by_change_txo_id(&change_txo_id_hex.to_string(), conn)
+        ViewOnlyTransactionLog::get_by_change_txo_id(change_txo_id_hex, conn)
     }
 
     fn get_by_change_txo_id(

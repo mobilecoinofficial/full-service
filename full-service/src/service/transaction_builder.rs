@@ -38,7 +38,7 @@ use mc_transaction_core::{
     Amount, BlockVersion, Token,
 };
 use mc_transaction_std::{
-    ChangeDestination, InputCredentials, RTHMemoBuilder, SenderMemoCredential, TransactionBuilder,
+    InputCredentials, RTHMemoBuilder, SenderMemoCredential, TransactionBuilder,
 };
 use mc_util_uri::FogUri;
 
@@ -113,7 +113,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             None
         };
 
-        let txos = Txo::select_by_id(&input_txo_ids.to_vec(), pending_tombstone_block_index, conn)?;
+        let txos = Txo::select_by_id(input_txo_ids, pending_tombstone_block_index, conn)?;
 
         let unspent: Vec<Txo> = txos
             .iter()

@@ -180,5 +180,5 @@ const NUM_RETRIES: u32 = 5;
 /// This function doubles all single quote characters within the string, then
 /// wraps the string in single quotes on the front and back.
 fn sql_escape_string(s: &str) -> String {
-    format!("'{}'", s.replace("'", "''"))
+    format!("'{}'", s.replace('\'', "''"))
 }

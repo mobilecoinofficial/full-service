@@ -24,7 +24,7 @@ impl From<&mc_mobilecoind_json::data_types::JsonUnspentTxOut> for UnspentTxOut {
             tx_out: src.tx_out.clone(),
             subaddress_index: src.subaddress_index.to_string(),
             key_image: src.key_image.clone(),
-            value: src.value.clone(),
+            value: src.value,
             attempted_spend_height: src.attempted_spend_height.to_string(),
             attempted_spend_tombstone: src.attempted_spend_tombstone.to_string(),
             monitor_id: src.monitor_id.clone(),
@@ -45,7 +45,7 @@ impl TryFrom<&UnspentTxOut> for mc_mobilecoind_json::data_types::JsonUnspentTxOu
                 .parse::<u64>()
                 .map_err(|err| format!("Failed to parse u64 from subaddress_index: {}", err))?,
             key_image: src.key_image.clone(),
-            value: src.value.clone(),
+            value: src.value,
             attempted_spend_height: src.attempted_spend_height.parse::<u64>().map_err(|err| {
                 format!("Failed to parse u64 from attempted_spend_height: {}", err)
             })?,
