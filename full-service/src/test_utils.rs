@@ -96,7 +96,7 @@ impl Default for WalletDbTestContext {
 }
 
 impl WalletDbTestContext {
-    pub fn get_db_instance(&self, logger: Logger) -> WalletDb {
+    pub fn get_db_instance(&self, _logger: Logger) -> WalletDb {
         // Note: Setting db_connections too high results in IO Error: Too many open
         // files.
         WalletDb::new_from_url(&format!("{}/{}", self.base_url, self.db_name), 7)
@@ -230,24 +230,29 @@ pub fn add_block_to_ledger_db(
     let block_contents = BlockContents {
         key_images: key_images.to_vec(),
         outputs,
-        validated_mint_config_txs: todo!(),
-        mint_txs: todo!(),
+        validated_mint_config_txs: Vec::new(),
+        mint_txs: Vec::new(),
     };
-    // let block_contents = BlockContents::new(key_images.to_vec(),
-    // outputs.clone());
     append_test_block(ledger_db, block_contents)
 }
 
 pub fn add_block_with_tx_proposal(ledger_db: &mut LedgerDB, tx_proposal: TxProposal) -> u64 {
-    let block_contents = BlockContents::new(
-        tx_proposal.tx.key_images(),
-        tx_proposal.tx.prefix.outputs.clone(),
-    );
+    let block_contents = BlockContents {
+        key_images: tx_proposal.tx.key_images(),
+        outputs: tx_proposal.tx.prefix.outputs.clone(),
+        validated_mint_config_txs: Vec::new(),
+        mint_txs: Vec::new(),
+    };
     append_test_block(ledger_db, block_contents)
 }
 
 pub fn add_block_with_tx(ledger_db: &mut LedgerDB, tx: Tx) -> u64 {
-    let block_contents = BlockContents::new(tx.key_images(), tx.prefix.outputs.clone());
+    let block_contents = BlockContents {
+        key_images: tx.key_images(),
+        outputs: tx.prefix.outputs.clone(),
+        validated_mint_config_txs: Vec::new(),
+        mint_txs: Vec::new(),
+    };
     append_test_block(ledger_db, block_contents)
 }
 
@@ -272,8 +277,12 @@ pub fn add_block_from_transaction_log(
         .collect();
 
     // Note: This block doesn't contain the fee output.
-
-    let block_contents = BlockContents::new(key_images, outputs.clone());
+    let block_contents = BlockContents {
+        key_images,
+        outputs,
+        validated_mint_config_txs: Vec::new(),
+        mint_txs: Vec::new(),
+    };
 
     append_test_block(ledger_db, block_contents)
 }
@@ -283,7 +292,12 @@ pub fn add_block_with_tx_outs(
     outputs: &[TxOut],
     key_images: &[KeyImage],
 ) -> u64 {
-    let block_contents = BlockContents::new(key_images.to_vec(), outputs.to_vec());
+    let block_contents = BlockContents {
+        key_images: key_images.to_vec(),
+        outputs: outputs.to_vec(),
+        validated_mint_config_txs: Vec::new(),
+        mint_txs: Vec::new(),
+    };
     append_test_block(ledger_db, block_contents)
 }
 
