@@ -535,7 +535,7 @@ impl TransactionLogModel for TransactionLog {
 
 #[cfg(test)]
 mod tests {
-    use mc_account_keys::{AccountKey, PublicAddress, RootIdentity};
+    use mc_account_keys::{AccountKey, PublicAddress, RootIdentity, CHANGE_SUBADDRESS_INDEX};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::RngCore;
     use mc_ledger_db::Ledger;
@@ -551,7 +551,7 @@ mod tests {
             get_resolver_factory, get_test_ledger, manually_sync_account,
             random_account_with_seed_values, WalletDbTestContext, MOB,
         },
-        util::{b58::b58_encode_public_address, constants::CHANGE_SUBADDRESS_INDEX},
+        util::b58::b58_encode_public_address,
     };
 
     use super::*;

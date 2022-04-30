@@ -11,14 +11,16 @@ use crate::{
         Conn, WalletDbError,
     },
     util::constants::{
-        CHANGE_SUBADDRESS_INDEX, DEFAULT_FIRST_BLOCK_INDEX, DEFAULT_NEXT_SUBADDRESS_INDEX,
+        DEFAULT_FIRST_BLOCK_INDEX, DEFAULT_NEXT_SUBADDRESS_INDEX, LEGACY_CHANGE_SUBADDRESS_INDEX,
         MNEMONIC_KEY_DERIVATION_VERSION, ROOT_ENTROPY_KEY_DERIVATION_VERSION,
     },
 };
 
 use bip39::Mnemonic;
 use diesel::prelude::*;
-use mc_account_keys::{AccountKey, RootEntropy, RootIdentity, DEFAULT_SUBADDRESS_INDEX};
+use mc_account_keys::{
+    AccountKey, RootEntropy, RootIdentity, CHANGE_SUBADDRESS_INDEX, DEFAULT_SUBADDRESS_INDEX,
+};
 use mc_account_keys_slip10::Slip10Key;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use std::fmt;
@@ -279,6 +281,14 @@ impl AccountModel for Account {
         if !fog_enabled {
             AssignedSubaddress::create(
                 account_key,
+                None,
+                LEGACY_CHANGE_SUBADDRESS_INDEX,
+                "Legacy Change",
+                conn,
+            )?;
+
+            AssignedSubaddress::create(
+                account_key,
                 None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
                        * always for main? */
                 CHANGE_SUBADDRESS_INDEX,
@@ -478,7 +488,7 @@ mod tests {
             entropy: root_id.root_entropy.bytes.to_vec(),
             key_derivation_version: 1,
             main_subaddress_index: 0,
-            change_subaddress_index: 1,
+            change_subaddress_index: CHANGE_SUBADDRESS_INDEX as i64,
             next_subaddress_index: 2,
             first_block_index: 0,
             next_block_index: 0,
@@ -496,11 +506,13 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(subaddresses.len(), 2);
+        assert_eq!(subaddresses.len(), 3);
         let subaddress_indices: HashSet<i64> =
             HashSet::from_iter(subaddresses.iter().map(|s| s.subaddress_index));
         assert!(subaddress_indices.get(&0).is_some());
-        assert!(subaddress_indices.get(&1).is_some());
+        assert!(subaddress_indices
+            .get(&(CHANGE_SUBADDRESS_INDEX as i64))
+            .is_some());
 
         // Verify that we can get the correct subaddress index from the spend public key
         let main_subaddress = account_key.subaddress(0);
@@ -541,7 +553,7 @@ mod tests {
             entropy: root_id_secondary.root_entropy.bytes.to_vec(),
             key_derivation_version: 1,
             main_subaddress_index: 0,
-            change_subaddress_index: 1,
+            change_subaddress_index: CHANGE_SUBADDRESS_INDEX as i64,
             next_subaddress_index: 2,
             first_block_index: 50,
             next_block_index: 50,

@@ -38,7 +38,7 @@ use mc_transaction_core::{
     Amount, BlockVersion, Token,
 };
 use mc_transaction_std::{
-    InputCredentials, RTHMemoBuilder, SenderMemoCredential, TransactionBuilder,
+    ChangeDestination, InputCredentials, RTHMemoBuilder, SenderMemoCredential, TransactionBuilder,
 };
 use mc_util_uri::FogUri;
 
@@ -402,18 +402,10 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             Mob::ID,
         );
 
-        // let change_value = input_value as u64 - total_value -
-        // transaction_builder.get_fee();
-
         // If we do, add an output for that as well.
         if change.value > 0 {
-            let change_address =
-                from_account_key.subaddress(account.change_subaddress_index as u64);
-            transaction_builder.add_output(change, &change_address, &mut rng)?;
-            // let change_destination =
-            // ChangeDestination::from(&from_account_key);
-            // transaction_builder.add_change_output(change,
-            // &change_destination, &mut rng)?;
+            let change_destination = ChangeDestination::from(&from_account_key);
+            transaction_builder.add_change_output(change, &change_destination, &mut rng)?;
         }
 
         // Set tombstone block.

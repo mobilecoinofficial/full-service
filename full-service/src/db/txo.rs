@@ -3,7 +3,7 @@
 //! DB impl for the Txo model.
 
 use diesel::prelude::*;
-use mc_account_keys::{AccountKey, PublicAddress};
+use mc_account_keys::{AccountKey, PublicAddress, CHANGE_SUBADDRESS_INDEX};
 use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
@@ -24,7 +24,7 @@ use crate::{
         },
         Conn, WalletDbError,
     },
-    util::{b58::b58_encode_public_address, constants::CHANGE_SUBADDRESS_INDEX},
+    util::b58::b58_encode_public_address,
 };
 
 /// A unique ID derived from a TxOut in the ledger.
@@ -903,7 +903,7 @@ impl TxoModel for Txo {
 
 #[cfg(test)]
 mod tests {
-    use mc_account_keys::{AccountKey, RootIdentity};
+    use mc_account_keys::{AccountKey, RootIdentity, CHANGE_SUBADDRESS_INDEX};
     use mc_common::{
         logger::{log, test_with_logger, Logger},
         HashSet,
@@ -932,7 +932,6 @@ mod tests {
             create_test_txo_for_recipient, get_resolver_factory, get_test_ledger,
             manually_sync_account, random_account_with_seed_values, WalletDbTestContext, MOB,
         },
-        util::constants::CHANGE_SUBADDRESS_INDEX,
         WalletDb,
     };
 
