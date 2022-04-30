@@ -24,7 +24,7 @@ use crate::{
         },
         Conn, WalletDbError,
     },
-    util::{b58::b58_encode_public_address, constants::DEFAULT_CHANGE_SUBADDRESS_INDEX},
+    util::{b58::b58_encode_public_address, constants::CHANGE_SUBADDRESS_INDEX},
 };
 
 /// A unique ID derived from a TxOut in the ledger.
@@ -873,7 +873,7 @@ impl TxoModel for Txo {
 
     fn is_change(&self) -> bool {
         self.minted_account_id_hex == self.received_account_id_hex
-            && self.subaddress_index == Some(DEFAULT_CHANGE_SUBADDRESS_INDEX as i64)
+            && self.subaddress_index == Some(CHANGE_SUBADDRESS_INDEX as i64)
     }
 
     fn is_minted(&self) -> bool {
@@ -932,7 +932,7 @@ mod tests {
             create_test_txo_for_recipient, get_resolver_factory, get_test_ledger,
             manually_sync_account, random_account_with_seed_values, WalletDbTestContext, MOB,
         },
-        util::constants::DEFAULT_CHANGE_SUBADDRESS_INDEX,
+        util::constants::CHANGE_SUBADDRESS_INDEX,
         WalletDb,
     };
 
@@ -1060,6 +1060,7 @@ mod tests {
         .unwrap();
         assert_eq!(txos.len(), 3);
 
+        // println!("{}", serde_json::to_string_pretty(&txos).unwrap());
         // Check that we have 2 spendable (1 is orphaned)
         let spendable: Vec<&Txo> = txos.iter().filter(|f| f.key_image.is_some()).collect();
         assert_eq!(spendable.len(), 2);
@@ -1144,6 +1145,7 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
+        println!("{}", serde_json::to_string_pretty(&unspent).unwrap());
         assert_eq!(unspent.len(), 2);
 
         let minted = Txo::list_minted(
@@ -1169,7 +1171,7 @@ mod tests {
             .iter()
             .filter(|f| {
                 if let Some(subaddress_index) = f.subaddress_index.clone() {
-                    subaddress_index as u64 == DEFAULT_CHANGE_SUBADDRESS_INDEX
+                    subaddress_index as u64 == CHANGE_SUBADDRESS_INDEX
                 } else {
                     false
                 }

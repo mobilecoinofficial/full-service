@@ -548,7 +548,7 @@ mod tests {
             get_resolver_factory, get_test_ledger, manually_sync_account,
             random_account_with_seed_values, WalletDbTestContext, MOB,
         },
-        util::{b58::b58_encode_public_address, constants::DEFAULT_CHANGE_SUBADDRESS_INDEX},
+        util::{b58::b58_encode_public_address, constants::CHANGE_SUBADDRESS_INDEX},
     };
 
     use super::*;
@@ -787,7 +787,7 @@ mod tests {
         );
         assert_eq!(
             updated_change_details.subaddress_index,
-            Some(DEFAULT_CHANGE_SUBADDRESS_INDEX as i64)
+            Some(CHANGE_SUBADDRESS_INDEX as i64)
         );
     }
 
@@ -1087,7 +1087,7 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(input_details0.value as u64, 7 * MOB);
+        assert_eq!(input_details0.value as u64, 8 * MOB);
 
         assert!(input_details0.is_pending());
         assert!(input_details0.is_received());
@@ -1099,7 +1099,7 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(input_details1.value as u64, 8 * MOB);
+        assert_eq!(input_details1.value as u64, 7 * MOB);
 
         assert!(input_details1.is_pending());
         assert!(input_details1.is_received());
@@ -1233,7 +1233,7 @@ mod tests {
         );
         assert_eq!(
             updated_change_details.subaddress_index,
-            Some(DEFAULT_CHANGE_SUBADDRESS_INDEX as i64)
+            Some(CHANGE_SUBADDRESS_INDEX as i64)
         );
     }
 

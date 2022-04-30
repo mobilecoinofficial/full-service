@@ -11,15 +11,14 @@ use crate::{
         Conn, WalletDbError,
     },
     util::constants::{
-        DEFAULT_CHANGE_SUBADDRESS_INDEX, DEFAULT_FIRST_BLOCK_INDEX, DEFAULT_NEXT_SUBADDRESS_INDEX,
-        DEFAULT_SUBADDRESS_INDEX, MNEMONIC_KEY_DERIVATION_VERSION,
-        ROOT_ENTROPY_KEY_DERIVATION_VERSION,
+        CHANGE_SUBADDRESS_INDEX, DEFAULT_FIRST_BLOCK_INDEX, DEFAULT_NEXT_SUBADDRESS_INDEX,
+        MNEMONIC_KEY_DERIVATION_VERSION, ROOT_ENTROPY_KEY_DERIVATION_VERSION,
     },
 };
 
 use bip39::Mnemonic;
 use diesel::prelude::*;
-use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
+use mc_account_keys::{AccountKey, RootEntropy, RootIdentity, DEFAULT_SUBADDRESS_INDEX};
 use mc_account_keys_slip10::Slip10Key;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use std::fmt;
@@ -240,7 +239,7 @@ impl AccountModel for Account {
         let change_subaddress_index = if fog_enabled {
             DEFAULT_SUBADDRESS_INDEX as i64
         } else {
-            DEFAULT_CHANGE_SUBADDRESS_INDEX as i64
+            CHANGE_SUBADDRESS_INDEX as i64
         };
 
         let next_subaddress_index = if fog_enabled {
@@ -282,7 +281,7 @@ impl AccountModel for Account {
                 account_key,
                 None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
                        * always for main? */
-                DEFAULT_CHANGE_SUBADDRESS_INDEX,
+                CHANGE_SUBADDRESS_INDEX,
                 "Change",
                 conn,
             )?;

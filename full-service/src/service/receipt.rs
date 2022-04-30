@@ -312,6 +312,7 @@ mod tests {
         let mut proto_amount = mc_api::external::MaskedAmount::new();
         proto_amount.set_commitment(proto_commitment);
         proto_amount.set_masked_value(txo.masked_amount.masked_value);
+        proto_amount.set_masked_token_id(txo.masked_amount.masked_token_id.clone());
         proto_tx_receipt.set_masked_amount(proto_amount);
 
         let tx_receipt =
