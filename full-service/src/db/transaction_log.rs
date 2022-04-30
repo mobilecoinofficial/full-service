@@ -82,8 +82,8 @@ pub trait TransactionLogModel {
     /// * Vec(TransactionLog, AssociatedTxos(inputs, outputs, change))
     fn list_all(
         account_id_hex: &str,
-        offset: Option<i64>,
-        limit: Option<i64>,
+        offset: Option<u64>,
+        limit: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletDbError>;
 
@@ -227,8 +227,8 @@ impl TransactionLogModel for TransactionLog {
 
     fn list_all(
         account_id_hex: &str,
-        offset: Option<i64>,
-        limit: Option<i64>,
+        offset: Option<u64>,
+        limit: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletDbError> {
         use crate::db::schema::{transaction_logs, transaction_txo_types, txos};
@@ -252,7 +252,10 @@ impl TransactionLogModel for TransactionLog {
 
         let transactions: Vec<(TransactionLog, TransactionTxoType, Txo)> =
             if let (Some(o), Some(l)) = (offset, limit) {
-                transactions_query.offset(o).limit(l).load(conn)?
+                transactions_query
+                    .offset(o as i64)
+                    .limit(l as i64)
+                    .load(conn)?
             } else {
                 transactions_query.load(conn)?
             };

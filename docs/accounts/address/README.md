@@ -22,8 +22,6 @@ Important: If you receive funds at a subaddress that has not yet been assigned, 
 | `account_id` | string | A unique identifier for the assigned associated account. |
 | `metadata` | string | An arbitrary string attached to the object. |
 | `subaddress_index` | string \(uint64\) | The assigned subaddress index on the associated account. |
-| `offset` | integer | The value to offset pagination requests. Requests will exclude all list items up to and including this object. |
-| `limit` | integer | The limit of returned results. |
 
 ## Example
 
