@@ -33,7 +33,6 @@ use mc_transaction_core::{
     onetime_keys::{recover_onetime_private_key, recover_public_subaddress_spend_key},
     ring_signature::KeyImage,
     tx::TxOut,
-    AmountError,
 };
 use rayon::prelude::*;
 
@@ -481,9 +480,9 @@ pub fn decode_amount(tx_out: &TxOut, view_private_key: &RistrettoPrivate) -> Opt
         Ok(k) => k,
     };
     let shared_secret = get_tx_out_shared_secret(view_private_key, &tx_public_key);
-    match tx_out.amount.get_value(&shared_secret) {
-        Ok((a, _)) => Some(a),
-        Err(AmountError::InconsistentCommitment) => None,
+    match tx_out.masked_amount.get_value(&shared_secret) {
+        Ok((a, _)) => Some(a.value),
+        Err(_) => None,
     }
 }
 

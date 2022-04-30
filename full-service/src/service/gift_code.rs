@@ -819,8 +819,8 @@ mod tests {
             gift_code_account_key.view_private_key(),
             &RistrettoPublic::try_from(&tx_out.public_key).unwrap(),
         );
-        let (value, _blinding) = tx_out.amount.get_value(&shared_secret).unwrap();
-        assert_eq!(value, 2 * MOB as u64);
+        let (value, _blinding) = tx_out.masked_amount.get_value(&shared_secret).unwrap();
+        assert_eq!(value, Amount::new(2 * MOB as u64, Mob::ID));
 
         // Verify balance for Alice = original balance - fee - gift_code_value
         let balance = service
@@ -831,7 +831,7 @@ mod tests {
         // Verify that we can get the gift_code
         log::info!(logger, "Getting gift code from database");
         let gotten_gift_code = service.get_gift_code(&gift_code_b58).unwrap();
-        assert_eq!(gotten_gift_code.value, value);
+        assert_eq!(gotten_gift_code.value, value.value);
         assert_eq!(gotten_gift_code.gift_code_b58, gift_code_b58.to_string());
 
         // Check that we can list all

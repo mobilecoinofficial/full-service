@@ -462,6 +462,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                     value: utxo.value as u64,
                     attempted_spend_height: 0, // NOTE: these are null because not tracked here
                     attempted_spend_tombstone: 0,
+                    token_id: *Mob::ID,
                 }
             })
             .collect();

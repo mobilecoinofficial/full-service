@@ -142,10 +142,10 @@ where
                 .filter_map(|conn| conn.fetch_block_info(empty()).ok())
                 .filter_map(|block_info| {
                     // Cleanup the protobuf default fee
-                    if block_info.minimum_fee == 0 {
+                    if block_info.minimum_fees[&Mob::ID] == 0 {
                         None
                     } else {
-                        Some(block_info.minimum_fee)
+                        Some(block_info.minimum_fees[&Mob::ID])
                     }
                 })
                 .max()

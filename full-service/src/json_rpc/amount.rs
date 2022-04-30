@@ -26,7 +26,7 @@ pub struct MaskedAmount {
     /// `masked_token_id = token_id XOR_8 Blake2B(token_id_mask |
     /// shared_secret)` 8 bytes long when used, 0 bytes for older amounts
     /// that don't have this.
-    pub masked_token_id: Vec<u8>,
+    pub masked_token_id: String,
 }
 
 impl From<&mc_api::external::MaskedAmount> for MaskedAmount {
@@ -35,7 +35,7 @@ impl From<&mc_api::external::MaskedAmount> for MaskedAmount {
             object: "amount".to_string(),
             commitment: hex::encode(src.get_commitment().get_data()),
             masked_value: src.get_masked_value().to_string(),
-            masked_token_id: src.get_masked_token_id().to_vec(),
+            masked_token_id: hex::encode(&src.get_masked_token_id()),
         }
     }
 }
@@ -46,7 +46,7 @@ impl From<&mc_transaction_core::MaskedAmount> for MaskedAmount {
             object: "amount".to_string(),
             commitment: hex::encode(src.commitment.to_bytes()),
             masked_value: src.masked_value.to_string(),
-            masked_token_id: src.masked_token_id,
+            masked_token_id: hex::encode(&src.masked_token_id),
         }
     }
 }
@@ -66,7 +66,8 @@ impl TryFrom<&MaskedAmount> for mc_transaction_core::MaskedAmount {
                 .masked_value
                 .parse::<u64>()
                 .map_err(|err| format!("Could not parse masked value u64: {:?}", err))?,
-            masked_token_id: src.masked_token_id,
+            masked_token_id: hex::decode(&src.masked_token_id)
+                .map_err(|err| format!("Could not decode hex for masked token id: {:?}", err))?,
         })
     }
 }

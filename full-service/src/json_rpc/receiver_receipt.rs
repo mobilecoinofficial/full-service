@@ -83,7 +83,7 @@ mod tests {
     use mc_account_keys::AccountKey;
     use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
     use mc_crypto_rand::RngCore;
-    use mc_transaction_core::tx::TxOut;
+    use mc_transaction_core::{tokens::Mob, tx::TxOut, Amount, Token};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
@@ -94,7 +94,7 @@ mod tests {
         let account_key = AccountKey::random(&mut rng);
         let public_address = account_key.default_subaddress();
         let txo = TxOut::new(
-            rng.next_u64(),
+            Amount::new(rng.next_u64(), Mob::ID),
             &public_address,
             &RistrettoPrivate::from_random(&mut rng),
             Default::default(),
@@ -104,8 +104,8 @@ mod tests {
         let mut proof_bytes = [0u8; 32];
         rng.fill_bytes(&mut proof_bytes);
         let confirmation_number = TxOutConfirmationNumber::from(proof_bytes);
-        let amount = mc_transaction_core::Amount::new(
-            rng.next_u64(),
+        let amount = mc_transaction_core::MaskedAmount::new(
+            Amount::new(rng.next_u64(), Mob::ID),
             &RistrettoPublic::from_random(&mut rng),
         )
         .expect("Could not create amount");

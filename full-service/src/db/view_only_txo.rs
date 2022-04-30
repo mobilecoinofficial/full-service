@@ -152,7 +152,7 @@ mod tests {
     use mc_account_keys::PublicAddress;
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
-    use mc_transaction_core::encrypted_fog_hint::EncryptedFogHint;
+    use mc_transaction_core::{encrypted_fog_hint::EncryptedFogHint, tokens::Mob, Amount, Token};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
@@ -171,7 +171,13 @@ mod tests {
             &RistrettoPublic::from_random(&mut rng),
             &RistrettoPublic::from_random(&mut rng),
         );
-        let fake_tx_out = TxOut::new(value as u64, &public_address, &tx_private_key, hint).unwrap();
+        let fake_tx_out = TxOut::new(
+            Amount::new(value as u64, Mob::ID),
+            &public_address,
+            &tx_private_key,
+            hint,
+        )
+        .unwrap();
 
         // make sure it fails if no matching account
 
@@ -235,8 +241,13 @@ mod tests {
             &RistrettoPublic::from_random(&mut rng),
             &RistrettoPublic::from_random(&mut rng),
         );
-        let fake_txo_two =
-            TxOut::new(value as u64, &public_address, &tx_private_key, hint).unwrap();
+        let fake_txo_two = TxOut::new(
+            Amount::new(value as u64, Mob::ID),
+            &public_address,
+            &tx_private_key,
+            hint,
+        )
+        .unwrap();
 
         ViewOnlyTxo::create(
             fake_txo_two.clone(),

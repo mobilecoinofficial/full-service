@@ -39,8 +39,9 @@ use mc_transaction_core::{
     encrypted_fog_hint::EncryptedFogHint,
     onetime_keys::{create_tx_out_target_key, recover_onetime_private_key},
     ring_signature::KeyImage,
+    tokens::Mob,
     tx::{Tx, TxOut},
-    Block, BlockContents, BLOCK_VERSION,
+    Amount, Block, BlockContents, Token, MAX_BLOCK_VERSION,
 };
 use mc_util_from_random::FromRandom;
 use mc_util_uri::{ConnectionUri, FogUri};
@@ -98,7 +99,7 @@ impl WalletDbTestContext {
     pub fn get_db_instance(&self, logger: Logger) -> WalletDb {
         // Note: Setting db_connections too high results in IO Error: Too many open
         // files.
-        WalletDb::new_from_url(&format!("{}/{}", self.base_url, self.db_name), 7, logger)
+        WalletDb::new_from_url(&format!("{}/{}", self.base_url, self.db_name), 7)
             .expect("failed creating new SqlRecoveryDb")
     }
 }
@@ -179,8 +180,12 @@ fn append_test_block(ledger_db: &mut LedgerDB, block_contents: BlockContents) ->
         let parent = ledger_db
             .get_block(num_blocks - 1)
             .expect("failed to get parent block");
-        new_block =
-            Block::new_with_parent(BLOCK_VERSION, &parent, &Default::default(), &block_contents);
+        new_block = Block::new_with_parent(
+            MAX_BLOCK_VERSION,
+            &parent,
+            &Default::default(),
+            &block_contents,
+        );
     } else {
         new_block = Block::new_origin_block(&block_contents.outputs);
     }
@@ -213,7 +218,7 @@ pub fn add_block_to_ledger_db(
         .map(|recipient| {
             TxOut::new(
                 // TODO: allow for subaddress index!
-                output_value,
+                Amount::new(output_value, Mob::ID),
                 recipient,
                 &RistrettoPrivate::from_random(rng),
                 Default::default(),
@@ -222,7 +227,14 @@ pub fn add_block_to_ledger_db(
         })
         .collect();
 
-    let block_contents = BlockContents::new(key_images.to_vec(), outputs.clone());
+    let block_contents = BlockContents {
+        key_images: key_images.to_vec(),
+        outputs,
+        validated_mint_config_txs: todo!(),
+        mint_txs: todo!(),
+    };
+    // let block_contents = BlockContents::new(key_images.to_vec(),
+    // outputs.clone());
     append_test_block(ledger_db, block_contents)
 }
 
@@ -451,7 +463,13 @@ pub fn create_test_txo_for_recipient(
     let recipient = recipient_account_key.subaddress(recipient_subaddress_index);
     let tx_private_key = RistrettoPrivate::from_random(rng);
     let hint = EncryptedFogHint::fake_onetime_hint(rng);
-    let tx_out = TxOut::new(value, &recipient, &tx_private_key, hint).unwrap();
+    let tx_out = TxOut::new(
+        Amount::new(value, Mob::ID),
+        &recipient,
+        &tx_private_key,
+        hint,
+    )
+    .unwrap();
 
     // Calculate KeyImage - note you cannot use KeyImage::from(tx_private_key)
     // because the calculation must be done with CryptoNote math (see

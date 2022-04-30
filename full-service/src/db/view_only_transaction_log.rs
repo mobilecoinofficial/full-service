@@ -105,7 +105,9 @@ mod tests {
     use mc_account_keys::PublicAddress;
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
-    use mc_transaction_core::{encrypted_fog_hint::EncryptedFogHint, tx::TxOut};
+    use mc_transaction_core::{
+        encrypted_fog_hint::EncryptedFogHint, tokens::Mob, tx::TxOut, Amount, Token,
+    };
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
@@ -126,10 +128,20 @@ mod tests {
             &RistrettoPublic::from_random(&mut rng),
             &RistrettoPublic::from_random(&mut rng),
         );
-        let fake_input_tx_out =
-            TxOut::new(value, &public_address, &tx_private_key_1, hint.clone()).unwrap();
-        let fake_change_tx_out =
-            TxOut::new(value, &public_address, &tx_private_key_2, hint.clone()).unwrap();
+        let fake_input_tx_out = TxOut::new(
+            Amount::new(value, Mob::ID),
+            &public_address,
+            &tx_private_key_1,
+            hint.clone(),
+        )
+        .unwrap();
+        let fake_change_tx_out = TxOut::new(
+            Amount::new(value, Mob::ID),
+            &public_address,
+            &tx_private_key_2,
+            hint.clone(),
+        )
+        .unwrap();
 
         ViewOnlyAccount::create(
             view_only_account_id,
@@ -162,7 +174,7 @@ mod tests {
         // test find all by change id
         let tx_private_key_3 = RistrettoPrivate::from_random(&mut rng);
         let fake_input_tx_out_two = TxOut::new(
-            value as u64,
+            Amount::new(value as u64, Mob::ID),
             &public_address,
             &tx_private_key_3,
             hint.clone(),
