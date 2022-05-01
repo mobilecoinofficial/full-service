@@ -184,8 +184,6 @@ where
             self.get_network_block_height()?
         };
 
-        println!("Hello World!");
-
         // Since we are creating the account from randomness, it is astronomically
         // improbable that it would have collided with another account that
         // already received funds. For this reason, start scanning after the
@@ -287,9 +285,6 @@ where
         // Get account key from entropy
         let mut entropy_bytes = [0u8; 32];
         hex::decode_to_slice(entropy, &mut entropy_bytes)?;
-
-        println!("Hello World, How Are YOouUOO?!");
-        println!("Hello World! I Am fkdnsao ");
 
         // We record the local highest block index because that is the earliest we could
         // start scanning.
