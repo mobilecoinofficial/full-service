@@ -11,7 +11,6 @@ on:
   push:
     branches:
       - 'develop'
-      - 'feature/*'
       - 'hotfix/*'
     tags:
       - 'v*'
