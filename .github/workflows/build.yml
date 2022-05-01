@@ -43,7 +43,7 @@ jobs:
       # CACHE_VERSION secret is 'date --iso-8601=minutes' and is used to invalidate cache if needed
       - name: Cache Build Binaries
         id: artifact_cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             build_artifacts
@@ -52,7 +52,7 @@ jobs:
       - name: Cache Cargo
         if: steps.artifact_cache.outputs.cache-hit != 'true'
         id: cargo_cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             /opt/cargo/bin/
