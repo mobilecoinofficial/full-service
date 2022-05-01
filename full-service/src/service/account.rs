@@ -184,6 +184,8 @@ where
             self.get_network_block_height()?
         };
 
+        println!("Hello World!");
+
         // Since we are creating the account from randomness, it is astronomically
         // improbable that it would have collided with another account that
         // already received funds. For this reason, start scanning after the
