@@ -288,6 +288,8 @@ where
         let mut entropy_bytes = [0u8; 32];
         hex::decode_to_slice(entropy, &mut entropy_bytes)?;
 
+        println!("Hello World!");
+
         // We record the local highest block index because that is the earliest we could
         // start scanning.
         let import_block = self.ledger_db.num_blocks()? - 1;
