@@ -18,13 +18,15 @@ on:
 
 commands:
   checkout:
-    description: Checkout
+    steps:
+      - name: Checkout
         uses: actions/checkout@v2
         with:
           submodules: recursive
   
   cache-build-binaries:
-    description: Cache Build Binaries
+    steps:
+      - name: Cache Build Binaries
         id: artifact_cache
         uses: actions/cache@v2
         with:
@@ -33,7 +35,8 @@ commands:
           key: ${{ runner.os }}-${{ matrix.network }}-${{ secrets.CACHE_VERSION }}-build-cargo-artifacts-${{ hashFiles('**/*.rs', '**/*.proto', '**/Cargo.toml')}}
 
   cache-cargo:
-    description: Cache Cargo
+    steps:
+      - name : Cache Cargo
         if: steps.artifact_cache.outputs.cache-hit != 'true'
         id: cargo_cache
         uses: actions/cache@v2
@@ -45,27 +48,31 @@ commands:
           key: ${{ runner.os }}-${{ matrix.network }}-${{ secrets.CACHE_VERSION }}-cargo-${{ hashFiles('**/Cargo.lock') }}
   
   download-consensus-sigstruct:
-    description: Consensus SigStruct
+    steps:
+      - name: Consensus SigStruct
         if: steps.artifact_cache.outputs.cache-hit != 'true'
         run: |
           CONSENSUS_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/production.json | grep consensus-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
           (cd /var/tmp && curl -O https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/${CONSENSUS_SIGSTRUCT_URI})
 
   download-ingest-sigstruct:
-    description: Ingest SigStruct
+    steps:
+      - name: Ingest SigStruct
         if: steps.artifact_cache.outputs.cache-hit != 'true'
         run: |
           INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
           (cd /var/tmp && curl -O https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/${INGEST_SIGSTRUCT_URI})
   
   cargo-build:
-    description: Cargo Build
+    steps:
+      - name: Cargo Build
         if: steps.artifact_cache.outputs.cache-hit != 'true'
         run: |
           cargo build --release
 
   copy-binaries-to-cache:
-    description: Copy binaries to cache folder
+    steps:
+      - name: Copy binaries to cache folder
         if: steps.artifact_cache.outputs.cache-hit != 'true'
         run: |
           mkdir -pv build_artifacts/${{ matrix.network }}/bin
@@ -73,20 +80,23 @@ commands:
           cp target/release/full-service build_artifacts/${{ matrix.network }}/bin/
 
   create-artifact:
-    description: Create Artifact
+    steps:
+      - name: Create Artifact
         run: |
           mkdir -pv artifact
           cd artifact && tar -czvf ${{ github.sha }}-${{ matrix.network }}.tar.gz -C ../build_artifacts/${{ matrix.network }}/ .
 
   upload-artifact:
-    description: Upload Artifact
+    steps:
+      - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
           name: full-service_${{ matrix.network }}
           path: artifact/${{ github.sha }}-${{ matrix.network }}.tar.gz
 
   mark-as-prerelease:
-    description: Does the tag have the "pre" key word in it? Will mark it as prerelease
+    steps:
+      - name: Does the tag have the "pre" key word in it? Will mark it as prerelease
         shell: bash
         id: prerelease
         if: startsWith(github.ref, 'refs/tags/v')
@@ -98,7 +108,8 @@ commands:
           fi
   
   get-current-prerelease:
-    description: Get Current Pre-Release, only for tag on main
+    steps:
+      - name: Get Current Pre-Release, only for tag on main
         if: startsWith(github.ref, 'refs/tags/v') && steps.prerelease.outputs.value == 'false'
         id: current_release
         uses: joutvhu/get-release@v1
@@ -110,7 +121,8 @@ commands:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   download-latest-prerelease:
-    description: Download Latest Pre-Release, only for tag on main
+    steps:
+      - name: Download Latest Pre-Release, only for tag on main
         if: startsWith(github.ref, 'refs/tags/v') && steps.prerelease.outputs.value == 'false'
         uses: duhow/download-github-release-assets@v1
         with:
@@ -120,7 +132,8 @@ commands:
           target: /var/tmp/${{ steps.current_release.outputs.tag_name }}-${{ matrix.network }}.tar.gz
 
   extract-release:
-    description: Extract Release, only for tag on main
+    steps:
+      - name: Extract Release, only for tag on main
         if: startsWith(github.ref, 'refs/tags/v') && steps.prerelease.outputs.value == 'false'
         run: |
           rm -rfv build_artifacts/${{ matrix.network }}
@@ -128,20 +141,23 @@ commands:
           tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-${{ matrix.network }}.tar.gz -C build_artifacts/${{ matrix.network }}
 
   create-release:
-    description: Create Release
+    steps:
+      - name: Create Release
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           mkdir -pv release
           cd release && tar -czvf ${{ github.ref_name }}-${{ matrix.network }}.tar.gz -C ../build_artifacts/${{ matrix.network }}/ .
 
   generate-md5:
-    description: Generate MD5
+    steps:
+      - name: Generate MD5
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           cd release && md5sum ${{ github.ref_name }}-${{ matrix.network }}.tar.gz > ${{ github.ref_name }}-${{ matrix.network }}.md5
 
   upload-release:
-    name: Upload Release
+    steps:
+      - name: Upload Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v1
         with:
@@ -149,6 +165,7 @@ commands:
           files: |
             release/${{ github.ref_name }}-${{ matrix.network }}.tar.gz
             release/${{ github.ref_name }}-${{ matrix.network }}.md5
+
 jobs:
   build-linux:
     runs-on: [self-hosted, Linux, large]
