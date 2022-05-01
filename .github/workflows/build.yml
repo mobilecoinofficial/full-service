@@ -55,9 +55,11 @@ jobs:
         uses: actions/cache@v2
         with:
           path: |
-            /opt/cargo/git
-            /opt/cargo/registry/index
-            /opt/cargo/registry/cache
+            /opt/cargo/bin/
+            /opt/cargo/registry/index/
+            /opt/cargo/registry/cache/
+            /opt/cargo/git/db/
+            target/
           key: ${{ runner.os }}-${{ matrix.network }}-${{ secrets.CACHE_VERSION }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Consensus SigStruct
