@@ -9,7 +9,7 @@ on:
       - 'v*'
     branches:
       - 'develop'
-      - 'feature/**'
+      - 'feature/*'
 
 jobs:
   # Stub out job for work Mikey is working on for stress tests

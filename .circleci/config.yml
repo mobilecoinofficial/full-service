@@ -362,6 +362,15 @@ commands:
               exit 1
             fi
 
+on:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - 'develop'
+      - 'feature/*'
+      - 'hotfix/*'
+
 jobs:
   # Run tests on a single container
   run-tests:
