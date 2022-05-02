@@ -299,7 +299,7 @@ commands:
     parameters:
       test_command:
         type: string
-        default: cargo test test_e2e_hot_and_cold_view_only_flow --frozen --no-fail-fast
+        default: cargo test --frozen --no-fail-fast
     steps:
       - run:
           name: Run unit tests
