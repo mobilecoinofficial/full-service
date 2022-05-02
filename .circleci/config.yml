@@ -306,6 +306,8 @@ commands:
       - run:
           name: Run unit tests
           command: |
+            ls
+            pwd
             mkdir -p /tmp/test-results
 
             # Run tests, then convert the cargo json results into junit xml format.
