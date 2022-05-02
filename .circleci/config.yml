@@ -187,6 +187,7 @@ commands:
             - ~/.cargo/git/db
             - ~/.cargo/registry/cache
             - ~/.cargo/registry/index
+            - /target
       - record-cargo-cache-stats
 
   record-cargo-cache-stats:
@@ -333,9 +334,9 @@ commands:
   post-test:
     steps:
       - store_test_results:
-          path: /test-results
+          path: /tmp/test-results
       - store_artifacts:
-          path: /test-results
+          path: /tmp/test-results
 
   lint:
     steps:
@@ -366,7 +367,7 @@ jobs:
   # Run tests on a single container
   run-tests:
     executor: build-executor
-    parallelism: 4
+    parallelism: 1
     environment:
       <<: *default-build-environment
       RUSTFLAGS: -D warnings -C target-cpu=skylake
