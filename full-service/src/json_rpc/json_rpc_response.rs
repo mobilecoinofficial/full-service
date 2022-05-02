@@ -180,6 +180,9 @@ pub enum JsonCommandResponse {
     export_view_only_account_secrets {
         view_only_account_secrets: ViewOnlyAccountSecrets,
     },
+    export_view_only_txouts_without_key_image {
+        txouts: Vec<String>,
+    },
     get_account {
         account: Account,
     },

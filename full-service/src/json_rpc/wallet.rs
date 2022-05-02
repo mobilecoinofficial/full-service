@@ -456,6 +456,18 @@ where
             }
         }
 
+        JsonCommandRequest::export_view_only_txouts_without_key_image { account_id } => {
+            let txouts = service
+                .export_view_only_txouts_without_key_image(&account_id)
+                .map_err(format_error)?;
+
+            let encoded = txouts
+                .iter()
+                .map(|txout| hex::encode(mc_util_serial::encode(txout)))
+                .collect();
+            JsonCommandResponse::export_view_only_txouts_without_key_image { txouts: encoded }
+        }
+
         JsonCommandRequest::get_account { account_id } => JsonCommandResponse::get_account {
             account: json_rpc::account::Account::try_from(
                 &service
