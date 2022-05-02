@@ -187,7 +187,7 @@ commands:
             - ~/.cargo/git/db
             - ~/.cargo/registry/cache
             - ~/.cargo/registry/index
-            - /target
+            - ./target
       - record-cargo-cache-stats
 
   record-cargo-cache-stats:
@@ -326,8 +326,6 @@ commands:
                     | cargo2junit > /tmp/test-results/results.xml \
                     || true
                 }
-            ls
-            pwd
 
   post-build:
     steps:
