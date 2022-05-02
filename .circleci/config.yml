@@ -301,7 +301,7 @@ commands:
     parameters:
       test_command:
         type: string
-        default: cargo test test_txo_lifecycle --frozen --no-fail-fast
+        default: cargo test --frozen --no-fail-fast
     steps:
       - run:
           name: Run unit tests
