@@ -183,11 +183,9 @@ commands:
           paths:
             - ~/.cargo/.crates.toml
             - ~/.cargo/bin
-            - ~/.cargo/git/checkout
             - ~/.cargo/git/db
             - ~/.cargo/registry/cache
             - ~/.cargo/registry/index
-            - ./target
       - record-cargo-cache-stats
 
   record-cargo-cache-stats:
