@@ -4419,12 +4419,7 @@ mod e2e {
         let view_only_account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
 
         // sync view-only account and check balance
-        manually_sync_view_only_account(
-            &ledger_db,
-            &wallet_db,
-            &view_only_account_id,
-            &logger,
-        );
+        manually_sync_view_only_account(&ledger_db, &wallet_db, &view_only_account_id, &logger);
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -4480,16 +4475,13 @@ mod e2e {
         let payments_tx_proposal =
             mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
         add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
-        manually_sync_view_only_account(
-            &ledger_db,
-            &wallet_db,
-            &view_only_account_id,
-            &logger,
-        );
+
         assert_eq!(
             ledger_db.num_blocks().unwrap(),
             (BASE_TEST_BLOCK_HEIGHT + 2) as u64
         );
+
+        manually_sync_view_only_account(&ledger_db, &wallet_db, &view_only_account_id, &logger);
 
         // check balance again
         let body = json!({
