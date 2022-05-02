@@ -333,9 +333,9 @@ commands:
   post-test:
     steps:
       - store_test_results:
-          path: /tmp/test-results
+          path: /test-results
       - store_artifacts:
-          path: /tmp/test-results
+          path: /test-results
 
   lint:
     steps:
@@ -366,7 +366,7 @@ jobs:
   # Run tests on a single container
   run-tests:
     executor: build-executor
-    parallelism: 1
+    parallelism: 4
     environment:
       <<: *default-build-environment
       RUSTFLAGS: -D warnings -C target-cpu=skylake
