@@ -957,14 +957,11 @@ where
         } => {
             let mut decoded = Vec::new();
             for (txo_string, key_image_string) in txos_with_key_images {
-                let deserialized_txout: Vec<u8> =
-                    serde_json::from_str(&txo_string).map_err(format_error)?;
-                let deserialized_key_image: Vec<u8> =
-                    serde_json::from_str(&key_image_string).map_err(format_error)?;
-
                 decoded.push((
-                    mc_util_serial::decode(&deserialized_txout).map_err(format_error)?,
-                    mc_util_serial::decode(&deserialized_key_image).map_err(format_error)?,
+                    mc_util_serial::decode(&hex::decode(&txo_string).map_err(format_error)?)
+                        .map_err(format_error)?,
+                    mc_util_serial::decode(&hex::decode(&key_image_string).map_err(format_error)?)
+                        .map_err(format_error)?,
                 ))
             }
 
