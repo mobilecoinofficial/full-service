@@ -375,9 +375,11 @@ jobs:
       - prepare-for-build
       - run-tests
       - check-dirty-git
-      - when:
-          condition: { equal: [ << pipeline.git.branch >>, develop ] }
-          steps: [ save-sccache-cache ]
+      - save-cargo-cache
+      - save-sccache-cache
+      # - when:
+      #     condition: { equal: [ << pipeline.git.branch >>, develop ] }
+      #     steps: [ save-sccache-cache ]
       - post-build
       - post-test
 
@@ -396,9 +398,11 @@ jobs:
       - lint
       - generate-docs
       - check-dirty-git
-      - when:
-          condition: { equal: [ << pipeline.git.branch >>, develop ] }
-          steps: [ save-cargo-cache, save-sccache-cache ]
+      - save-cargo-cache
+      - save-sccache-cache
+      # - when:
+      #     condition: { equal: [ << pipeline.git.branch >>, develop ] }
+      #     steps: [ save-cargo-cache, save-sccache-cache ]
       - post-build
 
   # Build using macOS
@@ -453,14 +457,14 @@ workflows:
       - run-tests
 
       # Build everything in debug
-      - build-and-lint-debug
+      # - build-and-lint-debug
 
       # Build using macOS
-      - build-macos:
-          name: build-macos-xcode-<< matrix.xcode-version >>
-          matrix:
-            parameters:
-              xcode-version: ["11.7.0", *default-xcode-version]
+      # - build-macos:
+      #     name: build-macos-xcode-<< matrix.xcode-version >>
+      #     matrix:
+      #       parameters:
+      #         xcode-version: ["11.7.0", *default-xcode-version]
 
       # build everything in release - currently disabled since it's a waste of CPU/$
       # - build-release
