@@ -373,11 +373,6 @@ jobs:
       - prepare-for-build
       - run-tests
       - check-dirty-git
-      - save-cargo-cache
-      - save-sccache-cache
-      # - when:
-      #     condition: { equal: [ << pipeline.git.branch >>, develop ] }
-      #     steps: [ save-sccache-cache ]
       - post-build
       - post-test
 
@@ -398,9 +393,6 @@ jobs:
       - check-dirty-git
       - save-cargo-cache
       - save-sccache-cache
-      # - when:
-      #     condition: { equal: [ << pipeline.git.branch >>, develop ] }
-      #     steps: [ save-cargo-cache, save-sccache-cache ]
       - post-build
 
   # Build using macOS
@@ -455,7 +447,7 @@ workflows:
       - run-tests
 
       # Build everything in debug
-      # - build-and-lint-debug
+      - build-and-lint-debug
 
       # Build using macOS
       # - build-macos:
