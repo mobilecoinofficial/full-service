@@ -272,7 +272,7 @@ commands:
           condition: { equal: [ << parameters.os >>, macos ] }
           steps: [ restore-homebrew-cache ]
       - install-rust
-      - restore-cargo-cache
+      # - restore-cargo-cache
       - env_setup
       - install-ci-deps
       - print_versions
