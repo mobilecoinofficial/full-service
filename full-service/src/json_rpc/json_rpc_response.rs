@@ -181,7 +181,7 @@ pub enum JsonCommandResponse {
         view_only_account_secrets: ViewOnlyAccountSecrets,
     },
     export_view_only_txouts_without_key_image {
-        txouts: Vec<String>,
+        txouts: Vec<Vec<u8>>,
     },
     get_account {
         account: Account,

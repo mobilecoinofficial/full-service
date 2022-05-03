@@ -256,7 +256,7 @@ pub enum JsonCommandRequest {
         txo_ids: Vec<String>,
     },
     set_view_only_txos_key_images {
-        txos_with_key_images: Vec<(String, String)>,
+        txos_with_key_images: Vec<(Vec<u8>, Vec<u8>)>,
     },
     submit_gift_code {
         from_account_id: String,

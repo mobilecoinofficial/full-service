@@ -7,7 +7,8 @@ mod e2e {
     use crate::{
         db::{
             account::AccountID,
-            models::{ViewOnlyTxo, TXO_STATUS_UNSPENT, TXO_TYPE_RECEIVED},
+            models::{TXO_STATUS_UNSPENT, TXO_TYPE_RECEIVED},
+            txo::TxoID,
         },
         json_rpc,
         json_rpc::api_test_utils::{
@@ -31,8 +32,7 @@ mod e2e {
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
     use rocket::http::{Header, Status};
-    use serde_json::{Map, Value::Null};
-    use std::{collections::HashMap, convert::TryFrom};
+    use std::convert::TryFrom;
 
     #[test_with_logger]
     fn test_e2e_account_crud(logger: Logger) {
@@ -4595,20 +4595,6 @@ mod e2e {
             &logger,
         );
 
-        // spend one txout to ourselves and receive 1 change and 1 more txo
-        // let body = json!({
-        //     "jsonrpc": "2.0",
-        //     "id": 1,
-        //     "method": "build_and_submit_transaction",
-        //     "params": {
-        //         "account_id": account_id,
-        //         "recipient_public_address": b58_public_address,
-        //         "value_pmob": "20000000000000", // 42.0 MOB
-        //     }
-        // });
-
-        // dispatch(&client, body, &logger);
-
         // sync view-only-account
         manually_sync_view_only_account(&ledger_db, wallet_db, &view_only_account_id, &logger);
 
@@ -4632,8 +4618,8 @@ mod e2e {
 
         for txout in txouts {
             txouts_with_key_images.push((
-                txout.as_str().unwrap(),
-                hex::encode(mc_util_serial::encode(&KeyImage::from(rng.next_u64()))),
+                txout,
+                mc_util_serial::encode(&KeyImage::from(rng.next_u64())),
             ));
         }
 
@@ -4668,5 +4654,43 @@ mod e2e {
         for (_id, txo) in txo_map {
             assert_eq!(txo.get("key_image").unwrap().is_null(), false);
         }
+
+        // // test marking txo as spent
+        // let spent_key_image = KeyImage::from(rng.next_u64());
+        // add_block_to_ledger_db(
+        //     &mut ledger_db,
+        //     &vec![public_address.clone()],
+        //     42 * MOB as u64,
+        //     &vec![spent_key_image],
+        //     &mut rng,
+        // );
+
+        // manually_sync_account(
+        //     &ledger_db,
+        //     &wallet_db,
+        //     &AccountID(account_id.to_string()),
+        //     &logger,
+        // );
+
+        // // sync view-only-account
+        // manually_sync_view_only_account(&ledger_db, wallet_db,
+        // &view_only_account_id, &logger);
+
+        // // export txos
+        // let body = json!({
+        //     "jsonrpc": "2.0",
+        //     "id": 1,
+        //     "method": "export_view_only_txouts_without_key_image",
+        //     "params": {
+        //         "account_id": view_only_account_id,
+        //     }
+        // });
+
+        // let res = dispatch(&client, body, &logger);
+        // let result = res.get("result").unwrap();
+        // let txouts = result.get("txouts").unwrap().as_array().unwrap();
+        // let txo_id = TxoID::from(
+        //     mc_util_serial::decode(&hex::decode(&txouts[0].as_str().
+        // unwrap()).unwrap()).unwrap(), );
     }
 }

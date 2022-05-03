@@ -461,10 +461,10 @@ where
                 .export_view_only_txouts_without_key_image(&account_id)
                 .map_err(format_error)?;
 
-            let encoded = txouts
-                .iter()
-                .map(|txout| hex::encode(mc_util_serial::encode(txout)))
-                .collect();
+            let mut encoded: Vec<Vec<u8>> = Vec::new();
+            for txout in txouts {
+                encoded.push(mc_util_serial::encode(&txout));
+            }
             JsonCommandResponse::export_view_only_txouts_without_key_image { txouts: encoded }
         }
 
@@ -958,10 +958,8 @@ where
             let mut decoded = Vec::new();
             for (txo_string, key_image_string) in txos_with_key_images {
                 decoded.push((
-                    mc_util_serial::decode(&hex::decode(&txo_string).map_err(format_error)?)
-                        .map_err(format_error)?,
-                    mc_util_serial::decode(&hex::decode(&key_image_string).map_err(format_error)?)
-                        .map_err(format_error)?,
+                    mc_util_serial::decode(&txo_string).map_err(format_error)?,
+                    mc_util_serial::decode(&key_image_string).map_err(format_error)?,
                 ))
             }
 
