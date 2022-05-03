@@ -4523,15 +4523,6 @@ mod e2e {
         let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
         let wallet_db = &db_ctx.get_db_instance(logger.clone());
 
-        // test exporting view only txouts
-        // test importing key images
-
-        // create a view-only account
-        // add view only txos for that account
-        // export the txouts. validate txouts. number of? amount/value?
-        // create key images for the txouts. import txouts with key images
-        // validate txos have key images. validate that txos are spent?
-
         // Add an account
         let body = json!({
             "jsonrpc": "2.0",
@@ -4577,13 +4568,21 @@ mod e2e {
         let view_only_account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
 
         // Add blocks with a txo for this regular account address
+        // two blocks with random key images. One block with out known key image we'll
+        // want to use to test whether the txo gets marked as spent.
+        let spent_key_image = KeyImage::from(rng.next_u64());
+        let key_images = [
+            KeyImage::from(rng.next_u64()),
+            KeyImage::from(rng.next_u64()),
+            spent_key_image,
+        ];
         let total_txos = 3;
-        for _ in 0..total_txos {
+        for index in 0..total_txos {
             add_block_to_ledger_db(
                 &mut ledger_db,
                 &vec![public_address.clone()],
                 42 * MOB as u64,
-                &vec![KeyImage::from(rng.next_u64())],
+                &vec![key_images[index].clone()],
                 &mut rng,
             );
         }
@@ -4613,14 +4612,16 @@ mod e2e {
         let txouts = result.get("txouts").unwrap().as_array().unwrap();
         assert_eq!(txouts.len(), total_txos);
 
-        // create key images:
+        // create key images again, to ensure that only 1 gets marked as spent:
         let mut txouts_with_key_images = Vec::new();
+        let key_images = [
+            KeyImage::from(rng.next_u64()),
+            KeyImage::from(rng.next_u64()),
+            spent_key_image,
+        ];
 
-        for txout in txouts {
-            txouts_with_key_images.push((
-                txout,
-                mc_util_serial::encode(&KeyImage::from(rng.next_u64())),
-            ));
+        for (index, txout) in txouts.iter().enumerate() {
+            txouts_with_key_images.push((txout, mc_util_serial::encode(&key_images[index])));
         }
 
         let body = json!({
@@ -4651,46 +4652,22 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let txo_map = result.get("txo_map").unwrap().as_object().unwrap();
+        let mut spent_txos = Vec::new();
         for (_id, txo) in txo_map {
             assert_eq!(txo.get("key_image").unwrap().is_null(), false);
+            if txo.get("spent").unwrap().as_bool().unwrap() {
+                spent_txos.push(txo.clone());
+            }
         }
-
-        // // test marking txo as spent
-        // let spent_key_image = KeyImage::from(rng.next_u64());
-        // add_block_to_ledger_db(
-        //     &mut ledger_db,
-        //     &vec![public_address.clone()],
-        //     42 * MOB as u64,
-        //     &vec![spent_key_image],
-        //     &mut rng,
-        // );
-
-        // manually_sync_account(
-        //     &ledger_db,
-        //     &wallet_db,
-        //     &AccountID(account_id.to_string()),
-        //     &logger,
-        // );
-
-        // // sync view-only-account
-        // manually_sync_view_only_account(&ledger_db, wallet_db,
-        // &view_only_account_id, &logger);
-
-        // // export txos
-        // let body = json!({
-        //     "jsonrpc": "2.0",
-        //     "id": 1,
-        //     "method": "export_view_only_txouts_without_key_image",
-        //     "params": {
-        //         "account_id": view_only_account_id,
-        //     }
-        // });
-
-        // let res = dispatch(&client, body, &logger);
-        // let result = res.get("result").unwrap();
-        // let txouts = result.get("txouts").unwrap().as_array().unwrap();
-        // let txo_id = TxoID::from(
-        //     mc_util_serial::decode(&hex::decode(&txouts[0].as_str().
-        // unwrap()).unwrap()).unwrap(), );
+        assert_eq!(spent_txos.len(), 1);
+        assert_eq!(
+            spent_txos[0]
+                .get("key_image")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_string(),
+            hex::encode(&mc_util_serial::encode(&spent_key_image))
+        );
     }
 }
