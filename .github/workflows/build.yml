@@ -1,4 +1,4 @@
-name: fs-build
+name: Build
 
 env:
   SGX_MODE: HW
@@ -8,30 +8,11 @@ env:
   INGEST_ENCLAVE_CSS: /var/tmp/ingest-enclave.css
 
 on:
-  pull_request:
-    branches:
-      - release/**
-
-  # push:
-  #   branches:
-  #     - 'develop'
-  #     - 'feature/*'
-  #     - 'hotfix/*'
-  #   tags:
-  #     - 'v*'
+  push:
+    tags:
+      - v*
 
 jobs:
-  # build-macos:
-  #   runs-on: macos-latest
-  #   strategy:
-  #     matrix:
-  #       include:
-  #         - namespace: test
-  #           network: testnet
-  #         - namespace: prod
-  #           network: mainnet
-  #   steps:
-
   build-linux:
     runs-on: [self-hosted, Linux, large]
     # Needs write permission for publishing release
@@ -46,8 +27,8 @@ jobs:
         include:
           - namespace: test
             network: testnet
-          - namespace: prod
-            network: mainnet
+          # - namespace: prod
+          #   network: mainnet
 
     steps:
       - name: Checkout
@@ -74,7 +55,6 @@ jobs:
             /opt/cargo/registry/index/
             /opt/cargo/registry/cache/
             /opt/cargo/git/db/
-            target/
           key: ${{ runner.os }}-${{ matrix.network }}-${{ secrets.CACHE_VERSION }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Consensus SigStruct

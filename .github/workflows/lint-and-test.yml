@@ -1,4 +1,4 @@
-name: fs-lint-and-test
+name: Lint and Test
 
 env:
   SGX_MODE: HW
