@@ -10,7 +10,6 @@ env:
 on:
   pull_request:
     branches:
-      - develop
       - release/**
 
   # push:

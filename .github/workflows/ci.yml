@@ -7,9 +7,6 @@ on:
   push:
     tags:
       - 'v*'
-    branches:
-      - 'develop'
-      - 'feature/*'
 
 jobs:
   # Stub out job for work Mikey is working on for stress tests
