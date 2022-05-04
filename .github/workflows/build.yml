@@ -8,15 +8,31 @@ env:
   INGEST_ENCLAVE_CSS: /var/tmp/ingest-enclave.css
 
 on:
-  push:
+  pull_request:
     branches:
-      - 'develop'
-      - 'feature/*'
-      - 'hotfix/*'
-    tags:
-      - 'v*'
+      - develop
+      - release/**
+
+  # push:
+  #   branches:
+  #     - 'develop'
+  #     - 'feature/*'
+  #     - 'hotfix/*'
+  #   tags:
+  #     - 'v*'
 
 jobs:
+  # build-macos:
+  #   runs-on: macos-latest
+  #   strategy:
+  #     matrix:
+  #       include:
+  #         - namespace: test
+  #           network: testnet
+  #         - namespace: prod
+  #           network: mainnet
+  #   steps:
+
   build-linux:
     runs-on: [self-hosted, Linux, large]
     # Needs write permission for publishing release
