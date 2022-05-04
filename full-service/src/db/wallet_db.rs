@@ -3,10 +3,15 @@ use diesel::{
     connection::SimpleConnection,
     prelude::*,
     r2d2::{ConnectionManager, Pool, PooledConnection},
-    sql_types,
+    sql_types, SqliteConnection,
 };
+use diesel_migrations::embed_migrations;
 use mc_common::logger::{global_log, Logger};
-use std::{env, time::Duration};
+use std::{env, thread::sleep, time::Duration};
+
+embed_migrations!("migrations/");
+
+pub type Conn = PooledConnection<ConnectionManager<SqliteConnection>>;
 
 #[derive(Debug)]
 pub struct ConnectionOptions {
@@ -20,8 +25,9 @@ impl diesel::r2d2::CustomizeConnection<SqliteConnection, diesel::r2d2::Error>
 {
     fn on_acquire(&self, conn: &mut SqliteConnection) -> Result<(), diesel::r2d2::Error> {
         (|| {
-            WalletDb::set_db_encryption_key_from_env(conn);
-
+            if let Some(d) = self.busy_timeout {
+                conn.batch_execute(&format!("PRAGMA busy_timeout = {};", d.as_millis()))?;
+            }
             if self.enable_wal {
                 conn.batch_execute("
                     PRAGMA journal_mode = WAL;          -- better write-concurrency
@@ -35,9 +41,7 @@ impl diesel::r2d2::CustomizeConnection<SqliteConnection, diesel::r2d2::Error>
             } else {
                 conn.batch_execute("PRAGMA foreign_keys = OFF;")?;
             }
-            if let Some(d) = self.busy_timeout {
-                conn.batch_execute(&format!("PRAGMA busy_timeout = {};", d.as_millis()))?;
-            }
+            WalletDb::set_db_encryption_key_from_env(conn);
 
             Ok(())
         })()
@@ -74,9 +78,7 @@ impl WalletDb {
         Ok(Self::new(pool, logger))
     }
 
-    pub fn get_conn(
-        &self,
-    ) -> Result<PooledConnection<ConnectionManager<SqliteConnection>>, WalletDbError> {
+    pub fn get_conn(&self) -> Result<Conn, WalletDbError> {
         Ok(self.pool.get()?)
     }
 
@@ -139,7 +141,45 @@ impl WalletDb {
             );
         }
     }
+
+    pub fn run_migrations(conn: &SqliteConnection) {
+        // Our migrations sometimes violate foreign keys, so disable foreign key checks
+        // while we apply them.
+        // This has to happen outside the scope of a transaction. Quoting
+        // https://www.sqlite.org/pragma.html,
+        // "This pragma is a no-op within a transaction; foreign key constraint
+        // enforcement may only be enabled or disabled when there is no pending
+        // BEGIN or SAVEPOINT."
+        // Check foreign key constraints after the migration. If they fail,
+        // we will abort until the user resolves it.
+        conn.batch_execute("PRAGMA foreign_keys = OFF;")
+            .expect("failed disabling foreign keys");
+        embedded_migrations::run_with_output(conn, &mut std::io::stdout())
+            .expect("failed running migrations");
+        WalletDb::validate_foreign_keys(conn);
+        conn.batch_execute("PRAGMA foreign_keys = ON;")
+            .expect("failed enabling foreign keys");
+    }
 }
+
+/// Create an immediate SQLite transaction with retry.
+/// Note: This function does not support nested transactions.
+pub fn transaction<T, E, F>(conn: &Conn, f: F) -> Result<T, E>
+where
+    F: Clone + FnOnce() -> Result<T, E>,
+    E: From<diesel::result::Error>,
+{
+    for i in 0..NUM_RETRIES {
+        let r = conn.exclusive_transaction::<T, E, F>(f.clone());
+        if r.is_ok() || i == (NUM_RETRIES - 1) {
+            return r;
+        }
+        sleep(Duration::from_millis((BASE_DELAY_MS * 2_u32.pow(i)) as u64));
+    }
+    panic!("Should never reach this point.");
+}
+const BASE_DELAY_MS: u32 = 10;
+const NUM_RETRIES: u32 = 5;
 
 /// Escape a string for consumption by SQLite.
 /// This function doubles all single quote characters within the string, then

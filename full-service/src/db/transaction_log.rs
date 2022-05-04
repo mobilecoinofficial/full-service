@@ -3,11 +3,7 @@
 //! DB impl for the Transaction model.
 
 use chrono::Utc;
-use diesel::{
-    prelude::*,
-    r2d2::{ConnectionManager, PooledConnection},
-    RunQueryDsl,
-};
+use diesel::prelude::*;
 use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_mobilecoind::payments::TxProposal;
@@ -23,7 +19,7 @@ use crate::db::{
         TX_STATUS_SUCCEEDED,
     },
     txo::{TxoID, TxoModel},
-    WalletDbError,
+    Conn, WalletDbError,
 };
 
 #[derive(Debug)]
@@ -59,37 +55,26 @@ pub struct AssociatedTxos {
 
 pub trait TransactionLogModel {
     /// Get a transaction log from the TransactionId.
-    fn get(
-        transaction_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<TransactionLog, WalletDbError>;
+    fn get(transaction_id_hex: &str, conn: &Conn) -> Result<TransactionLog, WalletDbError>;
 
     /// Get all transaction logs for the given block index.
     fn get_all_for_block_index(
         block_index: u64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Vec<TransactionLog>, WalletDbError>;
 
     /// Get all transaction logs ordered by finalized_block_index.
-    fn get_all_ordered_by_block_index(
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Vec<TransactionLog>, WalletDbError>;
+    fn get_all_ordered_by_block_index(conn: &Conn) -> Result<Vec<TransactionLog>, WalletDbError>;
 
     /// Get the Txos associated with a given TransactionId, grouped according to
     /// their type.
     ///
     /// Returns:
     /// * AssoiatedTxos(inputs, outputs, change)
-    fn get_associated_txos(
-        &self,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<AssociatedTxos, WalletDbError>;
+    fn get_associated_txos(&self, conn: &Conn) -> Result<AssociatedTxos, WalletDbError>;
 
     /// Select the TransactionLogs associated with a given TxoId.
-    fn select_for_txo(
-        txo_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Vec<TransactionLog>, WalletDbError>;
+    fn select_for_txo(txo_id_hex: &str, conn: &Conn) -> Result<Vec<TransactionLog>, WalletDbError>;
 
     /// List all TransactionLogs and their associated Txos for a given account.
     ///
@@ -97,9 +82,9 @@ pub trait TransactionLogModel {
     /// * Vec(TransactionLog, AssociatedTxos(inputs, outputs, change))
     fn list_all(
         account_id_hex: &str,
-        offset: Option<i64>,
-        limit: Option<i64>,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        offset: Option<u64>,
+        limit: Option<u64>,
+        conn: &Conn,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletDbError>;
 
     /// Log a received transaction.
@@ -109,7 +94,7 @@ pub trait TransactionLogModel {
         txo_id_hex: &str,
         amount: u64,
         block_index: u64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
     /// Log a submitted transaction.
@@ -127,32 +112,26 @@ pub trait TransactionLogModel {
         block_index: u64,
         comment: String,
         account_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<TransactionLog, WalletDbError>;
 
     /// Remove all logs for an account
-    fn delete_all_for_account(
-        account_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<(), WalletDbError>;
+    fn delete_all_for_account(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError>;
 
     fn update_tx_logs_associated_with_txo_to_succeeded(
         txo_id_hex: &str,
         finalized_block_index: u64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
     fn update_tx_logs_associated_with_txos_to_failed(
         txos: &[Txo],
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(), WalletDbError>;
 }
 
 impl TransactionLogModel for TransactionLog {
-    fn get(
-        transaction_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<TransactionLog, WalletDbError> {
+    fn get(transaction_id_hex: &str, conn: &Conn) -> Result<TransactionLog, WalletDbError> {
         use crate::db::schema::transaction_logs::dsl::{
             transaction_id_hex as dsl_transaction_id_hex, transaction_logs,
         };
@@ -172,7 +151,7 @@ impl TransactionLogModel for TransactionLog {
 
     fn get_all_for_block_index(
         block_index: u64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Vec<TransactionLog>, WalletDbError> {
         use crate::db::schema::transaction_logs::{
             all_columns, dsl::transaction_logs, finalized_block_index,
@@ -186,9 +165,7 @@ impl TransactionLogModel for TransactionLog {
         Ok(matches)
     }
 
-    fn get_all_ordered_by_block_index(
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Vec<TransactionLog>, WalletDbError> {
+    fn get_all_ordered_by_block_index(conn: &Conn) -> Result<Vec<TransactionLog>, WalletDbError> {
         use crate::db::schema::transaction_logs::{
             all_columns, dsl::transaction_logs, finalized_block_index,
         };
@@ -201,10 +178,7 @@ impl TransactionLogModel for TransactionLog {
         Ok(matches)
     }
 
-    fn get_associated_txos(
-        &self,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<AssociatedTxos, WalletDbError> {
+    fn get_associated_txos(&self, conn: &Conn) -> Result<AssociatedTxos, WalletDbError> {
         use crate::db::schema::{transaction_txo_types, txos};
 
         // FIXME: WS-29 - use group_by rather than the processing below:
@@ -239,10 +213,7 @@ impl TransactionLogModel for TransactionLog {
         })
     }
 
-    fn select_for_txo(
-        txo_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Vec<TransactionLog>, WalletDbError> {
+    fn select_for_txo(txo_id_hex: &str, conn: &Conn) -> Result<Vec<TransactionLog>, WalletDbError> {
         use crate::db::schema::{transaction_logs, transaction_txo_types};
 
         Ok(transaction_logs::table
@@ -256,9 +227,9 @@ impl TransactionLogModel for TransactionLog {
 
     fn list_all(
         account_id_hex: &str,
-        offset: Option<i64>,
-        limit: Option<i64>,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        offset: Option<u64>,
+        limit: Option<u64>,
+        conn: &Conn,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletDbError> {
         use crate::db::schema::{transaction_logs, transaction_txo_types, txos};
 
@@ -281,7 +252,10 @@ impl TransactionLogModel for TransactionLog {
 
         let transactions: Vec<(TransactionLog, TransactionTxoType, Txo)> =
             if let (Some(o), Some(l)) = (offset, limit) {
-                transactions_query.offset(o).limit(l).load(conn)?
+                transactions_query
+                    .offset(o as i64)
+                    .limit(l as i64)
+                    .load(conn)?
             } else {
                 transactions_query.load(conn)?
             };
@@ -350,7 +324,7 @@ impl TransactionLogModel for TransactionLog {
         txo_id_hex: &str,
         amount: u64,
         block_index: u64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::transaction_txo_types;
 
@@ -392,7 +366,7 @@ impl TransactionLogModel for TransactionLog {
         block_index: u64,
         comment: String,
         account_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<TransactionLog, WalletDbError> {
         // Verify that the account exists.
         Account::get(&AccountID(account_id_hex.to_string()), conn)?;
@@ -472,10 +446,7 @@ impl TransactionLogModel for TransactionLog {
         TransactionLog::get(&transaction_id.to_string(), conn)
     }
 
-    fn delete_all_for_account(
-        account_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<(), WalletDbError> {
+    fn delete_all_for_account(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError> {
         use crate::db::schema::{
             transaction_logs as cols, transaction_logs::dsl::transaction_logs,
             transaction_txo_types as types_cols, transaction_txo_types::dsl::transaction_txo_types,
@@ -502,7 +473,7 @@ impl TransactionLogModel for TransactionLog {
     fn update_tx_logs_associated_with_txo_to_succeeded(
         txo_id_hex: &str,
         finalized_block_index: u64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::{transaction_logs, transaction_txo_types};
 
@@ -533,7 +504,7 @@ impl TransactionLogModel for TransactionLog {
 
     fn update_tx_logs_associated_with_txos_to_failed(
         txos: &[Txo],
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::{transaction_logs, transaction_txo_types};
 
@@ -691,12 +662,13 @@ mod tests {
         );
 
         // Build a transaction
+        let conn = wallet_db.get_conn().unwrap();
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
         builder.add_recipient(recipient.clone(), 50 * MOB).unwrap();
         builder.set_tombstone(0).unwrap();
-        builder.select_txos(None, false).unwrap();
-        let tx_proposal = builder.build().unwrap();
+        builder.select_txos(&conn, None, false).unwrap();
+        let tx_proposal = builder.build(&conn).unwrap();
 
         // Log submitted transaction from tx_proposal
         let tx_log = TransactionLog::log_submitted(
@@ -704,7 +676,7 @@ mod tests {
             ledger_db.num_blocks().unwrap(),
             "".to_string(),
             &AccountID::from(&account_key).to_string(),
-            &wallet_db.get_conn().unwrap(),
+            &conn,
         )
         .unwrap();
 
@@ -843,22 +815,23 @@ mod tests {
         );
 
         // Build a transaction
+        let conn = wallet_db.get_conn().unwrap();
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
         // Add outlays all to the same recipient, so that we exceed u64::MAX in this tx
         let value = 100 * MOB - Mob::MINIMUM_FEE;
         builder.add_recipient(recipient.clone(), value).unwrap();
 
         builder.set_tombstone(0).unwrap();
-        builder.select_txos(None, false).unwrap();
-        let tx_proposal = builder.build().unwrap();
+        builder.select_txos(&conn, None, false).unwrap();
+        let tx_proposal = builder.build(&conn).unwrap();
 
         let tx_log = TransactionLog::log_submitted(
             tx_proposal.clone(),
             ledger_db.num_blocks().unwrap(),
             "".to_string(),
             &AccountID::from(&account_key).to_string(),
-            &wallet_db.get_conn().unwrap(),
+            &conn,
         )
         .unwrap();
 
@@ -1022,14 +995,15 @@ mod tests {
         );
 
         // Build a transaction for > i64::Max
+        let conn = wallet_db.get_conn().unwrap();
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &wallet_db, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
         builder
             .add_recipient(recipient.clone(), 10_000_000 * MOB)
             .unwrap();
         builder.set_tombstone(0).unwrap();
-        builder.select_txos(None, false).unwrap();
-        let tx_proposal = builder.build().unwrap();
+        builder.select_txos(&conn, None, false).unwrap();
+        let tx_proposal = builder.build(&conn).unwrap();
 
         assert_eq!(tx_proposal.outlays[0].value, 10_000_000_000_000_000_000);
 
@@ -1039,7 +1013,7 @@ mod tests {
             ledger_db.num_blocks().unwrap(),
             "".to_string(),
             &AccountID::from(&account_key).to_string(),
-            &wallet_db.get_conn().unwrap(),
+            &conn,
         )
         .unwrap();
 
@@ -1079,9 +1053,9 @@ mod tests {
             &logger,
         );
 
+        let conn = wallet_db.get_conn().unwrap();
         let mut builder = WalletTransactionBuilder::new(
             AccountID::from(&account_key).to_string(),
-            wallet_db.clone(),
             ledger_db.clone(),
             get_resolver_factory(&mut rng).unwrap(),
             logger.clone(),
@@ -1091,8 +1065,8 @@ mod tests {
             .add_recipient(account_key.subaddress(0), 12 * MOB)
             .unwrap();
         builder.set_tombstone(0).unwrap();
-        builder.select_txos(None, false).unwrap();
-        let tx_proposal = builder.build().unwrap();
+        builder.select_txos(&conn, None, false).unwrap();
+        let tx_proposal = builder.build(&conn).unwrap();
 
         // Log submitted transaction from tx_proposal
         let tx_log = TransactionLog::log_submitted(
@@ -1100,7 +1074,7 @@ mod tests {
             ledger_db.num_blocks().unwrap(),
             "".to_string(),
             &AccountID::from(&account_key).to_string(),
-            &wallet_db.get_conn().unwrap(),
+            &conn,
         )
         .unwrap();
 

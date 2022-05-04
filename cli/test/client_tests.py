@@ -113,7 +113,7 @@ def tests_with_wallet(c, source_wallet):
     # Check its balance and make sure it has txos.
     balance = c.poll_balance(source_account_id, seconds=60)
     assert pmob2mob(balance['unspent_pmob']) >= 1
-    txos = c.get_all_txos_for_account(source_account_id)
+    txos = c.get_txos_for_account(source_account_id)
     assert len(txos) > 0
 
     try:
@@ -149,7 +149,7 @@ def test_transaction(c, source_account_id):
     assert pmob2mob(balance['unspent_pmob']) == Decimal('0.0')
 
     # Check transaction logs.
-    transaction_log_map = c.get_all_transaction_logs_for_account(dest_account_id)
+    transaction_log_map = c.get_transaction_logs_for_account(dest_account_id)
     amounts = [ pmob2mob(t['value_pmob']) for t in transaction_log_map.values() ]
     assert sorted( float(a) for a in amounts ) == [0.0996, 0.1], str(amounts)
     assert all( t['status'] == 'tx_status_succeeded' for t in transaction_log_map.values() )

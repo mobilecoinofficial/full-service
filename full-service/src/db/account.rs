@@ -8,7 +8,7 @@ use crate::{
         models::{Account, AssignedSubaddress, NewAccount, TransactionLog, Txo},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
-        WalletDbError,
+        Conn, WalletDbError,
     },
     util::constants::{
         DEFAULT_CHANGE_SUBADDRESS_INDEX, DEFAULT_FIRST_BLOCK_INDEX, DEFAULT_NEXT_SUBADDRESS_INDEX,
@@ -18,11 +18,7 @@ use crate::{
 };
 
 use bip39::Mnemonic;
-use diesel::{
-    prelude::*,
-    r2d2::{ConnectionManager, PooledConnection},
-    RunQueryDsl,
-};
+use diesel::prelude::*;
 use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
 use mc_account_keys_slip10::Slip10Key;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
@@ -60,7 +56,7 @@ pub trait AccountModel {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(AccountID, String), WalletDbError>;
 
     /// Create an account.
@@ -77,7 +73,7 @@ pub trait AccountModel {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(AccountID, String), WalletDbError>;
 
     /// Create an account.
@@ -94,7 +90,7 @@ pub trait AccountModel {
         next_subaddress_index: Option<u64>,
         name: &str,
         fog_enabled: bool,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(AccountID, String), WalletDbError>;
 
     /// Import account.
@@ -108,7 +104,7 @@ pub trait AccountModel {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Account, WalletDbError>;
 
     /// Import account.
@@ -122,53 +118,38 @@ pub trait AccountModel {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Account, WalletDbError>;
 
     /// List all accounts.
     ///
     /// Returns:
     /// * Vector of all Accounts in the DB
-    fn list_all(
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Vec<Account>, WalletDbError>;
+    fn list_all(conn: &Conn) -> Result<Vec<Account>, WalletDbError>;
 
     /// Get a specific account.
     ///
     /// Returns:
     /// * Account
-    fn get(
-        account_id: &AccountID,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Account, WalletDbError>;
+    fn get(account_id: &AccountID, conn: &Conn) -> Result<Account, WalletDbError>;
 
     /// Get the accounts associated with the given Txo.
-    fn get_by_txo_id(
-        txo_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Vec<Account>, WalletDbError>;
+    fn get_by_txo_id(txo_id_hex: &str, conn: &Conn) -> Result<Vec<Account>, WalletDbError>;
 
     /// Update an account.
     /// The only updatable field is the name. Any other desired update requires
     /// adding a new account, and deleting the existing if desired.
-    fn update_name(
-        &self,
-        new_name: String,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<(), WalletDbError>;
+    fn update_name(&self, new_name: String, conn: &Conn) -> Result<(), WalletDbError>;
 
     /// Update the next block index this account will need to sync.
     fn update_next_block_index(
         &self,
         next_block_index: u64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
     /// Delete an account.
-    fn delete(
-        self,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<(), WalletDbError>;
+    fn delete(self, conn: &Conn) -> Result<(), WalletDbError>;
 }
 
 impl AccountModel for Account {
@@ -181,7 +162,7 @@ impl AccountModel for Account {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(AccountID, String), WalletDbError> {
         let fog_enabled = !fog_report_url.is_empty();
 
@@ -213,7 +194,7 @@ impl AccountModel for Account {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(AccountID, String), WalletDbError> {
         let fog_enabled = !fog_report_url.is_empty();
 
@@ -247,7 +228,7 @@ impl AccountModel for Account {
         next_subaddress_index: Option<u64>,
         name: &str,
         fog_enabled: bool,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(AccountID, String), WalletDbError> {
         use crate::db::schema::accounts;
 
@@ -323,7 +304,7 @@ impl AccountModel for Account {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Account, WalletDbError> {
         let (account_id, _public_address_b58) = Account::create_from_mnemonic(
             mnemonic,
@@ -348,7 +329,7 @@ impl AccountModel for Account {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<Account, WalletDbError> {
         let (account_id, _public_address_b58) = Account::create_from_root_entropy(
             root_entropy,
@@ -364,9 +345,7 @@ impl AccountModel for Account {
         Account::get(&account_id, conn)
     }
 
-    fn list_all(
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Vec<Account>, WalletDbError> {
+    fn list_all(conn: &Conn) -> Result<Vec<Account>, WalletDbError> {
         use crate::db::schema::accounts;
 
         Ok(accounts::table
@@ -374,10 +353,7 @@ impl AccountModel for Account {
             .load::<Account>(conn)?)
     }
 
-    fn get(
-        account_id: &AccountID,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Account, WalletDbError> {
+    fn get(account_id: &AccountID, conn: &Conn) -> Result<Account, WalletDbError> {
         use crate::db::schema::accounts::dsl::{account_id_hex as dsl_account_id_hex, accounts};
 
         match accounts
@@ -393,10 +369,7 @@ impl AccountModel for Account {
         }
     }
 
-    fn get_by_txo_id(
-        txo_id_hex: &str,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<Vec<Account>, WalletDbError> {
+    fn get_by_txo_id(txo_id_hex: &str, conn: &Conn) -> Result<Vec<Account>, WalletDbError> {
         let txo = Txo::get(txo_id_hex, conn)?;
 
         let mut accounts: Vec<Account> = Vec::<Account>::new();
@@ -414,11 +387,7 @@ impl AccountModel for Account {
         Ok(accounts)
     }
 
-    fn update_name(
-        &self,
-        new_name: String,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<(), WalletDbError> {
+    fn update_name(&self, new_name: String, conn: &Conn) -> Result<(), WalletDbError> {
         use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
 
         diesel::update(accounts.filter(account_id_hex.eq(&self.account_id_hex)))
@@ -430,7 +399,7 @@ impl AccountModel for Account {
     fn update_next_block_index(
         &self,
         next_block_index: u64,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+        conn: &Conn,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
         diesel::update(accounts.filter(account_id_hex.eq(&self.account_id_hex)))
@@ -439,10 +408,7 @@ impl AccountModel for Account {
         Ok(())
     }
 
-    fn delete(
-        self,
-        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<(), WalletDbError> {
+    fn delete(self, conn: &Conn) -> Result<(), WalletDbError> {
         use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
 
         // Delete transaction logs associated with this account

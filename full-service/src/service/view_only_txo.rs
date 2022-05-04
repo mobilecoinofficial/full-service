@@ -3,11 +3,10 @@
 //! Service for managing view-only Txos.
 
 use crate::{
-    db::{models::ViewOnlyTxo, view_only_txo::ViewOnlyTxoModel},
+    db::{models::ViewOnlyTxo, transaction, view_only_txo::ViewOnlyTxoModel},
     service::txo::TxoServiceError,
     WalletService,
 };
-use diesel::prelude::*;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 
@@ -18,8 +17,8 @@ pub trait ViewOnlyTxoService {
     fn list_view_only_txos(
         &self,
         account_id: &str,
-        limit: Option<i64>,
-        offset: Option<i64>,
+        limit: Option<u64>,
+        offset: Option<u64>,
     ) -> Result<Vec<ViewOnlyTxo>, TxoServiceError>;
 
     /// set a group of txos as spent.
@@ -34,20 +33,18 @@ where
     fn list_view_only_txos(
         &self,
         account_id: &str,
-        limit: Option<i64>,
-        offset: Option<i64>,
+        limit: Option<u64>,
+        offset: Option<u64>,
     ) -> Result<Vec<ViewOnlyTxo>, TxoServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| {
-            Ok(ViewOnlyTxo::list_for_account(
-                account_id, limit, offset, &conn,
-            )?)
-        })
+        Ok(ViewOnlyTxo::list_for_account(
+            account_id, limit, offset, &conn,
+        )?)
     }
 
     fn set_view_only_txos_spent(&self, txo_ids: Vec<String>) -> Result<bool, TxoServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        conn.transaction(|| {
+        transaction(&conn, || {
             ViewOnlyTxo::set_spent(txo_ids, &conn)?;
             Ok(true)
         })
