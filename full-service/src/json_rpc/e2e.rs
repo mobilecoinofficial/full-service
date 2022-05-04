@@ -8,7 +8,6 @@ mod e2e {
         db::{
             account::AccountID,
             models::{TXO_STATUS_UNSPENT, TXO_TYPE_RECEIVED},
-            txo::TxoID,
         },
         json_rpc,
         json_rpc::api_test_utils::{

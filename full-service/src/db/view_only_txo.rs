@@ -162,7 +162,7 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         };
 
         // assert txo exists
-        ViewOnlyTxo::get(&txo_id_hex, conn)?;
+        ViewOnlyTxo::get(txo_id_hex, conn)?;
 
         diesel::update(view_only_txos.filter(dsl_txo_id.eq(txo_id_hex)))
             .set(dsl_key_image.eq(mc_util_serial::encode(key_image)))
