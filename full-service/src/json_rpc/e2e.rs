@@ -4495,6 +4495,7 @@ mod e2e {
         let result = res.get("result").unwrap();
         let balance = result.get("balance").unwrap();
         // waht's going on here?
+        // another comment
         assert_eq!(
             balance
                 .get("balance")
