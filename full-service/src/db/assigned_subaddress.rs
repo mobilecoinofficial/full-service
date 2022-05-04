@@ -79,8 +79,8 @@ pub trait AssignedSubaddressModel {
     /// List all AssignedSubaddresses for a given account.
     fn list_all(
         account_id_hex: &str,
-        offset: Option<i64>,
-        limit: Option<i64>,
+        offset: Option<u64>,
+        limit: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<AssignedSubaddress>, WalletDbError>;
 
@@ -294,8 +294,8 @@ impl AssignedSubaddressModel for AssignedSubaddress {
 
     fn list_all(
         account_id_hex: &str,
-        offset: Option<i64>,
-        limit: Option<i64>,
+        offset: Option<u64>,
+        limit: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<AssignedSubaddress>, WalletDbError> {
         use crate::db::schema::assigned_subaddresses::{
@@ -307,7 +307,10 @@ impl AssignedSubaddressModel for AssignedSubaddress {
             .filter(schema_account_id_hex.eq(account_id_hex));
 
         let addresses: Vec<AssignedSubaddress> = if let (Some(o), Some(l)) = (offset, limit) {
-            addresses_query.offset(o).limit(l).load(conn)?
+            addresses_query
+                .offset(o as i64)
+                .limit(l as i64)
+                .load(conn)?
         } else {
             addresses_query.load(conn)?
         };

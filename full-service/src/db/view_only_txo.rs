@@ -39,8 +39,8 @@ pub trait ViewOnlyTxoModel {
     /// * Vec<ViewOnlyTxo>
     fn list_for_account(
         account_id_hex: &str,
-        offset: Option<i64>,
-        limit: Option<i64>,
+        offset: Option<u64>,
+        limit: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<ViewOnlyTxo>, WalletDbError>;
 
@@ -98,8 +98,8 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
 
     fn list_for_account(
         account_id_hex: &str,
-        offset: Option<i64>,
-        limit: Option<i64>,
+        offset: Option<u64>,
+        limit: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<ViewOnlyTxo>, WalletDbError> {
         use schema::view_only_txos;
@@ -108,7 +108,7 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
             .filter(view_only_txos::view_only_account_id_hex.eq(account_id_hex));
 
         let txos: Vec<ViewOnlyTxo> = if let (Some(o), Some(l)) = (offset, limit) {
-            txos_query.offset(o).limit(l).load(conn)?
+            txos_query.offset(o as i64).limit(l as i64).load(conn)?
         } else {
             txos_query.load(conn)?
         };

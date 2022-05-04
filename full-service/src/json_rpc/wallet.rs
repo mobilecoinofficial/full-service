@@ -491,13 +491,7 @@ where
             offset,
             limit,
         } => {
-            let o = offset.parse::<i64>().map_err(format_error)?;
-            let l = limit.parse::<i64>().map_err(format_error)?;
-
-            if l > 1000 {
-                return Err(format_error("limit must not exceed 1000"));
-            }
-
+            let (o, l) = page_helper(offset, limit)?;
             let addresses = service
                 .get_addresses_for_account(&AccountID(account_id), Some(o), Some(l))
                 .map_err(format_error)?;
@@ -542,31 +536,6 @@ where
                 account_map,
             }
         }
-        JsonCommandRequest::get_all_addresses_for_account { account_id } => {
-            let addresses = service
-                .get_addresses_for_account(&AccountID(account_id), None, None)
-                .map_err(format_error)?;
-            let address_map: Map<String, serde_json::Value> = Map::from_iter(
-                addresses
-                    .iter()
-                    .map(|a| {
-                        (
-                            a.assigned_subaddress_b58.clone(),
-                            serde_json::to_value(&(Address::from(a)))
-                                .expect("Could not get json value"),
-                        )
-                    })
-                    .collect::<Vec<(String, serde_json::Value)>>(),
-            );
-
-            JsonCommandResponse::get_addresses_for_account {
-                public_addresses: addresses
-                    .iter()
-                    .map(|a| a.assigned_subaddress_b58.clone())
-                    .collect(),
-                address_map,
-            }
-        }
         JsonCommandRequest::get_all_gift_codes {} => JsonCommandResponse::get_all_gift_codes {
             gift_codes: service
                 .list_gift_codes()
@@ -575,30 +544,6 @@ where
                 .map(GiftCode::from)
                 .collect(),
         },
-        JsonCommandRequest::get_all_transaction_logs_for_account { account_id } => {
-            let transaction_logs_and_txos = service
-                .list_transaction_logs(&AccountID(account_id), None, None)
-                .map_err(format_error)?;
-            let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
-                transaction_logs_and_txos
-                    .iter()
-                    .map(|(t, a)| {
-                        (
-                            t.transaction_id_hex.clone(),
-                            serde_json::json!(json_rpc::transaction_log::TransactionLog::new(t, a)),
-                        )
-                    })
-                    .collect::<Vec<(String, serde_json::Value)>>(),
-            );
-
-            JsonCommandResponse::get_all_transaction_logs_for_account {
-                transaction_log_ids: transaction_logs_and_txos
-                    .iter()
-                    .map(|(t, _a)| t.transaction_id_hex.to_string())
-                    .collect(),
-                transaction_log_map,
-            }
-        }
         JsonCommandRequest::get_all_transaction_logs_for_block { block_index } => {
             let transaction_logs_and_txos = service
                 .get_all_transaction_logs_for_block(
@@ -643,26 +588,6 @@ where
 
             JsonCommandResponse::get_all_transaction_logs_ordered_by_block {
                 transaction_log_map,
-            }
-        }
-        JsonCommandRequest::get_all_txos_for_account { account_id } => {
-            let txos = service
-                .list_txos(&AccountID(account_id), None, None)
-                .map_err(format_error)?;
-            let txo_map: Map<String, serde_json::Value> = Map::from_iter(
-                txos.iter()
-                    .map(|t| {
-                        (
-                            t.txo_id_hex.clone(),
-                            serde_json::to_value(Txo::from(t)).expect("Could not get json value"),
-                        )
-                    })
-                    .collect::<Vec<(String, serde_json::Value)>>(),
-            );
-
-            JsonCommandResponse::get_all_txos_for_account {
-                txo_ids: txos.iter().map(|t| t.txo_id_hex.clone()).collect(),
-                txo_map,
             }
         }
         JsonCommandRequest::get_all_txos_for_address { address } => {
@@ -796,13 +721,7 @@ where
             offset,
             limit,
         } => {
-            let o = offset.parse::<i64>().map_err(format_error)?;
-            let l = limit.parse::<i64>().map_err(format_error)?;
-
-            if l > 1000 {
-                return Err(format_error("limit must not exceed 1000"));
-            }
-
+            let (o, l) = page_helper(offset, limit)?;
             let transaction_logs_and_txos = service
                 .list_transaction_logs(&AccountID(account_id), Some(o), Some(l))
                 .map_err(format_error)?;
@@ -837,15 +756,7 @@ where
             offset,
             limit,
         } => {
-            let o = offset
-                .parse::<u64>()
-                .map_err(format_invalid_request_error)?;
-            let l = limit.parse::<u64>().map_err(format_invalid_request_error)?;
-
-            if l > 1000 {
-                return Err(format_error("limit must not exceed 1000"));
-            }
-
+            let (o, l) = page_helper(offset, limit)?;
             let txos = service
                 .list_txos(&AccountID(account_id), Some(o), Some(l))
                 .map_err(format_error)?;
@@ -870,15 +781,7 @@ where
             offset,
             limit,
         } => {
-            let o = offset
-                .parse::<i64>()
-                .map_err(format_invalid_request_error)?;
-            let l = limit.parse::<i64>().map_err(format_invalid_request_error)?;
-
-            if l > 1000 {
-                return Err(format_error("limit must not exceed 1000"));
-            }
-
+            let (o, l) = page_helper(offset, limit)?;
             let txos = service
                 .list_view_only_txos(&account_id, Some(o), Some(l))
                 .map_err(format_error)?;
@@ -1133,6 +1036,18 @@ fn wallet_help() -> Result<String, String> {
 #[get("/health")]
 fn health() -> Result<(), ()> {
     Ok(())
+}
+
+fn page_helper(offset: Option<String>, limit: Option<String>) -> Result<(u64, u64), JsonRPCError> {
+    let offset = match offset {
+        Some(o) => o.parse::<u64>().map_err(format_error)?,
+        None => 0, // Default offset is zero, at the start of the records.
+    };
+    let limit = match limit {
+        Some(l) => l.parse::<u64>().map_err(format_error)?,
+        None => 100, // Default page size is one hundred records.
+    };
+    Ok((offset, limit))
 }
 
 /// Returns an instance of a Rocket server.
