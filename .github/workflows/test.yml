@@ -1,5 +1,3 @@
-name: test
-
 env:
   SGX_MODE: HW
   IAS_MODE: PROD
