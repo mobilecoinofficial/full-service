@@ -1,0 +1,60 @@
+name: lint
+
+env:
+  SGX_MODE: HW
+  IAS_MODE: PROD
+  RUST_BACKTRACE: full
+  CONSENSUS_ENCLAVE_CSS: /var/tmp/consensus-enclave.css
+  INGEST_ENCLAVE_CSS: /var/tmp/ingest-enclave.css
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - release/*
+
+jobs:
+  lint:
+    runs-on: [self-hosted, Linux, large]
+    container:
+      image: mobilecoin/rust-sgx-base:0.0.4
+    strategy:
+      matrix:
+        include:
+          - namespace: test
+            network: testnet
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Cache Cargo
+        if: steps.artifact_cache.outputs.cache-hit != 'true'
+        id: cargo_cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            /opt/cargo/bin/
+            /opt/cargo/registry/index/
+            /opt/cargo/registry/cache/
+            /opt/cargo/git/db/
+            target/
+          key: ${{ runner.os }}-${{ matrix.network }}-${{ secrets.CACHE_VERSION }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Consensus SigStruct
+        if: steps.artifact_cache.outputs.cache-hit != 'true'
+        run: |
+          CONSENSUS_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/production.json | grep consensus-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
+          (cd /var/tmp && curl -O https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/${CONSENSUS_SIGSTRUCT_URI})
+
+      - name: Ingest SigStruct
+        if: steps.artifact_cache.outputs.cache-hit != 'true'
+        run: |
+          INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
+          (cd /var/tmp && curl -O https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/${INGEST_SIGSTRUCT_URI})
+
+      - name: Cargo Clippy
+        run: |
+          cargo clippy

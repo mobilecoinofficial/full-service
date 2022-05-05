@@ -1,4 +1,4 @@
-name: Full Service CI
+name: docker-hub
 
 env:
   DOCKERHUB_REPO: mobilecoin/full-service
@@ -9,15 +9,6 @@ on:
       - 'v*'
 
 jobs:
-  # Stub out job for work Mikey is working on for stress tests
-  # tests:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: CI Tests
-  #       run: |
-  #         echo "Hello World"
-
-  # Only run docker builds for tag pushes. Build testnet and mainnet images for now
   docker:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
