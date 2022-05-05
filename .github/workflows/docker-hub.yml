@@ -9,7 +9,7 @@ on:
       - 'v*'
 
 jobs:
-  docker:
+  build-and-publish:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     strategy:
