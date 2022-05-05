@@ -17,7 +17,7 @@ on:
 
 jobs:
   macos:
-    runs-on: macos-latest
+    runs-on: [self-hosted, macOS]
     permissions:
       contents: write
     outputs:
