@@ -27,8 +27,8 @@ jobs:
         include:
           - namespace: test
             network: testnet
-          # - namespace: prod
-          #   network: mainnet
+          - namespace: prod
+            network: mainnet
 
     steps:
       - name: Checkout
