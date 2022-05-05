@@ -11,7 +11,7 @@ on:
   pull_request:
     branches:
       - develop
-      - release/*
+      - main
 
 jobs:
   lint:
