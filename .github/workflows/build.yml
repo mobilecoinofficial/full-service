@@ -56,7 +56,7 @@ jobs:
             /opt/cargo/registry/cache/
             /opt/cargo/git/db/
             target/
-          key: ${{ runner.os }}-${{ matrix.network }}-${{ secrets.CACHE_VERSION }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-${{ secrets.CACHE_VERSION }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Consensus SigStruct
         if: steps.artifact_cache.outputs.cache-hit != 'true'
