@@ -11,6 +11,9 @@ on:
   push:
     tags:
       - v*
+  pull_request:
+    branches:
+      - develop
 
 jobs:
   macos:
