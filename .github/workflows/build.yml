@@ -168,7 +168,7 @@ jobs:
     permissions:
       contents: write
     container:
-      image: mobilecoin/rust-sgx-base:0.0.4
+      image: mobilecoin/rust-sgx-base:latest
     outputs:
       prerelease: ${{ steps.prerelease.outputs.value }}
     strategy:
