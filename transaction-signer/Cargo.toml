@@ -12,9 +12,12 @@ path = "src/bin/main.rs"
 [dependencies]
 mc-account-keys = { path = "../mobilecoin/account-keys" }
 mc-account-keys-slip10 = { path = "../mobilecoin/account-keys/slip10" }
+mc-api = { path = "../mobilecoin/api" }
+mc-attest-verifier = { path = "../mobilecoin/attest/verifier", default-features = false }
 mc-common = { path = "../mobilecoin/common" }
 mc-consensus-scp = { path = "../mobilecoin/consensus/scp" }
 mc-crypto-keys = { path = "../mobilecoin/crypto/keys", default-features = false }
+mc-fog-report-validation = { path = "../mobilecoin/fog/report/validation" }
 mc-transaction-core = { path = "../mobilecoin/transaction/core" }
 mc-transaction-std = { path = "../mobilecoin/transaction/std" }
 mc-util-from-random = { path = "../mobilecoin/util/from-random" }

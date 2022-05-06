@@ -2,20 +2,21 @@ use std::{convert::TryFrom, env, fs};
 
 use mc_account_keys::AccountKey;
 use mc_account_keys_slip10::Slip10Key;
+use mc_attest_verifier::Verifier;
 use mc_common::HashMap;
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
+use mc_fog_report_validation::{FogReportResponses, FogResolver};
 use mc_transaction_core::{
     get_tx_out_shared_secret,
     onetime_keys::{recover_onetime_private_key, recover_public_subaddress_spend_key},
     ring_signature::KeyImage,
-    tx::{TxOut, TxPrefix},
+    tx::TxOut,
     AmountError,
 };
 
 use mc_transaction_signer::UnsignedTx;
 
 use bip39::{Language, Mnemonic};
-use mc_util_serial;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -82,33 +83,34 @@ fn sign_transaction(
     subaddress_spend_public_keys: &HashMap<RistrettoPublic, u64>,
 ) {
     let unsigned_tx_bytes_serialized = fs::read_to_string(unsigned_tx_file).unwrap();
-    let mut unsigned_tx: UnsignedTx = serde_json::from_str(&unsigned_tx_bytes_serialized).unwrap();
-    let updated_prefix = TxPrefix::new(
-        unsigned_tx.prefix.inputs,
-        unsigned_tx.prefix.outputs,
-        unsigned_tx.prefix.fee,
-        *tombstone_block_height,
-    );
-    unsigned_tx.prefix = updated_prefix;
+    let unsigned_tx: UnsignedTx = serde_json::from_str(&unsigned_tx_bytes_serialized).unwrap();
 
-    let signed_tx = unsigned_tx.sign(account_key, subaddress_spend_public_keys);
+    let verifier = Verifier::default();
+    let responses = FogReportResponses::new();
+    let fog_resolver = FogResolver::new(responses, &verifier).unwrap();
+
+    let signed_tx = unsigned_tx.sign(
+        account_key,
+        subaddress_spend_public_keys,
+        *tombstone_block_height,
+        fog_resolver,
+    );
 
     let signed_tx_serialized = mc_util_serial::encode(&signed_tx);
 
     fs::write(signed_tx_file, signed_tx_serialized).unwrap();
 }
 
-fn account_key_from_mnemonic_phrase(mnemonic_phrase: &String) -> AccountKey {
-    let mnemonic = Mnemonic::from_phrase(&mnemonic_phrase, Language::English).unwrap();
-    let account_key = Slip10Key::from(mnemonic.clone())
-        .try_into_account_key(&"", &"", &base64::decode("").unwrap())
-        .unwrap();
-    account_key
+fn account_key_from_mnemonic_phrase(mnemonic_phrase: &str) -> AccountKey {
+    let mnemonic = Mnemonic::from_phrase(mnemonic_phrase, Language::English).unwrap();
+    Slip10Key::from(mnemonic)
+        .try_into_account_key("", "", &base64::decode("").unwrap())
+        .unwrap()
 }
 
 fn check_txos(
-    input_txos_file: &String,
-    output_key_images_file: &String,
+    input_txos_file: &str,
+    output_key_images_file: &str,
     account_key: &AccountKey,
     subaddress_spend_public_keys: &HashMap<RistrettoPublic, u64>,
 ) {
@@ -122,7 +124,7 @@ fn check_txos(
         })
         .collect();
     let serialized_txos_and_key_images =
-        get_key_images_for_txos(&input_txos, &account_key, subaddress_spend_public_keys);
+        get_key_images_for_txos(&input_txos, account_key, subaddress_spend_public_keys);
     let serialized_txos_and_key_images_data =
         serde_json::to_string(&serialized_txos_and_key_images).unwrap();
     fs::write(output_key_images_file, serialized_txos_and_key_images_data).unwrap();
@@ -150,7 +152,7 @@ fn get_key_images_for_txos(
 ) -> Vec<(Vec<u8>, KeyImage)> {
     let mut serialized_txos_and_key_images: Vec<(Vec<u8>, KeyImage)> = Vec::new();
 
-    for tx_out in tx_outs.into_iter() {
+    for tx_out in tx_outs.iter() {
         if tx_out_belongs_to_account(tx_out, account_key.view_private_key()) {
             if let Some(key_image) =
                 get_key_image_for_tx_out(tx_out, account_key, subaddress_spend_public_keys)

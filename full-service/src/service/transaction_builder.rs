@@ -359,7 +359,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
 
         // Add outputs to our destinations.
         // Note that we make an assumption currently when logging submitted Txos that
-        // they were built  with only one recipient, and one change txo.
+        // they were built  with only one recip ient, and one change txo.
         let mut total_value = 0;
         let mut tx_out_to_outlay_index: HashMap<TxOut, usize> = HashMap::default();
         let mut outlay_confirmation_numbers = Vec::default();
