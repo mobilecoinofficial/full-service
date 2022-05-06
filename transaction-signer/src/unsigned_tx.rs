@@ -20,8 +20,7 @@ pub struct UnsignedTx {
     pub prefix: TxPrefix,
 
     /// The list of key images for the real inputs in each ring
-    // pub real_input_key_images: Vec<KeyImage>,
-    pub real_input_txo_ids: Vec<String>,
+    pub real_input_key_images: Vec<KeyImage>,
 
     /// The list of shared secrets for each of the outputs in the transaction
     pub output_shared_secrets: Vec<RistrettoPublic>,
