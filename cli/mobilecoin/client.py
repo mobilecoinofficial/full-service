@@ -54,7 +54,6 @@ class Client:
 
         if self.verbose:
             print(r.status, http.client.responses[r.status])
-            print(repr(raw_response))
             print(len(raw_response), 'bytes')
             print(json.dumps(response_data, indent=2))
             print()
@@ -117,8 +116,27 @@ class Client:
         })
         return r['account']
 
+    def import_view_only_account(self, view_private_key, name=None, first_block_index=None):
+        params = {
+            "view_private_key": view_private_key,
+        }
+        if name is not None:
+            params['name'] = name
+        if first_block_index is not None:
+            params['first_block_index'] = str(int(first_block_index))
+
+        r = self._req({
+            "method": "import_view_only_account",
+            "params": params
+        })
+        return r['view_only_account']
+
     def get_all_accounts(self):
         r = self._req({"method": "get_all_accounts"})
+        return r['account_map']
+
+    def get_all_view_only_accounts(self):
+        r = self._req({"method": "get_all_view_only_accounts"})
         return r['account_map']
 
     def get_account(self, account_id):
@@ -141,6 +159,12 @@ class Client:
     def remove_account(self, account_id):
         return self._req({
             "method": "remove_account",
+            "params": {"account_id": account_id}
+        })
+
+    def remove_view_only_account(self, account_id):
+        return self._req({
+            "method": "remove_view_only_account",
             "params": {"account_id": account_id}
         })
 
@@ -180,6 +204,15 @@ class Client:
     def get_balance_for_account(self, account_id):
         r = self._req({
             "method": "get_balance_for_account",
+            "params": {
+                "account_id": account_id,
+            }
+        })
+        return r['balance']
+
+    def get_balance_for_view_only_account(self, account_id):
+        r = self._req({
+            "method": "get_balance_for_view_only_account",
             "params": {
                 "account_id": account_id,
             }
