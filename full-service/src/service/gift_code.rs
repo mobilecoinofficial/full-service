@@ -660,7 +660,7 @@ where
             TransactionBuilder::new(block_version, fee, fog_resolver, memo_builder)?;
         transaction_builder.add_input(input_credentials);
         let (_tx_out, _confirmation) = transaction_builder.add_output(
-            Amount::new(gift_value as u64 - Mob::MINIMUM_FEE, Mob::ID),
+            gift_value as u64 - Mob::MINIMUM_FEE,
             &recipient_public_address,
             &mut rng,
         )?;

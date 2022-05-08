@@ -371,11 +371,8 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let mut outlay_confirmation_numbers = Vec::default();
         let mut rng = rand::thread_rng();
         for (i, (recipient, out_value)) in self.outlays.iter().enumerate() {
-            let (tx_out, confirmation_number) = transaction_builder.add_output(
-                Amount::new(*out_value as u64, Mob::ID),
-                recipient,
-                &mut rng,
-            )?;
+            let (tx_out, confirmation_number) =
+                transaction_builder.add_output(*out_value, recipient, &mut rng)?;
 
             tx_out_to_outlay_index.insert(tx_out, i);
             outlay_confirmation_numbers.push(confirmation_number);
@@ -387,23 +384,20 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let input_value = inputs_and_proofs
             .iter()
             .fold(0, |acc, (utxo, _proof)| acc + utxo.value);
-        if (total_value + transaction_builder.get_fee()) > input_value as u64 {
+        if (total_value + transaction_builder.get_fee().value) > input_value as u64 {
             return Err(WalletTransactionBuilderError::InsufficientInputFunds(
                 format!(
                     "Total value required to send transaction {:?}, but only {:?} in inputs",
-                    total_value + transaction_builder.get_fee(),
+                    total_value + transaction_builder.get_fee().value,
                     input_value
                 ),
             ));
         }
 
-        let change = Amount::new(
-            input_value as u64 - total_value - transaction_builder.get_fee(),
-            Mob::ID,
-        );
+        let change = input_value as u64 - total_value - transaction_builder.get_fee().value;
 
         // If we do, add an output for that as well.
-        if change.value > 0 {
+        if change > 0 {
             let change_destination = ChangeDestination::from(&from_account_key);
             transaction_builder.add_change_output(change, &change_destination, &mut rng)?;
         }
