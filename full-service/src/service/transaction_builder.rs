@@ -38,7 +38,7 @@ use mc_transaction_core::{
     Amount, BlockVersion, Token,
 };
 use mc_transaction_std::{
-    ChangeDestination, InputCredentials, RTHMemoBuilder, SenderMemoCredential, TransactionBuilder,
+    InputCredentials, RTHMemoBuilder, ReservedDestination, SenderMemoCredential, TransactionBuilder,
 };
 use mc_util_uri::FogUri;
 
@@ -404,7 +404,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
 
         // If we do, add an output for that as well.
         if change.value > 0 {
-            let change_destination = ChangeDestination::from(&from_account_key);
+            let change_destination = ReservedDestination::from(&from_account_key);
             transaction_builder.add_change_output(change, &change_destination, &mut rng)?;
         }
 
