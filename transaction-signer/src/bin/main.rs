@@ -2,10 +2,9 @@ use std::{convert::TryFrom, env, fs};
 
 use mc_account_keys::AccountKey;
 use mc_account_keys_slip10::Slip10Key;
-use mc_attest_verifier::Verifier;
 use mc_common::HashMap;
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
-use mc_fog_report_validation::{FogReportResponses, FogResolver};
+use mc_fog_report_validation::FogResolver;
 use mc_transaction_core::{
     get_tx_out_shared_secret,
     onetime_keys::{recover_onetime_private_key, recover_public_subaddress_spend_key},
@@ -83,11 +82,8 @@ fn sign_transaction(
     subaddress_spend_public_keys: &HashMap<RistrettoPublic, u64>,
 ) {
     let unsigned_tx_bytes_serialized = fs::read_to_string(unsigned_tx_file).unwrap();
-    let unsigned_tx: UnsignedTx = serde_json::from_str(&unsigned_tx_bytes_serialized).unwrap();
-
-    let verifier = Verifier::default();
-    let responses = FogReportResponses::new();
-    let fog_resolver = FogResolver::new(responses, &verifier).unwrap();
+    let (unsigned_tx, fog_resolver): (UnsignedTx, FogResolver) =
+        serde_json::from_str(&unsigned_tx_bytes_serialized).unwrap();
 
     let signed_tx = unsigned_tx.sign(
         account_key,
