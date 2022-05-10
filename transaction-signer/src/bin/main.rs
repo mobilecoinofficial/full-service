@@ -85,7 +85,59 @@ fn main() {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Account {
     pub mnemonic_phrase: String,
-    pub account_key: AccountKey,
+    pub account_key: TSAccountKey,
+}
+
+/// The AccountKey contains a View keypair and a Spend keypair, used to
+/// construct and receive transactions.
+#[derive(Deserialize, Serialize, Default, Debug, Clone)]
+pub struct TSAccountKey {
+    /// String representing the object's type. Objects of the same type share
+    /// the same value.
+    pub object: String,
+
+    ///  Private key used for view-key matching, hex-encoded Ristretto bytes.
+    pub view_private_key: String,
+
+    /// Private key used for spending, hex-encoded Ristretto bytes.
+    pub spend_private_key: String,
+
+    /// Fog Report server url (if user has Fog service), empty string otherwise.
+    pub fog_report_url: String,
+
+    /// Fog Report Key (if user has Fog service), empty otherwise
+    /// The key labelling the report to use, from among the several reports
+    /// which might be served by the fog report server.
+    pub fog_report_id: String,
+
+    /// Fog Authority Subject Public Key Info (if user has Fog service),
+    /// empty string otherwise.
+    pub fog_authority_spki: String,
+}
+
+impl From<&AccountKey> for TSAccountKey {
+    fn from(src: &AccountKey) -> TSAccountKey {
+        TSAccountKey {
+            object: "account_key".to_string(),
+            view_private_key: ristretto_to_hex(src.view_private_key()),
+            spend_private_key: ristretto_to_hex(src.spend_private_key()),
+            fog_report_url: src.fog_report_url().unwrap_or("").to_string(),
+            fog_report_id: src.fog_report_id().unwrap_or("").to_string(),
+            fog_authority_spki: vec_to_hex(&src.fog_authority_spki().unwrap_or(&[]).to_vec()),
+        }
+    }
+}
+
+pub fn ristretto_to_vec(key: &RistrettoPrivate) -> Vec<u8> {
+    mc_util_serial::encode(key)
+}
+
+pub fn vec_to_hex(key: &[u8]) -> String {
+    hex::encode(key)
+}
+
+pub fn ristretto_to_hex(key: &RistrettoPrivate) -> String {
+    vec_to_hex(&ristretto_to_vec(key))
 }
 
 fn create_account(output_file: &str) {
@@ -95,9 +147,11 @@ fn create_account(output_file: &str) {
         .try_into_account_key("", "", &base64::decode("").unwrap())
         .unwrap();
 
+    let ts_account_key = TSAccountKey::from(&account_key);
+
     let account = Account {
         mnemonic_phrase: mnemonic.phrase().to_string(),
-        account_key,
+        account_key: ts_account_key,
     };
 
     let account_serialized = serde_json::to_string(&account).unwrap();

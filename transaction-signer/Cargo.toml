@@ -26,6 +26,7 @@ mc-util-serial = { path = "../mobilecoin/util/serial", default-features = false 
 mc-util-uri = { path = "../mobilecoin/util/uri" }
 
 base64 = "0.13.0"
+hex = {version = "0.4", default-features = false }
 prost = { version = "0.10.1", default-features = false, features = ["prost-derive"] }
 rand = { version = "0.8", default-features = false }
 serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }
