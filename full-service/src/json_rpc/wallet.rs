@@ -456,6 +456,18 @@ where
             }
         }
 
+        JsonCommandRequest::export_view_only_txouts_without_key_image { account_id } => {
+            let txouts = service
+                .export_view_only_txouts_without_key_image(&account_id)
+                .map_err(format_error)?;
+
+            let mut encoded: Vec<Vec<u8>> = Vec::new();
+            for txout in txouts {
+                encoded.push(mc_util_serial::encode(&txout));
+            }
+            JsonCommandResponse::export_view_only_txouts_without_key_image { txouts: encoded }
+        }
+
         JsonCommandRequest::get_account { account_id } => JsonCommandResponse::get_account {
             account: json_rpc::account::Account::try_from(
                 &service
@@ -937,6 +949,23 @@ where
             JsonCommandResponse::set_view_only_txos_spent {
                 success: service
                     .set_view_only_txos_spent(txo_ids)
+                    .map_err(format_error)?,
+            }
+        }
+        JsonCommandRequest::set_view_only_txos_key_images {
+            txos_with_key_images,
+        } => {
+            let mut decoded = Vec::new();
+            for (txo_string, key_image_string) in txos_with_key_images {
+                decoded.push((
+                    mc_util_serial::decode(&txo_string).map_err(format_error)?,
+                    mc_util_serial::decode(&key_image_string).map_err(format_error)?,
+                ))
+            }
+
+            JsonCommandResponse::set_view_only_txos_key_images {
+                success: service
+                    .set_view_only_txos_key_images(decoded)
                     .map_err(format_error)?,
             }
         }

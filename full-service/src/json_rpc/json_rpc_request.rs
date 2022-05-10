@@ -141,6 +141,9 @@ pub enum JsonCommandRequest {
     export_view_only_account_secrets {
         account_id: String,
     },
+    export_view_only_txouts_without_key_image {
+        account_id: String,
+    },
     get_account {
         account_id: String,
     },
@@ -251,6 +254,9 @@ pub enum JsonCommandRequest {
     },
     set_view_only_txos_spent {
         txo_ids: Vec<String>,
+    },
+    set_view_only_txos_key_images {
+        txos_with_key_images: Vec<(Vec<u8>, Vec<u8>)>,
     },
     submit_gift_code {
         from_account_id: String,

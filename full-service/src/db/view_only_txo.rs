@@ -10,7 +10,7 @@ use crate::db::{
     Conn, WalletDbError,
 };
 use diesel::prelude::*;
-use mc_transaction_core::tx::TxOut;
+use mc_transaction_core::{ring_signature::KeyImage, tx::TxOut};
 
 pub trait ViewOnlyTxoModel {
     /// insert a new txo linked to a view-only-account
@@ -44,6 +44,25 @@ pub trait ViewOnlyTxoModel {
         conn: &Conn,
     ) -> Result<Vec<ViewOnlyTxo>, WalletDbError>;
 
+    /// get all txouts with no key image for a given account
+    ///
+    /// Returns:
+    /// * Vec<TxOut>
+    fn export_txouts_without_key_image(
+        account_id_hex: &str,
+        conn: &Conn,
+    ) -> Result<Vec<TxOut>, WalletDbError>;
+
+    /// updates the key image for a given txo
+    ///
+    /// Returns:
+    /// * ViewOnlyTxo
+    fn update_key_image(
+        txo_id_hex: &str,
+        key_image: &KeyImage,
+        conn: &Conn,
+    ) -> Result<(), WalletDbError>;
+
     /// delete all view only txos for a view-only account
     fn delete_all_for_account(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError>;
 }
@@ -65,6 +84,7 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         let new_txo = NewViewOnlyTxo {
             txo: &mc_util_serial::encode(&tx_out),
             txo_id_hex: &txo_id.to_string(),
+            key_image: None,
             value: value as i64,
             public_key: &mc_util_serial::encode(&tx_out.public_key),
             view_only_account_id_hex,
@@ -132,6 +152,47 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         Ok(())
     }
 
+    fn update_key_image(
+        txo_id_hex: &str,
+        key_image: &KeyImage,
+        conn: &Conn,
+    ) -> Result<(), WalletDbError> {
+        use schema::view_only_txos::dsl::{
+            key_image as dsl_key_image, txo_id_hex as dsl_txo_id, view_only_txos,
+        };
+
+        // assert txo exists
+        ViewOnlyTxo::get(txo_id_hex, conn)?;
+
+        diesel::update(view_only_txos.filter(dsl_txo_id.eq(txo_id_hex)))
+            .set(dsl_key_image.eq(mc_util_serial::encode(key_image)))
+            .execute(conn)?;
+        Ok(())
+    }
+
+    fn export_txouts_without_key_image(
+        account_id_hex: &str,
+        conn: &Conn,
+    ) -> Result<Vec<TxOut>, WalletDbError> {
+        use schema::view_only_txos::dsl::{
+            key_image as dsl_key_image, view_only_account_id_hex as dsl_account_id,
+        };
+
+        let txos: Vec<ViewOnlyTxo> = schema::view_only_txos::table
+            .filter(dsl_account_id.eq(account_id_hex))
+            .filter(dsl_key_image.is_null())
+            .load(conn)?;
+
+        let mut txouts: Vec<TxOut> = Vec::new();
+
+        for txo in txos {
+            let txout: TxOut = mc_util_serial::decode(&txo.txo)?;
+            txouts.push(txout);
+        }
+
+        Ok(txouts)
+    }
+
     fn delete_all_for_account(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError> {
         use schema::view_only_txos::dsl::{
             view_only_account_id_hex as dsl_account_id, view_only_txos,
@@ -152,6 +213,7 @@ mod tests {
     use mc_account_keys::PublicAddress;
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
+    use mc_crypto_rand::RngCore;
     use mc_transaction_core::encrypted_fog_hint::EncryptedFogHint;
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
@@ -199,6 +261,7 @@ mod tests {
             txo_id_hex: txo_id.to_string(),
             view_only_account_id_hex: view_only_account.account_id_hex.to_string(),
             txo: mc_util_serial::encode(&fake_tx_out),
+            key_image: None,
             public_key: mc_util_serial::encode(&fake_tx_out.public_key),
             value: value as i64,
             spent: false,
@@ -251,6 +314,45 @@ mod tests {
                 .unwrap();
 
         assert_eq!(listed.len(), 2);
+
+        // test update key image
+
+        let value = 420;
+        let tx_private_key = RistrettoPrivate::from_random(&mut rng);
+        let hint = EncryptedFogHint::fake_onetime_hint(&mut rng);
+        let public_address = PublicAddress::new(
+            &RistrettoPublic::from_random(&mut rng),
+            &RistrettoPublic::from_random(&mut rng),
+        );
+        let fake_txo_three =
+            TxOut::new(value as u64, &public_address, &tx_private_key, hint).unwrap();
+
+        let new_txo = ViewOnlyTxo::create(
+            fake_txo_three.clone(),
+            value,
+            &view_only_account.account_id_hex,
+            &conn,
+        )
+        .unwrap();
+
+        let key_image = KeyImage::from(rng.next_u64());
+        ViewOnlyTxo::update_key_image(&new_txo.txo_id_hex, &key_image, &conn).unwrap();
+        let found = ViewOnlyTxo::get(&new_txo.txo_id_hex, &conn).unwrap();
+
+        assert_eq!(
+            key_image,
+            mc_util_serial::decode(&found.key_image.unwrap()).unwrap()
+        );
+
+        // test export_txouts_without_key_image. assuming 2 vo txos without key image
+        // and one with from the tests above
+
+        let txouts =
+            ViewOnlyTxo::export_txouts_without_key_image(&view_only_account.account_id_hex, &conn)
+                .unwrap();
+        assert_eq!(txouts.len(), 2);
+        assert!(txouts.contains(&fake_tx_out));
+        assert!(txouts.contains(&fake_txo_two));
 
         // test delete all for account
 

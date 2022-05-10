@@ -4505,4 +4505,158 @@ mod e2e {
             ((100 * MOB) - ((40 * MOB) + &Mob::MINIMUM_FEE)).to_string()
         );
     }
+
+    #[test_with_logger]
+    fn test_e2e_view_only_txout_key_image_export_import(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
+        let wallet_db = &db_ctx.get_db_instance(logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+        let public_address = b58_decode_public_address(b58_public_address).unwrap();
+
+        // import view-only-account from account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "export_account_secrets",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let secrets = result.get("account_secrets").unwrap();
+        let account_key = secrets.get("account_key").unwrap();
+        let view_private_key = account_key["view_private_key"].as_str().unwrap();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_view_only_account",
+            "params": {
+                "view_private_key": view_private_key,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("view_only_account").unwrap();
+        let view_only_account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+
+        // Add blocks with a txo for this regular account address
+        // two blocks with random key images. One block with out known key image we'll
+        // want to use to test whether the txo gets marked as spent.
+        let spent_key_image = KeyImage::from(rng.next_u64());
+        let key_images = [
+            KeyImage::from(rng.next_u64()),
+            KeyImage::from(rng.next_u64()),
+            spent_key_image,
+        ];
+        let total_txos = 3;
+        for index in 0..total_txos {
+            add_block_to_ledger_db(
+                &mut ledger_db,
+                &vec![public_address.clone()],
+                42 * MOB as u64,
+                &vec![key_images[index].clone()],
+                &mut rng,
+            );
+        }
+
+        manually_sync_account(
+            &ledger_db,
+            &wallet_db,
+            &AccountID(account_id.to_string()),
+            &logger,
+        );
+
+        // sync view-only-account
+        manually_sync_view_only_account(&ledger_db, wallet_db, &view_only_account_id, &logger);
+
+        // export txos
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "export_view_only_txouts_without_key_image",
+            "params": {
+                "account_id": view_only_account_id,
+            }
+        });
+
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let txouts = result.get("txouts").unwrap().as_array().unwrap();
+        assert_eq!(txouts.len(), total_txos);
+
+        // create key images again, to ensure that only 1 gets marked as spent:
+        let mut txouts_with_key_images = Vec::new();
+        let key_images = [
+            KeyImage::from(rng.next_u64()),
+            KeyImage::from(rng.next_u64()),
+            spent_key_image,
+        ];
+
+        for (index, txout) in txouts.iter().enumerate() {
+            txouts_with_key_images.push((txout, mc_util_serial::encode(&key_images[index])));
+        }
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "set_view_only_txos_key_images",
+            "params": {
+                "txos_with_key_images": txouts_with_key_images
+            }
+        });
+
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let success = result.get("success").unwrap().as_bool().unwrap();
+        assert!(success);
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_txos_for_view_only_account",
+            "params": {
+                "account_id": view_only_account_id,
+                "offset": "0",
+                "limit": total_txos.to_string(),
+            }
+        });
+
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let txo_map = result.get("txo_map").unwrap().as_object().unwrap();
+        let mut spent_txos = Vec::new();
+        for (_id, txo) in txo_map {
+            assert_eq!(txo.get("key_image").unwrap().is_null(), false);
+            if txo.get("spent").unwrap().as_bool().unwrap() {
+                spent_txos.push(txo.clone());
+            }
+        }
+        assert_eq!(spent_txos.len(), 1);
+        assert_eq!(
+            spent_txos[0]
+                .get("key_image")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_string(),
+            hex::encode(&mc_util_serial::encode(&spent_key_image))
+        );
+    }
 }

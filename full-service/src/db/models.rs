@@ -233,6 +233,8 @@ pub struct ViewOnlyTxo {
     pub txo_id_hex: String,
     /// The serialized TxOut.
     pub txo: Vec<u8>,
+    /// Pre-computed key image for this Txo
+    pub key_image: Option<Vec<u8>>,
     /// The value of this transaction output, in picoMob.
     pub value: i64,
     /// The serialized public_key of the TxOut.
@@ -250,6 +252,7 @@ pub struct ViewOnlyTxo {
 pub struct NewViewOnlyTxo<'a> {
     pub txo: &'a [u8],
     pub txo_id_hex: &'a str,
+    pub key_image: Option<&'a [u8]>,
     pub value: i64,
     pub public_key: &'a [u8],
     pub view_only_account_id_hex: &'a str,

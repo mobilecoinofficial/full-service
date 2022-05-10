@@ -180,6 +180,9 @@ pub enum JsonCommandResponse {
     export_view_only_account_secrets {
         view_only_account_secrets: ViewOnlyAccountSecrets,
     },
+    export_view_only_txouts_without_key_image {
+        txouts: Vec<Vec<u8>>,
+    },
     get_account {
         account: Account,
     },
@@ -287,6 +290,9 @@ pub enum JsonCommandResponse {
         removed: bool,
     },
     set_view_only_txos_spent {
+        success: bool,
+    },
+    set_view_only_txos_key_images {
         success: bool,
     },
     submit_gift_code {
