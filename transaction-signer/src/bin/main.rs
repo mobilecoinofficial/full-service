@@ -21,8 +21,8 @@ use serde::{Deserialize, Serialize};
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    if args.len() != 6 || args.len() != 7 {
-        println!("Usage: {} <sign|check-txos>", args[0]);
+    if args.len() < 2 {
+        println!("Usage: {} <sign|check-txos|create-account>", args[0]);
         return;
     }
 
