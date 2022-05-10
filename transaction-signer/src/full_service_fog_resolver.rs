@@ -9,7 +9,7 @@ use crate::util::b58::b58_encode_public_address;
 use std::convert::TryFrom;
 
 #[derive(Clone, Deserialize, Serialize)]
-pub struct FullServiceFogResolver(HashMap<String, FullServiceFullyValidatedFogPubkey>);
+pub struct FullServiceFogResolver(pub HashMap<String, FullServiceFullyValidatedFogPubkey>);
 
 impl FogPubkeyResolver for FullServiceFogResolver {
     fn get_fog_pubkey(

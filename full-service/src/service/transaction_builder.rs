@@ -16,6 +16,7 @@ use crate::{
         Conn,
     },
     error::WalletTransactionBuilderError,
+    util::b58::b58_encode_public_address,
 };
 use mc_account_keys::{AccountKey, PublicAddress};
 use mc_common::{
@@ -23,7 +24,7 @@ use mc_common::{
     HashMap, HashSet,
 };
 use mc_crypto_keys::RistrettoPublic;
-use mc_fog_report_validation::{FogPubkeyResolver, FogResolver};
+use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_mobilecoind::{
     payments::{Outlay, TxProposal},
@@ -37,7 +38,9 @@ use mc_transaction_core::{
     tx::{TxIn, TxOut, TxOutMembershipProof},
     Token,
 };
-use mc_transaction_signer::UnsignedTx;
+use mc_transaction_signer::{
+    FullServiceFogResolver, FullServiceFullyValidatedFogPubkey, UnsignedTx,
+};
 use mc_transaction_std::{InputCredentials, NoMemoBuilder, TransactionBuilder};
 use mc_util_uri::FogUri;
 
@@ -206,18 +209,38 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         Ok(())
     }
 
-    pub fn get_fog_resolver(&self) -> Result<FogResolver, WalletTransactionBuilderError> {
-        let fog_uris = self
-            .outlays
-            .iter()
-            .map(|(receiver, _amount)| receiver)
-            .filter_map(|x| extract_fog_uri(x).transpose())
-            .collect::<Result<Vec<_>, _>>()?;
-        Ok((self.fog_resolver_factory)(&fog_uris)
-            .map_err(WalletTransactionBuilderError::FogPubkeyResolver)?)
+    pub fn get_fs_fog_resolver(&self, conn: &Conn) -> FullServiceFogResolver {
+        let account: Account =
+            Account::get(&AccountID(self.account_id_hex.to_string()), conn).unwrap();
+        let from_account_key: AccountKey = mc_util_serial::decode(&account.account_key).unwrap();
+
+        let change_address = from_account_key.subaddress(account.change_subaddress_index as u64);
+        let fog_resolver = {
+            let fog_uris = core::slice::from_ref(&change_address)
+                .iter()
+                .chain(self.outlays.iter().map(|(receiver, _amount)| receiver))
+                .filter_map(|x| extract_fog_uri(x).transpose())
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap();
+            (self.fog_resolver_factory)(&fog_uris)
+                .map_err(WalletTransactionBuilderError::FogPubkeyResolver)
+                .unwrap()
+        };
+
+        let mut fully_validated_fog_pubkeys: HashMap<String, FullServiceFullyValidatedFogPubkey> =
+            HashMap::default();
+
+        for (public_address, _) in self.outlays.iter() {
+            let fog_pubkey = fog_resolver.get_fog_pubkey(public_address).unwrap();
+            let fs_fog_pubkey = FullServiceFullyValidatedFogPubkey::from(fog_pubkey);
+            let b58_public_address = b58_encode_public_address(public_address).unwrap();
+            fully_validated_fog_pubkeys.insert(b58_public_address, fs_fog_pubkey);
+        }
+
+        FullServiceFogResolver(fully_validated_fog_pubkeys)
     }
 
-    pub fn build_unsigned(&self, conn: &Conn) -> Result<UnsignedTx, WalletTransactionBuilderError> {
+    pub fn build_unsigned(&self) -> Result<UnsignedTx, WalletTransactionBuilderError> {
         if self.inputs.is_empty() {
             return Err(WalletTransactionBuilderError::NoInputs);
         }
@@ -225,9 +248,6 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         if self.tombstone == 0 {
             return Err(WalletTransactionBuilderError::TombstoneNotSet);
         }
-
-        let account: Account = Account::get(&AccountID(self.account_id_hex.to_string()), conn)?;
-        let from_account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
 
         // Get membership proofs for our inputs
         let indexes = self
@@ -322,9 +342,18 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             inputs_and_real_indices.push((tx_in, real_index as u64));
         }
 
+        let outlays_string: Vec<(String, u64)> = self
+            .outlays
+            .iter()
+            .map(|(receiver, amount)| {
+                let b58_address = b58_encode_public_address(receiver).unwrap();
+                (b58_address, *amount)
+            })
+            .collect();
+
         Ok(UnsignedTx {
             inputs_and_real_indices,
-            outlays: self.outlays,
+            outlays: outlays_string,
             fee: self.fee.unwrap_or(Mob::MINIMUM_FEE),
         })
     }

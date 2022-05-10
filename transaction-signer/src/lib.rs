@@ -3,4 +3,7 @@ mod full_service_fog_resolver;
 mod unsigned_tx;
 mod util;
 
-pub use crate::{full_service_fog_resolver::FullServiceFogResolver, unsigned_tx::UnsignedTx};
+pub use crate::{
+    full_service_fog_resolver::{FullServiceFogResolver, FullServiceFullyValidatedFogPubkey},
+    unsigned_tx::UnsignedTx,
+};
