@@ -1,5 +1,4 @@
 use mc_account_keys::{AccountKey, PublicAddress};
-use mc_api::printable::PrintableWrapper;
 use mc_common::HashMap;
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_fog_report_validation::FogResolver;
@@ -23,7 +22,7 @@ pub struct UnsignedTx {
 
     /// Vector of (PublicAddress, Amounts) for the recipients of this
     /// transaction.
-    pub outlays: Vec<(String, u64)>,
+    pub outlays: Vec<(PublicAddress, u64)>,
 
     /// The fee to be paid
     pub fee: u64,
@@ -98,7 +97,7 @@ pub fn decode_amount(
 }
 
 fn add_payload_outputs<RNG: CryptoRng + RngCore>(
-    outlays: Vec<(String, u64)>,
+    outlays: Vec<(PublicAddress, u64)>,
     transaction_builder: &mut TransactionBuilder<FogResolver>,
     rng: &mut RNG,
 ) -> u64 {
@@ -107,10 +106,8 @@ fn add_payload_outputs<RNG: CryptoRng + RngCore>(
     let mut tx_out_to_outlay_index: HashMap<TxOut, usize> = HashMap::default();
     let mut outlay_confirmation_numbers = Vec::default();
     for (i, (recipient, out_value)) in outlays.iter().enumerate() {
-        let wrapper = PrintableWrapper::b58_decode(recipient.to_string()).unwrap();
-        let public_address = PublicAddress::try_from(wrapper.get_public_address()).unwrap();
         let (tx_out, confirmation_number) = transaction_builder
-            .add_output(*out_value as u64, &public_address, rng)
+            .add_output(*out_value as u64, &recipient, rng)
             .unwrap();
 
         tx_out_to_outlay_index.insert(tx_out, i);
