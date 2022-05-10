@@ -4,7 +4,6 @@ use mc_account_keys::AccountKey;
 use mc_account_keys_slip10::Slip10Key;
 use mc_common::HashMap;
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
-use mc_fog_report_validation::FogResolver;
 use mc_transaction_core::{
     get_tx_out_shared_secret,
     onetime_keys::{recover_onetime_private_key, recover_public_subaddress_spend_key},
@@ -13,7 +12,7 @@ use mc_transaction_core::{
     AmountError,
 };
 
-use mc_transaction_signer::UnsignedTx;
+use mc_transaction_signer::{FullServiceFogResolver, UnsignedTx};
 
 use bip39::{Language, Mnemonic, MnemonicType};
 use serde::{Deserialize, Serialize};
@@ -166,7 +165,7 @@ fn sign_transaction(
     subaddress_spend_public_keys: &HashMap<RistrettoPublic, u64>,
 ) {
     let unsigned_tx_bytes_serialized = fs::read_to_string(unsigned_tx_file).unwrap();
-    let (unsigned_tx, fog_resolver): (UnsignedTx, FogResolver) =
+    let (unsigned_tx, fog_resolver): (UnsignedTx, FullServiceFogResolver) =
         serde_json::from_str(&unsigned_tx_bytes_serialized).unwrap();
 
     let signed_tx = unsigned_tx.sign(
