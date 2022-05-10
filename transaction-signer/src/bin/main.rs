@@ -15,7 +15,8 @@ use mc_transaction_core::{
 
 use mc_transaction_signer::UnsignedTx;
 
-use bip39::{Language, Mnemonic};
+use bip39::{Language, Mnemonic, MnemonicType};
+use serde::{Deserialize, Serialize};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -71,7 +72,36 @@ fn main() {
         return;
     }
 
+    if operation == "create_account" {
+        let output_file = &args[2];
+        create_account(output_file);
+
+        return;
+    }
+
     println!("Usage: {} <sign|check-txos>", args[0]);
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct Account {
+    pub mnemonic_phrase: String,
+    pub account_key: AccountKey,
+}
+
+fn create_account(output_file: &str) {
+    let mnemonic = Mnemonic::new(MnemonicType::Words24, Language::English);
+
+    let account_key = Slip10Key::from(mnemonic.clone())
+        .try_into_account_key("", "", &base64::decode("").unwrap())
+        .unwrap();
+
+    let account = Account {
+        mnemonic_phrase: mnemonic.phrase().to_string(),
+        account_key,
+    };
+
+    let account_serialized = serde_json::to_string(&account).unwrap();
+    fs::write(output_file, account_serialized).unwrap();
 }
 
 fn sign_transaction(
