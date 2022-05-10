@@ -1899,7 +1899,6 @@ dependencies = [
  "mc-util-serial",
  "prost 0.9.0",
  "rand_core 0.6.3",
- "serde",
  "subtle",
  "zeroize",
 ]
@@ -2336,7 +2335,6 @@ dependencies = [
  "mc-util-serial",
  "mc-util-uri",
  "mockall",
- "serde",
 ]
 
 [[package]]
