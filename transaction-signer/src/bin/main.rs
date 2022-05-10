@@ -72,14 +72,14 @@ fn main() {
         return;
     }
 
-    if operation == "create_account" {
+    if operation == "create-account" {
         let output_file = &args[2];
         create_account(output_file);
 
         return;
     }
 
-    println!("Usage: {} <sign|check-txos>", args[0]);
+    println!("Usage: {} <sign|check-txos|create-account>", args[0]);
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
