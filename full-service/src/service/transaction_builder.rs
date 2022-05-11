@@ -231,10 +231,16 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             HashMap::default();
 
         for (public_address, _) in self.outlays.iter() {
-            let fog_pubkey = fog_resolver.get_fog_pubkey(public_address).unwrap();
-            let fs_fog_pubkey = FullServiceFullyValidatedFogPubkey::from(fog_pubkey);
-            let b58_public_address = b58_encode_public_address(public_address).unwrap();
-            fully_validated_fog_pubkeys.insert(b58_public_address, fs_fog_pubkey);
+            let fog_pubkey = match fog_resolver.get_fog_pubkey(public_address) {
+                Ok(fog_pubkey) => Some(fog_pubkey),
+                Err(_) => None,
+            };
+
+            if let Some(fog_pubkey) = fog_pubkey {
+                let fs_fog_pubkey = FullServiceFullyValidatedFogPubkey::from(fog_pubkey);
+                let b58_public_address = b58_encode_public_address(public_address).unwrap();
+                fully_validated_fog_pubkeys.insert(b58_public_address, fs_fog_pubkey);
+            }
         }
 
         FullServiceFogResolver(fully_validated_fog_pubkeys)

@@ -16,7 +16,7 @@ use std::convert::TryFrom;
 
 use crate::{util::b58::b58_decode_public_address, FullServiceFogResolver};
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct UnsignedTx {
     /// The fully constructed input rings
     pub inputs_and_real_indices: Vec<(TxIn, u64)>,

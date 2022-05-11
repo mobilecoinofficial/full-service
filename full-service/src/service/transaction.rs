@@ -21,6 +21,8 @@ use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConne
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_mobilecoind::payments::TxProposal;
+use mc_transaction_core::tx::Tx;
+use mc_transaction_signer::{FullServiceFogResolver, UnsignedTx};
 
 use crate::service::address::{AddressService, AddressServiceError};
 use displaydoc::Display;
@@ -135,6 +137,12 @@ impl From<mc_ledger_db::Error> for TransactionServiceError {
 /// Trait defining the ways in which the wallet can interact with and manage
 /// transactions.
 pub trait TransactionService {
+    fn build_unsigned_transaction(
+        &self,
+        account_id_hex: &str,
+        addresses_and_values: &[(String, String)],
+    ) -> Result<(UnsignedTx, FullServiceFogResolver), TransactionServiceError>;
+
     /// Builds a transaction from the given account to the specified recipients.
     #[allow(clippy::too_many_arguments)]
     fn build_transaction(
@@ -156,6 +164,12 @@ pub trait TransactionService {
         account_id_hex: Option<String>,
     ) -> Result<Option<(TransactionLog, AssociatedTxos)>, TransactionServiceError>;
 
+    /// Submits a pre-built TxProposal to the MobileCoin Consensus Network.
+    fn submit_transaction_serialized(
+        &self,
+        signed_tx_serialized: Vec<u8>,
+    ) -> Result<(), TransactionServiceError>;
+
     /// Convenience method that builds and submits in one go.
     #[allow(clippy::too_many_arguments)]
     fn build_and_submit(
@@ -175,6 +189,42 @@ where
     T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
+    fn build_unsigned_transaction(
+        &self,
+        account_id_hex: &str,
+        addresses_and_values: &[(String, String)],
+    ) -> Result<(UnsignedTx, FullServiceFogResolver), TransactionServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+        transaction(&conn, || {
+            let mut builder = WalletTransactionBuilder::new(
+                account_id_hex.to_string(),
+                self.ledger_db.clone(),
+                self.fog_resolver_factory.clone(),
+                self.logger.clone(),
+            );
+
+            for (recipient_public_address, value) in addresses_and_values {
+                if !self.verify_address(recipient_public_address)? {
+                    return Err(TransactionServiceError::InvalidPublicAddress(
+                        recipient_public_address.to_string(),
+                    ));
+                };
+                let recipient = b58_decode_public_address(recipient_public_address)?;
+                builder.add_recipient(recipient, value.parse::<u64>()?)?;
+            }
+
+            builder.set_tombstone(0)?;
+
+            builder.set_fee(self.get_network_fee())?;
+
+            builder.select_txos(&conn, None, false)?;
+
+            let unsigned_tx = builder.build_unsigned()?;
+            let fog_resolver = builder.get_fs_fog_resolver(&conn);
+
+            Ok((unsigned_tx, fog_resolver))
+        })
+    }
     fn build_transaction(
         &self,
         account_id_hex: &str,
@@ -241,6 +291,30 @@ where
 
             Ok(tx_proposal)
         })
+    }
+
+    fn submit_transaction_serialized(
+        &self,
+        signed_tx_serialized: Vec<u8>,
+    ) -> Result<(), TransactionServiceError> {
+        let tx: Tx = mc_util_serial::decode(&signed_tx_serialized).unwrap();
+
+        // Pick a peer to submit to.
+        let responder_ids = self.peer_manager.responder_ids();
+        if responder_ids.is_empty() {
+            return Err(TransactionServiceError::NoPeersConfigured);
+        }
+
+        let idx = self.submit_node_offset.fetch_add(1, Ordering::SeqCst);
+        let responder_id = &responder_ids[idx % responder_ids.len()];
+
+        self.peer_manager
+            .conn(responder_id)
+            .ok_or(TransactionServiceError::NodeNotFound)?
+            .propose_tx(&tx, empty())
+            .map_err(TransactionServiceError::from)?;
+
+        Ok(())
     }
 
     fn submit_transaction(

@@ -102,6 +102,11 @@ pub enum JsonCommandRequest {
         max_spendable_value: Option<String>,
         log_tx_proposal: Option<bool>,
     },
+    build_unsigned_transaction {
+        account_id: String,
+        recipient_public_address: Option<String>,
+        value_pmob: Option<String>,
+    },
     check_b58_type {
         b58_code: String,
     },
@@ -267,6 +272,9 @@ pub enum JsonCommandRequest {
         tx_proposal: TxProposal,
         comment: Option<String>,
         account_id: Option<String>,
+    },
+    submit_transaction_serialized {
+        signed_tx_file: String,
     },
     update_account_name {
         account_id: String,

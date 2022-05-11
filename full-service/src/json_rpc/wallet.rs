@@ -315,6 +315,23 @@ where
                 transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
             }
         }
+        JsonCommandRequest::build_unsigned_transaction {
+            account_id,
+            recipient_public_address,
+            value_pmob,
+        } => {
+            let mut addresses_and_values: Vec<(String, String)> = Vec::new();
+            if let (Some(a), Some(v)) = (recipient_public_address, value_pmob) {
+                addresses_and_values.push((a, v));
+            }
+            let (unsigned_tx, fog_resolver) = service
+                .build_unsigned_transaction(&account_id, &addresses_and_values)
+                .map_err(format_error)?;
+            JsonCommandResponse::build_unsigned_transaction {
+                unsigned_tx,
+                fog_resolver,
+            }
+        }
         JsonCommandRequest::check_b58_type { b58_code } => {
             let b58_type = b58_printable_wrapper_type(b58_code.clone()).map_err(format_error)?;
             let mut b58_data = HashMap::new();
@@ -1008,6 +1025,14 @@ where
             JsonCommandResponse::submit_transaction {
                 transaction_log: result,
             }
+        }
+        JsonCommandRequest::submit_transaction_serialized { signed_tx_file } => {
+            let signed_tx_serialized = std::fs::read(signed_tx_file).unwrap();
+
+            service
+                .submit_transaction_serialized(signed_tx_serialized)
+                .map_err(format_error)?;
+            JsonCommandResponse::submit_transaction_serialized
         }
         JsonCommandRequest::update_account_name { account_id, name } => {
             JsonCommandResponse::update_account_name {

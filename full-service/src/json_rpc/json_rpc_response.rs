@@ -31,6 +31,8 @@ use std::collections::HashMap;
 use strum::AsStaticRef;
 use strum_macros::AsStaticStr;
 
+use mc_transaction_signer::{FullServiceFogResolver, UnsignedTx};
+
 /// A JSON RPC 2.0 Response.
 #[derive(Deserialize, Serialize, Debug)]
 pub struct JsonRPCResponse {
@@ -145,6 +147,10 @@ pub enum JsonCommandResponse {
     build_transaction {
         tx_proposal: TxProposal,
         transaction_log_id: String,
+    },
+    build_unsigned_transaction {
+        unsigned_tx: UnsignedTx,
+        fog_resolver: FullServiceFogResolver,
     },
     check_b58_type {
         b58_type: PrintableWrapperType,
@@ -301,6 +307,7 @@ pub enum JsonCommandResponse {
     submit_transaction {
         transaction_log: Option<TransactionLog>,
     },
+    submit_transaction_serialized,
     update_account_name {
         account: Account,
     },

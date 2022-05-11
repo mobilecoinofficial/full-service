@@ -157,6 +157,12 @@ fn create_account(output_file: &str) {
     fs::write(output_file, account_serialized).unwrap();
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UnsignedTxAndFogResolver {
+    pub unsigned_tx: UnsignedTx,
+    pub fog_resolver: FullServiceFogResolver,
+}
+
 fn sign_transaction(
     unsigned_tx_file: &str,
     tombstone_block_height: &u64,
@@ -165,14 +171,14 @@ fn sign_transaction(
     subaddress_spend_public_keys: &HashMap<RistrettoPublic, u64>,
 ) {
     let unsigned_tx_bytes_serialized = fs::read_to_string(unsigned_tx_file).unwrap();
-    let (unsigned_tx, fog_resolver): (UnsignedTx, FullServiceFogResolver) =
+    let unsigned_tx_bundle: UnsignedTxAndFogResolver =
         serde_json::from_str(&unsigned_tx_bytes_serialized).unwrap();
 
-    let signed_tx = unsigned_tx.sign(
+    let signed_tx = unsigned_tx_bundle.unsigned_tx.sign(
         account_key,
         subaddress_spend_public_keys,
         *tombstone_block_height,
-        fog_resolver,
+        unsigned_tx_bundle.fog_resolver,
     );
 
     let signed_tx_serialized = mc_util_serial::encode(&signed_tx);
