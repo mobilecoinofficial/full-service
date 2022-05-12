@@ -217,10 +217,8 @@ where
 
             builder.set_fee(self.get_network_fee())?;
 
-            builder.select_txos(&conn, None, false)?;
-
-            let unsigned_tx = builder.build_unsigned()?;
-            let fog_resolver = builder.get_fs_fog_resolver(&conn);
+            let unsigned_tx = builder.build_unsigned(&conn)?;
+            let fog_resolver = builder.get_fs_fog_resolver();
 
             Ok((unsigned_tx, fog_resolver))
         })

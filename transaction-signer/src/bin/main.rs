@@ -12,7 +12,7 @@ use mc_transaction_core::{
     AmountError,
 };
 
-use mc_transaction_signer::{FullServiceFogResolver, UnsignedTx};
+use mc_transaction_signer::{b58_encode_public_address, FullServiceFogResolver, UnsignedTx};
 
 use bip39::{Language, Mnemonic, MnemonicType};
 use serde::{Deserialize, Serialize};
@@ -73,8 +73,19 @@ fn main() {
 
     if operation == "create-account" {
         let output_file = &args[2];
+        // TODO: Implement names for accounts
+        // let name = &args[3];
+
         create_account(output_file);
 
+        return;
+    }
+
+    if operation == "export-view-only-package" {
+        let account_mnemonic_file = &args[2];
+        let output_file = &args[3];
+
+        export_view_only_package(account_mnemonic_file, output_file);
         return;
     }
 
@@ -82,49 +93,9 @@ fn main() {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct Account {
-    pub mnemonic_phrase: String,
-    pub account_key: TSAccountKey,
-}
-
-/// The AccountKey contains a View keypair and a Spend keypair, used to
-/// construct and receive transactions.
-#[derive(Deserialize, Serialize, Default, Debug, Clone)]
-pub struct TSAccountKey {
-    /// String representing the object's type. Objects of the same type share
-    /// the same value.
-    pub object: String,
-
-    ///  Private key used for view-key matching, hex-encoded Ristretto bytes.
-    pub view_private_key: String,
-
-    /// Private key used for spending, hex-encoded Ristretto bytes.
-    pub spend_private_key: String,
-
-    /// Fog Report server url (if user has Fog service), empty string otherwise.
-    pub fog_report_url: String,
-
-    /// Fog Report Key (if user has Fog service), empty otherwise
-    /// The key labelling the report to use, from among the several reports
-    /// which might be served by the fog report server.
-    pub fog_report_id: String,
-
-    /// Fog Authority Subject Public Key Info (if user has Fog service),
-    /// empty string otherwise.
-    pub fog_authority_spki: String,
-}
-
-impl From<&AccountKey> for TSAccountKey {
-    fn from(src: &AccountKey) -> TSAccountKey {
-        TSAccountKey {
-            object: "account_key".to_string(),
-            view_private_key: ristretto_to_hex(src.view_private_key()),
-            spend_private_key: ristretto_to_hex(src.spend_private_key()),
-            fog_report_url: src.fog_report_url().unwrap_or("").to_string(),
-            fog_report_id: src.fog_report_id().unwrap_or("").to_string(),
-            fog_authority_spki: vec_to_hex(&src.fog_authority_spki().unwrap_or(&[]).to_vec()),
-        }
-    }
+struct ViewOnlyAccountPackage {
+    view_private_key: String,
+    main_subaddress_b58: String,
 }
 
 pub fn ristretto_to_vec(key: &RistrettoPrivate) -> Vec<u8> {
@@ -142,19 +113,25 @@ pub fn ristretto_to_hex(key: &RistrettoPrivate) -> String {
 fn create_account(output_file: &str) {
     let mnemonic = Mnemonic::new(MnemonicType::Words24, Language::English);
 
-    let account_key = Slip10Key::from(mnemonic.clone())
-        .try_into_account_key("", "", &base64::decode("").unwrap())
-        .unwrap();
+    fs::write(output_file, mnemonic.phrase().to_string()).unwrap();
+}
 
-    let ts_account_key = TSAccountKey::from(&account_key);
+fn export_view_only_package(account_mnemonic_file: &str, output_file: &str) {
+    let mnemonic_phrase = fs::read_to_string(account_mnemonic_file).unwrap();
+    let account_key = account_key_from_mnemonic_phrase(&mnemonic_phrase);
 
-    let account = Account {
-        mnemonic_phrase: mnemonic.phrase().to_string(),
-        account_key: ts_account_key,
+    let view_private_key = account_key.view_private_key();
+    let main_subaddress = account_key.default_subaddress();
+    let main_subaddress_b58 = b58_encode_public_address(&main_subaddress);
+
+    let view_only_account_package = ViewOnlyAccountPackage {
+        view_private_key: ristretto_to_hex(view_private_key),
+        main_subaddress_b58,
     };
 
-    let account_serialized = serde_json::to_string(&account).unwrap();
-    fs::write(output_file, account_serialized).unwrap();
+    let json = serde_json::to_string_pretty(&view_only_account_package).unwrap();
+
+    fs::write(output_file, json).unwrap();
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -234,15 +211,18 @@ fn get_key_images_for_txos(
     tx_outs: &[TxOut],
     account_key: &AccountKey,
     subaddress_spend_public_keys: &HashMap<RistrettoPublic, u64>,
-) -> Vec<(Vec<u8>, KeyImage)> {
-    let mut serialized_txos_and_key_images: Vec<(Vec<u8>, KeyImage)> = Vec::new();
+) -> Vec<(Vec<u8>, Vec<u8>)> {
+    let mut serialized_txos_and_key_images: Vec<(Vec<u8>, Vec<u8>)> = Vec::new();
 
     for tx_out in tx_outs.iter() {
         if tx_out_belongs_to_account(tx_out, account_key.view_private_key()) {
             if let Some(key_image) =
                 get_key_image_for_tx_out(tx_out, account_key, subaddress_spend_public_keys)
             {
-                serialized_txos_and_key_images.push((mc_util_serial::encode(tx_out), key_image));
+                serialized_txos_and_key_images.push((
+                    mc_util_serial::encode(tx_out),
+                    mc_util_serial::encode(&key_image),
+                ));
             }
         }
     }

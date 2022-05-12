@@ -10,7 +10,7 @@ use crate::db::{
     Conn, WalletDbError,
 };
 use diesel::prelude::*;
-use mc_transaction_core::{ring_signature::KeyImage, tx::TxOut};
+use mc_transaction_core::{constants::MAX_INPUTS, ring_signature::KeyImage, tx::TxOut};
 
 pub trait ViewOnlyTxoModel {
     /// insert a new txo linked to a view-only-account
@@ -41,6 +41,16 @@ pub trait ViewOnlyTxoModel {
         account_id_hex: &str,
         offset: Option<u64>,
         limit: Option<u64>,
+        conn: &Conn,
+    ) -> Result<Vec<ViewOnlyTxo>, WalletDbError>;
+
+    /// Select a set of unspent view only Txos to reach a given value.
+    ///
+    /// Returns:
+    /// * Vec<ViewOnlyTxo>
+    fn select_unspent_view_only_txos_for_value(
+        account_id_hex: &str,
+        target_value: u64,
         conn: &Conn,
     ) -> Result<Vec<ViewOnlyTxo>, WalletDbError>;
 
@@ -134,6 +144,83 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         };
 
         Ok(txos)
+    }
+
+    // This is a direct port of txo selection and
+    // the whole things needs a nice big refactor
+    // to make it happy.
+    fn select_unspent_view_only_txos_for_value(
+        account_id_hex: &str,
+        target_value: u64,
+        conn: &Conn,
+    ) -> Result<Vec<ViewOnlyTxo>, WalletDbError> {
+        use schema::view_only_txos;
+
+        let mut spendable_txos: Vec<ViewOnlyTxo> = view_only_txos::table
+            .filter(view_only_txos::view_only_account_id_hex.eq(account_id_hex))
+            .filter(view_only_txos::spent.eq(false))
+            .filter(view_only_txos::key_image.is_not_null())
+            .order_by(view_only_txos::value.desc())
+            .load(conn)?;
+
+        if spendable_txos.is_empty() {
+            return Err(WalletDbError::NoSpendableTxos);
+        }
+
+        let max_spendable_in_wallet: u128 = spendable_txos
+            .iter()
+            .take(MAX_INPUTS as usize)
+            .map(|utxo| (utxo.value as u64) as u128)
+            .sum();
+
+        if target_value as u128 > max_spendable_in_wallet {
+            // See if we merged the UTXOs we would be able to spend this amount.
+            let total_unspent_value_in_wallet: u128 = spendable_txos
+                .iter()
+                .map(|utxo| (utxo.value as u64) as u128)
+                .sum();
+            if total_unspent_value_in_wallet >= target_value as u128 {
+                return Err(WalletDbError::InsufficientFundsFragmentedTxos);
+            } else {
+                return Err(WalletDbError::InsufficientFundsUnderMaxSpendable(format!(
+                    "Max spendable value in wallet: {:?}, but target value: {:?}",
+                    max_spendable_in_wallet, target_value
+                )));
+            }
+        }
+
+        let mut selected_utxos: Vec<ViewOnlyTxo> = Vec::new();
+        let mut total: u64 = 0;
+        loop {
+            if total >= target_value {
+                break;
+            }
+
+            // Grab the next (smallest) utxo, in order to opportunistically sweep up dust
+            let next_utxo = spendable_txos.pop().ok_or_else(|| {
+                WalletDbError::InsufficientFunds(format!(
+                    "Not enough Txos to sum to target value: {:?}",
+                    target_value
+                ))
+            })?;
+            selected_utxos.push(next_utxo.clone());
+            total += next_utxo.value as u64;
+
+            // Cap at maximum allowed inputs.
+            if selected_utxos.len() > MAX_INPUTS as usize {
+                // Remove the lowest utxo.
+                let removed = selected_utxos.remove(0);
+                total -= removed.value as u64;
+            }
+        }
+
+        if selected_utxos.is_empty() || selected_utxos.len() > MAX_INPUTS as usize {
+            return Err(WalletDbError::InsufficientFunds(
+                "Logic error. Could not select Txos despite having sufficient funds".to_string(),
+            ));
+        }
+
+        Ok(selected_utxos)
     }
 
     fn set_spent(txo_ids: Vec<String>, conn: &Conn) -> Result<(), WalletDbError> {

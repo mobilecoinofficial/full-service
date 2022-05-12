@@ -11,8 +11,9 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        models::{Account, Txo},
+        models::{Account, Txo, ViewOnlyTxo},
         txo::TxoModel,
+        view_only_txo::ViewOnlyTxoModel,
         Conn,
     },
     error::WalletTransactionBuilderError,
@@ -173,6 +174,33 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         Ok(())
     }
 
+    /// Selects View Only Txos from the account.
+    fn select_view_only_txos(
+        &self,
+        conn: &Conn,
+    ) -> Result<Vec<ViewOnlyTxo>, WalletTransactionBuilderError> {
+        let outlay_value_sum = self.outlays.iter().map(|(_r, v)| *v as u128).sum::<u128>();
+
+        let fee = self.fee.unwrap_or(Mob::MINIMUM_FEE);
+        if outlay_value_sum > u64::MAX as u128 || outlay_value_sum > u64::MAX as u128 - fee as u128
+        {
+            return Err(WalletTransactionBuilderError::OutboundValueTooLarge);
+        }
+        log::info!(
+            self.logger,
+            "Selecting Txos for value {:?} with fee {:?}",
+            outlay_value_sum,
+            fee
+        );
+        let total_value = outlay_value_sum as u64 + fee;
+
+        Ok(ViewOnlyTxo::select_unspent_view_only_txos_for_value(
+            &self.account_id_hex,
+            total_value,
+            conn,
+        )?)
+    }
+
     pub fn add_recipient(
         &mut self,
         recipient: PublicAddress,
@@ -209,16 +237,12 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         Ok(())
     }
 
-    pub fn get_fs_fog_resolver(&self, conn: &Conn) -> FullServiceFogResolver {
-        let account: Account =
-            Account::get(&AccountID(self.account_id_hex.to_string()), conn).unwrap();
-        let from_account_key: AccountKey = mc_util_serial::decode(&account.account_key).unwrap();
-
-        let change_address = from_account_key.subaddress(account.change_subaddress_index as u64);
+    pub fn get_fs_fog_resolver(&self) -> FullServiceFogResolver {
         let fog_resolver = {
-            let fog_uris = core::slice::from_ref(&change_address)
+            let fog_uris = self
+                .outlays
                 .iter()
-                .chain(self.outlays.iter().map(|(receiver, _amount)| receiver))
+                .map(|(receiver, _amount)| receiver)
                 .filter_map(|x| extract_fog_uri(x).transpose())
                 .collect::<Result<Vec<_>, _>>()
                 .unwrap();
@@ -246,18 +270,16 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         FullServiceFogResolver(fully_validated_fog_pubkeys)
     }
 
-    pub fn build_unsigned(&self) -> Result<UnsignedTx, WalletTransactionBuilderError> {
-        if self.inputs.is_empty() {
-            return Err(WalletTransactionBuilderError::NoInputs);
-        }
-
+    pub fn build_unsigned(&self, conn: &Conn) -> Result<UnsignedTx, WalletTransactionBuilderError> {
         if self.tombstone == 0 {
             return Err(WalletTransactionBuilderError::TombstoneNotSet);
         }
 
+        // select inputs here
+        let view_only_inputs = self.select_view_only_txos(conn)?;
+
         // Get membership proofs for our inputs
-        let indexes = self
-            .inputs
+        let indexes = view_only_inputs
             .iter()
             .map(|utxo| {
                 let txo: TxOut = mc_util_serial::decode(&utxo.txo)?;
@@ -266,9 +288,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             .collect::<Result<Vec<u64>, mc_ledger_db::Error>>()?;
         let proofs = self.ledger_db.get_tx_out_proof_of_memberships(&indexes)?;
 
-        let inputs_and_proofs: Vec<(Txo, TxOutMembershipProof)> = self
-            .inputs
-            .clone()
+        let inputs_and_proofs: Vec<(ViewOnlyTxo, TxOutMembershipProof)> = view_only_inputs
             .into_iter()
             .zip(proofs.into_iter())
             .collect();

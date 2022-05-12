@@ -6,4 +6,5 @@ mod util;
 pub use crate::{
     full_service_fog_resolver::{FullServiceFogResolver, FullServiceFullyValidatedFogPubkey},
     unsigned_tx::UnsignedTx,
+    util::b58::b58_encode_public_address,
 };
