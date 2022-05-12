@@ -40,6 +40,17 @@ impl UnsignedTx {
         let mut rng = rand::thread_rng();
         let memo_builder = NoMemoBuilder::default();
 
+        let mut minimum_fog_tombstone_block = u64::MAX;
+
+        for fog_pubkey in fog_resolver.0.values() {
+            minimum_fog_tombstone_block =
+                std::cmp::min(minimum_fog_tombstone_block, fog_pubkey.pubkey_expiry);
+        }
+
+        if tombstone_block > minimum_fog_tombstone_block {
+            panic!("Tombstone block {} is too far in the future compared to the minimum fog pubkey expiry {}", tombstone_block, minimum_fog_tombstone_block);
+        }
+
         let mut transaction_builder = TransactionBuilder::new(fog_resolver, memo_builder);
         transaction_builder.set_fee(self.fee).unwrap();
         transaction_builder.set_tombstone_block(tombstone_block);
