@@ -190,10 +190,9 @@ fn sync_view_only_account_next_chunk(
         let start_block_index = view_only_account.next_block_index as u64;
         let mut end_block_index = view_only_account.next_block_index as u64;
 
-        // Load transaction outputs for this chunk. View only accounts have a view
-        // private key but no spend private key, so they can scan TXOs but
-        // not key images
+        // Load transaction outputs and key_images for this chunk.
         let mut tx_outs: Vec<TxOut> = Vec::new();
+        let mut key_images: Vec<(u64, KeyImage)> = Vec::new();
 
         let start = view_only_account.next_block_index as u64;
         let end = start + BLOCKS_CHUNK_SIZE;
@@ -212,6 +211,10 @@ fn sync_view_only_account_next_chunk(
 
             for tx_out in block_contents.outputs {
                 tx_outs.push(tx_out);
+            }
+
+            for key_image in block_contents.key_images {
+                key_images.push((block_index, key_image));
             }
         }
 
@@ -242,6 +245,22 @@ fn sync_view_only_account_next_chunk(
                 let txo = ViewOnlyTxo::get(&log.input_txo_id_hex, conn)?;
                 ViewOnlyTxo::set_spent([txo.txo_id_hex].to_vec(), conn)?;
             }
+        }
+
+        // Match key images to mark existing unspent transactions as spent.
+        let unspent_key_images: HashMap<KeyImage, String> =
+            ViewOnlyTxo::list_unspent_with_key_images(account_id_hex, conn)?;
+        let spent_txos: Vec<(u64, String)> = key_images
+            .into_par_iter()
+            .filter_map(|(block_index, key_image)| {
+                unspent_key_images
+                    .get(&key_image)
+                    .map(|txo_id_hex| (block_index, txo_id_hex.clone()))
+            })
+            .collect();
+        // let num_spent_txos = spent_txos.len();
+        for (_block_index, txo_id_hex) in &spent_txos {
+            ViewOnlyTxo::update_to_spent(txo_id_hex, conn)?;
         }
 
         // Done syncing this chunk. Mark these blocks as synced for this account.

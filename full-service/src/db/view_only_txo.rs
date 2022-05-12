@@ -10,6 +10,7 @@ use crate::db::{
     Conn, WalletDbError,
 };
 use diesel::prelude::*;
+use mc_common::HashMap;
 use mc_transaction_core::{constants::MAX_INPUTS, ring_signature::KeyImage, tx::TxOut};
 
 pub trait ViewOnlyTxoModel {
@@ -44,6 +45,12 @@ pub trait ViewOnlyTxoModel {
         conn: &Conn,
     ) -> Result<Vec<ViewOnlyTxo>, WalletDbError>;
 
+    /// list view only txos that are unspent with key images for an account
+    fn list_unspent_with_key_images(
+        account_id_hex: &str,
+        conn: &Conn,
+    ) -> Result<HashMap<KeyImage, String>, WalletDbError>;
+
     /// Select a set of unspent view only Txos to reach a given value.
     ///
     /// Returns:
@@ -72,6 +79,9 @@ pub trait ViewOnlyTxoModel {
         key_image: &KeyImage,
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
+
+    /// updates the spent status for a given view only txo
+    fn update_to_spent(txo_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError>;
 
     /// delete all view only txos for a view-only account
     fn delete_all_for_account(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError>;
@@ -144,6 +154,31 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         };
 
         Ok(txos)
+    }
+
+    fn list_unspent_with_key_images(
+        account_id_hex: &str,
+        conn: &Conn,
+    ) -> Result<HashMap<KeyImage, String>, WalletDbError> {
+        use schema::view_only_txos;
+
+        let results: Vec<(Option<Vec<u8>>, String)> = view_only_txos::table
+            .select((view_only_txos::key_image, view_only_txos::txo_id_hex))
+            .filter(view_only_txos::view_only_account_id_hex.eq(account_id_hex))
+            .filter(view_only_txos::key_image.is_not_null())
+            .filter(view_only_txos::spent.eq(false))
+            .load(conn)?;
+
+        Ok(results
+            .into_iter()
+            .filter_map(|(key_image, txo_id_hex)| match key_image {
+                Some(key_image_encoded) => {
+                    let key_image = mc_util_serial::decode(key_image_encoded.as_slice()).ok()?;
+                    Some((key_image, txo_id_hex))
+                }
+                None => None,
+            })
+            .collect())
     }
 
     // This is a direct port of txo selection and
@@ -253,6 +288,15 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
 
         diesel::update(view_only_txos.filter(dsl_txo_id.eq(txo_id_hex)))
             .set(dsl_key_image.eq(mc_util_serial::encode(key_image)))
+            .execute(conn)?;
+        Ok(())
+    }
+
+    fn update_to_spent(txo_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError> {
+        use schema::view_only_txos;
+
+        diesel::update(view_only_txos::table.filter(view_only_txos::txo_id_hex.eq(txo_id_hex)))
+            .set((view_only_txos::spent.eq(true),))
             .execute(conn)?;
         Ok(())
     }
