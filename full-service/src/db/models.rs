@@ -4,7 +4,7 @@
 
 use super::schema::{
     accounts, assigned_subaddresses, gift_codes, transaction_logs, transaction_txo_types, txos,
-    view_only_accounts, view_only_transaction_logs, view_only_txos,
+    view_only_accounts, view_only_subaddresses, view_only_transaction_logs, view_only_txos,
 };
 
 use serde::Serialize;
@@ -235,14 +235,23 @@ pub struct ViewOnlyTxo {
     pub txo: Vec<u8>,
     /// Pre-computed key image for this Txo
     pub key_image: Option<Vec<u8>>,
+    /// the subaddress index this txo belongs to
+    pub subaddress_index: Option<i64>,
     /// The value of this transaction output, in picoMob.
     pub value: i64,
     /// The serialized public_key of the TxOut.
     pub public_key: Vec<u8>,
     /// account_id_hex of the view_only_account that received this txo
     pub view_only_account_id_hex: String,
-    // whether or not this txo has been spent
-    pub spent: bool,
+    /// When this txo was submitted to consensus in a transaction
+    pub submitted_block_index: Option<i64>,
+    /// What tombstone block index this txo must be accepted by before
+    /// becoming invalid
+    pub pending_tombstone_block_index: Option<i64>,
+    /// What index this txo was received on the ledger
+    pub received_block_index: Option<i64>,
+    /// Which block this txo was spent at
+    pub spent_block_index: Option<i64>,
 }
 
 /// A structure that can be inserted to create a new entity in the
@@ -253,9 +262,46 @@ pub struct NewViewOnlyTxo<'a> {
     pub txo: &'a [u8],
     pub txo_id_hex: &'a str,
     pub key_image: Option<&'a [u8]>,
+    pub subaddress_index: Option<i64>,
     pub value: i64,
     pub public_key: &'a [u8],
     pub view_only_account_id_hex: &'a str,
+    pub submitted_block_index: Option<i64>,
+    pub pending_tombstone_block_index: Option<i64>,
+    pub received_block_index: Option<i64>,
+    pub spent_block_index: Option<i64>,
+}
+
+/// TXOs that can be decrypted with the view-private-key for a
+/// view-only-account.
+#[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug, Associations)]
+#[belongs_to(ViewOnlyAccount, foreign_key = "view_only_account_id_hex")]
+#[primary_key(id)]
+pub struct ViewOnlySubaddress {
+    /// Primary key
+    pub id: i32,
+    /// The pub address b58 string
+    pub public_address_b58: String,
+    /// The serialized TxOut.
+    pub subaddress_index: i64,
+    /// account_id_hex of the view_only_account that received this txo
+    pub view_only_account_id_hex: String,
+    /// comment
+    pub comment: String,
+    /// public spend key
+    pub public_spend_key: Vec<u8>,
+}
+
+/// A structure that can be inserted to create a new entity in the
+/// `view_only_subaddresses` table.
+#[derive(Insertable)]
+#[table_name = "view_only_subaddresses"]
+pub struct NewViewOnlySubaddress<'a> {
+    pub public_address_b58: &'a str,
+    pub view_only_account_id_hex: &'a str,
+    pub subaddress_index: i64,
+    pub comment: &'a str,
+    pub public_spend_key: &'a [u8],
 }
 
 /// A log used for tracking txos involved in transactions submitted

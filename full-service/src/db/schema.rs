@@ -34,10 +34,25 @@ table! {
         txo_id_hex -> Text,
         txo -> Binary,
         key_image -> Nullable<Binary>,
+        subaddress_index -> Nullable<BigInt>,
         value -> BigInt,
         public_key -> Binary,
         view_only_account_id_hex -> Text,
-        spent -> Bool,
+        submitted_block_index -> Nullable<BigInt>,
+        pending_tombstone_block_index -> Nullable<BigInt>,
+        received_block_index -> Nullable<BigInt>,
+        spent_block_index -> Nullable<BigInt>,
+    }
+}
+
+table! {
+    view_only_subaddresses (id) {
+        id -> Integer,
+        public_address_b58 -> Text,
+        subaddress_index -> BigInt,
+        view_only_account_id_hex -> Text,
+        comment -> Text,
+        public_spend_key -> Binary,
     }
 }
 
