@@ -1,9 +1,8 @@
-ALTER TABLE view_only_txos 
-ADD COLUMN subaddress_index INTEGER
-ADD COLUMN submitted_block_index INTEGER
-ADD COLUMN pending_tombstone_block_index INTEGER
-ADD COLUMN received_block_index INTEGER
-ADD COLUMN spent_block_index INTEGER;
+ALTER TABLE view_only_txos ADD COLUMN subaddress_index INTEGER;
+ALTER TABLE view_only_txos ADD COLUMN submitted_block_index INTEGER;
+ALTER TABLE view_only_txos ADD COLUMN pending_tombstone_block_index INTEGER;
+ALTER TABLE view_only_txos ADD COLUMN received_block_index INTEGER;
+ALTER TABLE view_only_txos ADD COLUMN spent_block_index INTEGER;
 
 CREATE TABLE view_only_subaddresses (
   id INTEGER NOT NULL PRIMARY KEY,
