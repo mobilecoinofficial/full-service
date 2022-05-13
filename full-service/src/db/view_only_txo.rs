@@ -88,6 +88,7 @@ pub trait ViewOnlyTxoModel {
 }
 
 impl ViewOnlyTxoModel for ViewOnlyTxo {
+    // TODO: This needs to be updated for the new schema.
     fn create(
         tx_out: TxOut,
         value: u64,
@@ -108,6 +109,11 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
             value: value as i64,
             public_key: &mc_util_serial::encode(&tx_out.public_key),
             view_only_account_id_hex,
+            subaddress_index: None,
+            submitted_block_index: None,
+            pending_tombstone_block_index: None,
+            received_block_index: None,
+            spent_block_index: None,
         };
 
         diesel::insert_into(view_only_txos::table)
@@ -166,7 +172,9 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
             .select((view_only_txos::key_image, view_only_txos::txo_id_hex))
             .filter(view_only_txos::view_only_account_id_hex.eq(account_id_hex))
             .filter(view_only_txos::key_image.is_not_null())
-            .filter(view_only_txos::spent.eq(false))
+            .filter(view_only_txos::subaddress_index.is_not_null())
+            .filter(view_only_txos::received_block_index.is_not_null())
+            .filter(view_only_txos::spent_block_index.is_null())
             .load(conn)?;
 
         Ok(results
@@ -193,8 +201,10 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
 
         let mut spendable_txos: Vec<ViewOnlyTxo> = view_only_txos::table
             .filter(view_only_txos::view_only_account_id_hex.eq(account_id_hex))
-            .filter(view_only_txos::spent.eq(false))
             .filter(view_only_txos::key_image.is_not_null())
+            .filter(view_only_txos::subaddress_index.is_not_null())
+            .filter(view_only_txos::received_block_index.is_not_null())
+            .filter(view_only_txos::spent_block_index.is_null())
             .order_by(view_only_txos::value.desc())
             .load(conn)?;
 
@@ -258,19 +268,20 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         Ok(selected_utxos)
     }
 
+    // TODO: Update this for the new schema.
     fn set_spent(txo_ids: Vec<String>, conn: &Conn) -> Result<(), WalletDbError> {
-        use schema::view_only_txos::dsl::{
-            spent as dsl_spent, txo_id_hex as dsl_txo_id, view_only_txos,
-        };
+        // use schema::view_only_txos::dsl::{
+        //     spent as dsl_spent, txo_id_hex as dsl_txo_id, view_only_txos,
+        // };
 
-        // assert all txos exist
-        for txo_id in txo_ids.clone() {
-            ViewOnlyTxo::get(&txo_id, conn)?;
-        }
+        // // assert all txos exist
+        // for txo_id in txo_ids.clone() {
+        //     ViewOnlyTxo::get(&txo_id, conn)?;
+        // }
 
-        diesel::update(view_only_txos.filter(dsl_txo_id.eq_any(txo_ids)))
-            .set(dsl_spent.eq(true))
-            .execute(conn)?;
+        // diesel::update(view_only_txos.filter(dsl_txo_id.eq_any(txo_ids)))
+        //     .set(dsl_spent.eq(true))
+        //     .execute(conn)?;
         Ok(())
     }
 
@@ -295,9 +306,10 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
     fn update_to_spent(txo_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError> {
         use schema::view_only_txos;
 
-        diesel::update(view_only_txos::table.filter(view_only_txos::txo_id_hex.eq(txo_id_hex)))
-            .set((view_only_txos::spent.eq(true),))
-            .execute(conn)?;
+        // TODO: update to spent should take a block index
+        // diesel::update(view_only_txos::table.filter(view_only_txos::txo_id_hex.
+        // eq(txo_id_hex)))     .set((view_only_txos::spent.eq(true),))
+        //     .execute(conn)?;
         Ok(())
     }
 

@@ -277,6 +277,7 @@ pub struct NewViewOnlyTxo<'a> {
 #[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug, Associations)]
 #[belongs_to(ViewOnlyAccount, foreign_key = "view_only_account_id_hex")]
 #[primary_key(id)]
+#[table_name = "view_only_subaddresses"]
 pub struct ViewOnlySubaddress {
     /// Primary key
     pub id: i32,

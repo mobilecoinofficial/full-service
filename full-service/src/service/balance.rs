@@ -183,7 +183,7 @@ where
         let total_value = txos.iter().map(|t| (t.value as u64) as u128).sum::<u128>();
         let spent = txos
             .iter()
-            .filter(|t| t.spent)
+            .filter(|t| t.spent_block_index.is_some())
             .map(|t| (t.value as u64) as u128)
             .sum::<u128>();
 
