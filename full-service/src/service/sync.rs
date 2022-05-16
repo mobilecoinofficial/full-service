@@ -186,6 +186,16 @@ fn sync_view_only_account_next_chunk(
         let view_only_account = ViewOnlyAccount::get(account_id_hex, conn)?;
         let view_private_key: RistrettoPrivate =
             mc_util_serial::decode(&view_only_account.view_private_key)?;
+
+        // // Load subaddresses for this account into a hash map.
+        // let mut subaddress_keys: HashMap<RistrettoPublic, u64> = HashMap::default();
+        // let subaddresses: Vec<_> = AssignedSubaddress::list_all(account_id_hex, None,
+        // None, conn)?; for s in subaddresses {
+        //     let subaddress_key =
+        // mc_util_serial::decode(s.subaddress_spend_key.as_slice())?;
+        //     subaddress_keys.insert(subaddress_key, s.subaddress_index as u64);
+        // }
+
         let start_time = Instant::now();
         let start_block_index = view_only_account.next_block_index as u64;
         let mut end_block_index = view_only_account.next_block_index as u64;
