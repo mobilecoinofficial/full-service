@@ -9,6 +9,9 @@ build = "build.rs"
 name = "full-service"
 path = "src/bin/main.rs"
 
+[[bin]]
+name = "transaction-signer"
+
 [dependencies]
 mc-validator-api = { path = "../validator/api" }
 mc-validator-connection = { path = "../validator/connection" }

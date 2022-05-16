@@ -6,7 +6,7 @@
 
 pub mod check_host;
 pub mod config;
-mod db;
+pub mod db;
 mod error;
 mod json_rpc;
 pub mod service;

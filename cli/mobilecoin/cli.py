@@ -378,7 +378,7 @@ class CommandLineInterface:
                 print('{:<2}  {}'.format(i, word))
             print()
         else:
-            filename = 'mobilecoin_secret_entropy_{}.json'.format(account_id[:16])
+            filename = 'mobilecoin_seed_mnemonic_{}.json'.format(account_id[:16])
             try:
                 _save_export(account, secrets, filename)
             except OSError as e:
