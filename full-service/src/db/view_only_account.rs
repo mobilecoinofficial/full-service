@@ -42,6 +42,9 @@ pub trait ViewOnlyAccountModel {
         view_private_key: &RistrettoPrivate,
         first_block_index: u64,
         import_block_index: u64,
+        main_subaddress_index: u64,
+        change_subaddress_index: u64,
+        next_subaddress_index: u64,
         name: &str,
         conn: &Conn,
     ) -> Result<ViewOnlyAccount, WalletDbError>;
@@ -78,6 +81,9 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
         view_private_key: &RistrettoPrivate,
         first_block_index: u64,
         import_block_index: u64,
+        main_subaddress_index: u64,
+        change_subaddress_index: u64,
+        next_subaddress_index: u64,
         name: &str,
         conn: &Conn,
     ) -> Result<ViewOnlyAccount, WalletDbError> {
@@ -89,11 +95,12 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
             account_id_hex,
             view_private_key: &encoded_key,
             first_block_index: first_block_index as i64,
-            // Next block index will always be the same as first block index when importing
-            // an account.
             next_block_index: first_block_index as i64,
             import_block_index: import_block_index as i64,
             name,
+            next_subaddress_index: next_subaddress_index as i64,
+            main_subaddress_index: main_subaddress_index as i64,
+            change_subaddress_index: change_subaddress_index as i64,
         };
 
         diesel::insert_into(view_only_accounts::table)

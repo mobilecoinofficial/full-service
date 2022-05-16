@@ -53,6 +53,7 @@ use mc_common::logger::global_log;
 use mc_connection::{
     BlockchainConnection, HardcodedCredentialsProvider, ThickClient, UserTxConnection,
 };
+use mc_crypto_keys::RistrettoPublic;
 use mc_fog_report_validation::{FogPubkeyResolver, FogResolver};
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use mc_validator_connection::ValidatorConnection;
@@ -468,7 +469,7 @@ where
                 .map_err(format_error)?;
             JsonCommandResponse::export_view_only_account_secrets {
                 view_only_account_secrets:
-                    json_rpc::view_only_account::ViewOnlyAccountSecrets::try_from(&account)
+                    json_rpc::view_only_account::ViewOnlyAccountSecretsJSON::try_from(&account)
                         .map_err(format_error)?,
             }
         }
@@ -644,7 +645,7 @@ where
             let json_accounts: Vec<(String, serde_json::Value)> = accounts
                 .iter()
                 .map(|a| {
-                    json_rpc::view_only_account::ViewOnlyAccount::try_from(a)
+                    json_rpc::view_only_account::ViewOnlyAccountJSON::try_from(a)
                         .map_err(format_error)
                         .and_then(|v| {
                             serde_json::to_value(v)
@@ -839,7 +840,7 @@ where
         },
         JsonCommandRequest::get_view_only_account { account_id } => {
             JsonCommandResponse::get_view_only_account {
-                view_only_account: json_rpc::view_only_account::ViewOnlyAccount::try_from(
+                view_only_account: json_rpc::view_only_account::ViewOnlyAccountJSON::try_from(
                     &service
                         .get_view_only_account(&account_id)
                         .map_err(format_error)?,
@@ -921,26 +922,56 @@ where
             }
         }
         JsonCommandRequest::import_view_only_account {
-            view_private_key,
-            name,
-            first_block_index,
+            account,
+            secrets,
+            subaddresses,
         } => {
-            let fb = first_block_index
-                .map(|fb| fb.parse::<u64>())
-                .transpose()
+            let decoded_key = hex_to_ristretto(&secrets.view_private_key).map_err(format_error)?;
+            let subaddresses_decoded = subaddresses
+                .iter()
+                .map(|s| {
+                    let public_spend_key_bytes =
+                        hex::decode(&s.public_spend_key).map_err(format_error)?;
+                    let decoded_public_spend_key =
+                        RistrettoPublic::try_from(public_spend_key_bytes.as_slice())
+                            .map_err(format_error)?;
+                    let subaddress_index =
+                        s.subaddress_index.parse::<u64>().map_err(format_error)?;
+                    Ok((
+                        s.public_address.clone(),
+                        subaddress_index,
+                        s.comment.clone(),
+                        decoded_public_spend_key,
+                    ))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            let view_only_account = &service
+                .import_view_only_account(
+                    &account.account_id,
+                    &decoded_key,
+                    account
+                        .main_subaddress_index
+                        .parse::<u64>()
+                        .map_err(format_error)?,
+                    account
+                        .change_subaddress_index
+                        .parse::<u64>()
+                        .map_err(format_error)?,
+                    account
+                        .next_subaddress_index
+                        .parse::<u64>()
+                        .map_err(format_error)?,
+                    &account.name,
+                    subaddresses_decoded,
+                )
                 .map_err(format_error)?;
 
-            let n = name.unwrap_or_default();
-
-            let decoded_key = hex_to_ristretto(&view_private_key).map_err(format_error)?;
+            let view_only_account_json =
+                json_rpc::view_only_account::ViewOnlyAccountJSON::from(view_only_account);
 
             JsonCommandResponse::import_view_only_account {
-                view_only_account: json_rpc::view_only_account::ViewOnlyAccount::try_from(
-                    &service
-                        .import_view_only_account(decoded_key, &n, fb)
-                        .map_err(format_error)?,
-                )
-                .map_err(format_error)?,
+                view_only_account: view_only_account_json,
             }
         }
         JsonCommandRequest::remove_account { account_id } => JsonCommandResponse::remove_account {
@@ -1046,7 +1077,7 @@ where
         }
         JsonCommandRequest::update_view_only_account_name { account_id, name } => {
             JsonCommandResponse::update_view_only_account_name {
-                view_only_account: json_rpc::view_only_account::ViewOnlyAccount::try_from(
+                view_only_account: json_rpc::view_only_account::ViewOnlyAccountJSON::try_from(
                     &service
                         .update_view_only_account_name(&account_id, &name)
                         .map_err(format_error)?,

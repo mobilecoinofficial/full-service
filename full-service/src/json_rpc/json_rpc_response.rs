@@ -18,7 +18,7 @@ use crate::{
         transaction_log::TransactionLog,
         tx_proposal::TxProposal,
         txo::Txo,
-        view_only_account::{ViewOnlyAccount, ViewOnlyAccountSecrets},
+        view_only_account::{ViewOnlyAccountJSON, ViewOnlyAccountSecretsJSON},
         wallet_status::WalletStatus,
     },
     service::{gift_code::GiftCodeStatus, receipt::ReceiptTransactionStatus},
@@ -184,7 +184,7 @@ pub enum JsonCommandResponse {
         spent_txo_ids: Vec<String>,
     },
     export_view_only_account_secrets {
-        view_only_account_secrets: ViewOnlyAccountSecrets,
+        view_only_account_secrets: ViewOnlyAccountSecretsJSON,
     },
     export_view_only_txouts_without_key_image {
         txouts: Vec<Vec<u8>>,
@@ -272,7 +272,7 @@ pub enum JsonCommandResponse {
         txo_map: Map<String, serde_json::Value>,
     },
     get_view_only_account {
-        view_only_account: ViewOnlyAccount,
+        view_only_account: ViewOnlyAccountJSON,
     },
     get_wallet_status {
         wallet_status: WalletStatus,
@@ -284,7 +284,7 @@ pub enum JsonCommandResponse {
         account: Account,
     },
     import_view_only_account {
-        view_only_account: ViewOnlyAccount,
+        view_only_account: ViewOnlyAccountJSON,
     },
     remove_account {
         removed: bool,
@@ -312,7 +312,7 @@ pub enum JsonCommandResponse {
         account: Account,
     },
     update_view_only_account_name {
-        view_only_account: ViewOnlyAccount,
+        view_only_account: ViewOnlyAccountJSON,
     },
     validate_confirmation {
         validated: bool,

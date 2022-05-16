@@ -2,7 +2,11 @@
 
 //! The JSON RPC 2.0 Requests to the Wallet API for Full Service.
 
-use crate::json_rpc::tx_proposal::TxProposal;
+use crate::json_rpc::{
+    tx_proposal::TxProposal,
+    view_only_account::{ViewOnlyAccountJSON, ViewOnlyAccountSecretsJSON},
+    view_only_subaddress::ViewOnlySubaddressesJSON,
+};
 
 use crate::json_rpc::receiver_receipt::ReceiverReceipt;
 use serde::{Deserialize, Serialize};
@@ -244,9 +248,9 @@ pub enum JsonCommandRequest {
         fog_authority_spki: Option<String>,
     },
     import_view_only_account {
-        view_private_key: String,
-        name: Option<String>,
-        first_block_index: Option<String>,
+        account: ViewOnlyAccountJSON,
+        secrets: ViewOnlyAccountSecretsJSON,
+        subaddresses: ViewOnlySubaddressesJSON,
     },
     remove_account {
         account_id: String,

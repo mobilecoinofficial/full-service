@@ -122,6 +122,13 @@ pub struct ViewOnlyAccount {
     /// Index of the next block to inspect for transactions related to this
     /// account.
     pub next_block_index: i64,
+    /// Default subadress that is given out to refer to this account.
+    pub main_subaddress_index: i64,
+    /// Subaddress used to return transaction "change" to self.
+    pub change_subaddress_index: i64,
+    /// The next unused subaddress index. (Assumes indices are used sequentially
+    /// from 0).
+    pub next_subaddress_index: i64,
     /// account history prior to this block index is derived from the public
     /// ledger, and does not reflect client-side
     /// user events.
@@ -139,6 +146,9 @@ pub struct NewViewOnlyAccount<'a> {
     pub view_private_key: &'a [u8],
     pub first_block_index: i64,
     pub next_block_index: i64,
+    pub main_subaddress_index: i64,
+    pub change_subaddress_index: i64,
+    pub next_subaddress_index: i64,
     pub import_block_index: i64,
     pub name: &'a str,
 }

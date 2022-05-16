@@ -304,7 +304,7 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
     }
 
     fn update_to_spent(txo_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError> {
-        use schema::view_only_txos;
+        // use schema::view_only_txos;
 
         // TODO: update to spent should take a block index
         // diesel::update(view_only_txos::table.filter(view_only_txos::txo_id_hex.

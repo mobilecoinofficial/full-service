@@ -23,6 +23,9 @@ table! {
         view_private_key -> Binary,
         first_block_index -> BigInt,
         next_block_index -> BigInt,
+        main_subaddress_index -> BigInt,
+        change_subaddress_index -> BigInt,
+        next_subaddress_index -> BigInt,
         import_block_index -> BigInt,
         name -> Text,
     }

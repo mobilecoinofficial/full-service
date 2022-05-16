@@ -41,6 +41,11 @@ impl fmt::Display for AccountID {
     }
 }
 
+pub struct ViewOnlyAccountImportPackage {
+    pub account: Account,
+    pub subaddresses: Vec<AssignedSubaddress>,
+}
+
 pub trait AccountModel {
     /// Create an account.
     ///

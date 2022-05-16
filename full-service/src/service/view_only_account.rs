@@ -4,18 +4,17 @@
 
 use crate::{
     db::{
-        models::ViewOnlyAccount,
+        models::{ViewOnlyAccount, ViewOnlySubaddress},
         transaction,
         view_only_account::{ViewOnlyAccountID, ViewOnlyAccountModel},
+        view_only_subaddress::ViewOnlySubaddressModel,
     },
     service::{account::AccountServiceError, WalletService},
-    util::constants::DEFAULT_FIRST_BLOCK_INDEX,
 };
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
-use mc_crypto_keys::RistrettoPrivate;
+use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_ledger_db::Ledger;
 
 /// Trait defining the ways in which the wallet can interact with and manage
 /// view-only accounts.
@@ -23,9 +22,13 @@ pub trait ViewOnlyAccountService {
     /// Import an existing view-only-account to the wallet using the mnemonic.
     fn import_view_only_account(
         &self,
-        view_private_key: RistrettoPrivate,
+        account_id_hex: &str,
+        view_private_key: &RistrettoPrivate,
+        main_subaddress_index: u64,
+        change_subaddress_index: u64,
+        next_subaddress_index: u64,
         name: &str,
-        first_block_index: Option<u64>,
+        subaddresses: Vec<(String, u64, String, RistrettoPublic)>,
     ) -> Result<ViewOnlyAccount, AccountServiceError>;
 
     /// Get a view only account by view private key
@@ -55,35 +58,46 @@ where
 {
     fn import_view_only_account(
         &self,
-        view_private_key: RistrettoPrivate,
+        account_id_hex: &str,
+        view_private_key: &RistrettoPrivate,
+        main_subaddress_index: u64,
+        change_subaddress_index: u64,
+        next_subaddress_index: u64,
         name: &str,
-        first_block_index: Option<u64>,
+        subaddresses: Vec<(String, u64, String, RistrettoPublic)>,
     ) -> Result<ViewOnlyAccount, AccountServiceError> {
-        log::info!(
-            self.logger,
-            "Importing view-only-account {:?} with first block: {:?}",
-            name,
-            first_block_index,
-        );
+        let conn = &self.wallet_db.get_conn()?;
 
-        let account_id_hex = ViewOnlyAccountID::from(&view_private_key).to_string();
+        transaction(&conn, || {
+            let view_only_account = ViewOnlyAccount::create(
+                account_id_hex,
+                view_private_key,
+                0,
+                0,
+                main_subaddress_index,
+                change_subaddress_index,
+                next_subaddress_index,
+                name,
+                conn,
+            )?;
 
-        // We record one block after the local highest block index, because that is the
-        // earliest we could start scanning. Set first block to 0 if none is
-        // provided.
-        let local_block_height = self.ledger_db.num_blocks()?;
-        let import_block_index = local_block_height; // -1 +1
-        let first_block_index = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX);
+            let account_id = ViewOnlyAccountID(view_only_account.account_id_hex.clone());
 
-        let conn = self.wallet_db.get_conn()?;
-        Ok(ViewOnlyAccount::create(
-            &account_id_hex,
-            &view_private_key,
-            first_block_index,
-            import_block_index,
-            name,
-            &conn,
-        )?)
+            for (public_address_b58, subaddress_index, comment, public_spend_key) in
+                subaddresses.iter()
+            {
+                ViewOnlySubaddress::create(
+                    &account_id,
+                    public_address_b58,
+                    *subaddress_index,
+                    comment,
+                    public_spend_key,
+                    conn,
+                )?;
+            }
+
+            Ok(view_only_account)
+        })
     }
 
     fn get_view_only_account(
