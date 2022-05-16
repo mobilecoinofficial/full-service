@@ -5,7 +5,7 @@
 use crate::{
     db,
     json_rpc::view_only_subaddress::{ViewOnlySubaddressJSON, ViewOnlySubaddressesJSON},
-    util::encoding_helpers::vec_to_hex,
+    util::encoding_helpers::ristretto_to_hex,
 };
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -85,7 +85,7 @@ impl TryFrom<&db::models::ViewOnlyAccount> for ViewOnlyAccountSecretsJSON {
         Ok(ViewOnlyAccountSecretsJSON {
             object: "view_only_account_secrets".to_string(),
             account_id: src.account_id_hex.clone(),
-            view_private_key: vec_to_hex(&src.view_private_key),
+            view_private_key: hex::encode(src.view_private_key.as_slice()),
         })
     }
 }
@@ -97,12 +97,10 @@ impl TryFrom<&db::models::Account> for ViewOnlyAccountSecretsJSON {
         let account_key: mc_account_keys::AccountKey = mc_util_serial::decode(&src.account_key)
             .map_err(|err| format!("Could not decode account key from database: {:?}", err))?;
 
-        let view_private_key = account_key.view_private_key();
-
         Ok(ViewOnlyAccountSecretsJSON {
             object: "view_only_account_secrets".to_string(),
             account_id: src.account_id_hex.clone(),
-            view_private_key: hex::encode(view_private_key.to_bytes()),
+            view_private_key: ristretto_to_hex(account_key.view_private_key()),
         })
     }
 }

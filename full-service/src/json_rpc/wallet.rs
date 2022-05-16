@@ -21,6 +21,7 @@ use crate::{
         receiver_receipt::ReceiverReceipt,
         tx_proposal::TxProposal,
         txo::Txo,
+        view_only_account::ViewOnlyAccountImportPackageJSON,
         view_only_txo::ViewOnlyTxo,
         wallet_status::WalletStatus,
     },
@@ -462,6 +463,16 @@ where
                 .collect::<Vec<String>>();
 
             JsonCommandResponse::export_spent_txo_ids { spent_txo_ids }
+        }
+        JsonCommandRequest::export_view_only_account_package { account_id } => {
+            let package = service
+                .get_view_only_import_package(&AccountID(account_id))
+                .map_err(format_error)?;
+            let package_json =
+                ViewOnlyAccountImportPackageJSON::try_from(&package).map_err(format_error)?;
+            JsonCommandResponse::export_view_only_account_package {
+                package: package_json,
+            }
         }
         JsonCommandRequest::export_view_only_account_secrets { account_id } => {
             let account = service
@@ -926,6 +937,10 @@ where
             secrets,
             subaddresses,
         } => {
+            // let key_bytes =
+            // hex::decode(&secrets.view_private_key).map_err(format_error)?;
+            // let decoded_key =
+            //     RistrettoPrivate::try_from(key_bytes.as_slice()).map_err(format_error)?;
             let decoded_key = hex_to_ristretto(&secrets.view_private_key).map_err(format_error)?;
             let subaddresses_decoded = subaddresses
                 .iter()
@@ -933,8 +948,9 @@ where
                     let public_spend_key_bytes =
                         hex::decode(&s.public_spend_key).map_err(format_error)?;
                     let decoded_public_spend_key =
-                        RistrettoPublic::try_from(public_spend_key_bytes.as_slice())
-                            .map_err(format_error)?;
+                        mc_util_serial::decode(&public_spend_key_bytes).map_err(format_error)?;
+                    // RistrettoPublic::try_from(public_spend_key_bytes.as_slice())
+                    //     .map_err(format_error)?;
                     let subaddress_index =
                         s.subaddress_index.parse::<u64>().map_err(format_error)?;
                     Ok((

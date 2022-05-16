@@ -147,6 +147,9 @@ pub enum JsonCommandRequest {
     export_spent_txo_ids {
         account_id: String,
     },
+    export_view_only_account_package {
+        account_id: String,
+    },
     export_view_only_account_secrets {
         account_id: String,
     },

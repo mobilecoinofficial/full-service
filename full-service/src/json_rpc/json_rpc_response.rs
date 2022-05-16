@@ -18,7 +18,9 @@ use crate::{
         transaction_log::TransactionLog,
         tx_proposal::TxProposal,
         txo::Txo,
-        view_only_account::{ViewOnlyAccountJSON, ViewOnlyAccountSecretsJSON},
+        view_only_account::{
+            ViewOnlyAccountImportPackageJSON, ViewOnlyAccountJSON, ViewOnlyAccountSecretsJSON,
+        },
         wallet_status::WalletStatus,
     },
     service::{gift_code::GiftCodeStatus, receipt::ReceiptTransactionStatus},
@@ -182,6 +184,9 @@ pub enum JsonCommandResponse {
     },
     export_spent_txo_ids {
         spent_txo_ids: Vec<String>,
+    },
+    export_view_only_account_package {
+        package: ViewOnlyAccountImportPackageJSON,
     },
     export_view_only_account_secrets {
         view_only_account_secrets: ViewOnlyAccountSecretsJSON,
