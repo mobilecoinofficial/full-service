@@ -170,6 +170,7 @@ pub trait TxoModel {
 
     fn list_spendable(
         account_id_hex: &str,
+        max_spendable_value: Option<u64>,
         conn: &Conn,
     ) -> Result<SpendableTxosResult, WalletDbError>;
 
@@ -732,9 +733,12 @@ impl TxoModel for Txo {
 
     fn list_spendable(
         account_id_hex: &str,
+        max_spendable_value: Option<u64>,
         conn: &Conn,
     ) -> Result<SpendableTxosResult, WalletDbError> {
         use crate::db::schema::txos;
+        // The SQLite database cannot filter effectively on a u64 value, so filter for
+        // maximum value in memory.
         let spendable_txos: Vec<Txo> = txos::table
             .filter(txos::spent_block_index.is_null())
             .filter(txos::pending_tombstone_block_index.is_null())
@@ -743,6 +747,19 @@ impl TxoModel for Txo {
             .filter(txos::received_account_id_hex.eq(account_id_hex))
             .order_by(txos::value.desc())
             .load(conn)?;
+
+        let spendable_txos = if let Some(msv) = max_spendable_value {
+            spendable_txos
+                .into_iter()
+                .filter(|txo| (txo.value as u64) <= msv)
+                .collect()
+        } else {
+            spendable_txos
+        };
+
+        if spendable_txos.is_empty() {
+            return Err(WalletDbError::NoSpendableTxos);
+        }
 
         // The maximum spendable is limited by the maximal number of inputs we can use.
         // Since the txos are sorted by decreasing value, this is the maximum
@@ -770,23 +787,9 @@ impl TxoModel for Txo {
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
         let SpendableTxosResult {
-            spendable_txos,
+            mut spendable_txos,
             max_spendable_in_wallet,
-        } = Txo::list_spendable(account_id_hex, conn)?;
-        // The SQLite database cannot filter effectively on a u64 value, so filter for
-        // maximum value in memory.
-        let mut spendable_txos = if let Some(msv) = max_spendable_value {
-            spendable_txos
-                .into_iter()
-                .filter(|txo| (txo.value as u64) <= msv)
-                .collect()
-        } else {
-            spendable_txos
-        };
-
-        if spendable_txos.is_empty() {
-            return Err(WalletDbError::NoSpendableTxos);
-        }
+        } = Txo::list_spendable(account_id_hex, max_spendable_value, conn)?;
 
         // If we're trying to spend more than we have in the wallet, we may need to
         // defrag
@@ -1329,6 +1332,7 @@ mod tests {
             None,
             &wallet_db.get_conn().unwrap(),
         );
+
         match res {
             Err(WalletDbError::InsufficientFundsUnderMaxSpendable(_)) => {}
             Ok(_) => panic!("Should error with InsufficientFundsUnderMaxSpendable"),
