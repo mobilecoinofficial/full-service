@@ -20,6 +20,7 @@ mod tx_proposal;
 mod txo;
 mod unspent_tx_out;
 mod view_only_account;
+mod view_only_subaddress;
 mod view_only_txo;
 pub mod wallet;
 mod wallet_status;

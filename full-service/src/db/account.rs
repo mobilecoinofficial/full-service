@@ -19,7 +19,7 @@ use crate::{
 
 use bip39::Mnemonic;
 use diesel::prelude::*;
-use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
+use mc_account_keys::{AccountKey, PublicAddress, RootEntropy, RootIdentity};
 use mc_account_keys_slip10::Slip10Key;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use std::fmt;
@@ -30,7 +30,13 @@ pub struct AccountID(pub String);
 impl From<&AccountKey> for AccountID {
     fn from(src: &AccountKey) -> AccountID {
         let main_subaddress = src.subaddress(DEFAULT_SUBADDRESS_INDEX);
-        let temp: [u8; 32] = main_subaddress.digest32::<MerlinTranscript>(b"account_data");
+        AccountID::from(&main_subaddress)
+    }
+}
+
+impl From<&PublicAddress> for AccountID {
+    fn from(src: &PublicAddress) -> Self {
+        let temp: [u8; 32] = src.digest32::<MerlinTranscript>(b"account_data");
         Self(hex::encode(temp))
     }
 }
@@ -39,6 +45,11 @@ impl fmt::Display for AccountID {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0)
     }
+}
+
+pub struct ViewOnlyAccountImportPackage {
+    pub account: Account,
+    pub subaddresses: Vec<AssignedSubaddress>,
 }
 
 pub trait AccountModel {

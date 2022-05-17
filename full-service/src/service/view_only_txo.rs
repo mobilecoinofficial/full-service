@@ -23,16 +23,13 @@ pub trait ViewOnlyTxoService {
         offset: Option<u64>,
     ) -> Result<Vec<ViewOnlyTxo>, TxoServiceError>;
 
-    /// set a group of txos as spent.
-    fn set_view_only_txos_spent(&self, txo_ids: Vec<String>) -> Result<bool, TxoServiceError>;
-
     /// update the key image for a list of txos
     fn set_view_only_txos_key_images(
         &self,
         txos_with_key_images: Vec<(TxOut, KeyImage)>,
     ) -> Result<bool, TxoServiceError>;
 
-    fn export_view_only_txouts_without_key_image(
+    fn list_incomplete_view_only_txos(
         &self,
         account_id: &str,
     ) -> Result<Vec<TxOut>, TxoServiceError>;
@@ -55,14 +52,6 @@ where
         )?)
     }
 
-    fn set_view_only_txos_spent(&self, txo_ids: Vec<String>) -> Result<bool, TxoServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-        transaction(&conn, || {
-            ViewOnlyTxo::set_spent(txo_ids, &conn)?;
-            Ok(true)
-        })
-    }
-
     fn set_view_only_txos_key_images(
         &self,
         txos_with_key_images: Vec<(TxOut, KeyImage)>,
@@ -74,22 +63,24 @@ where
                 let txo_id = TxoID::from(&txo);
                 ViewOnlyTxo::update_key_image(&txo_id.to_string(), &key_image, &conn)?;
 
-                if self.ledger_db.contains_key_image(&key_image)? {
-                    ViewOnlyTxo::set_spent([(&txo_id).to_string()].to_vec(), &conn)?;
+                if let Some(block_index) = match self.ledger_db.check_key_image(&key_image) {
+                    Ok(block_index) => block_index,
+                    Err(_) => None,
+                } {
+                    ViewOnlyTxo::update_spent_block_index(&txo_id.to_string(), block_index, &conn)?;
                 }
             }
             Ok(true)
         })
     }
 
-    fn export_view_only_txouts_without_key_image(
+    fn list_incomplete_view_only_txos(
         &self,
         account_id: &str,
     ) -> Result<Vec<TxOut>, TxoServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        Ok(ViewOnlyTxo::export_txouts_without_key_image(
-            account_id, &conn,
-        )?)
+
+        Ok(ViewOnlyTxo::export_txouts_without_key_image_or_subaddress_index(account_id, &conn)?)
     }
 }
 

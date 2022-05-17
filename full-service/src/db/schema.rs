@@ -23,6 +23,9 @@ table! {
         view_private_key -> Binary,
         first_block_index -> BigInt,
         next_block_index -> BigInt,
+        main_subaddress_index -> BigInt,
+        change_subaddress_index -> BigInt,
+        next_subaddress_index -> BigInt,
         import_block_index -> BigInt,
         name -> Text,
     }
@@ -34,10 +37,25 @@ table! {
         txo_id_hex -> Text,
         txo -> Binary,
         key_image -> Nullable<Binary>,
+        subaddress_index -> Nullable<BigInt>,
         value -> BigInt,
         public_key -> Binary,
         view_only_account_id_hex -> Text,
-        spent -> Bool,
+        submitted_block_index -> Nullable<BigInt>,
+        pending_tombstone_block_index -> Nullable<BigInt>,
+        received_block_index -> Nullable<BigInt>,
+        spent_block_index -> Nullable<BigInt>,
+    }
+}
+
+table! {
+    view_only_subaddresses (id) {
+        id -> Integer,
+        public_address_b58 -> Text,
+        subaddress_index -> BigInt,
+        view_only_account_id_hex -> Text,
+        comment -> Text,
+        public_spend_key -> Binary,
     }
 }
 
@@ -85,14 +103,6 @@ table! {
         transaction_id_hex -> Text,
         txo_id_hex -> Text,
         transaction_txo_type -> Text,
-    }
-}
-
-table! {
-    view_only_transaction_logs (id) {
-        id -> Integer,
-        change_txo_id_hex -> Text,
-        input_txo_id_hex -> Text,
     }
 }
 

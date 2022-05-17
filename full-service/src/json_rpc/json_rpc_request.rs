@@ -2,7 +2,10 @@
 
 //! The JSON RPC 2.0 Requests to the Wallet API for Full Service.
 
-use crate::json_rpc::tx_proposal::TxProposal;
+use crate::json_rpc::{
+    tx_proposal::TxProposal, view_only_account::ViewOnlyAccountImportPackageJSON,
+    view_only_subaddress::ViewOnlySubaddressesJSON,
+};
 
 use crate::json_rpc::receiver_receipt::ReceiverReceipt;
 use serde::{Deserialize, Serialize};
@@ -137,16 +140,24 @@ pub enum JsonCommandRequest {
     create_receiver_receipts {
         tx_proposal: TxProposal,
     },
+    create_sync_view_only_account_request {
+        account_id: String,
+    },
     export_account_secrets {
         account_id: String,
+    },
+    export_new_subaddresses_request {
+        account_id: String,
+        num_subaddresses_to_generate: String,
     },
     export_spent_txo_ids {
         account_id: String,
     },
-    export_view_only_account_secrets {
+    // This is for testing and debugging, remove before develop merge.
+    export_view_only_account_package {
         account_id: String,
     },
-    export_view_only_txouts_without_key_image {
+    export_view_only_account_secrets {
         account_id: String,
     },
     get_account {
@@ -243,10 +254,12 @@ pub enum JsonCommandRequest {
         fog_report_id: Option<String>,
         fog_authority_spki: Option<String>,
     },
+    import_subaddress_to_view_only_account {
+        account_id: String,
+        subaddresses: ViewOnlySubaddressesJSON,
+    },
     import_view_only_account {
-        view_private_key: String,
-        name: Option<String>,
-        first_block_index: Option<String>,
+        package: ViewOnlyAccountImportPackageJSON,
     },
     remove_account {
         account_id: String,
@@ -256,12 +269,6 @@ pub enum JsonCommandRequest {
     },
     remove_view_only_account {
         account_id: String,
-    },
-    set_view_only_txos_spent {
-        txo_ids: Vec<String>,
-    },
-    set_view_only_txos_key_images {
-        txos_with_key_images: Vec<(Vec<u8>, Vec<u8>)>,
     },
     submit_gift_code {
         from_account_id: String,

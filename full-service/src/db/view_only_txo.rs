@@ -18,6 +18,8 @@ pub trait ViewOnlyTxoModel {
     fn create(
         tx_out: TxOut,
         value: u64,
+        subaddress_index: Option<u64>,
+        received_block_index: Option<u64>,
         view_only_account_id_hex: &str,
         conn: &Conn,
     ) -> Result<ViewOnlyTxo, WalletDbError>;
@@ -27,12 +29,6 @@ pub trait ViewOnlyTxoModel {
     /// Returns:
     /// * ViewOnlyTxo
     fn get(txo_id_hex: &str, conn: &Conn) -> Result<ViewOnlyTxo, WalletDbError>;
-
-    /// mark a group of view-only-txo as spent
-    ///
-    /// Returns:
-    /// * ()
-    fn set_spent(txo_ids: Vec<String>, conn: &Conn) -> Result<(), WalletDbError>;
 
     /// list view only txos for a view only account
     ///
@@ -51,6 +47,11 @@ pub trait ViewOnlyTxoModel {
         conn: &Conn,
     ) -> Result<HashMap<KeyImage, String>, WalletDbError>;
 
+    fn list_orphaned_with_key_images(
+        account_id_hex: &str,
+        conn: &Conn,
+    ) -> Result<Vec<ViewOnlyTxo>, WalletDbError>;
+
     /// Select a set of unspent view only Txos to reach a given value.
     ///
     /// Returns:
@@ -61,11 +62,11 @@ pub trait ViewOnlyTxoModel {
         conn: &Conn,
     ) -> Result<Vec<ViewOnlyTxo>, WalletDbError>;
 
-    /// get all txouts with no key image for a given account
+    /// get all txouts with no key image or subaddress index for a given account
     ///
     /// Returns:
     /// * Vec<TxOut>
-    fn export_txouts_without_key_image(
+    fn export_txouts_without_key_image_or_subaddress_index(
         account_id_hex: &str,
         conn: &Conn,
     ) -> Result<Vec<TxOut>, WalletDbError>;
@@ -80,17 +81,30 @@ pub trait ViewOnlyTxoModel {
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
-    /// updates the spent status for a given view only txo
-    fn update_to_spent(txo_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError>;
+    /// updates the spent block index for a given view only txo
+    fn update_spent_block_index(
+        txo_id_hex: &str,
+        spent_block_index: u64,
+        conn: &Conn,
+    ) -> Result<(), WalletDbError>;
+
+    fn update_subaddress_index(
+        &self,
+        subaddress_index: u64,
+        conn: &Conn,
+    ) -> Result<(), WalletDbError>;
 
     /// delete all view only txos for a view-only account
     fn delete_all_for_account(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError>;
 }
 
 impl ViewOnlyTxoModel for ViewOnlyTxo {
+    // TODO: This needs to be updated for the new schema.
     fn create(
         tx_out: TxOut,
         value: u64,
+        subaddress_index: Option<u64>,
+        received_block_index: Option<u64>,
         view_only_account_id_hex: &str,
         conn: &Conn,
     ) -> Result<ViewOnlyTxo, WalletDbError> {
@@ -108,6 +122,11 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
             value: value as i64,
             public_key: &mc_util_serial::encode(&tx_out.public_key),
             view_only_account_id_hex,
+            subaddress_index: subaddress_index.map(|x| x as i64),
+            submitted_block_index: None,
+            pending_tombstone_block_index: None,
+            received_block_index: received_block_index.map(|x| x as i64),
+            spent_block_index: None,
         };
 
         diesel::insert_into(view_only_txos::table)
@@ -166,7 +185,9 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
             .select((view_only_txos::key_image, view_only_txos::txo_id_hex))
             .filter(view_only_txos::view_only_account_id_hex.eq(account_id_hex))
             .filter(view_only_txos::key_image.is_not_null())
-            .filter(view_only_txos::spent.eq(false))
+            .filter(view_only_txos::subaddress_index.is_not_null())
+            .filter(view_only_txos::received_block_index.is_not_null())
+            .filter(view_only_txos::spent_block_index.is_null())
             .load(conn)?;
 
         Ok(results
@@ -181,6 +202,23 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
             .collect())
     }
 
+    fn list_orphaned_with_key_images(
+        account_id_hex: &str,
+        conn: &Conn,
+    ) -> Result<Vec<ViewOnlyTxo>, WalletDbError> {
+        use schema::view_only_txos;
+
+        let results: Vec<ViewOnlyTxo> = view_only_txos::table
+            .filter(view_only_txos::view_only_account_id_hex.eq(account_id_hex))
+            .filter(view_only_txos::key_image.is_not_null())
+            .filter(view_only_txos::subaddress_index.is_not_null())
+            .filter(view_only_txos::received_block_index.is_not_null())
+            .filter(view_only_txos::spent_block_index.is_null())
+            .load(conn)?;
+
+        Ok(results)
+    }
+
     // This is a direct port of txo selection and
     // the whole things needs a nice big refactor
     // to make it happy.
@@ -193,8 +231,10 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
 
         let mut spendable_txos: Vec<ViewOnlyTxo> = view_only_txos::table
             .filter(view_only_txos::view_only_account_id_hex.eq(account_id_hex))
-            .filter(view_only_txos::spent.eq(false))
             .filter(view_only_txos::key_image.is_not_null())
+            .filter(view_only_txos::subaddress_index.is_not_null())
+            .filter(view_only_txos::received_block_index.is_not_null())
+            .filter(view_only_txos::spent_block_index.is_null())
             .order_by(view_only_txos::value.desc())
             .load(conn)?;
 
@@ -258,22 +298,6 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         Ok(selected_utxos)
     }
 
-    fn set_spent(txo_ids: Vec<String>, conn: &Conn) -> Result<(), WalletDbError> {
-        use schema::view_only_txos::dsl::{
-            spent as dsl_spent, txo_id_hex as dsl_txo_id, view_only_txos,
-        };
-
-        // assert all txos exist
-        for txo_id in txo_ids.clone() {
-            ViewOnlyTxo::get(&txo_id, conn)?;
-        }
-
-        diesel::update(view_only_txos.filter(dsl_txo_id.eq_any(txo_ids)))
-            .set(dsl_spent.eq(true))
-            .execute(conn)?;
-        Ok(())
-    }
-
     fn update_key_image(
         txo_id_hex: &str,
         key_image: &KeyImage,
@@ -292,26 +316,47 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         Ok(())
     }
 
-    fn update_to_spent(txo_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError> {
+    fn update_spent_block_index(
+        txo_id_hex: &str,
+        spent_block_index: u64,
+        conn: &Conn,
+    ) -> Result<(), WalletDbError> {
         use schema::view_only_txos;
 
         diesel::update(view_only_txos::table.filter(view_only_txos::txo_id_hex.eq(txo_id_hex)))
-            .set((view_only_txos::spent.eq(true),))
+            .set((view_only_txos::spent_block_index.eq(spent_block_index as i64),))
             .execute(conn)?;
         Ok(())
     }
 
-    fn export_txouts_without_key_image(
+    fn update_subaddress_index(
+        &self,
+        subaddress_index: u64,
+        conn: &Conn,
+    ) -> Result<(), WalletDbError> {
+        use schema::view_only_txos;
+
+        diesel::update(
+            view_only_txos::table.filter(view_only_txos::txo_id_hex.eq(&self.txo_id_hex)),
+        )
+        .set((view_only_txos::subaddress_index.eq(subaddress_index as i64),))
+        .execute(conn)?;
+
+        Ok(())
+    }
+
+    fn export_txouts_without_key_image_or_subaddress_index(
         account_id_hex: &str,
         conn: &Conn,
     ) -> Result<Vec<TxOut>, WalletDbError> {
         use schema::view_only_txos::dsl::{
-            key_image as dsl_key_image, view_only_account_id_hex as dsl_account_id,
+            key_image as dsl_key_image, subaddress_index as dsl_subaddress_index,
+            view_only_account_id_hex as dsl_account_id,
         };
 
         let txos: Vec<ViewOnlyTxo> = schema::view_only_txos::table
             .filter(dsl_account_id.eq(account_id_hex))
-            .filter(dsl_key_image.is_null())
+            .filter(dsl_key_image.is_null().or(dsl_subaddress_index.is_null()))
             .load(conn)?;
 
         let mut txouts: Vec<TxOut> = Vec::new();
