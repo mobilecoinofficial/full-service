@@ -53,6 +53,11 @@ pub struct ProcessedTxProposalOutput {
     pub txo_type: String,
 }
 
+pub struct SpendableTxosResult {
+    spendable_txos: Vec<Txo>,
+    max_spendable_in_wallet: u128,
+}
+
 pub trait TxoModel {
     /// Upserts a received Txo.
     ///
@@ -162,6 +167,11 @@ pub trait TxoModel {
         assigned_subaddress_b58: Option<&str>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
+
+    fn list_spendable(
+        account_id_hex: &str,
+        conn: &Conn,
+    ) -> Result<SpendableTxosResult, WalletDbError>;
 
     fn list_secreted(account_id_hex: &str, conn: &Conn) -> Result<Vec<Txo>, WalletDbError>;
 
@@ -720,13 +730,10 @@ impl TxoModel for Txo {
         Ok(txos)
     }
 
-    fn select_unspent_txos_for_value(
+    fn list_spendable(
         account_id_hex: &str,
-        target_value: u64,
-        max_spendable_value: Option<u64>,
-        pending_tombstone_block_index: Option<u64>,
         conn: &Conn,
-    ) -> Result<Vec<Txo>, WalletDbError> {
+    ) -> Result<SpendableTxosResult, WalletDbError> {
         use crate::db::schema::txos;
         let spendable_txos: Vec<Txo> = txos::table
             .filter(txos::spent_block_index.is_null())
@@ -737,6 +744,35 @@ impl TxoModel for Txo {
             .order_by(txos::value.desc())
             .load(conn)?;
 
+        // The maximum spendable is limited by the maximal number of inputs we can use.
+        // Since the txos are sorted by decreasing value, this is the maximum
+        // value we can possibly spend in one transaction.
+        // Note, u128::Max = 340_282_366_920_938_463_463_374_607_431_768_211_455, which
+        // is far beyond the total number of pMOB in the MobileCoin system
+        // (250_000_000_000_000_000_000)
+        let max_spendable_in_wallet: u128 = spendable_txos
+            .iter()
+            .take(MAX_INPUTS as usize)
+            .map(|utxo| (utxo.value as u64) as u128)
+            .sum();
+
+        Ok(SpendableTxosResult {
+            spendable_txos,
+            max_spendable_in_wallet,
+        })
+    }
+
+    fn select_unspent_txos_for_value(
+        account_id_hex: &str,
+        target_value: u64,
+        max_spendable_value: Option<u64>,
+        pending_tombstone_block_index: Option<u64>,
+        conn: &Conn,
+    ) -> Result<Vec<Txo>, WalletDbError> {
+        let SpendableTxosResult {
+            spendable_txos,
+            max_spendable_in_wallet,
+        } = Txo::list_spendable(account_id_hex, conn)?;
         // The SQLite database cannot filter effectively on a u64 value, so filter for
         // maximum value in memory.
         let mut spendable_txos = if let Some(msv) = max_spendable_value {
@@ -752,17 +788,6 @@ impl TxoModel for Txo {
             return Err(WalletDbError::NoSpendableTxos);
         }
 
-        // The maximum spendable is limited by the maximal number of inputs we can use.
-        // Since the txos are sorted by decreasing value, this is the maximum
-        // value we can possibly spend in one transaction.
-        // Note, u128::Max = 340_282_366_920_938_463_463_374_607_431_768_211_455, which
-        // is far beyond the total number of pMOB in the MobileCoin system
-        // (250_000_000_000_000_000_000)
-        let max_spendable_in_wallet: u128 = spendable_txos
-            .iter()
-            .take(MAX_INPUTS as usize)
-            .map(|utxo| (utxo.value as u64) as u128)
-            .sum();
         // If we're trying to spend more than we have in the wallet, we may need to
         // defrag
         if target_value as u128 > max_spendable_in_wallet {
