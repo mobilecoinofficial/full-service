@@ -30,12 +30,6 @@ pub trait ViewOnlyTxoModel {
     /// * ViewOnlyTxo
     fn get(txo_id_hex: &str, conn: &Conn) -> Result<ViewOnlyTxo, WalletDbError>;
 
-    /// mark a group of view-only-txo as spent
-    ///
-    /// Returns:
-    /// * ()
-    fn set_spent(txo_ids: Vec<String>, conn: &Conn) -> Result<(), WalletDbError>;
-
     /// list view only txos for a view only account
     ///
     /// Returns:
@@ -82,8 +76,12 @@ pub trait ViewOnlyTxoModel {
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
-    /// updates the spent status for a given view only txo
-    fn update_to_spent(txo_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError>;
+    /// updates the spent block index for a given view only txo
+    fn update_spent_block_index(
+        txo_id_hex: &str,
+        spent_block_index: u64,
+        conn: &Conn,
+    ) -> Result<(), WalletDbError>;
 
     /// delete all view only txos for a view-only account
     fn delete_all_for_account(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError>;
@@ -272,23 +270,6 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         Ok(selected_utxos)
     }
 
-    // TODO: Update this for the new schema.
-    fn set_spent(txo_ids: Vec<String>, conn: &Conn) -> Result<(), WalletDbError> {
-        // use schema::view_only_txos::dsl::{
-        //     spent as dsl_spent, txo_id_hex as dsl_txo_id, view_only_txos,
-        // };
-
-        // // assert all txos exist
-        // for txo_id in txo_ids.clone() {
-        //     ViewOnlyTxo::get(&txo_id, conn)?;
-        // }
-
-        // diesel::update(view_only_txos.filter(dsl_txo_id.eq_any(txo_ids)))
-        //     .set(dsl_spent.eq(true))
-        //     .execute(conn)?;
-        Ok(())
-    }
-
     fn update_key_image(
         txo_id_hex: &str,
         key_image: &KeyImage,
@@ -307,13 +288,16 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         Ok(())
     }
 
-    fn update_to_spent(txo_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError> {
-        // use schema::view_only_txos;
+    fn update_spent_block_index(
+        txo_id_hex: &str,
+        spent_block_index: u64,
+        conn: &Conn,
+    ) -> Result<(), WalletDbError> {
+        use schema::view_only_txos;
 
-        // TODO: update to spent should take a block index
-        // diesel::update(view_only_txos::table.filter(view_only_txos::txo_id_hex.
-        // eq(txo_id_hex)))     .set((view_only_txos::spent.eq(true),))
-        //     .execute(conn)?;
+        diesel::update(view_only_txos::table.filter(view_only_txos::txo_id_hex.eq(txo_id_hex)))
+            .set((view_only_txos::spent_block_index.eq(spent_block_index as i64),))
+            .execute(conn)?;
         Ok(())
     }
 

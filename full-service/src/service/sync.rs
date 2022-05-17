@@ -245,7 +245,7 @@ fn sync_view_only_account_next_chunk(
 
         // Write received txos to db
         for (block_index, tx_out, amount, subaddress_index) in received_txos {
-            let new_txo = ViewOnlyTxo::create(
+            ViewOnlyTxo::create(
                 tx_out.clone(),
                 amount,
                 subaddress_index,
@@ -266,9 +266,9 @@ fn sync_view_only_account_next_chunk(
                     .map(|txo_id_hex| (block_index, txo_id_hex.clone()))
             })
             .collect();
-        // let num_spent_txos = spent_txos.len();
-        for (_block_index, txo_id_hex) in &spent_txos {
-            ViewOnlyTxo::update_to_spent(txo_id_hex, conn)?;
+
+        for (block_index, txo_id_hex) in &spent_txos {
+            ViewOnlyTxo::update_spent_block_index(txo_id_hex, *block_index, conn)?;
         }
 
         // Done syncing this chunk. Mark these blocks as synced for this account.
