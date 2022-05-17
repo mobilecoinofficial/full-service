@@ -975,13 +975,11 @@ where
                 public_address_b58s,
             }
         }
-        JsonCommandRequest::import_view_only_account {
-            account,
-            secrets,
-            subaddresses,
-        } => {
-            let decoded_key = hex_to_ristretto(&secrets.view_private_key).map_err(format_error)?;
-            let subaddresses_decoded = subaddresses
+        JsonCommandRequest::import_view_only_account { package } => {
+            let decoded_key =
+                hex_to_ristretto(&package.secrets.view_private_key).map_err(format_error)?;
+            let subaddresses_decoded = package
+                .subaddresses
                 .iter()
                 .map(|s| {
                     let public_spend_key_bytes =
@@ -1001,21 +999,24 @@ where
 
             let view_only_account = &service
                 .import_view_only_account(
-                    &account.account_id,
+                    &package.account.account_id,
                     &decoded_key,
-                    account
+                    package
+                        .account
                         .main_subaddress_index
                         .parse::<u64>()
                         .map_err(format_error)?,
-                    account
+                    package
+                        .account
                         .change_subaddress_index
                         .parse::<u64>()
                         .map_err(format_error)?,
-                    account
+                    package
+                        .account
                         .next_subaddress_index
                         .parse::<u64>()
                         .map_err(format_error)?,
-                    &account.name,
+                    &package.account.name,
                     subaddresses_decoded,
                 )
                 .map_err(format_error)?;
