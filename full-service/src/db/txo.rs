@@ -11,7 +11,9 @@ use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::{
     constants::MAX_INPUTS,
     ring_signature::KeyImage,
+    tokens::Mob,
     tx::{TxOut, TxOutConfirmationNumber},
+    Token,
 };
 use std::fmt;
 
@@ -767,11 +769,17 @@ impl TxoModel for Txo {
         // Note, u128::Max = 340_282_366_920_938_463_463_374_607_431_768_211_455, which
         // is far beyond the total number of pMOB in the MobileCoin system
         // (250_000_000_000_000_000_000)
-        let max_spendable_in_wallet: u128 = spendable_txos
+        let mut max_spendable_in_wallet: u128 = spendable_txos
             .iter()
             .take(MAX_INPUTS as usize)
             .map(|utxo| (utxo.value as u64) as u128)
             .sum();
+
+        if max_spendable_in_wallet > Mob::MINIMUM_FEE as u128 {
+            max_spendable_in_wallet = max_spendable_in_wallet - Mob::MINIMUM_FEE as u128;
+        } else {
+            max_spendable_in_wallet = 0;
+        }
 
         Ok(SpendableTxosResult {
             spendable_txos,
@@ -1860,8 +1868,14 @@ mod tests {
             }
         } else {
             for i in 1..=20 {
-                let (_txo_id, _txo, _key_image) =
-                    create_test_received_txo(&account_key, i, i as u64, i, &mut rng, &wallet_db);
+                let (_txo_id, _txo, _key_image) = create_test_received_txo(
+                    &account_key,
+                    i,
+                    i as u64 * MOB,
+                    i,
+                    &mut rng,
+                    &wallet_db,
+                );
             }
         }
 
@@ -1869,20 +1883,21 @@ mod tests {
     }
 
     #[test_with_logger]
-    fn test_select_unspent_txos_target_value_equals_max_spendable_in_account(logger: Logger) {
+    fn test_select_unspent_txos_target_value_equal_max_spendable_in_account(logger: Logger) {
+        let target_value: u64 = 200 as u64 * MOB - Mob::MINIMUM_FEE;
         let (account_id, wallet_db) = setup_select_unspent_txos_tests(logger, false);
 
         let result = Txo::select_unspent_txos_for_value(
             &account_id.to_string(),
-            200 as u64,
+            target_value,
             None,
             None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
         assert_eq!(result.len(), 16);
-        let sum: i64 = result.iter().map(|x| x.value).sum();
-        assert_eq!(200 as i64, sum);
+        let sum: u64 = result.iter().map(|x| x.value as u64).sum();
+        assert_eq!(target_value, sum - Mob::MINIMUM_FEE);
     }
 
     #[test_with_logger]
@@ -1891,7 +1906,7 @@ mod tests {
 
         let result = Txo::select_unspent_txos_for_value(
             &account_id.to_string(),
-            201 as u64,
+            201 as u64 * MOB,
             None,
             None,
             &wallet_db.get_conn().unwrap(),
@@ -1914,9 +1929,7 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(result.len(), 2);
-        let sum: i64 = result.iter().map(|x| x.value).sum();
-        assert_eq!(3 as i64, sum);
+        assert_eq!(result.len(), 1);
     }
 
     #[test_with_logger]
@@ -1925,7 +1938,7 @@ mod tests {
 
         let result = Txo::select_unspent_txos_for_value(
             &account_id.to_string(),
-            500 as u64,
+            500 as u64 * MOB,
             None,
             None,
             &wallet_db.get_conn().unwrap(),
