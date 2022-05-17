@@ -20,10 +20,10 @@ pub struct ViewOnlyAccountJSON {
     pub object: String,
 
     /// Display name for the account.
-    pub name: String,
+    pub account_id: String,
 
     /// Display name for the account.
-    pub account_id: String,
+    pub name: String,
 
     /// Index of the first block when this account may have received funds.
     /// No transactions before this point will be synchronized.

@@ -5,13 +5,6 @@ authors = ["MobileCoin"]
 edition = "2018"
 build = "build.rs"
 
-[[bin]]
-name = "full-service"
-path = "src/bin/main.rs"
-
-[[bin]]
-name = "transaction-signer"
-
 [dependencies]
 mc-validator-api = { path = "../validator/api" }
 mc-validator-connection = { path = "../validator/connection" }

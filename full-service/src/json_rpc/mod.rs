@@ -2,8 +2,8 @@
 
 //! JSON RPC 2.0 API specification for the Full Service wallet.
 
-mod account;
-mod account_key;
+pub mod account;
+pub mod account_key;
 pub mod account_secrets;
 mod address;
 mod amount;
@@ -19,9 +19,9 @@ mod transaction_log;
 mod tx_proposal;
 mod txo;
 mod unspent_tx_out;
-mod view_only_account;
-mod view_only_subaddress;
-mod view_only_txo;
+pub mod view_only_account;
+pub mod view_only_subaddress;
+pub mod view_only_txo;
 pub mod wallet;
 mod wallet_status;
 

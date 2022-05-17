@@ -42,18 +42,16 @@ use crate::{
         view_only_txo::ViewOnlyTxoService,
         WalletService,
     },
-    util::{
-        b58::{
-            b58_decode_payment_request, b58_encode_public_address, b58_printable_wrapper_type,
-            PrintableWrapperType,
-        },
-        encoding_helpers::hex_to_ristretto,
+    util::b58::{
+        b58_decode_payment_request, b58_encode_public_address, b58_printable_wrapper_type,
+        PrintableWrapperType,
     },
 };
 use mc_common::logger::global_log;
 use mc_connection::{
     BlockchainConnection, HardcodedCredentialsProvider, ThickClient, UserTxConnection,
 };
+use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_fog_report_validation::{FogPubkeyResolver, FogResolver};
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use mc_validator_connection::ValidatorConnection;
@@ -976,15 +974,17 @@ where
             }
         }
         JsonCommandRequest::import_view_only_account { package } => {
-            let decoded_key =
-                hex_to_ristretto(&package.secrets.view_private_key).map_err(format_error)?;
+            let decoded_key_bytes =
+                hex::decode(&package.secrets.view_private_key).map_err(format_error)?;
+            let decoded_key: RistrettoPrivate =
+                mc_util_serial::decode(&decoded_key_bytes).map_err(format_error)?;
+
             let subaddresses_decoded = package
                 .subaddresses
                 .iter()
                 .map(|s| {
-                    let public_spend_key_bytes =
-                        hex::decode(&s.public_spend_key).map_err(format_error)?;
-                    let decoded_public_spend_key =
+                    let public_spend_key_bytes = hex::decode(&s.public_spend_key).unwrap();
+                    let decoded_public_spend_key: RistrettoPublic =
                         mc_util_serial::decode(&public_spend_key_bytes).map_err(format_error)?;
                     let subaddress_index =
                         s.subaddress_index.parse::<u64>().map_err(format_error)?;

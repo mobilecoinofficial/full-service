@@ -8,9 +8,9 @@ pub mod check_host;
 pub mod config;
 pub mod db;
 mod error;
-mod json_rpc;
+pub mod json_rpc;
 pub mod service;
-mod util;
+pub mod util;
 mod validator_ledger_sync;
 
 pub use db::WalletDb;
