@@ -32,6 +32,8 @@ pub trait ViewOnlySubaddressModel {
         limit: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<ViewOnlySubaddress>, WalletDbError>;
+
+    fn delete_all_for_account(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError>;
 }
 
 impl ViewOnlySubaddressModel for ViewOnlySubaddress {
@@ -104,5 +106,16 @@ impl ViewOnlySubaddressModel for ViewOnlySubaddress {
         };
 
         Ok(subaddresses)
+    }
+
+    fn delete_all_for_account(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError> {
+        use crate::db::schema::view_only_subaddresses;
+
+        diesel::delete(
+            view_only_subaddresses::table
+                .filter(view_only_subaddresses::view_only_account_id_hex.eq(account_id_hex)),
+        )
+        .execute(conn)?;
+        Ok(())
     }
 }

@@ -4,8 +4,9 @@
 
 use crate::{
     db::{
-        models::{NewViewOnlyAccount, ViewOnlyAccount, ViewOnlyTxo},
+        models::{NewViewOnlyAccount, ViewOnlyAccount, ViewOnlySubaddress, ViewOnlyTxo},
         schema,
+        view_only_subaddress::ViewOnlySubaddressModel,
         view_only_txo::ViewOnlyTxoModel,
         Conn, WalletDbError,
     },
@@ -169,6 +170,7 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
 
         // delete associated view-only-txos
         ViewOnlyTxo::delete_all_for_account(&self.account_id_hex, conn)?;
+        ViewOnlySubaddress::delete_all_for_account(&self.account_id_hex, conn)?;
         diesel::delete(view_only_accounts.filter(dsl_account_id.eq(&self.account_id_hex)))
             .execute(conn)?;
         Ok(())

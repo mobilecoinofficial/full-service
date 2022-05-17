@@ -18,6 +18,8 @@ pub trait ViewOnlyTxoModel {
     fn create(
         tx_out: TxOut,
         value: u64,
+        subaddress_index: Option<u64>,
+        received_block_index: Option<u64>,
         view_only_account_id_hex: &str,
         conn: &Conn,
     ) -> Result<ViewOnlyTxo, WalletDbError>;
@@ -92,6 +94,8 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
     fn create(
         tx_out: TxOut,
         value: u64,
+        subaddress_index: Option<u64>,
+        received_block_index: Option<u64>,
         view_only_account_id_hex: &str,
         conn: &Conn,
     ) -> Result<ViewOnlyTxo, WalletDbError> {
@@ -109,10 +113,10 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
             value: value as i64,
             public_key: &mc_util_serial::encode(&tx_out.public_key),
             view_only_account_id_hex,
-            subaddress_index: None,
+            subaddress_index: subaddress_index.map(|x| x as i64),
             submitted_block_index: None,
             pending_tombstone_block_index: None,
-            received_block_index: None,
+            received_block_index: received_block_index.map(|x| x as i64),
             spent_block_index: None,
         };
 

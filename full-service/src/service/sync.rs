@@ -7,13 +7,14 @@ use crate::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
         models::{
-            Account, AssignedSubaddress, TransactionLog, Txo, ViewOnlyAccount,
+            Account, AssignedSubaddress, TransactionLog, Txo, ViewOnlyAccount, ViewOnlySubaddress,
             ViewOnlyTransactionLog, ViewOnlyTxo,
         },
         transaction,
         transaction_log::TransactionLogModel,
         txo::TxoModel,
         view_only_account::ViewOnlyAccountModel,
+        view_only_subaddress::ViewOnlySubaddressModel,
         view_only_transaction_log::ViewOnlyTransactionLogModel,
         view_only_txo::ViewOnlyTxoModel,
         Conn, WalletDb,
@@ -187,21 +188,20 @@ fn sync_view_only_account_next_chunk(
         let view_private_key: RistrettoPrivate =
             mc_util_serial::decode(&view_only_account.view_private_key)?;
 
-        // // Load subaddresses for this account into a hash map.
-        // let mut subaddress_keys: HashMap<RistrettoPublic, u64> = HashMap::default();
-        // let subaddresses: Vec<_> = AssignedSubaddress::list_all(account_id_hex, None,
-        // None, conn)?; for s in subaddresses {
-        //     let subaddress_key =
-        // mc_util_serial::decode(s.subaddress_spend_key.as_slice())?;
-        //     subaddress_keys.insert(subaddress_key, s.subaddress_index as u64);
-        // }
+        // Load subaddresses for this account into a hash map.
+        let mut subaddress_keys: HashMap<RistrettoPublic, u64> = HashMap::default();
+        let subaddresses: Vec<_> = ViewOnlySubaddress::list_all(account_id_hex, None, None, conn)?;
+        for s in subaddresses {
+            let subaddress_key = RistrettoPublic::try_from(s.public_spend_key.as_slice())?;
+            subaddress_keys.insert(subaddress_key, s.subaddress_index as u64);
+        }
 
         let start_time = Instant::now();
         let start_block_index = view_only_account.next_block_index as u64;
         let mut end_block_index = view_only_account.next_block_index as u64;
 
         // Load transaction outputs and key_images for this chunk.
-        let mut tx_outs: Vec<TxOut> = Vec::new();
+        let mut tx_outs: Vec<(u64, TxOut)> = Vec::new();
         let mut key_images: Vec<(u64, KeyImage)> = Vec::new();
 
         let start = view_only_account.next_block_index as u64;
@@ -220,7 +220,7 @@ fn sync_view_only_account_next_chunk(
             end_block_index = block_index;
 
             for tx_out in block_contents.outputs {
-                tx_outs.push(tx_out);
+                tx_outs.push((block_index, tx_out));
             }
 
             for key_image in block_contents.key_images {
@@ -231,19 +231,29 @@ fn sync_view_only_account_next_chunk(
         // Attempt to decode each transaction as received by this account.
         let received_txos: Vec<_> = tx_outs
             .into_par_iter()
-            .filter_map(|tx_out| {
+            .filter_map(|(block_index, tx_out)| {
                 let amount = match decode_amount(&tx_out, &view_private_key) {
                     None => return None,
                     Some(a) => a,
                 };
-                Some((tx_out, amount))
+
+                let subaddress_index =
+                    decode_subaddress_index(&tx_out, &view_private_key, &subaddress_keys);
+                Some((block_index, tx_out, amount, subaddress_index))
             })
             .collect();
         let num_received_txos = received_txos.len();
 
         // Write received txos to db
-        for (tx_out, amount) in received_txos {
-            let new_txo = ViewOnlyTxo::create(tx_out.clone(), amount, account_id_hex, conn)?;
+        for (block_index, tx_out, amount, subaddress_index) in received_txos {
+            let new_txo = ViewOnlyTxo::create(
+                tx_out.clone(),
+                amount,
+                subaddress_index,
+                Some(block_index),
+                account_id_hex,
+                conn,
+            )?;
             // If this txo is change from a transaction that was submitted to this wallet
             // without an account-id, we should have some logs associating the
             // change txo with txos used as inputs for that transaction. See cold wallet/hot
@@ -516,6 +526,24 @@ pub fn decode_amount(tx_out: &TxOut, view_private_key: &RistrettoPrivate) -> Opt
     }
 }
 
+pub fn decode_subaddress_index(
+    tx_out: &TxOut,
+    view_private_key: &RistrettoPrivate,
+    subaddress_keys: &HashMap<RistrettoPublic, u64>,
+) -> Option<u64> {
+    let tx_public_key = match RistrettoPublic::try_from(&tx_out.public_key) {
+        Ok(k) => k,
+        Err(_) => return None,
+    };
+    let tx_out_target_key = match RistrettoPublic::try_from(&tx_out.target_key) {
+        Ok(k) => k,
+        Err(_) => return None,
+    };
+    let subaddress_spk: RistrettoPublic =
+        recover_public_subaddress_spend_key(view_private_key, &tx_out_target_key, &tx_public_key);
+    subaddress_keys.get(&subaddress_spk).copied()
+}
+
 /// Attempt to match the target address with one of our subaddresses. This
 /// should only be done on tx-outs that have already had their amounts decoded.
 /// If this fails, then the transaction is "orphaned", meaning we haven't
@@ -529,16 +557,9 @@ pub fn decode_subaddress_and_key_image(
         Ok(k) => k,
         Err(_) => return (None, None),
     };
-    let tx_out_target_key = match RistrettoPublic::try_from(&tx_out.target_key) {
-        Ok(k) => k,
-        Err(_) => return (None, None),
-    };
-    let subaddress_spk: RistrettoPublic = recover_public_subaddress_spend_key(
-        account_key.view_private_key(),
-        &tx_out_target_key,
-        &tx_public_key,
-    );
-    let subaddress_index = subaddress_keys.get(&subaddress_spk).copied();
+
+    let subaddress_index =
+        decode_subaddress_index(tx_out, account_key.view_private_key(), subaddress_keys);
 
     let key_image = if let Some(subaddress_i) = subaddress_index {
         let onetime_private_key = recover_onetime_private_key(
