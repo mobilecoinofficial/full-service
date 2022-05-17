@@ -442,7 +442,7 @@ where
                 receiver_receipts: json_receipts,
             }
         }
-        JsonCommandRequest::create_sync_view_only_account_request { account_id } => {
+        JsonCommandRequest::create_view_only_account_sync_request { account_id } => {
             let incomplete_txos = service
                 .list_incomplete_view_only_txos(&account_id)
                 .map_err(format_error)?;
@@ -452,7 +452,7 @@ where
                 .map(|txo| hex::encode(mc_util_serial::encode(txo)))
                 .collect();
 
-            JsonCommandResponse::create_sync_view_only_account_request {
+            JsonCommandResponse::create_view_only_account_sync_request {
                 incomplete_txos_encoded,
             }
         }
@@ -1094,6 +1094,22 @@ where
                 .submit_transaction_serialized(signed_tx_serialized)
                 .map_err(format_error)?;
             JsonCommandResponse::submit_transaction_serialized
+        }
+        JsonCommandRequest::sync_view_only_account {
+            completed_txos,
+            subaddresses,
+        } => {
+            let txo_ids_and_key_images: Vec<(String, KeyImage)> = completed_txos
+                .iter()
+                .map(|(txo_id, key_image_encoded)| {
+                    let key_image_bytes = hex::decode(&key_image_encoded).map_err(format_error)?;
+                    let key_image: KeyImage =
+                        mc_util_serial::decode(&key_image_bytes).map_err(format_error)?;
+                    Ok((txo_id.clone(), key_image))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            JsonCommandResponse::sync_view_only_account
         }
         JsonCommandRequest::update_account_name { account_id, name } => {
             JsonCommandResponse::update_account_name {

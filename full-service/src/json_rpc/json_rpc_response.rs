@@ -179,7 +179,7 @@ pub enum JsonCommandResponse {
     create_receiver_receipts {
         receiver_receipts: Vec<ReceiverReceipt>,
     },
-    create_sync_view_only_account_request {
+    create_view_only_account_sync_request {
         incomplete_txos_encoded: Vec<String>,
     },
     export_account_secrets {
@@ -314,6 +314,7 @@ pub enum JsonCommandResponse {
         transaction_log: Option<TransactionLog>,
     },
     submit_transaction_serialized,
+    sync_view_only_account,
     update_account_name {
         account: Account,
     },

@@ -140,7 +140,7 @@ pub enum JsonCommandRequest {
     create_receiver_receipts {
         tx_proposal: TxProposal,
     },
-    create_sync_view_only_account_request {
+    create_view_only_account_sync_request {
         account_id: String,
     },
     export_account_secrets {
@@ -153,7 +153,6 @@ pub enum JsonCommandRequest {
     export_spent_txo_ids {
         account_id: String,
     },
-    // This is for testing and debugging, remove before develop merge.
     export_view_only_account_package {
         account_id: String,
     },
@@ -282,6 +281,10 @@ pub enum JsonCommandRequest {
     },
     submit_transaction_serialized {
         signed_tx_file: String,
+    },
+    sync_view_only_account {
+        completed_txos: Vec<(String, String)>,
+        subaddresses: ViewOnlySubaddressesJSON,
     },
     update_account_name {
         account_id: String,
