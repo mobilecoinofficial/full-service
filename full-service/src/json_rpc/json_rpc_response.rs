@@ -182,6 +182,10 @@ pub enum JsonCommandResponse {
     export_account_secrets {
         account_secrets: AccountSecrets,
     },
+    export_new_subaddresses_request {
+        next_subaddress_index: String,
+        num_subaddresses_to_generate: String,
+    },
     export_spent_txo_ids {
         spent_txo_ids: Vec<String>,
     },

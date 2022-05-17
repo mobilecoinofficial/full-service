@@ -144,6 +144,10 @@ pub enum JsonCommandRequest {
     export_account_secrets {
         account_id: String,
     },
+    export_new_subaddresses_request {
+        account_id: String,
+        num_subaddresses_to_generate: String,
+    },
     export_spent_txo_ids {
         account_id: String,
     },
