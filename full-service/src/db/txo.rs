@@ -56,8 +56,8 @@ pub struct ProcessedTxProposalOutput {
 }
 
 pub struct SpendableTxosResult {
-    spendable_txos: Vec<Txo>,
-    max_spendable_in_wallet: u128,
+    pub spendable_txos: Vec<Txo>,
+    pub max_spendable_in_wallet: u128,
 }
 
 pub trait TxoModel {
@@ -173,6 +173,7 @@ pub trait TxoModel {
     fn list_spendable(
         account_id_hex: &str,
         max_spendable_value: Option<u64>,
+        assigned_subaddress_b58: Option<&str>,
         conn: &Conn,
     ) -> Result<SpendableTxosResult, WalletDbError>;
 
@@ -736,19 +737,28 @@ impl TxoModel for Txo {
     fn list_spendable(
         account_id_hex: &str,
         max_spendable_value: Option<u64>,
+        assigned_subaddress_b58: Option<&str>,
         conn: &Conn,
     ) -> Result<SpendableTxosResult, WalletDbError> {
         use crate::db::schema::txos;
         // The SQLite database cannot filter effectively on a u64 value, so filter for
         // maximum value in memory.
-        let spendable_txos: Vec<Txo> = txos::table
+        let results = txos::table
             .filter(txos::spent_block_index.is_null())
             .filter(txos::pending_tombstone_block_index.is_null())
             .filter(txos::subaddress_index.is_not_null())
             .filter(txos::key_image.is_not_null())
-            .filter(txos::received_account_id_hex.eq(account_id_hex))
-            .order_by(txos::value.desc())
-            .load(conn)?;
+            .filter(txos::received_account_id_hex.eq(account_id_hex));
+
+        let spendable_txos: Vec<Txo> = if let Some(subaddress_b58) = assigned_subaddress_b58 {
+            let subaddress = AssignedSubaddress::get(subaddress_b58, conn)?;
+            results
+                .filter(txos::subaddress_index.eq(subaddress.subaddress_index))
+                .order_by(txos::value.desc())
+                .load(conn)?
+        } else {
+            results.order_by(txos::value.desc()).load(conn)?
+        };
 
         let spendable_txos = if let Some(msv) = max_spendable_value {
             spendable_txos
@@ -797,7 +807,7 @@ impl TxoModel for Txo {
         let SpendableTxosResult {
             mut spendable_txos,
             max_spendable_in_wallet,
-        } = Txo::list_spendable(account_id_hex, max_spendable_value, conn)?;
+        } = Txo::list_spendable(account_id_hex, max_spendable_value, None, conn)?;
 
         // If we're trying to spend more than we have in the wallet, we may need to
         // defrag
@@ -1824,6 +1834,134 @@ mod tests {
                 .first::<i64>(&wallet_db.get_conn().unwrap())
                 .unwrap(),
             0
+        );
+    }
+
+    #[test_with_logger]
+    fn test_list_spendable_more_txos(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+        let conn = wallet_db.get_conn().unwrap();
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        let (account_id, _address) = Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(0),
+            None,
+            None,
+            "",
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
+            &conn,
+        )
+        .unwrap();
+
+        let txo_value = 100 * MOB;
+
+        for i in 1..=20 {
+            let (_txo_id, _txo, _key_image) =
+                create_test_received_txo(&account_key, i, txo_value, i, &mut rng, &wallet_db);
+        }
+
+        let SpendableTxosResult {
+            spendable_txos,
+            max_spendable_in_wallet,
+        } = Txo::list_spendable(&account_id.to_string(), None, None, &conn).unwrap();
+
+        assert_eq!(spendable_txos.len(), 20);
+        assert_eq!(
+            max_spendable_in_wallet as u64,
+            txo_value * 16 - Mob::MINIMUM_FEE
+        );
+    }
+
+    #[test_with_logger]
+    fn test_list_spendable_less_than_min_fee(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+        let conn = wallet_db.get_conn().unwrap();
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        let (account_id, _address) = Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(0),
+            None,
+            None,
+            "",
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
+            &conn,
+        )
+        .unwrap();
+
+        let txo_value = 100;
+
+        for i in 1..=10 {
+            let (_txo_id, _txo, _key_image) =
+                create_test_received_txo(&account_key, i, txo_value, i, &mut rng, &wallet_db);
+        }
+
+        let SpendableTxosResult {
+            spendable_txos,
+            max_spendable_in_wallet,
+        } = Txo::list_spendable(&account_id.to_string(), None, None, &conn).unwrap();
+
+        assert_eq!(spendable_txos.len(), 10);
+        assert_eq!(max_spendable_in_wallet as u64, 0);
+    }
+
+    #[test_with_logger]
+    fn test_list_spendable_max_spendable_value(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+        let conn = wallet_db.get_conn().unwrap();
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        let (account_id, _address) = Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(0),
+            None,
+            None,
+            "",
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
+            &conn,
+        )
+        .unwrap();
+
+        let txo_value_low = 100 * MOB;
+        let txo_value_high = 200 * MOB;
+
+        for i in 1..=5 {
+            let (_txo_id, _txo, _key_image) =
+                create_test_received_txo(&account_key, i, txo_value_low, i, &mut rng, &wallet_db);
+        }
+        for i in 1..=5 {
+            let (_txo_id, _txo, _key_image) =
+                create_test_received_txo(&account_key, i, txo_value_high, i, &mut rng, &wallet_db);
+        }
+
+        let SpendableTxosResult {
+            spendable_txos,
+            max_spendable_in_wallet,
+        } = Txo::list_spendable(&account_id.to_string(), Some(100 * MOB), None, &conn).unwrap();
+
+        assert_eq!(spendable_txos.len(), 5);
+        assert_eq!(
+            max_spendable_in_wallet as u64,
+            txo_value_low * 5 - Mob::MINIMUM_FEE
         );
     }
 

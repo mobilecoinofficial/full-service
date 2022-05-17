@@ -569,6 +569,15 @@ mod e2e {
                 .to_string(),
             (42 * MOB).to_string()
         );
+        assert_eq!(
+            balance
+                .get("max_spendable_pmob")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_string(),
+            (42 * MOB - Mob::MINIMUM_FEE).to_string()
+        );
     }
 
     #[test_with_logger]
