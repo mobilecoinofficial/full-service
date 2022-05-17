@@ -1078,8 +1078,8 @@ mod e2e {
                     "code": -32603,
                     "message": "InternalError",
                     "data": json!({
-                        "server_error": format!("TransactionBuilder(WalletDb(InsufficientFundsUnderMaxSpendable(\"Max spendable value in wallet: 100, but target value: {}\")))", 42 + Mob::MINIMUM_FEE),
-                        "details": format!("Error building transaction: Wallet DB Error: Insufficient funds from Txos under max_spendable_value: Max spendable value in wallet: 100, but target value: {}", 42 + Mob::MINIMUM_FEE),
+                        "server_error": format!("TransactionBuilder(WalletDb(InsufficientFundsUnderMaxSpendable(\"Max spendable value in wallet: 0, but target value: {}\")))", 42 + Mob::MINIMUM_FEE),
+                        "details": format!("Error building transaction: Wallet DB Error: Insufficient funds from Txos under max_spendable_value: Max spendable value in wallet: 0, but target value: {}", 42 + Mob::MINIMUM_FEE),
                     })
                 }),
                 "jsonrpc": "2.0",

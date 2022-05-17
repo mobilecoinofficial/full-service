@@ -769,10 +769,6 @@ impl TxoModel for Txo {
             spendable_txos
         };
 
-        if spendable_txos.is_empty() {
-            return Err(WalletDbError::NoSpendableTxos);
-        }
-
         // The maximum spendable is limited by the maximal number of inputs we can use.
         // Since the txos are sorted by decreasing value, this is the maximum
         // value we can possibly spend in one transaction.
@@ -799,6 +795,7 @@ impl TxoModel for Txo {
 
     fn select_unspent_txos_for_value(
         account_id_hex: &str,
+        // target_value includes the network fee
         target_value: u64,
         max_spendable_value: Option<u64>,
         pending_tombstone_block_index: Option<u64>,
@@ -809,15 +806,20 @@ impl TxoModel for Txo {
             max_spendable_in_wallet,
         } = Txo::list_spendable(account_id_hex, max_spendable_value, None, conn)?;
 
+        if spendable_txos.is_empty() {
+            return Err(WalletDbError::NoSpendableTxos);
+        }
+
         // If we're trying to spend more than we have in the wallet, we may need to
         // defrag
-        if target_value as u128 > max_spendable_in_wallet {
+        if target_value as u128 > max_spendable_in_wallet + Mob::MINIMUM_FEE as u128 {
             // See if we merged the UTXOs we would be able to spend this amount.
             let total_unspent_value_in_wallet: u128 = spendable_txos
                 .iter()
                 .map(|utxo| (utxo.value as u64) as u128)
                 .sum();
-            if total_unspent_value_in_wallet >= target_value as u128 {
+
+            if total_unspent_value_in_wallet >= (target_value + Mob::MINIMUM_FEE) as u128 {
                 return Err(WalletDbError::InsufficientFundsFragmentedTxos);
             } else {
                 return Err(WalletDbError::InsufficientFundsUnderMaxSpendable(format!(
