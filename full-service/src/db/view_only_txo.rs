@@ -62,11 +62,11 @@ pub trait ViewOnlyTxoModel {
         conn: &Conn,
     ) -> Result<Vec<ViewOnlyTxo>, WalletDbError>;
 
-    /// get all txouts with no key image for a given account
+    /// get all txouts with no key image or subaddress index for a given account
     ///
     /// Returns:
     /// * Vec<TxOut>
-    fn export_txouts_without_key_image(
+    fn export_txouts_without_key_image_or_subaddress_index(
         account_id_hex: &str,
         conn: &Conn,
     ) -> Result<Vec<TxOut>, WalletDbError>;
@@ -345,17 +345,18 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         Ok(())
     }
 
-    fn export_txouts_without_key_image(
+    fn export_txouts_without_key_image_or_subaddress_index(
         account_id_hex: &str,
         conn: &Conn,
     ) -> Result<Vec<TxOut>, WalletDbError> {
         use schema::view_only_txos::dsl::{
-            key_image as dsl_key_image, view_only_account_id_hex as dsl_account_id,
+            key_image as dsl_key_image, subaddress_index as dsl_subaddress_index,
+            view_only_account_id_hex as dsl_account_id,
         };
 
         let txos: Vec<ViewOnlyTxo> = schema::view_only_txos::table
             .filter(dsl_account_id.eq(account_id_hex))
-            .filter(dsl_key_image.is_null())
+            .filter(dsl_key_image.is_null().or(dsl_subaddress_index.is_null()))
             .load(conn)?;
 
         let mut txouts: Vec<TxOut> = Vec::new();

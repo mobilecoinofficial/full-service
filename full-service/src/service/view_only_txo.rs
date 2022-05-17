@@ -28,6 +28,11 @@ pub trait ViewOnlyTxoService {
         &self,
         txos_with_key_images: Vec<(TxOut, KeyImage)>,
     ) -> Result<bool, TxoServiceError>;
+
+    fn list_incomplete_view_only_txos(
+        &self,
+        account_id: &str,
+    ) -> Result<Vec<TxOut>, TxoServiceError>;
 }
 
 impl<T, FPR> ViewOnlyTxoService for WalletService<T, FPR>
@@ -67,6 +72,15 @@ where
             }
             Ok(true)
         })
+    }
+
+    fn list_incomplete_view_only_txos(
+        &self,
+        account_id: &str,
+    ) -> Result<Vec<TxOut>, TxoServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+
+        Ok(ViewOnlyTxo::export_txouts_without_key_image_or_subaddress_index(account_id, &conn)?)
     }
 }
 

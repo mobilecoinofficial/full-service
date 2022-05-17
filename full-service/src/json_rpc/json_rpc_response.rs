@@ -179,6 +179,9 @@ pub enum JsonCommandResponse {
     create_receiver_receipts {
         receiver_receipts: Vec<ReceiverReceipt>,
     },
+    create_sync_view_only_account_request {
+        incomplete_txos_encoded: Vec<String>,
+    },
     export_account_secrets {
         account_secrets: AccountSecrets,
     },

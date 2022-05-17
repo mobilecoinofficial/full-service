@@ -141,6 +141,9 @@ pub enum JsonCommandRequest {
     create_receiver_receipts {
         tx_proposal: TxProposal,
     },
+    create_sync_view_only_account_request {
+        account_id: String,
+    },
     export_account_secrets {
         account_id: String,
     },

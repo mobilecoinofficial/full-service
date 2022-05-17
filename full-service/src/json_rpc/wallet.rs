@@ -444,6 +444,20 @@ where
                 receiver_receipts: json_receipts,
             }
         }
+        JsonCommandRequest::create_sync_view_only_account_request { account_id } => {
+            let incomplete_txos = service
+                .list_incomplete_view_only_txos(&account_id)
+                .map_err(format_error)?;
+
+            let incomplete_txos_encoded: Vec<String> = incomplete_txos
+                .iter()
+                .map(|txo| hex::encode(mc_util_serial::encode(txo)))
+                .collect();
+
+            JsonCommandResponse::create_sync_view_only_account_request {
+                incomplete_txos_encoded,
+            }
+        }
         JsonCommandRequest::export_account_secrets { account_id } => {
             let account = service
                 .get_account(&AccountID(account_id))
