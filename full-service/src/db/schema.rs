@@ -107,14 +107,6 @@ table! {
 }
 
 table! {
-    view_only_transaction_logs (id) {
-        id -> Integer,
-        change_txo_id_hex -> Text,
-        input_txo_id_hex -> Text,
-    }
-}
-
-table! {
     txos (id) {
         id -> Integer,
         txo_id_hex -> Text,

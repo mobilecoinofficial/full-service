@@ -17,3 +17,5 @@ CREATE TABLE view_only_subaddresses (
   public_spend_key BLOB NOT NULL,
   FOREIGN KEY (view_only_account_id_hex) REFERENCES view_only_accounts(account_id_hex)
 );
+
+DROP TABLE IF EXISTS view_only_transaction_logs;
