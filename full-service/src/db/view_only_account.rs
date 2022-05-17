@@ -10,31 +10,11 @@ use crate::{
         view_only_txo::ViewOnlyTxoModel,
         Conn, WalletDbError,
     },
-    util::encoding_helpers::{ristretto_to_vec, vec_to_hex},
+    util::encoding_helpers::ristretto_to_vec,
 };
 use diesel::prelude::*;
-use mc_crypto_digestible::{Digestible, MerlinTranscript};
-use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
-use std::{fmt, str};
-
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub struct ViewOnlyAccountID(pub String);
-
-impl From<&RistrettoPrivate> for ViewOnlyAccountID {
-    fn from(src: &RistrettoPrivate) -> ViewOnlyAccountID {
-        let view_public_key = RistrettoPublic::from(src);
-        let temp: Vec<u8> = view_public_key
-            .digest32::<MerlinTranscript>(b"view_account_data")
-            .to_vec();
-        Self(vec_to_hex(&temp))
-    }
-}
-
-impl fmt::Display for ViewOnlyAccountID {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
+use mc_crypto_keys::RistrettoPrivate;
+use std::str;
 
 pub trait ViewOnlyAccountModel {
     // insert new view-only-account in the db

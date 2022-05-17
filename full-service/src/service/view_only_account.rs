@@ -4,9 +4,10 @@
 
 use crate::{
     db::{
+        account::AccountID,
         models::{ViewOnlyAccount, ViewOnlySubaddress},
         transaction,
-        view_only_account::{ViewOnlyAccountID, ViewOnlyAccountModel},
+        view_only_account::ViewOnlyAccountModel,
         view_only_subaddress::ViewOnlySubaddressModel,
     },
     service::{account::AccountServiceError, WalletService},
@@ -112,7 +113,7 @@ where
         let conn = &self.wallet_db.get_conn()?;
 
         transaction(&conn, || {
-            let account_id = ViewOnlyAccountID(account_id_hex.to_string());
+            let account_id = AccountID(account_id_hex.to_string());
 
             let account = ViewOnlyAccount::get(&account_id.to_string(), conn)?;
 
@@ -222,7 +223,7 @@ mod tests {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let view_private_key = RistrettoPrivate::from_random(&mut rng);
-        let account_id_hex = ViewOnlyAccountID::from(&view_private_key).to_string();
+        let account_id_hex = AccountID::from(&view_private_key).to_string();
         let name = "coins for cats";
         let first_block_index = 25;
 
