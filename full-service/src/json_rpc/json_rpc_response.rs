@@ -285,6 +285,9 @@ pub enum JsonCommandResponse {
     import_account_from_legacy_root_entropy {
         account: Account,
     },
+    import_subaddress_to_view_only_account {
+        public_address_b58s: Vec<String>,
+    },
     import_view_only_account {
         view_only_account: ViewOnlyAccountJSON,
     },

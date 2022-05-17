@@ -35,7 +35,6 @@ pub trait ViewOnlyAccountService {
         &self,
         account_id_hex: &str,
         subaddresses: Vec<(String, u64, String, RistrettoPublic)>,
-        next_subaddress_index: u64,
     ) -> Result<Vec<String>, AccountServiceError>;
 
     /// Get a view only account by view private key
@@ -109,7 +108,6 @@ where
         &self,
         account_id_hex: &str,
         subaddresses: Vec<(String, u64, String, RistrettoPublic)>,
-        next_subaddress_index: u64,
     ) -> Result<Vec<String>, AccountServiceError> {
         let conn = &self.wallet_db.get_conn()?;
 
@@ -131,7 +129,15 @@ where
                 )?;
             }
 
-            account.update_next_subaddress_index(next_subaddress_index, conn)?;
+            let next_subaddress_index = subaddresses
+                .iter()
+                .map(|(_, index, _, _)| *index)
+                .max()
+                .unwrap_or(0);
+
+            if next_subaddress_index > account.next_subaddress_index as u64 {
+                account.update_next_subaddress_index(next_subaddress_index, conn)?;
+            }
 
             Ok(subaddresses
                 .iter()

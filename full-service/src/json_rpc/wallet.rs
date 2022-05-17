@@ -918,15 +918,41 @@ where
                 .map_err(format_error)?,
             }
         }
+        JsonCommandRequest::import_subaddress_to_view_only_account {
+            account_id,
+            subaddresses,
+        } => {
+            let subaddresses_decoded = subaddresses
+                .iter()
+                .map(|s| {
+                    let public_spend_key_bytes =
+                        hex::decode(&s.public_spend_key).map_err(format_error)?;
+                    let decoded_public_spend_key =
+                        mc_util_serial::decode(&public_spend_key_bytes).map_err(format_error)?;
+                    let subaddress_index =
+                        s.subaddress_index.parse::<u64>().map_err(format_error)?;
+                    Ok((
+                        s.public_address.clone(),
+                        subaddress_index,
+                        s.comment.clone(),
+                        decoded_public_spend_key,
+                    ))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            let public_address_b58s = service
+                .import_subaddresses(&account_id, subaddresses_decoded)
+                .map_err(format_error)?;
+
+            JsonCommandResponse::import_subaddress_to_view_only_account {
+                public_address_b58s,
+            }
+        }
         JsonCommandRequest::import_view_only_account {
             account,
             secrets,
             subaddresses,
         } => {
-            // let key_bytes =
-            // hex::decode(&secrets.view_private_key).map_err(format_error)?;
-            // let decoded_key =
-            //     RistrettoPrivate::try_from(key_bytes.as_slice()).map_err(format_error)?;
             let decoded_key = hex_to_ristretto(&secrets.view_private_key).map_err(format_error)?;
             let subaddresses_decoded = subaddresses
                 .iter()
@@ -935,8 +961,6 @@ where
                         hex::decode(&s.public_spend_key).map_err(format_error)?;
                     let decoded_public_spend_key =
                         mc_util_serial::decode(&public_spend_key_bytes).map_err(format_error)?;
-                    // RistrettoPublic::try_from(public_spend_key_bytes.as_slice())
-                    //     .map_err(format_error)?;
                     let subaddress_index =
                         s.subaddress_index.parse::<u64>().map_err(format_error)?;
                     Ok((

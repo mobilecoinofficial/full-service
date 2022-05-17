@@ -247,6 +247,10 @@ pub enum JsonCommandRequest {
         fog_report_id: Option<String>,
         fog_authority_spki: Option<String>,
     },
+    import_subaddress_to_view_only_account {
+        account_id: String,
+        subaddresses: ViewOnlySubaddressesJSON,
+    },
     import_view_only_account {
         account: ViewOnlyAccountJSON,
         secrets: ViewOnlyAccountSecretsJSON,
