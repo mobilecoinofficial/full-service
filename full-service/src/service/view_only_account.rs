@@ -31,6 +31,13 @@ pub trait ViewOnlyAccountService {
         subaddresses: Vec<(String, u64, String, RistrettoPublic)>,
     ) -> Result<ViewOnlyAccount, AccountServiceError>;
 
+    fn import_subaddresses(
+        &self,
+        account_id_hex: &str,
+        subaddresses: Vec<(String, u64, String, RistrettoPublic)>,
+        next_subaddress_index: u64,
+    ) -> Result<Vec<String>, AccountServiceError>;
+
     /// Get a view only account by view private key
     fn get_view_only_account(
         &self,
@@ -81,13 +88,11 @@ where
                 conn,
             )?;
 
-            let account_id = ViewOnlyAccountID(view_only_account.account_id_hex.clone());
-
             for (public_address_b58, subaddress_index, comment, public_spend_key) in
                 subaddresses.iter()
             {
                 ViewOnlySubaddress::create(
-                    &account_id,
+                    &view_only_account,
                     public_address_b58,
                     *subaddress_index,
                     comment,
@@ -97,6 +102,41 @@ where
             }
 
             Ok(view_only_account)
+        })
+    }
+
+    fn import_subaddresses(
+        &self,
+        account_id_hex: &str,
+        subaddresses: Vec<(String, u64, String, RistrettoPublic)>,
+        next_subaddress_index: u64,
+    ) -> Result<Vec<String>, AccountServiceError> {
+        let conn = &self.wallet_db.get_conn()?;
+
+        transaction(&conn, || {
+            let account_id = ViewOnlyAccountID(account_id_hex.to_string());
+
+            let account = ViewOnlyAccount::get(&account_id.to_string(), conn)?;
+
+            for (public_address_b58, subaddress_index, comment, public_spend_key) in
+                subaddresses.iter()
+            {
+                ViewOnlySubaddress::create(
+                    &account,
+                    public_address_b58,
+                    *subaddress_index,
+                    comment,
+                    public_spend_key,
+                    conn,
+                )?;
+            }
+
+            account.update_next_subaddress_index(next_subaddress_index, conn)?;
+
+            Ok(subaddresses
+                .iter()
+                .map(|(public_address_b58, _, _, _)| public_address_b58.clone())
+                .collect())
         })
     }
 

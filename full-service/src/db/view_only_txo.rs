@@ -47,6 +47,11 @@ pub trait ViewOnlyTxoModel {
         conn: &Conn,
     ) -> Result<HashMap<KeyImage, String>, WalletDbError>;
 
+    fn list_orphaned_with_key_images(
+        account_id_hex: &str,
+        conn: &Conn,
+    ) -> Result<Vec<ViewOnlyTxo>, WalletDbError>;
+
     /// Select a set of unspent view only Txos to reach a given value.
     ///
     /// Returns:
@@ -80,6 +85,12 @@ pub trait ViewOnlyTxoModel {
     fn update_spent_block_index(
         txo_id_hex: &str,
         spent_block_index: u64,
+        conn: &Conn,
+    ) -> Result<(), WalletDbError>;
+
+    fn update_subaddress_index(
+        &self,
+        subaddress_index: u64,
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
@@ -191,6 +202,23 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
             .collect())
     }
 
+    fn list_orphaned_with_key_images(
+        account_id_hex: &str,
+        conn: &Conn,
+    ) -> Result<Vec<ViewOnlyTxo>, WalletDbError> {
+        use schema::view_only_txos;
+
+        let results: Vec<ViewOnlyTxo> = view_only_txos::table
+            .filter(view_only_txos::view_only_account_id_hex.eq(account_id_hex))
+            .filter(view_only_txos::key_image.is_not_null())
+            .filter(view_only_txos::subaddress_index.is_not_null())
+            .filter(view_only_txos::received_block_index.is_not_null())
+            .filter(view_only_txos::spent_block_index.is_null())
+            .load(conn)?;
+
+        Ok(results)
+    }
+
     // This is a direct port of txo selection and
     // the whole things needs a nice big refactor
     // to make it happy.
@@ -298,6 +326,22 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         diesel::update(view_only_txos::table.filter(view_only_txos::txo_id_hex.eq(txo_id_hex)))
             .set((view_only_txos::spent_block_index.eq(spent_block_index as i64),))
             .execute(conn)?;
+        Ok(())
+    }
+
+    fn update_subaddress_index(
+        &self,
+        subaddress_index: u64,
+        conn: &Conn,
+    ) -> Result<(), WalletDbError> {
+        use schema::view_only_txos;
+
+        diesel::update(
+            view_only_txos::table.filter(view_only_txos::txo_id_hex.eq(&self.txo_id_hex)),
+        )
+        .set((view_only_txos::subaddress_index.eq(subaddress_index as i64),))
+        .execute(conn)?;
+
         Ok(())
     }
 

@@ -4,18 +4,20 @@
 //! funds received from that contact.
 
 use crate::db::{
-    models::{NewViewOnlySubaddress, ViewOnlySubaddress},
-    view_only_account::ViewOnlyAccountID,
+    models::{NewViewOnlySubaddress, ViewOnlyAccount, ViewOnlySubaddress, ViewOnlyTxo},
+    view_only_txo::ViewOnlyTxoModel,
 };
 
-use mc_crypto_keys::RistrettoPublic;
+use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
+use mc_transaction_core::{onetime_keys::recover_public_subaddress_spend_key, tx::TxOut};
 
 use crate::db::{Conn, WalletDbError};
 use diesel::prelude::*;
+use std::convert::TryFrom;
 
 pub trait ViewOnlySubaddressModel {
     fn create(
-        view_only_account_id: &ViewOnlyAccountID,
+        account: &ViewOnlyAccount,
         public_address_b58: &str,
         subaddress_index: u64,
         comment: &str,
@@ -38,7 +40,7 @@ pub trait ViewOnlySubaddressModel {
 
 impl ViewOnlySubaddressModel for ViewOnlySubaddress {
     fn create(
-        view_only_account_id: &ViewOnlyAccountID,
+        account: &ViewOnlyAccount,
         public_address_b58: &str,
         subaddress_index: u64,
         comment: &str,
@@ -48,7 +50,7 @@ impl ViewOnlySubaddressModel for ViewOnlySubaddress {
         use crate::db::schema::view_only_subaddresses;
 
         let new_subaddress = NewViewOnlySubaddress {
-            view_only_account_id_hex: &view_only_account_id.0,
+            view_only_account_id_hex: &account.account_id_hex,
             public_address_b58,
             subaddress_index: subaddress_index as i64,
             comment,
@@ -58,6 +60,25 @@ impl ViewOnlySubaddressModel for ViewOnlySubaddress {
         diesel::insert_into(view_only_subaddresses::table)
             .values(&new_subaddress)
             .execute(conn)?;
+
+        let orphaned_txos_with_key_images =
+            ViewOnlyTxo::list_orphaned_with_key_images(&account.account_id_hex, conn)?;
+
+        let view_private_key: RistrettoPrivate = mc_util_serial::decode(&account.view_private_key)?;
+
+        for txo in orphaned_txos_with_key_images {
+            let tx_out: TxOut = mc_util_serial::decode(&txo.txo)?;
+
+            let txo_subaddress_spk = recover_public_subaddress_spend_key(
+                &view_private_key,
+                &RistrettoPublic::try_from(&tx_out.target_key)?,
+                &RistrettoPublic::try_from(&tx_out.public_key)?,
+            );
+
+            if txo_subaddress_spk == *public_spend_key {
+                txo.update_subaddress_index(subaddress_index, conn)?;
+            }
+        }
 
         Ok(public_address_b58.to_string())
     }

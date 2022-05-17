@@ -72,6 +72,12 @@ pub trait ViewOnlyAccountModel {
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
+    fn update_next_subaddress_index(
+        &self,
+        next_subaddress_index: u64,
+        conn: &Conn,
+    ) -> Result<(), WalletDbError>;
+
     /// Delete a view-only-account.
     fn delete(self, conn: &Conn) -> Result<(), WalletDbError>;
 }
@@ -160,6 +166,23 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
         diesel::update(view_only_accounts.filter(dsl_account_id.eq(&self.account_id_hex)))
             .set(dsl_next_block.eq(next_block_index as i64))
             .execute(conn)?;
+        Ok(())
+    }
+
+    fn update_next_subaddress_index(
+        &self,
+        next_subaddress_index: u64,
+        conn: &Conn,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::view_only_accounts;
+
+        diesel::update(
+            view_only_accounts::table
+                .filter(view_only_accounts::account_id_hex.eq(&self.account_id_hex)),
+        )
+        .set(view_only_accounts::next_subaddress_index.eq(next_subaddress_index as i64))
+        .execute(conn)?;
+
         Ok(())
     }
 
