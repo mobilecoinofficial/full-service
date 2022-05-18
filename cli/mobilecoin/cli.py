@@ -164,9 +164,12 @@ class CommandLineInterface:
         self.gift_remove_args = gift_action.add_parser('remove', help='Remove a gift code.')
         self.gift_remove_args.add_argument('gift_code', help='Gift code to remove.')
 
+        # Sync view-only account.
+        self.sync_args = command_sp.add_parser('sync', help='Sync a view-only account.')
+        self.sync_args.add_argument('account_id', help='Account ID.')
+
         # Version
         self.version_args = command_sp.add_parser('version', help='Show version number.')
-
 
     def _load_account_prefix(self, prefix):
         accounts = self.client.get_all_accounts()
@@ -410,7 +413,7 @@ class CommandLineInterface:
                 print('{:<2}  {}'.format(i, word))
             print()
         else:
-            filename = 'mobilecoin_seed_mnemonic_{}.json'.format(account_id[:16])
+            filename = 'mobilecoin_seed_mnemonic_{}.json'.format(account_id[:6])
             try:
                 _save_export(account, secrets, filename)
             except OSError as e:
@@ -451,7 +454,7 @@ class CommandLineInterface:
             print(secrets['account_key']['view_private_key'])
             print()
         else:
-            filename = 'mobilecoin_view_key_{}.json'.format(account_id[:16])
+            filename = 'mobilecoin_view_key_{}.json'.format(account_id[:6])
             try:
                 _save_view_key_export(account, secrets, filename)
             except OSError as e:
@@ -595,7 +598,7 @@ class CommandLineInterface:
             else:
                 with path.open('w') as f:
                     json.dump(tx_proposal, f, indent=2)
-                print(f'Wrote {path}')
+                print(f'Wrote {path}.')
             return
 
         if not self.confirm('Confirm? (Y/N) '):
@@ -644,7 +647,7 @@ class CommandLineInterface:
             else:
                 with path.open('w') as f:
                     json.dump(receipt, f, indent=2)
-                print(f'Wrote {path}')
+                print(f'Wrote {path}.')
 
         # Confirm and submit.
         if account_id is None:
@@ -827,6 +830,17 @@ class CommandLineInterface:
             if 'GiftCodeNotFound' in e.response['data']['server_error']:
                 print('Gift code not found; nothing to remove.')
                 return
+
+    def sync(self, account_id):
+        account = self._load_account_prefix(account_id)
+        account_id = account['account_id']
+        response = self.client.create_view_only_account_sync_request(account_id)
+
+        network_status = self.client.get_network_status()
+        filename = 'sync_request_{}_{}.json'.format(account_id[:6], network_status['local_block_height'])
+        _save_json_file(filename, response)
+
+        print(f'Wrote {filename}.')
 
     def version(self):
         version = self.client.version()

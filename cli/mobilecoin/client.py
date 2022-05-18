@@ -408,6 +408,15 @@ class Client:
         })
         return r['removed']
 
+    def create_view_only_account_sync_request(self, account_id):
+        r = self._req({
+            "method": "create_view_only_account_sync_request",
+            "params": {
+                "account_id": account_id,
+            },
+        })
+        return r
+
     def version(self):
         r = self._req({"method": "version"})
         return r
