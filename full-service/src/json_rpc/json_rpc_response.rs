@@ -314,7 +314,6 @@ pub enum JsonCommandResponse {
     submit_transaction {
         transaction_log: Option<TransactionLog>,
     },
-    submit_transaction_serialized,
     sync_view_only_account,
     update_account_name {
         account: Account,

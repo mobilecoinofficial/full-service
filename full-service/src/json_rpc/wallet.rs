@@ -1089,14 +1089,6 @@ where
                 transaction_log: result,
             }
         }
-        JsonCommandRequest::submit_transaction_serialized { signed_tx_file } => {
-            let signed_tx_serialized = std::fs::read(signed_tx_file).unwrap();
-
-            service
-                .submit_transaction_serialized(signed_tx_serialized)
-                .map_err(format_error)?;
-            JsonCommandResponse::submit_transaction_serialized
-        }
         JsonCommandRequest::sync_view_only_account {
             account_id,
             completed_txos,
