@@ -182,88 +182,89 @@ where
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{
-        test_utils::{get_test_ledger, setup_wallet_service},
-        util::encoding_helpers::ristretto_to_vec,
-    };
-    use mc_account_keys::PublicAddress;
-    use mc_common::logger::{test_with_logger, Logger};
-    use mc_connection_test_utils::MockBlockchainConnection;
-    use mc_crypto_keys::RistrettoPrivate;
-    use mc_fog_report_validation::MockFogPubkeyResolver;
-    use mc_ledger_db::LedgerDB;
-    use mc_util_from_random::FromRandom;
-    use rand::{rngs::StdRng, SeedableRng};
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use crate::{
+//         test_utils::{get_test_ledger, setup_wallet_service},
+//         util::encoding_helpers::ristretto_to_vec,
+//     };
+//     use mc_account_keys::PublicAddress;
+//     use mc_common::logger::{test_with_logger, Logger};
+//     use mc_connection_test_utils::MockBlockchainConnection;
+//     use mc_crypto_keys::RistrettoPrivate;
+//     use mc_fog_report_validation::MockFogPubkeyResolver;
+//     use mc_ledger_db::LedgerDB;
+//     use mc_util_from_random::FromRandom;
+//     use rand::{rngs::StdRng, SeedableRng};
 
-    fn get_test_service(
-        logger: Logger,
-        current_block_height: u64,
-    ) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let known_recipients: Vec<PublicAddress> = Vec::new();
-        let ledger_db = get_test_ledger(
-            5,
-            &known_recipients,
-            current_block_height as usize,
-            &mut rng,
-        );
+//     fn get_test_service(
+//         logger: Logger,
+//         current_block_height: u64,
+//     ) -> WalletService<MockBlockchainConnection<LedgerDB>,
+// MockFogPubkeyResolver> {         let mut rng: StdRng =
+// SeedableRng::from_seed([20u8; 32]);         let known_recipients:
+// Vec<PublicAddress> = Vec::new();         let ledger_db = get_test_ledger(
+//             5,
+//             &known_recipients,
+//             current_block_height as usize,
+//             &mut rng,
+//         );
 
-        setup_wallet_service(ledger_db.clone(), logger.clone())
-    }
+//         setup_wallet_service(ledger_db.clone(), logger.clone())
+//     }
 
-    #[test_with_logger]
-    fn service_view_only_account_crud(logger: Logger) {
-        let current_block_height = 12;
-        let service = get_test_service(logger, current_block_height);
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+//     #[test_with_logger]
+//     fn service_view_only_account_crud(logger: Logger) {
+//         let current_block_height = 12;
+//         let service = get_test_service(logger, current_block_height);
+//         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
-        let view_private_key = RistrettoPrivate::from_random(&mut rng);
-        let account_id_hex = AccountID::from(&view_private_key).to_string();
-        let name = "coins for cats";
-        let first_block_index = 25;
+//         let view_private_key = RistrettoPrivate::from_random(&mut rng);
+//         let account_id_hex = AccountID::from(&view_private_key).to_string();
+//         let name = "coins for cats";
+//         let first_block_index = 25;
 
-        // test import
-        service
-            .import_view_only_account(view_private_key.clone(), &name, Some(first_block_index))
-            .unwrap();
+//         // test import
+//         service
+//             .import_view_only_account(view_private_key.clone(), &name,
+// Some(first_block_index))             .unwrap();
 
-        // test get
-        let expected_account = ViewOnlyAccount {
-            id: 1,
-            account_id_hex: account_id_hex.clone(),
-            view_private_key: ristretto_to_vec(&view_private_key),
-            first_block_index: first_block_index as i64,
-            next_block_index: first_block_index as i64,
-            import_block_index: (current_block_height - 1 + 1) as i64,
-            name: name.to_string(),
-        };
+//         // test get
+//         let expected_account = ViewOnlyAccount {
+//             id: 1,
+//             account_id_hex: account_id_hex.clone(),
+//             view_private_key: ristretto_to_vec(&view_private_key),
+//             first_block_index: first_block_index as i64,
+//             next_block_index: first_block_index as i64,
+//             import_block_index: (current_block_height - 1 + 1) as i64,
+//             name: name.to_string(),
+//         };
 
-        let gotten_account = service.get_view_only_account(&account_id_hex).unwrap();
+//         let gotten_account =
+// service.get_view_only_account(&account_id_hex).unwrap();
 
-        assert_eq!(gotten_account, expected_account);
+//         assert_eq!(gotten_account, expected_account);
 
-        // test update name
-        let new_name = "coinzzzz";
-        let updated = service
-            .update_view_only_account_name(&account_id_hex, new_name)
-            .unwrap();
-        assert_eq!(updated.name, new_name.to_string());
+//         // test update name
+//         let new_name = "coinzzzz";
+//         let updated = service
+//             .update_view_only_account_name(&account_id_hex, new_name)
+//             .unwrap();
+//         assert_eq!(updated.name, new_name.to_string());
 
-        // test list all
-        let view_private_key2 = RistrettoPrivate::from_random(&mut rng);
-        service
-            .import_view_only_account(view_private_key2, &name, Some(first_block_index))
-            .unwrap();
+//         // test list all
+//         let view_private_key2 = RistrettoPrivate::from_random(&mut rng);
+//         service
+//             .import_view_only_account(view_private_key2, &name,
+// Some(first_block_index))             .unwrap();
 
-        let all_accounts = service.list_view_only_accounts().unwrap();
-        assert_eq!(all_accounts.len(), 2);
+//         let all_accounts = service.list_view_only_accounts().unwrap();
+//         assert_eq!(all_accounts.len(), 2);
 
-        // test remove account
-        assert!(service.remove_view_only_account(&account_id_hex).unwrap());
-        let not_found = service.get_view_only_account(&account_id_hex);
-        assert!(not_found.is_err());
-    }
-}
+//         // test remove account
+//         assert!(service.remove_view_only_account(&account_id_hex).unwrap());
+//         let not_found = service.get_view_only_account(&account_id_hex);
+//         assert!(not_found.is_err());
+//     }
+// }
