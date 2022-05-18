@@ -689,17 +689,25 @@ class CommandLineInterface:
 
     def address_list(self, account_id):
         account = self._load_account_prefix(account_id)
-        addresses = self.client.get_addresses_for_account(account['account_id'], limit=1000)
-
         print()
         print(_format_account_header(account))
 
+        addresses = self.client.get_addresses_for_account(account['account_id'], limit=1000)
+        address_balances = []
         for address in addresses.values():
+            balance = self.client.get_balance_for_address(address['public_address'])
+            address_balances.append((address, balance))
+
+        view_addresses = self.client.get_addresses_for_view_only_account(account['account_id'], limit=1000)
+        for address in view_addresses.values():
+            balance = self.client.get_balance_for_view_only_address(address['public_address'])
+            address_balances.append((address, balance))
+
+        for (address, balance) in address_balances:
             print(indent(
                 '{} {}'.format(address['public_address'], address['metadata']),
                 ' '*2,
             ))
-            balance = self.client.get_balance_for_address(address['public_address'])
             print(indent(
                 _format_balance(balance),
                 ' '*4,

@@ -213,6 +213,10 @@ pub enum JsonCommandResponse {
         public_addresses: Vec<String>,
         address_map: Map<String, serde_json::Value>,
     },
+    get_addresses_for_view_only_account {
+        public_addresses: Vec<String>,
+        address_map: Map<String, serde_json::Value>,
+    },
     get_all_accounts {
         account_ids: Vec<String>,
         account_map: Map<String, serde_json::Value>,
@@ -242,6 +246,9 @@ pub enum JsonCommandResponse {
         balance: Balance,
     },
     get_balance_for_view_only_account {
+        balance: ViewOnlyBalance,
+    },
+    get_balance_for_view_only_address {
         balance: ViewOnlyBalance,
     },
     get_block {

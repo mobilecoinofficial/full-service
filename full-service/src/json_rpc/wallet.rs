@@ -570,6 +570,36 @@ where
                 address_map,
             }
         }
+        JsonCommandRequest::get_addresses_for_view_only_account {
+            account_id,
+            offset,
+            limit,
+        } => {
+            let (o, l) = page_helper(offset, limit)?;
+            let addresses = service
+                .get_addresses_for_view_only_account(&AccountID(account_id), Some(o), Some(l))
+                .map_err(format_error)?;
+            let address_map: Map<String, serde_json::Value> = Map::from_iter(
+                addresses
+                    .iter()
+                    .map(|a| {
+                        (
+                            a.public_address_b58.clone(),
+                            serde_json::to_value(&(Address::from(a)))
+                                .expect("Could not get json value"),
+                        )
+                    })
+                    .collect::<Vec<(String, serde_json::Value)>>(),
+            );
+
+            JsonCommandResponse::get_addresses_for_account {
+                public_addresses: addresses
+                    .iter()
+                    .map(|a| a.public_address_b58.clone())
+                    .collect(),
+                address_map,
+            }
+        }
         JsonCommandRequest::get_all_accounts => {
             let accounts = service.list_accounts().map_err(format_error)?;
             let json_accounts: Vec<(String, serde_json::Value)> = accounts
@@ -707,6 +737,15 @@ where
                 balance: ViewOnlyBalance::from(
                     &service
                         .get_balance_for_view_only_account(&account_id)
+                        .map_err(format_error)?,
+                ),
+            }
+        }
+        JsonCommandRequest::get_balance_for_view_only_address { address } => {
+            JsonCommandResponse::get_balance_for_view_only_address {
+                balance: ViewOnlyBalance::from(
+                    &service
+                        .get_balance_for_view_only_address(&address)
                         .map_err(format_error)?,
                 ),
             }

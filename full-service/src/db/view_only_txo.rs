@@ -3,10 +3,11 @@
 //! DB impl for the view-only Txo model.
 
 use crate::db::{
-    models::{NewViewOnlyTxo, ViewOnlyAccount, ViewOnlyTxo},
+    models::{NewViewOnlyTxo, ViewOnlyAccount, ViewOnlySubaddress, ViewOnlyTxo},
     schema,
     txo::TxoID,
     view_only_account::ViewOnlyAccountModel,
+    view_only_subaddress::ViewOnlySubaddressModel,
     Conn, WalletDbError,
 };
 use diesel::prelude::*;
@@ -38,6 +39,15 @@ pub trait ViewOnlyTxoModel {
         account_id_hex: &str,
         offset: Option<u64>,
         limit: Option<u64>,
+        conn: &Conn,
+    ) -> Result<Vec<ViewOnlyTxo>, WalletDbError>;
+
+    /// list view only txos for a view only address
+    ///
+    /// Returns:
+    /// * Vec<ViewOnlyTxo>
+    fn list_for_address(
+        assigned_subaddress_b58: &str,
         conn: &Conn,
     ) -> Result<Vec<ViewOnlyTxo>, WalletDbError>;
 
@@ -188,6 +198,19 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         };
 
         Ok(txos)
+    }
+
+    fn list_for_address(
+        assigned_subaddress_b58: &str,
+        conn: &Conn,
+    ) -> Result<Vec<ViewOnlyTxo>, WalletDbError> {
+        use schema::view_only_txos;
+        let subaddress = ViewOnlySubaddress::get(assigned_subaddress_b58, conn)?;
+        let results = view_only_txos::table
+            .filter(view_only_txos::subaddress_index.eq(subaddress.subaddress_index))
+            .filter(view_only_txos::view_only_account_id_hex.eq(subaddress.view_only_account_id_hex))
+            .load(conn)?;
+        Ok(results)
     }
 
     fn list_unspent_with_key_images(

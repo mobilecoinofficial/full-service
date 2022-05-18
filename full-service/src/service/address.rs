@@ -4,8 +4,12 @@
 
 use crate::{
     db::{
-        account::AccountID, assigned_subaddress::AssignedSubaddressModel,
-        models::AssignedSubaddress, transaction, WalletDbError,
+        account::AccountID,
+        assigned_subaddress::AssignedSubaddressModel,
+        models::{AssignedSubaddress, ViewOnlySubaddress},
+        transaction,
+        view_only_subaddress::ViewOnlySubaddressModel,
+        WalletDbError,
     },
     service::WalletService,
     util::b58::b58_decode_public_address,
@@ -50,6 +54,12 @@ pub trait AddressService {
         // FIXME: FS-32 - add "sync from block"
     ) -> Result<AssignedSubaddress, AddressServiceError>;
 
+    fn get_address_for_account(
+        &self,
+        account_id: &AccountID,
+        index: i64,
+    ) -> Result<AssignedSubaddress, AddressServiceError>;
+
     /// Gets all the addresses for the given account.
     fn get_addresses_for_account(
         &self,
@@ -58,11 +68,12 @@ pub trait AddressService {
         limit: Option<u64>,
     ) -> Result<Vec<AssignedSubaddress>, AddressServiceError>;
 
-    fn get_address_for_account(
+    fn get_addresses_for_view_only_account(
         &self,
         account_id: &AccountID,
-        index: i64,
-    ) -> Result<AssignedSubaddress, AddressServiceError>;
+        offset: Option<u64>,
+        limit: Option<u64>,
+    ) -> Result<Vec<ViewOnlySubaddress>, AddressServiceError>;
 
     /// Verifies whether an address can be decoded from b58.
     fn verify_address(&self, public_address: &str) -> Result<bool, AddressServiceError>;
@@ -91,6 +102,19 @@ where
         })
     }
 
+    fn get_address_for_account(
+        &self,
+        account_id: &AccountID,
+        index: i64,
+    ) -> Result<AssignedSubaddress, AddressServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+        Ok(AssignedSubaddress::get_for_account_by_index(
+            &account_id.to_string(),
+            index,
+            &conn,
+        )?)
+    }
+
     fn get_addresses_for_account(
         &self,
         account_id: &AccountID,
@@ -106,15 +130,17 @@ where
         )?)
     }
 
-    fn get_address_for_account(
+    fn get_addresses_for_view_only_account(
         &self,
         account_id: &AccountID,
-        index: i64,
-    ) -> Result<AssignedSubaddress, AddressServiceError> {
+        offset: Option<u64>,
+        limit: Option<u64>,
+    ) -> Result<Vec<ViewOnlySubaddress>, AddressServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        Ok(AssignedSubaddress::get_for_account_by_index(
+        Ok(ViewOnlySubaddress::list_all(
             &account_id.to_string(),
-            index,
+            offset,
+            limit,
             &conn,
         )?)
     }

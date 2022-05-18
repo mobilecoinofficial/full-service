@@ -174,6 +174,11 @@ pub enum JsonCommandRequest {
         offset: Option<String>,
         limit: Option<String>,
     },
+    get_addresses_for_view_only_account {
+        account_id: String,
+        offset: Option<String>,
+        limit: Option<String>,
+    },
     get_all_accounts,
     get_all_gift_codes,
     get_all_transaction_logs_for_block {
@@ -192,6 +197,9 @@ pub enum JsonCommandRequest {
     },
     get_balance_for_view_only_account {
         account_id: String,
+    },
+    get_balance_for_view_only_address {
+        address: String,
     },
     get_block {
         block_index: String,

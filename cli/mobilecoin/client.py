@@ -220,6 +220,15 @@ class Client:
         })
         return r['balance']
 
+    def get_balance_for_view_only_address(self, address):
+        r = self._req({
+            "method": "get_balance_for_view_only_address",
+            "params": {
+                "address": address,
+            }
+        })
+        return r['balance']
+
     def assign_address_for_account(self, account_id, metadata=None):
         if metadata is None:
             metadata = ''
@@ -244,6 +253,25 @@ class Client:
         })
         return r['address_map']
 
+    def get_addresses_for_view_only_account(self, account_id, offset=0, limit=100):
+        r = self._req({
+            "method": "get_addresses_for_view_only_account",
+            "params": {
+                "account_id": account_id,
+                "offset": str(int(offset)),
+                "limit": str(int(limit)),
+            },
+        })
+        return r['address_map']
+
+    def build_and_submit_transaction(self, account_id, amount, to_address, fee=None):
+        r = self._build_and_submit_transaction(account_id, amount, to_address, fee)
+        return r['transaction_log']
+
+    def build_and_submit_transaction_with_proposal(self, account_id, amount, to_address, fee=None):
+        r = self._build_and_submit_transaction(account_id, amount, to_address, fee)
+        return r['transaction_log'], r['tx_proposal']
+
     def _build_and_submit_transaction(self, account_id, amount, to_address, fee):
         amount = str(mob2pmob(amount))
         params = {
@@ -257,14 +285,6 @@ class Client:
             "params": params,
         })
         return r
-
-    def build_and_submit_transaction(self, account_id, amount, to_address, fee=None):
-        r = self._build_and_submit_transaction(account_id, amount, to_address, fee)
-        return r['transaction_log']
-
-    def build_and_submit_transaction_with_proposal(self, account_id, amount, to_address, fee=None):
-        r = self._build_and_submit_transaction(account_id, amount, to_address, fee)
-        return r['transaction_log'], r['tx_proposal']
 
     def build_transaction(self, account_id, amount, to_address, tombstone_block=None, fee=None):
         amount = str(mob2pmob(amount))
