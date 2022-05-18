@@ -103,6 +103,12 @@ pub trait ViewOnlyTxoModel {
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
+    fn release_txos_with_expired_pending_tombstone_block_index(
+        account_id_hex: &str,
+        block_index: u64,
+        conn: &Conn,
+    ) -> Result<(), WalletDbError>;
+
     /// delete all view only txos for a view-only account
     fn delete_all_for_account(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError>;
 }
@@ -240,9 +246,9 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
 
         let mut spendable_txos: Vec<ViewOnlyTxo> = view_only_txos::table
             .filter(view_only_txos::view_only_account_id_hex.eq(account_id_hex))
-            .filter(view_only_txos::key_image.is_not_null())
             .filter(view_only_txos::subaddress_index.is_not_null())
             .filter(view_only_txos::received_block_index.is_not_null())
+            .filter(view_only_txos::pending_tombstone_block_index.is_null())
             .filter(view_only_txos::spent_block_index.is_null())
             .order_by(view_only_txos::value.desc())
             .load(conn)?;
@@ -405,6 +411,33 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         }
 
         Ok(txouts)
+    }
+
+    fn release_txos_with_expired_pending_tombstone_block_index(
+        account_id_hex: &str,
+        block_index: u64,
+        conn: &Conn,
+    ) -> Result<(), WalletDbError> {
+        use schema::view_only_txos::dsl::{
+            pending_tombstone_block_index as dsl_pending_tombstone_block_index,
+            spent_block_index as dsl_spent_block_index,
+            submitted_block_index as dsl_submitted_block_index,
+            view_only_account_id_hex as dsl_account_id,
+        };
+
+        diesel::update(
+            schema::view_only_txos::table
+                .filter(dsl_account_id.eq(account_id_hex))
+                .filter(dsl_pending_tombstone_block_index.le(block_index as i64))
+                .filter(dsl_spent_block_index.is_null()),
+        )
+        .set((
+            dsl_pending_tombstone_block_index.eq::<Option<i64>>(None),
+            dsl_submitted_block_index.eq::<Option<i64>>(None),
+        ))
+        .execute(conn)?;
+
+        Ok(())
     }
 
     fn delete_all_for_account(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError> {

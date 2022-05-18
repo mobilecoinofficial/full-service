@@ -271,6 +271,12 @@ fn sync_view_only_account_next_chunk(
             ViewOnlyTxo::update_spent_block_index(txo_id_hex, *block_index, conn)?;
         }
 
+        ViewOnlyTxo::release_txos_with_expired_pending_tombstone_block_index(
+            account_id_hex,
+            end_block_index,
+            conn,
+        )?;
+
         // Done syncing this chunk. Mark these blocks as synced for this account.
         view_only_account.update_next_block_index(end_block_index + 1, conn)?;
         let num_blocks_synced = end_block_index - start_block_index + 1;
