@@ -22,6 +22,7 @@ CREATE TABLE view_only_txos (
   view_only_account_id_hex TEXT NOT NULL,
   public_key BLOB NOT NULL,
   subaddress_index INTEGER,
+  key_image BLOB,
   submitted_block_index INTEGER,
   pending_tombstone_block_index INTEGER,
   received_block_index INTEGER,
