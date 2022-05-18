@@ -116,18 +116,10 @@ class Client:
         })
         return r['account']
 
-    def import_view_only_account(self, view_private_key, name=None, first_block_index=None):
-        params = {
-            "view_private_key": view_private_key,
-        }
-        if name is not None:
-            params['name'] = name
-        if first_block_index is not None:
-            params['first_block_index'] = str(int(first_block_index))
-
+    def import_view_only_account(self, package):
         r = self._req({
             "method": "import_view_only_account",
-            "params": params
+            "params": {"package": package},
         })
         return r['view_only_account']
 

@@ -320,22 +320,54 @@ class CommandLineInterface:
         print()
 
     def import_(self, backup, name=None, block=None, key_derivation_version=2):
-        data = _load_import(backup)
+        account = None
+        if backup.endswith('.json'):
+            with open(backup) as f:
+                data = json.load(f)
 
-        if name is not None:
-            data['name'] = name
-        if block is not None:
-            data['first_block_index'] = block
+            if data['object'] == 'account_secrets':
+                params = {}
+                for field in [
+                    'mnemonic',  # Key derivation version 2+.
+                    'entropy',  # Key derivation version 1.
+                    'name',
+                    'first_block_index',
+                    'next_subaddress_index',
+                ]:
+                    value = data.get(field)
+                    if value is not None:
+                        params[field] = value
+                if 'account_key' in data:
+                    params['fog_keys'] = {}
+                    for field in [
+                        'fog_report_url',
+                        'fog_report_id',
+                        'fog_authority_spki',
+                    ]:
+                        params['fog_keys'][field] = data['account_key'][field]
+                account = self.client.import_account(**params)
 
-        if 'mnemonic' in data:
-            data['key_derivation_version'] = key_derivation_version
-            account = self.client.import_account(**data)
-        elif 'legacy_root_entropy' in data:
-            account = self.client.import_account_from_legacy_root_entropy(**data)
-        elif 'view_private_key' in data:
-            account = self.client.import_view_only_account(**data)
+            elif data['object'] == 'view_only_account_import_package':
+                account = self.client.import_view_only_account(data)
+
         else:
-            raise ValueError('Could not import account from {}'.format(backup))
+            # Try to use the legacy import system, treating the string as hexadecimal root entropy.
+            root_entropy = None
+            try:
+                b = bytes.fromhex(backup)
+            except ValueError:
+                pass
+            if len(b) == 32:
+                root_entropy = b.hex()
+            if root_entropy is not None:
+                account = self.client.import_account_from_legacy_root_entropy(root_entropy)
+            else:
+                # Lastly, assume that this is just a mnemonic phrase written to the command line.
+                account = self.client.import_account(backup)
+
+        if account is None:
+            print('Could not import account.')
+            return
 
         print('Imported account.')
         print()
@@ -904,59 +936,6 @@ def _print_txo(txo, received=False):
             ))
     else:
         print('    to unknown address')
-
-
-def _load_import(backup):
-    # Try to load it as a file.
-    try:
-        return _load_import_file(backup)
-    except FileNotFoundError:
-        if backup.endswith('.json'):
-            raise
-
-    # Try to use the legacy import system, treating the string as hexadecimal root entropy.
-    try:
-        b = bytes.fromhex(backup)
-        if len(b) == 32:
-            return {'legacy_root_entropy': b.hex()}
-    except ValueError:
-        pass
-
-    # Lastly, assume that this is just a mnemonic phrase written to the command line.
-    return {'mnemonic': backup}
-
-
-def _load_import_file(filename):
-    result = {}
-
-    with open(filename) as f:
-        data = json.load(f)
-
-    for field in [
-        'mnemonic',  # Key derivation version 2+.
-        'key_derivation_version',
-        'legacy_root_entropy',  # Key derivation version 1.
-        'name',
-        'first_block_index',
-        'next_subaddress_index',
-        'view_private_key',
-    ]:
-        value = data.get(field)
-        if value is not None:
-            result[field] = value
-
-    if 'account_key' in data:
-        result['fog_keys'] = {}
-        for field in [
-            'fog_report_url',
-            'fog_report_id',
-            'fog_authority_spki',
-        ]:
-            value = data['account_key'].get(field)
-            if value is not None:
-                result['fog_keys'][field] = value
-
-    return result
 
 
 def _save_export(account, secrets, filename):

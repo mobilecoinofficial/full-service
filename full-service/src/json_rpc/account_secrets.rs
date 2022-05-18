@@ -24,6 +24,7 @@ pub struct AccountSecrets {
 
     /// The entropy from which this account key was derived, as a String
     /// (version 1)
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub entropy: Option<String>,
 
     /// The mnemonic from which this account key was derived, as a String
