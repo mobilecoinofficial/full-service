@@ -20,6 +20,7 @@ use mc_fog_report_validation::FogPubkeyResolver;
 /// view-only accounts.
 pub trait ViewOnlyAccountService {
     /// Import an existing view-only-account to the wallet using the mnemonic.
+    #[allow(clippy::too_many_arguments)]
     fn import_view_only_account(
         &self,
         account_id_hex: &str,
@@ -74,7 +75,7 @@ where
     ) -> Result<ViewOnlyAccount, AccountServiceError> {
         let conn = &self.wallet_db.get_conn()?;
 
-        transaction(&conn, || {
+        transaction(conn, || {
             let view_only_account = ViewOnlyAccount::create(
                 account_id_hex,
                 view_private_key,
@@ -111,7 +112,7 @@ where
     ) -> Result<Vec<String>, AccountServiceError> {
         let conn = &self.wallet_db.get_conn()?;
 
-        transaction(&conn, || {
+        transaction(conn, || {
             let account = ViewOnlyAccount::get(account_id_hex, conn)?;
 
             for (public_address_b58, subaddress_index, comment, public_spend_key) in

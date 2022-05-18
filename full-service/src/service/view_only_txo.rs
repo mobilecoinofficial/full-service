@@ -60,11 +60,7 @@ where
 
         transaction(&conn, || {
             for (txo_id, key_image) in txo_ids_and_key_images {
-                ViewOnlyTxo::update_key_image(
-                    &txo_id,
-                    &key_image,
-                    &conn,
-                )?;
+                ViewOnlyTxo::update_key_image(&txo_id, &key_image, &conn)?;
 
                 if let Some(block_index) = match self.ledger_db.check_key_image(&key_image) {
                     Ok(block_index) => block_index,

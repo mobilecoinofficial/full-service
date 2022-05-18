@@ -364,7 +364,7 @@ where
             let account_id = AccountID(account_id_hex.to_string());
 
             transaction(&conn, || {
-                if let Ok(_) = Account::get(&account_id, &conn) {
+                if Account::get(&account_id, &conn).is_ok() {
                     let transaction_log = TransactionLog::log_submitted(
                         tx_proposal,
                         block_index,
@@ -376,7 +376,7 @@ where
                     let associated_txos = transaction_log.get_associated_txos(&conn)?;
 
                     Ok(Some((transaction_log, associated_txos)))
-                } else if let Ok(_) = ViewOnlyAccount::get(&account_id_hex, &conn) {
+                } else if ViewOnlyAccount::get(&account_id_hex, &conn).is_ok() {
                     for utxo in tx_proposal.utxos {
                         let txo_id = TxoID::from(&utxo.tx_out);
                         ViewOnlyTxo::update_for_pending_transaction(

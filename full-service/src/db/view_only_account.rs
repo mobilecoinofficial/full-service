@@ -18,7 +18,8 @@ use mc_crypto_keys::RistrettoPrivate;
 use std::str;
 
 pub trait ViewOnlyAccountModel {
-    // insert new view-only-account in the db
+    // insert new view-only-account in the db\
+    #[allow(clippy::too_many_arguments)]
     fn create(
         account_id_hex: &str,
         view_private_key: &RistrettoPrivate,

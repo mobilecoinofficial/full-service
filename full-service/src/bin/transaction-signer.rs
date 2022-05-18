@@ -33,7 +33,7 @@ fn main() {
 
     match opts {
         Opts::Create { ref name } => {
-            create_account(name.clone().unwrap_or("".into()));
+            create_account(name.clone().unwrap_or_else(|| "".into()));
         }
     }
 }
