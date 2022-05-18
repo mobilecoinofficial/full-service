@@ -4,9 +4,13 @@
 
 use crate::{
     db::{
-        models::TransactionLog,
+        account::{AccountID, AccountModel},
+        models::{Account, TransactionLog, ViewOnlyAccount, ViewOnlyTxo},
         transaction,
         transaction_log::{AssociatedTxos, TransactionLogModel},
+        txo::TxoID,
+        view_only_account::ViewOnlyAccountModel,
+        view_only_txo::ViewOnlyTxoModel,
         WalletDbError,
     },
     error::WalletTransactionBuilderError,
@@ -348,24 +352,6 @@ where
             .propose_tx(&tx, empty())
             .map_err(TransactionServiceError::from)?;
 
-        // Log the transaction.
-        let result = if let Some(a) = account_id_hex {
-            let conn = self.wallet_db.get_conn()?;
-            transaction(&conn, || {
-                let transaction_log = TransactionLog::log_submitted(
-                    tx_proposal,
-                    block_index,
-                    comment.unwrap_or_else(|| "".to_string()),
-                    &a,
-                    &conn,
-                )?;
-                let associated_txos = transaction_log.get_associated_txos(&conn)?;
-                Ok(Some((transaction_log, associated_txos)))
-            })
-        } else {
-            Ok(None)
-        };
-
         log::trace!(
             self.logger,
             "Tx {:?} submitted at block height {}",
@@ -373,7 +359,45 @@ where
             block_index
         );
 
-        result
+        if let Some(account_id_hex) = account_id_hex {
+            let conn = self.wallet_db.get_conn()?;
+            let account_id = AccountID(account_id_hex.to_string());
+
+            transaction(&conn, || {
+                if let Ok(_) = Account::get(&account_id, &conn) {
+                    let transaction_log = TransactionLog::log_submitted(
+                        tx_proposal,
+                        block_index,
+                        comment.unwrap_or_else(|| "".to_string()),
+                        &account_id_hex,
+                        &conn,
+                    )?;
+
+                    let associated_txos = transaction_log.get_associated_txos(&conn)?;
+
+                    Ok(Some((transaction_log, associated_txos)))
+                } else if let Ok(_) = ViewOnlyAccount::get(&account_id_hex, &conn) {
+                    for utxo in tx_proposal.utxos {
+                        let txo_id = TxoID::from(&utxo.tx_out);
+                        ViewOnlyTxo::update_for_pending_transaction(
+                            &txo_id.to_string(),
+                            utxo.subaddress_index,
+                            &utxo.key_image,
+                            block_index,
+                            tx_proposal.tx.prefix.tombstone_block,
+                            &conn,
+                        )?;
+                    }
+                    Ok(None)
+                } else {
+                    Err(TransactionServiceError::Database(
+                        WalletDbError::AccountNotFound(account_id_hex),
+                    ))
+                }
+            })
+        } else {
+            Ok(None)
+        }
     }
 
     fn build_and_submit(

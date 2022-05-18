@@ -4,7 +4,6 @@
 
 use crate::{
     db::{
-        account::AccountID,
         models::{ViewOnlyAccount, ViewOnlySubaddress},
         transaction,
         view_only_account::ViewOnlyAccountModel,
@@ -113,9 +112,7 @@ where
         let conn = &self.wallet_db.get_conn()?;
 
         transaction(&conn, || {
-            let account_id = AccountID(account_id_hex.to_string());
-
-            let account = ViewOnlyAccount::get(&account_id.to_string(), conn)?;
+            let account = ViewOnlyAccount::get(account_id_hex, conn)?;
 
             for (public_address_b58, subaddress_index, comment, public_spend_key) in
                 subaddresses.iter()

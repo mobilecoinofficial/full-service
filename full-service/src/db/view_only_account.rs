@@ -103,7 +103,7 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
         };
 
         match view_only_accounts
-            .filter((dsl_account_id).eq(&account_id))
+            .filter((dsl_account_id).eq(account_id.to_string()))
             .get_result::<ViewOnlyAccount>(conn)
         {
             Ok(a) => Ok(a),

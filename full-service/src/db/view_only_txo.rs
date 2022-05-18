@@ -94,6 +94,15 @@ pub trait ViewOnlyTxoModel {
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
+    fn update_for_pending_transaction(
+        txo_id_hex: &str,
+        subaddress_index: u64,
+        key_image: &KeyImage,
+        submitted_block_index: u64,
+        pending_tombstone_block_index: u64,
+        conn: &Conn,
+    ) -> Result<(), WalletDbError>;
+
     /// delete all view only txos for a view-only account
     fn delete_all_for_account(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError>;
 }
@@ -340,6 +349,35 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
             view_only_txos::table.filter(view_only_txos::txo_id_hex.eq(&self.txo_id_hex)),
         )
         .set((view_only_txos::subaddress_index.eq(subaddress_index as i64),))
+        .execute(conn)?;
+
+        Ok(())
+    }
+
+    fn update_for_pending_transaction(
+        txo_id_hex: &str,
+        subaddress_index: u64,
+        key_image: &KeyImage,
+        submitted_block_index: u64,
+        pending_tombstone_block_index: u64,
+        conn: &Conn,
+    ) -> Result<(), WalletDbError> {
+        use schema::view_only_txos::dsl::{
+            key_image as dsl_key_image,
+            pending_tombstone_block_index as dsl_pending_tombstone_block_index,
+            subaddress_index as dsl_subaddress_index,
+            submitted_block_index as dsl_submitted_block_index, txo_id_hex as dsl_txo_id_hex,
+        };
+
+        diesel::update(
+            schema::view_only_txos::table.filter(dsl_txo_id_hex.eq(txo_id_hex.to_string())),
+        )
+        .set((
+            dsl_subaddress_index.eq(subaddress_index as i64),
+            dsl_key_image.eq(mc_util_serial::encode(key_image)),
+            dsl_submitted_block_index.eq(submitted_block_index as i64),
+            dsl_pending_tombstone_block_index.eq(pending_tombstone_block_index as i64),
+        ))
         .execute(conn)?;
 
         Ok(())
