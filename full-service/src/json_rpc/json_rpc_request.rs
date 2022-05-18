@@ -283,6 +283,7 @@ pub enum JsonCommandRequest {
         signed_tx_file: String,
     },
     sync_view_only_account {
+        account_id: String,
         completed_txos: Vec<(String, String)>,
         subaddresses: ViewOnlySubaddressesJSON,
     },

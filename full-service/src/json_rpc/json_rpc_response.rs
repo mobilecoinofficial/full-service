@@ -180,6 +180,7 @@ pub enum JsonCommandResponse {
         receiver_receipts: Vec<ReceiverReceipt>,
     },
     create_view_only_account_sync_request {
+        account_id: String,
         incomplete_txos_encoded: Vec<String>,
     },
     export_account_secrets {

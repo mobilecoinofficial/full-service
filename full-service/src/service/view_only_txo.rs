@@ -3,7 +3,7 @@
 //! Service for managing view-only Txos.
 
 use crate::{
-    db::{models::ViewOnlyTxo, transaction, txo::TxoID, view_only_txo::ViewOnlyTxoModel},
+    db::{models::ViewOnlyTxo, transaction, view_only_txo::ViewOnlyTxoModel},
     service::txo::TxoServiceError,
     WalletService,
 };
@@ -26,8 +26,8 @@ pub trait ViewOnlyTxoService {
     /// update the key image for a list of txos
     fn set_view_only_txos_key_images(
         &self,
-        txos_with_key_images: Vec<(TxOut, KeyImage)>,
-    ) -> Result<bool, TxoServiceError>;
+        txo_ids_and_key_images: Vec<(String, KeyImage)>,
+    ) -> Result<(), TxoServiceError>;
 
     fn list_incomplete_view_only_txos(
         &self,
@@ -54,14 +54,17 @@ where
 
     fn set_view_only_txos_key_images(
         &self,
-        txos_with_key_images: Vec<(TxOut, KeyImage)>,
-    ) -> Result<bool, TxoServiceError> {
+        txo_ids_and_key_images: Vec<(String, KeyImage)>,
+    ) -> Result<(), TxoServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
         transaction(&conn, || {
-            for (txo, key_image) in txos_with_key_images {
-                let txo_id = TxoID::from(&txo);
-                ViewOnlyTxo::update_key_image(&txo_id.to_string(), &key_image, &conn)?;
+            for (txo_id, key_image) in txo_ids_and_key_images {
+                ViewOnlyTxo::update_key_image(
+                    &txo_id,
+                    &key_image,
+                    &conn,
+                )?;
 
                 if let Some(block_index) = match self.ledger_db.check_key_image(&key_image) {
                     Ok(block_index) => block_index,
@@ -70,7 +73,8 @@ where
                     ViewOnlyTxo::update_spent_block_index(&txo_id.to_string(), block_index, &conn)?;
                 }
             }
-            Ok(true)
+
+            Ok(())
         })
     }
 

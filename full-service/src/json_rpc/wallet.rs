@@ -54,6 +54,7 @@ use mc_connection::{
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_fog_report_validation::{FogPubkeyResolver, FogResolver};
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
+use mc_transaction_core::ring_signature::KeyImage;
 use mc_validator_connection::ValidatorConnection;
 use rocket::{
     self, get, http::Status, outcome::Outcome, post, request::FromRequest, routes, Request, State,
@@ -453,6 +454,7 @@ where
                 .collect();
 
             JsonCommandResponse::create_view_only_account_sync_request {
+                account_id,
                 incomplete_txos_encoded,
             }
         }
@@ -1096,6 +1098,7 @@ where
             JsonCommandResponse::submit_transaction_serialized
         }
         JsonCommandRequest::sync_view_only_account {
+            account_id,
             completed_txos,
             subaddresses,
         } => {
@@ -1108,6 +1111,32 @@ where
                     Ok((txo_id.clone(), key_image))
                 })
                 .collect::<Result<Vec<_>, _>>()?;
+
+            service
+                .set_view_only_txos_key_images(txo_ids_and_key_images)
+                .map_err(format_error)?;
+
+            let subaddresses_decoded = subaddresses
+                .iter()
+                .map(|s| {
+                    let public_spend_key_bytes =
+                        hex::decode(&s.public_spend_key).map_err(format_error)?;
+                    let decoded_public_spend_key =
+                        mc_util_serial::decode(&public_spend_key_bytes).map_err(format_error)?;
+                    let subaddress_index =
+                        s.subaddress_index.parse::<u64>().map_err(format_error)?;
+                    Ok((
+                        s.public_address.clone(),
+                        subaddress_index,
+                        s.comment.clone(),
+                        decoded_public_spend_key,
+                    ))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            service
+                .import_subaddresses(&account_id, subaddresses_decoded)
+                .map_err(format_error)?;
 
             JsonCommandResponse::sync_view_only_account
         }
