@@ -126,10 +126,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        test_utils::{get_test_ledger, setup_wallet_service},
-        util::encoding_helpers::ristretto_to_vec,
-    };
+    use crate::test_utils::{get_test_ledger, setup_wallet_service};
     use mc_account_keys::PublicAddress;
     use mc_common::logger::{test_with_logger, Logger};
     use mc_connection_test_utils::MockBlockchainConnection;
@@ -175,7 +172,7 @@ mod tests {
         let expected_account = ViewOnlyAccount {
             id: 1,
             account_id_hex: account_id_hex.clone(),
-            view_private_key: ristretto_to_vec(&view_private_key),
+            view_private_key: view_private_key.to_bytes().to_vec(),
             first_block_index: first_block_index as i64,
             next_block_index: first_block_index as i64,
             import_block_index: (current_block_height - 1 + 1) as i64,

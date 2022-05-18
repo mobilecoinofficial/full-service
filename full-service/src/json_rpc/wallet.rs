@@ -41,18 +41,16 @@ use crate::{
         view_only_txo::ViewOnlyTxoService,
         WalletService,
     },
-    util::{
-        b58::{
-            b58_decode_payment_request, b58_encode_public_address, b58_printable_wrapper_type,
-            PrintableWrapperType,
-        },
-        encoding_helpers::hex_to_ristretto,
+    util::b58::{
+        b58_decode_payment_request, b58_encode_public_address, b58_printable_wrapper_type,
+        PrintableWrapperType,
     },
 };
 use mc_common::logger::global_log;
 use mc_connection::{
     BlockchainConnection, HardcodedCredentialsProvider, ThickClient, UserTxConnection,
 };
+use mc_crypto_keys::RistrettoPrivate;
 use mc_fog_report_validation::{FogPubkeyResolver, FogResolver};
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use mc_validator_connection::ValidatorConnection;
@@ -903,7 +901,10 @@ where
 
             let n = name.unwrap_or_default();
 
-            let decoded_key = hex_to_ristretto(&view_private_key).map_err(format_error)?;
+            let decoded_key: RistrettoPrivate = RistrettoPrivate::try_from(
+                &hex::decode(&view_private_key).map_err(format_error)?[..],
+            )
+            .map_err(format_error)?;
 
             JsonCommandResponse::import_view_only_account {
                 view_only_account: json_rpc::view_only_account::ViewOnlyAccount::try_from(

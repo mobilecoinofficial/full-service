@@ -2,14 +2,11 @@
 
 //! DB impl for the View Only Account model.
 
-use crate::{
-    db::{
-        models::{NewViewOnlyAccount, ViewOnlyAccount, ViewOnlyTxo},
-        schema,
-        view_only_txo::ViewOnlyTxoModel,
-        Conn, WalletDbError,
-    },
-    util::encoding_helpers::{ristretto_to_vec, vec_to_hex},
+use crate::db::{
+    models::{NewViewOnlyAccount, ViewOnlyAccount, ViewOnlyTxo},
+    schema,
+    view_only_txo::ViewOnlyTxoModel,
+    Conn, WalletDbError,
 };
 use diesel::prelude::*;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
@@ -25,7 +22,7 @@ impl From<&RistrettoPrivate> for ViewOnlyAccountID {
         let temp: Vec<u8> = view_public_key
             .digest32::<MerlinTranscript>(b"view_account_data")
             .to_vec();
-        Self(vec_to_hex(&temp))
+        Self(hex::encode(&temp))
     }
 }
 
@@ -83,11 +80,9 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
     ) -> Result<ViewOnlyAccount, WalletDbError> {
         use schema::view_only_accounts;
 
-        let encoded_key = ristretto_to_vec(view_private_key);
-
         let new_view_only_account = NewViewOnlyAccount {
             account_id_hex,
-            view_private_key: &encoded_key,
+            view_private_key: &view_private_key.to_bytes(),
             first_block_index: first_block_index as i64,
             // Next block index will always be the same as first block index when importing
             // an account.
@@ -196,7 +191,7 @@ mod tests {
         let expected_account = ViewOnlyAccount {
             id: 1,
             account_id_hex: account_id_hex.to_string(),
-            view_private_key: ristretto_to_vec(&view_private_key),
+            view_private_key: view_private_key.to_bytes().to_vec(),
             first_block_index: first_block_index as i64,
             next_block_index: first_block_index as i64,
             import_block_index: import_block_index as i64,

@@ -2,7 +2,7 @@
 
 //! API definition for the View Only Account object.
 
-use crate::{db, util::encoding_helpers::vec_to_hex};
+use crate::db;
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
@@ -59,7 +59,7 @@ impl TryFrom<&db::models::ViewOnlyAccount> for ViewOnlyAccountSecrets {
         Ok(ViewOnlyAccountSecrets {
             object: "view_only_account_secrets".to_string(),
             account_id: src.account_id_hex.clone(),
-            view_private_key: vec_to_hex(&src.view_private_key),
+            view_private_key: hex::encode(&src.view_private_key),
         })
     }
 }

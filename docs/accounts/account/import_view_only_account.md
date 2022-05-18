@@ -8,7 +8,7 @@ description: Create a view-only account by importing the private key from an exi
 
 | :--- | :--- | :--- |
 | Required Param | Purpose | Requirements |
-| `view-private-key` | The view private key for an existing account | |
+| `view-private-key` | The view private key for an existing account. Hex encoded RistrettoPrivate | |
 
 | Optional Param | Purpose | Requirements |
 | :--- | :--- | :--- |
