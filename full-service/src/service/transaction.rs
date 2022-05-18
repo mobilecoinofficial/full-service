@@ -221,7 +221,7 @@ where
             builder.set_fee(self.get_network_fee())?;
 
             let unsigned_tx = builder.build_unsigned(&conn)?;
-            let fog_resolver = builder.get_fs_fog_resolver();
+            let fog_resolver = builder.get_fs_fog_resolver(&conn)?;
 
             Ok((unsigned_tx, fog_resolver))
         })

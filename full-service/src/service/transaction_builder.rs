@@ -11,8 +11,9 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        models::{Account, Txo, ViewOnlyTxo},
+        models::{Account, Txo, ViewOnlyAccount, ViewOnlyTxo},
         txo::TxoModel,
+        view_only_account::ViewOnlyAccountModel,
         view_only_txo::ViewOnlyTxoModel,
         Conn,
     },
@@ -237,18 +238,21 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         Ok(())
     }
 
-    pub fn get_fs_fog_resolver(&self) -> FullServiceFogResolver {
+    pub fn get_fs_fog_resolver(
+        &self,
+        conn: &Conn,
+    ) -> Result<FullServiceFogResolver, WalletTransactionBuilderError> {
+        let account = ViewOnlyAccount::get(&self.account_id_hex, conn)?;
+        let change_public_address: PublicAddress = account.change_public_address(conn)?;
+
         let fog_resolver = {
-            let fog_uris = self
-                .outlays
+            let fog_uris = core::slice::from_ref(&change_public_address)
                 .iter()
-                .map(|(receiver, _amount)| receiver)
+                .chain(self.outlays.iter().map(|(receiver, _amount)| receiver))
                 .filter_map(|x| extract_fog_uri(x).transpose())
-                .collect::<Result<Vec<_>, _>>()
-                .unwrap();
+                .collect::<Result<Vec<_>, _>>()?;
             (self.fog_resolver_factory)(&fog_uris)
-                .map_err(WalletTransactionBuilderError::FogPubkeyResolver)
-                .unwrap()
+                .map_err(WalletTransactionBuilderError::FogPubkeyResolver)?
         };
 
         let mut fully_validated_fog_pubkeys: HashMap<String, FullServiceFullyValidatedFogPubkey> =
@@ -262,12 +266,12 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
 
             if let Some(fog_pubkey) = fog_pubkey {
                 let fs_fog_pubkey = FullServiceFullyValidatedFogPubkey::from(fog_pubkey);
-                let b58_public_address = b58_encode_public_address(public_address).unwrap();
+                let b58_public_address = b58_encode_public_address(public_address)?;
                 fully_validated_fog_pubkeys.insert(b58_public_address, fs_fog_pubkey);
             }
         }
 
-        FullServiceFogResolver(fully_validated_fog_pubkeys)
+        Ok(FullServiceFogResolver(fully_validated_fog_pubkeys))
     }
 
     pub fn build_unsigned(&self, conn: &Conn) -> Result<UnsignedTx, WalletTransactionBuilderError> {

@@ -10,9 +10,10 @@ use crate::{
         view_only_txo::ViewOnlyTxoModel,
         Conn, WalletDbError,
     },
-    util::encoding_helpers::ristretto_to_vec,
+    util::{b58::b58_decode_public_address, encoding_helpers::ristretto_to_vec},
 };
 use diesel::prelude::*;
+use mc_account_keys::PublicAddress;
 use mc_crypto_keys::RistrettoPrivate;
 use std::str;
 
@@ -57,6 +58,8 @@ pub trait ViewOnlyAccountModel {
         next_subaddress_index: u64,
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
+
+    fn change_public_address(&self, conn: &Conn) -> Result<PublicAddress, WalletDbError>;
 
     /// Delete a view-only-account.
     fn delete(self, conn: &Conn) -> Result<(), WalletDbError>;
@@ -164,6 +167,20 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
         .execute(conn)?;
 
         Ok(())
+    }
+
+    fn change_public_address(&self, conn: &Conn) -> Result<PublicAddress, WalletDbError> {
+        use crate::db::schema::view_only_subaddresses;
+
+        let change_subaddress = view_only_subaddresses::table
+            .filter(view_only_subaddresses::view_only_account_id_hex.eq(&self.account_id_hex))
+            .filter(view_only_subaddresses::subaddress_index.eq(self.change_subaddress_index))
+            .first::<ViewOnlySubaddress>(conn)?;
+
+        let change_public_address =
+            b58_decode_public_address(&change_subaddress.public_address_b58)?;
+
+        Ok(change_public_address)
     }
 
     fn delete(self, conn: &Conn) -> Result<(), WalletDbError> {
