@@ -4,7 +4,8 @@
 
 use crate::{
     db::{
-        models::{NewViewOnlyAccount, ViewOnlyAccount, ViewOnlySubaddress, ViewOnlyTxo},
+        account::{AccountID, AccountModel},
+        models::{Account, NewViewOnlyAccount, ViewOnlyAccount, ViewOnlySubaddress, ViewOnlyTxo},
         schema,
         view_only_subaddress::ViewOnlySubaddressModel,
         view_only_txo::ViewOnlyTxoModel,
@@ -79,6 +80,12 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
         conn: &Conn,
     ) -> Result<ViewOnlyAccount, WalletDbError> {
         use schema::view_only_accounts;
+
+        if Account::get(&AccountID(account_id_hex.to_string()), conn).is_ok() {
+            return Err(WalletDbError::ViewOnlyAccountAlreadyExists(
+                account_id_hex.to_string(),
+            ));
+        }
 
         let encoded_key = ristretto_to_vec(view_private_key);
 

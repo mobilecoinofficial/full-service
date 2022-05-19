@@ -155,18 +155,24 @@ fn sync_txos(secret_mnemonic: &String, sync_request: &String) {
     let account_secrets: AccountSecrets = serde_json::from_str(&mnemonic_json).unwrap();
     dbg!(&account_secrets);
 
-    let sync_request_json = fs::read_to_string(sync_request).expect("Could not open sync request file.");
-    let sync_request: serde_json::Value = serde_json::from_str(&sync_request_json).expect("malformed sync request");
+    let sync_request_json =
+        fs::read_to_string(sync_request).expect("Could not open sync request file.");
+    let sync_request: serde_json::Value =
+        serde_json::from_str(&sync_request_json).expect("malformed sync request");
     dbg!(&sync_request);
-    assert_eq!(account_secrets.account_id, sync_request.get("account_id").unwrap().as_str().unwrap());
+    assert_eq!(
+        account_secrets.account_id,
+        sync_request.get("account_id").unwrap().as_str().unwrap()
+    );
 
-    let input_txos = sync_request.get("
+    // let input_txos = sync_request.get("
 
-    // let input_txos_serialized: Vec<Vec<u8>> = serde_json::from_str(&input_txos_json).unwrap();
-    // let input_txos: Vec<TxOut> = input_txos_serialized.iter()
+    // let input_txos_serialized: Vec<Vec<u8>> =
+    // serde_json::from_str(&input_txos_json).unwrap(); let input_txos:
+    // Vec<TxOut> = input_txos_serialized.iter()
     //     .map(|tx_out_serialized| {
-    //         let tx_out: TxOut = mc_util_serial::decode(tx_out_serialized).unwrap();
-    //         tx_out
+    //         let tx_out: TxOut =
+    // mc_util_serial::decode(tx_out_serialized).unwrap();         tx_out
     //     })
     //     .collect();
 

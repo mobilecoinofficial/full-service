@@ -6,6 +6,12 @@ use displaydoc::Display;
 
 #[derive(Display, Debug)]
 pub enum WalletDbError {
+    /// View Only Account already exists: {0}
+    ViewOnlyAccountAlreadyExists(String),
+
+    /// Account already exists: {0}
+    AccountAlreadyExists(String),
+
     /// Diesel Error: {0}
     Diesel(diesel::result::Error),
 
