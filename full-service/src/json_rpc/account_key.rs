@@ -50,15 +50,27 @@ impl TryFrom<&AccountKey> for mc_account_keys::AccountKey {
     type Error = String;
 
     fn try_from(src: &AccountKey) -> Result<mc_account_keys::AccountKey, String> {
-        let view_private_key = RistrettoPrivate::try_from(
-            &hex::decode(&src.view_private_key)?
-                .map_err(|err| format!("Could not decode string to vector: {:?}", err))[..],
-        )?;
-        let spend_private_key = RistrettoPrivate::try_from(
-            &hex::decode(&src.spend_private_key)?
-                .map_err(|err| format!("Could not decode string to vector: {:?}", err))[..],
-        )?;
-        let fog_authority_spki = hex::decode(&src.fog_authority_spki)?;
+        let view_private_key: RistrettoPrivate = RistrettoPrivate::try_from(
+            &hex::decode(&src.view_private_key)
+                .map_err(|err| format!("Could not hex decode spend_private_key: {:?}", err))?[..],
+        )
+        .map_err(|err| format!("Could not get ristretto from spend_private_key: {:?}", err))?;
+        let spend_private_key: RistrettoPrivate = RistrettoPrivate::try_from(
+            &hex::decode(&src.spend_private_key)
+                .map_err(|err| format!("Could not hex decode spend_private_key: {:?}", err))?[..],
+        )
+        .map_err(|err| format!("Could not get ristretto from spend_private_key: {:?}", err))?;
+        let fog_authority_spki = hex::decode(&src.fog_authority_spki)
+            .map_err(|err| format!("Could not hex decode fog_authority_spki: {:?}", err))?;
+        // let view_private_key = RistrettoPrivate::try_from(
+        //     &hex::decode(&src.view_private_key)
+        //         .map_err(|err| format!("Could not decode string to vector: {:?}",
+        // err)?)[..], )?;
+        // let spend_private_key = RistrettoPrivate::try_from(
+        //     &hex::decode(&src.spend_private_key)
+        //         .map_err(|err| format!("Could not decode string to vector: {:?}",
+        // err)?)[..], )?;
+        // let fog_authority_spki = hex::decode(&src.fog_authority_spki)?;
 
         Ok(mc_account_keys::AccountKey::new_with_fog(
             &spend_private_key,

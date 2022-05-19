@@ -185,7 +185,7 @@ fn sync_view_only_account_next_chunk(
         // removed and we can simply return.
         let view_only_account = ViewOnlyAccount::get(account_id_hex, conn)?;
         let view_private_key: RistrettoPrivate =
-            mc_util_serial::decode(&view_only_account.view_private_key)?;
+            RistrettoPrivate::try_from(&view_only_account.view_private_key[..])?;
         let start_time = Instant::now();
         let start_block_index = view_only_account.next_block_index as u64;
         let mut end_block_index = view_only_account.next_block_index as u64;

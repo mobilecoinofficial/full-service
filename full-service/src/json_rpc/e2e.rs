@@ -24,7 +24,7 @@ mod e2e {
     use mc_account_keys::{AccountKey, PublicAddress, RootEntropy, RootIdentity};
     use mc_account_keys_slip10::Slip10Key;
     use mc_common::logger::{test_with_logger, Logger};
-    use mc_crypto_keys::RistrettoPublic;
+    use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
     use mc_crypto_rand::rand_core::RngCore;
     use mc_ledger_db::Ledger;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
@@ -3774,12 +3774,59 @@ mod e2e {
     }
 
     #[test_with_logger]
+    fn test_create_view_only_from_regular_account(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            },
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "export_account_secrets",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let secrets = result.get("account_secrets").unwrap();
+        let account_key = secrets.get("account_key").unwrap();
+        let view_private_key = account_key["view_private_key"].as_str().unwrap();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "import_view_only_account",
+            "params": {
+                "view_private_key": view_private_key,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        assert!(result.get("view_only_account").is_some());
+    }
+
+    #[test_with_logger]
     fn test_e2e_view_only_account_crud(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         let name = "Coins for cats";
-        let view_key = "0a20928c29f916586c0fae22de17784b2b9ac573a1b1d75c2ba531838650ca0a5302";
+
+        let view_private_key = RistrettoPrivate::from_random(&mut rng);
+        let view_key = hex::encode(view_private_key.to_bytes());
 
         // test import Account
         let body = json!({
@@ -3837,8 +3884,8 @@ mod e2e {
         assert_eq!(account_obj.get("name").unwrap(), new_name);
 
         // test list all view only accounts
-        let second_view_key =
-            "0a20928c29f916586c0fae22de17784b2b9ac553a1b1f75c2ba531838650ca0a5302";
+        let second_view_private_key = RistrettoPrivate::from_random(&mut rng);
+        let second_view_key = hex::encode(second_view_private_key.to_bytes());
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
@@ -3892,7 +3939,8 @@ mod e2e {
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         let name = "Coins for cats";
-        let view_key = "0a20928c29f916586c0fae22de17784b2b9ac573a1b1d75c2ba531838650ca0a5302";
+        let view_private_key = RistrettoPrivate::from_random(&mut rng);
+        let view_key = hex::encode(view_private_key.to_bytes());
         // Import Account
         let body = json!({
             "jsonrpc": "2.0",
