@@ -2,13 +2,13 @@
 description: Get the details of all view only accounts in a given wallet.
 ---
 
-# Get All View Only Accounts
+# Get All
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
-```text
+```
 {
     "method": "get_all_view_only_accounts",
     "jsonrpc": "2.0",
@@ -18,35 +18,29 @@ description: Get the details of all view only accounts in a given wallet.
 {% endtab %}
 
 {% tab title="Response" %}
-```text
+```
 {
-  "method": "get_all_view_only_accounts",
-  "result": {
-    "account_ids": [
-      "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
-      "b6c9f6f779372ae25e93d68a79d725d71f3767d1bfd1c5fe155f948a2cc5c0a0"
-    ],
-    "account_map": {
-      "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52": {
-        "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
-      "name": "Coins for cats",
-      "first_block_index": "3500",
-      "next_block_index": "3700",
-      },
-      "b6c9f6f779372ae25e93d68a79d725d71f3767d1bfd1c5fe155f948a2cc5c0a0": {
-        "account_id": "b6c9f6f779372ae25e93d68a79d725d71f3767d1bfd1c5fe155f948a2cc5c0a0",
-      "name": "Coins for cats",
-      "first_block_index": "200",
-      "next_block_index": "3700",
-      "object": "view_only_account" 
-      }
-    }
-  },
-  "error": null,
-  "jsonrpc": "2.0",
-  "id": 1,
+    "method": "get_all_view_only_accounts",
+    "result": {
+        "account_ids": [
+            "f85920dd83f69d8850799e28240e3d395f0ad46dec2561b71f4614dd90a3edb5"
+        ],
+        "account_map": {
+            "f85920dd83f69d8850799e28240e3d395f0ad46dec2561b71f4614dd90a3edb5": {
+                "object": "view_only_account",
+                "account_id": "f85920dd83f69d8850799e28240e3d395f0ad46dec2561b71f4614dd90a3edb5",
+                "name": "ts-test-2",
+                "first_block_index": "0",
+                "next_block_index": "679442",
+                "main_subaddress_index": "0",
+                "change_subaddress_index": "1",
+                "next_subaddress_index": "2"
+            }
+        }
+    },
+    "jsonrpc": "2.0",
+    "id": 1
 }
 ```
 {% endtab %}
 {% endtabs %}
-
