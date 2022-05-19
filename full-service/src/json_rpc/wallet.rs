@@ -417,6 +417,19 @@ where
                 })?,
             }
         }
+        JsonCommandRequest::create_new_subaddresses_request {
+            account_id,
+            num_subaddresses_to_generate,
+        } => {
+            let account = service
+                .get_view_only_account(&account_id)
+                .map_err(format_error)?;
+
+            JsonCommandResponse::create_new_subaddresses_request {
+                next_subaddress_index: (account.next_subaddress_index as u64).to_string(),
+                num_subaddresses_to_generate,
+            }
+        }
         JsonCommandRequest::create_payment_request {
             account_id,
             subaddress_index,
@@ -464,19 +477,6 @@ where
                 .map_err(format_error)?;
             JsonCommandResponse::export_account_secrets {
                 account_secrets: AccountSecrets::try_from(&account).map_err(format_error)?,
-            }
-        }
-        JsonCommandRequest::export_new_subaddresses_request {
-            account_id,
-            num_subaddresses_to_generate,
-        } => {
-            let account = service
-                .get_view_only_account(&account_id)
-                .map_err(format_error)?;
-
-            JsonCommandResponse::export_new_subaddresses_request {
-                next_subaddress_index: (account.next_subaddress_index as u64).to_string(),
-                num_subaddresses_to_generate,
             }
         }
         JsonCommandRequest::export_spent_txo_ids { account_id } => {
@@ -984,7 +984,7 @@ where
                 .map_err(format_error)?,
             }
         }
-        JsonCommandRequest::import_subaddress_to_view_only_account {
+        JsonCommandRequest::import_subaddresses_to_view_only_account {
             account_id,
             subaddresses,
         } => {
@@ -1010,7 +1010,7 @@ where
                 .import_subaddresses(&account_id, subaddresses_decoded)
                 .map_err(format_error)?;
 
-            JsonCommandResponse::import_subaddress_to_view_only_account {
+            JsonCommandResponse::import_subaddresses_to_view_only_account {
                 public_address_b58s,
             }
         }

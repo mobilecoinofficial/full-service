@@ -176,6 +176,10 @@ pub enum JsonCommandResponse {
     create_payment_request {
         payment_request_b58: String,
     },
+    create_new_subaddresses_request {
+        next_subaddress_index: String,
+        num_subaddresses_to_generate: String,
+    },
     create_receiver_receipts {
         receiver_receipts: Vec<ReceiverReceipt>,
     },
@@ -185,10 +189,6 @@ pub enum JsonCommandResponse {
     },
     export_account_secrets {
         account_secrets: AccountSecrets,
-    },
-    export_new_subaddresses_request {
-        next_subaddress_index: String,
-        num_subaddresses_to_generate: String,
     },
     export_spent_txo_ids {
         spent_txo_ids: Vec<String>,
@@ -300,7 +300,7 @@ pub enum JsonCommandResponse {
     import_account_from_legacy_root_entropy {
         account: Account,
     },
-    import_subaddress_to_view_only_account {
+    import_subaddresses_to_view_only_account {
         public_address_b58s: Vec<String>,
     },
     import_view_only_account {

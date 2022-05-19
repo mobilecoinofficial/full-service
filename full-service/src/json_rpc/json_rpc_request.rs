@@ -131,6 +131,10 @@ pub enum JsonCommandRequest {
         fog_report_id: Option<String>,
         fog_authority_spki: Option<String>,
     },
+    create_new_subaddresses_request {
+        account_id: String,
+        num_subaddresses_to_generate: String,
+    },
     create_payment_request {
         account_id: String,
         subaddress_index: Option<i64>,
@@ -145,10 +149,6 @@ pub enum JsonCommandRequest {
     },
     export_account_secrets {
         account_id: String,
-    },
-    export_new_subaddresses_request {
-        account_id: String,
-        num_subaddresses_to_generate: String,
     },
     export_spent_txo_ids {
         account_id: String,
@@ -261,7 +261,7 @@ pub enum JsonCommandRequest {
         fog_report_id: Option<String>,
         fog_authority_spki: Option<String>,
     },
-    import_subaddress_to_view_only_account {
+    import_subaddresses_to_view_only_account {
         account_id: String,
         subaddresses: ViewOnlySubaddressesJSON,
     },

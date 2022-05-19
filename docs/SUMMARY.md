@@ -25,16 +25,22 @@
 
 ## View Only Accounts
 
-* [View Only Account](view-only-accounts/account/README.md)
-  * [Import View Only Account](view-only-accounts/account/import_view_only_account.md)
-  * [Get All View Only Accounts](view-only-accounts/account/get_all_view_only_accounts.md)
-  * [Get View Only Account](view-only-accounts/account/get_view_only_account.md)
-  * [Update View Only Account Name](view-only-accounts/account/update_view_only_account_name.md)
-  * [Remove View Only Account](view-only-accounts/account/remove_view_only_account.md)
-* [Account Secrets](view-only-accounts/account-secrets/README.md)
-  * [Export View Only Account Secrets](view-only-accounts/account-secrets/export_view_only_account_secrets.md)
+* [Account](view-only-accounts/account/README.md)
+  * [Import](view-only-accounts/account/import_view_only_account.md)
+  * [Get All](view-only-accounts/account/get_all_view_only_accounts.md)
+  * [Get](view-only-accounts/account/get_view_only_account.md)
+  * [Update Name](view-only-accounts/account/update_view_only_account_name.md)
+  * [Remove](view-only-accounts/account/remove_view_only_account.md)
+* [Secrets](view-only-accounts/account-secrets/README.md)
+  * [Export Secrets](view-only-accounts/account-secrets/export_view_only_account_secrets.md)
 * [Balance](view-only-accounts/balance/README.md)
-  * [Get Balance For View Only Account](view-only-accounts/balance/get_balance_for_view_only_account.md)
+  * [Get Balance](view-only-accounts/balance/get_balance_for_view_only_account.md)
+* [Syncing](view-only-accounts/syncing/README.md)
+  * [Create Sync Request](view-only-accounts/syncing/create_view_only_account_sync_request.md)
+  * [Sync](view-only-accounts/syncing/sync_view_only_account.md)
+* [Subaddress](view-only-accounts/subaddress/README.md)
+  * [Create New Subaddress Request](view-only-accounts/subaddress/create_new_subaddress_request.md)
+  * [Import Subaddresses](view-only-accounts/subaddress/import_subaddresses_to_view_only_account.md)
 
 ## Transactions
 
@@ -43,6 +49,7 @@
   * [Submit Transaction](transactions/transaction/submit_transaction.md)
   * [Build And Submit Transaction](transactions/transaction/build_and_submit_transaction.md)
   * [Build Split Txo Transaction](transactions/transaction/build_split_txo_transaction.md)
+  * [Build Unsigned Transaction](transactions/transaction/build_unsigned_transaction.md)
 * [Transaction Output TXO](transactions/txo/README.md)
   * [Get TXO](transactions/txo/get_txo.md)
   * [Get MobileCoin Protocol TXO](transactions/txo/get_mc_protocol_txo.md)
