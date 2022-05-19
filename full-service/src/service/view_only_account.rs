@@ -15,6 +15,7 @@ use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_fog_report_validation::FogPubkeyResolver;
+use mc_ledger_db::Ledger;
 
 /// Trait defining the ways in which the wallet can interact with and manage
 /// view-only accounts.
@@ -75,12 +76,15 @@ where
     ) -> Result<ViewOnlyAccount, AccountServiceError> {
         let conn = &self.wallet_db.get_conn()?;
 
+        let local_block_height = self.ledger_db.num_blocks()?;
+        let import_block_index = local_block_height;
+
         transaction(conn, || {
             let view_only_account = ViewOnlyAccount::create(
                 account_id_hex,
                 view_private_key,
                 0,
-                0,
+                import_block_index,
                 main_subaddress_index,
                 change_subaddress_index,
                 next_subaddress_index,
@@ -182,89 +186,106 @@ where
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use crate::{
-//         test_utils::{get_test_ledger, setup_wallet_service},
-//         util::encoding_helpers::ristretto_to_vec,
-//     };
-//     use mc_account_keys::PublicAddress;
-//     use mc_common::logger::{test_with_logger, Logger};
-//     use mc_connection_test_utils::MockBlockchainConnection;
-//     use mc_crypto_keys::RistrettoPrivate;
-//     use mc_fog_report_validation::MockFogPubkeyResolver;
-//     use mc_ledger_db::LedgerDB;
-//     use mc_util_from_random::FromRandom;
-//     use rand::{rngs::StdRng, SeedableRng};
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        db::account::AccountID,
+        test_utils::{get_test_ledger, setup_wallet_service},
+        util::{b58::b58_encode_public_address, encoding_helpers::ristretto_to_vec},
+    };
+    use mc_account_keys::{
+        AccountKey, PublicAddress, CHANGE_SUBADDRESS_INDEX, DEFAULT_SUBADDRESS_INDEX,
+    };
+    use mc_common::logger::{test_with_logger, Logger};
+    use mc_connection_test_utils::MockBlockchainConnection;
+    use mc_crypto_keys::RistrettoPrivate;
+    use mc_fog_report_validation::MockFogPubkeyResolver;
+    use mc_ledger_db::LedgerDB;
+    use mc_util_from_random::FromRandom;
+    use rand::{rngs::StdRng, SeedableRng};
 
-//     fn get_test_service(
-//         logger: Logger,
-//         current_block_height: u64,
-//     ) -> WalletService<MockBlockchainConnection<LedgerDB>,
-// MockFogPubkeyResolver> {         let mut rng: StdRng =
-// SeedableRng::from_seed([20u8; 32]);         let known_recipients:
-// Vec<PublicAddress> = Vec::new();         let ledger_db = get_test_ledger(
-//             5,
-//             &known_recipients,
-//             current_block_height as usize,
-//             &mut rng,
-//         );
+    #[test_with_logger]
+    fn service_view_only_account_crud(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let current_block_height = 12; //index 11
+        let mut ledger_db = get_test_ledger(
+            5,
+            &known_recipients,
+            current_block_height as usize,
+            &mut rng,
+        );
+        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+        let conn = service.wallet_db.get_conn().unwrap();
 
-//         setup_wallet_service(ledger_db.clone(), logger.clone())
-//     }
+        let view_private_key = RistrettoPrivate::from_random(&mut rng);
+        let spend_private_key = RistrettoPrivate::from_random(&mut rng);
 
-//     #[test_with_logger]
-//     fn service_view_only_account_crud(logger: Logger) {
-//         let current_block_height = 12;
-//         let service = get_test_service(logger, current_block_height);
-//         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let name = "testing";
 
-//         let view_private_key = RistrettoPrivate::from_random(&mut rng);
-//         let account_id_hex = AccountID::from(&view_private_key).to_string();
-//         let name = "coins for cats";
-//         let first_block_index = 25;
+        let account_key = AccountKey::new(&spend_private_key, &view_private_key);
+        let account_id = AccountID::from(&account_key);
+        let main_public_address = account_key.default_subaddress();
+        let change_public_address = account_key.change_subaddress();
+        let mut subaddresses: Vec<(String, u64, String, RistrettoPublic)> = Vec::new();
+        subaddresses.push((
+            b58_encode_public_address(&main_public_address).unwrap(),
+            DEFAULT_SUBADDRESS_INDEX,
+            "Main".to_string(),
+            *main_public_address.spend_public_key(),
+        ));
+        subaddresses.push((
+            b58_encode_public_address(&change_public_address).unwrap(),
+            CHANGE_SUBADDRESS_INDEX,
+            "Change".to_string(),
+            *change_public_address.spend_public_key(),
+        ));
 
-//         // test import
-//         service
-//             .import_view_only_account(view_private_key.clone(), &name,
-// Some(first_block_index))             .unwrap();
+        let account = service
+            .import_view_only_account(
+                &account_id.to_string(),
+                &view_private_key,
+                DEFAULT_SUBADDRESS_INDEX,
+                CHANGE_SUBADDRESS_INDEX,
+                2,
+                name.clone(),
+                subaddresses,
+            )
+            .unwrap();
 
-//         // test get
-//         let expected_account = ViewOnlyAccount {
-//             id: 1,
-//             account_id_hex: account_id_hex.clone(),
-//             view_private_key: ristretto_to_vec(&view_private_key),
-//             first_block_index: first_block_index as i64,
-//             next_block_index: first_block_index as i64,
-//             import_block_index: (current_block_height - 1 + 1) as i64,
-//             name: name.to_string(),
-//         };
+        // test get
+        let expected_account = ViewOnlyAccount {
+            id: 1,
+            account_id_hex: account_id.to_string(),
+            view_private_key: ristretto_to_vec(&view_private_key),
+            first_block_index: 0,
+            next_block_index: 0,
+            import_block_index: (current_block_height - 1 + 1) as i64,
+            name: name.to_string(),
+            main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
+            change_subaddress_index: CHANGE_SUBADDRESS_INDEX as i64,
+            next_subaddress_index: 2,
+        };
 
-//         let gotten_account =
-// service.get_view_only_account(&account_id_hex).unwrap();
+        let gotten_account = service
+            .get_view_only_account(&account_id.to_string())
+            .unwrap();
 
-//         assert_eq!(gotten_account, expected_account);
+        assert_eq!(gotten_account, expected_account);
 
-//         // test update name
-//         let new_name = "coinzzzz";
-//         let updated = service
-//             .update_view_only_account_name(&account_id_hex, new_name)
-//             .unwrap();
-//         assert_eq!(updated.name, new_name.to_string());
+        // test update name
+        let new_name = "coinzzzz";
+        let updated = service
+            .update_view_only_account_name(&account_id.to_string(), new_name)
+            .unwrap();
+        assert_eq!(updated.name, new_name.to_string());
 
-//         // test list all
-//         let view_private_key2 = RistrettoPrivate::from_random(&mut rng);
-//         service
-//             .import_view_only_account(view_private_key2, &name,
-// Some(first_block_index))             .unwrap();
-
-//         let all_accounts = service.list_view_only_accounts().unwrap();
-//         assert_eq!(all_accounts.len(), 2);
-
-//         // test remove account
-//         assert!(service.remove_view_only_account(&account_id_hex).unwrap());
-//         let not_found = service.get_view_only_account(&account_id_hex);
-//         assert!(not_found.is_err());
-//     }
-// }
+        // test remove account
+        assert!(service
+            .remove_view_only_account(&account_id.to_string())
+            .unwrap());
+        let not_found = service.get_view_only_account(&account_id.to_string());
+        assert!(not_found.is_err());
+    }
+}
