@@ -3,8 +3,9 @@
 //! The JSON RPC 2.0 Requests to the Wallet API for Full Service.
 
 use crate::json_rpc::{
-    tx_proposal::TxProposal, view_only_account::ViewOnlyAccountImportPackageJSON,
+    tx_proposal::TxProposal,
     view_only_subaddress::ViewOnlySubaddressesJSON,
+    view_only_account::{ViewOnlyAccountJSON, ViewOnlyAccountSecretsJSON},
 };
 
 use crate::json_rpc::receiver_receipt::ReceiverReceipt;
@@ -266,7 +267,9 @@ pub enum JsonCommandRequest {
         subaddresses: ViewOnlySubaddressesJSON,
     },
     import_view_only_account {
-        package: ViewOnlyAccountImportPackageJSON,
+        account: ViewOnlyAccountJSON,
+        secrets: ViewOnlyAccountSecretsJSON,
+        subaddresses: ViewOnlySubaddressesJSON,
     },
     remove_account {
         account_id: String,

@@ -1014,14 +1014,13 @@ where
                 public_address_b58s,
             }
         }
-        JsonCommandRequest::import_view_only_account { package } => {
+        JsonCommandRequest::import_view_only_account { account, secrets, subaddresses } => {
             let decoded_key_bytes =
-                hex::decode(&package.secrets.view_private_key).map_err(format_error)?;
+                hex::decode(&secrets.view_private_key).map_err(format_error)?;
             let decoded_key: RistrettoPrivate =
                 mc_util_serial::decode(&decoded_key_bytes).map_err(format_error)?;
 
-            let subaddresses_decoded = package
-                .subaddresses
+            let subaddresses_decoded = subaddresses
                 .iter()
                 .map(|s| {
                     let public_spend_key_bytes = hex::decode(&s.public_spend_key).unwrap();
@@ -1040,24 +1039,21 @@ where
 
             let view_only_account = &service
                 .import_view_only_account(
-                    &package.account.account_id,
+                    &account.account_id,
                     &decoded_key,
-                    package
-                        .account
+                    account
                         .main_subaddress_index
                         .parse::<u64>()
                         .map_err(format_error)?,
-                    package
-                        .account
+                    account
                         .change_subaddress_index
                         .parse::<u64>()
                         .map_err(format_error)?,
-                    package
-                        .account
+                    account
                         .next_subaddress_index
                         .parse::<u64>()
                         .map_err(format_error)?,
-                    &package.account.name,
+                    &account.name,
                     subaddresses_decoded,
                 )
                 .map_err(format_error)?;

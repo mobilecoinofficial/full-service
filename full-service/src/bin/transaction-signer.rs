@@ -1,9 +1,11 @@
 use bip39::{Language, Mnemonic, MnemonicType};
-use mc_account_keys::{CHANGE_SUBADDRESS_INDEX, DEFAULT_SUBADDRESS_INDEX};
+use mc_account_keys::{AccountKey, CHANGE_SUBADDRESS_INDEX, DEFAULT_SUBADDRESS_INDEX};
 use mc_account_keys_slip10::Slip10Key;
+use mc_common::{HashMap, HashSet};
 use mc_full_service::{
     db::account::AccountID,
     json_rpc::{
+        json_rpc_request::JsonCommandRequest,
         account_key::AccountKey as AccountKeyJSON,
         account_secrets::AccountSecrets,
         view_only_account::{
@@ -13,8 +15,18 @@ use mc_full_service::{
     },
     util::b58,
 };
-use std::fs;
+use std::{convert::TryFrom, fs};
 use structopt::StructOpt;
+
+use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
+
+use mc_transaction_core::{
+    get_tx_out_shared_secret,
+    onetime_keys::{recover_onetime_private_key, recover_public_subaddress_spend_key},
+    ring_signature::KeyImage,
+    tx::TxOut,
+    AmountError,
+};
 
 #[derive(Clone, Debug, StructOpt)]
 #[structopt(
@@ -29,6 +41,8 @@ enum Opts {
     r#Sync {
         secret_mnemonic: String,
         sync_request: String,
+        #[structopt(short, long, default_value="1000")]
+        subaddresses: u64,
     },
 }
 
@@ -43,8 +57,9 @@ fn main() {
         Opts::Sync {
             ref secret_mnemonic,
             ref sync_request,
+            subaddresses,
         } => {
-            sync_txos(secret_mnemonic, sync_request);
+            sync_txos(secret_mnemonic, sync_request, subaddresses);
         }
     }
 }
@@ -96,38 +111,17 @@ fn create_account(name: &String) {
     };
 
     // Generate main and change subaddresses.
-    let mut subaddresses_json = Vec::new();
-
-    let main_subaddress = account_key.default_subaddress();
-    let change_subaddress = account_key.change_subaddress();
-
-    let main_subaddress_json = ViewOnlySubaddressJSON {
-        object: "view_only_subaddress".to_string(),
-        public_address: b58::b58_encode_public_address(&main_subaddress).unwrap(),
-        account_id: account_id.to_string(),
-        comment: "Main".to_string(),
-        subaddress_index: DEFAULT_SUBADDRESS_INDEX.to_string(),
-        public_spend_key: hex::encode(mc_util_serial::encode(main_subaddress.spend_public_key())),
-    };
-
-    let change_subaddress_json = ViewOnlySubaddressJSON {
-        object: "view_only_subaddress".to_string(),
-        public_address: b58::b58_encode_public_address(&change_subaddress).unwrap(),
-        account_id: account_id.to_string(),
-        comment: "Change".to_string(),
-        subaddress_index: CHANGE_SUBADDRESS_INDEX.to_string(),
-        public_spend_key: hex::encode(mc_util_serial::encode(change_subaddress.spend_public_key())),
-    };
-
-    subaddresses_json.push(main_subaddress_json);
-    subaddresses_json.push(change_subaddress_json);
+    let initial_subaddresses = vec![
+        subaddress_json(&account_key, DEFAULT_SUBADDRESS_INDEX, "Main"),
+        subaddress_json(&account_key, CHANGE_SUBADDRESS_INDEX, "Change"),
+    ];
 
     // Assemble view-only import package.
     let import_package = ViewOnlyAccountImportPackageJSON {
         object: "view_only_account_import_package".to_string(),
         account: account_json,
         secrets: account_secrets_json,
-        subaddresses: subaddresses_json,
+        subaddresses: initial_subaddresses,
     };
 
     // Write secret mnemonic to file.
@@ -149,60 +143,159 @@ fn create_account(name: &String) {
     println!("Wrote {}", filename);
 }
 
-fn sync_txos(secret_mnemonic: &String, sync_request: &String) {
+fn sync_txos(secret_mnemonic: &String, sync_request: &String, num_subaddresses: u64) {
+    // Load account key.
     let mnemonic_json =
         fs::read_to_string(secret_mnemonic).expect("Could not open secret mnemonic file.");
     let account_secrets: AccountSecrets = serde_json::from_str(&mnemonic_json).unwrap();
-    dbg!(&account_secrets);
+    let account_key = account_key_from_mnemonic_phrase(&account_secrets.mnemonic.unwrap());
 
-    let sync_request_json =
+    // Load input txos.
+    let sync_request_data =
         fs::read_to_string(sync_request).expect("Could not open sync request file.");
-    let sync_request: serde_json::Value =
-        serde_json::from_str(&sync_request_json).expect("malformed sync request");
-    dbg!(&sync_request);
-    assert_eq!(
-        account_secrets.account_id,
-        sync_request.get("account_id").unwrap().as_str().unwrap()
-    );
+    let sync_request_json: serde_json::Value =
+        serde_json::from_str(&sync_request_data).expect("Malformed sync request.");
+    let account_id = sync_request_json.get("account_id").unwrap().as_str().clone().unwrap();
+    assert_eq!(account_secrets.account_id, account_id);
 
-    // let input_txos = sync_request.get("
+    let incomplete_txos_encoded: Vec<String> = serde_json::from_value(
+        sync_request_json
+            .get("incomplete_txos_encoded")
+            .expect("Could not find \"incomplete_txos_encoded\".")
+            .clone(),
+    )
+    .expect("Malformed sync request.");
+    let input_txos: Vec<TxOut> = incomplete_txos_encoded
+        .iter()
+        .map(|tx_out_serialized| {
+            mc_util_serial::decode(&hex::decode(tx_out_serialized.as_bytes()).unwrap()).unwrap()
+        })
+        .collect();
 
-    // let input_txos_serialized: Vec<Vec<u8>> =
-    // serde_json::from_str(&input_txos_json).unwrap(); let input_txos:
-    // Vec<TxOut> = input_txos_serialized.iter()
-    //     .map(|tx_out_serialized| {
-    //         let tx_out: TxOut =
-    // mc_util_serial::decode(tx_out_serialized).unwrap();         tx_out
-    //     })
-    //     .collect();
+    // Generate subaddresses and reconstruct key images.
+    let subaddress_spend_public_keys =
+        generate_subaddress_spend_public_keys(&account_key, num_subaddresses);
+    let txos_and_key_images =
+        get_key_images_for_txos(&input_txos, &account_key, &subaddress_spend_public_keys);
 
-    // let serialized_txos_and_key_images =
-    //     _get_key_images_for_txos(&input_txos, account_key,
-    // subaddress_spend_public_keys);
-    // let serialized_txos_and_key_images_data =
-    //     serde_json::to_string(&serialized_txos_and_key_images).unwrap();
+    let subaddress_indices: HashSet<u64> = txos_and_key_images.iter().map(|(_, _, i)| *i).collect();
+    let related_subaddresses: Vec<_> = subaddress_indices.iter().map(|i| subaddress_json(&account_key, *i, "")).collect();
+
+    let completed_txos: Vec<_> = txos_and_key_images.iter().map(|(txo, key_image, _)| (
+        hex::encode(mc_util_serial::encode(txo)),
+        hex::encode(mc_util_serial::encode(key_image)),
+    )).collect();
+
+    let result = JsonCommandRequest::sync_view_only_account {
+        account_id: account_id.to_string(),
+        completed_txos,
+        subaddresses: related_subaddresses
+    };
+
+    // Write result to file.
+    let result_json = serde_json::to_string_pretty(&result).unwrap();
+    let filename = format!("{}_completed.json", sync_request.trim_end_matches(".json"));
+    fs::write(&filename, result_json + "\n").expect("could not write output file");
+    println!("Wrote {}", filename);
 }
 
-// fn _get_key_images_for_txos(
-//     tx_outs: &[TxOut],
-//     account_key: &AccountKey,
-//     subaddress_spend_public_keys: &HashMap<RistrettoPublic, u64>,
-// ) -> Vec<(Vec<u8>, Vec<u8>)> {
-//     let mut serialized_txos_and_key_images: Vec<(Vec<u8>, Vec<u8>)> =
-// Vec::new();
+fn get_key_images_for_txos(
+    tx_outs: &[TxOut],
+    account_key: &AccountKey,
+    subaddress_spend_public_keys: &HashMap<RistrettoPublic, u64>,
+) -> Vec<(TxOut, KeyImage, u64)> {
+    tx_outs.iter().filter_map(|txo| {
+        if !tx_out_belongs_to_account(txo, account_key.view_private_key()) {
+            return None;
+        }
+        match get_key_image_for_tx_out(txo, account_key, subaddress_spend_public_keys) {
+            Some((key_image, subaddress_index)) => Some((txo.clone(), key_image, subaddress_index)),
+            None => None,
+        }
+    }).collect()
+}
 
-//     for tx_out in tx_outs.iter() {
-//         if tx_out_belongs_to_account(tx_out, account_key.view_private_key())
-// {             if let Some(key_image) =
-//                 get_key_image_for_tx_out(tx_out, account_key,
-// subaddress_spend_public_keys)             {
-//                 serialized_txos_and_key_images.push((
-//                     mc_util_serial::encode(tx_out),
-//                     mc_util_serial::encode(&key_image),
-//                 ));
-//             }
-//         }
-//     }
+fn account_key_from_mnemonic_phrase(mnemonic_phrase: &str) -> AccountKey {
+    let mnemonic = Mnemonic::from_phrase(mnemonic_phrase, Language::English).unwrap();
+    Slip10Key::from(mnemonic)
+        .try_into_account_key("", "", &base64::decode("").unwrap())
+        .unwrap()
+}
 
-//     serialized_txos_and_key_images
-// }
+fn get_key_image_for_tx_out(
+    tx_out: &TxOut,
+    account_key: &AccountKey,
+    subaddress_spend_public_keys: &HashMap<RistrettoPublic, u64>,
+) -> Option<(KeyImage, u64)> {
+    let tx_public_key = match RistrettoPublic::try_from(&tx_out.public_key) {
+        Ok(k) => k,
+        Err(_) => return None,
+    };
+    let tx_out_target_key = match RistrettoPublic::try_from(&tx_out.target_key) {
+        Ok(k) => k,
+        Err(_) => return None,
+    };
+
+    let tx_out_subaddress_spend_public_key: RistrettoPublic = recover_public_subaddress_spend_key(
+        account_key.view_private_key(),
+        &tx_out_target_key,
+        &tx_public_key,
+    );
+
+    let subaddress_index = subaddress_spend_public_keys
+        .get(&tx_out_subaddress_spend_public_key)
+        .copied();
+
+    if let Some(subaddress_i) = subaddress_index {
+        let onetime_private_key = recover_onetime_private_key(
+            &tx_public_key,
+            account_key.view_private_key(),
+            &account_key.subaddress_spend_private(subaddress_i),
+        );
+        Some((KeyImage::from(&onetime_private_key), subaddress_i))
+    } else {
+        None
+    }
+}
+
+fn tx_out_belongs_to_account(tx_out: &TxOut, account_view_private_key: &RistrettoPrivate) -> bool {
+    let tx_out_public_key = match RistrettoPublic::try_from(&tx_out.public_key) {
+        Err(_) => return false,
+        Ok(k) => k,
+    };
+
+    let shared_secret = get_tx_out_shared_secret(account_view_private_key, &tx_out_public_key);
+
+    match tx_out.amount.get_value(&shared_secret) {
+        Ok((_, _)) => true,
+        Err(AmountError::InconsistentCommitment) => false,
+    }
+}
+
+fn generate_subaddress_spend_public_keys(
+    account_key: &AccountKey,
+    number_to_generate: u64,
+) -> HashMap<RistrettoPublic, u64> {
+    let mut subaddress_spend_public_keys = HashMap::default();
+
+    for i in 0..number_to_generate {
+        let subaddress_spend_private_key = account_key.subaddress_spend_private(i);
+        let subaddress_spend_public_key = RistrettoPublic::from(&subaddress_spend_private_key);
+        subaddress_spend_public_keys.insert(subaddress_spend_public_key, i);
+    }
+
+    subaddress_spend_public_keys
+}
+
+fn subaddress_json(account_key: &AccountKey, index: u64, comment: &str) -> ViewOnlySubaddressJSON {
+    let account_id = AccountID::from(account_key);
+    let subaddress = account_key.subaddress(index);
+    ViewOnlySubaddressJSON {
+        object: "view_only_subaddress".to_string(),
+        public_address: b58::b58_encode_public_address(&subaddress).unwrap(),
+        account_id: account_id.to_string(),
+        comment: comment.to_string(),
+        subaddress_index: index.to_string(),
+        public_spend_key: hex::encode(mc_util_serial::encode(subaddress.spend_public_key())),
+    }
+}
