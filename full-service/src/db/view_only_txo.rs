@@ -208,7 +208,9 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         let subaddress = ViewOnlySubaddress::get(assigned_subaddress_b58, conn)?;
         let results = view_only_txos::table
             .filter(view_only_txos::subaddress_index.eq(subaddress.subaddress_index))
-            .filter(view_only_txos::view_only_account_id_hex.eq(subaddress.view_only_account_id_hex))
+            .filter(
+                view_only_txos::view_only_account_id_hex.eq(subaddress.view_only_account_id_hex),
+            )
             .load(conn)?;
         Ok(results)
     }

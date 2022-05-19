@@ -6,10 +6,12 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        models::{Account, AssignedSubaddress, Txo, ViewOnlyAccount, ViewOnlySubaddress, ViewOnlyTxo},
+        models::{
+            Account, AssignedSubaddress, Txo, ViewOnlyAccount, ViewOnlySubaddress, ViewOnlyTxo,
+        },
         txo::TxoModel,
-        view_only_subaddress::ViewOnlySubaddressModel,
         view_only_account::ViewOnlyAccountModel,
+        view_only_subaddress::ViewOnlySubaddressModel,
         view_only_txo::ViewOnlyTxoModel,
         Conn, WalletDbError,
     },
@@ -139,7 +141,10 @@ pub trait BalanceService {
 
     fn get_balance_for_address(&self, address: &str) -> Result<Balance, BalanceServiceError>;
 
-    fn get_balance_for_view_only_address(&self, address: &str) -> Result<ViewOnlyBalance, BalanceServiceError>;
+    fn get_balance_for_view_only_address(
+        &self,
+        address: &str,
+    ) -> Result<ViewOnlyBalance, BalanceServiceError>;
 
     fn get_network_status(&self) -> Result<NetworkStatus, BalanceServiceError>;
 
@@ -244,7 +249,10 @@ where
         })
     }
 
-    fn get_balance_for_view_only_address(&self, address: &str) -> Result<ViewOnlyBalance, BalanceServiceError> {
+    fn get_balance_for_view_only_address(
+        &self,
+        address: &str,
+    ) -> Result<ViewOnlyBalance, BalanceServiceError> {
         let conn = self.wallet_db.get_conn()?;
         let txos = ViewOnlyTxo::list_for_address(address, &conn)?;
         let total_value = txos.iter().map(|t| (t.value as u64) as u128).sum::<u128>();
