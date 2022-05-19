@@ -5,9 +5,9 @@ use mc_common::{HashMap, HashSet};
 use mc_full_service::{
     db::account::AccountID,
     json_rpc::{
-        json_rpc_request::JsonCommandRequest,
         account_key::AccountKey as AccountKeyJSON,
         account_secrets::AccountSecrets,
+        json_rpc_request::JsonCommandRequest,
         view_only_account::{
             ViewOnlyAccountImportPackageJSON, ViewOnlyAccountJSON, ViewOnlyAccountSecretsJSON,
         },
@@ -41,7 +41,7 @@ enum Opts {
     r#Sync {
         secret_mnemonic: String,
         sync_request: String,
-        #[structopt(short, long, default_value="1000")]
+        #[structopt(short, long, default_value = "1000")]
         subaddresses: u64,
     },
 }
@@ -155,7 +155,12 @@ fn sync_txos(secret_mnemonic: &String, sync_request: &String, num_subaddresses: 
         fs::read_to_string(sync_request).expect("Could not open sync request file.");
     let sync_request_json: serde_json::Value =
         serde_json::from_str(&sync_request_data).expect("Malformed sync request.");
-    let account_id = sync_request_json.get("account_id").unwrap().as_str().clone().unwrap();
+    let account_id = sync_request_json
+        .get("account_id")
+        .unwrap()
+        .as_str()
+        .clone()
+        .unwrap();
     assert_eq!(account_secrets.account_id, account_id);
 
     let incomplete_txos_encoded: Vec<String> = serde_json::from_value(
@@ -179,17 +184,25 @@ fn sync_txos(secret_mnemonic: &String, sync_request: &String, num_subaddresses: 
         get_key_images_for_txos(&input_txos, &account_key, &subaddress_spend_public_keys);
 
     let subaddress_indices: HashSet<u64> = txos_and_key_images.iter().map(|(_, _, i)| *i).collect();
-    let related_subaddresses: Vec<_> = subaddress_indices.iter().map(|i| subaddress_json(&account_key, *i, "")).collect();
+    let related_subaddresses: Vec<_> = subaddress_indices
+        .iter()
+        .map(|i| subaddress_json(&account_key, *i, ""))
+        .collect();
 
-    let completed_txos: Vec<_> = txos_and_key_images.iter().map(|(txo, key_image, _)| (
-        hex::encode(mc_util_serial::encode(txo)),
-        hex::encode(mc_util_serial::encode(key_image)),
-    )).collect();
+    let completed_txos: Vec<_> = txos_and_key_images
+        .iter()
+        .map(|(txo, key_image, _)| {
+            (
+                hex::encode(mc_util_serial::encode(txo)),
+                hex::encode(mc_util_serial::encode(key_image)),
+            )
+        })
+        .collect();
 
     let result = JsonCommandRequest::sync_view_only_account {
         account_id: account_id.to_string(),
         completed_txos,
-        subaddresses: related_subaddresses
+        subaddresses: related_subaddresses,
     };
 
     // Write result to file.
@@ -204,15 +217,20 @@ fn get_key_images_for_txos(
     account_key: &AccountKey,
     subaddress_spend_public_keys: &HashMap<RistrettoPublic, u64>,
 ) -> Vec<(TxOut, KeyImage, u64)> {
-    tx_outs.iter().filter_map(|txo| {
-        if !tx_out_belongs_to_account(txo, account_key.view_private_key()) {
-            return None;
-        }
-        match get_key_image_for_tx_out(txo, account_key, subaddress_spend_public_keys) {
-            Some((key_image, subaddress_index)) => Some((txo.clone(), key_image, subaddress_index)),
-            None => None,
-        }
-    }).collect()
+    tx_outs
+        .iter()
+        .filter_map(|txo| {
+            if !tx_out_belongs_to_account(txo, account_key.view_private_key()) {
+                return None;
+            }
+            match get_key_image_for_tx_out(txo, account_key, subaddress_spend_public_keys) {
+                Some((key_image, subaddress_index)) => {
+                    Some((txo.clone(), key_image, subaddress_index))
+                }
+                None => None,
+            }
+        })
+        .collect()
 }
 
 fn account_key_from_mnemonic_phrase(mnemonic_phrase: &str) -> AccountKey {
