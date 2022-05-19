@@ -25,16 +25,16 @@
 
 ## View Only Accounts
 
-* [View Only Account](view_only_accounts/account/README.md)
-  * [Import View Only Account](accounts/account/import_view_only_account.md)
-  * [Get All View Only Accounts](accounts/account/get_all_view_only_accounts.md)
-  * [Get View Only Account](accounts/account/get_view_only_account.md)
-  * [Update View Only Account Name](accounts/account/update_view_only_account_name.md)
-  * [Remove View Only Account](accounts/account/remove_view_only_account.md)
-* [Account Secrets](view_only_accounts/account-secrets/README.md)
-  * [Export View Only Account Secrets](accounts/account-secrets/export_view_only_account_secrets.md)
-* [Balance](view_only_accounts/balance/README.md)
-  * [Get Balance For View Only Account](accounts/balance/get_balance_for_view_only_account.md)
+* [View Only Account](view-only-accounts/account/README.md)
+  * [Import View Only Account](view-only-accounts/account/import_view_only_account.md)
+  * [Get All View Only Accounts](view-only-accounts/account/get_all_view_only_accounts.md)
+  * [Get View Only Account](view-only-accounts/account/get_view_only_account.md)
+  * [Update View Only Account Name](view-only-accounts/account/update_view_only_account_name.md)
+  * [Remove View Only Account](view-only-accounts/account/remove_view_only_account.md)
+* [Account Secrets](view-only-accounts/account-secrets/README.md)
+  * [Export View Only Account Secrets](view-only-accounts/account-secrets/export_view_only_account_secrets.md)
+* [Balance](view-only-accounts/balance/README.md)
+  * [Get Balance For View Only Account](view-only-accounts/balance/get_balance_for_view_only_account.md)
 
 ## Transactions
 
