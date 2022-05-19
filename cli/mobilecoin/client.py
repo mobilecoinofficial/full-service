@@ -123,20 +123,27 @@ class Client:
         })
         return r['view_only_account']
 
-    def get_all_accounts(self):
-        r = self._req({"method": "get_all_accounts"})
-        return r['account_map']
-
-    def get_all_view_only_accounts(self):
-        r = self._req({"method": "get_all_view_only_accounts"})
-        return r['account_map']
-
     def get_account(self, account_id):
         r = self._req({
             "method": "get_account",
             "params": {"account_id": account_id}
         })
         return r['account']
+
+    def get_all_accounts(self):
+        r = self._req({"method": "get_all_accounts"})
+        return r['account_map']
+
+    def get_view_only_account(self, account_id):
+        r = self._req({
+            "method": "get_view_only_account",
+            "params": {"account_id": account_id}
+        })
+        return r['view_only_account']
+
+    def get_all_view_only_accounts(self):
+        r = self._req({"method": "get_all_view_only_accounts"})
+        return r['account_map']
 
     def update_account_name(self, account_id, name):
         r = self._req({
@@ -413,6 +420,17 @@ class Client:
             "method": "create_view_only_account_sync_request",
             "params": {
                 "account_id": account_id,
+            },
+        })
+        return r
+
+    def sync_view_only_account(self, account_id, completed_txos, subaddresses):
+        r = self._req({
+            "method": "sync_view_only_account",
+            "params": {
+                "account_id": account_id,
+                "completed_txos": completed_txos,
+                "subaddresses": subaddresses,
             },
         })
         return r

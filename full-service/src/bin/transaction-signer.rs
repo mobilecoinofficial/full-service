@@ -3,7 +3,10 @@ use mc_account_keys::{AccountKey, CHANGE_SUBADDRESS_INDEX, DEFAULT_SUBADDRESS_IN
 use mc_account_keys_slip10::Slip10Key;
 use mc_common::{HashMap, HashSet};
 use mc_full_service::{
-    db::account::AccountID,
+    db::{
+        account::AccountID,
+        txo::TxoID,
+    },
     json_rpc::{
         account_key::AccountKey as AccountKeyJSON,
         account_secrets::AccountSecrets,
@@ -189,11 +192,11 @@ fn sync_txos(secret_mnemonic: &String, sync_request: &String, num_subaddresses: 
         .map(|i| subaddress_json(&account_key, *i, ""))
         .collect();
 
-    let completed_txos: Vec<_> = txos_and_key_images
+    let completed_txos: Vec<(String, String)> = txos_and_key_images
         .iter()
         .map(|(txo, key_image, _)| {
             (
-                hex::encode(mc_util_serial::encode(txo)),
+                TxoID::from(txo).to_string(),
                 hex::encode(mc_util_serial::encode(key_image)),
             )
         })

@@ -166,7 +166,13 @@ class CommandLineInterface:
 
         # Sync view-only account.
         self.sync_args = command_sp.add_parser('sync', help='Sync a view-only account.')
-        self.sync_args.add_argument('account_id', help='Account ID.')
+        self.sync_args.add_argument(
+            'account_id_or_sync_response',
+            help=(
+                'If an account ID is passed, then generate a sync request for the transaction signer. '
+                'Once the signer is finished, call this again with the completed json file.'
+            )
+        )
 
         # Version
         self.version_args = command_sp.add_parser('version', help='Show version number.')
@@ -831,8 +837,18 @@ class CommandLineInterface:
                 print('Gift code not found; nothing to remove.')
                 return
 
-    def sync(self, account_id):
+    def sync(self, account_id_or_sync_response):
+        if account_id_or_sync_response.endswith('.json'):
+            sync_response = account_id_or_sync_response
+            self._finish_sync(sync_response)
+        else:
+            account_id = account_id_or_sync_response
+
+    def _start_sync(self, account_id):
         account = self._load_account_prefix(account_id)
+        print()
+        print(_format_account_header(account))
+
         account_id = account['account_id']
         response = self.client.create_view_only_account_sync_request(account_id)
 
@@ -841,6 +857,26 @@ class CommandLineInterface:
         _save_json_file(filename, response)
 
         print(f'Wrote {filename}.')
+
+    def _finish_sync(self, sync_response):
+        with open(sync_response) as f:
+            data = json.load(f)['params']
+
+        r = self.client.sync_view_only_account(**data)
+        account = self.client.get_view_only_account(data['account_id'])
+        balance = self.client.get_balance_for_view_only_account(data['account_id'])
+
+        print()
+        print('Synced {} transaction outputs.'.format(len(data['completed_txos'])))
+        print()
+        _print_account(account, balance)
+
+    def get_account(self, account_id):
+        r = self._req({
+            "method": "get_account",
+            "params": {"account_id": account_id}
+        })
+        return r['account']
 
     def version(self):
         version = self.client.version()
