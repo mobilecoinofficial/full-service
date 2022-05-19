@@ -6,15 +6,9 @@ description: Create a view-only account by importing the private key from an exi
 
 ## Parameters
 
-| :--- | :--- | :--- |
 | Required Param | Purpose | Requirements |
-| `view-private-key` | The view private key for an existing account | |
-
-| Optional Param | Purpose | Requirements |
 | :--- | :--- | :--- |
-| `name` | A label for this account. | A label can have duplicates, but it is not recommended. |
-| `next_subaddress_index` | The next known unused subaddress index for the account. |  |
-| `first_block_index` | The block from which to start scanning the ledger. |  |
+| `package` | The view only account import package generated from the offline transaction signer | |
 
 ## Example
 
