@@ -4,7 +4,10 @@
 
 use crate::{
     db,
-    json_rpc::view_only_subaddress::{ViewOnlySubaddressJSON, ViewOnlySubaddressesJSON},
+    json_rpc::{
+        json_rpc_request::JsonCommandRequest,
+        view_only_subaddress::{ViewOnlySubaddressJSON, ViewOnlySubaddressesJSON},
+    },
     util::encoding_helpers::ristretto_to_hex,
 };
 use serde_derive::{Deserialize, Serialize};
@@ -113,12 +116,12 @@ pub struct ViewOnlyAccountImportPackageJSON {
     pub subaddresses: ViewOnlySubaddressesJSON,
 }
 
-impl TryFrom<&db::account::ViewOnlyAccountImportPackage> for ViewOnlyAccountImportPackageJSON {
+impl TryFrom<&db::account::ViewOnlyAccountImportPackage> for JsonCommandRequest {
     type Error = String;
 
     fn try_from(
         src: &db::account::ViewOnlyAccountImportPackage,
-    ) -> Result<ViewOnlyAccountImportPackageJSON, String> {
+    ) -> Result<JsonCommandRequest, String> {
         let account = ViewOnlyAccountJSON::from(&src.account);
         let secrets = ViewOnlyAccountSecretsJSON::try_from(&src.account)?;
         let subaddresses = src
@@ -127,8 +130,7 @@ impl TryFrom<&db::account::ViewOnlyAccountImportPackage> for ViewOnlyAccountImpo
             .map(ViewOnlySubaddressJSON::from)
             .collect();
 
-        Ok(ViewOnlyAccountImportPackageJSON {
-            object: "view_only_account_import_package".to_string(),
+        Ok(JsonCommandRequest::import_view_only_account {
             account,
             secrets,
             subaddresses,

@@ -21,7 +21,6 @@ use crate::{
         receiver_receipt::ReceiverReceipt,
         tx_proposal::TxProposal,
         txo::Txo,
-        view_only_account::ViewOnlyAccountImportPackageJSON,
         view_only_txo::ViewOnlyTxo,
         wallet_status::WalletStatus,
     },
@@ -494,11 +493,9 @@ where
             let package = service
                 .get_view_only_import_package(&AccountID(account_id))
                 .map_err(format_error)?;
-            let package_json =
-                ViewOnlyAccountImportPackageJSON::try_from(&package).map_err(format_error)?;
-            JsonCommandResponse::export_view_only_account_package {
-                package: package_json,
-            }
+            let package = JsonCommandRequest::try_from(&package).map_err(format_error)?;
+
+            JsonCommandResponse::export_view_only_account_package { package }
         }
         JsonCommandRequest::export_view_only_account_secrets { account_id } => {
             let account = service
@@ -1014,9 +1011,12 @@ where
                 public_address_b58s,
             }
         }
-        JsonCommandRequest::import_view_only_account { account, secrets, subaddresses } => {
-            let decoded_key_bytes =
-                hex::decode(&secrets.view_private_key).map_err(format_error)?;
+        JsonCommandRequest::import_view_only_account {
+            account,
+            secrets,
+            subaddresses,
+        } => {
+            let decoded_key_bytes = hex::decode(&secrets.view_private_key).map_err(format_error)?;
             let decoded_key: RistrettoPrivate =
                 mc_util_serial::decode(&decoded_key_bytes).map_err(format_error)?;
 
