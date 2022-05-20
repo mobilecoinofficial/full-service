@@ -16,7 +16,7 @@ pub mod json_rpc_response;
 mod network_status;
 mod receiver_receipt;
 mod transaction_log;
-mod tx_proposal;
+pub mod tx_proposal;
 mod txo;
 mod unspent_tx_out;
 pub mod view_only_account;

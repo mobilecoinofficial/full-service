@@ -5,8 +5,7 @@
 use crate::{
     db,
     json_rpc::{
-        json_rpc_request::JsonCommandRequest,
-        view_only_subaddress::{ViewOnlySubaddressJSON, ViewOnlySubaddressesJSON},
+        json_rpc_request::JsonCommandRequest, view_only_subaddress::ViewOnlySubaddressJSON,
     },
     util::encoding_helpers::ristretto_to_hex,
 };
@@ -106,14 +105,6 @@ impl TryFrom<&db::models::Account> for ViewOnlyAccountSecretsJSON {
             view_private_key: ristretto_to_hex(account_key.view_private_key()),
         })
     }
-}
-
-#[derive(Deserialize, Serialize, Default, Debug, Clone)]
-pub struct ViewOnlyAccountImportPackageJSON {
-    pub object: String,
-    pub account: ViewOnlyAccountJSON,
-    pub secrets: ViewOnlyAccountSecretsJSON,
-    pub subaddresses: ViewOnlySubaddressesJSON,
 }
 
 impl TryFrom<&db::account::ViewOnlyAccountImportPackage> for JsonCommandRequest {

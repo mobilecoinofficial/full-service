@@ -10,9 +10,7 @@ use mc_full_service::{
         account_secrets::AccountSecrets,
         json_rpc_request::JsonCommandRequest,
         tx_proposal::TxProposal,
-        view_only_account::{
-            ViewOnlyAccountImportPackageJSON, ViewOnlyAccountJSON, ViewOnlyAccountSecretsJSON,
-        },
+        view_only_account::{ViewOnlyAccountJSON, ViewOnlyAccountSecretsJSON},
         view_only_subaddress::ViewOnlySubaddressJSON,
     },
     unsigned_tx::UnsignedTx,
@@ -318,16 +316,18 @@ fn sign_transaction(secret_mnemonic: &String, request: &String) {
             .get("unsigned_tx")
             .expect("Could not find \"unsigned_tx\".")
             .clone(),
-    );
+    )
+    .unwrap();
 
     let fog_resolver: FullServiceFogResolver = serde_json::from_value(
         request_json
             .get("fog_resolver")
             .expect("Could not find \"fog_resolver\".")
             .clone(),
-    );
+    )
+    .unwrap();
 
-    let tx_proposal = unsigned_tx.sign(&account_key, &fog_resolver);
+    let tx_proposal = unsigned_tx.sign(&account_key, fog_resolver);
     let tx_proposal_json = TxProposal::from(&tx_proposal);
     let result = JsonCommandRequest::submit_transaction {
         tx_proposal: tx_proposal_json,
