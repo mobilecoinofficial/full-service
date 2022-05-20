@@ -8,7 +8,7 @@ use mc_full_service::{
     json_rpc::{
         account_key::AccountKey as AccountKeyJSON,
         account_secrets::AccountSecrets,
-        json_rpc_request::JsonCommandRequest,
+        json_rpc_request::{JsonCommandRequest, JsonRPCRequest},
         tx_proposal::TxProposal,
         view_only_account::{ViewOnlyAccountJSON, ViewOnlyAccountSecretsJSON},
         view_only_subaddress::ViewOnlySubaddressJSON,
@@ -146,20 +146,18 @@ fn create_account(name: &str) {
     fs::write(&filename, output_json + "\n").expect("could not write output file");
     println!("Wrote {}", filename);
 
-    let result = JsonCommandRequest::import_view_only_account {
+    let json_command_request = JsonCommandRequest::import_view_only_account {
         account: account_json,
         secrets: account_secrets_json,
         subaddresses: initial_subaddresses,
     };
-    let result_json = serde_json::to_string_pretty(&result).unwrap();
 
     // Write view private key and associated info to file.
     let filename = format!(
         "mobilecoin_view_account_import_package_{}.json",
         &account_id.to_string()[..6]
     );
-    fs::write(&filename, result_json + "\n").expect("could not write output file");
-    println!("Wrote {}", filename);
+    write_json_command_request_to_file(&json_command_request, &filename);
 }
 
 fn sync_txos(secret_mnemonic: &str, sync_request: &str, num_subaddresses: u64) {
@@ -217,17 +215,15 @@ fn sync_txos(secret_mnemonic: &str, sync_request: &str, num_subaddresses: u64) {
         })
         .collect();
 
-    let result = JsonCommandRequest::sync_view_only_account {
+    let json_command_request = JsonCommandRequest::sync_view_only_account {
         account_id: account_id.to_string(),
         completed_txos,
         subaddresses: related_subaddresses,
     };
 
     // Write result to file.
-    let result_json = serde_json::to_string_pretty(&result).unwrap();
     let filename = format!("{}_completed.json", sync_request.trim_end_matches(".json"));
-    fs::write(&filename, result_json + "\n").expect("could not write output file");
-    println!("Wrote {}", filename);
+    write_json_command_request_to_file(&json_command_request, &filename);
 }
 
 fn generate_subaddresses(secret_mnemonic: &str, request: &str) {
@@ -266,15 +262,12 @@ fn generate_subaddresses(secret_mnemonic: &str, request: &str) {
         subaddresses.push(subaddress_json(&account_key, i, ""));
     }
 
-    let result = JsonCommandRequest::import_subaddresses_to_view_only_account {
+    let json_command_request = JsonCommandRequest::import_subaddresses_to_view_only_account {
         account_id: account_id.to_string(),
         subaddresses,
     };
-
-    let result_json = serde_json::to_string_pretty(&result).unwrap();
     let filename = format!("{}_completed.json", request.trim_end_matches(".json"));
-    fs::write(&filename, result_json + "\n").expect("could not write output file");
-    println!("Wrote {}", filename);
+    write_json_command_request_to_file(&json_command_request, &filename);
 }
 
 fn sign_transaction(secret_mnemonic: &str, request: &str) {
@@ -310,15 +303,30 @@ fn sign_transaction(secret_mnemonic: &str, request: &str) {
 
     let tx_proposal = unsigned_tx.sign(&account_key, fog_resolver);
     let tx_proposal_json = TxProposal::from(&tx_proposal);
-    let result = JsonCommandRequest::submit_transaction {
+    let json_command_request = JsonCommandRequest::submit_transaction {
         tx_proposal: tx_proposal_json,
         comment: None,
         account_id: Some(account_id.to_string()),
     };
 
-    let result_json = serde_json::to_string_pretty(&result).unwrap();
     let filename = format!("{}_completed.json", request.trim_end_matches(".json"));
-    fs::write(&filename, result_json + "\n").expect("could not write output file");
+    write_json_command_request_to_file(&json_command_request, &filename);
+}
+
+fn write_json_command_request_to_file(json_command_request: &JsonCommandRequest, filename: &str) {
+    let src_json: serde_json::Value = serde_json::json!(json_command_request);
+    let method = src_json.get("method").unwrap().as_str().unwrap();
+    let params = src_json.get("params").unwrap();
+
+    let json_rpc_request = JsonRPCRequest {
+        method: method.to_string(),
+        params: Some(params.clone()),
+        jsonrpc: "2.0".to_string(),
+        id: serde_json::Value::Number(serde_json::Number::from(1)),
+    };
+
+    let result_json = serde_json::to_string_pretty(&json_rpc_request).unwrap();
+    fs::write(filename, result_json + "\n").expect("could not write output file");
     println!("Wrote {}", filename);
 }
 
