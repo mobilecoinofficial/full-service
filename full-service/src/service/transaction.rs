@@ -24,7 +24,6 @@ use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConne
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_mobilecoind::payments::TxProposal;
-use mc_transaction_core::tx::Tx;
 
 use crate::{
     fog_resolver::FullServiceFogResolver,
@@ -172,12 +171,6 @@ pub trait TransactionService {
         account_id_hex: Option<String>,
     ) -> Result<Option<(TransactionLog, AssociatedTxos)>, TransactionServiceError>;
 
-    /// Submits a pre-built TxProposal to the MobileCoin Consensus Network.
-    fn submit_transaction_serialized(
-        &self,
-        signed_tx_serialized: Vec<u8>,
-    ) -> Result<(), TransactionServiceError>;
-
     /// Convenience method that builds and submits in one go.
     #[allow(clippy::too_many_arguments)]
     fn build_and_submit(
@@ -306,30 +299,6 @@ where
 
             Ok(tx_proposal)
         })
-    }
-
-    fn submit_transaction_serialized(
-        &self,
-        signed_tx_serialized: Vec<u8>,
-    ) -> Result<(), TransactionServiceError> {
-        let tx: Tx = mc_util_serial::decode(&signed_tx_serialized).unwrap();
-
-        // Pick a peer to submit to.
-        let responder_ids = self.peer_manager.responder_ids();
-        if responder_ids.is_empty() {
-            return Err(TransactionServiceError::NoPeersConfigured);
-        }
-
-        let idx = self.submit_node_offset.fetch_add(1, Ordering::SeqCst);
-        let responder_id = &responder_ids[idx % responder_ids.len()];
-
-        self.peer_manager
-            .conn(responder_id)
-            .ok_or(TransactionServiceError::NodeNotFound)?
-            .propose_tx(&tx, empty())
-            .map_err(TransactionServiceError::from)?;
-
-        Ok(())
     }
 
     fn submit_transaction(

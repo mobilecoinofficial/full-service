@@ -375,14 +375,11 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             ));
         }
 
-        let outlays_string: Vec<(String, u64)> = self
-            .outlays
-            .iter()
-            .map(|(receiver, amount)| {
-                let b58_address = b58_encode_public_address(receiver).unwrap();
-                (b58_address, *amount)
-            })
-            .collect();
+        let mut outlays_string: Vec<(String, u64)> = Vec::new();
+        for (receiver, amount) in self.outlays.iter() {
+            let b58_address = b58_encode_public_address(receiver)?;
+            outlays_string.push((b58_address, *amount));
+        }
 
         Ok(UnsignedTx {
             inputs_and_real_indices_and_subaddress_indices,
