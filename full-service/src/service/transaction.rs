@@ -147,6 +147,8 @@ pub trait TransactionService {
         &self,
         account_id_hex: &str,
         addresses_and_values: &[(String, String)],
+        fee: Option<String>,
+        tombstone_block: Option<String>,
     ) -> Result<(UnsignedTx, FullServiceFogResolver), TransactionServiceError>;
 
     /// Builds a transaction from the given account to the specified recipients.
@@ -199,6 +201,8 @@ where
         &self,
         account_id_hex: &str,
         addresses_and_values: &[(String, String)],
+        fee: Option<String>,
+        tombstone_block: Option<String>,
     ) -> Result<(UnsignedTx, FullServiceFogResolver), TransactionServiceError> {
         let conn = self.wallet_db.get_conn()?;
         transaction(&conn, || {
@@ -219,9 +223,16 @@ where
                 builder.add_recipient(recipient, value.parse::<u64>()?)?;
             }
 
-            builder.set_tombstone(0)?;
+            if let Some(tombstone) = tombstone_block {
+                builder.set_tombstone(tombstone.parse::<u64>()?)?;
+            } else {
+                builder.set_tombstone(0)?;
+            }
 
-            builder.set_fee(self.get_network_fee())?;
+            builder.set_fee(match fee {
+                Some(f) => f.parse()?,
+                None => self.get_network_fee(),
+            })?;
 
             let unsigned_tx = builder.build_unsigned(&conn)?;
             let fog_resolver = builder.get_fs_fog_resolver(&conn)?;

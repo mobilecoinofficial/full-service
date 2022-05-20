@@ -110,6 +110,8 @@ pub enum JsonCommandRequest {
         account_id: String,
         recipient_public_address: Option<String>,
         value_pmob: Option<String>,
+        fee: Option<String>,
+        tombstone_block: Option<String>,
     },
     check_b58_type {
         b58_code: String,

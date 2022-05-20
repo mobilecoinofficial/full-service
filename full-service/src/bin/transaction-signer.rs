@@ -4,15 +4,18 @@ use mc_account_keys_slip10::Slip10Key;
 use mc_common::{HashMap, HashSet};
 use mc_full_service::{
     db::{account::AccountID, txo::TxoID},
+    fog_resolver::FullServiceFogResolver,
     json_rpc::{
         account_key::AccountKey as AccountKeyJSON,
         account_secrets::AccountSecrets,
         json_rpc_request::JsonCommandRequest,
+        tx_proposal::TxProposal,
         view_only_account::{
             ViewOnlyAccountImportPackageJSON, ViewOnlyAccountJSON, ViewOnlyAccountSecretsJSON,
         },
         view_only_subaddress::ViewOnlySubaddressJSON,
     },
+    unsigned_tx::UnsignedTx,
     util::b58,
 };
 use std::{convert::TryFrom, fs};
@@ -136,13 +139,13 @@ fn create_account(name: &String) {
         subaddress_json(&account_key, CHANGE_SUBADDRESS_INDEX, "Change"),
     ];
 
-    // Assemble view-only import package.
-    let import_package = ViewOnlyAccountImportPackageJSON {
-        object: "view_only_account_import_package".to_string(),
-        account: account_json,
-        secrets: account_secrets_json,
-        subaddresses: initial_subaddresses,
-    };
+    // // Assemble view-only import package.
+    // let import_package = ViewOnlyAccountImportPackageJSON {
+    //     object: "view_only_account_import_package".to_string(),
+    //     account: account_json,
+    //     secrets: account_secrets_json,
+    //     subaddresses: initial_subaddresses,
+    // };
 
     // Write secret mnemonic to file.
     let filename = format!(
@@ -153,13 +156,19 @@ fn create_account(name: &String) {
     fs::write(&filename, output_json + "\n").expect("could not write output file");
     println!("Wrote {}", filename);
 
+    let result = JsonCommandRequest::import_view_only_account {
+        account: account_json,
+        secrets: account_secrets_json,
+        subaddresses: initial_subaddresses,
+    };
+    let result_json = serde_json::to_string_pretty(&result).unwrap();
+
     // Write view private key and associated info to file.
     let filename = format!(
         "mobilecoin_view_account_import_package_{}.json",
         &account_id.to_string()[..6]
     );
-    let output_json = serde_json::to_string_pretty(&import_package).unwrap();
-    fs::write(&filename, output_json + "\n").expect("could not write output file");
+    fs::write(&filename, result_json + "\n").expect("could not write output file");
     println!("Wrote {}", filename);
 }
 
@@ -284,7 +293,53 @@ fn generate_subaddresses(secret_mnemonic: &String, request: &String) {
     println!("Wrote {}", filename);
 }
 
-fn sign_transaction(secret_mnemonic: &String, request: &String) {}
+fn sign_transaction(secret_mnemonic: &String, request: &String) {
+    // Load account key.
+    let mnemonic_json =
+        fs::read_to_string(secret_mnemonic).expect("Could not open secret mnemonic file.");
+    let account_secrets: AccountSecrets = serde_json::from_str(&mnemonic_json).unwrap();
+    let account_key = account_key_from_mnemonic_phrase(&account_secrets.mnemonic.unwrap());
+
+    // Load input txos.
+    let request_data =
+        fs::read_to_string(request).expect("Could not open generate subaddresses request file.");
+    let request_json: serde_json::Value =
+        serde_json::from_str(&request_data).expect("Malformed generate subaddresses request.");
+    let account_id = request_json
+        .get("account_id")
+        .unwrap()
+        .as_str()
+        .clone()
+        .unwrap();
+    assert_eq!(account_secrets.account_id, account_id);
+
+    let unsigned_tx: UnsignedTx = serde_json::from_value(
+        request_json
+            .get("unsigned_tx")
+            .expect("Could not find \"unsigned_tx\".")
+            .clone(),
+    );
+
+    let fog_resolver: FullServiceFogResolver = serde_json::from_value(
+        request_json
+            .get("fog_resolver")
+            .expect("Could not find \"fog_resolver\".")
+            .clone(),
+    );
+
+    let tx_proposal = unsigned_tx.sign(&account_key, &fog_resolver);
+    let tx_proposal_json = TxProposal::from(&tx_proposal);
+    let result = JsonCommandRequest::submit_transaction {
+        tx_proposal: tx_proposal_json,
+        comment: None,
+        account_id: Some(account_id.to_string()),
+    };
+
+    let result_json = serde_json::to_string_pretty(&result).unwrap();
+    let filename = format!("{}_completed.json", request.trim_end_matches(".json"));
+    fs::write(&filename, result_json + "\n").expect("could not write output file");
+    println!("Wrote {}", filename);
+}
 
 fn get_key_images_for_txos(
     tx_outs: &[TxOut],

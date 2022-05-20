@@ -318,13 +318,20 @@ where
             account_id,
             recipient_public_address,
             value_pmob,
+            fee,
+            tombstone_block,
         } => {
             let mut addresses_and_values: Vec<(String, String)> = Vec::new();
             if let (Some(a), Some(v)) = (recipient_public_address, value_pmob) {
                 addresses_and_values.push((a, v));
             }
             let (unsigned_tx, fog_resolver) = service
-                .build_unsigned_transaction(&account_id, &addresses_and_values)
+                .build_unsigned_transaction(
+                    &account_id,
+                    &addresses_and_values,
+                    fee,
+                    tombstone_block,
+                )
                 .map_err(format_error)?;
             JsonCommandResponse::build_unsigned_transaction {
                 unsigned_tx,
