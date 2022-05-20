@@ -24,7 +24,7 @@ impl FogPubkeyResolver for FullServiceFogResolver {
             None => Err(FogPubkeyError::NoFogReportUrl),
         }?;
 
-        Ok(FullyValidatedFogPubkey::from(fs_fog_pubkey))
+        Ok(FullyValidatedFogPubkey::try_from(fs_fog_pubkey)?)
     }
 }
 
@@ -43,11 +43,14 @@ impl From<FullyValidatedFogPubkey> for FullServiceFullyValidatedFogPubkey {
     }
 }
 
-impl From<FullServiceFullyValidatedFogPubkey> for FullyValidatedFogPubkey {
-    fn from(fog_pubkey: FullServiceFullyValidatedFogPubkey) -> Self {
-        Self {
-            pubkey: RistrettoPublic::try_from(&fog_pubkey.pubkey).unwrap(),
+impl TryFrom<FullServiceFullyValidatedFogPubkey> for FullyValidatedFogPubkey {
+    type Error = FogPubkeyError;
+
+    fn try_from(fog_pubkey: FullServiceFullyValidatedFogPubkey) -> Result<Self, Self::Error> {
+        Ok(Self {
+            pubkey: RistrettoPublic::try_from(&fog_pubkey.pubkey)
+                .map_err(|_| FogPubkeyError::NoFogReportUrl)?,
             pubkey_expiry: fog_pubkey.pubkey_expiry,
-        }
+        })
     }
 }

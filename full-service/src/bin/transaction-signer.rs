@@ -320,7 +320,7 @@ fn sign_transaction(secret_mnemonic: &str, request: &str) {
     )
     .unwrap();
 
-    let tx_proposal = unsigned_tx.sign(&account_key, fog_resolver);
+    let tx_proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
     let tx_proposal_json = TxProposal::from(&tx_proposal);
     let json_command_request = JsonCommandRequest::submit_transaction {
         tx_proposal: tx_proposal_json,
