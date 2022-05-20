@@ -4,12 +4,15 @@ use mc_crypto_keys::RistrettoPrivate;
 // date), it stores the actual data instead. This function supports
 // installlations of full service that were running prior to removing protobuff
 // data.
-// pub fn decode_if_protobuff(data: &[u8]) -> Result<&[u8],
-// mc_util_serial::DecodeError> {     match mc_util_serial::decode(data) {
-//         Result::Ok(decoded_protobuff) => decoded_protobuff,
-//         Result::Err(_) => Ok(data),
-//     }
-// }
+pub fn decode_private_key_if_protobuff(
+    data: &Vec<u8>,
+) -> Result<[u8; 32], mc_util_serial::DecodeError> {
+    match mc_util_serial::decode::<RistrettoPrivate>(&data) {
+        Result::Ok(decoded_protobuff) => Ok(decoded_protobuff.to_bytes()),
+        // Result::Err(_) => Ok(data[..]),
+        Result::Err(_) => Ok(data.try_into()),
+    }
+}
 
 // TODO(CC) Delete all of these once protobuff data storage removed from app
 pub fn ristretto_to_vec(key: &RistrettoPrivate) -> Vec<u8> {
@@ -37,23 +40,23 @@ pub fn ristretto_to_hex(key: &RistrettoPrivate) -> String {
     vec_to_hex(&ristretto_to_vec(key))
 }
 
-// mod tests {
-//     use super::*;
-//     use mc_common::logger::{test_with_logger, Logger};
-//     use mc_crypto_keys::RistrettoPrivate;
-//     use mc_util_from_random::FromRandom;
-//     use rand::{rngs::StdRng, SeedableRng};
+mod tests {
+    use super::*;
+    use mc_common::logger::{test_with_logger, Logger};
+    use mc_crypto_keys::RistrettoPrivate;
+    use mc_util_from_random::FromRandom;
+    use rand::{rngs::StdRng, SeedableRng};
 
-//     #[test_with_logger]
-//     fn test_decode_if_protobuff(logger: Logger) {
-//         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-//         let random_key = RistrettoPrivate::from_random(&mut rng);
-//         let encoded_key = mc_util_serial::encode(&random_key);
-//         let decoded_protobuff: RistrettoPrivate =
-// decode_if_protobuff(&encoded_key).unwrap();         let decoded_bytes:
-// RistrettoPrivate = decode_if_protobuff(&random_key.to_bytes()).unwrap();
+    #[test_with_logger]
+    fn test_decode_private_key_if_protobuff(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let random_key = RistrettoPrivate::from_random(&mut rng);
+        let encoded_key = mc_util_serial::encode(&random_key);
+        let decoded_protobuff: [u8; 32] = decode_private_key_if_protobuff(&encoded_key).unwrap();
+        let decoded_bytes: [u8; 32] =
+            decode_private_key_if_protobuff(&random_key.to_bytes()).unwrap();
 
-//         assert_eq!(decoded_protobuff.to_bytes(), random_key.to_bytes());
-//         assert_eq!(decoded_bytes.to_bytes(), random_key.to_bytes());
-//     }
-// }
+        assert_eq!(decoded_protobuff, random_key.to_bytes());
+        assert_eq!(decoded_bytes, random_key.to_bytes());
+    }
+}
