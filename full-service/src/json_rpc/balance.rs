@@ -35,6 +35,11 @@ pub struct Balance {
     /// If the account is syncing, this value may change.
     pub unspent_pmob: String,
 
+    /// The maximum amount of pico MOB that can be sent in a single transaction.
+    /// Equal to the sum of the 16 highest value txos - the network fee.
+    /// If the account is syncing, this value may change.
+    pub max_spendable_pmob: String,
+
     /// Pending, out-going pico MOB. The pending value will clear once the
     /// ledger processes the outgoing txos. The available_pmob will reflect the
     /// change.
@@ -63,6 +68,7 @@ impl From<&service::balance::Balance> for Balance {
             account_block_height: src.synced_blocks.to_string(),
             is_synced: src.synced_blocks == src.network_block_height,
             unspent_pmob: src.unspent.to_string(),
+            max_spendable_pmob: src.max_spendable.to_string(),
             pending_pmob: src.pending.to_string(),
             spent_pmob: src.spent.to_string(),
             secreted_pmob: src.secreted.to_string(),

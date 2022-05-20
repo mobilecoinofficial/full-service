@@ -16,6 +16,7 @@ description: >-
 | `account_block_height` | string \(uint64\) | The scanned local block count for this account. This value will never be greater than `local_block_height`. At fully synced, it will match `network_block_height`.
 | `is_synced` | boolean | Whether the account is synced with the `network_block_height`. Balances may not appear correct if the account is still syncing. |
 | `unspent_pmob` | string \(uint64\) | Unspent pico MOB for this account at the current `account_block_height`. If the account is syncing, this value may change. |
+| `max_spendable_pmob` | string \(uint64\) | Maximum pico MOB that can be sent in a single transaction for account at the current `account_block_height`. If the account is syncing, this value may change. It is the sum of the 16 (maximum number of inputs) largest spendable txos, minus the transaction fee. |
 | `pending_pmob` | string \(uint64\) | Pending, out-going pico MOB. The pending value will clear once the ledger processes the outgoing TXOs. The `pending_pmob` will reflect the change. |
 | `spent_pmob` | string \(uint64\) | Spent pico MOB. This is the sum of all the TXOs in the wallet which have been spent. |
 | `secreted_pmob` | string \(uint64\) | Secreted \(minted\) pico MOB. This is the sum of all the TXOs which have been created in the wallet for outgoing transactions. |
@@ -31,6 +32,7 @@ description: >-
   "network_block_height": "152918",
   "object": "balance",
   "orphaned_pmob": "0",
+  "max_spendable_pmob": "0",
   "pending_pmob": "0",
   "secreted_pmob": "0",
   "spent_pmob": "0",

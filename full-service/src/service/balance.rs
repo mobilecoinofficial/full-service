@@ -83,6 +83,7 @@ pub struct Balance {
     pub network_block_height: u64,
     pub local_block_height: u64,
     pub synced_blocks: u64,
+    pub max_spendable: u128,
 }
 
 // The balance object for view-only-accounts
@@ -163,7 +164,7 @@ where
         let account_id_hex = &account_id.to_string();
 
         let conn = self.wallet_db.get_conn()?;
-        let (unspent, pending, spent, secreted, orphaned) =
+        let (unspent, max_spendable, pending, spent, secreted, orphaned) =
             Self::get_balance_inner(account_id_hex, &conn)?;
 
         let network_block_height = self.get_network_block_height()?;
@@ -172,6 +173,7 @@ where
 
         Ok(Balance {
             unspent,
+            max_spendable,
             pending,
             spent,
             secreted,
@@ -214,6 +216,10 @@ where
         let conn = self.wallet_db.get_conn()?;
         let assigned_address = AssignedSubaddress::get(address, &conn)?;
 
+        let max_spendable =
+            Txo::list_spendable(&assigned_address.account_id_hex, None, Some(address), &conn)?
+                .max_spendable_in_wallet;
+
         // Orphaned txos have no subaddress assigned, so none of these txos can
         // be orphaned.
         let orphaned: u128 = 0;
@@ -239,6 +245,7 @@ where
 
         Ok(Balance {
             unspent,
+            max_spendable,
             pending,
             spent,
             secreted,
@@ -351,7 +358,9 @@ where
     fn get_balance_inner(
         account_id_hex: &str,
         conn: &Conn,
-    ) -> Result<(u128, u128, u128, u128, u128), BalanceServiceError> {
+    ) -> Result<(u128, u128, u128, u128, u128, u128), BalanceServiceError> {
+        let max_spendable =
+            Txo::list_spendable(account_id_hex, None, None, conn)?.max_spendable_in_wallet;
         // Note: We need to cast to u64 first, because i64 could have wrapped, then to
         // u128
         let unspent = Txo::list_unspent(account_id_hex, None, conn)?
@@ -375,7 +384,7 @@ where
             .map(|t| (t.value as u64) as u128)
             .sum::<u128>();
 
-        let result = (unspent, pending, spent, secreted, orphaned);
+        let result = (unspent, max_spendable, pending, spent, secreted, orphaned);
         Ok(result)
     }
 }
@@ -447,6 +456,8 @@ mod tests {
 
         // 3 accounts * 5_000 MOB * 12 blocks
         assert_eq!(account_balance.unspent, 180_000 * MOB as u128);
+        // 5_000 MOB per txo, max 16 txos input - network fee
+        assert_eq!(account_balance.max_spendable, 79999999600000000 as u128);
         assert_eq!(account_balance.pending, 0);
         assert_eq!(account_balance.spent, 0);
         assert_eq!(account_balance.secreted, 0);
@@ -463,6 +474,7 @@ mod tests {
             .expect("Could not get balance for address");
 
         assert_eq!(address_balance.unspent, 60_000 * MOB as u128);
+        assert_eq!(address_balance.max_spendable, 59999999600000000 as u128);
         assert_eq!(address_balance.pending, 0);
         assert_eq!(address_balance.spent, 0);
         assert_eq!(address_balance.secreted, 0);
@@ -472,6 +484,7 @@ mod tests {
             .get_balance_for_address(&address.assigned_subaddress_b58)
             .expect("Could not get balance for address");
         assert_eq!(address_balance2.unspent, 60_000 * MOB as u128);
+        assert_eq!(address_balance2.max_spendable, 59999999600000000 as u128);
         assert_eq!(address_balance2.pending, 0);
         assert_eq!(address_balance2.spent, 0);
         assert_eq!(address_balance2.secreted, 0);
