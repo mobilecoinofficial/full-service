@@ -32,19 +32,15 @@ fn main() {
         let tombstone_block_height = &args[3].parse::<u64>().unwrap();
         let signed_tx_file = &args[4];
         let account_key_config_file = &args[5];
-        let num_subaddresses_to_check = &args[6].parse::<u64>().unwrap();
 
         let mnemonic_phrase = fs::read_to_string(account_key_config_file).unwrap();
         let account_key = account_key_from_mnemonic_phrase(&mnemonic_phrase);
-        let subaddress_spend_public_keys =
-            generate_subaddress_spend_public_keys(&account_key, *num_subaddresses_to_check);
 
         sign_transaction(
             unsigned_tx_file,
             tombstone_block_height,
             signed_tx_file,
             &account_key,
-            &subaddress_spend_public_keys,
         );
 
         return;
@@ -145,7 +141,6 @@ fn sign_transaction(
     tombstone_block_height: &u64,
     signed_tx_file: &str,
     account_key: &AccountKey,
-    subaddress_spend_public_keys: &HashMap<RistrettoPublic, u64>,
 ) {
     let unsigned_tx_bytes_serialized = fs::read_to_string(unsigned_tx_file).unwrap();
     let unsigned_tx_bundle: UnsignedTxAndFogResolver =
@@ -153,7 +148,6 @@ fn sign_transaction(
 
     let signed_tx = unsigned_tx_bundle.unsigned_tx.sign(
         account_key,
-        subaddress_spend_public_keys,
         *tombstone_block_height,
         unsigned_tx_bundle.fog_resolver,
     );

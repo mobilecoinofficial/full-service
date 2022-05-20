@@ -25,9 +25,12 @@ use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::tx::Tx;
-use mc_transaction_signer::{FullServiceFogResolver, UnsignedTx};
 
-use crate::service::address::{AddressService, AddressServiceError};
+use crate::{
+    fog_resolver::FullServiceFogResolver,
+    service::address::{AddressService, AddressServiceError},
+    unsigned_tx::UnsignedTx,
+};
 use displaydoc::Display;
 use std::{convert::TryFrom, iter::empty, sync::atomic::Ordering};
 

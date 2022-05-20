@@ -18,6 +18,8 @@ use crate::{
         Conn,
     },
     error::WalletTransactionBuilderError,
+    fog_resolver::{FullServiceFogResolver, FullServiceFullyValidatedFogPubkey},
+    unsigned_tx::UnsignedTx,
     util::b58::b58_encode_public_address,
 };
 use mc_account_keys::{AccountKey, PublicAddress};
@@ -39,9 +41,6 @@ use mc_transaction_core::{
     tokens::Mob,
     tx::{TxIn, TxOut, TxOutMembershipProof},
     Token,
-};
-use mc_transaction_signer::{
-    FullServiceFogResolver, FullServiceFullyValidatedFogPubkey, UnsignedTx,
 };
 use mc_transaction_std::{InputCredentials, NoMemoBuilder, TransactionBuilder};
 use mc_util_uri::FogUri;
@@ -323,7 +322,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             .map(|tuples| tuples.into_iter().unzip())
             .collect();
 
-        let mut inputs_and_real_indices: Vec<(TxIn, u64)> = Vec::new();
+        let mut inputs_and_real_indices_and_subaddress_indices: Vec<(TxIn, u64, u64)> = Vec::new();
 
         for (utxo, proof) in inputs_and_proofs.iter() {
             let db_tx_out: TxOut = mc_util_serial::decode(&utxo.txo)?;
@@ -369,7 +368,11 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 proofs: membership_proofs,
             };
 
-            inputs_and_real_indices.push((tx_in, real_index as u64));
+            inputs_and_real_indices_and_subaddress_indices.push((
+                tx_in,
+                real_index as u64,
+                utxo.subaddress_index.unwrap() as u64,
+            ));
         }
 
         let outlays_string: Vec<(String, u64)> = self
@@ -382,7 +385,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             .collect();
 
         Ok(UnsignedTx {
-            inputs_and_real_indices,
+            inputs_and_real_indices_and_subaddress_indices,
             outlays: outlays_string,
             fee: self.fee.unwrap_or(Mob::MINIMUM_FEE),
         })

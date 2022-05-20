@@ -1,6 +1,7 @@
 use mc_account_keys::AccountKey;
 use mc_common::HashMap;
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
+use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::{
     get_tx_out_shared_secret,
     onetime_keys::recover_onetime_private_key,
@@ -9,12 +10,11 @@ use mc_transaction_core::{
     AmountError,
 };
 use mc_transaction_std::{ChangeDestination, InputCredentials, NoMemoBuilder, TransactionBuilder};
-
 use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
-use crate::{util::b58::b58_decode_public_address, FullServiceFogResolver};
+use crate::{fog_resolver::FullServiceFogResolver, util::b58::b58_decode_public_address};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct UnsignedTx {
@@ -35,7 +35,7 @@ impl UnsignedTx {
         account_key: &AccountKey,
         tombstone_block: u64,
         fog_resolver: FullServiceFogResolver,
-    ) -> Tx {
+    ) -> TxProposal {
         let mut rng = rand::thread_rng();
         let memo_builder = NoMemoBuilder::default();
 
@@ -95,7 +95,35 @@ impl UnsignedTx {
             &mut rng,
         );
 
-        transaction_builder.build(&mut rng).unwrap()
+        let tx = transaction_builder.build(&mut rng).unwrap();
+
+        let selected_utxos = self.inputs_and_real_indices_and_subaddress_indices
+        .iter()
+        .map(|(tx_in, real_index, _)| {
+            let tx_out = &tx_in.ring[*real_index as usize];
+            let decoded_tx_out = mc_util_serial::decode(&tx_out.txo).unwrap();
+            let decoded_key_image =
+                mc_util_serial::decode(&tx_out.key_image.clone().unwrap()).unwrap();
+
+            UnspentTxOut {
+                tx_out: decoded_tx_out,
+                subaddress_index: utxo.subaddress_index.unwrap() as u64, /* verified not null
+                                                                          * earlier */
+                key_image: decoded_key_image,
+                value: utxo.value as u64,
+                attempted_spend_height: 0, // NOTE: these are null because not tracked here
+                attempted_spend_tombstone: 0,
+            }
+        })
+        .collect();
+
+        let tx_proposal = TxProposal {
+            utxos: todo!(),
+            outlays: todo!(),
+            tx,
+            outlay_index_to_tx_out_index: todo!(),
+            outlay_confirmation_numbers: todo!(),
+        }
     }
 }
 
@@ -118,7 +146,7 @@ fn add_payload_outputs<RNG: CryptoRng + RngCore>(
     let mut tx_out_to_outlay_index: HashMap<TxOut, usize> = HashMap::default();
     let mut outlay_confirmation_numbers = Vec::default();
     for (i, (recipient, out_value)) in outlays.iter().enumerate() {
-        let recipient_public_address = b58_decode_public_address(recipient);
+        let recipient_public_address = b58_decode_public_address(recipient).unwrap();
         let (tx_out, confirmation_number) = transaction_builder
             .add_output(*out_value as u64, &recipient_public_address, rng)
             .unwrap();

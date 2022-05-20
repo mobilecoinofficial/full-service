@@ -48,6 +48,10 @@ enum Opts {
         secret_mnemonic: String,
         request: String,
     },
+    Sign {
+        secret_mnemonic: String,
+        request: String,
+    },
 }
 
 fn main() {
@@ -70,6 +74,12 @@ fn main() {
             ref request,
         } => {
             generate_subaddresses(secret_mnemonic, request);
+        }
+        Opts::Sign {
+            ref secret_mnemonic,
+            ref request,
+        } => {
+            sign_transaction(secret_mnemonic, request);
         }
     }
 }
@@ -273,6 +283,8 @@ fn generate_subaddresses(secret_mnemonic: &String, request: &String) {
     fs::write(&filename, result_json + "\n").expect("could not write output file");
     println!("Wrote {}", filename);
 }
+
+fn sign_transaction(secret_mnemonic: &String, request: &String) {}
 
 fn get_key_images_for_txos(
     tx_outs: &[TxOut],

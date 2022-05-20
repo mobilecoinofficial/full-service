@@ -32,7 +32,7 @@ use std::collections::HashMap;
 use strum::AsStaticRef;
 use strum_macros::AsStaticStr;
 
-use mc_transaction_signer::{FullServiceFogResolver, UnsignedTx};
+use crate::{fog_resolver::FullServiceFogResolver, unsigned_tx::UnsignedTx};
 
 /// A JSON RPC 2.0 Response.
 #[derive(Deserialize, Serialize, Debug)]
