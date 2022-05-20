@@ -37,7 +37,6 @@ mc-mobilecoind-api = { path = "../mobilecoin/mobilecoind/api" }
 mc-mobilecoind-json = { path = "../mobilecoin/mobilecoind-json" }
 mc-sgx-css = { path = "../mobilecoin/sgx/css" }
 mc-transaction-core = { path = "../mobilecoin/transaction/core" }
-mc-transaction-signer = { path = "../transaction-signer" }
 mc-transaction-std = { path = "../mobilecoin/transaction/std" }
 mc-util-from-random = { path = "../mobilecoin/util/from-random" }
 mc-util-parse = { path = "../mobilecoin/util/parse" }

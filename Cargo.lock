@@ -1897,7 +1897,7 @@ dependencies = [
  "mc-util-from-random",
  "mc-util-repr-bytes",
  "mc-util-serial",
- "prost 0.9.0",
+ "prost",
  "rand_core 0.6.3",
  "subtle",
  "zeroize",
@@ -1953,7 +1953,7 @@ dependencies = [
  "mc-crypto-noise",
  "mc-util-build-script",
  "mc-util-build-sgx",
- "prost 0.9.0",
+ "prost",
  "rand_core 0.6.3",
  "serde",
 ]
@@ -1995,7 +1995,7 @@ dependencies = [
  "mc-util-build-script",
  "mc-util-build-sgx",
  "mc-util-encodings",
- "prost 0.9.0",
+ "prost",
  "rjson",
  "serde",
  "sha2",
@@ -2316,7 +2316,7 @@ version = "1.2.0-pre0"
 dependencies = [
  "mc-attest-core",
  "mc-crypto-digestible",
- "prost 0.9.0",
+ "prost",
  "serde",
 ]
 
@@ -2419,7 +2419,6 @@ dependencies = [
  "mc-mobilecoind-json",
  "mc-sgx-css",
  "mc-transaction-core",
- "mc-transaction-signer",
  "mc-transaction-std",
  "mc-util-from-random",
  "mc-util-parse",
@@ -2464,7 +2463,7 @@ dependencies = [
  "mc-util-serial",
  "mc-util-telemetry",
  "mockall",
- "prost 0.9.0",
+ "prost",
  "rand 0.8.5",
  "rand_core 0.6.3",
 ]
@@ -2541,7 +2540,7 @@ dependencies = [
  "mc-util-uri",
  "mc-watcher",
  "num_cpus",
- "prost 0.9.0",
+ "prost",
  "protobuf",
  "rand 0.8.5",
  "rayon",
@@ -2642,7 +2641,7 @@ dependencies = [
  "mc-util-repr-bytes",
  "mc-util-serial",
  "merlin",
- "prost 0.9.0",
+ "prost",
  "rand_core 0.6.3",
  "serde",
  "sha2",
@@ -2667,34 +2666,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mc-transaction-signer"
-version = "1.0.0"
-dependencies = [
- "base64 0.13.0",
- "hex",
- "mc-account-keys",
- "mc-account-keys-slip10",
- "mc-api",
- "mc-attest-verifier",
- "mc-common",
- "mc-consensus-scp",
- "mc-crypto-keys",
- "mc-fog-report-validation",
- "mc-transaction-core",
- "mc-transaction-std",
- "mc-util-from-random",
- "mc-util-parse",
- "mc-util-serial",
- "mc-util-uri",
- "prost 0.10.1",
- "rand 0.8.5",
- "serde",
- "serde_derive",
- "serde_json",
- "tiny-bip39",
-]
-
-[[package]]
 name = "mc-transaction-std"
 version = "1.2.0-pre0"
 dependencies = [
@@ -2708,7 +2679,7 @@ dependencies = [
  "mc-transaction-core",
  "mc-util-from-random",
  "mc-util-serial",
- "prost 0.9.0",
+ "prost",
  "rand 0.8.5",
  "rand_core 0.6.3",
  "sha2",
@@ -2827,7 +2798,7 @@ dependencies = [
  "displaydoc",
  "lmdb-rkv",
  "mc-util-serial",
- "prost 0.9.0",
+ "prost",
 ]
 
 [[package]]
@@ -2865,7 +2836,7 @@ name = "mc-util-repr-bytes"
 version = "1.2.0-pre0"
 dependencies = [
  "generic-array",
- "prost 0.9.0",
+ "prost",
  "serde",
 ]
 
@@ -2873,7 +2844,7 @@ dependencies = [
 name = "mc-util-serial"
 version = "1.2.0-pre0"
 dependencies = [
- "prost 0.9.0",
+ "prost",
  "serde",
  "serde_cbor",
 ]
@@ -2989,7 +2960,7 @@ dependencies = [
  "mc-util-serial",
  "mc-util-uri",
  "mc-watcher-api",
- "prost 0.9.0",
+ "prost",
  "rayon",
  "serde",
  "structopt",
@@ -3669,17 +3640,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "444879275cb4fd84958b1a1d5420d15e6fcf7c235fe47f053c9c2a80aceb6001"
 dependencies = [
  "bytes 1.1.0",
- "prost-derive 0.9.0",
-]
-
-[[package]]
-name = "prost"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a07b0857a71a8cb765763950499cae2413c3f9cede1133478c43600d9e146890"
-dependencies = [
- "bytes 1.1.0",
- "prost-derive 0.10.1",
+ "prost-derive",
 ]
 
 [[package]]
@@ -3687,19 +3648,6 @@ name = "prost-derive"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9cc1a3263e07e0bf68e96268f37665207b49560d98739662cdfaae215c720fe"
-dependencies = [
- "anyhow",
- "itertools",
- "proc-macro2 1.0.32",
- "quote 1.0.10",
- "syn 1.0.81",
-]
-
-[[package]]
-name = "prost-derive"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b670f45da57fb8542ebdbb6105a925fe571b67f9e7ed9f47a06a84e72b4e7cc"
 dependencies = [
  "anyhow",
  "itertools",
