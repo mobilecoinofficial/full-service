@@ -53,6 +53,9 @@ enum Opts {
         secret_mnemonic: String,
         request: String,
     },
+    ViewOnlyImportPackage {
+        secret_mnemonic: String,
+    },
 }
 
 fn main() {
@@ -62,6 +65,11 @@ fn main() {
         Opts::Create { ref name } => {
             let name = name.clone().unwrap_or_else(|| "".into());
             create_account(&name);
+        }
+        Opts::ViewOnlyImportPackage {
+            ref secret_mnemonic,
+        } => {
+            generate_view_only_import_package(secret_mnemonic);
         }
         Opts::Sync {
             ref secret_mnemonic,
@@ -113,10 +121,30 @@ fn create_account(name: &str) {
         name: name.to_string(),
     };
 
+    // Write secret mnemonic to file.
+    let filename = format!(
+        "mobilecoin_secret_mnemonic_{}.json",
+        &account_id.to_string()[..6]
+    );
+    let output_json = serde_json::to_string_pretty(&secrets).unwrap();
+    fs::write(&filename, output_json + "\n").expect("could not write output file");
+    println!("Wrote {}", filename);
+
+    generate_view_only_import_package(&filename);
+}
+
+fn generate_view_only_import_package(secret_mnemonic: &str) {
+    // Load account key.
+    let mnemonic_json =
+        fs::read_to_string(secret_mnemonic).expect("Could not open secret mnemonic file.");
+    let account_secrets: AccountSecrets = serde_json::from_str(&mnemonic_json).unwrap();
+    let account_key = account_key_from_mnemonic_phrase(&account_secrets.mnemonic.unwrap());
+    let account_id = AccountID::from(&account_key);
+
     // Package view private key.
     let account_json = ViewOnlyAccountJSON {
         object: "view_only_account".to_string(),
-        name: name.to_string(),
+        name: account_secrets.name,
         account_id: account_id.to_string(),
         first_block_index: 0.to_string(),
         next_block_index: 0.to_string(),
@@ -136,15 +164,6 @@ fn create_account(name: &str) {
         subaddress_json(&account_key, DEFAULT_SUBADDRESS_INDEX, "Main"),
         subaddress_json(&account_key, CHANGE_SUBADDRESS_INDEX, "Change"),
     ];
-
-    // Write secret mnemonic to file.
-    let filename = format!(
-        "mobilecoin_secret_mnemonic_{}.json",
-        &account_id.to_string()[..6]
-    );
-    let output_json = serde_json::to_string_pretty(&secrets).unwrap();
-    fs::write(&filename, output_json + "\n").expect("could not write output file");
-    println!("Wrote {}", filename);
 
     let json_command_request = JsonCommandRequest::import_view_only_account {
         account: account_json,
