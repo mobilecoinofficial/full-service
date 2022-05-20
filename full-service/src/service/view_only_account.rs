@@ -202,10 +202,7 @@ mod tests {
         AccountKey, PublicAddress, CHANGE_SUBADDRESS_INDEX, DEFAULT_SUBADDRESS_INDEX,
     };
     use mc_common::logger::{test_with_logger, Logger};
-    use mc_connection_test_utils::MockBlockchainConnection;
     use mc_crypto_keys::RistrettoPrivate;
-    use mc_fog_report_validation::MockFogPubkeyResolver;
-    use mc_ledger_db::LedgerDB;
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
@@ -214,14 +211,13 @@ mod tests {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let current_block_height = 12; //index 11
-        let mut ledger_db = get_test_ledger(
+        let ledger_db = get_test_ledger(
             5,
             &known_recipients,
             current_block_height as usize,
             &mut rng,
         );
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
-        let conn = service.wallet_db.get_conn().unwrap();
 
         let view_private_key = RistrettoPrivate::from_random(&mut rng);
         let spend_private_key = RistrettoPrivate::from_random(&mut rng);
@@ -246,7 +242,7 @@ mod tests {
             *change_public_address.spend_public_key(),
         ));
 
-        let account = service
+        service
             .import_view_only_account(
                 &account_id.to_string(),
                 &view_private_key,

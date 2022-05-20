@@ -205,95 +205,104 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use crate::test_utils::WalletDbTestContext;
-//     use mc_common::logger::{test_with_logger, Logger};
-//     use mc_crypto_keys::RistrettoPrivate;
-//     use mc_util_from_random::FromRandom;
-//     use rand::{rngs::StdRng, SeedableRng};
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_utils::WalletDbTestContext;
+    use mc_account_keys::{CHANGE_SUBADDRESS_INDEX, DEFAULT_SUBADDRESS_INDEX};
+    use mc_common::logger::{test_with_logger, Logger};
+    use mc_crypto_keys::RistrettoPrivate;
+    use mc_util_from_random::FromRandom;
+    use rand::{rngs::StdRng, SeedableRng};
 
-//     #[test_with_logger]
-//     fn test_view_only_account_crud(logger: Logger) {
-//         let db_test_context = WalletDbTestContext::default();
-//         let wallet_db = db_test_context.get_db_instance(logger);
-//         let conn = wallet_db.get_conn().unwrap();
+    #[test_with_logger]
+    fn test_view_only_account_crud(logger: Logger) {
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+        let conn = wallet_db.get_conn().unwrap();
 
-//         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
-//         // test account creation
+        // test account creation
 
-//         let name = "Coins for cats";
-//         let view_private_key = RistrettoPrivate::from_random(&mut rng);
-//         let first_block_index: u64 = 25;
-//         let import_block_index: u64 = 26;
-//         let account_id_hex = "abcd";
+        let name = "Coins for cats";
+        let view_private_key = RistrettoPrivate::from_random(&mut rng);
+        let first_block_index: u64 = 25;
+        let import_block_index: u64 = 26;
+        let account_id_hex = "abcd";
 
-//         let expected_account = ViewOnlyAccount {
-//             id: 1,
-//             account_id_hex: account_id_hex.to_string(),
-//             view_private_key: ristretto_to_vec(&view_private_key),
-//             first_block_index: first_block_index as i64,
-//             next_block_index: first_block_index as i64,
-//             import_block_index: import_block_index as i64,
-//             name: name.to_string(),
-//         };
+        let expected_account = ViewOnlyAccount {
+            id: 1,
+            account_id_hex: account_id_hex.to_string(),
+            view_private_key: ristretto_to_vec(&view_private_key),
+            first_block_index: first_block_index as i64,
+            next_block_index: first_block_index as i64,
+            import_block_index: import_block_index as i64,
+            name: name.to_string(),
+            main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
+            change_subaddress_index: CHANGE_SUBADDRESS_INDEX as i64,
+            next_subaddress_index: 2,
+        };
 
-//         let created = ViewOnlyAccount::create(
-//             account_id_hex,
-//             &view_private_key,
-//             first_block_index,
-//             import_block_index,
-//             &name,
-//             &conn,
-//         )
-//         .unwrap();
-//         assert_eq!(expected_account, created);
+        let created = ViewOnlyAccount::create(
+            account_id_hex,
+            &view_private_key,
+            first_block_index,
+            import_block_index,
+            DEFAULT_SUBADDRESS_INDEX,
+            CHANGE_SUBADDRESS_INDEX,
+            2,
+            &name,
+            &conn,
+        )
+        .unwrap();
+        assert_eq!(expected_account, created);
 
-//         // test account name update
+        // test account name update
 
-//         let new_name = "coins for dogs";
+        let new_name = "coins for dogs";
 
-//         created.update_name(&new_name, &conn).unwrap();
+        created.update_name(&new_name, &conn).unwrap();
 
-//         // test updating next block index
+        // test updating next block index
 
-//         let new_next_block = 100;
+        let new_next_block = 100;
 
-//         created
-//             .update_next_block_index(new_next_block, &conn)
-//             .unwrap();
+        created
+            .update_next_block_index(new_next_block, &conn)
+            .unwrap();
 
-//         // test getting an account
+        // test getting an account
 
-//         let updated: ViewOnlyAccount = ViewOnlyAccount::get(&account_id_hex,
-// &conn).unwrap();
+        let updated: ViewOnlyAccount = ViewOnlyAccount::get(&account_id_hex, &conn).unwrap();
 
-//         assert_eq!(&updated.name, &new_name);
-//         assert_eq!(updated.next_block_index as u64, new_next_block);
+        assert_eq!(&updated.name, &new_name);
+        assert_eq!(updated.next_block_index as u64, new_next_block);
 
-//         // test getting all accounts
+        // test getting all accounts
 
-//         ViewOnlyAccount::create(
-//             "some_account_id",
-//             &view_private_key,
-//             first_block_index,
-//             import_block_index,
-//             "catcoin_name",
-//             &conn,
-//         )
-//         .unwrap();
+        ViewOnlyAccount::create(
+            "some_account_id",
+            &view_private_key,
+            first_block_index,
+            import_block_index,
+            DEFAULT_SUBADDRESS_INDEX,
+            CHANGE_SUBADDRESS_INDEX,
+            2,
+            "catcoin_name",
+            &conn,
+        )
+        .unwrap();
 
-//         let all_accounts = ViewOnlyAccount::list_all(&conn).unwrap();
+        let all_accounts = ViewOnlyAccount::list_all(&conn).unwrap();
 
-//         assert_eq!(all_accounts.len(), 2);
+        assert_eq!(all_accounts.len(), 2);
 
-//         // test deleting the account
+        // test deleting the account
 
-//         created.delete(&conn).unwrap();
+        created.delete(&conn).unwrap();
 
-//         let not_found = ViewOnlyAccount::get(&account_id_hex, &conn);
-//         assert!(not_found.is_err());
-//     }
-// }
+        let not_found = ViewOnlyAccount::get(&account_id_hex, &conn);
+        assert!(not_found.is_err());
+    }
+}
