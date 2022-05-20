@@ -334,6 +334,7 @@ where
                 )
                 .map_err(format_error)?;
             JsonCommandResponse::build_unsigned_transaction {
+                account_id,
                 unsigned_tx,
                 fog_resolver,
             }

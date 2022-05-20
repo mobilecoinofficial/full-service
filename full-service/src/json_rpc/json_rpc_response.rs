@@ -150,6 +150,7 @@ pub enum JsonCommandResponse {
         transaction_log_id: String,
     },
     build_unsigned_transaction {
+        account_id: String,
         unsigned_tx: UnsignedTx,
         fog_resolver: FullServiceFogResolver,
     },
