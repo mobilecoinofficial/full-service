@@ -2,7 +2,9 @@
 
 * [Welcome!](README.md)
 
-## Accounts
+## API Endpoints
+
+### Accounts
 
 * [Account](accounts/account/README.md)
   * [Create Account](accounts/account/create_account.md)
@@ -23,7 +25,7 @@
   * [Get Balance For Account](accounts/balance/get_balance_for_account.md)
   * [Get Balance For Address](accounts/balance/get_balance_for_address.md)
 
-## View Only Accounts
+### View Only Accounts
 
 * [Account](view-only-accounts/account/README.md)
   * [Import](view-only-accounts/account/import_view_only_account.md)
@@ -42,7 +44,7 @@
   * [Create New Subaddress Request](view-only-accounts/subaddress/create_new_subaddress_request.md)
   * [Import Subaddresses](view-only-accounts/subaddress/import_subaddresses_to_view_only_account.md)
 
-## Transactions
+### Transactions
 
 * [Transaction](transactions/transaction/README.md)
   * [Build Transaction](transactions/transaction/build_transaction.md)
@@ -74,7 +76,7 @@
   * [Check B58 Type](transactions/payment-request/check_b58_type.md)
   
 
-## Gift Codes
+### Gift Codes
 
 * [Gift Code](gift-codes/gift-code/README.md)
   * [Build Gift Code](gift-codes/gift-code/build_gift_code.md)
@@ -85,7 +87,7 @@
   * [Claim Gift Code](gift-codes/gift-code/claim_gift_code.md)
   * [Remove Gift Code](gift-codes/gift-code/remove_gift_code.md)
 
-## Other
+### Other
 
 * [Block](other/block/README.md)
   * [Get Block](other/block/get_block.md)
