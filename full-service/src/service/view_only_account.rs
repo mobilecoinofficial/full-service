@@ -122,7 +122,7 @@ where
             for (public_address_b58, subaddress_index, comment, public_spend_key) in
                 subaddresses.iter()
             {
-                let existing = ViewOnlySubaddress::get(&public_address_b58, conn);
+                let existing = ViewOnlySubaddress::get(public_address_b58, conn);
                 if existing.is_err() {
                     ViewOnlySubaddress::create(
                         &account,

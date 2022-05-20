@@ -151,7 +151,7 @@ pub fn decode_amount(
 }
 
 fn add_payload_outputs<RNG: CryptoRng + RngCore>(
-    outlays: &Vec<Outlay>,
+    outlays: &[Outlay],
     transaction_builder: &mut TransactionBuilder<FullServiceFogResolver>,
     rng: &mut RNG,
 ) -> (u64, HashMap<TxOut, usize>, Vec<TxOutConfirmationNumber>) {

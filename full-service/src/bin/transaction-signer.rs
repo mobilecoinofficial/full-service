@@ -85,7 +85,7 @@ fn main() {
     }
 }
 
-fn create_account(name: &String) {
+fn create_account(name: &str) {
     println!("Creating account {}", name);
 
     // Generate new seed mnemonic.
@@ -110,13 +110,13 @@ fn create_account(name: &String) {
         mnemonic: Some(mnemonic.phrase().to_string()),
         key_derivation_version: "2".to_string(),
         account_key: AccountKeyJSON::from(&account_key),
-        name: name.clone(),
+        name: name.to_string(),
     };
 
     // Package view private key.
     let account_json = ViewOnlyAccountJSON {
         object: "view_only_account".to_string(),
-        name: name.clone(),
+        name: name.to_string(),
         account_id: account_id.to_string(),
         first_block_index: 0.to_string(),
         next_block_index: 0.to_string(),
@@ -136,14 +136,6 @@ fn create_account(name: &String) {
         subaddress_json(&account_key, DEFAULT_SUBADDRESS_INDEX, "Main"),
         subaddress_json(&account_key, CHANGE_SUBADDRESS_INDEX, "Change"),
     ];
-
-    // // Assemble view-only import package.
-    // let import_package = ViewOnlyAccountImportPackageJSON {
-    //     object: "view_only_account_import_package".to_string(),
-    //     account: account_json,
-    //     secrets: account_secrets_json,
-    //     subaddresses: initial_subaddresses,
-    // };
 
     // Write secret mnemonic to file.
     let filename = format!(
@@ -170,7 +162,7 @@ fn create_account(name: &String) {
     println!("Wrote {}", filename);
 }
 
-fn sync_txos(secret_mnemonic: &String, sync_request: &String, num_subaddresses: u64) {
+fn sync_txos(secret_mnemonic: &str, sync_request: &str, num_subaddresses: u64) {
     // Load account key.
     let mnemonic_json =
         fs::read_to_string(secret_mnemonic).expect("Could not open secret mnemonic file.");
@@ -186,7 +178,6 @@ fn sync_txos(secret_mnemonic: &String, sync_request: &String, num_subaddresses: 
         .get("account_id")
         .unwrap()
         .as_str()
-        .clone()
         .unwrap();
     assert_eq!(account_secrets.account_id, account_id);
 
@@ -239,7 +230,7 @@ fn sync_txos(secret_mnemonic: &String, sync_request: &String, num_subaddresses: 
     println!("Wrote {}", filename);
 }
 
-fn generate_subaddresses(secret_mnemonic: &String, request: &String) {
+fn generate_subaddresses(secret_mnemonic: &str, request: &str) {
     // Load account key.
     let mnemonic_json =
         fs::read_to_string(secret_mnemonic).expect("Could not open secret mnemonic file.");
@@ -251,12 +242,7 @@ fn generate_subaddresses(secret_mnemonic: &String, request: &String) {
         fs::read_to_string(request).expect("Could not open generate subaddresses request file.");
     let request_json: serde_json::Value =
         serde_json::from_str(&request_data).expect("Malformed generate subaddresses request.");
-    let account_id = request_json
-        .get("account_id")
-        .unwrap()
-        .as_str()
-        .clone()
-        .unwrap();
+    let account_id = request_json.get("account_id").unwrap().as_str().unwrap();
     assert_eq!(account_secrets.account_id, account_id);
 
     let next_subaddress_index = request_json
@@ -291,7 +277,7 @@ fn generate_subaddresses(secret_mnemonic: &String, request: &String) {
     println!("Wrote {}", filename);
 }
 
-fn sign_transaction(secret_mnemonic: &String, request: &String) {
+fn sign_transaction(secret_mnemonic: &str, request: &str) {
     // Load account key.
     let mnemonic_json =
         fs::read_to_string(secret_mnemonic).expect("Could not open secret mnemonic file.");
@@ -303,12 +289,7 @@ fn sign_transaction(secret_mnemonic: &String, request: &String) {
         fs::read_to_string(request).expect("Could not open generate subaddresses request file.");
     let request_json: serde_json::Value =
         serde_json::from_str(&request_data).expect("Malformed generate subaddresses request.");
-    let account_id = request_json
-        .get("account_id")
-        .unwrap()
-        .as_str()
-        .clone()
-        .unwrap();
+    let account_id = request_json.get("account_id").unwrap().as_str().unwrap();
     assert_eq!(account_secrets.account_id, account_id);
 
     let unsigned_tx: UnsignedTx = serde_json::from_value(
@@ -352,12 +333,8 @@ fn get_key_images_for_txos(
             if !tx_out_belongs_to_account(txo, account_key.view_private_key()) {
                 return None;
             }
-            match get_key_image_for_tx_out(txo, account_key, subaddress_spend_public_keys) {
-                Some((key_image, subaddress_index)) => {
-                    Some((txo.clone(), key_image, subaddress_index))
-                }
-                None => None,
-            }
+            get_key_image_for_tx_out(txo, account_key, subaddress_spend_public_keys)
+                .map(|(key_image, subaddress_index)| (txo.clone(), key_image, subaddress_index))
         })
         .collect()
 }
