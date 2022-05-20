@@ -38,6 +38,7 @@ description: Get the current balance for a given account.
       "account_block_height": "152003",
       "is_synced": false,
       "unspent_pmob": "110000000000000000",
+      "max_spendable_pmob": "110000000000000000",
       "pending_pmob": "0",
       "spent_pmob": "0",
       "secreted_pmob": "0",
