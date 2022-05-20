@@ -91,10 +91,11 @@
 * [Version](other/version/README.md)
   * [Get Version](other/version/version.md)
 
-## Tutorials
+## Usage
 
 * [Environment Setup](tutorials/environment-setup.md)
 * [Run Full Service](tutorials/recieve-mob.md)
 * [Database Usage](tutorials/database-usage.md)
 * [Resolve Disputes](tutorials/resolve-disputes.md)
+* [View Only Account](tutorials/view-only-account.md)
 
