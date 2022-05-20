@@ -139,7 +139,8 @@ where
                 .iter()
                 .map(|(_, index, _, _)| *index)
                 .max()
-                .unwrap_or(0);
+                .unwrap_or(0)
+                + 1;
 
             if next_subaddress_index > account.next_subaddress_index as u64 {
                 account.update_next_subaddress_index(next_subaddress_index, conn)?;

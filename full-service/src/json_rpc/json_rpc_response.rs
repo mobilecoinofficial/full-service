@@ -176,6 +176,7 @@ pub enum JsonCommandResponse {
         payment_request_b58: String,
     },
     create_new_subaddresses_request {
+        account_id: String,
         next_subaddress_index: String,
         num_subaddresses_to_generate: String,
     },

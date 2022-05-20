@@ -425,6 +425,7 @@ where
                 .map_err(format_error)?;
 
             JsonCommandResponse::create_new_subaddresses_request {
+                account_id,
                 next_subaddress_index: (account.next_subaddress_index as u64).to_string(),
                 num_subaddresses_to_generate,
             }

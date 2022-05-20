@@ -3,10 +3,7 @@ use mc_account_keys::{AccountKey, CHANGE_SUBADDRESS_INDEX, DEFAULT_SUBADDRESS_IN
 use mc_account_keys_slip10::Slip10Key;
 use mc_common::{HashMap, HashSet};
 use mc_full_service::{
-    db::{
-        account::AccountID,
-        txo::TxoID,
-    },
+    db::{account::AccountID, txo::TxoID},
     json_rpc::{
         account_key::AccountKey as AccountKeyJSON,
         account_secrets::AccountSecrets,
@@ -47,6 +44,10 @@ enum Opts {
         #[structopt(short, long, default_value = "1000")]
         subaddresses: u64,
     },
+    Subaddresses {
+        secret_mnemonic: String,
+        request: String,
+    },
 }
 
 fn main() {
@@ -63,6 +64,12 @@ fn main() {
             subaddresses,
         } => {
             sync_txos(secret_mnemonic, sync_request, subaddresses);
+        }
+        Opts::Subaddresses {
+            ref secret_mnemonic,
+            ref request,
+        } => {
+            generate_subaddresses(secret_mnemonic, request);
         }
     }
 }
@@ -211,6 +218,58 @@ fn sync_txos(secret_mnemonic: &String, sync_request: &String, num_subaddresses: 
     // Write result to file.
     let result_json = serde_json::to_string_pretty(&result).unwrap();
     let filename = format!("{}_completed.json", sync_request.trim_end_matches(".json"));
+    fs::write(&filename, result_json + "\n").expect("could not write output file");
+    println!("Wrote {}", filename);
+}
+
+fn generate_subaddresses(secret_mnemonic: &String, request: &String) {
+    // Load account key.
+    let mnemonic_json =
+        fs::read_to_string(secret_mnemonic).expect("Could not open secret mnemonic file.");
+    let account_secrets: AccountSecrets = serde_json::from_str(&mnemonic_json).unwrap();
+    let account_key = account_key_from_mnemonic_phrase(&account_secrets.mnemonic.unwrap());
+
+    // Load input txos.
+    let request_data =
+        fs::read_to_string(request).expect("Could not open generate subaddresses request file.");
+    let request_json: serde_json::Value =
+        serde_json::from_str(&request_data).expect("Malformed generate subaddresses request.");
+    let account_id = request_json
+        .get("account_id")
+        .unwrap()
+        .as_str()
+        .clone()
+        .unwrap();
+    assert_eq!(account_secrets.account_id, account_id);
+
+    let next_subaddress_index = request_json
+        .get("next_subaddress_index")
+        .unwrap()
+        .as_str()
+        .unwrap()
+        .parse::<u64>()
+        .unwrap();
+
+    let num_subaddresses_to_generate = request_json
+        .get("num_subaddresses_to_generate")
+        .unwrap()
+        .as_str()
+        .unwrap()
+        .parse::<u64>()
+        .unwrap();
+
+    let mut subaddresses: Vec<ViewOnlySubaddressJSON> = Vec::new();
+    for i in next_subaddress_index..next_subaddress_index + num_subaddresses_to_generate {
+        subaddresses.push(subaddress_json(&account_key, i, ""));
+    }
+
+    let result = JsonCommandRequest::import_subaddresses_to_view_only_account {
+        account_id: account_id.to_string(),
+        subaddresses,
+    };
+
+    let result_json = serde_json::to_string_pretty(&result).unwrap();
+    let filename = format!("{}_completed.json", request.trim_end_matches(".json"));
     fs::write(&filename, result_json + "\n").expect("could not write output file");
     println!("Wrote {}", filename);
 }
