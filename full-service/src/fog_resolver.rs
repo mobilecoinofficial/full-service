@@ -24,7 +24,7 @@ impl FogPubkeyResolver for FullServiceFogResolver {
             None => Err(FogPubkeyError::NoFogReportUrl),
         }?;
 
-        Ok(FullyValidatedFogPubkey::try_from(fs_fog_pubkey)?)
+        FullyValidatedFogPubkey::try_from(fs_fog_pubkey)
     }
 }
 

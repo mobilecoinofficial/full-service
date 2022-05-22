@@ -81,7 +81,7 @@ impl UnsignedTx {
 
             let utxo = UnspentTxOut {
                 tx_out: tx_out.clone(),
-                subaddress_index: subaddress_index,
+                subaddress_index,
                 key_image,
                 value,
                 attempted_spend_height: 0,
@@ -148,6 +148,7 @@ pub fn decode_amount(
     Ok(tx_out.amount.get_value(&shared_secret)?)
 }
 
+#[allow(clippy::type_complexity)]
 fn add_payload_outputs<RNG: CryptoRng + RngCore>(
     outlays: &[Outlay],
     transaction_builder: &mut TransactionBuilder<FullServiceFogResolver>,
