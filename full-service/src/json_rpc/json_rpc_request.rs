@@ -172,6 +172,10 @@ pub enum JsonCommandRequest {
         account_id: String,
         index: i64,
     },
+    get_address_for_view_only_account {
+        account_id: String,
+        index: i64,
+    },
     get_addresses_for_account {
         account_id: String,
         offset: Option<String>,

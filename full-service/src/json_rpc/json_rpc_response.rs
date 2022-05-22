@@ -20,6 +20,7 @@ use crate::{
         tx_proposal::TxProposal,
         txo::Txo,
         view_only_account::{ViewOnlyAccountJSON, ViewOnlyAccountSecretsJSON},
+        view_only_subaddress::ViewOnlySubaddressJSON,
         wallet_status::WalletStatus,
     },
     service::{gift_code::GiftCodeStatus, receipt::ReceiptTransactionStatus},
@@ -209,6 +210,9 @@ pub enum JsonCommandResponse {
     },
     get_address_for_account {
         address: Address,
+    },
+    get_address_for_view_only_account {
+        address: ViewOnlySubaddressJSON,
     },
     get_addresses_for_account {
         public_addresses: Vec<String>,

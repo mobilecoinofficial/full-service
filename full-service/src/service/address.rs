@@ -68,6 +68,12 @@ pub trait AddressService {
         limit: Option<u64>,
     ) -> Result<Vec<AssignedSubaddress>, AddressServiceError>;
 
+    fn get_address_for_view_only_account(
+        &self,
+        account_id: &AccountID,
+        index: u64,
+    ) -> Result<ViewOnlySubaddress, AddressServiceError>;
+
     fn get_addresses_for_view_only_account(
         &self,
         account_id: &AccountID,
@@ -126,6 +132,19 @@ where
             &account_id.to_string(),
             offset,
             limit,
+            &conn,
+        )?)
+    }
+
+    fn get_address_for_view_only_account(
+        &self,
+        account_id: &AccountID,
+        index: u64,
+    ) -> Result<ViewOnlySubaddress, AddressServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+        Ok(ViewOnlySubaddress::get_for_account_by_index(
+            &account_id.to_string(),
+            index,
             &conn,
         )?)
     }

@@ -21,6 +21,7 @@ use crate::{
         receiver_receipt::ReceiverReceipt,
         tx_proposal::TxProposal,
         txo::Txo,
+        view_only_subaddress::ViewOnlySubaddressJSON,
         view_only_txo::ViewOnlyTxo,
         wallet_status::WalletStatus,
     },
@@ -544,6 +545,14 @@ where
                 .map_err(format_error)?;
             JsonCommandResponse::get_address_for_account {
                 address: Address::from(&assigned_subaddress),
+            }
+        }
+        JsonCommandRequest::get_address_for_view_only_account { account_id, index } => {
+            let view_only_subaddress = service
+                .get_address_for_view_only_account(&AccountID(account_id), index as u64)
+                .map_err(format_error)?;
+            JsonCommandResponse::get_address_for_view_only_account {
+                address: ViewOnlySubaddressJSON::from(&view_only_subaddress),
             }
         }
         JsonCommandRequest::get_addresses_for_account {

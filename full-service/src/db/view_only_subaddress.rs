@@ -28,6 +28,12 @@ pub trait ViewOnlySubaddressModel {
     /// Get the Subaddress for a given subaddress_b58
     fn get(public_address_b58: &str, conn: &Conn) -> Result<ViewOnlySubaddress, WalletDbError>;
 
+    fn get_for_account_by_index(
+        account_id: &str,
+        subaddress_index: u64,
+        conn: &Conn,
+    ) -> Result<ViewOnlySubaddress, WalletDbError>;
+
     fn list_all(
         account_id_hex: &str,
         offset: Option<u64>,
@@ -101,6 +107,21 @@ impl ViewOnlySubaddressModel for ViewOnlySubaddress {
                 return Err(e.into());
             }
         };
+
+        Ok(subaddress)
+    }
+
+    fn get_for_account_by_index(
+        account_id: &str,
+        subaddress_index: u64,
+        conn: &Conn,
+    ) -> Result<ViewOnlySubaddress, WalletDbError> {
+        use crate::db::schema::view_only_subaddresses;
+
+        let subaddress: ViewOnlySubaddress = view_only_subaddresses::table
+            .filter(view_only_subaddresses::view_only_account_id_hex.eq(account_id))
+            .filter(view_only_subaddresses::subaddress_index.eq(subaddress_index as i64))
+            .get_result::<ViewOnlySubaddress>(conn)?;
 
         Ok(subaddress)
     }
