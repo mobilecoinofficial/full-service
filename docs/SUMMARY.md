@@ -94,3 +94,6 @@
 * [Resolve Disputes](tutorials/resolve-disputes.md)
 * [View Only Account](usage/view-only-account/README.md)
   * [Transaction Signer](usage/view-only-account/transaction-signer.md)
+
+## Frequently Asked Questions
+[FAQ](FAQ.md)
