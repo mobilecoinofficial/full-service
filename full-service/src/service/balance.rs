@@ -350,7 +350,25 @@ where
             .map(|t| (t.value as u64) as u128)
             .sum::<u128>();
 
-        let result = (unspent, max_spendable, pending, spent, 0, 0);
+        let secreted = if assigned_subaddress_b58.is_some() {
+            0
+        } else {
+            Txo::list_secreted(account_id_hex, conn)?
+                .iter()
+                .map(|t| t.value as u128)
+                .sum::<u128>()
+        };
+
+        let orphaned = if assigned_subaddress_b58.is_some() {
+            0
+        } else {
+            Txo::list_orphaned(account_id_hex, conn)?
+                .iter()
+                .map(|t| t.value as u128)
+                .sum::<u128>()
+        };
+
+        let result = (unspent, max_spendable, pending, spent, secreted, orphaned);
         Ok(result)
     }
 
