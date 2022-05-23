@@ -116,28 +116,12 @@ class Client:
         })
         return r['account']
 
-    def import_view_only_account(self, view_private_key, name=None, first_block_index=None):
-        params = {
-            "view_private_key": view_private_key,
-        }
-        if name is not None:
-            params['name'] = name
-        if first_block_index is not None:
-            params['first_block_index'] = str(int(first_block_index))
-
+    def import_view_only_account(self, package):
         r = self._req({
             "method": "import_view_only_account",
-            "params": params
+            "params": {"package": package},
         })
         return r['view_only_account']
-
-    def get_all_accounts(self):
-        r = self._req({"method": "get_all_accounts"})
-        return r['account_map']
-
-    def get_all_view_only_accounts(self):
-        r = self._req({"method": "get_all_view_only_accounts"})
-        return r['account_map']
 
     def get_account(self, account_id):
         r = self._req({
@@ -145,6 +129,21 @@ class Client:
             "params": {"account_id": account_id}
         })
         return r['account']
+
+    def get_all_accounts(self):
+        r = self._req({"method": "get_all_accounts"})
+        return r['account_map']
+
+    def get_view_only_account(self, account_id):
+        r = self._req({
+            "method": "get_view_only_account",
+            "params": {"account_id": account_id}
+        })
+        return r['view_only_account']
+
+    def get_all_view_only_accounts(self):
+        r = self._req({"method": "get_all_view_only_accounts"})
+        return r['account_map']
 
     def update_account_name(self, account_id, name):
         r = self._req({
@@ -228,6 +227,15 @@ class Client:
         })
         return r['balance']
 
+    def get_balance_for_view_only_address(self, address):
+        r = self._req({
+            "method": "get_balance_for_view_only_address",
+            "params": {
+                "address": address,
+            }
+        })
+        return r['balance']
+
     def assign_address_for_account(self, account_id, metadata=None):
         if metadata is None:
             metadata = ''
@@ -252,6 +260,25 @@ class Client:
         })
         return r['address_map']
 
+    def get_addresses_for_view_only_account(self, account_id, offset=0, limit=100):
+        r = self._req({
+            "method": "get_addresses_for_view_only_account",
+            "params": {
+                "account_id": account_id,
+                "offset": str(int(offset)),
+                "limit": str(int(limit)),
+            },
+        })
+        return r['address_map']
+
+    def build_and_submit_transaction(self, account_id, amount, to_address, fee=None):
+        r = self._build_and_submit_transaction(account_id, amount, to_address, fee)
+        return r['transaction_log']
+
+    def build_and_submit_transaction_with_proposal(self, account_id, amount, to_address, fee=None):
+        r = self._build_and_submit_transaction(account_id, amount, to_address, fee)
+        return r['transaction_log'], r['tx_proposal']
+
     def _build_and_submit_transaction(self, account_id, amount, to_address, fee):
         amount = str(mob2pmob(amount))
         params = {
@@ -265,14 +292,6 @@ class Client:
             "params": params,
         })
         return r
-
-    def build_and_submit_transaction(self, account_id, amount, to_address, fee=None):
-        r = self._build_and_submit_transaction(account_id, amount, to_address, fee)
-        return r['transaction_log']
-
-    def build_and_submit_transaction_with_proposal(self, account_id, amount, to_address, fee=None):
-        r = self._build_and_submit_transaction(account_id, amount, to_address, fee)
-        return r['transaction_log'], r['tx_proposal']
 
     def build_transaction(self, account_id, amount, to_address, tombstone_block=None, fee=None):
         amount = str(mob2pmob(amount))
@@ -395,6 +414,26 @@ class Client:
             },
         })
         return r['removed']
+
+    def create_view_only_account_sync_request(self, account_id):
+        r = self._req({
+            "method": "create_view_only_account_sync_request",
+            "params": {
+                "account_id": account_id,
+            },
+        })
+        return r
+
+    def sync_view_only_account(self, account_id, completed_txos, subaddresses):
+        r = self._req({
+            "method": "sync_view_only_account",
+            "params": {
+                "account_id": account_id,
+                "completed_txos": completed_txos,
+                "subaddresses": subaddresses,
+            },
+        })
+        return r
 
     def version(self):
         r = self._req({"method": "version"})

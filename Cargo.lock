@@ -870,7 +870,7 @@ source = "git+https://github.com/mobilecoinfoundation/ed25519-dalek.git?rev=78bd
 dependencies = [
  "curve25519-dalek",
  "ed25519",
- "rand 0.8.4",
+ "rand 0.8.5",
  "serde",
  "serde_bytes",
  "sha2",
@@ -2033,7 +2033,7 @@ dependencies = [
  "mc-sgx-types",
  "mc-util-build-script",
  "mc-util-build-sgx",
- "rand 0.8.4",
+ "rand 0.8.5",
  "rand_hc 0.3.1",
  "serde",
  "sha2",
@@ -2150,7 +2150,7 @@ dependencies = [
  "mc-util-from-random",
  "mc-util-serial",
  "mockall",
- "rand 0.8.4",
+ "rand 0.8.5",
  "rand_hc 0.3.1",
  "serde",
  "serde_json",
@@ -2262,7 +2262,7 @@ version = "1.2.0-pre0"
 dependencies = [
  "cfg-if 1.0.0",
  "getrandom 0.2.3",
- "rand 0.8.4",
+ "rand 0.8.5",
  "rand_core 0.6.3",
  "rand_hc 0.3.1",
 ]
@@ -2427,7 +2427,7 @@ dependencies = [
  "mc-validator-api",
  "mc-validator-connection",
  "num_cpus",
- "rand 0.8.4",
+ "rand 0.8.5",
  "rayon",
  "reqwest",
  "retry",
@@ -2464,7 +2464,7 @@ dependencies = [
  "mc-util-telemetry",
  "mockall",
  "prost",
- "rand 0.8.4",
+ "rand 0.8.5",
  "rand_core 0.6.3",
 ]
 
@@ -2489,7 +2489,7 @@ dependencies = [
  "mc-util-uri",
  "mockall",
  "protobuf",
- "rand 0.8.4",
+ "rand 0.8.5",
  "reqwest",
  "retry",
  "serde",
@@ -2542,7 +2542,7 @@ dependencies = [
  "num_cpus",
  "prost",
  "protobuf",
- "rand 0.8.4",
+ "rand 0.8.5",
  "rayon",
  "reqwest",
  "retry",
@@ -2661,7 +2661,7 @@ dependencies = [
  "mc-transaction-core",
  "mc-transaction-std",
  "mc-util-from-random",
- "rand 0.8.4",
+ "rand 0.8.5",
  "tempdir",
 ]
 
@@ -2680,7 +2680,7 @@ dependencies = [
  "mc-util-from-random",
  "mc-util-serial",
  "prost",
- "rand 0.8.4",
+ "rand 0.8.5",
  "rand_core 0.6.3",
  "sha2",
  "subtle",
@@ -2700,7 +2700,7 @@ dependencies = [
  "mc-util-build-script",
  "mc-util-build-sgx",
  "pkg-config",
- "rand 0.8.4",
+ "rand 0.8.5",
 ]
 
 [[package]]
@@ -2780,7 +2780,7 @@ dependencies = [
  "mc-util-uri",
  "prometheus",
  "protobuf",
- "rand 0.8.4",
+ "rand 0.8.5",
  "sha2",
  "signal-hook",
  "subtle",
@@ -3285,7 +3285,7 @@ dependencies = [
  "lazy_static",
  "percent-encoding 2.1.0",
  "pin-project 1.0.8",
- "rand 0.8.4",
+ "rand 0.8.5",
  "thiserror",
 ]
 
@@ -3778,14 +3778,13 @@ dependencies = [
 
 [[package]]
 name = "rand"
-version = "0.8.4"
+version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e7573632e6454cf6b99d7aac4ccca54be06da05aca2ef7423d22d27d4d4bcd8"
+checksum = "34af8d1a0e25924bc5b7c43c079c942339d8f0a8b57c39049bef581b46327404"
 dependencies = [
  "libc",
  "rand_chacha 0.3.1",
  "rand_core 0.6.3",
- "rand_hc 0.3.1",
 ]
 
 [[package]]
@@ -4833,7 +4832,7 @@ checksum = "dac1c663cfc93810f88aed9b8941d48cabf856a1b111c29a40439018d870eb22"
 dependencies = [
  "cfg-if 1.0.0",
  "libc",
- "rand 0.8.4",
+ "rand 0.8.5",
  "redox_syscall 0.2.10",
  "remove_dir_all",
  "winapi 0.3.9",
@@ -5553,18 +5552,18 @@ dependencies = [
 
 [[package]]
 name = "zeroize"
-version = "1.4.3"
+version = "1.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d68d9dcec5f9b43a30d38c49f91dfedfaac384cb8f085faca366c26207dd1619"
+checksum = "7eb5728b8afd3f280a869ce1d4c554ffaed35f45c231fc41bfbd0381bef50317"
 dependencies = [
  "zeroize_derive",
 ]
 
 [[package]]
 name = "zeroize_derive"
-version = "1.0.0"
+version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de251eec69fc7c1bc3923403d18ececb929380e016afe103da75f396704f8ca2"
+checksum = "3f8f187641dad4f680d25c4bfc4225b418165984179f26ca76ec4fb6441d3a17"
 dependencies = [
  "proc-macro2 1.0.32",
  "quote 1.0.10",

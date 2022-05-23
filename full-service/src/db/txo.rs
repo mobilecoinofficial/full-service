@@ -782,7 +782,7 @@ impl TxoModel for Txo {
             .sum();
 
         if max_spendable_in_wallet > Mob::MINIMUM_FEE as u128 {
-            max_spendable_in_wallet = max_spendable_in_wallet - Mob::MINIMUM_FEE as u128;
+            max_spendable_in_wallet -= Mob::MINIMUM_FEE as u128;
         } else {
             max_spendable_in_wallet = 0;
         }

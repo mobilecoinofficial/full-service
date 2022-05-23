@@ -87,6 +87,7 @@ jobs:
           mkdir -pv build_artifacts/${{ matrix.network }}/bin
           cp /var/tmp/*.css build_artifacts/${{ matrix.network }}
           cp target/release/full-service build_artifacts/${{ matrix.network }}/bin/
+          cp target/release/transaction-signer build_artifacts/${{ matrix.network }}/bin/
 
       # Create and Upload an Artifact on Push and Not a Tag
       - name: Create Artifact
@@ -230,6 +231,7 @@ jobs:
           mkdir -pv build_artifacts/${{ matrix.network }}/bin
           cp /var/tmp/*.css build_artifacts/${{ matrix.network }}
           cp target/release/full-service build_artifacts/${{ matrix.network }}/bin/
+          cp target/release/transaction-signer build_artifacts/${{ matrix.network }}/bin/
 
       # Create and Upload an Artifact on Push and Not a Tag
       - name: Create Artifact

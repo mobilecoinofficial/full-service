@@ -13,12 +13,14 @@ use crate::{
         block::{Block, BlockContents},
         confirmation_number::Confirmation,
         gift_code::GiftCode,
+        json_rpc_request::JsonCommandRequest,
         network_status::NetworkStatus,
         receiver_receipt::ReceiverReceipt,
         transaction_log::TransactionLog,
         tx_proposal::TxProposal,
         txo::Txo,
-        view_only_account::{ViewOnlyAccount, ViewOnlyAccountSecrets},
+        view_only_account::{ViewOnlyAccountJSON, ViewOnlyAccountSecretsJSON},
+        view_only_subaddress::ViewOnlySubaddressJSON,
         wallet_status::WalletStatus,
     },
     service::{gift_code::GiftCodeStatus, receipt::ReceiptTransactionStatus},
@@ -30,6 +32,8 @@ use serde_json::Map;
 use std::collections::HashMap;
 use strum::AsStaticRef;
 use strum_macros::AsStaticStr;
+
+use crate::{fog_resolver::FullServiceFogResolver, unsigned_tx::UnsignedTx};
 
 /// A JSON RPC 2.0 Response.
 #[derive(Deserialize, Serialize, Debug)]
@@ -146,6 +150,11 @@ pub enum JsonCommandResponse {
         tx_proposal: TxProposal,
         transaction_log_id: String,
     },
+    build_unsigned_transaction {
+        account_id: String,
+        unsigned_tx: UnsignedTx,
+        fog_resolver: FullServiceFogResolver,
+    },
     check_b58_type {
         b58_type: PrintableWrapperType,
         data: HashMap<String, String>,
@@ -168,8 +177,17 @@ pub enum JsonCommandResponse {
     create_payment_request {
         payment_request_b58: String,
     },
+    create_new_subaddresses_request {
+        account_id: String,
+        next_subaddress_index: String,
+        num_subaddresses_to_generate: String,
+    },
     create_receiver_receipts {
         receiver_receipts: Vec<ReceiverReceipt>,
+    },
+    create_view_only_account_sync_request {
+        account_id: String,
+        incomplete_txos_encoded: Vec<String>,
     },
     export_account_secrets {
         account_secrets: AccountSecrets,
@@ -177,8 +195,11 @@ pub enum JsonCommandResponse {
     export_spent_txo_ids {
         spent_txo_ids: Vec<String>,
     },
+    export_view_only_account_package {
+        package: JsonCommandRequest,
+    },
     export_view_only_account_secrets {
-        view_only_account_secrets: ViewOnlyAccountSecrets,
+        view_only_account_secrets: ViewOnlyAccountSecretsJSON,
     },
     get_account {
         account: Account,
@@ -190,7 +211,14 @@ pub enum JsonCommandResponse {
     get_address_for_account {
         address: Address,
     },
+    get_address_for_view_only_account {
+        address: ViewOnlySubaddressJSON,
+    },
     get_addresses_for_account {
+        public_addresses: Vec<String>,
+        address_map: Map<String, serde_json::Value>,
+    },
+    get_addresses_for_view_only_account {
         public_addresses: Vec<String>,
         address_map: Map<String, serde_json::Value>,
     },
@@ -223,6 +251,9 @@ pub enum JsonCommandResponse {
         balance: Balance,
     },
     get_balance_for_view_only_account {
+        balance: ViewOnlyBalance,
+    },
+    get_balance_for_view_only_address {
         balance: ViewOnlyBalance,
     },
     get_block {
@@ -263,7 +294,7 @@ pub enum JsonCommandResponse {
         txo_map: Map<String, serde_json::Value>,
     },
     get_view_only_account {
-        view_only_account: ViewOnlyAccount,
+        view_only_account: ViewOnlyAccountJSON,
     },
     get_wallet_status {
         wallet_status: WalletStatus,
@@ -274,8 +305,11 @@ pub enum JsonCommandResponse {
     import_account_from_legacy_root_entropy {
         account: Account,
     },
+    import_subaddresses_to_view_only_account {
+        public_address_b58s: Vec<String>,
+    },
     import_view_only_account {
-        view_only_account: ViewOnlyAccount,
+        view_only_account: ViewOnlyAccountJSON,
     },
     remove_account {
         removed: bool,
@@ -286,20 +320,18 @@ pub enum JsonCommandResponse {
     remove_view_only_account {
         removed: bool,
     },
-    set_view_only_txos_spent {
-        success: bool,
-    },
     submit_gift_code {
         gift_code: GiftCode,
     },
     submit_transaction {
         transaction_log: Option<TransactionLog>,
     },
+    sync_view_only_account,
     update_account_name {
         account: Account,
     },
     update_view_only_account_name {
-        view_only_account: ViewOnlyAccount,
+        view_only_account: ViewOnlyAccountJSON,
     },
     validate_confirmation {
         validated: bool,

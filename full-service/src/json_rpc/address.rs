@@ -2,7 +2,7 @@
 
 //! API definition for the Address object.
 
-use crate::db::models::AssignedSubaddress;
+use crate::db::models::{AssignedSubaddress, ViewOnlySubaddress};
 use serde_derive::{Deserialize, Serialize};
 
 /// An address for an account in the wallet.
@@ -39,6 +39,18 @@ impl From<&AssignedSubaddress> for Address {
             object: "address".to_string(),
             public_address: src.assigned_subaddress_b58.clone(),
             account_id: src.account_id_hex.clone(),
+            metadata: src.comment.clone(),
+            subaddress_index: (src.subaddress_index as u64).to_string(),
+        }
+    }
+}
+
+impl From<&ViewOnlySubaddress> for Address {
+    fn from(src: &ViewOnlySubaddress) -> Address {
+        Address {
+            object: "address".to_string(),
+            public_address: src.public_address_b58.clone(),
+            account_id: src.view_only_account_id_hex.clone(),
             metadata: src.comment.clone(),
             subaddress_index: (src.subaddress_index as u64).to_string(),
         }

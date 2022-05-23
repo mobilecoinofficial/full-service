@@ -6,9 +6,12 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        models::{Account, AssignedSubaddress, Txo, ViewOnlyAccount, ViewOnlyTxo},
+        models::{
+            Account, AssignedSubaddress, Txo, ViewOnlyAccount, ViewOnlySubaddress, ViewOnlyTxo,
+        },
         txo::TxoModel,
         view_only_account::ViewOnlyAccountModel,
+        view_only_subaddress::ViewOnlySubaddressModel,
         view_only_txo::ViewOnlyTxoModel,
         Conn, WalletDbError,
     },
@@ -139,6 +142,11 @@ pub trait BalanceService {
 
     fn get_balance_for_address(&self, address: &str) -> Result<Balance, BalanceServiceError>;
 
+    fn get_balance_for_view_only_address(
+        &self,
+        address: &str,
+    ) -> Result<ViewOnlyBalance, BalanceServiceError>;
+
     fn get_network_status(&self) -> Result<NetworkStatus, BalanceServiceError>;
 
     fn get_wallet_status(&self) -> Result<WalletStatus, BalanceServiceError>;
@@ -185,7 +193,7 @@ where
         let total_value = txos.iter().map(|t| (t.value as u64) as u128).sum::<u128>();
         let spent = txos
             .iter()
-            .filter(|t| t.spent)
+            .filter(|t| t.spent_block_index.is_some())
             .map(|t| (t.value as u64) as u128)
             .sum::<u128>();
 
@@ -248,6 +256,32 @@ where
         })
     }
 
+    fn get_balance_for_view_only_address(
+        &self,
+        address: &str,
+    ) -> Result<ViewOnlyBalance, BalanceServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+        let txos = ViewOnlyTxo::list_for_address(address, &conn)?;
+        let total_value = txos.iter().map(|t| (t.value as u64) as u128).sum::<u128>();
+        let spent = txos
+            .iter()
+            .filter(|t| t.spent_block_index.is_some())
+            .map(|t| (t.value as u64) as u128)
+            .sum::<u128>();
+
+        let network_block_height = self.get_network_block_height()?;
+        let local_block_height = self.ledger_db.num_blocks()?;
+
+        let subaddress = ViewOnlySubaddress::get(address, &conn)?;
+        let account = ViewOnlyAccount::get(&subaddress.view_only_account_id_hex, &conn)?;
+
+        Ok(ViewOnlyBalance {
+            balance: total_value - spent,
+            network_block_height,
+            local_block_height,
+            synced_blocks: account.next_block_index as u64,
+        })
+    }
     fn get_network_status(&self) -> Result<NetworkStatus, BalanceServiceError> {
         Ok(NetworkStatus {
             network_block_height: self.get_network_block_height()?,

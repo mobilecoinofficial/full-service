@@ -88,11 +88,11 @@ impl TryFrom<&service::balance::WalletStatus> for WalletStatus {
             .view_only_account_map
             .iter()
             .map(|(i, a)| {
-                json_rpc::view_only_account::ViewOnlyAccount::try_from(a).and_then(|a| {
-                    serde_json::to_value(a)
-                        .map(|v| (i.to_string(), v))
-                        .map_err(|e| format!("Could not convert account map: {:?}", e))
-                })
+                let view_only_account_json =
+                    json_rpc::view_only_account::ViewOnlyAccountJSON::from(a);
+                serde_json::to_value(view_only_account_json)
+                    .map(|v| (i.to_string(), v))
+                    .map_err(|e| format!("Could not convert account map: {:?}", e))
             })
             .collect::<Result<Vec<(String, serde_json::Value)>, String>>()?;
 
