@@ -574,15 +574,13 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
 
         let change = input_value as u64 - total_value - transaction_builder.get_fee();
 
-        // If we do, add an output for that as well.
-        if change > 0 {
-            let change_public_address =
-                from_account_key.subaddress(account.change_subaddress_index as u64);
-            // FIXME: verify that fog resolver knows to send change with hint encrypted to
-            // the main public address
-            transaction_builder.add_output(change, &change_public_address, &mut rng)?;
-            // FIXME: CBB - map error to indicate error with change
-        }
+        // Even if change is zero, add an output for it
+        let change_public_address =
+            from_account_key.subaddress(account.change_subaddress_index as u64);
+        // FIXME: verify that fog resolver knows to send change with hint encrypted to
+        // the main public address
+        transaction_builder.add_output(change, &change_public_address, &mut rng)?;
+        // FIXME: CBB - map error to indicate error with change
 
         // Set tombstone block.
         transaction_builder.set_tombstone_block(self.tombstone);
@@ -1110,9 +1108,9 @@ mod tests {
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE * 10);
     }
 
-    // We should be able to create a transaction without any change outputs
+    // Even if change is zero, we should still have a change output
     #[test_with_logger]
-    fn test_no_change(logger: Logger) {
+    fn test_change_zero_mob(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -1148,8 +1146,8 @@ mod tests {
         assert_eq!(proposal.outlays[0].receiver, recipient);
         assert_eq!(proposal.outlays[0].value, value);
         assert_eq!(proposal.tx.prefix.inputs.len(), 1); // uses just one input
-        assert_eq!(proposal.tx.prefix.outputs.len(), 1); // only one output to
-                                                         // self (no change)
+        assert_eq!(proposal.tx.prefix.outputs.len(), 2); // two outputs to
+                                                         // self
     }
 
     // We should be able to add multiple TxOuts to the same recipient, not to
