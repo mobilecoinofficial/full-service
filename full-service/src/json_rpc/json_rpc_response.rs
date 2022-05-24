@@ -13,7 +13,7 @@ use crate::{
         block::{Block, BlockContents},
         confirmation_number::Confirmation,
         gift_code::GiftCode,
-        json_rpc_request::JsonCommandRequest,
+        json_rpc_request::JsonRPCRequest,
         network_status::NetworkStatus,
         receiver_receipt::ReceiverReceipt,
         transaction_log::TransactionLog,
@@ -196,7 +196,7 @@ pub enum JsonCommandResponse {
         spent_txo_ids: Vec<String>,
     },
     export_view_only_account_package {
-        package: JsonCommandRequest,
+        json_rpc_request: JsonRPCRequest,
     },
     export_view_only_account_secrets {
         view_only_account_secrets: ViewOnlyAccountSecretsJSON,
