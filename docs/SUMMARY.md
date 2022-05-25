@@ -16,6 +16,7 @@
     * [Remove Account](accounts/account/remove\_account.md)
   * [Account Secrets](accounts/account-secrets/README.md)
     * [Export Account Secrets](accounts/account-secrets/export\_account\_secrets.md)
+    * [Export View Only Account Package](accounts/account-secrets/export\_view\_only\_account\_package.md)
   * [Address](accounts/address/README.md)
     * [Assign Address For Account](accounts/address/assign\_address\_for\_account.md)
     * [Get Addresses For Account](accounts/address/get\_addresses\_for\_account.md)
@@ -96,4 +97,3 @@
   * [Transaction Signer](usage/view-only-account/transaction-signer.md)
 
 ## Frequently Asked Questions
-[FAQ](FAQ.md)
