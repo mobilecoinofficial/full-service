@@ -9,7 +9,7 @@ use crate::{
         account::Account,
         account_secrets::AccountSecrets,
         address::Address,
-        balance::{Balance, ViewOnlyBalance},
+        balance::Balance,
         block::{Block, BlockContents},
         confirmation_number::Confirmation,
         gift_code::GiftCode,
@@ -251,10 +251,10 @@ pub enum JsonCommandResponse {
         balance: Balance,
     },
     get_balance_for_view_only_account {
-        balance: ViewOnlyBalance,
+        balance: Balance,
     },
     get_balance_for_view_only_address {
-        balance: ViewOnlyBalance,
+        balance: Balance,
     },
     get_block {
         block: Block,

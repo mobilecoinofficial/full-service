@@ -35,6 +35,7 @@
     * [Export Secrets](view-only-accounts/account-secrets/export\_view\_only\_account\_secrets.md)
   * [Balance](view-only-accounts/balance/README.md)
     * [Get Balance](view-only-accounts/balance/get\_balance\_for\_view\_only\_account.md)
+    * [Get Balance For Address](view-only-accounts/balance/get\_balance\_for\_view\_only\_address.md)
   * [Syncing](view-only-accounts/syncing/README.md)
     * [Create Account Sync Request](view-only-accounts/syncing/create\_view\_only\_account\_sync\_request.md)
     * [Sync Account](view-only-accounts/syncing/sync\_view\_only\_account.md)

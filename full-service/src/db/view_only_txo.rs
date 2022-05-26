@@ -62,6 +62,26 @@ pub trait ViewOnlyTxoModel {
         conn: &Conn,
     ) -> Result<Vec<ViewOnlyTxo>, WalletDbError>;
 
+    fn list_orphaned(account_id_hex: &str, conn: &Conn) -> Result<Vec<ViewOnlyTxo>, WalletDbError>;
+
+    fn list_unspent(
+        account_id_hex: &str,
+        assigned_subaddress_b58: Option<&str>,
+        conn: &Conn,
+    ) -> Result<Vec<ViewOnlyTxo>, WalletDbError>;
+
+    fn list_pending(
+        account_id_hex: &str,
+        assigned_subaddress_b58: Option<&str>,
+        conn: &Conn,
+    ) -> Result<Vec<ViewOnlyTxo>, WalletDbError>;
+
+    fn list_spent(
+        account_id_hex: &str,
+        assigned_subaddress_b58: Option<&str>,
+        conn: &Conn,
+    ) -> Result<Vec<ViewOnlyTxo>, WalletDbError>;
+
     /// Select a set of unspent view only Txos to reach a given value.
     ///
     /// Returns:
@@ -257,6 +277,90 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
             .load(conn)?;
 
         Ok(results)
+    }
+
+    fn list_orphaned(account_id_hex: &str, conn: &Conn) -> Result<Vec<ViewOnlyTxo>, WalletDbError> {
+        use schema::view_only_txos;
+
+        let txos: Vec<ViewOnlyTxo> = view_only_txos::table
+            .filter(view_only_txos::view_only_account_id_hex.eq(account_id_hex))
+            .filter(view_only_txos::key_image.is_null())
+            .filter(view_only_txos::subaddress_index.is_null())
+            .load(conn)?;
+
+        Ok(txos)
+    }
+
+    fn list_unspent(
+        account_id_hex: &str,
+        assigned_subaddress_b58: Option<&str>,
+        conn: &Conn,
+    ) -> Result<Vec<ViewOnlyTxo>, WalletDbError> {
+        use schema::view_only_txos;
+
+        let results = view_only_txos::table
+            .filter(view_only_txos::view_only_account_id_hex.eq(account_id_hex))
+            .filter(view_only_txos::received_block_index.is_not_null())
+            .filter(view_only_txos::pending_tombstone_block_index.is_null())
+            .filter(view_only_txos::spent_block_index.is_null());
+
+        let txos = if let Some(assigned_subaddress_b58) = assigned_subaddress_b58 {
+            let subaddress = ViewOnlySubaddress::get(assigned_subaddress_b58, conn)?;
+            results
+                .filter(view_only_txos::subaddress_index.eq(subaddress.subaddress_index))
+                .load(conn)?
+        } else {
+            results.load(conn)?
+        };
+
+        Ok(txos)
+    }
+
+    fn list_pending(
+        account_id_hex: &str,
+        assigned_subaddress_b58: Option<&str>,
+        conn: &Conn,
+    ) -> Result<Vec<ViewOnlyTxo>, WalletDbError> {
+        use schema::view_only_txos;
+
+        let results = view_only_txos::table
+            .filter(view_only_txos::view_only_account_id_hex.eq(account_id_hex))
+            .filter(view_only_txos::pending_tombstone_block_index.is_not_null())
+            .filter(view_only_txos::spent_block_index.is_null());
+
+        let txos = if let Some(assigned_subaddress_b58) = assigned_subaddress_b58 {
+            let subaddress = ViewOnlySubaddress::get(assigned_subaddress_b58, conn)?;
+            results
+                .filter(view_only_txos::subaddress_index.eq(subaddress.subaddress_index))
+                .load(conn)?
+        } else {
+            results.load(conn)?
+        };
+
+        Ok(txos)
+    }
+
+    fn list_spent(
+        account_id_hex: &str,
+        assigned_subaddress_b58: Option<&str>,
+        conn: &Conn,
+    ) -> Result<Vec<ViewOnlyTxo>, WalletDbError> {
+        use schema::view_only_txos;
+
+        let results = view_only_txos::table
+            .filter(view_only_txos::view_only_account_id_hex.eq(account_id_hex))
+            .filter(view_only_txos::spent_block_index.is_not_null());
+
+        let txos = if let Some(assigned_subaddress_b58) = assigned_subaddress_b58 {
+            let subaddress = ViewOnlySubaddress::get(assigned_subaddress_b58, conn)?;
+            results
+                .filter(view_only_txos::subaddress_index.eq(subaddress.subaddress_index))
+                .load(conn)?
+        } else {
+            results.load(conn)?
+        };
+
+        Ok(txos)
     }
 
     // This is a direct port of txo selection and

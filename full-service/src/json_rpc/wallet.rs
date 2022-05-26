@@ -8,7 +8,7 @@ use crate::{
     json_rpc::{
         account_secrets::AccountSecrets,
         address::Address,
-        balance::{Balance, ViewOnlyBalance},
+        balance::Balance,
         block::{Block, BlockContents},
         confirmation_number::Confirmation,
         gift_code::GiftCode,
@@ -750,7 +750,7 @@ where
         }
         JsonCommandRequest::get_balance_for_view_only_account { account_id } => {
             JsonCommandResponse::get_balance_for_view_only_account {
-                balance: ViewOnlyBalance::from(
+                balance: Balance::from(
                     &service
                         .get_balance_for_view_only_account(&account_id)
                         .map_err(format_error)?,
@@ -759,7 +759,7 @@ where
         }
         JsonCommandRequest::get_balance_for_view_only_address { address } => {
             JsonCommandResponse::get_balance_for_view_only_address {
-                balance: ViewOnlyBalance::from(
+                balance: Balance::from(
                     &service
                         .get_balance_for_view_only_address(&address)
                         .map_err(format_error)?,
