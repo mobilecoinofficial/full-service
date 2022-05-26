@@ -6,6 +6,12 @@ use displaydoc::Display;
 
 #[derive(Display, Debug)]
 pub enum WalletDbError {
+    /// View Only Account already exists: {0}
+    ViewOnlyAccountAlreadyExists(String),
+
+    /// Account already exists: {0}
+    AccountAlreadyExists(String),
+
     /// Diesel Error: {0}
     Diesel(diesel::result::Error),
 
@@ -128,6 +134,9 @@ pub enum WalletDbError {
 
     /// Subaddresses are not supported for FOG enabled accounts
     SubaddressesNotSupportedForFOGEnabledAccounts,
+
+    /// error converting keys
+    KeyError(mc_crypto_keys::KeyError),
 }
 
 impl From<diesel::result::Error> for WalletDbError {
@@ -187,5 +196,11 @@ impl From<mc_account_keys_slip10::Error> for WalletDbError {
 impl From<base64::DecodeError> for WalletDbError {
     fn from(src: base64::DecodeError) -> Self {
         Self::Base64Decode(src)
+    }
+}
+
+impl From<mc_crypto_keys::KeyError> for WalletDbError {
+    fn from(src: mc_crypto_keys::KeyError) -> Self {
+        Self::KeyError(src)
     }
 }

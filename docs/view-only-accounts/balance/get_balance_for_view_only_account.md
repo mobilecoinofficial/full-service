@@ -1,5 +1,5 @@
 ---
-description: Get the current balance for a given view only account.
+description: Get the current balance for a given account.
 ---
 
 # Get Balance For View Only Account
@@ -8,7 +8,7 @@ description: Get the current balance for a given view only account.
 
 | Required Param | Purpose | Requirements |
 | :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+| `account_id` | The account on which to perform this action. | Account must exist in the wallet as a view only account. |
 
 ## Example
 
@@ -32,12 +32,17 @@ description: Get the current balance for a given view only account.
   "method": "get_balance_for_view_only_account",
   "result": {
     "balance": {
-        "object": "balance",
-        "balance": "10000000000000",
-        "network_block_height": "468847",
-        "local_block_height": "468847",
-        "account_block_height": "468847",
-        "is_synced": true
+      "object": "balance",
+      "network_block_height": "152918",
+      "local_block_height": "152918",
+      "account_block_height": "152003",
+      "is_synced": false,
+      "unspent_pmob": "110000000000000000",
+      "max_spendable_pmob": "110000000000000000",
+      "pending_pmob": "0",
+      "spent_pmob": "0",
+      "secreted_pmob": "0",
+      "orphaned_pmob": "0"
     }
   },
   "error": null,

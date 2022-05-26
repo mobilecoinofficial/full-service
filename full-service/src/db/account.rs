@@ -5,9 +5,10 @@
 use crate::{
     db::{
         assigned_subaddress::AssignedSubaddressModel,
-        models::{Account, AssignedSubaddress, NewAccount, TransactionLog, Txo},
+        models::{Account, AssignedSubaddress, NewAccount, TransactionLog, Txo, ViewOnlyAccount},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
+        view_only_account::ViewOnlyAccountModel,
         Conn, WalletDbError,
     },
     util::constants::{
@@ -31,7 +32,13 @@ pub struct AccountID(pub String);
 impl From<&AccountKey> for AccountID {
     fn from(src: &AccountKey) -> AccountID {
         let main_subaddress = src.subaddress(DEFAULT_SUBADDRESS_INDEX);
-        let temp: [u8; 32] = main_subaddress.digest32::<MerlinTranscript>(b"account_data");
+        AccountID::from(&main_subaddress)
+    }
+}
+
+impl From<&PublicAddress> for AccountID {
+    fn from(src: &PublicAddress) -> Self {
+        let temp: [u8; 32] = src.digest32::<MerlinTranscript>(b"account_data");
         Self(hex::encode(temp))
     }
 }
@@ -40,6 +47,11 @@ impl fmt::Display for AccountID {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0)
     }
+}
+
+pub struct ViewOnlyAccountImportPackage {
+    pub account: Account,
+    pub subaddresses: Vec<AssignedSubaddress>,
 }
 
 pub trait AccountModel {
@@ -234,6 +246,12 @@ impl AccountModel for Account {
         use crate::db::schema::accounts;
 
         let account_id = AccountID::from(account_key);
+
+        if ViewOnlyAccount::get(&account_id.to_string(), conn).is_ok() {
+            return Err(WalletDbError::ViewOnlyAccountAlreadyExists(
+                account_id.to_string(),
+            ));
+        }
 
         let first_block_index = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX);
         let next_block_index = first_block_index;

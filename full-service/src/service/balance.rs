@@ -6,9 +6,12 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        models::{Account, AssignedSubaddress, Txo, ViewOnlyAccount, ViewOnlyTxo},
+        models::{
+            Account, AssignedSubaddress, Txo, ViewOnlyAccount, ViewOnlySubaddress, ViewOnlyTxo,
+        },
         txo::TxoModel,
         view_only_account::ViewOnlyAccountModel,
+        view_only_subaddress::ViewOnlySubaddressModel,
         view_only_txo::ViewOnlyTxoModel,
         Conn, WalletDbError,
     },
@@ -80,14 +83,7 @@ pub struct Balance {
     pub network_block_height: u64,
     pub local_block_height: u64,
     pub synced_blocks: u64,
-}
-
-// The balance object for view-only-accounts
-pub struct ViewOnlyBalance {
-    pub balance: u128,
-    pub network_block_height: u64,
-    pub local_block_height: u64,
-    pub synced_blocks: u64,
+    pub max_spendable: u128,
 }
 
 /// The Network Status object.
@@ -134,9 +130,14 @@ pub trait BalanceService {
     fn get_balance_for_view_only_account(
         &self,
         account_id: &str,
-    ) -> Result<ViewOnlyBalance, BalanceServiceError>;
+    ) -> Result<Balance, BalanceServiceError>;
 
     fn get_balance_for_address(&self, address: &str) -> Result<Balance, BalanceServiceError>;
+
+    fn get_balance_for_view_only_address(
+        &self,
+        address: &str,
+    ) -> Result<Balance, BalanceServiceError>;
 
     fn get_network_status(&self) -> Result<NetworkStatus, BalanceServiceError>;
 
@@ -155,8 +156,8 @@ where
         let account_id_hex = &account_id.to_string();
 
         let conn = self.wallet_db.get_conn()?;
-        let (unspent, pending, spent, secreted, orphaned) =
-            Self::get_balance_inner(account_id_hex, &conn)?;
+        let (unspent, max_spendable, pending, spent, secreted, orphaned) =
+            Self::get_balance_inner(account_id_hex, None, &conn)?;
 
         let network_block_height = self.get_network_block_height()?;
         let local_block_height = self.ledger_db.num_blocks()?;
@@ -164,6 +165,7 @@ where
 
         Ok(Balance {
             unspent,
+            max_spendable,
             pending,
             spent,
             secreted,
@@ -177,57 +179,15 @@ where
     fn get_balance_for_view_only_account(
         &self,
         account_id: &str,
-    ) -> Result<ViewOnlyBalance, BalanceServiceError> {
+    ) -> Result<Balance, BalanceServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        let txos = ViewOnlyTxo::list_for_account(account_id, None, None, &conn)?;
-        let total_value = txos.iter().map(|t| (t.value as u64) as u128).sum::<u128>();
-        let spent = txos
-            .iter()
-            .filter(|t| t.spent)
-            .map(|t| (t.value as u64) as u128)
-            .sum::<u128>();
+
+        let (unspent, max_spendable, pending, spent, secreted, orphaned) =
+            Self::get_view_only_balance_inner(account_id, None, &conn)?;
 
         let network_block_height = self.get_network_block_height()?;
         let local_block_height = self.ledger_db.num_blocks()?;
         let account = ViewOnlyAccount::get(account_id, &conn)?;
-
-        Ok(ViewOnlyBalance {
-            balance: total_value - spent,
-            network_block_height,
-            local_block_height,
-            synced_blocks: account.next_block_index as u64,
-        })
-    }
-
-    fn get_balance_for_address(&self, address: &str) -> Result<Balance, BalanceServiceError> {
-        let network_block_height = self.get_network_block_height()?;
-        let local_block_height = self.ledger_db.num_blocks()?;
-
-        let conn = self.wallet_db.get_conn()?;
-        let assigned_address = AssignedSubaddress::get(address, &conn)?;
-
-        // Orphaned txos have no subaddress assigned, so none of these txos can
-        // be orphaned.
-        let orphaned: u128 = 0;
-
-        let unspent = Txo::list_unspent(&assigned_address.account_id_hex, Some(address), &conn)?
-            .iter()
-            .map(|txo| (txo.value as u64) as u128)
-            .sum::<u128>();
-        let pending = Txo::list_pending(&assigned_address.account_id_hex, Some(address), &conn)?
-            .iter()
-            .map(|txo| (txo.value as u64) as u128)
-            .sum::<u128>();
-        let spent = Txo::list_spent(&assigned_address.account_id_hex, Some(address), &conn)?
-            .iter()
-            .map(|txo| (txo.value as u64) as u128)
-            .sum::<u128>();
-        let secreted = Txo::list_secreted(&assigned_address.account_id_hex, &conn)?
-            .iter()
-            .map(|txo| (txo.value as u64) as u128)
-            .sum::<u128>();
-
-        let account = Account::get(&AccountID(assigned_address.account_id_hex), &conn)?;
 
         Ok(Balance {
             unspent,
@@ -238,9 +198,64 @@ where
             network_block_height,
             local_block_height,
             synced_blocks: account.next_block_index as u64,
+            max_spendable,
         })
     }
 
+    fn get_balance_for_address(&self, address: &str) -> Result<Balance, BalanceServiceError> {
+        let network_block_height = self.get_network_block_height()?;
+        let local_block_height = self.ledger_db.num_blocks()?;
+
+        let conn = self.wallet_db.get_conn()?;
+        let assigned_address = AssignedSubaddress::get(address, &conn)?;
+
+        let (unspent, max_spendable, pending, spent, secreted, orphaned) =
+            Self::get_balance_inner(&assigned_address.account_id_hex, Some(address), &conn)?;
+
+        let account = Account::get(&AccountID(assigned_address.account_id_hex), &conn)?;
+
+        Ok(Balance {
+            unspent,
+            max_spendable,
+            pending,
+            spent,
+            secreted,
+            orphaned,
+            network_block_height,
+            local_block_height,
+            synced_blocks: account.next_block_index as u64,
+        })
+    }
+
+    fn get_balance_for_view_only_address(
+        &self,
+        address: &str,
+    ) -> Result<Balance, BalanceServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+        let view_only_subaddress = ViewOnlySubaddress::get(address, &conn)?;
+        let (unspent, max_spendable, pending, spent, secreted, orphaned) =
+            Self::get_view_only_balance_inner(
+                &view_only_subaddress.view_only_account_id_hex,
+                Some(address),
+                &conn,
+            )?;
+
+        let network_block_height = self.get_network_block_height()?;
+        let local_block_height = self.ledger_db.num_blocks()?;
+        let account = ViewOnlyAccount::get(&view_only_subaddress.view_only_account_id_hex, &conn)?;
+
+        Ok(Balance {
+            unspent,
+            max_spendable,
+            pending,
+            spent,
+            secreted,
+            orphaned,
+            network_block_height,
+            local_block_height,
+            synced_blocks: account.next_block_index as u64,
+        })
+    }
     fn get_network_status(&self) -> Result<NetworkStatus, BalanceServiceError> {
         Ok(NetworkStatus {
             network_block_height: self.get_network_block_height()?,
@@ -269,7 +284,7 @@ where
         let mut account_ids = Vec::new();
         for account in accounts {
             let account_id = AccountID(account.account_id_hex.clone());
-            let balance = Self::get_balance_inner(&account_id.to_string(), &conn)?;
+            let balance = Self::get_balance_inner(&account_id.to_string(), None, &conn)?;
             account_map.insert(account_id.clone(), account.clone());
             unspent += balance.0;
             pending += balance.1;
@@ -316,32 +331,70 @@ where
 {
     fn get_balance_inner(
         account_id_hex: &str,
+        assigned_subaddress_b58: Option<&str>,
         conn: &Conn,
-    ) -> Result<(u128, u128, u128, u128, u128), BalanceServiceError> {
-        // Note: We need to cast to u64 first, because i64 could have wrapped, then to
-        // u128
-        let unspent = Txo::list_unspent(account_id_hex, None, conn)?
+    ) -> Result<(u128, u128, u128, u128, u128, u128), BalanceServiceError> {
+        let max_spendable =
+            Txo::list_spendable(account_id_hex, None, assigned_subaddress_b58, conn)?
+                .max_spendable_in_wallet;
+        let unspent = Txo::list_unspent(account_id_hex, assigned_subaddress_b58, conn)?
             .iter()
             .map(|t| (t.value as u64) as u128)
             .sum::<u128>();
-        let spent = Txo::list_spent(account_id_hex, None, conn)?
+        let spent = Txo::list_spent(account_id_hex, assigned_subaddress_b58, conn)?
             .iter()
             .map(|t| (t.value as u64) as u128)
             .sum::<u128>();
-        let secreted = Txo::list_secreted(account_id_hex, conn)?
-            .iter()
-            .map(|t| (t.value as u64) as u128)
-            .sum::<u128>();
-        let orphaned = Txo::list_orphaned(account_id_hex, conn)?
-            .iter()
-            .map(|t| (t.value as u64) as u128)
-            .sum::<u128>();
-        let pending = Txo::list_pending(account_id_hex, None, conn)?
+        let pending = Txo::list_pending(account_id_hex, assigned_subaddress_b58, conn)?
             .iter()
             .map(|t| (t.value as u64) as u128)
             .sum::<u128>();
 
-        let result = (unspent, pending, spent, secreted, orphaned);
+        let secreted = if assigned_subaddress_b58.is_some() {
+            0
+        } else {
+            Txo::list_secreted(account_id_hex, conn)?
+                .iter()
+                .map(|t| t.value as u128)
+                .sum::<u128>()
+        };
+
+        let orphaned = if assigned_subaddress_b58.is_some() {
+            0
+        } else {
+            Txo::list_orphaned(account_id_hex, conn)?
+                .iter()
+                .map(|t| t.value as u128)
+                .sum::<u128>()
+        };
+
+        let result = (unspent, max_spendable, pending, spent, secreted, orphaned);
+        Ok(result)
+    }
+
+    fn get_view_only_balance_inner(
+        account_id_hex: &str,
+        assigned_subaddress_b58: Option<&str>,
+        conn: &Conn,
+    ) -> Result<(u128, u128, u128, u128, u128, u128), BalanceServiceError> {
+        let unspent = ViewOnlyTxo::list_unspent(account_id_hex, assigned_subaddress_b58, conn)?
+            .iter()
+            .map(|t| (t.value as u64) as u128)
+            .sum::<u128>();
+        let spent = ViewOnlyTxo::list_spent(account_id_hex, assigned_subaddress_b58, conn)?
+            .iter()
+            .map(|t| (t.value as u64) as u128)
+            .sum::<u128>();
+        let orphaned = ViewOnlyTxo::list_orphaned(account_id_hex, conn)?
+            .iter()
+            .map(|t| (t.value as u64) as u128)
+            .sum::<u128>();
+        let pending = ViewOnlyTxo::list_pending(account_id_hex, assigned_subaddress_b58, conn)?
+            .iter()
+            .map(|t| (t.value as u64) as u128)
+            .sum::<u128>();
+
+        let result = (unspent, 0, pending, spent, 0, orphaned);
         Ok(result)
     }
 }
@@ -350,12 +403,20 @@ where
 mod tests {
     use super::*;
     use crate::{
-        service::{account::AccountService, address::AddressService},
+        service::{
+            account::AccountService, address::AddressService,
+            view_only_account::ViewOnlyAccountService,
+        },
         test_utils::{get_test_ledger, manually_sync_account, setup_wallet_service, MOB},
         util::b58::b58_encode_public_address,
     };
-    use mc_account_keys::{AccountKey, PublicAddress, RootEntropy, RootIdentity};
+    use mc_account_keys::{
+        AccountKey, PublicAddress, RootEntropy, RootIdentity, CHANGE_SUBADDRESS_INDEX,
+        DEFAULT_SUBADDRESS_INDEX,
+    };
     use mc_common::logger::{test_with_logger, Logger};
+    use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
+    use mc_transaction_core::{encrypted_fog_hint::EncryptedFogHint, tx::TxOut};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
@@ -413,6 +474,8 @@ mod tests {
 
         // 3 accounts * 5_000 MOB * 12 blocks
         assert_eq!(account_balance.unspent, 180_000 * MOB as u128);
+        // 5_000 MOB per txo, max 16 txos input - network fee
+        assert_eq!(account_balance.max_spendable, 79999999600000000 as u128);
         assert_eq!(account_balance.pending, 0);
         assert_eq!(account_balance.spent, 0);
         assert_eq!(account_balance.secreted, 0);
@@ -429,6 +492,7 @@ mod tests {
             .expect("Could not get balance for address");
 
         assert_eq!(address_balance.unspent, 60_000 * MOB as u128);
+        assert_eq!(address_balance.max_spendable, 59999999600000000 as u128);
         assert_eq!(address_balance.pending, 0);
         assert_eq!(address_balance.spent, 0);
         assert_eq!(address_balance.secreted, 0);
@@ -438,6 +502,7 @@ mod tests {
             .get_balance_for_address(&address.assigned_subaddress_b58)
             .expect("Could not get balance for address");
         assert_eq!(address_balance2.unspent, 60_000 * MOB as u128);
+        assert_eq!(address_balance2.max_spendable, 59999999600000000 as u128);
         assert_eq!(address_balance2.pending, 0);
         assert_eq!(address_balance2.spent, 0);
         assert_eq!(address_balance2.secreted, 0);
@@ -452,5 +517,131 @@ mod tests {
             Err(BalanceServiceError::Database(WalletDbError::AssignedSubaddressNotFound(_))) => {}
             Err(e) => panic!("Unexpected error {:?}", e),
         }
+    }
+
+    // The balance for an address should be accurate.
+    #[test_with_logger]
+    fn test_view_only_balance(logger: Logger) {
+        // setup view only account
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let current_block_height = 12; //index 11
+        let ledger_db = get_test_ledger(
+            5,
+            &known_recipients,
+            current_block_height as usize,
+            &mut rng,
+        );
+        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+        let conn = service.wallet_db.get_conn().unwrap();
+
+        let view_private_key = RistrettoPrivate::from_random(&mut rng);
+        let spend_private_key = RistrettoPrivate::from_random(&mut rng);
+
+        let name = "testing";
+
+        let account_key = AccountKey::new(&spend_private_key, &view_private_key);
+        let account_id = AccountID::from(&account_key);
+        let main_public_address = account_key.default_subaddress();
+        let change_public_address = account_key.change_subaddress();
+        let mut subaddresses: Vec<(String, u64, String, RistrettoPublic)> = Vec::new();
+        subaddresses.push((
+            b58_encode_public_address(&main_public_address).unwrap(),
+            DEFAULT_SUBADDRESS_INDEX,
+            "Main".to_string(),
+            *main_public_address.spend_public_key(),
+        ));
+        subaddresses.push((
+            b58_encode_public_address(&change_public_address).unwrap(),
+            CHANGE_SUBADDRESS_INDEX,
+            "Change".to_string(),
+            *change_public_address.spend_public_key(),
+        ));
+
+        service
+            .import_view_only_account(
+                &account_id.to_string(),
+                &view_private_key,
+                DEFAULT_SUBADDRESS_INDEX,
+                CHANGE_SUBADDRESS_INDEX,
+                2,
+                name.clone(),
+                subaddresses,
+            )
+            .unwrap();
+
+        // add funds to account
+        for _ in 0..2 {
+            let value = 420 * MOB;
+            let tx_private_key = RistrettoPrivate::from_random(&mut rng);
+            let hint = EncryptedFogHint::fake_onetime_hint(&mut rng);
+            let fake_tx_out =
+                TxOut::new(value as u64, &main_public_address, &tx_private_key, hint).unwrap();
+            ViewOnlyTxo::create(
+                fake_tx_out.clone(),
+                value,
+                Some(DEFAULT_SUBADDRESS_INDEX),
+                Some(current_block_height),
+                &account_id.to_string(),
+                &conn,
+            )
+            .unwrap();
+        }
+
+        // test balance for account
+        let balance: Balance = service
+            .get_balance_for_view_only_account(&account_id.to_string())
+            .unwrap();
+        assert_eq!(balance.unspent as u64, 840 * MOB);
+        // view only accounts have no spendable MOB
+        assert_eq!(balance.max_spendable, 0);
+        assert_eq!(balance.spent, 0);
+        assert_eq!(balance.pending, 0);
+        assert_eq!(balance.secreted, 0);
+        assert_eq!(balance.orphaned, 0);
+
+        // add funds to specific address
+        let subaddress_index = 3;
+        let subaddress = account_key.subaddress(subaddress_index);
+        let b58_pub_address =
+            b58_encode_public_address(&subaddress).expect("Could not encode public address");
+        service
+            .import_subaddresses(
+                &account_id.to_string(),
+                [(
+                    b58_pub_address.clone(),
+                    subaddress_index,
+                    "cheese".to_string(),
+                    subaddress.spend_public_key().to_owned(),
+                )]
+                .to_vec(),
+            )
+            .unwrap();
+
+        let value = 100 * MOB;
+        let tx_private_key = RistrettoPrivate::from_random(&mut rng);
+        let hint = EncryptedFogHint::fake_onetime_hint(&mut rng);
+        let fake_tx_out =
+            TxOut::new(value as u64, &main_public_address, &tx_private_key, hint).unwrap();
+        ViewOnlyTxo::create(
+            fake_tx_out.clone(),
+            value,
+            Some(subaddress_index),
+            Some(current_block_height),
+            &account_id.to_string(),
+            &conn,
+        )
+        .unwrap();
+
+        let balance: Balance = service
+            .get_balance_for_view_only_address(&b58_pub_address)
+            .unwrap();
+        assert_eq!(balance.unspent as u64, 100 * MOB);
+        // view only accounts have no spendable MOB
+        assert_eq!(balance.max_spendable, 0);
+        assert_eq!(balance.spent, 0);
+        assert_eq!(balance.pending, 0);
+        assert_eq!(balance.secreted, 0);
+        assert_eq!(balance.orphaned, 0);
     }
 }
