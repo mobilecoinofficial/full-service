@@ -55,7 +55,8 @@ impl UnsignedTx {
             Amount::new(self.fee, Mob::ID),
             fog_resolver,
             memo_builder,
-        );
+        )?;
+
         transaction_builder.set_tombstone_block(self.tombstone_block_index);
 
         let mut selected_utxos: Vec<UnspentTxOut> = Vec::new();
@@ -85,15 +86,16 @@ impl UnsignedTx {
             transaction_builder.add_input(input_credentials);
 
             let tx_out = &tx_in.ring[real_index as usize];
-            let (value, _) = decode_amount(tx_out, account_key.view_private_key())?;
+            let (amount, _) = decode_amount(tx_out, account_key.view_private_key())?;
 
             let utxo = UnspentTxOut {
                 tx_out: tx_out.clone(),
                 subaddress_index,
                 key_image,
-                value,
+                value: amount.value,
                 attempted_spend_height: 0,
                 attempted_spend_tombstone: 0,
+                token_id: *Mob::ID,
             };
 
             selected_utxos.push(utxo);
@@ -150,10 +152,10 @@ impl UnsignedTx {
 pub fn decode_amount(
     tx_out: &TxOut,
     view_private_key: &RistrettoPrivate,
-) -> Result<(u64, Scalar), WalletTransactionBuilderError> {
+) -> Result<(Amount, Scalar), WalletTransactionBuilderError> {
     let tx_public_key = RistrettoPublic::try_from(&tx_out.public_key)?;
     let shared_secret = get_tx_out_shared_secret(view_private_key, &tx_public_key);
-    Ok(tx_out.amount.get_value(&shared_secret)?)
+    Ok(tx_out.masked_amount.get_value(&shared_secret)?)
 }
 
 #[allow(clippy::type_complexity)]
@@ -168,11 +170,10 @@ fn add_payload_outputs<RNG: CryptoRng + RngCore>(
     let mut tx_out_to_outlay_index: HashMap<TxOut, usize> = HashMap::default();
     let mut outlay_confirmation_numbers = Vec::default();
     for (i, outlay) in outlays.iter().enumerate() {
-        let (tx_out, confirmation_number) =
-            transaction_builder.add_output(outlay.value, &outlay.receiver, rng)?;
+        let txo_context = transaction_builder.add_output(outlay.value, &outlay.receiver, rng)?;
 
-        tx_out_to_outlay_index.insert(tx_out, i);
-        outlay_confirmation_numbers.push(confirmation_number);
+        tx_out_to_outlay_index.insert(txo_context.tx_out, i);
+        outlay_confirmation_numbers.push(txo_context.confirmation);
 
         total_value += outlay.value;
     }
@@ -190,12 +191,11 @@ fn add_change_output<RNG: CryptoRng + RngCore>(
     transaction_builder: &mut TransactionBuilder<FullServiceFogResolver>,
     rng: &mut RNG,
 ) -> Result<(), WalletTransactionBuilderError> {
-    let change_value = total_input_value - total_payload_value - transaction_builder.get_fee();
+    let change_value =
+        total_input_value - total_payload_value - transaction_builder.get_fee().value;
 
-    if change_value > 0 {
-        let change_destination = ChangeDestination::from(account_key);
-        transaction_builder.add_change_output(change_value, &change_destination, rng)?;
-    }
+    let change_destination = ChangeDestination::from(account_key);
+    transaction_builder.add_change_output(change_value, &change_destination, rng)?;
 
     Ok(())
 }

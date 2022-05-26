@@ -41,7 +41,7 @@ impl TryFrom<&mc_mobilecoind::payments::TxProposal> for TxProposal {
             input_list: json_tx_proposal
                 .input_list
                 .iter()
-                .map(|input| UnspentTxOut::try_from(input).map_err(|err| err.to_string()))
+                .map(UnspentTxOut::try_from)
                 .collect::<Result<Vec<UnspentTxOut>, String>>()?,
             outlay_list: json_tx_proposal.outlay_list.clone(),
             tx: json_tx_proposal.tx.clone(),
@@ -93,7 +93,7 @@ impl TryFrom<&TxProposal> for mc_mobilecoind_json::data_types::JsonTxProposal {
             input_list: src
                 .input_list
                 .iter()
-                .map(|input| JsonUnspentTxOut::try_from(input).map_err(|err| err.to_string()))
+                .map(JsonUnspentTxOut::try_from)
                 .collect::<Result<Vec<JsonUnspentTxOut>, String>>()?,
             outlay_list: src.outlay_list.clone(),
             tx: src.tx.clone(),

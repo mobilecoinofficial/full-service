@@ -555,11 +555,10 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let mut outlay_confirmation_numbers = Vec::default();
         let mut rng = rand::thread_rng();
         for (i, (recipient, out_value)) in self.outlays.iter().enumerate() {
-            let (tx_out, confirmation_number) =
-                transaction_builder.add_output(*out_value, recipient, &mut rng)?;
+            let txo_context = transaction_builder.add_output(*out_value, recipient, &mut rng)?;
 
-            tx_out_to_outlay_index.insert(tx_out, i);
-            outlay_confirmation_numbers.push(confirmation_number);
+            tx_out_to_outlay_index.insert(txo_context.tx_out, i);
+            outlay_confirmation_numbers.push(txo_context.confirmation);
 
             total_value += *out_value;
         }
