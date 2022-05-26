@@ -3780,7 +3780,7 @@ mod e2e {
     }
 
     #[test_with_logger]
-    fn test_e2e_view_only_account_creation(logger: Logger) {
+    fn test_e2e_view_only_account_crud(logger: Logger) {
         // create normal account
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
@@ -3837,5 +3837,62 @@ mod e2e {
         let account = result.get("view_only_account").unwrap();
         let vo_account_id = account.get("account_id").unwrap();
         assert_eq!(vo_account_id, account_id);
+
+        // test get
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "get_view_only_account",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account = result.get("view_only_account").unwrap();
+        let vo_account_id = account.get("account_id").unwrap();
+        assert_eq!(vo_account_id, account_id);
+
+        // test update name
+        let name = "Look at these coins";
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "update_view_only_account_name",
+            "params": {
+                "account_id": account_id,
+                "name": name,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account = result.get("view_only_account").unwrap();
+        let account_name = account.get("name").unwrap();
+        assert_eq!(name, account_name);
+
+        // test remove
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "remove_view_only_account",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let removed = result.get("removed").unwrap().as_bool().unwrap();
+        assert!(removed);
+
+        // test get-all
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "get_all_view_only_accounts",
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_ids = result.get("account_ids").unwrap().as_array().unwrap();
+        assert_eq!(account_ids.len(), 0);
     }
 }
