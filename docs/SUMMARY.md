@@ -16,6 +16,7 @@
     * [Remove Account](accounts/account/remove\_account.md)
   * [Account Secrets](accounts/account-secrets/README.md)
     * [Export Account Secrets](accounts/account-secrets/export\_account\_secrets.md)
+    * [Export View Only Account Package](accounts/account-secrets/export\_view\_only\_account\_package.md)
   * [Address](accounts/address/README.md)
     * [Assign Address For Account](accounts/address/assign\_address\_for\_account.md)
     * [Get Addresses For Account](accounts/address/get\_addresses\_for\_account.md)
@@ -34,6 +35,7 @@
     * [Export Secrets](view-only-accounts/account-secrets/export\_view\_only\_account\_secrets.md)
   * [Balance](view-only-accounts/balance/README.md)
     * [Get Balance](view-only-accounts/balance/get\_balance\_for\_view\_only\_account.md)
+    * [Get Balance For Address](view-only-accounts/balance/get\_balance\_for\_view\_only\_address.md)
   * [Syncing](view-only-accounts/syncing/README.md)
     * [Create Account Sync Request](view-only-accounts/syncing/create\_view\_only\_account\_sync\_request.md)
     * [Sync Account](view-only-accounts/syncing/sync\_view\_only\_account.md)
@@ -94,3 +96,5 @@
 * [Resolve Disputes](tutorials/resolve-disputes.md)
 * [View Only Account](usage/view-only-account/README.md)
   * [Transaction Signer](usage/view-only-account/transaction-signer.md)
+
+## Frequently Asked Questions

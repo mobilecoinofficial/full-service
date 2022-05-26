@@ -9,11 +9,11 @@ use crate::{
         account::Account,
         account_secrets::AccountSecrets,
         address::Address,
-        balance::{Balance, ViewOnlyBalance},
+        balance::Balance,
         block::{Block, BlockContents},
         confirmation_number::Confirmation,
         gift_code::GiftCode,
-        json_rpc_request::JsonCommandRequest,
+        json_rpc_request::JsonRPCRequest,
         network_status::NetworkStatus,
         receiver_receipt::ReceiverReceipt,
         transaction_log::TransactionLog,
@@ -196,7 +196,7 @@ pub enum JsonCommandResponse {
         spent_txo_ids: Vec<String>,
     },
     export_view_only_account_package {
-        package: JsonCommandRequest,
+        json_rpc_request: JsonRPCRequest,
     },
     export_view_only_account_secrets {
         view_only_account_secrets: ViewOnlyAccountSecretsJSON,
@@ -251,10 +251,10 @@ pub enum JsonCommandResponse {
         balance: Balance,
     },
     get_balance_for_view_only_account {
-        balance: ViewOnlyBalance,
+        balance: Balance,
     },
     get_balance_for_view_only_address {
-        balance: ViewOnlyBalance,
+        balance: Balance,
     },
     get_block {
         block: Block,
