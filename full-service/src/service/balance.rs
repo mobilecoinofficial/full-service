@@ -416,7 +416,9 @@ mod tests {
     };
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
-    use mc_transaction_core::{encrypted_fog_hint::EncryptedFogHint, tx::TxOut};
+    use mc_transaction_core::{
+        encrypted_fog_hint::EncryptedFogHint, tokens::Mob, tx::TxOut, Amount, Token,
+    };
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
@@ -575,8 +577,13 @@ mod tests {
             let value = 420 * MOB;
             let tx_private_key = RistrettoPrivate::from_random(&mut rng);
             let hint = EncryptedFogHint::fake_onetime_hint(&mut rng);
-            let fake_tx_out =
-                TxOut::new(value as u64, &main_public_address, &tx_private_key, hint).unwrap();
+            let fake_tx_out = TxOut::new(
+                Amount::new(value as u64, Mob::ID),
+                &main_public_address,
+                &tx_private_key,
+                hint,
+            )
+            .unwrap();
             ViewOnlyTxo::create(
                 fake_tx_out.clone(),
                 value,
@@ -621,8 +628,13 @@ mod tests {
         let value = 100 * MOB;
         let tx_private_key = RistrettoPrivate::from_random(&mut rng);
         let hint = EncryptedFogHint::fake_onetime_hint(&mut rng);
-        let fake_tx_out =
-            TxOut::new(value as u64, &main_public_address, &tx_private_key, hint).unwrap();
+        let fake_tx_out = TxOut::new(
+            Amount::new(value as u64, Mob::ID),
+            &main_public_address,
+            &tx_private_key,
+            hint,
+        )
+        .unwrap();
         ViewOnlyTxo::create(
             fake_tx_out.clone(),
             value,
