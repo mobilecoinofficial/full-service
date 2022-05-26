@@ -503,9 +503,10 @@ where
             let package = service
                 .get_view_only_import_package(&AccountID(account_id))
                 .map_err(format_error)?;
-            let package = JsonCommandRequest::try_from(&package).map_err(format_error)?;
 
-            JsonCommandResponse::export_view_only_account_package { package }
+            let json_rpc_request = JsonRPCRequest::try_from(&package).map_err(format_error)?;
+
+            JsonCommandResponse::export_view_only_account_package { json_rpc_request }
         }
         JsonCommandRequest::export_view_only_account_secrets { account_id } => {
             let account = service
