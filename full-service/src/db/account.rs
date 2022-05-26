@@ -20,7 +20,8 @@ use crate::{
 use bip39::Mnemonic;
 use diesel::prelude::*;
 use mc_account_keys::{
-    AccountKey, RootEntropy, RootIdentity, CHANGE_SUBADDRESS_INDEX, DEFAULT_SUBADDRESS_INDEX,
+    AccountKey, PublicAddress, RootEntropy, RootIdentity, CHANGE_SUBADDRESS_INDEX,
+    DEFAULT_SUBADDRESS_INDEX,
 };
 use mc_account_keys_slip10::Slip10Key;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};

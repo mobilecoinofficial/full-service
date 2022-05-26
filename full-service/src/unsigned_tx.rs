@@ -9,9 +9,13 @@ use mc_transaction_core::{
     get_tx_out_shared_secret,
     onetime_keys::recover_onetime_private_key,
     ring_signature::{KeyImage, Scalar},
+    tokens::Mob,
     tx::{TxIn, TxOut, TxOutConfirmationNumber},
+    Amount, BlockVersion, Token,
 };
-use mc_transaction_std::{ChangeDestination, InputCredentials, NoMemoBuilder, TransactionBuilder};
+use mc_transaction_std::{
+    ChangeDestination, EmptyMemoBuilder, InputCredentials, TransactionBuilder,
+};
 use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -44,10 +48,14 @@ impl UnsignedTx {
         fog_resolver: FullServiceFogResolver,
     ) -> Result<TxProposal, WalletTransactionBuilderError> {
         let mut rng = rand::thread_rng();
-        let memo_builder = NoMemoBuilder::default();
+        let memo_builder = EmptyMemoBuilder::default();
 
-        let mut transaction_builder = TransactionBuilder::new(fog_resolver, memo_builder);
-        transaction_builder.set_fee(self.fee)?;
+        let mut transaction_builder = TransactionBuilder::new(
+            BlockVersion::MAX,
+            Amount::new(self.fee, Mob::ID),
+            fog_resolver,
+            memo_builder,
+        );
         transaction_builder.set_tombstone_block(self.tombstone_block_index);
 
         let mut selected_utxos: Vec<UnspentTxOut> = Vec::new();

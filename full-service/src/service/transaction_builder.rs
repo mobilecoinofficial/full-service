@@ -580,8 +580,8 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
 
         let change = input_value as u64 - total_value - transaction_builder.get_fee().value;
 
-            let change_destination = ChangeDestination::from(&from_account_key);
-            transaction_builder.add_change_output(change, &change_destination, &mut rng)?;
+        let change_destination = ChangeDestination::from(&from_account_key);
+        transaction_builder.add_change_output(change, &change_destination, &mut rng)?;
 
         // Set tombstone block.
         transaction_builder.set_tombstone_block(self.tombstone);
