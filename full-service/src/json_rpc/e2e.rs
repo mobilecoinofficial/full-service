@@ -3778,4 +3778,64 @@ mod e2e {
 
         dispatch_with_header_expect_error(&client, body, header, &logger, Status::Unauthorized);
     }
+
+    #[test_with_logger]
+    fn test_e2e_view_only_account_creation(logger: Logger) {
+        // create normal account
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        // Create Account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            },
+        });
+        let res = dispatch(&client, body, &logger);
+        assert_eq!(res.get("jsonrpc").unwrap(), "2.0");
+
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        assert!(account_obj.get("account_id").is_some());
+        assert_eq!(account_obj.get("name").unwrap(), "Alice Main Account");
+        let account_id = account_obj.get("account_id").unwrap();
+
+        // export view only import package
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "export_view_only_account_package",
+            "params": {
+                "account_id": account_id,
+            },
+        });
+        let res = dispatch(&client, body, &logger);
+        assert_eq!(res.get("jsonrpc").unwrap(), "2.0");
+        let result = res.get("result").unwrap();
+        let request = result.get("json_rpc_request").unwrap();
+
+        // remove regular account (can't have both view only and regular in same wallet)
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "remove_account",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        assert_eq!(result["removed"].as_bool().unwrap(), true);
+
+        // import vo account
+        let body = json!(request);
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account = result.get("view_only_account").unwrap();
+        let vo_account_id = account.get("account_id").unwrap();
+        assert_eq!(vo_account_id, account_id);
+    }
 }
