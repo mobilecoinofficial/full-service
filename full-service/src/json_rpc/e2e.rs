@@ -15,15 +15,15 @@ mod e2e {
             dispatch_with_header_expect_error, setup, setup_with_api_key,
         },
         test_utils::{
-            add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account, MOB,
+            add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account,
+            manually_sync_view_only_account, MOB,
         },
-        util::b58::{b58_decode_public_address, b58_encode_public_address},
+        util::b58::b58_decode_public_address,
     };
     use bip39::{Language, Mnemonic};
     use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
     use mc_account_keys_slip10::Slip10Key;
     use mc_common::logger::{test_with_logger, Logger};
-    use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
     use mc_crypto_rand::rand_core::RngCore;
     use mc_ledger_db::Ledger;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
@@ -3781,10 +3781,11 @@ mod e2e {
     }
 
     #[test_with_logger]
-    fn test_e2e_view_only_account_crud(logger: Logger) {
+    fn test_e2e_view_only_account_flow(logger: Logger) {
         // create normal account
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
+        let wallet_db = db_ctx.get_db_instance(logger.clone());
 
         // Create Account
         let body = json!({
@@ -3803,6 +3804,38 @@ mod e2e {
         assert!(account_obj.get("account_id").is_some());
         assert_eq!(account_obj.get("name").unwrap(), "Alice Main Account");
         let account_id = account_obj.get("account_id").unwrap();
+        let main_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+        let main_account_address = b58_decode_public_address(main_address).unwrap();
+
+        // add some funds to that account
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![main_account_address],
+            100 * MOB,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+        manually_sync_account(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.as_str().unwrap().to_string()),
+            &logger,
+        );
+
+        // confirm that the regular account has the correct balance
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_account",
+            "params": {
+                "account_id": account_id,
+            },
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance_status = result.get("balance").unwrap();
+        let unspent = balance_status["unspent_pmob"].as_str().unwrap();
+        assert_eq!(unspent, "100000000000000");
 
         // export view only import package
         let body = json!({
@@ -3838,6 +3871,29 @@ mod e2e {
         let account = result.get("view_only_account").unwrap();
         let vo_account_id = account.get("account_id").unwrap();
         assert_eq!(vo_account_id, account_id);
+
+        // sync the view only account
+        manually_sync_view_only_account(
+            &ledger_db,
+            &wallet_db,
+            vo_account_id.as_str().unwrap(),
+            &logger,
+        );
+
+        // check balance for view only account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_view_only_account",
+            "params": {
+                "account_id": account_id,
+            },
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance_status = result.get("balance").unwrap();
+        let unspent = balance_status["unspent_pmob"].as_str().unwrap();
+        assert_eq!(unspent, "100000000000000");
 
         // test get
         let body = json!({
@@ -3871,6 +3927,40 @@ mod e2e {
         let account_name = account.get("name").unwrap();
         assert_eq!(name, account_name);
 
+        // create new subaddress request
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_new_subaddresses_request",
+            "params": {
+                "account_id": account_id,
+                "num_subaddresses_to_generate": "2",
+            },
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let next_index = result
+            .get("next_subaddress_index")
+            .unwrap()
+            .as_str()
+            .unwrap();
+        assert_eq!(next_index, "2");
+
+        // test creating unsigned tx
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "build_unsigned_transaction",
+            "params": {
+                "account_id": account_id,
+                "recipient_public_address": main_address,
+                "value_pmob": "50000000000000",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let _tx = result.get("unsigned_tx").unwrap();
+
         // test remove
         let body = json!({
             "jsonrpc": "2.0",
@@ -3895,84 +3985,5 @@ mod e2e {
         let result = res.get("result").unwrap();
         let account_ids = result.get("account_ids").unwrap().as_array().unwrap();
         assert_eq!(account_ids.len(), 0);
-    }
-
-    #[test_with_logger]
-    fn test_e2e_view_only_account_subaddress(logger: Logger) {
-        // create normal account
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
-
-        // Create Account
-        let body = json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "create_account",
-            "params": {
-                "name": "Alice Main Account",
-            },
-        });
-        let res = dispatch(&client, body, &logger);
-        assert_eq!(res.get("jsonrpc").unwrap(), "2.0");
-
-        let result = res.get("result").unwrap();
-        let account_obj = result.get("account").unwrap();
-        assert!(account_obj.get("account_id").is_some());
-        assert_eq!(account_obj.get("name").unwrap(), "Alice Main Account");
-        let account_id = account_obj.get("account_id").unwrap();
-
-        // export view only import package
-        let body = json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "export_view_only_account_package",
-            "params": {
-                "account_id": account_id,
-            },
-        });
-        let res = dispatch(&client, body, &logger);
-        assert_eq!(res.get("jsonrpc").unwrap(), "2.0");
-        let result = res.get("result").unwrap();
-        let request = result.get("json_rpc_request").unwrap();
-
-        // remove regular account (can't have both view only and regular in same wallet)
-        let body = json!({
-            "jsonrpc": "2.0",
-            "id": 2,
-            "method": "remove_account",
-            "params": {
-                "account_id": account_id,
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        assert_eq!(result["removed"].as_bool().unwrap(), true);
-
-        // import vo account
-        let body = json!(request);
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let account = result.get("view_only_account").unwrap();
-        let vo_account_id = account.get("account_id").unwrap();
-        assert_eq!(vo_account_id, account_id);
-
-        // create new subaddress request
-        let body = json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "create_new_subaddresses_request",
-            "params": {
-                "account_id": account_id,
-                "num_subaddresses_to_generate": "2",
-            },
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let next_index = result
-            .get("next_subaddress_index")
-            .unwrap()
-            .as_str()
-            .unwrap();
-        assert_eq!(next_index, "2");
     }
 }
