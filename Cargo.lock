@@ -2695,6 +2695,7 @@ dependencies = [
  "mc-fog-report-validation",
  "mc-fog-report-validation-test-utils",
  "mc-ledger-db",
+ "mc-ledger-migration",
  "mc-ledger-sync",
  "mc-mobilecoind",
  "mc-mobilecoind-api",

@@ -31,6 +31,7 @@ mc-crypto-rand = { path = "../mobilecoin/crypto/rand", default-features = false 
 mc-fog-report-connection = { path = "../mobilecoin/fog/report/connection" }
 mc-fog-report-validation = { path = "../mobilecoin/fog/report/validation" }
 mc-ledger-db = { path = "../mobilecoin/ledger/db" }
+mc-ledger-migration = { path = "../mobilecoin/ledger/migration" }
 mc-ledger-sync = { path = "../mobilecoin/ledger/sync" }
 mc-mobilecoind = { path = "../mobilecoin/mobilecoind" }
 mc-mobilecoind-api = { path = "../mobilecoin/mobilecoind/api" }
