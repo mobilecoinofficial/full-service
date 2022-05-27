@@ -263,7 +263,9 @@ impl LedgerDbConfig {
         offline: bool,
         logger: &Logger,
     ) -> LedgerDB {
-        mc_ledger_migration::migrate(&self.ledger_db, logger);
+        if self.ledger_db.exists() {
+            mc_ledger_migration::migrate(&self.ledger_db, logger);
+        }
         // Attempt to open the ledger and see if it has anything in it.
         if let Ok(ledger_db) = LedgerDB::open(&self.ledger_db) {
             if let Ok(num_blocks) = ledger_db.num_blocks() {
