@@ -1,5 +1,11 @@
 # Create Account Sync Request
 
+## Parameters
+
+| Required Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `account_id` | The account on which to perform this action. | Account must exist in the wallet as a view only account. |
+
 {% tabs %}
 {% tab title="Request" %}
 ```
