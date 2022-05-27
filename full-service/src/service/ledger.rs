@@ -18,13 +18,13 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tokens::Mob,
     tx::{Tx, TxOut},
-    Block, BlockContents, Token,
+    Block, BlockContents, BlockVersion, Token,
 };
 
 use crate::db::WalletDbError;
 use displaydoc::Display;
 use rayon::prelude::*; // For par_iter
-use std::iter::empty;
+use std::{convert::TryFrom, iter::empty};
 
 /// Errors for the Address Service.
 #[derive(Display, Debug)]
@@ -81,6 +81,8 @@ pub trait LedgerService {
     fn contains_key_image(&self, key_image: &KeyImage) -> Result<bool, LedgerServiceError>;
 
     fn get_network_fee(&self) -> u64;
+
+    fn get_network_block_version(&self) -> BlockVersion;
 }
 
 impl<T, FPR> LedgerService for WalletService<T, FPR>
@@ -150,6 +152,23 @@ where
                 })
                 .max()
                 .unwrap_or(Mob::MINIMUM_FEE)
+        }
+    }
+
+    fn get_network_block_version(&self) -> BlockVersion {
+        if self.peer_manager.is_empty() {
+            BlockVersion::MAX
+        } else {
+            let block_version = self
+                .peer_manager
+                .conns()
+                .par_iter()
+                .filter_map(|conn| conn.fetch_block_info(empty()).ok())
+                .map(|block_info| block_info.network_block_version)
+                .max()
+                .unwrap_or(*BlockVersion::MAX);
+
+            BlockVersion::try_from(block_version).unwrap_or(BlockVersion::MAX)
         }
     }
 }

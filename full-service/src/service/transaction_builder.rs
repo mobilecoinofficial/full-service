@@ -76,6 +76,9 @@ pub struct WalletTransactionBuilder<FPR: FogPubkeyResolver + 'static> {
     /// The fee for the transaction.
     fee: Option<u64>,
 
+    /// The block version for the transaction
+    block_version: Option<BlockVersion>,
+
     /// Fog resolver maker, used when constructing outputs to fog recipients.
     /// This is abstracted because in tests, we don't want to form grpc
     /// connections to fog.
@@ -99,6 +102,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             outlays: vec![],
             tombstone: 0,
             fee: None,
+            block_version: None,
             fog_resolver_factory,
             logger,
         }
@@ -226,6 +230,10 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         }
         self.fee = Some(fee);
         Ok(())
+    }
+
+    pub fn set_block_version(&mut self, block_version: BlockVersion) {
+        self.block_version = Some(block_version);
     }
 
     pub fn set_tombstone(&mut self, tombstone: u64) -> Result<(), WalletTransactionBuilderError> {
@@ -419,11 +427,10 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         };
 
         // Create transaction builder.
-        // TODO: After servers that support memos are deployed, use RTHMemoBuilder here
         let mut memo_builder = RTHMemoBuilder::default();
         memo_builder.set_sender_credential(SenderMemoCredential::from(&from_account_key));
         memo_builder.enable_destination_memo();
-        let block_version = BlockVersion::MAX;
+        let block_version = self.block_version.unwrap_or(BlockVersion::MAX);
         let fee = Amount::new(self.fee.unwrap_or(Mob::MINIMUM_FEE), Mob::ID);
         let mut transaction_builder =
             TransactionBuilder::new(block_version, fee, fog_resolver, memo_builder)?;

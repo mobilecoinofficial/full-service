@@ -273,6 +273,8 @@ where
                 None => self.get_network_fee(),
             })?;
 
+            builder.set_block_version(self.get_network_block_version());
+
             if let Some(inputs) = input_txo_ids {
                 builder.set_txos(&conn, inputs, log_tx_proposal.unwrap_or_default())?;
             } else {
