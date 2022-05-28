@@ -282,15 +282,16 @@ where
 
         let mut min_synced_block_index = network_block_height - 1;
         let mut account_ids = Vec::new();
+
         for account in accounts {
             let account_id = AccountID(account.account_id_hex.clone());
             let balance = Self::get_balance_inner(&account_id.to_string(), None, &conn)?;
             account_map.insert(account_id.clone(), account.clone());
             unspent += balance.0;
-            pending += balance.1;
-            spent += balance.2;
-            secreted += balance.3;
-            orphaned += balance.4;
+            pending += balance.2;
+            spent += balance.3;
+            secreted += balance.4;
+            orphaned += balance.5;
 
             // account.next_block_index is an index in range [0..ledger_db.num_blocks()]
             min_synced_block_index = std::cmp::min(
