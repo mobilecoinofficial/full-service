@@ -92,6 +92,7 @@ pub struct NetworkStatus {
     pub network_block_height: u64,
     pub local_block_height: u64,
     pub fee_pmob: u64,
+    pub block_version: u32,
 }
 
 /// The Wallet Status object returned by balance services.
@@ -261,6 +262,7 @@ where
             network_block_height: self.get_network_block_height()?,
             local_block_height: self.ledger_db.num_blocks()?,
             fee_pmob: self.get_network_fee(),
+            block_version: *self.get_network_block_version(),
         })
     }
 
