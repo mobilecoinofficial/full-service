@@ -116,10 +116,10 @@ class Client:
         })
         return r['account']
 
-    def import_view_only_account(self, package):
+    def import_view_only_account(self, params):
         r = self._req({
             "method": "import_view_only_account",
-            "params": {"package": package},
+            "params": params,
         })
         return r['view_only_account']
 
@@ -309,6 +309,23 @@ class Client:
         })
         return r['tx_proposal']
 
+    def build_unsigned_transaction(self, account_id, amount, to_address, tombstone_block=None, fee=None):
+        amount = str(mob2pmob(amount))
+        params = {
+            "account_id": account_id,
+            "recipient_public_address": to_address,
+            "value_pmob": amount,
+        }
+        if tombstone_block is not None:
+            params['tombstone_block'] = str(int(tombstone_block))
+        if fee is not None:
+            params['fee'] = str(mob2pmob(fee))
+        r = self._req({
+            "method": "build_unsigned_transaction",
+            "params": params,
+        })
+        return r
+
     def submit_transaction(self, tx_proposal, account_id=None):
         r = self._req({
             "method": "submit_transaction",
@@ -424,14 +441,10 @@ class Client:
         })
         return r
 
-    def sync_view_only_account(self, account_id, completed_txos, subaddresses):
+    def sync_view_only_account(self, params):
         r = self._req({
             "method": "sync_view_only_account",
-            "params": {
-                "account_id": account_id,
-                "completed_txos": completed_txos,
-                "subaddresses": subaddresses,
-            },
+            "params": params,
         })
         return r
 
