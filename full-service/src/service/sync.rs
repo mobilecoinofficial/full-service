@@ -447,7 +447,7 @@ fn sync_account_next_chunk(
 
         // Match key images to mark existing unspent transactions as spent.
         let unspent_key_images: HashMap<KeyImage, String> =
-            Txo::list_unspent_or_pending_key_images(account_id_hex, conn)?;
+            Txo::list_unspent_or_pending_key_images(account_id_hex, None, conn)?;
         let spent_txos: Vec<(u64, String)> = key_images
             .into_par_iter()
             .filter_map(|(block_index, key_image)| {
@@ -466,8 +466,12 @@ fn sync_account_next_chunk(
             )?;
         }
 
-        let txos_exceeding_pending_block_index =
-            Txo::list_pending_exceeding_block_index(account_id_hex, end_block_index + 1, conn)?;
+        let txos_exceeding_pending_block_index = Txo::list_pending_exceeding_block_index(
+            account_id_hex,
+            end_block_index + 1,
+            None,
+            conn,
+        )?;
         TransactionLog::update_tx_logs_associated_with_txos_to_failed(
             &txos_exceeding_pending_block_index,
             conn,

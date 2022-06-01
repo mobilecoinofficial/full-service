@@ -144,29 +144,34 @@ pub trait TxoModel {
         account_id_hex: &str,
         offset: Option<u64>,
         limit: Option<u64>,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
     fn list_for_address(
         assigned_subaddress_b58: &str,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
     fn list_unspent(
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
     /// Get a map from key images to unspent txos for this account.
     fn list_unspent_or_pending_key_images(
         account_id_hex: &str,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<HashMap<KeyImage, String>, WalletDbError>;
 
     fn list_spent(
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
@@ -174,24 +179,39 @@ pub trait TxoModel {
         account_id_hex: &str,
         max_spendable_value: Option<u64>,
         assigned_subaddress_b58: Option<&str>,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<SpendableTxosResult, WalletDbError>;
 
-    fn list_secreted(account_id_hex: &str, conn: &Conn) -> Result<Vec<Txo>, WalletDbError>;
+    fn list_secreted(
+        account_id_hex: &str,
+        token_id: Option<u64>,
+        conn: &Conn,
+    ) -> Result<Vec<Txo>, WalletDbError>;
 
-    fn list_orphaned(account_id_hex: &str, conn: &Conn) -> Result<Vec<Txo>, WalletDbError>;
+    fn list_orphaned(
+        account_id_hex: &str,
+        token_id: Option<u64>,
+        conn: &Conn,
+    ) -> Result<Vec<Txo>, WalletDbError>;
 
     fn list_pending(
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
-    fn list_minted(account_id_hex: &str, conn: &Conn) -> Result<Vec<Txo>, WalletDbError>;
+    fn list_minted(
+        account_id_hex: &str,
+        token_id: Option<u64>,
+        conn: &Conn,
+    ) -> Result<Vec<Txo>, WalletDbError>;
 
     fn list_pending_exceeding_block_index(
         account_id_hex: &str,
         block_index: u64,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
@@ -229,6 +249,7 @@ pub trait TxoModel {
         target_value: u64,
         max_spendable_value: Option<u64>,
         pending_tombstone_block_index: Option<u64>,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
@@ -498,73 +519,100 @@ impl TxoModel for Txo {
         account_id_hex: &str,
         offset: Option<u64>,
         limit: Option<u64>,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
 
-        let txos_query = txos::table
+        let mut query = txos::table.into_boxed();
+
+        query = query
             .filter(txos::received_account_id_hex.eq(account_id_hex))
             .or_filter(txos::minted_account_id_hex.eq(account_id_hex));
 
-        let txos: Vec<Txo> = if let (Some(o), Some(l)) = (offset, limit) {
-            txos_query.offset(o as i64).limit(l as i64).load(conn)?
-        } else {
-            txos_query.load(conn)?
-        };
+        if let (Some(o), Some(l)) = (offset, limit) {
+            query = query.offset(o as i64).limit(l as i64);
+        }
 
-        Ok(txos)
+        if let Some(token_id) = token_id {
+            query = query.filter(txos::token_id.eq(token_id as i64));
+        }
+
+        Ok(query.load(conn)?)
     }
 
     fn list_for_address(
         assigned_subaddress_b58: &str,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
         let subaddress = AssignedSubaddress::get(assigned_subaddress_b58, conn)?;
-        let results = txos::table
+
+        let mut query = txos::table.into_boxed();
+
+        query = query
             .filter(txos::subaddress_index.eq(subaddress.subaddress_index))
-            .filter(txos::received_account_id_hex.eq(subaddress.account_id_hex))
-            .load(conn)?;
-        Ok(results)
+            .filter(txos::received_account_id_hex.eq(subaddress.account_id_hex));
+
+        if let Some(token_id) = token_id {
+            query = query.filter(txos::token_id.eq(token_id as i64));
+        }
+
+        let txos: Vec<Txo> = query.load(conn)?;
+
+        Ok(txos)
     }
 
     fn list_unspent(
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
 
-        let results = txos::table
+        let mut query = txos::table.into_boxed();
+
+        query = query
             .filter(txos::received_account_id_hex.eq(account_id_hex))
             .filter(txos::subaddress_index.is_not_null())
             .filter(txos::pending_tombstone_block_index.is_null())
             .filter(txos::spent_block_index.is_null());
 
-        let txos: Vec<Txo> = if let Some(subaddress_b58) = assigned_subaddress_b58 {
+        if let Some(subaddress_b58) = assigned_subaddress_b58 {
             let subaddress = AssignedSubaddress::get(subaddress_b58, conn)?;
-            results
-                .filter(txos::subaddress_index.eq(subaddress.subaddress_index))
-                .load(conn)?
-        } else {
-            results.load(conn)?
-        };
+            query = query.filter(txos::subaddress_index.eq(subaddress.subaddress_index));
+        }
 
-        Ok(txos)
+        if let Some(token_id) = token_id {
+            query = query.filter(txos::token_id.eq(token_id as i64));
+        }
+
+        Ok(query.load(conn)?)
     }
 
     fn list_unspent_or_pending_key_images(
         account_id_hex: &str,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<HashMap<KeyImage, String>, WalletDbError> {
         use crate::db::schema::txos;
 
-        let results: Vec<(Option<Vec<u8>>, String)> = txos::table
-            .select((txos::key_image, txos::txo_id_hex))
+        let mut query = txos::table.into_boxed();
+
+        query = query
             .filter(txos::key_image.is_not_null())
             .filter(txos::received_account_id_hex.eq(account_id_hex))
             .filter(txos::subaddress_index.is_not_null())
-            .filter(txos::spent_block_index.is_null())
+            .filter(txos::spent_block_index.is_null());
+
+        if let Some(token_id) = token_id {
+            query = query.filter(txos::token_id.eq(token_id as i64));
+        }
+
+        let results: Vec<(Option<Vec<u8>>, String)> = query
+            .select((txos::key_image, txos::txo_id_hex))
             .load(conn)?;
 
         Ok(results
@@ -582,50 +630,75 @@ impl TxoModel for Txo {
     fn list_spent(
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
 
-        let results = txos::table
+        let mut query = txos::table.into_boxed();
+
+        query = query
             .filter(txos::received_account_id_hex.eq(account_id_hex))
             .filter(txos::spent_block_index.is_not_null());
 
-        let txos: Vec<Txo> = if let Some(subaddress_b58) = assigned_subaddress_b58 {
+        if let Some(subaddress_b58) = assigned_subaddress_b58 {
             let subaddress = AssignedSubaddress::get(subaddress_b58, conn)?;
-            results
-                .filter(txos::subaddress_index.eq(subaddress.subaddress_index))
-                .load(conn)?
-        } else {
-            results.load(conn)?
-        };
+            query = query.filter(txos::subaddress_index.eq(subaddress.subaddress_index));
+        }
 
-        Ok(txos)
+        if let Some(token_id) = token_id {
+            query = query.filter(txos::token_id.eq(token_id as i64));
+        }
+
+        Ok(query.load(conn)?)
     }
 
-    fn list_secreted(account_id_hex: &str, conn: &Conn) -> Result<Vec<Txo>, WalletDbError> {
+    fn list_secreted(
+        account_id_hex: &str,
+        token_id: Option<u64>,
+        conn: &Conn,
+    ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
+
+        let mut query = txos::table.into_boxed();
 
         // Secreted txos were minted by this account, but not received by this account,
         // so they can no longer be decrypted.
-        let txos: Vec<Txo> = txos::table
+        query = query
             .filter(txos::minted_account_id_hex.eq(account_id_hex))
             .filter(
                 txos::received_account_id_hex
                     .ne(account_id_hex)
                     .or(txos::received_account_id_hex.is_null()),
-            )
-            .load(conn)?;
+            );
+
+        if let Some(token_id) = token_id {
+            query = query.filter(txos::token_id.eq(token_id as i64));
+        }
+
+        let txos: Vec<Txo> = query.load(conn)?;
 
         Ok(txos)
     }
 
-    fn list_orphaned(account_id_hex: &str, conn: &Conn) -> Result<Vec<Txo>, WalletDbError> {
+    fn list_orphaned(
+        account_id_hex: &str,
+        token_id: Option<u64>,
+        conn: &Conn,
+    ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
 
-        let txos: Vec<Txo> = txos::table
+        let mut query = txos::table.into_boxed();
+
+        query = query
             .filter(txos::received_account_id_hex.eq(account_id_hex))
-            .filter(txos::subaddress_index.is_null())
-            .load(conn)?;
+            .filter(txos::subaddress_index.is_null());
+
+        if let Some(token_id) = token_id {
+            query = query.filter(txos::token_id.eq(token_id as i64));
+        }
+
+        let txos: Vec<Txo> = query.load(conn)?;
 
         Ok(txos)
     }
@@ -633,24 +706,29 @@ impl TxoModel for Txo {
     fn list_pending(
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
 
-        let results = txos::table
+        let mut query = txos::table.into_boxed();
+
+        query = query
             .filter(txos::received_account_id_hex.eq(account_id_hex))
             .filter(txos::subaddress_index.is_not_null())
             .filter(txos::pending_tombstone_block_index.is_not_null())
             .filter(txos::spent_block_index.is_null());
 
-        let txos: Vec<Txo> = if let Some(subaddress_b58) = assigned_subaddress_b58 {
+        if let Some(subaddress_b58) = assigned_subaddress_b58 {
             let subaddress = AssignedSubaddress::get(subaddress_b58, conn)?;
-            results
-                .filter(txos::subaddress_index.eq(subaddress.subaddress_index))
-                .load(conn)?
-        } else {
-            results.load(conn)?
-        };
+            query = query.filter(txos::subaddress_index.eq(subaddress.subaddress_index));
+        }
+
+        if let Some(token_id) = token_id {
+            query = query.filter(txos::token_id.eq(token_id as i64));
+        }
+
+        let txos: Vec<Txo> = query.load(conn)?;
 
         Ok(txos)
     }
@@ -658,29 +736,45 @@ impl TxoModel for Txo {
     fn list_pending_exceeding_block_index(
         account_id_hex: &str,
         block_index: u64,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
 
-        let txos = txos::table
+        let mut query = txos::table.into_boxed();
+
+        query = query
             .filter(txos::received_account_id_hex.eq(account_id_hex))
             .filter(txos::subaddress_index.is_not_null())
             .filter(txos::pending_tombstone_block_index.is_not_null())
             .filter(txos::pending_tombstone_block_index.lt(block_index as i64))
-            .filter(txos::spent_block_index.is_null())
-            .load(conn)?;
+            .filter(txos::spent_block_index.is_null());
+
+        if let Some(token_id) = token_id {
+            query = query.filter(txos::token_id.eq(token_id as i64));
+        }
+
+        let txos: Vec<Txo> = query.load(conn)?;
 
         Ok(txos)
     }
 
-    fn list_minted(account_id_hex: &str, conn: &Conn) -> Result<Vec<Txo>, WalletDbError> {
+    fn list_minted(
+        account_id_hex: &str,
+        token_id: Option<u64>,
+        conn: &Conn,
+    ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
 
-        let results = txos::table
-            .filter(txos::minted_account_id_hex.eq(account_id_hex))
-            .load(conn)?;
+        let mut query = txos::table.into_boxed();
 
-        Ok(results)
+        query = query.filter(txos::minted_account_id_hex.eq(account_id_hex));
+
+        if let Some(token_id) = token_id {
+            query = query.filter(txos::token_id.eq(token_id as i64));
+        }
+
+        Ok(query.load(conn)?)
     }
 
     fn get(txo_id_hex: &str, conn: &Conn) -> Result<Txo, WalletDbError> {
@@ -742,26 +836,33 @@ impl TxoModel for Txo {
         account_id_hex: &str,
         max_spendable_value: Option<u64>,
         assigned_subaddress_b58: Option<&str>,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<SpendableTxosResult, WalletDbError> {
         use crate::db::schema::txos;
+
+        let mut query = txos::table.into_boxed();
         // The SQLite database cannot filter effectively on a u64 value, so filter for
         // maximum value in memory.
-        let results = txos::table
+        query = query
             .filter(txos::spent_block_index.is_null())
             .filter(txos::pending_tombstone_block_index.is_null())
             .filter(txos::subaddress_index.is_not_null())
             .filter(txos::key_image.is_not_null())
             .filter(txos::received_account_id_hex.eq(account_id_hex));
 
+        if let Some(token_id) = token_id {
+            query = query.filter(txos::token_id.eq(token_id as i64));
+        }
+
         let spendable_txos: Vec<Txo> = if let Some(subaddress_b58) = assigned_subaddress_b58 {
             let subaddress = AssignedSubaddress::get(subaddress_b58, conn)?;
-            results
+            query
                 .filter(txos::subaddress_index.eq(subaddress.subaddress_index))
                 .order_by(txos::value.desc())
                 .load(conn)?
         } else {
-            results.order_by(txos::value.desc()).load(conn)?
+            query.order_by(txos::value.desc()).load(conn)?
         };
 
         let spendable_txos = if let Some(msv) = max_spendable_value {
@@ -803,12 +904,13 @@ impl TxoModel for Txo {
         target_value: u64,
         max_spendable_value: Option<u64>,
         pending_tombstone_block_index: Option<u64>,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
         let SpendableTxosResult {
             mut spendable_txos,
             max_spendable_in_wallet,
-        } = Txo::list_spendable(account_id_hex, max_spendable_value, None, conn)?;
+        } = Txo::list_spendable(account_id_hex, max_spendable_value, None, token_id, conn)?;
 
         if spendable_txos.is_empty() {
             return Err(WalletDbError::NoSpendableTxos);
@@ -1036,6 +1138,7 @@ mod tests {
             &alice_account_id.to_string(),
             None,
             None,
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1068,6 +1171,7 @@ mod tests {
         let unspent = Txo::list_unspent(
             &alice_account_id.to_string(),
             None,
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1107,6 +1211,7 @@ mod tests {
             &alice_account_id.to_string(),
             None,
             None,
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1122,6 +1227,7 @@ mod tests {
         let spent = Txo::list_spent(
             &alice_account_id.to_string(),
             None,
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1137,6 +1243,7 @@ mod tests {
         // Orphaned]
         let orphaned = Txo::list_orphaned(
             &alice_account_id.to_string(),
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1151,6 +1258,7 @@ mod tests {
         let unspent = Txo::list_unspent(
             &alice_account_id.to_string(),
             None,
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1194,6 +1302,7 @@ mod tests {
         let unspent = Txo::list_unspent(
             &alice_account_id.to_string(),
             None,
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1202,6 +1311,7 @@ mod tests {
 
         let minted = Txo::list_minted(
             &alice_account_id.to_string(),
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1211,6 +1321,7 @@ mod tests {
             &alice_account_id.to_string(),
             None,
             None,
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1278,6 +1389,7 @@ mod tests {
             &AccountID::from(&bob_account_key).to_string(),
             None,
             None,
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1329,6 +1441,7 @@ mod tests {
             300 * MOB,
             None,
             None,
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1341,6 +1454,7 @@ mod tests {
             300 * MOB + Mob::MINIMUM_FEE,
             None,
             None,
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1356,6 +1470,7 @@ mod tests {
             300 * MOB + Mob::MINIMUM_FEE,
             Some(200 * MOB),
             None,
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         );
 
@@ -1372,6 +1487,7 @@ mod tests {
             16800 * MOB,
             None,
             None,
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1441,6 +1557,7 @@ mod tests {
             16800 * MOB,
             None,
             Some(100),
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1450,6 +1567,7 @@ mod tests {
             16800 * MOB,
             None,
             Some(100),
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         );
 
@@ -1500,6 +1618,7 @@ mod tests {
             1800 * MOB,
             None,
             None,
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         );
         match res {
@@ -1667,6 +1786,7 @@ mod tests {
             &recipient_account_id.to_string(),
             None,
             None,
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1685,6 +1805,7 @@ mod tests {
             &sender_account_id.to_string(),
             None,
             None,
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1819,6 +1940,7 @@ mod tests {
             &account_id_hex.to_string(),
             None,
             None,
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1831,6 +1953,7 @@ mod tests {
             &account_id_hex.to_string(),
             None,
             None,
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1878,7 +2001,7 @@ mod tests {
         let SpendableTxosResult {
             spendable_txos,
             max_spendable_in_wallet,
-        } = Txo::list_spendable(&account_id.to_string(), None, None, &conn).unwrap();
+        } = Txo::list_spendable(&account_id.to_string(), None, None, Some(0), &conn).unwrap();
 
         assert_eq!(spendable_txos.len(), 20);
         assert_eq!(
@@ -1920,7 +2043,7 @@ mod tests {
         let SpendableTxosResult {
             spendable_txos,
             max_spendable_in_wallet,
-        } = Txo::list_spendable(&account_id.to_string(), None, None, &conn).unwrap();
+        } = Txo::list_spendable(&account_id.to_string(), None, None, Some(0), &conn).unwrap();
 
         assert_eq!(spendable_txos.len(), 10);
         assert_eq!(max_spendable_in_wallet as u64, 0);
@@ -1964,7 +2087,14 @@ mod tests {
         let SpendableTxosResult {
             spendable_txos,
             max_spendable_in_wallet,
-        } = Txo::list_spendable(&account_id.to_string(), Some(100 * MOB), None, &conn).unwrap();
+        } = Txo::list_spendable(
+            &account_id.to_string(),
+            Some(100 * MOB),
+            None,
+            Some(0),
+            &conn,
+        )
+        .unwrap();
 
         assert_eq!(spendable_txos.len(), 5);
         assert_eq!(
@@ -2038,6 +2168,7 @@ mod tests {
             target_value,
             None,
             None,
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -2055,6 +2186,7 @@ mod tests {
             201 as u64 * MOB,
             None,
             None,
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         );
 
@@ -2072,6 +2204,7 @@ mod tests {
             3 as u64,
             None,
             None,
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -2087,6 +2220,7 @@ mod tests {
             500 as u64 * MOB,
             None,
             None,
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         );
         assert!(result.is_err());
@@ -2103,6 +2237,7 @@ mod tests {
             12400000000 as u64,
             None,
             None,
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();

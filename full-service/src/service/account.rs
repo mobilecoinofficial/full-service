@@ -411,6 +411,7 @@ mod tests {
             &account.account_id_hex,
             None,
             None,
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -425,6 +426,7 @@ mod tests {
             &account.account_id_hex,
             None,
             None,
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
