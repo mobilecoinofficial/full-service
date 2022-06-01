@@ -48,7 +48,11 @@ where
     ) -> Result<Vec<ViewOnlyTxo>, TxoServiceError> {
         let conn = self.wallet_db.get_conn()?;
         Ok(ViewOnlyTxo::list_for_account(
-            account_id, limit, offset, &conn,
+            account_id,
+            limit,
+            offset,
+            Some(0),
+            &conn,
         )?)
     }
 

@@ -257,7 +257,7 @@ fn sync_view_only_account_next_chunk(
 
         // Match key images to mark existing unspent transactions as spent.
         let unspent_key_images: HashMap<KeyImage, String> =
-            ViewOnlyTxo::list_unspent_with_key_images(account_id_hex, conn)?;
+            ViewOnlyTxo::list_unspent_with_key_images(account_id_hex, None, conn)?;
         let spent_txos: Vec<(u64, String)> = key_images
             .into_par_iter()
             .filter_map(|(block_index, key_image)| {

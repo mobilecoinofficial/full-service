@@ -380,22 +380,25 @@ where
         assigned_subaddress_b58: Option<&str>,
         conn: &Conn,
     ) -> Result<(u128, u128, u128, u128, u128, u128), BalanceServiceError> {
-        let unspent = ViewOnlyTxo::list_unspent(account_id_hex, assigned_subaddress_b58, conn)?
+        let unspent =
+            ViewOnlyTxo::list_unspent(account_id_hex, assigned_subaddress_b58, Some(0), conn)?
+                .iter()
+                .map(|t| (t.value as u64) as u128)
+                .sum::<u128>();
+        let spent =
+            ViewOnlyTxo::list_spent(account_id_hex, assigned_subaddress_b58, Some(0), conn)?
+                .iter()
+                .map(|t| (t.value as u64) as u128)
+                .sum::<u128>();
+        let orphaned = ViewOnlyTxo::list_orphaned(account_id_hex, Some(0), conn)?
             .iter()
             .map(|t| (t.value as u64) as u128)
             .sum::<u128>();
-        let spent = ViewOnlyTxo::list_spent(account_id_hex, assigned_subaddress_b58, conn)?
-            .iter()
-            .map(|t| (t.value as u64) as u128)
-            .sum::<u128>();
-        let orphaned = ViewOnlyTxo::list_orphaned(account_id_hex, conn)?
-            .iter()
-            .map(|t| (t.value as u64) as u128)
-            .sum::<u128>();
-        let pending = ViewOnlyTxo::list_pending(account_id_hex, assigned_subaddress_b58, conn)?
-            .iter()
-            .map(|t| (t.value as u64) as u128)
-            .sum::<u128>();
+        let pending =
+            ViewOnlyTxo::list_pending(account_id_hex, assigned_subaddress_b58, Some(0), conn)?
+                .iter()
+                .map(|t| (t.value as u64) as u128)
+                .sum::<u128>();
 
         let result = (unspent, 0, pending, spent, 0, orphaned);
         Ok(result)

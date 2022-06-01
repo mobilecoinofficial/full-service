@@ -204,6 +204,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         Ok(ViewOnlyTxo::select_unspent_view_only_txos_for_value(
             &self.account_id_hex,
             total_value,
+            Some(0),
             conn,
         )?)
     }
