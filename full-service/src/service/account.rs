@@ -373,6 +373,7 @@ mod tests {
     };
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{test_with_logger, Logger};
+    use mc_transaction_core::{tokens::Mob, Amount, Token};
     use rand::{rngs::StdRng, SeedableRng};
 
     #[test_with_logger]
@@ -401,7 +402,7 @@ mod tests {
         create_test_received_txo(
             &account_key,
             0,
-            (100 * MOB) as u64,
+            Amount::new((100 * MOB) as u64, Mob::ID),
             13 as u64,
             &mut rng,
             &wallet_db,

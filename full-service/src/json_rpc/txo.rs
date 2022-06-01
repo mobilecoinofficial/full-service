@@ -174,6 +174,7 @@ mod tests {
     };
     use mc_account_keys::{AccountKey, RootIdentity};
     use mc_common::logger::{test_with_logger, Logger};
+    use mc_transaction_core::{tokens::Mob, Amount, Token};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
@@ -200,8 +201,14 @@ mod tests {
         .unwrap();
 
         // Amount in origin block TXO is 250_000_000 MOB / 16
-        let (txo_hex, _txo, _key_image) =
-            create_test_received_txo(&account_key, 0, 15_625_000 * MOB, 0, &mut rng, &wallet_db);
+        let (txo_hex, _txo, _key_image) = create_test_received_txo(
+            &account_key,
+            0,
+            Amount::new(15_625_000 * MOB, Mob::ID),
+            0,
+            &mut rng,
+            &wallet_db,
+        );
 
         let txo_details = db::models::Txo::get(&txo_hex, &wallet_db.get_conn().unwrap())
             .expect("Could not get Txo");

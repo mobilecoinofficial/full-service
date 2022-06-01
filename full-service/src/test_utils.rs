@@ -471,19 +471,13 @@ pub fn setup_grpc_peer_manager_and_network_state(
 pub fn create_test_txo_for_recipient(
     recipient_account_key: &AccountKey,
     recipient_subaddress_index: u64,
-    value: u64,
+    amount: Amount,
     rng: &mut StdRng,
 ) -> (TxOut, KeyImage) {
     let recipient = recipient_account_key.subaddress(recipient_subaddress_index);
     let tx_private_key = RistrettoPrivate::from_random(rng);
     let hint = EncryptedFogHint::fake_onetime_hint(rng);
-    let tx_out = TxOut::new(
-        Amount::new(value, Mob::ID),
-        &recipient,
-        &tx_private_key,
-        hint,
-    )
-    .unwrap();
+    let tx_out = TxOut::new(amount, &recipient, &tx_private_key, hint).unwrap();
 
     // Calculate KeyImage - note you cannot use KeyImage::from(tx_private_key)
     // because the calculation must be done with CryptoNote math (see
@@ -505,19 +499,19 @@ pub fn create_test_txo_for_recipient(
 pub fn create_test_received_txo(
     account_key: &AccountKey,
     recipient_subaddress_index: u64,
-    value: u64,
+    amount: Amount,
     received_block_index: u64,
     rng: &mut StdRng,
     wallet_db: &WalletDb,
 ) -> (String, TxOut, KeyImage) {
     let (txo, key_image) =
-        create_test_txo_for_recipient(account_key, recipient_subaddress_index, value, rng);
+        create_test_txo_for_recipient(account_key, recipient_subaddress_index, amount, rng);
 
     let txo_id_hex = Txo::create_received(
         txo.clone(),
         Some(recipient_subaddress_index),
         Some(key_image),
-        Amount::new(value, Mob::ID),
+        amount,
         received_block_index,
         &AccountID::from(account_key).to_string(),
         &wallet_db.get_conn().unwrap(),

@@ -587,7 +587,7 @@ mod tests {
             let (txo_id_hex, _txo, _key_image) = create_test_received_txo(
                 &account_key,
                 0, // All to the same subaddress
-                (100 * i * MOB) as u64,
+                Amount::new((100 * i * MOB) as u64, Mob::ID),
                 144,
                 &mut rng,
                 &wallet_db,
@@ -911,7 +911,7 @@ mod tests {
                 let (txo_id_hex, _txo, _key_image) = create_test_received_txo(
                     &account_key,
                     0, // All to the same subaddress
-                    100 * i * MOB,
+                    Amount::new(100 * i * MOB, Mob::ID),
                     144,
                     &mut rng,
                     &wallet_db,

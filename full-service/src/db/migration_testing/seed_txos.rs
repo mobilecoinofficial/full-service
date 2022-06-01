@@ -18,7 +18,7 @@ use diesel::{
 use mc_common::logger::Logger;
 use mc_crypto_rand::RngCore;
 use mc_ledger_db::LedgerDB;
-use mc_transaction_core::ring_signature::KeyImage;
+use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Amount, Token};
 use rand::{rngs::StdRng, SeedableRng};
 
 // create 1 spent, 1 change (minted), and 1 orphaned txo
@@ -33,7 +33,7 @@ pub fn seed_txos(
     // Create received txo for account
     let account_key = mc_util_serial::decode(&account.account_key).unwrap();
     let (for_account_txo, for_account_key_image) =
-        create_test_txo_for_recipient(&account_key, 0, 1000 * MOB, &mut rng);
+        create_test_txo_for_recipient(&account_key, 0, Amount::new(1000 * MOB, Mob::ID), &mut rng);
 
     // add this txo to the ledger
     add_block_with_tx_outs(

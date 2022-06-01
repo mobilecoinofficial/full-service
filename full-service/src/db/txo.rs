@@ -1065,7 +1065,7 @@ mod tests {
     use mc_crypto_rand::RngCore;
     use mc_fog_report_validation::MockFogPubkeyResolver;
     use mc_ledger_db::Ledger;
-    use mc_transaction_core::{tokens::Mob, Token};
+    use mc_transaction_core::{tokens::Mob, Amount, Token};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
     use std::{iter::FromIterator, time::Duration};
@@ -1120,8 +1120,12 @@ mod tests {
         .unwrap();
 
         // Create TXO for Alice
-        let (for_alice_txo, for_alice_key_image) =
-            create_test_txo_for_recipient(&alice_account_key, 0, 1000 * MOB, &mut rng);
+        let (for_alice_txo, for_alice_key_image) = create_test_txo_for_recipient(
+            &alice_account_key,
+            0,
+            Amount::new(1000 * MOB, Mob::ID),
+            &mut rng,
+        );
 
         // Let's add this txo to the ledger
         add_block_with_tx_outs(
@@ -1428,7 +1432,7 @@ mod tests {
             let (_txo_hex, _txo, _key_image) = create_test_received_txo(
                 &account_key,
                 0,
-                (100 * MOB * i) as u64, // 100.0 MOB * i
+                Amount::new((100 * MOB * i) as u64, Mob::ID), // 100.0 MOB * i
                 (144 + i) as u64,
                 &mut rng,
                 &wallet_db,
@@ -1543,7 +1547,7 @@ mod tests {
             let (_txo_hex, _txo, _key_image) = create_test_received_txo(
                 &account_key,
                 0,
-                (100 * MOB * i) as u64, // 100.0 MOB * i
+                Amount::new((100 * MOB * i) as u64, Mob::ID), // 100.0 MOB * i
                 (144 + i) as u64,
                 &mut rng,
                 &wallet_db,
@@ -1606,7 +1610,7 @@ mod tests {
             let (_txo_hex, _txo, _key_image) = create_test_received_txo(
                 &account_key,
                 0,
-                (100 * MOB) as u64,
+                Amount::new((100 * MOB) as u64, Mob::ID),
                 (144 + i) as u64,
                 &mut rng,
                 &wallet_db,
@@ -1867,8 +1871,14 @@ mod tests {
         // Seed Txos
         let mut src_txos = Vec::new();
         for i in 0..10 {
-            let (_txo_id, txo, _key_image) =
-                create_test_received_txo(&account_key, i, i * MOB, i, &mut rng, &wallet_db);
+            let (_txo_id, txo, _key_image) = create_test_received_txo(
+                &account_key,
+                i,
+                Amount::new(i * MOB, Mob::ID),
+                i,
+                &mut rng,
+                &wallet_db,
+            );
             src_txos.push(txo);
         }
         let pubkeys: Vec<&CompressedRistrettoPublic> =
@@ -1922,7 +1932,7 @@ mod tests {
             let (_txo_hex, _txo, _key_image) = create_test_received_txo(
                 &account_key,
                 0,
-                (100 * MOB) as u64, // 100.0 MOB * i
+                Amount::new((100 * MOB) as u64, Mob::ID), // 100.0 MOB * i
                 (144) as u64,
                 &mut rng,
                 &wallet_db,
@@ -1994,8 +2004,14 @@ mod tests {
         let txo_value = 100 * MOB;
 
         for i in 1..=20 {
-            let (_txo_id, _txo, _key_image) =
-                create_test_received_txo(&account_key, i, txo_value, i, &mut rng, &wallet_db);
+            let (_txo_id, _txo, _key_image) = create_test_received_txo(
+                &account_key,
+                i,
+                Amount::new(txo_value, Mob::ID),
+                i,
+                &mut rng,
+                &wallet_db,
+            );
         }
 
         let SpendableTxosResult {
@@ -2036,8 +2052,14 @@ mod tests {
         let txo_value = 100;
 
         for i in 1..=10 {
-            let (_txo_id, _txo, _key_image) =
-                create_test_received_txo(&account_key, i, txo_value, i, &mut rng, &wallet_db);
+            let (_txo_id, _txo, _key_image) = create_test_received_txo(
+                &account_key,
+                i,
+                Amount::new(txo_value, Mob::ID),
+                i,
+                &mut rng,
+                &wallet_db,
+            );
         }
 
         let SpendableTxosResult {
@@ -2076,12 +2098,24 @@ mod tests {
         let txo_value_high = 200 * MOB;
 
         for i in 1..=5 {
-            let (_txo_id, _txo, _key_image) =
-                create_test_received_txo(&account_key, i, txo_value_low, i, &mut rng, &wallet_db);
+            let (_txo_id, _txo, _key_image) = create_test_received_txo(
+                &account_key,
+                i,
+                Amount::new(txo_value_low, Mob::ID),
+                i,
+                &mut rng,
+                &wallet_db,
+            );
         }
         for i in 1..=5 {
-            let (_txo_id, _txo, _key_image) =
-                create_test_received_txo(&account_key, i, txo_value_high, i, &mut rng, &wallet_db);
+            let (_txo_id, _txo, _key_image) = create_test_received_txo(
+                &account_key,
+                i,
+                Amount::new(txo_value_high, Mob::ID),
+                i,
+                &mut rng,
+                &wallet_db,
+            );
         }
 
         let SpendableTxosResult {
@@ -2125,29 +2159,53 @@ mod tests {
         .unwrap();
 
         if fragmented {
-            let (_txo_id, _txo, _key_image) =
-                create_test_received_txo(&account_key, 0, 28922973268924, 15, &mut rng, &wallet_db);
+            let (_txo_id, _txo, _key_image) = create_test_received_txo(
+                &account_key,
+                0,
+                Amount::new(28922973268924, Mob::ID),
+                15,
+                &mut rng,
+                &wallet_db,
+            );
 
             for i in 1..=15 {
-                let (_txo_id, _txo, _key_image) =
-                    create_test_received_txo(&account_key, i, 10000000000, i, &mut rng, &wallet_db);
+                let (_txo_id, _txo, _key_image) = create_test_received_txo(
+                    &account_key,
+                    i,
+                    Amount::new(10000000000, Mob::ID),
+                    i,
+                    &mut rng,
+                    &wallet_db,
+                );
             }
 
             for i in 1..=20 {
-                let (_txo_id, _txo, _key_image) =
-                    create_test_received_txo(&account_key, i, 1000000000, i, &mut rng, &wallet_db);
+                let (_txo_id, _txo, _key_image) = create_test_received_txo(
+                    &account_key,
+                    i,
+                    Amount::new(1000000000, Mob::ID),
+                    i,
+                    &mut rng,
+                    &wallet_db,
+                );
             }
 
             for i in 1..=500 {
-                let (_txo_id, _txo, _key_image) =
-                    create_test_received_txo(&account_key, i, 100000000, i, &mut rng, &wallet_db);
+                let (_txo_id, _txo, _key_image) = create_test_received_txo(
+                    &account_key,
+                    i,
+                    Amount::new(100000000, Mob::ID),
+                    i,
+                    &mut rng,
+                    &wallet_db,
+                );
             }
         } else {
             for i in 1..=20 {
                 let (_txo_id, _txo, _key_image) = create_test_received_txo(
                     &account_key,
                     i,
-                    i as u64 * MOB,
+                    Amount::new(i as u64 * MOB, Mob::ID),
                     i,
                     &mut rng,
                     &wallet_db,
