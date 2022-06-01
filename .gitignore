@@ -70,3 +70,4 @@ ingest-enclave.css
 release/
 
 .env
+cli/build/**
