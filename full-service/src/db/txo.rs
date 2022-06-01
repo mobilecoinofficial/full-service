@@ -1065,7 +1065,7 @@ mod tests {
     use mc_crypto_rand::RngCore;
     use mc_fog_report_validation::MockFogPubkeyResolver;
     use mc_ledger_db::Ledger;
-    use mc_transaction_core::{tokens::Mob, Amount, Token};
+    use mc_transaction_core::{tokens::Mob, Amount, Token, TokenId};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
     use std::{iter::FromIterator, time::Duration};
@@ -2117,6 +2117,27 @@ mod tests {
                 &wallet_db,
             );
         }
+        // Create some txos with token id != 0 to make sure it doesn't select those
+        for i in 1..=5 {
+            create_test_received_txo(
+                &account_key,
+                i,
+                Amount::new(txo_value_low, TokenId::from(1)),
+                i,
+                &mut rng,
+                &wallet_db,
+            );
+        }
+        for i in 1..=5 {
+            create_test_received_txo(
+                &account_key,
+                i,
+                Amount::new(txo_value_high, TokenId::from(1)),
+                i,
+                &mut rng,
+                &wallet_db,
+            );
+        }
 
         let SpendableTxosResult {
             spendable_txos,
@@ -2206,6 +2227,17 @@ mod tests {
                     &account_key,
                     i,
                     Amount::new(i as u64 * MOB, Mob::ID),
+                    i,
+                    &mut rng,
+                    &wallet_db,
+                );
+            }
+            // Create some txos with token id != 0
+            for i in 1..=20 {
+                let (_txo_id, _txo, _key_image) = create_test_received_txo(
+                    &account_key,
+                    i,
+                    Amount::new(i as u64 * MOB, TokenId::from(1)),
                     i,
                     &mut rng,
                     &wallet_db,
