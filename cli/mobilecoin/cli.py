@@ -334,7 +334,9 @@ class CommandLineInterface:
             with open(backup) as f:
                 data = json.load(f)
 
-            if data['object'] == 'account_secrets':
+            if data.get('method') == 'import_view_only_account':
+                account = self.client.import_view_only_account(data['params'])
+            else:
                 params = {}
                 for field in [
                     'mnemonic',  # Key derivation version 2+.
@@ -353,11 +355,10 @@ class CommandLineInterface:
                         'fog_report_id',
                         'fog_authority_spki',
                     ]:
-                        params['fog_keys'][field] = data['account_key'][field]
+                        value = data['account_key'].get(field)
+                        if value is not None:
+                            params['fog_keys'][field] = value
                 account = self.client.import_account(**params)
-
-            elif data['object'] == 'view_only_account_import_package':
-                account = self.client.import_view_only_account(data)
 
         else:
             # Try to use the legacy import system, treating the string as hexadecimal root entropy.
@@ -419,7 +420,7 @@ class CommandLineInterface:
                 print('{:<2}  {}'.format(i, word))
             print()
         else:
-            filename = 'mobilecoin_seed_mnemonic_{}.json'.format(account_id[:6])
+            filename = 'mobilecoin_secret_mnemonic_{}.json'.format(account_id[:6])
             try:
                 _save_export(account, secrets, filename)
             except OSError as e:
@@ -549,7 +550,12 @@ class CommandLineInterface:
     def send(self, account_id, amount, to_address, build_only=False, fee=None):
         account = self._load_account_prefix(account_id)
         account_id = account['account_id']
-        balance = self.client.get_balance_for_account(account_id)
+
+        view_only = (account['object'] == 'view_only_account')
+        if view_only:
+            balance = self.client.get_balance_for_view_only_account(account_id)
+        else:
+            balance = self.client.get_balance_for_account(account_id)
         unspent = pmob2mob(balance['unspent_pmob'])
 
         network_status = self.client.get_network_status()
@@ -570,20 +576,22 @@ class CommandLineInterface:
             amount = Decimal(amount)
             total_amount = amount + fee
 
-        if build_only:
+        if view_only:
+            verb = 'Building unsigned transaction for'
+        elif build_only:
             verb = 'Building transaction for'
         else:
             verb = 'Sending'
 
         print('\n'.join([
-            '{} {} from account {} {}',
+            '{} {}',
+            'from account {}',
             'to address {}',
             'Fee is {}, for a total amount of {}.',
         ]).format(
             verb,
             _format_mob(amount),
-            account_id[:6],
-            account['name'],
+            _format_account_header(account),
             to_address,
             _format_mob(fee),
             _format_mob(total_amount),
@@ -594,6 +602,19 @@ class CommandLineInterface:
                 'Cannot send this transaction, because the account only',
                 'contains {}. Try sending all funds by entering amount as "all".',
             ]).format(_format_mob(unspent)))
+            return
+
+        if view_only:
+            response = self.client.build_unsigned_transaction(account_id, amount, to_address, fee=fee)
+            path = Path('unsigned_tx_proposal_{}_{}.json'.format(
+                account_id[:6],
+                balance['local_block_height'],
+            ))
+            if path.exists():
+                print(f'The file {path} already exists. Please rename the existing file and retry.')
+            else:
+                _save_json_file(path, response)
+                print(f'Wrote {path}.')
             return
 
         if build_only:
@@ -630,6 +651,10 @@ class CommandLineInterface:
 
         with Path(proposal).open() as f:
             tx_proposal = json.load(f)
+
+        # Check whether this is an already built response from the offline transaction signer.
+        if tx_proposal.get('method') == 'submit_transaction':
+            tx_proposal = tx_proposal['params']['tx_proposal']
 
         # Check that the tombstone block is within range.
         tombstone_block = int(tx_proposal['tx']['prefix']['tombstone_block'])
@@ -843,6 +868,7 @@ class CommandLineInterface:
             self._finish_sync(sync_response)
         else:
             account_id = account_id_or_sync_response
+            self._start_sync(account_id)
 
     def _start_sync(self, account_id):
         account = self._load_account_prefix(account_id)
@@ -860,11 +886,12 @@ class CommandLineInterface:
 
     def _finish_sync(self, sync_response):
         with open(sync_response) as f:
-            data = json.load(f)['params']
+            data = json.load(f)
 
-        r = self.client.sync_view_only_account(**data)
-        account = self.client.get_view_only_account(data['account_id'])
-        balance = self.client.get_balance_for_view_only_account(data['account_id'])
+        r = self.client.sync_view_only_account(data['params'])
+        account_id = data['params']['account_id']
+        account = self.client.get_view_only_account(account_id)
+        balance = self.client.get_balance_for_view_only_account(account_id)
 
         print()
         print('Synced {} transaction outputs.'.format(len(data['completed_txos'])))
