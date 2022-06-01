@@ -338,17 +338,17 @@ where
         conn: &Conn,
     ) -> Result<(u128, u128, u128, u128, u128, u128), BalanceServiceError> {
         let max_spendable =
-            Txo::list_spendable(account_id_hex, None, assigned_subaddress_b58, conn)?
+            Txo::list_spendable(account_id_hex, None, assigned_subaddress_b58, Some(0), conn)?
                 .max_spendable_in_wallet;
-        let unspent = Txo::list_unspent(account_id_hex, assigned_subaddress_b58, conn)?
+        let unspent = Txo::list_unspent(account_id_hex, assigned_subaddress_b58, Some(0), conn)?
             .iter()
             .map(|t| (t.value as u64) as u128)
             .sum::<u128>();
-        let spent = Txo::list_spent(account_id_hex, assigned_subaddress_b58, conn)?
+        let spent = Txo::list_spent(account_id_hex, assigned_subaddress_b58, Some(0), conn)?
             .iter()
             .map(|t| (t.value as u64) as u128)
             .sum::<u128>();
-        let pending = Txo::list_pending(account_id_hex, assigned_subaddress_b58, conn)?
+        let pending = Txo::list_pending(account_id_hex, assigned_subaddress_b58, Some(0), conn)?
             .iter()
             .map(|t| (t.value as u64) as u128)
             .sum::<u128>();
@@ -356,7 +356,7 @@ where
         let secreted = if assigned_subaddress_b58.is_some() {
             0
         } else {
-            Txo::list_secreted(account_id_hex, conn)?
+            Txo::list_secreted(account_id_hex, Some(0), conn)?
                 .iter()
                 .map(|t| t.value as u128)
                 .sum::<u128>()
@@ -365,7 +365,7 @@ where
         let orphaned = if assigned_subaddress_b58.is_some() {
             0
         } else {
-            Txo::list_orphaned(account_id_hex, conn)?
+            Txo::list_orphaned(account_id_hex, Some(0), conn)?
                 .iter()
                 .map(|t| t.value as u128)
                 .sum::<u128>()
@@ -380,22 +380,25 @@ where
         assigned_subaddress_b58: Option<&str>,
         conn: &Conn,
     ) -> Result<(u128, u128, u128, u128, u128, u128), BalanceServiceError> {
-        let unspent = ViewOnlyTxo::list_unspent(account_id_hex, assigned_subaddress_b58, conn)?
+        let unspent =
+            ViewOnlyTxo::list_unspent(account_id_hex, assigned_subaddress_b58, Some(0), conn)?
+                .iter()
+                .map(|t| (t.value as u64) as u128)
+                .sum::<u128>();
+        let spent =
+            ViewOnlyTxo::list_spent(account_id_hex, assigned_subaddress_b58, Some(0), conn)?
+                .iter()
+                .map(|t| (t.value as u64) as u128)
+                .sum::<u128>();
+        let orphaned = ViewOnlyTxo::list_orphaned(account_id_hex, Some(0), conn)?
             .iter()
             .map(|t| (t.value as u64) as u128)
             .sum::<u128>();
-        let spent = ViewOnlyTxo::list_spent(account_id_hex, assigned_subaddress_b58, conn)?
-            .iter()
-            .map(|t| (t.value as u64) as u128)
-            .sum::<u128>();
-        let orphaned = ViewOnlyTxo::list_orphaned(account_id_hex, conn)?
-            .iter()
-            .map(|t| (t.value as u64) as u128)
-            .sum::<u128>();
-        let pending = ViewOnlyTxo::list_pending(account_id_hex, assigned_subaddress_b58, conn)?
-            .iter()
-            .map(|t| (t.value as u64) as u128)
-            .sum::<u128>();
+        let pending =
+            ViewOnlyTxo::list_pending(account_id_hex, assigned_subaddress_b58, Some(0), conn)?
+                .iter()
+                .map(|t| (t.value as u64) as u128)
+                .sum::<u128>();
 
         let result = (unspent, 0, pending, spent, 0, orphaned);
         Ok(result)
@@ -578,18 +581,14 @@ mod tests {
         // add funds to account
         for _ in 0..2 {
             let value = 420 * MOB;
+            let amount = Amount::new(value, Mob::ID);
             let tx_private_key = RistrettoPrivate::from_random(&mut rng);
             let hint = EncryptedFogHint::fake_onetime_hint(&mut rng);
-            let fake_tx_out = TxOut::new(
-                Amount::new(value as u64, Mob::ID),
-                &main_public_address,
-                &tx_private_key,
-                hint,
-            )
-            .unwrap();
+            let fake_tx_out =
+                TxOut::new(amount, &main_public_address, &tx_private_key, hint).unwrap();
             ViewOnlyTxo::create(
                 fake_tx_out.clone(),
-                value,
+                amount,
                 Some(DEFAULT_SUBADDRESS_INDEX),
                 Some(current_block_height),
                 &account_id.to_string(),
@@ -629,18 +628,13 @@ mod tests {
             .unwrap();
 
         let value = 100 * MOB;
+        let amount = Amount::new(value, Mob::ID);
         let tx_private_key = RistrettoPrivate::from_random(&mut rng);
         let hint = EncryptedFogHint::fake_onetime_hint(&mut rng);
-        let fake_tx_out = TxOut::new(
-            Amount::new(value as u64, Mob::ID),
-            &main_public_address,
-            &tx_private_key,
-            hint,
-        )
-        .unwrap();
+        let fake_tx_out = TxOut::new(amount, &main_public_address, &tx_private_key, hint).unwrap();
         ViewOnlyTxo::create(
             fake_tx_out.clone(),
-            value,
+            amount,
             Some(subaddress_index),
             Some(current_block_height),
             &account_id.to_string(),

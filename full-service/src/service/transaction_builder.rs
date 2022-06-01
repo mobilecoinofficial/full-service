@@ -174,6 +174,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             total_value,
             max_spendable_value,
             pending_tombstone_block_index,
+            Some(0),
             conn,
         )?;
 
@@ -203,6 +204,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         Ok(ViewOnlyTxo::select_unspent_view_only_txos_for_value(
             &self.account_id_hex,
             total_value,
+            Some(0),
             conn,
         )?)
     }
@@ -816,6 +818,7 @@ mod tests {
         let unspent = Txo::list_unspent(
             &AccountID::from(&account_key).to_string(),
             None,
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -864,6 +867,7 @@ mod tests {
             &AccountID::from(&account_key).to_string(),
             None,
             None,
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();

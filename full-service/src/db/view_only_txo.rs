@@ -12,13 +12,13 @@ use crate::db::{
 };
 use diesel::prelude::*;
 use mc_common::HashMap;
-use mc_transaction_core::{constants::MAX_INPUTS, ring_signature::KeyImage, tx::TxOut};
+use mc_transaction_core::{constants::MAX_INPUTS, ring_signature::KeyImage, tx::TxOut, Amount};
 
 pub trait ViewOnlyTxoModel {
     /// insert a new txo linked to a view-only-account
     fn create(
         tx_out: TxOut,
-        value: u64,
+        amount: Amount,
         subaddress_index: Option<u64>,
         received_block_index: Option<u64>,
         view_only_account_id_hex: &str,
@@ -39,6 +39,7 @@ pub trait ViewOnlyTxoModel {
         account_id_hex: &str,
         offset: Option<u64>,
         limit: Option<u64>,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<ViewOnlyTxo>, WalletDbError>;
 
@@ -48,37 +49,47 @@ pub trait ViewOnlyTxoModel {
     /// * Vec<ViewOnlyTxo>
     fn list_for_address(
         assigned_subaddress_b58: &str,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<ViewOnlyTxo>, WalletDbError>;
 
     /// list view only txos that are unspent with key images for an account
     fn list_unspent_with_key_images(
         account_id_hex: &str,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<HashMap<KeyImage, String>, WalletDbError>;
 
     fn list_orphaned_with_key_images(
         account_id_hex: &str,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<ViewOnlyTxo>, WalletDbError>;
 
-    fn list_orphaned(account_id_hex: &str, conn: &Conn) -> Result<Vec<ViewOnlyTxo>, WalletDbError>;
+    fn list_orphaned(
+        account_id_hex: &str,
+        token_id: Option<u64>,
+        conn: &Conn,
+    ) -> Result<Vec<ViewOnlyTxo>, WalletDbError>;
 
     fn list_unspent(
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<ViewOnlyTxo>, WalletDbError>;
 
     fn list_pending(
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<ViewOnlyTxo>, WalletDbError>;
 
     fn list_spent(
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<ViewOnlyTxo>, WalletDbError>;
 
@@ -89,6 +100,7 @@ pub trait ViewOnlyTxoModel {
     fn select_unspent_view_only_txos_for_value(
         account_id_hex: &str,
         target_value: u64,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<ViewOnlyTxo>, WalletDbError>;
 
@@ -147,7 +159,7 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
     // TODO: This needs to be updated for the new schema.
     fn create(
         tx_out: TxOut,
-        value: u64,
+        amount: Amount,
         subaddress_index: Option<u64>,
         received_block_index: Option<u64>,
         view_only_account_id_hex: &str,
@@ -164,7 +176,8 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
             txo: &mc_util_serial::encode(&tx_out),
             txo_id_hex: &txo_id.to_string(),
             key_image: None,
-            value: value as i64,
+            value: amount.value as i64,
+            token_id: *amount.token_id as i64,
             public_key: &mc_util_serial::encode(&tx_out.public_key),
             view_only_account_id_hex,
             subaddress_index: subaddress_index.map(|x| x as i64),
@@ -204,50 +217,71 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         account_id_hex: &str,
         offset: Option<u64>,
         limit: Option<u64>,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<ViewOnlyTxo>, WalletDbError> {
         use schema::view_only_txos;
 
-        let txos_query = view_only_txos::table
-            .filter(view_only_txos::view_only_account_id_hex.eq(account_id_hex));
+        let mut query = view_only_txos::table.into_boxed();
 
-        let txos: Vec<ViewOnlyTxo> = if let (Some(o), Some(l)) = (offset, limit) {
-            txos_query.offset(o as i64).limit(l as i64).load(conn)?
-        } else {
-            txos_query.load(conn)?
-        };
+        query = query.filter(view_only_txos::view_only_account_id_hex.eq(account_id_hex));
 
-        Ok(txos)
+        if let (Some(o), Some(l)) = (offset, limit) {
+            query = query.offset(o as i64).limit(l as i64);
+        }
+
+        if let Some(token_id) = token_id {
+            query = query.filter(view_only_txos::token_id.eq(token_id as i64));
+        }
+
+        Ok(query.load(conn)?)
     }
 
     fn list_for_address(
         assigned_subaddress_b58: &str,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<ViewOnlyTxo>, WalletDbError> {
         use schema::view_only_txos;
+
+        let mut query = view_only_txos::table.into_boxed();
+
         let subaddress = ViewOnlySubaddress::get(assigned_subaddress_b58, conn)?;
-        let results = view_only_txos::table
+        query = query
             .filter(view_only_txos::subaddress_index.eq(subaddress.subaddress_index))
             .filter(
                 view_only_txos::view_only_account_id_hex.eq(subaddress.view_only_account_id_hex),
-            )
-            .load(conn)?;
-        Ok(results)
+            );
+
+        if let Some(token_id) = token_id {
+            query = query.filter(view_only_txos::token_id.eq(token_id as i64));
+        }
+
+        Ok(query.load(conn)?)
     }
 
     fn list_unspent_with_key_images(
         account_id_hex: &str,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<HashMap<KeyImage, String>, WalletDbError> {
         use schema::view_only_txos;
 
-        let results: Vec<(Option<Vec<u8>>, String)> = view_only_txos::table
-            .select((view_only_txos::key_image, view_only_txos::txo_id_hex))
+        let mut query = view_only_txos::table.into_boxed();
+
+        query = query
             .filter(view_only_txos::view_only_account_id_hex.eq(account_id_hex))
             .filter(view_only_txos::key_image.is_not_null())
             .filter(view_only_txos::subaddress_index.is_not_null())
             .filter(view_only_txos::received_block_index.is_not_null())
-            .filter(view_only_txos::spent_block_index.is_null())
+            .filter(view_only_txos::spent_block_index.is_null());
+
+        if let Some(token_id) = token_id {
+            query = query.filter(view_only_txos::token_id.eq(token_id as i64));
+        }
+
+        let results: Vec<(Option<Vec<u8>>, String)> = query
+            .select((view_only_txos::key_image, view_only_txos::txo_id_hex))
             .load(conn)?;
 
         Ok(results
@@ -264,103 +298,127 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
 
     fn list_orphaned_with_key_images(
         account_id_hex: &str,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<ViewOnlyTxo>, WalletDbError> {
         use schema::view_only_txos;
 
-        let results: Vec<ViewOnlyTxo> = view_only_txos::table
+        let mut query = view_only_txos::table.into_boxed();
+
+        query = query
             .filter(view_only_txos::view_only_account_id_hex.eq(account_id_hex))
             .filter(view_only_txos::key_image.is_not_null())
             .filter(view_only_txos::subaddress_index.is_not_null())
             .filter(view_only_txos::received_block_index.is_not_null())
-            .filter(view_only_txos::spent_block_index.is_null())
-            .load(conn)?;
+            .filter(view_only_txos::spent_block_index.is_null());
 
-        Ok(results)
+        if let Some(token_id) = token_id {
+            query = query.filter(view_only_txos::token_id.eq(token_id as i64));
+        }
+
+        Ok(query.load(conn)?)
     }
 
-    fn list_orphaned(account_id_hex: &str, conn: &Conn) -> Result<Vec<ViewOnlyTxo>, WalletDbError> {
+    fn list_orphaned(
+        account_id_hex: &str,
+        token_id: Option<u64>,
+        conn: &Conn,
+    ) -> Result<Vec<ViewOnlyTxo>, WalletDbError> {
         use schema::view_only_txos;
 
-        let txos: Vec<ViewOnlyTxo> = view_only_txos::table
+        let mut query = view_only_txos::table.into_boxed();
+
+        query = query
             .filter(view_only_txos::view_only_account_id_hex.eq(account_id_hex))
             .filter(view_only_txos::key_image.is_null())
-            .filter(view_only_txos::subaddress_index.is_null())
-            .load(conn)?;
+            .filter(view_only_txos::subaddress_index.is_null());
 
-        Ok(txos)
+        if let Some(token_id) = token_id {
+            query = query.filter(view_only_txos::token_id.eq(token_id as i64));
+        }
+
+        Ok(query.load(conn)?)
     }
 
     fn list_unspent(
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<ViewOnlyTxo>, WalletDbError> {
         use schema::view_only_txos;
 
-        let results = view_only_txos::table
+        let mut query = view_only_txos::table.into_boxed();
+
+        query = query
             .filter(view_only_txos::view_only_account_id_hex.eq(account_id_hex))
             .filter(view_only_txos::received_block_index.is_not_null())
             .filter(view_only_txos::pending_tombstone_block_index.is_null())
             .filter(view_only_txos::spent_block_index.is_null());
 
-        let txos = if let Some(assigned_subaddress_b58) = assigned_subaddress_b58 {
+        if let Some(assigned_subaddress_b58) = assigned_subaddress_b58 {
             let subaddress = ViewOnlySubaddress::get(assigned_subaddress_b58, conn)?;
-            results
-                .filter(view_only_txos::subaddress_index.eq(subaddress.subaddress_index))
-                .load(conn)?
-        } else {
-            results.load(conn)?
-        };
+            query = query.filter(view_only_txos::subaddress_index.eq(subaddress.subaddress_index));
+        }
 
-        Ok(txos)
+        if let Some(token_id) = token_id {
+            query = query.filter(view_only_txos::token_id.eq(token_id as i64));
+        }
+
+        Ok(query.load(conn)?)
     }
 
     fn list_pending(
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<ViewOnlyTxo>, WalletDbError> {
         use schema::view_only_txos;
 
-        let results = view_only_txos::table
+        let mut query = view_only_txos::table.into_boxed();
+
+        query = query
             .filter(view_only_txos::view_only_account_id_hex.eq(account_id_hex))
             .filter(view_only_txos::pending_tombstone_block_index.is_not_null())
             .filter(view_only_txos::spent_block_index.is_null());
 
-        let txos = if let Some(assigned_subaddress_b58) = assigned_subaddress_b58 {
+        if let Some(assigned_subaddress_b58) = assigned_subaddress_b58 {
             let subaddress = ViewOnlySubaddress::get(assigned_subaddress_b58, conn)?;
-            results
-                .filter(view_only_txos::subaddress_index.eq(subaddress.subaddress_index))
-                .load(conn)?
-        } else {
-            results.load(conn)?
-        };
+            query = query.filter(view_only_txos::subaddress_index.eq(subaddress.subaddress_index));
+        }
 
-        Ok(txos)
+        if let Some(token_id) = token_id {
+            query = query.filter(view_only_txos::token_id.eq(token_id as i64));
+        }
+
+        Ok(query.load(conn)?)
     }
 
     fn list_spent(
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<ViewOnlyTxo>, WalletDbError> {
         use schema::view_only_txos;
 
-        let results = view_only_txos::table
+        let mut query = view_only_txos::table.into_boxed();
+
+        query = query
             .filter(view_only_txos::view_only_account_id_hex.eq(account_id_hex))
             .filter(view_only_txos::spent_block_index.is_not_null());
 
-        let txos = if let Some(assigned_subaddress_b58) = assigned_subaddress_b58 {
+        if let Some(assigned_subaddress_b58) = assigned_subaddress_b58 {
             let subaddress = ViewOnlySubaddress::get(assigned_subaddress_b58, conn)?;
-            results
-                .filter(view_only_txos::subaddress_index.eq(subaddress.subaddress_index))
-                .load(conn)?
-        } else {
-            results.load(conn)?
-        };
+            query = query.filter(view_only_txos::subaddress_index.eq(subaddress.subaddress_index));
+        }
 
-        Ok(txos)
+        if let Some(token_id) = token_id {
+            query = query.filter(view_only_txos::token_id.eq(token_id as i64));
+        }
+
+        Ok(query.load(conn)?)
     }
 
     // This is a direct port of txo selection and
@@ -369,18 +427,26 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
     fn select_unspent_view_only_txos_for_value(
         account_id_hex: &str,
         target_value: u64,
+        token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<ViewOnlyTxo>, WalletDbError> {
         use schema::view_only_txos;
 
-        let mut spendable_txos: Vec<ViewOnlyTxo> = view_only_txos::table
+        let mut query = view_only_txos::table.into_boxed();
+
+        query = query
             .filter(view_only_txos::view_only_account_id_hex.eq(account_id_hex))
             .filter(view_only_txos::subaddress_index.is_not_null())
             .filter(view_only_txos::received_block_index.is_not_null())
             .filter(view_only_txos::pending_tombstone_block_index.is_null())
-            .filter(view_only_txos::spent_block_index.is_null())
-            .order_by(view_only_txos::value.desc())
-            .load(conn)?;
+            .filter(view_only_txos::spent_block_index.is_null());
+
+        if let Some(token_id) = token_id {
+            query = query.filter(view_only_txos::token_id.eq(token_id as i64));
+        }
+
+        let mut spendable_txos: Vec<ViewOnlyTxo> =
+            query.order_by(view_only_txos::value.desc()).load(conn)?;
 
         if spendable_txos.is_empty() {
             return Err(WalletDbError::NoSpendableTxos);
@@ -602,19 +668,14 @@ mod tests {
 
         // make fake txo
         let value = 420;
+        let amount = Amount::new(value, Mob::ID);
         let tx_private_key = RistrettoPrivate::from_random(&mut rng);
         let hint = EncryptedFogHint::fake_onetime_hint(&mut rng);
         let public_address = PublicAddress::new(
             &RistrettoPublic::from_random(&mut rng),
             &RistrettoPublic::from_random(&mut rng),
         );
-        let fake_tx_out = TxOut::new(
-            Amount::new(value as u64, Mob::ID),
-            &public_address,
-            &tx_private_key,
-            hint,
-        )
-        .unwrap();
+        let fake_tx_out = TxOut::new(amount, &public_address, &tx_private_key, hint).unwrap();
 
         // make sure it fails if no matching account
 
@@ -622,7 +683,7 @@ mod tests {
 
         let err = ViewOnlyTxo::create(
             fake_tx_out.clone(),
-            value,
+            amount,
             None,
             None,
             view_only_account_id,
@@ -655,6 +716,7 @@ mod tests {
             key_image: None,
             public_key: mc_util_serial::encode(&fake_tx_out.public_key),
             value: value as i64,
+            token_id: 0,
             subaddress_index: Some(DEFAULT_SUBADDRESS_INDEX as i64),
             submitted_block_index: None,
             pending_tombstone_block_index: None,
@@ -664,7 +726,7 @@ mod tests {
 
         let created = ViewOnlyTxo::create(
             fake_tx_out.clone(),
-            value,
+            amount,
             Some(DEFAULT_SUBADDRESS_INDEX),
             Some(1),
             &view_only_account.account_id_hex,

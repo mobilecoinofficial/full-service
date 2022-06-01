@@ -1,0 +1,3 @@
+-- Your SQL goes here
+ALTER TABLE txos ADD COLUMN token_id INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE view_only_txos ADD COLUMN token_id INTEGER NOT NULL DEFAULT 0;

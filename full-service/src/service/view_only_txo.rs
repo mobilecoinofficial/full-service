@@ -48,7 +48,11 @@ where
     ) -> Result<Vec<ViewOnlyTxo>, TxoServiceError> {
         let conn = self.wallet_db.get_conn()?;
         Ok(ViewOnlyTxo::list_for_account(
-            account_id, limit, offset, &conn,
+            account_id,
+            limit,
+            offset,
+            Some(0),
+            &conn,
         )?)
     }
 
@@ -152,18 +156,14 @@ mod tests {
 
         for _ in 0..2 {
             let value = 420;
+            let amount = Amount::new(value, Mob::ID);
             let tx_private_key = RistrettoPrivate::from_random(&mut rng);
             let hint = EncryptedFogHint::fake_onetime_hint(&mut rng);
-            let fake_tx_out = TxOut::new(
-                Amount::new(value as u64, Mob::ID),
-                &main_public_address,
-                &tx_private_key,
-                hint,
-            )
-            .unwrap();
+            let fake_tx_out =
+                TxOut::new(amount, &main_public_address, &tx_private_key, hint).unwrap();
             ViewOnlyTxo::create(
                 fake_tx_out.clone(),
-                value,
+                amount,
                 Some(DEFAULT_SUBADDRESS_INDEX),
                 Some(11),
                 &account.account_id_hex,

@@ -186,6 +186,8 @@ pub struct Txo {
     pub txo_id_hex: String,
     /// The value of this transaction output, in picoMob.
     pub value: i64,
+    /// The token of this transaction output.
+    pub token_id: i64,
     /// The serialized target_key of the TxOut.
     pub target_key: Vec<u8>,
     /// The serialized public_key of the TxOut.
@@ -215,6 +217,7 @@ pub struct Txo {
 pub struct NewTxo<'a> {
     pub txo_id_hex: &'a str,
     pub value: i64,
+    pub token_id: i64,
     pub target_key: &'a [u8],
     pub public_key: &'a [u8],
     pub e_fog_hint: &'a [u8],
@@ -249,6 +252,8 @@ pub struct ViewOnlyTxo {
     pub subaddress_index: Option<i64>,
     /// The value of this transaction output, in picoMob.
     pub value: i64,
+    /// The token of this transaction output.
+    pub token_id: i64,
     /// The serialized public_key of the TxOut.
     pub public_key: Vec<u8>,
     /// account_id_hex of the view_only_account that received this txo
@@ -274,6 +279,7 @@ pub struct NewViewOnlyTxo<'a> {
     pub key_image: Option<&'a [u8]>,
     pub subaddress_index: Option<i64>,
     pub value: i64,
+    pub token_id: i64,
     pub public_key: &'a [u8],
     pub view_only_account_id_hex: &'a str,
     pub submitted_block_index: Option<i64>,
