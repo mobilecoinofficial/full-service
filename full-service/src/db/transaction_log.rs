@@ -7,7 +7,7 @@ use diesel::prelude::*;
 use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_mobilecoind::payments::TxProposal;
-use mc_transaction_core::tx::Tx;
+use mc_transaction_core::{tx::Tx, Amount};
 use std::fmt;
 
 use crate::db::{
@@ -92,7 +92,7 @@ pub trait TransactionLogModel {
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
         txo_id_hex: &str,
-        amount: u64,
+        amount: Amount,
         block_index: u64,
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
@@ -322,7 +322,7 @@ impl TransactionLogModel for TransactionLog {
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
         txo_id_hex: &str,
-        amount: u64,
+        amount: Amount,
         block_index: u64,
         conn: &Conn,
     ) -> Result<(), WalletDbError> {
@@ -332,8 +332,8 @@ impl TransactionLogModel for TransactionLog {
             transaction_id_hex: txo_id_hex,
             account_id_hex,
             assigned_subaddress_b58,
-            value: amount as i64, // We store numbers between 2^63 and 2^64 as negative.
-            fee: None,            // Impossible to recover fee from received transaction
+            value: amount.value as i64, // We store numbers between 2^63 and 2^64 as negative.
+            fee: None,                  // Impossible to recover fee from received transaction
             status: TX_STATUS_SUCCEEDED,
             sent_time: None, // NULL for received
             submitted_block_index: None,

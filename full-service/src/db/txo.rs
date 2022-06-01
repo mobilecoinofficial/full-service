@@ -13,7 +13,7 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tokens::Mob,
     tx::{TxOut, TxOutConfirmationNumber},
-    Token,
+    Amount, Token,
 };
 use std::fmt;
 
@@ -82,7 +82,7 @@ pub trait TxoModel {
         tx_out: TxOut,
         subaddress_index: Option<u64>,
         key_image: Option<KeyImage>,
-        value: u64,
+        amount: Amount,
         received_block_index: u64,
         account_id_hex: &str,
         conn: &Conn,
@@ -268,7 +268,7 @@ impl TxoModel for Txo {
         txo: TxOut,
         subaddress_index: Option<u64>,
         key_image: Option<KeyImage>,
-        value: u64,
+        amount: Amount,
         received_block_index: u64,
         account_id_hex: &str,
         conn: &Conn,
@@ -295,7 +295,8 @@ impl TxoModel for Txo {
                 let key_image_bytes = key_image.map(|k| mc_util_serial::encode(&k));
                 let new_txo = NewTxo {
                     txo_id_hex: &txo_id.to_string(),
-                    value: value as i64,
+                    value: amount.value as i64,
+                    token_id: *amount.token_id as i64,
                     target_key: &mc_util_serial::encode(&txo.target_key),
                     public_key: &mc_util_serial::encode(&txo.public_key),
                     e_fog_hint: &mc_util_serial::encode(&txo.e_fog_hint),
@@ -375,9 +376,12 @@ impl TxoModel for Txo {
         let encoded_confirmation = confirmation
             .map(|p| mc_util_serial::encode(&tx_proposal.outlay_confirmation_numbers[p]));
 
+        // TODO: Update this to use the txo id of the output we are minting, not
+        // defaulting to 0
         let new_txo = NewTxo {
             txo_id_hex: &txo_id.to_string(),
             value: value as i64,
+            token_id: 0,
             target_key: &mc_util_serial::encode(&output.target_key),
             public_key: &mc_util_serial::encode(&output.public_key),
             e_fog_hint: &mc_util_serial::encode(&output.e_fog_hint),
@@ -1042,6 +1046,7 @@ mod tests {
             id: 1,
             txo_id_hex: TxoID::from(&for_alice_txo).to_string(),
             value: 1000 * MOB as i64,
+            token_id: 0,
             target_key: mc_util_serial::encode(&for_alice_txo.target_key),
             public_key: mc_util_serial::encode(&for_alice_txo.public_key),
             e_fog_hint: mc_util_serial::encode(&for_alice_txo.e_fog_hint),

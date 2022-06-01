@@ -12,13 +12,13 @@ use crate::db::{
 };
 use diesel::prelude::*;
 use mc_common::HashMap;
-use mc_transaction_core::{constants::MAX_INPUTS, ring_signature::KeyImage, tx::TxOut};
+use mc_transaction_core::{constants::MAX_INPUTS, ring_signature::KeyImage, tx::TxOut, Amount};
 
 pub trait ViewOnlyTxoModel {
     /// insert a new txo linked to a view-only-account
     fn create(
         tx_out: TxOut,
-        value: u64,
+        amount: Amount,
         subaddress_index: Option<u64>,
         received_block_index: Option<u64>,
         view_only_account_id_hex: &str,
@@ -147,7 +147,7 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
     // TODO: This needs to be updated for the new schema.
     fn create(
         tx_out: TxOut,
-        value: u64,
+        amount: Amount,
         subaddress_index: Option<u64>,
         received_block_index: Option<u64>,
         view_only_account_id_hex: &str,
@@ -164,7 +164,8 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
             txo: &mc_util_serial::encode(&tx_out),
             txo_id_hex: &txo_id.to_string(),
             key_image: None,
-            value: value as i64,
+            value: amount.value as i64,
+            token_id: *amount.token_id as i64,
             public_key: &mc_util_serial::encode(&tx_out.public_key),
             view_only_account_id_hex,
             subaddress_index: subaddress_index.map(|x| x as i64),
@@ -655,6 +656,7 @@ mod tests {
             key_image: None,
             public_key: mc_util_serial::encode(&fake_tx_out.public_key),
             value: value as i64,
+            token_id: 0,
             subaddress_index: Some(DEFAULT_SUBADDRESS_INDEX as i64),
             submitted_block_index: None,
             pending_tombstone_block_index: None,
