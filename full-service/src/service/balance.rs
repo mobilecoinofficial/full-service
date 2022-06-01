@@ -578,18 +578,14 @@ mod tests {
         // add funds to account
         for _ in 0..2 {
             let value = 420 * MOB;
+            let amount = Amount::new(value, Mob::ID);
             let tx_private_key = RistrettoPrivate::from_random(&mut rng);
             let hint = EncryptedFogHint::fake_onetime_hint(&mut rng);
-            let fake_tx_out = TxOut::new(
-                Amount::new(value as u64, Mob::ID),
-                &main_public_address,
-                &tx_private_key,
-                hint,
-            )
-            .unwrap();
+            let fake_tx_out =
+                TxOut::new(amount, &main_public_address, &tx_private_key, hint).unwrap();
             ViewOnlyTxo::create(
                 fake_tx_out.clone(),
-                value,
+                amount,
                 Some(DEFAULT_SUBADDRESS_INDEX),
                 Some(current_block_height),
                 &account_id.to_string(),
@@ -629,18 +625,13 @@ mod tests {
             .unwrap();
 
         let value = 100 * MOB;
+        let amount = Amount::new(value, Mob::ID);
         let tx_private_key = RistrettoPrivate::from_random(&mut rng);
         let hint = EncryptedFogHint::fake_onetime_hint(&mut rng);
-        let fake_tx_out = TxOut::new(
-            Amount::new(value as u64, Mob::ID),
-            &main_public_address,
-            &tx_private_key,
-            hint,
-        )
-        .unwrap();
+        let fake_tx_out = TxOut::new(amount, &main_public_address, &tx_private_key, hint).unwrap();
         ViewOnlyTxo::create(
             fake_tx_out.clone(),
-            value,
+            amount,
             Some(subaddress_index),
             Some(current_block_height),
             &account_id.to_string(),

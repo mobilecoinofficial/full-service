@@ -517,7 +517,7 @@ pub fn create_test_received_txo(
         txo.clone(),
         Some(recipient_subaddress_index),
         Some(key_image),
-        value,
+        Amount::new(value, Mob::ID),
         received_block_index,
         &AccountID::from(account_key).to_string(),
         &wallet_db.get_conn().unwrap(),

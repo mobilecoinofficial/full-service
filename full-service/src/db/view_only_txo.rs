@@ -603,19 +603,14 @@ mod tests {
 
         // make fake txo
         let value = 420;
+        let amount = Amount::new(value, Mob::ID);
         let tx_private_key = RistrettoPrivate::from_random(&mut rng);
         let hint = EncryptedFogHint::fake_onetime_hint(&mut rng);
         let public_address = PublicAddress::new(
             &RistrettoPublic::from_random(&mut rng),
             &RistrettoPublic::from_random(&mut rng),
         );
-        let fake_tx_out = TxOut::new(
-            Amount::new(value as u64, Mob::ID),
-            &public_address,
-            &tx_private_key,
-            hint,
-        )
-        .unwrap();
+        let fake_tx_out = TxOut::new(amount, &public_address, &tx_private_key, hint).unwrap();
 
         // make sure it fails if no matching account
 
@@ -623,7 +618,7 @@ mod tests {
 
         let err = ViewOnlyTxo::create(
             fake_tx_out.clone(),
-            value,
+            amount,
             None,
             None,
             view_only_account_id,
@@ -666,7 +661,7 @@ mod tests {
 
         let created = ViewOnlyTxo::create(
             fake_tx_out.clone(),
-            value,
+            amount,
             Some(DEFAULT_SUBADDRESS_INDEX),
             Some(1),
             &view_only_account.account_id_hex,

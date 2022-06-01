@@ -539,7 +539,7 @@ mod tests {
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::RngCore;
     use mc_ledger_db::Ledger;
-    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
+    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Amount, Token};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
@@ -601,7 +601,7 @@ mod tests {
                 &account_id.to_string(),
                 assigned_subaddress_b58.as_ref().map(|s| s.as_str()),
                 &txo_id_hex,
-                100 * i * MOB,
+                Amount::new(100 * i * MOB, Mob::ID),
                 144,
                 &wallet_db.get_conn().unwrap(),
             )
@@ -921,7 +921,7 @@ mod tests {
                     &account_id.to_string(),
                     assigned_subaddress_b58.as_ref().map(|s| s.as_str()),
                     &txo_id_hex,
-                    100 * i * MOB,
+                    Amount::new(100 * i * MOB, Mob::ID),
                     144,
                     &wallet_db.get_conn().unwrap(),
                 )
