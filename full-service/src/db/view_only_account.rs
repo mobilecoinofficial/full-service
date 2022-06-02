@@ -4,44 +4,31 @@
 
 use crate::{
     db::{
-        models::{NewViewOnlyAccount, ViewOnlyAccount, ViewOnlyTxo},
+        account::{AccountID, AccountModel},
+        models::{Account, NewViewOnlyAccount, ViewOnlyAccount, ViewOnlySubaddress, ViewOnlyTxo},
         schema,
+        view_only_subaddress::ViewOnlySubaddressModel,
         view_only_txo::ViewOnlyTxoModel,
         Conn, WalletDbError,
     },
-    util::encoding_helpers::{ristretto_to_vec, vec_to_hex},
+    util::{b58::b58_decode_public_address, encoding_helpers::ristretto_to_vec},
 };
 use diesel::prelude::*;
-use mc_crypto_digestible::{Digestible, MerlinTranscript};
-use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
-use std::{fmt, str};
-
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub struct ViewOnlyAccountID(pub String);
-
-impl From<&RistrettoPrivate> for ViewOnlyAccountID {
-    fn from(src: &RistrettoPrivate) -> ViewOnlyAccountID {
-        let view_public_key = RistrettoPublic::from(src);
-        let temp: Vec<u8> = view_public_key
-            .digest32::<MerlinTranscript>(b"view_account_data")
-            .to_vec();
-        Self(vec_to_hex(&temp))
-    }
-}
-
-impl fmt::Display for ViewOnlyAccountID {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
+use mc_account_keys::PublicAddress;
+use mc_crypto_keys::RistrettoPrivate;
+use std::str;
 
 pub trait ViewOnlyAccountModel {
-    // insert new view-only-account in the db
+    // insert new view-only-account in the db\
+    #[allow(clippy::too_many_arguments)]
     fn create(
         account_id_hex: &str,
         view_private_key: &RistrettoPrivate,
         first_block_index: u64,
         import_block_index: u64,
+        main_subaddress_index: u64,
+        change_subaddress_index: u64,
+        next_subaddress_index: u64,
         name: &str,
         conn: &Conn,
     ) -> Result<ViewOnlyAccount, WalletDbError>;
@@ -68,6 +55,14 @@ pub trait ViewOnlyAccountModel {
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
+    fn update_next_subaddress_index(
+        &self,
+        next_subaddress_index: u64,
+        conn: &Conn,
+    ) -> Result<(), WalletDbError>;
+
+    fn change_public_address(&self, conn: &Conn) -> Result<PublicAddress, WalletDbError>;
+
     /// Delete a view-only-account.
     fn delete(self, conn: &Conn) -> Result<(), WalletDbError>;
 }
@@ -78,10 +73,19 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
         view_private_key: &RistrettoPrivate,
         first_block_index: u64,
         import_block_index: u64,
+        main_subaddress_index: u64,
+        change_subaddress_index: u64,
+        next_subaddress_index: u64,
         name: &str,
         conn: &Conn,
     ) -> Result<ViewOnlyAccount, WalletDbError> {
         use schema::view_only_accounts;
+
+        if Account::get(&AccountID(account_id_hex.to_string()), conn).is_ok() {
+            return Err(WalletDbError::ViewOnlyAccountAlreadyExists(
+                account_id_hex.to_string(),
+            ));
+        }
 
         let encoded_key = ristretto_to_vec(view_private_key);
 
@@ -89,11 +93,12 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
             account_id_hex,
             view_private_key: &encoded_key,
             first_block_index: first_block_index as i64,
-            // Next block index will always be the same as first block index when importing
-            // an account.
             next_block_index: first_block_index as i64,
             import_block_index: import_block_index as i64,
             name,
+            next_subaddress_index: next_subaddress_index as i64,
+            main_subaddress_index: main_subaddress_index as i64,
+            change_subaddress_index: change_subaddress_index as i64,
         };
 
         diesel::insert_into(view_only_accounts::table)
@@ -109,7 +114,7 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
         };
 
         match view_only_accounts
-            .filter((dsl_account_id).eq(&account_id))
+            .filter((dsl_account_id).eq(account_id.to_string()))
             .get_result::<ViewOnlyAccount>(conn)
         {
             Ok(a) => Ok(a),
@@ -155,6 +160,37 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
         Ok(())
     }
 
+    fn update_next_subaddress_index(
+        &self,
+        next_subaddress_index: u64,
+        conn: &Conn,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::view_only_accounts;
+
+        diesel::update(
+            view_only_accounts::table
+                .filter(view_only_accounts::account_id_hex.eq(&self.account_id_hex)),
+        )
+        .set(view_only_accounts::next_subaddress_index.eq(next_subaddress_index as i64))
+        .execute(conn)?;
+
+        Ok(())
+    }
+
+    fn change_public_address(&self, conn: &Conn) -> Result<PublicAddress, WalletDbError> {
+        use crate::db::schema::view_only_subaddresses;
+
+        let change_subaddress = view_only_subaddresses::table
+            .filter(view_only_subaddresses::view_only_account_id_hex.eq(&self.account_id_hex))
+            .filter(view_only_subaddresses::subaddress_index.eq(self.change_subaddress_index))
+            .first::<ViewOnlySubaddress>(conn)?;
+
+        let change_public_address =
+            b58_decode_public_address(&change_subaddress.public_address_b58)?;
+
+        Ok(change_public_address)
+    }
+
     fn delete(self, conn: &Conn) -> Result<(), WalletDbError> {
         use schema::view_only_accounts::dsl::{
             account_id_hex as dsl_account_id, view_only_accounts,
@@ -162,6 +198,7 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
 
         // delete associated view-only-txos
         ViewOnlyTxo::delete_all_for_account(&self.account_id_hex, conn)?;
+        ViewOnlySubaddress::delete_all_for_account(&self.account_id_hex, conn)?;
         diesel::delete(view_only_accounts.filter(dsl_account_id.eq(&self.account_id_hex)))
             .execute(conn)?;
         Ok(())
@@ -172,6 +209,7 @@ impl ViewOnlyAccountModel for ViewOnlyAccount {
 mod tests {
     use super::*;
     use crate::test_utils::WalletDbTestContext;
+    use mc_account_keys::{CHANGE_SUBADDRESS_INDEX, DEFAULT_SUBADDRESS_INDEX};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_keys::RistrettoPrivate;
     use mc_util_from_random::FromRandom;
@@ -201,6 +239,9 @@ mod tests {
             next_block_index: first_block_index as i64,
             import_block_index: import_block_index as i64,
             name: name.to_string(),
+            main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
+            change_subaddress_index: CHANGE_SUBADDRESS_INDEX as i64,
+            next_subaddress_index: 2,
         };
 
         let created = ViewOnlyAccount::create(
@@ -208,6 +249,9 @@ mod tests {
             &view_private_key,
             first_block_index,
             import_block_index,
+            DEFAULT_SUBADDRESS_INDEX,
+            CHANGE_SUBADDRESS_INDEX,
+            2,
             &name,
             &conn,
         )
@@ -242,6 +286,9 @@ mod tests {
             &view_private_key,
             first_block_index,
             import_block_index,
+            DEFAULT_SUBADDRESS_INDEX,
+            CHANGE_SUBADDRESS_INDEX,
+            2,
             "catcoin_name",
             &conn,
         )

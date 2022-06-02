@@ -25,6 +25,9 @@ pub enum TxoServiceError {
     /// Error interacting with the database: {0}
     Database(WalletDbError),
 
+    /// Error with LedgerDB: {0}
+    LedgerDB(mc_ledger_db::Error),
+
     /// Diesel Error: {0}
     Diesel(diesel::result::Error),
 
@@ -44,6 +47,12 @@ pub enum TxoServiceError {
 impl From<WalletDbError> for TxoServiceError {
     fn from(src: WalletDbError) -> Self {
         Self::Database(src)
+    }
+}
+
+impl From<mc_ledger_db::Error> for TxoServiceError {
+    fn from(src: mc_ledger_db::Error) -> Self {
+        Self::LedgerDB(src)
     }
 }
 

@@ -6,11 +6,13 @@
 
 pub mod check_host;
 pub mod config;
-mod db;
+pub mod db;
 mod error;
-mod json_rpc;
+pub mod fog_resolver;
+pub mod json_rpc;
 pub mod service;
-mod util;
+pub mod unsigned_tx;
+pub mod util;
 mod validator_ledger_sync;
 
 pub use db::WalletDb;

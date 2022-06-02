@@ -1,6 +1,6 @@
 [package]
 name = "mc-full-service"
-version = "1.7.0"
+version = "1.8.0"
 authors = ["MobileCoin"]
 edition = "2018"
 build = "build.rs"
@@ -8,6 +8,10 @@ build = "build.rs"
 [[bin]]
 name = "full-service"
 path = "src/bin/main.rs"
+
+[[bin]]
+name = "transaction-signer"
+path = "src/bin/transaction-signer.rs"
 
 [dependencies]
 mc-validator-api = { path = "../validator/api" }

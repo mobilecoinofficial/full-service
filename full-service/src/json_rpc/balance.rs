@@ -35,6 +35,11 @@ pub struct Balance {
     /// If the account is syncing, this value may change.
     pub unspent_pmob: String,
 
+    /// The maximum amount of pico MOB that can be sent in a single transaction.
+    /// Equal to the sum of the 16 highest value txos - the network fee.
+    /// If the account is syncing, this value may change.
+    pub max_spendable_pmob: String,
+
     /// Pending, out-going pico MOB. The pending value will clear once the
     /// ledger processes the outgoing txos. The available_pmob will reflect the
     /// change.
@@ -63,54 +68,11 @@ impl From<&service::balance::Balance> for Balance {
             account_block_height: src.synced_blocks.to_string(),
             is_synced: src.synced_blocks == src.network_block_height,
             unspent_pmob: src.unspent.to_string(),
+            max_spendable_pmob: src.max_spendable.to_string(),
             pending_pmob: src.pending.to_string(),
             spent_pmob: src.spent.to_string(),
             secreted_pmob: src.secreted.to_string(),
             orphaned_pmob: src.orphaned.to_string(),
-        }
-    }
-}
-
-/// The "balance" for a view-only-account, as well as some information about
-/// syncing status needed to interpret the balance correctly. In order for the
-/// balance to be accurate, you must mark view_only_txos as spent
-#[derive(Deserialize, Serialize, Default, Debug, Clone)]
-pub struct ViewOnlyBalance {
-    /// String representing the object's type. Objects of the same type share
-    /// the same value.
-    pub object: String,
-
-    /// Total pico MOB sent to this account minus the total amount marked as
-    /// spent
-    pub balance: String,
-
-    /// The block count of MobileCoin's distributed ledger.
-    pub network_block_height: String,
-
-    /// The local block count downloaded from the ledger. The local database
-    /// is synced when the local_block_height reaches the network_block_height.
-    /// The account_block_height can only sync up to local_block_height.
-    pub local_block_height: String,
-
-    /// The scanned local block count for this account. This value will never
-    /// be greater than the local_block_height. At fully synced, it will match
-    /// network_block_height.
-    pub account_block_height: String,
-
-    /// Whether the account is synced with the network_block_height. Balances
-    /// may not appear correct if the account is still syncing.
-    pub is_synced: bool,
-}
-
-impl From<&service::balance::ViewOnlyBalance> for ViewOnlyBalance {
-    fn from(src: &service::balance::ViewOnlyBalance) -> ViewOnlyBalance {
-        ViewOnlyBalance {
-            object: "balance".to_string(),
-            balance: src.balance.to_string(),
-            network_block_height: src.network_block_height.to_string(),
-            local_block_height: src.local_block_height.to_string(),
-            account_block_height: src.synced_blocks.to_string(),
-            is_synced: src.synced_blocks == src.network_block_height,
         }
     }
 }

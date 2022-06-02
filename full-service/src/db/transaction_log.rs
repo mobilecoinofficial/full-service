@@ -795,7 +795,7 @@ mod tests {
     }
 
     #[test_with_logger]
-    fn test_log_submitted_no_change(logger: Logger) {
+    fn test_log_submitted_zero_change(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -871,7 +871,7 @@ mod tests {
             .unwrap();
         assert_eq!(associated.inputs.len(), 1);
         assert_eq!(associated.outputs.len(), 1);
-        assert_eq!(associated.change.len(), 0);
+        assert_eq!(associated.change.len(), 1);
     }
 
     #[test_with_logger]

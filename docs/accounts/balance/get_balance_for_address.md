@@ -35,6 +35,7 @@ description: Get the current balance for a given address.
       "account_block_height": "152961",
       "is_synced": true,
       "unspent_pmob": "11881402222024",
+      "max_spendable_pmob": "11881402222024",
       "pending_pmob": "0",
       "spent_pmob": "84493835554166",
       "secreted_pmob": "0",
