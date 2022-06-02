@@ -6,7 +6,7 @@ LEDGER_DB_DIR="${WORK_DIR}/ledger-db"
 mkdir -p ${WORK_DIR}
 
 mkdir -p ${WALLET_DB_DIR}
-${WORK_DIR}/full-service-120 \
+${WORK_DIR}/full-service \
     --wallet-db ${WALLET_DB_DIR}/wallet.db \
     --ledger-db ${LEDGER_DB_DIR} \
     --peer mc://node1.alpha.development.mobilecoin.com/ \
