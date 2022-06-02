@@ -12,6 +12,7 @@ on:
   push:
     tags:
       - 'v*-pre.*'
+      - '*-force-build'
 
 jobs:
   macos:

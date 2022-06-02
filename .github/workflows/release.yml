@@ -6,6 +6,7 @@ on:
     tags:
       - 'v*'
       - '!v*-pre*'
+      - '*-force-release'
 
 jobs:
   release:
