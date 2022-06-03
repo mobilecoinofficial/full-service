@@ -1,0 +1,77 @@
+name: release
+
+# only perform these build steps on non-pre-release
+on:
+  push:
+    tags:
+      - 'v*'
+      - '!v*-pre*'
+      - '*-force-release'
+
+jobs:
+  release:
+    runs-on: [self-hosted, Linux, large]
+    # Needs write permission for publishing release
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        include:
+          - namespace: test
+            network: testnet
+            os: Linux
+          - namespace: prod
+            network: mainnet
+            os: Linux
+          - namespace: prod
+            network: testnet
+            os: macOS
+          - namespace: prod
+            network: mainnet
+            os: macOS
+
+    steps:
+      - name: Get Current Pre-Release
+        id: current_release
+        uses: joutvhu/get-release@v1
+        with:
+          debug: true
+          latest: true
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download Latest Pre-Release
+        uses: duhow/download-github-release-assets@v1
+        with:
+          tag: ${{ steps.current_release.outputs.tag_name }}
+          files: |
+            ${{ steps.current_release.outputs.tag_name }}-${{ matrix.os }}-${{ matrix.network }}.tar.gz
+          target: /var/tmp/${{ steps.current_release.outputs.tag_name }}-${{ matrix.os }}-${{ matrix.network }}.tar.gz
+
+      - name: Extract Release
+        run: |
+          rm -rfv build_artifacts/${{ matrix.network }}
+          mkdir -pv build_artifacts/${{ matrix.network }}
+          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-${{ matrix.os }}-${{ matrix.network }}.tar.gz -C build_artifacts/${{ matrix.network }}
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          mkdir -pv release
+          cd release && tar -czvf ${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.network }}.tar.gz -C ../build_artifacts/${{ matrix.network }}/ .
+
+      - name: Generate MD5
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          cd release && md5sum ${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.network }}.tar.gz > ${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.network }}.md5
+
+      - name: Upload Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: true
+          prerelease: ${{ steps.prerelease.outputs.value }}
+          files: |
+            release/${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.network }}.tar.gz
+            release/${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.network }}.md5
