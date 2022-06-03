@@ -398,6 +398,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             outlays: outlays_string,
             fee: self.fee.unwrap_or(Mob::MINIMUM_FEE),
             tombstone_block_index: self.tombstone,
+            block_version: self.block_version.unwrap_or(BlockVersion::MAX),
         })
     }
 

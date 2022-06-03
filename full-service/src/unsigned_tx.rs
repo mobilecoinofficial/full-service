@@ -14,7 +14,7 @@ use mc_transaction_core::{
     Amount, BlockVersion, Token,
 };
 use mc_transaction_std::{
-    ChangeDestination, EmptyMemoBuilder, InputCredentials, TransactionBuilder,
+    ChangeDestination, InputCredentials, RTHMemoBuilder, SenderMemoCredential, TransactionBuilder,
 };
 use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
@@ -39,6 +39,9 @@ pub struct UnsignedTx {
 
     /// The tombstone block index
     pub tombstone_block_index: u64,
+
+    /// The block version
+    pub block_version: BlockVersion,
 }
 
 impl UnsignedTx {
@@ -48,14 +51,13 @@ impl UnsignedTx {
         fog_resolver: FullServiceFogResolver,
     ) -> Result<TxProposal, WalletTransactionBuilderError> {
         let mut rng = rand::thread_rng();
-        let memo_builder = EmptyMemoBuilder::default();
-
-        let mut transaction_builder = TransactionBuilder::new(
-            BlockVersion::MAX,
-            Amount::new(self.fee, Mob::ID),
-            fog_resolver,
-            memo_builder,
-        )?;
+        // Create transaction builder.
+        let mut memo_builder = RTHMemoBuilder::default();
+        memo_builder.set_sender_credential(SenderMemoCredential::from(account_key));
+        memo_builder.enable_destination_memo();
+        let fee = Amount::new(self.fee, Mob::ID);
+        let mut transaction_builder =
+            TransactionBuilder::new(self.block_version, fee, fog_resolver, memo_builder)?;
 
         transaction_builder.set_tombstone_block(self.tombstone_block_index);
 
