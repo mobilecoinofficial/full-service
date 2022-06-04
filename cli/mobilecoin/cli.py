@@ -65,6 +65,7 @@ class CommandLineInterface:
                                      help='Do not encrypt the wallet database. Secret keys will be stored on the hard drive in plaintext.')
         self.start_args.add_argument('--change-password', action='store_true',
                                      help='Change the password for the database.')
+        self.start_args.add_argument('rest', nargs=argparse.REMAINDER)
 
         # Stop server.
         self.stop_args = command_sp.add_parser('stop', help='Stop the local MobileCoin wallet server.')
@@ -203,7 +204,12 @@ class CommandLineInterface:
         confirmation = input(message)
         return confirmation.lower() in ['y', 'yes']
 
-    def start(self, offline=False, bg=False, unencrypted=False, change_password=False):
+    def start(self, offline=False, bg=False, unencrypted=False, change_password=False, rest=None):
+        args = []
+        if rest:
+            if rest[0] == '--':
+                args = rest[1:]
+
         password = ''
         new_password = ''
         if not unencrypted:
@@ -242,7 +248,8 @@ class CommandLineInterface:
         ingest_enclave = self.config.get('fog-ingest-enclave-css')
         if ingest_enclave:
             wallet_server_command += ['--fog-ingest-enclave-css', ingest_enclave]
-
+        if args:
+            wallet_server_command += args
         if bg:
             wallet_server_command += [
                 '>', self.config['logfile'], '2>&1'
@@ -894,7 +901,7 @@ class CommandLineInterface:
         balance = self.client.get_balance_for_view_only_account(account_id)
 
         print()
-        print('Synced {} transaction outputs.'.format(len(data['completed_txos'])))
+        print('Synced {} transaction outputs.'.format(len(data['params']['completed_txos'])))
         print()
         _print_account(account, balance)
 
