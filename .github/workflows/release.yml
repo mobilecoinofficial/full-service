@@ -25,10 +25,16 @@ jobs:
             os: Linux
           - namespace: prod
             network: testnet
-            os: macOS
+            os: macOS-x86
           - namespace: prod
             network: mainnet
-            os: macOS
+            os: macOS-x86
+          - namespace: prod
+            network: testnet
+            os: macOS-arm64
+          - namespace: prod
+            network: mainnet
+            os: macOS-arm64
 
     steps:
       - name: Get Current Pre-Release
