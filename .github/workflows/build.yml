@@ -51,19 +51,6 @@ jobs:
             build_artifacts
           key: ${{ runner.os }}-x86-${{ matrix.network }}-${{ secrets.CACHE_VERSION }}-build-cargo-artifacts-${{ hashFiles('**/*.rs', '**/*.proto', '**/Cargo.toml')}}
 
-      # - name: Cache Cargo
-      #   if: steps.artifact_cache.outputs.cache-hit != 'true'
-      #   id: cargo_cache
-      #   uses: actions/cache@v3
-      #   with:
-      #     path: |
-      #       /opt/cargo/bin/
-      #       /opt/cargo/registry/index/
-      #       /opt/cargo/registry/cache/
-      #       /opt/cargo/git/db/
-      #       target/
-      #     key: ${{ runner.os }}-x86-${{ secrets.CACHE_VERSION }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
       - name: Consensus SigStruct
         if: steps.artifact_cache.outputs.cache-hit != 'true'
         run: |
@@ -114,7 +101,6 @@ jobs:
           prerelease: true
           files: |
             release/${{ github.ref_name }}-${{ runner.os }}-x86-${{ matrix.network }}.tar.gz
-            release/${{ github.ref_name }}-${{ runner.os }}-x86-${{ matrix.network }}.md5
 
   macos-arm64:
     runs-on: [self-hosted, macOS, ARM64]
@@ -151,19 +137,6 @@ jobs:
           path: |
             build_artifacts
           key: ${{ runner.os }}-arm64-${{ matrix.network }}-${{ secrets.CACHE_VERSION }}-build-cargo-artifacts-${{ hashFiles('**/*.rs', '**/*.proto', '**/Cargo.toml')}}
-
-      # - name: Cache Cargo
-      #   if: steps.artifact_cache.outputs.cache-hit != 'true'
-      #   id: cargo_cache
-      #   uses: actions/cache@v3
-      #   with:
-      #     path: |
-      #       /opt/cargo/bin/
-      #       /opt/cargo/registry/index/
-      #       /opt/cargo/registry/cache/
-      #       /opt/cargo/git/db/
-      #       target/
-      #     key: ${{ runner.os }}-arm64-${{ secrets.CACHE_VERSION }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Consensus SigStruct
         if: steps.artifact_cache.outputs.cache-hit != 'true'
@@ -215,7 +188,6 @@ jobs:
           prerelease: true
           files: |
             release/${{ github.ref_name }}-${{ runner.os }}-arm64-${{ matrix.network }}.tar.gz
-            release/${{ github.ref_name }}-${{ runner.os }}-arm64-${{ matrix.network }}.md5
 
   linux:
     runs-on: [self-hosted, Linux, large]
@@ -245,19 +217,6 @@ jobs:
           path: |
             build_artifacts
           key: ${{ runner.os }}-${{ matrix.network }}-${{ secrets.CACHE_VERSION }}-build-cargo-artifacts-${{ hashFiles('**/*.rs', '**/*.proto', '**/Cargo.toml')}}
-
-      # - name: Cache Cargo
-      #   if: steps.artifact_cache.outputs.cache-hit != 'true'
-      #   id: cargo_cache
-      #   uses: actions/cache@v3
-      #   with:
-      #     path: |
-      #       /opt/cargo/bin/
-      #       /opt/cargo/registry/index/
-      #       /opt/cargo/registry/cache/
-      #       /opt/cargo/git/db/
-      #       target/
-      #     key: ${{ runner.os }}-${{ secrets.CACHE_VERSION }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Consensus SigStruct
         if: steps.artifact_cache.outputs.cache-hit != 'true'
@@ -301,11 +260,6 @@ jobs:
           mkdir -pv release
           cd release && tar -czvf ${{ github.ref_name }}-${{ runner.os }}-${{ matrix.network }}.tar.gz -C ../build_artifacts/${{ matrix.network }}/ .
 
-      - name: Generate MD5
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          cd release && md5sum ${{ github.ref_name }}-${{ runner.os }}-${{ matrix.network }}.tar.gz > ${{ github.ref_name }}-${{ runner.os }}-${{ matrix.network }}.md5
-
       - name: Upload Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v1
@@ -314,4 +268,3 @@ jobs:
           prerelease: true
           files: |
             release/${{ github.ref_name }}-${{ runner.os }}-${{ matrix.network }}.tar.gz
-            release/${{ github.ref_name }}-${{ runner.os }}-${{ matrix.network }}.md5
