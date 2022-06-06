@@ -14,27 +14,6 @@ jobs:
     # Needs write permission for publishing release
     permissions:
       contents: write
-    # strategy:
-    #   matrix:
-    #     include:
-    #       - namespace: test
-    #         network: testnet
-    #         os: Linux
-    #       - namespace: prod
-    #         network: mainnet
-    #         os: Linux
-    #       - namespace: prod
-    #         network: testnet
-    #         os: macOS-x86
-    #       - namespace: prod
-    #         network: mainnet
-    #         os: macOS-x86
-    #       - namespace: prod
-    #         network: testnet
-    #         os: macOS-arm64
-    #       - namespace: prod
-    #         network: mainnet
-    #         os: macOS-arm64
 
     steps:
       - name: Get Current Pre-Release
@@ -63,7 +42,12 @@ jobs:
       - name: Extract Release
         run: |
           rm -rfv build_artifacts
-          mkdir -pv build_artifacts
+          mkdir -pv build_artifacts/Linux-testnet
+          mkdir -pv build_artifacts/Linux-mainnet
+          mkdir -pv build_artifacts/macOS-x86-testnet
+          mkdir -pv build_artifacts/macOS-x86-mainnet
+          mkdir -pv build_artifacts/macOS-arm64-testnet
+          mkdir -pv build_artifacts/macOS-arm64-mainnet
           tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-Linux-testnet.tar.gz -C build_artifacts/Linux-testnet
           tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-Linux-mainnet.tar.gz -C build_artifacts/Linux-mainnet
           tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-macOS-x86-testnet.tar.gz -C build_artifacts/macOS-x86-testnet
