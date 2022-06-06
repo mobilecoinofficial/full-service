@@ -59,13 +59,12 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           mkdir -pv release
-          cd release
-          tar -czvf ${{ github.ref_name }}-Linux-testnet.tar.gz -C ../build_artifacts/Linux-testnet/*
-          tar -czvf ${{ github.ref_name }}-Linux-mainnet.tar.gz -C ../build_artifacts/Linux-mainnet/*
-          tar -czvf ${{ github.ref_name }}-macOS-x86-testnet.tar.gz -C ../build_artifacts/macOS-x86-testnet/*
-          tar -czvf ${{ github.ref_name }}-macOS-x86-mainnet.tar.gz -C ../build_artifacts/macOS-x86-mainnet/*
-          tar -czvf ${{ github.ref_name }}-macOS-arm64-testnet.tar.gz -C ../build_artifacts/macOS-arm64-testnet/*
-          tar -czvf ${{ github.ref_name }}-macOS-arm64-mainnet.tar.gz -C ../build_artifacts/macOS-arm64-mainnet/*
+          cd release && tar -czvf ${{ github.ref_name }}-Linux-testnet.tar.gz -C ../build_artifacts/Linux-testnet/*
+          cd release && tar -czvf ${{ github.ref_name }}-Linux-mainnet.tar.gz -C ../build_artifacts/Linux-mainnet/*
+          cd release && tar -czvf ${{ github.ref_name }}-macOS-x86-testnet.tar.gz -C ../build_artifacts/macOS-x86-testnet/*
+          cd release && tar -czvf ${{ github.ref_name }}-macOS-x86-mainnet.tar.gz -C ../build_artifacts/macOS-x86-mainnet/*
+          cd release && tar -czvf ${{ github.ref_name }}-macOS-arm64-testnet.tar.gz -C ../build_artifacts/macOS-arm64-testnet/*
+          cd release && tar -czvf ${{ github.ref_name }}-macOS-arm64-mainnet.tar.gz -C ../build_artifacts/macOS-arm64-mainnet/*
 
       - name: Upload Release
         if: startsWith(github.ref, 'refs/tags/v')
