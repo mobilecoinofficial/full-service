@@ -45,7 +45,6 @@ jobs:
           echo "$(ls ${{ github.workspace }})/mobilecoin"
 
       - name: Start MobileCoin Ledger
-        uses: actions/checkout@v3
         shell: bash
         run: |
           cd {{ github.workspace }}/mobilecoin
