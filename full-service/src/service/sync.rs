@@ -32,8 +32,9 @@ use mc_transaction_core::{
     get_tx_out_shared_secret,
     onetime_keys::{recover_onetime_private_key, recover_public_subaddress_spend_key},
     ring_signature::KeyImage,
+    tokens::Mob,
     tx::TxOut,
-    Amount,
+    Amount, Token,
 };
 use rayon::prelude::*;
 
@@ -435,14 +436,16 @@ fn sync_account_next_chunk(
                 }
             };
 
-            TransactionLog::log_received(
-                account_id_hex,
-                assigned_subaddress_b58.as_deref(),
-                txo_id.as_str(),
-                amount,
-                block_index as u64,
-                conn,
-            )?;
+            if amount.token_id == Mob::ID {
+                TransactionLog::log_received(
+                    account_id_hex,
+                    assigned_subaddress_b58.as_deref(),
+                    txo_id.as_str(),
+                    amount,
+                    block_index as u64,
+                    conn,
+                )?;
+            }
         }
 
         // Match key images to mark existing unspent transactions as spent.
