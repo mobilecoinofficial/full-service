@@ -40,12 +40,12 @@ jobs:
           echo "top level workspace"
           echo "$(ls ${{ github.workspace }})"
           echo "inside full-service"
-          echo "$(ls ${{ github.workspace }})/full-service"
+          echo "$(ls ${{ github.workspace }})/full-service/full-service"
           echo "inside mobilecoin"
-          echo "$(ls ${{ github.workspace }})/mobilecoin"
+          echo "$(ls ${{ github.workspace }})/mobilecoin/mobilecoin"
 
       - name: Start MobileCoin Ledger
-        run: "${{ github.workspace }}/full-service/.github/scripts/start_mobilecoin_ledger.sh"
+        run: "${{ github.workspace }}/full-service/full-service/.github/scripts/start_mobilecoin_ledger.sh"
         shell: bash
         # script: |
         #   cd {{ github.workspace }}/mobilecoin
