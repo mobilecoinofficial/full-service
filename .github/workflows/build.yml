@@ -12,11 +12,11 @@ on:
   push:
     tags:
       - 'v*-pre.*'
-      - '*-force-build'
+      - '*-force-build*'
 
 jobs:
-  macos:
-    runs-on: [self-hosted, macOS]
+  macos-x64:
+    runs-on: [self-hosted, macOS, X64]
     permissions:
       contents: write
     strategy:
@@ -49,20 +49,7 @@ jobs:
         with:
           path: |
             build_artifacts
-          key: ${{ runner.os }}-${{ matrix.network }}-${{ secrets.CACHE_VERSION }}-build-cargo-artifacts-${{ hashFiles('**/*.rs', '**/*.proto', '**/Cargo.toml')}}
-
-      - name: Cache Cargo
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
-        id: cargo_cache
-        uses: actions/cache@v3
-        with:
-          path: |
-            /opt/cargo/bin/
-            /opt/cargo/registry/index/
-            /opt/cargo/registry/cache/
-            /opt/cargo/git/db/
-            target/
-          key: ${{ runner.os }}-${{ secrets.CACHE_VERSION }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-x86-${{ matrix.network }}-${{ secrets.CACHE_VERSION }}-build-cargo-artifacts-${{ hashFiles('**/*.rs', '**/*.proto', '**/Cargo.toml')}}
 
       - name: Consensus SigStruct
         if: steps.artifact_cache.outputs.cache-hit != 'true'
@@ -92,24 +79,19 @@ jobs:
       - name: Create Artifact
         run: |
           mkdir -pv artifact
-          cd artifact && tar -czvf ${{ github.sha }}-${{ runner.os }}-${{ matrix.network }}.tar.gz -C ../build_artifacts/${{ matrix.network }}/ .
+          cd artifact && tar -czvf ${{ github.sha }}-${{ runner.os }}-x86-${{ matrix.network }}.tar.gz -C ../build_artifacts/${{ matrix.network }}/ .
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: full-service_${{ runner.os }}_${{ matrix.network }}
-          path: artifact/${{ github.sha }}-${{ runner.os }}-${{ matrix.network }}.tar.gz
+          name: full-service_${{ runner.os }}_${{ matrix.network }}_x86
+          path: artifact/${{ github.sha }}-${{ runner.os }}-x86-${{ matrix.network }}.tar.gz
 
       - name: Create Release
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           mkdir -pv release
-          cd release && tar -czvf ${{ github.ref_name }}-${{ runner.os }}-${{ matrix.network }}.tar.gz -C ../build_artifacts/${{ matrix.network }}/ .
-
-      - name: Generate MD5
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          cd release && md5sum ${{ github.ref_name }}-${{ runner.os }}-${{ matrix.network }}.tar.gz > ${{ github.ref_name }}-${{ runner.os }}-${{ matrix.network }}.md5
+          cd release && tar -czvf ${{ github.ref_name }}-${{ runner.os }}-x86-${{ matrix.network }}.tar.gz -C ../build_artifacts/${{ matrix.network }}/ .
 
       - name: Upload Release
         if: startsWith(github.ref, 'refs/tags/v')
@@ -118,8 +100,94 @@ jobs:
           draft: true
           prerelease: true
           files: |
-            release/${{ github.ref_name }}-${{ runner.os }}-${{ matrix.network }}.tar.gz
-            release/${{ github.ref_name }}-${{ runner.os }}-${{ matrix.network }}.md5
+            release/${{ github.ref_name }}-${{ runner.os }}-x86-${{ matrix.network }}.tar.gz
+
+  macos-arm64:
+    runs-on: [self-hosted, macOS, ARM64]
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        include:
+          - namespace: test
+            network: testnet
+          - namespace: prod
+            network: mainnet
+            
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Brew Bundle
+        run: |
+          brew update --preinstall
+          brew bundle --no-upgrade
+      
+      - name: Git Submodule
+        run: |
+          git submodule update --checkout --init --recursive
+
+      # CACHE_VERSION secret is 'date --iso-8601=minutes' and is used to invalidate cache if needed
+      - name: Cache Build Binaries
+        id: artifact_cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            build_artifacts
+          key: ${{ runner.os }}-arm64-${{ matrix.network }}-${{ secrets.CACHE_VERSION }}-build-cargo-artifacts-${{ hashFiles('**/*.rs', '**/*.proto', '**/Cargo.toml')}}
+
+      - name: Consensus SigStruct
+        if: steps.artifact_cache.outputs.cache-hit != 'true'
+        run: |
+          CONSENSUS_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/production.json | grep consensus-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
+          (cd /var/tmp && curl -O https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/${CONSENSUS_SIGSTRUCT_URI})
+
+      - name: Ingest SigStruct
+        if: steps.artifact_cache.outputs.cache-hit != 'true'
+        run: |
+          INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
+          (cd /var/tmp && curl -O https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/${INGEST_SIGSTRUCT_URI})
+
+      - name: Cargo Build
+        if: steps.artifact_cache.outputs.cache-hit != 'true'
+        run: |
+          cargo build --release
+
+      - name: Copy binaries to cache folder
+        if: steps.artifact_cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -pv build_artifacts/${{ matrix.network }}/bin
+          cp /var/tmp/*.css build_artifacts/${{ matrix.network }}
+          cp target/release/full-service build_artifacts/${{ matrix.network }}/bin/
+          cp target/release/transaction-signer build_artifacts/${{ matrix.network }}/bin/
+
+      - name: Create Artifact
+        run: |
+          mkdir -pv artifact
+          cd artifact && tar -czvf ${{ github.sha }}-${{ runner.os }}-arm64-${{ matrix.network }}.tar.gz -C ../build_artifacts/${{ matrix.network }}/ .
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: full-service_${{ runner.os }}_${{ matrix.network }}_arm64
+          path: artifact/${{ github.sha }}-${{ runner.os }}-arm64-${{ matrix.network }}.tar.gz
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          mkdir -pv release
+          cd release && tar -czvf ${{ github.ref_name }}-${{ runner.os }}-arm64-${{ matrix.network }}.tar.gz -C ../build_artifacts/${{ matrix.network }}/ .
+
+      - name: Upload Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: true
+          prerelease: true
+          files: |
+            release/${{ github.ref_name }}-${{ runner.os }}-arm64-${{ matrix.network }}.tar.gz
 
   linux:
     runs-on: [self-hosted, Linux, large]
@@ -150,19 +218,6 @@ jobs:
             build_artifacts
           key: ${{ runner.os }}-${{ matrix.network }}-${{ secrets.CACHE_VERSION }}-build-cargo-artifacts-${{ hashFiles('**/*.rs', '**/*.proto', '**/Cargo.toml')}}
 
-      - name: Cache Cargo
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
-        id: cargo_cache
-        uses: actions/cache@v3
-        with:
-          path: |
-            /opt/cargo/bin/
-            /opt/cargo/registry/index/
-            /opt/cargo/registry/cache/
-            /opt/cargo/git/db/
-            target/
-          key: ${{ runner.os }}-${{ secrets.CACHE_VERSION }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
       - name: Consensus SigStruct
         if: steps.artifact_cache.outputs.cache-hit != 'true'
         run: |
@@ -205,11 +260,6 @@ jobs:
           mkdir -pv release
           cd release && tar -czvf ${{ github.ref_name }}-${{ runner.os }}-${{ matrix.network }}.tar.gz -C ../build_artifacts/${{ matrix.network }}/ .
 
-      - name: Generate MD5
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          cd release && md5sum ${{ github.ref_name }}-${{ runner.os }}-${{ matrix.network }}.tar.gz > ${{ github.ref_name }}-${{ runner.os }}-${{ matrix.network }}.md5
-
       - name: Upload Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v1
@@ -218,4 +268,3 @@ jobs:
           prerelease: true
           files: |
             release/${{ github.ref_name }}-${{ runner.os }}-${{ matrix.network }}.tar.gz
-            release/${{ github.ref_name }}-${{ runner.os }}-${{ matrix.network }}.md5

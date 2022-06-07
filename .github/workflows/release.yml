@@ -6,7 +6,7 @@ on:
     tags:
       - 'v*'
       - '!v*-pre*'
-      - '*-force-release'
+      - '*-force-release*'
 
 jobs:
   release:
@@ -14,21 +14,6 @@ jobs:
     # Needs write permission for publishing release
     permissions:
       contents: write
-    strategy:
-      matrix:
-        include:
-          - namespace: test
-            network: testnet
-            os: Linux
-          - namespace: prod
-            network: mainnet
-            os: Linux
-          - namespace: prod
-            network: testnet
-            os: macOS
-          - namespace: prod
-            network: mainnet
-            os: macOS
 
     steps:
       - name: Get Current Pre-Release
@@ -46,25 +31,41 @@ jobs:
         with:
           tag: ${{ steps.current_release.outputs.tag_name }}
           files: |
-            ${{ steps.current_release.outputs.tag_name }}-${{ matrix.os }}-${{ matrix.network }}.tar.gz
-          target: /var/tmp/${{ steps.current_release.outputs.tag_name }}-${{ matrix.os }}-${{ matrix.network }}.tar.gz
+            ${{ steps.current_release.outputs.tag_name }}-Linux-testnet.tar.gz
+            ${{ steps.current_release.outputs.tag_name }}-Linux-mainnet.tar.gz
+            ${{ steps.current_release.outputs.tag_name }}-macOS-x86-testnet.tar.gz
+            ${{ steps.current_release.outputs.tag_name }}-macOS-x86-mainnet.tar.gz
+            ${{ steps.current_release.outputs.tag_name }}-macOS-arm64-testnet.tar.gz
+            ${{ steps.current_release.outputs.tag_name }}-macOS-arm64-mainnet.tar.gz
+          target: /var/tmp/
 
       - name: Extract Release
         run: |
-          rm -rfv build_artifacts/${{ matrix.network }}
-          mkdir -pv build_artifacts/${{ matrix.network }}
-          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-${{ matrix.os }}-${{ matrix.network }}.tar.gz -C build_artifacts/${{ matrix.network }}
+          rm -rfv build_artifacts
+          mkdir -pv build_artifacts/Linux-testnet
+          mkdir -pv build_artifacts/Linux-mainnet
+          mkdir -pv build_artifacts/macOS-x86-testnet
+          mkdir -pv build_artifacts/macOS-x86-mainnet
+          mkdir -pv build_artifacts/macOS-arm64-testnet
+          mkdir -pv build_artifacts/macOS-arm64-mainnet
+          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-Linux-testnet.tar.gz -C build_artifacts/Linux-testnet
+          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-Linux-mainnet.tar.gz -C build_artifacts/Linux-mainnet
+          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-macOS-x86-testnet.tar.gz -C build_artifacts/macOS-x86-testnet
+          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-macOS-x86-mainnet.tar.gz -C build_artifacts/macOS-x86-mainnet
+          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-macOS-arm64-testnet.tar.gz -C build_artifacts/macOS-arm64-testnet
+          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-macOS-arm64-mainnet.tar.gz -C build_artifacts/macOS-arm64-mainnet
 
       - name: Create Release
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           mkdir -pv release
-          cd release && tar -czvf ${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.network }}.tar.gz -C ../build_artifacts/${{ matrix.network }}/ .
-
-      - name: Generate MD5
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          cd release && md5sum ${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.network }}.tar.gz > ${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.network }}.md5
+          cd release
+          tar -czvf ${{ github.ref_name }}-Linux-testnet.tar.gz -C ../build_artifacts/Linux-testnet/ .
+          tar -czvf ${{ github.ref_name }}-Linux-mainnet.tar.gz -C ../build_artifacts/Linux-mainnet/ .
+          tar -czvf ${{ github.ref_name }}-macOS-x86-testnet.tar.gz -C ../build_artifacts/macOS-x86-testnet/ .
+          tar -czvf ${{ github.ref_name }}-macOS-x86-mainnet.tar.gz -C ../build_artifacts/macOS-x86-mainnet/ .
+          tar -czvf ${{ github.ref_name }}-macOS-arm64-testnet.tar.gz -C ../build_artifacts/macOS-arm64-testnet/ .
+          tar -czvf ${{ github.ref_name }}-macOS-arm64-mainnet.tar.gz -C ../build_artifacts/macOS-arm64-mainnet/ .
 
       - name: Upload Release
         if: startsWith(github.ref, 'refs/tags/v')
@@ -73,5 +74,4 @@ jobs:
           draft: true
           prerelease: ${{ steps.prerelease.outputs.value }}
           files: |
-            release/${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.network }}.tar.gz
-            release/${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.network }}.md5
+            release/*
