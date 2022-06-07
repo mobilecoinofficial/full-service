@@ -61,7 +61,7 @@
 # #     docker_run.extend(["-c", joined_commands])
 
 
-cd $({{ github.workspace }})/mobilecoin
+cd ${{ github.workspace }}/mobilecoin
 docker_command="docker run --env "
 docker_command+="CARGO_HOME=/tmp/mobilenode/cargo "
 docker_command+="--volume $({{ github.workspace }})/mobilecoin:/tmp/mobilenode "
