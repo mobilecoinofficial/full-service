@@ -61,4 +61,4 @@ x25519-dalek = { git = "https://github.com/mobilecoinfoundation/x25519-dalek.git
 
 # Override diesel dependency with our fork, in order to use a version of libsqlite3-sys that has bundled-sqlcipher. This allows us to
 # statically link SQLite.
-diesel = { git = "https://github.com/mobilecoinofficial/diesel", rev = "22a4a4b973db2b7aadaf088b3279dbbe52176896" }
+diesel = { git = "https://github.com/mobilecoinofficial/diesel", rev = "026f6379715d27c8be48396e5ca9059f4a263198" }
