@@ -25,7 +25,7 @@ jobs:
         with:
           repository: mobilecoinfoundation/mobilecoin
           ref: master
-          path: mobilecoin
+          path: /mobilecoin
     
       - name: Check out Full Service repo
         uses: actions/checkout@v3
@@ -33,19 +33,21 @@ jobs:
           repository: mobilecoinofficial/full-service
           submodules: recursive
           ref: main
-          path: full-service
+          path: /full-service
       
       - name: Explore workspace
         run: |
           echo "top level workspace"
           echo "$(ls ${{ github.workspace }})"
           echo "inside full-service"
-          echo "$(ls ${{ github.workspace }}/full-service/full-service/full-service)"
+          echo "$(ls ${{ github.workspace }})"
           echo "inside mobilecoin"
-          echo "$(ls ${{ github.workspace }}/mobilecoin/mobilecoin/mobilecoin)"
+          echo "$(ls ${{ github.workspace }})"
+          echo "top level"
+          echo "$(ls /)"
 
       - name: Start MobileCoin Ledger
-        run: "${{ github.workspace }}/full-service/full-service/.github/scripts/start_mobilecoin_ledger.sh"
+        run: "$({{ github.workspace }})/full-service/full-service/.github/scripts/start_mobilecoin_ledger.sh"
         shell: bash
         # script: |
         #   cd {{ github.workspace }}/mobilecoin
