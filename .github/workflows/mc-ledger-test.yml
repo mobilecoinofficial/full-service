@@ -37,11 +37,11 @@ jobs:
       - name: Explore workspace
         run: |
           echo "top level workspace"
-          echo "$(ls ${{ github.workspace }})"
-          echo "inside full-service"
-          echo "$(ls ${{ github.workspace }}/full-service)"
-          echo "inside mobilecoin"
-          echo "$(ls ${{ github.workspace }}/mobilecoin)"
+          echo "$(ls -a ${{ github.workspace }})"
+          echo "\n\ninside full-service"
+          echo "$(ls -a ${{ github.workspace }}/full-service)"
+          echo "\n\ninside mobilecoin"
+          echo "$(ls -a ${{ github.workspace }}/mobilecoin)"
 
       - name: Start MobileCoin Ledger
         run: "${{ github.workspace }}/full-service/.github/scripts/start_mobilecoin_ledger.sh"
