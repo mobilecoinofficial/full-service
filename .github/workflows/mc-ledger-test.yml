@@ -1,0 +1,43 @@
+name: mc-ledger-test
+
+env:
+  SGX_MODE: SW
+  IAS_MODE: DEV
+  RUST_BACKTRACE: full
+  CONSENSUS_ENCLAVE_CSS: /var/tmp/consensus-enclave.css
+  INGEST_ENCLAVE_CSS: /var/tmp/ingest-enclave.css
+
+on:
+  push:
+    branches:
+      - setup-mobilecoin
+  pull_request:
+    branches:
+      - main
+      - setup-mobilecoin
+
+jobs:
+  setup-ledger:
+    runs-on: [self-hosted, Linux, large]
+    steps:
+      - name: Check out MobileCoin repo
+        uses: actions/checkout@v3
+        with:
+          repository: mobilecoinfoundation/mobilecoin
+          path: mobilecoin
+          ref: '' # check out specific commit
+    
+      - name: Check out Full Service repo
+        uses: actions/checkout@v3
+        with:
+          repository: mobilecoinfoundation/full-service
+          path: full-service
+          submodules: recursive
+      
+      - name: ls workspace
+        run: |
+          ls ${{ github.workspace }}
+        
+      # - name: Run Mobilecoin ledger deployment script
+      #   run: ./.github/scripts/start_mobilecoin_ledger.sh
+      #   shell: bash
