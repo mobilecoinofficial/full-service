@@ -60,6 +60,15 @@ sudo xcode-select -s /Applications/<name of xcode application>.app/Contents/Deve
     brew bundle
     ```
 
+    After openSSL has been installed with brew on MacOS, you may need to set some environment variables to allow the rust compiler to find openSSL
+
+    ```
+    PATH="/usr/local/opt/openssl@3/bin:$PATH"
+    LDFLAGS="-L/usr/local/opt/openssl@3/lib"
+    CPPFLAGS="-I/usr/local/opt/openssl@3/include"
+    PKG_CONFIG_PATH="/usr/local/opt/openssl@3/lib/pkgconfig"
+    ```
+
 4. Pull submodule.
 
     ```sh

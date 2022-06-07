@@ -869,8 +869,8 @@ dependencies = [
 
 [[package]]
 name = "diesel"
-version = "1.4.6"
-source = "git+https://github.com/mobilecoinofficial/diesel?rev=22a4a4b973db2b7aadaf088b3279dbbe52176896#22a4a4b973db2b7aadaf088b3279dbbe52176896"
+version = "1.4.8"
+source = "git+https://github.com/mobilecoinofficial/diesel?rev=026f6379715d27c8be48396e5ca9059f4a263198#026f6379715d27c8be48396e5ca9059f4a263198"
 dependencies = [
  "byteorder",
  "diesel_derives",
@@ -1971,8 +1971,9 @@ checksum = "7fc7aa29613bd6a620df431842069224d8bc9011086b1db4c0e0cd47fa03ec9a"
 
 [[package]]
 name = "libsqlite3-sys"
-version = "0.22.2"
-source = "git+https://github.com/mobilecoinofficial/rusqlite?rev=a1640612d5227fe355210de3718740d17ab4b82c#a1640612d5227fe355210de3718740d17ab4b82c"
+version = "0.24.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "898745e570c7d0453cc1fbc4a701eb6c662ed54e8fec8b7d14be137ebeeb9d14"
 dependencies = [
  "cc",
  "pkg-config",
