@@ -22,6 +22,9 @@ pub struct NetworkStatus {
 
     /// The current network fee per transaction, in pmob.
     pub fee_pmob: String,
+
+    /// The current block version
+    pub block_version: String,
 }
 
 impl TryFrom<&service::balance::NetworkStatus> for NetworkStatus {
@@ -33,6 +36,7 @@ impl TryFrom<&service::balance::NetworkStatus> for NetworkStatus {
             network_block_height: src.network_block_height.to_string(),
             local_block_height: src.local_block_height.to_string(),
             fee_pmob: src.fee_pmob.to_string(),
+            block_version: src.block_version.to_string(),
         })
     }
 }

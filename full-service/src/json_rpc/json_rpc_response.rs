@@ -30,8 +30,7 @@ use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use std::collections::HashMap;
-use strum::AsStaticRef;
-use strum_macros::AsStaticStr;
+use strum::Display;
 
 use crate::{fog_resolver::FullServiceFogResolver, unsigned_tx::UnsignedTx};
 
@@ -82,7 +81,7 @@ pub enum JsonRPCError {
 }
 
 /// JSON RPC Error codes.
-#[derive(Deserialize, Serialize, Debug, AsStaticStr)]
+#[derive(Deserialize, Serialize, Debug, Display)]
 pub enum JsonRPCErrorCodes {
     /// Parse error.
     ParseError = -32700,
@@ -108,7 +107,7 @@ pub fn format_error<T: std::fmt::Display + std::fmt::Debug>(e: T) -> JsonRPCErro
         json!({"server_error": format!("{:?}", e), "details": e.to_string()}).into();
     JsonRPCError::error {
         code: JsonRPCErrorCodes::InternalError as i32,
-        message: JsonRPCErrorCodes::InternalError.as_static().to_string(),
+        message: JsonRPCErrorCodes::InternalError.to_string(),
         data,
     }
 }
@@ -120,7 +119,7 @@ pub fn format_invalid_request_error<T: std::fmt::Display + std::fmt::Debug>(e: T
         json!({"server_error": format!("{:?}", e), "details": e.to_string()}).into();
     JsonRPCError::error {
         code: JsonRPCErrorCodes::InvalidRequest as i32,
-        message: JsonRPCErrorCodes::InvalidRequest.as_static().to_string(),
+        message: JsonRPCErrorCodes::InvalidRequest.to_string(),
         data,
     }
 }

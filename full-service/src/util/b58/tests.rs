@@ -11,6 +11,7 @@ mod tests {
     use bip39::{Language, Mnemonic};
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_account_keys_slip10::Slip10KeyGenerator;
+    use mc_transaction_core::{tokens::Mob, Amount, Token};
     use rand::{rngs::StdRng, CryptoRng, RngCore, SeedableRng};
 
     fn get_public_address<T: RngCore + CryptoRng>(rng: &mut T) -> PublicAddress {
@@ -54,8 +55,12 @@ mod tests {
     fn encoding_transfer_payload_succeeds() {
         let mut rng: StdRng = SeedableRng::from_seed([91u8; 32]);
         let (account_key, bip39_entropy_bytes) = get_account_and_entropy_bytes();
-        let (txo, _key_image) =
-            create_test_txo_for_recipient(&account_key, 0, 1_000_000_000_000, &mut rng);
+        let (txo, _key_image) = create_test_txo_for_recipient(
+            &account_key,
+            0,
+            Amount::new(1_000_000_000_000, Mob::ID),
+            &mut rng,
+        );
 
         let proto_tx_pubkey: mc_api::external::CompressedRistretto = (&txo.public_key).into();
 
@@ -100,8 +105,12 @@ mod tests {
     fn decoding_transfer_payload_succeeds() {
         let mut rng: StdRng = SeedableRng::from_seed([91u8; 32]);
         let (account_key, bip39_entropy_bytes) = get_account_and_entropy_bytes();
-        let (txo, _key_image) =
-            create_test_txo_for_recipient(&account_key, 0, 1_000_000_000_000, &mut rng);
+        let (txo, _key_image) = create_test_txo_for_recipient(
+            &account_key,
+            0,
+            Amount::new(1_000_000_000_000, Mob::ID),
+            &mut rng,
+        );
 
         let proto_tx_pubkey: mc_api::external::CompressedRistretto = (&txo.public_key).into();
 
@@ -122,8 +131,12 @@ mod tests {
     fn decoding_invalid_public_address_returns_error() {
         let mut rng: StdRng = SeedableRng::from_seed([91u8; 32]);
         let (account_key, bip39_entropy_bytes) = get_account_and_entropy_bytes();
-        let (txo, _key_image) =
-            create_test_txo_for_recipient(&account_key, 0, 1_000_000_000_000, &mut rng);
+        let (txo, _key_image) = create_test_txo_for_recipient(
+            &account_key,
+            0,
+            Amount::new(1_000_000_000_000, Mob::ID),
+            &mut rng,
+        );
 
         let proto_tx_pubkey: mc_api::external::CompressedRistretto = (&txo.public_key).into();
 
@@ -188,8 +201,12 @@ mod tests {
     fn check_transfer_payload_printable_wrapper_type_returns_correct() {
         let mut rng: StdRng = SeedableRng::from_seed([91u8; 32]);
         let (account_key, bip39_entropy_bytes) = get_account_and_entropy_bytes();
-        let (txo, _key_image) =
-            create_test_txo_for_recipient(&account_key, 0, 1_000_000_000_000, &mut rng);
+        let (txo, _key_image) = create_test_txo_for_recipient(
+            &account_key,
+            0,
+            Amount::new(1_000_000_000_000, Mob::ID),
+            &mut rng,
+        );
 
         let proto_tx_pubkey: mc_api::external::CompressedRistretto = (&txo.public_key).into();
 

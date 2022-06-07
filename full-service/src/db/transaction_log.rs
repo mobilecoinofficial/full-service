@@ -7,7 +7,7 @@ use diesel::prelude::*;
 use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_mobilecoind::payments::TxProposal;
-use mc_transaction_core::tx::Tx;
+use mc_transaction_core::{tx::Tx, Amount};
 use std::fmt;
 
 use crate::db::{
@@ -92,7 +92,7 @@ pub trait TransactionLogModel {
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
         txo_id_hex: &str,
-        amount: u64,
+        amount: Amount,
         block_index: u64,
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
@@ -322,18 +322,18 @@ impl TransactionLogModel for TransactionLog {
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
         txo_id_hex: &str,
-        amount: u64,
+        amount: Amount,
         block_index: u64,
         conn: &Conn,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::transaction_txo_types;
 
         let new_transaction_log = NewTransactionLog {
-            transaction_id_hex: &txo_id_hex.to_string(),
+            transaction_id_hex: txo_id_hex,
             account_id_hex,
             assigned_subaddress_b58,
-            value: amount as i64, // We store numbers between 2^63 and 2^64 as negative.
-            fee: None,            // Impossible to recover fee from received transaction
+            value: amount.value as i64, // We store numbers between 2^63 and 2^64 as negative.
+            fee: None,                  // Impossible to recover fee from received transaction
             status: TX_STATUS_SUCCEEDED,
             sent_time: None, // NULL for received
             submitted_block_index: None,
@@ -349,7 +349,7 @@ impl TransactionLogModel for TransactionLog {
 
         // Create an entry per TXO for the TransactionTxoTypes
         let new_transaction_txo = NewTransactionTxoType {
-            transaction_id_hex: &txo_id_hex.to_string(),
+            transaction_id_hex: txo_id_hex,
             txo_id_hex,
             transaction_txo_type: TXO_USED_AS_OUTPUT,
         };
@@ -535,11 +535,11 @@ impl TransactionLogModel for TransactionLog {
 
 #[cfg(test)]
 mod tests {
-    use mc_account_keys::{AccountKey, PublicAddress, RootIdentity};
+    use mc_account_keys::{AccountKey, PublicAddress, RootIdentity, CHANGE_SUBADDRESS_INDEX};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::RngCore;
     use mc_ledger_db::Ledger;
-    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
+    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Amount, Token};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
@@ -551,7 +551,7 @@ mod tests {
             get_resolver_factory, get_test_ledger, manually_sync_account,
             random_account_with_seed_values, WalletDbTestContext, MOB,
         },
-        util::{b58::b58_encode_public_address, constants::DEFAULT_CHANGE_SUBADDRESS_INDEX},
+        util::b58::b58_encode_public_address,
     };
 
     use super::*;
@@ -587,7 +587,7 @@ mod tests {
             let (txo_id_hex, _txo, _key_image) = create_test_received_txo(
                 &account_key,
                 0, // All to the same subaddress
-                (100 * i * MOB) as u64,
+                Amount::new((100 * i * MOB) as u64, Mob::ID),
                 144,
                 &mut rng,
                 &wallet_db,
@@ -601,7 +601,7 @@ mod tests {
                 &account_id.to_string(),
                 assigned_subaddress_b58.as_ref().map(|s| s.as_str()),
                 &txo_id_hex,
-                100 * i * MOB,
+                Amount::new(100 * i * MOB, Mob::ID),
                 144,
                 &wallet_db.get_conn().unwrap(),
             )
@@ -790,7 +790,7 @@ mod tests {
         );
         assert_eq!(
             updated_change_details.subaddress_index,
-            Some(DEFAULT_CHANGE_SUBADDRESS_INDEX as i64)
+            Some(CHANGE_SUBADDRESS_INDEX as i64)
         );
     }
 
@@ -911,7 +911,7 @@ mod tests {
                 let (txo_id_hex, _txo, _key_image) = create_test_received_txo(
                     &account_key,
                     0, // All to the same subaddress
-                    100 * i * MOB,
+                    Amount::new(100 * i * MOB, Mob::ID),
                     144,
                     &mut rng,
                     &wallet_db,
@@ -921,7 +921,7 @@ mod tests {
                     &account_id.to_string(),
                     assigned_subaddress_b58.as_ref().map(|s| s.as_str()),
                     &txo_id_hex,
-                    100 * i * MOB,
+                    Amount::new(100 * i * MOB, Mob::ID),
                     144,
                     &wallet_db.get_conn().unwrap(),
                 )
@@ -1090,7 +1090,7 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(input_details0.value as u64, 7 * MOB);
+        assert_eq!(input_details0.value as u64, 8 * MOB);
 
         assert!(input_details0.is_pending());
         assert!(input_details0.is_received());
@@ -1102,7 +1102,7 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(input_details1.value as u64, 8 * MOB);
+        assert_eq!(input_details1.value as u64, 7 * MOB);
 
         assert!(input_details1.is_pending());
         assert!(input_details1.is_received());
@@ -1236,7 +1236,7 @@ mod tests {
         );
         assert_eq!(
             updated_change_details.subaddress_index,
-            Some(DEFAULT_CHANGE_SUBADDRESS_INDEX as i64)
+            Some(CHANGE_SUBADDRESS_INDEX as i64)
         );
     }
 

@@ -68,7 +68,7 @@ impl ViewOnlySubaddressModel for ViewOnlySubaddress {
             .execute(conn)?;
 
         let orphaned_txos_with_key_images =
-            ViewOnlyTxo::list_orphaned_with_key_images(&account.account_id_hex, conn)?;
+            ViewOnlyTxo::list_orphaned_with_key_images(&account.account_id_hex, None, conn)?;
 
         let view_private_key: RistrettoPrivate = mc_util_serial::decode(&account.view_private_key)?;
 

@@ -6,7 +6,7 @@ use diesel::{
     sql_types, SqliteConnection,
 };
 use diesel_migrations::embed_migrations;
-use mc_common::logger::{global_log, Logger};
+use mc_common::logger::global_log;
 use std::{env, thread::sleep, time::Duration};
 
 embed_migrations!("migrations/");
@@ -52,19 +52,14 @@ impl diesel::r2d2::CustomizeConnection<SqliteConnection, diesel::r2d2::Error>
 #[derive(Clone)]
 pub struct WalletDb {
     pool: Pool<ConnectionManager<SqliteConnection>>,
-    logger: Logger,
 }
 
 impl WalletDb {
-    pub fn new(pool: Pool<ConnectionManager<SqliteConnection>>, logger: Logger) -> Self {
-        Self { pool, logger }
+    pub fn new(pool: Pool<ConnectionManager<SqliteConnection>>) -> Self {
+        Self { pool }
     }
 
-    pub fn new_from_url(
-        database_url: &str,
-        db_connections: u32,
-        logger: Logger,
-    ) -> Result<Self, WalletDbError> {
+    pub fn new_from_url(database_url: &str, db_connections: u32) -> Result<Self, WalletDbError> {
         let manager = ConnectionManager::<SqliteConnection>::new(database_url);
         let pool = Pool::builder()
             .max_size(db_connections)
@@ -75,7 +70,7 @@ impl WalletDb {
             }))
             .test_on_check_out(true)
             .build(manager)?;
-        Ok(Self::new(pool, logger))
+        Ok(Self::new(pool))
     }
 
     pub fn get_conn(&self) -> Result<Conn, WalletDbError> {
@@ -185,5 +180,5 @@ const NUM_RETRIES: u32 = 5;
 /// This function doubles all single quote characters within the string, then
 /// wraps the string in single quotes on the front and back.
 fn sql_escape_string(s: &str) -> String {
-    format!("'{}'", s.replace("'", "''"))
+    format!("'{}'", s.replace('\'', "''"))
 }

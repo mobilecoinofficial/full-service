@@ -2073,7 +2073,7 @@ mod e2e {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let addresses_all = result.get("public_addresses").unwrap().as_array().unwrap();
-        assert_eq!(addresses_all.len(), 12); // Accounts start with 2 addresses, then we created 10.
+        assert_eq!(addresses_all.len(), 13); // Accounts start with 3 addresses, then we created 10.
 
         let body = json!({
             "jsonrpc": "2.0",

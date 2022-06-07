@@ -222,7 +222,7 @@ where
                     &transaction_log,
                     &associated_txos,
                 ),
-                tx_proposal: TxProposal::from(&tx_proposal),
+                tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
             }
         }
         JsonCommandRequest::build_gift_code {
@@ -278,7 +278,7 @@ where
                 )
                 .map_err(format_error)?;
             JsonCommandResponse::build_split_txo_transaction {
-                tx_proposal: TxProposal::from(&tx_proposal),
+                tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
                 transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
             }
         }
@@ -311,7 +311,7 @@ where
                 )
                 .map_err(format_error)?;
             JsonCommandResponse::build_transaction {
-                tx_proposal: TxProposal::from(&tx_proposal),
+                tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
                 transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
             }
         }

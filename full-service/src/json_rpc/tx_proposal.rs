@@ -18,8 +18,10 @@ pub struct TxProposal {
     pub outlay_confirmation_numbers: Vec<Vec<u8>>,
 }
 
-impl From<&mc_mobilecoind::payments::TxProposal> for TxProposal {
-    fn from(src: &mc_mobilecoind::payments::TxProposal) -> Self {
+impl TryFrom<&mc_mobilecoind::payments::TxProposal> for TxProposal {
+    type Error = String;
+
+    fn try_from(src: &mc_mobilecoind::payments::TxProposal) -> Result<Self, String> {
         // FIXME: WS-34 - Several unnecessary conversions, but we're leveraging existing
         // conversion code.
 
@@ -35,18 +37,18 @@ impl From<&mc_mobilecoind::payments::TxProposal> for TxProposal {
             .iter()
             .map(|(key, val)| (key.to_string(), val.to_string()))
             .collect();
-        Self {
+        Ok(Self {
             input_list: json_tx_proposal
                 .input_list
                 .iter()
-                .map(UnspentTxOut::from)
-                .collect(),
+                .map(UnspentTxOut::try_from)
+                .collect::<Result<Vec<UnspentTxOut>, String>>()?,
             outlay_list: json_tx_proposal.outlay_list.clone(),
             tx: json_tx_proposal.tx.clone(),
             fee: json_tx_proposal.fee.to_string(),
             outlay_index_to_tx_out_index: outlay_map,
             outlay_confirmation_numbers: json_tx_proposal.outlay_confirmation_numbers.clone(),
-        }
+        })
     }
 }
 
