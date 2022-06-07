@@ -53,7 +53,7 @@ jobs:
           cd ./mobilecoin && \
           docker run --env \
           CARGO_HOME=/tmp/mobilenode/cargo \
-          --volume $({{ github.workspace }})/mobilecoin:/tmp/mobilenode \
+          --volume ${{ github.workspace }}/mobilecoin:/tmp/mobilenode \
           --workdir /tmp/mobilenode \
           -i \
           --expose 8080 \
