@@ -42,8 +42,8 @@ jobs:
           echo "$(ls -a ${{ github.workspace }}/full-service)"
           echo "======inside full-service/.github======"
           echo "$(ls -a ${{ github.workspace }}/full-service/.github)"
-          echo "======inside .======"
-          echo "$(ls -a .)"
+          echo "======inside ./full-service/======"
+          echo "$(ls -a ./full-service)"
           echo "======inside mobilecoin======"
           echo "$(ls -a ${{ github.workspace }}/mobilecoin)"
 
