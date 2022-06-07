@@ -38,7 +38,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: mobilecoinfoundation/mobilecoin
-          ref: main
+          ref: master
     
       - name: Check out Full Service repo
         uses: actions/checkout@v3
