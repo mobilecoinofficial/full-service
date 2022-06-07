@@ -39,13 +39,15 @@ jobs:
         with:
           repository: mobilecoinfoundation/mobilecoin
           ref: master
+          path: mobilecoin
     
       - name: Check out Full Service repo
         uses: actions/checkout@v3
         with:
-          repository: mobilecoinfoundation/full-service
+          repository: mobilecoinofficial/full-service
           submodules: recursive
           ref: main
+          path: full-service
       
       - name: ls workspace
         run: |
