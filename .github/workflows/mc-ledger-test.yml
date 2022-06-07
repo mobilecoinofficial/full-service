@@ -24,19 +24,18 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: mobilecoinfoundation/mobilecoin
-          path: mobilecoin
-          ref: '' # check out specific commit
+          ref: main
     
       - name: Check out Full Service repo
         uses: actions/checkout@v3
         with:
           repository: mobilecoinfoundation/full-service
-          path: full-service
           submodules: recursive
+          ref: main
       
       - name: ls workspace
         run: |
-          ls ${{ github.workspace }}
+          echo "$(ls ${{ github.workspace }})"
         
       # - name: Run Mobilecoin ledger deployment script
       #   run: ./.github/scripts/start_mobilecoin_ledger.sh
