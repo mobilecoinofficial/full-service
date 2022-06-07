@@ -50,7 +50,7 @@ jobs:
       - name: Start MobileCoin Ledger
         # run: "$./full-service/tools/start_mobilecoin_ledger.sh"
         run: |
-          cd {{ github.workspace }}/mobilecoin &&
+          cd $({{ github.workspace }})/mobilecoin && \
           docker run --env \
           CARGO_HOME=/tmp/mobilenode/cargo \
           --volume $({{ github.workspace }})/mobilecoin:/tmp/mobilenode \
