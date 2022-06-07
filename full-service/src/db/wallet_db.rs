@@ -28,6 +28,7 @@ impl diesel::r2d2::CustomizeConnection<SqliteConnection, diesel::r2d2::Error>
             if let Some(d) = self.busy_timeout {
                 conn.batch_execute(&format!("PRAGMA busy_timeout = {};", d.as_millis()))?;
             }
+            WalletDb::set_db_encryption_key_from_env(conn);
             if self.enable_wal {
                 conn.batch_execute("
                     PRAGMA journal_mode = WAL;          -- better write-concurrency
@@ -41,7 +42,6 @@ impl diesel::r2d2::CustomizeConnection<SqliteConnection, diesel::r2d2::Error>
             } else {
                 conn.batch_execute("PRAGMA foreign_keys = OFF;")?;
             }
-            WalletDb::set_db_encryption_key_from_env(conn);
 
             Ok(())
         })()
