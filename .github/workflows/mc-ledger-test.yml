@@ -46,7 +46,9 @@ jobs:
       - name: Start MobileCoin Ledger
         shell: 'script -q -e -c "bash {0}"'
         run: >
-          cd ./mobilecoin
+          source $HOME/.cargo/env
+          && echo "$(command -v cargo)"
+          && cd ./mobilecoin
           && docker run -t -i
           --env CARGO_HOME=/tmp/mobilenode/cargo
           --volume ${{ github.workspace }}/mobilecoin:/tmp/mobilenode
