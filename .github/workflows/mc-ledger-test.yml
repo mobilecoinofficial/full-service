@@ -71,7 +71,9 @@ jobs:
           --cap-add SYS_PTRACE
           --name mobilecoin
           ubuntu /bin/bash -c
-          "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain none -y
+          "apt-get update
+          && apt-get install curl
+          && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain none -y
           && source $HOME/.cargo/env
           && PATH="$PATH:$HOME/.cargo/bin"
           && rustup toolchain install nightly --allow-downgrade --profile minimal --component clippy
