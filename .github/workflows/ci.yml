@@ -1,95 +1,95 @@
-name: ci
+# name: ci
 
-env:
-  SGX_MODE: SW
-  IAS_MODE: DEV
-  RUST_BACKTRACE: full
-  CONSENSUS_ENCLAVE_CSS: /var/tmp/consensus-enclave.css
-  INGEST_ENCLAVE_CSS: /var/tmp/ingest-enclave.css
+# env:
+#   SGX_MODE: SW
+#   IAS_MODE: DEV
+#   RUST_BACKTRACE: full
+#   CONSENSUS_ENCLAVE_CSS: /var/tmp/consensus-enclave.css
+#   INGEST_ENCLAVE_CSS: /var/tmp/ingest-enclave.css
 
-on:
-  pull_request:
-    branches:
-      - develop
-      - main
+# on:
+#   pull_request:
+#     branches:
+#       - develop
+#       - main
 
-jobs:
-  lint:
-    runs-on: [self-hosted, Linux, large]
-    container:
-      image: mobilecoin/rust-sgx-base:latest
+# jobs:
+#   lint:
+#     runs-on: [self-hosted, Linux, large]
+#     container:
+#       image: mobilecoin/rust-sgx-base:latest
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          submodules: recursive
+#     steps:
+#       - name: Checkout
+#         uses: actions/checkout@v3
+#         with:
+#           submodules: recursive
 
-      - name: Cache Cargo
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
-        id: cargo_cache
-        uses: actions/cache@v3
-        with:
-          path: |
-            /opt/cargo/bin/
-            /opt/cargo/registry/index/
-            /opt/cargo/registry/cache/
-            /opt/cargo/git/db/
-            target/
-          key: ${{ runner.os }}-${{ secrets.CACHE_VERSION }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+#       - name: Cache Cargo
+#         if: steps.artifact_cache.outputs.cache-hit != 'true'
+#         id: cargo_cache
+#         uses: actions/cache@v3
+#         with:
+#           path: |
+#             /opt/cargo/bin/
+#             /opt/cargo/registry/index/
+#             /opt/cargo/registry/cache/
+#             /opt/cargo/git/db/
+#             target/
+#           key: ${{ runner.os }}-${{ secrets.CACHE_VERSION }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Consensus SigStruct
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
-        run: |
-          CONSENSUS_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.test.mobilecoin.com/production.json | grep consensus-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
-          (cd /var/tmp && curl -O https://enclave-distribution.test.mobilecoin.com/${CONSENSUS_SIGSTRUCT_URI})
+#       - name: Consensus SigStruct
+#         if: steps.artifact_cache.outputs.cache-hit != 'true'
+#         run: |
+#           CONSENSUS_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.test.mobilecoin.com/production.json | grep consensus-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
+#           (cd /var/tmp && curl -O https://enclave-distribution.test.mobilecoin.com/${CONSENSUS_SIGSTRUCT_URI})
 
-      - name: Ingest SigStruct
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
-        run: |
-          INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.test.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
-          (cd /var/tmp && curl -O https://enclave-distribution.test.mobilecoin.com/${INGEST_SIGSTRUCT_URI})
+#       - name: Ingest SigStruct
+#         if: steps.artifact_cache.outputs.cache-hit != 'true'
+#         run: |
+#           INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.test.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
+#           (cd /var/tmp && curl -O https://enclave-distribution.test.mobilecoin.com/${INGEST_SIGSTRUCT_URI})
 
-      - name: Cargo Clippy
-        run: |
-          cargo clippy
+#       - name: Cargo Clippy
+#         run: |
+#           cargo clippy
 
-  test:
-    runs-on: [self-hosted, Linux, large]
-    container:
-      image: mobilecoin/rust-sgx-base:latest
+#   test:
+#     runs-on: [self-hosted, Linux, large]
+#     container:
+#       image: mobilecoin/rust-sgx-base:latest
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          submodules: recursive
+#     steps:
+#       - name: Checkout
+#         uses: actions/checkout@v3
+#         with:
+#           submodules: recursive
 
-      - name: Cache Cargo
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
-        id: cargo_cache
-        uses: actions/cache@v3
-        with:
-          path: |
-            /opt/cargo/bin/
-            /opt/cargo/registry/index/
-            /opt/cargo/registry/cache/
-            /opt/cargo/git/db/
-            target/
-          key: ${{ runner.os }}-${{ secrets.CACHE_VERSION }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+#       - name: Cache Cargo
+#         if: steps.artifact_cache.outputs.cache-hit != 'true'
+#         id: cargo_cache
+#         uses: actions/cache@v3
+#         with:
+#           path: |
+#             /opt/cargo/bin/
+#             /opt/cargo/registry/index/
+#             /opt/cargo/registry/cache/
+#             /opt/cargo/git/db/
+#             target/
+#           key: ${{ runner.os }}-${{ secrets.CACHE_VERSION }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Consensus SigStruct
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
-        run: |
-          CONSENSUS_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.test.mobilecoin.com/production.json | grep consensus-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
-          (cd /var/tmp && curl -O https://enclave-distribution.test.mobilecoin.com/${CONSENSUS_SIGSTRUCT_URI})
+#       - name: Consensus SigStruct
+#         if: steps.artifact_cache.outputs.cache-hit != 'true'
+#         run: |
+#           CONSENSUS_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.test.mobilecoin.com/production.json | grep consensus-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
+#           (cd /var/tmp && curl -O https://enclave-distribution.test.mobilecoin.com/${CONSENSUS_SIGSTRUCT_URI})
 
-      - name: Ingest SigStruct
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
-        run: |
-          INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.test.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
-          (cd /var/tmp && curl -O https://enclave-distribution.test.mobilecoin.com/${INGEST_SIGSTRUCT_URI})
+#       - name: Ingest SigStruct
+#         if: steps.artifact_cache.outputs.cache-hit != 'true'
+#         run: |
+#           INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.test.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
+#           (cd /var/tmp && curl -O https://enclave-distribution.test.mobilecoin.com/${INGEST_SIGSTRUCT_URI})
 
-      - name: Cargo Test
-        run: |
-          cargo test
+#       - name: Cargo Test
+#         run: |
+#           cargo test
