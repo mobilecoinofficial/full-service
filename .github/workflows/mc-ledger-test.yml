@@ -73,7 +73,6 @@ jobs:
           && apt-get install --yes curl
           && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain none -y
           && source source /tmp/mobilenode/cargo/env
-          && PATH="$PATH:$HOME/.cargo/bin"
           && rustup toolchain install nightly --allow-downgrade --profile minimal --component clippy
           && rustc --version
           && echo "$(command -v cargo)"
