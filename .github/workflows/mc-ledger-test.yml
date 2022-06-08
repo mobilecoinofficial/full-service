@@ -6,7 +6,6 @@ env:
   RUST_BACKTRACE: full
   CONSENSUS_ENCLAVE_CSS: /var/tmp/consensus-enclave.css
   INGEST_ENCLAVE_CSS: /var/tmp/ingest-enclave.css
-  ROOT_DIR: ''
 
 on:
   push:
@@ -40,7 +39,7 @@ jobs:
           cd ./mobilecoin &&
           docker run -t -i
           --env CARGO_HOME=/tmp/mobilenode/cargo
-          --volume ${{ github.workspace }}:/tmp/mobilenode
+          --volume ${$GITHUB_WORKSPACE}/mobilecoin:/tmp/mobilenode
           --workdir /tmp/mobilenode
           --expose 8080
           --expose 8081
