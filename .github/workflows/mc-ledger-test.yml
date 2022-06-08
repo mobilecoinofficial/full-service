@@ -70,7 +70,8 @@ jobs:
           --publish 3201:3201
           --publish 3202:3202
           --cap-add SYS_PTRACE
-          -it mobilecoin
+          --name mobilecoin
+          -i
           /bin/bash -c
           "cd tools/local-network && ./bootstrap.sh && export MC_SEED=a4aa76e4a5ca70c8447dd544a63f180b5a6fe0aff96495802506354c10f2886e && export LEDGER_BASE=/tmp/mobilenode/target/sample_data/ledger && export IAS_API_KEY=${{ secrets.SGX_PRIMARY_API_KEY }} && export IAS_SPID=${{ secrets.SGX_SPID }} && python3 local_network.py --network-type a-b-c"
 
