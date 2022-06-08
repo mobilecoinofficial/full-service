@@ -1296,6 +1296,8 @@ mod tests {
             &alice_account_id.to_string(),
             None,
             None,
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
