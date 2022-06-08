@@ -37,7 +37,7 @@ jobs:
       - name: Start MobileCoin Ledger
         # run: "$./full-service/tools/start_mobilecoin_ledger.sh"
         run: >
-          root_dir=$(pwd)
+          root_dir=$(pwd) &&
           cd ./mobilecoin &&
           docker run -t -i
           --env CARGO_HOME=/tmp/mobilenode/cargo
