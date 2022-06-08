@@ -51,7 +51,7 @@ jobs:
         # run: "$./full-service/tools/start_mobilecoin_ledger.sh"
         run: >
           cd ./mobilecoin &&
-          docker run -it
+          docker run -i -t
           --env CARGO_HOME=/tmp/mobilenode/cargo
           --volume ./mobilecoin:/tmp/mobilenode
           --workdir /tmp/mobilenode
