@@ -231,6 +231,8 @@ pub enum JsonCommandRequest {
         account_id: String,
         offset: Option<String>,
         limit: Option<String>,
+        min_block_index: Option<String>,
+        max_block_index: Option<String>,
     },
     get_txo {
         txo_id: String,
