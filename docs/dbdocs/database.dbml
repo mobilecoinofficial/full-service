@@ -1,0 +1,121 @@
+Project FullService {
+    database_type: 'SQLite'
+}
+
+Table accounts {
+  id integer [pk, not null]
+  account_id_hex varchar [not null, unique]
+  account_key blob [not null]
+  entropy blob [not null]
+  key_derivation_version integer [not null]
+  main_subaddress_index bigint [not null]
+  change_subaddress_index bigint [not null]
+  next_subaddress_index bigint [not null]
+  first_block_index bigint [not null]
+  next_block_index bigint [not null]
+  import_block_index bigint
+  name varchar [not null]
+  fog_enabled bool [not null]
+}
+
+Table assigned_subaddresses {
+  id integer [pk, not null]
+  assigned_subaddress_b58 varchar [not null, unique]
+  account_id_hex varchar [not null, ref: > accounts.account_id_hex]
+  address_book_entry bigint
+  public_address blob [not null]
+  subaddress_index bigint [not null]
+  comment varchar [not null]
+  subaddress_spend_key blob [not null]
+}
+
+Table gift_codes {
+  id integer [pk, not null]
+  gift_code_b58 varchar [not null]
+  entropy blob [not null]
+  txo_public_key blob [not null]
+  value bigint [not null]
+  memo text [not null]
+  account_id_hex varchar [not null, ref: > accounts.account_id_hex]
+  txo_id_hex varchar [not null, ref: > txos.txo_id_hex]
+}
+
+Table transaction_logs {
+  id integer [pk, not null]
+  transaction_id_hex varchar [not null, unique]
+  account_id_hex varchar [not null, ref: > accounts.account_id_hex]
+  assigned_subaddress_b58 varchar [not null]
+  value bigint [not null]
+  fee bigint
+  status varchar(8) [not null]
+  sent_time bigint
+  submitted_block_index bigint
+  finalized_block_index bigint
+  comment text [not null]
+  direction varchar(8) [not null]
+  tx blob
+}
+
+Table transaction_txo_types {
+  transaction_id_hex varchar [pk, not null, ref: > transaction_logs.transaction_id_hex]
+  txo_id_hex varchar [pk, not null, ref: > txos.txo_id_hex]
+  transaction_txo_type varchar(6) [not null]
+}
+
+Table txos {
+  id integer [pk, not null]
+  txo_id_hex varchar [not null, unique]
+  value bigint [not null]
+  token_id integer [not null]
+  target_key blob [not null]
+  public_key blob [not null]
+  e_fog_hint blob [not null]
+  txo blob [not null]
+  subaddress_index bigint
+  key_image blob
+  received_block_index bigint
+  pending_tombstone_block_index bigint
+  spent_block_index bigint
+  confirmation blob
+  recipient_public_address_b58 varchar [not null]
+  minted_account_id_hex varchar [ref: > accounts.account_id_hex]
+  received_account_id_hex varchar [ref: > accounts.account_id_hex]
+}
+
+Table view_only_accounts {
+  id integer [pk, not null]
+  account_id_hex varchar [not null, unique]
+  view_private_key blob [not null]
+  first_block_index bigint [not null]
+  next_block_index bigint [not null]
+  main_subaddress_index bigint [not null]
+  change_subaddress_index bigint [not null]
+  next_subaddress_index bigint [not null]
+  import_block_index bigint
+  name varchar [not null]
+}
+
+Table view_only_subaddresses {
+  id integer [pk, not null]
+  public_address_b58 varchar [not null, unique]
+  subaddress_index bigint [not null]
+  view_only_account_id_hex varchar [not null, ref: > view_only_accounts.account_id_hex]
+  comment varchar [not null]
+  public_spend_key blob [not null]
+}
+
+Table view_only_txos {
+  id integer [pk, not null]
+  txo_id_hex varchar [not null, unique]
+  value bigint [not null]
+  token_id bigint [not null]
+  public_key blob [not null]
+  txo blob [not null]
+  subaddress_index bigint
+  key_image blob
+  received_block_index bigint
+  pending_tombstone_block_index bigint
+  submitted_block_index bigint
+  spent_block_index bigint
+  view_only_account_id_hex varchar [ref: > view_only_accounts.account_id_hex]
+}
