@@ -40,6 +40,7 @@ jobs:
           && source $HOME/.cargo/env
           && rustup toolchain install nightly --allow-downgrade --profile minimal --component clippy
           && echo "$(rustc --version)"
+          && echo "$(command -v cargo)"
 
 
       - name: Start MobileCoin Ledger
