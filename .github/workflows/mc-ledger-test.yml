@@ -47,7 +47,8 @@ jobs:
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
           && source $HOME/.cargo/env
           && rustc --version
-          cd ./mobilecoin
+          && export PATH="$HOME/.cargo/bin:$PATH"
+          && cd ./mobilecoin
           && docker run -t -i
           --env CARGO_HOME=/tmp/mobilenode/cargo
           --volume ${{ github.workspace }}/mobilecoin:/tmp/mobilenode
