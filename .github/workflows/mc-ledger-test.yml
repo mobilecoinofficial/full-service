@@ -35,6 +35,7 @@ jobs:
           path: full-service
 
       - name: Start MobileCoin Ledger
+        shell: bash
         run: >
           cd ./mobilecoin &&
           docker run -t -i
