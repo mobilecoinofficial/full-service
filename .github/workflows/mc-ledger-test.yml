@@ -34,16 +34,19 @@ jobs:
           ref: main
           path: full-service
       
-      - name: install rustc, rustup, and cargo
-        run: >
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-          && source $HOME/.cargo/env
-          && rustc --version
+      # - name: install rustc, rustup, and cargo
+      #   run: >
+      #     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+      #     && source $HOME/.cargo/env
+      #     && rustc --version
 
 
       - name: Start MobileCoin Ledger
         shell: 'script -q -e -c "bash {0}"'
         run: >
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          && source $HOME/.cargo/env
+          && rustc --version
           cd ./mobilecoin
           && docker run -t -i
           --env CARGO_HOME=/tmp/mobilenode/cargo
