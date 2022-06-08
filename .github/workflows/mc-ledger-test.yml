@@ -36,8 +36,9 @@ jobs:
       
       - name: install rustc, rustup, and cargo
         run: >
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | bash -s -- --default-toolchain none -y
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain none -y
           && source $HOME/.cargo/env
+          && PATH="$PATH:$HOME/.cargo/bin"
           && rustup toolchain install nightly --allow-downgrade --profile minimal --component clippy
           && echo "$(rustc --version)"
           && echo "$(command -v cargo)"
