@@ -84,6 +84,8 @@ pub trait TransactionLogModel {
         account_id_hex: &str,
         offset: Option<u64>,
         limit: Option<u64>,
+        min_block_index: Option<u64>,
+        max_block_index: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletDbError>;
 
@@ -229,6 +231,8 @@ impl TransactionLogModel for TransactionLog {
         account_id_hex: &str,
         offset: Option<u64>,
         limit: Option<u64>,
+        min_block_index: Option<u64>,
+        max_block_index: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletDbError> {
         use crate::db::schema::{transaction_logs, transaction_txo_types, txos};
@@ -237,7 +241,8 @@ impl TransactionLogModel for TransactionLog {
         // This is accomplished via a double-join through the
         // transaction_txo_types table.
         // TODO: investigate simplifying the database structure around this.
-        let transactions_query = transaction_logs::table
+        let mut transactions_query = transaction_logs::table
+            .into_boxed()
             .filter(transaction_logs::account_id_hex.eq(account_id_hex))
             .inner_join(transaction_txo_types::table.on(
                 transaction_logs::transaction_id_hex.eq(transaction_txo_types::transaction_id_hex),
@@ -250,15 +255,22 @@ impl TransactionLogModel for TransactionLog {
             ))
             .order(transaction_logs::id);
 
+        if let (Some(o), Some(l)) = (offset, limit) {
+            transactions_query = transactions_query.offset(o as i64).limit(l as i64);
+        }
+
+        if let Some(min_block_index) = min_block_index {
+            transactions_query = transactions_query
+                .filter(transaction_logs::finalized_block_index.ge(min_block_index as i64));
+        }
+
+        if let Some(max_block_index) = max_block_index {
+            transactions_query = transactions_query
+                .filter(transaction_logs::finalized_block_index.le(max_block_index as i64));
+        }
+
         let transactions: Vec<(TransactionLog, TransactionTxoType, Txo)> =
-            if let (Some(o), Some(l)) = (offset, limit) {
-                transactions_query
-                    .offset(o as i64)
-                    .limit(l as i64)
-                    .load(conn)?
-            } else {
-                transactions_query.load(conn)?
-            };
+            transactions_query.load(conn)?;
 
         #[derive(Clone)]
         struct TransactionContents {

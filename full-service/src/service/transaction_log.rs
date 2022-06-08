@@ -48,6 +48,8 @@ pub trait TransactionLogService {
         account_id: &AccountID,
         offset: Option<u64>,
         limit: Option<u64>,
+        min_block_index: Option<u64>,
+        max_block_index: Option<u64>,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletServiceError>;
 
     /// Get a specific transaction log.
@@ -78,12 +80,16 @@ where
         account_id: &AccountID,
         offset: Option<u64>,
         limit: Option<u64>,
+        min_block_index: Option<u64>,
+        max_block_index: Option<u64>,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletServiceError> {
         let conn = &self.wallet_db.get_conn()?;
         Ok(TransactionLog::list_all(
             &account_id.to_string(),
             offset,
             limit,
+            min_block_index,
+            max_block_index,
             conn,
         )?)
     }
