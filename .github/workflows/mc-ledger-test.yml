@@ -34,14 +34,14 @@ jobs:
           ref: main
           path: full-service
       
-      - name: install rustc, rustup, and cargo
-        run: >
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain none -y
-          && source $HOME/.cargo/env
-          && PATH="$PATH:$HOME/.cargo/bin"
-          && rustup toolchain install nightly --allow-downgrade --profile minimal --component clippy
-          && rustc --version
-          && echo "$(command -v cargo)"
+      # - name: install rustc, rustup, and cargo
+      #   run: >
+      #     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain none -y
+      #     && source $HOME/.cargo/env
+      #     && PATH="$PATH:$HOME/.cargo/bin"
+      #     && rustup toolchain install nightly --allow-downgrade --profile minimal --component clippy
+      #     && rustc --version
+      #     && echo "$(command -v cargo)"
 
 
       - name: Start MobileCoin Ledger
@@ -72,7 +72,7 @@ jobs:
           --name mobilecoin
           ubuntu /bin/bash -c
           "apt-get update
-          && apt-get install curl
+          && apt-get install -y curl
           && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain none -y
           && source $HOME/.cargo/env
           && PATH="$PATH:$HOME/.cargo/bin"
