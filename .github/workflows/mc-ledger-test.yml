@@ -6,7 +6,7 @@ env:
   RUST_BACKTRACE: full
   CONSENSUS_ENCLAVE_CSS: /var/tmp/consensus-enclave.css
   INGEST_ENCLAVE_CSS: /var/tmp/ingest-enclave.css
-  ROOT_DIR: $(pwd)
+  ROOT_DIR: ''
 
 on:
   push:
@@ -36,12 +36,11 @@ jobs:
           path: full-service
 
       - name: Start MobileCoin Ledger
-        # run: "$./full-service/tools/start_mobilecoin_ledger.sh"
         run: >
           cd ./mobilecoin &&
           docker run -t -i
           --env CARGO_HOME=/tmp/mobilenode/cargo
-          --volume ${{ env.ROOT_DIR }}:/tmp/mobilenode
+          --volume ${{ github.workspace }}:/tmp/mobilenode
           --workdir /tmp/mobilenode
           --expose 8080
           --expose 8081
