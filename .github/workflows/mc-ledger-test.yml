@@ -74,7 +74,7 @@ jobs:
           && export LEDGER_BASE=/tmp/mobilenode/target/sample_data/ledger
           && export IAS_API_KEY=${{ secrets.SGX_PRIMARY_API_KEY }}
           && export IAS_SPID=${{ secrets.SGX_SPID }}
-          && echo 'MC_SEED: ${MC_SEED}'
+          && echo 'MC_SEED: '$MC_SEED
           && echo 'Running mobilecoin/tools/local-network/bootstrap.sh...'
           && cd tools/local-network
           && ./bootstrap.sh
