@@ -53,9 +53,14 @@ jobs:
           INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.test.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
           (cd /var/tmp && curl -O https://enclave-distribution.test.mobilecoin.com/${INGEST_SIGSTRUCT_URI})
 
-      - name: Cargo Test
+      - name: Bootstrap MobileCoin
         run: |
-          cargo test
+          ./mobilecoin/tools/local-network/bootstrap.sh
+      
+      - name: Run MobileCoin
+        run: |
+          python3 .mobilecoin/tools/local-network/local_network.py --network-type a-b-c'
+
 
 # name: mc-ledger-test
 
