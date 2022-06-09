@@ -59,7 +59,7 @@ jobs:
       
       - name: Run MobileCoin
         run: |
-          python3 .mobilecoin/tools/local-network/local_network.py --network-type a-b-c
+          python3 ./mobilecoin/tools/local-network/local_network.py --network-type a-b-c
 
 
 # name: mc-ledger-test
