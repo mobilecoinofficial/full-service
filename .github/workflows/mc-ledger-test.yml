@@ -62,7 +62,7 @@ jobs:
           ubuntu /bin/bash -c
           'echo "Installing rust..."
           && apt-get update
-          && apt-get install --yes curl build-essential protobuf-compiler cmake
+          && apt-get install --yes curl build-essential protobuf-compiler cmake software-properties-common python3.9
           && curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain none -y
           && source /tmp/mobilenode/cargo/env
           && echo "$(command -v cargo)"
