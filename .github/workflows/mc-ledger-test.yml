@@ -71,6 +71,7 @@ jobs:
           && rustc --version
           && echo 'Installing protobuf...'
           && apt-get install --yes protobuf-compiler
+          && protoc --version
           && echo "Running mobilecoin/tools/local-network/bootstrap.sh..."
           && cd tools/local-network
           && echo "Setting up environment variables..."
