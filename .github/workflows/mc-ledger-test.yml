@@ -77,8 +77,8 @@ jobs:
           && export LEDGER_BASE=/tmp/mobilenode/target/sample_data/ledger
           && export IAS_API_KEY=${{ secrets.SGX_PRIMARY_API_KEY }}
           && export IAS_SPID=${{ secrets.SGX_SPID }}
-          && export SGX_MODE=SW
-          && export IAS_MODE=DEV
+          && export SGX_MODE=HW
+          && export IAS_MODE=PROD
           && ./bootstrap.sh
           && echo "running mobilecoin/tools/local-network/local_network.py..."
           && python3 local_network.py --network-type a-b-c'
