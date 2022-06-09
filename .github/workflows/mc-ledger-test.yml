@@ -83,7 +83,7 @@ jobs:
           && export LEDGER_BASE=/tmp/mobilenode/target/sample_data/ledger
           && export IAS_API_KEY=${{ secrets.SGX_PRIMARY_API_KEY }}
           && export IAS_SPID=${{ secrets.SGX_SPID }}
-          && export IAS_MODE=DEV
+          && export RUST_BACKTRACE=1
           && python3 local_network.py --network-type a-b-c"
 
 
