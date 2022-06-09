@@ -66,7 +66,7 @@ jobs:
           python3.9 pkg-config libssl-dev clang libclang-dev libc-dev libsqlite3-dev libprotobuf-dev wget
           && wget https://download.01.org/intel-sgx/sgx-linux/2.9.1/distro/ubuntu18.04-server/sgx_linux_x64_sdk_2.9.101.2.bin
           && chmod +x sgx_linux_x64_sdk_2.9.101.2.bin
-          && sudo ./sgx_linux_x64_sdk_2.9.101.2.bin --prefix=/opt/intel
+          && ./sgx_linux_x64_sdk_2.9.101.2.bin --prefix=/opt/intel
           && curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain none -y
           && source /tmp/mobilenode/cargo/env
           && echo "$(command -v cargo)"
