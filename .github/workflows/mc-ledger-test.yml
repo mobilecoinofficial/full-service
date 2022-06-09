@@ -63,7 +63,7 @@ jobs:
           'echo "Installing rust..."
           && apt-get update
           && apt-get install --yes curl build-essential protobuf-compiler cmake software-properties-common
-          python3.9 pkg-config libssl-dev libclang-dev libc-dev libsqlite3-dev
+          python3.9 pkg-config libssl-dev libclang-dev libc-dev libsqlite3-dev libsgx-urts
           && curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain none -y
           && source /tmp/mobilenode/cargo/env
           && echo "$(command -v cargo)"
