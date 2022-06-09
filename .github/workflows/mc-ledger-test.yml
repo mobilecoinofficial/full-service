@@ -69,7 +69,7 @@ jobs:
           && rustup toolchain install nightly --allow-downgrade --profile minimal --component clippy
           && apt-get install --yes build-essential
           && rustc --version
-          && echo 'Installing protobuf...'
+          && echo "Installing protobuf..."
           && apt-get install --yes protobuf-compiler
           && protoc --version
           && echo "Running mobilecoin/tools/local-network/bootstrap.sh..."
