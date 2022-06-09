@@ -78,6 +78,6 @@ jobs:
           && export IAS_SPID=${{ secrets.SGX_SPID }}
           && export SGX_MODE=SW
           && export IAS_MODE=DEV
-          ./bootstrap.sh
+          && ./bootstrap.sh
           && echo "running mobilecoin/tools/local-network/local_network.py..."
           && python3 local_network.py --network-type a-b-c'
