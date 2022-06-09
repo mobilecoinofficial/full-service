@@ -75,7 +75,7 @@ jobs:
           && source /tmp/mobilenode/cargo/env
           && echo "$(command -v cargo)"
           && rustup toolchain install nightly --allow-downgrade --profile minimal --component clippy
-          && apt-get install build-essential
+          && apt-get install --yes build-essential
           && rustc --version
           && cd tools/local-network
           && ./bootstrap.sh
