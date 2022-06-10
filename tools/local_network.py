@@ -24,7 +24,6 @@ BASE_ADMIN_HTTP_GATEWAY_PORT = 3500
 MOBILECOIND_PORT = 4444
 
 # TODO make these command line arguments
-LEDGER_BASE = os.path.abspath(os.getenv('LEDGER_BASE'))
 IAS_API_KEY = os.getenv('IAS_API_KEY', default='0'*64) # 32 bytes
 IAS_SPID = os.getenv('IAS_SPID', default='0'*32) # 16 bytes
 PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'mobilecoin'))
@@ -32,6 +31,7 @@ MOB_RELEASE = os.getenv('MOB_RELEASE', '1')
 CARGO_FLAGS = '--release'
 TARGET_DIR = 'target/release'
 WORK_DIR =  os.path.join(PROJECT_DIR, TARGET_DIR, 'mc-local-network')
+LEDGER_BASE = os.path.join(PROJECT_DIR, 'target', "sample_data", "ledger")
 MINTING_KEYS_DIR = os.path.join(WORK_DIR, 'minting-keys')
 CLI_PORT = 31337
 
