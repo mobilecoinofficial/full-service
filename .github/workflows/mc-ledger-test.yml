@@ -1,4 +1,4 @@
-name: mc-ledget-test
+name: mc-ledger-test
 
 env:
   SGX_MODE: SW
@@ -46,4 +46,4 @@ jobs:
       - name: Run MobileCoin
         shell: bash
         run: |
-          python3 mobilecoin/tools/local-network/local_network.py --network-type a-b-c
+          python3 tools/local_network.py --network-type a-b-c
