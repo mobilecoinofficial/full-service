@@ -43,9 +43,11 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tokens::Mob,
     tx::{Tx, TxOut},
-    Token,
+    Amount, BlockVersion, Token,
 };
-use mc_transaction_std::{InputCredentials, NoMemoBuilder, TransactionBuilder};
+use mc_transaction_std::{
+    InputCredentials, RTHMemoBuilder, SenderMemoCredential, TransactionBuilder,
+};
 use mc_util_uri::FogUri;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -518,7 +520,7 @@ where
             &RistrettoPublic::try_from(&gift_txo.public_key)?,
         );
 
-        let (value, _blinding) = gift_txo.amount.get_value(&shared_secret).unwrap();
+        let (value, _blinding) = gift_txo.masked_amount.get_value(&shared_secret).unwrap();
 
         // Check if the Gift Code has been spent - by convention gift codes are always
         // to the main subaddress index and gift accounts should NEVER have MOB stored
@@ -535,14 +537,14 @@ where
         if self.ledger_db.contains_key_image(&gift_code_key_image)? {
             return Ok((
                 GiftCodeStatus::GiftCodeClaimed,
-                Some(value as i64),
+                Some(value.value as i64),
                 transfer_payload.memo,
             ));
         }
 
         Ok((
             GiftCodeStatus::GiftCodeAvailable,
-            Some(value as i64),
+            Some(value.value as i64),
             transfer_payload.memo,
         ))
     }
@@ -649,16 +651,19 @@ where
 
         // Create transaction builder.
         // TODO: After servers that support memos are deployed, use RTHMemoBuilder here
-        let memo_builder = NoMemoBuilder::default();
-        let mut transaction_builder = TransactionBuilder::new(fog_resolver, memo_builder);
+        let mut memo_builder = RTHMemoBuilder::default();
+        memo_builder.set_sender_credential(SenderMemoCredential::from(&gift_account_key));
+        memo_builder.enable_destination_memo();
+        let block_version = BlockVersion::MAX;
+        let fee = Amount::new(Mob::MINIMUM_FEE, Mob::ID);
+        let mut transaction_builder =
+            TransactionBuilder::new(block_version, fee, fog_resolver, memo_builder)?;
         transaction_builder.add_input(input_credentials);
-        let (_tx_out, _confirmation) = transaction_builder.add_output(
+        transaction_builder.add_output(
             gift_value as u64 - Mob::MINIMUM_FEE,
             &recipient_public_address,
             &mut rng,
         )?;
-
-        transaction_builder.set_fee(Mob::MINIMUM_FEE)?;
 
         let num_blocks_in_ledger = self.ledger_db.num_blocks()?;
         transaction_builder
@@ -814,8 +819,8 @@ mod tests {
             gift_code_account_key.view_private_key(),
             &RistrettoPublic::try_from(&tx_out.public_key).unwrap(),
         );
-        let (value, _blinding) = tx_out.amount.get_value(&shared_secret).unwrap();
-        assert_eq!(value, 2 * MOB as u64);
+        let (value, _blinding) = tx_out.masked_amount.get_value(&shared_secret).unwrap();
+        assert_eq!(value, Amount::new(2 * MOB as u64, Mob::ID));
 
         // Verify balance for Alice = original balance - fee - gift_code_value
         let balance = service
@@ -826,7 +831,7 @@ mod tests {
         // Verify that we can get the gift_code
         log::info!(logger, "Getting gift code from database");
         let gotten_gift_code = service.get_gift_code(&gift_code_b58).unwrap();
-        assert_eq!(gotten_gift_code.value, value);
+        assert_eq!(gotten_gift_code.value, value.value);
         assert_eq!(gotten_gift_code.gift_code_b58, gift_code_b58.to_string());
 
         // Check that we can list all

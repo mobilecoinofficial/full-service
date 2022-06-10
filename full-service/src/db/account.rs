@@ -5,21 +5,24 @@
 use crate::{
     db::{
         assigned_subaddress::AssignedSubaddressModel,
-        models::{Account, AssignedSubaddress, NewAccount, TransactionLog, Txo},
+        models::{Account, AssignedSubaddress, NewAccount, TransactionLog, Txo, ViewOnlyAccount},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
+        view_only_account::ViewOnlyAccountModel,
         Conn, WalletDbError,
     },
     util::constants::{
-        DEFAULT_CHANGE_SUBADDRESS_INDEX, DEFAULT_FIRST_BLOCK_INDEX, DEFAULT_NEXT_SUBADDRESS_INDEX,
-        DEFAULT_SUBADDRESS_INDEX, MNEMONIC_KEY_DERIVATION_VERSION,
-        ROOT_ENTROPY_KEY_DERIVATION_VERSION,
+        DEFAULT_FIRST_BLOCK_INDEX, DEFAULT_NEXT_SUBADDRESS_INDEX, LEGACY_CHANGE_SUBADDRESS_INDEX,
+        MNEMONIC_KEY_DERIVATION_VERSION, ROOT_ENTROPY_KEY_DERIVATION_VERSION,
     },
 };
 
 use bip39::Mnemonic;
 use diesel::prelude::*;
-use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
+use mc_account_keys::{
+    AccountKey, PublicAddress, RootEntropy, RootIdentity, CHANGE_SUBADDRESS_INDEX,
+    DEFAULT_SUBADDRESS_INDEX,
+};
 use mc_account_keys_slip10::Slip10Key;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use std::fmt;
@@ -30,7 +33,13 @@ pub struct AccountID(pub String);
 impl From<&AccountKey> for AccountID {
     fn from(src: &AccountKey) -> AccountID {
         let main_subaddress = src.subaddress(DEFAULT_SUBADDRESS_INDEX);
-        let temp: [u8; 32] = main_subaddress.digest32::<MerlinTranscript>(b"account_data");
+        AccountID::from(&main_subaddress)
+    }
+}
+
+impl From<&PublicAddress> for AccountID {
+    fn from(src: &PublicAddress) -> Self {
+        let temp: [u8; 32] = src.digest32::<MerlinTranscript>(b"account_data");
         Self(hex::encode(temp))
     }
 }
@@ -39,6 +48,11 @@ impl fmt::Display for AccountID {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0)
     }
+}
+
+pub struct ViewOnlyAccountImportPackage {
+    pub account: Account,
+    pub subaddresses: Vec<AssignedSubaddress>,
 }
 
 pub trait AccountModel {
@@ -234,13 +248,19 @@ impl AccountModel for Account {
 
         let account_id = AccountID::from(account_key);
 
+        if ViewOnlyAccount::get(&account_id.to_string(), conn).is_ok() {
+            return Err(WalletDbError::ViewOnlyAccountAlreadyExists(
+                account_id.to_string(),
+            ));
+        }
+
         let first_block_index = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX);
         let next_block_index = first_block_index;
 
         let change_subaddress_index = if fog_enabled {
             DEFAULT_SUBADDRESS_INDEX as i64
         } else {
-            DEFAULT_CHANGE_SUBADDRESS_INDEX as i64
+            CHANGE_SUBADDRESS_INDEX as i64
         };
 
         let next_subaddress_index = if fog_enabled {
@@ -280,9 +300,17 @@ impl AccountModel for Account {
         if !fog_enabled {
             AssignedSubaddress::create(
                 account_key,
+                None,
+                LEGACY_CHANGE_SUBADDRESS_INDEX,
+                "Legacy Change",
+                conn,
+            )?;
+
+            AssignedSubaddress::create(
+                account_key,
                 None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
                        * always for main? */
-                DEFAULT_CHANGE_SUBADDRESS_INDEX,
+                CHANGE_SUBADDRESS_INDEX,
                 "Change",
                 conn,
             )?;
@@ -479,7 +507,7 @@ mod tests {
             entropy: root_id.root_entropy.bytes.to_vec(),
             key_derivation_version: 1,
             main_subaddress_index: 0,
-            change_subaddress_index: 1,
+            change_subaddress_index: CHANGE_SUBADDRESS_INDEX as i64,
             next_subaddress_index: 2,
             first_block_index: 0,
             next_block_index: 0,
@@ -497,11 +525,13 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(subaddresses.len(), 2);
+        assert_eq!(subaddresses.len(), 3);
         let subaddress_indices: HashSet<i64> =
             HashSet::from_iter(subaddresses.iter().map(|s| s.subaddress_index));
         assert!(subaddress_indices.get(&0).is_some());
-        assert!(subaddress_indices.get(&1).is_some());
+        assert!(subaddress_indices
+            .get(&(CHANGE_SUBADDRESS_INDEX as i64))
+            .is_some());
 
         // Verify that we can get the correct subaddress index from the spend public key
         let main_subaddress = account_key.subaddress(0);
@@ -542,7 +572,7 @@ mod tests {
             entropy: root_id_secondary.root_entropy.bytes.to_vec(),
             key_derivation_version: 1,
             main_subaddress_index: 0,
-            change_subaddress_index: 1,
+            change_subaddress_index: CHANGE_SUBADDRESS_INDEX as i64,
             next_subaddress_index: 2,
             first_block_index: 50,
             next_block_index: 50,

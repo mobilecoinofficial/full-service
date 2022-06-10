@@ -12,3 +12,4 @@ description: The current network fee and total number of blocks.
 | `network_block_height` | string \(uint64\) | The block count of MobileCoin's distributed ledger. |
 | `local_block_height` | string \(uint64\) | The local block count downloaded from the ledger. The local database is synced when the `local_block_height` reaches the `network_block_height`. |
 | `fee_pmob` | string \(optional\) | Default fee in pico MOB required to send a transaction. |
+| `block_version` | string \(optional\) | The current block version of MobileCoin's blockchain. |

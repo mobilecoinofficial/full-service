@@ -25,6 +25,9 @@ pub enum TxoServiceError {
     /// Error interacting with the database: {0}
     Database(WalletDbError),
 
+    /// Error with LedgerDB: {0}
+    LedgerDB(mc_ledger_db::Error),
+
     /// Diesel Error: {0}
     Diesel(diesel::result::Error),
 
@@ -44,6 +47,12 @@ pub enum TxoServiceError {
 impl From<WalletDbError> for TxoServiceError {
     fn from(src: WalletDbError) -> Self {
         Self::Database(src)
+    }
+}
+
+impl From<mc_ledger_db::Error> for TxoServiceError {
+    fn from(src: mc_ledger_db::Error) -> Self {
+        Self::LedgerDB(src)
     }
 }
 
@@ -106,13 +115,19 @@ where
             &account_id.to_string(),
             limit,
             offset,
+            Some(0),
             &conn,
         )?)
     }
 
     fn list_spent_txos(&self, account_id: &AccountID) -> Result<Vec<Txo>, TxoServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        Ok(Txo::list_spent(&account_id.to_string(), None, &conn)?)
+        Ok(Txo::list_spent(
+            &account_id.to_string(),
+            None,
+            Some(0),
+            &conn,
+        )?)
     }
 
     fn get_txo(&self, txo_id: &TxoID) -> Result<Txo, TxoServiceError> {
@@ -165,7 +180,7 @@ where
 
     fn get_all_txos_for_address(&self, address: &str) -> Result<Vec<Txo>, TxoServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        Ok(Txo::list_for_address(address, &conn)?)
+        Ok(Txo::list_for_address(address, Some(0), &conn)?)
     }
 }
 

@@ -297,6 +297,27 @@ pub enum WalletTransactionBuilderError {
 
     /// Error generating FogPubkeyResolver {0}
     FogPubkeyResolver(String),
+
+    /// Error with the b58 util: {0}
+    B58(B58Error),
+
+    /// Error passed up from AmountError
+    AmountError(mc_transaction_core::AmountError),
+
+    /// Error passed up from KeyError
+    KeyError(mc_crypto_keys::KeyError),
+}
+
+impl From<mc_transaction_core::AmountError> for WalletTransactionBuilderError {
+    fn from(src: mc_transaction_core::AmountError) -> Self {
+        Self::AmountError(src)
+    }
+}
+
+impl From<mc_crypto_keys::KeyError> for WalletTransactionBuilderError {
+    fn from(src: mc_crypto_keys::KeyError) -> Self {
+        Self::KeyError(src)
+    }
 }
 
 impl From<mc_ledger_db::Error> for WalletTransactionBuilderError {
@@ -332,5 +353,11 @@ impl From<diesel::result::Error> for WalletTransactionBuilderError {
 impl From<mc_util_uri::UriParseError> for WalletTransactionBuilderError {
     fn from(src: mc_util_uri::UriParseError) -> Self {
         Self::UriParse(src)
+    }
+}
+
+impl From<B58Error> for WalletTransactionBuilderError {
+    fn from(src: B58Error) -> Self {
+        Self::B58(src)
     }
 }

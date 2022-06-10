@@ -110,6 +110,7 @@ mod tests {
     use mc_account_keys::{AccountKey, RootIdentity};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
+    use mc_transaction_core::{tokens::Mob, Amount, Token};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
@@ -128,8 +129,12 @@ mod tests {
         // sufficient for this test to merely log a value.
         let value = rng.next_u64();
 
-        let (_tx_out, _key_image) =
-            create_test_txo_for_recipient(&gift_code_account_key, 0, value, &mut rng);
+        let (_tx_out, _key_image) = create_test_txo_for_recipient(
+            &gift_code_account_key,
+            0,
+            Amount::new(value, Mob::ID),
+            &mut rng,
+        );
 
         let mut tx_log_bytes = [0u8; 32];
         rng.fill_bytes(&mut tx_log_bytes);

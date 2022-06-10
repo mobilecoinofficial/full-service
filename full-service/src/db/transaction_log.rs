@@ -7,7 +7,7 @@ use diesel::prelude::*;
 use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_mobilecoind::payments::TxProposal;
-use mc_transaction_core::tx::Tx;
+use mc_transaction_core::{tx::Tx, Amount};
 use std::fmt;
 
 use crate::db::{
@@ -84,6 +84,8 @@ pub trait TransactionLogModel {
         account_id_hex: &str,
         offset: Option<u64>,
         limit: Option<u64>,
+        min_block_index: Option<u64>,
+        max_block_index: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletDbError>;
 
@@ -92,7 +94,7 @@ pub trait TransactionLogModel {
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
         txo_id_hex: &str,
-        amount: u64,
+        amount: Amount,
         block_index: u64,
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
@@ -229,6 +231,8 @@ impl TransactionLogModel for TransactionLog {
         account_id_hex: &str,
         offset: Option<u64>,
         limit: Option<u64>,
+        min_block_index: Option<u64>,
+        max_block_index: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletDbError> {
         use crate::db::schema::{transaction_logs, transaction_txo_types, txos};
@@ -237,7 +241,8 @@ impl TransactionLogModel for TransactionLog {
         // This is accomplished via a double-join through the
         // transaction_txo_types table.
         // TODO: investigate simplifying the database structure around this.
-        let transactions_query = transaction_logs::table
+        let mut transactions_query = transaction_logs::table
+            .into_boxed()
             .filter(transaction_logs::account_id_hex.eq(account_id_hex))
             .inner_join(transaction_txo_types::table.on(
                 transaction_logs::transaction_id_hex.eq(transaction_txo_types::transaction_id_hex),
@@ -250,15 +255,22 @@ impl TransactionLogModel for TransactionLog {
             ))
             .order(transaction_logs::id);
 
+        if let (Some(o), Some(l)) = (offset, limit) {
+            transactions_query = transactions_query.offset(o as i64).limit(l as i64);
+        }
+
+        if let Some(min_block_index) = min_block_index {
+            transactions_query = transactions_query
+                .filter(transaction_logs::finalized_block_index.ge(min_block_index as i64));
+        }
+
+        if let Some(max_block_index) = max_block_index {
+            transactions_query = transactions_query
+                .filter(transaction_logs::finalized_block_index.le(max_block_index as i64));
+        }
+
         let transactions: Vec<(TransactionLog, TransactionTxoType, Txo)> =
-            if let (Some(o), Some(l)) = (offset, limit) {
-                transactions_query
-                    .offset(o as i64)
-                    .limit(l as i64)
-                    .load(conn)?
-            } else {
-                transactions_query.load(conn)?
-            };
+            transactions_query.load(conn)?;
 
         #[derive(Clone)]
         struct TransactionContents {
@@ -322,18 +334,18 @@ impl TransactionLogModel for TransactionLog {
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
         txo_id_hex: &str,
-        amount: u64,
+        amount: Amount,
         block_index: u64,
         conn: &Conn,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::transaction_txo_types;
 
         let new_transaction_log = NewTransactionLog {
-            transaction_id_hex: &txo_id_hex.to_string(),
+            transaction_id_hex: txo_id_hex,
             account_id_hex,
             assigned_subaddress_b58,
-            value: amount as i64, // We store numbers between 2^63 and 2^64 as negative.
-            fee: None,            // Impossible to recover fee from received transaction
+            value: amount.value as i64, // We store numbers between 2^63 and 2^64 as negative.
+            fee: None,                  // Impossible to recover fee from received transaction
             status: TX_STATUS_SUCCEEDED,
             sent_time: None, // NULL for received
             submitted_block_index: None,
@@ -349,7 +361,7 @@ impl TransactionLogModel for TransactionLog {
 
         // Create an entry per TXO for the TransactionTxoTypes
         let new_transaction_txo = NewTransactionTxoType {
-            transaction_id_hex: &txo_id_hex.to_string(),
+            transaction_id_hex: txo_id_hex,
             txo_id_hex,
             transaction_txo_type: TXO_USED_AS_OUTPUT,
         };
@@ -535,11 +547,11 @@ impl TransactionLogModel for TransactionLog {
 
 #[cfg(test)]
 mod tests {
-    use mc_account_keys::{AccountKey, PublicAddress, RootIdentity};
+    use mc_account_keys::{AccountKey, PublicAddress, RootIdentity, CHANGE_SUBADDRESS_INDEX};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::RngCore;
     use mc_ledger_db::Ledger;
-    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
+    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Amount, Token};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
@@ -551,7 +563,7 @@ mod tests {
             get_resolver_factory, get_test_ledger, manually_sync_account,
             random_account_with_seed_values, WalletDbTestContext, MOB,
         },
-        util::{b58::b58_encode_public_address, constants::DEFAULT_CHANGE_SUBADDRESS_INDEX},
+        util::b58::b58_encode_public_address,
     };
 
     use super::*;
@@ -587,7 +599,7 @@ mod tests {
             let (txo_id_hex, _txo, _key_image) = create_test_received_txo(
                 &account_key,
                 0, // All to the same subaddress
-                (100 * i * MOB) as u64,
+                Amount::new((100 * i * MOB) as u64, Mob::ID),
                 144,
                 &mut rng,
                 &wallet_db,
@@ -601,7 +613,7 @@ mod tests {
                 &account_id.to_string(),
                 assigned_subaddress_b58.as_ref().map(|s| s.as_str()),
                 &txo_id_hex,
-                100 * i * MOB,
+                Amount::new(100 * i * MOB, Mob::ID),
                 144,
                 &wallet_db.get_conn().unwrap(),
             )
@@ -790,12 +802,12 @@ mod tests {
         );
         assert_eq!(
             updated_change_details.subaddress_index,
-            Some(DEFAULT_CHANGE_SUBADDRESS_INDEX as i64)
+            Some(CHANGE_SUBADDRESS_INDEX as i64)
         );
     }
 
     #[test_with_logger]
-    fn test_log_submitted_no_change(logger: Logger) {
+    fn test_log_submitted_zero_change(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -871,7 +883,7 @@ mod tests {
             .unwrap();
         assert_eq!(associated.inputs.len(), 1);
         assert_eq!(associated.outputs.len(), 1);
-        assert_eq!(associated.change.len(), 0);
+        assert_eq!(associated.change.len(), 1);
     }
 
     #[test_with_logger]
@@ -911,7 +923,7 @@ mod tests {
                 let (txo_id_hex, _txo, _key_image) = create_test_received_txo(
                     &account_key,
                     0, // All to the same subaddress
-                    100 * i * MOB,
+                    Amount::new(100 * i * MOB, Mob::ID),
                     144,
                     &mut rng,
                     &wallet_db,
@@ -921,7 +933,7 @@ mod tests {
                     &account_id.to_string(),
                     assigned_subaddress_b58.as_ref().map(|s| s.as_str()),
                     &txo_id_hex,
-                    100 * i * MOB,
+                    Amount::new(100 * i * MOB, Mob::ID),
                     144,
                     &wallet_db.get_conn().unwrap(),
                 )
@@ -1090,7 +1102,7 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(input_details0.value as u64, 7 * MOB);
+        assert_eq!(input_details0.value as u64, 8 * MOB);
 
         assert!(input_details0.is_pending());
         assert!(input_details0.is_received());
@@ -1102,7 +1114,7 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(input_details1.value as u64, 8 * MOB);
+        assert_eq!(input_details1.value as u64, 7 * MOB);
 
         assert!(input_details1.is_pending());
         assert!(input_details1.is_received());
@@ -1236,7 +1248,7 @@ mod tests {
         );
         assert_eq!(
             updated_change_details.subaddress_index,
-            Some(DEFAULT_CHANGE_SUBADDRESS_INDEX as i64)
+            Some(CHANGE_SUBADDRESS_INDEX as i64)
         );
     }
 

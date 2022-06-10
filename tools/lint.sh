@@ -12,7 +12,7 @@ for toml in $(grep --exclude-dir cargo --exclude-dir rust-mbedtls --exclude-dir 
   pushd $(dirname $toml) >/dev/null
   echo "Linting in $PWD"
   cargo fmt -- --unstable-features --check
-  cargo clippy --all --all-features
+  SGX_MODE=SW IAS_MODE=DEV CONSENSUS_ENCLAVE_CSS=$(pwd)/consensus-enclave.css cargo clippy --all --all-features
   echo "Linting in $PWD complete."
   popd >/dev/null
 done

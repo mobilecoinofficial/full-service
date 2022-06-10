@@ -4,9 +4,14 @@
 
 | Required Param | Purpose | Requirement |
 | :--- | :--- | :--- |
-| `transaction_log_id` | The transaction log ID to get. | Transaction log must exist in the wallet. |
-| `offset` | The pagination offset. Results start at the offset index. Optional, defaults to 0. | |
-| `limit` | Limit for the number of results. Optional, defaults to 100 | |
+| `account_id` | The account id to scan for transaction logs | Account must exist in the database |
+
+| Optional Param | Purpose | Requirement |
+| :--- | :--- | :--- |
+| `offset` | The pagination offset. Results start at the offset index. Defaults to 0. | |
+| `limit` | Limit for the number of results. Defaults to 100 | |
+| `min_block_index` | The minimum block index to find transaction logs from | |
+| `max_block_index` | The maximum block index to find transaction logs from | |
 
 ## Example
 

@@ -4,15 +4,18 @@
 
 use crate::{
     db::{
-        models::TransactionLog,
+        account::{AccountID, AccountModel},
+        models::{Account, TransactionLog, ViewOnlyAccount, ViewOnlyTxo},
         transaction,
         transaction_log::{AssociatedTxos, TransactionLogModel},
+        txo::TxoID,
+        view_only_account::ViewOnlyAccountModel,
+        view_only_txo::ViewOnlyTxoModel,
         WalletDbError,
     },
     error::WalletTransactionBuilderError,
     service::{
-        ledger::LedgerService, transaction_builder::WalletTransactionBuilder,
-        view_only_transaction_log::ViewOnlyTransactionLogService, WalletService,
+        ledger::LedgerService, transaction_builder::WalletTransactionBuilder, WalletService,
     },
     util::b58::{b58_decode_public_address, B58Error},
 };
@@ -21,8 +24,13 @@ use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConne
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_mobilecoind::payments::TxProposal;
+use mc_transaction_core::constants::{MAX_INPUTS, MAX_OUTPUTS};
 
-use crate::service::address::{AddressService, AddressServiceError};
+use crate::{
+    fog_resolver::FullServiceFogResolver,
+    service::address::{AddressService, AddressServiceError},
+    unsigned_tx::UnsignedTx,
+};
 use displaydoc::Display;
 use std::{convert::TryFrom, iter::empty, sync::atomic::Ordering};
 
@@ -135,6 +143,14 @@ impl From<mc_ledger_db::Error> for TransactionServiceError {
 /// Trait defining the ways in which the wallet can interact with and manage
 /// transactions.
 pub trait TransactionService {
+    fn build_unsigned_transaction(
+        &self,
+        account_id_hex: &str,
+        addresses_and_values: &[(String, String)],
+        fee: Option<String>,
+        tombstone_block: Option<String>,
+    ) -> Result<(UnsignedTx, FullServiceFogResolver), TransactionServiceError>;
+
     /// Builds a transaction from the given account to the specified recipients.
     #[allow(clippy::too_many_arguments)]
     fn build_transaction(
@@ -175,16 +191,15 @@ where
     T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
-    fn build_transaction(
+    fn build_unsigned_transaction(
         &self,
         account_id_hex: &str,
         addresses_and_values: &[(String, String)],
-        input_txo_ids: Option<&Vec<String>>,
         fee: Option<String>,
         tombstone_block: Option<String>,
-        max_spendable_value: Option<String>,
-        log_tx_proposal: Option<bool>,
-    ) -> Result<TxProposal, TransactionServiceError> {
+    ) -> Result<(UnsignedTx, FullServiceFogResolver), TransactionServiceError> {
+        validate_number_outputs(addresses_and_values.len() as u64)?;
+
         let conn = self.wallet_db.get_conn()?;
         transaction(&conn, || {
             let mut builder = WalletTransactionBuilder::new(
@@ -214,6 +229,57 @@ where
                 Some(f) => f.parse()?,
                 None => self.get_network_fee(),
             })?;
+
+            let unsigned_tx = builder.build_unsigned(&conn)?;
+            let fog_resolver = builder.get_fs_fog_resolver(&conn)?;
+
+            Ok((unsigned_tx, fog_resolver))
+        })
+    }
+    fn build_transaction(
+        &self,
+        account_id_hex: &str,
+        addresses_and_values: &[(String, String)],
+        input_txo_ids: Option<&Vec<String>>,
+        fee: Option<String>,
+        tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
+        log_tx_proposal: Option<bool>,
+    ) -> Result<TxProposal, TransactionServiceError> {
+        validate_number_inputs(input_txo_ids.unwrap_or(&Vec::new()).len() as u64)?;
+        validate_number_outputs(addresses_and_values.len() as u64)?;
+
+        let conn = self.wallet_db.get_conn()?;
+        transaction(&conn, || {
+            let mut builder = WalletTransactionBuilder::new(
+                account_id_hex.to_string(),
+                self.ledger_db.clone(),
+                self.fog_resolver_factory.clone(),
+                self.logger.clone(),
+            );
+
+            for (recipient_public_address, value) in addresses_and_values {
+                if !self.verify_address(recipient_public_address)? {
+                    return Err(TransactionServiceError::InvalidPublicAddress(
+                        recipient_public_address.to_string(),
+                    ));
+                };
+                let recipient = b58_decode_public_address(recipient_public_address)?;
+                builder.add_recipient(recipient, value.parse::<u64>()?)?;
+            }
+
+            if let Some(tombstone) = tombstone_block {
+                builder.set_tombstone(tombstone.parse::<u64>()?)?;
+            } else {
+                builder.set_tombstone(0)?;
+            }
+
+            builder.set_fee(match fee {
+                Some(f) => f.parse()?,
+                None => self.get_network_fee(),
+            })?;
+
+            builder.set_block_version(self.get_network_block_version());
 
             if let Some(inputs) = input_txo_ids {
                 builder.set_txos(&conn, inputs, log_tx_proposal.unwrap_or_default())?;
@@ -277,29 +343,6 @@ where
             .propose_tx(&tx, empty())
             .map_err(TransactionServiceError::from)?;
 
-        // Log the transaction.
-        let result = if let Some(a) = account_id_hex {
-            let conn = self.wallet_db.get_conn()?;
-            transaction(&conn, || {
-                let transaction_log = TransactionLog::log_submitted(
-                    tx_proposal,
-                    block_index,
-                    comment.unwrap_or_else(|| "".to_string()),
-                    &a,
-                    &conn,
-                )?;
-                let associated_txos = transaction_log.get_associated_txos(&conn)?;
-                Ok(Some((transaction_log, associated_txos)))
-            })
-        } else {
-            // if no account ID, assume that tx proposal was generated from cold wallet.
-            // Create a pending-txo-log in order to keep track of txos used by and
-            // generated by the transaction. On ledger scanning, these logs will
-            // be used to update view-only txos as spent.
-            self.create_view_only_transaction_logs_from_proposal(tx_proposal)?;
-            Ok(None)
-        };
-
         log::trace!(
             self.logger,
             "Tx {:?} submitted at block height {}",
@@ -307,7 +350,45 @@ where
             block_index
         );
 
-        result
+        if let Some(account_id_hex) = account_id_hex {
+            let conn = self.wallet_db.get_conn()?;
+            let account_id = AccountID(account_id_hex.to_string());
+
+            transaction(&conn, || {
+                if Account::get(&account_id, &conn).is_ok() {
+                    let transaction_log = TransactionLog::log_submitted(
+                        tx_proposal,
+                        block_index,
+                        comment.unwrap_or_else(|| "".to_string()),
+                        &account_id_hex,
+                        &conn,
+                    )?;
+
+                    let associated_txos = transaction_log.get_associated_txos(&conn)?;
+
+                    Ok(Some((transaction_log, associated_txos)))
+                } else if ViewOnlyAccount::get(&account_id_hex, &conn).is_ok() {
+                    for utxo in tx_proposal.utxos {
+                        let txo_id = TxoID::from(&utxo.tx_out);
+                        ViewOnlyTxo::update_for_pending_transaction(
+                            &txo_id.to_string(),
+                            utxo.subaddress_index,
+                            &utxo.key_image,
+                            block_index,
+                            tx_proposal.tx.prefix.tombstone_block,
+                            &conn,
+                        )?;
+                    }
+                    Ok(None)
+                } else {
+                    Err(TransactionServiceError::Database(
+                        WalletDbError::AccountNotFound(account_id_hex),
+                    ))
+                }
+            })
+        } else {
+            Ok(None)
+        }
     }
 
     fn build_and_submit(
@@ -343,6 +424,26 @@ where
             Err(TransactionServiceError::MissingAccountOnSubmit)
         }
     }
+}
+
+fn validate_number_inputs(num_inputs: u64) -> Result<(), TransactionServiceError> {
+    if num_inputs > MAX_INPUTS {
+        return Err(TransactionServiceError::TransactionBuilder(WalletTransactionBuilderError::InvalidArgument(
+            format!("Invalid number of input txos. {:?} txo ids provided but maximum allowed number of inputs is {:?}", num_inputs, MAX_INPUTS)
+        )));
+    }
+    Ok(())
+}
+
+fn validate_number_outputs(num_outputs: u64) -> Result<(), TransactionServiceError> {
+    // maximum number of outputs is 16 but we reserve 1 for change
+    let max_outputs = MAX_OUTPUTS - 1;
+    if num_outputs > max_outputs {
+        return Err(TransactionServiceError::TransactionBuilder(WalletTransactionBuilderError::InvalidArgument(
+            format!("Invalid number of recipiants. {:?} recipiants provided but maximum allowed number of outputs is {:?}", num_outputs, max_outputs)
+        )));
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -391,7 +492,7 @@ mod tests {
         let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None)
+            .list_transaction_logs(&alice_account_id, None, None, None, None)
             .unwrap();
 
         assert_eq!(0, tx_logs.len());
@@ -407,7 +508,7 @@ mod tests {
         manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None)
+            .list_transaction_logs(&alice_account_id, None, None, None, None)
             .unwrap();
 
         assert_eq!(1, tx_logs.len());
@@ -453,7 +554,7 @@ mod tests {
         log::info!(logger, "Built transaction from Alice");
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None)
+            .list_transaction_logs(&alice_account_id, None, None, None, None)
             .unwrap();
 
         assert_eq!(1, tx_logs.len());
@@ -480,7 +581,7 @@ mod tests {
         log::info!(logger, "Built transaction from Alice");
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None)
+            .list_transaction_logs(&alice_account_id, None, None, None, None)
             .unwrap();
 
         assert_eq!(1, tx_logs.len());
@@ -507,7 +608,7 @@ mod tests {
         log::info!(logger, "Built transaction from Alice");
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None)
+            .list_transaction_logs(&alice_account_id, None, None, None, None)
             .unwrap();
 
         assert_eq!(2, tx_logs.len());
@@ -728,6 +829,96 @@ mod tests {
                 panic!("Should not be able to build transaction to invalid b58 public address")
             }
             Err(TransactionServiceError::InvalidPublicAddress(_)) => {}
+            Err(e) => panic!("Unexpected error {:?}", e),
+        };
+    }
+
+    #[test_with_logger]
+    fn test_maximum_inputs_and_outputs(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+
+        // Create our main account for the wallet
+        let alice = service
+            .create_account(
+                Some("Alice's Main Account".to_string()),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            )
+            .unwrap();
+
+        // Add a block with a transaction for Alice
+        let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
+        let alice_account_id = AccountID::from(&alice_account_key);
+        let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![alice_public_address.clone()],
+            100 * MOB,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+
+        // test ouputs
+        let mut outputs = Vec::new();
+        for _ in 0..17 {
+            outputs.push((
+                b58_encode_public_address(&alice_public_address).unwrap(),
+                (42 * MOB).to_string(),
+            ));
+        }
+        match service.build_transaction(
+            &alice.account_id_hex,
+            &outputs,
+            None,
+            None,
+            None,
+            None,
+            None,
+        ) {
+            Ok(_) => {
+                panic!("Should not be able to build transaction with too many ouputs")
+            }
+            Err(TransactionServiceError::TransactionBuilder(
+                WalletTransactionBuilderError::InvalidArgument(_),
+            )) => {}
+            Err(e) => panic!("Unexpected error {:?}", e),
+        };
+
+        // test inputs
+        let mut outputs = Vec::new();
+        for _ in 0..2 {
+            outputs.push((
+                b58_encode_public_address(&alice_public_address).unwrap(),
+                (42 * MOB).to_string(),
+            ));
+        }
+        let mut inputs = Vec::new();
+        for _ in 0..17 {
+            inputs.push("fake txo id".to_string());
+        }
+        match service.build_transaction(
+            &alice.account_id_hex,
+            &outputs,
+            Some(&inputs),
+            None,
+            None,
+            None,
+            None,
+        ) {
+            Ok(_) => {
+                panic!("Should not be able to build transaction with too many inputs")
+            }
+            Err(TransactionServiceError::TransactionBuilder(
+                WalletTransactionBuilderError::InvalidArgument(_),
+            )) => {}
             Err(e) => panic!("Unexpected error {:?}", e),
         };
     }

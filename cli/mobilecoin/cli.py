@@ -164,9 +164,18 @@ class CommandLineInterface:
         self.gift_remove_args = gift_action.add_parser('remove', help='Remove a gift code.')
         self.gift_remove_args.add_argument('gift_code', help='Gift code to remove.')
 
+        # Sync view-only account.
+        self.sync_args = command_sp.add_parser('sync', help='Sync a view-only account.')
+        self.sync_args.add_argument(
+            'account_id_or_sync_response',
+            help=(
+                'If an account ID is passed, then generate a sync request for the transaction signer. '
+                'Once the signer is finished, call this again with the completed json file.'
+            )
+        )
+
         # Version
         self.version_args = command_sp.add_parser('version', help='Show version number.')
-
 
     def _load_account_prefix(self, prefix):
         accounts = self.client.get_all_accounts()
@@ -320,22 +329,55 @@ class CommandLineInterface:
         print()
 
     def import_(self, backup, name=None, block=None, key_derivation_version=2):
-        data = _load_import(backup)
+        account = None
+        if backup.endswith('.json'):
+            with open(backup) as f:
+                data = json.load(f)
 
-        if name is not None:
-            data['name'] = name
-        if block is not None:
-            data['first_block_index'] = block
+            if data.get('method') == 'import_view_only_account':
+                account = self.client.import_view_only_account(data['params'])
+            else:
+                params = {}
+                for field in [
+                    'mnemonic',  # Key derivation version 2+.
+                    'entropy',  # Key derivation version 1.
+                    'name',
+                    'first_block_index',
+                    'next_subaddress_index',
+                ]:
+                    value = data.get(field)
+                    if value is not None:
+                        params[field] = value
+                if 'account_key' in data:
+                    params['fog_keys'] = {}
+                    for field in [
+                        'fog_report_url',
+                        'fog_report_id',
+                        'fog_authority_spki',
+                    ]:
+                        value = data['account_key'].get(field)
+                        if value is not None:
+                            params['fog_keys'][field] = value
+                account = self.client.import_account(**params)
 
-        if 'mnemonic' in data:
-            data['key_derivation_version'] = key_derivation_version
-            account = self.client.import_account(**data)
-        elif 'legacy_root_entropy' in data:
-            account = self.client.import_account_from_legacy_root_entropy(**data)
-        elif 'view_private_key' in data:
-            account = self.client.import_view_only_account(**data)
         else:
-            raise ValueError('Could not import account from {}'.format(backup))
+            # Try to use the legacy import system, treating the string as hexadecimal root entropy.
+            root_entropy = None
+            try:
+                b = bytes.fromhex(backup)
+            except ValueError:
+                pass
+            if len(b) == 32:
+                root_entropy = b.hex()
+            if root_entropy is not None:
+                account = self.client.import_account_from_legacy_root_entropy(root_entropy)
+            else:
+                # Lastly, assume that this is just a mnemonic phrase written to the command line.
+                account = self.client.import_account(backup)
+
+        if account is None:
+            print('Could not import account.')
+            return
 
         print('Imported account.')
         print()
@@ -378,7 +420,7 @@ class CommandLineInterface:
                 print('{:<2}  {}'.format(i, word))
             print()
         else:
-            filename = 'mobilecoin_secret_entropy_{}.json'.format(account_id[:16])
+            filename = 'mobilecoin_secret_mnemonic_{}.json'.format(account_id[:6])
             try:
                 _save_export(account, secrets, filename)
             except OSError as e:
@@ -419,7 +461,7 @@ class CommandLineInterface:
             print(secrets['account_key']['view_private_key'])
             print()
         else:
-            filename = 'mobilecoin_view_key_{}.json'.format(account_id[:16])
+            filename = 'mobilecoin_view_key_{}.json'.format(account_id[:6])
             try:
                 _save_view_key_export(account, secrets, filename)
             except OSError as e:
@@ -508,7 +550,12 @@ class CommandLineInterface:
     def send(self, account_id, amount, to_address, build_only=False, fee=None):
         account = self._load_account_prefix(account_id)
         account_id = account['account_id']
-        balance = self.client.get_balance_for_account(account_id)
+
+        view_only = (account['object'] == 'view_only_account')
+        if view_only:
+            balance = self.client.get_balance_for_view_only_account(account_id)
+        else:
+            balance = self.client.get_balance_for_account(account_id)
         unspent = pmob2mob(balance['unspent_pmob'])
 
         network_status = self.client.get_network_status()
@@ -529,20 +576,22 @@ class CommandLineInterface:
             amount = Decimal(amount)
             total_amount = amount + fee
 
-        if build_only:
+        if view_only:
+            verb = 'Building unsigned transaction for'
+        elif build_only:
             verb = 'Building transaction for'
         else:
             verb = 'Sending'
 
         print('\n'.join([
-            '{} {} from account {} {}',
+            '{} {}',
+            'from account {}',
             'to address {}',
             'Fee is {}, for a total amount of {}.',
         ]).format(
             verb,
             _format_mob(amount),
-            account_id[:6],
-            account['name'],
+            _format_account_header(account),
             to_address,
             _format_mob(fee),
             _format_mob(total_amount),
@@ -555,6 +604,19 @@ class CommandLineInterface:
             ]).format(_format_mob(unspent)))
             return
 
+        if view_only:
+            response = self.client.build_unsigned_transaction(account_id, amount, to_address, fee=fee)
+            path = Path('unsigned_tx_proposal_{}_{}.json'.format(
+                account_id[:6],
+                balance['local_block_height'],
+            ))
+            if path.exists():
+                print(f'The file {path} already exists. Please rename the existing file and retry.')
+            else:
+                _save_json_file(path, response)
+                print(f'Wrote {path}.')
+            return
+
         if build_only:
             tx_proposal = self.client.build_transaction(account_id, amount, to_address, fee=fee)
             path = Path('tx_proposal.json')
@@ -563,7 +625,7 @@ class CommandLineInterface:
             else:
                 with path.open('w') as f:
                     json.dump(tx_proposal, f, indent=2)
-                print(f'Wrote {path}')
+                print(f'Wrote {path}.')
             return
 
         if not self.confirm('Confirm? (Y/N) '):
@@ -590,6 +652,10 @@ class CommandLineInterface:
         with Path(proposal).open() as f:
             tx_proposal = json.load(f)
 
+        # Check whether this is an already built response from the offline transaction signer.
+        if tx_proposal.get('method') == 'submit_transaction':
+            tx_proposal = tx_proposal['params']['tx_proposal']
+
         # Check that the tombstone block is within range.
         tombstone_block = int(tx_proposal['tx']['prefix']['tombstone_block'])
         network_status = self.client.get_network_status()
@@ -612,7 +678,7 @@ class CommandLineInterface:
             else:
                 with path.open('w') as f:
                     json.dump(receipt, f, indent=2)
-                print(f'Wrote {path}')
+                print(f'Wrote {path}.')
 
         # Confirm and submit.
         if account_id is None:
@@ -657,17 +723,25 @@ class CommandLineInterface:
 
     def address_list(self, account_id):
         account = self._load_account_prefix(account_id)
-        addresses = self.client.get_addresses_for_account(account['account_id'], limit=1000)
-
         print()
         print(_format_account_header(account))
 
+        addresses = self.client.get_addresses_for_account(account['account_id'], limit=1000)
+        address_balances = []
         for address in addresses.values():
+            balance = self.client.get_balance_for_address(address['public_address'])
+            address_balances.append((address, balance))
+
+        view_addresses = self.client.get_addresses_for_view_only_account(account['account_id'], limit=1000)
+        for address in view_addresses.values():
+            balance = self.client.get_balance_for_view_only_address(address['public_address'])
+            address_balances.append((address, balance))
+
+        for (address, balance) in address_balances:
             print(indent(
                 '{} {}'.format(address['public_address'], address['metadata']),
                 ' '*2,
             ))
-            balance = self.client.get_balance_for_address(address['public_address'])
             print(indent(
                 _format_balance(balance),
                 ' '*4,
@@ -788,6 +862,49 @@ class CommandLineInterface:
                 print('Gift code not found; nothing to remove.')
                 return
 
+    def sync(self, account_id_or_sync_response):
+        if account_id_or_sync_response.endswith('.json'):
+            sync_response = account_id_or_sync_response
+            self._finish_sync(sync_response)
+        else:
+            account_id = account_id_or_sync_response
+            self._start_sync(account_id)
+
+    def _start_sync(self, account_id):
+        account = self._load_account_prefix(account_id)
+        print()
+        print(_format_account_header(account))
+
+        account_id = account['account_id']
+        response = self.client.create_view_only_account_sync_request(account_id)
+
+        network_status = self.client.get_network_status()
+        filename = 'sync_request_{}_{}.json'.format(account_id[:6], network_status['local_block_height'])
+        _save_json_file(filename, response)
+
+        print(f'Wrote {filename}.')
+
+    def _finish_sync(self, sync_response):
+        with open(sync_response) as f:
+            data = json.load(f)
+
+        r = self.client.sync_view_only_account(data['params'])
+        account_id = data['params']['account_id']
+        account = self.client.get_view_only_account(account_id)
+        balance = self.client.get_balance_for_view_only_account(account_id)
+
+        print()
+        print('Synced {} transaction outputs.'.format(len(data['completed_txos'])))
+        print()
+        _print_account(account, balance)
+
+    def get_account(self, account_id):
+        r = self._req({
+            "method": "get_account",
+            "params": {"account_id": account_id}
+        })
+        return r['account']
+
     def version(self):
         version = self.client.version()
         print(version['string'])
@@ -904,59 +1021,6 @@ def _print_txo(txo, received=False):
             ))
     else:
         print('    to unknown address')
-
-
-def _load_import(backup):
-    # Try to load it as a file.
-    try:
-        return _load_import_file(backup)
-    except FileNotFoundError:
-        if backup.endswith('.json'):
-            raise
-
-    # Try to use the legacy import system, treating the string as hexadecimal root entropy.
-    try:
-        b = bytes.fromhex(backup)
-        if len(b) == 32:
-            return {'legacy_root_entropy': b.hex()}
-    except ValueError:
-        pass
-
-    # Lastly, assume that this is just a mnemonic phrase written to the command line.
-    return {'mnemonic': backup}
-
-
-def _load_import_file(filename):
-    result = {}
-
-    with open(filename) as f:
-        data = json.load(f)
-
-    for field in [
-        'mnemonic',  # Key derivation version 2+.
-        'key_derivation_version',
-        'legacy_root_entropy',  # Key derivation version 1.
-        'name',
-        'first_block_index',
-        'next_subaddress_index',
-        'view_private_key',
-    ]:
-        value = data.get(field)
-        if value is not None:
-            result[field] = value
-
-    if 'account_key' in data:
-        result['fog_keys'] = {}
-        for field in [
-            'fog_report_url',
-            'fog_report_id',
-            'fog_authority_spki',
-        ]:
-            value = data['account_key'].get(field)
-            if value is not None:
-                result['fog_keys'][field] = value
-
-    return result
 
 
 def _save_export(account, secrets, filename):

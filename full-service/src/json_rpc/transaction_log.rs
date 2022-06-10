@@ -104,21 +104,9 @@ impl TransactionLog {
                 .finalized_block_index
                 .map(|b| (b as u64).to_string()),
             status: transaction_log.status.clone(),
-            input_txos: associated_txos
-                .inputs
-                .iter()
-                .map(|t| TxoAbbrev::new(t))
-                .collect(),
-            output_txos: associated_txos
-                .outputs
-                .iter()
-                .map(|t| TxoAbbrev::new(t))
-                .collect(),
-            change_txos: associated_txos
-                .change
-                .iter()
-                .map(|t| TxoAbbrev::new(t))
-                .collect(),
+            input_txos: associated_txos.inputs.iter().map(TxoAbbrev::new).collect(),
+            output_txos: associated_txos.outputs.iter().map(TxoAbbrev::new).collect(),
+            change_txos: associated_txos.change.iter().map(TxoAbbrev::new).collect(),
             sent_time: transaction_log
                 .sent_time
                 .map(|t| Utc.timestamp(t, 0).to_string()),

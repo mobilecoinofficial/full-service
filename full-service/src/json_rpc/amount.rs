@@ -9,7 +9,7 @@ use std::convert::TryFrom;
 
 /// The encrypted amount of pMOB in a Txo.
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
-pub struct Amount {
+pub struct MaskedAmount {
     /// String representing the object's type. Objects of the same type share
     /// the same value.
     pub object: String,
@@ -22,32 +22,39 @@ pub struct Amount {
     /// The private view key is required to decrypt the amount, via:
     /// `masked_value = value XOR_8 Blake2B("value_mask" || shared_secret)`
     pub masked_value: String,
+
+    /// `masked_token_id = token_id XOR_8 Blake2B(token_id_mask |
+    /// shared_secret)` 8 bytes long when used, 0 bytes for older amounts
+    /// that don't have this.
+    pub masked_token_id: String,
 }
 
-impl From<&mc_api::external::Amount> for Amount {
-    fn from(src: &mc_api::external::Amount) -> Self {
+impl From<&mc_api::external::MaskedAmount> for MaskedAmount {
+    fn from(src: &mc_api::external::MaskedAmount) -> Self {
         Self {
             object: "amount".to_string(),
             commitment: hex::encode(src.get_commitment().get_data()),
             masked_value: src.get_masked_value().to_string(),
+            masked_token_id: hex::encode(&src.get_masked_token_id()),
         }
     }
 }
 
-impl From<&mc_transaction_core::Amount> for Amount {
-    fn from(src: &mc_transaction_core::Amount) -> Self {
+impl From<&mc_transaction_core::MaskedAmount> for MaskedAmount {
+    fn from(src: &mc_transaction_core::MaskedAmount) -> Self {
         Self {
             object: "amount".to_string(),
             commitment: hex::encode(src.commitment.to_bytes()),
             masked_value: src.masked_value.to_string(),
+            masked_token_id: hex::encode(&src.masked_token_id),
         }
     }
 }
 
-impl TryFrom<&Amount> for mc_transaction_core::Amount {
+impl TryFrom<&MaskedAmount> for mc_transaction_core::MaskedAmount {
     type Error = String;
 
-    fn try_from(src: &Amount) -> Result<Self, String> {
+    fn try_from(src: &MaskedAmount) -> Result<Self, String> {
         let mut commitment_bytes = [0u8; 32];
         commitment_bytes[0..32].copy_from_slice(
             &hex::decode(&src.commitment)
@@ -59,6 +66,8 @@ impl TryFrom<&Amount> for mc_transaction_core::Amount {
                 .masked_value
                 .parse::<u64>()
                 .map_err(|err| format!("Could not parse masked value u64: {:?}", err))?,
+            masked_token_id: hex::decode(&src.masked_token_id)
+                .map_err(|err| format!("Could not decode hex for masked token id: {:?}", err))?,
         })
     }
 }

@@ -19,8 +19,12 @@ pub struct AccountSecrets {
     /// The account ID for this account key in the wallet database.
     pub account_id: String,
 
+    /// The name of this account
+    pub name: String,
+
     /// The entropy from which this account key was derived, as a String
     /// (version 1)
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub entropy: Option<String>,
 
     /// The mnemonic from which this account key was derived, as a String
@@ -58,6 +62,7 @@ impl TryFrom<&Account> for AccountSecrets {
 
         Ok(AccountSecrets {
             object: "account_secrets".to_string(),
+            name: src.name.clone(),
             account_id: src.account_id_hex.clone(),
             entropy,
             mnemonic,

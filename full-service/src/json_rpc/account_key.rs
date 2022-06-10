@@ -41,7 +41,7 @@ impl From<&mc_account_keys::AccountKey> for AccountKey {
             spend_private_key: ristretto_to_hex(src.spend_private_key()),
             fog_report_url: src.fog_report_url().unwrap_or("").to_string(),
             fog_report_id: src.fog_report_id().unwrap_or("").to_string(),
-            fog_authority_spki: vec_to_hex(&src.fog_authority_spki().unwrap_or(&[]).to_vec()),
+            fog_authority_spki: vec_to_hex(src.fog_authority_spki().unwrap_or(&[])),
         }
     }
 }
