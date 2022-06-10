@@ -331,7 +331,6 @@ class NetworkCLI(threading.Thread):
 
 class Network:
     def __init__(self):
-        self.cloud_logging = None
         self.nodes = []
         self.ledger_distribution = None
         self.cli = None
@@ -352,7 +351,7 @@ class Network:
             )
 
         subprocess.run(
-            f'cd {PROJECT_DIR} && CONSENSUS_ENCLAVE_PRIVKEY="{enclave_pem}" cargo build -p mc-consensus-service -p mc-ledger-distribution -p mc-admin-http-gateway -p mc-util-grpc-admin-tool -p mc-mint-auditor -p mc-mobilecoind -p mc-crypto-x509-test-vectors -p mc-consensus-mint-client -p mc-util-seeded-ed25519-key-gen {CARGO_FLAGS}',
+            f'cd {PROJECT_DIR} && CONSENSUS_ENCLAVE_PRIVKEY="{enclave_pem}" cargo build -p mc-consensus-service -p mc-ledger-distribution -p mc-admin-http-gateway -p mc-util-grpc-admin-tool -p mc-mint-auditor -p mc-crypto-x509-test-vectors -p mc-consensus-mint-client -p mc-util-seeded-ed25519-key-gen {CARGO_FLAGS}',
             shell=True,
             check=True,
         )
@@ -390,9 +389,6 @@ class Network:
 
     def start(self):
         self.stop()
-
-        self.cloud_logging = CloudLogging()
-        self.cloud_logging.start(self)
 
         print("Generating minting keys")
         self.generate_minting_keys()
