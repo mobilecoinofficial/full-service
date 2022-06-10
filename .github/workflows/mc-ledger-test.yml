@@ -62,6 +62,7 @@ jobs:
           ./mobilecoin/tools/local-network/bootstrap.sh
       
       - name: Run MobileCoin
+        shell: bash
         run: |
           python3 ./mobilecoin/tools/local-network/local_network.py --network-type a-b-c
 
