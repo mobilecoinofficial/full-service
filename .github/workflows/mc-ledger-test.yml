@@ -27,11 +27,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           submodules: recursive
-      
-      - name: Git Submodule
-        run: |
-          git submodule update --checkout --init --recursive
-
+          
       - name: Cache Cargo
         if: steps.artifact_cache.outputs.cache-hit != 'true'
         id: cargo_cache
