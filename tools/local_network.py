@@ -27,7 +27,7 @@ MOBILECOIND_PORT = 4444
 LEDGER_BASE = os.path.abspath(os.getenv('LEDGER_BASE'))
 IAS_API_KEY = os.getenv('IAS_API_KEY', default='0'*64) # 32 bytes
 IAS_SPID = os.getenv('IAS_SPID', default='0'*32) # 16 bytes
-PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'mobilecoin'))
 MOB_RELEASE = os.getenv('MOB_RELEASE', '1')
 CARGO_FLAGS = '--release'
 TARGET_DIR = 'target/release'
@@ -42,72 +42,6 @@ if MOB_RELEASE == '0':
 # Sane default log configuration
 if 'MC_LOG' not in os.environ:
     os.environ['MC_LOG'] = 'debug,rustls=warn,hyper=warn,tokio_reactor=warn,mio=warn,want=warn,rusoto_core=error,h2=error,reqwest=error,rocket=error,<unknown>=error'
-
-# Cloud logging-sepcific configuration
-LOG_BRANCH = os.getenv('LOG_BRANCH', None)
-LOGSTASH_HOST = os.getenv('LOGSTASH_HOST', None)
-GRAFANA_PASSWORD = os.getenv('GRAFANA_PASSWORD', None)
-
-
-class CloudLogging:
-    def __init__(self):
-        self.filebeat_process = None
-        self.prometheus_process = None
-
-    def start(self, network):
-        if not LOG_BRANCH:
-            print('No LOG_BRANCH environment variable - cloud logging would not be enabled.')
-            return
-
-        if LOGSTASH_HOST:
-            self.start_filebeat(LOG_BRANCH, LOGSTASH_HOST)
-
-        if GRAFANA_PASSWORD:
-            hosts = ', '.join(
-                f"'127.0.0.1:{BASE_ADMIN_HTTP_GATEWAY_PORT + i}'" for i in range(len(network.nodes))
-            )
-            self.start_prometheus(LOG_BRANCH, GRAFANA_PASSWORD, hosts)
-
-    def start_filebeat(self, log_branch, logstash_host):
-        print(f'Starting filebeat, branch={log_branch}')
-        template = open(os.path.join(PROJECT_DIR, 'tools', 'local-network', 'filebeat.yml.template')).read()
-        with open(os.path.join(WORK_DIR, 'filebeat.yml'), 'w') as f:
-            f.write(template
-                .replace('${BRANCH}', log_branch)
-                .replace('${LOGSTASH_HOST}', logstash_host)
-            )
-        os.chmod(os.path.join(WORK_DIR, 'filebeat.yml'), 0o400)
-        cmd = ' '.join([
-            'filebeat',
-            f'--path.config {WORK_DIR}',
-            f'--path.data {WORK_DIR}/filebeat',
-            f'--path.home {WORK_DIR}/filebeat',
-            f'--path.logs {WORK_DIR}/filebeat',
-        ])
-        print(f'  - {cmd}')
-        self.filebeat_process = subprocess.Popen(cmd, shell=True)
-        time.sleep(1)
-        os.environ['MC_LOG_UDP_JSON'] = '127.0.0.1:16666'
-
-    def start_prometheus(self, log_branch, grafana_password, hosts):
-        print(f'Starting prometheus, branch={log_branch}')
-        os.mkdir(os.path.join(WORK_DIR, 'prometheus'))
-        template = open(os.path.join(PROJECT_DIR, 'tools', 'local-network', 'prometheus.yml.template')).read()
-        with open(os.path.join(WORK_DIR, 'prometheus.yml'), 'w') as f:
-            f.write(template
-                .replace('${BRANCH}', log_branch)
-                .replace('${GRAFANA_PASSWORD}', grafana_password)
-                .replace('${HOSTS}', hosts)
-            )
-        cmd = ' '.join([
-            'prometheus',
-            '--web.listen-address=:18181',
-            f'--config.file={WORK_DIR}/prometheus.yml',
-            f'--storage.tsdb.path={WORK_DIR}/prometheus',
-        ])
-        print(f'  - {cmd}')
-        self.prometheus_process = subprocess.Popen(cmd, shell=True)
-        time.sleep(1)
 
 
 class QuorumSet:
