@@ -27,11 +27,6 @@ jobs:
         uses: actions/checkout@v3
         with:
           submodules: recursive
-
-      - name: Brew Bundle
-        run: |
-          brew update --preinstall
-          brew bundle --no-upgrade
       
       - name: Git Submodule
         run: |
