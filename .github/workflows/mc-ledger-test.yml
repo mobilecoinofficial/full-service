@@ -4,8 +4,6 @@ env:
   SGX_MODE: SW
   IAS_MODE: DEV
   RUST_BACKTRACE: full
-  CONSENSUS_ENCLAVE_CSS: /var/tmp/consensus-enclave.css
-  INGEST_ENCLAVE_CSS: /var/tmp/ingest-enclave.css
   MC_SEED: a4aa76e4a5ca70c8447dd544a63f180b5a6fe0aff96495802506354c10f2886e
   LEDGER_BASE: /tmp/mobilenode/target/sample_data/ledger
   IAS_API_KEY: ${{ secrets.SGX_PRIMARY_API_KEY }}
@@ -27,7 +25,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           submodules: recursive
-          
+
       - name: Cache Cargo
         if: steps.artifact_cache.outputs.cache-hit != 'true'
         id: cargo_cache
