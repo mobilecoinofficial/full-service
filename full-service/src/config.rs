@@ -184,11 +184,7 @@ impl PeersConfig {
             .iter()
             .map(|p| {
                 p.responder_id().unwrap_or_else(|e| {
-                    panic!(
-                        "Could not get responder_id from uri {}: {:?}",
-                        p.to_string(),
-                        e
-                    )
+                    panic!("Could not get responder_id from uri {}: {:?}", p, e)
                 })
             })
             .collect::<Vec<ResponderId>>();
@@ -267,6 +263,9 @@ impl LedgerDbConfig {
         offline: bool,
         logger: &Logger,
     ) -> LedgerDB {
+        if self.ledger_db.exists() {
+            mc_ledger_migration::migrate(&self.ledger_db, logger);
+        }
         // Attempt to open the ledger and see if it has anything in it.
         if let Ok(ledger_db) = LedgerDB::open(&self.ledger_db) {
             if let Ok(num_blocks) = ledger_db.num_blocks() {

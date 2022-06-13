@@ -2,7 +2,7 @@
 
 //! API definition for the ReceiverReceipt object.
 
-use crate::{json_rpc::amount::Amount, service};
+use crate::{json_rpc::amount::MaskedAmount, service};
 use mc_crypto_keys::CompressedRistrettoPublic;
 use mc_transaction_core::tx::TxOutConfirmationNumber;
 use serde_derive::{Deserialize, Serialize};
@@ -30,7 +30,7 @@ pub struct ReceiverReceipt {
 
     /// The amount of the Txo.
     /// Note: This value is self-reported by the sender and is unverifiable.
-    pub amount: Amount,
+    pub amount: MaskedAmount,
 }
 
 impl TryFrom<&service::receipt::ReceiverReceipt> for ReceiverReceipt {
@@ -42,7 +42,7 @@ impl TryFrom<&service::receipt::ReceiverReceipt> for ReceiverReceipt {
             public_key: hex::encode(&mc_util_serial::encode(&src.public_key)),
             tombstone_block: src.tombstone_block.to_string(),
             confirmation: hex::encode(&mc_util_serial::encode(&src.confirmation)),
-            amount: Amount::from(&src.amount),
+            amount: MaskedAmount::from(&src.amount),
         })
     }
 }
@@ -62,7 +62,7 @@ impl TryFrom<&ReceiverReceipt> for service::receipt::ReceiverReceipt {
         )
         .map_err(|err| format!("Could not decode proof: {:?}", err))?;
 
-        let amount = mc_transaction_core::Amount::try_from(&src.amount)
+        let amount = mc_transaction_core::MaskedAmount::try_from(&src.amount)
             .map_err(|err| format!("Could not convert amount: {:?}", err))?;
 
         Ok(service::receipt::ReceiverReceipt {
@@ -83,7 +83,7 @@ mod tests {
     use mc_account_keys::AccountKey;
     use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
     use mc_crypto_rand::RngCore;
-    use mc_transaction_core::tx::TxOut;
+    use mc_transaction_core::{tokens::Mob, tx::TxOut, Amount, Token};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
@@ -94,7 +94,7 @@ mod tests {
         let account_key = AccountKey::random(&mut rng);
         let public_address = account_key.default_subaddress();
         let txo = TxOut::new(
-            rng.next_u64(),
+            Amount::new(rng.next_u64(), Mob::ID),
             &public_address,
             &RistrettoPrivate::from_random(&mut rng),
             Default::default(),
@@ -104,8 +104,8 @@ mod tests {
         let mut proof_bytes = [0u8; 32];
         rng.fill_bytes(&mut proof_bytes);
         let confirmation_number = TxOutConfirmationNumber::from(proof_bytes);
-        let amount = mc_transaction_core::Amount::new(
-            rng.next_u64(),
+        let amount = mc_transaction_core::MaskedAmount::new(
+            Amount::new(rng.next_u64(), Mob::ID),
             &RistrettoPublic::from_random(&mut rng),
         )
         .expect("Could not create amount");

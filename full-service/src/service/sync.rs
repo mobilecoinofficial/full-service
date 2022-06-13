@@ -32,8 +32,9 @@ use mc_transaction_core::{
     get_tx_out_shared_secret,
     onetime_keys::{recover_onetime_private_key, recover_public_subaddress_spend_key},
     ring_signature::KeyImage,
+    tokens::Mob,
     tx::TxOut,
-    AmountError,
+    Amount, Token,
 };
 use rayon::prelude::*;
 
@@ -257,7 +258,7 @@ fn sync_view_only_account_next_chunk(
 
         // Match key images to mark existing unspent transactions as spent.
         let unspent_key_images: HashMap<KeyImage, String> =
-            ViewOnlyTxo::list_unspent_with_key_images(account_id_hex, conn)?;
+            ViewOnlyTxo::list_unspent_with_key_images(account_id_hex, None, conn)?;
         let spent_txos: Vec<(u64, String)> = key_images
             .into_par_iter()
             .filter_map(|(block_index, key_image)| {
@@ -435,19 +436,21 @@ fn sync_account_next_chunk(
                 }
             };
 
-            TransactionLog::log_received(
-                account_id_hex,
-                assigned_subaddress_b58.as_deref(),
-                txo_id.as_str(),
-                amount,
-                block_index as u64,
-                conn,
-            )?;
+            if amount.token_id == Mob::ID {
+                TransactionLog::log_received(
+                    account_id_hex,
+                    assigned_subaddress_b58.as_deref(),
+                    txo_id.as_str(),
+                    amount,
+                    block_index as u64,
+                    conn,
+                )?;
+            }
         }
 
         // Match key images to mark existing unspent transactions as spent.
         let unspent_key_images: HashMap<KeyImage, String> =
-            Txo::list_unspent_or_pending_key_images(account_id_hex, conn)?;
+            Txo::list_unspent_or_pending_key_images(account_id_hex, None, conn)?;
         let spent_txos: Vec<(u64, String)> = key_images
             .into_par_iter()
             .filter_map(|(block_index, key_image)| {
@@ -466,8 +469,12 @@ fn sync_account_next_chunk(
             )?;
         }
 
-        let txos_exceeding_pending_block_index =
-            Txo::list_pending_exceeding_block_index(account_id_hex, end_block_index + 1, conn)?;
+        let txos_exceeding_pending_block_index = Txo::list_pending_exceeding_block_index(
+            account_id_hex,
+            end_block_index + 1,
+            None,
+            conn,
+        )?;
         TransactionLog::update_tx_logs_associated_with_txos_to_failed(
             &txos_exceeding_pending_block_index,
             conn,
@@ -508,15 +515,15 @@ fn sync_account_next_chunk(
 
 /// Attempt to decode the transaction amount. If we can't, then this transaction
 /// does not belong to this account.
-pub fn decode_amount(tx_out: &TxOut, view_private_key: &RistrettoPrivate) -> Option<u64> {
+pub fn decode_amount(tx_out: &TxOut, view_private_key: &RistrettoPrivate) -> Option<Amount> {
     let tx_public_key = match RistrettoPublic::try_from(&tx_out.public_key) {
         Err(_) => return None,
         Ok(k) => k,
     };
     let shared_secret = get_tx_out_shared_secret(view_private_key, &tx_public_key);
-    match tx_out.amount.get_value(&shared_secret) {
+    match tx_out.masked_amount.get_value(&shared_secret) {
         Ok((a, _)) => Some(a),
-        Err(AmountError::InconsistentCommitment) => None,
+        Err(_) => None,
     }
 }
 

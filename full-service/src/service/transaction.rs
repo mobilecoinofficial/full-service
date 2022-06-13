@@ -24,6 +24,7 @@ use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConne
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_mobilecoind::payments::TxProposal;
+use mc_transaction_core::constants::{MAX_INPUTS, MAX_OUTPUTS};
 
 use crate::{
     fog_resolver::FullServiceFogResolver,
@@ -197,6 +198,8 @@ where
         fee: Option<String>,
         tombstone_block: Option<String>,
     ) -> Result<(UnsignedTx, FullServiceFogResolver), TransactionServiceError> {
+        validate_number_outputs(addresses_and_values.len() as u64)?;
+
         let conn = self.wallet_db.get_conn()?;
         transaction(&conn, || {
             let mut builder = WalletTransactionBuilder::new(
@@ -243,6 +246,9 @@ where
         max_spendable_value: Option<String>,
         log_tx_proposal: Option<bool>,
     ) -> Result<TxProposal, TransactionServiceError> {
+        validate_number_inputs(input_txo_ids.unwrap_or(&Vec::new()).len() as u64)?;
+        validate_number_outputs(addresses_and_values.len() as u64)?;
+
         let conn = self.wallet_db.get_conn()?;
         transaction(&conn, || {
             let mut builder = WalletTransactionBuilder::new(
@@ -272,6 +278,8 @@ where
                 Some(f) => f.parse()?,
                 None => self.get_network_fee(),
             })?;
+
+            builder.set_block_version(self.get_network_block_version());
 
             if let Some(inputs) = input_txo_ids {
                 builder.set_txos(&conn, inputs, log_tx_proposal.unwrap_or_default())?;
@@ -418,6 +426,26 @@ where
     }
 }
 
+fn validate_number_inputs(num_inputs: u64) -> Result<(), TransactionServiceError> {
+    if num_inputs > MAX_INPUTS {
+        return Err(TransactionServiceError::TransactionBuilder(WalletTransactionBuilderError::InvalidArgument(
+            format!("Invalid number of input txos. {:?} txo ids provided but maximum allowed number of inputs is {:?}", num_inputs, MAX_INPUTS)
+        )));
+    }
+    Ok(())
+}
+
+fn validate_number_outputs(num_outputs: u64) -> Result<(), TransactionServiceError> {
+    // maximum number of outputs is 16 but we reserve 1 for change
+    let max_outputs = MAX_OUTPUTS - 1;
+    if num_outputs > max_outputs {
+        return Err(TransactionServiceError::TransactionBuilder(WalletTransactionBuilderError::InvalidArgument(
+            format!("Invalid number of recipiants. {:?} recipiants provided but maximum allowed number of outputs is {:?}", num_outputs, max_outputs)
+        )));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -464,7 +492,7 @@ mod tests {
         let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None)
+            .list_transaction_logs(&alice_account_id, None, None, None, None)
             .unwrap();
 
         assert_eq!(0, tx_logs.len());
@@ -480,7 +508,7 @@ mod tests {
         manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None)
+            .list_transaction_logs(&alice_account_id, None, None, None, None)
             .unwrap();
 
         assert_eq!(1, tx_logs.len());
@@ -526,7 +554,7 @@ mod tests {
         log::info!(logger, "Built transaction from Alice");
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None)
+            .list_transaction_logs(&alice_account_id, None, None, None, None)
             .unwrap();
 
         assert_eq!(1, tx_logs.len());
@@ -553,7 +581,7 @@ mod tests {
         log::info!(logger, "Built transaction from Alice");
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None)
+            .list_transaction_logs(&alice_account_id, None, None, None, None)
             .unwrap();
 
         assert_eq!(1, tx_logs.len());
@@ -580,7 +608,7 @@ mod tests {
         log::info!(logger, "Built transaction from Alice");
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None)
+            .list_transaction_logs(&alice_account_id, None, None, None, None)
             .unwrap();
 
         assert_eq!(2, tx_logs.len());
@@ -801,6 +829,96 @@ mod tests {
                 panic!("Should not be able to build transaction to invalid b58 public address")
             }
             Err(TransactionServiceError::InvalidPublicAddress(_)) => {}
+            Err(e) => panic!("Unexpected error {:?}", e),
+        };
+    }
+
+    #[test_with_logger]
+    fn test_maximum_inputs_and_outputs(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+
+        // Create our main account for the wallet
+        let alice = service
+            .create_account(
+                Some("Alice's Main Account".to_string()),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            )
+            .unwrap();
+
+        // Add a block with a transaction for Alice
+        let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
+        let alice_account_id = AccountID::from(&alice_account_key);
+        let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![alice_public_address.clone()],
+            100 * MOB,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+
+        // test ouputs
+        let mut outputs = Vec::new();
+        for _ in 0..17 {
+            outputs.push((
+                b58_encode_public_address(&alice_public_address).unwrap(),
+                (42 * MOB).to_string(),
+            ));
+        }
+        match service.build_transaction(
+            &alice.account_id_hex,
+            &outputs,
+            None,
+            None,
+            None,
+            None,
+            None,
+        ) {
+            Ok(_) => {
+                panic!("Should not be able to build transaction with too many ouputs")
+            }
+            Err(TransactionServiceError::TransactionBuilder(
+                WalletTransactionBuilderError::InvalidArgument(_),
+            )) => {}
+            Err(e) => panic!("Unexpected error {:?}", e),
+        };
+
+        // test inputs
+        let mut outputs = Vec::new();
+        for _ in 0..2 {
+            outputs.push((
+                b58_encode_public_address(&alice_public_address).unwrap(),
+                (42 * MOB).to_string(),
+            ));
+        }
+        let mut inputs = Vec::new();
+        for _ in 0..17 {
+            inputs.push("fake txo id".to_string());
+        }
+        match service.build_transaction(
+            &alice.account_id_hex,
+            &outputs,
+            Some(&inputs),
+            None,
+            None,
+            None,
+            None,
+        ) {
+            Ok(_) => {
+                panic!("Should not be able to build transaction with too many inputs")
+            }
+            Err(TransactionServiceError::TransactionBuilder(
+                WalletTransactionBuilderError::InvalidArgument(_),
+            )) => {}
             Err(e) => panic!("Unexpected error {:?}", e),
         };
     }

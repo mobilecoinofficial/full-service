@@ -1,4 +1,4 @@
-NAMESPACE=test
+NAMESPACE=main
 
 WORK_DIR="$HOME/.mobilecoin/${NAMESPACE}"
 WALLET_DB_DIR="${WORK_DIR}/wallet-db"
@@ -15,8 +15,8 @@ mkdir -p ${WALLET_DB_DIR}
 ${WORK_DIR}/full-service \
     --wallet-db ${WALLET_DB_DIR}/wallet.db \
     --ledger-db ${LEDGER_DB_DIR} \
-    --peer mc://node1.test.mobilecoin.com/ \
-    --peer mc://node2.test.mobilecoin.com/ \
-    --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
-    --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
-    --fog-ingest-enclave-css ${WORK_DIR}/ingest-enclave.css
+    --peer mc://node1.prod.mobilecoinww.com/ \
+    --peer mc://node2.prod.mobilecoinww.com/ \
+    --tx-source-url https://ledger.mobilecoinww.com/node1.prod.mobilecoinww.com/ \
+    --tx-source-url https://ledger.mobilecoinww.com/node2.prod.mobilecoinww.com/ \
+    --fog-ingest-enclave-css $(pwd)/ingest-enclave.css

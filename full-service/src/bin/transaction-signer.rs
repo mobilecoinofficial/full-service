@@ -26,7 +26,6 @@ use mc_transaction_core::{
     onetime_keys::{recover_onetime_private_key, recover_public_subaddress_spend_key},
     ring_signature::KeyImage,
     tx::TxOut,
-    AmountError,
 };
 
 #[derive(Clone, Debug, StructOpt)]
@@ -321,7 +320,7 @@ fn sign_transaction(secret_mnemonic: &str, request: &str) {
     .unwrap();
 
     let tx_proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
-    let tx_proposal_json = TxProposal::from(&tx_proposal);
+    let tx_proposal_json = TxProposal::try_from(&tx_proposal).unwrap();
     let json_command_request = JsonCommandRequest::submit_transaction {
         tx_proposal: tx_proposal_json,
         comment: None,
@@ -417,10 +416,7 @@ fn tx_out_belongs_to_account(tx_out: &TxOut, account_view_private_key: &Ristrett
 
     let shared_secret = get_tx_out_shared_secret(account_view_private_key, &tx_out_public_key);
 
-    match tx_out.amount.get_value(&shared_secret) {
-        Ok((_, _)) => true,
-        Err(AmountError::InconsistentCommitment) => false,
-    }
+    tx_out.masked_amount.get_value(&shared_secret).is_ok()
 }
 
 fn generate_subaddress_spend_public_keys(

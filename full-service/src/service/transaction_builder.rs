@@ -40,9 +40,11 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tokens::Mob,
     tx::{TxIn, TxOut, TxOutMembershipProof},
-    Token,
+    Amount, BlockVersion, Token,
 };
-use mc_transaction_std::{InputCredentials, NoMemoBuilder, TransactionBuilder};
+use mc_transaction_std::{
+    ChangeDestination, InputCredentials, RTHMemoBuilder, SenderMemoCredential, TransactionBuilder,
+};
 use mc_util_uri::FogUri;
 
 use rand::Rng;
@@ -74,6 +76,9 @@ pub struct WalletTransactionBuilder<FPR: FogPubkeyResolver + 'static> {
     /// The fee for the transaction.
     fee: Option<u64>,
 
+    /// The block version for the transaction
+    block_version: Option<BlockVersion>,
+
     /// Fog resolver maker, used when constructing outputs to fog recipients.
     /// This is abstracted because in tests, we don't want to form grpc
     /// connections to fog.
@@ -97,6 +102,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             outlays: vec![],
             tombstone: 0,
             fee: None,
+            block_version: None,
             fog_resolver_factory,
             logger,
         }
@@ -116,7 +122,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             None
         };
 
-        let txos = Txo::select_by_id(&input_txo_ids.to_vec(), pending_tombstone_block_index, conn)?;
+        let txos = Txo::select_by_id(input_txo_ids, pending_tombstone_block_index, conn)?;
 
         let unspent: Vec<Txo> = txos
             .iter()
@@ -168,6 +174,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             total_value,
             max_spendable_value,
             pending_tombstone_block_index,
+            Some(0),
             conn,
         )?;
 
@@ -197,6 +204,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         Ok(ViewOnlyTxo::select_unspent_view_only_txos_for_value(
             &self.account_id_hex,
             total_value,
+            Some(0),
             conn,
         )?)
     }
@@ -224,6 +232,10 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         }
         self.fee = Some(fee);
         Ok(())
+    }
+
+    pub fn set_block_version(&mut self, block_version: BlockVersion) {
+        self.block_version = Some(block_version);
     }
 
     pub fn set_tombstone(&mut self, tombstone: u64) -> Result<(), WalletTransactionBuilderError> {
@@ -386,6 +398,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             outlays: outlays_string,
             fee: self.fee.unwrap_or(Mob::MINIMUM_FEE),
             tombstone_block_index: self.tombstone,
+            block_version: self.block_version.unwrap_or(BlockVersion::MAX),
         })
     }
 
@@ -417,10 +430,13 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         };
 
         // Create transaction builder.
-        // TODO: After servers that support memos are deployed, use RTHMemoBuilder here
-        let memo_builder = NoMemoBuilder::default();
-        let mut transaction_builder = TransactionBuilder::new(fog_resolver, memo_builder);
-        transaction_builder.set_fee(self.fee.unwrap_or(Mob::MINIMUM_FEE))?;
+        let mut memo_builder = RTHMemoBuilder::default();
+        memo_builder.set_sender_credential(SenderMemoCredential::from(&from_account_key));
+        memo_builder.enable_destination_memo();
+        let block_version = self.block_version.unwrap_or(BlockVersion::MAX);
+        let fee = Amount::new(self.fee.unwrap_or(Mob::MINIMUM_FEE), Mob::ID);
+        let mut transaction_builder =
+            TransactionBuilder::new(block_version, fee, fog_resolver, memo_builder)?;
 
         // Get membership proofs for our inputs
         let indexes = self
@@ -549,11 +565,10 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let mut outlay_confirmation_numbers = Vec::default();
         let mut rng = rand::thread_rng();
         for (i, (recipient, out_value)) in self.outlays.iter().enumerate() {
-            let (tx_out, confirmation_number) =
-                transaction_builder.add_output(*out_value as u64, recipient, &mut rng)?;
+            let txo_context = transaction_builder.add_output(*out_value, recipient, &mut rng)?;
 
-            tx_out_to_outlay_index.insert(tx_out, i);
-            outlay_confirmation_numbers.push(confirmation_number);
+            tx_out_to_outlay_index.insert(txo_context.tx_out, i);
+            outlay_confirmation_numbers.push(txo_context.confirmation);
 
             total_value += *out_value;
         }
@@ -562,25 +577,20 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let input_value = inputs_and_proofs
             .iter()
             .fold(0, |acc, (utxo, _proof)| acc + utxo.value);
-        if (total_value + transaction_builder.get_fee()) > input_value as u64 {
+        if (total_value + transaction_builder.get_fee().value) > input_value as u64 {
             return Err(WalletTransactionBuilderError::InsufficientInputFunds(
                 format!(
                     "Total value required to send transaction {:?}, but only {:?} in inputs",
-                    total_value + transaction_builder.get_fee(),
+                    total_value + transaction_builder.get_fee().value,
                     input_value
                 ),
             ));
         }
 
-        let change = input_value as u64 - total_value - transaction_builder.get_fee();
+        let change = input_value as u64 - total_value - transaction_builder.get_fee().value;
 
-        // Even if change is zero, add an output for it
-        let change_public_address =
-            from_account_key.subaddress(account.change_subaddress_index as u64);
-        // FIXME: verify that fog resolver knows to send change with hint encrypted to
-        // the main public address
-        transaction_builder.add_output(change, &change_public_address, &mut rng)?;
-        // FIXME: CBB - map error to indicate error with change
+        let change_destination = ChangeDestination::from(&from_account_key);
+        transaction_builder.add_change_output(change, &change_destination, &mut rng)?;
 
         // Set tombstone block.
         transaction_builder.set_tombstone_block(self.tombstone);
@@ -636,6 +646,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                     value: utxo.value as u64,
                     attempted_spend_height: 0, // NOTE: these are null because not tracked here
                     attempted_spend_tombstone: 0,
+                    token_id: *Mob::ID,
                 }
             })
             .collect();
@@ -808,6 +819,7 @@ mod tests {
         let unspent = Txo::list_unspent(
             &AccountID::from(&account_key).to_string(),
             None,
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -856,6 +868,7 @@ mod tests {
             &AccountID::from(&account_key).to_string(),
             None,
             None,
+            Some(0),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();

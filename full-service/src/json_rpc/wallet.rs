@@ -222,7 +222,7 @@ where
                     &transaction_log,
                     &associated_txos,
                 ),
-                tx_proposal: TxProposal::from(&tx_proposal),
+                tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
             }
         }
         JsonCommandRequest::build_gift_code {
@@ -278,7 +278,7 @@ where
                 )
                 .map_err(format_error)?;
             JsonCommandResponse::build_split_txo_transaction {
-                tx_proposal: TxProposal::from(&tx_proposal),
+                tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
                 transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
             }
         }
@@ -311,7 +311,7 @@ where
                 )
                 .map_err(format_error)?;
             JsonCommandResponse::build_transaction {
-                tx_proposal: TxProposal::from(&tx_proposal),
+                tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
                 transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
             }
         }
@@ -829,10 +829,29 @@ where
             account_id,
             offset,
             limit,
+            min_block_index,
+            max_block_index,
         } => {
             let (o, l) = page_helper(offset, limit)?;
+
+            let min_block_index = min_block_index
+                .map(|i| i.parse::<u64>())
+                .transpose()
+                .map_err(format_error)?;
+
+            let max_block_index = max_block_index
+                .map(|i| i.parse::<u64>())
+                .transpose()
+                .map_err(format_error)?;
+
             let transaction_logs_and_txos = service
-                .list_transaction_logs(&AccountID(account_id), Some(o), Some(l))
+                .list_transaction_logs(
+                    &AccountID(account_id),
+                    Some(o),
+                    Some(l),
+                    min_block_index,
+                    max_block_index,
+                )
                 .map_err(format_error)?;
             let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
                 transaction_logs_and_txos

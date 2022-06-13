@@ -1,6 +1,6 @@
 [package]
 name = "mc-full-service"
-version = "1.8.0"
+version = "1.9.0"
 authors = ["MobileCoin"]
 edition = "2018"
 build = "build.rs"
@@ -31,6 +31,7 @@ mc-crypto-rand = { path = "../mobilecoin/crypto/rand", default-features = false 
 mc-fog-report-connection = { path = "../mobilecoin/fog/report/connection" }
 mc-fog-report-validation = { path = "../mobilecoin/fog/report/validation" }
 mc-ledger-db = { path = "../mobilecoin/ledger/db" }
+mc-ledger-migration = { path = "../mobilecoin/ledger/migration" }
 mc-ledger-sync = { path = "../mobilecoin/ledger/sync" }
 mc-mobilecoind = { path = "../mobilecoin/mobilecoind" }
 mc-mobilecoind-api = { path = "../mobilecoin/mobilecoind/api" }
@@ -46,17 +47,17 @@ mc-util-uri = { path = "../mobilecoin/util/uri" }
 base64 = "0.13.0"
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
 crossbeam-channel = "0.5"
-diesel = { version = "1.4.6", features = ["sqlcipher-bundled"] }
+diesel = { version = "1.4.8", features = ["sqlcipher-bundled"] }
 diesel-derive-enum = { version = "1", features = ["sqlite"] }
 diesel_migrations = { version = "1.4.0", features = ["sqlite"] }
 displaydoc = {version = "0.2", default-features = false }
 dotenv = "0.15.0"
-grpcio = "0.9.0"
+grpcio = { version ="0.10.2", default-features = false, features = [ "openssl" ] }
 hex = {version = "0.4", default-features = false }
 num_cpus = "1.12"
 rand = { version = "0.8", default-features = false }
 rayon = "1.5"
-reqwest = { version = "0.10", default-features = false, features = ["rustls-tls", "gzip"] }
+reqwest = { version = "0.11.10", default-features = false, features = ["rustls-tls", "gzip"] }
 retry = "1.3"
 rocket = { version = "0.4.5", default-features = false }
 rocket_contrib = { version = "0.4.5", default-features = false, features = ["json", "diesel_sqlite_pool"] }
@@ -64,10 +65,10 @@ serde = { version = "1.0", default-features = false, features = ["alloc", "deriv
 serde_derive = "1.0"
 serde_json = { version = "1.0", features = ["preserve_order"] }
 structopt = "0.3"
-strum = { version = "0.20", features = ["derive"] }
-strum_macros = "0.20"
+strum = { version = "0.24.0", features = ["derive"] }
+strum_macros = "0.24.0"
 tiny-bip39 = "0.8.0"
-uuid = { version = "0.7", features = ["serde", "v4"] }
+uuid = { version = "1.0.0", features = ["serde", "v4"] }
 
 [dev-dependencies]
 mc-connection-test-utils = { path = "../mobilecoin/connection/test-utils" }
@@ -78,6 +79,6 @@ bs58 = "0.4.0"
 
 [build-dependencies]
 # clippy fails to run without this.
-diesel = { version = "1.4.6", features = ["sqlite-bundled"] }
+diesel = { version = "1.4.8", features = ["sqlcipher-bundled"] }
 vergen = "7.0.0"
 anyhow = "1.0"

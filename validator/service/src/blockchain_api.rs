@@ -9,7 +9,7 @@ use mc_ledger_db::{Ledger, LedgerDB};
 use mc_transaction_core::{tokens::Mob, Token};
 use mc_util_grpc::{rpc_database_err, rpc_logger, send_result};
 use mc_validator_api::{
-    consensus_common::LastBlockInfoResponse,
+    consensus_common::{BlocksRequest, BlocksResponse, LastBlockInfoResponse},
     consensus_common_grpc::{create_blockchain_api, BlockchainApi as GrpcBlockchainApi},
     empty::Empty,
 };
@@ -69,18 +69,10 @@ impl<BC: BlockchainConnection + 'static> BlockchainApi<BC> {
             .conns()
             .par_iter()
             .filter_map(|conn| conn.fetch_block_info(std::iter::empty()).ok())
-            .filter_map(|block_info| {
-                // Cleanup the protobuf default fee
-                if block_info.minimum_fee == 0 {
-                    None
-                } else {
-                    Some(block_info.minimum_fee)
-                }
-            })
+            .filter_map(|block_info| block_info.minimum_fee_or_none(&Mob::ID))
             .max()
             .unwrap_or(Mob::MINIMUM_FEE);
-
-        resp.set_minimum_fee(minimum_fee);
+        resp.set_mob_minimum_fee(minimum_fee);
 
         Ok(resp)
     }
@@ -98,6 +90,11 @@ impl<BC: BlockchainConnection + 'static> GrpcBlockchainApi for BlockchainApi<BC>
         })
     }
 
-    // TODO: GetBlocks is purposefully unimplemented since it is unclear if it will
-    // be needed.
+    fn get_blocks(
+        &mut self,
+        _ctx: RpcContext,
+        _req: BlocksRequest,
+        _sink: grpcio::UnarySink<BlocksResponse>,
+    ) {
+    }
 }
