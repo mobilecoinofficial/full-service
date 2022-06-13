@@ -50,6 +50,8 @@ Replace our default peers or tx-source-urls if you would prefer to establish you
 
 ## **HTTP Request Service**
 
+The Full Service API is reached at `localhost:9090/wallet` using the `POST` method.
+
 1. Install a service, such as [Postman](https://www.postman.com/), to send HTTP requests.
 
 ## API Key

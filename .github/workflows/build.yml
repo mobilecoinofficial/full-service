@@ -35,8 +35,7 @@ jobs:
 
       - name: Brew Bundle
         run: |
-          brew update --preinstall
-          brew bundle --no-upgrade
+          brew bundle
       
       - name: Git Submodule
         run: |
@@ -66,6 +65,10 @@ jobs:
       - name: Cargo Build
         if: steps.artifact_cache.outputs.cache-hit != 'true'
         run: |
+          export PATH="/usr/local/opt/openssl@3/bin:$PATH"
+          export LDFLAGS="-L/usr/local/opt/openssl@3/lib"
+          export CPPFLAGS="-I/usr/local/opt/openssl@3/include"
+          export PKG_CONFIG_PATH="/usr/local/opt/openssl@3/lib/pkgconfig"
           cargo build --release
 
       - name: Copy binaries to cache folder
@@ -122,8 +125,7 @@ jobs:
 
       - name: Brew Bundle
         run: |
-          brew update --preinstall
-          brew bundle --no-upgrade
+          brew bundle
       
       - name: Git Submodule
         run: |
@@ -153,6 +155,10 @@ jobs:
       - name: Cargo Build
         if: steps.artifact_cache.outputs.cache-hit != 'true'
         run: |
+          export PATH="/opt/homebrew/opt/openssl@3/bin:$PATH"
+          export LDFLAGS="-L/opt/homebrew/opt/openssl@3/lib"
+          export CPPFLAGS="-I/opt/homebrew/opt/openssl@3/include"
+          export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl@3/lib/pkgconfig"
           cargo build --release
 
       - name: Copy binaries to cache folder

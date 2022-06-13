@@ -91,7 +91,7 @@
 ## Usage
 
 * [Environment Setup](tutorials/environment-setup.md)
-* [Run Full Service](tutorials/recieve-mob.md)
+* [Run Full Service](tutorials/receive-mob.md)
 * [Database Usage](tutorials/database-usage.md)
 * [Resolve Disputes](tutorials/resolve-disputes.md)
 * [View Only Account](usage/view-only-account/README.md)
