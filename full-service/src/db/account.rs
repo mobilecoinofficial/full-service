@@ -5,10 +5,9 @@
 use crate::{
     db::{
         assigned_subaddress::AssignedSubaddressModel,
-        models::{Account, AssignedSubaddress, NewAccount, TransactionLog, Txo, ViewOnlyAccount},
+        models::{Account, AssignedSubaddress, NewAccount, TransactionLog, Txo},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
-        view_only_account::ViewOnlyAccountModel,
         Conn, WalletDbError,
     },
     util::constants::{
@@ -183,8 +182,6 @@ impl AccountModel for Account {
         fog_authority_spki: String,
         conn: &Conn,
     ) -> Result<(AccountID, String), WalletDbError> {
-        let fog_enabled = !fog_report_url.is_empty();
-
         let account_key = Slip10Key::from(mnemonic.clone()).try_into_account_key(
             &fog_report_url,
             &fog_report_id,
@@ -192,14 +189,18 @@ impl AccountModel for Account {
         )?;
 
         Account::create(
-            mnemonic.entropy(),
+            Some(mnemonic.entropy()),
             MNEMONIC_KEY_DERIVATION_VERSION,
-            &account_key,
+            account_key.view_private_key(),
+            Some(account_key.spend_private_key()),
+            &RistrettoPublic::from(account_key.spend_private_key()),
+            &fog_report_url,
+            &fog_report_id,
+            &base64::decode(fog_authority_spki)?,
             first_block_index,
             import_block_index,
             next_subaddress_index,
             name,
-            fog_enabled,
             conn,
         )
     }
@@ -215,25 +216,28 @@ impl AccountModel for Account {
         fog_authority_spki: String,
         conn: &Conn,
     ) -> Result<(AccountID, String), WalletDbError> {
-        let fog_enabled = !fog_report_url.is_empty();
-
         let root_id = RootIdentity {
             root_entropy: entropy.clone(),
             fog_report_url,
             fog_report_id,
             fog_authority_spki: base64::decode(fog_authority_spki).expect("invalid spki"),
         };
+
         let account_key = AccountKey::from(&root_id);
 
         Account::create(
-            &entropy.bytes,
+            Some(entropy.as_bytes()),
             ROOT_ENTROPY_KEY_DERIVATION_VERSION,
-            &account_key,
+            account_key.view_private_key(),
+            Some(account_key.spend_private_key()),
+            &RistrettoPublic::from(account_key.spend_private_key()),
+            &fog_report_url,
+            &fog_report_id,
+            &base64::decode(fog_authority_spki)?,
             first_block_index,
             import_block_index,
             next_subaddress_index,
             name,
-            fog_enabled,
             conn,
         )
     }
@@ -246,7 +250,7 @@ impl AccountModel for Account {
         spend_public_key: &RistrettoPublic,
         fog_report_url: &str,
         fog_report_id: &str,
-        fog_authority_spki: &str,
+        fog_authority_spki: &[u8],
         first_block_index: Option<u64>,
         import_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
@@ -255,13 +259,7 @@ impl AccountModel for Account {
     ) -> Result<(AccountID, String), WalletDbError> {
         use crate::db::schema::accounts;
 
-        let account_id = AccountID::from(account_key);
-
-        if ViewOnlyAccount::get(&account_id.to_string(), conn).is_ok() {
-            return Err(WalletDbError::ViewOnlyAccountAlreadyExists(
-                account_id.to_string(),
-            ));
-        }
+        let fog_enabled = fog_report_url.is_empty() == false;
 
         let first_block_index = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX);
         let next_block_index = first_block_index;
@@ -280,8 +278,6 @@ impl AccountModel for Account {
 
         let new_account = NewAccount {
             account_id_hex: &account_id.to_string(),
-            account_key: &mc_util_serial::encode(account_key), /* FIXME: WS-6 - add
-                                                                * encryption */
             entropy,
             key_derivation_version: key_derivation_version as i32,
             main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
@@ -291,43 +287,49 @@ impl AccountModel for Account {
             next_block_index: next_block_index as i64,
             import_block_index: import_block_index.map(|i| i as i64),
             name,
-            fog_enabled,
+            view_private_key: &view_private_key.to_bytes(),
+            spend_private_key: &spend_private_key.map(|p| p.to_bytes()),
+            spend_public_key: &spend_public_key.to_bytes(),
+            fog_report_url,
+            fog_report_id,
+            fog_authority_spki,
         };
 
         diesel::insert_into(accounts::table)
             .values(&new_account)
             .execute(conn)?;
 
-        let main_subaddress_b58 = AssignedSubaddress::create(
-            account_key,
-            None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
-                   * always for main? */
-            DEFAULT_SUBADDRESS_INDEX,
-            "Main",
-            conn,
-        )?;
-        if !fog_enabled {
-            AssignedSubaddress::create(
-                account_key,
-                None,
-                LEGACY_CHANGE_SUBADDRESS_INDEX,
-                "Legacy Change",
-                conn,
-            )?;
+        // let main_subaddress_b58 = AssignedSubaddress::create(
+        //     account_key,
+        //     None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
+        //            * always for main? */
+        //     DEFAULT_SUBADDRESS_INDEX,
+        //     "Main",
+        //     conn,
+        // )?;
+        // if !fog_enabled {
+        //     AssignedSubaddress::create(
+        //         account_key,
+        //         None,
+        //         LEGACY_CHANGE_SUBADDRESS_INDEX,
+        //         "Legacy Change",
+        //         conn,
+        //     )?;
 
-            AssignedSubaddress::create(
-                account_key,
-                None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
-                       * always for main? */
-                CHANGE_SUBADDRESS_INDEX,
-                "Change",
-                conn,
-            )?;
+        //     AssignedSubaddress::create(
+        //         account_key,
+        //         None, /* FIXME: WS-8 - Address Book Entry if details provided, or
+        // None
+        //                * always for main? */
+        //         CHANGE_SUBADDRESS_INDEX,
+        //         "Change",
+        //         conn,
+        //     )?;
 
-            for subaddress_index in 2..next_subaddress_index {
-                AssignedSubaddress::create(account_key, None, subaddress_index as u64, "", conn)?;
-            }
-        }
+        //     for subaddress_index in 2..next_subaddress_index {
+        //         AssignedSubaddress::create(account_key, None, subaddress_index as
+        // u64, "", conn)?;     }
+        // }
 
         Ok((account_id, main_subaddress_b58))
     }
