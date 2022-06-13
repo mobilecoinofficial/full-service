@@ -1,1 +1,0 @@
-DROP INDEX idx_txos__txo_public_key;
