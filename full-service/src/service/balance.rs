@@ -108,8 +108,6 @@ pub struct WalletStatus {
     pub min_synced_block_index: u64,
     pub account_ids: Vec<AccountID>,
     pub account_map: HashMap<AccountID, Account>,
-    pub view_only_account_ids: Vec<String>,
-    pub view_only_account_map: HashMap<String, ViewOnlyAccount>,
 }
 
 /// Trait defining the ways in which the wallet can interact with and manage

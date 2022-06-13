@@ -5,12 +5,10 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        models::{Account, TransactionLog, ViewOnlyAccount, ViewOnlyTxo},
+        models::{Account, TransactionLog},
         transaction,
         transaction_log::{AssociatedTxos, TransactionLogModel},
         txo::TxoID,
-        view_only_account::ViewOnlyAccountModel,
-        view_only_txo::ViewOnlyTxoModel,
         WalletDbError,
     },
     error::WalletTransactionBuilderError,

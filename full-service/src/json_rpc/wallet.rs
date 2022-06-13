@@ -448,19 +448,20 @@ where
             }
         }
         JsonCommandRequest::create_view_only_account_sync_request { account_id } => {
-            let incomplete_txos = service
-                .list_incomplete_view_only_txos(&account_id)
-                .map_err(format_error)?;
+            todo!()
+            // let incomplete_txos = service
+            //     .list_incomplete_view_only_txos(&account_id)
+            //     .map_err(format_error)?;
 
-            let incomplete_txos_encoded: Vec<String> = incomplete_txos
-                .iter()
-                .map(|txo| hex::encode(mc_util_serial::encode(txo)))
-                .collect();
+            // let incomplete_txos_encoded: Vec<String> = incomplete_txos
+            //     .iter()
+            //     .map(|txo| hex::encode(mc_util_serial::encode(txo)))
+            //     .collect();
 
-            JsonCommandResponse::create_view_only_account_sync_request {
-                account_id,
-                incomplete_txos_encoded,
-            }
+            // JsonCommandResponse::create_view_only_account_sync_request {
+            //     account_id,
+            //     incomplete_txos_encoded,
+            // }
         }
         JsonCommandRequest::export_account_secrets { account_id } => {
             let account = service
@@ -864,50 +865,9 @@ where
             let decoded_key: RistrettoPrivate =
                 mc_util_serial::decode(&decoded_key_bytes).map_err(format_error)?;
 
-            let subaddresses_decoded = subaddresses
-                .iter()
-                .map(|s| {
-                    let public_spend_key_bytes = hex::decode(&s.public_spend_key).unwrap();
-                    let decoded_public_spend_key: RistrettoPublic =
-                        mc_util_serial::decode(&public_spend_key_bytes).map_err(format_error)?;
-                    let subaddress_index =
-                        s.subaddress_index.parse::<u64>().map_err(format_error)?;
-                    Ok((
-                        s.public_address.clone(),
-                        subaddress_index,
-                        s.comment.clone(),
-                        decoded_public_spend_key,
-                    ))
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-
-            let view_only_account = &service
-                .import_view_only_account(
-                    &account.account_id,
-                    &decoded_key,
-                    account
-                        .main_subaddress_index
-                        .parse::<u64>()
-                        .map_err(format_error)?,
-                    account
-                        .change_subaddress_index
-                        .parse::<u64>()
-                        .map_err(format_error)?,
-                    account
-                        .next_subaddress_index
-                        .parse::<u64>()
-                        .map_err(format_error)?,
-                    &account.name,
-                    subaddresses_decoded,
-                )
-                .map_err(format_error)?;
-
-            let view_only_account_json =
-                json_rpc::view_only_account::ViewOnlyAccountJSON::from(view_only_account);
-
-            JsonCommandResponse::import_view_only_account {
-                view_only_account: view_only_account_json,
-            }
+            // JsonCommandResponse::import_view_only_account {
+            //     view_only_account: view_only_account_json,
+            // }
         }
         JsonCommandRequest::remove_account { account_id } => JsonCommandResponse::remove_account {
             removed: service
@@ -966,42 +926,7 @@ where
             completed_txos,
             subaddresses,
         } => {
-            let txo_ids_and_key_images: Vec<(String, KeyImage)> = completed_txos
-                .iter()
-                .map(|(txo_id, key_image_encoded)| {
-                    let key_image_bytes = hex::decode(&key_image_encoded).map_err(format_error)?;
-                    let key_image: KeyImage =
-                        mc_util_serial::decode(&key_image_bytes).map_err(format_error)?;
-                    Ok((txo_id.clone(), key_image))
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-
-            service
-                .set_view_only_txos_key_images(txo_ids_and_key_images)
-                .map_err(format_error)?;
-
-            let subaddresses_decoded = subaddresses
-                .iter()
-                .map(|s| {
-                    let public_spend_key_bytes =
-                        hex::decode(&s.public_spend_key).map_err(format_error)?;
-                    let decoded_public_spend_key =
-                        mc_util_serial::decode(&public_spend_key_bytes).map_err(format_error)?;
-                    let subaddress_index =
-                        s.subaddress_index.parse::<u64>().map_err(format_error)?;
-                    Ok((
-                        s.public_address.clone(),
-                        subaddress_index,
-                        s.comment.clone(),
-                        decoded_public_spend_key,
-                    ))
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-
-            service
-                .import_subaddresses(&account_id, subaddresses_decoded)
-                .map_err(format_error)?;
-
+            todo!();
             JsonCommandResponse::sync_view_only_account
         }
         JsonCommandRequest::update_account_name { account_id, name } => {
