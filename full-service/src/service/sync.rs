@@ -6,16 +6,10 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        models::{
-            Account, AssignedSubaddress, TransactionLog, Txo, ViewOnlyAccount, ViewOnlySubaddress,
-            ViewOnlyTxo,
-        },
+        models::{Account, AssignedSubaddress, TransactionLog, Txo},
         transaction,
         transaction_log::TransactionLogModel,
         txo::TxoModel,
-        view_only_account::ViewOnlyAccountModel,
-        view_only_subaddress::ViewOnlySubaddressModel,
-        view_only_txo::ViewOnlyTxoModel,
         Conn, WalletDb,
     },
     error::SyncError,
@@ -127,27 +121,12 @@ pub fn sync_all_accounts(
         Account::list_all(conn).expect("Failed getting accounts from database")
     };
 
-    let view_only_accounts: Vec<ViewOnlyAccount> = {
-        let conn = &wallet_db
-            .get_conn()
-            .expect("Could not get connection to DB");
-        ViewOnlyAccount::list_all(conn).expect("Failed getting view only accounts from database")
-    };
-
     for account in accounts {
         // If there are no new blocks for this account, don't do anything.
         if account.next_block_index as u64 > num_blocks - 1 {
             continue;
         }
         sync_account(ledger_db, wallet_db, &account.account_id_hex, logger)?;
-    }
-
-    for account in view_only_accounts {
-        // If there are no new blocks for this account, don't do anything.
-        if account.next_block_index as u64 > num_blocks - 1 {
-            continue;
-        }
-        sync_view_only_account(ledger_db, wallet_db, &account.account_id_hex, logger)?;
     }
 
     Ok(())
@@ -157,150 +136,6 @@ pub fn sync_all_accounts(
 enum SyncStatus {
     ChunkFinished,
     NoMoreBlocks,
-}
-
-/// Sync a single view only account.
-pub fn sync_view_only_account(
-    ledger_db: &LedgerDB,
-    wallet_db: &WalletDb,
-    account_id_hex: &str,
-    logger: &Logger,
-) -> Result<(), SyncError> {
-    let conn = wallet_db.get_conn()?;
-
-    while let SyncStatus::ChunkFinished =
-        sync_view_only_account_next_chunk(ledger_db, &conn, logger, account_id_hex)?
-    {}
-
-    Ok(())
-}
-
-fn sync_view_only_account_next_chunk(
-    ledger_db: &LedgerDB,
-    conn: &Conn,
-    logger: &Logger,
-    account_id_hex: &str,
-) -> Result<SyncStatus, SyncError> {
-    transaction(conn, || {
-        // Get the account data. If it is no longer available, the account has been
-        // removed and we can simply return.
-        let view_only_account = ViewOnlyAccount::get(account_id_hex, conn)?;
-        let view_private_key: RistrettoPrivate =
-            mc_util_serial::decode(&view_only_account.view_private_key)?;
-
-        // Load subaddresses for this account into a hash map.
-        let mut subaddress_keys: HashMap<RistrettoPublic, u64> = HashMap::default();
-        let subaddresses: Vec<_> = ViewOnlySubaddress::list_all(account_id_hex, None, None, conn)?;
-        for s in subaddresses {
-            let subaddress_key = RistrettoPublic::try_from(s.public_spend_key.as_slice())?;
-            subaddress_keys.insert(subaddress_key, s.subaddress_index as u64);
-        }
-
-        let start_time = Instant::now();
-        let start_block_index = view_only_account.next_block_index as u64;
-        let mut end_block_index = view_only_account.next_block_index as u64;
-
-        // Load transaction outputs and key_images for this chunk.
-        let mut tx_outs: Vec<(u64, TxOut)> = Vec::new();
-        let mut key_images: Vec<(u64, KeyImage)> = Vec::new();
-
-        let start = view_only_account.next_block_index as u64;
-        let end = start + BLOCKS_CHUNK_SIZE;
-        for block_index in start..end {
-            let block_index = block_index as u64;
-            let block_contents = match ledger_db.get_block_contents(block_index as u64) {
-                Ok(block_contents) => block_contents,
-                Err(mc_ledger_db::Error::NotFound) => {
-                    break;
-                }
-                Err(err) => {
-                    return Err(err.into());
-                }
-            };
-            end_block_index = block_index;
-
-            for tx_out in block_contents.outputs {
-                tx_outs.push((block_index, tx_out));
-            }
-
-            for key_image in block_contents.key_images {
-                key_images.push((block_index, key_image));
-            }
-        }
-
-        // Attempt to decode each transaction as received by this account.
-        let received_txos: Vec<_> = tx_outs
-            .into_par_iter()
-            .filter_map(|(block_index, tx_out)| {
-                let amount = match decode_amount(&tx_out, &view_private_key) {
-                    None => return None,
-                    Some(a) => a,
-                };
-
-                let subaddress_index =
-                    decode_subaddress_index(&tx_out, &view_private_key, &subaddress_keys);
-                Some((block_index, tx_out, amount, subaddress_index))
-            })
-            .collect();
-        let num_received_txos = received_txos.len();
-
-        // Write received txos to db
-        for (block_index, tx_out, amount, subaddress_index) in received_txos {
-            ViewOnlyTxo::create(
-                tx_out.clone(),
-                amount,
-                subaddress_index,
-                Some(block_index),
-                account_id_hex,
-                conn,
-            )?;
-        }
-
-        // Match key images to mark existing unspent transactions as spent.
-        let unspent_key_images: HashMap<KeyImage, String> =
-            ViewOnlyTxo::list_unspent_with_key_images(account_id_hex, None, conn)?;
-        let spent_txos: Vec<(u64, String)> = key_images
-            .into_par_iter()
-            .filter_map(|(block_index, key_image)| {
-                unspent_key_images
-                    .get(&key_image)
-                    .map(|txo_id_hex| (block_index, txo_id_hex.clone()))
-            })
-            .collect();
-
-        for (block_index, txo_id_hex) in &spent_txos {
-            ViewOnlyTxo::update_spent_block_index(txo_id_hex, *block_index, conn)?;
-        }
-
-        ViewOnlyTxo::release_txos_with_expired_pending_tombstone_block_index(
-            account_id_hex,
-            end_block_index,
-            conn,
-        )?;
-
-        // Done syncing this chunk. Mark these blocks as synced for this account.
-        view_only_account.update_next_block_index(end_block_index + 1, conn)?;
-        let num_blocks_synced = end_block_index - start_block_index + 1;
-
-        let duration = start_time.elapsed();
-
-        log::debug!(
-            logger,
-            "Synced {} blocks ({}-{}) for view only account {} in {:?}. {} txos received.",
-            num_blocks_synced,
-            start_block_index,
-            end_block_index,
-            account_id_hex.chars().take(6).collect::<String>(),
-            duration,
-            num_received_txos,
-        );
-
-        if num_blocks_synced < BLOCKS_CHUNK_SIZE {
-            Ok(SyncStatus::NoMoreBlocks)
-        } else {
-            Ok(SyncStatus::ChunkFinished)
-        }
-    })
 }
 
 /// Sync a single account.
@@ -403,29 +238,6 @@ fn sync_account_next_chunk(
                 account_id_hex,
                 conn,
             )?;
-
-            // TODO: What's the best way to get the assigned_subaddress_b58?
-            // Do we even care about saving this in the database at all? We
-            // should be able to look up any relevant information about the
-            // txo directly from the txo table. This will also hinder us
-            // from supporting recoverable transaction history in the case that
-            // there are txo's that go to multiple different subaddresses in the
-            // same transaction.
-            // My thoughts are to remove assigned_subaddress_b58 entirely from
-            // this table and use the TransactionTxoType table to look up info
-            // about each of the txo's independently, since each on could
-            // be at a different subaddress.
-            // In fact, do we even want to be creating a TransactionLog for
-            // individual txo's at all, since all of this information is
-            // derivable from the txo's table? The only thing that's necessary
-            // to store in the database WRT a transaction is when we send,
-            // because that requires extra meta data that isn't derivable
-            // from the ledger.
-            //
-            // TL;DR
-            // Reconsider creating a TransactionLog in favor of deriving the
-            // information from the txo's table when necessary, and only
-            // store information about sent transactions.
 
             let assigned_subaddress_b58: Option<String> = match subaddress_index {
                 None => None,

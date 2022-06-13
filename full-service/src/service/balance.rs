@@ -6,13 +6,8 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        models::{
-            Account, AssignedSubaddress, Txo, ViewOnlyAccount, ViewOnlySubaddress, ViewOnlyTxo,
-        },
+        models::{Account, AssignedSubaddress, Txo},
         txo::TxoModel,
-        view_only_account::ViewOnlyAccountModel,
-        view_only_subaddress::ViewOnlySubaddressModel,
-        view_only_txo::ViewOnlyTxoModel,
         Conn, WalletDbError,
     },
     service::{
@@ -128,17 +123,7 @@ pub trait BalanceService {
         account_id: &AccountID,
     ) -> Result<Balance, BalanceServiceError>;
 
-    fn get_balance_for_view_only_account(
-        &self,
-        account_id: &str,
-    ) -> Result<Balance, BalanceServiceError>;
-
     fn get_balance_for_address(&self, address: &str) -> Result<Balance, BalanceServiceError>;
-
-    fn get_balance_for_view_only_address(
-        &self,
-        address: &str,
-    ) -> Result<Balance, BalanceServiceError>;
 
     fn get_network_status(&self) -> Result<NetworkStatus, BalanceServiceError>;
 
@@ -177,32 +162,6 @@ where
         })
     }
 
-    fn get_balance_for_view_only_account(
-        &self,
-        account_id: &str,
-    ) -> Result<Balance, BalanceServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-
-        let (unspent, max_spendable, pending, spent, secreted, orphaned) =
-            Self::get_view_only_balance_inner(account_id, None, &conn)?;
-
-        let network_block_height = self.get_network_block_height()?;
-        let local_block_height = self.ledger_db.num_blocks()?;
-        let account = ViewOnlyAccount::get(account_id, &conn)?;
-
-        Ok(Balance {
-            unspent,
-            pending,
-            spent,
-            secreted,
-            orphaned,
-            network_block_height,
-            local_block_height,
-            synced_blocks: account.next_block_index as u64,
-            max_spendable,
-        })
-    }
-
     fn get_balance_for_address(&self, address: &str) -> Result<Balance, BalanceServiceError> {
         let network_block_height = self.get_network_block_height()?;
         let local_block_height = self.ledger_db.num_blocks()?;
@@ -228,35 +187,6 @@ where
         })
     }
 
-    fn get_balance_for_view_only_address(
-        &self,
-        address: &str,
-    ) -> Result<Balance, BalanceServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-        let view_only_subaddress = ViewOnlySubaddress::get(address, &conn)?;
-        let (unspent, max_spendable, pending, spent, secreted, orphaned) =
-            Self::get_view_only_balance_inner(
-                &view_only_subaddress.view_only_account_id_hex,
-                Some(address),
-                &conn,
-            )?;
-
-        let network_block_height = self.get_network_block_height()?;
-        let local_block_height = self.ledger_db.num_blocks()?;
-        let account = ViewOnlyAccount::get(&view_only_subaddress.view_only_account_id_hex, &conn)?;
-
-        Ok(Balance {
-            unspent,
-            max_spendable,
-            pending,
-            spent,
-            secreted,
-            orphaned,
-            network_block_height,
-            local_block_height,
-            synced_blocks: account.next_block_index as u64,
-        })
-    }
     fn get_network_status(&self) -> Result<NetworkStatus, BalanceServiceError> {
         Ok(NetworkStatus {
             network_block_height: self.get_network_block_height()?,
@@ -372,35 +302,6 @@ where
         };
 
         let result = (unspent, max_spendable, pending, spent, secreted, orphaned);
-        Ok(result)
-    }
-
-    fn get_view_only_balance_inner(
-        account_id_hex: &str,
-        assigned_subaddress_b58: Option<&str>,
-        conn: &Conn,
-    ) -> Result<(u128, u128, u128, u128, u128, u128), BalanceServiceError> {
-        let unspent =
-            ViewOnlyTxo::list_unspent(account_id_hex, assigned_subaddress_b58, Some(0), conn)?
-                .iter()
-                .map(|t| (t.value as u64) as u128)
-                .sum::<u128>();
-        let spent =
-            ViewOnlyTxo::list_spent(account_id_hex, assigned_subaddress_b58, Some(0), conn)?
-                .iter()
-                .map(|t| (t.value as u64) as u128)
-                .sum::<u128>();
-        let orphaned = ViewOnlyTxo::list_orphaned(account_id_hex, Some(0), conn)?
-            .iter()
-            .map(|t| (t.value as u64) as u128)
-            .sum::<u128>();
-        let pending =
-            ViewOnlyTxo::list_pending(account_id_hex, assigned_subaddress_b58, Some(0), conn)?
-                .iter()
-                .map(|t| (t.value as u64) as u128)
-                .sum::<u128>();
-
-        let result = (unspent, 0, pending, spent, 0, orphaned);
         Ok(result)
     }
 }

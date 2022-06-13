@@ -11,10 +11,8 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        models::{Account, Txo, ViewOnlyAccount, ViewOnlyTxo},
+        models::{Account, Txo},
         txo::TxoModel,
-        view_only_account::ViewOnlyAccountModel,
-        view_only_txo::ViewOnlyTxoModel,
         Conn,
     },
     error::WalletTransactionBuilderError,
@@ -179,34 +177,6 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         )?;
 
         Ok(())
-    }
-
-    /// Selects View Only Txos from the account.
-    fn select_view_only_txos(
-        &self,
-        conn: &Conn,
-    ) -> Result<Vec<ViewOnlyTxo>, WalletTransactionBuilderError> {
-        let outlay_value_sum = self.outlays.iter().map(|(_r, v)| *v as u128).sum::<u128>();
-
-        let fee = self.fee.unwrap_or(Mob::MINIMUM_FEE);
-        if outlay_value_sum > u64::MAX as u128 || outlay_value_sum > u64::MAX as u128 - fee as u128
-        {
-            return Err(WalletTransactionBuilderError::OutboundValueTooLarge);
-        }
-        log::info!(
-            self.logger,
-            "Selecting Txos for value {:?} with fee {:?}",
-            outlay_value_sum,
-            fee
-        );
-        let total_value = outlay_value_sum as u64 + fee;
-
-        Ok(ViewOnlyTxo::select_unspent_view_only_txos_for_value(
-            &self.account_id_hex,
-            total_value,
-            Some(0),
-            conn,
-        )?)
     }
 
     pub fn add_recipient(

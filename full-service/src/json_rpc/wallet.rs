@@ -21,8 +21,6 @@ use crate::{
         receiver_receipt::ReceiverReceipt,
         tx_proposal::TxProposal,
         txo::Txo,
-        view_only_subaddress::ViewOnlySubaddressJSON,
-        view_only_txo::ViewOnlyTxo,
         wallet_status::WalletStatus,
     },
     service,
@@ -38,8 +36,6 @@ use crate::{
         transaction::TransactionService,
         transaction_log::TransactionLogService,
         txo::TxoService,
-        view_only_account::ViewOnlyAccountService,
-        view_only_txo::ViewOnlyTxoService,
         WalletService,
     },
     util::b58::{

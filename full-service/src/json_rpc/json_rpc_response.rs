@@ -19,8 +19,6 @@ use crate::{
         transaction_log::TransactionLog,
         tx_proposal::TxProposal,
         txo::Txo,
-        view_only_account::{ViewOnlyAccountJSON, ViewOnlyAccountSecretsJSON},
-        view_only_subaddress::ViewOnlySubaddressJSON,
         wallet_status::WalletStatus,
     },
     service::{gift_code::GiftCodeStatus, receipt::ReceiptTransactionStatus},

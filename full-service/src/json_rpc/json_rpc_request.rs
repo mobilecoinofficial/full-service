@@ -2,11 +2,7 @@
 
 //! The JSON RPC 2.0 Requests to the Wallet API for Full Service.
 
-use crate::json_rpc::{
-    tx_proposal::TxProposal,
-    view_only_account::{ViewOnlyAccountJSON, ViewOnlyAccountSecretsJSON},
-    view_only_subaddress::ViewOnlySubaddressesJSON,
-};
+use crate::json_rpc::tx_proposal::TxProposal;
 
 use crate::json_rpc::receiver_receipt::ReceiverReceipt;
 use serde::{Deserialize, Serialize};
