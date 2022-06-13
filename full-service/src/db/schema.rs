@@ -2,8 +2,13 @@ table! {
     accounts (id) {
         id -> Integer,
         account_id_hex -> Text,
-        account_key -> Binary,
-        entropy -> Binary,
+        view_private_key -> Binary,
+        spend_private_key -> Nullable<Binary>,
+        spend_public_key -> Binary,
+        fog_report_url -> Nullable<Text>,
+        fog_report_id -> Nullable<Text>,
+        fog_authority_spki -> Nullable<Binary>,
+        entropy -> Nullable<Binary>,
         key_derivation_version -> Integer,
         main_subaddress_index -> BigInt,
         change_subaddress_index -> BigInt,
@@ -12,51 +17,6 @@ table! {
         next_block_index -> BigInt,
         import_block_index -> Nullable<BigInt>,
         name -> Text,
-        fog_enabled -> Bool,
-    }
-}
-
-table! {
-    view_only_accounts (id) {
-        id -> Integer,
-        account_id_hex -> Text,
-        view_private_key -> Binary,
-        first_block_index -> BigInt,
-        next_block_index -> BigInt,
-        main_subaddress_index -> BigInt,
-        change_subaddress_index -> BigInt,
-        next_subaddress_index -> BigInt,
-        import_block_index -> BigInt,
-        name -> Text,
-    }
-}
-
-table! {
-    view_only_txos (id) {
-        id -> Integer,
-        txo_id_hex -> Text,
-        txo -> Binary,
-        key_image -> Nullable<Binary>,
-        subaddress_index -> Nullable<BigInt>,
-        value -> BigInt,
-        token_id -> BigInt,
-        public_key -> Binary,
-        view_only_account_id_hex -> Text,
-        submitted_block_index -> Nullable<BigInt>,
-        pending_tombstone_block_index -> Nullable<BigInt>,
-        received_block_index -> Nullable<BigInt>,
-        spent_block_index -> Nullable<BigInt>,
-    }
-}
-
-table! {
-    view_only_subaddresses (id) {
-        id -> Integer,
-        public_address_b58 -> Text,
-        subaddress_index -> BigInt,
-        view_only_account_id_hex -> Text,
-        comment -> Text,
-        public_spend_key -> Binary,
     }
 }
 
@@ -128,8 +88,6 @@ table! {
         received_account_id_hex -> Nullable<Text>,
     }
 }
-
-allow_tables_to_appear_in_same_query!(view_only_accounts, view_only_txos,);
 
 allow_tables_to_appear_in_same_query!(
     accounts,

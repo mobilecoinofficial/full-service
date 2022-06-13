@@ -4,7 +4,6 @@
 
 use super::schema::{
     accounts, assigned_subaddresses, gift_codes, transaction_logs, transaction_txo_types, txos,
-    view_only_accounts, view_only_subaddresses, view_only_txos,
 };
 
 use serde::Serialize;
@@ -75,13 +74,13 @@ pub struct Account {
     pub id: i32,
     /// An additional ID, derived from the account data.
     pub account_id_hex: String,
-    /// Private keys for viewing and spending the MobileCoin belonging to an
-    /// account.
-    pub account_key: Vec<u8>,
-    /// The private entropy for this account, used to derive the view and send
-    /// keys which comprise the account_key.
-    pub entropy: Vec<u8>,
-    /// Which version of key derivation we are using.
+    pub view_private_key: Vec<u8>,
+    pub spend_private_key: Option<Vec<u8>>,
+    pub spend_public_key: Vec<u8>,
+    pub fog_report_url: Option<String>,
+    pub fog_report_id: Option<String>,
+    pub fog_authority_spki: Option<Vec<u8>>,
+    pub entropy: Option<Vec<u8>>,
     pub key_derivation_version: i32,
     /// Default subadress that is given out to refer to this account.
     pub main_subaddress_index: i64,
@@ -101,56 +100,6 @@ pub struct Account {
     pub import_block_index: Option<i64>,
     /// Name of this account.
     pub name: String, /* empty string for nullable */
-    /// Fog enabled address
-    pub fog_enabled: bool,
-}
-
-/// A View Only Account entity.
-///
-/// Contains the account view private key
-#[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
-#[primary_key(id)]
-pub struct ViewOnlyAccount {
-    /// Primary key
-    pub id: i32,
-    /// An additional ID, derived from the account data.
-    pub account_id_hex: String,
-    /// private key for viewing MobileCoin belonging to an account.
-    pub view_private_key: Vec<u8>,
-    /// Index of the first block where this account may have held funds.
-    pub first_block_index: i64,
-    /// Index of the next block to inspect for transactions related to this
-    /// account.
-    pub next_block_index: i64,
-    /// Default subadress that is given out to refer to this account.
-    pub main_subaddress_index: i64,
-    /// Subaddress used to return transaction "change" to self.
-    pub change_subaddress_index: i64,
-    /// The next unused subaddress index. (Assumes indices are used sequentially
-    /// from 0).
-    pub next_subaddress_index: i64,
-    /// account history prior to this block index is derived from the public
-    /// ledger, and does not reflect client-side
-    /// user events.
-    pub import_block_index: i64,
-    /// Name of this account.
-    pub name: String, /* empty string for nullable */
-}
-
-/// A structure that can be inserted to create a new entity in the
-/// `view_only_accounts` table.
-#[derive(Insertable)]
-#[table_name = "view_only_accounts"]
-pub struct NewViewOnlyAccount<'a> {
-    pub account_id_hex: &'a str,
-    pub view_private_key: &'a [u8],
-    pub first_block_index: i64,
-    pub next_block_index: i64,
-    pub main_subaddress_index: i64,
-    pub change_subaddress_index: i64,
-    pub next_subaddress_index: i64,
-    pub import_block_index: i64,
-    pub name: &'a str,
 }
 
 /// A structure that can be inserted to create a new entity in the `accounts`
@@ -159,8 +108,13 @@ pub struct NewViewOnlyAccount<'a> {
 #[table_name = "accounts"]
 pub struct NewAccount<'a> {
     pub account_id_hex: &'a str,
-    pub account_key: &'a [u8],
-    pub entropy: &'a [u8],
+    pub view_private_key: &'a [u8],
+    pub spend_private_key: Option<&'a [u8]>,
+    pub spend_public_key: &'a [u8],
+    pub fog_report_url: Option<String>,
+    pub fog_report_id: Option<String>,
+    pub fog_authority_spki: Option<&'a [u8]>,
+    pub entropy: Option<&'a [u8]>,
     pub key_derivation_version: i32,
     pub main_subaddress_index: i64,
     pub change_subaddress_index: i64,
@@ -169,7 +123,6 @@ pub struct NewAccount<'a> {
     pub next_block_index: i64,
     pub import_block_index: Option<i64>,
     pub name: &'a str,
-    pub fog_enabled: bool,
 }
 
 /// A transaction output entity that either was received to an Account in this
@@ -231,94 +184,6 @@ pub struct NewTxo<'a> {
     pub recipient_public_address_b58: String,
     pub minted_account_id_hex: Option<String>,
     pub received_account_id_hex: Option<String>,
-}
-
-/// TXOs that can be decrypted with the view-private-key for a
-/// view-only-account.
-#[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug, Associations)]
-#[belongs_to(ViewOnlyAccount, foreign_key = "view_only_account_id_hex")]
-#[primary_key(id)]
-pub struct ViewOnlyTxo {
-    /// Primary key
-    pub id: i32,
-    /// id derrived from txo contents - will be the same for a given txo across
-    /// databases
-    pub txo_id_hex: String,
-    /// The serialized TxOut.
-    pub txo: Vec<u8>,
-    /// Pre-computed key image for this Txo
-    pub key_image: Option<Vec<u8>>,
-    /// the subaddress index this txo belongs to
-    pub subaddress_index: Option<i64>,
-    /// The value of this transaction output, in picoMob.
-    pub value: i64,
-    /// The token of this transaction output.
-    pub token_id: i64,
-    /// The serialized public_key of the TxOut.
-    pub public_key: Vec<u8>,
-    /// account_id_hex of the view_only_account that received this txo
-    pub view_only_account_id_hex: String,
-    /// When this txo was submitted to consensus in a transaction
-    pub submitted_block_index: Option<i64>,
-    /// What tombstone block index this txo must be accepted by before
-    /// becoming invalid
-    pub pending_tombstone_block_index: Option<i64>,
-    /// What index this txo was received on the ledger
-    pub received_block_index: Option<i64>,
-    /// Which block this txo was spent at
-    pub spent_block_index: Option<i64>,
-}
-
-/// A structure that can be inserted to create a new entity in the
-/// `view_only_txos` table.
-#[derive(Insertable)]
-#[table_name = "view_only_txos"]
-pub struct NewViewOnlyTxo<'a> {
-    pub txo: &'a [u8],
-    pub txo_id_hex: &'a str,
-    pub key_image: Option<&'a [u8]>,
-    pub subaddress_index: Option<i64>,
-    pub value: i64,
-    pub token_id: i64,
-    pub public_key: &'a [u8],
-    pub view_only_account_id_hex: &'a str,
-    pub submitted_block_index: Option<i64>,
-    pub pending_tombstone_block_index: Option<i64>,
-    pub received_block_index: Option<i64>,
-    pub spent_block_index: Option<i64>,
-}
-
-/// TXOs that can be decrypted with the view-private-key for a
-/// view-only-account.
-#[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug, Associations)]
-#[belongs_to(ViewOnlyAccount, foreign_key = "view_only_account_id_hex")]
-#[primary_key(id)]
-#[table_name = "view_only_subaddresses"]
-pub struct ViewOnlySubaddress {
-    /// Primary key
-    pub id: i32,
-    /// The pub address b58 string
-    pub public_address_b58: String,
-    /// The serialized TxOut.
-    pub subaddress_index: i64,
-    /// account_id_hex of the view_only_account that received this txo
-    pub view_only_account_id_hex: String,
-    /// comment
-    pub comment: String,
-    /// public spend key
-    pub public_spend_key: Vec<u8>,
-}
-
-/// A structure that can be inserted to create a new entity in the
-/// `view_only_subaddresses` table.
-#[derive(Insertable)]
-#[table_name = "view_only_subaddresses"]
-pub struct NewViewOnlySubaddress<'a> {
-    pub public_address_b58: &'a str,
-    pub view_only_account_id_hex: &'a str,
-    pub subaddress_index: i64,
-    pub comment: &'a str,
-    pub public_spend_key: &'a [u8],
 }
 
 /// A subaddress given to a particular contact, for the purpose of tracking
