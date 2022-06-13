@@ -134,10 +134,6 @@ pub enum JsonCommandRequest {
         fog_report_id: Option<String>,
         fog_authority_spki: Option<String>,
     },
-    create_new_subaddresses_request {
-        account_id: String,
-        num_subaddresses_to_generate: String,
-    },
     create_payment_request {
         account_id: String,
         subaddress_index: Option<i64>,
@@ -153,15 +149,6 @@ pub enum JsonCommandRequest {
     export_account_secrets {
         account_id: String,
     },
-    export_spent_txo_ids {
-        account_id: String,
-    },
-    export_view_only_account_package {
-        account_id: String,
-    },
-    export_view_only_account_secrets {
-        account_id: String,
-    },
     get_account {
         account_id: String,
     },
@@ -172,16 +159,7 @@ pub enum JsonCommandRequest {
         account_id: String,
         index: i64,
     },
-    get_address_for_view_only_account {
-        account_id: String,
-        index: i64,
-    },
     get_addresses_for_account {
-        account_id: String,
-        offset: Option<String>,
-        limit: Option<String>,
-    },
-    get_addresses_for_view_only_account {
         account_id: String,
         offset: Option<String>,
         limit: Option<String>,
@@ -195,17 +173,10 @@ pub enum JsonCommandRequest {
     get_all_txos_for_address {
         address: String,
     },
-    get_all_view_only_accounts,
     get_balance_for_account {
         account_id: String,
     },
     get_balance_for_address {
-        address: String,
-    },
-    get_balance_for_view_only_account {
-        account_id: String,
-    },
-    get_balance_for_view_only_address {
         address: String,
     },
     get_block {
@@ -242,14 +213,6 @@ pub enum JsonCommandRequest {
         offset: Option<String>,
         limit: Option<String>,
     },
-    get_txos_for_view_only_account {
-        account_id: String,
-        offset: Option<String>,
-        limit: Option<String>,
-    },
-    get_view_only_account {
-        account_id: String,
-    },
     get_wallet_status,
     import_account {
         mnemonic: String,
@@ -270,23 +233,15 @@ pub enum JsonCommandRequest {
         fog_report_id: Option<String>,
         fog_authority_spki: Option<String>,
     },
-    import_subaddresses_to_view_only_account {
-        account_id: String,
-        subaddresses: ViewOnlySubaddressesJSON,
-    },
     import_view_only_account {
         account: ViewOnlyAccountJSON,
         secrets: ViewOnlyAccountSecretsJSON,
-        subaddresses: ViewOnlySubaddressesJSON,
     },
     remove_account {
         account_id: String,
     },
     remove_gift_code {
         gift_code_b58: String,
-    },
-    remove_view_only_account {
-        account_id: String,
     },
     submit_gift_code {
         from_account_id: String,
@@ -304,10 +259,6 @@ pub enum JsonCommandRequest {
         subaddresses: ViewOnlySubaddressesJSON,
     },
     update_account_name {
-        account_id: String,
-        name: String,
-    },
-    update_view_only_account_name {
         account_id: String,
         name: String,
     },
