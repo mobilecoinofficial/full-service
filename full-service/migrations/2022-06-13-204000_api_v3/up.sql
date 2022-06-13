@@ -1,12 +1,7 @@
 CREATE TABLE accounts (
   id INTEGER NOT NULL PRIMARY KEY,
   account_id_hex VARCHAR NOT NULL UNIQUE,
-  view_private_key BLOB NOT NULL,
-  spend_private_key BLOB,
-  spend_public_key BLOB NOT NULL,
-  fog_report_url VARCHAR NOT NULL,
-  fog_report_id VARCHAR NOT NULL,
-  fog_authority_spki BLOB NOT NULL,
+  account_key BLOB NOT NULL,
   entropy BLOB,
   key_derivation_version INTEGER NOT NULL,
   main_subaddress_index UNSIGNED BIG INT NOT NULL,
@@ -16,6 +11,8 @@ CREATE TABLE accounts (
   next_block_index UNSIGNED BIG INT NOT NULL,
   import_block_index UNSIGNED BIG INT NULL,
   name VARCHAR NOT NULL DEFAULT ''
+  fog_enabled BOOLEAN NOT NULL,
+  view_only BOOLEAN NOT NULL
 );
 
 CREATE UNIQUE INDEX idx_accounts__account_id_hex ON accounts (account_id_hex);
