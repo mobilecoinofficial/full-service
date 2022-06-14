@@ -104,8 +104,9 @@ fn create_account(name: &str) {
         entropy: None,
         mnemonic: Some(mnemonic.phrase().to_string()),
         key_derivation_version: "2".to_string(),
-        account_key: AccountKeyJSON::from(&account_key),
+        account_key: Some(AccountKeyJSON::from(&account_key)),
         name: name.to_string(),
+        view_account_key: None,
     };
 
     // Write secret mnemonic to file.
