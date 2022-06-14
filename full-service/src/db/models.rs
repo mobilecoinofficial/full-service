@@ -95,8 +95,8 @@ pub struct Account {
     pub import_block_index: Option<i64>,
     /// Name of this account.
     pub name: String, /* empty string for nullable */
-    pub fog_enabled: Bool,
-    pub view_only: Bool,
+    pub fog_enabled: bool,
+    pub view_only: bool,
 }
 
 /// A structure that can be inserted to create a new entity in the `accounts`

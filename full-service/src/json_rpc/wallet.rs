@@ -860,14 +860,8 @@ where
                 .map_err(format_error)?,
             }
         }
-        JsonCommandRequest::import_view_only_account { account, secrets } => {
-            let decoded_key_bytes = hex::decode(&secrets.view_private_key).map_err(format_error)?;
-            let decoded_key: RistrettoPrivate =
-                mc_util_serial::decode(&decoded_key_bytes).map_err(format_error)?;
-
-            // JsonCommandResponse::import_view_only_account {
-            //     view_only_account: view_only_account_json,
-            // }
+        JsonCommandRequest::import_view_only_account {} => {
+            todo!()
         }
         JsonCommandRequest::remove_account { account_id } => JsonCommandResponse::remove_account {
             removed: service
@@ -924,10 +918,8 @@ where
         JsonCommandRequest::sync_view_only_account {
             account_id,
             completed_txos,
-            subaddresses,
         } => {
             todo!();
-            JsonCommandResponse::sync_view_only_account
         }
         JsonCommandRequest::update_account_name { account_id, name } => {
             JsonCommandResponse::update_account_name {

@@ -5,10 +5,9 @@
 use crate::{
     db::{
         assigned_subaddress::AssignedSubaddressModel,
-        models::{Account, AssignedSubaddress, NewAccount, TransactionLog, Txo, ViewOnlyAccount},
+        models::{Account, AssignedSubaddress, NewAccount, TransactionLog, Txo},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
-        view_only_account::ViewOnlyAccountModel,
         Conn, WalletDbError,
     },
     util::constants::{
@@ -248,12 +247,6 @@ impl AccountModel for Account {
 
         let account_id = AccountID::from(account_key);
 
-        if ViewOnlyAccount::get(&account_id.to_string(), conn).is_ok() {
-            return Err(WalletDbError::ViewOnlyAccountAlreadyExists(
-                account_id.to_string(),
-            ));
-        }
-
         let first_block_index = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX);
         let next_block_index = first_block_index;
 
@@ -271,9 +264,8 @@ impl AccountModel for Account {
 
         let new_account = NewAccount {
             account_id_hex: &account_id.to_string(),
-            account_key: &mc_util_serial::encode(account_key), /* FIXME: WS-6 - add
-                                                                * encryption */
-            entropy,
+            account_key: &mc_util_serial::encode(account_key),
+            entropy: Some(entropy),
             key_derivation_version: key_derivation_version as i32,
             main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
             change_subaddress_index,
@@ -283,6 +275,7 @@ impl AccountModel for Account {
             import_block_index: import_block_index.map(|i| i as i64),
             name,
             fog_enabled,
+            view_only: false,
         };
 
         diesel::insert_into(accounts::table)

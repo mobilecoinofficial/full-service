@@ -271,7 +271,7 @@ pub enum JsonCommandResponse {
         account: Account,
     },
     import_view_only_account {
-        view_only_account: ViewOnlyAccountJSON,
+        account: Account,
     },
     remove_account {
         removed: bool,

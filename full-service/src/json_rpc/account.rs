@@ -52,6 +52,9 @@ pub struct Account {
     /// the default change subaddress (index 1). It also generates
     /// PublicAddressB58's with fog credentials.
     pub fog_enabled: bool,
+
+    /// A flag that indicates if this account is a watch only account.
+    pub view_only: bool,
 }
 
 impl TryFrom<&db::models::Account> for Account {
@@ -75,6 +78,7 @@ impl TryFrom<&db::models::Account> for Account {
             next_block_index: (src.next_block_index as u64).to_string(),
             recovery_mode: false,
             fog_enabled: src.fog_enabled,
+            view_only: src.view_only,
         })
     }
 }

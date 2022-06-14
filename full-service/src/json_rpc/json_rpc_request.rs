@@ -230,8 +230,8 @@ pub enum JsonCommandRequest {
         fog_authority_spki: Option<String>,
     },
     import_view_only_account {
-        account: ViewOnlyAccountJSON,
-        secrets: ViewOnlyAccountSecretsJSON,
+        // account: ViewOnlyAccountJSON,
+        // secrets: ViewOnlyAccountSecretsJSON,
     },
     remove_account {
         account_id: String,
@@ -252,7 +252,6 @@ pub enum JsonCommandRequest {
     sync_view_only_account {
         account_id: String,
         completed_txos: Vec<(String, String)>,
-        subaddresses: ViewOnlySubaddressesJSON,
     },
     update_account_name {
         account_id: String,

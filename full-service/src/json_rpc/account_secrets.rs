@@ -42,37 +42,39 @@ impl TryFrom<&Account> for AccountSecrets {
     type Error = String;
 
     fn try_from(src: &Account) -> Result<AccountSecrets, String> {
-        let account_key: mc_account_keys::AccountKey = mc_util_serial::decode(&src.account_key)
-            .map_err(|err| format!("Could not decode account key from database: {:?}", err))?;
+        todo!()
+        // let account_key: mc_account_keys::AccountKey =
+        // mc_util_serial::decode(&src.account_key)     .map_err(|err|
+        // format!("Could not decode account key from database: {:?}", err))?;
 
-        let entropy = match src.key_derivation_version {
-            1 => Some(hex::encode(&src.entropy)),
-            _ => None,
-        };
+        // let entropy = match src.key_derivation_version {
+        //     1 => Some(hex::encode(&src.entropy)),
+        //     _ => None,
+        // };
 
-        let mnemonic = match src.key_derivation_version {
-            2 => Some(
-                Mnemonic::from_entropy(&src.entropy, Language::English)
-                    .unwrap()
-                    .phrase()
-                    .to_string(),
-            ),
-            _ => None,
-        };
+        // let mnemonic = match src.key_derivation_version {
+        //     2 => Some(
+        //         Mnemonic::from_entropy(&src.entropy, Language::English)
+        //             .unwrap()
+        //             .phrase()
+        //             .to_string(),
+        //     ),
+        //     _ => None,
+        // };
 
-        Ok(AccountSecrets {
-            object: "account_secrets".to_string(),
-            name: src.name.clone(),
-            account_id: src.account_id_hex.clone(),
-            entropy,
-            mnemonic,
-            key_derivation_version: src.key_derivation_version.to_string(),
-            account_key: AccountKey::try_from(&account_key).map_err(|err| {
-                format!(
-                    "Could not convert account_key to json_rpc representation: {:?}",
-                    err
-                )
-            })?,
-        })
+        // Ok(AccountSecrets {
+        //     object: "account_secrets".to_string(),
+        //     name: src.name.clone(),
+        //     account_id: src.account_id_hex.clone(),
+        //     entropy,
+        //     mnemonic,
+        //     key_derivation_version: src.key_derivation_version.to_string(),
+        //     account_key: AccountKey::try_from(&account_key).map_err(|err| {
+        //         format!(
+        //             "Could not convert account_key to json_rpc
+        // representation: {:?}",             err
+        //         )
+        //     })?,
+        // })
     }
 }

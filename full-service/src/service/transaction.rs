@@ -365,19 +365,6 @@ where
                     let associated_txos = transaction_log.get_associated_txos(&conn)?;
 
                     Ok(Some((transaction_log, associated_txos)))
-                } else if ViewOnlyAccount::get(&account_id_hex, &conn).is_ok() {
-                    for utxo in tx_proposal.utxos {
-                        let txo_id = TxoID::from(&utxo.tx_out);
-                        ViewOnlyTxo::update_for_pending_transaction(
-                            &txo_id.to_string(),
-                            utxo.subaddress_index,
-                            &utxo.key_image,
-                            block_index,
-                            tx_proposal.tx.prefix.tombstone_block,
-                            &conn,
-                        )?;
-                    }
-                    Ok(None)
                 } else {
                     Err(TransactionServiceError::Database(
                         WalletDbError::AccountNotFound(account_id_hex),

@@ -201,8 +201,6 @@ where
         let conn = self.wallet_db.get_conn()?;
         let accounts = Account::list_all(&conn)?;
         let mut account_map = HashMap::default();
-        let view_only_accounts = ViewOnlyAccount::list_all(&conn)?;
-        let mut view_only_account_map = HashMap::default();
 
         let mut unspent: u128 = 0;
         let mut pending: u128 = 0;
@@ -231,13 +229,6 @@ where
             account_ids.push(account_id);
         }
 
-        let mut view_only_account_ids = Vec::new();
-        for account in view_only_accounts {
-            let account_id = account.account_id_hex.clone();
-            view_only_account_map.insert(account_id.clone(), account.clone());
-            view_only_account_ids.push(account_id);
-        }
-
         Ok(WalletStatus {
             unspent,
             pending,
@@ -249,8 +240,6 @@ where
             min_synced_block_index: min_synced_block_index as u64,
             account_ids,
             account_map,
-            view_only_account_ids,
-            view_only_account_map,
         })
     }
 }
