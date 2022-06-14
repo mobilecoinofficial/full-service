@@ -41,8 +41,13 @@ jobs:
       - name: Bootstrap MobileCoin
         run: |
           mobilecoin/tools/local-network/bootstrap.sh
-      
-      - name: Run MobileCoin
+
+      - name: Build MobileCoin
         shell: bash
         run: |
-          python3 tools/local_network.py --network-type a-b-c
+          python3 tools/build_mobilecoin.py
+      
+      # - name: Run MobileCoin
+      #   shell: bash
+      #   run: |
+      #     python3 tools/local_network.py --network-type a-b-c
