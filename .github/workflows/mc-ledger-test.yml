@@ -47,7 +47,7 @@ jobs:
         run: |
           python3 tools/build_mobilecoin.py
       
-      # - name: Run MobileCoin
-      #   shell: bash
-      #   run: |
-      #     python3 tools/local_network.py --network-type a-b-c
+      - name: Run MobileCoin
+        shell: bash
+        run: |
+          python3 tools/local_network.py --skip-build True --network-type a-b-c
