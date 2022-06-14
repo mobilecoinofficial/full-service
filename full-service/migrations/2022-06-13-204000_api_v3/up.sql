@@ -10,7 +10,7 @@ CREATE TABLE accounts (
   first_block_index UNSIGNED BIG INT NOT NULL,
   next_block_index UNSIGNED BIG INT NOT NULL,
   import_block_index UNSIGNED BIG INT NULL,
-  name VARCHAR NOT NULL DEFAULT ''
+  name VARCHAR NOT NULL DEFAULT '',
   fog_enabled BOOLEAN NOT NULL,
   view_only BOOLEAN NOT NULL
 );
