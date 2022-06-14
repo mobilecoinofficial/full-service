@@ -16,7 +16,7 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
 };
 
-use mc_account_keys::AccountKey;
+use mc_account_keys::{AccountKey, ViewAccountKey};
 use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
 use mc_ledger_db::{Ledger, LedgerDB};
 
@@ -39,6 +39,14 @@ pub trait AssignedSubaddressModel {
     /// * assigned_subaddress_b58
     fn create(
         account_key: &AccountKey,
+        address_book_entry: Option<i64>,
+        subaddress_index: u64,
+        comment: &str,
+        conn: &Conn,
+    ) -> Result<String, WalletDbError>;
+
+    fn create_for_view_only_account(
+        account_key: &ViewAccountKey,
         address_book_entry: Option<i64>,
         subaddress_index: u64,
         comment: &str,
@@ -91,6 +99,36 @@ pub trait AssignedSubaddressModel {
 impl AssignedSubaddressModel for AssignedSubaddress {
     fn create(
         account_key: &AccountKey,
+        address_book_entry: Option<i64>,
+        subaddress_index: u64,
+        comment: &str,
+        conn: &Conn,
+    ) -> Result<String, WalletDbError> {
+        use crate::db::schema::assigned_subaddresses;
+
+        let account_id = AccountID::from(account_key);
+
+        let subaddress = account_key.subaddress(subaddress_index);
+        let subaddress_b58 = b58_encode_public_address(&subaddress)?;
+
+        let subaddress_entry = NewAssignedSubaddress {
+            assigned_subaddress_b58: &subaddress_b58,
+            account_id_hex: &account_id.to_string(),
+            address_book_entry,
+            public_address: &mc_util_serial::encode(&subaddress),
+            subaddress_index: subaddress_index as i64,
+            comment,
+            subaddress_spend_key: &mc_util_serial::encode(subaddress.spend_public_key()),
+        };
+
+        diesel::insert_into(assigned_subaddresses::table)
+            .values(&subaddress_entry)
+            .execute(conn)?;
+        Ok(subaddress_b58)
+    }
+
+    fn create_for_view_only_account(
+        account_key: &ViewAccountKey,
         address_book_entry: Option<i64>,
         subaddress_index: u64,
         comment: &str,

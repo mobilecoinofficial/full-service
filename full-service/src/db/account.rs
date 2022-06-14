@@ -19,18 +19,26 @@ use crate::{
 use bip39::Mnemonic;
 use diesel::prelude::*;
 use mc_account_keys::{
-    AccountKey, PublicAddress, RootEntropy, RootIdentity, CHANGE_SUBADDRESS_INDEX,
+    AccountKey, PublicAddress, RootEntropy, RootIdentity, ViewAccountKey, CHANGE_SUBADDRESS_INDEX,
     DEFAULT_SUBADDRESS_INDEX,
 };
 use mc_account_keys_slip10::Slip10Key;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
+use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use std::fmt;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct AccountID(pub String);
 
 impl From<&AccountKey> for AccountID {
-    fn from(src: &AccountKey) -> AccountID {
+    fn from(src: &AccountKey) -> Self {
+        let main_subaddress = src.subaddress(DEFAULT_SUBADDRESS_INDEX);
+        AccountID::from(&main_subaddress)
+    }
+}
+
+impl From<&ViewAccountKey> for AccountID {
+    fn from(src: &ViewAccountKey) -> Self {
         let main_subaddress = src.subaddress(DEFAULT_SUBADDRESS_INDEX);
         AccountID::from(&main_subaddress)
     }
@@ -131,6 +139,17 @@ pub trait AccountModel {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
+        conn: &Conn,
+    ) -> Result<Account, WalletDbError>;
+
+    /// Import a view only account.
+    fn import_view_only(
+        view_private_key: &RistrettoPrivate,
+        spend_public_key: &RistrettoPublic,
+        name: Option<String>,
+        first_block_index: Option<u64>,
+        import_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
         conn: &Conn,
     ) -> Result<Account, WalletDbError>;
 
@@ -363,6 +382,84 @@ impl AccountModel for Account {
             fog_authority_spki,
             conn,
         )?;
+        Account::get(&account_id, conn)
+    }
+
+    fn import_view_only(
+        view_private_key: &RistrettoPrivate,
+        spend_public_key: &RistrettoPublic,
+        name: Option<String>,
+        first_block_index: Option<u64>,
+        import_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
+        conn: &Conn,
+    ) -> Result<Account, WalletDbError> {
+        use crate::db::schema::accounts;
+
+        let view_account_key = ViewAccountKey::new(spend_public_key, view_private_key);
+        let account_id = AccountID::from(&view_account_key);
+
+        let first_block_index = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX) as i64;
+        let next_block_index = first_block_index;
+
+        let next_subaddress_index =
+            next_subaddress_index.unwrap_or(DEFAULT_NEXT_SUBADDRESS_INDEX) as i64;
+
+        let new_account = NewAccount {
+            account_id_hex: &account_id.to_string(),
+            account_key: &mc_util_serial::encode(&view_account_key),
+            entropy: None,
+            key_derivation_version: MNEMONIC_KEY_DERIVATION_VERSION as i32,
+            main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
+            change_subaddress_index: CHANGE_SUBADDRESS_INDEX as i64,
+            next_subaddress_index,
+            first_block_index,
+            next_block_index,
+            import_block_index: import_block_index.map(|i| i as i64),
+            name: &name.unwrap_or_else(|| "".to_string()),
+            fog_enabled: false,
+            view_only: true,
+        };
+
+        diesel::insert_into(accounts::table)
+            .values(&new_account)
+            .execute(conn)?;
+
+        AssignedSubaddress::create_for_view_only_account(
+            &view_account_key,
+            None,
+            DEFAULT_SUBADDRESS_INDEX,
+            "Main",
+            conn,
+        )?;
+
+        AssignedSubaddress::create_for_view_only_account(
+            &view_account_key,
+            None,
+            LEGACY_CHANGE_SUBADDRESS_INDEX,
+            "Legacy Change",
+            conn,
+        )?;
+
+        AssignedSubaddress::create_for_view_only_account(
+            &view_account_key,
+            None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
+                   * always for main? */
+            CHANGE_SUBADDRESS_INDEX,
+            "Change",
+            conn,
+        )?;
+
+        for subaddress_index in 2..next_subaddress_index {
+            AssignedSubaddress::create_for_view_only_account(
+                &view_account_key,
+                None,
+                subaddress_index as u64,
+                "",
+                conn,
+            )?;
+        }
+
         Account::get(&account_id, conn)
     }
 
