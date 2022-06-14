@@ -74,12 +74,7 @@ pub struct Account {
     pub id: i32,
     /// An additional ID, derived from the account data.
     pub account_id_hex: String,
-    pub view_private_key: Vec<u8>,
-    pub spend_private_key: Option<Vec<u8>>,
-    pub spend_public_key: Vec<u8>,
-    pub fog_report_url: String,
-    pub fog_report_id: String,
-    pub fog_authority_spki: Vec<u8>,
+    pub account_key: Vec<u8>,
     pub entropy: Option<Vec<u8>>,
     pub key_derivation_version: i32,
     /// Default subadress that is given out to refer to this account.
@@ -100,6 +95,8 @@ pub struct Account {
     pub import_block_index: Option<i64>,
     /// Name of this account.
     pub name: String, /* empty string for nullable */
+    pub fog_enabled: Bool,
+    pub view_only: Bool,
 }
 
 /// A structure that can be inserted to create a new entity in the `accounts`
@@ -108,12 +105,7 @@ pub struct Account {
 #[table_name = "accounts"]
 pub struct NewAccount<'a> {
     pub account_id_hex: &'a str,
-    pub view_private_key: &'a [u8],
-    pub spend_private_key: Option<&'a [u8]>,
-    pub spend_public_key: &'a [u8],
-    pub fog_report_url: &'a str,
-    pub fog_report_id: &'a str,
-    pub fog_authority_spki: &'a [u8],
+    pub account_key: &'a [u8],
     pub entropy: Option<&'a [u8]>,
     pub key_derivation_version: i32,
     pub main_subaddress_index: i64,
@@ -123,6 +115,8 @@ pub struct NewAccount<'a> {
     pub next_block_index: i64,
     pub import_block_index: Option<i64>,
     pub name: &'a str,
+    pub fog_enabled: bool,
+    pub view_only: bool,
 }
 
 /// A transaction output entity that either was received to an Account in this

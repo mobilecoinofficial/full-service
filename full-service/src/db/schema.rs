@@ -2,12 +2,7 @@ table! {
     accounts (id) {
         id -> Integer,
         account_id_hex -> Text,
-        view_private_key -> Binary,
-        spend_private_key -> Nullable<Binary>,
-        spend_public_key -> Binary,
-        fog_report_url -> Text,
-        fog_report_id -> Text,
-        fog_authority_spki -> Binary,
+        account_key -> Binary,
         entropy -> Nullable<Binary>,
         key_derivation_version -> Integer,
         main_subaddress_index -> BigInt,
@@ -17,6 +12,8 @@ table! {
         next_block_index -> BigInt,
         import_block_index -> Nullable<BigInt>,
         name -> Text,
+        fog_enabled -> Bool,
+        view_only -> Bool,
     }
 }
 
