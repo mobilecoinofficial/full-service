@@ -594,7 +594,7 @@ mod tests {
             id: 1,
             account_id_hex: account_id_hex.to_string(),
             account_key: mc_util_serial::encode(&account_key),
-            entropy: root_id.root_entropy.bytes.to_vec(),
+            entropy: Some(root_id.root_entropy.bytes.to_vec()),
             key_derivation_version: 1,
             main_subaddress_index: 0,
             change_subaddress_index: CHANGE_SUBADDRESS_INDEX as i64,
@@ -604,6 +604,7 @@ mod tests {
             import_block_index: None,
             name: "Alice's Main Account".to_string(),
             fog_enabled: false,
+            view_only: false,
         };
         assert_eq!(expected_account, acc);
 
@@ -659,7 +660,7 @@ mod tests {
             id: 2,
             account_id_hex: account_id_hex_secondary.to_string(),
             account_key: mc_util_serial::encode(&account_key_secondary),
-            entropy: root_id_secondary.root_entropy.bytes.to_vec(),
+            entropy: Some(root_id_secondary.root_entropy.bytes.to_vec()),
             key_derivation_version: 1,
             main_subaddress_index: 0,
             change_subaddress_index: CHANGE_SUBADDRESS_INDEX as i64,
@@ -669,6 +670,7 @@ mod tests {
             import_block_index: Some(50),
             name: "".to_string(),
             fog_enabled: false,
+            view_only: false,
         };
         assert_eq!(expected_account_secondary, acc_secondary);
 
@@ -731,7 +733,7 @@ mod tests {
             account_id_hex
         };
         let account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
-        let decoded_entropy = RootEntropy::try_from(account.entropy.as_slice()).unwrap();
+        let decoded_entropy = RootEntropy::try_from(account.entropy.unwrap().as_slice()).unwrap();
         assert_eq!(decoded_entropy, root_id.root_entropy);
         let decoded_account_key: AccountKey = mc_util_serial::decode(&account.account_key).unwrap();
         assert_eq!(decoded_account_key, account_key);
@@ -782,7 +784,7 @@ mod tests {
                 43, 138, 220, 146, 60, 162,
             ]
             .to_vec(),
-            entropy: root_id.root_entropy.bytes.to_vec(),
+            entropy: Some(root_id.root_entropy.bytes.to_vec()),
             key_derivation_version: 1,
             main_subaddress_index: 0,
             change_subaddress_index: 0,
@@ -792,6 +794,7 @@ mod tests {
             import_block_index: None,
             name: "Alice's FOG Account".to_string(),
             fog_enabled: true,
+            view_only: false,
         };
         assert_eq!(expected_account, acc);
     }
