@@ -24,7 +24,6 @@ use mc_account_keys::{
 };
 use mc_account_keys_slip10::Slip10Key;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
-use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use std::fmt;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -96,18 +95,14 @@ pub trait AccountModel {
     /// * (account_id, main_subaddress_b58)
     #[allow(clippy::too_many_arguments)]
     fn create(
-        entropy: Option<&[u8]>,
+        entropy: &[u8],
         key_derivation_version: u8,
-        view_private_key: &RistrettoPrivate,
-        spend_private_key: Option<&RistrettoPrivate>,
-        spend_public_key: &RistrettoPublic,
-        fog_report_url: &str,
-        fog_report_id: &str,
-        fog_authority_spki: &str,
+        account_key: &AccountKey,
         first_block_index: Option<u64>,
         import_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
         name: &str,
+        fog_enabled: bool,
         conn: &Conn,
     ) -> Result<(AccountID, String), WalletDbError>;
 
@@ -243,18 +238,14 @@ impl AccountModel for Account {
     }
 
     fn create(
-        entropy: Option<&[u8]>,
+        entropy: &[u8],
         key_derivation_version: u8,
-        view_private_key: &RistrettoPrivate,
-        spend_private_key: Option<&RistrettoPrivate>,
-        spend_public_key: &RistrettoPublic,
-        fog_report_url: &str,
-        fog_report_id: &str,
-        fog_authority_spki: &[u8],
+        account_key: &AccountKey,
         first_block_index: Option<u64>,
         import_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
         name: &str,
+        fog_enabled: bool,
         conn: &Conn,
     ) -> Result<(AccountID, String), WalletDbError> {
         use crate::db::schema::accounts;
