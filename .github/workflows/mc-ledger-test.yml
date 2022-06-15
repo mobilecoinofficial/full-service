@@ -14,11 +14,16 @@ on:
       - setup-mobilecoin
 
 jobs:
-  test:
+  integration-test:
     runs-on: [self-hosted, Linux, large]
     container:
       image: mobilecoin/rust-sgx-base:latest
-
+    strategy:
+      matrix:
+        build_services:
+          [build_mobilecoin.py, build_full_service.py]
+        run_services:
+          [run_mobilecoin.py, run_full_service.py]
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -42,12 +47,12 @@ jobs:
         run: |
           mobilecoin/tools/local-network/bootstrap.sh
 
-      - name: Build MobileCoin
+      - name: Build Services
         shell: bash
         run: |
-          python3 tools/build_mobilecoin.py
+          python3 tools/${{ matrix.build_services}}
       
-      - name: Run MobileCoin
+      - name: Run Integration
         shell: bash
         run: |
-          python3 tools/local_network.py --skip-build --network-type a-b-c
+          python3 tools/${{ matrix.run_services }}

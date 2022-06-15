@@ -1,0 +1,1 @@
+print("running build_full_service.py")

@@ -27,7 +27,6 @@ IAS_API_KEY = os.getenv('IAS_API_KEY', default='0'*64) # 32 bytes
 IAS_SPID = os.getenv('IAS_SPID', default='0'*32) # 16 bytes
 PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'mobilecoin'))
 MOB_RELEASE = os.getenv('MOB_RELEASE', '1')
-CARGO_FLAGS = '--release'
 TARGET_DIR = 'target/release'
 WORK_DIR =  os.path.join(PROJECT_DIR, TARGET_DIR, 'mc-local-network')
 LEDGER_BASE = os.path.join(PROJECT_DIR, 'target', "sample_data", "ledger")
@@ -35,7 +34,6 @@ MINTING_KEYS_DIR = os.path.join(WORK_DIR, 'minting-keys')
 CLI_PORT = 31337
 
 if MOB_RELEASE == '0':
-    CARGO_FLAGS = ''
     TARGET_DIR = 'target/debug'
 
 # Sane default log configuration
@@ -339,22 +337,6 @@ class Network:
             pass
         os.mkdir(WORK_DIR)
 
-    def build_binaries(self):
-        print('Building binaries...')
-        enclave_pem = os.path.join(PROJECT_DIR, 'Enclave_private.pem')
-        if not os.path.exists(enclave_pem):
-            subprocess.run(
-                f'openssl genrsa -out {enclave_pem} -3 3072',
-                shell=True,
-                check=True,
-            )
-
-        subprocess.run(
-            f'cd {PROJECT_DIR} && CONSENSUS_ENCLAVE_PRIVKEY="{enclave_pem}" cargo build -p mc-consensus-service -p mc-ledger-distribution -p mc-admin-http-gateway -p mc-util-grpc-admin-tool -p mc-mint-auditor -p mc-crypto-x509-test-vectors -p mc-consensus-mint-client -p mc-util-seeded-ed25519-key-gen {CARGO_FLAGS}',
-            shell=True,
-            check=True,
-        )
-
     def add_node(self, name, peers, quorum_set):
         node_num = len(self.nodes)
         self.nodes.append(Node(
@@ -432,7 +414,7 @@ class Network:
         #         raise
 
 
-    def default_entry_point(self, network_type, skip_build=False, block_version=None):
+    def default_entry_point(self, network_type, block_version=None):
         self.block_version = block_version
 
         if network_type == 'dense5':
@@ -473,9 +455,6 @@ class Network:
         else:
             raise Exception('Invalid network type')
 
-        if not skip_build:
-            self.build_binaries()
-
         self.start()
         self.wait()
         self.stop()
@@ -483,8 +462,7 @@ class Network:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Local network tester')
     parser.add_argument('--network-type', help='Type of network to create', required=True)
-    parser.add_argument('--skip-build', help='Skip building binaries', action='store_true')
     parser.add_argument('--block-version', help='Set the block version argument', type=int)
     args = parser.parse_args()
 
-    Network().default_entry_point(args.network_type, args.skip_build, args.block_version)
+    Network().default_entry_point(args.network_type, args.block_version)
