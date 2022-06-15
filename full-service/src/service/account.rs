@@ -2,6 +2,8 @@
 
 //! Service for managing accounts.
 
+use std::convert::TryFrom;
+
 use crate::{
     db::{
         account::{AccountID, AccountModel, ViewOnlyAccountImportPackage},
@@ -22,6 +24,7 @@ use mc_account_keys::RootEntropy;
 use mc_account_keys_slip10;
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
+use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 
@@ -53,6 +56,9 @@ pub enum AccountServiceError {
 
     /// Error decoding private view key: {0}
     DecodePrivateKeyError(String),
+
+    /// Error decoding keys
+    KeyError(mc_crypto_keys::KeyError),
 }
 
 impl From<WalletDbError> for AccountServiceError {
@@ -103,6 +109,12 @@ impl From<mc_util_serial::DecodeError> for AccountServiceError {
     }
 }
 
+impl From<mc_crypto_keys::KeyError> for AccountServiceError {
+    fn from(src: mc_crypto_keys::KeyError) -> Self {
+        Self::KeyError(src)
+    }
+}
+
 /// Trait defining the ways in which the wallet can interact with and manage
 /// accounts.
 pub trait AccountService {
@@ -140,6 +152,16 @@ pub trait AccountService {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
+    ) -> Result<Account, AccountServiceError>;
+
+    /// Import an existing account to the wallet using the mnemonic.
+    fn import_view_only_account(
+        &self,
+        view_private_key: String,
+        spend_public_key: String,
+        name: Option<String>,
+        first_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
     ) -> Result<Account, AccountServiceError>;
 
     /// List accounts in the wallet.
@@ -307,6 +329,46 @@ where
                 fog_report_url,
                 fog_report_id,
                 fog_authority_spki,
+                &conn,
+            )?)
+        })
+    }
+
+    fn import_view_only_account(
+        &self,
+        view_private_key: String,
+        spend_public_key: String,
+        name: Option<String>,
+        first_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
+    ) -> Result<Account, AccountServiceError> {
+        log::info!(
+            self.logger,
+            "Importing account {:?} with first block: {:?}",
+            name,
+            first_block_index,
+        );
+
+        let mut view_private_key_bytes = [0u8; 32];
+        let mut spend_public_key_bytes = [0u8; 32];
+
+        hex::decode_to_slice(view_private_key, &mut view_private_key_bytes)?;
+        hex::decode_to_slice(spend_public_key, &mut spend_public_key_bytes)?;
+
+        let view_private_key = RistrettoPrivate::try_from(&view_private_key_bytes)?;
+        let spend_public_key = RistrettoPublic::try_from(&spend_public_key_bytes)?;
+
+        let import_block_index = self.ledger_db.num_blocks()? - 1;
+
+        let conn = self.wallet_db.get_conn()?;
+        transaction(&conn, || {
+            Ok(Account::import_view_only(
+                &view_private_key,
+                &spend_public_key,
+                name,
+                import_block_index,
+                first_block_index,
+                next_subaddress_index,
                 &conn,
             )?)
         })

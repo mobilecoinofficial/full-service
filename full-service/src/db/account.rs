@@ -147,8 +147,8 @@ pub trait AccountModel {
         view_private_key: &RistrettoPrivate,
         spend_public_key: &RistrettoPublic,
         name: Option<String>,
+        import_block_index: u64,
         first_block_index: Option<u64>,
-        import_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
         conn: &Conn,
     ) -> Result<Account, WalletDbError>;
@@ -389,8 +389,8 @@ impl AccountModel for Account {
         view_private_key: &RistrettoPrivate,
         spend_public_key: &RistrettoPublic,
         name: Option<String>,
+        import_block_index: u64,
         first_block_index: Option<u64>,
-        import_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
         conn: &Conn,
     ) -> Result<Account, WalletDbError> {
@@ -415,7 +415,7 @@ impl AccountModel for Account {
             next_subaddress_index,
             first_block_index,
             next_block_index,
-            import_block_index: import_block_index.map(|i| i as i64),
+            import_block_index: Some(import_block_index as i64),
             name: &name.unwrap_or_else(|| "".to_string()),
             fog_enabled: false,
             view_only: true,
@@ -443,8 +443,7 @@ impl AccountModel for Account {
 
         AssignedSubaddress::create_for_view_only_account(
             &view_account_key,
-            None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
-                   * always for main? */
+            None,
             CHANGE_SUBADDRESS_INDEX,
             "Change",
             conn,

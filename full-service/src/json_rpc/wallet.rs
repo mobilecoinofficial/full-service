@@ -860,8 +860,30 @@ where
                 .map_err(format_error)?,
             }
         }
-        JsonCommandRequest::import_view_only_account {} => {
-            todo!()
+        JsonCommandRequest::import_view_only_account {
+            view_private_key,
+            spend_public_key,
+            name,
+            first_block_index,
+            next_subaddress_index,
+        } => {
+            let fb = first_block_index
+                .map(|fb| fb.parse::<u64>())
+                .transpose()
+                .map_err(format_error)?;
+            let ns = next_subaddress_index
+                .map(|ns| ns.parse::<u64>())
+                .transpose()
+                .map_err(format_error)?;
+
+            JsonCommandResponse::import_view_only_account {
+                account: json_rpc::account::Account::try_from(
+                    &service
+                        .import_view_only_account(view_private_key, spend_public_key, name, fb, ns)
+                        .map_err(format_error)?,
+                )
+                .map_err(format_error)?,
+            }
         }
         JsonCommandRequest::remove_account { account_id } => JsonCommandResponse::remove_account {
             removed: service

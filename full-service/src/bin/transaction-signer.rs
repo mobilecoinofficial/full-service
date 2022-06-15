@@ -148,14 +148,15 @@ fn generate_view_only_import_package(secret_mnemonic: &str) {
     //     account_id: account_id.to_string(),
     // };
 
-    let json_command_request = JsonCommandRequest::import_view_only_account {};
+    // let json_command_request = JsonCommandRequest::import_view_only_account
+    // {};
 
-    // Write view private key and associated info to file.
-    let filename = format!(
-        "mobilecoin_view_account_import_package_{}.json",
-        &account_id.to_string()[..6]
-    );
-    write_json_command_request_to_file(&json_command_request, &filename);
+    // // Write view private key and associated info to file.
+    // let filename = format!(
+    //     "mobilecoin_view_account_import_package_{}.json",
+    //     &account_id.to_string()[..6]
+    // );
+    // write_json_command_request_to_file(&json_command_request, &filename);
 }
 
 fn sync_txos(secret_mnemonic: &str, sync_request: &str, num_subaddresses: u64) {
