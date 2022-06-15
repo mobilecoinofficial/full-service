@@ -11,7 +11,8 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        models::{Account, Txo},
+        assigned_subaddress::AssignedSubaddressModel,
+        models::{Account, AssignedSubaddress, Txo},
         txo::TxoModel,
         Conn,
     },
@@ -223,162 +224,158 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         &self,
         conn: &Conn,
     ) -> Result<FullServiceFogResolver, WalletTransactionBuilderError> {
-        todo!()
-        // let account = ViewOnlyAccount::get(&self.account_id_hex, conn)?;
-        // let change_public_address: PublicAddress =
-        // account.change_public_address(conn)?;
+        let account = Account::get(&AccountID(self.account_id_hex.clone()), conn)?;
+        let change_subaddress = account.change_subaddress(conn)?;
+        let change_public_address = change_subaddress.public_address()?;
 
-        // let fog_resolver = {
-        //     let fog_uris = core::slice::from_ref(&change_public_address)
-        //         .iter()
-        //         .chain(self.outlays.iter().map(|(receiver, _amount)|
-        // receiver))         .filter_map(|x|
-        // extract_fog_uri(x).transpose())         .collect::
-        // <Result<Vec<_>, _>>()?;     (self.fog_resolver_factory)(&
-        // fog_uris)         .map_err(WalletTransactionBuilderError::
-        // FogPubkeyResolver)? };
+        let fog_resolver = {
+            let fog_uris = core::slice::from_ref(&change_public_address)
+                .iter()
+                .chain(self.outlays.iter().map(|(receiver, _amount)| receiver))
+                .filter_map(|x| extract_fog_uri(x).transpose())
+                .collect::<Result<Vec<_>, _>>()?;
+            (self.fog_resolver_factory)(&fog_uris)
+                .map_err(WalletTransactionBuilderError::FogPubkeyResolver)?
+        };
 
-        // let mut fully_validated_fog_pubkeys: HashMap<String,
-        // FullServiceFullyValidatedFogPubkey> =     HashMap::default();
+        let mut fully_validated_fog_pubkeys: HashMap<String, FullServiceFullyValidatedFogPubkey> =
+            HashMap::default();
 
-        // for (public_address, _) in self.outlays.iter() {
-        //     let fog_pubkey = match
-        // fog_resolver.get_fog_pubkey(public_address) {
-        //         Ok(fog_pubkey) => Some(fog_pubkey),
-        //         Err(_) => None,
-        //     };
+        for (public_address, _) in self.outlays.iter() {
+            let fog_pubkey = match fog_resolver.get_fog_pubkey(public_address) {
+                Ok(fog_pubkey) => Some(fog_pubkey),
+                Err(_) => None,
+            };
 
-        //     if let Some(fog_pubkey) = fog_pubkey {
-        //         let fs_fog_pubkey =
-        // FullServiceFullyValidatedFogPubkey::from(fog_pubkey);
-        //         let b58_public_address =
-        // b58_encode_public_address(public_address)?;
-        //         fully_validated_fog_pubkeys.insert(b58_public_address,
-        // fs_fog_pubkey);     }
-        // }
+            if let Some(fog_pubkey) = fog_pubkey {
+                let fs_fog_pubkey = FullServiceFullyValidatedFogPubkey::from(fog_pubkey);
+                let b58_public_address = b58_encode_public_address(public_address)?;
+                fully_validated_fog_pubkeys.insert(b58_public_address, fs_fog_pubkey);
+            }
+        }
 
-        // Ok(FullServiceFogResolver(fully_validated_fog_pubkeys))
+        Ok(FullServiceFogResolver(fully_validated_fog_pubkeys))
     }
 
     pub fn build_unsigned(&self, conn: &Conn) -> Result<UnsignedTx, WalletTransactionBuilderError> {
-        todo!()
-        // if self.tombstone == 0 {
-        //     return Err(WalletTransactionBuilderError::TombstoneNotSet);
-        // }
+        if self.tombstone == 0 {
+            return Err(WalletTransactionBuilderError::TombstoneNotSet);
+        }
 
-        // // select inputs here
-        // let view_only_inputs = self.select_view_only_txos(conn)?;
+        if self.inputs.is_empty() {
+            return Err(WalletTransactionBuilderError::NoInputs);
+        }
 
-        // // Get membership proofs for our inputs
-        // let indexes = view_only_inputs
-        //     .iter()
-        //     .map(|utxo| {
-        //         let txo: TxOut = mc_util_serial::decode(&utxo.txo)?;
-        //         self.ledger_db.get_tx_out_index_by_hash(&txo.hash())
-        //     })
-        //     .collect::<Result<Vec<u64>, mc_ledger_db::Error>>()?;
-        // let proofs =
-        // self.ledger_db.get_tx_out_proof_of_memberships(&indexes)?;
+        // Get membership proofs for our inputs
+        let indexes = self
+            .inputs
+            .iter()
+            .map(|utxo| {
+                let txo: TxOut = mc_util_serial::decode(&utxo.txo)?;
+                self.ledger_db.get_tx_out_index_by_hash(&txo.hash())
+            })
+            .collect::<Result<Vec<u64>, mc_ledger_db::Error>>()?;
+        let proofs = self.ledger_db.get_tx_out_proof_of_memberships(&indexes)?;
 
-        // let inputs_and_proofs: Vec<(ViewOnlyTxo, TxOutMembershipProof)> =
-        // view_only_inputs     .into_iter()
-        //     .zip(proofs.into_iter())
-        //     .collect();
+        let inputs_and_proofs: Vec<(Txo, TxOutMembershipProof)> = self
+            .inputs
+            .clone()
+            .into_iter()
+            .zip(proofs.into_iter())
+            .collect();
 
-        // let excluded_tx_out_indices: Vec<u64> = inputs_and_proofs
-        //     .iter()
-        //     .map(|(utxo, _membership_proof)| {
-        //         let txo: TxOut = mc_util_serial::decode(&utxo.txo)?;
-        //         self.ledger_db
-        //             .get_tx_out_index_by_hash(&txo.hash())
-        //             .map_err(WalletTransactionBuilderError::LedgerDB)
-        //     })
-        //     .collect::<Result<Vec<u64>, WalletTransactionBuilderError>>()?;
+        let excluded_tx_out_indices: Vec<u64> = inputs_and_proofs
+            .iter()
+            .map(|(utxo, _membership_proof)| {
+                let txo: TxOut = mc_util_serial::decode(&utxo.txo)?;
+                self.ledger_db
+                    .get_tx_out_index_by_hash(&txo.hash())
+                    .map_err(WalletTransactionBuilderError::LedgerDB)
+            })
+            .collect::<Result<Vec<u64>, WalletTransactionBuilderError>>()?;
 
-        // let rings = self.get_rings(inputs_and_proofs.len(),
-        // &excluded_tx_out_indices)?;
+        let rings = self.get_rings(inputs_and_proofs.len(), &excluded_tx_out_indices)?;
 
-        // if rings.len() != inputs_and_proofs.len() {
-        //     return Err(WalletTransactionBuilderError::RingSizeMismatch);
-        // }
+        if rings.len() != inputs_and_proofs.len() {
+            return Err(WalletTransactionBuilderError::RingSizeMismatch);
+        }
 
-        // if self.outlays.is_empty() {
-        //     return Err(WalletTransactionBuilderError::NoRecipient);
-        // }
+        if self.outlays.is_empty() {
+            return Err(WalletTransactionBuilderError::NoRecipient);
+        }
 
-        // // Unzip each vec of tuples into a tuple of vecs.
-        // let mut rings_and_proofs: Vec<(Vec<TxOut>,
-        // Vec<TxOutMembershipProof>)> = rings     .into_iter()
-        //     .map(|tuples| tuples.into_iter().unzip())
-        //     .collect();
+        // Unzip each vec of tuples into a tuple of vecs.
+        let mut rings_and_proofs: Vec<(Vec<TxOut>, Vec<TxOutMembershipProof>)> = rings
+            .into_iter()
+            .map(|tuples| tuples.into_iter().unzip())
+            .collect();
 
-        // let mut inputs_and_real_indices_and_subaddress_indices: Vec<(TxIn,
-        // u64, u64)> = Vec::new();
+        let mut inputs_and_real_indices_and_subaddress_indices: Vec<(TxIn, u64, u64)> = Vec::new();
 
-        // for (utxo, proof) in inputs_and_proofs.iter() {
-        //     let db_tx_out: TxOut = mc_util_serial::decode(&utxo.txo)?;
-        //     let (mut ring, mut membership_proofs) = rings_and_proofs
-        //         .pop()
-        //         .ok_or(WalletTransactionBuilderError::RingsAndProofsEmpty)?;
-        //     if ring.len() != membership_proofs.len() {
-        //         return Err(WalletTransactionBuilderError::RingSizeMismatch);
-        //     }
+        for (utxo, proof) in inputs_and_proofs.iter() {
+            let db_tx_out: TxOut = mc_util_serial::decode(&utxo.txo)?;
+            let (mut ring, mut membership_proofs) = rings_and_proofs
+                .pop()
+                .ok_or(WalletTransactionBuilderError::RingsAndProofsEmpty)?;
+            if ring.len() != membership_proofs.len() {
+                return Err(WalletTransactionBuilderError::RingSizeMismatch);
+            }
 
-        //     // Add the input to the ring.
-        //     let position_opt = ring.iter().position(|txo| *txo == db_tx_out);
-        //     let real_index = match position_opt {
-        //         Some(position) => {
-        //             // The input is already present in the ring.
-        //             // This could happen if ring elements are sampled
-        // randomly from the             // ledger.
-        //             position
-        //         }
-        //         None => {
-        //             // The input is not already in the ring.
-        //             if ring.is_empty() {
-        //                 // Append the input and its proof of membership.
-        //                 ring.push(db_tx_out.clone());
-        //                 membership_proofs.push(proof.clone());
-        //             } else {
-        //                 // Replace the first element of the ring.
-        //                 ring[0] = db_tx_out.clone();
-        //                 membership_proofs[0] = proof.clone();
-        //             }
-        //             // The real input is always the first element. This is
-        // safe because             // TransactionBuilder sorts each
-        // ring.             0
-        //         }
-        //     };
+            // Add the input to the ring.
+            let position_opt = ring.iter().position(|txo| *txo == db_tx_out);
+            let real_index = match position_opt {
+                Some(position) => {
+                    // The input is already present in the ring.
+                    // This could happen if ring elements are sampled
+                    // randomly from the             // ledger.
+                    position
+                }
+                None => {
+                    // The input is not already in the ring.
+                    if ring.is_empty() {
+                        // Append the input and its proof of membership.
+                        ring.push(db_tx_out.clone());
+                        membership_proofs.push(proof.clone());
+                    } else {
+                        // Replace the first element of the ring.
+                        ring[0] = db_tx_out.clone();
+                        membership_proofs[0] = proof.clone();
+                    }
+                    // The real input is always the first element. This is
+                    // safe because TransactionBuilder sorts each ring.
+                    0
+                }
+            };
 
-        //     if ring.len() != membership_proofs.len() {
-        //         return Err(WalletTransactionBuilderError::RingSizeMismatch);
-        //     }
+            if ring.len() != membership_proofs.len() {
+                return Err(WalletTransactionBuilderError::RingSizeMismatch);
+            }
 
-        //     let tx_in = TxIn {
-        //         ring,
-        //         proofs: membership_proofs,
-        //     };
+            let tx_in = TxIn {
+                ring,
+                proofs: membership_proofs,
+            };
 
-        //     inputs_and_real_indices_and_subaddress_indices.push((
-        //         tx_in,
-        //         real_index as u64,
-        //         utxo.subaddress_index.unwrap() as u64,
-        //     ));
-        // }
+            inputs_and_real_indices_and_subaddress_indices.push((
+                tx_in,
+                real_index as u64,
+                utxo.subaddress_index.unwrap() as u64,
+            ));
+        }
 
-        // let mut outlays_string: Vec<(String, u64)> = Vec::new();
-        // for (receiver, amount) in self.outlays.iter() {
-        //     let b58_address = b58_encode_public_address(receiver)?;
-        //     outlays_string.push((b58_address, *amount));
-        // }
+        let mut outlays_string: Vec<(String, u64)> = Vec::new();
+        for (receiver, amount) in self.outlays.iter() {
+            let b58_address = b58_encode_public_address(receiver)?;
+            outlays_string.push((b58_address, *amount));
+        }
 
-        // Ok(UnsignedTx {
-        //     inputs_and_real_indices_and_subaddress_indices,
-        //     outlays: outlays_string,
-        //     fee: self.fee.unwrap_or(Mob::MINIMUM_FEE),
-        //     tombstone_block_index: self.tombstone,
-        //     block_version: self.block_version.unwrap_or(BlockVersion::MAX),
-        // })
+        Ok(UnsignedTx {
+            inputs_and_real_indices_and_subaddress_indices,
+            outlays: outlays_string,
+            fee: self.fee.unwrap_or(Mob::MINIMUM_FEE),
+            tombstone_block_index: self.tombstone,
+            block_version: self.block_version.unwrap_or(BlockVersion::MAX),
+        })
     }
 
     /// Consumes self

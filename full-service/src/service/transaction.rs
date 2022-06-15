@@ -228,6 +228,8 @@ where
                 None => self.get_network_fee(),
             })?;
 
+            builder.select_txos(&conn, None, false)?;
+
             let unsigned_tx = builder.build_unsigned(&conn)?;
             let fog_resolver = builder.get_fs_fog_resolver(&conn)?;
 

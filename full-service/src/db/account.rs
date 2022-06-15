@@ -177,6 +177,12 @@ pub trait AccountModel {
 
     /// Delete an account.
     fn delete(self, conn: &Conn) -> Result<(), WalletDbError>;
+
+    /// Get change public address
+    fn change_subaddress(self, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError>;
+
+    /// Get change public address
+    fn main_subaddress(self, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError>;
 }
 
 impl AccountModel for Account {
@@ -538,6 +544,22 @@ impl AccountModel for Account {
         Txo::delete_unreferenced(conn)?;
 
         Ok(())
+    }
+
+    fn change_subaddress(self, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError> {
+        AssignedSubaddress::get_for_account_by_index(
+            &self.account_id_hex,
+            self.change_subaddress_index,
+            conn,
+        )
+    }
+
+    fn main_subaddress(self, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError> {
+        AssignedSubaddress::get_for_account_by_index(
+            &self.account_id_hex,
+            self.main_subaddress_index,
+            conn,
+        )
     }
 }
 

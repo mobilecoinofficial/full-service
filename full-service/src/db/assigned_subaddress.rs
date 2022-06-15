@@ -16,7 +16,7 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
 };
 
-use mc_account_keys::{AccountKey, ViewAccountKey};
+use mc_account_keys::{AccountKey, PublicAddress, ViewAccountKey};
 use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
 use mc_ledger_db::{Ledger, LedgerDB};
 
@@ -94,6 +94,9 @@ pub trait AssignedSubaddressModel {
 
     /// Delete all AssignedSubaddresses for a given account.
     fn delete_all(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError>;
+
+    /// Helper to get the public address out of the assigned subaddress
+    fn public_address(self) -> Result<PublicAddress, WalletDbError>;
 }
 
 impl AssignedSubaddressModel for AssignedSubaddress {
@@ -293,13 +296,12 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         index: i64,
         conn: &Conn,
     ) -> Result<AssignedSubaddress, WalletDbError> {
-        let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
+        use crate::db::schema::assigned_subaddresses;
 
-        let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
-        let subaddress = account_key.subaddress(index as u64);
-
-        let subaddress_b58 = b58_encode_public_address(&subaddress)?;
-        Self::get(&subaddress_b58, conn)
+        Ok(assigned_subaddresses::table
+            .filter(assigned_subaddresses::account_id_hex.eq(account_id_hex))
+            .filter(assigned_subaddresses::subaddress_index.eq(index))
+            .first(conn)?)
     }
 
     fn find_by_subaddress_spend_public_key(
@@ -364,5 +366,10 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         diesel::delete(assigned_subaddresses.filter(schema_account_id_hex.eq(account_id_hex)))
             .execute(conn)?;
         Ok(())
+    }
+
+    fn public_address(self) -> Result<PublicAddress, WalletDbError> {
+        let public_address: PublicAddress = mc_util_serial::decode(&self.public_address)?;
+        Ok(public_address)
     }
 }

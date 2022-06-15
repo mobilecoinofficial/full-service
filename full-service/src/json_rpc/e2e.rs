@@ -3925,20 +3925,20 @@ mod e2e {
         let account_name = account.get("name").unwrap();
         assert_eq!(name, account_name);
 
-        // // test creating unsigned tx
-        // let body = json!({
-        //     "jsonrpc": "2.0",
-        //     "id": 2,
-        //     "method": "build_unsigned_transaction",
-        //     "params": {
-        //         "account_id": account_id,
-        //         "recipient_public_address": main_address,
-        //         "value_pmob": "50000000000000",
-        //     }
-        // });
-        // let res = dispatch(&client, body, &logger);
-        // let result = res.get("result").unwrap();
-        // let _tx = result.get("unsigned_tx").unwrap();
+        // test creating unsigned tx
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "build_unsigned_transaction",
+            "params": {
+                "account_id": account_id,
+                "recipient_public_address": main_address,
+                "value_pmob": "50000000000000",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let _tx = result.get("unsigned_tx").unwrap();
 
         // test remove
         let body = json!({

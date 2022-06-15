@@ -842,13 +842,11 @@ impl TxoModel for Txo {
         use crate::db::schema::txos;
 
         let mut query = txos::table.into_boxed();
-        // The SQLite database cannot filter effectively on a u64 value, so filter for
-        // maximum value in memory.
+
         query = query
             .filter(txos::spent_block_index.is_null())
             .filter(txos::pending_tombstone_block_index.is_null())
             .filter(txos::subaddress_index.is_not_null())
-            .filter(txos::key_image.is_not_null())
             .filter(txos::received_account_id_hex.eq(account_id_hex));
 
         if let Some(token_id) = token_id {
