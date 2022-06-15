@@ -6,21 +6,27 @@ use std::convert::TryFrom;
 
 use crate::{
     db::{
-        account::{AccountID, AccountModel, ViewOnlyAccountImportPackage},
+        account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
         models::{Account, AssignedSubaddress},
         transaction, WalletDbError,
     },
+    json_rpc::json_rpc_request::{JsonCommandRequest, JsonRPCRequest},
     service::{
         ledger::{LedgerService, LedgerServiceError},
         WalletService,
     },
-    util::constants::MNEMONIC_KEY_DERIVATION_VERSION,
+    util::{
+        constants::MNEMONIC_KEY_DERIVATION_VERSION,
+        encoding_helpers::{
+            hex_to_ristretto, hex_to_ristretto_public, ristretto_public_to_hex, ristretto_to_hex,
+        },
+    },
 };
 use base64;
 use bip39::{Language, Mnemonic, MnemonicType};
 use displaydoc::Display;
-use mc_account_keys::RootEntropy;
+use mc_account_keys::{AccountKey, RootEntropy};
 use mc_account_keys_slip10;
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
@@ -59,6 +65,9 @@ pub enum AccountServiceError {
 
     /// Error decoding keys
     KeyError(mc_crypto_keys::KeyError),
+
+    /// Account is a view only account
+    AccountIsViewOnly(AccountID),
 }
 
 impl From<WalletDbError> for AccountServiceError {
@@ -163,6 +172,11 @@ pub trait AccountService {
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
     ) -> Result<Account, AccountServiceError>;
+
+    fn get_view_only_account_import_request(
+        &self,
+        account_id: &AccountID,
+    ) -> Result<JsonRPCRequest, AccountServiceError>;
 
     /// List accounts in the wallet.
     fn list_accounts(&self) -> Result<Vec<Account>, AccountServiceError>;
@@ -339,19 +353,15 @@ where
     ) -> Result<Account, AccountServiceError> {
         log::info!(
             self.logger,
-            "Importing account {:?} with first block: {:?}",
+            "Importing view only account {:?} with first block: {:?}",
             name,
             first_block_index,
         );
 
-        let mut view_private_key_bytes = [0u8; 32];
-        let mut spend_public_key_bytes = [0u8; 32];
-
-        hex::decode_to_slice(view_private_key, &mut view_private_key_bytes)?;
-        hex::decode_to_slice(spend_public_key, &mut spend_public_key_bytes)?;
-
-        let view_private_key = RistrettoPrivate::try_from(&view_private_key_bytes)?;
-        let spend_public_key = RistrettoPublic::try_from(&spend_public_key_bytes)?;
+        let view_private_key =
+            hex_to_ristretto(&view_private_key).map_err(AccountServiceError::Base64DecodeError)?;
+        let spend_public_key = hex_to_ristretto_public(&spend_public_key)
+            .map_err(AccountServiceError::Base64DecodeError)?;
 
         let import_block_index = self.ledger_db.num_blocks()? - 1;
 
@@ -366,6 +376,40 @@ where
                 next_subaddress_index,
                 &conn,
             )?)
+        })
+    }
+
+    fn get_view_only_account_import_request(
+        &self,
+        account_id: &AccountID,
+    ) -> Result<JsonRPCRequest, AccountServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+        let account = Account::get(account_id, &conn)?;
+        if account.view_only {
+            return Err(AccountServiceError::AccountIsViewOnly(account_id.clone()));
+        }
+
+        let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+        let view_private_key = account_key.view_private_key();
+        let spend_public_key = RistrettoPublic::from(account_key.spend_private_key());
+
+        let json_command_request = JsonCommandRequest::import_view_only_account {
+            view_private_key: ristretto_to_hex(view_private_key),
+            spend_public_key: ristretto_public_to_hex(&spend_public_key),
+            name: Some(account.name),
+            first_block_index: Some(account.first_block_index.to_string()),
+            next_subaddress_index: Some(account.next_subaddress_index.to_string()),
+        };
+
+        let src_json: serde_json::Value = serde_json::json!(json_command_request);
+        let method = src_json.get("method").unwrap().as_str().unwrap();
+        let params = src_json.get("params").unwrap();
+
+        Ok(JsonRPCRequest {
+            method: method.to_string(),
+            params: Some(params.clone()),
+            jsonrpc: "2.0".to_string(),
+            id: serde_json::Value::Number(serde_json::Number::from(1)),
         })
     }
 

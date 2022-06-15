@@ -3,6 +3,7 @@
 //! API definition for the Account object.
 
 use crate::{db, util::b58::b58_encode_public_address};
+use mc_account_keys::PublicAddress;
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
@@ -61,18 +62,26 @@ impl TryFrom<&db::models::Account> for Account {
     type Error = String;
 
     fn try_from(src: &db::models::Account) -> Result<Account, String> {
-        let account_key: mc_account_keys::AccountKey = mc_util_serial::decode(&src.account_key)
-            .map_err(|e| format!("Could not decode account key: {:?}", e))?;
-        let main_address =
-            b58_encode_public_address(&account_key.subaddress(src.main_subaddress_index as u64))
-                .map_err(|e| format!("Could not b58 encode public address {:?}", e))?;
+        let main_public_address = if src.view_only {
+            let account_key: mc_account_keys::ViewAccountKey =
+                mc_util_serial::decode(&src.account_key)
+                    .map_err(|e| format!("Failed to decode view account key: {}", e))?;
+            account_key.subaddress(src.main_subaddress_index as u64)
+        } else {
+            let account_key: mc_account_keys::AccountKey = mc_util_serial::decode(&src.account_key)
+                .map_err(|e| format!("Failed to decode account key: {}", e))?;
+            account_key.subaddress(src.main_subaddress_index as u64)
+        };
+
+        let main_public_address_b58 = b58_encode_public_address(&main_public_address)
+            .map_err(|e| format!("Could not b58 encode public address {:?}", e))?;
 
         Ok(Account {
             object: "account".to_string(),
             account_id: src.account_id_hex.clone(),
             key_derivation_version: src.key_derivation_version.to_string(),
             name: src.name.clone(),
-            main_address,
+            main_address: main_public_address_b58,
             next_subaddress_index: (src.next_subaddress_index as u64).to_string(),
             first_block_index: (src.first_block_index as u64).to_string(),
             next_block_index: (src.next_block_index as u64).to_string(),
@@ -82,3 +91,40 @@ impl TryFrom<&db::models::Account> for Account {
         })
     }
 }
+
+// impl TryFrom<&db::account::ViewOnlyAccountImportPackage> for JsonRPCRequest {
+//     type Error = String;
+
+//     fn try_from(src: &db::account::ViewOnlyAccountImportPackage) ->
+// Result<JsonRPCRequest, String> {         let account =
+// ViewOnlyAccountJSON::from(&src.account);         let secrets =
+// ViewOnlyAccountSecretsJSON::try_from(&src.account)?;         let subaddresses
+// = src             .subaddresses
+//             .iter()
+//             .map(ViewOnlySubaddressJSON::from)
+//             .collect();
+
+//         let json_command_request =
+// JsonCommandRequest::import_view_only_account {             account,
+//             secrets,
+//             subaddresses,
+//         };
+
+//         let src_json: serde_json::Value =
+// serde_json::json!(json_command_request);         let method = src_json
+//             .get("method")
+//             .ok_or("missing method")?
+//             .as_str()
+//             .ok_or("could not cast to str")?;
+//         let params = src_json.get("params").ok_or("missing params")?;
+
+//         let json_rpc_request = JsonRPCRequest {
+//             method: method.to_string(),
+//             params: Some(params.clone()),
+//             jsonrpc: "2.0".to_string(),
+//             id: serde_json::Value::Number(serde_json::Number::from(1)),
+//         };
+
+//         Ok(json_rpc_request)
+//     }
+// }

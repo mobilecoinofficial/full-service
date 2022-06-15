@@ -3840,7 +3840,7 @@ mod e2e {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "export_view_only_account_package",
+            "method": "export_view_only_account_import_request",
             "params": {
                 "account_id": account_id,
             },
@@ -3866,7 +3866,7 @@ mod e2e {
         let body = json!(request);
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let account = result.get("view_only_account").unwrap();
+        let account = result.get("account").unwrap();
         let vo_account_id = account.get("account_id").unwrap();
         assert_eq!(vo_account_id, account_id);
 
@@ -3874,56 +3874,56 @@ mod e2e {
         manually_sync_account(
             &ledger_db,
             &wallet_db,
-            vo_account_id.as_str().unwrap(),
+            &AccountID(vo_account_id.as_str().unwrap().to_string()),
             &logger,
         );
 
-        // // check balance for view only account
-        // let body = json!({
-        //     "jsonrpc": "2.0",
-        //     "id": 1,
-        //     "method": "get_balance_for_view_only_account",
-        //     "params": {
-        //         "account_id": account_id,
-        //     },
-        // });
-        // let res = dispatch(&client, body, &logger);
-        // let result = res.get("result").unwrap();
-        // let balance_status = result.get("balance").unwrap();
-        // let unspent = balance_status["unspent_pmob"].as_str().unwrap();
-        // assert_eq!(unspent, "100000000000000");
+        // confirm that the regular account has the correct balance
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_balance_for_account",
+            "params": {
+                "account_id": vo_account_id,
+            },
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance_status = result.get("balance").unwrap();
+        let unspent = balance_status["unspent_pmob"].as_str().unwrap();
+        assert_eq!(unspent, "100000000000000");
 
-        // // test get
-        // let body = json!({
-        //     "jsonrpc": "2.0",
-        //     "id": 2,
-        //     "method": "get_view_only_account",
-        //     "params": {
-        //         "account_id": account_id,
-        //     }
-        // });
-        // let res = dispatch(&client, body, &logger);
-        // let result = res.get("result").unwrap();
-        // let account = result.get("view_only_account").unwrap();
-        // let vo_account_id = account.get("account_id").unwrap();
-        // assert_eq!(vo_account_id, account_id);
+        // test get
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "get_account",
+            "params": {
+                "account_id": vo_account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account = result.get("account").unwrap();
+        let vo_account_id = account.get("account_id").unwrap();
+        assert_eq!(vo_account_id, account_id);
 
-        // // test update name
-        // let name = "Look at these coins";
-        // let body = json!({
-        //     "jsonrpc": "2.0",
-        //     "id": 2,
-        //     "method": "update_view_only_account_name",
-        //     "params": {
-        //         "account_id": account_id,
-        //         "name": name,
-        //     }
-        // });
-        // let res = dispatch(&client, body, &logger);
-        // let result = res.get("result").unwrap();
-        // let account = result.get("view_only_account").unwrap();
-        // let account_name = account.get("name").unwrap();
-        // assert_eq!(name, account_name);
+        // test update name
+        let name = "Look at these coins";
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "update_account_name",
+            "params": {
+                "account_id": vo_account_id,
+                "name": name,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account = result.get("account").unwrap();
+        let account_name = account.get("name").unwrap();
+        assert_eq!(name, account_name);
 
         // // test creating unsigned tx
         // let body = json!({
@@ -3940,30 +3940,29 @@ mod e2e {
         // let result = res.get("result").unwrap();
         // let _tx = result.get("unsigned_tx").unwrap();
 
-        // // test remove
-        // let body = json!({
-        //     "jsonrpc": "2.0",
-        //     "id": 2,
-        //     "method": "remove_view_only_account",
-        //     "params": {
-        //         "account_id": account_id,
-        //     }
-        // });
-        // let res = dispatch(&client, body, &logger);
-        // let result = res.get("result").unwrap();
-        // let removed = result.get("removed").unwrap().as_bool().unwrap();
-        // assert!(removed);
+        // test remove
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "remove_account",
+            "params": {
+                "account_id": vo_account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let removed = result.get("removed").unwrap().as_bool().unwrap();
+        assert!(removed);
 
-        // // test get-all
-        // let body = json!({
-        //     "jsonrpc": "2.0",
-        //     "id": 2,
-        //     "method": "get_all_view_only_accounts",
-        // });
-        // let res = dispatch(&client, body, &logger);
-        // let result = res.get("result").unwrap();
-        // let account_ids =
-        // result.get("account_ids").unwrap().as_array().unwrap();
-        // assert_eq!(account_ids.len(), 0);
+        // test get-all
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "get_all_accounts",
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_ids = result.get("account_ids").unwrap().as_array().unwrap();
+        assert_eq!(account_ids.len(), 0);
     }
 }
