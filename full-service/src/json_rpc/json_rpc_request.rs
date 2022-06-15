@@ -145,6 +145,9 @@ pub enum JsonCommandRequest {
     export_account_secrets {
         account_id: String,
     },
+    export_view_only_account_import_request {
+        account_id: String,
+    },
     get_account {
         account_id: String,
     },

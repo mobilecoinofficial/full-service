@@ -187,7 +187,7 @@ pub enum JsonCommandResponse {
     export_spent_txo_ids {
         spent_txo_ids: Vec<String>,
     },
-    export_view_only_account_package {
+    export_view_only_account_import_request {
         json_rpc_request: JsonRPCRequest,
     },
     get_account {

@@ -471,6 +471,7 @@ where
                 account_secrets: AccountSecrets::try_from(&account).map_err(format_error)?,
             }
         }
+        JsonCommandRequest::export_view_only_account_import_request { account_id } => {}
         JsonCommandRequest::get_account { account_id } => JsonCommandResponse::get_account {
             account: json_rpc::account::Account::try_from(
                 &service

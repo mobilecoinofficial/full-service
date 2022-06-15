@@ -177,11 +177,6 @@ pub trait AccountService {
         name: String,
     ) -> Result<Account, AccountServiceError>;
 
-    fn get_view_only_import_package(
-        &self,
-        account_id: &AccountID,
-    ) -> Result<ViewOnlyAccountImportPackage, AccountServiceError>;
-
     /// Remove an account from the wallet.
     fn remove_account(&self, account_id: &AccountID) -> Result<bool, AccountServiceError>;
 }
@@ -392,24 +387,6 @@ where
         let conn = self.wallet_db.get_conn()?;
         Account::get(account_id, &conn)?.update_name(name, &conn)?;
         Ok(Account::get(account_id, &conn)?)
-    }
-
-    fn get_view_only_import_package(
-        &self,
-        account_id: &AccountID,
-    ) -> Result<ViewOnlyAccountImportPackage, AccountServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-
-        let account = Account::get(account_id, &conn)?;
-        let subaddresses =
-            AssignedSubaddress::list_all(&account_id.to_string(), None, None, &conn)?;
-
-        let view_only_account_import_package = ViewOnlyAccountImportPackage {
-            account,
-            subaddresses,
-        };
-
-        Ok(view_only_account_import_package)
     }
 
     fn remove_account(&self, account_id: &AccountID) -> Result<bool, AccountServiceError> {
