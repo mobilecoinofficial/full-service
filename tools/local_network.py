@@ -499,11 +499,5 @@ if __name__ == '__main__':
 
     full_service = FullService()
     full_service.start()
-    while True:
-        if (full_service.is_running()):
-            print("full service is running")
-        else:
-            print("full service is not running")
-        time.sleep(1)
     # full_service.stop()
     # mobilecoin_network.stop()
