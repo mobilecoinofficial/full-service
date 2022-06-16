@@ -33,7 +33,6 @@ WORK_DIR =  os.path.join(MOBILECOIN_DIR, TARGET_DIR, 'mc-local-network')
 LEDGER_BASE = os.path.join(MOBILECOIN_DIR, 'target', "sample_data", "ledger")
 MINTING_KEYS_DIR = os.path.join(WORK_DIR, 'minting-keys')
 CLI_PORT = 31337
-MC_SEED
 
 if MOB_RELEASE == '0':
     TARGET_DIR = 'target/debug'
