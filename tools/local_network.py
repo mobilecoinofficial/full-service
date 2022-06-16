@@ -485,7 +485,7 @@ class FullService:
         else:
             return False
         
-    def stop():
+    def stop(self):
         print('Im trying to stop but dont know how')
 
 if __name__ == '__main__':
@@ -499,6 +499,10 @@ if __name__ == '__main__':
 
     full_service = FullService()
     full_service.start()
-    full_service.is_running()
-    full_service.stop()
-    mobilecoin_network.stop()
+    while True:
+        if (full_service.is_running()):
+            print("full service is running")
+        else:
+            print("full service is not running")
+    # full_service.stop()
+    # mobilecoin_network.stop()
