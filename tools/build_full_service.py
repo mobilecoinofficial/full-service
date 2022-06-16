@@ -17,4 +17,4 @@ cmd=' '.join([
   f'CONSENSUS_ENCLAVE_CSS={MOBILECOIN_DIR}/consensus-enclave.css',
   'cargo build --release -p mc-full-service'
 ])
-subprocess.run(cmd)
+subprocess.Popen(cmd, shell=True)
