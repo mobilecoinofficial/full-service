@@ -25,13 +25,15 @@ BASE_ADMIN_HTTP_GATEWAY_PORT = 3500
 # TODO make these command line arguments
 IAS_API_KEY = os.getenv('IAS_API_KEY', default='0'*64) # 32 bytes
 IAS_SPID = os.getenv('IAS_SPID', default='0'*32) # 16 bytes
-PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'mobilecoin'))
+MOBILECOIN_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'mobilecoin'))
+FULLSERVICE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 MOB_RELEASE = os.getenv('MOB_RELEASE', '1')
 TARGET_DIR = 'target/release'
-WORK_DIR =  os.path.join(PROJECT_DIR, TARGET_DIR, 'mc-local-network')
-LEDGER_BASE = os.path.join(PROJECT_DIR, 'target', "sample_data", "ledger")
+WORK_DIR =  os.path.join(MOBILECOIN_DIR, TARGET_DIR, 'mc-local-network')
+LEDGER_BASE = os.path.join(MOBILECOIN_DIR, 'target', "sample_data", "ledger")
 MINTING_KEYS_DIR = os.path.join(WORK_DIR, 'minting-keys')
 CLI_PORT = 31337
+MC_SEED
 
 if MOB_RELEASE == '0':
     TARGET_DIR = 'target/debug'
@@ -39,7 +41,8 @@ if MOB_RELEASE == '0':
 # Sane default log configuration
 if 'MC_LOG' not in os.environ:
     os.environ['MC_LOG'] = 'debug,rustls=warn,hyper=warn,tokio_reactor=warn,mio=warn,want=warn,rusoto_core=error,h2=error,reqwest=error,rocket=error,<unknown>=error'
-
+if 'FS_LOG' not in os.environ:
+    os.environ['FS_LOG'] = 'info'
 
 class QuorumSet:
     def __init__(self, threshold, members):
@@ -174,7 +177,7 @@ class Node:
 
         #  Sign the governors with the admin key.
         subprocess.check_output(' '.join([
-            f'cd {PROJECT_DIR} && exec {TARGET_DIR}/mc-consensus-mint-client',
+            f'cd {MOBILECOIN_DIR} && exec {TARGET_DIR}/mc-consensus-mint-client',
             'sign-governors',
             f'--tokens {self.tokens_config_file}',
             f'--signing-key {MINTING_KEYS_DIR}/minting-trust-root.pem',
@@ -182,7 +185,7 @@ class Node:
         ]), shell=True)
 
         cmd = ' '.join([
-            f'cd {PROJECT_DIR} && exec {TARGET_DIR}/consensus-service',
+            f'cd {MOBILECOIN_DIR} && exec {TARGET_DIR}/consensus-service',
             f'--client-responder-id localhost:{self.client_port}',
             f'--peer-responder-id localhost:{self.peer_port}',
             f'--msg-signer-key "{msg_signer_key}"',
@@ -218,7 +221,7 @@ class Node:
             time.sleep(1)
 
         cmd = ' '.join([
-            f'cd {PROJECT_DIR} && exec {TARGET_DIR}/ledger-distribution',
+            f'cd {MOBILECOIN_DIR} && exec {TARGET_DIR}/ledger-distribution',
             f'--ledger-path {self.ledger_dir}',
             f'--dest "file://{self.ledger_distribution_dir}"',
             f'--state-file {WORK_DIR}/ledger-distribution-state-{self.node_num}',
@@ -227,7 +230,7 @@ class Node:
         self.ledger_distribution_process = subprocess.Popen(cmd, shell=True)
 
         cmd = ' '.join([
-            f'cd {PROJECT_DIR} && export ROCKET_CLI_COLORS=0 && exec {TARGET_DIR}/mc-admin-http-gateway',
+            f'cd {MOBILECOIN_DIR} && export ROCKET_CLI_COLORS=0 && exec {TARGET_DIR}/mc-admin-http-gateway',
             f'--listen-host 0.0.0.0',
             f'--listen-port {self.admin_http_gateway_port}',
             f'--admin-uri insecure-mca://127.0.0.1:{self.admin_port}/',
@@ -366,7 +369,7 @@ class Network:
        subprocess.check_output(f'openssl pkey -pubout -in {MINTING_KEYS_DIR}/governor2 -out {MINTING_KEYS_DIR}/governor2.pub', shell=True)
 
        # This matches the hardcoded key in consensus/enclave/impl/build.rs
-       subprocess.check_output(f'cd {PROJECT_DIR} && exec {TARGET_DIR}/mc-util-seeded-ed25519-key-gen --seed abababababababababababababababababababababababababababababababab > {MINTING_KEYS_DIR}/minting-trust-root.pem', shell=True)
+       subprocess.check_output(f'cd {MOBILECOIN_DIR} && exec {TARGET_DIR}/mc-util-seeded-ed25519-key-gen --seed abababababababababababababababababababababababababababababababab > {MINTING_KEYS_DIR}/minting-trust-root.pem', shell=True)
 
     def start(self):
         self.stop()
@@ -456,8 +459,35 @@ class Network:
             raise Exception('Invalid network type')
 
         self.start()
-        self.wait()
-        self.stop()
+        # self.wait()
+        # self.stop()
+
+
+class FullService:
+    def __init__(self):
+        self.full_service_process = None
+
+    def start(self):
+        cmd = ' '.join([
+            'mkdir -p /tmp/wallet-db/',
+            f'{FULLSERVICE_DIR}/target/release/full-service',
+            '--wallet-db /tmp/wallet-db/wallet.db',
+            '--ledger-db /tmp/ledger-db/',
+            '--peer insecure-mc://localhost:3200',
+            '--peer insecure-mc://localhost:3201',
+            f'--tx-source-url file:///{MOBILECOIN_DIR}/target/docker/release/node-ledger-distribution-0',
+            f'--tx-source-url file:///{MOBILECOIN_DIR}/target/docker/release/node-ledger-distribution-1',
+        ])
+        self.full_service_process = subprocess.Popen(cmd, shell=True)
+
+    def is_running(self):
+        if self.full_service_process and self.full_service_process.poll() is not None:
+            return True
+        else:
+            return False
+        
+    def stop():
+        print('Im trying to stop but dont know how')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Local network tester')
@@ -465,4 +495,11 @@ if __name__ == '__main__':
     parser.add_argument('--block-version', help='Set the block version argument', type=int)
     args = parser.parse_args()
 
-    Network().default_entry_point(args.network_type, args.block_version)
+    mobilecoin_network = Network()
+    mobilecoin_network.default_entry_point(args.network_type, args.block_version)
+
+    full_service = FullService()
+    full_service.start()
+    full_service.is_running()
+    full_service.stop()
+    mobilecoin_network.stop()

@@ -1,1 +1,0 @@
-print("running run_mobilecoin.py")

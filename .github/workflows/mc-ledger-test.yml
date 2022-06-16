@@ -19,11 +19,6 @@ jobs:
     container:
       image: mobilecoin/rust-sgx-base:latest
     strategy:
-      matrix:
-        build_services:
-          [build_mobilecoin.py, build_full_service.py]
-        run_services:
-          [run_mobilecoin.py, run_full_service.py]
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -47,12 +42,42 @@ jobs:
         run: |
           mobilecoin/tools/local-network/bootstrap.sh
 
-      - name: Build Services
+      - name: Build MobileCoin
         shell: bash
         run: |
-          python3 tools/${{ matrix.build_services}}
+          python3 tools/build_mobilecoin.py
+      
+      - name: Build FullService
+        shell: bash
+        run: |
+          python3 tools/build_full_service.py
       
       - name: Run Integration
         shell: bash
         run: |
-          python3 tools/${{ matrix.run_services }}
+          python3 tools/local_network.py
+  
+  # setup-env:
+  #   runs-on: [self-hosted, Linux, large]
+  #   container:
+  #     image: mobilecoin/rust-sgx-base:latest
+  #   steps:
+  #     - name: Cache MobileCoin
+  #       id: cache-mobilecoin
+  #       uses: actions/cache@v3
+  #       with:
+  #         path: /opt/mobilecoin
+  #         key: ${{ runner.os }}-${{ secrets.CACHE_VERSION }}-mobilecoin-${{ hashFiles('**/Cargo.lock')}}
+
+  #     - name: Cache Full Service
+  #       id: cache-full-service
+  #       uses: actions/cache@v3
+  #       with:
+  #         path: /opt/full-service
+  #         key: ${{ runner.os }}-${{ secrets.CACHE_VERSION }}-full_service-${{ hashFiles('**/Cargo.lock')}}
+
+      
+      # - name: Run Integration
+      #   shell: bash
+      #   run: |
+      #     python3 tools/${{ matrix.run_services }}
