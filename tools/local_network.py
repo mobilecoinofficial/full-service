@@ -469,7 +469,7 @@ class FullService:
     def start(self):
         cmd = ' '.join([
             'mkdir -p /tmp/wallet-db/',
-            f'{FULLSERVICE_DIR}/target/release/full-service',
+            f'&& {FULLSERVICE_DIR}/target/release/full-service',
             '--wallet-db /tmp/wallet-db/wallet.db',
             '--ledger-db /tmp/ledger-db/',
             '--peer insecure-mc://localhost:3200',
@@ -486,7 +486,12 @@ class FullService:
             return False
         
     def stop(self):
-        print('Im trying to stop but dont know how')
+        try:
+            subprocess.check_output("killall -9 full-service 2>/dev/null", shell=True)
+        except subprocess.CalledProcessError as exc:
+            if exc.returncode != 1:
+                raise
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Local network tester')
@@ -499,5 +504,6 @@ if __name__ == '__main__':
 
     full_service = FullService()
     full_service.start()
-    # full_service.stop()
-    # mobilecoin_network.stop()
+    time.sleep(600)
+    full_service.stop()
+    mobilecoin_network.stop()
