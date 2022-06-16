@@ -397,6 +397,7 @@ where
     ) -> Result<JsonRPCRequest, AccountServiceError> {
         let conn = self.wallet_db.get_conn()?;
         let account = Account::get(account_id, &conn)?;
+
         if account.view_only {
             return Err(AccountServiceError::AccountIsViewOnly(account_id.clone()));
         }
