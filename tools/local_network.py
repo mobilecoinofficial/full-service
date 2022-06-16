@@ -504,5 +504,6 @@ if __name__ == '__main__':
             print("full service is running")
         else:
             print("full service is not running")
+            time.sleep(1)
     # full_service.stop()
     # mobilecoin_network.stop()
