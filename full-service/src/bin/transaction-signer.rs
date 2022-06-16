@@ -1,7 +1,7 @@
 use bip39::{Language, Mnemonic, MnemonicType};
-use mc_account_keys::{AccountKey, CHANGE_SUBADDRESS_INDEX, DEFAULT_SUBADDRESS_INDEX};
+use mc_account_keys::AccountKey;
 use mc_account_keys_slip10::Slip10Key;
-use mc_common::{HashMap, HashSet};
+use mc_common::HashMap;
 use mc_full_service::{
     db::{account::AccountID, txo::TxoID},
     fog_resolver::FullServiceFogResolver,
@@ -12,7 +12,7 @@ use mc_full_service::{
         tx_proposal::TxProposal,
     },
     unsigned_tx::UnsignedTx,
-    util::b58,
+    util::encoding_helpers::{ristretto_public_to_hex, ristretto_to_hex},
 };
 use std::{convert::TryFrom, fs};
 use structopt::StructOpt;
@@ -129,34 +129,24 @@ fn generate_view_only_import_package(secret_mnemonic: &str) {
     let account_key = account_key_from_mnemonic_phrase(&account_secrets.mnemonic.unwrap());
     let account_id = AccountID::from(&account_key);
 
-    // // Package view private key.
-    // let account_json = ViewOnlyAccountJSON {
-    //     object: "view_only_account".to_string(),
-    //     name: account_secrets.name,
-    //     account_id: account_id.to_string(),
-    //     first_block_index: 0.to_string(),
-    //     next_block_index: 0.to_string(),
-    //     main_subaddress_index: DEFAULT_SUBADDRESS_INDEX.to_string(),
-    //     change_subaddress_index: CHANGE_SUBADDRESS_INDEX.to_string(),
-    //     next_subaddress_index: 2.to_string(),
-    // };
+    let view_private_key_hex = ristretto_to_hex(account_key.view_private_key());
+    let spend_public_key = RistrettoPublic::from(account_key.spend_private_key());
+    let spend_public_key_hex = ristretto_public_to_hex(&spend_public_key);
 
-    // let account_secrets_json = ViewOnlyAccountSecretsJSON {
-    //     object: "view_only_account_secrets".to_string(),
-    //     view_private_key:
-    // hex::encode(mc_util_serial::encode(account_key.view_private_key())),
-    //     account_id: account_id.to_string(),
-    // };
+    let json_command_request = JsonCommandRequest::import_view_only_account {
+        view_private_key: view_private_key_hex,
+        spend_public_key: spend_public_key_hex,
+        name: None,
+        first_block_index: None,
+        next_subaddress_index: None,
+    };
 
-    // let json_command_request = JsonCommandRequest::import_view_only_account
-    // {};
-
-    // // Write view private key and associated info to file.
-    // let filename = format!(
-    //     "mobilecoin_view_account_import_package_{}.json",
-    //     &account_id.to_string()[..6]
-    // );
-    // write_json_command_request_to_file(&json_command_request, &filename);
+    // Write view private key and associated info to file.
+    let filename = format!(
+        "mobilecoin_view_account_import_package_{}.json",
+        &account_id.to_string()[..6]
+    );
+    write_json_command_request_to_file(&json_command_request, &filename);
 }
 
 fn sync_txos(secret_mnemonic: &str, sync_request: &str, num_subaddresses: u64) {
