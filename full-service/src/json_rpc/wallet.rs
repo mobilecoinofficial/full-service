@@ -947,7 +947,15 @@ where
             completed_txos,
             next_subaddress_index,
         } => {
-            todo!();
+            service
+                .sync_account(
+                    &AccountID(account_id),
+                    completed_txos,
+                    next_subaddress_index.parse::<u64>().map_err(format_error)?,
+                )
+                .map_err(format_error)?;
+
+            JsonCommandResponse::sync_view_only_account
         }
         JsonCommandRequest::update_account_name { account_id, name } => {
             JsonCommandResponse::update_account_name {
