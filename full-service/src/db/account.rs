@@ -814,4 +814,60 @@ mod tests {
         };
         assert_eq!(expected_account, acc);
     }
+
+    #[test_with_logger]
+    fn test_import_view_only_account(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let view_private_key = RistrettoPrivate::from_random(&mut rng);
+        let spend_public_key = RistrettoPublic::from_random(&mut rng);
+
+        let account = {
+            let conn = wallet_db.get_conn().unwrap();
+            let account = Account::import_view_only(
+                &view_private_key,
+                &spend_public_key,
+                Some("View Only Account".to_string()),
+                12,
+                None,
+                None,
+                &conn,
+            )
+            .unwrap();
+            account
+        };
+
+        {
+            let conn = wallet_db.get_conn().unwrap();
+            let res = Account::list_all(&conn).unwrap();
+            assert_eq!(res.len(), 1);
+        }
+
+        let expected_account = Account {
+            id: 1,
+            account_id_hex: account.account_id_hex.to_string(),
+            account_key: [
+                10, 34, 10, 32, 66, 186, 14, 57, 108, 119, 153, 172, 224, 25, 53, 237, 22, 219,
+                222, 137, 26, 227, 37, 43, 122, 52, 71, 153, 60, 246, 90, 102, 123, 176, 139, 11,
+                18, 34, 10, 32, 28, 19, 114, 110, 204, 131, 192, 90, 192, 83, 149, 201, 140, 112,
+                168, 124, 195, 19, 252, 208, 160, 39, 44, 28, 108, 143, 40, 149, 53, 137, 20, 47,
+            ]
+            .to_vec(),
+            entropy: None,
+            key_derivation_version: 2,
+            main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
+            change_subaddress_index: CHANGE_SUBADDRESS_INDEX as i64,
+            next_subaddress_index: 2,
+            first_block_index: 0,
+            next_block_index: 0,
+            import_block_index: Some(12),
+            name: "View Only Account".to_string(),
+            fog_enabled: false,
+            view_only: true,
+        };
+        assert_eq!(expected_account, account);
+    }
 }
