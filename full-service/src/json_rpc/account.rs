@@ -3,7 +3,6 @@
 //! API definition for the Account object.
 
 use crate::{db, util::b58::b58_encode_public_address};
-use mc_account_keys::PublicAddress;
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
 

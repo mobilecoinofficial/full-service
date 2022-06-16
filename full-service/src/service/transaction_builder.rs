@@ -12,7 +12,7 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        models::{Account, AssignedSubaddress, Txo},
+        models::{Account, Txo},
         txo::TxoModel,
         Conn,
     },
@@ -257,7 +257,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         Ok(FullServiceFogResolver(fully_validated_fog_pubkeys))
     }
 
-    pub fn build_unsigned(&self, conn: &Conn) -> Result<UnsignedTx, WalletTransactionBuilderError> {
+    pub fn build_unsigned(&self) -> Result<UnsignedTx, WalletTransactionBuilderError> {
         if self.tombstone == 0 {
             return Err(WalletTransactionBuilderError::TombstoneNotSet);
         }

@@ -50,7 +50,6 @@ use mc_connection::{
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_fog_report_validation::{FogPubkeyResolver, FogResolver};
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
-use mc_transaction_core::ring_signature::KeyImage;
 use mc_validator_connection::ValidatorConnection;
 use rocket::{
     self, get, http::Status, outcome::Outcome, post, request::FromRequest, routes, Request, State,
@@ -448,20 +447,19 @@ where
             }
         }
         JsonCommandRequest::create_view_only_account_sync_request { account_id } => {
-            todo!()
-            // let incomplete_txos = service
-            //     .list_incomplete_view_only_txos(&account_id)
-            //     .map_err(format_error)?;
+            let unsynced_txos = service
+                .list_unsynced_txos(&AccountID(account_id.clone()))
+                .map_err(format_error)?;
 
-            // let incomplete_txos_encoded: Vec<String> = incomplete_txos
-            //     .iter()
-            //     .map(|txo| hex::encode(mc_util_serial::encode(txo)))
-            //     .collect();
+            let unsynced_txos_encoded: Vec<String> = unsynced_txos
+                .iter()
+                .map(|txo| hex::encode(mc_util_serial::encode(&txo.txo)))
+                .collect();
 
-            // JsonCommandResponse::create_view_only_account_sync_request {
-            //     account_id,
-            //     incomplete_txos_encoded,
-            // }
+            JsonCommandResponse::create_view_only_account_sync_request {
+                account_id,
+                incomplete_txos_encoded: unsynced_txos_encoded,
+            }
         }
         JsonCommandRequest::export_account_secrets { account_id } => {
             let account = service
@@ -947,6 +945,7 @@ where
         JsonCommandRequest::sync_view_only_account {
             account_id,
             completed_txos,
+            next_subaddress_index,
         } => {
             todo!();
         }

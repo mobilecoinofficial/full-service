@@ -2,14 +2,14 @@
 
 //! Service for managing accounts.
 
-use std::convert::TryFrom;
-
 use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        models::{Account, AssignedSubaddress},
-        transaction, WalletDbError,
+        models::{Account, AssignedSubaddress, Txo},
+        transaction,
+        txo::TxoModel,
+        WalletDbError,
     },
     json_rpc::json_rpc_request::{JsonCommandRequest, JsonRPCRequest},
     service::{
@@ -26,13 +26,14 @@ use crate::{
 use base64;
 use bip39::{Language, Mnemonic, MnemonicType};
 use displaydoc::Display;
-use mc_account_keys::{AccountKey, RootEntropy};
+use mc_account_keys::{AccountKey, RootEntropy, ViewAccountKey};
 use mc_account_keys_slip10;
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
-use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
+use mc_crypto_keys::RistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
+use mc_transaction_core::ring_signature::KeyImage;
 
 #[derive(Display, Debug)]
 pub enum AccountServiceError {
@@ -66,8 +67,11 @@ pub enum AccountServiceError {
     /// Error decoding keys
     KeyError(mc_crypto_keys::KeyError),
 
-    /// Account is a view only account
+    /// Account is a view only account and shouldn't be
     AccountIsViewOnly(AccountID),
+
+    /// Account is not a view only account and should be
+    AccountIsNotViewOnly(AccountID),
 }
 
 impl From<WalletDbError> for AccountServiceError {
@@ -190,6 +194,14 @@ pub trait AccountService {
         account_id: &AccountID,
         name: String,
     ) -> Result<Account, AccountServiceError>;
+
+    /// complete a sync request for a view only account
+    fn sync_account(
+        &self,
+        account_id: &AccountID,
+        txo_ids_and_key_images: Vec<(String, String)>,
+        next_subaddress_index: u64,
+    ) -> Result<(), AccountServiceError>;
 
     /// Remove an account from the wallet.
     fn remove_account(&self, account_id: &AccountID) -> Result<bool, AccountServiceError>;
@@ -431,6 +443,42 @@ where
         let conn = self.wallet_db.get_conn()?;
         Account::get(account_id, &conn)?.update_name(name, &conn)?;
         Ok(Account::get(account_id, &conn)?)
+    }
+
+    fn sync_account(
+        &self,
+        account_id: &AccountID,
+        txo_ids_and_key_images: Vec<(String, String)>,
+        next_subaddress_index: u64,
+    ) -> Result<(), AccountServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+        let account = Account::get(account_id, &conn)?;
+
+        if !account.view_only {
+            return Err(AccountServiceError::AccountIsNotViewOnly(
+                account_id.clone(),
+            ));
+        }
+
+        let view_account_key: ViewAccountKey = mc_util_serial::decode(&account.account_key)?;
+
+        for (txo_id_hex, key_image_encoded) in txo_ids_and_key_images {
+            let key_image: KeyImage = mc_util_serial::decode(&hex::decode(key_image_encoded)?)?;
+            let spent_block_index = self.ledger_db.check_key_image(&key_image)?;
+            Txo::update_key_image(&txo_id_hex, &key_image, spent_block_index, &conn)?;
+        }
+
+        for index in next_subaddress_index..account.next_subaddress_index as u64 {
+            AssignedSubaddress::create_for_view_only_account(
+                &view_account_key,
+                None,
+                index as u64,
+                "",
+                &conn,
+            )?;
+        }
+
+        Ok(())
     }
 
     fn remove_account(&self, account_id: &AccountID) -> Result<bool, AccountServiceError> {

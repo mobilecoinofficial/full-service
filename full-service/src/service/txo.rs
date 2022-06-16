@@ -79,6 +79,10 @@ pub trait TxoService {
         offset: Option<u64>,
     ) -> Result<Vec<Txo>, TxoServiceError>;
 
+    /// List txos for a given account in the wallet that have a subaddress index
+    /// but not a key image.
+    fn list_unsynced_txos(&self, account_id: &AccountID) -> Result<Vec<Txo>, TxoServiceError>;
+
     /// list all spent txos
     fn list_spent_txos(&self, account_id: &AccountID) -> Result<Vec<Txo>, TxoServiceError>;
 
@@ -118,6 +122,11 @@ where
             Some(0),
             &conn,
         )?)
+    }
+
+    fn list_unsynced_txos(&self, account_id: &AccountID) -> Result<Vec<Txo>, TxoServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+        Ok(Txo::list_unsynced(&account_id.to_string(), None, &conn)?)
     }
 
     fn list_spent_txos(&self, account_id: &AccountID) -> Result<Vec<Txo>, TxoServiceError> {

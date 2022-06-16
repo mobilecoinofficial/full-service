@@ -8,7 +8,6 @@ use crate::{
         models::{Account, TransactionLog},
         transaction,
         transaction_log::{AssociatedTxos, TransactionLogModel},
-        txo::TxoID,
         WalletDbError,
     },
     error::WalletTransactionBuilderError,
@@ -230,7 +229,7 @@ where
 
             builder.select_txos(&conn, None, false)?;
 
-            let unsigned_tx = builder.build_unsigned(&conn)?;
+            let unsigned_tx = builder.build_unsigned()?;
             let fog_resolver = builder.get_fs_fog_resolver(&conn)?;
 
             Ok((unsigned_tx, fog_resolver))

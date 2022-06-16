@@ -3940,6 +3940,24 @@ mod e2e {
         let result = res.get("result").unwrap();
         let _tx = result.get("unsigned_tx").unwrap();
 
+        // test create sync account request
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "create_view_only_account_sync_request",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let unsynced_txos = result
+            .get("incomplete_txos_encoded")
+            .unwrap()
+            .as_array()
+            .unwrap();
+        assert_eq!(unsynced_txos.len(), 1);
+
         // test remove
         let body = json!({
             "jsonrpc": "2.0",

@@ -258,6 +258,7 @@ pub enum JsonCommandRequest {
     sync_view_only_account {
         account_id: String,
         completed_txos: Vec<(String, String)>,
+        next_subaddress_index: String,
     },
     update_account_name {
         account_id: String,

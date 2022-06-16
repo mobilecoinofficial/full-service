@@ -211,6 +211,7 @@ fn sync_txos(secret_mnemonic: &str, sync_request: &str, num_subaddresses: u64) {
     let json_command_request = JsonCommandRequest::sync_view_only_account {
         account_id: account_id.to_string(),
         completed_txos,
+        next_subaddress_index: "0".to_string(),
     };
 
     // Write result to file.

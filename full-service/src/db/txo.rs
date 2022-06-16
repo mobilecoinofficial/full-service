@@ -139,6 +139,13 @@ pub trait TxoModel {
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
+    fn update_key_image(
+        txo_id_hex: &str,
+        key_image: &KeyImage,
+        spent_block_index: Option<u64>,
+        conn: &Conn,
+    ) -> Result<(), WalletDbError>;
+
     /// Get all Txos associated with a given account.
     fn list_for_account(
         account_id_hex: &str,
@@ -203,6 +210,12 @@ pub trait TxoModel {
     ) -> Result<Vec<Txo>, WalletDbError>;
 
     fn list_minted(
+        account_id_hex: &str,
+        token_id: Option<u64>,
+        conn: &Conn,
+    ) -> Result<Vec<Txo>, WalletDbError>;
+
+    fn list_unsynced(
         account_id_hex: &str,
         token_id: Option<u64>,
         conn: &Conn,
@@ -515,6 +528,26 @@ impl TxoModel for Txo {
         Ok(())
     }
 
+    fn update_key_image(
+        txo_id_hex: &str,
+        key_image: &KeyImage,
+        spent_block_index: Option<u64>,
+        conn: &Conn,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::txos;
+
+        let encoded_key_image = mc_util_serial::encode(key_image);
+
+        diesel::update(txos::table.filter(txos::txo_id_hex.eq(txo_id_hex)))
+            .set((
+                txos::key_image.eq(Some(encoded_key_image)),
+                txos::spent_block_index.eq(spent_block_index.map(|i| i as i64)),
+            ))
+            .execute(conn)?;
+
+        Ok(())
+    }
+
     fn list_for_account(
         account_id_hex: &str,
         offset: Option<u64>,
@@ -584,6 +617,27 @@ impl TxoModel for Txo {
             let subaddress = AssignedSubaddress::get(subaddress_b58, conn)?;
             query = query.filter(txos::subaddress_index.eq(subaddress.subaddress_index));
         }
+
+        if let Some(token_id) = token_id {
+            query = query.filter(txos::token_id.eq(token_id as i64));
+        }
+
+        Ok(query.load(conn)?)
+    }
+
+    fn list_unsynced(
+        account_id_hex: &str,
+        token_id: Option<u64>,
+        conn: &Conn,
+    ) -> Result<Vec<Txo>, WalletDbError> {
+        use crate::db::schema::txos;
+
+        let mut query = txos::table.into_boxed();
+
+        query = query
+            .filter(txos::received_account_id_hex.eq(account_id_hex))
+            .filter(txos::subaddress_index.is_not_null())
+            .filter(txos::key_image.is_null());
 
         if let Some(token_id) = token_id {
             query = query.filter(txos::token_id.eq(token_id as i64));
