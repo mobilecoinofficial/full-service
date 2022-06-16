@@ -907,7 +907,8 @@ class CommandLineInterface:
 
     def version(self):
         version = self.client.version()
-        print(version['string'])
+        print('MobileCoin full-service', version['string'])
+        print('commit', version['commit'][:6])
 
 
 def _format_mob(mob):
