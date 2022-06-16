@@ -54,7 +54,7 @@ jobs:
       - name: Run Integration
         shell: bash
         run: |
-          python3 tools/local_network.py
+          python3 tools/local_network.py --network-type a-b-c
   
   # setup-env:
   #   runs-on: [self-hosted, Linux, large]
