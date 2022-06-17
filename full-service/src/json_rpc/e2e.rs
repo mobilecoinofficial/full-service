@@ -3951,12 +3951,12 @@ mod e2e {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let unsynced_txos = result
+        let unverified_txos = result
             .get("incomplete_txos_encoded")
             .unwrap()
             .as_array()
             .unwrap();
-        assert_eq!(unsynced_txos.len(), 1);
+        assert_eq!(unverified_txos.len(), 1);
 
         // test remove
         let body = json!({

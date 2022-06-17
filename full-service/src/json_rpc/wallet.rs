@@ -446,18 +446,18 @@ where
             }
         }
         JsonCommandRequest::create_view_only_account_sync_request { account_id } => {
-            let unsynced_txos = service
-                .list_unsynced_txos(&AccountID(account_id.clone()))
+            let unverified_txos = service
+                .list_unverified_txos(&AccountID(account_id.clone()))
                 .map_err(format_error)?;
 
-            let unsynced_txos_encoded: Vec<String> = unsynced_txos
+            let unverified_txos_encoded: Vec<String> = unverified_txos
                 .iter()
                 .map(|txo| hex::encode(mc_util_serial::encode(&txo.txo)))
                 .collect();
 
             JsonCommandResponse::create_view_only_account_sync_request {
                 account_id,
-                incomplete_txos_encoded: unsynced_txos_encoded,
+                incomplete_txos_encoded: unverified_txos_encoded,
             }
         }
         JsonCommandRequest::export_account_secrets { account_id } => {

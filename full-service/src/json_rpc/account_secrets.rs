@@ -78,7 +78,7 @@ impl TryFrom<&Account> for AccountSecrets {
 
             let mnemonic = match src.key_derivation_version {
                 2 => Some(
-                    Mnemonic::from_entropy(&src.entropy.as_ref().unwrap(), Language::English)
+                    Mnemonic::from_entropy(src.entropy.as_ref().unwrap(), Language::English)
                         .unwrap()
                         .phrase()
                         .to_string(),

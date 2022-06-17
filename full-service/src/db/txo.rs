@@ -215,7 +215,7 @@ pub trait TxoModel {
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
-    fn list_unsynced(
+    fn list_unverified(
         account_id_hex: &str,
         token_id: Option<u64>,
         conn: &Conn,
@@ -625,7 +625,7 @@ impl TxoModel for Txo {
         Ok(query.load(conn)?)
     }
 
-    fn list_unsynced(
+    fn list_unverified(
         account_id_hex: &str,
         token_id: Option<u64>,
         conn: &Conn,
