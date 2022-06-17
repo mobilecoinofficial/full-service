@@ -477,6 +477,9 @@ class FullService:
             f'--tx-source-url file:///{MOBILECOIN_DIR}/target/release/mc-local-network/node-ledger-distribution-0',
             f'--tx-source-url file:///{MOBILECOIN_DIR}/target/release/mc-local-network/node-ledger-distribution-1',
         ])
+        print('===================================================')
+        print('starting full service')
+        print(cmd)
         self.full_service_process = subprocess.Popen(cmd, shell=True)
 
     def is_running(self):
