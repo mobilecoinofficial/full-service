@@ -37,7 +37,15 @@ jobs:
             target/
           key: ${{ runner.os }}-${{ secrets.CACHE_VERSION }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
+      - name: Cache Bootstrap
+        id: cache-bootstrap
+        uses: actions/cache@v3
+        with:
+          path: mobilecoin/target/sample-data
+          key: ${{ runner.os }}-${{ secrets.CACHE_VERSION }}-bootstrap-${{ hashFiles('**/Cargo.lock') }}
+
       - name: Bootstrap MobileCoin
+        if: steps.cache-bootstrap.outputs.cache-hit != 'true'
         run: |
           mobilecoin/tools/local-network/bootstrap.sh
 
