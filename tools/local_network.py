@@ -408,12 +408,13 @@ class Network:
             self.cli.stop()
             self.cli = None
 
-        # print("Killing any existing processes")
-        # try:
-        #     subprocess.check_output("killall -9 consensus-service filebeat ledger-distribution prometheus mc-admin-http-gateway mobilecoind 2>/dev/null", shell=True)
-        # except subprocess.CalledProcessError as exc:
-        #     if exc.returncode != 1:
-        #         raise
+
+        print("Killing any existing processes")
+        try:
+            subprocess.check_output("pkill consensus-service filebeat ledger-distribution prometheus mc-admin-http-gateway mobilecoind", shell=True)
+        except subprocess.CalledProcessError as exc:
+            if exc.returncode != 1:
+                raise
 
 
     def default_entry_point(self, network_type, block_version=None):
@@ -490,7 +491,7 @@ class FullService:
         
     def stop(self):
         try:
-            subprocess.check_output("killall -9 full-service 2>/dev/null", shell=True)
+            subprocess.check_output("pkill full-service", shell=True)
         except subprocess.CalledProcessError as exc:
             if exc.returncode != 1:
                 raise
