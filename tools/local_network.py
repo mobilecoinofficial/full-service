@@ -411,7 +411,15 @@ class Network:
 
         print("Killing any existing processes")
         try:
-            subprocess.check_output("pkill consensus-service filebeat ledger-distribution prometheus mc-admin-http-gateway mobilecoind", shell=True)
+            kill_cmd = ' '.join([
+                'pkill -9 consensus-service',
+                '&& pkill -9 filebeat',
+                '&& pkill -9 ledger-distribution',
+                '&& pkill -9 prometheus',
+                '&& pkill -9 mc-admin-http-gateway',
+                '&& pkill -9 mobilecoind',
+            ])
+            subprocess.check_output(kill_cmd, shell=True)
         except subprocess.CalledProcessError as exc:
             if exc.returncode != 1:
                 raise
