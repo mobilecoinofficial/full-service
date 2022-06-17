@@ -474,8 +474,8 @@ class FullService:
             '--ledger-db /tmp/ledger-db/',
             '--peer insecure-mc://localhost:3200',
             '--peer insecure-mc://localhost:3201',
-            f'--tx-source-url file:///{MOBILECOIN_DIR}/target/docker/release/node-ledger-distribution-0',
-            f'--tx-source-url file:///{MOBILECOIN_DIR}/target/docker/release/node-ledger-distribution-1',
+            f'--tx-source-url file:///{MOBILECOIN_DIR}/target/release/mc-local-network/node-ledger-distribution-0',
+            f'--tx-source-url file:///{MOBILECOIN_DIR}/target/release/mc-local-network/node-ledger-distribution-1',
         ])
         self.full_service_process = subprocess.Popen(cmd, shell=True)
 
