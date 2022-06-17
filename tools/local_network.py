@@ -501,7 +501,6 @@ if __name__ == '__main__':
 
     mobilecoin_network = Network()
     mobilecoin_network.default_entry_point(args.network_type, args.block_version)
-
     full_service = FullService()
     full_service.start()
     time.sleep(600)
