@@ -263,9 +263,13 @@ impl LedgerDbConfig {
         offline: bool,
         logger: &Logger,
     ) -> LedgerDB {
-        if self.ledger_db.exists() {
+        let ledger_db_file = Path::new(&self.ledger_db).join("data.mdb");
+
+        // Attempt to run migrations if ledger is available.
+        if ledger_db_file.exists() {
             mc_ledger_migration::migrate(&self.ledger_db, logger);
         }
+
         // Attempt to open the ledger and see if it has anything in it.
         if let Ok(ledger_db) = LedgerDB::open(&self.ledger_db) {
             if let Ok(num_blocks) = ledger_db.num_blocks() {
@@ -285,7 +289,6 @@ impl LedgerDbConfig {
 
         // Ledger doesn't exist, or is empty. Copy a bootstrapped ledger or try and get
         // it from the network.
-        let ledger_db_file = Path::new(&self.ledger_db).join("data.mdb");
         match &self.ledger_db_bootstrap {
             Some(ledger_db_bootstrap) => {
                 log::debug!(
