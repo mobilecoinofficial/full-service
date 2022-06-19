@@ -4,18 +4,15 @@ Project FullService {
 
 Table accounts {
   id varchar [pk, not null, unique]
-  view_private_key blob [not null]
-  spend_private_key blob
-  spend_public_key blob [not null]
-  fog_report_url varchar [not null]
-  fog_report_id varchar [not null]
-  fog_authority_spki blob [not null]
-  entropy blob [not null]
+  account_key blob [not null]
+  entropy blob
   key_derivation_version integer [not null]
   first_block_index bigint [not null]
   next_block_index bigint [not null]
   import_block_index bigint
   name varchar [not null]
+  fog_enabled boolean [not null]
+  view_only boolean [not null]
 }
 
 Table subaddresses {
