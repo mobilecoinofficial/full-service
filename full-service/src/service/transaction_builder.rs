@@ -868,6 +868,7 @@ mod tests {
             &AccountID::from(&account_key).to_string(),
             None,
             None,
+            None,
             Some(0),
             &wallet_db.get_conn().unwrap(),
         )

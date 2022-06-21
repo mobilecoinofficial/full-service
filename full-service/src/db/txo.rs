@@ -142,6 +142,7 @@ pub trait TxoModel {
     /// Get all Txos associated with a given account.
     fn list_for_account(
         account_id_hex: &str,
+        status: Option<String>,
         offset: Option<u64>,
         limit: Option<u64>,
         token_id: Option<u64>,
@@ -517,6 +518,7 @@ impl TxoModel for Txo {
 
     fn list_for_account(
         account_id_hex: &str,
+        status: Option<String>,
         offset: Option<u64>,
         limit: Option<u64>,
         token_id: Option<u64>,
@@ -536,6 +538,16 @@ impl TxoModel for Txo {
 
         if let Some(token_id) = token_id {
             query = query.filter(txos::token_id.eq(token_id as i64));
+        }
+
+        if let Some(status) = status {
+            match status.as_str() {
+                "spent" => query = query.filter(txos::spent_block_index.is_not_null()),
+                "unspent" => query = query
+                    .filter(txos::pending_tombstone_block_index.is_null())
+                    .filter(txos::spent_block_index.is_null()),
+                _ => return Err(WalletDbError::InvalidArgument(format!("Invalid txo status. Valid status' are 'spent' and 'unspent'. Status provided: {:?}", status)))
+            };
         }
 
         Ok(query.load(conn)?)
@@ -1142,6 +1154,7 @@ mod tests {
             &alice_account_id.to_string(),
             None,
             None,
+            None,
             Some(0),
             &wallet_db.get_conn().unwrap(),
         )
@@ -1215,11 +1228,36 @@ mod tests {
             &alice_account_id.to_string(),
             None,
             None,
+            None,
             Some(0),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
         assert_eq!(txos.len(), 3);
+
+        // test spent
+        let spent_txos = Txo::list_for_account(
+            &alice_account_id.to_string(),
+            Some("spent".to_string()),
+            None,
+            None,
+            Some(0),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(spent_txos.len(), 1);
+
+        // test unspent
+        let unspent_txos = Txo::list_for_account(
+            &alice_account_id.to_string(),
+            Some("unspent".to_string()),
+            None,
+            None,
+            Some(0),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(unspent_txos.len(), 2);
 
         // println!("{}", serde_json::to_string_pretty(&txos).unwrap());
         // Check that we have 2 spendable (1 is orphaned)
@@ -1327,6 +1365,7 @@ mod tests {
             &alice_account_id.to_string(),
             None,
             None,
+            None,
             Some(0),
             &wallet_db.get_conn().unwrap(),
         )
@@ -1393,6 +1432,7 @@ mod tests {
         // We should now have 1 txo in Bob's account.
         let txos = Txo::list_for_account(
             &AccountID::from(&bob_account_key).to_string(),
+            None,
             None,
             None,
             Some(0),
@@ -1792,6 +1832,7 @@ mod tests {
             &recipient_account_id.to_string(),
             None,
             None,
+            None,
             Some(0),
             &wallet_db.get_conn().unwrap(),
         )
@@ -1809,6 +1850,7 @@ mod tests {
         log::info!(logger, "Listing all Txos for sender account");
         let sender_txos = Txo::list_for_account(
             &sender_account_id.to_string(),
+            None,
             None,
             None,
             Some(0),
@@ -1952,6 +1994,7 @@ mod tests {
             &account_id_hex.to_string(),
             None,
             None,
+            None,
             Some(0),
             &wallet_db.get_conn().unwrap(),
         )
@@ -1963,6 +2006,7 @@ mod tests {
 
         let txos = Txo::list_for_account(
             &account_id_hex.to_string(),
+            None,
             None,
             None,
             Some(0),

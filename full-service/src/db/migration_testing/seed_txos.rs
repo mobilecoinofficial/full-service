@@ -83,7 +83,8 @@ pub fn test_txos(
     conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
 ) {
     // validate expected txo states
-    let txos = Txo::list_for_account(&account_id.to_string(), None, None, Some(0), &conn).unwrap();
+    let txos =
+        Txo::list_for_account(&account_id.to_string(), None, None, None, Some(0), &conn).unwrap();
     assert_eq!(txos.len(), 3);
 
     // Check that we have 2 spendable (1 is orphaned)
