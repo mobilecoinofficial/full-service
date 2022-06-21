@@ -820,6 +820,8 @@ mod tests {
             &AccountID::from(&account_key).to_string(),
             None,
             Some(0),
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();

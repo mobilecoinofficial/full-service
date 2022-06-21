@@ -93,7 +93,7 @@ pub fn test_txos(
 
     // Check that we have one spent - went from [Received, Unspent] -> [Received,
     // Spent]
-    let spent = Txo::list_spent(&account_id.to_string(), None, Some(0), &conn).unwrap();
+    let spent = Txo::list_spent(&account_id.to_string(), None, Some(0), None, None, &conn).unwrap();
     assert_eq!(spent.len(), 1);
     assert_eq!(spent[0].spent_block_index.clone().unwrap(), 13);
     assert_eq!(spent[0].minted_account_id_hex, None);
@@ -109,7 +109,8 @@ pub fn test_txos(
 
     // Check that we have one unspent (change) - went from [Minted, Secreted] ->
     // [Minted, Unspent]
-    let unspent = Txo::list_unspent(&account_id.to_string(), None, Some(0), &conn).unwrap();
+    let unspent =
+        Txo::list_unspent(&account_id.to_string(), None, Some(0), None, None, &conn).unwrap();
     assert_eq!(unspent.len(), 1);
     assert_eq!(unspent[0].received_block_index.clone().unwrap(), 13);
 

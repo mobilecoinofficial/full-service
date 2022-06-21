@@ -22,7 +22,9 @@ use crate::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
         models::{
-            Account, AssignedSubaddress, NewTxo, Txo, TXO_USED_AS_CHANGE, TXO_USED_AS_OUTPUT,
+            Account, AssignedSubaddress, NewTxo, Txo, TXO_STATUS_ORPHANED, TXO_STATUS_PENDING,
+            TXO_STATUS_SECRETED, TXO_STATUS_SPENT, TXO_STATUS_UNSPENT, TXO_USED_AS_CHANGE,
+            TXO_USED_AS_OUTPUT,
         },
         Conn, WalletDbError,
     },
@@ -159,6 +161,8 @@ pub trait TxoModel {
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
         token_id: Option<u64>,
+        offset: Option<u64>,
+        limit: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
@@ -173,6 +177,8 @@ pub trait TxoModel {
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
         token_id: Option<u64>,
+        offset: Option<u64>,
+        limit: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
@@ -542,11 +548,18 @@ impl TxoModel for Txo {
 
         if let Some(status) = status {
             match status.as_str() {
-                "spent" => query = query.filter(txos::spent_block_index.is_not_null()),
-                "unspent" => query = query
-                    .filter(txos::pending_tombstone_block_index.is_null())
-                    .filter(txos::spent_block_index.is_null()),
-                _ => return Err(WalletDbError::InvalidArgument(format!("Invalid txo status. Valid status' are 'spent' and 'unspent'. Status provided: {:?}", status)))
+                TXO_STATUS_UNSPENT => {
+                    return Txo::list_unspent(account_id_hex, None, token_id, offset, limit, conn)
+                }
+                TXO_STATUS_SPENT => {
+                    return Txo::list_spent(account_id_hex, None, token_id, offset, limit, conn)
+                }
+                _ => {
+                    return Err(WalletDbError::InvalidArgument(format!(
+                        "Invalid txo status: {:?}",
+                        status
+                    )))
+                }
             };
         }
 
@@ -580,6 +593,8 @@ impl TxoModel for Txo {
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
         token_id: Option<u64>,
+        offset: Option<u64>,
+        limit: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
@@ -591,6 +606,10 @@ impl TxoModel for Txo {
             .filter(txos::subaddress_index.is_not_null())
             .filter(txos::pending_tombstone_block_index.is_null())
             .filter(txos::spent_block_index.is_null());
+
+        if let (Some(o), Some(l)) = (offset, limit) {
+            query = query.offset(o as i64).limit(l as i64);
+        }
 
         if let Some(subaddress_b58) = assigned_subaddress_b58 {
             let subaddress = AssignedSubaddress::get(subaddress_b58, conn)?;
@@ -643,6 +662,8 @@ impl TxoModel for Txo {
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
         token_id: Option<u64>,
+        offset: Option<u64>,
+        limit: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
@@ -660,6 +681,10 @@ impl TxoModel for Txo {
 
         if let Some(token_id) = token_id {
             query = query.filter(txos::token_id.eq(token_id as i64));
+        }
+
+        if let (Some(o), Some(l)) = (offset, limit) {
+            query = query.offset(o as i64).limit(l as i64);
         }
 
         Ok(query.load(conn)?)
@@ -1189,6 +1214,8 @@ mod tests {
             &alice_account_id.to_string(),
             None,
             Some(0),
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1270,6 +1297,8 @@ mod tests {
             &alice_account_id.to_string(),
             None,
             Some(0),
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1301,6 +1330,8 @@ mod tests {
             &alice_account_id.to_string(),
             None,
             Some(0),
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1347,6 +1378,8 @@ mod tests {
             &alice_account_id.to_string(),
             None,
             Some(0),
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
