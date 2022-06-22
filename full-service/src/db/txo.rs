@@ -1298,7 +1298,7 @@ mod tests {
         // test spent
         let spent_txos = Txo::list_for_account(
             &alice_account_id.to_string(),
-            Some("spent".to_string()),
+            Some(TXO_STATUS_SPENT.to_string()),
             None,
             None,
             Some(0),
@@ -1310,14 +1310,14 @@ mod tests {
         // test unspent
         let unspent_txos = Txo::list_for_account(
             &alice_account_id.to_string(),
-            Some("unspent".to_string()),
+            Some(TXO_STATUS_UNSPENT.to_string()),
             None,
             None,
             Some(0),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(unspent_txos.len(), 2);
+        assert_eq!(unspent_txos.len(), 1);
 
         // println!("{}", serde_json::to_string_pretty(&txos).unwrap());
         // Check that we have 2 spendable (1 is orphaned)
