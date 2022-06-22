@@ -100,7 +100,7 @@ pub fn test_txos(
 
     // Check that we have one orphaned - went from [Minted, Secreted] -> [Minted,
     // Orphaned]
-    let orphaned = Txo::list_orphaned(&account_id.to_string(), Some(0), &conn).unwrap();
+    let orphaned = Txo::list_orphaned(&account_id.to_string(), Some(0), None, None, &conn).unwrap();
     assert_eq!(orphaned.len(), 1);
     assert!(orphaned[0].key_image.is_none());
     assert_eq!(orphaned[0].received_block_index.clone().unwrap(), 13);

@@ -362,15 +362,22 @@ where
         .iter()
         .map(|t| (t.value as u64) as u128)
         .sum::<u128>();
-        let pending = Txo::list_pending(account_id_hex, assigned_subaddress_b58, Some(0), conn)?
-            .iter()
-            .map(|t| (t.value as u64) as u128)
-            .sum::<u128>();
+        let pending = Txo::list_pending(
+            account_id_hex,
+            assigned_subaddress_b58,
+            Some(0),
+            None,
+            None,
+            conn,
+        )?
+        .iter()
+        .map(|t| (t.value as u64) as u128)
+        .sum::<u128>();
 
         let secreted = if assigned_subaddress_b58.is_some() {
             0
         } else {
-            Txo::list_secreted(account_id_hex, Some(0), conn)?
+            Txo::list_secreted(account_id_hex, Some(0), None, None, conn)?
                 .iter()
                 .map(|t| t.value as u128)
                 .sum::<u128>()
@@ -379,7 +386,7 @@ where
         let orphaned = if assigned_subaddress_b58.is_some() {
             0
         } else {
-            Txo::list_orphaned(account_id_hex, Some(0), conn)?
+            Txo::list_orphaned(account_id_hex, Some(0), None, None, conn)?
                 .iter()
                 .map(|t| t.value as u128)
                 .sum::<u128>()

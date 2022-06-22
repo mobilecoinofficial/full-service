@@ -193,12 +193,16 @@ pub trait TxoModel {
     fn list_secreted(
         account_id_hex: &str,
         token_id: Option<u64>,
+        offset: Option<u64>,
+        limit: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
     fn list_orphaned(
         account_id_hex: &str,
         token_id: Option<u64>,
+        offset: Option<u64>,
+        limit: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
@@ -206,6 +210,8 @@ pub trait TxoModel {
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
         token_id: Option<u64>,
+        offset: Option<u64>,
+        limit: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
@@ -554,6 +560,15 @@ impl TxoModel for Txo {
                 TXO_STATUS_SPENT => {
                     return Txo::list_spent(account_id_hex, None, token_id, offset, limit, conn)
                 }
+                TXO_STATUS_ORPHANED => {
+                    return Txo::list_orphaned(account_id_hex, token_id, offset, limit, conn)
+                }
+                TXO_STATUS_PENDING => {
+                    return Txo::list_pending(account_id_hex, None, token_id, offset, limit, conn)
+                }
+                TXO_STATUS_SECRETED => {
+                    return Txo::list_secreted(account_id_hex, token_id, offset, limit, conn)
+                }
                 _ => {
                     return Err(WalletDbError::InvalidArgument(format!(
                         "Invalid txo status: {:?}",
@@ -693,6 +708,8 @@ impl TxoModel for Txo {
     fn list_secreted(
         account_id_hex: &str,
         token_id: Option<u64>,
+        offset: Option<u64>,
+        limit: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
@@ -713,6 +730,10 @@ impl TxoModel for Txo {
             query = query.filter(txos::token_id.eq(token_id as i64));
         }
 
+        if let (Some(o), Some(l)) = (offset, limit) {
+            query = query.offset(o as i64).limit(l as i64);
+        }
+
         let txos: Vec<Txo> = query.load(conn)?;
 
         Ok(txos)
@@ -721,6 +742,8 @@ impl TxoModel for Txo {
     fn list_orphaned(
         account_id_hex: &str,
         token_id: Option<u64>,
+        offset: Option<u64>,
+        limit: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
@@ -735,6 +758,10 @@ impl TxoModel for Txo {
             query = query.filter(txos::token_id.eq(token_id as i64));
         }
 
+        if let (Some(o), Some(l)) = (offset, limit) {
+            query = query.offset(o as i64).limit(l as i64);
+        }
+
         let txos: Vec<Txo> = query.load(conn)?;
 
         Ok(txos)
@@ -744,6 +771,8 @@ impl TxoModel for Txo {
         account_id_hex: &str,
         assigned_subaddress_b58: Option<&str>,
         token_id: Option<u64>,
+        offset: Option<u64>,
+        limit: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
@@ -763,6 +792,10 @@ impl TxoModel for Txo {
 
         if let Some(token_id) = token_id {
             query = query.filter(txos::token_id.eq(token_id as i64));
+        }
+
+        if let (Some(o), Some(l)) = (offset, limit) {
+            query = query.offset(o as i64).limit(l as i64);
         }
 
         let txos: Vec<Txo> = query.load(conn)?;
@@ -1315,6 +1348,8 @@ mod tests {
         let orphaned = Txo::list_orphaned(
             &alice_account_id.to_string(),
             Some(0),
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
