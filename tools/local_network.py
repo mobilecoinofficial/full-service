@@ -540,7 +540,7 @@ class FullService:
             'mnemonic': mnemonic,
             'key_derivation_version': '2',
         }
-        r = self.request(        {
+        r = self.request({
             "method": "import_account",
             "params": params
         })
@@ -559,6 +559,23 @@ class FullService:
 
         return (keydata_0['mnemonic'], keydata_1['mnemonic'])
 
+    def sync_status(self) -> bool:
+        # ping network
+        r = self.request({
+            "method": "get_network_status"
+        })
+
+        # network offline
+        if int(r['network_block_height']) == 0:
+            return False
+
+        # network online
+        epsilon = 5
+        network_block_height = int(r['network_status']['network_block_height'])
+        local_block_height = int(r['network_status']['local_block_height'])
+        # network is acceptably synced
+        return (network_block_height - local_block_height < epsilon)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Local network tester')
@@ -574,7 +591,17 @@ if __name__ == '__main__':
 
     # wait for networks to start
     # todo: run from live data, this is flakey af
-    time.sleep(120)
+    network_synced = False
+    count = 0
+    timeout_seconds = 600
+    while network_synced == False:
+        count += 1
+        network_synced = full_service.sync_status()
+        time.sleep(1)
+
+        if (count >= timeout_seconds):
+            print(f'full service sync timed out at {timeout_seconds} seconds')
+            exit(1)
 
     # import accounts
     mnemonic_0, mnemonic_1 = full_service.get_accounts()
