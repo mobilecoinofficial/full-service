@@ -510,6 +510,7 @@ class FullService:
     
     def request(self, request_data):
         print('sending request to full service')
+        url = 'insecure-mc://localhost:3200'
         default_params = {
             "jsonrpc": "2.0",
             "api_version": "2",
@@ -518,12 +519,12 @@ class FullService:
         request_data = {**request_data, **default_params}
 
         try:
-            parsed_url = urlparse(self.url)
+            parsed_url = urlparse(url)
             connection = http.client.HTTPConnection(parsed_url.netloc)
             connection.request('POST', parsed_url.path, json.dumps(request_data), {'Content-Type': 'application/json'})
             r = connection.getresponse()
         except ConnectionError:
-            raise ConnectionError(f'Could not connect to wallet server at {self.url}.')
+            raise ConnectionError(f'Could not connect to wallet server at {url}.')
 
         raw_response = None
         try:
