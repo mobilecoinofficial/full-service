@@ -6,6 +6,7 @@
 # - SGX HW/SW
 # - Default MC_LOG
 import argparse
+import http
 import json
 import os
 import shutil
@@ -15,6 +16,8 @@ import sys
 import threading
 import time
 from pprint import pformat
+from typing import Tuple
+from urllib.parse import urlparse
 
 
 BASE_CLIENT_PORT = 3200
@@ -29,6 +32,7 @@ MOBILECOIN_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '
 FULLSERVICE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 MOB_RELEASE = os.getenv('MOB_RELEASE', '1')
 TARGET_DIR = 'target/release'
+KEY_DIR = 'target/sample_data/keys'
 WORK_DIR =  os.path.join(MOBILECOIN_DIR, TARGET_DIR, 'mc-local-network')
 LEDGER_BASE = os.path.join(MOBILECOIN_DIR, 'target', "sample_data", "ledger")
 MINTING_KEYS_DIR = os.path.join(WORK_DIR, 'minting-keys')
@@ -503,6 +507,57 @@ class FullService:
         except subprocess.CalledProcessError as exc:
             if exc.returncode != 1:
                 raise
+    
+    def request(self, request_data):
+        print('sending request to full service')
+        default_params = {
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": 1,
+        }
+        request_data = {**request_data, **default_params}
+
+        try:
+            parsed_url = urlparse(self.url)
+            connection = http.client.HTTPConnection(parsed_url.netloc)
+            connection.request('POST', parsed_url.path, json.dumps(request_data), {'Content-Type': 'application/json'})
+            r = connection.getresponse()
+        except ConnectionError:
+            raise ConnectionError(f'Could not connect to wallet server at {self.url}.')
+
+        raw_response = None
+        try:
+            raw_response = r.read()
+            response_data = json.loads(raw_response)
+        except ValueError:
+            raise ValueError('API returned invalid JSON:', raw_response)
+        print(f'request returned {response_data}')
+        return response_data['result']
+    
+    def import_account(self, mnemonic):
+        print(f'importing full service account {mnemonic}')
+        params = {
+            'mnemonic': mnemonic,
+            'key_derivation_version': '2',
+        }
+        r = self.request(        {
+            "method": "import_account",
+            "params": params
+        })
+        return r['account']
+
+    def get_accounts(self) -> Tuple[str, str]:
+        print(f'retrieving accounts for account_keys_0 and account_keys_1')
+        keyfile_0 = open(f'{KEY_DIR}/account_keys_0.json')
+        keyfile_1 = open(f'{KEY_DIR}/account_keys_1.json')
+
+        keydata_0 = json.load(keyfile_0)
+        keydata_1 = json.load(keyfile_1)
+
+        keyfile_0.close()
+        keyfile_1.close()
+
+        return (keydata_0['mnemonic'], keydata_1['mnemonic'])
 
 
 if __name__ == '__main__':
@@ -511,10 +566,25 @@ if __name__ == '__main__':
     parser.add_argument('--block-version', help='Set the block version argument', type=int)
     args = parser.parse_args()
 
+    # start networks
     mobilecoin_network = Network()
     mobilecoin_network.default_entry_point(args.network_type, args.block_version)
     full_service = FullService()
     full_service.start()
-    time.sleep(600)
+
+    # wait for networks to start
+    # todo: run from live data, this is flakey af
+    time.sleep(120)
+
+    # import accounts
+    mnemonic_0, mnemonic_1 = full_service.get_accounts()
+    account_0 = full_service.import_account(mnemonic_0)
+    account_1 = full_service.import_account(mnemonic_1)
+
+    # shut down networks
     full_service.stop()
     mobilecoin_network.stop()
+
+    # successful exit on no error
+    exit(0)
+    
