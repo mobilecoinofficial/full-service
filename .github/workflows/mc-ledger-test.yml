@@ -17,8 +17,7 @@ jobs:
   integration-test:
     runs-on: [self-hosted, Linux, large]
     container:
-      # image: mobilecoin/rust-sgx-base:latest
-      image: mobilecoin/rust-sgx-base:v0.0.10
+      image: mobilecoin/rust-sgx-base:latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
