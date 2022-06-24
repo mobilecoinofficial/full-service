@@ -64,8 +64,8 @@ pub enum WalletDbError {
     /// Insufficient funds from Txos under max_spendable_value: {0}
     InsufficientFundsUnderMaxSpendable(String),
 
-    /// Multiple AccountTxoStatus entries for Txo
-    MultipleStatusesForTxo,
+    /// Invalid argument for query
+    InvalidArgument(String),
 
     /// Unexpected TXO Type: {0}
     UnexpectedTransactionTxoType(String),

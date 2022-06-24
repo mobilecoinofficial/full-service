@@ -167,7 +167,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
             .execute(conn)?;
 
         // Find and repair orphaned txos at this subaddress.
-        let orphaned_txos = Txo::list_orphaned(account_id_hex, None, conn)?;
+        let orphaned_txos = Txo::list_orphaned(account_id_hex, None, None, None, conn)?;
 
         for orphaned_txo in orphaned_txos.iter() {
             let tx_out_target_key: RistrettoPublic =
