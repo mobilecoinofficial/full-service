@@ -572,10 +572,13 @@ class FullService:
 
     def sync_status(self) -> bool:
         # ping network
-        r = self.request({
-            "method": "get_network_status"
-        })
-
+        try:
+            r = self.request({
+                "method": "get_network_status"
+            })
+        except ConnectionError:
+            return False
+            
         # network offline
         if int(r['network_block_height']) == 0:
             return False
