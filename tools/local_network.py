@@ -6,7 +6,7 @@
 # - SGX HW/SW
 # - Default MC_LOG
 import argparse
-import http
+import http.client
 import json
 import os
 import shutil
