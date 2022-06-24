@@ -632,13 +632,13 @@ if __name__ == '__main__':
     full_service.start()
 
     # wait for networks to start
-    # todo: run from live data, this is flakey af
     network_synced = False
     count = 0
     timeout_seconds = 600
     while network_synced == False:
         count += 1
         network_synced = full_service.sync_status()
+        print(f'attempt: {count}/{timeout_seconds}')
         time.sleep(1)
 
         if (count >= timeout_seconds):
@@ -655,6 +655,8 @@ if __name__ == '__main__':
 
     print('===================================================')
     print(f'accounts imported, account_0 id: {account_0["account_id"]}, account_1 id: {account_1["account_id"]}')
+
+    full_service.test_transactions()
 
     # shut down networks
     full_service.stop()
