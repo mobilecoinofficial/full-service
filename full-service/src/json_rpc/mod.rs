@@ -26,4 +26,4 @@ mod wallet_status;
 pub mod api_test_utils;
 
 #[cfg(any(test))]
-pub mod e2e;
+pub mod e2e_tests;
