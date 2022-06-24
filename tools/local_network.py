@@ -478,6 +478,7 @@ class Network:
 class FullService:
     def __init__(self):
         self.full_service_process = None
+        self.accounts = None
 
     def start(self):
         cmd = ' '.join([
@@ -545,6 +546,15 @@ class FullService:
             "method": "import_account",
             "params": params
         })
+        
+        # idempotent add account to self.accounts
+        def account_filter(account):
+            return True if account in self.accounts else False
+        if self.accounts is None:
+            self.accounts = [r['account']]
+        elif len(filter(account_filter, self.accounts)) == 0:
+            self.accounts.append(r['account'])
+
         return r['account']
 
     def get_accounts(self) -> Tuple[str, str]:
@@ -577,6 +587,33 @@ class FullService:
         # network is acceptably synced
         return (network_block_height - local_block_height < epsilon)
 
+    def send_transaction(self, account_id, to_address, amount):
+        params = {
+            "account_id": account_id,
+            "addresses_and_values": [(to_address, amount)]
+        }
+        r = self.request({
+            "method": "build_and_submit_transaction",
+            "params": params,
+        })
+        return r['transaction_log']
+
+    def test_transactions(self):
+        print(('==================================================='))
+        print('testing transaction sends')
+        if self.accounts is None or len(self.accounts) < 2:
+            print(f'accounts not found in self.accounts. self.accounts: {self.accounts}')
+            exit(1)
+        account_0 = self.accounts[0]
+        account_1 = self.accounts[1]
+        p_mob_amount = 10_000
+
+        log_0 = self.send_transaction(account_0['account_id'], account_1['main_address'], p_mob_amount)
+        log_1 = self.send_transaction(account_1['account_id'], account_0['main_address'], p_mob_amount)
+
+        print('transactions completed')
+        print(f'transaction 0 log: {log_0}, transaction 1 log: {log_1}')
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Local network tester')
@@ -604,10 +641,16 @@ if __name__ == '__main__':
             print(f'full service sync timed out at {timeout_seconds} seconds')
             exit(1)
 
+    print('===================================================')
+    print('full service synced, importing accounts')
+
     # import accounts
     mnemonic_0, mnemonic_1 = full_service.get_accounts()
     account_0 = full_service.import_account(mnemonic_0)
     account_1 = full_service.import_account(mnemonic_1)
+
+    print('===================================================')
+    print(f'accounts imported, account_0 id: {account_0["account_id"]}, account_1 id: {account_1["account_id"]}')
 
     # shut down networks
     full_service.stop()
