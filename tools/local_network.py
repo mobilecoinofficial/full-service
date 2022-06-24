@@ -576,7 +576,8 @@ class FullService:
             r = self.request({
                 "method": "get_network_status"
             })
-        except ConnectionError:
+        except http.client.HTTPException as e:
+            print(e)
             return False
             
         # network offline
