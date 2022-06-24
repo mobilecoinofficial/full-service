@@ -4,32 +4,15 @@
 
 #[cfg(test)]
 mod e2e_misc {
-    use crate::{
-        db::{
-            account::AccountID,
-            models::{TXO_STATUS_UNSPENT, TXO_TYPE_RECEIVED},
-        },
-        json_rpc,
-        json_rpc::api_test_utils::{
-            dispatch, dispatch_expect_error, dispatch_with_header,
-            dispatch_with_header_expect_error, setup, setup_with_api_key,
-        },
-        test_utils::{
-            add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account,
-            manually_sync_view_only_account, MOB,
-        },
-        util::b58::b58_decode_public_address,
+    use crate::json_rpc::api_test_utils::{
+        dispatch, dispatch_with_header, dispatch_with_header_expect_error, setup,
+        setup_with_api_key,
     };
-    use bip39::{Language, Mnemonic};
-    use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
-    use mc_account_keys_slip10::Slip10Key;
+
     use mc_common::logger::{test_with_logger, Logger};
-    use mc_crypto_rand::rand_core::RngCore;
-    use mc_ledger_db::Ledger;
-    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
+
     use rand::{rngs::StdRng, SeedableRng};
     use rocket::http::{Header, Status};
-    use std::convert::TryFrom;
 
     #[test_with_logger]
     fn test_wallet_status(logger: Logger) {

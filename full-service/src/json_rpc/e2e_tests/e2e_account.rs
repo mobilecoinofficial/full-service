@@ -10,13 +10,9 @@ mod e2e_account {
             models::{TXO_STATUS_UNSPENT, TXO_TYPE_RECEIVED},
         },
         json_rpc,
-        json_rpc::api_test_utils::{
-            dispatch, dispatch_expect_error, dispatch_with_header,
-            dispatch_with_header_expect_error, setup, setup_with_api_key,
-        },
+        json_rpc::api_test_utils::{dispatch, dispatch_expect_error, setup},
         test_utils::{
-            add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account,
-            manually_sync_view_only_account, MOB,
+            add_block_to_ledger_db, manually_sync_account, manually_sync_view_only_account, MOB,
         },
         util::b58::b58_decode_public_address,
     };
@@ -28,7 +24,7 @@ mod e2e_account {
     use mc_ledger_db::Ledger;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
-    use rocket::http::{Header, Status};
+
     use std::convert::TryFrom;
 
     #[test_with_logger]
