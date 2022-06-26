@@ -64,9 +64,6 @@ pub enum AccountServiceError {
     /// Error decoding private view key: {0}
     DecodePrivateKeyError(String),
 
-    /// Error decoding keys
-    KeyError(mc_crypto_keys::KeyError),
-
     /// Account is a view only account and shouldn't be
     AccountIsViewOnly(AccountID),
 
@@ -119,12 +116,6 @@ impl From<mc_account_keys_slip10::Error> for AccountServiceError {
 impl From<mc_util_serial::DecodeError> for AccountServiceError {
     fn from(src: mc_util_serial::DecodeError) -> Self {
         Self::DecodePrivateKeyError(src.to_string())
-    }
-}
-
-impl From<mc_crypto_keys::KeyError> for AccountServiceError {
-    fn from(src: mc_crypto_keys::KeyError) -> Self {
-        Self::KeyError(src)
     }
 }
 

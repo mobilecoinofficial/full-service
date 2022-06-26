@@ -181,7 +181,7 @@ pub trait AccountModel {
     /// Get change public address
     fn change_subaddress(self, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError>;
 
-    /// Get change public address
+    /// Get main public address
     fn main_subaddress(self, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError>;
 }
 
