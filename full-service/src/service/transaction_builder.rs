@@ -11,10 +11,9 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        models::{Account, Txo, ViewOnlyAccount, ViewOnlyTxo},
+        assigned_subaddress::AssignedSubaddressModel,
+        models::{Account, Txo},
         txo::TxoModel,
-        view_only_account::ViewOnlyAccountModel,
-        view_only_txo::ViewOnlyTxoModel,
         Conn,
     },
     error::WalletTransactionBuilderError,
@@ -181,34 +180,6 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         Ok(())
     }
 
-    /// Selects View Only Txos from the account.
-    fn select_view_only_txos(
-        &self,
-        conn: &Conn,
-    ) -> Result<Vec<ViewOnlyTxo>, WalletTransactionBuilderError> {
-        let outlay_value_sum = self.outlays.iter().map(|(_r, v)| *v as u128).sum::<u128>();
-
-        let fee = self.fee.unwrap_or(Mob::MINIMUM_FEE);
-        if outlay_value_sum > u64::MAX as u128 || outlay_value_sum > u64::MAX as u128 - fee as u128
-        {
-            return Err(WalletTransactionBuilderError::OutboundValueTooLarge);
-        }
-        log::info!(
-            self.logger,
-            "Selecting Txos for value {:?} with fee {:?}",
-            outlay_value_sum,
-            fee
-        );
-        let total_value = outlay_value_sum as u64 + fee;
-
-        Ok(ViewOnlyTxo::select_unspent_view_only_txos_for_value(
-            &self.account_id_hex,
-            total_value,
-            Some(0),
-            conn,
-        )?)
-    }
-
     pub fn add_recipient(
         &mut self,
         recipient: PublicAddress,
@@ -253,8 +224,9 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         &self,
         conn: &Conn,
     ) -> Result<FullServiceFogResolver, WalletTransactionBuilderError> {
-        let account = ViewOnlyAccount::get(&self.account_id_hex, conn)?;
-        let change_public_address: PublicAddress = account.change_public_address(conn)?;
+        let account = Account::get(&AccountID(self.account_id_hex.clone()), conn)?;
+        let change_subaddress = account.change_subaddress(conn)?;
+        let change_public_address = change_subaddress.public_address()?;
 
         let fog_resolver = {
             let fog_uris = core::slice::from_ref(&change_public_address)
@@ -285,16 +257,18 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         Ok(FullServiceFogResolver(fully_validated_fog_pubkeys))
     }
 
-    pub fn build_unsigned(&self, conn: &Conn) -> Result<UnsignedTx, WalletTransactionBuilderError> {
+    pub fn build_unsigned(&self) -> Result<UnsignedTx, WalletTransactionBuilderError> {
         if self.tombstone == 0 {
             return Err(WalletTransactionBuilderError::TombstoneNotSet);
         }
 
-        // select inputs here
-        let view_only_inputs = self.select_view_only_txos(conn)?;
+        if self.inputs.is_empty() {
+            return Err(WalletTransactionBuilderError::NoInputs);
+        }
 
         // Get membership proofs for our inputs
-        let indexes = view_only_inputs
+        let indexes = self
+            .inputs
             .iter()
             .map(|utxo| {
                 let txo: TxOut = mc_util_serial::decode(&utxo.txo)?;
@@ -303,7 +277,9 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             .collect::<Result<Vec<u64>, mc_ledger_db::Error>>()?;
         let proofs = self.ledger_db.get_tx_out_proof_of_memberships(&indexes)?;
 
-        let inputs_and_proofs: Vec<(ViewOnlyTxo, TxOutMembershipProof)> = view_only_inputs
+        let inputs_and_proofs: Vec<(Txo, TxOutMembershipProof)> = self
+            .inputs
+            .clone()
             .into_iter()
             .zip(proofs.into_iter())
             .collect();
@@ -350,8 +326,8 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             let real_index = match position_opt {
                 Some(position) => {
                     // The input is already present in the ring.
-                    // This could happen if ring elements are sampled randomly from the
-                    // ledger.
+                    // This could happen if ring elements are sampled
+                    // randomly from the             // ledger.
                     position
                 }
                 None => {
@@ -365,8 +341,8 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                         ring[0] = db_tx_out.clone();
                         membership_proofs[0] = proof.clone();
                     }
-                    // The real input is always the first element. This is safe because
-                    // TransactionBuilder sorts each ring.
+                    // The real input is always the first element. This is
+                    // safe because TransactionBuilder sorts each ring.
                     0
                 }
             };

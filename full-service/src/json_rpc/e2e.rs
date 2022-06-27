@@ -15,8 +15,7 @@ mod e2e {
             dispatch_with_header_expect_error, setup, setup_with_api_key,
         },
         test_utils::{
-            add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account,
-            manually_sync_view_only_account, MOB,
+            add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account, MOB,
         },
         util::b58::b58_decode_public_address,
     };
@@ -3893,7 +3892,7 @@ mod e2e {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "export_view_only_account_package",
+            "method": "export_view_only_account_import_request",
             "params": {
                 "account_id": account_id,
             },
@@ -3903,7 +3902,6 @@ mod e2e {
         let result = res.get("result").unwrap();
         let request = result.get("json_rpc_request").unwrap();
 
-        // remove regular account (can't have both view only and regular in same wallet)
         let body = json!({
             "jsonrpc": "2.0",
             "id": 2,
@@ -3920,25 +3918,25 @@ mod e2e {
         let body = json!(request);
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let account = result.get("view_only_account").unwrap();
+        let account = result.get("account").unwrap();
         let vo_account_id = account.get("account_id").unwrap();
         assert_eq!(vo_account_id, account_id);
 
         // sync the view only account
-        manually_sync_view_only_account(
+        manually_sync_account(
             &ledger_db,
             &wallet_db,
-            vo_account_id.as_str().unwrap(),
+            &AccountID(vo_account_id.as_str().unwrap().to_string()),
             &logger,
         );
 
-        // check balance for view only account
+        // confirm that the regular account has the correct balance
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_balance_for_view_only_account",
+            "method": "get_balance_for_account",
             "params": {
-                "account_id": account_id,
+                "account_id": vo_account_id,
             },
         });
         let res = dispatch(&client, body, &logger);
@@ -3951,14 +3949,14 @@ mod e2e {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 2,
-            "method": "get_view_only_account",
+            "method": "get_account",
             "params": {
-                "account_id": account_id,
+                "account_id": vo_account_id,
             }
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let account = result.get("view_only_account").unwrap();
+        let account = result.get("account").unwrap();
         let vo_account_id = account.get("account_id").unwrap();
         assert_eq!(vo_account_id, account_id);
 
@@ -3967,36 +3965,17 @@ mod e2e {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 2,
-            "method": "update_view_only_account_name",
+            "method": "update_account_name",
             "params": {
-                "account_id": account_id,
+                "account_id": vo_account_id,
                 "name": name,
             }
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let account = result.get("view_only_account").unwrap();
+        let account = result.get("account").unwrap();
         let account_name = account.get("name").unwrap();
         assert_eq!(name, account_name);
-
-        // create new subaddress request
-        let body = json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "create_new_subaddresses_request",
-            "params": {
-                "account_id": account_id,
-                "num_subaddresses_to_generate": "2",
-            },
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let next_index = result
-            .get("next_subaddress_index")
-            .unwrap()
-            .as_str()
-            .unwrap();
-        assert_eq!(next_index, "2");
 
         // test creating unsigned tx
         let body = json!({
@@ -4013,13 +3992,31 @@ mod e2e {
         let result = res.get("result").unwrap();
         let _tx = result.get("unsigned_tx").unwrap();
 
+        // test create sync account request
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "create_view_only_account_sync_request",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let unverified_txos = result
+            .get("incomplete_txos_encoded")
+            .unwrap()
+            .as_array()
+            .unwrap();
+        assert_eq!(unverified_txos.len(), 1);
+
         // test remove
         let body = json!({
             "jsonrpc": "2.0",
             "id": 2,
-            "method": "remove_view_only_account",
+            "method": "remove_account",
             "params": {
-                "account_id": account_id,
+                "account_id": vo_account_id,
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -4031,7 +4028,7 @@ mod e2e {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 2,
-            "method": "get_all_view_only_accounts",
+            "method": "get_all_accounts",
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();

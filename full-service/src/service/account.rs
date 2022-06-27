@@ -4,30 +4,40 @@
 
 use crate::{
     db::{
-        account::{AccountID, AccountModel, ViewOnlyAccountImportPackage},
+        account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        models::{Account, AssignedSubaddress},
-        transaction, WalletDbError,
+        models::{Account, AssignedSubaddress, Txo},
+        transaction,
+        txo::TxoModel,
+        WalletDbError,
     },
+    json_rpc::json_rpc_request::{JsonCommandRequest, JsonRPCRequest},
     service::{
         ledger::{LedgerService, LedgerServiceError},
         WalletService,
     },
-    util::constants::MNEMONIC_KEY_DERIVATION_VERSION,
+    util::{
+        constants::MNEMONIC_KEY_DERIVATION_VERSION,
+        encoding_helpers::{
+            hex_to_ristretto, hex_to_ristretto_public, ristretto_public_to_hex, ristretto_to_hex,
+        },
+    },
 };
 use base64;
 use bip39::{Language, Mnemonic, MnemonicType};
 use displaydoc::Display;
-use mc_account_keys::RootEntropy;
+use mc_account_keys::{AccountKey, RootEntropy};
 use mc_account_keys_slip10;
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
+use mc_crypto_keys::RistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
+use mc_transaction_core::ring_signature::KeyImage;
 
 #[derive(Display, Debug)]
 pub enum AccountServiceError {
-    /// Error interacting with the database: {0}
+    /// Error interacting& with the database: {0}
     Database(WalletDbError),
 
     /// Error with LedgerDB: {0}
@@ -53,6 +63,12 @@ pub enum AccountServiceError {
 
     /// Error decoding private view key: {0}
     DecodePrivateKeyError(String),
+
+    /// Account is a view only account and shouldn't be
+    AccountIsViewOnly(AccountID),
+
+    /// Account is not a view only account and should be
+    AccountIsNotViewOnly(AccountID),
 }
 
 impl From<WalletDbError> for AccountServiceError {
@@ -142,6 +158,21 @@ pub trait AccountService {
         fog_authority_spki: String,
     ) -> Result<Account, AccountServiceError>;
 
+    /// Import an existing account to the wallet using the mnemonic.
+    fn import_view_only_account(
+        &self,
+        view_private_key: String,
+        spend_public_key: String,
+        name: Option<String>,
+        first_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
+    ) -> Result<Account, AccountServiceError>;
+
+    fn get_view_only_account_import_request(
+        &self,
+        account_id: &AccountID,
+    ) -> Result<JsonRPCRequest, AccountServiceError>;
+
     /// List accounts in the wallet.
     fn list_accounts(&self) -> Result<Vec<Account>, AccountServiceError>;
 
@@ -155,10 +186,13 @@ pub trait AccountService {
         name: String,
     ) -> Result<Account, AccountServiceError>;
 
-    fn get_view_only_import_package(
+    /// complete a sync request for a view only account
+    fn sync_account(
         &self,
         account_id: &AccountID,
-    ) -> Result<ViewOnlyAccountImportPackage, AccountServiceError>;
+        txo_ids_and_key_images: Vec<(String, String)>,
+        next_subaddress_index: u64,
+    ) -> Result<(), AccountServiceError>;
 
     /// Remove an account from the wallet.
     fn remove_account(&self, account_id: &AccountID) -> Result<bool, AccountServiceError>;
@@ -312,6 +346,77 @@ where
         })
     }
 
+    fn import_view_only_account(
+        &self,
+        view_private_key: String,
+        spend_public_key: String,
+        name: Option<String>,
+        first_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
+    ) -> Result<Account, AccountServiceError> {
+        log::info!(
+            self.logger,
+            "Importing view only account {:?} with first block: {:?}",
+            name,
+            first_block_index,
+        );
+
+        let view_private_key =
+            hex_to_ristretto(&view_private_key).map_err(AccountServiceError::Base64DecodeError)?;
+        let spend_public_key = hex_to_ristretto_public(&spend_public_key)
+            .map_err(AccountServiceError::Base64DecodeError)?;
+
+        let import_block_index = self.ledger_db.num_blocks()? - 1;
+
+        let conn = self.wallet_db.get_conn()?;
+        transaction(&conn, || {
+            Ok(Account::import_view_only(
+                &view_private_key,
+                &spend_public_key,
+                name,
+                import_block_index,
+                first_block_index,
+                next_subaddress_index,
+                &conn,
+            )?)
+        })
+    }
+
+    fn get_view_only_account_import_request(
+        &self,
+        account_id: &AccountID,
+    ) -> Result<JsonRPCRequest, AccountServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+        let account = Account::get(account_id, &conn)?;
+
+        if account.view_only {
+            return Err(AccountServiceError::AccountIsViewOnly(account_id.clone()));
+        }
+
+        let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+        let view_private_key = account_key.view_private_key();
+        let spend_public_key = RistrettoPublic::from(account_key.spend_private_key());
+
+        let json_command_request = JsonCommandRequest::import_view_only_account {
+            view_private_key: ristretto_to_hex(view_private_key),
+            spend_public_key: ristretto_public_to_hex(&spend_public_key),
+            name: Some(account.name),
+            first_block_index: Some(account.first_block_index.to_string()),
+            next_subaddress_index: Some(account.next_subaddress_index.to_string()),
+        };
+
+        let src_json: serde_json::Value = serde_json::json!(json_command_request);
+        let method = src_json.get("method").unwrap().as_str().unwrap();
+        let params = src_json.get("params").unwrap();
+
+        Ok(JsonRPCRequest {
+            method: method.to_string(),
+            params: Some(params.clone()),
+            jsonrpc: "2.0".to_string(),
+            id: serde_json::Value::Number(serde_json::Number::from(1)),
+        })
+    }
+
     fn list_accounts(&self) -> Result<Vec<Account>, AccountServiceError> {
         let conn = self.wallet_db.get_conn()?;
         Ok(Account::list_all(&conn)?)
@@ -332,22 +437,37 @@ where
         Ok(Account::get(account_id, &conn)?)
     }
 
-    fn get_view_only_import_package(
+    fn sync_account(
         &self,
         account_id: &AccountID,
-    ) -> Result<ViewOnlyAccountImportPackage, AccountServiceError> {
+        txo_ids_and_key_images: Vec<(String, String)>,
+        next_subaddress_index: u64,
+    ) -> Result<(), AccountServiceError> {
         let conn = self.wallet_db.get_conn()?;
-
         let account = Account::get(account_id, &conn)?;
-        let subaddresses =
-            AssignedSubaddress::list_all(&account_id.to_string(), None, None, &conn)?;
 
-        let view_only_account_import_package = ViewOnlyAccountImportPackage {
-            account,
-            subaddresses,
-        };
+        if !account.view_only {
+            return Err(AccountServiceError::AccountIsNotViewOnly(
+                account_id.clone(),
+            ));
+        }
 
-        Ok(view_only_account_import_package)
+        for (txo_id_hex, key_image_encoded) in txo_ids_and_key_images {
+            let key_image: KeyImage = mc_util_serial::decode(&hex::decode(key_image_encoded)?)?;
+            let spent_block_index = self.ledger_db.check_key_image(&key_image)?;
+            Txo::update_key_image(&txo_id_hex, &key_image, spent_block_index, &conn)?;
+        }
+
+        for _ in account.next_subaddress_index..next_subaddress_index as i64 {
+            AssignedSubaddress::create_next_for_account(
+                &account_id.to_string(),
+                "Recovered In Account Sync",
+                &self.ledger_db,
+                &conn,
+            )?;
+        }
+
+        Ok(())
     }
 
     fn remove_account(&self, account_id: &AccountID) -> Result<bool, AccountServiceError> {
@@ -367,13 +487,17 @@ mod tests {
     use crate::{
         db::{models::Txo, txo::TxoModel},
         test_utils::{
-            create_test_received_txo, get_empty_test_ledger, get_test_ledger,
-            manually_sync_account, setup_wallet_service, setup_wallet_service_offline, MOB,
+            add_block_to_ledger_db, create_test_received_txo, get_empty_test_ledger,
+            get_test_ledger, manually_sync_account, setup_wallet_service,
+            setup_wallet_service_offline, MOB,
         },
     };
-    use mc_account_keys::{AccountKey, PublicAddress};
+    use mc_account_keys::{AccountKey, PublicAddress, ViewAccountKey};
     use mc_common::logger::{test_with_logger, Logger};
+    use mc_crypto_keys::RistrettoPrivate;
+    use mc_crypto_rand::RngCore;
     use mc_transaction_core::{tokens::Mob, Amount, Token};
+    use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
     #[test_with_logger]
@@ -500,5 +624,129 @@ mod tests {
         assert_eq!(account.first_block_index, 0);
         assert_eq!(account.next_block_index, 0);
         assert_eq!(account.import_block_index, Some(0));
+    }
+
+    #[test_with_logger]
+    fn test_sync_view_only_account(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+        let wallet_db = &service.wallet_db;
+
+        let view_private_key = RistrettoPrivate::from_random(&mut rng);
+        let spend_private_key = RistrettoPrivate::from_random(&mut rng);
+
+        let account_key = AccountKey::new(&spend_private_key, &view_private_key);
+        let view_account_key = ViewAccountKey::from(&account_key);
+
+        let view_only_account = service
+            .import_view_only_account(
+                ristretto_to_hex(&view_account_key.view_private_key()),
+                ristretto_public_to_hex(&view_account_key.spend_public_key()),
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+
+        let account_id = AccountID(view_only_account.account_id_hex.clone());
+
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![
+                view_account_key.default_subaddress(),
+                view_account_key.subaddress(2),
+            ],
+            100 * MOB,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        manually_sync_account(&ledger_db, wallet_db, &account_id, &logger);
+
+        let unverified_txos = Txo::list_unverified(
+            &account_id.to_string(),
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(unverified_txos.len(), 1);
+        assert_eq!(unverified_txos[0].subaddress_index, Some(0));
+        assert_eq!(unverified_txos[0].key_image, None);
+
+        let orphaned_txos = Txo::list_orphaned(
+            &account_id.to_string(),
+            None,
+            None,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(orphaned_txos.len(), 1);
+        assert_eq!(orphaned_txos[0].subaddress_index, None);
+        assert_eq!(orphaned_txos[0].key_image, None);
+
+        let view_only_account = service.get_account(&account_id).unwrap();
+        assert_eq!(view_only_account.next_subaddress_index, 2);
+
+        let key_image_1 = KeyImage::from(rng.next_u64());
+        let key_image_2 = KeyImage::from(rng.next_u64());
+
+        let key_image_1_hex = hex::encode(mc_util_serial::encode(&key_image_1));
+        let key_image_2_hex = hex::encode(mc_util_serial::encode(&key_image_2));
+
+        let txo_id_hex_1 = unverified_txos[0].txo_id_hex.clone();
+        let txo_id_hex_2 = orphaned_txos[0].txo_id_hex.clone();
+
+        service
+            .sync_account(
+                &account_id,
+                vec![
+                    (txo_id_hex_1, key_image_1_hex),
+                    (txo_id_hex_2, key_image_2_hex),
+                ],
+                3,
+            )
+            .unwrap();
+
+        let view_only_account = service.get_account(&account_id).unwrap();
+        assert_eq!(view_only_account.next_subaddress_index, 3);
+
+        let unverified_txos = Txo::list_unverified(
+            &account_id.to_string(),
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(unverified_txos.len(), 0);
+
+        let orphaned_txos = Txo::list_orphaned(
+            &account_id.to_string(),
+            None,
+            None,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(orphaned_txos.len(), 0);
+
+        let unspent_txos = Txo::list_unspent(
+            &account_id.to_string(),
+            None,
+            None,
+            None,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(unspent_txos.len(), 2);
     }
 }

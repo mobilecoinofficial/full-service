@@ -2,11 +2,7 @@
 
 //! The JSON RPC 2.0 Requests to the Wallet API for Full Service.
 
-use crate::json_rpc::{
-    tx_proposal::TxProposal,
-    view_only_account::{ViewOnlyAccountJSON, ViewOnlyAccountSecretsJSON},
-    view_only_subaddress::ViewOnlySubaddressesJSON,
-};
+use crate::json_rpc::tx_proposal::TxProposal;
 
 use crate::json_rpc::receiver_receipt::ReceiverReceipt;
 use serde::{Deserialize, Serialize};
@@ -134,10 +130,6 @@ pub enum JsonCommandRequest {
         fog_report_id: Option<String>,
         fog_authority_spki: Option<String>,
     },
-    create_new_subaddresses_request {
-        account_id: String,
-        num_subaddresses_to_generate: String,
-    },
     create_payment_request {
         account_id: String,
         subaddress_index: Option<i64>,
@@ -153,13 +145,7 @@ pub enum JsonCommandRequest {
     export_account_secrets {
         account_id: String,
     },
-    export_spent_txo_ids {
-        account_id: String,
-    },
-    export_view_only_account_package {
-        account_id: String,
-    },
-    export_view_only_account_secrets {
+    export_view_only_account_import_request {
         account_id: String,
     },
     get_account {
@@ -172,16 +158,7 @@ pub enum JsonCommandRequest {
         account_id: String,
         index: i64,
     },
-    get_address_for_view_only_account {
-        account_id: String,
-        index: i64,
-    },
     get_addresses_for_account {
-        account_id: String,
-        offset: Option<String>,
-        limit: Option<String>,
-    },
-    get_addresses_for_view_only_account {
         account_id: String,
         offset: Option<String>,
         limit: Option<String>,
@@ -195,17 +172,10 @@ pub enum JsonCommandRequest {
     get_all_txos_for_address {
         address: String,
     },
-    get_all_view_only_accounts,
     get_balance_for_account {
         account_id: String,
     },
     get_balance_for_address {
-        address: String,
-    },
-    get_balance_for_view_only_account {
-        account_id: String,
-    },
-    get_balance_for_view_only_address {
         address: String,
     },
     get_block {
@@ -243,14 +213,6 @@ pub enum JsonCommandRequest {
         offset: Option<String>,
         limit: Option<String>,
     },
-    get_txos_for_view_only_account {
-        account_id: String,
-        offset: Option<String>,
-        limit: Option<String>,
-    },
-    get_view_only_account {
-        account_id: String,
-    },
     get_wallet_status,
     import_account {
         mnemonic: String,
@@ -271,23 +233,18 @@ pub enum JsonCommandRequest {
         fog_report_id: Option<String>,
         fog_authority_spki: Option<String>,
     },
-    import_subaddresses_to_view_only_account {
-        account_id: String,
-        subaddresses: ViewOnlySubaddressesJSON,
-    },
     import_view_only_account {
-        account: ViewOnlyAccountJSON,
-        secrets: ViewOnlyAccountSecretsJSON,
-        subaddresses: ViewOnlySubaddressesJSON,
+        view_private_key: String,
+        spend_public_key: String,
+        name: Option<String>,
+        first_block_index: Option<String>,
+        next_subaddress_index: Option<String>,
     },
     remove_account {
         account_id: String,
     },
     remove_gift_code {
         gift_code_b58: String,
-    },
-    remove_view_only_account {
-        account_id: String,
     },
     submit_gift_code {
         from_account_id: String,
@@ -302,13 +259,9 @@ pub enum JsonCommandRequest {
     sync_view_only_account {
         account_id: String,
         completed_txos: Vec<(String, String)>,
-        subaddresses: ViewOnlySubaddressesJSON,
+        next_subaddress_index: String,
     },
     update_account_name {
-        account_id: String,
-        name: String,
-    },
-    update_view_only_account_name {
         account_id: String,
         name: String,
     },

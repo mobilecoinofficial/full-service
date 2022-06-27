@@ -5,12 +5,9 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        models::{Account, TransactionLog, ViewOnlyAccount, ViewOnlyTxo},
+        models::{Account, TransactionLog},
         transaction,
         transaction_log::{AssociatedTxos, TransactionLogModel},
-        txo::TxoID,
-        view_only_account::ViewOnlyAccountModel,
-        view_only_txo::ViewOnlyTxoModel,
         WalletDbError,
     },
     error::WalletTransactionBuilderError,
@@ -230,7 +227,9 @@ where
                 None => self.get_network_fee(),
             })?;
 
-            let unsigned_tx = builder.build_unsigned(&conn)?;
+            builder.select_txos(&conn, None, false)?;
+
+            let unsigned_tx = builder.build_unsigned()?;
             let fog_resolver = builder.get_fs_fog_resolver(&conn)?;
 
             Ok((unsigned_tx, fog_resolver))
@@ -367,19 +366,6 @@ where
                     let associated_txos = transaction_log.get_associated_txos(&conn)?;
 
                     Ok(Some((transaction_log, associated_txos)))
-                } else if ViewOnlyAccount::get(&account_id_hex, &conn).is_ok() {
-                    for utxo in tx_proposal.utxos {
-                        let txo_id = TxoID::from(&utxo.tx_out);
-                        ViewOnlyTxo::update_for_pending_transaction(
-                            &txo_id.to_string(),
-                            utxo.subaddress_index,
-                            &utxo.key_image,
-                            block_index,
-                            tx_proposal.tx.prefix.tombstone_block,
-                            &conn,
-                        )?;
-                    }
-                    Ok(None)
                 } else {
                     Err(TransactionServiceError::Database(
                         WalletDbError::AccountNotFound(account_id_hex),
