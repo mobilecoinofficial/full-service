@@ -3,19 +3,13 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        models::{
-            Account, TransactionLog, Txo, ViewOnlyAccount, TXO_USED_AS_CHANGE, TXO_USED_AS_OUTPUT,
-        },
+        models::{Account, TransactionLog, Txo, TXO_USED_AS_CHANGE, TXO_USED_AS_OUTPUT},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
-        view_only_account::ViewOnlyAccountModel,
         WalletDb, WalletDbError,
     },
     error::SyncError,
-    service::{
-        sync::{sync_account, sync_view_only_account},
-        transaction_builder::WalletTransactionBuilder,
-    },
+    service::{sync::sync_account, transaction_builder::WalletTransactionBuilder},
     WalletService,
 };
 use diesel::{
@@ -389,34 +383,6 @@ pub fn manually_sync_account(
     account
 }
 
-// Sync view-only-account to most recent block
-pub fn manually_sync_view_only_account(
-    ledger_db: &LedgerDB,
-    wallet_db: &WalletDb,
-    view_only_account_id: &str,
-    logger: &Logger,
-) -> ViewOnlyAccount {
-    let mut account: ViewOnlyAccount;
-    loop {
-        match sync_view_only_account(&ledger_db, &wallet_db, &view_only_account_id, &logger) {
-            Ok(_) => {}
-            Err(SyncError::Database(WalletDbError::Diesel(
-                diesel::result::Error::DatabaseError(_kind, info),
-            ))) if info.message() == "database is locked" => {
-                log::trace!(logger, "Database locked. Will retry");
-                std::thread::sleep(Duration::from_millis(500));
-            }
-            Err(e) => panic!("Could not sync account due to {:?}", e),
-        }
-        account =
-            ViewOnlyAccount::get(&view_only_account_id, &wallet_db.get_conn().unwrap()).unwrap();
-        if account.next_block_index as u64 >= ledger_db.num_blocks().unwrap() {
-            break;
-        }
-    }
-    account
-}
-
 pub fn setup_grpc_peer_manager_and_network_state(
     logger: Logger,
 ) -> (
@@ -632,6 +598,7 @@ pub fn random_account_with_seed_values(
         assert_eq!(
             Txo::list_for_account(
                 &AccountID::from(&account_key).to_string(),
+                None,
                 None,
                 None,
                 Some(0),

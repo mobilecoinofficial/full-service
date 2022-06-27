@@ -10,9 +10,6 @@ pub mod models;
 pub mod schema;
 pub mod transaction_log;
 pub mod txo;
-pub mod view_only_account;
-pub mod view_only_subaddress;
-pub mod view_only_txo;
 mod wallet_db;
 mod wallet_db_error;
 

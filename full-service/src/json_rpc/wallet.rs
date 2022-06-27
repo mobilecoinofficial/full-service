@@ -21,8 +21,6 @@ use crate::{
         receiver_receipt::ReceiverReceipt,
         tx_proposal::TxProposal,
         txo::Txo,
-        view_only_subaddress::ViewOnlySubaddressJSON,
-        view_only_txo::ViewOnlyTxo,
         wallet_status::WalletStatus,
     },
     service,
@@ -38,8 +36,6 @@ use crate::{
         transaction::TransactionService,
         transaction_log::TransactionLogService,
         txo::TxoService,
-        view_only_account::ViewOnlyAccountService,
-        view_only_txo::ViewOnlyTxoService,
         WalletService,
     },
     util::b58::{
@@ -51,10 +47,8 @@ use mc_common::logger::global_log;
 use mc_connection::{
     BlockchainConnection, HardcodedCredentialsProvider, ThickClient, UserTxConnection,
 };
-use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_fog_report_validation::{FogPubkeyResolver, FogResolver};
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
-use mc_transaction_core::ring_signature::KeyImage;
 use mc_validator_connection::ValidatorConnection;
 use rocket::{
     self, get, http::Status, outcome::Outcome, post, request::FromRequest, routes, Request, State,
@@ -425,20 +419,6 @@ where
                 })?,
             }
         }
-        JsonCommandRequest::create_new_subaddresses_request {
-            account_id,
-            num_subaddresses_to_generate,
-        } => {
-            let account = service
-                .get_view_only_account(&account_id)
-                .map_err(format_error)?;
-
-            JsonCommandResponse::create_new_subaddresses_request {
-                account_id,
-                next_subaddress_index: (account.next_subaddress_index as u64).to_string(),
-                num_subaddresses_to_generate,
-            }
-        }
         JsonCommandRequest::create_payment_request {
             account_id,
             subaddress_index,
@@ -466,18 +446,18 @@ where
             }
         }
         JsonCommandRequest::create_view_only_account_sync_request { account_id } => {
-            let incomplete_txos = service
-                .list_incomplete_view_only_txos(&account_id)
+            let unverified_txos = service
+                .list_unverified_txos(&AccountID(account_id.clone()))
                 .map_err(format_error)?;
 
-            let incomplete_txos_encoded: Vec<String> = incomplete_txos
+            let unverified_txos_encoded: Vec<String> = unverified_txos
                 .iter()
-                .map(|txo| hex::encode(mc_util_serial::encode(txo)))
+                .map(|txo| hex::encode(mc_util_serial::encode(&txo.txo)))
                 .collect();
 
             JsonCommandResponse::create_view_only_account_sync_request {
                 account_id,
-                incomplete_txos_encoded,
+                incomplete_txos_encoded: unverified_txos_encoded,
             }
         }
         JsonCommandRequest::export_account_secrets { account_id } => {
@@ -488,34 +468,11 @@ where
                 account_secrets: AccountSecrets::try_from(&account).map_err(format_error)?,
             }
         }
-        JsonCommandRequest::export_spent_txo_ids { account_id } => {
-            let txos = service
-                .list_spent_txos(&AccountID(account_id))
-                .map_err(format_error)?;
-            let spent_txo_ids: Vec<String> = txos
-                .iter()
-                .map(|txo| txo.txo_id_hex.clone())
-                .collect::<Vec<String>>();
-
-            JsonCommandResponse::export_spent_txo_ids { spent_txo_ids }
-        }
-        JsonCommandRequest::export_view_only_account_package { account_id } => {
-            let package = service
-                .get_view_only_import_package(&AccountID(account_id))
-                .map_err(format_error)?;
-
-            let json_rpc_request = JsonRPCRequest::try_from(&package).map_err(format_error)?;
-
-            JsonCommandResponse::export_view_only_account_package { json_rpc_request }
-        }
-        JsonCommandRequest::export_view_only_account_secrets { account_id } => {
-            let account = service
-                .get_view_only_account(&account_id)
-                .map_err(format_error)?;
-            JsonCommandResponse::export_view_only_account_secrets {
-                view_only_account_secrets:
-                    json_rpc::view_only_account::ViewOnlyAccountSecretsJSON::try_from(&account)
-                        .map_err(format_error)?,
+        JsonCommandRequest::export_view_only_account_import_request { account_id } => {
+            JsonCommandResponse::export_view_only_account_import_request {
+                json_rpc_request: service
+                    .get_view_only_account_import_request(&AccountID(account_id))
+                    .map_err(format_error)?,
             }
         }
         JsonCommandRequest::get_account { account_id } => JsonCommandResponse::get_account {
@@ -548,14 +505,6 @@ where
                 address: Address::from(&assigned_subaddress),
             }
         }
-        JsonCommandRequest::get_address_for_view_only_account { account_id, index } => {
-            let view_only_subaddress = service
-                .get_address_for_view_only_account(&AccountID(account_id), index as u64)
-                .map_err(format_error)?;
-            JsonCommandResponse::get_address_for_view_only_account {
-                address: ViewOnlySubaddressJSON::from(&view_only_subaddress),
-            }
-        }
         JsonCommandRequest::get_addresses_for_account {
             account_id,
             offset,
@@ -582,36 +531,6 @@ where
                 public_addresses: addresses
                     .iter()
                     .map(|a| a.assigned_subaddress_b58.clone())
-                    .collect(),
-                address_map,
-            }
-        }
-        JsonCommandRequest::get_addresses_for_view_only_account {
-            account_id,
-            offset,
-            limit,
-        } => {
-            let (o, l) = page_helper(offset, limit)?;
-            let addresses = service
-                .get_addresses_for_view_only_account(&AccountID(account_id), Some(o), Some(l))
-                .map_err(format_error)?;
-            let address_map: Map<String, serde_json::Value> = Map::from_iter(
-                addresses
-                    .iter()
-                    .map(|a| {
-                        (
-                            a.public_address_b58.clone(),
-                            serde_json::to_value(&(Address::from(a)))
-                                .expect("Could not get json value"),
-                        )
-                    })
-                    .collect::<Vec<(String, serde_json::Value)>>(),
-            );
-
-            JsonCommandResponse::get_addresses_for_account {
-                public_addresses: addresses
-                    .iter()
-                    .map(|a| a.public_address_b58.clone())
                     .collect(),
                 address_map,
             }
@@ -710,26 +629,6 @@ where
                 txo_map,
             }
         }
-        JsonCommandRequest::get_all_view_only_accounts => {
-            let accounts = service.list_view_only_accounts().map_err(format_error)?;
-            let json_accounts: Vec<(String, serde_json::Value)> = accounts
-                .iter()
-                .map(|a| {
-                    json_rpc::view_only_account::ViewOnlyAccountJSON::try_from(a)
-                        .map_err(format_error)
-                        .and_then(|v| {
-                            serde_json::to_value(v)
-                                .map(|v| (a.account_id_hex.clone(), v))
-                                .map_err(format_error)
-                        })
-                })
-                .collect::<Result<Vec<(String, serde_json::Value)>, JsonRPCError>>()?;
-            let account_map: Map<String, serde_json::Value> = Map::from_iter(json_accounts);
-            JsonCommandResponse::get_all_view_only_accounts {
-                account_ids: accounts.iter().map(|a| a.account_id_hex.clone()).collect(),
-                account_map,
-            }
-        }
         JsonCommandRequest::get_balance_for_account { account_id } => {
             JsonCommandResponse::get_balance_for_account {
                 balance: Balance::from(
@@ -744,24 +643,6 @@ where
                 balance: Balance::from(
                     &service
                         .get_balance_for_address(&address)
-                        .map_err(format_error)?,
-                ),
-            }
-        }
-        JsonCommandRequest::get_balance_for_view_only_account { account_id } => {
-            JsonCommandResponse::get_balance_for_view_only_account {
-                balance: Balance::from(
-                    &service
-                        .get_balance_for_view_only_account(&account_id)
-                        .map_err(format_error)?,
-                ),
-            }
-        }
-        JsonCommandRequest::get_balance_for_view_only_address { address } => {
-            JsonCommandResponse::get_balance_for_view_only_address {
-                balance: Balance::from(
-                    &service
-                        .get_balance_for_view_only_address(&address)
                         .map_err(format_error)?,
                 ),
             }
@@ -881,12 +762,13 @@ where
         }
         JsonCommandRequest::get_txos_for_account {
             account_id,
+            status,
             offset,
             limit,
         } => {
             let (o, l) = page_helper(offset, limit)?;
             let txos = service
-                .list_txos(&AccountID(account_id), Some(o), Some(l))
+                .list_txos(&AccountID(account_id), status, Some(o), Some(l))
                 .map_err(format_error)?;
             let txo_map: Map<String, serde_json::Value> = Map::from_iter(
                 txos.iter()
@@ -904,48 +786,12 @@ where
                 txo_map,
             }
         }
-        JsonCommandRequest::get_txos_for_view_only_account {
-            account_id,
-            offset,
-            limit,
-        } => {
-            let (o, l) = page_helper(offset, limit)?;
-            let txos = service
-                .list_view_only_txos(&account_id, Some(o), Some(l))
-                .map_err(format_error)?;
-            let txo_map: Map<String, serde_json::Value> = Map::from_iter(
-                txos.iter()
-                    .map(|t| {
-                        (
-                            t.txo_id_hex.clone(),
-                            serde_json::to_value(ViewOnlyTxo::from(t))
-                                .expect("Could not get json value"),
-                        )
-                    })
-                    .collect::<Vec<(String, serde_json::Value)>>(),
-            );
-
-            JsonCommandResponse::get_txos_for_account {
-                txo_ids: txos.iter().map(|t| t.txo_id_hex.clone()).collect(),
-                txo_map,
-            }
-        }
         JsonCommandRequest::get_wallet_status => JsonCommandResponse::get_wallet_status {
             wallet_status: WalletStatus::try_from(
                 &service.get_wallet_status().map_err(format_error)?,
             )
             .map_err(format_error)?,
         },
-        JsonCommandRequest::get_view_only_account { account_id } => {
-            JsonCommandResponse::get_view_only_account {
-                view_only_account: json_rpc::view_only_account::ViewOnlyAccountJSON::try_from(
-                    &service
-                        .get_view_only_account(&account_id)
-                        .map_err(format_error)?,
-                )
-                .map_err(format_error)?,
-            }
-        }
         JsonCommandRequest::import_account {
             mnemonic,
             key_derivation_version,
@@ -1019,88 +865,29 @@ where
                 .map_err(format_error)?,
             }
         }
-        JsonCommandRequest::import_subaddresses_to_view_only_account {
-            account_id,
-            subaddresses,
-        } => {
-            let subaddresses_decoded = subaddresses
-                .iter()
-                .map(|s| {
-                    let public_spend_key_bytes =
-                        hex::decode(&s.public_spend_key).map_err(format_error)?;
-                    let decoded_public_spend_key =
-                        mc_util_serial::decode(&public_spend_key_bytes).map_err(format_error)?;
-                    let subaddress_index =
-                        s.subaddress_index.parse::<u64>().map_err(format_error)?;
-                    Ok((
-                        s.public_address.clone(),
-                        subaddress_index,
-                        s.comment.clone(),
-                        decoded_public_spend_key,
-                    ))
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-
-            let public_address_b58s = service
-                .import_subaddresses(&account_id, subaddresses_decoded)
-                .map_err(format_error)?;
-
-            JsonCommandResponse::import_subaddresses_to_view_only_account {
-                public_address_b58s,
-            }
-        }
         JsonCommandRequest::import_view_only_account {
-            account,
-            secrets,
-            subaddresses,
+            view_private_key,
+            spend_public_key,
+            name,
+            first_block_index,
+            next_subaddress_index,
         } => {
-            let decoded_key_bytes = hex::decode(&secrets.view_private_key).map_err(format_error)?;
-            let decoded_key: RistrettoPrivate =
-                mc_util_serial::decode(&decoded_key_bytes).map_err(format_error)?;
-
-            let subaddresses_decoded = subaddresses
-                .iter()
-                .map(|s| {
-                    let public_spend_key_bytes = hex::decode(&s.public_spend_key).unwrap();
-                    let decoded_public_spend_key: RistrettoPublic =
-                        mc_util_serial::decode(&public_spend_key_bytes).map_err(format_error)?;
-                    let subaddress_index =
-                        s.subaddress_index.parse::<u64>().map_err(format_error)?;
-                    Ok((
-                        s.public_address.clone(),
-                        subaddress_index,
-                        s.comment.clone(),
-                        decoded_public_spend_key,
-                    ))
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-
-            let view_only_account = &service
-                .import_view_only_account(
-                    &account.account_id,
-                    &decoded_key,
-                    account
-                        .main_subaddress_index
-                        .parse::<u64>()
-                        .map_err(format_error)?,
-                    account
-                        .change_subaddress_index
-                        .parse::<u64>()
-                        .map_err(format_error)?,
-                    account
-                        .next_subaddress_index
-                        .parse::<u64>()
-                        .map_err(format_error)?,
-                    &account.name,
-                    subaddresses_decoded,
-                )
+            let fb = first_block_index
+                .map(|fb| fb.parse::<u64>())
+                .transpose()
                 .map_err(format_error)?;
-
-            let view_only_account_json =
-                json_rpc::view_only_account::ViewOnlyAccountJSON::from(view_only_account);
+            let ns = next_subaddress_index
+                .map(|ns| ns.parse::<u64>())
+                .transpose()
+                .map_err(format_error)?;
 
             JsonCommandResponse::import_view_only_account {
-                view_only_account: view_only_account_json,
+                account: json_rpc::account::Account::try_from(
+                    &service
+                        .import_view_only_account(view_private_key, spend_public_key, name, fb, ns)
+                        .map_err(format_error)?,
+                )
+                .map_err(format_error)?,
             }
         }
         JsonCommandRequest::remove_account { account_id } => JsonCommandResponse::remove_account {
@@ -1112,13 +899,6 @@ where
             JsonCommandResponse::remove_gift_code {
                 removed: service
                     .remove_gift_code(&EncodedGiftCode(gift_code_b58))
-                    .map_err(format_error)?,
-            }
-        }
-        JsonCommandRequest::remove_view_only_account { account_id } => {
-            JsonCommandResponse::remove_view_only_account {
-                removed: service
-                    .remove_view_only_account(&account_id)
                     .map_err(format_error)?,
             }
         }
@@ -1165,42 +945,14 @@ where
         JsonCommandRequest::sync_view_only_account {
             account_id,
             completed_txos,
-            subaddresses,
+            next_subaddress_index,
         } => {
-            let txo_ids_and_key_images: Vec<(String, KeyImage)> = completed_txos
-                .iter()
-                .map(|(txo_id, key_image_encoded)| {
-                    let key_image_bytes = hex::decode(&key_image_encoded).map_err(format_error)?;
-                    let key_image: KeyImage =
-                        mc_util_serial::decode(&key_image_bytes).map_err(format_error)?;
-                    Ok((txo_id.clone(), key_image))
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-
             service
-                .set_view_only_txos_key_images(txo_ids_and_key_images)
-                .map_err(format_error)?;
-
-            let subaddresses_decoded = subaddresses
-                .iter()
-                .map(|s| {
-                    let public_spend_key_bytes =
-                        hex::decode(&s.public_spend_key).map_err(format_error)?;
-                    let decoded_public_spend_key =
-                        mc_util_serial::decode(&public_spend_key_bytes).map_err(format_error)?;
-                    let subaddress_index =
-                        s.subaddress_index.parse::<u64>().map_err(format_error)?;
-                    Ok((
-                        s.public_address.clone(),
-                        subaddress_index,
-                        s.comment.clone(),
-                        decoded_public_spend_key,
-                    ))
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-
-            service
-                .import_subaddresses(&account_id, subaddresses_decoded)
+                .sync_account(
+                    &AccountID(account_id),
+                    completed_txos,
+                    next_subaddress_index.parse::<u64>().map_err(format_error)?,
+                )
                 .map_err(format_error)?;
 
             JsonCommandResponse::sync_view_only_account
@@ -1210,16 +962,6 @@ where
                 account: json_rpc::account::Account::try_from(
                     &service
                         .update_account_name(&AccountID(account_id), name)
-                        .map_err(format_error)?,
-                )
-                .map_err(format_error)?,
-            }
-        }
-        JsonCommandRequest::update_view_only_account_name { account_id, name } => {
-            JsonCommandResponse::update_view_only_account_name {
-                view_only_account: json_rpc::view_only_account::ViewOnlyAccountJSON::try_from(
-                    &service
-                        .update_view_only_account_name(&account_id, &name)
                         .map_err(format_error)?,
                 )
                 .map_err(format_error)?,

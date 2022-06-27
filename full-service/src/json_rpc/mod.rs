@@ -19,9 +19,6 @@ mod transaction_log;
 pub mod tx_proposal;
 mod txo;
 mod unspent_tx_out;
-pub mod view_only_account;
-pub mod view_only_subaddress;
-pub mod view_only_txo;
 pub mod wallet;
 mod wallet_status;
 

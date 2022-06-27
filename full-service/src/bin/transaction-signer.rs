@@ -1,7 +1,7 @@
 use bip39::{Language, Mnemonic, MnemonicType};
-use mc_account_keys::{AccountKey, CHANGE_SUBADDRESS_INDEX, DEFAULT_SUBADDRESS_INDEX};
+use mc_account_keys::AccountKey;
 use mc_account_keys_slip10::Slip10Key;
-use mc_common::{HashMap, HashSet};
+use mc_common::HashMap;
 use mc_full_service::{
     db::{account::AccountID, txo::TxoID},
     fog_resolver::FullServiceFogResolver,
@@ -10,11 +10,9 @@ use mc_full_service::{
         account_secrets::AccountSecrets,
         json_rpc_request::{JsonCommandRequest, JsonRPCRequest},
         tx_proposal::TxProposal,
-        view_only_account::{ViewOnlyAccountJSON, ViewOnlyAccountSecretsJSON},
-        view_only_subaddress::ViewOnlySubaddressJSON,
     },
     unsigned_tx::UnsignedTx,
-    util::b58,
+    util::encoding_helpers::{ristretto_public_to_hex, ristretto_to_hex},
 };
 use std::{convert::TryFrom, fs};
 use structopt::StructOpt;
@@ -44,10 +42,6 @@ enum Opts {
         #[structopt(short, long, default_value = "1000")]
         subaddresses: u64,
     },
-    Subaddresses {
-        secret_mnemonic: String,
-        request: String,
-    },
     Sign {
         secret_mnemonic: String,
         request: String,
@@ -76,12 +70,6 @@ fn main() {
             subaddresses,
         } => {
             sync_txos(secret_mnemonic, sync_request, subaddresses);
-        }
-        Opts::Subaddresses {
-            ref secret_mnemonic,
-            ref request,
-        } => {
-            generate_subaddresses(secret_mnemonic, request);
         }
         Opts::Sign {
             ref secret_mnemonic,
@@ -116,8 +104,9 @@ fn create_account(name: &str) {
         entropy: None,
         mnemonic: Some(mnemonic.phrase().to_string()),
         key_derivation_version: "2".to_string(),
-        account_key: AccountKeyJSON::from(&account_key),
+        account_key: Some(AccountKeyJSON::from(&account_key)),
         name: name.to_string(),
+        view_account_key: None,
     };
 
     // Write secret mnemonic to file.
@@ -140,34 +129,16 @@ fn generate_view_only_import_package(secret_mnemonic: &str) {
     let account_key = account_key_from_mnemonic_phrase(&account_secrets.mnemonic.unwrap());
     let account_id = AccountID::from(&account_key);
 
-    // Package view private key.
-    let account_json = ViewOnlyAccountJSON {
-        object: "view_only_account".to_string(),
-        name: account_secrets.name,
-        account_id: account_id.to_string(),
-        first_block_index: 0.to_string(),
-        next_block_index: 0.to_string(),
-        main_subaddress_index: DEFAULT_SUBADDRESS_INDEX.to_string(),
-        change_subaddress_index: CHANGE_SUBADDRESS_INDEX.to_string(),
-        next_subaddress_index: 2.to_string(),
-    };
-
-    let account_secrets_json = ViewOnlyAccountSecretsJSON {
-        object: "view_only_account_secrets".to_string(),
-        view_private_key: hex::encode(mc_util_serial::encode(account_key.view_private_key())),
-        account_id: account_id.to_string(),
-    };
-
-    // Generate main and change subaddresses.
-    let initial_subaddresses = vec![
-        subaddress_json(&account_key, DEFAULT_SUBADDRESS_INDEX, "Main"),
-        subaddress_json(&account_key, CHANGE_SUBADDRESS_INDEX, "Change"),
-    ];
+    let view_private_key_hex = ristretto_to_hex(account_key.view_private_key());
+    let spend_public_key = RistrettoPublic::from(account_key.spend_private_key());
+    let spend_public_key_hex = ristretto_public_to_hex(&spend_public_key);
 
     let json_command_request = JsonCommandRequest::import_view_only_account {
-        account: account_json,
-        secrets: account_secrets_json,
-        subaddresses: initial_subaddresses,
+        view_private_key: view_private_key_hex,
+        spend_public_key: spend_public_key_hex,
+        name: None,
+        first_block_index: None,
+        next_subaddress_index: None,
     };
 
     // Write view private key and associated info to file.
@@ -217,12 +188,6 @@ fn sync_txos(secret_mnemonic: &str, sync_request: &str, num_subaddresses: u64) {
     let txos_and_key_images =
         get_key_images_for_txos(&input_txos, &account_key, &subaddress_spend_public_keys);
 
-    let subaddress_indices: HashSet<u64> = txos_and_key_images.iter().map(|(_, _, i)| *i).collect();
-    let related_subaddresses: Vec<_> = subaddress_indices
-        .iter()
-        .map(|i| subaddress_json(&account_key, *i, ""))
-        .collect();
-
     let completed_txos: Vec<(String, String)> = txos_and_key_images
         .iter()
         .map(|(txo, key_image, _)| {
@@ -236,55 +201,11 @@ fn sync_txos(secret_mnemonic: &str, sync_request: &str, num_subaddresses: u64) {
     let json_command_request = JsonCommandRequest::sync_view_only_account {
         account_id: account_id.to_string(),
         completed_txos,
-        subaddresses: related_subaddresses,
+        next_subaddress_index: "0".to_string(),
     };
 
     // Write result to file.
     let filename = format!("{}_completed.json", sync_request.trim_end_matches(".json"));
-    write_json_command_request_to_file(&json_command_request, &filename);
-}
-
-fn generate_subaddresses(secret_mnemonic: &str, request: &str) {
-    // Load account key.
-    let mnemonic_json =
-        fs::read_to_string(secret_mnemonic).expect("Could not open secret mnemonic file.");
-    let account_secrets: AccountSecrets = serde_json::from_str(&mnemonic_json).unwrap();
-    let account_key = account_key_from_mnemonic_phrase(&account_secrets.mnemonic.unwrap());
-
-    // Load input txos.
-    let request_data =
-        fs::read_to_string(request).expect("Could not open generate subaddresses request file.");
-    let request_json: serde_json::Value =
-        serde_json::from_str(&request_data).expect("Malformed generate subaddresses request.");
-    let account_id = request_json.get("account_id").unwrap().as_str().unwrap();
-    assert_eq!(account_secrets.account_id, account_id);
-
-    let next_subaddress_index = request_json
-        .get("next_subaddress_index")
-        .unwrap()
-        .as_str()
-        .unwrap()
-        .parse::<u64>()
-        .unwrap();
-
-    let num_subaddresses_to_generate = request_json
-        .get("num_subaddresses_to_generate")
-        .unwrap()
-        .as_str()
-        .unwrap()
-        .parse::<u64>()
-        .unwrap();
-
-    let mut subaddresses: Vec<ViewOnlySubaddressJSON> = Vec::new();
-    for i in next_subaddress_index..next_subaddress_index + num_subaddresses_to_generate {
-        subaddresses.push(subaddress_json(&account_key, i, ""));
-    }
-
-    let json_command_request = JsonCommandRequest::import_subaddresses_to_view_only_account {
-        account_id: account_id.to_string(),
-        subaddresses,
-    };
-    let filename = format!("{}_completed.json", request.trim_end_matches(".json"));
     write_json_command_request_to_file(&json_command_request, &filename);
 }
 
@@ -432,17 +353,4 @@ fn generate_subaddress_spend_public_keys(
     }
 
     subaddress_spend_public_keys
-}
-
-fn subaddress_json(account_key: &AccountKey, index: u64, comment: &str) -> ViewOnlySubaddressJSON {
-    let account_id = AccountID::from(account_key);
-    let subaddress = account_key.subaddress(index);
-    ViewOnlySubaddressJSON {
-        object: "view_only_subaddress".to_string(),
-        public_address: b58::b58_encode_public_address(&subaddress).unwrap(),
-        account_id: account_id.to_string(),
-        comment: comment.to_string(),
-        subaddress_index: index.to_string(),
-        public_spend_key: hex::encode(mc_util_serial::encode(subaddress.spend_public_key())),
-    }
 }
