@@ -427,20 +427,12 @@ mod tests {
         let transaction_logs = service
             .list_transaction_logs(&AccountID(alice.account_id_hex), None, None, None, None)
             .expect("Could not get transaction logs");
-        // Alice should have two received (initial and change), and one sent
-        // TransactionLog.
-        assert_eq!(transaction_logs.len(), 3);
-        let sent_transaction_logs_and_associated_txos: Vec<&(TransactionLog, AssociatedTxos)> =
-            transaction_logs
-                .iter()
-                .filter(|t| t.0.direction == TX_DIRECTION_SENT)
-                .collect();
-        assert_eq!(sent_transaction_logs_and_associated_txos.len(), 1);
-        let sent_transaction_log: TransactionLog =
-            sent_transaction_logs_and_associated_txos[0].0.clone();
+        // Alice should have one sent tranasction log
+        assert_eq!(transaction_logs.len(), 1);
+        let sent_transaction_log: TransactionLog = transaction_logs[0].0.clone();
 
         let confirmations = service
-            .get_confirmations(&sent_transaction_log.transaction_id_hex)
+            .get_confirmations(&sent_transaction_log.id)
             .expect("Could not get confirmations");
         assert_eq!(confirmations.len(), 1);
 

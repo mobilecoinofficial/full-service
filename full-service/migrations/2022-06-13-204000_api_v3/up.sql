@@ -56,31 +56,25 @@ CREATE TABLE assigned_subaddresses (
 CREATE UNIQUE INDEX idx_assigned_subaddresses__assigned_subaddress_b58 ON assigned_subaddresses (assigned_subaddress_b58);
 
 CREATE TABLE transaction_logs (
-    id INTEGER NOT NULL PRIMARY KEY,
-    transaction_id_hex VARCHAR NOT NULL UNIQUE,
+    id VARCHAR NOT NULL PRIMARY KEY,
     account_id_hex VARCHAR NOT NULL,
-    assigned_subaddress_b58 VARCHAR,
-    value UNSIGNED BIG INT NOT NULL,
-    fee UNSIGNED BIG INT,
-    status VARCHAR(8) NOT NULL,
-    sent_time UNSIGNED BIG INT,
+    fee_value UNSIGNED BIG INT NOT NULL,
+    fee_token_id UNSIGNED BIG INT NOT NULL,
     submitted_block_index UNSIGNED BIG INT,
+    tombstone_block_index UNSIGNED BIG INT,
     finalized_block_index UNSIGNED BIG INT,
     comment TEXT NOT NULL DEFAULT '',
-    direction VARCHAR(8) NOT NULL,
-    tx BLOB,
-    FOREIGN KEY (account_id_hex) REFERENCES accounts(account_id_hex),
-    FOREIGN KEY (assigned_subaddress_b58) REFERENCES assigned_subaddresses(assigned_subaddress_b58)
+    tx BLOB NOT NULL,
+    failed BOOLEAN NOT NULL,
+    FOREIGN KEY (account_id_hex) REFERENCES accounts(account_id_hex)
 );
 
-CREATE UNIQUE INDEX idx_transaction_logs__transaction_id_hex ON transaction_logs (transaction_id_hex);
-
 CREATE TABLE transaction_txo_types (
-    transaction_id_hex VARCHAR NOT NULL,
+    transaction_log_id VARCHAR NOT NULL,
     txo_id_hex VARCHAR NOT NULL,
     transaction_txo_type VARCHAR(6) NOT NULL,
-    PRIMARY KEY (transaction_id_hex, txo_id_hex),
-    FOREIGN KEY (transaction_id_hex) REFERENCES transaction_logs(transaction_id_hex),
+    PRIMARY KEY (transaction_log_id, txo_id_hex),
+    FOREIGN KEY (transaction_log_id) REFERENCES transaction_logs(id),
     FOREIGN KEY (txo_id_hex) REFERENCES txos(txo_id_hex)
 );
 

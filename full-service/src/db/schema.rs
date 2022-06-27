@@ -40,25 +40,22 @@ table! {
 
 table! {
     transaction_logs (id) {
-        id -> Integer,
-        transaction_id_hex -> Text,
+        id -> Text,
         account_id_hex -> Text,
-        assigned_subaddress_b58 -> Nullable<Text>,
-        value -> BigInt,
-        fee -> Nullable<BigInt>,
-        status -> Text,
-        sent_time -> Nullable<BigInt>,
+        fee_value -> BigInt,
+        fee_token_id -> BigInt,
         submitted_block_index -> Nullable<BigInt>,
+        tombstone_block_index -> Nullable<BigInt>,
         finalized_block_index -> Nullable<BigInt>,
         comment -> Text,
-        direction -> Text,
-        tx -> Nullable<Binary>,
+        tx -> Binary,
+        failed -> Bool,
     }
 }
 
 table! {
-    transaction_txo_types (transaction_id_hex, txo_id_hex) {
-        transaction_id_hex -> Text,
+    transaction_txo_types (transaction_log_id, txo_id_hex) {
+        transaction_log_id -> Text,
         txo_id_hex -> Text,
         transaction_txo_type -> Text,
     }
@@ -85,6 +82,8 @@ table! {
         received_account_id_hex -> Nullable<Text>,
     }
 }
+
+joinable!(transaction_txo_types -> transaction_logs (transaction_log_id));
 
 allow_tables_to_appear_in_same_query!(
     accounts,

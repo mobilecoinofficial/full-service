@@ -1446,19 +1446,6 @@ mod tests {
         assert_eq!(alice_account.next_block_index, 14);
         assert_eq!(alice_account.next_subaddress_index, 5);
 
-        // Check that a transaction log entry was created for each received TxOut (note:
-        // we are not creating submit logs in this test)
-        let transaction_logs = TransactionLog::list_all(
-            &alice_account_id.to_string(),
-            None,
-            None,
-            None,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-        assert_eq!(transaction_logs.len(), 3);
-
         // Verify that there are two unspent txos - the one that was previously
         // orphaned, and change.
         let unspent = Txo::list_unspent(

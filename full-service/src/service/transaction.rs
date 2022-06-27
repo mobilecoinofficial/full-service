@@ -497,7 +497,7 @@ mod tests {
             .list_transaction_logs(&alice_account_id, None, None, None, None)
             .unwrap();
 
-        assert_eq!(1, tx_logs.len());
+        assert_eq!(0, tx_logs.len());
 
         // Verify balance for Alice
         let balance = service
@@ -543,7 +543,7 @@ mod tests {
             .list_transaction_logs(&alice_account_id, None, None, None, None)
             .unwrap();
 
-        assert_eq!(1, tx_logs.len());
+        assert_eq!(0, tx_logs.len());
 
         // Create an assigned subaddress for Bob
         let bob_address_from_alice_2 = service
@@ -570,7 +570,7 @@ mod tests {
             .list_transaction_logs(&alice_account_id, None, None, None, None)
             .unwrap();
 
-        assert_eq!(1, tx_logs.len());
+        assert_eq!(0, tx_logs.len());
 
         // Create an assigned subaddress for Bob
         let bob_address_from_alice_3 = service
@@ -597,7 +597,7 @@ mod tests {
             .list_transaction_logs(&alice_account_id, None, None, None, None)
             .unwrap();
 
-        assert_eq!(2, tx_logs.len());
+        assert_eq!(1, tx_logs.len());
     }
 
     // Test sending a transaction from Alice -> Bob, and then from Bob -> Alice
