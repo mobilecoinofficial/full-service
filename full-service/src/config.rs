@@ -92,12 +92,8 @@ impl APIConfig {
     pub fn get_fog_ingest_verifier(&self) -> Option<Verifier> {
         self.fog_ingest_enclave_css.as_ref().map(|signature| {
             let mr_signer_verifier = {
-                let mut mr_signer_verifier = MrSignerVerifier::new(
-                    signature.mrsigner().into(),
-                    signature.product_id(),
-                    signature.version(),
-                );
-                mr_signer_verifier.allow_hardening_advisories(&["INTEL-SA-00334"]);
+                let mut mr_signer_verifier = MrSignerVerifier::from(signature);
+                mr_signer_verifier.allow_hardening_advisories(mc_consensus_enclave_measurement::HARDENING_ADVISORIES);
                 mr_signer_verifier
             };
 

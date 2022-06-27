@@ -3005,6 +3005,32 @@ mod e2e {
         assert_eq!(balance.get("spent_pmob").unwrap(), "0");
         assert_eq!(balance.get("orphaned_pmob").unwrap(), "600000000000000");
 
+        // Verify orphaned txos.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "get_txos_for_account",
+            "params": {
+                "account_id": *account_id,
+                "status": "txo_status_orphaned"
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        assert_eq!(result["txo_ids"].as_array().unwrap().len(), 2,);
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "get_txos_for_account",
+            "params": {
+                "account_id": *account_id,
+                "status": "txo_status_unspent"
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        assert_eq!(result["txo_ids"].as_array().unwrap().len(), 0);
+
         // Add back next subaddress. Txos are detected as unspent.
         let body = json!({
             "jsonrpc": "2.0",
@@ -3031,6 +3057,32 @@ mod e2e {
         assert_eq!(balance.get("unspent_pmob").unwrap(), "600000000000000");
         assert_eq!(balance.get("spent_pmob").unwrap(), "0");
         assert_eq!(balance.get("orphaned_pmob").unwrap(), "0");
+
+        // Verify unspent txos.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "get_txos_for_account",
+            "params": {
+                "account_id": *account_id,
+                "status": "txo_status_unspent"
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        assert_eq!(result["txo_ids"].as_array().unwrap().len(), 2,);
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "get_txos_for_account",
+            "params": {
+                "account_id": *account_id,
+                "status": "txo_status_orphaned"
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        assert_eq!(result["txo_ids"].as_array().unwrap().len(), 0);
 
         // Create a second account.
         let body = json!({

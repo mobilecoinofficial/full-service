@@ -600,6 +600,7 @@ pub fn random_account_with_seed_values(
                 &AccountID::from(&account_key).to_string(),
                 None,
                 None,
+                None,
                 Some(0),
                 &wallet_db.get_conn().unwrap(),
             )

@@ -418,7 +418,7 @@ mod tests {
 
         // Get corresponding Txo for Bob
         let txos = service
-            .list_txos(&AccountID(bob.account_id_hex), None, None)
+            .list_txos(&AccountID(bob.account_id_hex), None, None, None)
             .expect("Could not get Bob Txos");
         assert_eq!(txos.len(), 1);
 

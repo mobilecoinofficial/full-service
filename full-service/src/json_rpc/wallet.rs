@@ -762,12 +762,13 @@ where
         }
         JsonCommandRequest::get_txos_for_account {
             account_id,
+            status,
             offset,
             limit,
         } => {
             let (o, l) = page_helper(offset, limit)?;
             let txos = service
-                .list_txos(&AccountID(account_id), Some(o), Some(l))
+                .list_txos(&AccountID(account_id), status, Some(o), Some(l))
                 .map_err(format_error)?;
             let txo_map: Map<String, serde_json::Value> = Map::from_iter(
                 txos.iter()

@@ -586,7 +586,7 @@ mod tests {
         let expected_value = 15_625_000 * MOB;
 
         let txos = service
-            .list_txos(&AccountID::from(&account_key), None, None)
+            .list_txos(&AccountID::from(&account_key), None, None, None)
             .unwrap();
 
         for txo in txos {

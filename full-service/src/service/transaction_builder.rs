@@ -796,6 +796,8 @@ mod tests {
             &AccountID::from(&account_key).to_string(),
             None,
             Some(0),
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -842,6 +844,7 @@ mod tests {
         // Get our TXO list
         let txos: Vec<Txo> = Txo::list_for_account(
             &AccountID::from(&account_key).to_string(),
+            None,
             None,
             None,
             Some(0),

@@ -209,6 +209,7 @@ pub enum JsonCommandRequest {
     },
     get_txos_for_account {
         account_id: String,
+        status: Option<String>,
         offset: Option<String>,
         limit: Option<String>,
     },
