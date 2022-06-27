@@ -12,6 +12,8 @@ jobs:
   # Build and publish rustdocs
   docs:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Clone repository
