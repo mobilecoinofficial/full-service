@@ -47,7 +47,6 @@ jobs:
 
       - name: Deploy to GitHub Pages
         uses: crazy-max/ghaction-github-pages@v3
-        if: github.ref_name == 'develop'
         with:
           target_branch: gh-pages
           build_dir: target/doc
