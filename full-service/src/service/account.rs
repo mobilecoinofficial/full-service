@@ -681,6 +681,8 @@ mod tests {
         let orphaned_txos = Txo::list_orphaned(
             &account_id.to_string(),
             None,
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -727,6 +729,8 @@ mod tests {
         let orphaned_txos = Txo::list_orphaned(
             &account_id.to_string(),
             None,
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -735,6 +739,8 @@ mod tests {
 
         let unspent_txos = Txo::list_unspent(
             &account_id.to_string(),
+            None,
+            None,
             None,
             None,
             &wallet_db.get_conn().unwrap(),
