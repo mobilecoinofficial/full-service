@@ -7,7 +7,6 @@ mod e2e_transaction {
     use crate::{
         db::{
             account::AccountID,
-            models::{TXO_STATUS_UNSPENT, TXO_TYPE_RECEIVED},
         },
         json_rpc,
         json_rpc::api_test_utils::{dispatch, dispatch_expect_error, setup},

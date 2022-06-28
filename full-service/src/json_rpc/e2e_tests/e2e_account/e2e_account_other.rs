@@ -10,7 +10,7 @@ mod e2e_account {
             models::{TXO_STATUS_UNSPENT, TXO_TYPE_RECEIVED},
         },
         json_rpc,
-        json_rpc::api_test_utils::{dispatch, dispatch_expect_error, setup},
+        json_rpc::api_test_utils::{dispatch, setup},
         test_utils::{add_block_to_ledger_db, manually_sync_account, MOB},
         util::b58::b58_decode_public_address,
     };
@@ -19,7 +19,7 @@ mod e2e_account {
     use mc_account_keys_slip10::Slip10Key;
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
-    use mc_ledger_db::Ledger;
+    
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
 
