@@ -2,12 +2,11 @@
 
 //! DB impl for the Transaction model.
 
-use chrono::Utc;
 use diesel::prelude::*;
 use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_mobilecoind::payments::TxProposal;
-use mc_transaction_core::{tx::Tx, Amount, TokenId};
+use mc_transaction_core::tx::Tx;
 use std::fmt;
 
 use crate::db::{

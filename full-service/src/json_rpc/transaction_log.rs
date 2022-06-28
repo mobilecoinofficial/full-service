@@ -2,15 +2,11 @@
 
 //! API definition for the TransactionLog object.
 
-use chrono::{offset::TimeZone, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     db,
-    db::{
-        models::TX_DIRECTION_SENT,
-        transaction_log::{AssociatedTxos, TransactionLogModel, TxStatus},
-    },
+    db::transaction_log::{AssociatedTxos, TransactionLogModel},
 };
 
 /// A log of a transaction that occurred on the MobileCoin network, constructed
