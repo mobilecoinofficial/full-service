@@ -127,7 +127,8 @@ where
         &self,
         transaction_log_id: &str,
     ) -> Result<Vec<Confirmation>, ConfirmationServiceError> {
-        let (_transaction_log, associated_txos) = self.get_transaction_log(transaction_log_id)?;
+        let (_transaction_log, associated_txos, _value_map) =
+            self.get_transaction_log(transaction_log_id)?;
 
         let mut results = Vec::new();
         for associated_txo in associated_txos.outputs {

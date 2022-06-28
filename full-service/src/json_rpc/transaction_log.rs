@@ -2,11 +2,12 @@
 
 //! API definition for the TransactionLog object.
 
+use mc_common::HashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     db,
-    db::transaction_log::{AssociatedTxos, TransactionLogModel},
+    db::transaction_log::{AssociatedTxos, TransactionLogModel, ValueMap},
 };
 
 /// A log of a transaction that occurred on the MobileCoin network, constructed
@@ -34,6 +35,8 @@ pub struct TransactionLog {
 
     /// A list of the Txos which were change in this transaction.
     pub change_txos: Vec<TxoAbbrev>,
+
+    pub value_map: HashMap<String, String>,
 
     pub fee_value: String,
 
@@ -66,7 +69,14 @@ impl TransactionLog {
     pub fn new(
         transaction_log: &db::models::TransactionLog,
         associated_txos: &AssociatedTxos,
+        value_map: &ValueMap,
     ) -> Self {
+        let values = value_map
+            .0
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect();
+
         Self {
             object: "transaction_log".to_string(),
             id: transaction_log.id.clone(),
@@ -84,6 +94,7 @@ impl TransactionLog {
             input_txos: associated_txos.inputs.iter().map(TxoAbbrev::new).collect(),
             output_txos: associated_txos.outputs.iter().map(TxoAbbrev::new).collect(),
             change_txos: associated_txos.change.iter().map(TxoAbbrev::new).collect(),
+            value_map: values,
             fee_value: transaction_log.fee_value.to_string(),
             fee_token_id: transaction_log.fee_token_id.to_string(),
             sent_time: None,

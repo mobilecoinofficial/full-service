@@ -6,7 +6,7 @@ use crate::{
     db::{
         account::AccountID,
         models::TransactionLog,
-        transaction_log::{AssociatedTxos, TransactionID, TransactionLogModel},
+        transaction_log::{AssociatedTxos, TransactionID, TransactionLogModel, ValueMap},
         WalletDbError,
     },
     error::WalletServiceError,
@@ -50,24 +50,24 @@ pub trait TransactionLogService {
         limit: Option<u64>,
         min_block_index: Option<u64>,
         max_block_index: Option<u64>,
-    ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletServiceError>;
+    ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletServiceError>;
 
     /// Get a specific transaction log.
     fn get_transaction_log(
         &self,
         transaction_id_hex: &str,
-    ) -> Result<(TransactionLog, AssociatedTxos), TransactionLogServiceError>;
+    ) -> Result<(TransactionLog, AssociatedTxos, ValueMap), TransactionLogServiceError>;
 
     /// Get all transaction logs for a given block.
     fn get_all_transaction_logs_for_block(
         &self,
         block_index: u64,
-    ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletServiceError>;
+    ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletServiceError>;
 
     /// Get all transaction logs ordered& by finalized_block_index.
     fn get_all_transaction_logs_ordered_by_block(
         &self,
-    ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletServiceError>;
+    ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletServiceError>;
 }
 
 impl<T, FPR> TransactionLogService for WalletService<T, FPR>
@@ -82,7 +82,7 @@ where
         limit: Option<u64>,
         min_block_index: Option<u64>,
         max_block_index: Option<u64>,
-    ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletServiceError> {
+    ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletServiceError> {
         let conn = &self.wallet_db.get_conn()?;
         Ok(TransactionLog::list_all(
             &account_id.to_string(),
@@ -97,26 +97,28 @@ where
     fn get_transaction_log(
         &self,
         transaction_id_hex: &str,
-    ) -> Result<(TransactionLog, AssociatedTxos), TransactionLogServiceError> {
+    ) -> Result<(TransactionLog, AssociatedTxos, ValueMap), TransactionLogServiceError> {
         let conn = self.wallet_db.get_conn()?;
         let transaction_log =
             TransactionLog::get(&TransactionID(transaction_id_hex.to_string()), &conn)?;
         let associated = transaction_log.get_associated_txos(&conn)?;
+        let value_map = transaction_log.value_map(&conn)?;
 
-        Ok((transaction_log, associated))
+        Ok((transaction_log, associated, value_map))
     }
 
     fn get_all_transaction_logs_for_block(
         &self,
         block_index: u64,
-    ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletServiceError> {
+    ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
         let transaction_logs = TransactionLog::get_all_for_block_index(block_index, &conn)?;
-        let mut res: Vec<(TransactionLog, AssociatedTxos)> = Vec::new();
+        let mut res: Vec<(TransactionLog, AssociatedTxos, ValueMap)> = Vec::new();
         for transaction_log in transaction_logs {
             res.push((
                 transaction_log.clone(),
                 transaction_log.get_associated_txos(&conn)?,
+                transaction_log.value_map(&conn)?,
             ));
         }
         Ok(res)
@@ -124,14 +126,15 @@ where
 
     fn get_all_transaction_logs_ordered_by_block(
         &self,
-    ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletServiceError> {
+    ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
         let transaction_logs = TransactionLog::get_all_ordered_by_block_index(&conn)?;
-        let mut res: Vec<(TransactionLog, AssociatedTxos)> = Vec::new();
+        let mut res: Vec<(TransactionLog, AssociatedTxos, ValueMap)> = Vec::new();
         for transaction_log in transaction_logs {
             res.push((
                 transaction_log.clone(),
                 transaction_log.get_associated_txos(&conn)?,
+                transaction_log.value_map(&conn)?,
             ));
         }
         Ok(res)
@@ -204,7 +207,7 @@ mod tests {
             .unwrap();
 
         for _ in 0..5 {
-            let (transaction_log, _, _) = service
+            let (transaction_log, _, _, _) = service
                 .build_and_submit(
                     &alice_account_id.to_string(),
                     &[(

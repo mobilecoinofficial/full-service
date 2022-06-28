@@ -7,7 +7,7 @@ use crate::{
         account::{AccountID, AccountModel},
         models::{Account, TransactionLog},
         transaction,
-        transaction_log::{AssociatedTxos, TransactionLogModel},
+        transaction_log::{AssociatedTxos, TransactionLogModel, ValueMap},
         WalletDbError,
     },
     error::WalletTransactionBuilderError,
@@ -167,7 +167,7 @@ pub trait TransactionService {
         tx_proposal: TxProposal,
         comment: Option<String>,
         account_id_hex: Option<String>,
-    ) -> Result<Option<(TransactionLog, AssociatedTxos)>, TransactionServiceError>;
+    ) -> Result<Option<(TransactionLog, AssociatedTxos, ValueMap)>, TransactionServiceError>;
 
     /// Convenience method that builds and submits in one go.
     #[allow(clippy::too_many_arguments)]
@@ -180,7 +180,7 @@ pub trait TransactionService {
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
-    ) -> Result<(TransactionLog, AssociatedTxos, TxProposal), TransactionServiceError>;
+    ) -> Result<(TransactionLog, AssociatedTxos, ValueMap, TxProposal), TransactionServiceError>;
 }
 
 impl<T, FPR> TransactionService for WalletService<T, FPR>
@@ -313,7 +313,7 @@ where
         tx_proposal: TxProposal,
         comment: Option<String>,
         account_id_hex: Option<String>,
-    ) -> Result<Option<(TransactionLog, AssociatedTxos)>, TransactionServiceError> {
+    ) -> Result<Option<(TransactionLog, AssociatedTxos, ValueMap)>, TransactionServiceError> {
         if self.offline {
             return Err(TransactionServiceError::Offline);
         }
@@ -364,8 +364,9 @@ where
                     )?;
 
                     let associated_txos = transaction_log.get_associated_txos(&conn)?;
+                    let value_map = transaction_log.value_map(&conn)?;
 
-                    Ok(Some((transaction_log, associated_txos)))
+                    Ok(Some((transaction_log, associated_txos, value_map)))
                 } else {
                     Err(TransactionServiceError::Database(
                         WalletDbError::AccountNotFound(account_id_hex),
@@ -386,7 +387,8 @@ where
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
-    ) -> Result<(TransactionLog, AssociatedTxos, TxProposal), TransactionServiceError> {
+    ) -> Result<(TransactionLog, AssociatedTxos, ValueMap, TxProposal), TransactionServiceError>
+    {
         let tx_proposal = self.build_transaction(
             account_id_hex,
             addresses_and_values,
@@ -404,6 +406,7 @@ where
             Ok((
                 transaction_log_and_associated_txos.0,
                 transaction_log_and_associated_txos.1,
+                transaction_log_and_associated_txos.2,
                 tx_proposal,
             ))
         } else {
@@ -659,7 +662,7 @@ mod tests {
             .unwrap();
 
         // Send a transaction from Alice to Bob
-        let (transaction_log, _associated_txos, _tx_proposal) = service
+        let (transaction_log, _associated_txos, _value_map, _tx_proposal) = service
             .build_and_submit(
                 &alice.account_id_hex,
                 &[(
@@ -728,7 +731,7 @@ mod tests {
         assert_eq!(bob_balance.unspent, 42000000000000);
 
         // Bob should now be able to send to Alice
-        let (transaction_log, _associated_txos, _tx_proposal) = service
+        let (transaction_log, _associated_txos, _value_map, _tx_proposal) = service
             .build_and_submit(
                 &bob.account_id_hex,
                 &[(
