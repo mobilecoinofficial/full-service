@@ -2045,19 +2045,15 @@ mod e2e_transaction {
         assert_eq!(unspent, "250000000000");
 
         let body = json!({
-                    "jsonrpc": "2.0",
-                    "id": 1,
-        <<<<<<< HEAD:full-service/src/json_rpc/e2e.rs
-                    "method": "export_view_only_account_import_request",
-        =======
-                    "method": "build_split_txo_transaction",
-        >>>>>>> 02fea1b (separate e2e tests by category):full-service/src/json_rpc/e2e_tests/e2e_transaction.rs
-                    "params": {
-                        "txo_id": txo_id,
-                        "output_values": ["20000000000", "80000000000", "30000000000", "70000000000", "40000000000"],
-                        "fee": "10000000000"
-                    }
-                });
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "build_split_txo_transaction",
+            "params": {
+                "txo_id": txo_id,
+                "output_values": ["20000000000", "80000000000", "30000000000", "70000000000", "40000000000"],
+                "fee": "10000000000"
+            }
+        });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let tx_proposal = result.get("tx_proposal").unwrap();
