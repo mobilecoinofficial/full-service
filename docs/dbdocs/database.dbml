@@ -36,10 +36,9 @@ Table transaction_logs {
   tx blob
 }
 
-Table transaction_txo_types {
+Table transaction_inputs {
   transaction_log_id varchar [pk, not null, ref: > transaction_logs.id]
   txo_id varchar [pk, not null, ref: > txos.id]
-  transaction_txo_type varchar(6) [not null]
 }
 
 Table txos {
@@ -55,4 +54,5 @@ Table txos {
   key_image blob
   received_block_index bigint
   shared_secret blob
+  output_transaction_log_id varchar [ref: > transaction_logs.id]
 }
