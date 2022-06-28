@@ -7,10 +7,9 @@ mod e2e_transaction {
     use crate::{
         db::{
             account::AccountID,
-            models::{TXO_STATUS_UNSPENT, TXO_TYPE_RECEIVED},
         },
         json_rpc,
-        json_rpc::api_test_utils::{dispatch, dispatch_expect_error, setup},
+        json_rpc::api_test_utils::{dispatch, setup},
         test_utils::{
             add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account, MOB,
         },
@@ -20,7 +19,7 @@ mod e2e_transaction {
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
     use mc_ledger_db::Ledger;
-    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
+    use mc_transaction_core::{ring_signature::KeyImage};
     use rand::{rngs::StdRng, SeedableRng};
 
     use std::convert::TryFrom;

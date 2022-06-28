@@ -6,14 +6,14 @@
 mod e2e_account {
     use crate::{
         db::account::AccountID,
-        json_rpc::api_test_utils::{dispatch, dispatch_expect_error, setup},
+        json_rpc::api_test_utils::{dispatch, setup},
         test_utils::{add_block_to_ledger_db, manually_sync_account, MOB},
         util::b58::b58_decode_public_address,
     };
 
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
-    use mc_ledger_db::Ledger;
+    
     use mc_transaction_core::ring_signature::KeyImage;
     use rand::{rngs::StdRng, SeedableRng};
 
