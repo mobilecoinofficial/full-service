@@ -121,7 +121,7 @@ class Client:
             "method": "import_view_only_account",
             "params": params,
         })
-        return r['view_only_account']
+        return r['account']
 
     def get_account(self, account_id):
         r = self._req({
@@ -132,17 +132,6 @@ class Client:
 
     def get_all_accounts(self):
         r = self._req({"method": "get_all_accounts"})
-        return r['account_map']
-
-    def get_view_only_account(self, account_id):
-        r = self._req({
-            "method": "get_view_only_account",
-            "params": {"account_id": account_id}
-        })
-        return r['view_only_account']
-
-    def get_all_view_only_accounts(self):
-        r = self._req({"method": "get_all_view_only_accounts"})
         return r['account_map']
 
     def update_account_name(self, account_id, name):
@@ -161,12 +150,6 @@ class Client:
             "params": {"account_id": account_id}
         })
 
-    def remove_view_only_account(self, account_id):
-        return self._req({
-            "method": "remove_view_only_account",
-            "params": {"account_id": account_id}
-        })
-
     def export_account_secrets(self, account_id):
         r = self._req({
             "method": "export_account_secrets",
@@ -179,8 +162,8 @@ class Client:
             "method": "get_txos_for_account",
             "params": {
                 "account_id": account_id,
-                "offset": offset,
-                "limit": limit,
+                "offset": str(int(offset)),
+                "limit": str(int(limit)),
             }
         })
         return r['txo_map']
@@ -209,27 +192,9 @@ class Client:
         })
         return r['balance']
 
-    def get_balance_for_view_only_account(self, account_id):
-        r = self._req({
-            "method": "get_balance_for_view_only_account",
-            "params": {
-                "account_id": account_id,
-            }
-        })
-        return r['balance']
-
     def get_balance_for_address(self, address):
         r = self._req({
             "method": "get_balance_for_address",
-            "params": {
-                "address": address,
-            }
-        })
-        return r['balance']
-
-    def get_balance_for_view_only_address(self, address):
-        r = self._req({
-            "method": "get_balance_for_view_only_address",
             "params": {
                 "address": address,
             }
@@ -252,17 +217,6 @@ class Client:
     def get_addresses_for_account(self, account_id, offset=0, limit=100):
         r = self._req({
             "method": "get_addresses_for_account",
-            "params": {
-                "account_id": account_id,
-                "offset": str(int(offset)),
-                "limit": str(int(limit)),
-            },
-        })
-        return r['address_map']
-
-    def get_addresses_for_view_only_account(self, account_id, offset=0, limit=100):
-        r = self._req({
-            "method": "get_addresses_for_view_only_account",
             "params": {
                 "account_id": account_id,
                 "offset": str(int(offset)),
