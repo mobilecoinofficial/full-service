@@ -452,7 +452,7 @@ where
 
             let unverified_txos_encoded: Vec<String> = unverified_txos
                 .iter()
-                .map(|txo| hex::encode(mc_util_serial::encode(&txo.txo)))
+                .map(|txo| hex::encode(&txo.txo))
                 .collect();
 
             JsonCommandResponse::create_view_only_account_sync_request {
