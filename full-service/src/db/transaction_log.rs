@@ -256,32 +256,6 @@ impl TransactionLogModel for TransactionLog {
     ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletDbError> {
         use crate::db::schema::{transaction_logs, transaction_txo_types, txos};
 
-        // let mut query = transaction_logs::table.into_boxed();
-        // query = query.filter(transaction_logs::account_id_hex.
-        // eq(account_id_hex));
-
-        // if let (Some(o), Some(l)) = (offset, limit) {
-        //     query = query.limit(l as i64).offset(o as i64);
-        // }
-
-        // if let Some(min_block_index) = min_block_index {
-        //     query =
-        //         query.filter(transaction_logs::finalized_block_index.
-        // ge(min_block_index as i64)); }
-
-        // if let Some(max_block_index) = max_block_index {
-        //     query =
-        //         query.filter(transaction_logs::finalized_block_index.
-        // le(max_block_index as i64)); }
-
-        // #[derive(Clone)]
-        // struct TransactionContents {
-        //     transaction_log: TransactionLog,
-        //     inputs: Vec<Txo>,
-        //     outputs: Vec<Txo>,
-        //     change: Vec<Txo>,
-        // }
-
         // // Query for all transaction logs for the account, as well as
         // associated txos. // This is accomplished via a double-join
         // through the // transaction_txo_types table.
