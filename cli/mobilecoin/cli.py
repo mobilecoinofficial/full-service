@@ -602,6 +602,7 @@ class CommandLineInterface:
 
         # Check whether this is an already built response from the offline transaction signer.
         if tx_proposal.get('method') == 'submit_transaction':
+            account_id = tx_proposal['params']['account_id']
             tx_proposal = tx_proposal['params']['tx_proposal']
 
         # Check that the tombstone block is within range.
@@ -638,7 +639,7 @@ class CommandLineInterface:
             print('Cancelled.')
             return
 
-        self.client.submit_transaction(tx_proposal)
+        self.client.submit_transaction(tx_proposal, account_id)
         print('Submitted. The file {} is now unusable for sending transactions.'.format(proposal))
 
     def qr(self, account_id):
@@ -827,13 +828,13 @@ class CommandLineInterface:
         with open(sync_response) as f:
             data = json.load(f)
 
-        r = self.client.sync_view_only_account(data['params'])
+        self.client.sync_view_only_account(data['params'])
         account_id = data['params']['account_id']
-        account = self.client.get_view_only_account(account_id)
+        account = self.client.get_account(account_id)
         balance = self.client.get_balance_for_account(account_id)
 
         print()
-        print('Synced {} transaction outputs.'.format(len(data['completed_txos'])))
+        print('Synced {} transaction outputs.'.format(len(data['params']['completed_txos'])))
         print()
         _print_account(account, balance)
 

@@ -134,13 +134,6 @@ class Client:
         r = self._req({"method": "get_all_accounts"})
         return r['account_map']
 
-    def get_view_only_account(self, account_id):
-        r = self._req({
-            "method": "get_view_only_account",
-            "params": {"account_id": account_id}
-        })
-        return r['view_only_account']
-
     def update_account_name(self, account_id, name):
         r = self._req({
             "method": "update_account_name",
@@ -169,8 +162,8 @@ class Client:
             "method": "get_txos_for_account",
             "params": {
                 "account_id": account_id,
-                "offset": offset,
-                "limit": limit,
+                "offset": str(int(offset)),
+                "limit": str(int(limit)),
             }
         })
         return r['txo_map']
