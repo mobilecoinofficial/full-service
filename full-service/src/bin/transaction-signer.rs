@@ -334,9 +334,7 @@ fn tx_out_belongs_to_account(tx_out: &TxOut, account_view_private_key: &Ristrett
         Err(_) => return false,
         Ok(k) => k,
     };
-
     let shared_secret = get_tx_out_shared_secret(account_view_private_key, &tx_out_public_key);
-
     tx_out.masked_amount.get_value(&shared_secret).is_ok()
 }
 
@@ -346,7 +344,9 @@ fn generate_subaddress_spend_public_keys(
 ) -> HashMap<RistrettoPublic, u64> {
     let mut subaddress_spend_public_keys = HashMap::default();
 
-    for i in 0..number_to_generate {
+    let mut subaddresses: Vec<u64> = (0..number_to_generate).collect();
+    subaddresses.push(mc_account_keys::CHANGE_SUBADDRESS_INDEX);
+    for i in subaddresses.into_iter() {
         let subaddress_spend_private_key = account_key.subaddress_spend_private(i);
         let subaddress_spend_public_key = RistrettoPublic::from(&subaddress_spend_private_key);
         subaddress_spend_public_keys.insert(subaddress_spend_public_key, i);

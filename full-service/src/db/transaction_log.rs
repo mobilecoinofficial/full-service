@@ -399,6 +399,7 @@ impl TransactionLogModel for TransactionLog {
             let txo_id = TxoID::from(&utxo.tx_out);
             let txo = Txo::get(&txo_id.to_string(), conn)?;
             txo.update_to_pending(tx_proposal.tx.prefix.tombstone_block, conn)?;
+            Txo::update_key_image(&txo_id.to_string(), &utxo.key_image, None, conn)?;
             txo_ids.push((txo_id.to_string(), TXO_USED_AS_INPUT.to_string()));
         }
 
