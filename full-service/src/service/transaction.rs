@@ -227,6 +227,8 @@ where
                 None => self.get_network_fee(),
             })?;
 
+            builder.set_block_version(self.get_network_block_version());
+
             builder.select_txos(&conn, None, false)?;
 
             let unsigned_tx = builder.build_unsigned()?;
@@ -235,6 +237,7 @@ where
             Ok((unsigned_tx, fog_resolver))
         })
     }
+
     fn build_transaction(
         &self,
         account_id_hex: &str,
