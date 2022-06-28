@@ -26,8 +26,12 @@ Table subaddresses {
 Table transaction_logs {
   id varchar [not null, unique]
   account_id varchar [not null, ref: > accounts.id]
+  fee_value bigint [not null]
+  fee_token_id bigint [not null]
   submitted_block_index bigint
+  tombstone_block_index bigint
   finalized_block_index bigint
+  failed boolean [not null]
   comment text [not null]
   tx blob
 }
