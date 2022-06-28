@@ -98,8 +98,6 @@ class CommandLineInterface:
         self.export_args.add_argument('account_id', help='ID of the account to export.')
         self.export_args.add_argument('-s', '--show', action='store_true',
                                       help='Only show the secret entropy mnemonic, do not write it to file.')
-        self.export_args.add_argument('-V', '--view', action='store_true',
-                                      help='Show the view-private-key only.')
 
         # Remove account.
         self.remove_args = command_sp.add_parser('remove', help='Remove an account from local storage.')
@@ -179,8 +177,6 @@ class CommandLineInterface:
 
     def _load_account_prefix(self, prefix):
         accounts = self.client.get_all_accounts()
-        view_accounts = self.client.get_all_view_only_accounts()
-        accounts.update(view_accounts)
 
         matching_ids = [
             a_id for a_id in accounts.keys()
@@ -286,9 +282,7 @@ class CommandLineInterface:
 
     def list(self):
         accounts = self.client.get_all_accounts()
-        view_accounts = self.client.get_all_view_only_accounts()
-
-        if len(accounts) + len(view_accounts) == 0:
+        if len(accounts) == 0:
             print('No accounts.')
             return
 
@@ -297,12 +291,7 @@ class CommandLineInterface:
             balance = self.client.get_balance_for_account(account_id)
             account_list.append((account_id, account, balance))
 
-        view_account_list = []
-        for account_id, view_account in view_accounts.items():
-            balance = self.client.get_balance_for_view_only_account(account_id)
-            view_account_list.append((account_id, view_account, balance))
-
-        for (account_id, account, balance) in account_list + view_account_list:
+        for (account_id, account, balance) in account_list:
             print()
             _print_account(account, balance)
 
@@ -338,6 +327,7 @@ class CommandLineInterface:
                 account = self.client.import_view_only_account(data['params'])
             else:
                 params = {}
+
                 for field in [
                     'mnemonic',  # Key derivation version 2+.
                     'entropy',  # Key derivation version 1.
@@ -348,6 +338,7 @@ class CommandLineInterface:
                     value = data.get(field)
                     if value is not None:
                         params[field] = value
+
                 if 'account_key' in data:
                     params['fog_keys'] = {}
                     for field in [
@@ -358,6 +349,10 @@ class CommandLineInterface:
                         value = data['account_key'].get(field)
                         if value is not None:
                             params['fog_keys'][field] = value
+
+                if name is not None:
+                    params['name'] = name
+
                 account = self.client.import_account(**params)
 
         else:
@@ -384,11 +379,7 @@ class CommandLineInterface:
         _print_account(account)
         print()
 
-    def export(self, account_id, show=False, view=False):
-        if view:
-            self._export_view_key(account_id, show)
-            return
-
+    def export(self, account_id, show=False):
         account = self._load_account_prefix(account_id)
         account_id = account['account_id']
         balance = self.client.get_balance_for_account(account_id)
@@ -422,48 +413,8 @@ class CommandLineInterface:
         else:
             filename = 'mobilecoin_secret_mnemonic_{}.json'.format(account_id[:6])
             try:
+                print(secrets)
                 _save_export(account, secrets, filename)
-            except OSError as e:
-                print('Could not write file: {}'.format(e))
-                exit(1)
-            else:
-                print(f'Wrote {filename}.')
-
-    def _export_view_key(self, account_id, show):
-        account = self._load_account_prefix(account_id)
-        account_id = account['account_id']
-        balance = self.client.get_balance_for_account(account_id)
-
-        print('You are about to export the private view key for this account:')
-        print()
-        _print_account(account, balance)
-
-        print()
-        if show:
-            print('The private view key will display on your screen.')
-            print('Make sure your screen is not being viewed or recorded.')
-        else:
-            print('Keep the view key file safe and private!')
-        print('Anyone who has access to the view key can see all transactions for the account.')
-
-        if show:
-            confirm_message = 'Really show account view key? (Y/N) '
-        else:
-            confirm_message = 'Really write private view key to a file? (Y/N) '
-
-        if not self.confirm(confirm_message):
-            print('Cancelled.')
-            return
-
-        secrets = self.client.export_account_secrets(account_id)
-        if show:
-            print()
-            print(secrets['account_key']['view_private_key'])
-            print()
-        else:
-            filename = 'mobilecoin_view_key_{}.json'.format(account_id[:6])
-            try:
-                _save_view_key_export(account, secrets, filename)
             except OSError as e:
                 print('Could not write file: {}'.format(e))
                 exit(1)
@@ -473,9 +424,9 @@ class CommandLineInterface:
     def remove(self, account_id):
         account = self._load_account_prefix(account_id)
         account_id = account['account_id']
+        balance = self.client.get_balance_for_account(account_id)
 
-        if account['object'] == 'view_only_account':
-            balance = self.client.get_balance_for_view_only_account(account_id)
+        if account['view_only']:
             print('You are about to remove this view key:')
             print()
             _print_account(account, balance)
@@ -483,7 +434,6 @@ class CommandLineInterface:
             print('You will lose the ability to see related transactions unless you')
             print('restore it from backup.')
         else:
-            balance = self.client.get_balance_for_account(account_id)
             print('You are about to remove this account:')
             print()
             _print_account(account, balance)
@@ -495,10 +445,7 @@ class CommandLineInterface:
             print('Cancelled.')
             return
 
-        if account['object'] == 'view_only_account':
-            self.client.remove_view_only_account(account_id)
-        else:
-            self.client.remove_account(account_id)
+        self.client.remove_account(account_id)
         print('Removed.')
 
     def history(self, account_id):
@@ -551,11 +498,7 @@ class CommandLineInterface:
         account = self._load_account_prefix(account_id)
         account_id = account['account_id']
 
-        view_only = (account['object'] == 'view_only_account')
-        if view_only:
-            balance = self.client.get_balance_for_view_only_account(account_id)
-        else:
-            balance = self.client.get_balance_for_account(account_id)
+        balance = self.client.get_balance_for_account(account_id)
         unspent = pmob2mob(balance['unspent_pmob'])
 
         network_status = self.client.get_network_status()
@@ -565,10 +508,6 @@ class CommandLineInterface:
         else:
             fee = Decimal(fee)
 
-        if unspent <= fee:
-            print('There is not enough MOB in account {} to pay the transaction fee.'.format(account_id[:6]))
-            return
-
         if amount == "all":
             amount = unspent - fee
             total_amount = unspent
@@ -576,7 +515,11 @@ class CommandLineInterface:
             amount = Decimal(amount)
             total_amount = amount + fee
 
-        if view_only:
+        if unspent < total_amount:
+            print('There is not enough MOB in account {} to pay for this transaction.'.format(account_id[:6]))
+            return
+
+        if account['view_only']:
             verb = 'Building unsigned transaction for'
         elif build_only:
             verb = 'Building transaction for'
@@ -584,10 +527,12 @@ class CommandLineInterface:
             verb = 'Sending'
 
         print('\n'.join([
+            '',
             '{} {}',
-            'from account {}',
-            'to address {}',
+            '  from account {}',
+            '  to address {}',
             'Fee is {}, for a total amount of {}.',
+            '',
         ]).format(
             verb,
             _format_mob(amount),
@@ -604,9 +549,9 @@ class CommandLineInterface:
             ]).format(_format_mob(unspent)))
             return
 
-        if view_only:
+        if account['view_only']:
             response = self.client.build_unsigned_transaction(account_id, amount, to_address, fee=fee)
-            path = Path('unsigned_tx_proposal_{}_{}.json'.format(
+            path = Path('tx_proposal_{}_{}_unsigned.json'.format(
                 account_id[:6],
                 balance['local_block_height'],
             ))
@@ -615,6 +560,9 @@ class CommandLineInterface:
             else:
                 _save_json_file(path, response)
                 print(f'Wrote {path}.')
+                print()
+                print('This account is view-only, so its spend key is in an offline signer.')
+                print('Run `mob-transaction-signer sign`, then submit the result with `mobcli submit`')
             return
 
         if build_only:
@@ -727,17 +675,8 @@ class CommandLineInterface:
         print(_format_account_header(account))
 
         addresses = self.client.get_addresses_for_account(account['account_id'], limit=1000)
-        address_balances = []
         for address in addresses.values():
             balance = self.client.get_balance_for_address(address['public_address'])
-            address_balances.append((address, balance))
-
-        view_addresses = self.client.get_addresses_for_view_only_account(account['account_id'], limit=1000)
-        for address in view_addresses.values():
-            balance = self.client.get_balance_for_view_only_address(address['public_address'])
-            address_balances.append((address, balance))
-
-        for (address, balance) in address_balances:
             print(indent(
                 '{} {}'.format(address['public_address'], address['metadata']),
                 ' '*2,
@@ -891,7 +830,7 @@ class CommandLineInterface:
         r = self.client.sync_view_only_account(data['params'])
         account_id = data['params']['account_id']
         account = self.client.get_view_only_account(account_id)
-        balance = self.client.get_balance_for_view_only_account(account_id)
+        balance = self.client.get_balance_for_account(account_id)
 
         print()
         print('Synced {} transaction outputs.'.format(len(data['completed_txos'])))
@@ -928,7 +867,7 @@ def _format_account_header(account):
     output = account['account_id'][:6]
     if account['name']:
         output += ' ' + account['name']
-    if account.get('object') == 'view_only_account':
+    if account['view_only']:
         output += ' [view-only]'
     return output
 
@@ -1037,7 +976,7 @@ def _save_export(account, secrets, filename):
 
     export_data.update({
         'account_id': account['account_id'],
-        'account_name': account['name'],
+        'name': account['name'],
         'account_key': secrets['account_key'],
         'first_block_index': account['first_block_index'],
         'next_subaddress_index': account['next_subaddress_index'],
@@ -1050,7 +989,7 @@ def _save_view_key_export(account, secrets, filename):
     _save_json_file(
         filename,
         {
-            'account_name': account['name'],
+            'name': account['name'],
             'view_private_key': secrets['account_key']['view_private_key'],
             'first_block_index': account['first_block_index'],
         }

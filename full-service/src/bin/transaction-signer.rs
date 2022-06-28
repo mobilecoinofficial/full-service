@@ -209,7 +209,7 @@ fn sync_txos(secret_mnemonic: &str, sync_request: &str, num_subaddresses: u64) {
     write_json_command_request_to_file(&json_command_request, &filename);
 }
 
-fn sign_transaction(secret_mnemonic: &str, request: &str) {
+fn sign_transaction(secret_mnemonic: &str, sign_request: &str) {
     // Load account key.
     let mnemonic_json =
         fs::read_to_string(secret_mnemonic).expect("Could not open secret mnemonic file.");
@@ -218,9 +218,9 @@ fn sign_transaction(secret_mnemonic: &str, request: &str) {
 
     // Load input txos.
     let request_data =
-        fs::read_to_string(request).expect("Could not open generate subaddresses request file.");
+        fs::read_to_string(sign_request).expect("Could not open generate signing request file.");
     let request_json: serde_json::Value =
-        serde_json::from_str(&request_data).expect("Malformed generate subaddresses request.");
+        serde_json::from_str(&request_data).expect("Malformed generate signing request.");
     let account_id = request_json.get("account_id").unwrap().as_str().unwrap();
     assert_eq!(account_secrets.account_id, account_id);
 
@@ -248,7 +248,7 @@ fn sign_transaction(secret_mnemonic: &str, request: &str) {
         account_id: Some(account_id.to_string()),
     };
 
-    let filename = format!("{}_completed.json", request.trim_end_matches(".json"));
+    let filename = format!("{}_completed.json", sign_request.trim_end_matches("_unsigned.json"));
     write_json_command_request_to_file(&json_command_request, &filename);
 }
 
