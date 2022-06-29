@@ -16,6 +16,7 @@ on:
 jobs:
   integration-test:
     runs-on: [self-hosted, Linux, large]
+    # runs-on: ubuntu-latest
     container:
       image: mobilecoin/rust-sgx-base:latest
     steps:
@@ -63,28 +64,4 @@ jobs:
         shell: bash
         run: |
           python3 tools/local_network.py --network-type a-b-c
-  
-  # setup-env:
-  #   runs-on: [self-hosted, Linux, large]
-  #   container:
-  #     image: mobilecoin/rust-sgx-base:latest
-  #   steps:
-  #     - name: Cache MobileCoin
-  #       id: cache-mobilecoin
-  #       uses: actions/cache@v3
-  #       with:
-  #         path: /opt/mobilecoin
-  #         key: ${{ runner.os }}-${{ secrets.CACHE_VERSION }}-mobilecoin-${{ hashFiles('**/Cargo.lock')}}
 
-  #     - name: Cache Full Service
-  #       id: cache-full-service
-  #       uses: actions/cache@v3
-  #       with:
-  #         path: /opt/full-service
-  #         key: ${{ runner.os }}-${{ secrets.CACHE_VERSION }}-full_service-${{ hashFiles('**/Cargo.lock')}}
-
-      
-      # - name: Run Integration
-      #   shell: bash
-      #   run: |
-      #     python3 tools/${{ matrix.run_services }}

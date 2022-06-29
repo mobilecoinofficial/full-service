@@ -511,7 +511,7 @@ class FullService:
     
     def request(self, request_data):
         print('sending request to full service')
-        url = 'insecure-mc://localhost:3200'
+        url = 'http://127.0.0.1:9090/wallet'
         default_params = {
             "jsonrpc": "2.0",
             "api_version": "2",
