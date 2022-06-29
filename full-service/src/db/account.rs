@@ -397,7 +397,7 @@ impl AccountModel for Account {
     ) -> Result<Account, WalletDbError> {
         use crate::db::schema::accounts;
 
-        let view_account_key = ViewAccountKey::new(spend_public_key, view_private_key);
+        let view_account_key = ViewAccountKey::new(view_private_key, spend_public_key);
         let account_id = AccountID::from(&view_account_key);
 
         let first_block_index = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX) as i64;
