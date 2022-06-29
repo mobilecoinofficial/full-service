@@ -129,7 +129,12 @@ where
 
     fn list_unverified_txos(&self, account_id: &AccountID) -> Result<Vec<Txo>, TxoServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        Ok(Txo::list_unverified(&account_id.to_string(), None, &conn)?)
+        Ok(Txo::list_unverified(
+            &account_id.to_string(),
+            None,
+            None,
+            &conn,
+        )?)
     }
 
     fn list_spent_txos(&self, account_id: &AccountID) -> Result<Vec<Txo>, TxoServiceError> {

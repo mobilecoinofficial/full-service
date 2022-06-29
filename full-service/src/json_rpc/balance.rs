@@ -57,6 +57,10 @@ pub struct Balance {
     /// view-key matched, but which can not be spent until their subaddress
     /// index is recovered.
     pub orphaned_pmob: String,
+
+    /// Unverified pico MOB. The Unverified value represents the Txos which were
+    /// NOT view-key matched, but do have an assigned subaddress.
+    pub unverified_pmob: String,
 }
 
 impl From<&service::balance::Balance> for Balance {
@@ -73,6 +77,7 @@ impl From<&service::balance::Balance> for Balance {
             spent_pmob: src.spent.to_string(),
             secreted_pmob: src.secreted.to_string(),
             orphaned_pmob: src.orphaned.to_string(),
+            unverified_pmob: src.unverified.to_string(),
         }
     }
 }
