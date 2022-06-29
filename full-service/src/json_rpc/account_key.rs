@@ -99,8 +99,8 @@ impl TryFrom<&ViewAccountKey> for mc_account_keys::ViewAccountKey {
         let spend_public_key = hex_to_ristretto_public(&src.spend_public_key)?;
 
         Ok(mc_account_keys::ViewAccountKey::new(
-            &view_private_key,
-            &spend_public_key,
+            view_private_key,
+            spend_public_key,
         ))
     }
 }
