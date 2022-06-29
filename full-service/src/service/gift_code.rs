@@ -33,6 +33,7 @@ use mc_account_keys_slip10::Slip10KeyGenerator;
 use mc_common::{logger::log, HashSet};
 use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
 use mc_crypto_keys::RistrettoPublic;
+use mc_crypto_ring_signature_signer::NoKeysRingSigner;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_mobilecoind::payments::TxProposal;
@@ -660,7 +661,7 @@ where
             TransactionBuilder::new(block_version, fee, fog_resolver, memo_builder)?;
         transaction_builder.add_input(input_credentials);
         transaction_builder.add_output(
-            gift_value as u64 - Mob::MINIMUM_FEE,
+            Amount::new(gift_value as u64 - Mob::MINIMUM_FEE, Mob::ID),
             &recipient_public_address,
             &mut rng,
         )?;
@@ -668,7 +669,7 @@ where
         let num_blocks_in_ledger = self.ledger_db.num_blocks()?;
         transaction_builder
             .set_tombstone_block(num_blocks_in_ledger + DEFAULT_NEW_TX_BLOCK_ATTEMPTS);
-        let tx = transaction_builder.build(&mut rng)?;
+        let tx = transaction_builder.build(&NoKeysRingSigner {}, &mut rng)?;
 
         let responder_ids = self.peer_manager.responder_ids();
         if responder_ids.is_empty() {

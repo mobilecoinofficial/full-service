@@ -10,6 +10,7 @@ use crate::{
     },
     WalletService,
 };
+use mc_blockchain_types::{Block, BlockContents, BlockVersion};
 use mc_connection::{BlockchainConnection, RetryableBlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
@@ -18,7 +19,7 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tokens::Mob,
     tx::{Tx, TxOut},
-    Block, BlockContents, BlockVersion, Token,
+    Token,
 };
 
 use crate::db::WalletDbError;
