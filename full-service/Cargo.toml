@@ -21,6 +21,7 @@ mc-account-keys = { path = "../mobilecoin/account-keys" }
 mc-account-keys-slip10 = { path = "../mobilecoin/account-keys/slip10" }
 mc-api = { path = "../mobilecoin/api" }
 mc-attest-verifier = { path = "../mobilecoin/attest/verifier", default-features = false }
+mc-blockchain-types = { path = "../mobilecoin/blockchain/types" }
 mc-common = { path = "../mobilecoin/common", default-features = false, features = ["loggers"] }
 mc-connection = { path = "../mobilecoin/connection" }
 mc-consensus-enclave-measurement = { path = "../mobilecoin/consensus/enclave/measurement" }
@@ -28,6 +29,7 @@ mc-consensus-scp = { path = "../mobilecoin/consensus/scp" }
 mc-crypto-digestible = { path = "../mobilecoin/crypto/digestible", features = ["derive"] }
 mc-crypto-keys = { path = "../mobilecoin/crypto/keys", default-features = false }
 mc-crypto-rand = { path = "../mobilecoin/crypto/rand", default-features = false }
+mc-crypto-ring-signature-signer = { path = "../mobilecoin/crypto/ring-signature/signer" }
 mc-fog-report-connection = { path = "../mobilecoin/fog/report/connection" }
 mc-fog-report-validation = { path = "../mobilecoin/fog/report/validation" }
 mc-ledger-db = { path = "../mobilecoin/ledger/db" }
@@ -39,6 +41,7 @@ mc-mobilecoind-json = { path = "../mobilecoin/mobilecoind-json" }
 mc-sgx-css = { path = "../mobilecoin/sgx/css" }
 mc-transaction-core = { path = "../mobilecoin/transaction/core" }
 mc-transaction-std = { path = "../mobilecoin/transaction/std" }
+mc-transaction-types = { path = "../mobilecoin/transaction/types" }
 mc-util-from-random = { path = "../mobilecoin/util/from-random" }
 mc-util-parse = { path = "../mobilecoin/util/parse" }
 mc-util-serial = { path = "../mobilecoin/util/serial", default-features = false }
@@ -67,7 +70,7 @@ serde_json = { version = "1.0", features = ["preserve_order"] }
 structopt = "0.3"
 strum = { version = "0.24.0", features = ["derive"] }
 strum_macros = "0.24.0"
-tiny-bip39 = "0.8.0"
+tiny-bip39 = "1.0"
 uuid = { version = "1.0.0", features = ["serde", "v4"] }
 
 [dev-dependencies]
