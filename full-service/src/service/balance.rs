@@ -208,7 +208,7 @@ where
         let mut secreted: u128 = 0;
         let mut orphaned: u128 = 0;
 
-        let mut min_synced_block_index = network_block_height - 1;
+        let mut min_synced_block_index = network_block_height.saturating_sub(1);
         let mut account_ids = Vec::new();
 
         for account in accounts {

@@ -3,6 +3,7 @@
 //! Config definition and processing for Wallet Service.
 
 use mc_attest_verifier::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
+use mc_blockchain_types::BlockData;
 use mc_common::{
     logger::{log, Logger},
     ResponderId,
@@ -13,7 +14,6 @@ use mc_fog_report_connection::GrpcFogReportConnection;
 use mc_fog_report_validation::FogResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_sgx_css::Signature;
-use mc_transaction_core::BlockData;
 use mc_util_parse::parse_duration_in_seconds;
 use mc_util_uri::{ConnectionUri, ConsensusClientUri, FogUri};
 use mc_validator_api::ValidatorUri;
@@ -93,7 +93,9 @@ impl APIConfig {
         self.fog_ingest_enclave_css.as_ref().map(|signature| {
             let mr_signer_verifier = {
                 let mut mr_signer_verifier = MrSignerVerifier::from(signature);
-                mr_signer_verifier.allow_hardening_advisories(mc_consensus_enclave_measurement::HARDENING_ADVISORIES);
+                mr_signer_verifier.allow_hardening_advisories(
+                    mc_consensus_enclave_measurement::HARDENING_ADVISORIES,
+                );
                 mr_signer_verifier
             };
 
@@ -327,7 +329,7 @@ impl LedgerDbConfig {
                     db.append_block(
                         block_data.block(),
                         block_data.contents(),
-                        block_data.signature().clone(),
+                        block_data.signature().cloned(),
                     )
                     .expect("Failed to appened initial transactions");
                     log::info!(logger, "Bootstrapping completed!");

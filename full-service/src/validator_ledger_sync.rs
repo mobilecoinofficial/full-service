@@ -2,10 +2,10 @@
 
 //! Ledger syncing via the Validator Service.
 
+use mc_blockchain_types::{Block, BlockContents};
 use mc_common::logger::{log, Logger};
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::{NetworkState, PollingNetworkState};
-use mc_transaction_core::{Block, BlockContents};
 use mc_validator_api::ValidatorUri;
 use mc_validator_connection::ValidatorConnection;
 use std::{
