@@ -35,8 +35,10 @@ CREATE TABLE txos (
   recipient_public_address_b58 VARCHAR NOT NULL,
   minted_account_id_hex VARCHAR,
   received_account_id_hex VARCHAR,
+  output_transaction_log_id VARCHAR,
   FOREIGN KEY (minted_account_id_hex) REFERENCES accounts(account_id_hex),
-  FOREIGN KEY (received_account_id_hex) REFERENCES accounts(account_id_hex)
+  FOREIGN KEY (received_account_id_hex) REFERENCES accounts(account_id_hex),
+  FOREIGN KEY (output_transaction_log_id) REFERENCES transaction_logs(id)
 );
 
 CREATE UNIQUE INDEX idx_txos__txo_id_hex ON txos (txo_id_hex);
@@ -69,10 +71,9 @@ CREATE TABLE transaction_logs (
     FOREIGN KEY (account_id_hex) REFERENCES accounts(account_id_hex)
 );
 
-CREATE TABLE transaction_txo_types (
+CREATE TABLE transaction_inputs (
     transaction_log_id VARCHAR NOT NULL,
     txo_id_hex VARCHAR NOT NULL,
-    transaction_txo_type VARCHAR(6) NOT NULL,
     PRIMARY KEY (transaction_log_id, txo_id_hex),
     FOREIGN KEY (transaction_log_id) REFERENCES transaction_logs(id),
     FOREIGN KEY (txo_id_hex) REFERENCES txos(txo_id_hex)

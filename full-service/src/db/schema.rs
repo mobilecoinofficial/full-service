@@ -39,6 +39,13 @@ table! {
 }
 
 table! {
+    transaction_inputs (transaction_log_id, txo_id_hex) {
+        transaction_log_id -> Text,
+        txo_id_hex -> Text,
+    }
+}
+
+table! {
     transaction_logs (id) {
         id -> Text,
         account_id_hex -> Text,
@@ -50,14 +57,6 @@ table! {
         comment -> Text,
         tx -> Binary,
         failed -> Bool,
-    }
-}
-
-table! {
-    transaction_txo_types (transaction_log_id, txo_id_hex) {
-        transaction_log_id -> Text,
-        txo_id_hex -> Text,
-        transaction_txo_type -> Text,
     }
 }
 
@@ -80,16 +79,18 @@ table! {
         recipient_public_address_b58 -> Text,
         minted_account_id_hex -> Nullable<Text>,
         received_account_id_hex -> Nullable<Text>,
+        output_transaction_log_id -> Nullable<Text>,
     }
 }
 
-joinable!(transaction_txo_types -> transaction_logs (transaction_log_id));
+joinable!(transaction_inputs -> transaction_logs (transaction_log_id));
+joinable!(txos -> transaction_logs (output_transaction_log_id));
 
 allow_tables_to_appear_in_same_query!(
     accounts,
     assigned_subaddresses,
     gift_codes,
+    transaction_inputs,
     transaction_logs,
-    transaction_txo_types,
     txos,
 );

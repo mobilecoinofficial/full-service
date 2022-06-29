@@ -3,6 +3,7 @@
 //! DB impl for the Transaction model.
 
 use diesel::prelude::*;
+use mc_account_keys::CHANGE_SUBADDRESS_INDEX;
 use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_mobilecoind::payments::TxProposal;
@@ -12,8 +13,7 @@ use std::fmt;
 use crate::db::{
     account::{AccountID, AccountModel},
     models::{
-        Account, NewTransactionLog, NewTransactionTxoType, TransactionLog, TransactionTxoType, Txo,
-        TXO_USED_AS_CHANGE, TXO_USED_AS_INPUT, TXO_USED_AS_OUTPUT,
+        Account, NewTransactionInput, NewTransactionLog, TransactionInput, TransactionLog, Txo,
     },
     txo::{TxoID, TxoModel},
     Conn, WalletDbError,
@@ -21,6 +21,12 @@ use crate::db::{
 
 #[derive(Debug)]
 pub struct TransactionID(pub String);
+
+impl From<&TxProposal> for TransactionID {
+    fn from(_tx_proposal: &TxProposal) -> Self {
+        Self::from(&_tx_proposal.tx)
+    }
+}
 
 // TransactionID is formed from the contents of the transaction when sent
 impl From<&Tx> for TransactionID {
@@ -84,9 +90,6 @@ pub trait TransactionLogModel {
     /// Returns:
     /// * AssoiatedTxos(inputs, outputs, change)
     fn get_associated_txos(&self, conn: &Conn) -> Result<AssociatedTxos, WalletDbError>;
-
-    /// Select the TransactionLogs associated with a given TxoId.
-    fn select_for_txo(txo_id_hex: &str, conn: &Conn) -> Result<Vec<TransactionLog>, WalletDbError>;
 
     /// List all TransactionLogs and their associated Txos for a given account.
     ///
@@ -199,51 +202,36 @@ impl TransactionLogModel for TransactionLog {
     }
 
     fn get_associated_txos(&self, conn: &Conn) -> Result<AssociatedTxos, WalletDbError> {
-        use crate::db::schema::{transaction_txo_types, txos};
+        use crate::db::schema::{transaction_inputs, txos};
 
-        // FIXME: WS-29 - use group_by rather than the processing below:
-        // https://docs.diesel.rs/diesel/associations/trait.GroupedBy.html
-        let transaction_txos: Vec<(TransactionTxoType, Txo)> = transaction_txo_types::table
-            .inner_join(txos::table.on(transaction_txo_types::txo_id_hex.eq(txos::txo_id_hex)))
-            .filter(transaction_txo_types::transaction_log_id.eq(&self.id))
-            .select((transaction_txo_types::all_columns, txos::all_columns))
+        let outputs: Vec<Txo> = txos::table
+            .filter(txos::output_transaction_log_id.eq(&self.id))
             .load(conn)?;
 
-        let mut inputs: Vec<Txo> = Vec::new();
-        let mut outputs: Vec<Txo> = Vec::new();
-        let mut change: Vec<Txo> = Vec::new();
+        let inputs = txos::table
+            .inner_join(
+                transaction_inputs::table.on(txos::txo_id_hex.eq(transaction_inputs::txo_id_hex)),
+            )
+            .filter(transaction_inputs::transaction_log_id.eq(&self.id))
+            .select(txos::all_columns)
+            .load(conn)?;
 
-        for (transaction_txo_type, txo) in transaction_txos {
-            match transaction_txo_type.transaction_txo_type.as_str() {
-                TXO_USED_AS_INPUT => inputs.push(txo),
-                TXO_USED_AS_OUTPUT => outputs.push(txo),
-                TXO_USED_AS_CHANGE => change.push(txo),
-                _ => {
-                    return Err(WalletDbError::UnexpectedTransactionTxoType(
-                        transaction_txo_type.transaction_txo_type,
-                    ));
-                }
-            }
-        }
+        let payload: Vec<Txo> = outputs
+            .clone()
+            .into_iter()
+            .filter(|txo| txo.subaddress_index != Some(CHANGE_SUBADDRESS_INDEX as i64))
+            .collect();
+
+        let change: Vec<Txo> = outputs
+            .into_iter()
+            .filter(|txo| txo.subaddress_index == Some(CHANGE_SUBADDRESS_INDEX as i64))
+            .collect();
 
         Ok(AssociatedTxos {
             inputs,
-            outputs,
+            outputs: payload,
             change,
         })
-    }
-
-    fn select_for_txo(txo_id_hex: &str, conn: &Conn) -> Result<Vec<TransactionLog>, WalletDbError> {
-        use crate::db::schema::{transaction_logs, transaction_txo_types};
-
-        Ok(transaction_logs::table
-            .inner_join(
-                transaction_txo_types::table
-                    .on(transaction_logs::id.eq(transaction_txo_types::transaction_log_id)),
-            )
-            .filter(transaction_txo_types::txo_id_hex.eq(txo_id_hex))
-            .select(transaction_logs::all_columns)
-            .load(conn)?)
     }
 
     fn list_all(
@@ -254,112 +242,37 @@ impl TransactionLogModel for TransactionLog {
         max_block_index: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletDbError> {
-        use crate::db::schema::{transaction_logs, transaction_txo_types, txos};
+        use crate::db::schema::transaction_logs;
 
-        // // Query for all transaction logs for the account, as well as
-        // associated txos. // This is accomplished via a double-join
-        // through the // transaction_txo_types table.
-        // TODO: investigate simplifying the database structure around this.
-        let mut transactions_query = transaction_logs::table
+        let mut query = transaction_logs::table
             .into_boxed()
-            .filter(transaction_logs::account_id_hex.eq(account_id_hex))
-            .inner_join(
-                transaction_txo_types::table
-                    .on(transaction_logs::id.eq(transaction_txo_types::transaction_log_id)),
-            )
-            .inner_join(txos::table.on(transaction_txo_types::txo_id_hex.eq(txos::txo_id_hex)))
-            .select((
-                transaction_logs::all_columns,
-                transaction_txo_types::all_columns,
-                txos::all_columns,
-            ))
-            .order(transaction_logs::id);
+            .filter(transaction_logs::account_id_hex.eq(account_id_hex));
 
         if let (Some(o), Some(l)) = (offset, limit) {
-            transactions_query = transactions_query.offset(o as i64).limit(l as i64);
+            query = query.offset(o as i64).limit(l as i64);
         }
 
         if let Some(min_block_index) = min_block_index {
-            transactions_query = transactions_query
-                .filter(transaction_logs::finalized_block_index.ge(min_block_index as i64));
+            query =
+                query.filter(transaction_logs::finalized_block_index.ge(min_block_index as i64));
         }
 
         if let Some(max_block_index) = max_block_index {
-            transactions_query = transactions_query
-                .filter(transaction_logs::finalized_block_index.le(max_block_index as i64));
+            query =
+                query.filter(transaction_logs::finalized_block_index.le(max_block_index as i64));
         }
 
-        let transactions: Vec<(TransactionLog, TransactionTxoType, Txo)> =
-            transactions_query.load(conn)?;
+        let transaction_logs: Vec<TransactionLog> = query.order(transaction_logs::id).load(conn)?;
 
-        #[derive(Clone)]
-        struct TransactionContents {
-            transaction_log: TransactionLog,
-            inputs: Vec<Txo>,
-            outputs: Vec<Txo>,
-            change: Vec<Txo>,
-            value_map: HashMap<TokenId, u64>,
-        }
-        let mut results: HashMap<String, TransactionContents> = HashMap::default();
-        for (transaction, transaction_txo_type, txo) in transactions {
-            if results.get(&transaction.id).is_none() {
-                results.insert(
-                    transaction.id.clone(),
-                    TransactionContents {
-                        transaction_log: transaction.clone(),
-                        inputs: Vec::new(),
-                        outputs: Vec::new(),
-                        change: Vec::new(),
-                        value_map: HashMap::default(),
-                    },
-                );
-            };
-
-            let entry = results.get_mut(&transaction.id).unwrap();
-
-            if entry.transaction_log != transaction {
-                return Err(WalletDbError::TransactionMismatch);
-            }
-
-            match transaction_txo_type.transaction_txo_type.as_str() {
-                TXO_USED_AS_INPUT => entry.inputs.push(txo),
-                TXO_USED_AS_OUTPUT => {
-                    entry.outputs.push(txo.clone());
-                    entry.value_map.insert(
-                        TokenId::from(txo.token_id as u64),
-                        entry
-                            .value_map
-                            .get(&TokenId::from(txo.token_id as u64))
-                            .unwrap_or(&0)
-                            + txo.value as u64,
-                    );
-                }
-                TXO_USED_AS_CHANGE => entry.change.push(txo),
-                _ => {
-                    return Err(WalletDbError::UnexpectedTransactionTxoType(
-                        transaction_txo_type.transaction_txo_type,
-                    ));
-                }
-            }
-        }
-
-        let mut results: Vec<(TransactionLog, AssociatedTxos, ValueMap)> = results
-            .values()
-            .cloned()
-            .map(|t| {
-                (
-                    t.transaction_log,
-                    AssociatedTxos {
-                        inputs: t.inputs,
-                        outputs: t.outputs,
-                        change: t.change,
-                    },
-                    ValueMap(t.value_map),
-                )
+        let results = transaction_logs
+            .into_iter()
+            .map(|log| {
+                let associated_txos = log.get_associated_txos(conn)?;
+                let value_map = log.value_map(conn)?;
+                Ok((log, associated_txos, value_map))
             })
-            .collect();
+            .collect::<Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletDbError>>()?;
 
-        results.sort_by_key(|r| r.0.id.clone());
         Ok(results)
     }
 
@@ -374,33 +287,13 @@ impl TransactionLogModel for TransactionLog {
         Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
         // Store the txo_id_hex -> transaction_txo_type
-        let mut txo_ids: Vec<(String, String)> = Vec::new();
+        // let mut txo_ids: Vec<(String, String)> = Vec::new();
 
-        // Verify that the TxProposal is well-formed according to our assumptions about
-        // how to store the sent data in our wallet (num_output_TXOs = num_outlays +
-        // change_TXO).
+        // Verify that the TxProposal is well-formed according to our
+        // assumptions about how to store the sent data in our wallet
+        // (num_output_TXOs = num_outlays + change_TXO).
         if tx_proposal.tx.prefix.outputs.len() - tx_proposal.outlays.len() > 1 {
             return Err(WalletDbError::UnexpectedNumberOfChangeOutputs);
-        }
-
-        // First update all inputs to "pending." They will remain pending until their
-        // key_image hits the ledger or their tombstone block is exceeded.
-        for utxo in tx_proposal.utxos.iter() {
-            let txo_id = TxoID::from(&utxo.tx_out);
-            let txo = Txo::get(&txo_id.to_string(), conn)?;
-            txo.update_to_pending(tx_proposal.tx.prefix.tombstone_block, conn)?;
-            Txo::update_key_image(&txo_id.to_string(), &utxo.key_image, None, conn)?;
-            txo_ids.push((txo_id.to_string(), TXO_USED_AS_INPUT.to_string()));
-        }
-
-        // Next, add all of our minted outputs to the Txo Table
-        for (i, output) in tx_proposal.tx.prefix.outputs.iter().enumerate() {
-            let processed_output =
-                Txo::create_minted(account_id_hex, output, &tx_proposal, i, conn)?;
-            txo_ids.push((
-                processed_output.txo_id_hex,
-                processed_output.txo_type.to_string(),
-            ));
         }
 
         let transaction_log_id = TransactionID::from(&tx_proposal.tx);
@@ -423,41 +316,60 @@ impl TransactionLogModel for TransactionLog {
             .values(&new_transaction_log)
             .execute(conn)?;
 
-        // Create an entry per TXO for the TransactionTxoTypes
-        for (txo_id_hex, transaction_txo_type) in txo_ids {
-            let new_transaction_txo = NewTransactionTxoType {
+        // // Update all inputs to "pending." They will remain pending until
+        // their // key_image hits the ledger or their tombstone block
+        // is exceeded. // Also add each as a new TransactionInput.
+
+        for utxo in tx_proposal.utxos.iter() {
+            let txo_id = TxoID::from(&utxo.tx_out);
+            let txo = Txo::get(&txo_id.to_string(), conn)?;
+            txo.update_to_pending(tx_proposal.tx.prefix.tombstone_block, conn)?;
+            Txo::update_key_image(&txo_id.to_string(), &utxo.key_image, None, conn)?;
+            let transaction_input = NewTransactionInput {
                 transaction_log_id: &transaction_log_id.to_string(),
-                txo_id_hex: &txo_id_hex,
-                transaction_txo_type: &transaction_txo_type,
+                txo_id_hex: &txo_id.to_string(),
             };
-            diesel::insert_into(crate::db::schema::transaction_txo_types::table)
-                .values(&new_transaction_txo)
+
+            diesel::insert_into(crate::db::schema::transaction_inputs::table)
+                .values(&transaction_input)
                 .execute(conn)?;
+        }
+
+        // Next, add all of our minted outputs to the Txo Table
+        for (i, output) in tx_proposal.tx.prefix.outputs.iter().enumerate() {
+            Txo::create_minted(account_id_hex, output, &tx_proposal, i, conn)?;
         }
 
         TransactionLog::get(&transaction_log_id, conn)
     }
 
     fn delete_all_for_account(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError> {
-        use crate::db::schema::{
-            transaction_logs as cols, transaction_logs::dsl::transaction_logs,
-            transaction_txo_types as types_cols, transaction_txo_types::dsl::transaction_txo_types,
-        };
+        use crate::db::schema::{transaction_inputs, transaction_logs, txos};
 
-        let results: Vec<String> = transaction_logs
-            .filter(cols::account_id_hex.eq(account_id_hex))
-            .select(cols::id)
+        let transaction_inputs: Vec<TransactionInput> = transaction_inputs::table
+            .inner_join(transaction_logs::table)
+            .filter(transaction_logs::account_id_hex.eq(account_id_hex))
+            .select(transaction_inputs::all_columns)
             .load(conn)?;
 
-        for transaction_log_id in results.iter() {
-            diesel::delete(
-                transaction_txo_types.filter(types_cols::transaction_log_id.eq(transaction_log_id)),
-            )
-            .execute(conn)?;
+        for transaction_input in transaction_inputs.iter() {
+            diesel::delete(transaction_input).execute(conn)?;
         }
 
-        diesel::delete(transaction_logs.filter(cols::account_id_hex.eq(account_id_hex)))
+        let txo_ids: Vec<String> = txos::table
+            .inner_join(transaction_logs::table)
+            .filter(transaction_logs::account_id_hex.eq(account_id_hex))
+            .select(txos::txo_id_hex)
+            .load(conn)?;
+
+        diesel::update(txos::table.filter(txos::txo_id_hex.eq_any(txo_ids)))
+            .set(txos::output_transaction_log_id.eq::<Option<String>>(None))
             .execute(conn)?;
+
+        diesel::delete(
+            transaction_logs::table.filter(transaction_logs::account_id_hex.eq(account_id_hex)),
+        )
+        .execute(conn)?;
 
         Ok(())
     }
@@ -467,16 +379,14 @@ impl TransactionLogModel for TransactionLog {
         finalized_block_index: u64,
         conn: &Conn,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::{transaction_logs, transaction_txo_types};
-
-        // Find all transaction logs associated with this txo that have not yet been
-        // finalized.
+        use crate::db::schema::{transaction_inputs, transaction_logs};
+        // Find all transaction logs associated with this txo that have not
+        // yet been // finalized (there should only ever be one).
+        // TODO - WHY WON'T THIS WORK?!?!?
         let transaction_log_ids: Vec<String> = transaction_logs::table
-            .inner_join(
-                transaction_txo_types::table
-                    .on(transaction_logs::id.eq(transaction_txo_types::transaction_log_id)),
-            )
-            .filter(transaction_txo_types::txo_id_hex.eq(txo_id_hex))
+            .inner_join(transaction_inputs::table)
+            // .inner_join(txos::table.on(transaction_logs::id.eq(txos::output_transaction_log_id)))
+            .filter(transaction_inputs::txo_id_hex.eq(txo_id_hex))
             .filter(transaction_logs::failed.eq(false))
             .filter(transaction_logs::finalized_block_index.is_null())
             .select(transaction_logs::id)
@@ -495,19 +405,18 @@ impl TransactionLogModel for TransactionLog {
         txos: &[Txo],
         conn: &Conn,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::{transaction_logs, transaction_txo_types};
+        use crate::db::schema::{transaction_inputs, transaction_logs};
 
         let txo_ids: Vec<String> = txos.iter().map(|txo| txo.txo_id_hex.clone()).collect();
 
-        // Find all transaction_logs that are BUILT or PENDING that are associated
-        // with the txo id when it is used as an input.
+        // Find all transaction_logs that are BUILT or PENDING that are
+        // associated with the txo id when it is used as an input.
         // Update the status to FAILED
+        // TODO - WHY WON'T THIS WORK?!?!?
         let transaction_log_ids: Vec<String> = transaction_logs::table
-            .inner_join(
-                transaction_txo_types::table
-                    .on(transaction_logs::id.eq(transaction_txo_types::transaction_log_id)),
-            )
-            .filter(transaction_txo_types::txo_id_hex.eq_any(txo_ids))
+            .inner_join(transaction_inputs::table)
+            // .inner_join(txos::table.on(transaction_logs::id.eq(txos::output_transaction_log_id)))
+            .filter(transaction_inputs::txo_id_hex.eq_any(txo_ids))
             .filter(transaction_logs::failed.eq(false))
             .filter(transaction_logs::finalized_block_index.is_null())
             .select(transaction_logs::id)
@@ -690,7 +599,10 @@ mod tests {
         // change becomes unspent once scanned
         assert!(change_details.is_minted());
         assert!(!change_details.is_received());
-        assert!(change_details.subaddress_index.is_none()); // this gets filled once scanned
+        assert_eq!(
+            change_details.subaddress_index,
+            Some(CHANGE_SUBADDRESS_INDEX as i64)
+        );
 
         // Now - we will add the change TXO to the ledger, so we can scan and verify
         add_block_with_tx_outs(
@@ -1060,7 +972,10 @@ mod tests {
         assert_eq!(change_details.value as u64, 3 * MOB - Mob::MINIMUM_FEE);
         assert!(change_details.is_minted());
         assert!(!change_details.is_received());
-        assert!(change_details.subaddress_index.is_none());
+        assert_eq!(
+            change_details.subaddress_index,
+            Some(CHANGE_SUBADDRESS_INDEX as i64)
+        );
 
         // Now - we will add the spent Txos, outputs, and change to the ledger, so we
         // can scan and verify

@@ -26,6 +26,7 @@ use crate::{
             TXO_STATUS_SECRETED, TXO_STATUS_SPENT, TXO_STATUS_UNSPENT, TXO_USED_AS_CHANGE,
             TXO_USED_AS_OUTPUT,
         },
+        transaction_log::TransactionID,
         Conn, WalletDbError,
     },
     util::b58::b58_encode_public_address,
@@ -357,6 +358,7 @@ impl TxoModel for Txo {
                     recipient_public_address_b58: "".to_string(),
                     minted_account_id_hex: None,
                     received_account_id_hex: Some(account_id_hex.to_string()),
+                    output_transaction_log_id: None,
                 };
 
                 diesel::insert_into(crate::db::schema::txos::table)
@@ -380,6 +382,8 @@ impl TxoModel for Txo {
         use crate::db::schema::txos;
 
         let txo_id = TxoID::from(output);
+
+        let transaction_id: TransactionID = tx_proposal.into();
 
         let total_input_value: u64 = tx_proposal.utxos.iter().map(|u| u.value).sum();
         let total_output_value: u64 = tx_proposal.outlays.iter().map(|o| o.value).sum();
@@ -407,17 +411,23 @@ impl TxoModel for Txo {
 
         // Update receiver, transaction_value, and transaction_txo_type, if outlay was
         // found.
-        let (transaction_txo_type, log_value, recipient_public_address_b58) =
+        let (transaction_txo_type, log_value, recipient_public_address_b58, subaddress_index) =
             if let Some(r) = outlay_receiver.clone() {
                 (
                     TXO_USED_AS_OUTPUT,
                     total_output_value,
                     b58_encode_public_address(&r)?,
+                    None,
                 )
             } else {
                 // If not in an outlay, this output is change, according to how we build
                 // transactions.
-                (TXO_USED_AS_CHANGE, change_value, "".to_string())
+                (
+                    TXO_USED_AS_CHANGE,
+                    change_value,
+                    "".to_string(),
+                    Some(CHANGE_SUBADDRESS_INDEX as i64),
+                )
             };
 
         let encoded_confirmation = confirmation
@@ -433,9 +443,7 @@ impl TxoModel for Txo {
             public_key: &mc_util_serial::encode(&output.public_key),
             e_fog_hint: &mc_util_serial::encode(&output.e_fog_hint),
             txo: &mc_util_serial::encode(output),
-            subaddress_index: None,
-            /* Minted set subaddress_index to None. If later
-             * received, updates. */
+            subaddress_index,
             key_image: None, // Only the recipient can calculate the KeyImage
             received_block_index: None,
             pending_tombstone_block_index: Some(tx_proposal.tx.prefix.tombstone_block as i64),
@@ -444,6 +452,7 @@ impl TxoModel for Txo {
             recipient_public_address_b58,
             minted_account_id_hex: Some(account_id_hex.to_string()),
             received_account_id_hex: None,
+            output_transaction_log_id: Some(transaction_id.to_string()),
         };
 
         diesel::insert_into(txos::table)
@@ -1290,6 +1299,7 @@ mod tests {
             recipient_public_address_b58: "".to_string(),
             minted_account_id_hex: None,
             received_account_id_hex: Some(alice_account_id.to_string()),
+            output_transaction_log_id: None,
         };
 
         assert_eq!(expected_txo, txos[0]);
@@ -1310,22 +1320,29 @@ mod tests {
         // have not yet assigned. At the DB layer, we accomplish this by
         // constructing the output txos, then logging sent and received for this
         // account.
-        let ((output_txo_id, output_value), (change_txo_id, change_value)) =
-            create_test_minted_and_change_txos(
-                alice_account_key.clone(),
-                alice_account_key.subaddress(4),
-                33 * MOB,
-                wallet_db.clone(),
-                ledger_db.clone(),
-                logger.clone(),
-            );
-        assert_eq!(output_value, 33 * MOB);
-        assert_eq!(change_value, 967 * MOB - Mob::MINIMUM_FEE);
+        let transaction_log = create_test_minted_and_change_txos(
+            alice_account_key.clone(),
+            alice_account_key.subaddress(4),
+            33 * MOB,
+            wallet_db.clone(),
+            ledger_db.clone(),
+            logger.clone(),
+        );
+
+        let associated_txos = transaction_log
+            .get_associated_txos(&wallet_db.get_conn().unwrap())
+            .unwrap();
+
+        let minted_txo = associated_txos.outputs.first().unwrap();
+        let change_txo = associated_txos.change.first().unwrap();
+
+        assert_eq!(minted_txo.value as u64, 33 * MOB);
+        assert_eq!(change_txo.value as u64, 967 * MOB - Mob::MINIMUM_FEE);
 
         add_block_with_db_txos(
             &mut ledger_db,
             &wallet_db,
-            &[output_txo_id, change_txo_id],
+            &[minted_txo.txo_id_hex.clone(), change_txo.txo_id_hex.clone()],
             &[KeyImage::from(for_alice_key_image)],
         );
         assert_eq!(ledger_db.num_blocks().unwrap(), 14);
@@ -1510,23 +1527,30 @@ mod tests {
         )
         .unwrap();
 
-        let ((output_txo_id, output_value), (change_txo_id, change_value)) =
-            create_test_minted_and_change_txos(
-                alice_account_key.clone(),
-                bob_account_key.subaddress(0),
-                72 * MOB,
-                wallet_db.clone(),
-                ledger_db.clone(),
-                logger.clone(),
-            );
-        assert_eq!(output_value, 72 * MOB);
-        assert_eq!(change_value, 928 * MOB - (2 * Mob::MINIMUM_FEE));
+        let transaction_log = create_test_minted_and_change_txos(
+            alice_account_key.clone(),
+            bob_account_key.subaddress(0),
+            72 * MOB,
+            wallet_db.clone(),
+            ledger_db.clone(),
+            logger.clone(),
+        );
+
+        let associated_txos = transaction_log
+            .get_associated_txos(&wallet_db.get_conn().unwrap())
+            .unwrap();
+
+        let minted_txo = associated_txos.outputs.first().unwrap();
+        let change_txo = associated_txos.change.first().unwrap();
+
+        assert_eq!(minted_txo.value as u64, 72 * MOB);
+        assert_eq!(change_txo.value as u64, 928 * MOB - (2 * Mob::MINIMUM_FEE));
 
         // Add the minted Txos to the ledger
         add_block_with_db_txos(
             &mut ledger_db,
             &wallet_db,
-            &[output_txo_id, change_txo_id],
+            &[minted_txo.txo_id_hex.clone(), change_txo.txo_id_hex.clone()],
             &[KeyImage::from(for_bob_key_image)],
         );
 
@@ -1823,29 +1847,63 @@ mod tests {
         let recipient =
             AccountKey::from(&RootIdentity::from_random(&mut rng)).subaddress(rng.next_u64());
 
-        let ((output_txo_id, output_value), (change_txo_id, change_value)) =
-            create_test_minted_and_change_txos(
-                src_account.clone(),
-                recipient,
-                1 * MOB,
-                wallet_db.clone(),
-                ledger_db,
-                logger,
-            );
+        let txos = Txo::list_for_account(
+            &AccountID::from(&src_account).to_string(),
+            None,
+            None,
+            None,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
 
-        assert_eq!(output_value, 1 * MOB);
-        let minted_txo = Txo::get(&output_txo_id, &wallet_db.get_conn().unwrap()).unwrap();
-        assert_eq!(minted_txo.value as u64, output_value);
+        assert_eq!(txos.len(), 12);
+
+        let transaction_log = create_test_minted_and_change_txos(
+            src_account.clone(),
+            recipient,
+            1 * MOB,
+            wallet_db.clone(),
+            ledger_db,
+            logger,
+        );
+
+        let txos = Txo::list_for_account(
+            &AccountID::from(&src_account).to_string(),
+            None,
+            None,
+            None,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        let txos_used_as_outputs = txos
+            .iter()
+            .filter(|txo| txo.output_transaction_log_id.is_some())
+            .collect::<Vec<_>>();
+
+        for txo in txos_used_as_outputs.iter() {
+            assert_eq!(
+                txo.output_transaction_log_id,
+                Some(transaction_log.id.clone())
+            );
+        }
+
+        let associated_txos = transaction_log
+            .get_associated_txos(&wallet_db.get_conn().unwrap())
+            .unwrap();
+
+        let minted_txo = associated_txos.outputs.first().unwrap();
+        let change_txo = associated_txos.change.first().unwrap();
+
+        assert_eq!(minted_txo.value as u64, 1 * MOB);
         assert!(minted_txo.minted_account_id_hex.is_some());
         assert!(minted_txo.received_account_id_hex.is_none());
 
-        assert_eq!(change_value, 4999 * MOB - Mob::MINIMUM_FEE);
-        let change_txo = Txo::get(&change_txo_id, &wallet_db.get_conn().unwrap()).unwrap();
-        assert_eq!(change_txo.value as u64, change_value);
+        assert_eq!(change_txo.value as u64, 4999 * MOB - Mob::MINIMUM_FEE);
         assert!(change_txo.minted_account_id_hex.is_some());
-        assert!(change_txo.received_account_id_hex.is_none()); // Note: This
-                                                               // gets updated
-                                                               // on sync
+        assert!(change_txo.received_account_id_hex.is_none());
     }
 
     // Test that the confirmation number validates correctly.

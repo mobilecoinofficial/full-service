@@ -3,7 +3,7 @@
 //! DB Models
 
 use super::schema::{
-    accounts, assigned_subaddresses, gift_codes, transaction_logs, transaction_txo_types, txos,
+    accounts, assigned_subaddresses, gift_codes, transaction_inputs, transaction_logs, txos,
 };
 
 use serde::Serialize;
@@ -156,6 +156,7 @@ pub struct Txo {
     pub recipient_public_address_b58: String,
     pub minted_account_id_hex: Option<String>,
     pub received_account_id_hex: Option<String>,
+    pub output_transaction_log_id: Option<String>,
 }
 
 /// A structure that can be inserted to create a new entity in the `txos` table.
@@ -178,6 +179,7 @@ pub struct NewTxo<'a> {
     pub recipient_public_address_b58: String,
     pub minted_account_id_hex: Option<String>,
     pub received_account_id_hex: Option<String>,
+    pub output_transaction_log_id: Option<String>,
 }
 
 /// A subaddress given to a particular contact, for the purpose of tracking
@@ -247,21 +249,18 @@ pub struct NewTransactionLog<'a> {
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
 #[belongs_to(TransactionLog, foreign_key = "transaction_log_id")]
 #[belongs_to(Txo, foreign_key = "txo_id_hex")]
-#[table_name = "transaction_txo_types"]
+#[table_name = "transaction_inputs"]
 #[primary_key(transaction_log_id, txo_id_hex)]
-pub struct TransactionTxoType {
+pub struct TransactionInput {
     pub transaction_log_id: String,
     pub txo_id_hex: String,
-    // Statuses: input, output, change
-    pub transaction_txo_type: String,
 }
 
 #[derive(Insertable)]
-#[table_name = "transaction_txo_types"]
-pub struct NewTransactionTxoType<'a> {
+#[table_name = "transaction_inputs"]
+pub struct NewTransactionInput<'a> {
     pub transaction_log_id: &'a str,
     pub txo_id_hex: &'a str,
-    pub transaction_txo_type: &'a str,
 }
 
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
