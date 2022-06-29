@@ -210,7 +210,7 @@ mod e2e_transaction {
         let transaction_id = result
             .get("transaction_log")
             .unwrap()
-            .get("transaction_log_id")
+            .get("id")
             .unwrap()
             .as_str()
             .unwrap();
@@ -311,14 +311,11 @@ mod e2e_transaction {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let transaction_log = result.get("transaction_log").unwrap();
-        assert_eq!(
-            transaction_log.get("direction").unwrap().as_str().unwrap(),
-            "tx_direction_sent"
-        );
-        assert_eq!(
-            transaction_log.get("value_pmob").unwrap().as_str().unwrap(),
-            "85000000000000"
-        );
+
+        let value_map = transaction_log.get("value_map").unwrap();
+
+        let pmob_value = value_map.get("0").unwrap();
+        assert_eq!(pmob_value.as_str().unwrap(), "85000000000000");
 
         let mut output_addresses: Vec<String> = transaction_log
             .get("output_txos")
@@ -340,13 +337,17 @@ mod e2e_transaction {
         assert_eq!(output_addresses, target_addresses);
 
         transaction_log.get("account_id").unwrap().as_str().unwrap();
-        assert_eq!(
-            transaction_log.get("fee_pmob").unwrap().as_str().unwrap(),
-            &Mob::MINIMUM_FEE.to_string()
-        );
+        let fee_value = transaction_log.get("fee_value").unwrap().as_str().unwrap();
+        let fee_token_id = transaction_log
+            .get("fee_token_id")
+            .unwrap()
+            .as_str()
+            .unwrap();
+        assert_eq!(fee_value, &Mob::MINIMUM_FEE.to_string());
+        assert_eq!(fee_token_id, &Mob::ID.to_string());
         assert_eq!(
             transaction_log.get("status").unwrap().as_str().unwrap(),
-            "tx_status_succeeded"
+            "succeeded"
         );
         assert_eq!(
             transaction_log
@@ -357,11 +358,7 @@ mod e2e_transaction {
             "13"
         );
         assert_eq!(
-            transaction_log
-                .get("transaction_log_id")
-                .unwrap()
-                .as_str()
-                .unwrap(),
+            transaction_log.get("id").unwrap().as_str().unwrap(),
             transaction_id
         );
     }

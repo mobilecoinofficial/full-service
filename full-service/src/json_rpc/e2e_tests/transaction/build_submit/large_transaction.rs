@@ -8,9 +8,7 @@ mod e2e_transaction {
         db::account::AccountID,
         json_rpc,
         json_rpc::api_test_utils::{dispatch, setup},
-        test_utils::{
-            add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account,
-        },
+        test_utils::{add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account},
         util::b58::b58_decode_public_address,
     };
 
@@ -77,21 +75,17 @@ mod e2e_transaction {
 
         // Check that the value was recorded correctly.
         let transaction_log = result.get("transaction_log").unwrap();
-        assert_eq!(
-            transaction_log.get("direction").unwrap().as_str().unwrap(),
-            "tx_direction_sent"
-        );
-        assert_eq!(
-            transaction_log.get("value_pmob").unwrap().as_str().unwrap(),
-            "10000000000000000000",
-        );
+        let value_map = transaction_log.get("value_map").unwrap();
+        let value_pmob = value_map.get("0").unwrap();
+        assert_eq!(value_pmob.as_str().unwrap(), "10000000000000000000");
+
         assert_eq!(
             transaction_log
                 .get("input_txos")
                 .unwrap()
                 .get(0)
                 .unwrap()
-                .get("value_pmob")
+                .get("value")
                 .unwrap()
                 .as_str()
                 .unwrap(),
@@ -103,7 +97,7 @@ mod e2e_transaction {
                 .unwrap()
                 .get(0)
                 .unwrap()
-                .get("value_pmob")
+                .get("value")
                 .unwrap()
                 .as_str()
                 .unwrap(),
@@ -115,7 +109,7 @@ mod e2e_transaction {
                 .unwrap()
                 .get(0)
                 .unwrap()
-                .get("value_pmob")
+                .get("value")
                 .unwrap()
                 .as_str()
                 .unwrap(),
