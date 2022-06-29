@@ -524,8 +524,9 @@ class FullService:
             connection = http.client.HTTPConnection(parsed_url.netloc)
             connection.request('POST', parsed_url.path, json.dumps(request_data), {'Content-Type': 'application/json'})
             r = connection.getresponse()
-        except ConnectionError:
-            raise ConnectionError(f'Could not connect to wallet server at {url}.')
+        except ConnectionError as e:
+            print(e)
+            print(f'Could not connect to wallet server at {url}.')
 
         raw_response = None
         try:
