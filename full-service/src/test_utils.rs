@@ -314,8 +314,8 @@ pub fn setup_peer_manager_and_network_state(
         (
             vec![peer1.clone(), peer2.clone()],
             vec![
-                peer1.uri().responder_id().unwrap(),
-                peer2.uri().responder_id().unwrap(),
+                peer1.uri().host_and_port_responder_id().unwrap(),
+                peer2.uri().host_and_port_responder_id().unwrap(),
             ],
         )
     };

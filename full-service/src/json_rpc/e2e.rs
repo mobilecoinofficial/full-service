@@ -582,10 +582,6 @@ mod e2e {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
-        use mc_ledger_sync::NetworkState;
-        let network_state = _network_state.read().expect("lock poisoned");
-        assert_eq!(network_state.highest_block_index_on_network(), Some(12));
-
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
