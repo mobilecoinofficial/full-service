@@ -5,13 +5,14 @@
 mod error;
 
 use grpcio::{ChannelBuilder, EnvBuilder};
+use mc_blockchain_types::{Block, BlockData, BlockID, BlockIndex};
 use mc_common::logger::{log, Logger};
 use mc_connection::{
     BlockInfo, BlockchainConnection, Connection, Error as ConnectionError,
     Result as ConnectionResult, UserTxConnection,
 };
 use mc_fog_report_validation::FogReportResponses;
-use mc_transaction_core::{tx::Tx, Block, BlockData, BlockID, BlockIndex};
+use mc_transaction_core::tx::Tx;
 use mc_util_grpc::ConnectionUriGrpcioChannel;
 use mc_util_uri::{ConnectionUri, FogUri};
 use mc_validator_api::{

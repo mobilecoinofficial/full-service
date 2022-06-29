@@ -19,6 +19,7 @@ use diesel::{
 use diesel_migrations::embed_migrations;
 use mc_account_keys::{AccountKey, PublicAddress, RootIdentity};
 use mc_attest_verifier::Verifier;
+use mc_blockchain_types::{Block, BlockContents, BlockVersion};
 use mc_common::logger::{log, Logger};
 use mc_connection::{Connection, ConnectionManager, HardcodedCredentialsProvider, ThickClient};
 use mc_connection_test_utils::{test_client_uri, MockBlockchainConnection};
@@ -35,7 +36,7 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tokens::Mob,
     tx::{Tx, TxOut},
-    Amount, Block, BlockContents, Token, MAX_BLOCK_VERSION,
+    Amount, Token,
 };
 use mc_util_from_random::FromRandom;
 use mc_util_uri::{ConnectionUri, FogUri};
@@ -175,7 +176,7 @@ fn append_test_block(ledger_db: &mut LedgerDB, block_contents: BlockContents) ->
             .get_block(num_blocks - 1)
             .expect("failed to get parent block");
         new_block = Block::new_with_parent(
-            MAX_BLOCK_VERSION,
+            BlockVersion::MAX,
             &parent,
             &Default::default(),
             &block_contents,
@@ -212,6 +213,7 @@ pub fn add_block_to_ledger_db(
         .map(|recipient| {
             TxOut::new(
                 // TODO: allow for subaddress index!
+                BlockVersion::MAX,
                 Amount::new(output_value, Mob::ID),
                 recipient,
                 &RistrettoPrivate::from_random(rng),
@@ -443,7 +445,7 @@ pub fn create_test_txo_for_recipient(
     let recipient = recipient_account_key.subaddress(recipient_subaddress_index);
     let tx_private_key = RistrettoPrivate::from_random(rng);
     let hint = EncryptedFogHint::fake_onetime_hint(rng);
-    let tx_out = TxOut::new(amount, &recipient, &tx_private_key, hint).unwrap();
+    let tx_out = TxOut::new(BlockVersion::MAX, amount, &recipient, &tx_private_key, hint).unwrap();
 
     // Calculate KeyImage - note you cannot use KeyImage::from(tx_private_key)
     // because the calculation must be done with CryptoNote math (see
