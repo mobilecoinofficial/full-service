@@ -5,22 +5,17 @@
 #[cfg(test)]
 mod e2e_transaction {
     use crate::{
-        db::{
-            account::AccountID,
-            models::{TXO_STATUS_UNSPENT, TXO_TYPE_RECEIVED},
-        },
+        db::{account::AccountID, models::TXO_STATUS_UNSPENT},
         json_rpc,
         json_rpc::api_test_utils::{dispatch, setup},
-        test_utils::{
-            add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account,
-        },
+        test_utils::{add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account},
         util::b58::b58_decode_public_address,
     };
 
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
-    
-    use mc_transaction_core::{ring_signature::KeyImage};
+
+    use mc_transaction_core::ring_signature::KeyImage;
     use rand::{rngs::StdRng, SeedableRng};
 
     use std::convert::TryFrom;
@@ -592,7 +587,7 @@ mod e2e_transaction {
             .unwrap()
             .as_str()
             .unwrap();
-        assert_eq!(txo_type, TXO_TYPE_RECEIVED);
+        assert_eq!(txo_type, "txo_type_received");
         let value = txo.get("value_pmob").unwrap().as_str().unwrap();
         assert_eq!(value, "100");
 
@@ -681,7 +676,7 @@ mod e2e_transaction {
             .unwrap()
             .as_str()
             .unwrap();
-        assert_eq!(txo_type, TXO_TYPE_RECEIVED);
+        assert_eq!(txo_type, "txo_type_received");
         let value = txo.get("value_pmob").unwrap().as_str().unwrap();
         assert_eq!(value, "250000000000");
         let txo_id = &txos[0];

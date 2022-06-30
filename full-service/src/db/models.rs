@@ -30,40 +30,6 @@ pub const TXO_STATUS_SECRETED: &str = "txo_status_secreted";
 /// subaddress is unknown).
 pub const TXO_STATUS_ORPHANED: &str = "txo_status_orphaned";
 
-/// A Txo that has been created locally, but is not yet in the ledger.
-pub const TXO_TYPE_MINTED: &str = "txo_type_minted";
-
-/// A Txo in the ledger that belongs to an account in this wallet.
-pub const TXO_TYPE_RECEIVED: &str = "txo_type_received";
-
-// /// A transaction that has been built locally.
-// pub const TX_STATUS_BUILT: &str = "tx_status_built";
-
-// /// A transaction that has been submitted to the MobileCoin network.
-// pub const TX_STATUS_PENDING: &str = "tx_status_pending";
-
-// /// A transaction that appears to have been processed by the MobileCoin
-// network. pub const TX_STATUS_SUCCEEDED: &str = "tx_status_succeeded";
-
-// /// A transaction that was rejected by the MobileCoin network, or that
-// expired /// before it could be processed.
-// pub const TX_STATUS_FAILED: &str = "tx_status_failed";
-
-/// A transaction created by an account in this wallet.
-pub const TX_DIRECTION_SENT: &str = "tx_direction_sent";
-
-/// A TxOut received by an account in this wallet.
-pub const TX_DIRECTION_RECEIVED: &str = "tx_direction_received";
-
-/// A transaction output that is used as an input to a new transaction.
-pub const TXO_USED_AS_INPUT: &str = "txo_used_as_input";
-
-/// A transaction output that is used as an output of a new transaction.
-pub const TXO_USED_AS_OUTPUT: &str = "txo_used_as_output";
-
-/// A transaction output used as a change output of a new transaction.
-pub const TXO_USED_AS_CHANGE: &str = "txo_used_as_change";
-
 /// An Account entity.
 ///
 /// Contains the account private keys, subaddress configuration, and ...

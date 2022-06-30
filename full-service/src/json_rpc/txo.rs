@@ -7,7 +7,7 @@ use crate::{
     db::{
         models::{
             TXO_STATUS_ORPHANED, TXO_STATUS_PENDING, TXO_STATUS_SECRETED, TXO_STATUS_SPENT,
-            TXO_STATUS_UNSPENT, TXO_TYPE_MINTED, TXO_TYPE_RECEIVED,
+            TXO_STATUS_UNSPENT,
         },
         txo::TxoModel,
     },
@@ -119,7 +119,7 @@ impl From<&db::models::Txo> for Txo {
 
             account_status_map.insert(
                 received_account_id_hex.to_string(),
-                json!({"txo_type": TXO_TYPE_RECEIVED, "txo_status": txo_status}).into(),
+                json!({"txo_type": "txo_type_received", "txo_status": txo_status}).into(),
             );
         }
 
@@ -138,7 +138,7 @@ impl From<&db::models::Txo> for Txo {
 
             account_status_map.insert(
                 minted_account_id_hex.to_string(),
-                json!({"txo_type": TXO_TYPE_MINTED, "txo_status": txo_status}).into(),
+                json!({"txo_type": "txo_type_minted", "txo_status": txo_status}).into(),
             );
         }
 

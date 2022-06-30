@@ -23,8 +23,7 @@ use crate::{
         assigned_subaddress::AssignedSubaddressModel,
         models::{
             Account, AssignedSubaddress, NewTxo, Txo, TXO_STATUS_ORPHANED, TXO_STATUS_PENDING,
-            TXO_STATUS_SECRETED, TXO_STATUS_SPENT, TXO_STATUS_UNSPENT, TXO_USED_AS_CHANGE,
-            TXO_USED_AS_OUTPUT,
+            TXO_STATUS_SECRETED, TXO_STATUS_SPENT, TXO_STATUS_UNSPENT,
         },
         transaction_log::TransactionID,
         Conn, WalletDbError,
@@ -55,7 +54,6 @@ pub struct ProcessedTxProposalOutput {
     pub recipient: Option<PublicAddress>,
     pub txo_id_hex: String,
     pub value: i64,
-    pub txo_type: String,
 }
 
 pub struct SpendableTxosResult {
@@ -411,19 +409,13 @@ impl TxoModel for Txo {
 
         // Update receiver, transaction_value, and transaction_txo_type, if outlay was
         // found.
-        let (transaction_txo_type, log_value, recipient_public_address_b58, subaddress_index) =
+        let (log_value, recipient_public_address_b58, subaddress_index) =
             if let Some(r) = outlay_receiver.clone() {
-                (
-                    TXO_USED_AS_OUTPUT,
-                    total_output_value,
-                    b58_encode_public_address(&r)?,
-                    None,
-                )
+                (total_output_value, b58_encode_public_address(&r)?, None)
             } else {
                 // If not in an outlay, this output is change, according to how we build
                 // transactions.
                 (
-                    TXO_USED_AS_CHANGE,
                     change_value,
                     "".to_string(),
                     Some(CHANGE_SUBADDRESS_INDEX as i64),
@@ -463,7 +455,6 @@ impl TxoModel for Txo {
             recipient: outlay_receiver,
             txo_id_hex: txo_id.to_string(),
             value: log_value as i64,
-            txo_type: transaction_txo_type.to_string(),
         })
     }
 

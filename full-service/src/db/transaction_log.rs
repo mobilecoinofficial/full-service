@@ -42,16 +42,6 @@ impl fmt::Display for TransactionID {
     }
 }
 
-#[derive(Debug)]
-pub struct ValueMap(pub HashMap<TokenId, u64>);
-
-#[derive(Debug)]
-pub struct AssociatedTxos {
-    pub inputs: Vec<Txo>,
-    pub outputs: Vec<Txo>,
-    pub change: Vec<Txo>,
-}
-
 #[derive(Debug, PartialEq)]
 pub enum TxStatus {
     Built,
@@ -69,6 +59,16 @@ impl fmt::Display for TxStatus {
             TxStatus::Failed => write!(f, "failed"),
         }
     }
+}
+
+#[derive(Debug)]
+pub struct ValueMap(pub HashMap<TokenId, u64>);
+
+#[derive(Debug)]
+pub struct AssociatedTxos {
+    pub inputs: Vec<Txo>,
+    pub outputs: Vec<Txo>,
+    pub change: Vec<Txo>,
 }
 
 pub trait TransactionLogModel {
