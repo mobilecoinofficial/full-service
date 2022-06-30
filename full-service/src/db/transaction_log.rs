@@ -12,9 +12,7 @@ use std::fmt;
 
 use crate::db::{
     account::{AccountID, AccountModel},
-    models::{
-        Account, NewTransactionInput, NewTransactionLog, TransactionInput, TransactionLog, Txo,
-    },
+    models::{Account, NewTransactionLog, NewTransactionTxo, TransactionLog, TransactionTxo, Txo},
     txo::{TxoID, TxoModel},
     Conn, WalletDbError,
 };
@@ -57,6 +55,23 @@ impl fmt::Display for TxStatus {
             TxStatus::Pending => write!(f, "pending"),
             TxStatus::Succeeded => write!(f, "succeeded"),
             TxStatus::Failed => write!(f, "failed"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum TxoType {
+    Input,
+    Payload,
+    Change,
+}
+
+impl fmt::Display for TxoType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TxoType::Input => write!(f, "input"),
+            TxoType::Payload => write!(f, "payload"),
+            TxoType::Change => write!(f, "change"),
         }
     }
 }
@@ -125,14 +140,14 @@ pub trait TransactionLogModel {
     /// Remove all logs for an account
     fn delete_all_for_account(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError>;
 
-    fn update_tx_logs_associated_with_txo_to_succeeded(
+    fn update_pending_associated_with_txo_to_succeeded(
         txo_id_hex: &str,
         finalized_block_index: u64,
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
-    fn update_tx_logs_associated_with_txos_to_failed(
-        txos: &[Txo],
+    fn update_pending_exceeding_tombstone_block_index_to_failed(
+        block_index: u64,
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
@@ -202,30 +217,28 @@ impl TransactionLogModel for TransactionLog {
     }
 
     fn get_associated_txos(&self, conn: &Conn) -> Result<AssociatedTxos, WalletDbError> {
-        use crate::db::schema::{transaction_inputs, txos};
+        use crate::db::schema::{transaction_txos, txos};
 
-        let outputs: Vec<Txo> = txos::table
-            .filter(txos::output_transaction_log_id.eq(&self.id))
-            .load(conn)?;
-
-        let inputs = txos::table
-            .inner_join(
-                transaction_inputs::table.on(txos::txo_id_hex.eq(transaction_inputs::txo_id_hex)),
-            )
-            .filter(transaction_inputs::transaction_log_id.eq(&self.id))
+        let inputs: Vec<Txo> = txos::table
+            .inner_join(transaction_txos::table)
+            .filter(transaction_txos::transaction_log_id.eq(&self.id))
+            .filter(transaction_txos::used_as.eq(&TxoType::Input.to_string()))
             .select(txos::all_columns)
             .load(conn)?;
 
-        let payload: Vec<Txo> = outputs
-            .clone()
-            .into_iter()
-            .filter(|txo| txo.subaddress_index != Some(CHANGE_SUBADDRESS_INDEX as i64))
-            .collect();
+        let payload: Vec<Txo> = txos::table
+            .inner_join(transaction_txos::table)
+            .filter(transaction_txos::transaction_log_id.eq(&self.id))
+            .filter(transaction_txos::used_as.eq(&TxoType::Payload.to_string()))
+            .select(txos::all_columns)
+            .load(conn)?;
 
-        let change: Vec<Txo> = outputs
-            .into_iter()
-            .filter(|txo| txo.subaddress_index == Some(CHANGE_SUBADDRESS_INDEX as i64))
-            .collect();
+        let change: Vec<Txo> = txos::table
+            .inner_join(transaction_txos::table)
+            .filter(transaction_txos::transaction_log_id.eq(&self.id))
+            .filter(transaction_txos::used_as.eq(&TxoType::Change.to_string()))
+            .select(txos::all_columns)
+            .load(conn)?;
 
         Ok(AssociatedTxos {
             inputs,
@@ -322,16 +335,15 @@ impl TransactionLogModel for TransactionLog {
 
         for utxo in tx_proposal.utxos.iter() {
             let txo_id = TxoID::from(&utxo.tx_out);
-            let txo = Txo::get(&txo_id.to_string(), conn)?;
-            txo.update_to_pending(tx_proposal.tx.prefix.tombstone_block, conn)?;
             Txo::update_key_image(&txo_id.to_string(), &utxo.key_image, None, conn)?;
-            let transaction_input = NewTransactionInput {
+            let transaction_txo = NewTransactionTxo {
                 transaction_log_id: &transaction_log_id.to_string(),
-                txo_id_hex: &txo_id.to_string(),
+                txo_id: &txo_id.to_string(),
+                used_as: &TxoType::Input.to_string(),
             };
 
-            diesel::insert_into(crate::db::schema::transaction_inputs::table)
-                .values(&transaction_input)
+            diesel::insert_into(crate::db::schema::transaction_txos::table)
+                .values(&transaction_txo)
                 .execute(conn)?;
         }
 
@@ -344,27 +356,17 @@ impl TransactionLogModel for TransactionLog {
     }
 
     fn delete_all_for_account(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError> {
-        use crate::db::schema::{transaction_inputs, transaction_logs, txos};
+        use crate::db::schema::{transaction_logs, transaction_txos, txos};
 
-        let transaction_inputs: Vec<TransactionInput> = transaction_inputs::table
+        let transaction_txos: Vec<TransactionTxo> = transaction_txos::table
             .inner_join(transaction_logs::table)
             .filter(transaction_logs::account_id_hex.eq(account_id_hex))
-            .select(transaction_inputs::all_columns)
+            .select(transaction_txos::all_columns)
             .load(conn)?;
 
-        for transaction_input in transaction_inputs.iter() {
-            diesel::delete(transaction_input).execute(conn)?;
+        for transaction_txo in transaction_txos {
+            diesel::delete(&transaction_txo).execute(conn)?;
         }
-
-        let txo_ids: Vec<String> = txos::table
-            .inner_join(transaction_logs::table)
-            .filter(transaction_logs::account_id_hex.eq(account_id_hex))
-            .select(txos::txo_id_hex)
-            .load(conn)?;
-
-        diesel::update(txos::table.filter(txos::txo_id_hex.eq_any(txo_ids)))
-            .set(txos::output_transaction_log_id.eq::<Option<String>>(None))
-            .execute(conn)?;
 
         diesel::delete(
             transaction_logs::table.filter(transaction_logs::account_id_hex.eq(account_id_hex)),
@@ -374,19 +376,18 @@ impl TransactionLogModel for TransactionLog {
         Ok(())
     }
 
-    fn update_tx_logs_associated_with_txo_to_succeeded(
+    fn update_pending_associated_with_txo_to_succeeded(
         txo_id_hex: &str,
         finalized_block_index: u64,
         conn: &Conn,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::{transaction_inputs, transaction_logs};
+        use crate::db::schema::{transaction_logs, transaction_txos};
         // Find all transaction logs associated with this txo that have not
         // yet been // finalized (there should only ever be one).
         // TODO - WHY WON'T THIS WORK?!?!?
         let transaction_log_ids: Vec<String> = transaction_logs::table
-            .inner_join(transaction_inputs::table)
-            // .inner_join(txos::table.on(transaction_logs::id.eq(txos::output_transaction_log_id)))
-            .filter(transaction_inputs::txo_id_hex.eq(txo_id_hex))
+            .inner_join(transaction_txos::table)
+            .filter(transaction_txos::txo_id.eq(txo_id_hex))
             .filter(transaction_logs::failed.eq(false))
             .filter(transaction_logs::finalized_block_index.is_null())
             .select(transaction_logs::id)
@@ -401,29 +402,17 @@ impl TransactionLogModel for TransactionLog {
         Ok(())
     }
 
-    fn update_tx_logs_associated_with_txos_to_failed(
-        txos: &[Txo],
+    fn update_pending_exceeding_tombstone_block_index_to_failed(
+        block_index: u64,
         conn: &Conn,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::{transaction_inputs, transaction_logs};
-
-        let txo_ids: Vec<String> = txos.iter().map(|txo| txo.txo_id_hex.clone()).collect();
-
-        // Find all transaction_logs that are BUILT or PENDING that are
-        // associated with the txo id when it is used as an input.
-        // Update the status to FAILED
-        // TODO - WHY WON'T THIS WORK?!?!?
-        let transaction_log_ids: Vec<String> = transaction_logs::table
-            .inner_join(transaction_inputs::table)
-            // .inner_join(txos::table.on(transaction_logs::id.eq(txos::output_transaction_log_id)))
-            .filter(transaction_inputs::txo_id_hex.eq_any(txo_ids))
-            .filter(transaction_logs::failed.eq(false))
-            .filter(transaction_logs::finalized_block_index.is_null())
-            .select(transaction_logs::id)
-            .load(conn)?;
+        use crate::db::schema::transaction_logs;
 
         diesel::update(
-            transaction_logs::table.filter(transaction_logs::id.eq_any(transaction_log_ids)),
+            transaction_logs::table
+                .filter(transaction_logs::tombstone_block_index.lt(block_index as i64))
+                .filter(transaction_logs::failed.eq(false))
+                .filter(transaction_logs::finalized_block_index.is_null()),
         )
         .set((transaction_logs::failed.eq(true),))
         .execute(conn)?;

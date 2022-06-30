@@ -196,10 +196,11 @@ where
         }
         let txo = txos[0].clone();
 
-        // Return if the Txo from the receipt has a pending tombstone block index
-        if txo.pending_tombstone_block_index.is_some() {
-            return Ok((ReceiptTransactionStatus::TransactionPending, Some(txo)));
-        }
+        // TODO - Update This!
+        // // Return if the Txo from the receipt has a pending tombstone block index
+        // if txo.pending_tombstone_block_index.is_some() {
+        //     return Ok((ReceiptTransactionStatus::TransactionPending, Some(txo)));
+        // }
 
         // Decrypt the amount to get the expected value
         let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
@@ -224,7 +225,7 @@ where
         let confirmation_hex = hex::encode(mc_util_serial::encode(&receiver_receipt.confirmation));
         let confirmation: TxOutConfirmationNumber =
             mc_util_serial::decode(&hex::decode(confirmation_hex)?)?;
-        if !Txo::validate_confirmation(&account_id, &txo.txo_id_hex, &confirmation, conn)? {
+        if !Txo::validate_confirmation(&account_id, &txo.id, &confirmation, conn)? {
             return Ok((ReceiptTransactionStatus::InvalidConfirmation, Some(txo)));
         }
 

@@ -121,8 +121,8 @@ pub struct TxoAbbrev {
 impl TxoAbbrev {
     pub fn new(txo: &db::models::Txo) -> Self {
         Self {
-            txo_id_hex: txo.txo_id_hex.clone(),
-            recipient_address_id: txo.recipient_public_address_b58.clone(),
+            txo_id_hex: txo.id.clone(),
+            recipient_address_id: "".to_string(),
             value: (txo.value as u64).to_string(),
             token_id: (txo.token_id as u64).to_string(),
         }

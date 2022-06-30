@@ -487,20 +487,21 @@ impl AccountModel for Account {
         }
     }
 
+    // TODO - UPDATE THIS
     fn get_by_txo_id(txo_id_hex: &str, conn: &Conn) -> Result<Vec<Account>, WalletDbError> {
         let txo = Txo::get(txo_id_hex, conn)?;
 
         let mut accounts: Vec<Account> = Vec::<Account>::new();
 
-        if let Some(received_account_id_hex) = txo.received_account_id_hex {
+        if let Some(received_account_id_hex) = txo.account_id_hex {
             let account = Account::get(&AccountID(received_account_id_hex), conn)?;
             accounts.push(account);
         }
 
-        if let Some(minted_account_id_hex) = txo.minted_account_id_hex {
-            let account = Account::get(&AccountID(minted_account_id_hex), conn)?;
-            accounts.push(account);
-        }
+        // if let Some(minted_account_id_hex) = txo.minted_account_id_hex {
+        //     let account = Account::get(&AccountID(minted_account_id_hex), conn)?;
+        //     accounts.push(account);
+        // }
 
         Ok(accounts)
     }

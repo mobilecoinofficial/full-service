@@ -31,9 +31,7 @@ CREATE TABLE txos (
   received_block_index UNSIGNED BIG INT,
   spent_block_index UNSIGNED BIG INT,
   shared_secret BLOB,
-  output_transaction_log_id VARCHAR,
-  FOREIGN KEY (account_id_hex) REFERENCES accounts(account_id_hex),
-  FOREIGN KEY (output_transaction_log_id) REFERENCES transaction_logs(id)
+  FOREIGN KEY (account_id_hex) REFERENCES accounts(account_id_hex)
 );
 
 CREATE TABLE assigned_subaddresses (
@@ -64,9 +62,10 @@ CREATE TABLE transaction_logs (
     FOREIGN KEY (account_id_hex) REFERENCES accounts(account_id_hex)
 );
 
-CREATE TABLE transaction_inputs (
+CREATE TABLE transaction_txos (
     transaction_log_id VARCHAR NOT NULL,
     txo_id VARCHAR NOT NULL,
+    used_as VARCHAR NOT NULL,
     PRIMARY KEY (transaction_log_id, txo_id),
     FOREIGN KEY (transaction_log_id) REFERENCES transaction_logs(id),
     FOREIGN KEY (txo_id) REFERENCES txos(id)

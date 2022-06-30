@@ -127,9 +127,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
 
         let unspent: Vec<Txo> = txos
             .iter()
-            .filter(|txo| {
-                txo.pending_tombstone_block_index == None && txo.spent_block_index == None
-            })
+            .filter(|txo| txo.spent_block_index == None)
             .cloned()
             .collect();
 
@@ -170,11 +168,10 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             None
         };
 
-        self.inputs = Txo::select_unspent_txos_for_value(
+        self.inputs = Txo::select_spendable_txos_for_value(
             &self.account_id_hex,
             total_value,
             max_spendable_value,
-            pending_tombstone_block_index,
             Some(0),
             conn,
         )?;
@@ -507,7 +504,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 s
             } else {
                 return Err(WalletTransactionBuilderError::NullSubaddress(
-                    utxo.txo_id_hex.to_string(),
+                    utxo.id.to_string(),
                 ));
             };
 

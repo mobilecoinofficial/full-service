@@ -137,6 +137,9 @@ pub enum WalletDbError {
 
     /// error converting keys
     KeyError(mc_crypto_keys::KeyError),
+
+    /// invalid txo status
+    InvalidTxoStatus(String),
 }
 
 impl From<diesel::result::Error> for WalletDbError {

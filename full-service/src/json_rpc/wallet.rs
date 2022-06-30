@@ -3,7 +3,12 @@
 //! Entrypoint for Wallet API.
 
 use crate::{
-    db::{self, account::AccountID, transaction_log::TransactionID, txo::TxoID},
+    db::{
+        self,
+        account::AccountID,
+        transaction_log::TransactionID,
+        txo::{TxoID, TxoStatus},
+    },
     json_rpc,
     json_rpc::{
         account_secrets::AccountSecrets,
@@ -55,7 +60,7 @@ use rocket::{
 };
 use rocket_contrib::json::Json;
 use serde_json::Map;
-use std::{collections::HashMap, convert::TryFrom, iter::FromIterator};
+use std::{collections::HashMap, convert::TryFrom, iter::FromIterator, str::FromStr};
 
 /// State managed by rocket.
 pub struct WalletState<
@@ -448,7 +453,13 @@ where
         }
         JsonCommandRequest::create_view_only_account_sync_request { account_id } => {
             let unverified_txos = service
-                .list_unverified_txos(&AccountID(account_id.clone()))
+                .list_txos(
+                    &AccountID(account_id.clone()),
+                    None,
+                    Some(TxoStatus::Unverified),
+                    None,
+                    None,
+                )
                 .map_err(format_error)?;
 
             let unverified_txos_encoded: Vec<String> = unverified_txos
@@ -622,7 +633,7 @@ where
                 txos.iter()
                     .map(|t| {
                         (
-                            t.txo_id_hex.clone(),
+                            t.id.clone(),
                             serde_json::to_value(Txo::from(t)).expect("Could not get json value"),
                         )
                     })
@@ -630,7 +641,7 @@ where
             );
 
             JsonCommandResponse::get_all_txos_for_address {
-                txo_ids: txos.iter().map(|t| t.txo_id_hex.clone()).collect(),
+                txo_ids: txos.iter().map(|t| t.id.clone()).collect(),
                 txo_map,
             }
         }
@@ -775,14 +786,21 @@ where
             limit,
         } => {
             let (o, l) = page_helper(offset, limit)?;
+
+            let status = if let Some(status) = status {
+                Some(TxoStatus::from_str(&status).map_err(format_error)?)
+            } else {
+                None
+            };
+
             let txos = service
-                .list_txos(&AccountID(account_id), status, Some(o), Some(l))
+                .list_txos(&AccountID(account_id), None, status, Some(o), Some(l))
                 .map_err(format_error)?;
             let txo_map: Map<String, serde_json::Value> = Map::from_iter(
                 txos.iter()
                     .map(|t| {
                         (
-                            t.txo_id_hex.clone(),
+                            t.id.clone(),
                             serde_json::to_value(Txo::from(t)).expect("Could not get json value"),
                         )
                     })
@@ -790,7 +808,7 @@ where
             );
 
             JsonCommandResponse::get_txos_for_account {
-                txo_ids: txos.iter().map(|t| t.txo_id_hex.clone()).collect(),
+                txo_ids: txos.iter().map(|t| t.id.clone()).collect(),
                 txo_map,
             }
         }

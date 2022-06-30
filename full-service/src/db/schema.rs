@@ -39,13 +39,6 @@ table! {
 }
 
 table! {
-    transaction_inputs (transaction_log_id, txo_id_hex) {
-        transaction_log_id -> Text,
-        txo_id_hex -> Text,
-    }
-}
-
-table! {
     transaction_logs (id) {
         id -> Text,
         account_id_hex -> Text,
@@ -61,9 +54,17 @@ table! {
 }
 
 table! {
+    transaction_txos (transaction_log_id, txo_id) {
+        transaction_log_id -> Text,
+        txo_id -> Text,
+        used_as -> Text,
+    }
+}
+
+table! {
     txos (id) {
-        id -> Integer,
-        txo_id_hex -> Text,
+        id -> Text,
+        account_id_hex -> Nullable<Text>,
         value -> BigInt,
         token_id -> BigInt,
         target_key -> Binary,
@@ -73,24 +74,19 @@ table! {
         subaddress_index -> Nullable<BigInt>,
         key_image -> Nullable<Binary>,
         received_block_index -> Nullable<BigInt>,
-        pending_tombstone_block_index -> Nullable<BigInt>,
         spent_block_index -> Nullable<BigInt>,
-        confirmation -> Nullable<Binary>,
-        recipient_public_address_b58 -> Text,
-        minted_account_id_hex -> Nullable<Text>,
-        received_account_id_hex -> Nullable<Text>,
-        output_transaction_log_id -> Nullable<Text>,
+        shared_secret -> Nullable<Binary>,
     }
 }
 
-joinable!(transaction_inputs -> transaction_logs (transaction_log_id));
-joinable!(txos -> transaction_logs (output_transaction_log_id));
+joinable!(transaction_txos -> transaction_logs (transaction_log_id));
+joinable!(transaction_txos -> txos (txo_id));
 
 allow_tables_to_appear_in_same_query!(
     accounts,
     assigned_subaddresses,
     gift_codes,
-    transaction_inputs,
     transaction_logs,
+    transaction_txos,
     txos,
 );

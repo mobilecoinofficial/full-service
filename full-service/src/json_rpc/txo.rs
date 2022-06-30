@@ -4,13 +4,7 @@
 
 use crate::{
     db,
-    db::{
-        models::{
-            TXO_STATUS_ORPHANED, TXO_STATUS_PENDING, TXO_STATUS_SECRETED, TXO_STATUS_SPENT,
-            TXO_STATUS_UNSPENT,
-        },
-        txo::TxoModel,
-    },
+    db::txo::{TxoModel, TxoStatus},
 };
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Map;
@@ -106,59 +100,60 @@ impl From<&db::models::Txo> for Txo {
     fn from(txo: &db::models::Txo) -> Txo {
         let mut account_status_map: Map<String, serde_json::Value> = Map::new();
 
-        if let Some(received_account_id_hex) = &txo.received_account_id_hex {
-            let txo_status = if txo.is_spent() {
-                TXO_STATUS_SPENT
-            } else if txo.is_pending() {
-                TXO_STATUS_PENDING
-            } else if txo.is_orphaned() {
-                TXO_STATUS_ORPHANED
-            } else {
-                TXO_STATUS_UNSPENT
-            };
+        // if let Some(received_account_id_hex) = &txo.account_id_hex {
+        //     let txo_status = if txo.is_spent() {
+        //         TxoStatus::Spent
+        //     } else if txo.is_pending() {
+        //         TxoStatus::Pending
+        //     } else if txo.is_orphaned() {
+        //         TxoStatus::Orphaned
+        //     } else {
+        //         TxoStatus::Unspent
+        //     };
 
-            account_status_map.insert(
-                received_account_id_hex.to_string(),
-                json!({"txo_type": "txo_type_received", "txo_status": txo_status}).into(),
-            );
-        }
+        //     account_status_map.insert(
+        //         received_account_id_hex.to_string(),
+        //         json!({"txo_type": "txo_type_received", "txo_status":
+        // txo_status.to_string()})             .into(),
+        //     );
+        // }
 
-        if let Some(minted_account_id_hex) = &txo.minted_account_id_hex {
-            let txo_status = if Some(minted_account_id_hex.clone()) != txo.received_account_id_hex {
-                TXO_STATUS_SECRETED
-            } else if txo.is_spent() {
-                TXO_STATUS_SPENT
-            } else if txo.is_pending() {
-                TXO_STATUS_PENDING
-            } else if txo.is_orphaned() {
-                TXO_STATUS_ORPHANED
-            } else {
-                TXO_STATUS_UNSPENT
-            };
+        // if let Some(minted_account_id_hex) = &txo.minted_account_id_hex {
+        //     let txo_status = if Some(minted_account_id_hex.clone()) !=
+        // txo.account_id_hex {         TxoStatus::Unowned
+        //     } else if txo.is_spent() {
+        //         TxoStatus::Spent
+        //     } else if txo.is_pending() {
+        //         TxoStatus::Pending
+        //     } else if txo.is_orphaned() {
+        //         TxoStatus::Orphaned
+        //     } else {
+        //         TxoStatus::Unspent
+        //     };
 
-            account_status_map.insert(
-                minted_account_id_hex.to_string(),
-                json!({"txo_type": "txo_type_minted", "txo_status": txo_status}).into(),
-            );
-        }
+        //     account_status_map.insert(
+        //         minted_account_id_hex.to_string(),
+        //         json!({"txo_type": "txo_type_minted", "txo_status":
+        // txo_status.to_string()}).into(),     );
+        // }
 
         Txo {
             object: "txo".to_string(),
-            txo_id_hex: txo.txo_id_hex.clone(),
+            txo_id_hex: txo.id.clone(),
             value_pmob: (txo.value as u64).to_string(),
             recipient_address_id: None,
             received_block_index: txo.received_block_index.map(|x| (x as u64).to_string()),
             spent_block_index: txo.spent_block_index.map(|x| (x as u64).to_string()),
             is_spent_recovered: false,
-            received_account_id: txo.received_account_id_hex.clone(),
-            minted_account_id: txo.minted_account_id_hex.clone(),
+            received_account_id: txo.account_id_hex.clone(),
+            minted_account_id: None,
             target_key: hex::encode(&txo.target_key),
             public_key: hex::encode(&txo.public_key),
             e_fog_hint: hex::encode(&txo.e_fog_hint),
             subaddress_index: txo.subaddress_index.map(|s| (s as u64).to_string()),
             assigned_address: None,
             key_image: txo.key_image.as_ref().map(|k| hex::encode(&k)),
-            confirmation: txo.confirmation.as_ref().map(hex::encode),
+            confirmation: txo.shared_secret.as_ref().map(hex::encode),
             account_status_map,
         }
     }
