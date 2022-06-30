@@ -3,7 +3,7 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        models::{Account, TransactionLog, Txo, TXO_USED_AS_CHANGE, TXO_USED_AS_OUTPUT},
+        models::{Account, TransactionLog, Txo},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
         WalletDb, WalletDbError,
@@ -19,6 +19,7 @@ use diesel::{
 use diesel_migrations::embed_migrations;
 use mc_account_keys::{AccountKey, PublicAddress, RootIdentity};
 use mc_attest_verifier::Verifier;
+use mc_blockchain_types::{Block, BlockContents, BlockVersion};
 use mc_common::logger::{log, Logger};
 use mc_connection::{Connection, ConnectionManager, HardcodedCredentialsProvider, ThickClient};
 use mc_connection_test_utils::{test_client_uri, MockBlockchainConnection};
@@ -35,7 +36,7 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tokens::Mob,
     tx::{Tx, TxOut},
-    Amount, Block, BlockContents, Token, MAX_BLOCK_VERSION,
+    Amount, Token,
 };
 use mc_util_from_random::FromRandom;
 use mc_util_uri::{ConnectionUri, FogUri};
@@ -175,7 +176,7 @@ fn append_test_block(ledger_db: &mut LedgerDB, block_contents: BlockContents) ->
             .get_block(num_blocks - 1)
             .expect("failed to get parent block");
         new_block = Block::new_with_parent(
-            MAX_BLOCK_VERSION,
+            BlockVersion::MAX,
             &parent,
             &Default::default(),
             &block_contents,
@@ -212,6 +213,7 @@ pub fn add_block_to_ledger_db(
         .map(|recipient| {
             TxOut::new(
                 // TODO: allow for subaddress index!
+                BlockVersion::MAX,
                 Amount::new(output_value, Mob::ID),
                 recipient,
                 &RistrettoPrivate::from_random(rng),
@@ -312,8 +314,8 @@ pub fn setup_peer_manager_and_network_state(
         (
             vec![peer1.clone(), peer2.clone()],
             vec![
-                peer1.uri().responder_id().unwrap(),
-                peer2.uri().responder_id().unwrap(),
+                peer1.uri().host_and_port_responder_id().unwrap(),
+                peer2.uri().host_and_port_responder_id().unwrap(),
             ],
         )
     };
@@ -443,7 +445,7 @@ pub fn create_test_txo_for_recipient(
     let recipient = recipient_account_key.subaddress(recipient_subaddress_index);
     let tx_private_key = RistrettoPrivate::from_random(rng);
     let hint = EncryptedFogHint::fake_onetime_hint(rng);
-    let tx_out = TxOut::new(amount, &recipient, &tx_private_key, hint).unwrap();
+    let tx_out = TxOut::new(BlockVersion::MAX, amount, &recipient, &tx_private_key, hint).unwrap();
 
     // Calculate KeyImage - note you cannot use KeyImage::from(tx_private_key)
     // because the calculation must be done with CryptoNote math (see
@@ -496,7 +498,7 @@ pub fn create_test_minted_and_change_txos(
     wallet_db: WalletDb,
     ledger_db: LedgerDB,
     logger: Logger,
-) -> ((String, u64), (String, u64)) {
+) -> TransactionLog {
     let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
     // Use the builder to create valid TxOuts for this account
@@ -516,39 +518,14 @@ pub fn create_test_minted_and_change_txos(
     // There should be 2 outputs, one to dest and one change
     assert_eq!(tx_proposal.tx.prefix.outputs.len(), 2);
 
-    // Create minted for the destination output.
-    assert_eq!(tx_proposal.outlay_index_to_tx_out_index.len(), 1);
-    let outlay_txo_index = tx_proposal.outlay_index_to_tx_out_index[&0];
-    let tx_out = tx_proposal.tx.prefix.outputs[outlay_txo_index].clone();
-    let processed_output = Txo::create_minted(
+    TransactionLog::log_submitted(
+        tx_proposal,
+        10,
+        "".to_string(),
         &AccountID::from(&src_account_key).to_string(),
-        &tx_out,
-        &tx_proposal,
-        outlay_txo_index,
         &conn,
     )
-    .unwrap();
-    assert!(processed_output.recipient.is_some());
-    assert_eq!(processed_output.txo_type, TXO_USED_AS_OUTPUT);
-
-    // Create minted for the change output.
-    let change_txo_index = if outlay_txo_index == 0 { 1 } else { 0 };
-    let change_tx_out = tx_proposal.tx.prefix.outputs[change_txo_index].clone();
-    let processed_change = Txo::create_minted(
-        &AccountID::from(&src_account_key).to_string(),
-        &change_tx_out,
-        &tx_proposal,
-        change_txo_index,
-        &conn,
-    )
-    .unwrap();
-    assert_eq!(processed_change.recipient, None,);
-    // Change starts as an output, and is updated to change when scanned.
-    assert_eq!(processed_change.txo_type, TXO_USED_AS_CHANGE);
-    (
-        (processed_output.txo_id_hex, processed_output.value as u64),
-        (processed_change.txo_id_hex, processed_change.value as u64),
-    )
+    .unwrap()
 }
 
 // Seed a local account with some Txos in the ledger

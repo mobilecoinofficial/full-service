@@ -248,7 +248,10 @@ fn sign_transaction(secret_mnemonic: &str, sign_request: &str) {
         account_id: Some(account_id.to_string()),
     };
 
-    let filename = format!("{}_completed.json", sign_request.trim_end_matches("_unsigned.json"));
+    let filename = format!(
+        "{}_completed.json",
+        sign_request.trim_end_matches("_unsigned.json")
+    );
     write_json_command_request_to_file(&json_command_request, &filename);
 }
 

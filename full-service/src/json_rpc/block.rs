@@ -17,7 +17,7 @@ pub struct Block {
 }
 
 impl Block {
-    pub fn new(block: &mc_transaction_core::Block) -> Self {
+    pub fn new(block: &mc_blockchain_types::Block) -> Self {
         let membership_element_proto =
             mc_api::external::TxOutMembershipElement::from(&block.root_element);
         Self {
@@ -39,7 +39,7 @@ pub struct BlockContents {
 }
 
 impl BlockContents {
-    pub fn new(block_contents: &mc_transaction_core::BlockContents) -> Self {
+    pub fn new(block_contents: &mc_blockchain_types::BlockContents) -> Self {
         Self {
             key_images: block_contents
                 .key_images

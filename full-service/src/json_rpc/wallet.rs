@@ -200,7 +200,7 @@ where
             if let (Some(a), Some(v)) = (recipient_public_address, value_pmob) {
                 addresses_and_values.push((a, v));
             }
-            let (transaction_log, associated_txos, tx_proposal) = service
+            let (transaction_log, associated_txos, value_map, tx_proposal) = service
                 .build_and_submit(
                     &account_id,
                     &addresses_and_values,
@@ -215,6 +215,7 @@ where
                 transaction_log: json_rpc::transaction_log::TransactionLog::new(
                     &transaction_log,
                     &associated_txos,
+                    &value_map,
                 ),
                 tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
             }
@@ -572,10 +573,12 @@ where
             let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
                 transaction_logs_and_txos
                     .iter()
-                    .map(|(t, a)| {
+                    .map(|(t, a, v)| {
                         (
-                            t.transaction_id_hex.clone(),
-                            serde_json::json!(json_rpc::transaction_log::TransactionLog::new(t, a)),
+                            t.id.clone(),
+                            serde_json::json!(json_rpc::transaction_log::TransactionLog::new(
+                                t, a, v
+                            )),
                         )
                     })
                     .collect::<Vec<(String, serde_json::Value)>>(),
@@ -584,7 +587,7 @@ where
             JsonCommandResponse::get_all_transaction_logs_for_block {
                 transaction_log_ids: transaction_logs_and_txos
                     .iter()
-                    .map(|(t, _a)| t.transaction_id_hex.to_string())
+                    .map(|(t, _a, _v)| t.id.clone())
                     .collect(),
                 transaction_log_map,
             }
@@ -596,10 +599,12 @@ where
             let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
                 transaction_logs_and_txos
                     .iter()
-                    .map(|(t, a)| {
+                    .map(|(t, a, v)| {
                         (
-                            t.transaction_id_hex.clone(),
-                            serde_json::json!(json_rpc::transaction_log::TransactionLog::new(t, a)),
+                            t.id.clone(),
+                            serde_json::json!(json_rpc::transaction_log::TransactionLog::new(
+                                t, a, v
+                            )),
                         )
                     })
                     .collect::<Vec<(String, serde_json::Value)>>(),
@@ -696,13 +701,14 @@ where
             .map_err(format_error)?,
         },
         JsonCommandRequest::get_transaction_log { transaction_log_id } => {
-            let (transaction_log, associated_txos) = service
+            let (transaction_log, associated_txos, value_map) = service
                 .get_transaction_log(&transaction_log_id)
                 .map_err(format_error)?;
             JsonCommandResponse::get_transaction_log {
                 transaction_log: json_rpc::transaction_log::TransactionLog::new(
                     &transaction_log,
                     &associated_txos,
+                    &value_map,
                 ),
             }
         }
@@ -737,10 +743,12 @@ where
             let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
                 transaction_logs_and_txos
                     .iter()
-                    .map(|(t, a)| {
+                    .map(|(t, a, v)| {
                         (
-                            t.transaction_id_hex.clone(),
-                            serde_json::json!(json_rpc::transaction_log::TransactionLog::new(t, a)),
+                            t.id.clone(),
+                            serde_json::json!(json_rpc::transaction_log::TransactionLog::new(
+                                t, a, v
+                            )),
                         )
                     })
                     .collect::<Vec<(String, serde_json::Value)>>(),
@@ -749,7 +757,7 @@ where
             JsonCommandResponse::get_transaction_logs_for_account {
                 transaction_log_ids: transaction_logs_and_txos
                     .iter()
-                    .map(|(t, _a)| t.transaction_id_hex.to_string())
+                    .map(|(t, _a, _v)| t.id.clone())
                     .collect(),
                 transaction_log_map,
             }
@@ -932,10 +940,11 @@ where
                     account_id,
                 )
                 .map_err(format_error)?
-                .map(|(transaction_log, associated_txos)| {
+                .map(|(transaction_log, associated_txos, value_map)| {
                     json_rpc::transaction_log::TransactionLog::new(
                         &transaction_log,
                         &associated_txos,
+                        &value_map,
                     )
                 });
             JsonCommandResponse::submit_transaction {

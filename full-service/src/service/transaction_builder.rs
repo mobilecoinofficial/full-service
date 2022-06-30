@@ -27,6 +27,7 @@ use mc_common::{
     HashMap, HashSet,
 };
 use mc_crypto_keys::RistrettoPublic;
+use mc_crypto_ring_signature_signer::NoKeysRingSigner;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_mobilecoind::{
@@ -42,7 +43,8 @@ use mc_transaction_core::{
     Amount, BlockVersion, Token,
 };
 use mc_transaction_std::{
-    ChangeDestination, InputCredentials, RTHMemoBuilder, SenderMemoCredential, TransactionBuilder,
+    InputCredentials, RTHMemoBuilder, ReservedSubaddresses, SenderMemoCredential,
+    TransactionBuilder,
 };
 use mc_util_uri::FogUri;
 
@@ -354,6 +356,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             let tx_in = TxIn {
                 ring,
                 proofs: membership_proofs,
+                input_rules: None,
             };
 
             inputs_and_real_indices_and_subaddress_indices.push((
@@ -541,10 +544,14 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let mut outlay_confirmation_numbers = Vec::default();
         let mut rng = rand::thread_rng();
         for (i, (recipient, out_value)) in self.outlays.iter().enumerate() {
-            let txo_context = transaction_builder.add_output(*out_value, recipient, &mut rng)?;
+            let (tx_out, confirmation) = transaction_builder.add_output(
+                Amount::new(*out_value, Mob::ID),
+                recipient,
+                &mut rng,
+            )?;
 
-            tx_out_to_outlay_index.insert(txo_context.tx_out, i);
-            outlay_confirmation_numbers.push(txo_context.confirmation);
+            tx_out_to_outlay_index.insert(tx_out, i);
+            outlay_confirmation_numbers.push(confirmation);
 
             total_value += *out_value;
         }
@@ -553,26 +560,30 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let input_value = inputs_and_proofs
             .iter()
             .fold(0, |acc, (utxo, _proof)| acc + utxo.value);
-        if (total_value + transaction_builder.get_fee().value) > input_value as u64 {
+        if total_value + transaction_builder.get_fee() > input_value as u64 {
             return Err(WalletTransactionBuilderError::InsufficientInputFunds(
                 format!(
                     "Total value required to send transaction {:?}, but only {:?} in inputs",
-                    total_value + transaction_builder.get_fee().value,
+                    total_value + transaction_builder.get_fee(),
                     input_value
                 ),
             ));
         }
 
-        let change = input_value as u64 - total_value - transaction_builder.get_fee().value;
+        let change = input_value as u64 - total_value - transaction_builder.get_fee();
 
-        let change_destination = ChangeDestination::from(&from_account_key);
-        transaction_builder.add_change_output(change, &change_destination, &mut rng)?;
+        let reserved_subaddresses = ReservedSubaddresses::from(&from_account_key);
+        transaction_builder.add_change_output(
+            Amount::new(change, Mob::ID),
+            &reserved_subaddresses,
+            &mut rng,
+        )?;
 
         // Set tombstone block.
         transaction_builder.set_tombstone_block(self.tombstone);
 
         // Build tx.
-        let tx = transaction_builder.build(&mut rng)?;
+        let tx = transaction_builder.build(&NoKeysRingSigner {}, &mut rng)?;
 
         // Map each TxOut in the constructed transaction to its respective outlay.
         let outlay_index_to_tx_out_index: HashMap<usize, usize> = tx

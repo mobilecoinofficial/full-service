@@ -23,33 +23,27 @@ Table subaddresses {
   public_spend_key blob [not null]
 }
 
-Table gift_codes {
-  gift_code_b58 varchar [pk, not null]
-  entropy blob [not null]
-  txo_public_key blob [not null]
-  value bigint [not null]
-  memo text [not null]
-  account_id varchar [not null, ref: > accounts.id]
-  txo_id varchar [not null, ref: > txos.id]
-}
-
 Table transaction_logs {
   id varchar [not null, unique]
   account_id varchar [not null, ref: > accounts.id]
+  fee_value bigint [not null]
+  fee_token_id bigint [not null]
   submitted_block_index bigint
+  tombstone_block_index bigint
   finalized_block_index bigint
+  failed boolean [not null]
   comment text [not null]
   tx blob
 }
 
-Table transaction_txo_types {
+Table transaction_inputs {
   transaction_log_id varchar [pk, not null, ref: > transaction_logs.id]
   txo_id varchar [pk, not null, ref: > txos.id]
-  transaction_txo_type varchar(6) [not null]
 }
 
 Table txos {
   id varchar [not null, unique]
+  account_id varchar [ref: > accounts.id]
   value bigint [not null]
   token_id bigint [not null]
   target_key blob [not null]
@@ -59,8 +53,6 @@ Table txos {
   subaddress_index bigint
   key_image blob
   received_block_index bigint
-  spent_block_index bigint
   shared_secret blob
-  minted_account_id_hex varchar [ref: > accounts.id]
-  received_account_id_hex varchar [ref: > accounts.id]
+  output_transaction_log_id varchar [ref: > transaction_logs.id]
 }

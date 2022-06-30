@@ -102,7 +102,8 @@ fn consensus_backed_full_service(
     // Verifier
     let mut mr_signer_verifier =
         MrSignerVerifier::from(mc_consensus_enclave_measurement::sigstruct());
-    mr_signer_verifier.allow_hardening_advisories(mc_consensus_enclave_measurement::HARDENING_ADVISORIES);
+    mr_signer_verifier
+        .allow_hardening_advisories(mc_consensus_enclave_measurement::HARDENING_ADVISORIES);
 
     let mut verifier = Verifier::default();
     verifier.mr_signer(mr_signer_verifier).debug(DEBUG_ENCLAVE);

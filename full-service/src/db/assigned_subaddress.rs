@@ -168,13 +168,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         ledger_db: &LedgerDB,
         conn: &Conn,
     ) -> Result<(String, i64), WalletDbError> {
-        use crate::db::schema::{
-            accounts::dsl::{account_id_hex as dsl_account_id_hex, accounts},
-            transaction_logs::dsl::{
-                account_id_hex as tx_log_account_id_hex,
-                transaction_id_hex as tx_log_transaction_id_hex, transaction_logs,
-            },
-        };
+        use crate::db::schema::accounts::dsl::{account_id_hex as dsl_account_id_hex, accounts};
 
         let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
@@ -215,17 +209,6 @@ impl AssignedSubaddressModel for AssignedSubaddress {
                         .set((crate::db::schema::txos::subaddress_index
                             .eq(account.next_subaddress_index),))
                         .execute(conn)?;
-
-                    diesel::update(
-                        transaction_logs
-                            .filter(tx_log_transaction_id_hex.eq(&orphaned_txo.txo_id_hex))
-                            .filter(tx_log_account_id_hex.eq(account_id_hex)),
-                    )
-                    .set(
-                        (crate::db::schema::transaction_logs::assigned_subaddress_b58
-                            .eq(&subaddress_b58),),
-                    )
-                    .execute(conn)?;
                 }
             }
 
@@ -289,17 +272,6 @@ impl AssignedSubaddressModel for AssignedSubaddress {
                             crate::db::schema::txos::key_image.eq(key_image_bytes),
                         ))
                         .execute(conn)?;
-
-                    diesel::update(
-                        transaction_logs
-                            .filter(tx_log_transaction_id_hex.eq(&orphaned_txo.txo_id_hex))
-                            .filter(tx_log_account_id_hex.eq(account_id_hex)),
-                    )
-                    .set(
-                        (crate::db::schema::transaction_logs::assigned_subaddress_b58
-                            .eq(&subaddress_b58),),
-                    )
-                    .execute(conn)?;
                 }
             }
 
