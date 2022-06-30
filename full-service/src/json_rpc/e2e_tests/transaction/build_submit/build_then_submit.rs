@@ -8,9 +8,7 @@ mod e2e_transaction {
         db::account::AccountID,
         json_rpc,
         json_rpc::api_test_utils::{dispatch, dispatch_expect_error, setup},
-        test_utils::{
-            add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account,
-        },
+        test_utils::{add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account},
         util::b58::b58_decode_public_address,
     };
 
@@ -205,7 +203,7 @@ mod e2e_transaction {
         let transaction_id = result
             .get("transaction_log")
             .unwrap()
-            .get("transaction_log_id")
+            .get("id")
             .unwrap()
             .as_str()
             .unwrap();
@@ -278,14 +276,11 @@ mod e2e_transaction {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let transaction_log = result.get("transaction_log").unwrap();
-        assert_eq!(
-            transaction_log.get("direction").unwrap().as_str().unwrap(),
-            "tx_direction_sent"
-        );
-        assert_eq!(
-            transaction_log.get("value_pmob").unwrap().as_str().unwrap(),
-            "42000000000000"
-        );
+        let value_map = transaction_log.get("value_map").unwrap();
+
+        let pmob_value = value_map.get("0").unwrap();
+        assert_eq!(pmob_value.as_str().unwrap(), "42000000000000");
+
         assert_eq!(
             transaction_log.get("output_txos").unwrap()[0]
                 .get("recipient_address_id")
@@ -296,12 +291,20 @@ mod e2e_transaction {
         );
         transaction_log.get("account_id").unwrap().as_str().unwrap();
         assert_eq!(
-            transaction_log.get("fee_pmob").unwrap().as_str().unwrap(),
+            transaction_log.get("fee_value").unwrap().as_str().unwrap(),
             &Mob::MINIMUM_FEE.to_string()
         );
         assert_eq!(
+            transaction_log
+                .get("fee_token_id")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            Mob::ID.to_string()
+        );
+        assert_eq!(
             transaction_log.get("status").unwrap().as_str().unwrap(),
-            "tx_status_succeeded"
+            "succeeded"
         );
         assert_eq!(
             transaction_log
@@ -312,11 +315,7 @@ mod e2e_transaction {
             "14"
         );
         assert_eq!(
-            transaction_log
-                .get("transaction_log_id")
-                .unwrap()
-                .as_str()
-                .unwrap(),
+            transaction_log.get("id").unwrap().as_str().unwrap(),
             transaction_id
         );
 
@@ -336,8 +335,8 @@ mod e2e_transaction {
             .unwrap()
             .as_array()
             .unwrap();
-        // We have a transaction log for each of the received, as well as the sent.
-        assert_eq!(transaction_log_ids.len(), 5);
+        // We have a transaction log for the sent
+        assert_eq!(transaction_log_ids.len(), 1);
 
         // Check the contents of the transaction log associated txos
         let transaction_log_map = result.get("transaction_log_map").unwrap();
@@ -372,7 +371,7 @@ mod e2e_transaction {
 
         assert_eq!(
             transaction_log.get("status").unwrap().as_str().unwrap(),
-            "tx_status_succeeded"
+            "succeeded"
         );
 
         // Get all Transaction Logs for a given Block
@@ -389,6 +388,6 @@ mod e2e_transaction {
             .unwrap()
             .as_object()
             .unwrap();
-        assert_eq!(transaction_log_map.len(), 5);
+        assert_eq!(transaction_log_map.len(), 1);
     }
 }

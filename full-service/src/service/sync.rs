@@ -13,7 +13,6 @@ use crate::{
         Conn, WalletDb,
     },
     error::SyncError,
-    util::b58::b58_encode_public_address,
 };
 use mc_account_keys::{AccountKey, ViewAccountKey};
 use mc_common::{
@@ -26,9 +25,8 @@ use mc_transaction_core::{
     get_tx_out_shared_secret,
     onetime_keys::{recover_onetime_private_key, recover_public_subaddress_spend_key},
     ring_signature::KeyImage,
-    tokens::Mob,
     tx::TxOut,
-    Amount, Token,
+    Amount,
 };
 use rayon::prelude::*;
 
@@ -234,7 +232,7 @@ fn sync_account_next_chunk(
 
             // Write received transactions to the database.
             for (block_index, tx_out, amount, subaddress_index) in received_txos {
-                let txo_id = Txo::create_received(
+                Txo::create_received(
                     tx_out.clone(),
                     subaddress_index,
                     None,
@@ -243,26 +241,6 @@ fn sync_account_next_chunk(
                     account_id_hex,
                     conn,
                 )?;
-
-                let assigned_subaddress_b58: Option<String> = match subaddress_index {
-                    None => None,
-                    Some(subaddress_index) => {
-                        let subaddress = view_account_key.subaddress(subaddress_index);
-                        let subaddress_b58 = b58_encode_public_address(&subaddress)?;
-                        Some(subaddress_b58)
-                    }
-                };
-
-                if amount.token_id == Mob::ID {
-                    TransactionLog::log_received(
-                        account_id_hex,
-                        assigned_subaddress_b58.as_deref(),
-                        txo_id.as_str(),
-                        amount,
-                        block_index as u64,
-                        conn,
-                    )?;
-                }
             }
 
             // Match key images to mark existing unspent transactions as spent.
@@ -347,7 +325,7 @@ fn sync_account_next_chunk(
 
             // Write received transactions to the database.
             for (block_index, tx_out, amount, subaddress_index, key_image) in received_txos {
-                let txo_id = Txo::create_received(
+                Txo::create_received(
                     tx_out.clone(),
                     subaddress_index,
                     key_image,
@@ -356,26 +334,6 @@ fn sync_account_next_chunk(
                     account_id_hex,
                     conn,
                 )?;
-
-                let assigned_subaddress_b58: Option<String> = match subaddress_index {
-                    None => None,
-                    Some(subaddress_index) => {
-                        let subaddress = account_key.subaddress(subaddress_index);
-                        let subaddress_b58 = b58_encode_public_address(&subaddress)?;
-                        Some(subaddress_b58)
-                    }
-                };
-
-                if amount.token_id == Mob::ID {
-                    TransactionLog::log_received(
-                        account_id_hex,
-                        assigned_subaddress_b58.as_deref(),
-                        txo_id.as_str(),
-                        amount,
-                        block_index as u64,
-                        conn,
-                    )?;
-                }
             }
 
             // Match key images to mark existing unspent transactions as spent.

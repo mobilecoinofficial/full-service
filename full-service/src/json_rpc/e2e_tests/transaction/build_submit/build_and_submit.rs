@@ -8,9 +8,7 @@ mod e2e_transaction {
         db::account::AccountID,
         json_rpc,
         json_rpc::api_test_utils::{dispatch, setup},
-        test_utils::{
-            add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account,
-        },
+        test_utils::{add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account},
         util::b58::b58_decode_public_address,
     };
 

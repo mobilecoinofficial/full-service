@@ -5,10 +5,7 @@
 #[cfg(test)]
 mod e2e_account {
     use crate::{
-        db::{
-            account::AccountID,
-            models::{TXO_STATUS_UNSPENT, TXO_TYPE_RECEIVED},
-        },
+        db::{account::AccountID, models::TXO_STATUS_UNSPENT},
         json_rpc,
         json_rpc::api_test_utils::{dispatch, setup},
         test_utils::{add_block_to_ledger_db, manually_sync_account, MOB},
@@ -19,7 +16,7 @@ mod e2e_account {
     use mc_account_keys_slip10::Slip10Key;
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
-    
+
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
 
@@ -442,7 +439,7 @@ mod e2e_account {
         let txo_status = status_map.get("txo_status").unwrap().as_str().unwrap();
         assert_eq!(txo_status, TXO_STATUS_UNSPENT);
         let txo_type = status_map.get("txo_type").unwrap().as_str().unwrap();
-        assert_eq!(txo_type, TXO_TYPE_RECEIVED);
+        assert_eq!(txo_type, "txo_type_received");
         let value = txo.get("value_pmob").unwrap().as_str().unwrap();
         assert_eq!(value, "42000000000000");
     }

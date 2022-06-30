@@ -15,6 +15,3 @@ mod wallet_db_error;
 
 pub use wallet_db::{transaction, Conn, WalletDb};
 pub use wallet_db_error::WalletDbError;
-
-#[cfg(any(test))]
-pub mod migration_testing;
