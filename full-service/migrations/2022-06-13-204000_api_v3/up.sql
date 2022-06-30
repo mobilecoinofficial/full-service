@@ -18,8 +18,8 @@ CREATE TABLE accounts (
 CREATE UNIQUE INDEX idx_accounts__account_id_hex ON accounts (account_id_hex);
 
 CREATE TABLE txos (
-  id INTEGER NOT NULL PRIMARY KEY,
-  txo_id_hex VARCHAR NOT NULL UNIQUE,
+  id VARCHAR NOT NULL PRIMARY KEY,
+  account_id_hex VARCHAR,
   value UNSIGNED BIG INT NOT NULL,
   token_id UNSIGNED BIG INT NOT NULL,
   target_key BLOB NOT NULL,
@@ -29,19 +29,12 @@ CREATE TABLE txos (
   subaddress_index UNSIGNED BIG INT,
   key_image BLOB,
   received_block_index UNSIGNED BIG INT,
-  pending_tombstone_block_index UNSIGNED BIG INT,
   spent_block_index UNSIGNED BIG INT,
-  confirmation BLOB,
-  recipient_public_address_b58 VARCHAR NOT NULL,
-  minted_account_id_hex VARCHAR,
-  received_account_id_hex VARCHAR,
+  shared_secret BLOB,
   output_transaction_log_id VARCHAR,
-  FOREIGN KEY (minted_account_id_hex) REFERENCES accounts(account_id_hex),
-  FOREIGN KEY (received_account_id_hex) REFERENCES accounts(account_id_hex),
+  FOREIGN KEY (account_id_hex) REFERENCES accounts(account_id_hex),
   FOREIGN KEY (output_transaction_log_id) REFERENCES transaction_logs(id)
 );
-
-CREATE UNIQUE INDEX idx_txos__txo_id_hex ON txos (txo_id_hex);
 
 CREATE TABLE assigned_subaddresses (
   id INTEGER NOT NULL PRIMARY KEY,
@@ -73,10 +66,10 @@ CREATE TABLE transaction_logs (
 
 CREATE TABLE transaction_inputs (
     transaction_log_id VARCHAR NOT NULL,
-    txo_id_hex VARCHAR NOT NULL,
-    PRIMARY KEY (transaction_log_id, txo_id_hex),
+    txo_id VARCHAR NOT NULL,
+    PRIMARY KEY (transaction_log_id, txo_id),
     FOREIGN KEY (transaction_log_id) REFERENCES transaction_logs(id),
-    FOREIGN KEY (txo_id_hex) REFERENCES txos(txo_id_hex)
+    FOREIGN KEY (txo_id) REFERENCES txos(id)
 );
 
 CREATE TABLE gift_codes (
