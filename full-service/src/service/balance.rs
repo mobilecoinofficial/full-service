@@ -77,6 +77,7 @@ pub struct Balance {
     pub spent: u128,
     pub secreted: u128,
     pub orphaned: u128,
+    pub unverified: u128,
     pub network_block_height: u64,
     pub local_block_height: u64,
     pub synced_blocks: u64,
@@ -105,6 +106,7 @@ pub struct WalletStatus {
     pub spent: u128,
     pub secreted: u128,
     pub orphaned: u128,
+    pub unverified: u128,
     pub network_block_height: u64,
     pub local_block_height: u64,
     pub min_synced_block_index: u64,
@@ -142,7 +144,7 @@ where
         let account_id_hex = &account_id.to_string();
 
         let conn = self.wallet_db.get_conn()?;
-        let (unspent, max_spendable, pending, spent, secreted, orphaned) =
+        let (unspent, max_spendable, pending, spent, secreted, orphaned, unverified) =
             Self::get_balance_inner(Some(account_id_hex), None, &conn)?;
 
         let network_block_height = self.get_network_block_height()?;
@@ -156,6 +158,7 @@ where
             spent,
             secreted,
             orphaned,
+            unverified,
             network_block_height,
             local_block_height,
             synced_blocks: account.next_block_index as u64,
@@ -169,7 +172,7 @@ where
         let conn = self.wallet_db.get_conn()?;
         let assigned_address = AssignedSubaddress::get(address, &conn)?;
 
-        let (unspent, max_spendable, pending, spent, secreted, orphaned) =
+        let (unspent, max_spendable, pending, spent, secreted, orphaned, unverified) =
             Self::get_balance_inner(None, Some(address), &conn)?;
 
         let account = Account::get(&AccountID(assigned_address.account_id_hex), &conn)?;
@@ -181,6 +184,7 @@ where
             spent,
             secreted,
             orphaned,
+            unverified,
             network_block_height,
             local_block_height,
             synced_blocks: account.next_block_index as u64,
@@ -209,6 +213,7 @@ where
         let mut spent: u128 = 0;
         let mut secreted: u128 = 0;
         let mut orphaned: u128 = 0;
+        let mut unverified: u128 = 0;
 
         let mut min_synced_block_index = network_block_height.saturating_sub(1);
         let mut account_ids = Vec::new();
@@ -222,6 +227,7 @@ where
             spent += balance.3;
             secreted += balance.4;
             orphaned += balance.5;
+            unverified += balance.6;
 
             // account.next_block_index is an index in range [0..ledger_db.num_blocks()]
             min_synced_block_index = std::cmp::min(
@@ -237,6 +243,7 @@ where
             spent,
             secreted,
             orphaned,
+            unverified,
             network_block_height,
             local_block_height: self.ledger_db.num_blocks()?,
             min_synced_block_index: min_synced_block_index as u64,
@@ -244,6 +251,10 @@ where
             account_map,
         })
     }
+}
+
+fn sum_query_result(txos: Vec<Txo>) -> u128 {
+    txos.iter().map(|t| (t.value as u64) as u128).sum::<u128>()
 }
 
 impl<T, FPR> WalletService<T, FPR>
@@ -255,57 +266,57 @@ where
         account_id_hex: Option<&str>,
         assigned_subaddress_b58: Option<&str>,
         conn: &Conn,
-    ) -> Result<(u128, u128, u128, u128, u128, u128), BalanceServiceError> {
+    ) -> Result<(u128, u128, u128, u128, u128, u128, u128), BalanceServiceError> {
         let max_spendable =
             Txo::list_spendable(account_id_hex, None, assigned_subaddress_b58, Some(0), conn)?
                 .max_spendable_in_wallet;
-        let unspent = Txo::list_unspent(
-            account_id_hex,
-            assigned_subaddress_b58,
-            Some(0),
-            None,
-            None,
-            conn,
-        )?
-        .iter()
-        .map(|t| (t.value as u64) as u128)
-        .sum::<u128>();
-        let spent = Txo::list_spent(
-            account_id_hex,
-            assigned_subaddress_b58,
-            Some(0),
-            None,
-            None,
-            conn,
-        )?
-        .iter()
-        .map(|t| (t.value as u64) as u128)
-        .sum::<u128>();
-        let pending = Txo::list_pending(
-            account_id_hex,
-            assigned_subaddress_b58,
-            Some(0),
-            None,
-            None,
-            conn,
-        )?
-        .iter()
-        .map(|t| (t.value as u64) as u128)
-        .sum::<u128>();
 
+        let unspent = sum_query_result(Txo::list_unspent(
+            account_id_hex,
+            assigned_subaddress_b58,
+            Some(0),
+            None,
+            None,
+            conn,
+        )?);
+
+        let spent = sum_query_result(Txo::list_spent(
+            account_id_hex,
+            assigned_subaddress_b58,
+            Some(0),
+            None,
+            None,
+            conn,
+        )?);
+
+        let pending = sum_query_result(Txo::list_pending(
+            account_id_hex,
+            assigned_subaddress_b58,
+            Some(0),
+            None,
+            None,
+            conn,
+        )?);
+
+        let unverified = sum_query_result(Txo::list_unverified(
+            account_id_hex,
+            assigned_subaddress_b58,
+            Some(0),
+            conn,
+        )?);
         let secreted = 0;
 
         let orphaned = 0;
 
-        // let orphaned = if let Some(account_id_hex) = account_id_hex &&
-        // assigned_subaddress_b58.is_none() {
-        //     Txo::list_orphaned(account_id_hex, Some(0), None, None,
-        // conn)?.iter().map(|t| (t.value as u64) as u128).sum::<u128>()
-        // } else {
-        //     0
-        // };
-
-        let result = (unspent, max_spendable, pending, spent, secreted, orphaned);
+        let result = (
+            unspent,
+            max_spendable,
+            pending,
+            spent,
+            secreted,
+            orphaned,
+            unverified,
+        );
         Ok(result)
     }
 }

@@ -673,6 +673,7 @@ mod tests {
             None,
             None,
             None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -722,6 +723,7 @@ mod tests {
 
         let unverified_txos = Txo::list_unverified(
             Some(&account_id.to_string()),
+            None,
             None,
             None,
             None,
