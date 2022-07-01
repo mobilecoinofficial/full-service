@@ -229,6 +229,7 @@ pub trait TxoModel {
 
     fn list_unverified(
         account_id_hex: &str,
+        assigned_subaddress_b58: Option<&str>,
         token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
@@ -673,6 +674,7 @@ impl TxoModel for Txo {
 
     fn list_unverified(
         account_id_hex: &str,
+        assigned_subaddress_b58: Option<&str>,
         token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
@@ -684,6 +686,11 @@ impl TxoModel for Txo {
             .filter(txos::received_account_id_hex.eq(account_id_hex))
             .filter(txos::subaddress_index.is_not_null())
             .filter(txos::key_image.is_null());
+
+        if let Some(subaddress_b58) = assigned_subaddress_b58 {
+            let subaddress = AssignedSubaddress::get(subaddress_b58, conn)?;
+            query = query.filter(txos::subaddress_index.eq(subaddress.subaddress_index));
+        }
 
         if let Some(token_id) = token_id {
             query = query.filter(txos::token_id.eq(token_id as i64));
