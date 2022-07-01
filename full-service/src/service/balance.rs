@@ -2,6 +2,8 @@
 
 //! Service for managing balances.
 
+use std::f32::consts::E;
+
 use crate::{
     db::{
         account::{AccountID, AccountModel},
@@ -141,7 +143,7 @@ where
 
         let conn = self.wallet_db.get_conn()?;
         let (unspent, max_spendable, pending, spent, secreted, orphaned) =
-            Self::get_balance_inner(account_id_hex, None, &conn)?;
+            Self::get_balance_inner(Some(account_id_hex), None, &conn)?;
 
         let network_block_height = self.get_network_block_height()?;
         let local_block_height = self.ledger_db.num_blocks()?;
@@ -168,7 +170,7 @@ where
         let assigned_address = AssignedSubaddress::get(address, &conn)?;
 
         let (unspent, max_spendable, pending, spent, secreted, orphaned) =
-            Self::get_balance_inner(&assigned_address.account_id_hex, Some(address), &conn)?;
+            Self::get_balance_inner(None, Some(address), &conn)?;
 
         let account = Account::get(&AccountID(assigned_address.account_id_hex), &conn)?;
 
@@ -213,7 +215,7 @@ where
 
         for account in accounts {
             let account_id = AccountID(account.account_id_hex.clone());
-            let balance = Self::get_balance_inner(&account_id.to_string(), None, &conn)?;
+            let balance = Self::get_balance_inner(Some(&account_id.to_string()), None, &conn)?;
             account_map.insert(account_id.clone(), account.clone());
             unspent += balance.0;
             pending += balance.2;
@@ -250,7 +252,7 @@ where
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
     fn get_balance_inner(
-        account_id_hex: &str,
+        account_id_hex: Option<&str>,
         assigned_subaddress_b58: Option<&str>,
         conn: &Conn,
     ) -> Result<(u128, u128, u128, u128, u128, u128), BalanceServiceError> {
@@ -293,14 +295,15 @@ where
 
         let secreted = 0;
 
-        let orphaned = if assigned_subaddress_b58.is_some() {
-            0
-        } else {
-            Txo::list_orphaned(account_id_hex, Some(0), None, None, conn)?
-                .iter()
-                .map(|t| t.value as u128)
-                .sum::<u128>()
-        };
+        let orphaned = 0;
+
+        // let orphaned = if let Some(account_id_hex) = account_id_hex &&
+        // assigned_subaddress_b58.is_none() {
+        //     Txo::list_orphaned(account_id_hex, Some(0), None, None,
+        // conn)?.iter().map(|t| (t.value as u64) as u128).sum::<u128>()
+        // } else {
+        //     0
+        // };
 
         let result = (unspent, max_spendable, pending, spent, secreted, orphaned);
         Ok(result)

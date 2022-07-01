@@ -116,7 +116,6 @@ where
 
         Ok(Txo::list_for_account(
             &account_id.to_string(),
-            assigned_subaddress_b58,
             status,
             limit,
             offset,
@@ -175,7 +174,14 @@ where
 
     fn get_all_txos_for_address(&self, address: &str) -> Result<Vec<Txo>, TxoServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        Ok(Txo::list_for_address(address, Some(0), &conn)?)
+        Ok(Txo::list_for_address(
+            address,
+            None,
+            None,
+            None,
+            Some(0),
+            &conn,
+        )?)
     }
 }
 
