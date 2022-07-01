@@ -312,13 +312,13 @@ impl TxoModel for Txo {
             // If we already have this TXO for this account (e.g. from minting in a previous
             // transaction), we need to update it
             Ok(txo) => {
-                // txo.update_to_spendable(
-                //     account_id_hex,
-                //     subaddress_index,
-                //     key_image,
-                //     received_block_index,
-                //     conn,
-                // )?;
+                txo.update_as_received(
+                    account_id_hex,
+                    subaddress_index,
+                    key_image,
+                    received_block_index,
+                    conn,
+                );
             }
 
             // If we don't already have this TXO, create a new entry
@@ -1959,9 +1959,8 @@ mod tests {
         )
         .unwrap();
 
-        // We seeded with 3 received (70, 80, 90), we have a change txo, and a secreted
-        // Txo (50)
-        assert_eq!(sender_txos.len(), 5);
+        // We seeded with 3 received (70, 80, 90), and a change txo
+        assert_eq!(sender_txos.len(), 4);
 
         // Get the associated Txos with the transaction log
         log::info!(logger, "Getting associated Txos with the transaction");
