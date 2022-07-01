@@ -668,7 +668,10 @@ mod tests {
         manually_sync_account(&ledger_db, wallet_db, &account_id, &logger);
 
         let unverified_txos = Txo::list_unverified(
-            &account_id.to_string(),
+            Some(&account_id.to_string()),
+            None,
+            None,
+            None,
             None,
             &wallet_db.get_conn().unwrap(),
         )
@@ -700,8 +703,8 @@ mod tests {
         let key_image_1_hex = hex::encode(mc_util_serial::encode(&key_image_1));
         let key_image_2_hex = hex::encode(mc_util_serial::encode(&key_image_2));
 
-        let txo_id_hex_1 = unverified_txos[0].txo_id_hex.clone();
-        let txo_id_hex_2 = orphaned_txos[0].txo_id_hex.clone();
+        let txo_id_hex_1 = unverified_txos[0].id.clone();
+        let txo_id_hex_2 = orphaned_txos[0].id.clone();
 
         service
             .sync_account(
@@ -718,7 +721,10 @@ mod tests {
         assert_eq!(view_only_account.next_subaddress_index, 3);
 
         let unverified_txos = Txo::list_unverified(
-            &account_id.to_string(),
+            Some(&account_id.to_string()),
+            None,
+            None,
+            None,
             None,
             &wallet_db.get_conn().unwrap(),
         )
@@ -738,7 +744,7 @@ mod tests {
         assert_eq!(orphaned_txos.len(), 0);
 
         let unspent_txos = Txo::list_unspent(
-            &account_id.to_string(),
+            Some(&account_id.to_string()),
             None,
             None,
             None,

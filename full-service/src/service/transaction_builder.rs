@@ -801,7 +801,7 @@ mod tests {
 
         // Check balance
         let unspent = Txo::list_unspent(
-            &AccountID::from(&account_key).to_string(),
+            Some(&AccountID::from(&account_key).to_string()),
             None,
             Some(0),
             None,
@@ -870,7 +870,7 @@ mod tests {
             .unwrap();
 
         builder
-            .set_txos(&conn, &vec![txos[0].txo_id_hex.clone()], false)
+            .set_txos(&conn, &vec![txos[0].id.clone()], false)
             .unwrap();
         builder.set_tombstone(0).unwrap();
         match builder.build(&conn) {
@@ -891,11 +891,7 @@ mod tests {
             .unwrap();
 
         builder
-            .set_txos(
-                &conn,
-                &vec![txos[0].txo_id_hex.clone(), txos[1].txo_id_hex.clone()],
-                false,
-            )
+            .set_txos(&conn, &vec![txos[0].id.clone(), txos[1].id.clone()], false)
             .unwrap();
         builder.set_tombstone(0).unwrap();
         let proposal = builder.build(&conn).unwrap();

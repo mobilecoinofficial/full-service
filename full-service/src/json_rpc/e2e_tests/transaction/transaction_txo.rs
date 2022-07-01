@@ -5,7 +5,7 @@
 #[cfg(test)]
 mod e2e_transaction {
     use crate::{
-        db::{account::AccountID, models::TXO_STATUS_UNSPENT},
+        db::{account::AccountID, txo::TxoStatus},
         json_rpc,
         json_rpc::api_test_utils::{dispatch, setup},
         test_utils::{add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account},
@@ -77,7 +77,7 @@ mod e2e_transaction {
         // Add a block to fund account 1.
         assert_eq!(
             txos::table
-                .select(count(txos::txo_id_hex))
+                .select(count(txos::id))
                 .first::<i64>(&wallet_db.get_conn().unwrap())
                 .unwrap(),
             0
@@ -98,7 +98,7 @@ mod e2e_transaction {
         );
         assert_eq!(
             txos::table
-                .select(count(txos::txo_id_hex))
+                .select(count(txos::id))
                 .first::<i64>(&wallet_db.get_conn().unwrap())
                 .unwrap(),
             1
@@ -147,7 +147,7 @@ mod e2e_transaction {
         );
         assert_eq!(
             txos::table
-                .select(count(txos::txo_id_hex))
+                .select(count(txos::id))
                 .first::<i64>(&wallet_db.get_conn().unwrap())
                 .unwrap(),
             3
@@ -167,7 +167,7 @@ mod e2e_transaction {
         assert_eq!(result["removed"].as_bool().unwrap(), true,);
         assert_eq!(
             txos::table
-                .select(count(txos::txo_id_hex))
+                .select(count(txos::id))
                 .first::<i64>(&wallet_db.get_conn().unwrap())
                 .unwrap(),
             1
@@ -216,7 +216,7 @@ mod e2e_transaction {
         );
         assert_eq!(
             txos::table
-                .select(count(txos::txo_id_hex))
+                .select(count(txos::id))
                 .first::<i64>(&wallet_db.get_conn().unwrap())
                 .unwrap(),
             3
@@ -581,7 +581,7 @@ mod e2e_transaction {
             .unwrap()
             .as_str()
             .unwrap();
-        assert_eq!(txo_status, TXO_STATUS_UNSPENT);
+        assert_eq!(txo_status, TxoStatus::Unspent.to_string());
         let txo_type = account_status_map
             .get("txo_type")
             .unwrap()
@@ -670,7 +670,7 @@ mod e2e_transaction {
             .unwrap()
             .as_str()
             .unwrap();
-        assert_eq!(txo_status, TXO_STATUS_UNSPENT);
+        assert_eq!(txo_status, TxoStatus::Unspent.to_string());
         let txo_type = account_status_map
             .get("txo_type")
             .unwrap()
