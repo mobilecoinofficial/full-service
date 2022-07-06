@@ -315,7 +315,17 @@ where
 
         let secreted = 0;
 
-        let orphaned = 0;
+        let orphaned = if assigned_subaddress_b58.is_some() {
+            0
+        } else {
+            sum_query_result(Txo::list_orphaned(
+                account_id_hex,
+                Some(0),
+                None,
+                None,
+                conn,
+            )?)
+        };
 
         let result = (
             unspent,

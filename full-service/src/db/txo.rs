@@ -205,7 +205,7 @@ pub trait TxoModel {
     ) -> Result<Vec<Txo>, WalletDbError>;
 
     fn list_orphaned(
-        account_id_hex: &str,
+        account_id_hex: Option<&str>,
         token_id: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
@@ -557,7 +557,7 @@ impl TxoModel for Txo {
                     )
                 }
                 TxoStatus::Orphaned => {
-                    return Txo::list_orphaned(account_id_hex, token_id, offset, limit, conn)
+                    return Txo::list_orphaned(Some(account_id_hex), token_id, offset, limit, conn)
                 }
             }
         }
@@ -869,7 +869,7 @@ impl TxoModel for Txo {
     }
 
     fn list_orphaned(
-        account_id_hex: &str,
+        account_id_hex: Option<&str>,
         token_id: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
@@ -879,8 +879,11 @@ impl TxoModel for Txo {
 
         let mut query = txos::table.into_boxed();
 
+        if let Some(account_id_hex) = account_id_hex {
+            query = query.filter(txos::account_id_hex.eq(account_id_hex));
+        }
+
         query = query
-            .filter(txos::account_id_hex.eq(account_id_hex))
             .filter(txos::subaddress_index.is_null())
             .filter(txos::key_image.is_null());
 
@@ -1475,7 +1478,7 @@ mod tests {
         // Check that we have one orphaned - went from [Minted, Secreted] -> [Minted,
         // Orphaned]
         let orphaned = Txo::list_orphaned(
-            &alice_account_id.to_string(),
+            Some(&alice_account_id.to_string()),
             Some(0),
             None,
             None,

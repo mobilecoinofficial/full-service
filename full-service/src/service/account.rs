@@ -682,7 +682,7 @@ mod tests {
         assert_eq!(unverified_txos[0].key_image, None);
 
         let orphaned_txos = Txo::list_orphaned(
-            &account_id.to_string(),
+            Some(&account_id.to_string()),
             None,
             None,
             None,
@@ -733,7 +733,7 @@ mod tests {
         assert_eq!(unverified_txos.len(), 0);
 
         let orphaned_txos = Txo::list_orphaned(
-            &account_id.to_string(),
+            Some(&account_id.to_string()),
             None,
             None,
             None,
