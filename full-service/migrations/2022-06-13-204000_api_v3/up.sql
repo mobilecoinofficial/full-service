@@ -62,13 +62,29 @@ CREATE TABLE transaction_logs (
     FOREIGN KEY (account_id_hex) REFERENCES accounts(account_id_hex)
 );
 
-CREATE TABLE transaction_txos (
+CREATE TABLE transaction_input_txos (
+  transaction_log_id VARCHAR NOT NULL,
+  txo_id VARCHAR NOT NULL,
+  PRIMARY KEY (transaction_log_id, txo_id),
+  FOREIGN KEY (transaction_log_id) REFERENCES transaction_logs(id),
+  FOREIGN KEY (txo_id) REFERENCES txos(id)
+);
+
+CREATE TABLE transaction_payload_txos (
     transaction_log_id VARCHAR NOT NULL,
     txo_id VARCHAR NOT NULL,
-    used_as VARCHAR NOT NULL,
+    recipient_public_address_b58 VARCHAR NOT NULL,
     PRIMARY KEY (transaction_log_id, txo_id),
     FOREIGN KEY (transaction_log_id) REFERENCES transaction_logs(id),
     FOREIGN KEY (txo_id) REFERENCES txos(id)
+);
+
+CREATE TABLE transaction_change_txos (
+  transaction_log_id VARCHAR NOT NULL,
+  txo_id VARCHAR NOT NULL,
+  PRIMARY KEY (transaction_log_id, txo_id),
+  FOREIGN KEY (transaction_log_id) REFERENCES transaction_logs(id),
+  FOREIGN KEY (txo_id) REFERENCES txos(id)
 );
 
 CREATE TABLE gift_codes (

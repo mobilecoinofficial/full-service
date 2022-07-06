@@ -39,6 +39,20 @@ table! {
 }
 
 table! {
+    transaction_change_txos (transaction_log_id, txo_id) {
+        transaction_log_id -> Text,
+        txo_id -> Text,
+    }
+}
+
+table! {
+    transaction_input_txos (transaction_log_id, txo_id) {
+        transaction_log_id -> Text,
+        txo_id -> Text,
+    }
+}
+
+table! {
     transaction_logs (id) {
         id -> Text,
         account_id_hex -> Text,
@@ -54,10 +68,10 @@ table! {
 }
 
 table! {
-    transaction_txos (transaction_log_id, txo_id) {
+    transaction_payload_txos (transaction_log_id, txo_id) {
         transaction_log_id -> Text,
         txo_id -> Text,
-        used_as -> Text,
+        recipient_public_address_b58 -> Text,
     }
 }
 
@@ -79,14 +93,20 @@ table! {
     }
 }
 
-joinable!(transaction_txos -> transaction_logs (transaction_log_id));
-joinable!(transaction_txos -> txos (txo_id));
+joinable!(transaction_change_txos -> transaction_logs (transaction_log_id));
+joinable!(transaction_change_txos -> txos (txo_id));
+joinable!(transaction_input_txos -> transaction_logs (transaction_log_id));
+joinable!(transaction_input_txos -> txos (txo_id));
+joinable!(transaction_payload_txos -> transaction_logs (transaction_log_id));
+joinable!(transaction_payload_txos -> txos (txo_id));
 
 allow_tables_to_appear_in_same_query!(
     accounts,
     assigned_subaddresses,
     gift_codes,
+    transaction_change_txos,
+    transaction_input_txos,
     transaction_logs,
-    transaction_txos,
+    transaction_payload_txos,
     txos,
 );
