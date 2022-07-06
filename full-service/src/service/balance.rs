@@ -22,6 +22,7 @@ use mc_common::HashMap;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
+use mc_transaction_core::{tokens::Mob, Token};
 
 /// Errors for the Address Service.
 #[derive(Display, Debug)]
@@ -267,9 +268,14 @@ where
         assigned_subaddress_b58: Option<&str>,
         conn: &Conn,
     ) -> Result<(u128, u128, u128, u128, u128, u128, u128), BalanceServiceError> {
-        let max_spendable =
-            Txo::list_spendable(account_id_hex, None, assigned_subaddress_b58, Some(0), conn)?
-                .max_spendable_in_wallet;
+        let max_spendable = Txo::list_spendable(
+            account_id_hex,
+            None,
+            assigned_subaddress_b58,
+            *Mob::ID,
+            conn,
+        )?
+        .max_spendable_in_wallet;
 
         let unspent = sum_query_result(Txo::list_unspent(
             account_id_hex,
@@ -302,8 +308,11 @@ where
             account_id_hex,
             assigned_subaddress_b58,
             Some(0),
+            None,
+            None,
             conn,
         )?);
+
         let secreted = 0;
 
         let orphaned = 0;

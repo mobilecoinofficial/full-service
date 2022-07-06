@@ -172,7 +172,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             &self.account_id_hex,
             total_value,
             max_spendable_value,
-            Some(0),
+            *Mob::ID,
             conn,
         )?;
 

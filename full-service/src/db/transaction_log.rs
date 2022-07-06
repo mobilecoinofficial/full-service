@@ -318,7 +318,7 @@ impl TransactionLogModel for TransactionLog {
             fee_value: tx_proposal.tx.prefix.fee as i64,
             fee_token_id: tx_proposal.tx.prefix.fee_token_id as i64,
             submitted_block_index: Some(block_index as i64),
-            tombstone_block_index: None,
+            tombstone_block_index: Some(tx_proposal.tx.prefix.tombstone_block as i64),
             finalized_block_index: None,
             comment: &comment,
             tx: &tx,
