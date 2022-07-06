@@ -21,7 +21,10 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        models::{Account, AssignedSubaddress, NewTransactionTxo, NewTxo, TransactionTxo, Txo},
+        models::{
+            Account, AssignedSubaddress, NewTransactionInputTxo, NewTransactionOutputTxo, NewTxo,
+            TransactionInputTxo, TransactionOutputTxo, Txo,
+        },
         transaction_log::{TransactionID, TxoType},
         Conn, WalletDbError,
     },
@@ -132,7 +135,7 @@ pub trait TxoModel {
         tx_proposal: &TxProposal,
         outlay_index: usize,
         conn: &Conn,
-    ) -> Result<ProcessedTxProposalOutput, WalletDbError>;
+    ) -> Result<(), WalletDbError>;
 
     /// Update an existing Txo to spendable by including its subaddress_index
     /// and optionally the key_image in the case of view only accounts.
@@ -357,7 +360,7 @@ impl TxoModel for Txo {
         tx_proposal: &TxProposal,
         output_index: usize,
         conn: &Conn,
-    ) -> Result<ProcessedTxProposalOutput, WalletDbError> {
+    ) -> Result<(), WalletDbError> {
         use crate::db::schema::txos;
 
         let txo_id = TxoID::from(output);
@@ -368,7 +371,15 @@ impl TxoModel for Txo {
         let total_output_value: u64 = tx_proposal.outlays.iter().map(|o| o.value).sum();
         let change_value: u64 = total_input_value - total_output_value - tx_proposal.fee();
 
-        // Determine whether this output is an outlay destination, or change.
+        // let outlay_index = tx_proposal
+        //     .outlay_index_to_tx_out_index
+        //     .iter()
+        //     .find_map(|(k, &v)| if v == output_index { Some(k) } else { None })
+        //     .ok_or(WalletDbError::ExpectedTxOutAsOutlay)?;
+
+        // let outlay = &tx_proposal.outlays[*outlay_index];
+
+        // // Determine whether this output is an outlay destination, or change.
         let (value, confirmation, outlay_receiver, txo_type) = if let Some(outlay_index) =
             tx_proposal
                 .outlay_index_to_tx_out_index
@@ -383,10 +394,11 @@ impl TxoModel for Txo {
                 TxoType::Payload,
             )
         } else {
-            // This is the change output. Note: there should only be one change output
-            // per transaction, based on how we construct transactions. If we change
-            // how we construct transactions, these assumptions will change, and should be
-            // reflected in the TxProposal.
+            //     // This is the change output. Note: there should only be one change
+            // output     // per transaction, based on how we construct
+            // transactions. If we change     // how we construct transactions,
+            // these assumptions will change, and should be     // reflected in the
+            // TxProposal.
             (change_value, None, None, TxoType::Change)
         };
 
@@ -430,21 +442,18 @@ impl TxoModel for Txo {
             .values(&new_txo)
             .execute(conn)?;
 
-        let new_transaction_txo = NewTransactionTxo {
+        let new_transaction_output_txo = NewTransactionOutputTxo {
             transaction_log_id: &transaction_id.to_string(),
             txo_id: &txo_id.to_string(),
-            used_as: &txo_type.to_string(),
+            recipient_public_address_b58: &recipient_public_address_b58,
+            is_change: txo_type == TxoType::Change,
         };
 
-        diesel::insert_into(crate::db::schema::transaction_txos::table)
-            .values(&new_transaction_txo)
+        diesel::insert_into(crate::db::schema::transaction_output_txos::table)
+            .values(&new_transaction_output_txo)
             .execute(conn)?;
 
-        Ok(ProcessedTxProposalOutput {
-            recipient: outlay_receiver,
-            txo_id_hex: txo_id.to_string(),
-            value: log_value as i64,
-        })
+        Ok(())
     }
 
     fn update_as_received(
@@ -661,7 +670,7 @@ impl TxoModel for Txo {
         limit: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
-        use crate::db::schema::{transaction_logs, transaction_txos, txos};
+        use crate::db::schema::{transaction_input_txos, transaction_logs, txos};
 
         /*
             SELECT * FROM txos
@@ -678,33 +687,43 @@ impl TxoModel for Txo {
 
         let mut query = txos::table
             .into_boxed()
-            .left_join(transaction_txos::table)
+            .left_join(transaction_input_txos::table)
             .left_join(
                 transaction_logs::table
-                    .on(transaction_logs::id.eq(transaction_txos::transaction_log_id)),
+                    .on(transaction_logs::id.eq(transaction_input_txos::transaction_log_id)),
             );
 
         if let Some(account_id_hex) = account_id_hex {
             query = query.filter(txos::account_id_hex.eq(account_id_hex));
         }
 
+        query = query
+            .filter(transaction_logs::id.is_null())
+            .or_filter(transaction_logs::failed.eq(true))
+            .or_filter(
+                transaction_logs::id
+                    .is_not_null()
+                    .and(transaction_logs::submitted_block_index.is_null()),
+            );
+
         // filter out any txos that are part of pending transactions, but potentially
         // built transactions
-        query = query.filter(
-            transaction_logs::id
-                .is_null()
-                .or(transaction_txos::used_as
-                    .eq(TxoType::Input.to_string())
-                    .and(
-                        transaction_logs::failed
-                            .eq(true)
-                            .or(transaction_logs::submitted_block_index.is_null()),
-                    ))
-                .or(transaction_txos::used_as
-                    .ne(TxoType::Input.to_string())
-                    .and(transaction_logs::failed.eq(false))),
-        );
+        // query = query.filter(
+        //     transaction_logs::id
+        //         .is_null()
+        //         .or(transaction_txos::used_as
+        //             .eq(TxoType::Input.to_string())
+        //             .and(
+        //                 transaction_logs::failed
+        //                     .eq(true)
+        //                     .or(transaction_logs::submitted_block_index.is_null()),
+        //             ))
+        //         .or(transaction_txos::used_as
+        //             .ne(TxoType::Input.to_string())
+        //             .and(transaction_logs::failed.eq(false))),
+        // );
 
+        query = query.filter(txos::received_block_index.is_not_null());
         query = query.filter(txos::key_image.is_not_null());
         query = query.filter(txos::spent_block_index.is_null());
         //     .or_filter(transaction_txos::used_as.eq(TxoType::Input.to_string()))
@@ -748,38 +767,47 @@ impl TxoModel for Txo {
         limit: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
-        use crate::db::schema::{transaction_logs, transaction_txos, txos};
+        use crate::db::schema::{transaction_input_txos, transaction_logs, txos};
 
         let mut query = txos::table
             .into_boxed()
-            .left_join(transaction_txos::table)
+            .left_join(transaction_input_txos::table)
             .left_join(
                 transaction_logs::table
-                    .on(transaction_logs::id.eq(transaction_txos::transaction_log_id)),
+                    .on(transaction_logs::id.eq(transaction_input_txos::transaction_log_id)),
             );
 
         if let Some(account_id_hex) = account_id_hex {
             query = query.filter(txos::account_id_hex.eq(account_id_hex));
         }
 
-        // filter out any txos that are part of pending transactions, but potentially
-        // built transactions
-        query = query.filter(
-            transaction_logs::id
-                .is_null()
-                .or(transaction_txos::used_as
-                    .eq(TxoType::Input.to_string())
-                    .and(
-                        transaction_logs::failed
-                            .eq(true)
-                            .or(transaction_logs::submitted_block_index.is_null()),
-                    ))
-                .or(transaction_txos::used_as
-                    .ne(TxoType::Input.to_string())
-                    .and(transaction_logs::failed.eq(false))),
-        );
+        query = query
+            .filter(transaction_logs::id.is_null())
+            .or_filter(transaction_logs::failed.eq(true))
+            .or_filter(
+                transaction_logs::id
+                    .is_not_null()
+                    .and(transaction_logs::submitted_block_index.is_null()),
+            );
+        // // filter out any txos that are part of pending transactions, but potentially
+        // // built transactions
+        // query = query.filter(
+        //     transaction_logs::id
+        //         .is_null()
+        //         .or(transaction_txos::used_as
+        //             .eq(TxoType::Input.to_string())
+        //             .and(
+        //                 transaction_logs::failed
+        //                     .eq(true)
+        //                     .or(transaction_logs::submitted_block_index.is_null()),
+        //             ))
+        //         .or(transaction_txos::used_as
+        //             .ne(TxoType::Input.to_string())
+        //             .and(transaction_logs::failed.eq(false))),
+        // );
 
         query = query
+            .filter(txos::received_block_index.is_not_null())
             .filter(txos::subaddress_index.is_not_null())
             .filter(txos::key_image.is_null());
 
@@ -909,14 +937,14 @@ impl TxoModel for Txo {
         limit: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
-        use crate::db::schema::{transaction_logs, transaction_txos, txos};
+        use crate::db::schema::{transaction_input_txos, transaction_logs, txos};
 
         let mut query = txos::table
             .into_boxed()
-            .inner_join(transaction_txos::table)
+            .inner_join(transaction_input_txos::table)
             .inner_join(
                 transaction_logs::table
-                    .on(transaction_logs::id.eq(transaction_txos::transaction_log_id)),
+                    .on(transaction_logs::id.eq(transaction_input_txos::transaction_log_id)),
             );
 
         query = query
@@ -1004,38 +1032,57 @@ impl TxoModel for Txo {
         token_id: u64,
         conn: &Conn,
     ) -> Result<SpendableTxosResult, WalletDbError> {
-        use crate::db::schema::{transaction_logs, transaction_txos, txos};
+        use crate::db::schema::{transaction_input_txos, transaction_logs, txos};
 
         let mut query = txos::table
             .into_boxed()
-            .left_join(transaction_txos::table)
+            .left_join(transaction_input_txos::table)
             .left_join(
                 transaction_logs::table
-                    .on(transaction_logs::id.eq(transaction_txos::transaction_log_id)),
+                    .on(transaction_logs::id.eq(transaction_input_txos::transaction_log_id)),
             );
 
         if let Some(account_id_hex) = account_id_hex {
             query = query.filter(txos::account_id_hex.eq(account_id_hex));
         }
 
+        query = query
+            .filter(transaction_logs::id.is_null())
+            .or_filter(transaction_logs::failed.eq(true))
+            .or_filter(
+                transaction_logs::id
+                    .is_not_null()
+                    .and(transaction_logs::submitted_block_index.is_null()),
+            );
+
+        // query = query
+        //     .filter(transaction_logs::id.is_null())
+        //     .or_filter(transaction_logs::failed.eq(true))
+        //     .or_filter(
+        //         transaction_logs::id
+        //             .is_not_null()
+        //             .and(transaction_logs::submitted_block_index.is_null()),
+        //     );
+
         // filter out any txos that are part of pending transactions, but potentially
         // built transactions
-        query = query.filter(
-            transaction_logs::id
-                .is_null()
-                .or(transaction_txos::used_as
-                    .eq(TxoType::Input.to_string())
-                    .and(
-                        transaction_logs::failed
-                            .eq(true)
-                            .or(transaction_logs::submitted_block_index.is_null()),
-                    ))
-                .or(transaction_txos::used_as
-                    .ne(TxoType::Input.to_string())
-                    .and(transaction_logs::failed.eq(false))),
-        );
+        // query = query.filter(
+        //     transaction_logs::id
+        //         .is_null()
+        //         .or(transaction_txos::used_as
+        //             .eq(TxoType::Input.to_string())
+        //             .and(
+        //                 transaction_logs::failed
+        //                     .eq(true)
+        //                     .or(transaction_logs::submitted_block_index.is_null()),
+        //             ))
+        //         .or(transaction_txos::used_as
+        //             .ne(TxoType::Input.to_string())
+        //             .and(transaction_logs::failed.eq(false))),
+        // );
 
         query = query
+            .filter(txos::received_block_index.is_not_null())
             .filter(txos::spent_block_index.is_null())
             .filter(txos::subaddress_index.is_not_null())
             .filter(txos::token_id.eq(token_id as i64));
@@ -1212,11 +1259,9 @@ impl TxoModel for Txo {
 
     // TODO - UPDATE THIS
     fn delete_unreferenced(conn: &Conn) -> Result<(), WalletDbError> {
-        use crate::db::schema::{transaction_txos, txos};
+        use crate::db::schema::txos;
 
-        let unreferenced_txos = txos::table
-            // .filter(txos::minted_account_id_hex.is_null())
-            .filter(txos::account_id_hex.is_null());
+        let unreferenced_txos = txos::table.filter(txos::account_id_hex.is_null());
 
         diesel::delete(unreferenced_txos).execute(conn)?;
 
@@ -1224,15 +1269,22 @@ impl TxoModel for Txo {
     }
 
     fn status(&self, conn: &Conn) -> Result<TxoStatus, WalletDbError> {
-        use crate::db::schema::{transaction_logs, transaction_txos};
+        use crate::db::schema::{
+            transaction_input_txos, transaction_logs, transaction_output_txos,
+        };
 
         if self.spent_block_index.is_some() {
             return Ok(TxoStatus::Spent);
         }
 
         let num_pending_logs: i64 = transaction_logs::table
-            .inner_join(transaction_txos::table)
-            .filter(transaction_txos::txo_id.eq(&self.id))
+            .inner_join(transaction_input_txos::table)
+            .inner_join(transaction_output_txos::table)
+            .filter(
+                transaction_input_txos::txo_id
+                    .eq(&self.id)
+                    .or(transaction_output_txos::txo_id.eq(&self.id)),
+            )
             .filter(transaction_logs::tombstone_block_index.is_not_null())
             .filter(transaction_logs::finalized_block_index.is_null())
             .filter(transaction_logs::failed.eq(false))

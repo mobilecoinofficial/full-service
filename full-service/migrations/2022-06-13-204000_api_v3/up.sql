@@ -70,21 +70,14 @@ CREATE TABLE transaction_input_txos (
   FOREIGN KEY (txo_id) REFERENCES txos(id)
 );
 
-CREATE TABLE transaction_payload_txos (
+CREATE TABLE transaction_output_txos (
     transaction_log_id VARCHAR NOT NULL,
     txo_id VARCHAR NOT NULL,
     recipient_public_address_b58 VARCHAR NOT NULL,
+    is_change BOOLEAN NOT NULL,
     PRIMARY KEY (transaction_log_id, txo_id),
     FOREIGN KEY (transaction_log_id) REFERENCES transaction_logs(id),
     FOREIGN KEY (txo_id) REFERENCES txos(id)
-);
-
-CREATE TABLE transaction_change_txos (
-  transaction_log_id VARCHAR NOT NULL,
-  txo_id VARCHAR NOT NULL,
-  PRIMARY KEY (transaction_log_id, txo_id),
-  FOREIGN KEY (transaction_log_id) REFERENCES transaction_logs(id),
-  FOREIGN KEY (txo_id) REFERENCES txos(id)
 );
 
 CREATE TABLE gift_codes (

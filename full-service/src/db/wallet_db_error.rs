@@ -140,6 +140,9 @@ pub enum WalletDbError {
 
     /// invalid txo status
     InvalidTxoStatus(String),
+
+    /// Expected to find TxOut as an outlay
+    ExpectedTxOutAsOutlay,
 }
 
 impl From<diesel::result::Error> for WalletDbError {

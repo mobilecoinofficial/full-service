@@ -12,7 +12,10 @@ use std::fmt;
 
 use crate::db::{
     account::{AccountID, AccountModel},
-    models::{Account, NewTransactionLog, NewTransactionTxo, TransactionLog, TransactionTxo, Txo},
+    models::{
+        Account, NewTransactionInputTxo, NewTransactionLog, NewTransactionOutputTxo,
+        TransactionInputTxo, TransactionLog, TransactionOutputTxo, Txo,
+    },
     txo::{TxoID, TxoModel},
     Conn, WalletDbError,
 };
@@ -217,26 +220,25 @@ impl TransactionLogModel for TransactionLog {
     }
 
     fn get_associated_txos(&self, conn: &Conn) -> Result<AssociatedTxos, WalletDbError> {
-        use crate::db::schema::{transaction_txos, txos};
+        use crate::db::schema::{transaction_input_txos, transaction_output_txos, txos};
 
         let inputs: Vec<Txo> = txos::table
-            .inner_join(transaction_txos::table)
-            .filter(transaction_txos::transaction_log_id.eq(&self.id))
-            .filter(transaction_txos::used_as.eq(&TxoType::Input.to_string()))
+            .inner_join(transaction_input_txos::table)
+            .filter(transaction_input_txos::transaction_log_id.eq(&self.id))
             .select(txos::all_columns)
             .load(conn)?;
 
         let payload: Vec<Txo> = txos::table
-            .inner_join(transaction_txos::table)
-            .filter(transaction_txos::transaction_log_id.eq(&self.id))
-            .filter(transaction_txos::used_as.eq(&TxoType::Payload.to_string()))
+            .inner_join(transaction_output_txos::table)
+            .filter(transaction_output_txos::transaction_log_id.eq(&self.id))
+            .filter(transaction_output_txos::is_change.eq(false))
             .select(txos::all_columns)
             .load(conn)?;
 
         let change: Vec<Txo> = txos::table
-            .inner_join(transaction_txos::table)
-            .filter(transaction_txos::transaction_log_id.eq(&self.id))
-            .filter(transaction_txos::used_as.eq(&TxoType::Change.to_string()))
+            .inner_join(transaction_output_txos::table)
+            .filter(transaction_output_txos::transaction_log_id.eq(&self.id))
+            .filter(transaction_output_txos::is_change.eq(true))
             .select(txos::all_columns)
             .load(conn)?;
 
@@ -336,14 +338,13 @@ impl TransactionLogModel for TransactionLog {
         for utxo in tx_proposal.utxos.iter() {
             let txo_id = TxoID::from(&utxo.tx_out);
             Txo::update_key_image(&txo_id.to_string(), &utxo.key_image, None, conn)?;
-            let transaction_txo = NewTransactionTxo {
+            let transaction_input_txo = NewTransactionInputTxo {
                 transaction_log_id: &transaction_log_id.to_string(),
                 txo_id: &txo_id.to_string(),
-                used_as: &TxoType::Input.to_string(),
             };
 
-            diesel::insert_into(crate::db::schema::transaction_txos::table)
-                .values(&transaction_txo)
+            diesel::insert_into(crate::db::schema::transaction_input_txos::table)
+                .values(&transaction_input_txo)
                 .execute(conn)?;
         }
 
@@ -356,16 +357,28 @@ impl TransactionLogModel for TransactionLog {
     }
 
     fn delete_all_for_account(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError> {
-        use crate::db::schema::{transaction_logs, transaction_txos, txos};
+        use crate::db::schema::{
+            transaction_input_txos, transaction_logs, transaction_output_txos, txos,
+        };
 
-        let transaction_txos: Vec<TransactionTxo> = transaction_txos::table
+        let transaction_input_txos: Vec<TransactionInputTxo> = transaction_input_txos::table
             .inner_join(transaction_logs::table)
             .filter(transaction_logs::account_id_hex.eq(account_id_hex))
-            .select(transaction_txos::all_columns)
+            .select(transaction_input_txos::all_columns)
             .load(conn)?;
 
-        for transaction_txo in transaction_txos {
-            diesel::delete(&transaction_txo).execute(conn)?;
+        for transaction_input_txo in transaction_input_txos {
+            diesel::delete(&transaction_input_txo).execute(conn)?;
+        }
+
+        let transaction_output_txos: Vec<TransactionOutputTxo> = transaction_output_txos::table
+            .inner_join(transaction_logs::table)
+            .filter(transaction_logs::account_id_hex.eq(account_id_hex))
+            .select(transaction_output_txos::all_columns)
+            .load(conn)?;
+
+        for transaction_output_txo in transaction_output_txos {
+            diesel::delete(&transaction_output_txo).execute(conn)?;
         }
 
         diesel::delete(
@@ -381,13 +394,13 @@ impl TransactionLogModel for TransactionLog {
         finalized_block_index: u64,
         conn: &Conn,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::{transaction_logs, transaction_txos};
+        use crate::db::schema::{transaction_input_txos, transaction_logs};
         // Find all transaction logs associated with this txo that have not
         // yet been // finalized (there should only ever be one).
         // TODO - WHY WON'T THIS WORK?!?!?
         let transaction_log_ids: Vec<String> = transaction_logs::table
-            .inner_join(transaction_txos::table)
-            .filter(transaction_txos::txo_id.eq(txo_id_hex))
+            .inner_join(transaction_input_txos::table)
+            .filter(transaction_input_txos::txo_id.eq(txo_id_hex))
             .filter(transaction_logs::failed.eq(false))
             .filter(transaction_logs::finalized_block_index.is_null())
             .select(transaction_logs::id)

@@ -3,7 +3,8 @@
 //! DB Models
 
 use super::schema::{
-    accounts, assigned_subaddresses, gift_codes, transaction_logs, transaction_txos, txos,
+    accounts, assigned_subaddresses, gift_codes, transaction_input_txos, transaction_logs,
+    transaction_output_txos, txos,
 };
 
 use serde::Serialize;
@@ -182,20 +183,39 @@ pub struct NewTransactionLog<'a> {
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
 #[belongs_to(TransactionLog, foreign_key = "transaction_log_id")]
 #[belongs_to(Txo, foreign_key = "txo_id")]
-#[table_name = "transaction_txos"]
+#[table_name = "transaction_input_txos"]
 #[primary_key(transaction_log_id, txo_id)]
-pub struct TransactionTxo {
+pub struct TransactionInputTxo {
     pub transaction_log_id: String,
     pub txo_id: String,
-    pub used_as: String,
 }
 
 #[derive(Insertable)]
-#[table_name = "transaction_txos"]
-pub struct NewTransactionTxo<'a> {
+#[table_name = "transaction_input_txos"]
+pub struct NewTransactionInputTxo<'a> {
     pub transaction_log_id: &'a str,
     pub txo_id: &'a str,
-    pub used_as: &'a str,
+}
+
+#[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
+#[belongs_to(TransactionLog, foreign_key = "transaction_log_id")]
+#[belongs_to(Txo, foreign_key = "txo_id")]
+#[table_name = "transaction_output_txos"]
+#[primary_key(transaction_log_id, txo_id)]
+pub struct TransactionOutputTxo {
+    pub transaction_log_id: String,
+    pub txo_id: String,
+    pub recipient_public_address_b58: String,
+    pub is_change: bool,
+}
+
+#[derive(Insertable)]
+#[table_name = "transaction_output_txos"]
+pub struct NewTransactionOutputTxo<'a> {
+    pub transaction_log_id: &'a str,
+    pub txo_id: &'a str,
+    pub recipient_public_address_b58: &'a str,
+    pub is_change: bool,
 }
 
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
