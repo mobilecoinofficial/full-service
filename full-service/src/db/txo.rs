@@ -653,6 +653,7 @@ impl TxoModel for Txo {
         query = query
             .filter(txos::received_account_id_hex.eq(account_id_hex))
             .filter(txos::subaddress_index.is_not_null())
+            .filter(txos::key_image.is_not_null())
             .filter(txos::pending_tombstone_block_index.is_null())
             .filter(txos::spent_block_index.is_null());
 
@@ -2365,6 +2366,100 @@ mod tests {
             max_spendable_in_wallet as u64,
             txo_value_low * 5 - Mob::MINIMUM_FEE
         );
+    }
+
+    #[test_with_logger]
+    fn test_unspent_txo_query(logger: Logger) {
+        // make sure it only includes txos with key image and subaddress
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+        let conn = wallet_db.get_conn().unwrap();
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        let (account_id, _address) = Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(0),
+            None,
+            None,
+            "",
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        let amount = Amount::new(28922973268924, Mob::ID);
+
+        let (txo, key_image) =
+            create_test_txo_for_recipient(&account_key, 1, amount.clone(), &mut rng);
+
+        // create 1 txo with no key image and no subaddress
+        Txo::create_received(
+            txo.clone(),
+            None,
+            None,
+            amount.clone(),
+            15,
+            &account_id.to_string(),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        let txos =
+            Txo::list_unspent(&account_id.to_string(), None, None, None, None, &conn).unwrap();
+        assert_eq!(txos.len(), 0);
+
+        // create 1 txo with subaddress, but not key image
+        Txo::create_received(
+            txo.clone(),
+            Some(1),
+            None,
+            amount.clone(),
+            15,
+            &account_id.to_string(),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        let txos =
+            Txo::list_unspent(&account_id.to_string(), None, None, None, None, &conn).unwrap();
+        assert_eq!(txos.len(), 0);
+
+        // create 1 txo with key image, but no subaddress
+        Txo::create_received(
+            txo.clone(),
+            None,
+            Some(key_image),
+            amount.clone(),
+            15,
+            &account_id.to_string(),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        let txos =
+            Txo::list_unspent(&account_id.to_string(), None, None, None, None, &conn).unwrap();
+        assert_eq!(txos.len(), 0);
+
+        // create 1 txo with key image and subaddress
+        Txo::create_received(
+            txo.clone(),
+            Some(1),
+            Some(key_image),
+            amount.clone(),
+            15,
+            &account_id.to_string(),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        let txos =
+            Txo::list_unspent(&account_id.to_string(), None, None, None, None, &conn).unwrap();
+        assert_eq!(txos.len(), 1);
     }
 
     fn setup_select_unspent_txos_tests(logger: Logger, fragmented: bool) -> (AccountID, WalletDb) {
