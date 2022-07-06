@@ -116,7 +116,7 @@ mod e2e_account {
             &logger,
         );
 
-        // confirm that the regular account has the correct balance
+        // confirm that the view only account has the correct balance
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
@@ -128,8 +128,11 @@ mod e2e_account {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let balance_status = result.get("balance").unwrap();
-        let unspent = balance_status["unspent_pmob"].as_str().unwrap();
-        assert_eq!(unspent, "100000000000000");
+        println!("BALANCE {:?}", balance_status);
+        let max_spendable_pmob = balance_status["max_spendable_pmob"].as_str().unwrap();
+        // view only accounts with not have unspent balance because unspent balance
+        // requires key images
+        assert_eq!(max_spendable_pmob, "99999600000000");
 
         // test get
         let body = json!({
