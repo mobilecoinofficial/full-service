@@ -2469,8 +2469,8 @@ mod tests {
         )
         .unwrap();
 
-        let txos =
-            Txo::list_unspent(&account_id.to_string(), None, None, None, None, &conn).unwrap();
+        let txos = Txo::list_unspent(Some(&account_id.to_string()), None, None, None, None, &conn)
+            .unwrap();
         assert_eq!(txos.len(), 0);
 
         // create 1 txo with subaddress, but not key image
@@ -2485,8 +2485,8 @@ mod tests {
         )
         .unwrap();
 
-        let txos =
-            Txo::list_unspent(&account_id.to_string(), None, None, None, None, &conn).unwrap();
+        let txos = Txo::list_unspent(Some(&account_id.to_string()), None, None, None, None, &conn)
+            .unwrap();
         assert_eq!(txos.len(), 0);
 
         // create 1 txo with key image, but no subaddress
@@ -2501,8 +2501,8 @@ mod tests {
         )
         .unwrap();
 
-        let txos =
-            Txo::list_unspent(&account_id.to_string(), None, None, None, None, &conn).unwrap();
+        let txos = Txo::list_unspent(Some(&account_id.to_string()), None, None, None, None, &conn)
+            .unwrap();
         assert_eq!(txos.len(), 0);
 
         // create 1 txo with key image and subaddress
@@ -2517,8 +2517,8 @@ mod tests {
         )
         .unwrap();
 
-        let txos =
-            Txo::list_unspent(&account_id.to_string(), None, None, None, None, &conn).unwrap();
+        let txos = Txo::list_unspent(Some(&account_id.to_string()), None, None, None, None, &conn)
+            .unwrap();
         assert_eq!(txos.len(), 1);
     }
 
