@@ -4,12 +4,8 @@
 
 use crate::{
     db::{
-        account::AccountID,
-        assigned_subaddress::AssignedSubaddressModel,
-        models::{AssignedSubaddress, ViewOnlySubaddress},
-        transaction,
-        view_only_subaddress::ViewOnlySubaddressModel,
-        WalletDbError,
+        account::AccountID, assigned_subaddress::AssignedSubaddressModel,
+        models::AssignedSubaddress, transaction, WalletDbError,
     },
     service::WalletService,
     util::b58::b58_decode_public_address,
@@ -68,19 +64,6 @@ pub trait AddressService {
         limit: Option<u64>,
     ) -> Result<Vec<AssignedSubaddress>, AddressServiceError>;
 
-    fn get_address_for_view_only_account(
-        &self,
-        account_id: &AccountID,
-        index: u64,
-    ) -> Result<ViewOnlySubaddress, AddressServiceError>;
-
-    fn get_addresses_for_view_only_account(
-        &self,
-        account_id: &AccountID,
-        offset: Option<u64>,
-        limit: Option<u64>,
-    ) -> Result<Vec<ViewOnlySubaddress>, AddressServiceError>;
-
     /// Verifies whether an address can be decoded from b58.
     fn verify_address(&self, public_address: &str) -> Result<bool, AddressServiceError>;
 }
@@ -136,34 +119,6 @@ where
         )?)
     }
 
-    fn get_address_for_view_only_account(
-        &self,
-        account_id: &AccountID,
-        index: u64,
-    ) -> Result<ViewOnlySubaddress, AddressServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-        Ok(ViewOnlySubaddress::get_for_account_by_index(
-            &account_id.to_string(),
-            index,
-            &conn,
-        )?)
-    }
-
-    fn get_addresses_for_view_only_account(
-        &self,
-        account_id: &AccountID,
-        offset: Option<u64>,
-        limit: Option<u64>,
-    ) -> Result<Vec<ViewOnlySubaddress>, AddressServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-        Ok(ViewOnlySubaddress::list_all(
-            &account_id.to_string(),
-            offset,
-            limit,
-            &conn,
-        )?)
-    }
-
     fn verify_address(&self, public_address: &str) -> Result<bool, AddressServiceError> {
         match b58_decode_public_address(public_address) {
             Ok(a) => {
@@ -195,13 +150,75 @@ where
 mod tests {
     use super::*;
     use crate::{
+        service::account::AccountService,
         test_utils::{get_test_ledger, setup_wallet_service},
-        util::b58::b58_encode_public_address,
+        util::{
+            b58::b58_encode_public_address,
+            encoding_helpers::{ristretto_public_to_hex, ristretto_to_hex},
+        },
     };
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{test_with_logger, Logger};
+    use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
     use mc_crypto_rand::rand_core::RngCore;
+    use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
+
+    #[test_with_logger]
+    fn test_assign_address_for_account(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+
+        let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+
+        // Create an account.
+        let account = service
+            .create_account(None, "".to_string(), "".to_string(), "".to_string())
+            .unwrap();
+        assert_eq!(account.next_subaddress_index, 2);
+
+        let account_id = AccountID(account.account_id_hex);
+
+        service
+            .assign_address_for_account(&account_id, None)
+            .unwrap();
+
+        let account = service.get_account(&account_id).unwrap();
+        assert_eq!(account.next_subaddress_index, 3);
+    }
+
+    #[test_with_logger]
+    fn test_assign_address_for_view_only_account(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+
+        let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+
+        let view_private_key = RistrettoPrivate::from_random(&mut rng);
+        let spend_public_key = RistrettoPublic::from_random(&mut rng);
+
+        let vpk_hex = ristretto_to_hex(&view_private_key);
+        let spk_hex = ristretto_public_to_hex(&spend_public_key);
+
+        // Create an account.
+        let account = service
+            .import_view_only_account(vpk_hex, spk_hex, None, None, None)
+            .unwrap();
+        assert_eq!(account.next_subaddress_index, 2);
+
+        let account_id = AccountID(account.account_id_hex);
+
+        service
+            .assign_address_for_account(&account_id, None)
+            .unwrap();
+
+        let account = service.get_account(&account_id).unwrap();
+        assert_eq!(account.next_subaddress_index, 3);
+    }
 
     // A properly encoded address should verify.
     #[test_with_logger]

@@ -84,6 +84,7 @@ mod tests {
     use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
     use mc_crypto_rand::RngCore;
     use mc_transaction_core::{tokens::Mob, tx::TxOut, Amount, Token};
+    use mc_transaction_types::BlockVersion;
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
@@ -94,6 +95,7 @@ mod tests {
         let account_key = AccountKey::random(&mut rng);
         let public_address = account_key.default_subaddress();
         let txo = TxOut::new(
+            BlockVersion::MAX,
             Amount::new(rng.next_u64(), Mob::ID),
             &public_address,
             &RistrettoPrivate::from_random(&mut rng),

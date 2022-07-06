@@ -19,8 +19,6 @@ use crate::{
         transaction_log::TransactionLog,
         tx_proposal::TxProposal,
         txo::Txo,
-        view_only_account::{ViewOnlyAccountJSON, ViewOnlyAccountSecretsJSON},
-        view_only_subaddress::ViewOnlySubaddressJSON,
         wallet_status::WalletStatus,
     },
     service::{gift_code::GiftCodeStatus, receipt::ReceiptTransactionStatus},
@@ -176,11 +174,6 @@ pub enum JsonCommandResponse {
     create_payment_request {
         payment_request_b58: String,
     },
-    create_new_subaddresses_request {
-        account_id: String,
-        next_subaddress_index: String,
-        num_subaddresses_to_generate: String,
-    },
     create_receiver_receipts {
         receiver_receipts: Vec<ReceiverReceipt>,
     },
@@ -194,11 +187,8 @@ pub enum JsonCommandResponse {
     export_spent_txo_ids {
         spent_txo_ids: Vec<String>,
     },
-    export_view_only_account_package {
+    export_view_only_account_import_request {
         json_rpc_request: JsonRPCRequest,
-    },
-    export_view_only_account_secrets {
-        view_only_account_secrets: ViewOnlyAccountSecretsJSON,
     },
     get_account {
         account: Account,
@@ -210,14 +200,7 @@ pub enum JsonCommandResponse {
     get_address_for_account {
         address: Address,
     },
-    get_address_for_view_only_account {
-        address: ViewOnlySubaddressJSON,
-    },
     get_addresses_for_account {
-        public_addresses: Vec<String>,
-        address_map: Map<String, serde_json::Value>,
-    },
-    get_addresses_for_view_only_account {
         public_addresses: Vec<String>,
         address_map: Map<String, serde_json::Value>,
     },
@@ -239,20 +222,10 @@ pub enum JsonCommandResponse {
         txo_ids: Vec<String>,
         txo_map: Map<String, serde_json::Value>,
     },
-    get_all_view_only_accounts {
-        account_ids: Vec<String>,
-        account_map: Map<String, serde_json::Value>,
-    },
     get_balance_for_account {
         balance: Balance,
     },
     get_balance_for_address {
-        balance: Balance,
-    },
-    get_balance_for_view_only_account {
-        balance: Balance,
-    },
-    get_balance_for_view_only_address {
         balance: Balance,
     },
     get_block {
@@ -288,13 +261,6 @@ pub enum JsonCommandResponse {
         txo_ids: Vec<String>,
         txo_map: Map<String, serde_json::Value>,
     },
-    get_txos_for_view_only_account {
-        txo_ids: Vec<String>,
-        txo_map: Map<String, serde_json::Value>,
-    },
-    get_view_only_account {
-        view_only_account: ViewOnlyAccountJSON,
-    },
     get_wallet_status {
         wallet_status: WalletStatus,
     },
@@ -304,19 +270,13 @@ pub enum JsonCommandResponse {
     import_account_from_legacy_root_entropy {
         account: Account,
     },
-    import_subaddresses_to_view_only_account {
-        public_address_b58s: Vec<String>,
-    },
     import_view_only_account {
-        view_only_account: ViewOnlyAccountJSON,
+        account: Account,
     },
     remove_account {
         removed: bool,
     },
     remove_gift_code {
-        removed: bool,
-    },
-    remove_view_only_account {
         removed: bool,
     },
     submit_gift_code {
@@ -328,9 +288,6 @@ pub enum JsonCommandResponse {
     sync_view_only_account,
     update_account_name {
         account: Account,
-    },
-    update_view_only_account_name {
-        view_only_account: ViewOnlyAccountJSON,
     },
     validate_confirmation {
         validated: bool,

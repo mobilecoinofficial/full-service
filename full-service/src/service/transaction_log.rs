@@ -6,7 +6,7 @@ use crate::{
     db::{
         account::AccountID,
         models::TransactionLog,
-        transaction_log::{AssociatedTxos, TransactionLogModel},
+        transaction_log::{AssociatedTxos, TransactionID, TransactionLogModel, ValueMap},
         WalletDbError,
     },
     error::WalletServiceError,
@@ -50,24 +50,24 @@ pub trait TransactionLogService {
         limit: Option<u64>,
         min_block_index: Option<u64>,
         max_block_index: Option<u64>,
-    ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletServiceError>;
+    ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletServiceError>;
 
     /// Get a specific transaction log.
     fn get_transaction_log(
         &self,
         transaction_id_hex: &str,
-    ) -> Result<(TransactionLog, AssociatedTxos), TransactionLogServiceError>;
+    ) -> Result<(TransactionLog, AssociatedTxos, ValueMap), TransactionLogServiceError>;
 
     /// Get all transaction logs for a given block.
     fn get_all_transaction_logs_for_block(
         &self,
         block_index: u64,
-    ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletServiceError>;
+    ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletServiceError>;
 
-    /// Get all transaction logs ordered by finalized_block_index.
+    /// Get all transaction logs ordered& by finalized_block_index.
     fn get_all_transaction_logs_ordered_by_block(
         &self,
-    ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletServiceError>;
+    ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletServiceError>;
 }
 
 impl<T, FPR> TransactionLogService for WalletService<T, FPR>
@@ -82,7 +82,7 @@ where
         limit: Option<u64>,
         min_block_index: Option<u64>,
         max_block_index: Option<u64>,
-    ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletServiceError> {
+    ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletServiceError> {
         let conn = &self.wallet_db.get_conn()?;
         Ok(TransactionLog::list_all(
             &account_id.to_string(),
@@ -97,25 +97,28 @@ where
     fn get_transaction_log(
         &self,
         transaction_id_hex: &str,
-    ) -> Result<(TransactionLog, AssociatedTxos), TransactionLogServiceError> {
+    ) -> Result<(TransactionLog, AssociatedTxos, ValueMap), TransactionLogServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        let transaction_log = TransactionLog::get(transaction_id_hex, &conn)?;
+        let transaction_log =
+            TransactionLog::get(&TransactionID(transaction_id_hex.to_string()), &conn)?;
         let associated = transaction_log.get_associated_txos(&conn)?;
+        let value_map = transaction_log.value_map(&conn)?;
 
-        Ok((transaction_log, associated))
+        Ok((transaction_log, associated, value_map))
     }
 
     fn get_all_transaction_logs_for_block(
         &self,
         block_index: u64,
-    ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletServiceError> {
+    ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
         let transaction_logs = TransactionLog::get_all_for_block_index(block_index, &conn)?;
-        let mut res: Vec<(TransactionLog, AssociatedTxos)> = Vec::new();
+        let mut res: Vec<(TransactionLog, AssociatedTxos, ValueMap)> = Vec::new();
         for transaction_log in transaction_logs {
             res.push((
                 transaction_log.clone(),
                 transaction_log.get_associated_txos(&conn)?,
+                transaction_log.value_map(&conn)?,
             ));
         }
         Ok(res)
@@ -123,14 +126,15 @@ where
 
     fn get_all_transaction_logs_ordered_by_block(
         &self,
-    ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletServiceError> {
+    ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletServiceError> {
         let conn = self.wallet_db.get_conn()?;
         let transaction_logs = TransactionLog::get_all_ordered_by_block_index(&conn)?;
-        let mut res: Vec<(TransactionLog, AssociatedTxos)> = Vec::new();
+        let mut res: Vec<(TransactionLog, AssociatedTxos, ValueMap)> = Vec::new();
         for transaction_log in transaction_logs {
             res.push((
                 transaction_log.clone(),
                 transaction_log.get_associated_txos(&conn)?,
+                transaction_log.value_map(&conn)?,
             ));
         }
         Ok(res)
@@ -141,10 +145,13 @@ where
 mod tests {
     use crate::{
         db::account::AccountID,
-        service::{account::AccountService, transaction_log::TransactionLogService},
+        service::{
+            account::AccountService, address::AddressService, transaction::TransactionService,
+            transaction_log::TransactionLogService,
+        },
         test_utils::{
-            add_block_to_ledger_db, get_test_ledger, manually_sync_account, setup_wallet_service,
-            MOB,
+            add_block_from_transaction_log, add_block_to_ledger_db, get_test_ledger,
+            manually_sync_account, setup_wallet_service, MOB,
         },
     };
     use mc_account_keys::{AccountKey, PublicAddress};
@@ -182,52 +189,46 @@ mod tests {
 
         assert_eq!(0, tx_logs.len());
 
-        // block_index 12
-        add_block_to_ledger_db(
-            &mut ledger_db,
-            &vec![alice_public_address.clone()],
-            100 * MOB,
-            &vec![KeyImage::from(rng.next_u64())],
-            &mut rng,
-        );
-
-        // block_index 13
-        add_block_to_ledger_db(
-            &mut ledger_db,
-            &vec![alice_public_address.clone()],
-            100 * MOB,
-            &vec![KeyImage::from(rng.next_u64())],
-            &mut rng,
-        );
-
-        // block_index 14
-        add_block_to_ledger_db(
-            &mut ledger_db,
-            &vec![alice_public_address.clone()],
-            100 * MOB,
-            &vec![KeyImage::from(rng.next_u64())],
-            &mut rng,
-        );
-
-        // block_index 15
-        add_block_to_ledger_db(
-            &mut ledger_db,
-            &vec![alice_public_address.clone()],
-            100 * MOB,
-            &vec![KeyImage::from(rng.next_u64())],
-            &mut rng,
-        );
-
-        // block_index 16
-        add_block_to_ledger_db(
-            &mut ledger_db,
-            &vec![alice_public_address.clone()],
-            100 * MOB,
-            &vec![KeyImage::from(rng.next_u64())],
-            &mut rng,
-        );
+        // add 5 txos to alices account
+        for _ in 0..5 {
+            add_block_to_ledger_db(
+                &mut ledger_db,
+                &vec![alice_public_address.clone()],
+                100 * MOB,
+                &vec![KeyImage::from(rng.next_u64())],
+                &mut rng,
+            );
+        }
 
         manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+
+        let address = service
+            .assign_address_for_account(&alice_account_id, None)
+            .unwrap();
+
+        for _ in 0..5 {
+            let (transaction_log, _, _, _) = service
+                .build_and_submit(
+                    &alice_account_id.to_string(),
+                    &[(
+                        address.assigned_subaddress_b58.clone(),
+                        (50 * MOB).to_string(),
+                    )],
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+                .unwrap();
+
+            {
+                let conn = service.wallet_db.get_conn().unwrap();
+                add_block_from_transaction_log(&mut ledger_db, &conn, &transaction_log);
+            }
+
+            manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+        }
 
         let tx_logs = service
             .list_transaction_logs(&alice_account_id, None, None, None, None)
@@ -236,19 +237,19 @@ mod tests {
         assert_eq!(5, tx_logs.len());
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None, Some(15), None)
+            .list_transaction_logs(&alice_account_id, None, None, Some(20), None)
             .unwrap();
 
         assert_eq!(2, tx_logs.len());
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None, None, Some(13))
+            .list_transaction_logs(&alice_account_id, None, None, None, Some(18))
             .unwrap();
 
         assert_eq!(2, tx_logs.len());
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None, Some(13), Some(15))
+            .list_transaction_logs(&alice_account_id, None, None, Some(18), Some(20))
             .unwrap();
 
         assert_eq!(3, tx_logs.len());

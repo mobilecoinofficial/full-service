@@ -2,7 +2,10 @@
 
 //! API definition for the Account Key object.
 
-use crate::util::encoding_helpers::{hex_to_ristretto, hex_to_vec, ristretto_to_hex, vec_to_hex};
+use crate::util::encoding_helpers::{
+    hex_to_ristretto, hex_to_ristretto_public, hex_to_vec, ristretto_public_to_hex,
+    ristretto_to_hex, vec_to_hex,
+};
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
@@ -60,6 +63,44 @@ impl TryFrom<&AccountKey> for mc_account_keys::AccountKey {
             src.fog_report_url.clone(),
             src.fog_report_id.clone(),
             fog_authority_spki,
+        ))
+    }
+}
+
+/// The ViewAccountKey contains a View private key and a Spend public key
+#[derive(Deserialize, Serialize, Default, Debug, Clone)]
+pub struct ViewAccountKey {
+    /// String representing the object's type. Objects of the same type share
+    /// the same value.
+    pub object: String,
+
+    ///  Private key used for view-key matching, hex-encoded Ristretto bytes.
+    pub view_private_key: String,
+
+    /// Public key, hex-encoded Ristretto bytes.
+    pub spend_public_key: String,
+}
+
+impl From<&mc_account_keys::ViewAccountKey> for ViewAccountKey {
+    fn from(src: &mc_account_keys::ViewAccountKey) -> ViewAccountKey {
+        ViewAccountKey {
+            object: "view_account_key".to_string(),
+            view_private_key: ristretto_to_hex(src.view_private_key()),
+            spend_public_key: ristretto_public_to_hex(src.spend_public_key()),
+        }
+    }
+}
+
+impl TryFrom<&ViewAccountKey> for mc_account_keys::ViewAccountKey {
+    type Error = String;
+
+    fn try_from(src: &ViewAccountKey) -> Result<mc_account_keys::ViewAccountKey, String> {
+        let view_private_key = hex_to_ristretto(&src.view_private_key)?;
+        let spend_public_key = hex_to_ristretto_public(&src.spend_public_key)?;
+
+        Ok(mc_account_keys::ViewAccountKey::new(
+            view_private_key,
+            spend_public_key,
         ))
     }
 }

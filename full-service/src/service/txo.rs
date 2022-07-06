@@ -75,9 +75,14 @@ pub trait TxoService {
     fn list_txos(
         &self,
         account_id: &AccountID,
+        status: Option<String>,
         limit: Option<u64>,
         offset: Option<u64>,
     ) -> Result<Vec<Txo>, TxoServiceError>;
+
+    /// List txos for a given account in the wallet that have a subaddress index
+    /// but not a key image, meaning we cannot verify their spendability.
+    fn list_unverified_txos(&self, account_id: &AccountID) -> Result<Vec<Txo>, TxoServiceError>;
 
     /// list all spent txos
     fn list_spent_txos(&self, account_id: &AccountID) -> Result<Vec<Txo>, TxoServiceError>;
@@ -107,15 +112,27 @@ where
     fn list_txos(
         &self,
         account_id: &AccountID,
+        status: Option<String>,
         limit: Option<u64>,
         offset: Option<u64>,
     ) -> Result<Vec<Txo>, TxoServiceError> {
         let conn = self.wallet_db.get_conn()?;
         Ok(Txo::list_for_account(
             &account_id.to_string(),
+            status,
             limit,
             offset,
             Some(0),
+            &conn,
+        )?)
+    }
+
+    fn list_unverified_txos(&self, account_id: &AccountID) -> Result<Vec<Txo>, TxoServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+        Ok(Txo::list_unverified(
+            &account_id.to_string(),
+            None,
+            None,
             &conn,
         )?)
     }
@@ -126,6 +143,8 @@ where
             &account_id.to_string(),
             None,
             Some(0),
+            None,
+            None,
             &conn,
         )?)
     }
@@ -245,7 +264,9 @@ mod tests {
         assert_eq!(balance.unspent, 100 * MOB as u128);
 
         // Verify that we have 1 txo
-        let txos = service.list_txos(&alice_account_id, None, None).unwrap();
+        let txos = service
+            .list_txos(&alice_account_id, None, None, None)
+            .unwrap();
         assert_eq!(txos.len(), 1);
 
         // Add another account
@@ -284,7 +305,7 @@ mod tests {
         // We should now have 3 txos - one pending, two minted (one of which will be
         // change)
         let txos = service
-            .list_txos(&AccountID(alice.account_id_hex.clone()), None, None)
+            .list_txos(&AccountID(alice.account_id_hex.clone()), None, None, None)
             .unwrap();
         assert_eq!(txos.len(), 3);
         assert_eq!(

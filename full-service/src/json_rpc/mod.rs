@@ -19,9 +19,6 @@ mod transaction_log;
 pub mod tx_proposal;
 mod txo;
 mod unspent_tx_out;
-pub mod view_only_account;
-pub mod view_only_subaddress;
-pub mod view_only_txo;
 pub mod wallet;
 mod wallet_status;
 
@@ -29,4 +26,4 @@ mod wallet_status;
 pub mod api_test_utils;
 
 #[cfg(any(test))]
-pub mod e2e;
+pub mod e2e_tests;

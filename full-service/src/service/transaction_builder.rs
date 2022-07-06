@@ -11,10 +11,9 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        models::{Account, Txo, ViewOnlyAccount, ViewOnlyTxo},
+        assigned_subaddress::AssignedSubaddressModel,
+        models::{Account, Txo},
         txo::TxoModel,
-        view_only_account::ViewOnlyAccountModel,
-        view_only_txo::ViewOnlyTxoModel,
         Conn,
     },
     error::WalletTransactionBuilderError,
@@ -28,6 +27,7 @@ use mc_common::{
     HashMap, HashSet,
 };
 use mc_crypto_keys::RistrettoPublic;
+use mc_crypto_ring_signature_signer::NoKeysRingSigner;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_mobilecoind::{
@@ -43,7 +43,8 @@ use mc_transaction_core::{
     Amount, BlockVersion, Token,
 };
 use mc_transaction_std::{
-    ChangeDestination, InputCredentials, RTHMemoBuilder, SenderMemoCredential, TransactionBuilder,
+    InputCredentials, RTHMemoBuilder, ReservedSubaddresses, SenderMemoCredential,
+    TransactionBuilder,
 };
 use mc_util_uri::FogUri;
 
@@ -181,34 +182,6 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         Ok(())
     }
 
-    /// Selects View Only Txos from the account.
-    fn select_view_only_txos(
-        &self,
-        conn: &Conn,
-    ) -> Result<Vec<ViewOnlyTxo>, WalletTransactionBuilderError> {
-        let outlay_value_sum = self.outlays.iter().map(|(_r, v)| *v as u128).sum::<u128>();
-
-        let fee = self.fee.unwrap_or(Mob::MINIMUM_FEE);
-        if outlay_value_sum > u64::MAX as u128 || outlay_value_sum > u64::MAX as u128 - fee as u128
-        {
-            return Err(WalletTransactionBuilderError::OutboundValueTooLarge);
-        }
-        log::info!(
-            self.logger,
-            "Selecting Txos for value {:?} with fee {:?}",
-            outlay_value_sum,
-            fee
-        );
-        let total_value = outlay_value_sum as u64 + fee;
-
-        Ok(ViewOnlyTxo::select_unspent_view_only_txos_for_value(
-            &self.account_id_hex,
-            total_value,
-            Some(0),
-            conn,
-        )?)
-    }
-
     pub fn add_recipient(
         &mut self,
         recipient: PublicAddress,
@@ -253,8 +226,9 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         &self,
         conn: &Conn,
     ) -> Result<FullServiceFogResolver, WalletTransactionBuilderError> {
-        let account = ViewOnlyAccount::get(&self.account_id_hex, conn)?;
-        let change_public_address: PublicAddress = account.change_public_address(conn)?;
+        let account = Account::get(&AccountID(self.account_id_hex.clone()), conn)?;
+        let change_subaddress = account.change_subaddress(conn)?;
+        let change_public_address = change_subaddress.public_address()?;
 
         let fog_resolver = {
             let fog_uris = core::slice::from_ref(&change_public_address)
@@ -285,16 +259,18 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         Ok(FullServiceFogResolver(fully_validated_fog_pubkeys))
     }
 
-    pub fn build_unsigned(&self, conn: &Conn) -> Result<UnsignedTx, WalletTransactionBuilderError> {
+    pub fn build_unsigned(&self) -> Result<UnsignedTx, WalletTransactionBuilderError> {
         if self.tombstone == 0 {
             return Err(WalletTransactionBuilderError::TombstoneNotSet);
         }
 
-        // select inputs here
-        let view_only_inputs = self.select_view_only_txos(conn)?;
+        if self.inputs.is_empty() {
+            return Err(WalletTransactionBuilderError::NoInputs);
+        }
 
         // Get membership proofs for our inputs
-        let indexes = view_only_inputs
+        let indexes = self
+            .inputs
             .iter()
             .map(|utxo| {
                 let txo: TxOut = mc_util_serial::decode(&utxo.txo)?;
@@ -303,7 +279,9 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             .collect::<Result<Vec<u64>, mc_ledger_db::Error>>()?;
         let proofs = self.ledger_db.get_tx_out_proof_of_memberships(&indexes)?;
 
-        let inputs_and_proofs: Vec<(ViewOnlyTxo, TxOutMembershipProof)> = view_only_inputs
+        let inputs_and_proofs: Vec<(Txo, TxOutMembershipProof)> = self
+            .inputs
+            .clone()
             .into_iter()
             .zip(proofs.into_iter())
             .collect();
@@ -350,8 +328,8 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             let real_index = match position_opt {
                 Some(position) => {
                     // The input is already present in the ring.
-                    // This could happen if ring elements are sampled randomly from the
-                    // ledger.
+                    // This could happen if ring elements are sampled
+                    // randomly from the             // ledger.
                     position
                 }
                 None => {
@@ -365,8 +343,8 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                         ring[0] = db_tx_out.clone();
                         membership_proofs[0] = proof.clone();
                     }
-                    // The real input is always the first element. This is safe because
-                    // TransactionBuilder sorts each ring.
+                    // The real input is always the first element. This is
+                    // safe because TransactionBuilder sorts each ring.
                     0
                 }
             };
@@ -378,6 +356,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             let tx_in = TxIn {
                 ring,
                 proofs: membership_proofs,
+                input_rules: None,
             };
 
             inputs_and_real_indices_and_subaddress_indices.push((
@@ -565,10 +544,14 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let mut outlay_confirmation_numbers = Vec::default();
         let mut rng = rand::thread_rng();
         for (i, (recipient, out_value)) in self.outlays.iter().enumerate() {
-            let txo_context = transaction_builder.add_output(*out_value, recipient, &mut rng)?;
+            let (tx_out, confirmation) = transaction_builder.add_output(
+                Amount::new(*out_value, Mob::ID),
+                recipient,
+                &mut rng,
+            )?;
 
-            tx_out_to_outlay_index.insert(txo_context.tx_out, i);
-            outlay_confirmation_numbers.push(txo_context.confirmation);
+            tx_out_to_outlay_index.insert(tx_out, i);
+            outlay_confirmation_numbers.push(confirmation);
 
             total_value += *out_value;
         }
@@ -577,26 +560,30 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let input_value = inputs_and_proofs
             .iter()
             .fold(0, |acc, (utxo, _proof)| acc + utxo.value);
-        if (total_value + transaction_builder.get_fee().value) > input_value as u64 {
+        if total_value + transaction_builder.get_fee() > input_value as u64 {
             return Err(WalletTransactionBuilderError::InsufficientInputFunds(
                 format!(
                     "Total value required to send transaction {:?}, but only {:?} in inputs",
-                    total_value + transaction_builder.get_fee().value,
+                    total_value + transaction_builder.get_fee(),
                     input_value
                 ),
             ));
         }
 
-        let change = input_value as u64 - total_value - transaction_builder.get_fee().value;
+        let change = input_value as u64 - total_value - transaction_builder.get_fee();
 
-        let change_destination = ChangeDestination::from(&from_account_key);
-        transaction_builder.add_change_output(change, &change_destination, &mut rng)?;
+        let reserved_subaddresses = ReservedSubaddresses::from(&from_account_key);
+        transaction_builder.add_change_output(
+            Amount::new(change, Mob::ID),
+            &reserved_subaddresses,
+            &mut rng,
+        )?;
 
         // Set tombstone block.
         transaction_builder.set_tombstone_block(self.tombstone);
 
         // Build tx.
-        let tx = transaction_builder.build(&mut rng)?;
+        let tx = transaction_builder.build(&NoKeysRingSigner {}, &mut rng)?;
 
         // Map each TxOut in the constructed transaction to its respective outlay.
         let outlay_index_to_tx_out_index: HashMap<usize, usize> = tx
@@ -820,6 +807,8 @@ mod tests {
             &AccountID::from(&account_key).to_string(),
             None,
             Some(0),
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -866,6 +855,7 @@ mod tests {
         // Get our TXO list
         let txos: Vec<Txo> = Txo::list_for_account(
             &AccountID::from(&account_key).to_string(),
+            None,
             None,
             None,
             Some(0),

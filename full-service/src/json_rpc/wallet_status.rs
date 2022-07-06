@@ -58,14 +58,6 @@ pub struct WalletStatus {
 
     /// A normalized hash mapping account_id to account objects.
     pub account_map: Map<String, serde_json::Value>,
-
-    /// A list of all view only account_ids imported into the wallet in order of
-    /// import.
-    pub view_only_account_ids: Vec<String>,
-
-    /// A normalized hash mapping view only account_id to view only account
-    /// objects.
-    pub view_only_account_map: Map<String, serde_json::Value>,
 }
 
 impl TryFrom<&service::balance::WalletStatus> for WalletStatus {
@@ -84,18 +76,6 @@ impl TryFrom<&service::balance::WalletStatus> for WalletStatus {
             })
             .collect::<Result<Vec<(String, serde_json::Value)>, String>>()?;
 
-        let view_only_account_mapped: Vec<(String, serde_json::Value)> = src
-            .view_only_account_map
-            .iter()
-            .map(|(i, a)| {
-                let view_only_account_json =
-                    json_rpc::view_only_account::ViewOnlyAccountJSON::from(a);
-                serde_json::to_value(view_only_account_json)
-                    .map(|v| (i.to_string(), v))
-                    .map_err(|e| format!("Could not convert account map: {:?}", e))
-            })
-            .collect::<Result<Vec<(String, serde_json::Value)>, String>>()?;
-
         Ok(WalletStatus {
             object: "wallet_status".to_string(),
             network_block_height: src.network_block_height.to_string(),
@@ -109,12 +89,6 @@ impl TryFrom<&service::balance::WalletStatus> for WalletStatus {
             total_orphaned_pmob: src.orphaned.to_string(),
             account_ids: src.account_ids.iter().map(|a| a.to_string()).collect(),
             account_map: Map::from_iter(account_mapped),
-            view_only_account_ids: src
-                .view_only_account_ids
-                .iter()
-                .map(|a| a.to_string())
-                .collect(),
-            view_only_account_map: Map::from_iter(view_only_account_mapped),
         })
     }
 }

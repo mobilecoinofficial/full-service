@@ -5,10 +5,9 @@
 use crate::{
     db::{
         assigned_subaddress::AssignedSubaddressModel,
-        models::{Account, AssignedSubaddress, NewAccount, TransactionLog, Txo, ViewOnlyAccount},
+        models::{Account, AssignedSubaddress, NewAccount, TransactionLog, Txo},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
-        view_only_account::ViewOnlyAccountModel,
         Conn, WalletDbError,
     },
     util::constants::{
@@ -20,18 +19,26 @@ use crate::{
 use bip39::Mnemonic;
 use diesel::prelude::*;
 use mc_account_keys::{
-    AccountKey, PublicAddress, RootEntropy, RootIdentity, CHANGE_SUBADDRESS_INDEX,
+    AccountKey, PublicAddress, RootEntropy, RootIdentity, ViewAccountKey, CHANGE_SUBADDRESS_INDEX,
     DEFAULT_SUBADDRESS_INDEX,
 };
 use mc_account_keys_slip10::Slip10Key;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
+use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use std::fmt;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct AccountID(pub String);
 
 impl From<&AccountKey> for AccountID {
-    fn from(src: &AccountKey) -> AccountID {
+    fn from(src: &AccountKey) -> Self {
+        let main_subaddress = src.subaddress(DEFAULT_SUBADDRESS_INDEX);
+        AccountID::from(&main_subaddress)
+    }
+}
+
+impl From<&ViewAccountKey> for AccountID {
+    fn from(src: &ViewAccountKey) -> Self {
         let main_subaddress = src.subaddress(DEFAULT_SUBADDRESS_INDEX);
         AccountID::from(&main_subaddress)
     }
@@ -48,11 +55,6 @@ impl fmt::Display for AccountID {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0)
     }
-}
-
-pub struct ViewOnlyAccountImportPackage {
-    pub account: Account,
-    pub subaddresses: Vec<AssignedSubaddress>,
 }
 
 pub trait AccountModel {
@@ -135,6 +137,17 @@ pub trait AccountModel {
         conn: &Conn,
     ) -> Result<Account, WalletDbError>;
 
+    /// Import a view only account.
+    fn import_view_only(
+        view_private_key: &RistrettoPrivate,
+        spend_public_key: &RistrettoPublic,
+        name: Option<String>,
+        import_block_index: u64,
+        first_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
+        conn: &Conn,
+    ) -> Result<Account, WalletDbError>;
+
     /// List all accounts.
     ///
     /// Returns:
@@ -164,6 +177,12 @@ pub trait AccountModel {
 
     /// Delete an account.
     fn delete(self, conn: &Conn) -> Result<(), WalletDbError>;
+
+    /// Get change public address
+    fn change_subaddress(self, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError>;
+
+    /// Get main public address
+    fn main_subaddress(self, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError>;
 }
 
 impl AccountModel for Account {
@@ -248,12 +267,6 @@ impl AccountModel for Account {
 
         let account_id = AccountID::from(account_key);
 
-        if ViewOnlyAccount::get(&account_id.to_string(), conn).is_ok() {
-            return Err(WalletDbError::ViewOnlyAccountAlreadyExists(
-                account_id.to_string(),
-            ));
-        }
-
         let first_block_index = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX);
         let next_block_index = first_block_index;
 
@@ -271,9 +284,8 @@ impl AccountModel for Account {
 
         let new_account = NewAccount {
             account_id_hex: &account_id.to_string(),
-            account_key: &mc_util_serial::encode(account_key), /* FIXME: WS-6 - add
-                                                                * encryption */
-            entropy,
+            account_key: &mc_util_serial::encode(account_key),
+            entropy: Some(entropy),
             key_derivation_version: key_derivation_version as i32,
             main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
             change_subaddress_index,
@@ -283,6 +295,7 @@ impl AccountModel for Account {
             import_block_index: import_block_index.map(|i| i as i64),
             name,
             fog_enabled,
+            view_only: false,
         };
 
         diesel::insert_into(accounts::table)
@@ -373,6 +386,83 @@ impl AccountModel for Account {
         Account::get(&account_id, conn)
     }
 
+    fn import_view_only(
+        view_private_key: &RistrettoPrivate,
+        spend_public_key: &RistrettoPublic,
+        name: Option<String>,
+        import_block_index: u64,
+        first_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
+        conn: &Conn,
+    ) -> Result<Account, WalletDbError> {
+        use crate::db::schema::accounts;
+
+        let view_account_key = ViewAccountKey::new(*view_private_key, *spend_public_key);
+        let account_id = AccountID::from(&view_account_key);
+
+        let first_block_index = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX) as i64;
+        let next_block_index = first_block_index;
+
+        let next_subaddress_index =
+            next_subaddress_index.unwrap_or(DEFAULT_NEXT_SUBADDRESS_INDEX) as i64;
+
+        let new_account = NewAccount {
+            account_id_hex: &account_id.to_string(),
+            account_key: &mc_util_serial::encode(&view_account_key),
+            entropy: None,
+            key_derivation_version: MNEMONIC_KEY_DERIVATION_VERSION as i32,
+            main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
+            change_subaddress_index: CHANGE_SUBADDRESS_INDEX as i64,
+            next_subaddress_index,
+            first_block_index,
+            next_block_index,
+            import_block_index: Some(import_block_index as i64),
+            name: &name.unwrap_or_else(|| "".to_string()),
+            fog_enabled: false,
+            view_only: true,
+        };
+
+        diesel::insert_into(accounts::table)
+            .values(&new_account)
+            .execute(conn)?;
+
+        AssignedSubaddress::create_for_view_only_account(
+            &view_account_key,
+            None,
+            DEFAULT_SUBADDRESS_INDEX,
+            "Main",
+            conn,
+        )?;
+
+        AssignedSubaddress::create_for_view_only_account(
+            &view_account_key,
+            None,
+            LEGACY_CHANGE_SUBADDRESS_INDEX,
+            "Legacy Change",
+            conn,
+        )?;
+
+        AssignedSubaddress::create_for_view_only_account(
+            &view_account_key,
+            None,
+            CHANGE_SUBADDRESS_INDEX,
+            "Change",
+            conn,
+        )?;
+
+        for subaddress_index in 2..next_subaddress_index {
+            AssignedSubaddress::create_for_view_only_account(
+                &view_account_key,
+                None,
+                subaddress_index as u64,
+                "",
+                conn,
+            )?;
+        }
+
+        Account::get(&account_id, conn)
+    }
+
     fn list_all(conn: &Conn) -> Result<Vec<Account>, WalletDbError> {
         use crate::db::schema::accounts;
 
@@ -455,6 +545,22 @@ impl AccountModel for Account {
 
         Ok(())
     }
+
+    fn change_subaddress(self, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError> {
+        AssignedSubaddress::get_for_account_by_index(
+            &self.account_id_hex,
+            self.change_subaddress_index,
+            conn,
+        )
+    }
+
+    fn main_subaddress(self, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError> {
+        AssignedSubaddress::get_for_account_by_index(
+            &self.account_id_hex,
+            self.main_subaddress_index,
+            conn,
+        )
+    }
 }
 
 #[cfg(test)]
@@ -504,7 +610,7 @@ mod tests {
             id: 1,
             account_id_hex: account_id_hex.to_string(),
             account_key: mc_util_serial::encode(&account_key),
-            entropy: root_id.root_entropy.bytes.to_vec(),
+            entropy: Some(root_id.root_entropy.bytes.to_vec()),
             key_derivation_version: 1,
             main_subaddress_index: 0,
             change_subaddress_index: CHANGE_SUBADDRESS_INDEX as i64,
@@ -514,6 +620,7 @@ mod tests {
             import_block_index: None,
             name: "Alice's Main Account".to_string(),
             fog_enabled: false,
+            view_only: false,
         };
         assert_eq!(expected_account, acc);
 
@@ -569,7 +676,7 @@ mod tests {
             id: 2,
             account_id_hex: account_id_hex_secondary.to_string(),
             account_key: mc_util_serial::encode(&account_key_secondary),
-            entropy: root_id_secondary.root_entropy.bytes.to_vec(),
+            entropy: Some(root_id_secondary.root_entropy.bytes.to_vec()),
             key_derivation_version: 1,
             main_subaddress_index: 0,
             change_subaddress_index: CHANGE_SUBADDRESS_INDEX as i64,
@@ -579,6 +686,7 @@ mod tests {
             import_block_index: Some(50),
             name: "".to_string(),
             fog_enabled: false,
+            view_only: false,
         };
         assert_eq!(expected_account_secondary, acc_secondary);
 
@@ -641,7 +749,7 @@ mod tests {
             account_id_hex
         };
         let account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
-        let decoded_entropy = RootEntropy::try_from(account.entropy.as_slice()).unwrap();
+        let decoded_entropy = RootEntropy::try_from(account.entropy.unwrap().as_slice()).unwrap();
         assert_eq!(decoded_entropy, root_id.root_entropy);
         let decoded_account_key: AccountKey = mc_util_serial::decode(&account.account_key).unwrap();
         assert_eq!(decoded_account_key, account_key);
@@ -692,7 +800,7 @@ mod tests {
                 43, 138, 220, 146, 60, 162,
             ]
             .to_vec(),
-            entropy: root_id.root_entropy.bytes.to_vec(),
+            entropy: Some(root_id.root_entropy.bytes.to_vec()),
             key_derivation_version: 1,
             main_subaddress_index: 0,
             change_subaddress_index: 0,
@@ -702,7 +810,64 @@ mod tests {
             import_block_index: None,
             name: "Alice's FOG Account".to_string(),
             fog_enabled: true,
+            view_only: false,
         };
         assert_eq!(expected_account, acc);
+    }
+
+    #[test_with_logger]
+    fn test_import_view_only_account(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let view_private_key = RistrettoPrivate::from_random(&mut rng);
+        let spend_public_key = RistrettoPublic::from_random(&mut rng);
+
+        let account = {
+            let conn = wallet_db.get_conn().unwrap();
+            let account = Account::import_view_only(
+                &view_private_key,
+                &spend_public_key,
+                Some("View Only Account".to_string()),
+                12,
+                None,
+                None,
+                &conn,
+            )
+            .unwrap();
+            account
+        };
+
+        {
+            let conn = wallet_db.get_conn().unwrap();
+            let res = Account::list_all(&conn).unwrap();
+            assert_eq!(res.len(), 1);
+        }
+
+        let expected_account = Account {
+            id: 1,
+            account_id_hex: account.account_id_hex.to_string(),
+            account_key: [
+                10, 34, 10, 32, 66, 186, 14, 57, 108, 119, 153, 172, 224, 25, 53, 237, 22, 219,
+                222, 137, 26, 227, 37, 43, 122, 52, 71, 153, 60, 246, 90, 102, 123, 176, 139, 11,
+                18, 34, 10, 32, 28, 19, 114, 110, 204, 131, 192, 90, 192, 83, 149, 201, 140, 112,
+                168, 124, 195, 19, 252, 208, 160, 39, 44, 28, 108, 143, 40, 149, 53, 137, 20, 47,
+            ]
+            .to_vec(),
+            entropy: None,
+            key_derivation_version: 2,
+            main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
+            change_subaddress_index: CHANGE_SUBADDRESS_INDEX as i64,
+            next_subaddress_index: 2,
+            first_block_index: 0,
+            next_block_index: 0,
+            import_block_index: Some(12),
+            name: "View Only Account".to_string(),
+            fog_enabled: false,
+            view_only: true,
+        };
+        assert_eq!(expected_account, account);
     }
 }

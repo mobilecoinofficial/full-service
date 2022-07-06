@@ -1,6 +1,7 @@
 use mc_account_keys::AccountKey;
 use mc_common::HashMap;
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
+use mc_crypto_ring_signature_signer::NoKeysRingSigner;
 use mc_mobilecoind::{
     payments::{Outlay, TxProposal},
     UnspentTxOut,
@@ -14,7 +15,8 @@ use mc_transaction_core::{
     Amount, BlockVersion, Token,
 };
 use mc_transaction_std::{
-    ChangeDestination, InputCredentials, RTHMemoBuilder, SenderMemoCredential, TransactionBuilder,
+    InputCredentials, RTHMemoBuilder, ReservedSubaddresses, SenderMemoCredential,
+    TransactionBuilder,
 };
 use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
@@ -127,7 +129,7 @@ impl UnsignedTx {
             &mut rng,
         )?;
 
-        let tx = transaction_builder.build(&mut rng)?;
+        let tx = transaction_builder.build(&NoKeysRingSigner {}, &mut rng)?;
 
         let outlay_index_to_tx_out_index: HashMap<usize, usize> = tx
             .prefix
@@ -172,10 +174,14 @@ fn add_payload_outputs<RNG: CryptoRng + RngCore>(
     let mut tx_out_to_outlay_index: HashMap<TxOut, usize> = HashMap::default();
     let mut outlay_confirmation_numbers = Vec::default();
     for (i, outlay) in outlays.iter().enumerate() {
-        let txo_context = transaction_builder.add_output(outlay.value, &outlay.receiver, rng)?;
+        let (tx_out, confirmation) = transaction_builder.add_output(
+            Amount::new(outlay.value, Mob::ID),
+            &outlay.receiver,
+            rng,
+        )?;
 
-        tx_out_to_outlay_index.insert(txo_context.tx_out, i);
-        outlay_confirmation_numbers.push(txo_context.confirmation);
+        tx_out_to_outlay_index.insert(tx_out, i);
+        outlay_confirmation_numbers.push(confirmation);
 
         total_value += outlay.value;
     }
@@ -193,11 +199,14 @@ fn add_change_output<RNG: CryptoRng + RngCore>(
     transaction_builder: &mut TransactionBuilder<FullServiceFogResolver>,
     rng: &mut RNG,
 ) -> Result<(), WalletTransactionBuilderError> {
-    let change_value =
-        total_input_value - total_payload_value - transaction_builder.get_fee().value;
+    let change_value = total_input_value - total_payload_value - transaction_builder.get_fee();
 
-    let change_destination = ChangeDestination::from(account_key);
-    transaction_builder.add_change_output(change_value, &change_destination, rng)?;
+    let reserved_subaddresses = ReservedSubaddresses::from(account_key);
+    transaction_builder.add_change_output(
+        Amount::new(change_value, Mob::ID),
+        &reserved_subaddresses,
+        rng,
+    )?;
 
     Ok(())
 }

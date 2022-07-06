@@ -5,12 +5,9 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        models::{Account, TransactionLog, ViewOnlyAccount, ViewOnlyTxo},
+        models::{Account, TransactionLog},
         transaction,
-        transaction_log::{AssociatedTxos, TransactionLogModel},
-        txo::TxoID,
-        view_only_account::ViewOnlyAccountModel,
-        view_only_txo::ViewOnlyTxoModel,
+        transaction_log::{AssociatedTxos, TransactionLogModel, ValueMap},
         WalletDbError,
     },
     error::WalletTransactionBuilderError,
@@ -170,7 +167,7 @@ pub trait TransactionService {
         tx_proposal: TxProposal,
         comment: Option<String>,
         account_id_hex: Option<String>,
-    ) -> Result<Option<(TransactionLog, AssociatedTxos)>, TransactionServiceError>;
+    ) -> Result<Option<(TransactionLog, AssociatedTxos, ValueMap)>, TransactionServiceError>;
 
     /// Convenience method that builds and submits in one go.
     #[allow(clippy::too_many_arguments)]
@@ -183,7 +180,7 @@ pub trait TransactionService {
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
-    ) -> Result<(TransactionLog, AssociatedTxos, TxProposal), TransactionServiceError>;
+    ) -> Result<(TransactionLog, AssociatedTxos, ValueMap, TxProposal), TransactionServiceError>;
 }
 
 impl<T, FPR> TransactionService for WalletService<T, FPR>
@@ -230,12 +227,17 @@ where
                 None => self.get_network_fee(),
             })?;
 
-            let unsigned_tx = builder.build_unsigned(&conn)?;
+            builder.set_block_version(self.get_network_block_version());
+
+            builder.select_txos(&conn, None, false)?;
+
+            let unsigned_tx = builder.build_unsigned()?;
             let fog_resolver = builder.get_fs_fog_resolver(&conn)?;
 
             Ok((unsigned_tx, fog_resolver))
         })
     }
+
     fn build_transaction(
         &self,
         account_id_hex: &str,
@@ -314,7 +316,7 @@ where
         tx_proposal: TxProposal,
         comment: Option<String>,
         account_id_hex: Option<String>,
-    ) -> Result<Option<(TransactionLog, AssociatedTxos)>, TransactionServiceError> {
+    ) -> Result<Option<(TransactionLog, AssociatedTxos, ValueMap)>, TransactionServiceError> {
         if self.offline {
             return Err(TransactionServiceError::Offline);
         }
@@ -365,21 +367,9 @@ where
                     )?;
 
                     let associated_txos = transaction_log.get_associated_txos(&conn)?;
+                    let value_map = transaction_log.value_map(&conn)?;
 
-                    Ok(Some((transaction_log, associated_txos)))
-                } else if ViewOnlyAccount::get(&account_id_hex, &conn).is_ok() {
-                    for utxo in tx_proposal.utxos {
-                        let txo_id = TxoID::from(&utxo.tx_out);
-                        ViewOnlyTxo::update_for_pending_transaction(
-                            &txo_id.to_string(),
-                            utxo.subaddress_index,
-                            &utxo.key_image,
-                            block_index,
-                            tx_proposal.tx.prefix.tombstone_block,
-                            &conn,
-                        )?;
-                    }
-                    Ok(None)
+                    Ok(Some((transaction_log, associated_txos, value_map)))
                 } else {
                     Err(TransactionServiceError::Database(
                         WalletDbError::AccountNotFound(account_id_hex),
@@ -400,7 +390,8 @@ where
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
-    ) -> Result<(TransactionLog, AssociatedTxos, TxProposal), TransactionServiceError> {
+    ) -> Result<(TransactionLog, AssociatedTxos, ValueMap, TxProposal), TransactionServiceError>
+    {
         let tx_proposal = self.build_transaction(
             account_id_hex,
             addresses_and_values,
@@ -418,6 +409,7 @@ where
             Ok((
                 transaction_log_and_associated_txos.0,
                 transaction_log_and_associated_txos.1,
+                transaction_log_and_associated_txos.2,
                 tx_proposal,
             ))
         } else {
@@ -511,7 +503,7 @@ mod tests {
             .list_transaction_logs(&alice_account_id, None, None, None, None)
             .unwrap();
 
-        assert_eq!(1, tx_logs.len());
+        assert_eq!(0, tx_logs.len());
 
         // Verify balance for Alice
         let balance = service
@@ -557,7 +549,7 @@ mod tests {
             .list_transaction_logs(&alice_account_id, None, None, None, None)
             .unwrap();
 
-        assert_eq!(1, tx_logs.len());
+        assert_eq!(0, tx_logs.len());
 
         // Create an assigned subaddress for Bob
         let bob_address_from_alice_2 = service
@@ -584,7 +576,7 @@ mod tests {
             .list_transaction_logs(&alice_account_id, None, None, None, None)
             .unwrap();
 
-        assert_eq!(1, tx_logs.len());
+        assert_eq!(0, tx_logs.len());
 
         // Create an assigned subaddress for Bob
         let bob_address_from_alice_3 = service
@@ -611,7 +603,7 @@ mod tests {
             .list_transaction_logs(&alice_account_id, None, None, None, None)
             .unwrap();
 
-        assert_eq!(2, tx_logs.len());
+        assert_eq!(1, tx_logs.len());
     }
 
     // Test sending a transaction from Alice -> Bob, and then from Bob -> Alice
@@ -673,7 +665,7 @@ mod tests {
             .unwrap();
 
         // Send a transaction from Alice to Bob
-        let (transaction_log, _associated_txos, _tx_proposal) = service
+        let (transaction_log, _associated_txos, _value_map, _tx_proposal) = service
             .build_and_submit(
                 &alice.account_id_hex,
                 &[(
@@ -742,7 +734,7 @@ mod tests {
         assert_eq!(bob_balance.unspent, 42000000000000);
 
         // Bob should now be able to send to Alice
-        let (transaction_log, _associated_txos, _tx_proposal) = service
+        let (transaction_log, _associated_txos, _value_map, _tx_proposal) = service
             .build_and_submit(
                 &bob.account_id_hex,
                 &[(

@@ -258,11 +258,7 @@ where
 mod tests {
     use super::*;
     use crate::{
-        db::{
-            account::AccountID,
-            models::{TransactionLog, TX_DIRECTION_SENT},
-            transaction_log::{AssociatedTxos, TransactionLogModel},
-        },
+        db::{account::AccountID, models::TransactionLog, transaction_log::TransactionLogModel},
         service::{
             account::AccountService, address::AddressService,
             confirmation_number::ConfirmationService, transaction::TransactionService,
@@ -279,6 +275,7 @@ mod tests {
     use mc_crypto_keys::{ReprBytes, RistrettoPrivate, RistrettoPublic};
     use mc_crypto_rand::RngCore;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, tx::TxOut, Amount, Token};
+    use mc_transaction_types::BlockVersion;
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
@@ -290,6 +287,7 @@ mod tests {
         let account_key = AccountKey::random(&mut rng);
         let public_address = account_key.default_subaddress();
         let txo = TxOut::new(
+            BlockVersion::MAX,
             Amount::new(rng.next_u64(), Mob::ID),
             &public_address,
             &RistrettoPrivate::from_random(&mut rng),
@@ -418,7 +416,7 @@ mod tests {
 
         // Get corresponding Txo for Bob
         let txos = service
-            .list_txos(&AccountID(bob.account_id_hex), None, None)
+            .list_txos(&AccountID(bob.account_id_hex), None, None, None)
             .expect("Could not get Bob Txos");
         assert_eq!(txos.len(), 1);
 
@@ -427,20 +425,12 @@ mod tests {
         let transaction_logs = service
             .list_transaction_logs(&AccountID(alice.account_id_hex), None, None, None, None)
             .expect("Could not get transaction logs");
-        // Alice should have two received (initial and change), and one sent
-        // TransactionLog.
-        assert_eq!(transaction_logs.len(), 3);
-        let sent_transaction_logs_and_associated_txos: Vec<&(TransactionLog, AssociatedTxos)> =
-            transaction_logs
-                .iter()
-                .filter(|t| t.0.direction == TX_DIRECTION_SENT)
-                .collect();
-        assert_eq!(sent_transaction_logs_and_associated_txos.len(), 1);
-        let sent_transaction_log: TransactionLog =
-            sent_transaction_logs_and_associated_txos[0].0.clone();
+        // Alice should have one sent tranasction log
+        assert_eq!(transaction_logs.len(), 1);
+        let sent_transaction_log: TransactionLog = transaction_logs[0].0.clone();
 
         let confirmations = service
-            .get_confirmations(&sent_transaction_log.transaction_id_hex)
+            .get_confirmations(&sent_transaction_log.id)
             .expect("Could not get confirmations");
         assert_eq!(confirmations.len(), 1);
 

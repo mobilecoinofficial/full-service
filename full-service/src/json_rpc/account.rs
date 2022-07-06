@@ -52,29 +52,41 @@ pub struct Account {
     /// the default change subaddress (index 1). It also generates
     /// PublicAddressB58's with fog credentials.
     pub fog_enabled: bool,
+
+    /// A flag that indicates if this account is a watch only account.
+    pub view_only: bool,
 }
 
 impl TryFrom<&db::models::Account> for Account {
     type Error = String;
 
     fn try_from(src: &db::models::Account) -> Result<Account, String> {
-        let account_key: mc_account_keys::AccountKey = mc_util_serial::decode(&src.account_key)
-            .map_err(|e| format!("Could not decode account key: {:?}", e))?;
-        let main_address =
-            b58_encode_public_address(&account_key.subaddress(src.main_subaddress_index as u64))
-                .map_err(|e| format!("Could not b58 encode public address {:?}", e))?;
+        let main_public_address = if src.view_only {
+            let account_key: mc_account_keys::ViewAccountKey =
+                mc_util_serial::decode(&src.account_key)
+                    .map_err(|e| format!("Failed to decode view account key: {}", e))?;
+            account_key.subaddress(src.main_subaddress_index as u64)
+        } else {
+            let account_key: mc_account_keys::AccountKey = mc_util_serial::decode(&src.account_key)
+                .map_err(|e| format!("Failed to decode account key: {}", e))?;
+            account_key.subaddress(src.main_subaddress_index as u64)
+        };
+
+        let main_public_address_b58 = b58_encode_public_address(&main_public_address)
+            .map_err(|e| format!("Could not b58 encode public address {:?}", e))?;
 
         Ok(Account {
             object: "account".to_string(),
             account_id: src.account_id_hex.clone(),
             key_derivation_version: src.key_derivation_version.to_string(),
             name: src.name.clone(),
-            main_address,
+            main_address: main_public_address_b58,
             next_subaddress_index: (src.next_subaddress_index as u64).to_string(),
             first_block_index: (src.first_block_index as u64).to_string(),
             next_block_index: (src.next_block_index as u64).to_string(),
             recovery_mode: false,
             fog_enabled: src.fog_enabled,
+            view_only: src.view_only,
         })
     }
 }
