@@ -2489,22 +2489,6 @@ mod tests {
             .unwrap();
         assert_eq!(txos.len(), 0);
 
-        // create 1 txo with key image, but no subaddress
-        Txo::create_received(
-            txo.clone(),
-            None,
-            Some(key_image),
-            amount.clone(),
-            15,
-            &account_id.to_string(),
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-
-        let txos = Txo::list_unspent(Some(&account_id.to_string()), None, None, None, None, &conn)
-            .unwrap();
-        assert_eq!(txos.len(), 0);
-
         // create 1 txo with key image and subaddress
         Txo::create_received(
             txo.clone(),
