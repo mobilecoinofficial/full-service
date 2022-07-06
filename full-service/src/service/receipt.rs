@@ -13,7 +13,7 @@ use crate::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
         models::{Account, AssignedSubaddress, Txo},
-        txo::TxoModel,
+        txo::{TxoModel, TxoStatus},
         WalletDbError,
     },
     WalletService,
@@ -196,11 +196,9 @@ where
         }
         let txo = txos[0].clone();
 
-        // TODO - Update This!
-        // // Return if the Txo from the receipt has a pending tombstone block index
-        // if txo.pending_tombstone_block_index.is_some() {
-        //     return Ok((ReceiptTransactionStatus::TransactionPending, Some(txo)));
-        // }
+        if txo.status(conn)? == TxoStatus::Pending {
+            return Ok((ReceiptTransactionStatus::TransactionPending, Some(txo)));
+        }
 
         // Decrypt the amount to get the expected value
         let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;

@@ -2,7 +2,7 @@
 
 //! DB impl for the Txo model.
 
-use diesel::prelude::*;
+use diesel::{dsl::count, prelude::*};
 use mc_account_keys::{AccountKey, PublicAddress, CHANGE_SUBADDRESS_INDEX};
 use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
@@ -1230,15 +1230,16 @@ impl TxoModel for Txo {
             return Ok(TxoStatus::Spent);
         }
 
-        let pending = false;
-        // let pending: bool = transaction_logs::table
-        //     .inner_join(transaction_txos::table)
-        //     .filter(transaction_txos::txo_id.eq(&self.id))
-        //     .filter(transaction_logs::tombstone_block_index.is_not_null())
-        //     .filter(transaction_logs::failed.eq(false))
-        //     .count()
-        //     .get_result(conn)?
-        //     > 0;
+        let num_pending_logs: i64 = transaction_logs::table
+            .inner_join(transaction_txos::table)
+            .filter(transaction_txos::txo_id.eq(&self.id))
+            .filter(transaction_logs::tombstone_block_index.is_not_null())
+            .filter(transaction_logs::finalized_block_index.is_null())
+            .filter(transaction_logs::failed.eq(false))
+            .select(count(transaction_logs::id))
+            .first(conn)?;
+
+        let pending = num_pending_logs > 0;
 
         if pending {
             return Ok(TxoStatus::Pending);
