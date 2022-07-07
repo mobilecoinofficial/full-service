@@ -700,7 +700,7 @@ mod tests {
         let secreted = transaction_txos
             .outputs
             .iter()
-            .map(|t| Txo::get(&t.id, &service.wallet_db.get_conn().unwrap()).unwrap())
+            .map(|(t, _)| Txo::get(&t.id, &service.wallet_db.get_conn().unwrap()).unwrap())
             .collect::<Vec<Txo>>();
         assert_eq!(secreted.len(), 1);
         assert_eq!(secreted[0].value as u64, 42 * MOB);
@@ -708,7 +708,7 @@ mod tests {
         let change = transaction_txos
             .change
             .iter()
-            .map(|t| Txo::get(&t.id, &service.wallet_db.get_conn().unwrap()).unwrap())
+            .map(|(t, _)| Txo::get(&t.id, &service.wallet_db.get_conn().unwrap()).unwrap())
             .collect::<Vec<Txo>>();
         assert_eq!(change.len(), 1);
         assert_eq!(change[0].value as u64, 58 * MOB - Mob::MINIMUM_FEE);

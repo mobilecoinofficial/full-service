@@ -85,8 +85,8 @@ pub struct ValueMap(pub HashMap<TokenId, u64>);
 #[derive(Debug)]
 pub struct AssociatedTxos {
     pub inputs: Vec<Txo>,
-    pub outputs: Vec<Txo>,
-    pub change: Vec<Txo>,
+    pub outputs: Vec<(Txo, String)>,
+    pub change: Vec<(Txo, String)>,
 }
 
 pub trait TransactionLogModel {
@@ -228,18 +228,24 @@ impl TransactionLogModel for TransactionLog {
             .select(txos::all_columns)
             .load(conn)?;
 
-        let payload: Vec<Txo> = txos::table
+        let payload: Vec<(Txo, String)> = txos::table
             .inner_join(transaction_output_txos::table)
             .filter(transaction_output_txos::transaction_log_id.eq(&self.id))
             .filter(transaction_output_txos::is_change.eq(false))
-            .select(txos::all_columns)
+            .select((
+                txos::all_columns,
+                transaction_output_txos::recipient_public_address_b58,
+            ))
             .load(conn)?;
 
-        let change: Vec<Txo> = txos::table
+        let change: Vec<(Txo, String)> = txos::table
             .inner_join(transaction_output_txos::table)
             .filter(transaction_output_txos::transaction_log_id.eq(&self.id))
             .filter(transaction_output_txos::is_change.eq(true))
-            .select(txos::all_columns)
+            .select((
+                txos::all_columns,
+                transaction_output_txos::recipient_public_address_b58,
+            ))
             .load(conn)?;
 
         Ok(AssociatedTxos {
@@ -439,8 +445,8 @@ impl TransactionLogModel for TransactionLog {
         let output_total = associated_txos
             .outputs
             .iter()
-            .filter(|txo| txo.token_id as u64 == *token_id)
-            .map(|txo| txo.value as u64)
+            .filter(|(txo, _)| txo.token_id as u64 == *token_id)
+            .map(|(txo, _)| txo.value as u64)
             .sum::<u64>();
 
         Ok(output_total)
@@ -450,7 +456,7 @@ impl TransactionLogModel for TransactionLog {
         let associated_txos = self.get_associated_txos(conn)?;
 
         let mut value_map: HashMap<TokenId, u64> = HashMap::default();
-        for txo in associated_txos.outputs.iter() {
+        for (txo, _) in associated_txos.outputs.iter() {
             let token_id = TokenId::from(txo.token_id as u64);
             let value = value_map.entry(token_id).or_insert(0);
             *value += txo.value as u64;
@@ -575,7 +581,7 @@ mod tests {
         //     b58_encode_public_address(&recipient).unwrap()
         // );
         let output_details = Txo::get(
-            &associated_txos.outputs[0].id,
+            &associated_txos.outputs[0].0.id,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -590,7 +596,7 @@ mod tests {
         // Assert change is as expected
         assert_eq!(associated_txos.change.len(), 1);
         let change_details = Txo::get(
-            &associated_txos.change[0].id,
+            &associated_txos.change[0].0.id,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -622,7 +628,7 @@ mod tests {
 
         // Get the change txo again
         let updated_change_details = Txo::get(
-            &associated_txos.change[0].id,
+            &associated_txos.change[0].0.id,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -950,7 +956,7 @@ mod tests {
         //     b58_encode_public_address(&account_key.subaddress(0)).unwrap()
         // );
         let output_details = Txo::get(
-            &associated_txos.outputs[0].id,
+            &associated_txos.outputs[0].0.id,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -966,7 +972,7 @@ mod tests {
         // Assert change is as expected
         assert_eq!(associated_txos.change.len(), 1);
         let change_details = Txo::get(
-            &associated_txos.change[0].id,
+            &associated_txos.change[0].0.id,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1040,7 +1046,7 @@ mod tests {
 
         // Get the output txo again
         let updated_output_details = Txo::get(
-            &associated_txos.outputs[0].id,
+            &associated_txos.outputs[0].0.id,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1059,7 +1065,7 @@ mod tests {
 
         // Get the change txo again
         let updated_change_details = Txo::get(
-            &associated_txos.change[0].id,
+            &associated_txos.change[0].0.id,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();

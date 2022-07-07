@@ -41,15 +41,11 @@ Table transaction_input_txos {
   txo_id varchar [pk, not null, ref: > txos.id]
 }
 
-Table transaction_payload_txos {
+Table transaction_output_txos {
   transaction_log_id varchar [pk, not null, ref: > transaction_logs.id]
   txo_id varchar [pk, not null, ref: > txos.id]
   recipient_public_address_b58 varchar [not null]
-}
-
-Table transaction_change_txos {
-  transaction_log_id varchar [pk, not null, ref: > transaction_logs.id]
-  txo_id varchar [pk, not null, ref: > txos.id]
+  is_change boolean [not null]
 }
 
 Table txos {

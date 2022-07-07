@@ -131,7 +131,7 @@ where
             self.get_transaction_log(transaction_log_id)?;
 
         let mut results = Vec::new();
-        for associated_txo in associated_txos.outputs {
+        for (associated_txo, _) in associated_txos.outputs {
             let txo = self.get_txo(&TxoID(associated_txo.id.clone()))?;
             if let Some(confirmation) = txo.shared_secret {
                 let confirmation: TxOutConfirmationNumber = mc_util_serial::decode(&confirmation)?;

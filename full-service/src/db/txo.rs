@@ -1449,8 +1449,8 @@ mod tests {
             .get_associated_txos(&wallet_db.get_conn().unwrap())
             .unwrap();
 
-        let minted_txo = associated_txos.outputs.first().unwrap();
-        let change_txo = associated_txos.change.first().unwrap();
+        let (minted_txo, _) = associated_txos.outputs.first().unwrap();
+        let (change_txo, _) = associated_txos.change.first().unwrap();
 
         assert_eq!(minted_txo.value as u64, 33 * MOB);
         assert_eq!(change_txo.value as u64, 967 * MOB - Mob::MINIMUM_FEE);
@@ -1656,8 +1656,8 @@ mod tests {
             .get_associated_txos(&wallet_db.get_conn().unwrap())
             .unwrap();
 
-        let minted_txo = associated_txos.outputs.first().unwrap();
-        let change_txo = associated_txos.change.first().unwrap();
+        let (minted_txo, _) = associated_txos.outputs.first().unwrap();
+        let (change_txo, _) = associated_txos.change.first().unwrap();
 
         assert_eq!(minted_txo.value as u64, 72 * MOB);
         assert_eq!(change_txo.value as u64, 928 * MOB - (2 * Mob::MINIMUM_FEE));
@@ -2006,8 +2006,8 @@ mod tests {
             .get_associated_txos(&wallet_db.get_conn().unwrap())
             .unwrap();
 
-        let minted_txo = associated_txos.outputs.first().unwrap();
-        let change_txo = associated_txos.change.first().unwrap();
+        let (minted_txo, _) = associated_txos.outputs.first().unwrap();
+        let (change_txo, _) = associated_txos.change.first().unwrap();
 
         assert_eq!(minted_txo.value as u64, 1 * MOB);
         // assert!(minted_txo.minted_account_id_hex.is_some());
@@ -2146,7 +2146,7 @@ mod tests {
         let sent_outputs = associated.outputs;
         assert_eq!(sent_outputs.len(), 1);
         let sent_txo_details =
-            Txo::get(&sent_outputs[0].id, &wallet_db.get_conn().unwrap()).unwrap();
+            Txo::get(&sent_outputs[0].0.id, &wallet_db.get_conn().unwrap()).unwrap();
 
         // These two txos should actually be the same txo, and the account_txo_status is
         // what differentiates them.
