@@ -391,7 +391,6 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
             )
             .expect("Could not build transaction");
 
@@ -430,7 +429,7 @@ mod tests {
 
         // Get corresponding Txo for Bob
         let txos_and_statuses = service
-            .list_txos(&AccountID(bob.account_id_hex), None, None, None, None)
+            .list_txos(&AccountID(bob.account_id_hex), None, None, None)
             .expect("Could not get Bob Txos");
         assert_eq!(txos_and_statuses.len(), 1);
 
@@ -512,7 +511,6 @@ mod tests {
             .build_transaction(
                 &alice.account_id_hex,
                 &vec![(bob_address.to_string(), (24 * MOB).to_string())],
-                None,
                 None,
                 None,
                 None,
@@ -634,7 +632,6 @@ mod tests {
             .build_transaction(
                 &alice.account_id_hex,
                 &vec![(bob_address.to_string(), (24 * MOB).to_string())],
-                None,
                 None,
                 None,
                 None,
@@ -763,7 +760,6 @@ mod tests {
             .build_transaction(
                 &alice.account_id_hex,
                 &vec![(bob_address.to_string(), (24 * MOB).to_string())],
-                None,
                 None,
                 None,
                 None,

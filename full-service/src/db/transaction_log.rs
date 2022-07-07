@@ -356,7 +356,7 @@ impl TransactionLogModel for TransactionLog {
 
         // Next, add all of our minted outputs to the Txo Table
         for (i, output) in tx_proposal.tx.prefix.outputs.iter().enumerate() {
-            Txo::create_minted(account_id_hex, output, &tx_proposal, i, conn)?;
+            Txo::create_minted(output, &tx_proposal, i, conn)?;
         }
 
         TransactionLog::get(&transaction_log_id, conn)
@@ -522,7 +522,7 @@ mod tests {
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
         builder.add_recipient(recipient.clone(), 50 * MOB).unwrap();
         builder.set_tombstone(0).unwrap();
-        builder.select_txos(&conn, None, false).unwrap();
+        builder.select_txos(&conn, None).unwrap();
         let tx_proposal = builder.build(&conn).unwrap();
 
         // Log submitted transaction from tx_proposal
@@ -674,7 +674,7 @@ mod tests {
         builder.add_recipient(recipient.clone(), value).unwrap();
 
         builder.set_tombstone(0).unwrap();
-        builder.select_txos(&conn, None, false).unwrap();
+        builder.select_txos(&conn, None).unwrap();
         let tx_proposal = builder.build(&conn).unwrap();
 
         let tx_log = TransactionLog::log_submitted(
@@ -840,7 +840,7 @@ mod tests {
             .add_recipient(recipient.clone(), 10_000_000 * MOB)
             .unwrap();
         builder.set_tombstone(0).unwrap();
-        builder.select_txos(&conn, None, false).unwrap();
+        builder.select_txos(&conn, None).unwrap();
         let tx_proposal = builder.build(&conn).unwrap();
 
         assert_eq!(tx_proposal.outlays[0].value, 10_000_000_000_000_000_000);
@@ -904,7 +904,7 @@ mod tests {
             .add_recipient(account_key.subaddress(0), 12 * MOB)
             .unwrap();
         builder.set_tombstone(0).unwrap();
-        builder.select_txos(&conn, None, false).unwrap();
+        builder.select_txos(&conn, None).unwrap();
         let tx_proposal = builder.build(&conn).unwrap();
 
         // Log submitted transaction from tx_proposal

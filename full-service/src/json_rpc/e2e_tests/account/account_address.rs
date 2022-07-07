@@ -391,17 +391,6 @@ mod e2e_account {
         let txo = &txo_map.get(txos[0].as_str().unwrap()).unwrap();
         let txo_status = txo.get("status").unwrap().as_str().unwrap();
         assert_eq!(txo_status, TxoStatus::Unspent.to_string());
-        // let status_map = txo
-        //     .get("account_status_map")
-        //     .unwrap()
-        //     .as_object()
-        //     .unwrap()
-        //     .get(account_id)
-        //     .unwrap();
-        // let txo_status = status_map.get("txo_status").unwrap().as_str().unwrap();
-        // assert_eq!(txo_status, TxoStatus::Unspent.to_string());
-        // let txo_type = status_map.get("txo_type").unwrap().as_str().unwrap();
-        // assert_eq!(txo_type, "txo_type_received");
         let value = txo.get("value_pmob").unwrap().as_str().unwrap();
         assert_eq!(value, "42000000000000");
     }

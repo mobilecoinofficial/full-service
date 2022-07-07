@@ -307,7 +307,6 @@ where
                     fee,
                     tombstone_block,
                     max_spendable_value,
-                    log_tx_proposal,
                 )
                 .map_err(format_error)?;
             JsonCommandResponse::build_transaction {
@@ -457,7 +456,6 @@ where
             let unverified_txos = service
                 .list_txos(
                     &AccountID(account_id.clone()),
-                    None,
                     Some(TxoStatus::Unverified),
                     None,
                     None,
@@ -800,7 +798,7 @@ where
             };
 
             let txos_and_statuses = service
-                .list_txos(&AccountID(account_id), None, status, Some(o), Some(l))
+                .list_txos(&AccountID(account_id), status, Some(o), Some(l))
                 .map_err(format_error)?;
             let txo_map: Map<String, serde_json::Value> = Map::from_iter(
                 txos_and_statuses

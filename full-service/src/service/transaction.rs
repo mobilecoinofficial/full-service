@@ -158,7 +158,6 @@ pub trait TransactionService {
         fee: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
-        log_tx_proposal: Option<bool>,
     ) -> Result<TxProposal, TransactionServiceError>;
 
     /// Submits a pre-built TxProposal to the MobileCoin Consensus Network.
@@ -229,7 +228,7 @@ where
 
             builder.set_block_version(self.get_network_block_version());
 
-            builder.select_txos(&conn, None, false)?;
+            builder.select_txos(&conn, None)?;
 
             let unsigned_tx = builder.build_unsigned()?;
             let fog_resolver = builder.get_fs_fog_resolver(&conn)?;
@@ -246,7 +245,6 @@ where
         fee: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
-        log_tx_proposal: Option<bool>,
     ) -> Result<TxProposal, TransactionServiceError> {
         validate_number_inputs(input_txo_ids.unwrap_or(&Vec::new()).len() as u64)?;
         validate_number_outputs(addresses_and_values.len() as u64)?;
@@ -284,28 +282,28 @@ where
             builder.set_block_version(self.get_network_block_version());
 
             if let Some(inputs) = input_txo_ids {
-                builder.set_txos(&conn, inputs, log_tx_proposal.unwrap_or_default())?;
+                builder.set_txos(&conn, inputs)?;
             } else {
                 let max_spendable = if let Some(msv) = max_spendable_value {
                     Some(msv.parse::<u64>()?)
                 } else {
                     None
                 };
-                builder.select_txos(&conn, max_spendable, log_tx_proposal.unwrap_or_default())?;
+                builder.select_txos(&conn, max_spendable)?;
             }
 
             let tx_proposal = builder.build(&conn)?;
 
-            if log_tx_proposal.unwrap_or_default() {
-                let block_index = self.ledger_db.num_blocks()? - 1;
-                let _transaction_log = TransactionLog::log_submitted(
-                    tx_proposal.clone(),
-                    block_index,
-                    "".to_string(),
-                    account_id_hex,
-                    &conn,
-                )?;
-            }
+            // if log_tx_proposal.unwrap_or_default() {
+            //     let block_index = self.ledger_db.num_blocks()? - 1;
+            //     let _transaction_log = TransactionLog::log_submitted(
+            //         tx_proposal.clone(),
+            //         block_index,
+            //         "".to_string(),
+            //         account_id_hex,
+            //         &conn,
+            //     )?;
+            // }
 
             Ok(tx_proposal)
         })
@@ -399,7 +397,6 @@ where
             fee,
             tombstone_block,
             max_spendable_value,
-            None,
         )?;
         if let Some(transaction_log_and_associated_txos) = self.submit_transaction(
             tx_proposal.clone(),
@@ -540,7 +537,6 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
             )
             .unwrap();
         log::info!(logger, "Built transaction from Alice");
@@ -567,7 +563,6 @@ mod tests {
                 None,
                 None,
                 None,
-                Some(false),
             )
             .unwrap();
         log::info!(logger, "Built transaction from Alice");
@@ -594,7 +589,6 @@ mod tests {
                 None,
                 None,
                 None,
-                Some(true),
             )
             .unwrap();
         log::info!(logger, "Built transaction from Alice");
@@ -815,7 +809,6 @@ mod tests {
             None,
             None,
             None,
-            None,
         ) {
             Ok(_) => {
                 panic!("Should not be able to build transaction to invalid b58 public address")
@@ -866,15 +859,7 @@ mod tests {
                 (42 * MOB).to_string(),
             ));
         }
-        match service.build_transaction(
-            &alice.account_id_hex,
-            &outputs,
-            None,
-            None,
-            None,
-            None,
-            None,
-        ) {
+        match service.build_transaction(&alice.account_id_hex, &outputs, None, None, None, None) {
             Ok(_) => {
                 panic!("Should not be able to build transaction with too many ouputs")
             }
@@ -900,7 +885,6 @@ mod tests {
             &alice.account_id_hex,
             &outputs,
             Some(&inputs),
-            None,
             None,
             None,
             None,

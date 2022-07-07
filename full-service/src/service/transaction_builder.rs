@@ -115,15 +115,8 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         &mut self,
         conn: &Conn,
         input_txo_ids: &[String],
-        update_to_pending: bool,
     ) -> Result<(), WalletTransactionBuilderError> {
-        let pending_tombstone_block_index = if update_to_pending {
-            Some(self.tombstone)
-        } else {
-            None
-        };
-
-        let txos = Txo::select_by_id(input_txo_ids, pending_tombstone_block_index, conn)?;
+        let txos = Txo::select_by_id(input_txo_ids, conn)?;
 
         let unspent: Vec<Txo> = txos
             .iter()
@@ -145,7 +138,6 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         &mut self,
         conn: &Conn,
         max_spendable_value: Option<u64>,
-        update_to_pending: bool,
     ) -> Result<(), WalletTransactionBuilderError> {
         let outlay_value_sum = self.outlays.iter().map(|(_r, v)| *v as u128).sum::<u128>();
 
@@ -161,12 +153,6 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             fee
         );
         let total_value = outlay_value_sum as u64 + fee;
-
-        let pending_tombstone_block_index = if update_to_pending {
-            Some(self.tombstone)
-        } else {
-            None
-        };
 
         self.inputs = Txo::select_spendable_txos_for_value(
             &self.account_id_hex,
@@ -765,7 +751,7 @@ mod tests {
         builder.add_recipient(recipient.clone(), value).unwrap();
 
         // Select the txos for the recipient
-        builder.select_txos(&conn, None, false).unwrap();
+        builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
 
         let proposal = builder.build(&conn).unwrap();
@@ -821,7 +807,7 @@ mod tests {
         builder.add_recipient(recipient.clone(), value).unwrap();
 
         // Select the txos for the recipient - should error because > u64::MAX
-        match builder.select_txos(&conn, None, false) {
+        match builder.select_txos(&conn, None) {
             Ok(_) => panic!("Should not be allowed to construct outbound values > u64::MAX"),
             Err(WalletTransactionBuilderError::OutboundValueTooLarge) => {}
             Err(e) => panic!("Unexpected error {:?}", e),
@@ -869,9 +855,7 @@ mod tests {
             .add_recipient(recipient.clone(), txos[0].value as u64)
             .unwrap();
 
-        builder
-            .set_txos(&conn, &vec![txos[0].id.clone()], false)
-            .unwrap();
+        builder.set_txos(&conn, &vec![txos[0].id.clone()]).unwrap();
         builder.set_tombstone(0).unwrap();
         match builder.build(&conn) {
             Ok(_) => {
@@ -891,7 +875,7 @@ mod tests {
             .unwrap();
 
         builder
-            .set_txos(&conn, &vec![txos[0].id.clone(), txos[1].id.clone()], false)
+            .set_txos(&conn, &vec![txos[0].id.clone(), txos[1].id.clone()])
             .unwrap();
         builder.set_tombstone(0).unwrap();
         let proposal = builder.build(&conn).unwrap();
@@ -932,7 +916,7 @@ mod tests {
         builder.add_recipient(recipient.clone(), 80 * MOB).unwrap();
 
         // Test that selecting Txos with max_spendable < all our txo values fails
-        match builder.select_txos(&conn, Some(10), false) {
+        match builder.select_txos(&conn, Some(10)) {
             Ok(_) => panic!("Should not be able to construct tx when max_spendable < all txos"),
             Err(WalletTransactionBuilderError::WalletDb(WalletDbError::NoSpendableTxos)) => {}
             Err(e) => panic!("Unexpected error {:?}", e),
@@ -940,7 +924,7 @@ mod tests {
 
         // We should be able to try again, with max_spendable at 70, but will not hit
         // our outlay target (80 * MOB)
-        match builder.select_txos(&conn, Some(70 * MOB), false) {
+        match builder.select_txos(&conn, Some(70 * MOB)) {
             Ok(_) => panic!("Should not be able to construct tx when max_spendable < all txos"),
             Err(WalletTransactionBuilderError::WalletDb(
                 WalletDbError::InsufficientFundsUnderMaxSpendable(_),
@@ -950,7 +934,7 @@ mod tests {
 
         // Now, we should succeed if we set max_spendable = 80 * MOB, because we will
         // pick up both 70 and 80
-        builder.select_txos(&conn, Some(80 * MOB), false).unwrap();
+        builder.select_txos(&conn, Some(80 * MOB)).unwrap();
         builder.set_tombstone(0).unwrap();
         let proposal = builder.build(&conn).unwrap();
         assert_eq!(proposal.outlays.len(), 1);
@@ -987,7 +971,7 @@ mod tests {
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
-        builder.select_txos(&conn, None, false).unwrap();
+        builder.select_txos(&conn, None).unwrap();
 
         // Sanity check that our ledger is the height we think it is
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
@@ -1003,7 +987,7 @@ mod tests {
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
-        builder.select_txos(&conn, None, false).unwrap();
+        builder.select_txos(&conn, None).unwrap();
 
         // Set to default
         builder.set_tombstone(0).unwrap();
@@ -1018,7 +1002,7 @@ mod tests {
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
-        builder.select_txos(&conn, None, false).unwrap();
+        builder.select_txos(&conn, None).unwrap();
 
         // Set to default
         builder.set_tombstone(20).unwrap();
@@ -1055,7 +1039,7 @@ mod tests {
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
-        builder.select_txos(&conn, None, false).unwrap();
+        builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
 
         // Verify that not setting fee results in default fee
@@ -1067,7 +1051,7 @@ mod tests {
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
-        builder.select_txos(&conn, None, false).unwrap();
+        builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
         match builder.set_fee(0) {
             Ok(_) => panic!("Should not be able to set fee to 0"),
@@ -1084,7 +1068,7 @@ mod tests {
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
-        builder.select_txos(&conn, None, false).unwrap();
+        builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
         match builder.set_fee(0) {
             Ok(_) => panic!("Should not be able to set fee to 0"),
@@ -1097,7 +1081,7 @@ mod tests {
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
-        builder.select_txos(&conn, None, false).unwrap();
+        builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
         builder.set_fee(Mob::MINIMUM_FEE * 10).unwrap();
         let proposal = builder.build(&conn).unwrap();
@@ -1132,7 +1116,7 @@ mod tests {
         // Set value to consume the whole TXO and not produce change
         let value = 70 * MOB - Mob::MINIMUM_FEE;
         builder.add_recipient(recipient.clone(), value).unwrap();
-        builder.select_txos(&conn, None, false).unwrap();
+        builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
 
         // Verify that not setting fee results in default fee
@@ -1177,7 +1161,7 @@ mod tests {
         builder.add_recipient(recipient.clone(), 30 * MOB).unwrap();
         builder.add_recipient(recipient.clone(), 40 * MOB).unwrap();
 
-        builder.select_txos(&conn, None, false).unwrap();
+        builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
 
         // Verify that not setting fee results in default fee
@@ -1235,7 +1219,7 @@ mod tests {
             .add_recipient(recipient.clone(), 7_000_000 * MOB)
             .unwrap();
 
-        match builder.select_txos(&wallet_db.get_conn().unwrap(), None, false) {
+        match builder.select_txos(&wallet_db.get_conn().unwrap(), None) {
             Ok(_) => panic!("Should not be able to select txos with > u64::MAX output value"),
             Err(WalletTransactionBuilderError::OutboundValueTooLarge) => {}
             Err(e) => panic!("Unexpected error {:?}", e),

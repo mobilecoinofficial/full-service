@@ -511,7 +511,7 @@ pub fn create_test_minted_and_change_txos(
 
     let conn = wallet_db.get_conn().unwrap();
     builder.add_recipient(recipient, value).unwrap();
-    builder.select_txos(&conn, None, false).unwrap();
+    builder.select_txos(&conn, None).unwrap();
     builder.set_tombstone(0).unwrap();
     let tx_proposal = builder.build(&conn).unwrap();
 

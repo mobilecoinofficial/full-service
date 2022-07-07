@@ -126,11 +126,7 @@ pub trait TxoModel {
     ) -> Result<String, WalletDbError>;
 
     /// Processes a TxProposal to create a new minted Txo and a change Txo.
-    ///
-    /// Returns:
-    /// * ProcessedTxProposalOutput
     fn create_minted(
-        account_id_hex: &str,
         txo: &TxOut,
         tx_proposal: &TxProposal,
         outlay_index: usize,
@@ -259,12 +255,8 @@ pub trait TxoModel {
     /// Select several Txos by their TxoIds
     ///
     /// Returns:
-    /// * Vec<(Txo, TxoStatus)>
-    fn select_by_id(
-        txo_ids: &[String],
-        pending_tombstone_block_index: Option<u64>,
-        conn: &Conn,
-    ) -> Result<Vec<Txo>, WalletDbError>;
+    /// * Vec<(Txo)>
+    fn select_by_id(txo_ids: &[String], conn: &Conn) -> Result<Vec<Txo>, WalletDbError>;
 
     /// Select a set of unspent Txos to reach a given value.
     ///
@@ -355,7 +347,6 @@ impl TxoModel for Txo {
     }
 
     fn create_minted(
-        account_id_hex: &str,
         output: &TxOut,
         tx_proposal: &TxProposal,
         output_index: usize,
@@ -371,15 +362,7 @@ impl TxoModel for Txo {
         let total_output_value: u64 = tx_proposal.outlays.iter().map(|o| o.value).sum();
         let change_value: u64 = total_input_value - total_output_value - tx_proposal.fee();
 
-        // let outlay_index = tx_proposal
-        //     .outlay_index_to_tx_out_index
-        //     .iter()
-        //     .find_map(|(k, &v)| if v == output_index { Some(k) } else { None })
-        //     .ok_or(WalletDbError::ExpectedTxOutAsOutlay)?;
-
-        // let outlay = &tx_proposal.outlays[*outlay_index];
-
-        // // Determine whether this output is an outlay destination, or change.
+        // Determine whether this output is an outlay destination, or change.
         let (value, confirmation, outlay_receiver, txo_type) = if let Some(outlay_index) =
             tx_proposal
                 .outlay_index_to_tx_out_index
@@ -394,28 +377,23 @@ impl TxoModel for Txo {
                 TxoType::Payload,
             )
         } else {
-            //     // This is the change output. Note: there should only be one change
-            // output     // per transaction, based on how we construct
-            // transactions. If we change     // how we construct transactions,
-            // these assumptions will change, and should be     // reflected in the
+            // This is the change output. Note: there should only be one change
+            // output per transaction, based on how we construct
+            // transactions. If we change how we construct transactions,
+            // these assumptions will change, and should be reflected in the
             // TxProposal.
             (change_value, None, None, TxoType::Change)
         };
 
         // Update receiver, transaction_value, and transaction_txo_type, if outlay was
         // found.
-        let (log_value, recipient_public_address_b58, subaddress_index) =
-            if let Some(r) = outlay_receiver.clone() {
-                (total_output_value, b58_encode_public_address(&r)?, None)
-            } else {
-                // If not in an outlay, this output is change, according to how we build
-                // transactions.
-                (
-                    change_value,
-                    "".to_string(),
-                    Some(CHANGE_SUBADDRESS_INDEX as i64),
-                )
-            };
+        let (recipient_public_address_b58, subaddress_index) = if let Some(r) = outlay_receiver {
+            (b58_encode_public_address(&r)?, None)
+        } else {
+            // If not in an outlay, this output is change, according to how we build
+            // transactions.
+            ("".to_string(), Some(CHANGE_SUBADDRESS_INDEX as i64))
+        };
 
         let encoded_confirmation = confirmation
             .map(|p| mc_util_serial::encode(&tx_proposal.outlay_confirmation_numbers[p]));
@@ -639,7 +617,7 @@ impl TxoModel for Txo {
                     )
                 }
                 TxoStatus::Orphaned => {
-                    return Ok(vec![].into());
+                    return Ok(vec![]);
                 }
             }
         }
@@ -706,42 +684,9 @@ impl TxoModel for Txo {
                     .and(transaction_logs::submitted_block_index.is_null()),
             );
 
-        // filter out any txos that are part of pending transactions, but potentially
-        // built transactions
-        // query = query.filter(
-        //     transaction_logs::id
-        //         .is_null()
-        //         .or(transaction_txos::used_as
-        //             .eq(TxoType::Input.to_string())
-        //             .and(
-        //                 transaction_logs::failed
-        //                     .eq(true)
-        //                     .or(transaction_logs::submitted_block_index.is_null()),
-        //             ))
-        //         .or(transaction_txos::used_as
-        //             .ne(TxoType::Input.to_string())
-        //             .and(transaction_logs::failed.eq(false))),
-        // );
-
         query = query.filter(txos::received_block_index.is_not_null());
         query = query.filter(txos::key_image.is_not_null());
         query = query.filter(txos::spent_block_index.is_null());
-        //     .or_filter(transaction_txos::used_as.eq(TxoType::Input.to_string()))
-        //     .filter(
-        //         transaction_logs::failed
-        //             .eq(true)
-        //             .or(transaction_logs::submitted_block_index.is_null()),
-        //     )
-        //     .or_filter(
-        //         transaction_txos::used_as
-        //             .ne(TxoType::Input.to_string())
-        //             .and(transaction_logs::failed.eq(false)),
-        //     );
-
-        // query = query
-        //     .filter(txos::key_image.is_not_null())
-        //     .filter(txos::subaddress_index.is_not_null())
-        //     .filter(txos::spent_block_index.is_null());
 
         if let (Some(o), Some(l)) = (offset, limit) {
             query = query.offset(o as i64).limit(l as i64);
@@ -789,22 +734,6 @@ impl TxoModel for Txo {
                     .is_not_null()
                     .and(transaction_logs::submitted_block_index.is_null()),
             );
-        // // filter out any txos that are part of pending transactions, but potentially
-        // // built transactions
-        // query = query.filter(
-        //     transaction_logs::id
-        //         .is_null()
-        //         .or(transaction_txos::used_as
-        //             .eq(TxoType::Input.to_string())
-        //             .and(
-        //                 transaction_logs::failed
-        //                     .eq(true)
-        //                     .or(transaction_logs::submitted_block_index.is_null()),
-        //             ))
-        //         .or(transaction_txos::used_as
-        //             .ne(TxoType::Input.to_string())
-        //             .and(transaction_logs::failed.eq(false))),
-        // );
 
         query = query
             .filter(txos::received_block_index.is_not_null())
@@ -1012,11 +941,7 @@ impl TxoModel for Txo {
         Ok(selected)
     }
 
-    fn select_by_id(
-        txo_ids: &[String],
-        pending_tombstone_block_index: Option<u64>,
-        conn: &Conn,
-    ) -> Result<Vec<Txo>, WalletDbError> {
+    fn select_by_id(txo_ids: &[String], conn: &Conn) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
 
         let txos: Vec<Txo> = txos::table.filter(txos::id.eq_any(txo_ids)).load(conn)?;
@@ -1055,32 +980,6 @@ impl TxoModel for Txo {
                     .and(transaction_logs::submitted_block_index.is_null()),
             );
 
-        // query = query
-        //     .filter(transaction_logs::id.is_null())
-        //     .or_filter(transaction_logs::failed.eq(true))
-        //     .or_filter(
-        //         transaction_logs::id
-        //             .is_not_null()
-        //             .and(transaction_logs::submitted_block_index.is_null()),
-        //     );
-
-        // filter out any txos that are part of pending transactions, but potentially
-        // built transactions
-        // query = query.filter(
-        //     transaction_logs::id
-        //         .is_null()
-        //         .or(transaction_txos::used_as
-        //             .eq(TxoType::Input.to_string())
-        //             .and(
-        //                 transaction_logs::failed
-        //                     .eq(true)
-        //                     .or(transaction_logs::submitted_block_index.is_null()),
-        //             ))
-        //         .or(transaction_txos::used_as
-        //             .ne(TxoType::Input.to_string())
-        //             .and(transaction_logs::failed.eq(false))),
-        // );
-
         query = query
             .filter(txos::received_block_index.is_not_null())
             .filter(txos::spent_block_index.is_null())
@@ -1100,25 +999,6 @@ impl TxoModel for Txo {
             .select(txos::all_columns)
             .order_by(txos::value.desc())
             .load(conn)?;
-
-        // let spendable_txos: Vec<Txo> = if let Some(subaddress_b58) =
-        // assigned_subaddress_b58 {     let subaddress =
-        // AssignedSubaddress::get(subaddress_b58, conn)?;     query
-        //         .filter(txos::subaddress_index.eq(subaddress.subaddress_index))
-        //         .order_by(txos::value.desc())
-        //         .load(conn)?
-        // } else {
-        //     query.order_by(txos::value.desc()).load(conn)?
-        // };
-
-        // let spendable_txos = if let Some(msv) = max_spendable_value {
-        //     spendable_txos
-        //         .into_iter()
-        //         .filter(|txo| (txo.value as u64) <= msv)
-        //         .collect()
-        // } else {
-        //     spendable_txos
-        // };
 
         // The maximum spendable is limited by the maximal number of inputs we can use.
         // Since the txos are sorted by decreasing value, this is the maximum
@@ -1298,11 +1178,11 @@ impl TxoModel for Txo {
         }
 
         if self.subaddress_index.is_some() && self.key_image.is_some() {
-            return Ok(TxoStatus::Unspent);
+            Ok(TxoStatus::Unspent)
         } else if self.subaddress_index.is_some() {
-            return Ok(TxoStatus::Unverified);
+            Ok(TxoStatus::Unverified)
         } else {
-            return Ok(TxoStatus::Orphaned);
+            Ok(TxoStatus::Orphaned)
         }
     }
 }
@@ -2074,7 +1954,7 @@ mod tests {
         builder
             .add_recipient(recipient_account_key.default_subaddress(), 50 * MOB)
             .unwrap();
-        builder.select_txos(&conn, None, false).unwrap();
+        builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
         let proposal = builder.build(&conn).unwrap();
 

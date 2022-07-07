@@ -76,7 +76,6 @@ pub trait TxoService {
     fn list_txos(
         &self,
         account_id: &AccountID,
-        assigned_subaddress_b58: Option<&str>,
         status: Option<TxoStatus>,
         limit: Option<u64>,
         offset: Option<u64>,
@@ -110,7 +109,6 @@ where
     fn list_txos(
         &self,
         account_id: &AccountID,
-        assigned_subaddress_b58: Option<&str>,
         status: Option<TxoStatus>,
         limit: Option<u64>,
         offset: Option<u64>,
@@ -180,7 +178,6 @@ where
             Some(&[txo_id.to_string()].to_vec()),
             fee,
             tombstone_block,
-            None,
             None,
         )?)
     }
@@ -265,7 +262,7 @@ mod tests {
 
         // Verify that we have 1 txo
         let txos = service
-            .list_txos(&alice_account_id, None, None, None, None)
+            .list_txos(&alice_account_id, None, None, None)
             .unwrap();
         assert_eq!(txos.len(), 1);
 
@@ -295,7 +292,6 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
             )
             .unwrap();
         let _submitted = service
@@ -305,13 +301,7 @@ mod tests {
         // We should now have 3 txos - one pending, two minted (one of which will be
         // change)
         let txos = service
-            .list_txos(
-                &AccountID(alice.account_id_hex.clone()),
-                None,
-                None,
-                None,
-                None,
-            )
+            .list_txos(&AccountID(alice.account_id_hex.clone()), None, None, None)
             .unwrap();
         // assert_eq!(txos.len(), 3);
         // assert_eq!(txos[0].account_id_hex, Some(alice.account_id_hex.clone()));
@@ -326,7 +316,6 @@ mod tests {
         let pending: Vec<(Txo, TxoStatus)> = service
             .list_txos(
                 &AccountID(alice.account_id_hex.clone()),
-                None,
                 Some(TxoStatus::Pending),
                 None,
                 None,
