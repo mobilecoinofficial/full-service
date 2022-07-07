@@ -306,6 +306,7 @@ where
                     fee,
                     tombstone_block,
                     max_spendable_value,
+                    None,
                 )
                 .map_err(format_error)?;
             JsonCommandResponse::build_transaction {

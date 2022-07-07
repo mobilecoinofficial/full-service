@@ -391,6 +391,7 @@ mod tests {
                 None,
                 None,
                 None,
+                None,
             )
             .expect("Could not build transaction");
 
@@ -515,6 +516,7 @@ mod tests {
                 None,
                 None,
                 None,
+                None,
             )
             .expect("Could not build transaction");
 
@@ -632,6 +634,7 @@ mod tests {
             .build_transaction(
                 &alice.account_id_hex,
                 &vec![(bob_address.to_string(), (24 * MOB).to_string())],
+                None,
                 None,
                 None,
                 None,
@@ -760,6 +763,7 @@ mod tests {
             .build_transaction(
                 &alice.account_id_hex,
                 &vec![(bob_address.to_string(), (24 * MOB).to_string())],
+                None,
                 None,
                 None,
                 None,

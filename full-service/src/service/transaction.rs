@@ -157,6 +157,7 @@ pub trait TransactionService {
         fee: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
+        comment: Option<String>,
     ) -> Result<TxProposal, TransactionServiceError>;
 
     /// Submits a pre-built TxProposal to the MobileCoin Consensus Network.
@@ -244,6 +245,7 @@ where
         fee: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
+        comment: Option<String>,
     ) -> Result<TxProposal, TransactionServiceError> {
         validate_number_inputs(input_txo_ids.unwrap_or(&Vec::new()).len() as u64)?;
         validate_number_outputs(addresses_and_values.len() as u64)?;
@@ -292,6 +294,13 @@ where
             }
 
             let tx_proposal = builder.build(&conn)?;
+
+            TransactionLog::log_built(
+                tx_proposal.clone(),
+                comment.unwrap_or_default(),
+                account_id_hex,
+                &conn,
+            )?;
 
             Ok(tx_proposal)
         })
@@ -385,6 +394,7 @@ where
             fee,
             tombstone_block,
             max_spendable_value,
+            comment.clone(),
         )?;
         if let Some(transaction_log_and_associated_txos) = self.submit_transaction(
             tx_proposal.clone(),
@@ -525,6 +535,7 @@ mod tests {
                 None,
                 None,
                 None,
+                None,
             )
             .unwrap();
         log::info!(logger, "Built transaction from Alice");
@@ -533,7 +544,7 @@ mod tests {
             .list_transaction_logs(&alice_account_id, None, None, None, None)
             .unwrap();
 
-        assert_eq!(0, tx_logs.len());
+        assert_eq!(1, tx_logs.len());
 
         // Create an assigned subaddress for Bob
         let bob_address_from_alice_2 = service
@@ -551,6 +562,7 @@ mod tests {
                 None,
                 None,
                 None,
+                None,
             )
             .unwrap();
         log::info!(logger, "Built transaction from Alice");
@@ -559,7 +571,7 @@ mod tests {
             .list_transaction_logs(&alice_account_id, None, None, None, None)
             .unwrap();
 
-        assert_eq!(0, tx_logs.len());
+        assert_eq!(2, tx_logs.len());
 
         // Create an assigned subaddress for Bob
         let bob_address_from_alice_3 = service
@@ -577,6 +589,7 @@ mod tests {
                 None,
                 None,
                 None,
+                None,
             )
             .unwrap();
         log::info!(logger, "Built transaction from Alice");
@@ -585,7 +598,7 @@ mod tests {
             .list_transaction_logs(&alice_account_id, None, None, None, None)
             .unwrap();
 
-        assert_eq!(1, tx_logs.len());
+        assert_eq!(3, tx_logs.len());
     }
 
     // Test sending a transaction from Alice -> Bob, and then from Bob -> Alice
@@ -797,6 +810,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         ) {
             Ok(_) => {
                 panic!("Should not be able to build transaction to invalid b58 public address")
@@ -847,7 +861,15 @@ mod tests {
                 (42 * MOB).to_string(),
             ));
         }
-        match service.build_transaction(&alice.account_id_hex, &outputs, None, None, None, None) {
+        match service.build_transaction(
+            &alice.account_id_hex,
+            &outputs,
+            None,
+            None,
+            None,
+            None,
+            None,
+        ) {
             Ok(_) => {
                 panic!("Should not be able to build transaction with too many ouputs")
             }
@@ -873,6 +895,7 @@ mod tests {
             &alice.account_id_hex,
             &outputs,
             Some(&inputs),
+            None,
             None,
             None,
             None,

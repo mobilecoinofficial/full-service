@@ -410,6 +410,7 @@ where
             fee.map(|f| f.to_string()),
             tombstone_block.map(|t| t.to_string()),
             max_spendable_value.map(|f| f.to_string()),
+            None,
         )?;
 
         if tx_proposal.outlay_index_to_tx_out_index.len() != 1 {

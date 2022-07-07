@@ -672,14 +672,14 @@ impl TxoModel for Txo {
             query = query.filter(txos::account_id_hex.eq(account_id_hex));
         }
 
-        query = query
-            .filter(transaction_logs::id.is_null())
-            .or_filter(transaction_logs::failed.eq(true))
-            .or_filter(
-                transaction_logs::id
+        query = query.filter(
+            transaction_logs::id
+                .is_null()
+                .or(transaction_logs::failed.eq(true))
+                .or(transaction_logs::id
                     .is_not_null()
-                    .and(transaction_logs::submitted_block_index.is_null()),
-            );
+                    .and(transaction_logs::submitted_block_index.is_null())),
+        );
 
         query = query.filter(txos::received_block_index.is_not_null());
         query = query.filter(txos::key_image.is_not_null());
@@ -723,14 +723,14 @@ impl TxoModel for Txo {
             query = query.filter(txos::account_id_hex.eq(account_id_hex));
         }
 
-        query = query
-            .filter(transaction_logs::id.is_null())
-            .or_filter(transaction_logs::failed.eq(true))
-            .or_filter(
-                transaction_logs::id
+        query = query.filter(
+            transaction_logs::id
+                .is_null()
+                .or(transaction_logs::failed.eq(true))
+                .or(transaction_logs::id
                     .is_not_null()
-                    .and(transaction_logs::submitted_block_index.is_null()),
-            );
+                    .and(transaction_logs::submitted_block_index.is_null())),
+        );
 
         query = query
             .filter(txos::received_block_index.is_not_null())

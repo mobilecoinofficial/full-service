@@ -108,6 +108,12 @@ pub trait TransactionLogModel {
     /// * AssoiatedTxos(inputs, outputs, change)
     fn get_associated_txos(&self, conn: &Conn) -> Result<AssociatedTxos, WalletDbError>;
 
+    fn update_submitted_block_index(
+        &self,
+        submitted_block_index: u64,
+        conn: &Conn,
+    ) -> Result<(), WalletDbError>;
+
     /// List all TransactionLogs and their associated Txos for a given account.
     ///
     /// Returns:
@@ -120,6 +126,13 @@ pub trait TransactionLogModel {
         max_block_index: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletDbError>;
+
+    fn log_built(
+        tx_proposal: TxProposal,
+        comment: String,
+        account_id_hex: &str,
+        conn: &Conn,
+    ) -> Result<TransactionLog, WalletDbError>;
 
     /// Log a submitted transaction.
     ///
@@ -254,6 +267,20 @@ impl TransactionLogModel for TransactionLog {
         })
     }
 
+    fn update_submitted_block_index(
+        &self,
+        submitted_block_index: u64,
+        conn: &Conn,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::transaction_logs;
+
+        diesel::update(self)
+            .set(transaction_logs::submitted_block_index.eq(Some(submitted_block_index as i64)))
+            .execute(conn)?;
+
+        Ok(())
+    }
+
     fn list_all(
         account_id_hex: &str,
         offset: Option<u64>,
@@ -296,18 +323,14 @@ impl TransactionLogModel for TransactionLog {
         Ok(results)
     }
 
-    fn log_submitted(
+    fn log_built(
         tx_proposal: TxProposal,
-        block_index: u64,
         comment: String,
         account_id_hex: &str,
         conn: &Conn,
     ) -> Result<TransactionLog, WalletDbError> {
         // Verify that the account exists.
         Account::get(&AccountID(account_id_hex.to_string()), conn)?;
-
-        // Store the txo_id_hex -> transaction_txo_type
-        // let mut txo_ids: Vec<(String, String)> = Vec::new();
 
         // Verify that the TxProposal is well-formed according to our
         // assumptions about how to store the sent data in our wallet
@@ -324,7 +347,7 @@ impl TransactionLogModel for TransactionLog {
             account_id_hex,
             fee_value: tx_proposal.tx.prefix.fee as i64,
             fee_token_id: tx_proposal.tx.prefix.fee_token_id as i64,
-            submitted_block_index: Some(block_index as i64),
+            submitted_block_index: None,
             tombstone_block_index: Some(tx_proposal.tx.prefix.tombstone_block as i64),
             finalized_block_index: None,
             comment: &comment,
@@ -335,10 +358,6 @@ impl TransactionLogModel for TransactionLog {
         diesel::insert_into(crate::db::schema::transaction_logs::table)
             .values(&new_transaction_log)
             .execute(conn)?;
-
-        // // Update all inputs to "pending." They will remain pending until
-        // their // key_image hits the ledger or their tombstone block
-        // is exceeded. // Also add each as a new TransactionInput.
 
         for utxo in tx_proposal.utxos.iter() {
             let txo_id = TxoID::from(&utxo.tx_out);
@@ -356,6 +375,76 @@ impl TransactionLogModel for TransactionLog {
         // Next, add all of our minted outputs to the Txo Table
         for (i, output) in tx_proposal.tx.prefix.outputs.iter().enumerate() {
             Txo::create_minted(output, &tx_proposal, i, conn)?;
+        }
+
+        TransactionLog::get(&transaction_log_id, conn)
+    }
+
+    fn log_submitted(
+        tx_proposal: TxProposal,
+        block_index: u64,
+        comment: String,
+        account_id_hex: &str,
+        conn: &Conn,
+    ) -> Result<TransactionLog, WalletDbError> {
+        // Verify that the account exists.
+        Account::get(&AccountID(account_id_hex.to_string()), conn)?;
+
+        // Verify that the TxProposal is well-formed according to our
+        // assumptions about how to store the sent data in our wallet
+        // (num_output_TXOs = num_outlays + change_TXO).
+        if tx_proposal.tx.prefix.outputs.len() - tx_proposal.outlays.len() > 1 {
+            return Err(WalletDbError::UnexpectedNumberOfChangeOutputs);
+        }
+
+        let transaction_log_id = TransactionID::from(&tx_proposal.tx);
+        let tx = mc_util_serial::encode(&tx_proposal.tx);
+
+        match TransactionLog::get(&transaction_log_id, conn) {
+            Ok(transaction_log) => {
+                transaction_log.update_submitted_block_index(block_index, conn)?;
+            }
+
+            Err(WalletDbError::TransactionLogNotFound(_)) => {
+                let new_transaction_log = NewTransactionLog {
+                    id: &transaction_log_id.to_string(),
+                    account_id_hex,
+                    fee_value: tx_proposal.tx.prefix.fee as i64,
+                    fee_token_id: tx_proposal.tx.prefix.fee_token_id as i64,
+                    submitted_block_index: Some(block_index as i64),
+                    tombstone_block_index: Some(tx_proposal.tx.prefix.tombstone_block as i64),
+                    finalized_block_index: None,
+                    comment: &comment,
+                    tx: &tx,
+                    failed: false,
+                };
+
+                diesel::insert_into(crate::db::schema::transaction_logs::table)
+                    .values(&new_transaction_log)
+                    .execute(conn)?;
+
+                for utxo in tx_proposal.utxos.iter() {
+                    let txo_id = TxoID::from(&utxo.tx_out);
+                    Txo::update_key_image(&txo_id.to_string(), &utxo.key_image, None, conn)?;
+                    let transaction_input_txo = NewTransactionInputTxo {
+                        transaction_log_id: &transaction_log_id.to_string(),
+                        txo_id: &txo_id.to_string(),
+                    };
+
+                    diesel::insert_into(crate::db::schema::transaction_input_txos::table)
+                        .values(&transaction_input_txo)
+                        .execute(conn)?;
+                }
+
+                // Next, add all of our minted outputs to the Txo Table
+                for (i, output) in tx_proposal.tx.prefix.outputs.iter().enumerate() {
+                    Txo::create_minted(output, &tx_proposal, i, conn)?;
+                }
+            }
+
+            Err(e) => {
+                return Err(e);
+            }
         }
 
         TransactionLog::get(&transaction_log_id, conn)
