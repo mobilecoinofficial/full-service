@@ -3,7 +3,6 @@
 //! DB impl for the Transaction model.
 
 use diesel::prelude::*;
-use mc_account_keys::CHANGE_SUBADDRESS_INDEX;
 use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_mobilecoind::payments::TxProposal;
@@ -13,8 +12,8 @@ use std::fmt;
 use crate::db::{
     account::{AccountID, AccountModel},
     models::{
-        Account, NewTransactionInputTxo, NewTransactionLog, NewTransactionOutputTxo,
-        TransactionInputTxo, TransactionLog, TransactionOutputTxo, Txo,
+        Account, NewTransactionInputTxo, NewTransactionLog, TransactionInputTxo, TransactionLog,
+        TransactionOutputTxo, Txo,
     },
     txo::{TxoID, TxoModel},
     Conn, WalletDbError,
@@ -364,7 +363,7 @@ impl TransactionLogModel for TransactionLog {
 
     fn delete_all_for_account(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError> {
         use crate::db::schema::{
-            transaction_input_txos, transaction_logs, transaction_output_txos, txos,
+            transaction_input_txos, transaction_logs, transaction_output_txos,
         };
 
         let transaction_input_txos: Vec<TransactionInputTxo> = transaction_input_txos::table
@@ -482,7 +481,6 @@ mod tests {
             get_test_ledger, manually_sync_account, random_account_with_seed_values,
             WalletDbTestContext, MOB,
         },
-        util::b58::b58_encode_public_address,
     };
 
     use super::*;

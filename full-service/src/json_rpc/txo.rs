@@ -2,12 +2,8 @@
 
 //! API definition for the Txo object.
 
-use crate::{
-    db,
-    db::txo::{TxoModel, TxoStatus},
-};
+use crate::{db, db::txo::TxoStatus};
 use serde_derive::{Deserialize, Serialize};
-use serde_json::Map;
 
 /// An Txo in the wallet.
 ///

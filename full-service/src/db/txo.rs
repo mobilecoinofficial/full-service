@@ -21,10 +21,7 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        models::{
-            Account, AssignedSubaddress, NewTransactionInputTxo, NewTransactionOutputTxo, NewTxo,
-            TransactionInputTxo, TransactionOutputTxo, Txo,
-        },
+        models::{Account, AssignedSubaddress, NewTransactionOutputTxo, NewTxo, Txo},
         transaction_log::{TransactionID, TxoType},
         Conn, WalletDbError,
     },
@@ -1859,28 +1856,6 @@ mod tests {
             ledger_db,
             logger,
         );
-
-        let txos = Txo::list_for_account(
-            &AccountID::from(&src_account).to_string(),
-            None,
-            None,
-            None,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-
-        // let txos_used_as_outputs = txos
-        //     .iter()
-        //     .filter(|txo| txo.output_transaction_log_id.is_some())
-        //     .collect::<Vec<_>>();
-
-        // for txo in txos_used_as_outputs.iter() {
-        //     assert_eq!(
-        //         txo.output_transaction_log_id,
-        //         Some(transaction_log.id.clone())
-        //     );
-        // }
 
         let associated_txos = transaction_log
             .get_associated_txos(&wallet_db.get_conn().unwrap())

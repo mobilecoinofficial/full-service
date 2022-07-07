@@ -17,7 +17,6 @@ use displaydoc::Display;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_mobilecoind::payments::TxProposal;
-use std::str::FromStr;
 
 /// Errors for the Txo Service.
 #[derive(Display, Debug)]
@@ -214,14 +213,10 @@ mod tests {
         util::b58::b58_encode_public_address,
     };
     use mc_account_keys::{AccountKey, PublicAddress};
-    use mc_common::{
-        logger::{test_with_logger, Logger},
-        HashSet,
-    };
+    use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::RngCore;
-    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
+    use mc_transaction_core::ring_signature::KeyImage;
     use rand::{rngs::StdRng, SeedableRng};
-    use std::iter::FromIterator;
 
     #[test_with_logger]
     fn test_txo_lifecycle(logger: Logger) {
@@ -300,9 +295,9 @@ mod tests {
 
         // We should now have 3 txos - one pending, two minted (one of which will be
         // change)
-        let txos = service
-            .list_txos(&AccountID(alice.account_id_hex.clone()), None, None, None)
-            .unwrap();
+        // let txos = service
+        //     .list_txos(&AccountID(alice.account_id_hex.clone()), None, None, None)
+        //     .unwrap();
         // assert_eq!(txos.len(), 3);
         // assert_eq!(txos[0].account_id_hex, Some(alice.account_id_hex.clone()));
         // assert_eq!(

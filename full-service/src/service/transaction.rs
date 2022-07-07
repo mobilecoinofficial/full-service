@@ -19,7 +19,6 @@ use crate::{
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_ledger_db::Ledger;
 use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::constants::{MAX_INPUTS, MAX_OUTPUTS};
 
@@ -293,17 +292,6 @@ where
             }
 
             let tx_proposal = builder.build(&conn)?;
-
-            // if log_tx_proposal.unwrap_or_default() {
-            //     let block_index = self.ledger_db.num_blocks()? - 1;
-            //     let _transaction_log = TransactionLog::log_submitted(
-            //         tx_proposal.clone(),
-            //         block_index,
-            //         "".to_string(),
-            //         account_id_hex,
-            //         &conn,
-            //     )?;
-            // }
 
             Ok(tx_proposal)
         })

@@ -1,9 +1,6 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
 //! Service for managing balances.
-
-use std::f32::consts::E;
-
 use crate::{
     db::{
         account::{AccountID, AccountModel},
@@ -263,6 +260,7 @@ where
     T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
+    #[allow(clippy::type_complexity)]
     fn get_balance_inner(
         account_id_hex: Option<&str>,
         assigned_subaddress_b58: Option<&str>,
