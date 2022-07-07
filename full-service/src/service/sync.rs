@@ -521,11 +521,11 @@ mod tests {
         // There should now be 16 txos. Let's get each one and verify the amount
         let expected_value = 15_625_000 * MOB;
 
-        let txos = service
+        let txos_and_statuses = service
             .list_txos(&AccountID::from(&account_key), None, None, None, None)
             .unwrap();
 
-        for txo in txos {
+        for (txo, _) in txos_and_statuses {
             assert_eq!(txo.value as u64, expected_value);
         }
 

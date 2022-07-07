@@ -80,10 +80,10 @@ pub trait TxoService {
         status: Option<TxoStatus>,
         limit: Option<u64>,
         offset: Option<u64>,
-    ) -> Result<Vec<Txo>, TxoServiceError>;
+    ) -> Result<Vec<(Txo, TxoStatus)>, TxoServiceError>;
 
     /// Get a Txo from the wallet.
-    fn get_txo(&self, txo_id: &TxoID) -> Result<Txo, TxoServiceError>;
+    fn get_txo(&self, txo_id: &TxoID) -> Result<(Txo, TxoStatus), TxoServiceError>;
 
     /// Split a Txo
     fn split_txo(
@@ -96,7 +96,10 @@ pub trait TxoService {
     ) -> Result<TxProposal, TxoServiceError>;
 
     /// List the Txos for a given address for an account in the wallet.
-    fn get_all_txos_for_address(&self, address: &str) -> Result<Vec<Txo>, TxoServiceError>;
+    fn get_all_txos_for_address(
+        &self,
+        address: &str,
+    ) -> Result<Vec<(Txo, TxoStatus)>, TxoServiceError>;
 }
 
 impl<T, FPR> TxoService for WalletService<T, FPR>
@@ -111,22 +114,32 @@ where
         status: Option<TxoStatus>,
         limit: Option<u64>,
         offset: Option<u64>,
-    ) -> Result<Vec<Txo>, TxoServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+    ) -> Result<Vec<(Txo, TxoStatus)>, TxoServiceError> {
+        let conn = &self.wallet_db.get_conn()?;
 
-        Ok(Txo::list_for_account(
+        let txos_and_statuses = Txo::list_for_account(
             &account_id.to_string(),
             status,
             limit,
             offset,
             Some(0),
-            &conn,
-        )?)
+            conn,
+        )?
+        .into_iter()
+        .map(|txo| {
+            let status = txo.status(conn)?;
+            Ok((txo, status))
+        })
+        .collect::<Result<Vec<(Txo, TxoStatus)>, WalletDbError>>()?;
+
+        Ok(txos_and_statuses)
     }
 
-    fn get_txo(&self, txo_id: &TxoID) -> Result<Txo, TxoServiceError> {
+    fn get_txo(&self, txo_id: &TxoID) -> Result<(Txo, TxoStatus), TxoServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        Ok(Txo::get(&txo_id.to_string(), &conn)?)
+        let txo = Txo::get(&txo_id.to_string(), &conn)?;
+        let status = txo.status(&conn)?;
+        Ok((txo, status))
     }
 
     fn split_txo(
@@ -172,16 +185,21 @@ where
         )?)
     }
 
-    fn get_all_txos_for_address(&self, address: &str) -> Result<Vec<Txo>, TxoServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-        Ok(Txo::list_for_address(
-            address,
-            None,
-            None,
-            None,
-            Some(0),
-            &conn,
-        )?)
+    fn get_all_txos_for_address(
+        &self,
+        address: &str,
+    ) -> Result<Vec<(Txo, TxoStatus)>, TxoServiceError> {
+        let conn = &self.wallet_db.get_conn()?;
+        let txos = Txo::list_for_address(address, None, None, None, Some(0), conn)?;
+
+        let txos_and_statuses = txos
+            .into_iter()
+            .map(|txo| {
+                let status = txo.status(conn)?;
+                Ok((txo, status))
+            })
+            .collect::<Result<Vec<(Txo, TxoStatus)>, WalletDbError>>()?;
+        Ok(txos_and_statuses)
     }
 }
 
@@ -305,7 +323,7 @@ mod tests {
         //     txos[2].minted_account_id_hex,
         //     Some(alice.account_id_hex.clone())
         // );
-        let pending: Vec<Txo> = service
+        let pending: Vec<(Txo, TxoStatus)> = service
             .list_txos(
                 &AccountID(alice.account_id_hex.clone()),
                 None,
@@ -315,7 +333,7 @@ mod tests {
             )
             .unwrap();
         assert_eq!(pending.len(), 1);
-        assert_eq!(pending[0].value, 100000000000000);
+        assert_eq!(pending[0].0.value, 100000000000000);
 
         // let minted: Vec<Txo> = txos
         //     .iter()

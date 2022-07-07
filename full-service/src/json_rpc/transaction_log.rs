@@ -142,7 +142,7 @@ pub struct OutputTxo {
     /// Token ID of this txo
     pub token_id: String,
 
-    recipient_public_address_b58: String,
+    pub recipient_public_address_b58: String,
 }
 
 impl OutputTxo {

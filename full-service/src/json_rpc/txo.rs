@@ -21,15 +21,11 @@ pub struct Txo {
 
     /// Unique identifier for the Txo. Constructed from the contents of the
     /// TxOut in the ledger representation.
-    pub txo_id_hex: String,
+    pub id: String,
 
     /// Available pico MOB for this account at the current account_block_height.
     /// If the account is syncing, this value may change.
     pub value_pmob: String,
-
-    /// Unique identifier for the recipient associated account. Only available
-    /// if direction is "sent".
-    pub recipient_address_id: Option<String>,
 
     /// Block index in which the txo was received by an account.
     pub received_block_index: Option<String>,
@@ -37,37 +33,12 @@ pub struct Txo {
     /// Block index in which the txo was spent by an account.
     pub spent_block_index: Option<String>,
 
-    /// Flag that indicates if the spent_block_index was recovered from the
-    /// ledger. This value is null if the txo is unspent. If true, some
-    /// information may not be available on the txo without user input. If true,
-    /// the confirmation number will be null without user input.
-    pub is_spent_recovered: bool, // FIXME: WS-16 is_spent_recovered
-
     /// The account_id for the account which has received this TXO. This account
     /// has spend authority.
-    pub received_account_id: Option<String>,
+    pub account_id: Option<String>,
 
-    /// The account_id for the account which minted this Txo.
-    pub minted_account_id: Option<String>,
-
-    /// A normalized hash mapping account_id to account objects. Keys include
-    /// "type" and "status".
-    ///
-    /// * `txo_type`: With respect to this account, the Txo may be
-    /// "minted" or "received".
-    ///
-    /// * `txo_status`: With respect to this account, the Txo may be "unspent",
-    ///   "pending", "spent", "secreted" or "orphaned". For received Txos
-    ///   received as an assigned address, the lifecycle is "unspent" ->
-    ///   "pending" -> "spent". For outbound, minted Txos, we cannot monitor its
-    ///   received lifecycle status with respect to the minting account, we note
-    ///   its status as "secreted". If a Txo is received at an address
-    ///   unassigned (likely due to a recovered account or using the account on
-    ///   another client), the Txo is considered "orphaned" until its address is
-    ///   calculated -- in this case, there are manual ways to discover the
-    ///   missing assigned address for orphaned Txos or to recover an entire
-    ///   account.
-    pub account_status_map: Map<String, serde_json::Value>,
+    /// The status of this txo
+    pub status: String,
 
     /// A cryptographic key for this Txo.
     pub target_key: String,
@@ -83,10 +54,6 @@ pub struct Txo {
     /// account.
     pub subaddress_index: Option<String>,
 
-    /// The address corresponding to the subaddress index which was assigned as
-    /// an intended sender for this Txo.
-    pub assigned_address: Option<String>,
-
     /// A fingerprint of the txo derived from your private spend key materials,
     /// required to spend a Txo.
     pub key_image: Option<String>,
@@ -96,65 +63,22 @@ pub struct Txo {
     pub confirmation: Option<String>,
 }
 
-impl From<&db::models::Txo> for Txo {
-    fn from(txo: &db::models::Txo) -> Txo {
-        let mut account_status_map: Map<String, serde_json::Value> = Map::new();
-
-        // if let Some(received_account_id_hex) = &txo.account_id_hex {
-        //     let txo_status = if txo.is_spent() {
-        //         TxoStatus::Spent
-        //     } else if txo.is_pending() {
-        //         TxoStatus::Pending
-        //     } else if txo.is_orphaned() {
-        //         TxoStatus::Orphaned
-        //     } else {
-        //         TxoStatus::Unspent
-        //     };
-
-        //     account_status_map.insert(
-        //         received_account_id_hex.to_string(),
-        //         json!({"txo_type": "txo_type_received", "txo_status":
-        // txo_status.to_string()})             .into(),
-        //     );
-        // }
-
-        // if let Some(minted_account_id_hex) = &txo.minted_account_id_hex {
-        //     let txo_status = if Some(minted_account_id_hex.clone()) !=
-        // txo.account_id_hex {         TxoStatus::Unowned
-        //     } else if txo.is_spent() {
-        //         TxoStatus::Spent
-        //     } else if txo.is_pending() {
-        //         TxoStatus::Pending
-        //     } else if txo.is_orphaned() {
-        //         TxoStatus::Orphaned
-        //     } else {
-        //         TxoStatus::Unspent
-        //     };
-
-        //     account_status_map.insert(
-        //         minted_account_id_hex.to_string(),
-        //         json!({"txo_type": "txo_type_minted", "txo_status":
-        // txo_status.to_string()}).into(),     );
-        // }
-
+impl Txo {
+    pub fn new(txo: &db::models::Txo, status: &TxoStatus) -> Txo {
         Txo {
             object: "txo".to_string(),
-            txo_id_hex: txo.id.clone(),
+            id: txo.id.clone(),
             value_pmob: (txo.value as u64).to_string(),
-            recipient_address_id: None,
             received_block_index: txo.received_block_index.map(|x| (x as u64).to_string()),
             spent_block_index: txo.spent_block_index.map(|x| (x as u64).to_string()),
-            is_spent_recovered: false,
-            received_account_id: txo.account_id_hex.clone(),
-            minted_account_id: None,
+            account_id: txo.account_id_hex.clone(),
+            status: status.to_string(),
             target_key: hex::encode(&txo.target_key),
             public_key: hex::encode(&txo.public_key),
             e_fog_hint: hex::encode(&txo.e_fog_hint),
             subaddress_index: txo.subaddress_index.map(|s| (s as u64).to_string()),
-            assigned_address: None,
             key_image: txo.key_image.as_ref().map(|k| hex::encode(&k)),
             confirmation: txo.shared_secret.as_ref().map(hex::encode),
-            account_status_map,
         }
     }
 }
@@ -207,8 +131,9 @@ mod tests {
 
         let txo_details = db::models::Txo::get(&txo_hex, &wallet_db.get_conn().unwrap())
             .expect("Could not get Txo");
+        let status = txo_details.status(&wallet_db.get_conn().unwrap()).unwrap();
         assert_eq!(txo_details.value as u64, 15_625_000 * MOB as u64);
-        let json_txo = Txo::from(&txo_details);
+        let json_txo = Txo::new(&txo_details, &status);
         assert_eq!(json_txo.value_pmob, "15625000000000000000");
     }
 }

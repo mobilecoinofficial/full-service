@@ -380,12 +380,14 @@ where
         } => {
             let receipt = service::receipt::ReceiverReceipt::try_from(&receiver_receipt)
                 .map_err(format_error)?;
-            let (status, txo) = service
+            let (status, txo_and_status) = service
                 .check_receipt_status(&address, &receipt)
                 .map_err(format_error)?;
             JsonCommandResponse::check_receiver_receipt_status {
                 receipt_transaction_status: status,
-                txo: txo.as_ref().map(Txo::from),
+                txo: txo_and_status
+                    .as_ref()
+                    .map(|(txo, status)| Txo::new(txo, status)),
             }
         }
         JsonCommandRequest::claim_gift_code {
@@ -464,7 +466,7 @@ where
 
             let unverified_txos_encoded: Vec<String> = unverified_txos
                 .iter()
-                .map(|txo| hex::encode(&txo.txo))
+                .map(|(txo, _)| hex::encode(&txo.txo))
                 .collect();
 
             JsonCommandResponse::create_view_only_account_sync_request {
@@ -626,22 +628,26 @@ where
             }
         }
         JsonCommandRequest::get_all_txos_for_address { address } => {
-            let txos = service
+            let txos_and_statuses = service
                 .get_all_txos_for_address(&address)
                 .map_err(format_error)?;
             let txo_map: Map<String, serde_json::Value> = Map::from_iter(
-                txos.iter()
-                    .map(|t| {
+                txos_and_statuses
+                    .iter()
+                    .map(|(t, s)| {
                         (
                             t.id.clone(),
-                            serde_json::to_value(Txo::from(t)).expect("Could not get json value"),
+                            serde_json::to_value(Txo::new(t, s)).expect("Could not get json value"),
                         )
                     })
                     .collect::<Vec<(String, serde_json::Value)>>(),
             );
 
             JsonCommandResponse::get_all_txos_for_address {
-                txo_ids: txos.iter().map(|t| t.id.clone()).collect(),
+                txo_ids: txos_and_statuses
+                    .iter()
+                    .map(|(t, _)| t.id.clone())
+                    .collect(),
                 txo_map,
             }
         }
@@ -774,9 +780,9 @@ where
             }
         }
         JsonCommandRequest::get_txo { txo_id } => {
-            let result = service.get_txo(&TxoID(txo_id)).map_err(format_error)?;
+            let (txo, status) = service.get_txo(&TxoID(txo_id)).map_err(format_error)?;
             JsonCommandResponse::get_txo {
-                txo: Txo::from(&result),
+                txo: Txo::new(&txo, &status),
             }
         }
         JsonCommandRequest::get_txos_for_account {
@@ -793,22 +799,26 @@ where
                 None
             };
 
-            let txos = service
+            let txos_and_statuses = service
                 .list_txos(&AccountID(account_id), None, status, Some(o), Some(l))
                 .map_err(format_error)?;
             let txo_map: Map<String, serde_json::Value> = Map::from_iter(
-                txos.iter()
-                    .map(|t| {
+                txos_and_statuses
+                    .iter()
+                    .map(|(t, s)| {
                         (
                             t.id.clone(),
-                            serde_json::to_value(Txo::from(t)).expect("Could not get json value"),
+                            serde_json::to_value(Txo::new(t, s)).expect("Could not get json value"),
                         )
                     })
                     .collect::<Vec<(String, serde_json::Value)>>(),
             );
 
             JsonCommandResponse::get_txos_for_account {
-                txo_ids: txos.iter().map(|t| t.id.clone()).collect(),
+                txo_ids: txos_and_statuses
+                    .iter()
+                    .map(|(t, _)| t.id.clone())
+                    .collect(),
                 txo_map,
             }
         }

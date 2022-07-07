@@ -569,25 +569,27 @@ mod e2e_transaction {
         assert_eq!(txos.len(), 1);
         let txo_map = result.get("txo_map").unwrap().as_object().unwrap();
         let txo = txo_map.get(txos[0].as_str().unwrap()).unwrap();
-        let account_status_map = txo
-            .get("account_status_map")
-            .unwrap()
-            .as_object()
-            .unwrap()
-            .get(account_id)
-            .unwrap();
-        let txo_status = account_status_map
-            .get("txo_status")
-            .unwrap()
-            .as_str()
-            .unwrap();
+        let txo_status = txo.get("status").unwrap().as_str().unwrap();
         assert_eq!(txo_status, TxoStatus::Unspent.to_string());
-        let txo_type = account_status_map
-            .get("txo_type")
-            .unwrap()
-            .as_str()
-            .unwrap();
-        assert_eq!(txo_type, "txo_type_received");
+        // let account_status_map = txo
+        //     .get("account_status_map")
+        //     .unwrap()
+        //     .as_object()
+        //     .unwrap()
+        //     .get(account_id)
+        //     .unwrap();
+        // let txo_status = account_status_map
+        //     .get("txo_status")
+        //     .unwrap()
+        //     .as_str()
+        //     .unwrap();
+        // assert_eq!(txo_status, TxoStatus::Unspent.to_string());
+        // let txo_type = account_status_map
+        //     .get("txo_type")
+        //     .unwrap()
+        //     .as_str()
+        //     .unwrap();
+        // assert_eq!(txo_type, "txo_type_received");
         let value = txo.get("value_pmob").unwrap().as_str().unwrap();
         assert_eq!(value, "100");
 
@@ -658,25 +660,27 @@ mod e2e_transaction {
         assert_eq!(txos.len(), 1);
         let txo_map = result.get("txo_map").unwrap().as_object().unwrap();
         let txo = txo_map.get(txos[0].as_str().unwrap()).unwrap();
-        let account_status_map = txo
-            .get("account_status_map")
-            .unwrap()
-            .as_object()
-            .unwrap()
-            .get(account_id)
-            .unwrap();
-        let txo_status = account_status_map
-            .get("txo_status")
-            .unwrap()
-            .as_str()
-            .unwrap();
+        let txo_status = txo.get("status").unwrap().as_str().unwrap();
         assert_eq!(txo_status, TxoStatus::Unspent.to_string());
-        let txo_type = account_status_map
-            .get("txo_type")
-            .unwrap()
-            .as_str()
-            .unwrap();
-        assert_eq!(txo_type, "txo_type_received");
+        // let account_status_map = txo
+        //     .get("account_status_map")
+        //     .unwrap()
+        //     .as_object()
+        //     .unwrap()
+        //     .get(account_id)
+        //     .unwrap();
+        // let txo_status = account_status_map
+        //     .get("txo_status")
+        //     .unwrap()
+        //     .as_str()
+        //     .unwrap();
+        // assert_eq!(txo_status, TxoStatus::Unspent.to_string());
+        // let txo_type = account_status_map
+        //     .get("txo_type")
+        //     .unwrap()
+        //     .as_str()
+        //     .unwrap();
+        // assert_eq!(txo_type, "txo_type_received");
         let value = txo.get("value_pmob").unwrap().as_str().unwrap();
         assert_eq!(value, "250000000000");
         let txo_id = &txos[0];
