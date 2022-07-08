@@ -165,7 +165,6 @@ pub trait TxoModel {
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
-    // TODO - Update for status, offset, limit, token_id
     fn list_for_address(
         assigned_subaddress_b58: &str,
         status: Option<TxoStatus>,
@@ -487,7 +486,6 @@ impl TxoModel for Txo {
         Ok(())
     }
 
-    // TODO - UPDATE THIS
     fn list_for_account(
         account_id_hex: &str,
         status: Option<TxoStatus>,
@@ -636,7 +634,6 @@ impl TxoModel for Txo {
         Ok(txos)
     }
 
-    // TODO - UPDATE THIS
     fn list_unspent(
         account_id_hex: Option<&str>,
         assigned_subaddress_b58: Option<&str>,
@@ -753,7 +750,6 @@ impl TxoModel for Txo {
         Ok(query.load(conn)?)
     }
 
-    // TODO - UPDATE THIS
     fn list_unspent_or_pending_key_images(
         account_id_hex: &str,
         token_id: Option<u64>,
@@ -854,7 +850,6 @@ impl TxoModel for Txo {
         Ok(txos)
     }
 
-    // TODO - UPDATE THIS
     fn list_pending(
         account_id_hex: Option<&str>,
         assigned_subaddress_b58: Option<&str>,
@@ -946,7 +941,6 @@ impl TxoModel for Txo {
         Ok(txos)
     }
 
-    // TODO - UPDATE THIS
     fn list_spendable(
         account_id_hex: Option<&str>,
         max_spendable_value: Option<u64>,
@@ -1124,17 +1118,9 @@ impl TxoModel for Txo {
             .set(txos::account_id_hex.eq::<Option<String>>(None))
             .execute(conn)?;
 
-        // let txos_minted_by_account =
-        //     txos::table.filter(txos::minted_account_id_hex.eq(account_id_hex));
-
-        // diesel::update(txos_minted_by_account)
-        //     .set(txos::minted_account_id_hex.eq::<Option<String>>(None))
-        //     .execute(conn)?;
-
         Ok(())
     }
 
-    // TODO - UPDATE THIS
     fn delete_unreferenced(conn: &Conn) -> Result<(), WalletDbError> {
         use crate::db::schema::txos;
 
