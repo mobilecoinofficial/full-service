@@ -295,21 +295,6 @@ mod tests {
             .submit_transaction(tx_proposal, None, Some(alice.account_id_hex.clone()))
             .unwrap();
 
-        // We should now have 3 txos - one pending, two minted (one of which will be
-        // change)
-        // let txos = service
-        //     .list_txos(&AccountID(alice.account_id_hex.clone()), None, None, None)
-        //     .unwrap();
-        // assert_eq!(txos.len(), 3);
-        // assert_eq!(txos[0].account_id_hex, Some(alice.account_id_hex.clone()));
-        // assert_eq!(
-        //     txos[1].minted_account_id_hex,
-        //     Some(alice.account_id_hex.clone())
-        // );
-        // assert_eq!(
-        //     txos[2].minted_account_id_hex,
-        //     Some(alice.account_id_hex.clone())
-        // );
         let pending: Vec<(Txo, TxoStatus)> = service
             .list_txos(
                 &AccountID(alice.account_id_hex.clone()),
@@ -320,16 +305,6 @@ mod tests {
             .unwrap();
         assert_eq!(pending.len(), 1);
         assert_eq!(pending[0].0.value, 100000000000000);
-
-        // let minted: Vec<Txo> = txos
-        //     .iter()
-        //     .cloned()
-        //     .filter(|txo| txo.minted_account_id_hex.is_some())
-        //     .collect();
-        // assert_eq!(minted.len(), 2);
-        // let minted_value_set = HashSet::from_iter(minted.iter().map(|m| m.value as
-        // u64)); assert!(minted_value_set.contains(&(58 * MOB -
-        // Mob::MINIMUM_FEE))); assert!(minted_value_set.contains(&(42 * MOB)));
 
         // Our balance should reflect the various statuses of our txos
         let balance = service
