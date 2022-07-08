@@ -1367,7 +1367,6 @@ mod tests {
         .unwrap();
         assert_eq!(unspent_txos.len(), 1);
 
-        // println!("{}", serde_json::to_string_pretty(&txos).unwrap());
         // Check that we have 2 spendable (1 is orphaned)
         let spendable: Vec<&Txo> = txos.iter().filter(|f| f.key_image.is_some()).collect();
         assert_eq!(spendable.len(), 2);
@@ -1389,7 +1388,6 @@ mod tests {
             Some(mc_util_serial::encode(&for_alice_key_image))
         );
         assert_eq!(spent[0].spent_block_index.clone().unwrap(), 13);
-        // assert_eq!(spent[0].minted_account_id_hex, None);
 
         // Check that we have one orphaned - went from [Minted, Secreted] -> [Minted,
         // Orphaned]
@@ -1455,14 +1453,6 @@ mod tests {
         .unwrap();
         println!("{}", serde_json::to_string_pretty(&unspent).unwrap());
         assert_eq!(unspent.len(), 2);
-
-        // let minted = Txo::list_minted(
-        //     &alice_account_id.to_string(),
-        //     Some(0),
-        //     &wallet_db.get_conn().unwrap(),
-        // )
-        // .unwrap();
-        // assert_eq!(minted.len(), 2);
 
         let updated_txos = Txo::list_for_account(
             &alice_account_id.to_string(),
@@ -1851,11 +1841,9 @@ mod tests {
         let (change_txo, _) = associated_txos.change.first().unwrap();
 
         assert_eq!(minted_txo.value as u64, 1 * MOB);
-        // assert!(minted_txo.minted_account_id_hex.is_some());
         assert!(minted_txo.account_id_hex.is_none());
 
         assert_eq!(change_txo.value as u64, 4999 * MOB - Mob::MINIMUM_FEE);
-        // assert!(change_txo.minted_account_id_hex.is_some());
         assert!(change_txo.account_id_hex.is_none());
     }
 
