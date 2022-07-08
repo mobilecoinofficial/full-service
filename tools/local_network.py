@@ -32,7 +32,7 @@ MOBILECOIN_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '
 FULLSERVICE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 MOB_RELEASE = os.getenv('MOB_RELEASE', '1')
 TARGET_DIR = 'target/release'
-KEY_DIR = 'target/sample_data/keys'
+KEY_DIR = 'mobilecoin/target/sample_data/keys'
 WORK_DIR =  os.path.join(MOBILECOIN_DIR, TARGET_DIR, 'mc-local-network')
 LEDGER_BASE = os.path.join(MOBILECOIN_DIR, 'target', "sample_data", "ledger")
 MINTING_KEYS_DIR = os.path.join(WORK_DIR, 'minting-keys')
@@ -478,7 +478,9 @@ class Network:
 class FullService:
     def __init__(self):
         self.full_service_process = None
-        self.accounts = None
+        self.account_map = None
+        self.account_ids = None
+        self.request_count = 0
 
     def start(self):
         cmd = ' '.join([
@@ -509,15 +511,19 @@ class FullService:
             if exc.returncode != 1:
                 raise
     
-    def request(self, request_data):
+    # return the result field of the request
+    def _request(self, request_data):
+        self.request_count += 1
         print('sending request to full service')
         url = 'http://127.0.0.1:9090/wallet'
         default_params = {
             "jsonrpc": "2.0",
             "api_version": "2",
-            "id": 1,
+            "id": self.request_count,
         }
         request_data = {**request_data, **default_params}
+
+        print(f'request data: {request_data}')
 
         try:
             parsed_url = urlparse(url)
@@ -536,32 +542,32 @@ class FullService:
         print(f'request returned {response_data}')
         return response_data['result']
     
-    def import_account(self, mnemonic):
-        print(f'importing full service account {mnemonic}')
-        params = {
-            'mnemonic': mnemonic,
-            'key_derivation_version': '2',
-        }
-        r = self.request({
-            "method": "import_account",
-            "params": params
-        })
+    # def import_account(self, mnemonic):
+    #     print(f'importing full service account {mnemonic}')
+    #     params = {
+    #         'mnemonic': mnemonic,
+    #         'key_derivation_version': '2',
+    #     }
+    #     r = self._request({
+    #         "method": "import_account",
+    #         "params": params
+    #     })
         
-        # idempotent add account to self.accounts
-        def account_filter(account):
-            return True if account in self.accounts else False
-        if self.accounts is None:
-            self.accounts = [r['account']]
-        elif len(filter(account_filter, self.accounts)) == 0:
-            self.accounts.append(r['account'])
+    #     # idempotent add account to self.accounts
+    #     def account_filter(account):
+    #         return True if account in self.accounts else False
+    #     if self.accounts is None:
+    #         self.accounts = [r['account']]
+    #     elif len(list(filter(account_filter, self.accounts))) == 0:
+    #         self.accounts.append(r['account'])
 
-        return r['account']
+    #     return r['account']
 
     def get_accounts(self) -> Tuple[str, str]:
         print(f'retrieving accounts for account_keys_0 and account_keys_1')
-        keyfile_0 = open(f'{KEY_DIR}/account_keys_0.json')
-        keyfile_1 = open(f'{KEY_DIR}/account_keys_1.json')
-
+        keyfile_0 = open(os.path.join(KEY_DIR, 'account_keys_0.json'))
+        keyfile_1 = open(os.path.join(KEY_DIR, 'account_keys_1.json'))
+        # keyfile_1 = open(os.path.join, f'{KEY_DIR}/account_keys_1.json')
         keydata_0 = json.load(keyfile_0)
         keydata_1 = json.load(keyfile_1)
 
@@ -573,7 +579,7 @@ class FullService:
     def sync_status(self) -> bool:
         # ping network
         try:
-            r = self.request({
+            r = self._request({
                 "method": "get_network_status"
             })
         except ConnectionError as e:
@@ -581,7 +587,7 @@ class FullService:
             return False
             
         # network offline
-        if int(r['network_block_height']) == 0:
+        if int(r['network_status']['network_block_height']) == 0:
             return False
 
         # network online
@@ -591,12 +597,33 @@ class FullService:
         # network is acceptably synced
         return (network_block_height - local_block_height < epsilon)
 
+    def get_wallet_status(self):
+        r = self._request({
+            "method": "get_wallet_status"
+        })
+        return r['wallet_status']
+
+    def get_account_status(self, account_id: str):
+        params = {
+            "account_id": account_id
+        }
+        r = self._request({
+            "method": "get_account_status",
+            "params": params
+        })
+        return r
+
+    def set_accounts(self, account_ids, account_map):
+        self.account_ids = account_ids
+        self.account_map = account_map
+        
+
     def send_transaction(self, account_id, to_address, amount):
         params = {
             "account_id": account_id,
             "addresses_and_values": [(to_address, amount)]
         }
-        r = self.request({
+        r = self._request({
             "method": "build_and_submit_transaction",
             "params": params,
         })
@@ -605,12 +632,12 @@ class FullService:
     def test_transactions(self):
         print(('==================================================='))
         print('testing transaction sends')
-        if self.accounts is None or len(self.accounts) < 2:
-            print(f'accounts not found in self.accounts. self.accounts: {self.accounts}')
+        if self.account_ids is None or len(self.account_ids) < 2:
+            print(f'accounts not found in wallet')
             exit(1)
-        account_0 = self.accounts[0]
-        account_1 = self.accounts[1]
-        p_mob_amount = 10_000
+        account_0 = self.account_map[self.account_ids[0]]
+        account_1 = self.account_map[self.account_ids[1]]
+        p_mob_amount = str(600_000_000)
 
         log_0 = self.send_transaction(account_0['account_id'], account_1['main_address'], p_mob_amount)
         log_1 = self.send_transaction(account_1['account_id'], account_0['main_address'], p_mob_amount)
@@ -651,13 +678,31 @@ if __name__ == '__main__':
 
     # import accounts
     mnemonic_0, mnemonic_1 = full_service.get_accounts()
-    account_0 = full_service.import_account(mnemonic_0)
-    account_1 = full_service.import_account(mnemonic_1)
+    # account_0 = full_service.import_account(mnemonic_0)
+    # account_1 = full_service.import_account(mnemonic_1)
+    wallet_status = full_service.get_wallet_status()
 
-    print('===================================================')
-    print(f'accounts imported, account_0 id: {account_0["account_id"]}, account_1 id: {account_1["account_id"]}')
+    full_service.set_accounts(wallet_status['account_ids'], wallet_status['account_map'])
+    
 
+    # failing, saying improperly formed request
+    for account_id in full_service.account_ids:
+        balance = full_service.get_account_status(account_id)
+        print(f'account_id {account_id} : balance {balance}')
+
+    # print('===================================================')
+    # print(f'accounts imported, account_0 id: {account_0["account_id"]}, account_1 id: {account_1["account_id"]}')
+
+    # succeeds
     full_service.test_transactions()
+
+    time.sleep(20)
+
+    # failing, saying improperly formed request
+    for account_id in full_service.account_ids:
+        print(account_id)
+        balance = full_service.get_account_status(account_id)['balance']
+        print(f'account_id {account_id} : balance {balance}')
 
     # shut down networks
     full_service.stop()

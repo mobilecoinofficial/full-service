@@ -15,35 +15,39 @@ on:
 
 jobs:
   integration-test:
-    runs-on: [self-hosted, Linux, large]
-    # runs-on: ubuntu-latest
+    # runs-on: [self-hosted, Linux, large]
+    runs-on: ubuntu-latest
     container:
-      image: mobilecoin/rust-sgx-base:latest
+      # image: mobilecoin/rust-sgx-base:latest
+      # image: mobilecoin/builder-install:latest
+      # image should be kept up to date with the url and tag listed in mobilecoin/.mobconf
+      # e.g. {{url}}:{{tag}}
+      image: mobilecoin/builder-install:v0.0.10
     steps:
       - name: Checkout
         uses: actions/checkout@v3
         with:
           submodules: recursive
 
-      - name: Cache Cargo
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
-        id: cargo_cache
-        uses: actions/cache@v3
-        with:
-          path: |
-            /opt/cargo/bin/
-            /opt/cargo/registry/index/
-            /opt/cargo/registry/cache/
-            /opt/cargo/git/db/
-            target/
-          key: ${{ runner.os }}-${{ secrets.CACHE_VERSION }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      # - name: Cache Cargo
+      #   if: steps.artifact_cache.outputs.cache-hit != 'true'
+      #   id: cargo_cache
+      #   uses: actions/cache@v3
+      #   with:
+      #     path: |
+      #       /opt/cargo/bin/
+      #       /opt/cargo/registry/index/
+      #       /opt/cargo/registry/cache/
+      #       /opt/cargo/git/db/
+      #       target/
+      #     key: ${{ runner.os }}-${{ secrets.CACHE_VERSION }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Cache Bootstrap
-        id: cache-bootstrap
-        uses: actions/cache@v3
-        with:
-          path: mobilecoin/target/sample-data
-          key: ${{ runner.os }}-${{ secrets.CACHE_VERSION }}-bootstrap-${{ hashFiles('**/Cargo.lock') }}
+      # - name: Cache Bootstrap
+      #   id: cache-bootstrap
+      #   uses: actions/cache@v3
+      #   with:
+      #     path: mobilecoin/target/sample-data
+      #     key: ${{ runner.os }}-${{ secrets.CACHE_VERSION }}-bootstrap-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Bootstrap MobileCoin
         if: steps.cache-bootstrap.outputs.cache-hit != 'true'
@@ -60,8 +64,12 @@ jobs:
         run: |
           python3 tools/build_full_service.py
       
-      - name: Run Integration
+      - name: run bash
         shell: bash
-        run: |
-          python3 tools/local_network.py --network-type a-b-c
+        run: /bin/bash
+      
+      # - name: Run Integration
+      #   shell: bash
+      #   run: |
+      #     python3 tools/local_network.py --network-type a-b-c
 
