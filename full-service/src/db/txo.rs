@@ -2,7 +2,10 @@
 
 //! DB impl for the Txo model.
 
-use diesel::{dsl::count, prelude::*};
+use diesel::{
+    dsl::{count, exists, not},
+    prelude::*,
+};
 use mc_account_keys::{AccountKey, PublicAddress, CHANGE_SUBADDRESS_INDEX};
 use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
@@ -1122,9 +1125,23 @@ impl TxoModel for Txo {
     }
 
     fn delete_unreferenced(conn: &Conn) -> Result<(), WalletDbError> {
-        use crate::db::schema::txos;
+        use crate::db::schema::{transaction_input_txos, transaction_output_txos, txos};
 
-        let unreferenced_txos = txos::table.filter(txos::account_id_hex.is_null());
+        /*
+           SELECT * FROM txos
+           WHERE NOT EXISTS (SELECT * FROM transaction_input_txos WHERE transaction_input_txos.txo_id = txos.id)
+           AND NOT EXISTS (SELECT * FROM transaction_output_txos WHERE transaction_output_txos.txo_id = txos.id)
+           AND txos.account_id_hex IS NULL
+        */
+
+        let unreferenced_txos = txos::table
+            .filter(not(exists(
+                transaction_input_txos::table.filter(transaction_input_txos::txo_id.eq(txos::id)),
+            )))
+            .filter(not(exists(
+                transaction_output_txos::table.filter(transaction_output_txos::txo_id.eq(txos::id)),
+            )))
+            .filter(txos::account_id_hex.is_null());
 
         diesel::delete(unreferenced_txos).execute(conn)?;
 
