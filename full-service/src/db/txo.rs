@@ -33,10 +33,19 @@ use crate::{
 
 #[derive(Debug, PartialEq)]
 pub enum TxoStatus {
+    // The txo has been received at a known subaddress index, but the key image cannot
+    // be derived (usually because this is a view only account)
     Unverified,
+    // The txo has been received at a known subaddress index with a known key image, has not been
+    // spent, and is not part of a pending transaction
     Unspent,
+    // The txo is part of a pending transaction
     Pending,
+    // The txo has a known spent block index
     Spent,
+    // The txo has been received but the subaddress index and key image cannot be determined. This
+    // happens typically when an account is imported but all subaddresses it was using were not
+    // recreated
     Orphaned,
 }
 

@@ -50,9 +50,15 @@ impl fmt::Display for TransactionID {
 
 #[derive(Debug, PartialEq)]
 pub enum TxStatus {
+    // The transaction log has been built but not yet submitted to consensus
     Built,
+    // The transaction log has been submitted to consensus
     Pending,
+    // The txos associated with this transaction log have appeared on the ledger, indicating that
+    // the transaction was successful
     Succeeded,
+    // Either consensus has rejected the tx proposal, or the tombstone block index has passed
+    // without the txos in this transaction showing on the ledger
     Failed,
 }
 
@@ -69,8 +75,11 @@ impl fmt::Display for TxStatus {
 
 #[derive(Debug, PartialEq)]
 pub enum TxoType {
+    // used as an input in a transaction
     Input,
+    // used as an output in a transaction that is not change
     Payload,
+    // used as an output in a transaction that is change
     Change,
 }
 
