@@ -1,7 +1,6 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
 //! Service for managing balances.
-
 use crate::{
     db::{
         account::{AccountID, AccountModel},
@@ -20,6 +19,7 @@ use mc_common::HashMap;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
+use mc_transaction_core::{tokens::Mob, Token};
 
 /// Errors for the Address Service.
 #[derive(Display, Debug)]
@@ -143,7 +143,7 @@ where
 
         let conn = self.wallet_db.get_conn()?;
         let (unspent, max_spendable, pending, spent, secreted, orphaned, unverified) =
-            Self::get_balance_inner(account_id_hex, None, &conn)?;
+            Self::get_balance_inner(Some(account_id_hex), None, &conn)?;
 
         let network_block_height = self.get_network_block_height()?;
         let local_block_height = self.ledger_db.num_blocks()?;
@@ -171,7 +171,7 @@ where
         let assigned_address = AssignedSubaddress::get(address, &conn)?;
 
         let (unspent, max_spendable, pending, spent, secreted, orphaned, unverified) =
-            Self::get_balance_inner(&assigned_address.account_id_hex, Some(address), &conn)?;
+            Self::get_balance_inner(None, Some(address), &conn)?;
 
         let account = Account::get(&AccountID(assigned_address.account_id_hex), &conn)?;
 
@@ -218,7 +218,7 @@ where
 
         for account in accounts {
             let account_id = AccountID(account.account_id_hex.clone());
-            let balance = Self::get_balance_inner(&account_id.to_string(), None, &conn)?;
+            let balance = Self::get_balance_inner(Some(&account_id.to_string()), None, &conn)?;
             account_map.insert(account_id.clone(), account.clone());
             unspent += balance.0;
             pending += balance.2;
@@ -260,14 +260,20 @@ where
     T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
+    #[allow(clippy::type_complexity)]
     fn get_balance_inner(
-        account_id_hex: &str,
+        account_id_hex: Option<&str>,
         assigned_subaddress_b58: Option<&str>,
         conn: &Conn,
     ) -> Result<(u128, u128, u128, u128, u128, u128, u128), BalanceServiceError> {
-        let max_spendable =
-            Txo::list_spendable(account_id_hex, None, assigned_subaddress_b58, Some(0), conn)?
-                .max_spendable_in_wallet;
+        let max_spendable = Txo::list_spendable(
+            account_id_hex,
+            None,
+            assigned_subaddress_b58,
+            *Mob::ID,
+            conn,
+        )?
+        .max_spendable_in_wallet;
 
         let unspent = sum_query_result(Txo::list_unspent(
             account_id_hex,
@@ -300,28 +306,23 @@ where
             account_id_hex,
             assigned_subaddress_b58,
             Some(0),
+            None,
+            None,
             conn,
         )?);
 
-        let secreted = if assigned_subaddress_b58.is_some() {
+        let secreted = 0;
+
+        let orphaned = if assigned_subaddress_b58.is_some() {
             0
         } else {
-            sum_query_result(Txo::list_secreted(
+            sum_query_result(Txo::list_orphaned(
                 account_id_hex,
                 Some(0),
                 None,
                 None,
                 conn,
             )?)
-        };
-
-        let orphaned = if assigned_subaddress_b58.is_some() {
-            0
-        } else {
-            Txo::list_orphaned(account_id_hex, Some(0), None, None, conn)?
-                .iter()
-                .map(|t| t.value as u128)
-                .sum::<u128>()
         };
 
         let result = (

@@ -13,7 +13,7 @@ use crate::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
         models::{Account, AssignedSubaddress, Txo},
-        txo::TxoModel,
+        txo::{TxoModel, TxoStatus},
         WalletDbError,
     },
     WalletService,
@@ -164,7 +164,7 @@ pub trait ReceiptService {
         &self,
         address: &str,
         receiver_receipt: &ReceiverReceipt,
-    ) -> Result<(ReceiptTransactionStatus, Option<Txo>), ReceiptServiceError>;
+    ) -> Result<(ReceiptTransactionStatus, Option<(Txo, TxoStatus)>), ReceiptServiceError>;
 
     /// Create a receipt from a given TxProposal
     fn create_receiver_receipts(
@@ -182,7 +182,7 @@ where
         &self,
         address: &str,
         receiver_receipt: &ReceiverReceipt,
-    ) -> Result<(ReceiptTransactionStatus, Option<Txo>), ReceiptServiceError> {
+    ) -> Result<(ReceiptTransactionStatus, Option<(Txo, TxoStatus)>), ReceiptServiceError> {
         let conn = &self.wallet_db.get_conn()?;
         let assigned_address = AssignedSubaddress::get(address, conn)?;
         let account_id = AccountID(assigned_address.account_id_hex);
@@ -195,10 +195,13 @@ where
             return Ok((ReceiptTransactionStatus::TransactionPending, None));
         }
         let txo = txos[0].clone();
+        let txo_status = txo.status(conn)?;
 
-        // Return if the Txo from the receipt has a pending tombstone block index
-        if txo.pending_tombstone_block_index.is_some() {
-            return Ok((ReceiptTransactionStatus::TransactionPending, Some(txo)));
+        if txo_status == TxoStatus::Pending {
+            return Ok((
+                ReceiptTransactionStatus::TransactionPending,
+                Some((txo, txo_status)),
+            ));
         }
 
         // Decrypt the amount to get the expected value
@@ -207,7 +210,12 @@ where
         let shared_secret = get_tx_out_shared_secret(account_key.view_private_key(), &public_key);
         let expected_value = match receiver_receipt.amount.get_value(&shared_secret) {
             Ok((v, _blinding)) => v,
-            Err(_) => return Ok((ReceiptTransactionStatus::FailedAmountDecryption, Some(txo))),
+            Err(_) => {
+                return Ok((
+                    ReceiptTransactionStatus::FailedAmountDecryption,
+                    Some((txo, txo_status)),
+                ))
+            }
         };
         // Check that the value of the received Txo matches the expected value.
         if (txo.value as u64) != expected_value.value {
@@ -216,7 +224,7 @@ where
                     "Expected: {}, Got: {}",
                     expected_value.value, txo.value
                 )),
-                Some(txo),
+                Some((txo, txo_status)),
             ));
         }
 
@@ -224,11 +232,17 @@ where
         let confirmation_hex = hex::encode(mc_util_serial::encode(&receiver_receipt.confirmation));
         let confirmation: TxOutConfirmationNumber =
             mc_util_serial::decode(&hex::decode(confirmation_hex)?)?;
-        if !Txo::validate_confirmation(&account_id, &txo.txo_id_hex, &confirmation, conn)? {
-            return Ok((ReceiptTransactionStatus::InvalidConfirmation, Some(txo)));
+        if !Txo::validate_confirmation(&account_id, &txo.id, &confirmation, conn)? {
+            return Ok((
+                ReceiptTransactionStatus::InvalidConfirmation,
+                Some((txo, txo_status)),
+            ));
         }
 
-        Ok((ReceiptTransactionStatus::TransactionSuccess, Some(txo)))
+        Ok((
+            ReceiptTransactionStatus::TransactionSuccess,
+            Some((txo, txo_status)),
+        ))
     }
 
     fn create_receiver_receipts(
@@ -415,10 +429,10 @@ mod tests {
         );
 
         // Get corresponding Txo for Bob
-        let txos = service
+        let txos_and_statuses = service
             .list_txos(&AccountID(bob.account_id_hex), None, None, None)
             .expect("Could not get Bob Txos");
-        assert_eq!(txos.len(), 1);
+        assert_eq!(txos_and_statuses.len(), 1);
 
         // Get the corresponding TransactionLog for Alice's Account - only the sender
         // has the confirmation number.
@@ -434,11 +448,12 @@ mod tests {
             .expect("Could not get confirmations");
         assert_eq!(confirmations.len(), 1);
 
-        let txo_pubkey =
-            mc_util_serial::decode(&txos[0].public_key).expect("Could not decode pubkey");
+        let txo_pubkey = mc_util_serial::decode(&txos_and_statuses[0].0.public_key)
+            .expect("Could not decode pubkey");
         assert_eq!(receipt.public_key, txo_pubkey);
         assert_eq!(receipt.tombstone_block, 23); // Ledger seeded with 12 blocks at tx construction, then one appended + 10
-        let txo: TxOut = mc_util_serial::decode(&txos[0].txo).expect("Could not decode txo");
+        let txo: TxOut =
+            mc_util_serial::decode(&txos_and_statuses[0].0.txo).expect("Could not decode txo");
         assert_eq!(receipt.amount, txo.masked_amount);
         assert_eq!(receipt.confirmation, confirmations[0].confirmation);
     }

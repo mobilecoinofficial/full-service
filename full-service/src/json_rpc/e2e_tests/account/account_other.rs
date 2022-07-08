@@ -5,7 +5,7 @@
 #[cfg(test)]
 mod e2e_account {
     use crate::{
-        db::{account::AccountID, models::TXO_STATUS_UNSPENT},
+        db::{account::AccountID, txo::TxoStatus},
         json_rpc,
         json_rpc::api_test_utils::{dispatch, setup},
         test_utils::{add_block_to_ledger_db, manually_sync_account, MOB},
@@ -429,17 +429,8 @@ mod e2e_account {
         assert_eq!(txos.len(), 1);
         let txo_map = result.get("txo_map").unwrap().as_object().unwrap();
         let txo = &txo_map.get(txos[0].as_str().unwrap()).unwrap();
-        let status_map = txo
-            .get("account_status_map")
-            .unwrap()
-            .as_object()
-            .unwrap()
-            .get(account_id)
-            .unwrap();
-        let txo_status = status_map.get("txo_status").unwrap().as_str().unwrap();
-        assert_eq!(txo_status, TXO_STATUS_UNSPENT);
-        let txo_type = status_map.get("txo_type").unwrap().as_str().unwrap();
-        assert_eq!(txo_type, "txo_type_received");
+        let txo_status = txo.get("status").unwrap().as_str().unwrap();
+        assert_eq!(txo_status, TxoStatus::Unspent.to_string());
         let value = txo.get("value_pmob").unwrap().as_str().unwrap();
         assert_eq!(value, "42000000000000");
     }

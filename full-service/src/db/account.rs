@@ -492,13 +492,8 @@ impl AccountModel for Account {
 
         let mut accounts: Vec<Account> = Vec::<Account>::new();
 
-        if let Some(received_account_id_hex) = txo.received_account_id_hex {
-            let account = Account::get(&AccountID(received_account_id_hex), conn)?;
-            accounts.push(account);
-        }
-
-        if let Some(minted_account_id_hex) = txo.minted_account_id_hex {
-            let account = Account::get(&AccountID(minted_account_id_hex), conn)?;
+        if let Some(account_id_hex) = txo.account_id_hex {
+            let account = Account::get(&AccountID(account_id_hex), conn)?;
             accounts.push(account);
         }
 

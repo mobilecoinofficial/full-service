@@ -256,26 +256,15 @@ fn sync_account_next_chunk(
                 .collect();
             let num_spent_txos = spent_txos.len();
             for (block_index, txo_id_hex) in &spent_txos {
-                Txo::update_to_spent(txo_id_hex, *block_index as u64, conn)?;
-                TransactionLog::update_tx_logs_associated_with_txo_to_succeeded(
+                Txo::update_spent_block_index(txo_id_hex, *block_index as u64, conn)?;
+                TransactionLog::update_pending_associated_with_txo_to_succeeded(
                     txo_id_hex,
                     *block_index,
                     conn,
                 )?;
             }
 
-            let txos_exceeding_pending_block_index = Txo::list_pending_exceeding_block_index(
-                account_id_hex,
-                end_block_index + 1,
-                None,
-                conn,
-            )?;
-            TransactionLog::update_tx_logs_associated_with_txos_to_failed(
-                &txos_exceeding_pending_block_index,
-                conn,
-            )?;
-
-            Txo::update_txos_exceeding_pending_tombstone_block_index_to_unspent(
+            TransactionLog::update_pending_exceeding_tombstone_block_index_to_failed(
                 end_block_index + 1,
                 conn,
             )?;
@@ -349,26 +338,15 @@ fn sync_account_next_chunk(
                 .collect();
             let num_spent_txos = spent_txos.len();
             for (block_index, txo_id_hex) in &spent_txos {
-                Txo::update_to_spent(txo_id_hex, *block_index as u64, conn)?;
-                TransactionLog::update_tx_logs_associated_with_txo_to_succeeded(
+                Txo::update_spent_block_index(txo_id_hex, *block_index as u64, conn)?;
+                TransactionLog::update_pending_associated_with_txo_to_succeeded(
                     txo_id_hex,
                     *block_index,
                     conn,
                 )?;
             }
 
-            let txos_exceeding_pending_block_index = Txo::list_pending_exceeding_block_index(
-                account_id_hex,
-                end_block_index + 1,
-                None,
-                conn,
-            )?;
-            TransactionLog::update_tx_logs_associated_with_txos_to_failed(
-                &txos_exceeding_pending_block_index,
-                conn,
-            )?;
-
-            Txo::update_txos_exceeding_pending_tombstone_block_index_to_unspent(
+            TransactionLog::update_pending_exceeding_tombstone_block_index_to_failed(
                 end_block_index + 1,
                 conn,
             )?;
@@ -543,11 +521,11 @@ mod tests {
         // There should now be 16 txos. Let's get each one and verify the amount
         let expected_value = 15_625_000 * MOB;
 
-        let txos = service
+        let txos_and_statuses = service
             .list_txos(&AccountID::from(&account_key), None, None, None)
             .unwrap();
 
-        for txo in txos {
+        for (txo, _) in txos_and_statuses {
             assert_eq!(txo.value as u64, expected_value);
         }
 

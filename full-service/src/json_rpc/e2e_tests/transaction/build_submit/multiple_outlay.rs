@@ -324,7 +324,7 @@ mod e2e_transaction {
             .unwrap()
             .iter()
             .map(|t| {
-                t.get("recipient_address_id")
+                t.get("recipient_public_address_b58")
                     .unwrap()
                     .as_str()
                     .unwrap()

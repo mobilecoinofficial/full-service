@@ -283,7 +283,7 @@ mod e2e_transaction {
 
         assert_eq!(
             transaction_log.get("output_txos").unwrap()[0]
-                .get("recipient_address_id")
+                .get("recipient_public_address_b58")
                 .unwrap()
                 .as_str()
                 .unwrap(),
