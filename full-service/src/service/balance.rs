@@ -388,19 +388,19 @@ mod tests {
             .expect("Could not import account entropy");
 
         let address = service
-            .assign_address_for_account(&AccountID(account.account_id_hex.clone()), None)
+            .assign_address_for_account(&AccountID(account.id.clone()), None)
             .expect("Could not assign address");
         assert_eq!(address.subaddress_index, 2);
 
         let _account = manually_sync_account(
             &ledger_db,
             &service.wallet_db,
-            &AccountID(account.account_id_hex.to_string()),
+            &AccountID(account.id.to_string()),
             &logger,
         );
 
         let account_balance = service
-            .get_balance_for_account(&AccountID(account.account_id_hex))
+            .get_balance_for_account(&AccountID(account.id))
             .expect("Could not get balance for account");
 
         // 3 accounts * 5_000 MOB * 12 blocks

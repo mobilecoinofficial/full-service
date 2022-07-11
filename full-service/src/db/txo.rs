@@ -1304,7 +1304,7 @@ mod tests {
             received_block_index: Some(12),
             spent_block_index: None,
             shared_secret: None,
-            account_id_hex: Some(alice_account_id.to_string()),
+            account_id: Some(alice_account_id.to_string()),
         };
 
         assert_eq!(expected_txo, txos[0]);
@@ -1428,8 +1428,7 @@ mod tests {
         assert_eq!(orphaned.len(), 1);
         assert!(orphaned[0].key_image.is_none());
         assert_eq!(orphaned[0].received_block_index.clone().unwrap(), 13);
-        // assert!(orphaned[0].minted_account_id_hex.is_some());
-        assert!(orphaned[0].account_id_hex.is_some());
+        assert!(orphaned[0].account_id.is_some());
 
         // Check that we have one unspent (change) - went from [Minted, Secreted] ->
         // [Minted, Unspent]
@@ -1867,10 +1866,10 @@ mod tests {
         let (change_txo, _) = associated_txos.change.first().unwrap();
 
         assert_eq!(minted_txo.value as u64, 1 * MOB);
-        assert!(minted_txo.account_id_hex.is_none());
+        assert!(minted_txo.account_id.is_none());
 
         assert_eq!(change_txo.value as u64, 4999 * MOB - Mob::MINIMUM_FEE);
-        assert!(change_txo.account_id_hex.is_none());
+        assert!(change_txo.account_id.is_none());
     }
 
     // Test that the confirmation number validates correctly.

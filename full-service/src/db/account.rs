@@ -594,7 +594,6 @@ mod tests {
 
         let acc = Account::get(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
         let expected_account = Account {
-            id: 1,
             id: account_id_hex.to_string(),
             account_key: mc_util_serial::encode(&account_key),
             entropy: Some(root_id.root_entropy.bytes.to_vec()),
@@ -660,8 +659,7 @@ mod tests {
         let acc_secondary =
             Account::get(&account_id_hex_secondary, &wallet_db.get_conn().unwrap()).unwrap();
         let mut expected_account_secondary = Account {
-            id: 2,
-            account_id_hex: account_id_hex_secondary.to_string(),
+            id: account_id_hex_secondary.to_string(),
             account_key: mc_util_serial::encode(&account_key_secondary),
             entropy: Some(root_id_secondary.root_entropy.bytes.to_vec()),
             key_derivation_version: 1,
@@ -775,8 +773,7 @@ mod tests {
 
         let acc = Account::get(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
         let expected_account = Account {
-            id: 1,
-            account_id_hex: account_id_hex.to_string(),
+            id: account_id_hex.to_string(),
             account_key: [
                 10, 34, 10, 32, 129, 223, 141, 215, 200, 104, 120, 117, 123, 154, 151, 210, 253,
                 23, 148, 151, 2, 18, 182, 100, 83, 138, 144, 99, 225, 74, 214, 14, 175, 68, 167, 4,
@@ -834,8 +831,7 @@ mod tests {
         }
 
         let expected_account = Account {
-            id: 1,
-            account_id_hex: account.account_id_hex.to_string(),
+            id: account.id.to_string(),
             account_key: [
                 10, 34, 10, 32, 66, 186, 14, 57, 108, 119, 153, 172, 224, 25, 53, 237, 22, 219,
                 222, 137, 26, 227, 37, 43, 122, 52, 71, 153, 60, 246, 90, 102, 123, 176, 139, 11,

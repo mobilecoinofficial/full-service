@@ -638,10 +638,7 @@ mod tests {
         .unwrap();
 
         // The log's account ID matches the account_id which submitted the tx
-        assert_eq!(
-            tx_log.account_id_hex,
-            AccountID::from(&account_key).to_string()
-        );
+        assert_eq!(tx_log.account_id, AccountID::from(&account_key).to_string());
         assert_eq!(tx_log.value_for_token_id(Mob::ID, &conn).unwrap(), 50 * MOB);
         assert_eq!(tx_log.fee_value as u64, Mob::MINIMUM_FEE);
         assert_eq!(tx_log.fee_token_id as u64, *Mob::ID);
@@ -719,7 +716,7 @@ mod tests {
         let _sync = manually_sync_account(
             &ledger_db,
             &wallet_db,
-            &AccountID(tx_log.account_id_hex.to_string()),
+            &AccountID(tx_log.account_id.to_string()),
             &logger,
         );
 
@@ -743,8 +740,8 @@ mod tests {
             TxoStatus::Unspent
         );
         assert_eq!(
-            updated_change_details.account_id_hex.unwrap(),
-            tx_log.account_id_hex
+            updated_change_details.account_id.unwrap(),
+            tx_log.account_id
         );
         assert_eq!(
             updated_change_details.subaddress_index,
@@ -793,10 +790,7 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(
-            tx_log.account_id_hex,
-            AccountID::from(&account_key).to_string()
-        );
+        assert_eq!(tx_log.account_id, AccountID::from(&account_key).to_string());
         let associated_txos = tx_log
             .get_associated_txos(&wallet_db.get_conn().unwrap())
             .unwrap();
@@ -1120,7 +1114,7 @@ mod tests {
         let _sync = manually_sync_account(
             &ledger_db,
             &wallet_db,
-            &AccountID(tx_log.account_id_hex.to_string()),
+            &AccountID(tx_log.account_id.to_string()),
             &logger,
         );
 
@@ -1151,16 +1145,16 @@ mod tests {
         );
 
         // The received_to account is ourself, which is the same as the account
-        // account_id_hex in the transaction log. The type is "Received"
+        // account_id in the transaction log. The type is "Received"
         assert_eq!(
-            updated_input_details0.account_id_hex,
-            Some(tx_log.account_id_hex.clone())
+            updated_input_details0.account_id,
+            Some(tx_log.account_id.clone())
         );
         assert_eq!(updated_input_details0.subaddress_index, Some(0 as i64));
 
         assert_eq!(
-            updated_input_details1.account_id_hex,
-            Some(tx_log.account_id_hex.clone())
+            updated_input_details1.account_id,
+            Some(tx_log.account_id.clone())
         );
         assert_eq!(updated_input_details1.subaddress_index, Some(0 as i64));
 
@@ -1180,8 +1174,8 @@ mod tests {
 
         // The received to account is ourself, and it is unspent, minted
         assert_eq!(
-            updated_output_details.account_id_hex,
-            Some(tx_log.account_id_hex.clone())
+            updated_output_details.account_id,
+            Some(tx_log.account_id.clone())
         );
 
         // Received to main subaddress
@@ -1200,10 +1194,7 @@ mod tests {
                 .unwrap(),
             TxoStatus::Unspent
         );
-        assert_eq!(
-            updated_change_details.account_id_hex,
-            Some(tx_log.account_id_hex)
-        );
+        assert_eq!(updated_change_details.account_id, Some(tx_log.account_id));
         assert_eq!(
             updated_change_details.subaddress_index,
             Some(CHANGE_SUBADDRESS_INDEX as i64)

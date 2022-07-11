@@ -502,7 +502,7 @@ mod tests {
 
         // Verify balance for Alice
         let balance = service
-            .get_balance_for_account(&AccountID(alice.account_id_hex.clone()))
+            .get_balance_for_account(&AccountID(alice.id.clone()))
             .unwrap();
         assert_eq!(balance.unspent, 100 * MOB as u128);
 
@@ -521,12 +521,12 @@ mod tests {
 
         // Create an assigned subaddress for Bob
         let bob_address_from_alice = service
-            .assign_address_for_account(&AccountID(bob.account_id_hex.clone()), Some("From Alice"))
+            .assign_address_for_account(&AccountID(bob.id.clone()), Some("From Alice"))
             .unwrap();
 
         let _tx_proposal = service
             .build_transaction(
-                &alice.account_id_hex,
+                &alice.id,
                 &[(
                     bob_address_from_alice.assigned_subaddress_b58,
                     (42 * MOB).to_string(),
@@ -548,12 +548,12 @@ mod tests {
 
         // Create an assigned subaddress for Bob
         let bob_address_from_alice_2 = service
-            .assign_address_for_account(&AccountID(bob.account_id_hex.clone()), Some("From Alice"))
+            .assign_address_for_account(&AccountID(bob.id.clone()), Some("From Alice"))
             .unwrap();
 
         let _tx_proposal = service
             .build_transaction(
-                &alice.account_id_hex,
+                &alice.id,
                 &[(
                     bob_address_from_alice_2.assigned_subaddress_b58,
                     (42 * MOB).to_string(),
@@ -575,12 +575,12 @@ mod tests {
 
         // Create an assigned subaddress for Bob
         let bob_address_from_alice_3 = service
-            .assign_address_for_account(&AccountID(bob.account_id_hex.clone()), Some("From Alice"))
+            .assign_address_for_account(&AccountID(bob.id.clone()), Some("From Alice"))
             .unwrap();
 
         let _tx_proposal = service
             .build_transaction(
-                &alice.account_id_hex,
+                &alice.id,
                 &[(
                     bob_address_from_alice_3.clone().assigned_subaddress_b58,
                     (42 * MOB).to_string(),
@@ -637,7 +637,7 @@ mod tests {
 
         // Verify balance for Alice
         let balance = service
-            .get_balance_for_account(&AccountID(alice.account_id_hex.clone()))
+            .get_balance_for_account(&AccountID(alice.id.clone()))
             .unwrap();
         assert_eq!(balance.unspent, 100 * MOB as u128);
 
@@ -656,13 +656,13 @@ mod tests {
 
         // Create an assigned subaddress for Bob
         let bob_address_from_alice = service
-            .assign_address_for_account(&AccountID(bob.account_id_hex.clone()), Some("From Alice"))
+            .assign_address_for_account(&AccountID(bob.id.clone()), Some("From Alice"))
             .unwrap();
 
         // Send a transaction from Alice to Bob
         let (transaction_log, _associated_txos, _value_map, _tx_proposal) = service
             .build_and_submit(
-                &alice.account_id_hex,
+                &alice.id,
                 &[(
                     bob_address_from_alice.assigned_subaddress_b58,
                     (42 * MOB).to_string(),
@@ -718,20 +718,20 @@ mod tests {
 
         // Verify balance for Alice = original balance - fee - txo_value
         let balance = service
-            .get_balance_for_account(&AccountID(alice.account_id_hex.clone()))
+            .get_balance_for_account(&AccountID(alice.id.clone()))
             .unwrap();
         assert_eq!(balance.unspent, (58 * MOB - Mob::MINIMUM_FEE) as u128);
 
         // Bob's balance should be = output_txo_value
         let bob_balance = service
-            .get_balance_for_account(&AccountID(bob.account_id_hex.clone()))
+            .get_balance_for_account(&AccountID(bob.id.clone()))
             .unwrap();
         assert_eq!(bob_balance.unspent, 42000000000000);
 
         // Bob should now be able to send to Alice
         let (transaction_log, _associated_txos, _value_map, _tx_proposal) = service
             .build_and_submit(
-                &bob.account_id_hex,
+                &bob.id,
                 &[(
                     b58_encode_public_address(&alice_public_address).unwrap(),
                     (8 * MOB).to_string(),
@@ -758,14 +758,12 @@ mod tests {
         manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, &logger);
 
         let alice_balance = service
-            .get_balance_for_account(&AccountID(alice.account_id_hex))
+            .get_balance_for_account(&AccountID(alice.id))
             .unwrap();
         assert_eq!(alice_balance.unspent, (66 * MOB - Mob::MINIMUM_FEE) as u128);
 
         // Bob's balance should be = output_txo_value
-        let bob_balance = service
-            .get_balance_for_account(&AccountID(bob.account_id_hex))
-            .unwrap();
+        let bob_balance = service.get_balance_for_account(&AccountID(bob.id)).unwrap();
         assert_eq!(bob_balance.unspent, (34 * MOB - Mob::MINIMUM_FEE) as u128);
     }
 
@@ -804,7 +802,7 @@ mod tests {
         manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
 
         match service.build_transaction(
-            &alice.account_id_hex,
+            &alice.id,
             &vec![("NOTB58".to_string(), (42 * MOB).to_string())],
             None,
             None,
@@ -861,15 +859,7 @@ mod tests {
                 (42 * MOB).to_string(),
             ));
         }
-        match service.build_transaction(
-            &alice.account_id_hex,
-            &outputs,
-            None,
-            None,
-            None,
-            None,
-            None,
-        ) {
+        match service.build_transaction(&alice.id, &outputs, None, None, None, None, None) {
             Ok(_) => {
                 panic!("Should not be able to build transaction with too many ouputs")
             }
@@ -891,15 +881,8 @@ mod tests {
         for _ in 0..17 {
             inputs.push("fake txo id".to_string());
         }
-        match service.build_transaction(
-            &alice.account_id_hex,
-            &outputs,
-            Some(&inputs),
-            None,
-            None,
-            None,
-            None,
-        ) {
+        match service.build_transaction(&alice.id, &outputs, Some(&inputs), None, None, None, None)
+        {
             Ok(_) => {
                 panic!("Should not be able to build transaction with too many inputs")
             }
