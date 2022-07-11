@@ -20,7 +20,11 @@ use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_mobilecoind::payments::TxProposal;
-use mc_transaction_core::constants::{MAX_INPUTS, MAX_OUTPUTS};
+use mc_transaction_core::{
+    constants::{MAX_INPUTS, MAX_OUTPUTS},
+    tokens::Mob,
+    Token,
+};
 
 use crate::{
     fog_resolver::FullServiceFogResolver,
@@ -223,7 +227,7 @@ where
 
             builder.set_fee(match fee {
                 Some(f) => f.parse()?,
-                None => self.get_network_fee(),
+                None => self.get_network_fees()[&Mob::ID],
             })?;
 
             builder.set_block_version(self.get_network_block_version());
@@ -277,7 +281,7 @@ where
 
             builder.set_fee(match fee {
                 Some(f) => f.parse()?,
-                None => self.get_network_fee(),
+                None => self.get_network_fees()[&Mob::ID],
             })?;
 
             builder.set_block_version(self.get_network_block_version());

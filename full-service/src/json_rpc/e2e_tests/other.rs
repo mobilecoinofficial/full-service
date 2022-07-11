@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2022 MobileCoin Inc.
+// Copyright (c) &2020-2022 MobileCoin Inc.
 
 //! End-to-end tests for the Full Service Wallet API.
 
@@ -10,6 +10,8 @@ mod e2e_misc {
     };
 
     use mc_common::logger::{test_with_logger, Logger};
+
+    use mc_transaction_core::{tokens::Mob, BlockVersion, Token};
 
     use rand::{rngs::StdRng, SeedableRng};
     use rocket::http::{Header, Status};
@@ -104,5 +106,32 @@ mod e2e_misc {
         let header = Header::new("X-API-KEY", "wrong-header");
 
         dispatch_with_header_expect_error(&client, body, header, &logger, Status::Unauthorized);
+    }
+
+    #[test_with_logger]
+    fn test_get_network_status(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_network_status"
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let status = result.get("network_status").unwrap();
+        assert_eq!(status.get("network_block_height").unwrap(), "12");
+        assert_eq!(status.get("local_block_height").unwrap(), "12");
+        assert_eq!(
+            status.get("block_version").unwrap(),
+            &BlockVersion::MAX.to_string()
+        );
+
+        let fees = status.get("fees").unwrap().as_object().unwrap();
+        assert_eq!(
+            fees.get(&Mob::ID.to_string()).unwrap().as_str().unwrap(),
+            &Mob::MINIMUM_FEE.to_string()
+        );
     }
 }
