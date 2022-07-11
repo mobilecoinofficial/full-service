@@ -173,7 +173,7 @@ where
         let (unspent, max_spendable, pending, spent, secreted, orphaned, unverified) =
             Self::get_balance_inner(None, Some(address), &conn)?;
 
-        let account = Account::get(&AccountID(assigned_address.account_id_hex), &conn)?;
+        let account = Account::get(&AccountID(assigned_address.account_id), &conn)?;
 
         Ok(Balance {
             unspent,
@@ -217,7 +217,7 @@ where
         let mut account_ids = Vec::new();
 
         for account in accounts {
-            let account_id = AccountID(account.account_id_hex.clone());
+            let account_id = AccountID(account.id.clone());
             let balance = Self::get_balance_inner(Some(&account_id.to_string()), None, &conn)?;
             account_map.insert(account_id.clone(), account.clone());
             unspent += balance.0;

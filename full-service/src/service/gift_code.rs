@@ -404,7 +404,7 @@ where
         let from_account = Account::get(from_account_id, &conn)?;
 
         let tx_proposal = self.build_transaction(
-            &from_account.account_id_hex,
+            &from_account.id,
             &[(gift_code_account_main_subaddress_b58, value.to_string())],
             input_txo_ids,
             fee.map(|f| f.to_string()),

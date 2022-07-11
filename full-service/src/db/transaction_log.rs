@@ -308,7 +308,7 @@ impl TransactionLogModel for TransactionLog {
 
         let mut query = transaction_logs::table
             .into_boxed()
-            .filter(transaction_logs::account_id_hex.eq(account_id_hex));
+            .filter(transaction_logs::account_id.eq(account_id_hex));
 
         if let (Some(o), Some(l)) = (offset, limit) {
             query = query.offset(o as i64).limit(l as i64);
@@ -359,7 +359,7 @@ impl TransactionLogModel for TransactionLog {
 
         let new_transaction_log = NewTransactionLog {
             id: &transaction_log_id.to_string(),
-            account_id_hex,
+            account_id: account_id_hex,
             fee_value: tx_proposal.tx.prefix.fee as i64,
             fee_token_id: tx_proposal.tx.prefix.fee_token_id as i64,
             submitted_block_index: None,
@@ -423,7 +423,7 @@ impl TransactionLogModel for TransactionLog {
             Err(WalletDbError::TransactionLogNotFound(_)) => {
                 let new_transaction_log = NewTransactionLog {
                     id: &transaction_log_id.to_string(),
-                    account_id_hex,
+                    account_id: account_id_hex,
                     fee_value: tx_proposal.tx.prefix.fee as i64,
                     fee_token_id: tx_proposal.tx.prefix.fee_token_id as i64,
                     submitted_block_index: Some(block_index as i64),
@@ -472,7 +472,7 @@ impl TransactionLogModel for TransactionLog {
 
         let transaction_input_txos: Vec<TransactionInputTxo> = transaction_input_txos::table
             .inner_join(transaction_logs::table)
-            .filter(transaction_logs::account_id_hex.eq(account_id_hex))
+            .filter(transaction_logs::account_id.eq(account_id_hex))
             .select(transaction_input_txos::all_columns)
             .load(conn)?;
 
@@ -482,7 +482,7 @@ impl TransactionLogModel for TransactionLog {
 
         let transaction_output_txos: Vec<TransactionOutputTxo> = transaction_output_txos::table
             .inner_join(transaction_logs::table)
-            .filter(transaction_logs::account_id_hex.eq(account_id_hex))
+            .filter(transaction_logs::account_id.eq(account_id_hex))
             .select(transaction_output_txos::all_columns)
             .load(conn)?;
 
@@ -491,7 +491,7 @@ impl TransactionLogModel for TransactionLog {
         }
 
         diesel::delete(
-            transaction_logs::table.filter(transaction_logs::account_id_hex.eq(account_id_hex)),
+            transaction_logs::table.filter(transaction_logs::account_id.eq(account_id_hex)),
         )
         .execute(conn)?;
 

@@ -153,7 +153,7 @@ where
         let txo_details = Txo::get(&txo_id.to_string(), &conn)?;
 
         let account_id_hex = txo_details
-            .account_id_hex
+            .account_id
             .ok_or(TxoNotSpendableByAnyAccount(txo_details.id))?;
 
         let address_to_split_into: AssignedSubaddress =

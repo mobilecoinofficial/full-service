@@ -80,7 +80,7 @@ impl TransactionLog {
         Self {
             object: "transaction_log".to_string(),
             id: transaction_log.id.clone(),
-            account_id: transaction_log.account_id_hex.clone(),
+            account_id: transaction_log.account_id.clone(),
             submitted_block_index: transaction_log
                 .submitted_block_index
                 .map(|b| (b as u64).to_string()),

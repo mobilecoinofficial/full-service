@@ -185,7 +185,7 @@ where
     ) -> Result<(ReceiptTransactionStatus, Option<(Txo, TxoStatus)>), ReceiptServiceError> {
         let conn = &self.wallet_db.get_conn()?;
         let assigned_address = AssignedSubaddress::get(address, conn)?;
-        let account_id = AccountID(assigned_address.account_id_hex);
+        let account_id = AccountID(assigned_address.account_id);
         let account = Account::get(&account_id, conn)?;
         // Get the transaction from the database, with status.
         let txos = Txo::select_by_public_key(&[&receiver_receipt.public_key], conn)?;

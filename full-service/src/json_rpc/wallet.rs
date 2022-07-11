@@ -556,14 +556,14 @@ where
                         .map_err(format_error)
                         .and_then(|v| {
                             serde_json::to_value(v)
-                                .map(|v| (a.account_id_hex.clone(), v))
+                                .map(|v| (a.id.clone(), v))
                                 .map_err(format_error)
                         })
                 })
                 .collect::<Result<Vec<(String, serde_json::Value)>, JsonRPCError>>()?;
             let account_map: Map<String, serde_json::Value> = Map::from_iter(json_accounts);
             JsonCommandResponse::get_all_accounts {
-                account_ids: accounts.iter().map(|a| a.account_id_hex.clone()).collect(),
+                account_ids: accounts.iter().map(|a| a.id.clone()).collect(),
                 account_map,
             }
         }

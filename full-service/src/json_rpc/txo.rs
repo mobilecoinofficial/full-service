@@ -67,7 +67,7 @@ impl Txo {
             value_pmob: (txo.value as u64).to_string(),
             received_block_index: txo.received_block_index.map(|x| (x as u64).to_string()),
             spent_block_index: txo.spent_block_index.map(|x| (x as u64).to_string()),
-            account_id: txo.account_id_hex.clone(),
+            account_id: txo.account_id.clone(),
             status: status.to_string(),
             target_key: hex::encode(&txo.target_key),
             public_key: hex::encode(&txo.public_key),

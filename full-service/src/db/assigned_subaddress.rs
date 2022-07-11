@@ -116,7 +116,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         let subaddress_b58 = b58_encode_public_address(&subaddress)?;
         let subaddress_entry = NewAssignedSubaddress {
             assigned_subaddress_b58: &subaddress_b58,
-            account_id_hex: &account_id.to_string(),
+            account_id: &account_id.to_string(),
             address_book_entry,
             public_address: &mc_util_serial::encode(&subaddress),
             subaddress_index: subaddress_index as i64,
@@ -147,7 +147,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
 
         let subaddress_entry = NewAssignedSubaddress {
             assigned_subaddress_b58: &subaddress_b58,
-            account_id_hex: &account_id.to_string(),
+            account_id: &account_id.to_string(),
             address_book_entry,
             public_address: &mc_util_serial::encode(&subaddress),
             subaddress_index: subaddress_index as i64,
@@ -168,7 +168,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         ledger_db: &LedgerDB,
         conn: &Conn,
     ) -> Result<(String, i64), WalletDbError> {
-        use crate::db::schema::accounts::dsl::{account_id_hex as dsl_account_id_hex, accounts};
+        use crate::db::schema::accounts;
 
         let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
@@ -279,7 +279,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         };
 
         // Update the next subaddress index for the account
-        diesel::update(accounts.filter(dsl_account_id_hex.eq(account_id_hex)))
+        diesel::update(accounts::table.filter(accounts::id.eq(account_id_hex)))
             .set((crate::db::schema::accounts::next_subaddress_index
                 .eq(account.next_subaddress_index + 1),))
             .execute(conn)?;
@@ -288,12 +288,10 @@ impl AssignedSubaddressModel for AssignedSubaddress {
     }
 
     fn get(public_address_b58: &str, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError> {
-        use crate::db::schema::assigned_subaddresses::dsl::{
-            assigned_subaddress_b58, assigned_subaddresses,
-        };
+        use crate::db::schema::assigned_subaddresses;
 
-        let assigned_subaddress: AssignedSubaddress = match assigned_subaddresses
-            .filter(assigned_subaddress_b58.eq(&public_address_b58))
+        let assigned_subaddress: AssignedSubaddress = match assigned_subaddresses::table
+            .filter(assigned_subaddresses::assigned_subaddress_b58.eq(&public_address_b58))
             .get_result::<AssignedSubaddress>(conn)
         {
             Ok(t) => t,
@@ -318,7 +316,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         use crate::db::schema::assigned_subaddresses;
 
         Ok(assigned_subaddresses::table
-            .filter(assigned_subaddresses::account_id_hex.eq(account_id_hex))
+            .filter(assigned_subaddresses::account_id.eq(account_id_hex))
             .filter(assigned_subaddresses::subaddress_index.eq(index))
             .first(conn)?)
     }
@@ -327,13 +325,17 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         subaddress_spend_public_key: &RistrettoPublic,
         conn: &Conn,
     ) -> Result<(i64, String), WalletDbError> {
-        use crate::db::schema::assigned_subaddresses::{
-            account_id_hex, dsl::assigned_subaddresses, subaddress_index, subaddress_spend_key,
-        };
+        use crate::db::schema::assigned_subaddresses;
 
-        let matches = assigned_subaddresses
-            .select((subaddress_index, account_id_hex))
-            .filter(subaddress_spend_key.eq(mc_util_serial::encode(subaddress_spend_public_key)))
+        let matches = assigned_subaddresses::table
+            .select((
+                assigned_subaddresses::subaddress_index,
+                assigned_subaddresses::account_id,
+            ))
+            .filter(
+                assigned_subaddresses::subaddress_spend_key
+                    .eq(mc_util_serial::encode(subaddress_spend_public_key)),
+            )
             .load::<(i64, String)>(conn)?;
 
         if matches.is_empty() {
@@ -357,13 +359,10 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         limit: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<AssignedSubaddress>, WalletDbError> {
-        use crate::db::schema::assigned_subaddresses::{
-            account_id_hex as schema_account_id_hex, all_columns, dsl::assigned_subaddresses,
-        };
+        use crate::db::schema::assigned_subaddresses;
 
-        let addresses_query = assigned_subaddresses
-            .select(all_columns)
-            .filter(schema_account_id_hex.eq(account_id_hex));
+        let addresses_query = assigned_subaddresses::table
+            .filter(assigned_subaddresses::account_id.eq(account_id_hex));
 
         let addresses: Vec<AssignedSubaddress> = if let (Some(o), Some(l)) = (offset, limit) {
             addresses_query
@@ -378,12 +377,13 @@ impl AssignedSubaddressModel for AssignedSubaddress {
     }
 
     fn delete_all(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError> {
-        use crate::db::schema::assigned_subaddresses::dsl::{
-            account_id_hex as schema_account_id_hex, assigned_subaddresses,
-        };
+        use crate::db::schema::assigned_subaddresses;
 
-        diesel::delete(assigned_subaddresses.filter(schema_account_id_hex.eq(account_id_hex)))
-            .execute(conn)?;
+        diesel::delete(
+            assigned_subaddresses::table
+                .filter(assigned_subaddresses::account_id.eq(account_id_hex)),
+        )
+        .execute(conn)?;
         Ok(())
     }
 
