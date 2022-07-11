@@ -153,7 +153,7 @@ where
         let txo_details = Txo::get(&txo_id.to_string(), &conn)?;
 
         let account_id_hex = txo_details
-            .account_id_hex
+            .account_id
             .ok_or(TxoNotSpendableByAnyAccount(txo_details.id))?;
 
         let address_to_split_into: AssignedSubaddress =
@@ -276,7 +276,7 @@ mod tests {
         let bob_account_key: AccountKey = mc_util_serial::decode(&bob.account_key).unwrap();
         let tx_proposal = service
             .build_transaction(
-                &alice.account_id_hex,
+                &alice.id,
                 &vec![(
                     b58_encode_public_address(
                         &bob_account_key.subaddress(bob.main_subaddress_index as u64),
@@ -292,12 +292,12 @@ mod tests {
             )
             .unwrap();
         let _submitted = service
-            .submit_transaction(tx_proposal, None, Some(alice.account_id_hex.clone()))
+            .submit_transaction(tx_proposal, None, Some(alice.id.clone()))
             .unwrap();
 
         let pending: Vec<(Txo, TxoStatus)> = service
             .list_txos(
-                &AccountID(alice.account_id_hex.clone()),
+                &AccountID(alice.id.clone()),
                 Some(TxoStatus::Pending),
                 None,
                 None,
@@ -308,7 +308,7 @@ mod tests {
 
         // Our balance should reflect the various statuses of our txos
         let balance = service
-            .get_balance_for_account(&AccountID(alice.account_id_hex))
+            .get_balance_for_account(&AccountID(alice.id))
             .unwrap();
         assert_eq!(balance.unverified, 0);
         assert_eq!(balance.unspent, 0);

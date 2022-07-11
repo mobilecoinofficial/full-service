@@ -59,7 +59,7 @@ impl TryFrom<&Account> for AccountSecrets {
 
             Ok(AccountSecrets {
                 object: "account_secrets".to_string(),
-                account_id: src.account_id_hex.clone(),
+                account_id: src.id.clone(),
                 name: src.name.clone(),
                 entropy: None,
                 mnemonic: None,
@@ -89,7 +89,7 @@ impl TryFrom<&Account> for AccountSecrets {
             Ok(AccountSecrets {
                 object: "account_secrets".to_string(),
                 name: src.name.clone(),
-                account_id: src.account_id_hex.clone(),
+                account_id: src.id.clone(),
                 entropy,
                 mnemonic,
                 key_derivation_version: src.key_derivation_version.to_string(),

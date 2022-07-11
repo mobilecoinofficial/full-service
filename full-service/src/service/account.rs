@@ -533,7 +533,7 @@ mod tests {
         );
 
         let txos = Txo::list_for_account(
-            &account.account_id_hex,
+            &account.id,
             None,
             None,
             None,
@@ -544,12 +544,12 @@ mod tests {
         assert_eq!(txos.len(), 1);
 
         // Delete the account. The transaction status referring to it is also cleared.
-        let account_id = AccountID(account.account_id_hex.clone().to_string());
+        let account_id = AccountID(account.id.clone().to_string());
         let result = service.remove_account(&account_id);
         assert!(result.is_ok());
 
         let txos = Txo::list_for_account(
-            &account.account_id_hex,
+            &account.id,
             None,
             None,
             None,
@@ -586,7 +586,7 @@ mod tests {
 
         // Syncing the account does nothing to the block indices since there are no new
         // blocks.
-        let account_id = AccountID(account.account_id_hex);
+        let account_id = AccountID(account.id);
         manually_sync_account(&ledger_db, &service.wallet_db, &account_id, &logger);
         let account = service.get_account(&account_id).unwrap();
         assert_eq!(account.first_block_index, 12);
@@ -618,7 +618,7 @@ mod tests {
 
         // Syncing the account does nothing to the block indices since there are no
         // blocks in the ledger.
-        let account_id = AccountID(account.account_id_hex);
+        let account_id = AccountID(account.id);
         manually_sync_account(&ledger_db, &service.wallet_db, &account_id, &logger);
         let account = service.get_account(&account_id).unwrap();
         assert_eq!(account.first_block_index, 0);
@@ -652,7 +652,7 @@ mod tests {
             )
             .unwrap();
 
-        let account_id = AccountID(view_only_account.account_id_hex.clone());
+        let account_id = AccountID(view_only_account.id.clone());
 
         add_block_to_ledger_db(
             &mut ledger_db,

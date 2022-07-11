@@ -77,7 +77,7 @@ impl TryFrom<&db::models::Account> for Account {
 
         Ok(Account {
             object: "account".to_string(),
-            account_id: src.account_id_hex.clone(),
+            account_id: src.id.clone(),
             key_derivation_version: src.key_derivation_version.to_string(),
             name: src.name.clone(),
             main_address: main_public_address_b58,
