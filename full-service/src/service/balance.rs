@@ -1,6 +1,8 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
 //! Service for managing balances.
+use std::collections::BTreeMap;
+
 use crate::{
     db::{
         account::{AccountID, AccountModel},
@@ -19,7 +21,7 @@ use mc_common::HashMap;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
-use mc_transaction_core::{tokens::Mob, Token};
+use mc_transaction_core::{tokens::Mob, Token, TokenId};
 
 /// Errors for the Address Service.
 #[derive(Display, Debug)]
@@ -87,7 +89,7 @@ pub struct Balance {
 pub struct NetworkStatus {
     pub network_block_height: u64,
     pub local_block_height: u64,
-    pub fee_pmob: u64,
+    pub fees: BTreeMap<TokenId, u64>,
     pub block_version: u32,
 }
 
@@ -193,7 +195,7 @@ where
         Ok(NetworkStatus {
             network_block_height: self.get_network_block_height()?,
             local_block_height: self.ledger_db.num_blocks()?,
-            fee_pmob: self.get_network_fee(),
+            fees: self.get_network_fees(),
             block_version: *self.get_network_block_version(),
         })
     }

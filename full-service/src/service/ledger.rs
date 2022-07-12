@@ -19,13 +19,13 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tokens::Mob,
     tx::{Tx, TxOut},
-    Token,
+    Token, TokenId,
 };
 
 use crate::db::WalletDbError;
 use displaydoc::Display;
 use rayon::prelude::*; // For par_iter
-use std::{convert::TryFrom, iter::empty};
+use std::{cmp, collections::BTreeMap, convert::TryFrom, iter::empty};
 
 /// Errors for the Address Service.
 #[derive(Display, Debug)]
@@ -81,7 +81,7 @@ pub trait LedgerService {
 
     fn contains_key_image(&self, key_image: &KeyImage) -> Result<bool, LedgerServiceError>;
 
-    fn get_network_fee(&self) -> u64;
+    fn get_network_fees(&self) -> BTreeMap<TokenId, u64>;
 
     fn get_network_block_version(&self) -> BlockVersion;
 }
@@ -128,28 +128,25 @@ where
         Ok(self.ledger_db.contains_key_image(key_image)?)
     }
 
-    fn get_network_fee(&self) -> u64 {
-        if self.peer_manager.is_empty() {
-            Mob::MINIMUM_FEE
-        } else {
-            // Iterate an owned list of connections in parallel, get the block info for
-            // each, and extract the fee. If no fees are returned, use the hard-coded
-            // minimum.
-            self.peer_manager
-                .conns()
-                .par_iter()
-                .filter_map(|conn| conn.fetch_block_info(empty()).ok())
-                .filter_map(|block_info| {
-                    // Cleanup the protobuf default fee
-                    if block_info.minimum_fees[&Mob::ID] == 0 {
-                        None
-                    } else {
-                        Some(block_info.minimum_fees[&Mob::ID])
-                    }
-                })
-                .max()
-                .unwrap_or(Mob::MINIMUM_FEE)
-        }
+    fn get_network_fees(&self) -> BTreeMap<TokenId, u64> {
+        let mut fees = self
+            .peer_manager
+            .conns()
+            .par_iter()
+            .filter_map(|conn| conn.fetch_block_info(empty()).ok())
+            .map(|block_info| block_info.minimum_fees)
+            .reduce(BTreeMap::new, |mut acc, fees| {
+                for (token_id, fee) in fees {
+                    acc.entry(token_id)
+                        .and_modify(|e| *e = cmp::max(*e, fee))
+                        .or_insert(fee);
+                }
+                acc
+            });
+        fees.entry(Mob::ID)
+            .and_modify(|e| *e = cmp::max(*e, Mob::MINIMUM_FEE))
+            .or_insert(Mob::MINIMUM_FEE);
+        fees
     }
 
     fn get_network_block_version(&self) -> BlockVersion {
