@@ -533,7 +533,7 @@ mod tests {
         );
 
         let txos = Txo::list_for_account(
-            &account.account_id_hex,
+            &account.id,
             None,
             None,
             None,
@@ -544,12 +544,12 @@ mod tests {
         assert_eq!(txos.len(), 1);
 
         // Delete the account. The transaction status referring to it is also cleared.
-        let account_id = AccountID(account.account_id_hex.clone().to_string());
+        let account_id = AccountID(account.id.clone().to_string());
         let result = service.remove_account(&account_id);
         assert!(result.is_ok());
 
         let txos = Txo::list_for_account(
-            &account.account_id_hex,
+            &account.id,
             None,
             None,
             None,
@@ -586,7 +586,7 @@ mod tests {
 
         // Syncing the account does nothing to the block indices since there are no new
         // blocks.
-        let account_id = AccountID(account.account_id_hex);
+        let account_id = AccountID(account.id);
         manually_sync_account(&ledger_db, &service.wallet_db, &account_id, &logger);
         let account = service.get_account(&account_id).unwrap();
         assert_eq!(account.first_block_index, 12);
@@ -618,7 +618,7 @@ mod tests {
 
         // Syncing the account does nothing to the block indices since there are no
         // blocks in the ledger.
-        let account_id = AccountID(account.account_id_hex);
+        let account_id = AccountID(account.id);
         manually_sync_account(&ledger_db, &service.wallet_db, &account_id, &logger);
         let account = service.get_account(&account_id).unwrap();
         assert_eq!(account.first_block_index, 0);
@@ -652,7 +652,7 @@ mod tests {
             )
             .unwrap();
 
-        let account_id = AccountID(view_only_account.account_id_hex.clone());
+        let account_id = AccountID(view_only_account.id.clone());
 
         add_block_to_ledger_db(
             &mut ledger_db,
@@ -668,7 +668,9 @@ mod tests {
         manually_sync_account(&ledger_db, wallet_db, &account_id, &logger);
 
         let unverified_txos = Txo::list_unverified(
-            &account_id.to_string(),
+            Some(&account_id.to_string()),
+            None,
+            None,
             None,
             None,
             &wallet_db.get_conn().unwrap(),
@@ -680,7 +682,7 @@ mod tests {
         assert_eq!(unverified_txos[0].key_image, None);
 
         let orphaned_txos = Txo::list_orphaned(
-            &account_id.to_string(),
+            Some(&account_id.to_string()),
             None,
             None,
             None,
@@ -701,8 +703,8 @@ mod tests {
         let key_image_1_hex = hex::encode(mc_util_serial::encode(&key_image_1));
         let key_image_2_hex = hex::encode(mc_util_serial::encode(&key_image_2));
 
-        let txo_id_hex_1 = unverified_txos[0].txo_id_hex.clone();
-        let txo_id_hex_2 = orphaned_txos[0].txo_id_hex.clone();
+        let txo_id_hex_1 = unverified_txos[0].id.clone();
+        let txo_id_hex_2 = orphaned_txos[0].id.clone();
 
         service
             .sync_account(
@@ -719,7 +721,9 @@ mod tests {
         assert_eq!(view_only_account.next_subaddress_index, 3);
 
         let unverified_txos = Txo::list_unverified(
-            &account_id.to_string(),
+            Some(&account_id.to_string()),
+            None,
+            None,
             None,
             None,
             &wallet_db.get_conn().unwrap(),
@@ -729,7 +733,7 @@ mod tests {
         assert_eq!(unverified_txos.len(), 0);
 
         let orphaned_txos = Txo::list_orphaned(
-            &account_id.to_string(),
+            Some(&account_id.to_string()),
             None,
             None,
             None,
@@ -740,7 +744,7 @@ mod tests {
         assert_eq!(orphaned_txos.len(), 0);
 
         let unspent_txos = Txo::list_unspent(
-            &account_id.to_string(),
+            Some(&account_id.to_string()),
             None,
             None,
             None,

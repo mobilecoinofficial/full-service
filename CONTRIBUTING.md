@@ -12,7 +12,7 @@ Please report issues to https://github.com/mobilecoinofficial/full-service/issue
 
 Please feel free to submit PRs!
 
-When you submit PRs, please use the folowing workflow:
+When you submit PRs, please use the following workflow:
 
 1. Install the settings that enable the git hooks:
 

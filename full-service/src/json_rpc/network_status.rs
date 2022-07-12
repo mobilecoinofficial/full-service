@@ -5,7 +5,7 @@
 use crate::service;
 
 use serde_derive::{Deserialize, Serialize};
-use std::convert::TryFrom;
+use std::{collections::BTreeMap, convert::TryFrom};
 
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct NetworkStatus {
@@ -20,8 +20,8 @@ pub struct NetworkStatus {
     /// is synced when the local_block_height reaches the network_block_height.
     pub local_block_height: String,
 
-    /// The current network fee per transaction, in pmob.
-    pub fee_pmob: String,
+    /// The current network fee per token_id.
+    pub fees: BTreeMap<String, String>,
 
     /// The current block version
     pub block_version: String,
@@ -35,7 +35,11 @@ impl TryFrom<&service::balance::NetworkStatus> for NetworkStatus {
             object: "network_status".to_string(),
             network_block_height: src.network_block_height.to_string(),
             local_block_height: src.local_block_height.to_string(),
-            fee_pmob: src.fee_pmob.to_string(),
+            fees: src
+                .fees
+                .iter()
+                .map(|(token_id, fee)| (token_id.to_string(), fee.to_string()))
+                .collect(),
             block_version: src.block_version.to_string(),
         })
     }

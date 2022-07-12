@@ -36,9 +36,16 @@ Table transaction_logs {
   tx blob
 }
 
-Table transaction_inputs {
+Table transaction_input_txos {
   transaction_log_id varchar [pk, not null, ref: > transaction_logs.id]
   txo_id varchar [pk, not null, ref: > txos.id]
+}
+
+Table transaction_output_txos {
+  transaction_log_id varchar [pk, not null, ref: > transaction_logs.id]
+  txo_id varchar [pk, not null, ref: > txos.id]
+  recipient_public_address_b58 varchar [not null]
+  is_change boolean [not null]
 }
 
 Table txos {

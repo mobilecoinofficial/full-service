@@ -100,7 +100,6 @@ pub enum JsonCommandRequest {
         fee: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
-        log_tx_proposal: Option<bool>,
     },
     build_unsigned_transaction {
         account_id: String,

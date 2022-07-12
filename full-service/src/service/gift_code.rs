@@ -404,7 +404,7 @@ where
         let from_account = Account::get(from_account_id, &conn)?;
 
         let tx_proposal = self.build_transaction(
-            &from_account.account_id_hex,
+            &from_account.id,
             &[(gift_code_account_main_subaddress_b58, value.to_string())],
             input_txo_ids,
             fee.map(|f| f.to_string()),
@@ -751,7 +751,7 @@ mod tests {
         let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
         let alice_public_address =
             &alice_account_key.subaddress(alice.main_subaddress_index as u64);
-        let alice_account_id = AccountID(alice.account_id_hex.to_string());
+        let alice_account_id = AccountID(alice.id.to_string());
 
         add_block_to_ledger_db(
             &mut ledger_db,
@@ -764,14 +764,14 @@ mod tests {
 
         // Verify balance for Alice
         let balance = service
-            .get_balance_for_account(&AccountID(alice.account_id_hex.clone()))
+            .get_balance_for_account(&AccountID(alice.id.clone()))
             .unwrap();
         assert_eq!(balance.unspent, 100 * MOB as u128);
 
         // Create a gift code for Bob
         let (tx_proposal, gift_code_b58) = service
             .build_gift_code(
-                &AccountID(alice.account_id_hex.clone()),
+                &AccountID(alice.id.clone()),
                 2 * MOB as u64,
                 Some("Gift code for Bob".to_string()),
                 None,
@@ -784,7 +784,7 @@ mod tests {
 
         let _gift_code = service
             .submit_gift_code(
-                &AccountID(alice.account_id_hex.clone()),
+                &AccountID(alice.id.clone()),
                 &gift_code_b58.clone(),
                 &tx_proposal.clone(),
             )
@@ -825,7 +825,7 @@ mod tests {
 
         // Verify balance for Alice = original balance - fee - gift_code_value
         let balance = service
-            .get_balance_for_account(&AccountID(alice.account_id_hex.clone()))
+            .get_balance_for_account(&AccountID(alice.id.clone()))
             .unwrap();
         assert_eq!(balance.unspent, (98 * MOB - Mob::MINIMUM_FEE) as u128);
 
@@ -854,7 +854,7 @@ mod tests {
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,
-            &AccountID(bob.account_id_hex.clone()),
+            &AccountID(bob.id.clone()),
             &logger,
         );
 
@@ -867,7 +867,7 @@ mod tests {
         assert!(result.is_err());
 
         let tx = service
-            .claim_gift_code(&gift_code_b58, &AccountID(bob.account_id_hex.clone()), None)
+            .claim_gift_code(&gift_code_b58, &AccountID(bob.id.clone()), None)
             .unwrap();
 
         // Add the consume transaction to the ledger
@@ -879,7 +879,7 @@ mod tests {
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,
-            &AccountID(bob.account_id_hex.clone()),
+            &AccountID(bob.id.clone()),
             &logger,
         );
 
@@ -891,9 +891,7 @@ mod tests {
         assert!(gift_code_value_opt.is_some());
 
         // Bob's balance should be = gift code value - fee (10000000000)
-        let bob_balance = service
-            .get_balance_for_account(&AccountID(bob.account_id_hex))
-            .unwrap();
+        let bob_balance = service.get_balance_for_account(&AccountID(bob.id)).unwrap();
         assert_eq!(bob_balance.unspent, (2 * MOB - Mob::MINIMUM_FEE) as u128)
     }
 
@@ -920,7 +918,7 @@ mod tests {
         let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
         let alice_public_address =
             &alice_account_key.subaddress(alice.main_subaddress_index as u64);
-        let alice_account_id = AccountID(alice.account_id_hex.to_string());
+        let alice_account_id = AccountID(alice.id.to_string());
 
         add_block_to_ledger_db(
             &mut ledger_db,
@@ -933,14 +931,14 @@ mod tests {
 
         // Verify balance for Alice
         let balance = service
-            .get_balance_for_account(&AccountID(alice.account_id_hex.clone()))
+            .get_balance_for_account(&AccountID(alice.id.clone()))
             .unwrap();
         assert_eq!(balance.unspent, 100 * MOB as u128);
 
         // Create a gift code for Bob
         let (tx_proposal, gift_code_b58) = service
             .build_gift_code(
-                &AccountID(alice.account_id_hex.clone()),
+                &AccountID(alice.id.clone()),
                 2 * MOB as u64,
                 Some("Gift code for Bob".to_string()),
                 None,
@@ -953,7 +951,7 @@ mod tests {
 
         let _gift_code = service
             .submit_gift_code(
-                &AccountID(alice.account_id_hex.clone()),
+                &AccountID(alice.id.clone()),
                 &gift_code_b58.clone(),
                 &tx_proposal.clone(),
             )

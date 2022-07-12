@@ -1,6 +1,5 @@
 CREATE TABLE accounts (
-  id INTEGER NOT NULL PRIMARY KEY,
-  account_id_hex VARCHAR NOT NULL UNIQUE,
+  id VARCHAR NOT NULL PRIMARY KEY,
   account_key BLOB NOT NULL,
   entropy BLOB,
   key_derivation_version INTEGER NOT NULL,
@@ -15,11 +14,9 @@ CREATE TABLE accounts (
   view_only BOOLEAN NOT NULL
 );
 
-CREATE UNIQUE INDEX idx_accounts__account_id_hex ON accounts (account_id_hex);
-
 CREATE TABLE txos (
-  id INTEGER NOT NULL PRIMARY KEY,
-  txo_id_hex VARCHAR NOT NULL UNIQUE,
+  id VARCHAR NOT NULL PRIMARY KEY,
+  account_id VARCHAR,
   value UNSIGNED BIG INT NOT NULL,
   token_id UNSIGNED BIG INT NOT NULL,
   target_key BLOB NOT NULL,
@@ -29,37 +26,28 @@ CREATE TABLE txos (
   subaddress_index UNSIGNED BIG INT,
   key_image BLOB,
   received_block_index UNSIGNED BIG INT,
-  pending_tombstone_block_index UNSIGNED BIG INT,
   spent_block_index UNSIGNED BIG INT,
-  confirmation BLOB,
-  recipient_public_address_b58 VARCHAR NOT NULL,
-  minted_account_id_hex VARCHAR,
-  received_account_id_hex VARCHAR,
-  output_transaction_log_id VARCHAR,
-  FOREIGN KEY (minted_account_id_hex) REFERENCES accounts(account_id_hex),
-  FOREIGN KEY (received_account_id_hex) REFERENCES accounts(account_id_hex),
-  FOREIGN KEY (output_transaction_log_id) REFERENCES transaction_logs(id)
+  shared_secret BLOB,
+  FOREIGN KEY (account_id) REFERENCES accounts(id)
 );
-
-CREATE UNIQUE INDEX idx_txos__txo_id_hex ON txos (txo_id_hex);
 
 CREATE TABLE assigned_subaddresses (
   id INTEGER NOT NULL PRIMARY KEY,
   assigned_subaddress_b58 VARCHAR NOT NULL UNIQUE,
-  account_id_hex VARCHAR NOT NULL,
+  account_id VARCHAR NOT NULL,
   address_book_entry UNSIGNED BIG INT, -- FIXME: WS-8 add foreign key to address book table, also address_book_entry_id
   public_address BLOB NOT NULL,
   subaddress_index UNSIGNED BIG INT NOT NULL,
   comment VARCHAR NOT NULL DEFAULT '',
   subaddress_spend_key BLOB NOT NULL,
-  FOREIGN KEY (account_id_hex) REFERENCES accounts(account_id_hex)
+  FOREIGN KEY (account_id) REFERENCES accounts(id)
 );
 
 CREATE UNIQUE INDEX idx_assigned_subaddresses__assigned_subaddress_b58 ON assigned_subaddresses (assigned_subaddress_b58);
 
 CREATE TABLE transaction_logs (
     id VARCHAR NOT NULL PRIMARY KEY,
-    account_id_hex VARCHAR NOT NULL,
+    account_id VARCHAR NOT NULL,
     fee_value UNSIGNED BIG INT NOT NULL,
     fee_token_id UNSIGNED BIG INT NOT NULL,
     submitted_block_index UNSIGNED BIG INT,
@@ -68,15 +56,25 @@ CREATE TABLE transaction_logs (
     comment TEXT NOT NULL DEFAULT '',
     tx BLOB NOT NULL,
     failed BOOLEAN NOT NULL,
-    FOREIGN KEY (account_id_hex) REFERENCES accounts(account_id_hex)
+    FOREIGN KEY (account_id) REFERENCES accounts(id)
 );
 
-CREATE TABLE transaction_inputs (
+CREATE TABLE transaction_input_txos (
+  transaction_log_id VARCHAR NOT NULL,
+  txo_id VARCHAR NOT NULL,
+  PRIMARY KEY (transaction_log_id, txo_id),
+  FOREIGN KEY (transaction_log_id) REFERENCES transaction_logs(id),
+  FOREIGN KEY (txo_id) REFERENCES txos(id)
+);
+
+CREATE TABLE transaction_output_txos (
     transaction_log_id VARCHAR NOT NULL,
-    txo_id_hex VARCHAR NOT NULL,
-    PRIMARY KEY (transaction_log_id, txo_id_hex),
+    txo_id VARCHAR NOT NULL,
+    recipient_public_address_b58 VARCHAR NOT NULL,
+    is_change BOOLEAN NOT NULL,
+    PRIMARY KEY (transaction_log_id, txo_id),
     FOREIGN KEY (transaction_log_id) REFERENCES transaction_logs(id),
-    FOREIGN KEY (txo_id_hex) REFERENCES txos(txo_id_hex)
+    FOREIGN KEY (txo_id) REFERENCES txos(id)
 );
 
 CREATE TABLE gift_codes (

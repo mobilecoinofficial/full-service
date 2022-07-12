@@ -99,7 +99,7 @@ sudo xcode-select -s /Applications/<name of xcode application>.app/Contents/Deve
     sudo ./sgx_linux_x64_sdk_2.9.101.2.bin --prefix=/opt/intel
     ```
 
-   Put this line in your .bashrc:
+   Put this line in your .bashrc or .zhrc:
     ```sh
     source /opt/intel/sgxsdk/environment
     ```
@@ -107,6 +107,11 @@ sudo xcode-select -s /Applications/<name of xcode application>.app/Contents/Deve
    This works on more recent Ubuntu distributions, even though it specifies 18.04.
 
 7. Build
+   Put this line in your .bashrc or .zhrc:
+    ```sh
+    export OPENSSL_ROOT_DIR="/usr/local/opt/openssl@3"
+    ```
+
 
     ```sh
     SGX_MODE=HW \

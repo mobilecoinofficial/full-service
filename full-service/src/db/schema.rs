@@ -1,7 +1,6 @@
 table! {
     accounts (id) {
-        id -> Integer,
-        account_id_hex -> Text,
+        id -> Text,
         account_key -> Binary,
         entropy -> Nullable<Binary>,
         key_derivation_version -> Integer,
@@ -21,7 +20,7 @@ table! {
     assigned_subaddresses (id) {
         id -> Integer,
         assigned_subaddress_b58 -> Text,
-        account_id_hex -> Text,
+        account_id -> Text,
         address_book_entry -> Nullable<BigInt>,
         public_address -> Binary,
         subaddress_index -> BigInt,
@@ -39,16 +38,16 @@ table! {
 }
 
 table! {
-    transaction_inputs (transaction_log_id, txo_id_hex) {
+    transaction_input_txos (transaction_log_id, txo_id) {
         transaction_log_id -> Text,
-        txo_id_hex -> Text,
+        txo_id -> Text,
     }
 }
 
 table! {
     transaction_logs (id) {
         id -> Text,
-        account_id_hex -> Text,
+        account_id -> Text,
         fee_value -> BigInt,
         fee_token_id -> BigInt,
         submitted_block_index -> Nullable<BigInt>,
@@ -61,9 +60,18 @@ table! {
 }
 
 table! {
+    transaction_output_txos (transaction_log_id, txo_id) {
+        transaction_log_id -> Text,
+        txo_id -> Text,
+        recipient_public_address_b58 -> Text,
+        is_change -> Bool,
+    }
+}
+
+table! {
     txos (id) {
-        id -> Integer,
-        txo_id_hex -> Text,
+        id -> Text,
+        account_id -> Nullable<Text>,
         value -> BigInt,
         token_id -> BigInt,
         target_key -> Binary,
@@ -73,24 +81,25 @@ table! {
         subaddress_index -> Nullable<BigInt>,
         key_image -> Nullable<Binary>,
         received_block_index -> Nullable<BigInt>,
-        pending_tombstone_block_index -> Nullable<BigInt>,
         spent_block_index -> Nullable<BigInt>,
-        confirmation -> Nullable<Binary>,
-        recipient_public_address_b58 -> Text,
-        minted_account_id_hex -> Nullable<Text>,
-        received_account_id_hex -> Nullable<Text>,
-        output_transaction_log_id -> Nullable<Text>,
+        shared_secret -> Nullable<Binary>,
     }
 }
 
-joinable!(transaction_inputs -> transaction_logs (transaction_log_id));
-joinable!(txos -> transaction_logs (output_transaction_log_id));
+joinable!(assigned_subaddresses -> accounts (account_id));
+joinable!(transaction_input_txos -> transaction_logs (transaction_log_id));
+joinable!(transaction_input_txos -> txos (txo_id));
+joinable!(transaction_logs -> accounts (account_id));
+joinable!(transaction_output_txos -> transaction_logs (transaction_log_id));
+joinable!(transaction_output_txos -> txos (txo_id));
+joinable!(txos -> accounts (account_id));
 
 allow_tables_to_appear_in_same_query!(
     accounts,
     assigned_subaddresses,
     gift_codes,
-    transaction_inputs,
+    transaction_input_txos,
     transaction_logs,
+    transaction_output_txos,
     txos,
 );

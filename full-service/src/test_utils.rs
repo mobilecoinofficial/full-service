@@ -263,7 +263,7 @@ pub fn add_block_from_transaction_log(
     output_txos.append(&mut associated_txos.change.clone());
     let outputs: Vec<TxOut> = output_txos
         .iter()
-        .map(|txo| mc_util_serial::decode(&txo.txo).unwrap())
+        .map(|(txo, _)| mc_util_serial::decode(&txo.txo).unwrap())
         .collect();
 
     let input_txos: Vec<Txo> = associated_txos.inputs.clone();
@@ -511,7 +511,7 @@ pub fn create_test_minted_and_change_txos(
 
     let conn = wallet_db.get_conn().unwrap();
     builder.add_recipient(recipient, value).unwrap();
-    builder.select_txos(&conn, None, false).unwrap();
+    builder.select_txos(&conn, None).unwrap();
     builder.set_tombstone(0).unwrap();
     let tx_proposal = builder.build(&conn).unwrap();
 

@@ -3,32 +3,11 @@
 //! DB Models
 
 use super::schema::{
-    accounts, assigned_subaddresses, gift_codes, transaction_inputs, transaction_logs, txos,
+    accounts, assigned_subaddresses, gift_codes, transaction_input_txos, transaction_logs,
+    transaction_output_txos, txos,
 };
 
 use serde::Serialize;
-
-// The following string constants are used in lieu of proper enum plumbing for
-// SQLite3 with Diesel at the time of authorship. Ideally, we will migrate to
-// enums at some point.
-
-/// A TXO owned by an account in this wallet that has not yet been spent.
-pub const TXO_STATUS_UNSPENT: &str = "txo_status_unspent";
-
-/// A TXO owned by an account in this wallet that is used by a pending
-/// transaction.
-pub const TXO_STATUS_PENDING: &str = "txo_status_pending";
-
-/// A TXO owned by an account in this wallet that has been spent.
-pub const TXO_STATUS_SPENT: &str = "txo_status_spent";
-
-/// A TXO created by an account in this wallet for use as an output in an
-/// outgoing transaction.
-pub const TXO_STATUS_SECRETED: &str = "txo_status_secreted";
-
-/// The TXO is owned by this wallet, but not yet spendable (i.e., receiving
-/// subaddress is unknown).
-pub const TXO_STATUS_ORPHANED: &str = "txo_status_orphaned";
 
 /// An Account entity.
 ///
@@ -36,10 +15,8 @@ pub const TXO_STATUS_ORPHANED: &str = "txo_status_orphaned";
 #[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
 #[primary_key(id)]
 pub struct Account {
-    /// Primary key
-    pub id: i32,
-    /// An additional ID, derived from the account data.
-    pub account_id_hex: String,
+    /// Primary key, derived from the account data.
+    pub id: String,
     pub account_key: Vec<u8>,
     pub entropy: Option<Vec<u8>>,
     pub key_derivation_version: i32,
@@ -70,7 +47,7 @@ pub struct Account {
 #[derive(Insertable)]
 #[table_name = "accounts"]
 pub struct NewAccount<'a> {
-    pub account_id_hex: &'a str,
+    pub id: &'a str,
     pub account_key: &'a [u8],
     pub entropy: Option<&'a [u8]>,
     pub key_derivation_version: i32,
@@ -93,10 +70,9 @@ pub struct NewAccount<'a> {
 #[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
 #[primary_key(id)]
 pub struct Txo {
-    /// Primary key
-    pub id: i32,
-    /// An additional ID derived from the contents of the ledger TxOut.
-    pub txo_id_hex: String,
+    /// Primary key derived from the contents of the ledger TxOut
+    pub id: String,
+    pub account_id: Option<String>,
     /// The value of this transaction output, in picoMob.
     pub value: i64,
     /// The token of this transaction output.
@@ -115,21 +91,16 @@ pub struct Txo {
     pub key_image: Option<Vec<u8>>,
     /// Block index containing this Txo.
     pub received_block_index: Option<i64>,
-    pub pending_tombstone_block_index: Option<i64>,
     pub spent_block_index: Option<i64>,
-    pub confirmation: Option<Vec<u8>>,
-    /// The recipient public address. Blank for unknown.
-    pub recipient_public_address_b58: String,
-    pub minted_account_id_hex: Option<String>,
-    pub received_account_id_hex: Option<String>,
-    pub output_transaction_log_id: Option<String>,
+    pub shared_secret: Option<Vec<u8>>,
 }
 
 /// A structure that can be inserted to create a new entity in the `txos` table.
 #[derive(Insertable)]
 #[table_name = "txos"]
 pub struct NewTxo<'a> {
-    pub txo_id_hex: &'a str,
+    pub id: &'a str,
+    pub account_id: Option<String>,
     pub value: i64,
     pub token_id: i64,
     pub target_key: &'a [u8],
@@ -139,25 +110,20 @@ pub struct NewTxo<'a> {
     pub subaddress_index: Option<i64>,
     pub key_image: Option<&'a [u8]>,
     pub received_block_index: Option<i64>,
-    pub pending_tombstone_block_index: Option<i64>,
     pub spent_block_index: Option<i64>,
-    pub confirmation: Option<&'a [u8]>,
-    pub recipient_public_address_b58: String,
-    pub minted_account_id_hex: Option<String>,
-    pub received_account_id_hex: Option<String>,
-    pub output_transaction_log_id: Option<String>,
+    pub shared_secret: Option<&'a [u8]>,
 }
 
 /// A subaddress given to a particular contact, for the purpose of tracking
 /// funds received from that contact.
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
-#[belongs_to(Account, foreign_key = "account_id_hex")]
+#[belongs_to(Account, foreign_key = "account_id")]
 #[primary_key(id)]
 #[table_name = "assigned_subaddresses"]
 pub struct AssignedSubaddress {
     pub id: i32,
     pub assigned_subaddress_b58: String,
-    pub account_id_hex: String,
+    pub account_id: String,
     pub address_book_entry: Option<i64>,
     pub public_address: Vec<u8>,
     pub subaddress_index: i64,
@@ -170,7 +136,7 @@ pub struct AssignedSubaddress {
 #[table_name = "assigned_subaddresses"]
 pub struct NewAssignedSubaddress<'a> {
     pub assigned_subaddress_b58: &'a str,
-    pub account_id_hex: &'a str,
+    pub account_id: &'a str,
     pub address_book_entry: Option<i64>,
     pub public_address: &'a [u8],
     pub subaddress_index: i64,
@@ -180,12 +146,12 @@ pub struct NewAssignedSubaddress<'a> {
 
 /// The status of a sent transaction OR a received transaction output.
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
-#[belongs_to(Account, foreign_key = "account_id_hex")]
+#[belongs_to(Account, foreign_key = "account_id")]
 #[primary_key(id)]
 #[table_name = "transaction_logs"]
 pub struct TransactionLog {
     pub id: String,
-    pub account_id_hex: String,
+    pub account_id: String,
     pub fee_value: i64,
     pub fee_token_id: i64,
     pub submitted_block_index: Option<i64>,
@@ -201,7 +167,7 @@ pub struct TransactionLog {
 #[table_name = "transaction_logs"]
 pub struct NewTransactionLog<'a> {
     pub id: &'a str,
-    pub account_id_hex: &'a str,
+    pub account_id: &'a str,
     pub fee_value: i64,
     pub fee_token_id: i64,
     pub submitted_block_index: Option<i64>,
@@ -214,19 +180,40 @@ pub struct NewTransactionLog<'a> {
 
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
 #[belongs_to(TransactionLog, foreign_key = "transaction_log_id")]
-#[belongs_to(Txo, foreign_key = "txo_id_hex")]
-#[table_name = "transaction_inputs"]
-#[primary_key(transaction_log_id, txo_id_hex)]
-pub struct TransactionInput {
+#[belongs_to(Txo, foreign_key = "txo_id")]
+#[table_name = "transaction_input_txos"]
+#[primary_key(transaction_log_id, txo_id)]
+pub struct TransactionInputTxo {
     pub transaction_log_id: String,
-    pub txo_id_hex: String,
+    pub txo_id: String,
 }
 
 #[derive(Insertable)]
-#[table_name = "transaction_inputs"]
-pub struct NewTransactionInput<'a> {
+#[table_name = "transaction_input_txos"]
+pub struct NewTransactionInputTxo<'a> {
     pub transaction_log_id: &'a str,
-    pub txo_id_hex: &'a str,
+    pub txo_id: &'a str,
+}
+
+#[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
+#[belongs_to(TransactionLog, foreign_key = "transaction_log_id")]
+#[belongs_to(Txo, foreign_key = "txo_id")]
+#[table_name = "transaction_output_txos"]
+#[primary_key(transaction_log_id, txo_id)]
+pub struct TransactionOutputTxo {
+    pub transaction_log_id: String,
+    pub txo_id: String,
+    pub recipient_public_address_b58: String,
+    pub is_change: bool,
+}
+
+#[derive(Insertable)]
+#[table_name = "transaction_output_txos"]
+pub struct NewTransactionOutputTxo<'a> {
+    pub transaction_log_id: &'a str,
+    pub txo_id: &'a str,
+    pub recipient_public_address_b58: &'a str,
+    pub is_change: bool,
 }
 
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]

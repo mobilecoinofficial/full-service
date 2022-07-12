@@ -28,13 +28,13 @@ pub struct TransactionLog {
     pub account_id: String,
 
     /// A list of the Txos which were inputs to this transaction.
-    pub input_txos: Vec<TxoAbbrev>,
+    pub input_txos: Vec<InputTxo>,
 
     /// A list of the Txos which were outputs from this transaction.
-    pub output_txos: Vec<TxoAbbrev>,
+    pub output_txos: Vec<OutputTxo>,
 
     /// A list of the Txos which were change in this transaction.
-    pub change_txos: Vec<TxoAbbrev>,
+    pub change_txos: Vec<OutputTxo>,
 
     pub value_map: HashMap<String, String>,
 
@@ -80,7 +80,7 @@ impl TransactionLog {
         Self {
             object: "transaction_log".to_string(),
             id: transaction_log.id.clone(),
-            account_id: transaction_log.account_id_hex.clone(),
+            account_id: transaction_log.account_id.clone(),
             submitted_block_index: transaction_log
                 .submitted_block_index
                 .map(|b| (b as u64).to_string()),
@@ -91,9 +91,17 @@ impl TransactionLog {
                 .finalized_block_index
                 .map(|b| (b as u64).to_string()),
             status: transaction_log.status().to_string(),
-            input_txos: associated_txos.inputs.iter().map(TxoAbbrev::new).collect(),
-            output_txos: associated_txos.outputs.iter().map(TxoAbbrev::new).collect(),
-            change_txos: associated_txos.change.iter().map(TxoAbbrev::new).collect(),
+            input_txos: associated_txos.inputs.iter().map(InputTxo::new).collect(),
+            output_txos: associated_txos
+                .outputs
+                .iter()
+                .map(|(txo, recipient)| OutputTxo::new(txo, recipient.to_string()))
+                .collect(),
+            change_txos: associated_txos
+                .change
+                .iter()
+                .map(|(txo, recipient)| OutputTxo::new(txo, recipient.to_string()))
+                .collect(),
             value_map: values,
             fee_value: transaction_log.fee_value.to_string(),
             fee_token_id: transaction_log.fee_token_id.to_string(),
@@ -104,12 +112,8 @@ impl TransactionLog {
 }
 
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
-pub struct TxoAbbrev {
+pub struct InputTxo {
     pub txo_id_hex: String,
-
-    /// Unique identifier for the recipient associated account. Blank unless
-    /// direction is "sent".
-    pub recipient_address_id: String,
 
     /// Value of this txo.
     pub value: String,
@@ -118,13 +122,36 @@ pub struct TxoAbbrev {
     pub token_id: String,
 }
 
-impl TxoAbbrev {
+impl InputTxo {
     pub fn new(txo: &db::models::Txo) -> Self {
         Self {
-            txo_id_hex: txo.txo_id_hex.clone(),
-            recipient_address_id: txo.recipient_public_address_b58.clone(),
+            txo_id_hex: txo.id.clone(),
             value: (txo.value as u64).to_string(),
             token_id: (txo.token_id as u64).to_string(),
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize, Default, Debug, Clone)]
+pub struct OutputTxo {
+    pub txo_id_hex: String,
+
+    /// Value of this txo.
+    pub value: String,
+
+    /// Token ID of this txo
+    pub token_id: String,
+
+    pub recipient_public_address_b58: String,
+}
+
+impl OutputTxo {
+    pub fn new(txo: &db::models::Txo, recipient_public_address_b58: String) -> Self {
+        Self {
+            txo_id_hex: txo.id.clone(),
+            value: (txo.value as u64).to_string(),
+            token_id: (txo.token_id as u64).to_string(),
+            recipient_public_address_b58,
         }
     }
 }
