@@ -340,7 +340,7 @@ impl TxoModel for Txo {
                     received_block_index: Some(received_block_index as i64),
                     spent_block_index: None,
                     shared_secret: None,
-                    account_id_hex: Some(account_id_hex.to_string()),
+                    account_id: Some(account_id_hex.to_string()),
                 };
 
                 diesel::insert_into(crate::db::schema::txos::table)
@@ -411,7 +411,7 @@ impl TxoModel for Txo {
         let new_txo = NewTxo {
             id: &txo_id.to_string(),
             value: value as i64,
-            account_id_hex: None,
+            account_id: None,
             token_id: 0,
             target_key: &mc_util_serial::encode(&output.target_key),
             public_key: &mc_util_serial::encode(&output.public_key),
@@ -456,7 +456,7 @@ impl TxoModel for Txo {
 
         diesel::update(self)
             .set((
-                txos::account_id_hex.eq(Some(received_account_id_hex)),
+                txos::account_id.eq(Some(received_account_id_hex)),
                 txos::received_block_index.eq(Some(block_index as i64)),
                 txos::subaddress_index.eq(received_subaddress_index.map(|i| i as i64)),
                 txos::key_image.eq(encoded_key_image),
@@ -558,7 +558,7 @@ impl TxoModel for Txo {
 
         let mut query = txos::table.into_boxed();
 
-        query = query.filter(txos::account_id_hex.eq(account_id_hex));
+        query = query.filter(txos::account_id.eq(account_id_hex));
 
         if let (Some(o), Some(l)) = (offset, limit) {
             query = query.offset(o as i64).limit(l as i64);
@@ -635,7 +635,7 @@ impl TxoModel for Txo {
 
         query = query
             .filter(txos::subaddress_index.eq(subaddress.subaddress_index))
-            .filter(txos::account_id_hex.eq(subaddress.account_id_hex));
+            .filter(txos::account_id.eq(subaddress.account_id));
 
         if let Some(token_id) = token_id {
             query = query.filter(txos::token_id.eq(token_id as i64));
@@ -678,7 +678,7 @@ impl TxoModel for Txo {
             );
 
         if let Some(account_id_hex) = account_id_hex {
-            query = query.filter(txos::account_id_hex.eq(account_id_hex));
+            query = query.filter(txos::account_id.eq(account_id_hex));
         }
 
         query = query.filter(
@@ -729,7 +729,7 @@ impl TxoModel for Txo {
             );
 
         if let Some(account_id_hex) = account_id_hex {
-            query = query.filter(txos::account_id_hex.eq(account_id_hex));
+            query = query.filter(txos::account_id.eq(account_id_hex));
         }
 
         query = query.filter(
@@ -773,7 +773,7 @@ impl TxoModel for Txo {
 
         query = query
             .filter(txos::key_image.is_not_null())
-            .filter(txos::account_id_hex.eq(account_id_hex))
+            .filter(txos::account_id.eq(account_id_hex))
             .filter(txos::subaddress_index.is_not_null())
             .filter(txos::spent_block_index.is_null());
 
@@ -809,7 +809,7 @@ impl TxoModel for Txo {
         let mut query = txos::table.into_boxed();
 
         if let Some(account_id_hex) = account_id_hex {
-            query = query.filter(txos::account_id_hex.eq(account_id_hex));
+            query = query.filter(txos::account_id.eq(account_id_hex));
         }
 
         query = query.filter(txos::spent_block_index.is_not_null());
@@ -842,7 +842,7 @@ impl TxoModel for Txo {
         let mut query = txos::table.into_boxed();
 
         if let Some(account_id_hex) = account_id_hex {
-            query = query.filter(txos::account_id_hex.eq(account_id_hex));
+            query = query.filter(txos::account_id.eq(account_id_hex));
         }
 
         query = query
@@ -889,7 +889,7 @@ impl TxoModel for Txo {
             .filter(txos::spent_block_index.is_null());
 
         if let Some(account_id_hex) = account_id_hex {
-            query = query.filter(txos::account_id_hex.eq(account_id_hex));
+            query = query.filter(txos::account_id.eq(account_id_hex));
         }
 
         if let Some(subaddress_b58) = assigned_subaddress_b58 {
@@ -971,7 +971,7 @@ impl TxoModel for Txo {
             );
 
         if let Some(account_id_hex) = account_id_hex {
-            query = query.filter(txos::account_id_hex.eq(account_id_hex));
+            query = query.filter(txos::account_id.eq(account_id_hex));
         }
 
         query = query
@@ -1124,10 +1124,10 @@ impl TxoModel for Txo {
     fn scrub_account(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError> {
         use crate::db::schema::txos;
 
-        let txos_received_by_account = txos::table.filter(txos::account_id_hex.eq(account_id_hex));
+        let txos_received_by_account = txos::table.filter(txos::account_id.eq(account_id_hex));
 
         diesel::update(txos_received_by_account)
-            .set(txos::account_id_hex.eq::<Option<String>>(None))
+            .set(txos::account_id.eq::<Option<String>>(None))
             .execute(conn)?;
 
         Ok(())
@@ -1150,7 +1150,7 @@ impl TxoModel for Txo {
             .filter(not(exists(
                 transaction_output_txos::table.filter(transaction_output_txos::txo_id.eq(txos::id)),
             )))
-            .filter(txos::account_id_hex.is_null());
+            .filter(txos::account_id.is_null());
 
         diesel::delete(unreferenced_txos).execute(conn)?;
 
@@ -1304,7 +1304,7 @@ mod tests {
             received_block_index: Some(12),
             spent_block_index: None,
             shared_secret: None,
-            account_id_hex: Some(alice_account_id.to_string()),
+            account_id: Some(alice_account_id.to_string()),
         };
 
         assert_eq!(expected_txo, txos[0]);
@@ -1428,8 +1428,7 @@ mod tests {
         assert_eq!(orphaned.len(), 1);
         assert!(orphaned[0].key_image.is_none());
         assert_eq!(orphaned[0].received_block_index.clone().unwrap(), 13);
-        // assert!(orphaned[0].minted_account_id_hex.is_some());
-        assert!(orphaned[0].account_id_hex.is_some());
+        assert!(orphaned[0].account_id.is_some());
 
         // Check that we have one unspent (change) - went from [Minted, Secreted] ->
         // [Minted, Unspent]
@@ -1867,10 +1866,10 @@ mod tests {
         let (change_txo, _) = associated_txos.change.first().unwrap();
 
         assert_eq!(minted_txo.value as u64, 1 * MOB);
-        assert!(minted_txo.account_id_hex.is_none());
+        assert!(minted_txo.account_id.is_none());
 
         assert_eq!(change_txo.value as u64, 4999 * MOB - Mob::MINIMUM_FEE);
-        assert!(change_txo.account_id_hex.is_none());
+        assert!(change_txo.account_id.is_none());
     }
 
     // Test that the confirmation number validates correctly.

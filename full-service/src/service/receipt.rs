@@ -185,7 +185,7 @@ where
     ) -> Result<(ReceiptTransactionStatus, Option<(Txo, TxoStatus)>), ReceiptServiceError> {
         let conn = &self.wallet_db.get_conn()?;
         let assigned_address = AssignedSubaddress::get(address, conn)?;
-        let account_id = AccountID(assigned_address.account_id_hex);
+        let account_id = AccountID(assigned_address.account_id);
         let account = Account::get(&account_id, conn)?;
         // Get the transaction from the database, with status.
         let txos = Txo::select_by_public_key(&[&receiver_receipt.public_key], conn)?;
@@ -365,7 +365,7 @@ mod tests {
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,
-            &AccountID(alice.account_id_hex.to_string()),
+            &AccountID(alice.id.to_string()),
             &logger,
         );
 
@@ -378,14 +378,14 @@ mod tests {
             )
             .unwrap();
         let bob_addresses = service
-            .get_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
+            .get_addresses_for_account(&AccountID(bob.id.clone()), None, None)
             .expect("Could not get addresses for Bob");
         let bob_address = bob_addresses[0].assigned_subaddress_b58.clone();
 
         // Create a TxProposal to Bob
         let tx_proposal = service
             .build_transaction(
-                &alice.account_id_hex,
+                &alice.id,
                 &vec![(bob_address.to_string(), (24 * MOB).to_string())],
                 None,
                 None,
@@ -408,7 +408,7 @@ mod tests {
             tx_proposal.clone(),
             14,
             "".to_string(),
-            &alice.account_id_hex,
+            &alice.id,
             &service.wallet_db.get_conn().unwrap(),
         )
         .expect("Could not log submitted");
@@ -418,26 +418,26 @@ mod tests {
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,
-            &AccountID(alice.account_id_hex.to_string()),
+            &AccountID(alice.id.to_string()),
             &logger,
         );
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,
-            &AccountID(bob.account_id_hex.to_string()),
+            &AccountID(bob.id.to_string()),
             &logger,
         );
 
         // Get corresponding Txo for Bob
         let txos_and_statuses = service
-            .list_txos(&AccountID(bob.account_id_hex), None, None, None)
+            .list_txos(&AccountID(bob.id), None, None, None)
             .expect("Could not get Bob Txos");
         assert_eq!(txos_and_statuses.len(), 1);
 
         // Get the corresponding TransactionLog for Alice's Account - only the sender
         // has the confirmation number.
         let transaction_logs = service
-            .list_transaction_logs(&AccountID(alice.account_id_hex), None, None, None, None)
+            .list_transaction_logs(&AccountID(alice.id), None, None, None, None)
             .expect("Could not get transaction logs");
         // Alice should have one sent tranasction log
         assert_eq!(transaction_logs.len(), 1);
@@ -490,7 +490,7 @@ mod tests {
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,
-            &AccountID(alice.account_id_hex.to_string()),
+            &AccountID(alice.id.to_string()),
             &logger,
         );
 
@@ -503,14 +503,14 @@ mod tests {
             )
             .unwrap();
         let bob_addresses = service
-            .get_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
+            .get_addresses_for_account(&AccountID(bob.id.clone()), None, None)
             .expect("Could not get addresses for Bob");
         let bob_address = &bob_addresses[0].assigned_subaddress_b58.clone();
 
         // Create a TxProposal to Bob
         let tx_proposal = service
             .build_transaction(
-                &alice.account_id_hex,
+                &alice.id,
                 &vec![(bob_address.to_string(), (24 * MOB).to_string())],
                 None,
                 None,
@@ -538,7 +538,7 @@ mod tests {
             tx_proposal.clone(),
             14,
             "".to_string(),
-            &alice.account_id_hex,
+            &alice.id,
             &service.wallet_db.get_conn().unwrap(),
         )
         .expect("Could not log submitted");
@@ -555,13 +555,13 @@ mod tests {
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,
-            &AccountID(alice.account_id_hex.to_string()),
+            &AccountID(alice.id.to_string()),
             &logger,
         );
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,
-            &AccountID(bob.account_id_hex.to_string()),
+            &AccountID(bob.id.to_string()),
             &logger,
         );
 
@@ -611,7 +611,7 @@ mod tests {
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,
-            &AccountID(alice.account_id_hex.to_string()),
+            &AccountID(alice.id.to_string()),
             &logger,
         );
 
@@ -624,15 +624,15 @@ mod tests {
             )
             .unwrap();
         let bob_addresses = service
-            .get_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
+            .get_addresses_for_account(&AccountID(bob.id.clone()), None, None)
             .expect("Could not get addresses for Bob");
         let bob_address = &bob_addresses[0].assigned_subaddress_b58.clone();
-        let bob_account_id = AccountID(bob.account_id_hex.to_string());
+        let bob_account_id = AccountID(bob.id.to_string());
 
         // Create a TxProposal to Bob
         let tx_proposal0 = service
             .build_transaction(
-                &alice.account_id_hex,
+                &alice.id,
                 &vec![(bob_address.to_string(), (24 * MOB).to_string())],
                 None,
                 None,
@@ -652,7 +652,7 @@ mod tests {
             tx_proposal0.clone(),
             14,
             "".to_string(),
-            &alice.account_id_hex,
+            &alice.id,
             &service.wallet_db.get_conn().unwrap(),
         )
         .expect("Could not log submitted");
@@ -660,7 +660,7 @@ mod tests {
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,
-            &AccountID(alice.account_id_hex.to_string()),
+            &AccountID(alice.id.to_string()),
             &logger,
         );
         manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, &logger);
@@ -740,7 +740,7 @@ mod tests {
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,
-            &AccountID(alice.account_id_hex.to_string()),
+            &AccountID(alice.id.to_string()),
             &logger,
         );
 
@@ -753,15 +753,15 @@ mod tests {
             )
             .unwrap();
         let bob_addresses = service
-            .get_addresses_for_account(&AccountID(bob.account_id_hex.clone()), None, None)
+            .get_addresses_for_account(&AccountID(bob.id.clone()), None, None)
             .expect("Could not get addresses for Bob");
         let bob_address = &bob_addresses[0].assigned_subaddress_b58.clone();
-        let bob_account_id = AccountID(bob.account_id_hex.to_string());
+        let bob_account_id = AccountID(bob.id.to_string());
 
         // Create a TxProposal to Bob
         let tx_proposal0 = service
             .build_transaction(
-                &alice.account_id_hex,
+                &alice.id,
                 &vec![(bob_address.to_string(), (24 * MOB).to_string())],
                 None,
                 None,
@@ -781,7 +781,7 @@ mod tests {
             tx_proposal0.clone(),
             14,
             "".to_string(),
-            &alice.account_id_hex,
+            &alice.id,
             &service.wallet_db.get_conn().unwrap(),
         )
         .expect("Could not log submitted");
@@ -789,7 +789,7 @@ mod tests {
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,
-            &AccountID(alice.account_id_hex.to_string()),
+            &AccountID(alice.id.to_string()),
             &logger,
         );
         manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, &logger);

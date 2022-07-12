@@ -1,6 +1,8 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
 //! Service for managing balances.
+use std::collections::BTreeMap;
+
 use crate::{
     db::{
         account::{AccountID, AccountModel},
@@ -19,7 +21,7 @@ use mc_common::HashMap;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
-use mc_transaction_core::{tokens::Mob, Token};
+use mc_transaction_core::{tokens::Mob, Token, TokenId};
 
 /// Errors for the Address Service.
 #[derive(Display, Debug)]
@@ -87,7 +89,7 @@ pub struct Balance {
 pub struct NetworkStatus {
     pub network_block_height: u64,
     pub local_block_height: u64,
-    pub fee_pmob: u64,
+    pub fees: BTreeMap<TokenId, u64>,
     pub block_version: u32,
 }
 
@@ -173,7 +175,7 @@ where
         let (unspent, max_spendable, pending, spent, secreted, orphaned, unverified) =
             Self::get_balance_inner(None, Some(address), &conn)?;
 
-        let account = Account::get(&AccountID(assigned_address.account_id_hex), &conn)?;
+        let account = Account::get(&AccountID(assigned_address.account_id), &conn)?;
 
         Ok(Balance {
             unspent,
@@ -193,7 +195,7 @@ where
         Ok(NetworkStatus {
             network_block_height: self.get_network_block_height()?,
             local_block_height: self.ledger_db.num_blocks()?,
-            fee_pmob: self.get_network_fee(),
+            fees: self.get_network_fees(),
             block_version: *self.get_network_block_version(),
         })
     }
@@ -217,7 +219,7 @@ where
         let mut account_ids = Vec::new();
 
         for account in accounts {
-            let account_id = AccountID(account.account_id_hex.clone());
+            let account_id = AccountID(account.id.clone());
             let balance = Self::get_balance_inner(Some(&account_id.to_string()), None, &conn)?;
             account_map.insert(account_id.clone(), account.clone());
             unspent += balance.0;
@@ -388,19 +390,19 @@ mod tests {
             .expect("Could not import account entropy");
 
         let address = service
-            .assign_address_for_account(&AccountID(account.account_id_hex.clone()), None)
+            .assign_address_for_account(&AccountID(account.id.clone()), None)
             .expect("Could not assign address");
         assert_eq!(address.subaddress_index, 2);
 
         let _account = manually_sync_account(
             &ledger_db,
             &service.wallet_db,
-            &AccountID(account.account_id_hex.to_string()),
+            &AccountID(account.id.to_string()),
             &logger,
         );
 
         let account_balance = service
-            .get_balance_for_account(&AccountID(account.account_id_hex))
+            .get_balance_for_account(&AccountID(account.id))
             .expect("Could not get balance for account");
 
         // 3 accounts * 5_000 MOB * 12 blocks

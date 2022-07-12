@@ -1,6 +1,5 @@
 CREATE TABLE accounts (
-  id INTEGER NOT NULL PRIMARY KEY,
-  account_id_hex VARCHAR NOT NULL UNIQUE,
+  id VARCHAR NOT NULL PRIMARY KEY,
   account_key BLOB NOT NULL,
   entropy BLOB,
   key_derivation_version INTEGER NOT NULL,
@@ -15,11 +14,9 @@ CREATE TABLE accounts (
   view_only BOOLEAN NOT NULL
 );
 
-CREATE UNIQUE INDEX idx_accounts__account_id_hex ON accounts (account_id_hex);
-
 CREATE TABLE txos (
   id VARCHAR NOT NULL PRIMARY KEY,
-  account_id_hex VARCHAR,
+  account_id VARCHAR,
   value UNSIGNED BIG INT NOT NULL,
   token_id UNSIGNED BIG INT NOT NULL,
   target_key BLOB NOT NULL,
@@ -31,26 +28,26 @@ CREATE TABLE txos (
   received_block_index UNSIGNED BIG INT,
   spent_block_index UNSIGNED BIG INT,
   shared_secret BLOB,
-  FOREIGN KEY (account_id_hex) REFERENCES accounts(account_id_hex)
+  FOREIGN KEY (account_id) REFERENCES accounts(id)
 );
 
 CREATE TABLE assigned_subaddresses (
   id INTEGER NOT NULL PRIMARY KEY,
   assigned_subaddress_b58 VARCHAR NOT NULL UNIQUE,
-  account_id_hex VARCHAR NOT NULL,
+  account_id VARCHAR NOT NULL,
   address_book_entry UNSIGNED BIG INT, -- FIXME: WS-8 add foreign key to address book table, also address_book_entry_id
   public_address BLOB NOT NULL,
   subaddress_index UNSIGNED BIG INT NOT NULL,
   comment VARCHAR NOT NULL DEFAULT '',
   subaddress_spend_key BLOB NOT NULL,
-  FOREIGN KEY (account_id_hex) REFERENCES accounts(account_id_hex)
+  FOREIGN KEY (account_id) REFERENCES accounts(id)
 );
 
 CREATE UNIQUE INDEX idx_assigned_subaddresses__assigned_subaddress_b58 ON assigned_subaddresses (assigned_subaddress_b58);
 
 CREATE TABLE transaction_logs (
     id VARCHAR NOT NULL PRIMARY KEY,
-    account_id_hex VARCHAR NOT NULL,
+    account_id VARCHAR NOT NULL,
     fee_value UNSIGNED BIG INT NOT NULL,
     fee_token_id UNSIGNED BIG INT NOT NULL,
     submitted_block_index UNSIGNED BIG INT,
@@ -59,7 +56,7 @@ CREATE TABLE transaction_logs (
     comment TEXT NOT NULL DEFAULT '',
     tx BLOB NOT NULL,
     failed BOOLEAN NOT NULL,
-    FOREIGN KEY (account_id_hex) REFERENCES accounts(account_id_hex)
+    FOREIGN KEY (account_id) REFERENCES accounts(id)
 );
 
 CREATE TABLE transaction_input_txos (

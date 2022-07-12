@@ -283,7 +283,7 @@ impl AccountModel for Account {
         };
 
         let new_account = NewAccount {
-            account_id_hex: &account_id.to_string(),
+            id: &account_id.to_string(),
             account_key: &mc_util_serial::encode(account_key),
             entropy: Some(entropy),
             key_derivation_version: key_derivation_version as i32,
@@ -407,7 +407,7 @@ impl AccountModel for Account {
             next_subaddress_index.unwrap_or(DEFAULT_NEXT_SUBADDRESS_INDEX) as i64;
 
         let new_account = NewAccount {
-            account_id_hex: &account_id.to_string(),
+            id: &account_id.to_string(),
             account_key: &mc_util_serial::encode(&view_account_key),
             entropy: None,
             key_derivation_version: MNEMONIC_KEY_DERIVATION_VERSION as i32,
@@ -472,10 +472,10 @@ impl AccountModel for Account {
     }
 
     fn get(account_id: &AccountID, conn: &Conn) -> Result<Account, WalletDbError> {
-        use crate::db::schema::accounts::dsl::{account_id_hex as dsl_account_id_hex, accounts};
+        use crate::db::schema::accounts;
 
-        match accounts
-            .filter(dsl_account_id_hex.eq(account_id.to_string()))
+        match accounts::table
+            .filter(accounts::id.eq(account_id.to_string()))
             .get_result::<Account>(conn)
         {
             Ok(a) => Ok(a),
@@ -492,8 +492,8 @@ impl AccountModel for Account {
 
         let mut accounts: Vec<Account> = Vec::<Account>::new();
 
-        if let Some(account_id_hex) = txo.account_id_hex {
-            let account = Account::get(&AccountID(account_id_hex), conn)?;
+        if let Some(account_id) = txo.account_id {
+            let account = Account::get(&AccountID(account_id), conn)?;
             accounts.push(account);
         }
 
@@ -501,10 +501,10 @@ impl AccountModel for Account {
     }
 
     fn update_name(&self, new_name: String, conn: &Conn) -> Result<(), WalletDbError> {
-        use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
+        use crate::db::schema::accounts;
 
-        diesel::update(accounts.filter(account_id_hex.eq(&self.account_id_hex)))
-            .set(crate::db::schema::accounts::name.eq(new_name))
+        diesel::update(accounts::table.filter(accounts::id.eq(&self.id)))
+            .set(accounts::name.eq(new_name))
             .execute(conn)?;
         Ok(())
     }
@@ -514,26 +514,26 @@ impl AccountModel for Account {
         next_block_index: u64,
         conn: &Conn,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
-        diesel::update(accounts.filter(account_id_hex.eq(&self.account_id_hex)))
-            .set(crate::db::schema::accounts::next_block_index.eq(next_block_index as i64))
+        use crate::db::schema::accounts;
+        diesel::update(accounts::table.filter(accounts::id.eq(&self.id)))
+            .set(accounts::next_block_index.eq(next_block_index as i64))
             .execute(conn)?;
         Ok(())
     }
 
     fn delete(self, conn: &Conn) -> Result<(), WalletDbError> {
-        use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
+        use crate::db::schema::accounts;
 
         // Delete transaction logs associated with this account
-        TransactionLog::delete_all_for_account(&self.account_id_hex, conn)?;
+        TransactionLog::delete_all_for_account(&self.id, conn)?;
 
         // Delete associated assigned subaddresses
-        AssignedSubaddress::delete_all(&self.account_id_hex, conn)?;
+        AssignedSubaddress::delete_all(&self.id, conn)?;
 
         // Delete references to the account in the Txos table.
-        Txo::scrub_account(&self.account_id_hex, conn)?;
+        Txo::scrub_account(&self.id, conn)?;
 
-        diesel::delete(accounts.filter(account_id_hex.eq(&self.account_id_hex))).execute(conn)?;
+        diesel::delete(accounts::table.filter(accounts::id.eq(&self.id))).execute(conn)?;
 
         // Delete Txos with no references.
         Txo::delete_unreferenced(conn)?;
@@ -542,19 +542,11 @@ impl AccountModel for Account {
     }
 
     fn change_subaddress(self, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError> {
-        AssignedSubaddress::get_for_account_by_index(
-            &self.account_id_hex,
-            self.change_subaddress_index,
-            conn,
-        )
+        AssignedSubaddress::get_for_account_by_index(&self.id, self.change_subaddress_index, conn)
     }
 
     fn main_subaddress(self, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError> {
-        AssignedSubaddress::get_for_account_by_index(
-            &self.account_id_hex,
-            self.main_subaddress_index,
-            conn,
-        )
+        AssignedSubaddress::get_for_account_by_index(&self.id, self.main_subaddress_index, conn)
     }
 }
 
@@ -602,8 +594,7 @@ mod tests {
 
         let acc = Account::get(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
         let expected_account = Account {
-            id: 1,
-            account_id_hex: account_id_hex.to_string(),
+            id: account_id_hex.to_string(),
             account_key: mc_util_serial::encode(&account_key),
             entropy: Some(root_id.root_entropy.bytes.to_vec()),
             key_derivation_version: 1,
@@ -668,8 +659,7 @@ mod tests {
         let acc_secondary =
             Account::get(&account_id_hex_secondary, &wallet_db.get_conn().unwrap()).unwrap();
         let mut expected_account_secondary = Account {
-            id: 2,
-            account_id_hex: account_id_hex_secondary.to_string(),
+            id: account_id_hex_secondary.to_string(),
             account_key: mc_util_serial::encode(&account_key_secondary),
             entropy: Some(root_id_secondary.root_entropy.bytes.to_vec()),
             key_derivation_version: 1,
@@ -783,8 +773,7 @@ mod tests {
 
         let acc = Account::get(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
         let expected_account = Account {
-            id: 1,
-            account_id_hex: account_id_hex.to_string(),
+            id: account_id_hex.to_string(),
             account_key: [
                 10, 34, 10, 32, 129, 223, 141, 215, 200, 104, 120, 117, 123, 154, 151, 210, 253,
                 23, 148, 151, 2, 18, 182, 100, 83, 138, 144, 99, 225, 74, 214, 14, 175, 68, 167, 4,
@@ -842,8 +831,7 @@ mod tests {
         }
 
         let expected_account = Account {
-            id: 1,
-            account_id_hex: account.account_id_hex.to_string(),
+            id: account.id.to_string(),
             account_key: [
                 10, 34, 10, 32, 66, 186, 14, 57, 108, 119, 153, 172, 224, 25, 53, 237, 22, 219,
                 222, 137, 26, 227, 37, 43, 122, 52, 71, 153, 60, 246, 90, 102, 123, 176, 139, 11,

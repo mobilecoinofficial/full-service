@@ -124,7 +124,7 @@ pub fn sync_all_accounts(
         if account.next_block_index as u64 > num_blocks - 1 {
             continue;
         }
-        sync_account(ledger_db, wallet_db, &account.account_id_hex, logger)?;
+        sync_account(ledger_db, wallet_db, &account.id, logger)?;
     }
 
     Ok(())

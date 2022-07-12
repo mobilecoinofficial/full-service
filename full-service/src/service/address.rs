@@ -179,7 +179,7 @@ mod tests {
             .unwrap();
         assert_eq!(account.next_subaddress_index, 2);
 
-        let account_id = AccountID(account.account_id_hex);
+        let account_id = AccountID(account.id);
 
         service
             .assign_address_for_account(&account_id, None)
@@ -210,7 +210,7 @@ mod tests {
             .unwrap();
         assert_eq!(account.next_subaddress_index, 2);
 
-        let account_id = AccountID(account.account_id_hex);
+        let account_id = AccountID(account.id);
 
         service
             .assign_address_for_account(&account_id, None)
