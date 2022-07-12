@@ -497,12 +497,6 @@ class FullService:
         print('starting full service')
         print(cmd)
         self.full_service_process = subprocess.Popen(cmd, shell=True)
-
-    def is_running(self):
-        if self.full_service_process and self.full_service_process.poll() is not None:
-            return True
-        else:
-            return False
         
     def stop(self):
         try:
@@ -540,34 +534,35 @@ class FullService:
         except ValueError:
             raise ValueError('API returned invalid JSON:', raw_response)
         print(f'request returned {response_data}')
-        return response_data['result']
+
+        if 'error' in response_data:
+            return response_data['error']
+        else:
+            return response_data['result']
     
-    # def import_account(self, mnemonic):
-    #     print(f'importing full service account {mnemonic}')
-    #     params = {
-    #         'mnemonic': mnemonic,
-    #         'key_derivation_version': '2',
-    #     }
-    #     r = self._request({
-    #         "method": "import_account",
-    #         "params": params
-    #     })
-        
-    #     # idempotent add account to self.accounts
-    #     def account_filter(account):
-    #         return True if account in self.accounts else False
-    #     if self.accounts is None:
-    #         self.accounts = [r['account']]
-    #     elif len(list(filter(account_filter, self.accounts))) == 0:
-    #         self.accounts.append(r['account'])
+    def import_account(self, mnemonic) -> bool:
+        print(f'importing full service account {mnemonic}')
+        params = {
+            'mnemonic': mnemonic,
+            'key_derivation_version': '2',
+        }
+        r = self._request({
+            "method": "import_account",
+            "params": params
+        })
 
-    #     return r['account']
+        if 'error' in r:
+            if 'Diesel Error: UNIQUE constraint failed' in r['error']['data']['details']:
+                return True
+            else:
+                return False
+        return True
 
-    def get_accounts(self) -> Tuple[str, str]:
+    # retrieve accounts from mobilecoin/target/sample_data/keys
+    def get_test_accounts(self) -> Tuple[str, str]:
         print(f'retrieving accounts for account_keys_0 and account_keys_1')
         keyfile_0 = open(os.path.join(KEY_DIR, 'account_keys_0.json'))
         keyfile_1 = open(os.path.join(KEY_DIR, 'account_keys_1.json'))
-        # keyfile_1 = open(os.path.join, f'{KEY_DIR}/account_keys_1.json')
         keydata_0 = json.load(keyfile_0)
         keydata_1 = json.load(keyfile_1)
 
@@ -576,7 +571,8 @@ class FullService:
 
         return (keydata_0['mnemonic'], keydata_1['mnemonic'])
 
-    def sync_status(self) -> bool:
+    # check if full service is synced within margin
+    def sync_status(self, eps = 5) -> bool:
         # ping network
         try:
             r = self._request({
@@ -591,18 +587,38 @@ class FullService:
             return False
 
         # network online
-        epsilon = 5
         network_block_height = int(r['network_status']['network_block_height'])
         local_block_height = int(r['network_status']['local_block_height'])
         # network is acceptably synced
-        return (network_block_height - local_block_height < epsilon)
+        return (network_block_height - local_block_height < eps)
 
+    # retrieve wallet status
     def get_wallet_status(self):
         r = self._request({
             "method": "get_wallet_status"
         })
         return r['wallet_status']
 
+    # ensure at least two accounts are in the wallet. Some accounts are imported by default, but the number changes.
+    def setup_accounts(self):
+        account_ids, account_map = self.get_all_accounts()
+        if len(account_ids) >= 2:
+            self.account_ids = account_ids
+            self.account_map = account_map
+        else:
+            mnemonic_0, mnemonic_1 = self.get_test_accounts()
+            self.import_account(mnemonic_0)
+            self.import_account(mnemonic_1)
+
+        account_ids, account_map = self.get_all_accounts()
+
+    # retrieve all accounts full service is aware of
+    def get_all_accounts(self)-> Tuple[list, dict]:
+        r = self._request({"method": "get_all_accounts"})
+        print(r)
+        return (r['account_ids'], r['account_map'])
+
+    # retrieve information about account
     def get_account_status(self, account_id: str):
         params = {
             "account_id": account_id
@@ -611,13 +627,9 @@ class FullService:
             "method": "get_account_status",
             "params": params
         })
-        return r
+        return r        
 
-    def set_accounts(self, account_ids, account_map):
-        self.account_ids = account_ids
-        self.account_map = account_map
-        
-
+    # build and submit a transaction from `account_id` to `to_address` for `amount` of pmob
     def send_transaction(self, account_id, to_address, amount):
         params = {
             "account_id": account_id,
@@ -627,26 +639,36 @@ class FullService:
             "method": "build_and_submit_transaction",
             "params": params,
         })
+        print(r)
         return r['transaction_log']
 
+    # run sample test transactions between the first two accounts in full service
     def test_transactions(self):
         print(('==================================================='))
         print('testing transaction sends')
-        if self.account_ids is None or len(self.account_ids) < 2:
+        if self.account_ids is None:
             print(f'accounts not found in wallet')
+            exit(1)
+        elif len(self.account_ids) < 2:
+            print(f'found {len(self.account_ids)} account(s), minimum required is 2')
             exit(1)
         account_0 = self.account_map[self.account_ids[0]]
         account_1 = self.account_map[self.account_ids[1]]
         p_mob_amount = str(600_000_000)
 
+
+        # flakey tests due to accounts having a variable amount of pmob. This needs to be controlled for use.
         log_0 = self.send_transaction(account_0['account_id'], account_1['main_address'], p_mob_amount)
         log_1 = self.send_transaction(account_1['account_id'], account_0['main_address'], p_mob_amount)
-
+        
+        print(('==================================================='))
         print('transactions completed')
-        print(f'transaction 0 log: {log_0}, transaction 1 log: {log_1}')
+        print(f'transaction 0 log: {log_0}')
+        print(f'transaction 1 log: {log_1}')
 
 
 if __name__ == '__main__':
+    # pull args from command line
     parser = argparse.ArgumentParser(description='Local network tester')
     parser.add_argument('--network-type', help='Type of network to create', required=True)
     parser.add_argument('--block-version', help='Set the block version argument', type=int)
@@ -677,34 +699,31 @@ if __name__ == '__main__':
     print('full service synced, importing accounts')
 
     # import accounts
-    mnemonic_0, mnemonic_1 = full_service.get_accounts()
-    # account_0 = full_service.import_account(mnemonic_0)
-    # account_1 = full_service.import_account(mnemonic_1)
-    wallet_status = full_service.get_wallet_status()
+    full_service.setup_accounts()
+    wallet_status = full_service.get_wallet_status()    
 
-    full_service.set_accounts(wallet_status['account_ids'], wallet_status['account_map'])
-    
-
-    # failing, saying improperly formed request
+    # verify accounts have been imported, view initial account state
     for account_id in full_service.account_ids:
         balance = full_service.get_account_status(account_id)
         print(f'account_id {account_id} : balance {balance}')
 
-    # print('===================================================')
-    # print(f'accounts imported, account_0 id: {account_0["account_id"]}, account_1 id: {account_1["account_id"]}')
-
-    # succeeds
+    # run test suite
     full_service.test_transactions()
 
+    # allow for transactions to pass through
+    # flakey -- replace with checker function
     time.sleep(20)
 
-    # failing, saying improperly formed request
+    # verify accounts have been updated with changed state
+    # TODO: bundle with test suite, exiting code 0 on success, or code 1 on failure
     for account_id in full_service.account_ids:
         print(account_id)
         balance = full_service.get_account_status(account_id)['balance']
         print(f'account_id {account_id} : balance {balance}')
 
     # shut down networks
+    print('===================================================')
+    print('stopping services')
     full_service.stop()
     mobilecoin_network.stop()
 
