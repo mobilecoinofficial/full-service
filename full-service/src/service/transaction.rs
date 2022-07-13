@@ -23,7 +23,7 @@ use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::{
     constants::{MAX_INPUTS, MAX_OUTPUTS},
     tokens::Mob,
-    Token,
+    Token, TokenId,
 };
 
 use crate::{
@@ -146,8 +146,8 @@ pub trait TransactionService {
     fn build_unsigned_transaction(
         &self,
         account_id_hex: &str,
-        addresses_and_values: &[(String, String)],
-        fee: Option<String>,
+        addresses_and_values: &[(String, String, String)],
+        fee: Option<(String, String)>,
         tombstone_block: Option<String>,
     ) -> Result<(UnsignedTx, FullServiceFogResolver), TransactionServiceError>;
 
@@ -156,9 +156,9 @@ pub trait TransactionService {
     fn build_transaction(
         &self,
         account_id_hex: &str,
-        addresses_and_values: &[(String, String)],
+        addresses_and_values: &[(String, String, String)],
         input_txo_ids: Option<&Vec<String>>,
-        fee: Option<String>,
+        fee: Option<(String, String)>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
@@ -177,9 +177,9 @@ pub trait TransactionService {
     fn build_and_submit(
         &self,
         account_id_hex: &str,
-        addresses_and_values: &[(String, String)],
+        addresses_and_values: &[(String, String, String)],
         input_txo_ids: Option<&Vec<String>>,
-        fee: Option<String>,
+        fee: Option<(String, String)>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
@@ -194,8 +194,8 @@ where
     fn build_unsigned_transaction(
         &self,
         account_id_hex: &str,
-        addresses_and_values: &[(String, String)],
-        fee: Option<String>,
+        addresses_and_values: &[(String, String, String)],
+        fee: Option<(String, String)>,
         tombstone_block: Option<String>,
     ) -> Result<(UnsignedTx, FullServiceFogResolver), TransactionServiceError> {
         validate_number_outputs(addresses_and_values.len() as u64)?;
@@ -209,14 +209,18 @@ where
                 self.logger.clone(),
             );
 
-            for (recipient_public_address, value) in addresses_and_values {
+            for (recipient_public_address, value, token_id) in addresses_and_values {
                 if !self.verify_address(recipient_public_address)? {
                     return Err(TransactionServiceError::InvalidPublicAddress(
                         recipient_public_address.to_string(),
                     ));
                 };
                 let recipient = b58_decode_public_address(recipient_public_address)?;
-                builder.add_recipient(recipient, value.parse::<u64>()?)?;
+                builder.add_recipient(
+                    recipient,
+                    value.parse::<u64>()?,
+                    TokenId::from(token_id.parse::<u64>()?),
+                )?;
             }
 
             if let Some(tombstone) = tombstone_block {
@@ -225,10 +229,12 @@ where
                 builder.set_tombstone(0)?;
             }
 
-            builder.set_fee(match fee {
-                Some(f) => f.parse()?,
-                None => self.get_network_fees()[&Mob::ID],
-            })?;
+            let (fee, token_id) = match fee {
+                Some((f, t)) => (f.parse()?, TokenId::from(t.parse::<u64>()?)),
+                None => (self.get_network_fees()[&Mob::ID], Mob::ID),
+            };
+
+            builder.set_fee(fee, token_id)?;
 
             builder.set_block_version(self.get_network_block_version());
 
@@ -244,9 +250,9 @@ where
     fn build_transaction(
         &self,
         account_id_hex: &str,
-        addresses_and_values: &[(String, String)],
+        addresses_and_values: &[(String, String, String)],
         input_txo_ids: Option<&Vec<String>>,
-        fee: Option<String>,
+        fee: Option<(String, String)>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
@@ -263,14 +269,18 @@ where
                 self.logger.clone(),
             );
 
-            for (recipient_public_address, value) in addresses_and_values {
+            for (recipient_public_address, value, token_id) in addresses_and_values {
                 if !self.verify_address(recipient_public_address)? {
                     return Err(TransactionServiceError::InvalidPublicAddress(
                         recipient_public_address.to_string(),
                     ));
                 };
                 let recipient = b58_decode_public_address(recipient_public_address)?;
-                builder.add_recipient(recipient, value.parse::<u64>()?)?;
+                builder.add_recipient(
+                    recipient,
+                    value.parse::<u64>()?,
+                    TokenId::from(token_id.parse::<u64>()?),
+                )?;
             }
 
             if let Some(tombstone) = tombstone_block {
@@ -279,10 +289,12 @@ where
                 builder.set_tombstone(0)?;
             }
 
-            builder.set_fee(match fee {
-                Some(f) => f.parse()?,
-                None => self.get_network_fees()[&Mob::ID],
-            })?;
+            let (fee, token_id) = match fee {
+                Some((f, t)) => (f.parse()?, TokenId::from(t.parse::<u64>()?)),
+                None => (self.get_network_fees()[&Mob::ID], Mob::ID),
+            };
+
+            builder.set_fee(fee, token_id)?;
 
             builder.set_block_version(self.get_network_block_version());
 
@@ -383,9 +395,9 @@ where
     fn build_and_submit(
         &self,
         account_id_hex: &str,
-        addresses_and_values: &[(String, String)],
+        addresses_and_values: &[(String, String, String)],
         input_txo_ids: Option<&Vec<String>>,
-        fee: Option<String>,
+        fee: Option<(String, String)>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,

@@ -192,7 +192,7 @@ where
             account_id,
             addresses_and_values,
             recipient_public_address,
-            value_pmob,
+            value,
             input_txo_ids,
             fee,
             tombstone_block,
@@ -202,8 +202,8 @@ where
             // The user can specify either a single address and a single value, or a list of
             // addresses and values.
             let mut addresses_and_values = addresses_and_values.unwrap_or_default();
-            if let (Some(a), Some(v)) = (recipient_public_address, value_pmob) {
-                addresses_and_values.push((a, v));
+            if let (Some(a), Some((v, t))) = (recipient_public_address, value) {
+                addresses_and_values.push((a, v, t));
             }
             let (transaction_log, associated_txos, value_map, tx_proposal) = service
                 .build_and_submit(
@@ -286,7 +286,7 @@ where
             account_id,
             addresses_and_values,
             recipient_public_address,
-            value_pmob,
+            value,
             input_txo_ids,
             fee,
             tombstone_block,
@@ -295,8 +295,8 @@ where
             // The user can specify a list of addresses and values,
             // or a single address and a single value (deprecated).
             let mut addresses_and_values = addresses_and_values.unwrap_or_default();
-            if let (Some(a), Some(v)) = (recipient_public_address, value_pmob) {
-                addresses_and_values.push((a, v));
+            if let (Some(a), Some((v, t))) = (recipient_public_address, value) {
+                addresses_and_values.push((a, v, t));
             }
             let tx_proposal = service
                 .build_transaction(
@@ -317,13 +317,13 @@ where
         JsonCommandRequest::build_unsigned_transaction {
             account_id,
             recipient_public_address,
-            value_pmob,
+            value,
             fee,
             tombstone_block,
         } => {
-            let mut addresses_and_values: Vec<(String, String)> = Vec::new();
-            if let (Some(a), Some(v)) = (recipient_public_address, value_pmob) {
-                addresses_and_values.push((a, v));
+            let mut addresses_and_values = Vec::new();
+            if let (Some(a), Some((v, t))) = (recipient_public_address, value) {
+                addresses_and_values.push((a, v, t));
             }
             let (unsigned_tx, fog_resolver) = service
                 .build_unsigned_transaction(

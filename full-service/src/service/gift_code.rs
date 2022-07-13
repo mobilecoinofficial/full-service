@@ -376,6 +376,7 @@ where
         tombstone_block: Option<u64>,
         max_spendable_value: Option<u64>,
     ) -> Result<(TxProposal, EncodedGiftCode), GiftCodeServiceError> {
+        todo!();
         // First we need to generate a new random bip39 entropy. The way that gift codes
         // work currently is that the sender creates a middleman account and
         // sends that account the amount of MOB desired, plus extra to cover the
@@ -403,11 +404,17 @@ where
         let conn = self.wallet_db.get_conn()?;
         let from_account = Account::get(from_account_id, &conn)?;
 
+        let fee = fee.map(|f| (f.to_string(), Mob::ID.to_string()));
+
         let tx_proposal = self.build_transaction(
             &from_account.id,
-            &[(gift_code_account_main_subaddress_b58, value.to_string())],
+            &[(
+                gift_code_account_main_subaddress_b58,
+                value.to_string(),
+                Mob::ID.to_string(),
+            )],
             input_txo_ids,
-            fee.map(|f| f.to_string()),
+            fee,
             tombstone_block.map(|t| t.to_string()),
             max_spendable_value.map(|f| f.to_string()),
             None,

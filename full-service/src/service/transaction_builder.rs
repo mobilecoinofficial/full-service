@@ -40,7 +40,7 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tokens::Mob,
     tx::{TxIn, TxOut, TxOutMembershipProof},
-    Amount, BlockVersion, Token,
+    Amount, BlockVersion, Token, TokenId,
 };
 use mc_transaction_std::{
     InputCredentials, RTHMemoBuilder, ReservedSubaddresses, SenderMemoCredential,
@@ -49,7 +49,7 @@ use mc_transaction_std::{
 use mc_util_uri::FogUri;
 
 use rand::Rng;
-use std::{convert::TryFrom, str::FromStr, sync::Arc};
+use std::{collections::BTreeMap, convert::TryFrom, str::FromStr, sync::Arc};
 
 /// Default number of blocks used for calculating transaction tombstone block
 /// number.
@@ -69,13 +69,13 @@ pub struct WalletTransactionBuilder<FPR: FogPubkeyResolver + 'static> {
 
     /// Vector of (PublicAddress, Amounts) for the recipients of this
     /// transaction.
-    outlays: Vec<(PublicAddress, u64)>,
+    outlays: Vec<(PublicAddress, u64, TokenId)>,
 
     /// The block after which this transaction is invalid.
     tombstone: u64,
 
     /// The fee for the transaction.
-    fee: Option<u64>,
+    fee: Option<(u64, TokenId)>,
 
     /// The block version for the transaction
     block_version: Option<BlockVersion>,
@@ -139,28 +139,35 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         conn: &Conn,
         max_spendable_value: Option<u64>,
     ) -> Result<(), WalletTransactionBuilderError> {
-        let outlay_value_sum = self.outlays.iter().map(|(_r, v)| *v as u128).sum::<u128>();
+        let mut outlay_value_sum_map: BTreeMap<TokenId, u64> =
+            self.outlays
+                .iter()
+                .fold(BTreeMap::new(), |mut acc, (_, value, token_id)| {
+                    acc.entry(*token_id)
+                        .and_modify(|v| *v += value)
+                        .or_insert(*value);
+                    acc
+                });
 
-        let fee = self.fee.unwrap_or(Mob::MINIMUM_FEE);
-        if outlay_value_sum > u64::MAX as u128 || outlay_value_sum > u64::MAX as u128 - fee as u128
-        {
-            return Err(WalletTransactionBuilderError::OutboundValueTooLarge);
+        let (fee, token_id) = self.fee.unwrap_or((Mob::MINIMUM_FEE, Mob::ID));
+        outlay_value_sum_map
+            .entry(token_id)
+            .and_modify(|v| *v += fee)
+            .or_insert(fee);
+
+        for (token_id, target_value) in outlay_value_sum_map {
+            if target_value > u64::MAX {
+                return Err(WalletTransactionBuilderError::OutboundValueTooLarge);
+            }
+
+            self.inputs = Txo::select_spendable_txos_for_value(
+                &self.account_id_hex,
+                target_value,
+                max_spendable_value,
+                *token_id,
+                conn,
+            )?;
         }
-        log::info!(
-            self.logger,
-            "Selecting Txos for value {:?} with fee {:?}",
-            outlay_value_sum,
-            fee
-        );
-        let total_value = outlay_value_sum as u64 + fee;
-
-        self.inputs = Txo::select_spendable_txos_for_value(
-            &self.account_id_hex,
-            total_value,
-            max_spendable_value,
-            *Mob::ID,
-            conn,
-        )?;
 
         Ok(())
     }
@@ -169,24 +176,29 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         &mut self,
         recipient: PublicAddress,
         value: u64,
+        token_id: TokenId,
     ) -> Result<(), WalletTransactionBuilderError> {
-        // Verify that the maximum output value of this transaction remains under
-        // u64::MAX
-        let cur_sum = self.outlays.iter().map(|(_r, v)| *v as u128).sum::<u128>();
-        if cur_sum > u64::MAX as u128 {
-            return Err(WalletTransactionBuilderError::OutboundValueTooLarge);
-        }
-        self.outlays.push((recipient, value));
+        // // Verify that the maximum output value of this transaction remains under
+        // // u64::MAX
+        // let cur_sum = self.outlays.iter().map(|(_r, v)| *v as u128).sum::<u128>();
+        // if cur_sum > u64::MAX as u128 {
+        //     return Err(WalletTransactionBuilderError::OutboundValueTooLarge);
+        // }
+        self.outlays.push((recipient, value, token_id));
         Ok(())
     }
 
-    pub fn set_fee(&mut self, fee: u64) -> Result<(), WalletTransactionBuilderError> {
+    pub fn set_fee(
+        &mut self,
+        fee: u64,
+        token_id: TokenId,
+    ) -> Result<(), WalletTransactionBuilderError> {
         if fee < 1 {
             return Err(WalletTransactionBuilderError::InsufficientFee(
                 "1".to_string(),
             ));
         }
-        self.fee = Some(fee);
+        self.fee = Some((fee, token_id));
         Ok(())
     }
 
@@ -216,7 +228,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let fog_resolver = {
             let fog_uris = core::slice::from_ref(&change_public_address)
                 .iter()
-                .chain(self.outlays.iter().map(|(receiver, _amount)| receiver))
+                .chain(self.outlays.iter().map(|(receiver, _, _)| receiver))
                 .filter_map(|x| extract_fog_uri(x).transpose())
                 .collect::<Result<Vec<_>, _>>()?;
             (self.fog_resolver_factory)(&fog_uris)
@@ -226,7 +238,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let mut fully_validated_fog_pubkeys: HashMap<String, FullServiceFullyValidatedFogPubkey> =
             HashMap::default();
 
-        for (public_address, _) in self.outlays.iter() {
+        for (public_address, _, _) in self.outlays.iter() {
             let fog_pubkey = match fog_resolver.get_fog_pubkey(public_address) {
                 Ok(fog_pubkey) => Some(fog_pubkey),
                 Err(_) => None,
@@ -243,6 +255,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
     }
 
     pub fn build_unsigned(&self) -> Result<UnsignedTx, WalletTransactionBuilderError> {
+        todo!();
         if self.tombstone == 0 {
             return Err(WalletTransactionBuilderError::TombstoneNotSet);
         }
@@ -350,15 +363,17 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         }
 
         let mut outlays_string: Vec<(String, u64)> = Vec::new();
-        for (receiver, amount) in self.outlays.iter() {
+        for (receiver, amount, token_id) in self.outlays.iter() {
             let b58_address = b58_encode_public_address(receiver)?;
             outlays_string.push((b58_address, *amount));
         }
 
+        let (fee, _token_id) = self.fee.unwrap_or((Mob::MINIMUM_FEE, Mob::ID));
+
         Ok(UnsignedTx {
             inputs_and_real_indices_and_subaddress_indices,
             outlays: outlays_string,
-            fee: self.fee.unwrap_or(Mob::MINIMUM_FEE),
+            fee,
             tombstone_block_index: self.tombstone,
             block_version: self.block_version.unwrap_or(BlockVersion::MAX),
         })
@@ -384,7 +399,11 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 from_account_key.subaddress(account.change_subaddress_index as u64);
             let fog_uris = core::slice::from_ref(&change_address)
                 .iter()
-                .chain(self.outlays.iter().map(|(receiver, _amount)| receiver))
+                .chain(
+                    self.outlays
+                        .iter()
+                        .map(|(receiver, _amount, _token_id)| receiver),
+                )
                 .filter_map(|x| extract_fog_uri(x).transpose())
                 .collect::<Result<Vec<_>, _>>()?;
             (self.fog_resolver_factory)(&fog_uris)
@@ -396,7 +415,8 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         memo_builder.set_sender_credential(SenderMemoCredential::from(&from_account_key));
         memo_builder.enable_destination_memo();
         let block_version = self.block_version.unwrap_or(BlockVersion::MAX);
-        let fee = Amount::new(self.fee.unwrap_or(Mob::MINIMUM_FEE), Mob::ID);
+        let (fee, token_id) = self.fee.unwrap_or((Mob::MINIMUM_FEE, Mob::ID));
+        let fee = Amount::new(fee, token_id);
         let mut transaction_builder =
             TransactionBuilder::new(block_version, fee, fog_resolver, memo_builder)?;
 
@@ -526,9 +546,9 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let mut tx_out_to_outlay_index: HashMap<TxOut, usize> = HashMap::default();
         let mut outlay_confirmation_numbers = Vec::default();
         let mut rng = rand::thread_rng();
-        for (i, (recipient, out_value)) in self.outlays.iter().enumerate() {
+        for (i, (recipient, out_value, token_id)) in self.outlays.iter().enumerate() {
             let (tx_out, confirmation) = transaction_builder.add_output(
-                Amount::new(*out_value, Mob::ID),
+                Amount::new(*out_value, *token_id),
                 recipient,
                 &mut rng,
             )?;
@@ -625,7 +645,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             outlays: self
                 .outlays
                 .iter()
-                .map(|(recipient, value)| Outlay {
+                .map(|(recipient, value, token_id)| Outlay {
                     receiver: recipient.clone(),
                     value: *value,
                 })

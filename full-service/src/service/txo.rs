@@ -89,7 +89,7 @@ pub trait TxoService {
         txo_id: &TxoID,
         output_values: &[String],
         subaddress_index: Option<i64>,
-        fee: Option<String>,
+        fee: Option<(String, String)>,
         tombstone_block: Option<String>,
     ) -> Result<TxProposal, TxoServiceError>;
 
@@ -144,7 +144,7 @@ where
         txo_id: &TxoID,
         output_values: &[String],
         subaddress_index: Option<i64>,
-        fee: Option<String>,
+        fee: Option<(String, String)>,
         tombstone_block: Option<String>,
     ) -> Result<TxProposal, TxoServiceError> {
         use crate::service::txo::TxoServiceError::TxoNotSpendableByAnyAccount;
@@ -168,6 +168,7 @@ where
             addresses_and_values.push((
                 address_to_split_into.assigned_subaddress_b58.clone(),
                 output_value.to_string(),
+                txo_details.token_id.to_string(),
             ))
         }
 
