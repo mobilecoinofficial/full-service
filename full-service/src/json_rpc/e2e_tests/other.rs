@@ -44,11 +44,9 @@ mod e2e_misc {
         // Syncing will have already started, so we can't determine what the min synced
         // index is.
         assert!(status.get("min_synced_block_index").is_some());
-        assert_eq!(status.get("total_unspent_pmob").unwrap(), "0");
-        assert_eq!(status.get("total_pending_pmob").unwrap(), "0");
-        assert_eq!(status.get("total_spent_pmob").unwrap(), "0");
-        assert_eq!(status.get("total_orphaned_pmob").unwrap(), "0");
-        assert_eq!(status.get("total_secreted_pmob").unwrap(), "0");
+        let balance_per_token = status.get("balance_per_token").unwrap();
+        let balance_mob = balance_per_token.get(Mob::ID.to_string());
+        assert!(balance_mob.is_none());
         assert_eq!(
             status.get("account_ids").unwrap().as_array().unwrap().len(),
             1

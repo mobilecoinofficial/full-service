@@ -17,7 +17,7 @@ mod e2e_transaction {
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
     use mc_ledger_db::Ledger;
-    use mc_transaction_core::ring_signature::KeyImage;
+    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
 
     use std::convert::TryFrom;
@@ -126,17 +126,10 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let balance_status = result.get("balance").unwrap();
-        let unspent = balance_status
-            .get("unspent_pmob")
-            .unwrap()
-            .as_str()
-            .unwrap();
-        let pending = balance_status
-            .get("pending_pmob")
-            .unwrap()
-            .as_str()
-            .unwrap();
+        let balance_per_token = result.get("balance_per_token").unwrap();
+        let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
+        let unspent = balance_mob["unspent"].as_str().unwrap();
+        let pending = balance_mob["pending"].as_str().unwrap();
         assert_eq!(unspent, "1");
         assert_eq!(pending, "100000000000100");
 
@@ -194,18 +187,11 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let balance_status = result.get("balance").unwrap();
-        let unspent = balance_status
-            .get("unspent_pmob")
-            .unwrap()
-            .as_str()
-            .unwrap();
-        let pending = balance_status
-            .get("pending_pmob")
-            .unwrap()
-            .as_str()
-            .unwrap();
-        let spent = balance_status.get("spent_pmob").unwrap().as_str().unwrap();
+        let balance_per_token = result.get("balance_per_token").unwrap();
+        let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
+        let unspent = balance_mob["unspent"].as_str().unwrap();
+        let pending = balance_mob["pending"].as_str().unwrap();
+        let spent = balance_mob["spent"].as_str().unwrap();
         assert_eq!(unspent, "100000000000103".to_string());
         assert_eq!(pending, "0");
         assert_eq!(spent, "0");

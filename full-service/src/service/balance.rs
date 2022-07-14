@@ -88,10 +88,6 @@ pub struct Balance {
     pub spent: u128,
     pub secreted: u128,
     pub orphaned: u128,
-    // pub network_block_height: u64,
-    // pub local_block_height: u64,
-    // pub synced_blocks: u64,
-    // pub max_spendable: u128,
 }
 
 /// The Network Status object.

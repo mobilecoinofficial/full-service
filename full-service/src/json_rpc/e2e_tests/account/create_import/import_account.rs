@@ -14,7 +14,7 @@ mod e2e_account {
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
     use mc_ledger_db::Ledger;
-    use mc_transaction_core::ring_signature::KeyImage;
+    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
 
     #[test_with_logger]
@@ -314,10 +314,11 @@ mod e2e_account {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let balance = result.get("balance").unwrap();
-        let unspent_pmob = balance.get("unspent_pmob").unwrap().as_str().unwrap();
+        let balance_per_token = result.get("balance_per_token").unwrap();
+        let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
+        let unspent = balance_mob["unspent"].as_str().unwrap();
 
-        assert_eq!("100000000000000", unspent_pmob);
+        assert_eq!("100000000000000", unspent);
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -356,14 +357,15 @@ mod e2e_account {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let balance = result.get("balance").unwrap();
-        let unspent_pmob = balance.get("unspent_pmob").unwrap().as_str().unwrap();
-        let orphaned_pmob = balance.get("orphaned_pmob").unwrap().as_str().unwrap();
-        let spent_pmob = balance.get("spent_pmob").unwrap().as_str().unwrap();
+        let balance_per_token = result.get("balance_per_token").unwrap();
+        let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
+        let unspent = balance_mob["unspent"].as_str().unwrap();
+        let orphaned = balance_mob["orphaned"].as_str().unwrap();
+        let spent = balance_mob["spent"].as_str().unwrap();
 
-        assert_eq!("0", unspent_pmob);
-        assert_eq!("100000000000000", orphaned_pmob);
-        assert_eq!("0", spent_pmob);
+        assert_eq!("0", unspent);
+        assert_eq!("100000000000000", orphaned);
+        assert_eq!("0", spent);
 
         // assign next subaddress for account
         let body = json!({
@@ -387,12 +389,13 @@ mod e2e_account {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let balance = result.get("balance").unwrap();
-        let unspent_pmob = balance.get("unspent_pmob").unwrap().as_str().unwrap();
-        let orphaned_pmob = balance.get("orphaned_pmob").unwrap().as_str().unwrap();
+        let balance_per_token = result.get("balance_per_token").unwrap();
+        let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
+        let unspent = balance_mob["unspent"].as_str().unwrap();
+        let orphaned = balance_mob["orphaned"].as_str().unwrap();
 
-        assert_eq!("100000000000000", unspent_pmob);
-        assert_eq!("0", orphaned_pmob);
+        assert_eq!("100000000000000", unspent);
+        assert_eq!("0", orphaned);
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -433,11 +436,12 @@ mod e2e_account {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let balance = result.get("balance").unwrap();
-        let unspent_pmob = balance.get("unspent_pmob").unwrap().as_str().unwrap();
-        let orphaned_pmob = balance.get("orphaned_pmob").unwrap().as_str().unwrap();
+        let balance_per_token = result.get("balance_per_token").unwrap();
+        let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
+        let unspent = balance_mob["unspent"].as_str().unwrap();
+        let orphaned = balance_mob["orphaned"].as_str().unwrap();
 
-        assert_eq!("100000000000000", unspent_pmob);
-        assert_eq!("0", orphaned_pmob);
+        assert_eq!("100000000000000", unspent);
+        assert_eq!("0", orphaned);
     }
 }

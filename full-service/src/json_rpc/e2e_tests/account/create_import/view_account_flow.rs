@@ -14,7 +14,7 @@ mod e2e_account {
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
 
-    use mc_transaction_core::ring_signature::KeyImage;
+    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
 
     #[test_with_logger]
@@ -70,8 +70,9 @@ mod e2e_account {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let balance_status = result.get("balance").unwrap();
-        let unspent = balance_status["unspent_pmob"].as_str().unwrap();
+        let balance_per_token = result.get("balance_per_token").unwrap();
+        let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
+        let unspent = balance_mob["unspent"].as_str().unwrap();
         assert_eq!(unspent, "100000000000000");
 
         // export view only import package
@@ -127,12 +128,12 @@ mod e2e_account {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let balance_status = result.get("balance").unwrap();
-        println!("BALANCE {:?}", balance_status);
-        let max_spendable_pmob = balance_status["max_spendable_pmob"].as_str().unwrap();
-        // view only accounts with not have unspent balance because unspent balance
-        // requires key images
-        assert_eq!(max_spendable_pmob, "99999600000000");
+        let balance_per_token = result.get("balance_per_token").unwrap();
+        let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
+        let unverified = balance_mob["unverified"].as_str().unwrap();
+        let unspent = balance_mob["unspent"].as_str().unwrap();
+        assert_eq!(unverified, "100000000000000");
+        assert_eq!(unspent, "0");
 
         // test get
         let body = json!({
