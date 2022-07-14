@@ -25,6 +25,7 @@ use mc_account_keys::{
 use mc_account_keys_slip10::Slip10Key;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
+use mc_transaction_core::TokenId;
 use std::fmt;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -48,6 +49,12 @@ impl From<&PublicAddress> for AccountID {
     fn from(src: &PublicAddress) -> Self {
         let temp: [u8; 32] = src.digest32::<MerlinTranscript>(b"account_data");
         Self(hex::encode(temp))
+    }
+}
+
+impl From<String> for AccountID {
+    fn from(src: String) -> Self {
+        Self(src)
     }
 }
 
@@ -183,6 +190,9 @@ pub trait AccountModel {
 
     /// Get main public address
     fn main_subaddress(self, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError>;
+
+    /// Get all of the token ids present for the account
+    fn get_token_ids(self, conn: &Conn) -> Result<Vec<TokenId>, WalletDbError>;
 }
 
 impl AccountModel for Account {
@@ -547,6 +557,21 @@ impl AccountModel for Account {
 
     fn main_subaddress(self, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError> {
         AssignedSubaddress::get_for_account_by_index(&self.id, self.main_subaddress_index, conn)
+    }
+
+    fn get_token_ids(self, conn: &Conn) -> Result<Vec<TokenId>, WalletDbError> {
+        use crate::db::schema::txos;
+
+        let distinct_token_ids = txos::table
+            .filter(txos::account_id.eq(&self.id.to_string()))
+            .select(txos::token_id)
+            .distinct()
+            .load::<i64>(conn)?
+            .into_iter()
+            .map(|i| TokenId::from(i as u64))
+            .collect();
+
+        Ok(distinct_token_ids)
     }
 }
 
