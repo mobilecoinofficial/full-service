@@ -733,7 +733,7 @@ mod tests {
         let bob_balance = service
             .get_balance_for_account(&AccountID(bob.id.clone()))
             .unwrap();
-        let bob_balance_pmob = balance.get(&Mob::ID).unwrap();
+        let bob_balance_pmob = bob_balance.get(&Mob::ID).unwrap();
         assert_eq!(bob_balance_pmob.unspent, 42000000000000);
 
         // Bob should now be able to send to Alice
@@ -776,7 +776,7 @@ mod tests {
 
         // Bob's balance should be = output_txo_value
         let bob_balance = service.get_balance_for_account(&AccountID(bob.id)).unwrap();
-        let bob_balance_pmob = balance.get(&Mob::ID).unwrap();
+        let bob_balance_pmob = bob_balance.get(&Mob::ID).unwrap();
         assert_eq!(
             bob_balance_pmob.unspent,
             (34 * MOB - Mob::MINIMUM_FEE) as u128

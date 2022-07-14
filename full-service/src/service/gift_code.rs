@@ -894,8 +894,11 @@ mod tests {
 
         // Bob's balance should be = gift code value - fee (10000000000)
         let bob_balance = service.get_balance_for_account(&AccountID(bob.id)).unwrap();
-        let balance_pmob = balance.get(&Mob::ID).unwrap();
-        assert_eq!(balance_pmob.unspent, (2 * MOB - Mob::MINIMUM_FEE) as u128)
+        let bob_balance_pmob = bob_balance.get(&Mob::ID).unwrap();
+        assert_eq!(
+            bob_balance_pmob.unspent,
+            (2 * MOB - Mob::MINIMUM_FEE) as u128
+        )
     }
 
     #[test_with_logger]
