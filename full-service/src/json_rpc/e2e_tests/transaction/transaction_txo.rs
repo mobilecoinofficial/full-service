@@ -15,7 +15,7 @@ mod e2e_transaction {
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
 
-    use mc_transaction_core::ring_signature::KeyImage;
+    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
 
     use std::convert::TryFrom;
@@ -233,8 +233,9 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let balance_status = result.get("balance").unwrap();
-        let unspent = balance_status["unspent_pmob"].as_str().unwrap();
+        let balance_per_token = result.get("balance_per_token").unwrap();
+        let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
+        let unspent = balance_mob["unspent"].as_str().unwrap();
         assert_eq!(unspent, "42000000000000"); // 42.0 MOB
     }
 
@@ -348,10 +349,11 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let balance = result.get("balance").unwrap();
-        assert_eq!(balance.get("unspent_pmob").unwrap(), "0");
-        assert_eq!(balance.get("spent_pmob").unwrap(), "0");
-        assert_eq!(balance.get("orphaned_pmob").unwrap(), "600000000000000");
+        let balance_per_token = result.get("balance_per_token").unwrap();
+        let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
+        assert_eq!(balance_mob.get("unspent").unwrap(), "0");
+        assert_eq!(balance_mob.get("spent").unwrap(), "0");
+        assert_eq!(balance_mob.get("orphaned").unwrap(), "600000000000000");
 
         // Add back next subaddress. Txos are detected as unspent.
         let body = json!({
@@ -375,10 +377,11 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let balance = result.get("balance").unwrap();
-        assert_eq!(balance.get("unspent_pmob").unwrap(), "600000000000000");
-        assert_eq!(balance.get("spent_pmob").unwrap(), "0");
-        assert_eq!(balance.get("orphaned_pmob").unwrap(), "0");
+        let balance_per_token = result.get("balance_per_token").unwrap();
+        let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
+        assert_eq!(balance_mob.get("unspent").unwrap(), "600000000000000");
+        assert_eq!(balance_mob.get("spent").unwrap(), "0");
+        assert_eq!(balance_mob.get("orphaned").unwrap(), "0");
 
         // Create a second account.
         let body = json!({
@@ -460,10 +463,11 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let balance = result.get("balance").unwrap();
-        assert_eq!(balance.get("unspent_pmob").unwrap(), "549999600000000");
-        assert_eq!(balance.get("spent_pmob").unwrap(), "100000000000000");
-        assert_eq!(balance.get("orphaned_pmob").unwrap(), "0");
+        let balance_per_token = result.get("balance_per_token").unwrap();
+        let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
+        assert_eq!(balance_mob.get("unspent").unwrap(), "549999600000000");
+        assert_eq!(balance_mob.get("spent").unwrap(), "100000000000000");
+        assert_eq!(balance_mob.get("orphaned").unwrap(), "0");
 
         // Remove the first account and add it back again.
         let body = json!({
@@ -512,10 +516,11 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let balance = result.get("balance").unwrap();
-        assert_eq!(balance.get("unspent_pmob").unwrap(), "49999600000000");
-        assert_eq!(balance.get("spent_pmob").unwrap(), "0");
-        assert_eq!(balance.get("orphaned_pmob").unwrap(), "600000000000000");
+        let balance_per_token = result.get("balance_per_token").unwrap();
+        let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
+        assert_eq!(balance_mob.get("unspent").unwrap(), "49999600000000");
+        assert_eq!(balance_mob.get("spent").unwrap(), "0");
+        assert_eq!(balance_mob.get("orphaned").unwrap(), "600000000000000");
     }
 
     #[test_with_logger]
@@ -585,8 +590,9 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let balance_status = result.get("balance").unwrap();
-        let unspent = balance_status["unspent_pmob"].as_str().unwrap();
+        let balance_per_token = result.get("balance_per_token").unwrap();
+        let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
+        let unspent = balance_mob["unspent"].as_str().unwrap();
         assert_eq!(unspent, "100");
     }
 
@@ -658,8 +664,9 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let balance_status = result.get("balance").unwrap();
-        let unspent = balance_status["unspent_pmob"].as_str().unwrap();
+        let balance_per_token = result.get("balance_per_token").unwrap();
+        let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
+        let unspent = balance_mob["unspent"].as_str().unwrap();
         assert_eq!(unspent, "250000000000");
 
         let body = json!({
@@ -714,8 +721,9 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let balance_status = result.get("balance").unwrap();
-        let unspent = balance_status["unspent_pmob"].as_str().unwrap();
+        let balance_per_token = result.get("balance_per_token").unwrap();
+        let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
+        let unspent = balance_mob["unspent"].as_str().unwrap();
         assert_eq!(unspent, "240000000000");
     }
 }

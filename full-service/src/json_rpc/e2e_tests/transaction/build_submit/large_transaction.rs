@@ -142,28 +142,13 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let balance_status = result.get("balance").unwrap();
-        let unspent = balance_status
-            .get("unspent_pmob")
-            .unwrap()
-            .as_str()
-            .unwrap();
-        let pending = balance_status
-            .get("pending_pmob")
-            .unwrap()
-            .as_str()
-            .unwrap();
-        let spent = balance_status.get("spent_pmob").unwrap().as_str().unwrap();
-        let secreted = balance_status
-            .get("secreted_pmob")
-            .unwrap()
-            .as_str()
-            .unwrap();
-        let orphaned = balance_status
-            .get("orphaned_pmob")
-            .unwrap()
-            .as_str()
-            .unwrap();
+        let balance_per_token = result.get("balance_per_token").unwrap();
+        let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
+        let unspent = balance_mob["unspent"].as_str().unwrap();
+        let pending = balance_mob["pending"].as_str().unwrap();
+        let spent = balance_mob["spent"].as_str().unwrap();
+        let secreted = balance_mob["secreted"].as_str().unwrap();
+        let orphaned = balance_mob["orphaned"].as_str().unwrap();
         assert_eq!(
             unspent,
             &(11_000_000_000_000_000_000u64 - Mob::MINIMUM_FEE).to_string()
