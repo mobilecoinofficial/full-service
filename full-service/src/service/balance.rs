@@ -166,7 +166,7 @@ where
         address: &str,
     ) -> Result<BTreeMap<TokenId, Balance>, BalanceServiceError> {
         let conn = &self.wallet_db.get_conn()?;
-        let assigned_address = AssignedSubaddress::get(address, &conn)?;
+        let assigned_address = AssignedSubaddress::get(address, conn)?;
         let account_id = AccountID::from(assigned_address.account_id);
         let account = self.get_account(&account_id)?;
         let distinct_token_ids = account.get_token_ids(conn)?;

@@ -563,7 +563,7 @@ impl AccountModel for Account {
         use crate::db::schema::txos;
 
         let distinct_token_ids = txos::table
-            .filter(txos::account_id.eq(&self.id.to_string()))
+            .filter(txos::account_id.eq(&self.id))
             .select(txos::token_id)
             .distinct()
             .load::<i64>(conn)?
