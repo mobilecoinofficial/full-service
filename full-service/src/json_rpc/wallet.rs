@@ -502,12 +502,19 @@ where
                     .map_err(format_error)?,
             )
             .map_err(format_error)?;
-            let balance = Balance::from(
-                &service
-                    .get_balance_for_account(&AccountID(account_id))
-                    .map_err(format_error)?,
-            );
-            JsonCommandResponse::get_account_status { account, balance }
+
+            let balance = service
+                .get_balance_for_account(&AccountID(account_id))
+                .map_err(format_error)?;
+
+            let balance_formatted = balance
+                .iter()
+                .map(|(k, v)| (k.to_string(), Balance::from(v)))
+                .collect();
+            JsonCommandResponse::get_account_status {
+                account,
+                balance_per_token: balance_formatted,
+            }
         }
         JsonCommandRequest::get_address_for_account { account_id, index } => {
             let assigned_subaddress = service
@@ -650,21 +657,29 @@ where
             }
         }
         JsonCommandRequest::get_balance_for_account { account_id } => {
+            let balance = service
+                .get_balance_for_account(&AccountID(account_id))
+                .map_err(format_error)?;
+
+            let balance_formatted = balance
+                .iter()
+                .map(|(a, b)| (a.to_string(), Balance::from(b)))
+                .collect();
             JsonCommandResponse::get_balance_for_account {
-                balance: Balance::from(
-                    &service
-                        .get_balance_for_account(&AccountID(account_id))
-                        .map_err(format_error)?,
-                ),
+                balance_per_token: balance_formatted,
             }
         }
         JsonCommandRequest::get_balance_for_address { address } => {
+            let balance = service
+                .get_balance_for_address(&address)
+                .map_err(format_error)?;
+
+            let balance_formatted = balance
+                .iter()
+                .map(|(a, b)| (a.to_string(), Balance::from(b)))
+                .collect();
             JsonCommandResponse::get_balance_for_address {
-                balance: Balance::from(
-                    &service
-                        .get_balance_for_address(&address)
-                        .map_err(format_error)?,
-                ),
+                balance_per_token: balance_formatted,
             }
         }
         JsonCommandRequest::get_block { block_index } => {

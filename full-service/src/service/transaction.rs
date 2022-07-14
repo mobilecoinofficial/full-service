@@ -520,7 +520,8 @@ mod tests {
         let balance = service
             .get_balance_for_account(&AccountID(alice.id.clone()))
             .unwrap();
-        assert_eq!(balance.unspent, 100 * MOB as u128);
+        let balance_pmob = balance.get(&Mob::ID).unwrap();
+        assert_eq!(balance_pmob.unspent, 100 * MOB as u128);
 
         // Add an account for Bob
         let bob = service
@@ -655,7 +656,8 @@ mod tests {
         let balance = service
             .get_balance_for_account(&AccountID(alice.id.clone()))
             .unwrap();
-        assert_eq!(balance.unspent, 100 * MOB as u128);
+        let balance_pmob = balance.get(&Mob::ID).unwrap();
+        assert_eq!(balance_pmob.unspent, 100 * MOB as u128);
 
         // Add an account for Bob
         let bob = service
@@ -736,13 +738,15 @@ mod tests {
         let balance = service
             .get_balance_for_account(&AccountID(alice.id.clone()))
             .unwrap();
-        assert_eq!(balance.unspent, (58 * MOB - Mob::MINIMUM_FEE) as u128);
+        let balance_pmob = balance.get(&Mob::ID).unwrap();
+        assert_eq!(balance_pmob.unspent, (58 * MOB - Mob::MINIMUM_FEE) as u128);
 
         // Bob's balance should be = output_txo_value
         let bob_balance = service
             .get_balance_for_account(&AccountID(bob.id.clone()))
             .unwrap();
-        assert_eq!(bob_balance.unspent, 42000000000000);
+        let bob_balance_pmob = bob_balance.get(&Mob::ID).unwrap();
+        assert_eq!(bob_balance_pmob.unspent, 42000000000000);
 
         // Bob should now be able to send to Alice
         let (transaction_log, _associated_txos, _value_map, _tx_proposal) = service
@@ -776,11 +780,19 @@ mod tests {
         let alice_balance = service
             .get_balance_for_account(&AccountID(alice.id))
             .unwrap();
-        assert_eq!(alice_balance.unspent, (66 * MOB - Mob::MINIMUM_FEE) as u128);
+        let alice_balance_pmob = alice_balance.get(&Mob::ID).unwrap();
+        assert_eq!(
+            alice_balance_pmob.unspent,
+            (66 * MOB - Mob::MINIMUM_FEE) as u128
+        );
 
         // Bob's balance should be = output_txo_value
         let bob_balance = service.get_balance_for_account(&AccountID(bob.id)).unwrap();
-        assert_eq!(bob_balance.unspent, (34 * MOB - Mob::MINIMUM_FEE) as u128);
+        let bob_balance_pmob = bob_balance.get(&Mob::ID).unwrap();
+        assert_eq!(
+            bob_balance_pmob.unspent,
+            (34 * MOB - Mob::MINIMUM_FEE) as u128
+        );
     }
 
     // Building a transaction for an invalid public address should fail.

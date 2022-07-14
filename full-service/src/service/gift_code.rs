@@ -732,7 +732,7 @@ mod tests {
     use mc_account_keys::PublicAddress;
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
-    use mc_transaction_core::ring_signature::KeyImage;
+    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
 
     #[test_with_logger]
@@ -773,7 +773,8 @@ mod tests {
         let balance = service
             .get_balance_for_account(&AccountID(alice.id.clone()))
             .unwrap();
-        assert_eq!(balance.unspent, 100 * MOB as u128);
+        let balance_pmob = balance.get(&Mob::ID).unwrap();
+        assert_eq!(balance_pmob.unspent, 100 * MOB as u128);
 
         // Create a gift code for Bob
         let (tx_proposal, gift_code_b58) = service
@@ -834,7 +835,8 @@ mod tests {
         let balance = service
             .get_balance_for_account(&AccountID(alice.id.clone()))
             .unwrap();
-        assert_eq!(balance.unspent, (98 * MOB - Mob::MINIMUM_FEE) as u128);
+        let balance_pmob = balance.get(&Mob::ID).unwrap();
+        assert_eq!(balance_pmob.unspent, (98 * MOB - Mob::MINIMUM_FEE) as u128);
 
         // Verify that we can get the gift_code
         log::info!(logger, "Getting gift code from database");
@@ -899,7 +901,11 @@ mod tests {
 
         // Bob's balance should be = gift code value - fee (10000000000)
         let bob_balance = service.get_balance_for_account(&AccountID(bob.id)).unwrap();
-        assert_eq!(bob_balance.unspent, (2 * MOB - Mob::MINIMUM_FEE) as u128)
+        let bob_balance_pmob = bob_balance.get(&Mob::ID).unwrap();
+        assert_eq!(
+            bob_balance_pmob.unspent,
+            (2 * MOB - Mob::MINIMUM_FEE) as u128
+        )
     }
 
     #[test_with_logger]
@@ -940,7 +946,8 @@ mod tests {
         let balance = service
             .get_balance_for_account(&AccountID(alice.id.clone()))
             .unwrap();
-        assert_eq!(balance.unspent, 100 * MOB as u128);
+        let balance_pmob = balance.get(&Mob::ID).unwrap();
+        assert_eq!(balance_pmob.unspent, 100 * MOB as u128);
 
         // Create a gift code for Bob
         let (tx_proposal, gift_code_b58) = service

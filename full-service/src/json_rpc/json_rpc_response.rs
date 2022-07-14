@@ -27,7 +27,7 @@ use crate::{
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use strum::Display;
 
 use crate::{fog_resolver::FullServiceFogResolver, unsigned_tx::UnsignedTx};
@@ -195,7 +195,7 @@ pub enum JsonCommandResponse {
     },
     get_account_status {
         account: Account,
-        balance: Balance,
+        balance_per_token: BTreeMap<String, Balance>,
     },
     get_address_for_account {
         address: Address,
@@ -223,10 +223,10 @@ pub enum JsonCommandResponse {
         txo_map: Map<String, serde_json::Value>,
     },
     get_balance_for_account {
-        balance: Balance,
+        balance_per_token: BTreeMap<String, Balance>,
     },
     get_balance_for_address {
-        balance: Balance,
+        balance_per_token: BTreeMap<String, Balance>,
     },
     get_block {
         block: Block,

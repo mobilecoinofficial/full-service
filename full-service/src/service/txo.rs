@@ -217,7 +217,7 @@ mod tests {
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::RngCore;
-    use mc_transaction_core::ring_signature::KeyImage;
+    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
 
     #[test_with_logger]
@@ -254,8 +254,9 @@ mod tests {
 
         // Verify balance for Alice
         let balance = service.get_balance_for_account(&alice_account_id).unwrap();
+        let balance_pmob = balance.get(&Mob::ID).unwrap();
 
-        assert_eq!(balance.unspent, 100 * MOB as u128);
+        assert_eq!(balance_pmob.unspent, 100 * MOB as u128);
 
         // Verify that we have 1 txo
         let txos = service
@@ -311,10 +312,12 @@ mod tests {
         let balance = service
             .get_balance_for_account(&AccountID(alice.id))
             .unwrap();
-        assert_eq!(balance.unverified, 0);
-        assert_eq!(balance.unspent, 0);
-        assert_eq!(balance.pending, 100 * MOB as u128);
-        assert_eq!(balance.spent, 0);
-        assert_eq!(balance.orphaned, 0);
+        let balance_pmob = balance.get(&Mob::ID).unwrap();
+
+        assert_eq!(balance_pmob.unverified, 0);
+        assert_eq!(balance_pmob.unspent, 0);
+        assert_eq!(balance_pmob.pending, 100 * MOB as u128);
+        assert_eq!(balance_pmob.spent, 0);
+        assert_eq!(balance_pmob.orphaned, 0);
     }
 }
