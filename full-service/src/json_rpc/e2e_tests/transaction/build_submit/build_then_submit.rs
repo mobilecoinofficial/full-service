@@ -7,7 +7,11 @@ mod e2e_transaction {
     use crate::{
         db::account::AccountID,
         json_rpc,
-        json_rpc::api_test_utils::{dispatch, dispatch_expect_error, setup},
+        json_rpc::{
+            api_test_utils::{dispatch, dispatch_expect_error, setup},
+            tx_proposal::TxProposalJSON,
+        },
+        service::models::tx_proposal::TxProposal,
         test_utils::{add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account},
         util::b58::b58_decode_public_address,
     };
@@ -207,10 +211,8 @@ mod e2e_transaction {
         // Note - we cannot test here that the transaction ID is consistent, because
         // there is randomness in the transaction creation.
 
-        let json_tx_proposal: json_rpc::tx_proposal::TxProposal =
-            serde_json::from_value(tx_proposal.clone()).unwrap();
-        let payments_tx_proposal =
-            mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
+        let json_tx_proposal: TxProposalJSON = serde_json::from_value(tx_proposal.clone()).unwrap();
+        let payments_tx_proposal = TxProposal::try_from(&json_tx_proposal).unwrap();
 
         // The MockBlockchainConnection does not write to the ledger_db
         add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);

@@ -188,7 +188,7 @@ fn append_test_block(ledger_db: &mut LedgerDB, block_contents: BlockContents) ->
     }
 
     ledger_db
-        .append_block(&new_block, &block_contents, None)
+        .append_block(&new_block, &block_contents, None, None)
         .expect("failed writing initial transactions");
 
     ledger_db.num_blocks().expect("failed to get block height")

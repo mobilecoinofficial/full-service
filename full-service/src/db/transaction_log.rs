@@ -968,7 +968,10 @@ mod tests {
         builder.select_txos(&conn, None).unwrap();
         let tx_proposal = builder.build(&conn).unwrap();
 
-        assert_eq!(tx_proposal.outlays[0].value, 10_000_000_000_000_000_000);
+        assert_eq!(
+            tx_proposal.payload_txos[0].value,
+            10_000_000_000_000_000_000
+        );
 
         // Log submitted transaction from tx_proposal
         let tx_log = TransactionLog::log_submitted(

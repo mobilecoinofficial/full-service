@@ -6,8 +6,12 @@
 mod e2e_transaction {
     use crate::{
         db::account::AccountID,
-        json_rpc,
-        json_rpc::api_test_utils::{dispatch, setup},
+        json_rpc::{
+            self,
+            api_test_utils::{dispatch, setup},
+            tx_proposal::TxProposalJSON,
+        },
+        service::models::tx_proposal::TxProposal,
         test_utils::{add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account},
         util::b58::b58_decode_public_address,
     };
@@ -137,10 +141,8 @@ mod e2e_transaction {
         let prefix_tombstone = tx_prefix.get("tombstone_block").unwrap();
         assert_eq!(prefix_tombstone, "24");
 
-        let json_tx_proposal: json_rpc::tx_proposal::TxProposal =
-            serde_json::from_value(tx_proposal.clone()).unwrap();
-        let payments_tx_proposal =
-            mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
+        let json_tx_proposal: TxProposalJSON = serde_json::from_value(tx_proposal.clone()).unwrap();
+        let payments_tx_proposal = TxProposal::try_from(&json_tx_proposal).unwrap();
 
         add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
         manually_sync_account(
