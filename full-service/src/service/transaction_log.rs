@@ -157,7 +157,7 @@ mod tests {
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
-    use mc_transaction_core::ring_signature::KeyImage;
+    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
 
     #[test_with_logger]
@@ -213,6 +213,7 @@ mod tests {
                     &[(
                         address.assigned_subaddress_b58.clone(),
                         (50 * MOB).to_string(),
+                        Mob::ID.to_string(),
                     )],
                     None,
                     None,

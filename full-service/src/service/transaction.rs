@@ -543,6 +543,7 @@ mod tests {
                 &[(
                     bob_address_from_alice.assigned_subaddress_b58,
                     (42 * MOB).to_string(),
+                    Mob::ID.to_string(),
                 )],
                 None,
                 None,
@@ -570,6 +571,7 @@ mod tests {
                 &[(
                     bob_address_from_alice_2.assigned_subaddress_b58,
                     (42 * MOB).to_string(),
+                    Mob::ID.to_string(),
                 )],
                 None,
                 None,
@@ -597,6 +599,7 @@ mod tests {
                 &[(
                     bob_address_from_alice_3.clone().assigned_subaddress_b58,
                     (42 * MOB).to_string(),
+                    Mob::ID.to_string(),
                 )],
                 None,
                 None,
@@ -680,6 +683,7 @@ mod tests {
                 &[(
                     bob_address_from_alice.assigned_subaddress_b58,
                     (42 * MOB).to_string(),
+                    Mob::ID.to_string(),
                 )],
                 None,
                 None,
@@ -751,6 +755,7 @@ mod tests {
                 &[(
                     b58_encode_public_address(&alice_public_address).unwrap(),
                     (8 * MOB).to_string(),
+                    Mob::ID.to_string(),
                 )],
                 None,
                 None,
@@ -827,7 +832,11 @@ mod tests {
 
         match service.build_transaction(
             &alice.id,
-            &vec![("NOTB58".to_string(), (42 * MOB).to_string())],
+            &vec![(
+                "NOTB58".to_string(),
+                (42 * MOB).to_string(),
+                Mob::ID.to_string(),
+            )],
             None,
             None,
             None,
@@ -881,6 +890,7 @@ mod tests {
             outputs.push((
                 b58_encode_public_address(&alice_public_address).unwrap(),
                 (42 * MOB).to_string(),
+                Mob::ID.to_string(),
             ));
         }
         match service.build_transaction(&alice.id, &outputs, None, None, None, None, None) {
@@ -899,6 +909,7 @@ mod tests {
             outputs.push((
                 b58_encode_public_address(&alice_public_address).unwrap(),
                 (42 * MOB).to_string(),
+                Mob::ID.to_string(),
             ));
         }
         let mut inputs = Vec::new();

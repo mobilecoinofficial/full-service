@@ -287,6 +287,7 @@ mod tests {
                     )
                     .unwrap(),
                     "42000000000000".to_string(),
+                    Mob::ID.to_string(),
                 )],
                 None,
                 None,
@@ -296,7 +297,7 @@ mod tests {
             )
             .unwrap();
         let _submitted = service
-            .submit_transaction(tx_proposal, None, Some(alice.id.clone()))
+            .submit_transaction(&tx_proposal, None, Some(alice.id.clone()))
             .unwrap();
 
         let pending: Vec<(Txo, TxoStatus)> = service

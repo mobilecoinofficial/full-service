@@ -1882,7 +1882,11 @@ mod tests {
                 logger.clone(),
             );
         builder
-            .add_recipient(recipient_account_key.default_subaddress(), 50 * MOB)
+            .add_recipient(
+                recipient_account_key.default_subaddress(),
+                50 * MOB,
+                Mob::ID,
+            )
             .unwrap();
         builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
@@ -1895,7 +1899,7 @@ mod tests {
         // sent Txo
         log::info!(logger, "Logging submitted transaction");
         let tx_log = TransactionLog::log_submitted(
-            proposal.clone(),
+            &proposal,
             ledger_db.num_blocks().unwrap(),
             "".to_string(),
             &sender_account_id.to_string(),

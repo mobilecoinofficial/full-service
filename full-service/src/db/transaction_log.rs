@@ -630,14 +630,16 @@ mod tests {
         let conn = wallet_db.get_conn().unwrap();
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
-        builder.add_recipient(recipient.clone(), 50 * MOB).unwrap();
+        builder
+            .add_recipient(recipient.clone(), 50 * MOB, Mob::ID)
+            .unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
         let tx_proposal = builder.build(&conn).unwrap();
 
         // Log submitted transaction from tx_proposal
         let tx_log = TransactionLog::log_submitted(
-            tx_proposal.clone(),
+            &tx_proposal,
             ledger_db.num_blocks().unwrap(),
             "".to_string(),
             &AccountID::from(&account_key).to_string(),
@@ -783,14 +785,16 @@ mod tests {
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
         // Add outlays all to the same recipient, so that we exceed u64::MAX in this tx
         let value = 100 * MOB - Mob::MINIMUM_FEE;
-        builder.add_recipient(recipient.clone(), value).unwrap();
+        builder
+            .add_recipient(recipient.clone(), value, Mob::ID)
+            .unwrap();
 
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
         let tx_proposal = builder.build(&conn).unwrap();
 
         let tx_log = TransactionLog::log_submitted(
-            tx_proposal.clone(),
+            &tx_proposal,
             ledger_db.num_blocks().unwrap(),
             "".to_string(),
             &AccountID::from(&account_key).to_string(),
@@ -860,14 +864,16 @@ mod tests {
         let conn = wallet_db.get_conn().unwrap();
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
-        builder.add_recipient(recipient.clone(), 50 * MOB).unwrap();
+        builder
+            .add_recipient(recipient.clone(), 50 * MOB, Mob::ID)
+            .unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
         let tx_proposal = builder.build(&conn).unwrap();
 
         // Log submitted transaction from tx_proposal
         TransactionLog::log_submitted(
-            tx_proposal.clone(),
+            &tx_proposal,
             ledger_db.num_blocks().unwrap(),
             "".to_string(),
             &AccountID::from(&account_key).to_string(),
@@ -956,7 +962,7 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
         builder
-            .add_recipient(recipient.clone(), 10_000_000 * MOB)
+            .add_recipient(recipient.clone(), 10_000_000 * MOB, Mob::ID)
             .unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
@@ -966,7 +972,7 @@ mod tests {
 
         // Log submitted transaction from tx_proposal
         let tx_log = TransactionLog::log_submitted(
-            tx_proposal.clone(),
+            &tx_proposal,
             ledger_db.num_blocks().unwrap(),
             "".to_string(),
             &AccountID::from(&account_key).to_string(),
@@ -1020,7 +1026,7 @@ mod tests {
         );
         // Add self at main subaddress as the recipient
         builder
-            .add_recipient(account_key.subaddress(0), 12 * MOB)
+            .add_recipient(account_key.subaddress(0), 12 * MOB, Mob::ID)
             .unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
@@ -1028,7 +1034,7 @@ mod tests {
 
         // Log submitted transaction from tx_proposal
         let tx_log = TransactionLog::log_submitted(
-            tx_proposal.clone(),
+            &tx_proposal,
             ledger_db.num_blocks().unwrap(),
             "".to_string(),
             &AccountID::from(&account_key).to_string(),

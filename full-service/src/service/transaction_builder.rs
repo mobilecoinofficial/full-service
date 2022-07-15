@@ -560,22 +560,22 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let mut outlay_confirmation_numbers = Vec::default();
         let mut rng = rand::thread_rng();
         for (i, (recipient, out_value, token_id)) in self.outlays.iter().enumerate() {
-            let (tx_out, confirmation) = transaction_builder.add_output(
+            let tx_out_context = transaction_builder.add_output(
                 Amount::new(*out_value, *token_id),
                 recipient,
                 &mut rng,
             )?;
 
             payload_txos.push(OutputTxo {
-                tx_out: tx_out.clone(),
+                tx_out: tx_out_context.tx_out.clone(),
                 recipient_public_address: recipient.clone(),
-                confirmation_number: confirmation.clone(),
+                confirmation_number: tx_out_context.confirmation.clone(),
                 value: *out_value,
                 token_id: *token_id,
             });
 
-            tx_out_to_outlay_index.insert(tx_out, i);
-            outlay_confirmation_numbers.push(confirmation);
+            tx_out_to_outlay_index.insert(tx_out_context.tx_out, i);
+            outlay_confirmation_numbers.push(tx_out_context.confirmation);
 
             total_value_per_token
                 .entry(*token_id)
@@ -611,16 +611,16 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
 
             let change = input_value - total_value;
             let reserved_subaddresses = ReservedSubaddresses::from(&from_account_key);
-            let (tx_out, confirmation_number) = transaction_builder.add_change_output(
+            let tx_out_context = transaction_builder.add_change_output(
                 Amount::new(change, *token_id),
                 &reserved_subaddresses,
                 &mut rng,
             )?;
 
             change_txos.push(OutputTxo {
-                tx_out,
+                tx_out: tx_out_context.tx_out,
                 recipient_public_address: reserved_subaddresses.change_subaddress,
-                confirmation_number,
+                confirmation_number: tx_out_context.confirmation,
                 value: change,
                 token_id: *token_id,
             });
@@ -801,16 +801,18 @@ mod tests {
         // Send value specifically for your smallest Txo size. Should take 2 inputs
         // and also make change.
         let value = 11 * MOB;
-        builder.add_recipient(recipient.clone(), value).unwrap();
+        builder
+            .add_recipient(recipient.clone(), value, Mob::ID)
+            .unwrap();
 
         // Select the txos for the recipient
         builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
 
         let proposal = builder.build(&conn).unwrap();
-        assert_eq!(proposal.outlays.len(), 1);
-        assert_eq!(proposal.outlays[0].receiver, recipient);
-        assert_eq!(proposal.outlays[0].value, value);
+        assert_eq!(proposal.payload_txos.len(), 1);
+        assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);
+        assert_eq!(proposal.payload_txos[0].value, value);
         assert_eq!(proposal.tx.prefix.inputs.len(), 2);
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
         assert_eq!(proposal.tx.prefix.outputs.len(), 2);
@@ -857,7 +859,9 @@ mod tests {
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         let value = u64::MAX;
-        builder.add_recipient(recipient.clone(), value).unwrap();
+        builder
+            .add_recipient(recipient.clone(), value, Mob::ID)
+            .unwrap();
 
         // Select the txos for the recipient - should error because > u64::MAX
         match builder.select_txos(&conn, None) {
@@ -905,7 +909,7 @@ mod tests {
 
         // Setting value to exactly the input will fail because you need funds for fee
         builder
-            .add_recipient(recipient.clone(), txos[0].value as u64)
+            .add_recipient(recipient.clone(), txos[0].value as u64, Mob::ID)
             .unwrap();
 
         builder.set_txos(&conn, &vec![txos[0].id.clone()]).unwrap();
@@ -924,7 +928,7 @@ mod tests {
 
         // Set value to just slightly more than what fits in the one TXO
         builder
-            .add_recipient(recipient.clone(), txos[0].value as u64 + 10)
+            .add_recipient(recipient.clone(), txos[0].value as u64 + 10, Mob::ID)
             .unwrap();
 
         builder
@@ -932,9 +936,9 @@ mod tests {
             .unwrap();
         builder.set_tombstone(0).unwrap();
         let proposal = builder.build(&conn).unwrap();
-        assert_eq!(proposal.outlays.len(), 1);
-        assert_eq!(proposal.outlays[0].receiver, recipient);
-        assert_eq!(proposal.outlays[0].value, txos[0].value as u64 + 10);
+        assert_eq!(proposal.payload_txos.len(), 1);
+        assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);
+        assert_eq!(proposal.payload_txos[0].value, txos[0].value as u64 + 10);
         assert_eq!(proposal.tx.prefix.inputs.len(), 2); // need one more for fee
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
         assert_eq!(proposal.tx.prefix.outputs.len(), 2); // self and change
@@ -966,7 +970,9 @@ mod tests {
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         // Setting value to exactly the input will fail because you need funds for fee
-        builder.add_recipient(recipient.clone(), 80 * MOB).unwrap();
+        builder
+            .add_recipient(recipient.clone(), 80 * MOB, Mob::ID)
+            .unwrap();
 
         // Test that selecting Txos with max_spendable < all our txo values fails
         match builder.select_txos(&conn, Some(10)) {
@@ -990,9 +996,9 @@ mod tests {
         builder.select_txos(&conn, Some(80 * MOB)).unwrap();
         builder.set_tombstone(0).unwrap();
         let proposal = builder.build(&conn).unwrap();
-        assert_eq!(proposal.outlays.len(), 1);
-        assert_eq!(proposal.outlays[0].receiver, recipient);
-        assert_eq!(proposal.outlays[0].value, 80 * MOB);
+        assert_eq!(proposal.payload_txos.len(), 1);
+        assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);
+        assert_eq!(proposal.payload_txos[0].value, 80 * MOB);
         assert_eq!(proposal.tx.prefix.inputs.len(), 2); // uses both 70 and 80
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
         assert_eq!(proposal.tx.prefix.outputs.len(), 2); // self and change
@@ -1023,7 +1029,9 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
-        builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
+        builder
+            .add_recipient(recipient.clone(), 10 * MOB, Mob::ID)
+            .unwrap();
         builder.select_txos(&conn, None).unwrap();
 
         // Sanity check that our ledger is the height we think it is
@@ -1039,7 +1047,9 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
-        builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
+        builder
+            .add_recipient(recipient.clone(), 10 * MOB, Mob::ID)
+            .unwrap();
         builder.select_txos(&conn, None).unwrap();
 
         // Set to default
@@ -1054,7 +1064,9 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
-        builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
+        builder
+            .add_recipient(recipient.clone(), 10 * MOB, Mob::ID)
+            .unwrap();
         builder.select_txos(&conn, None).unwrap();
 
         // Set to default
@@ -1091,7 +1103,9 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
-        builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
+        builder
+            .add_recipient(recipient.clone(), 10 * MOB, Mob::ID)
+            .unwrap();
         builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
 
@@ -1103,10 +1117,12 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
-        builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
+        builder
+            .add_recipient(recipient.clone(), 10 * MOB, Mob::ID)
+            .unwrap();
         builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
-        match builder.set_fee(0) {
+        match builder.set_fee(0, Mob::ID) {
             Ok(_) => panic!("Should not be able to set fee to 0"),
             Err(WalletTransactionBuilderError::InsufficientFee(_)) => {}
             Err(e) => panic!("Unexpected error {:?}", e),
@@ -1120,10 +1136,12 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
-        builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
+        builder
+            .add_recipient(recipient.clone(), 10 * MOB, Mob::ID)
+            .unwrap();
         builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
-        match builder.set_fee(0) {
+        match builder.set_fee(0, Mob::ID) {
             Ok(_) => panic!("Should not be able to set fee to 0"),
             Err(WalletTransactionBuilderError::InsufficientFee(_)) => {}
             Err(e) => panic!("Unexpected error {:?}", e),
@@ -1133,10 +1151,12 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
-        builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
+        builder
+            .add_recipient(recipient.clone(), 10 * MOB, Mob::ID)
+            .unwrap();
         builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
-        builder.set_fee(Mob::MINIMUM_FEE * 10).unwrap();
+        builder.set_fee(Mob::MINIMUM_FEE * 10, Mob::ID).unwrap();
         let proposal = builder.build(&conn).unwrap();
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE * 10);
     }
@@ -1168,16 +1188,18 @@ mod tests {
 
         // Set value to consume the whole TXO and not produce change
         let value = 70 * MOB - Mob::MINIMUM_FEE;
-        builder.add_recipient(recipient.clone(), value).unwrap();
+        builder
+            .add_recipient(recipient.clone(), value, Mob::ID)
+            .unwrap();
         builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
 
         // Verify that not setting fee results in default fee
         let proposal = builder.build(&conn).unwrap();
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
-        assert_eq!(proposal.outlays.len(), 1);
-        assert_eq!(proposal.outlays[0].receiver, recipient);
-        assert_eq!(proposal.outlays[0].value, value);
+        assert_eq!(proposal.payload_txos.len(), 1);
+        assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);
+        assert_eq!(proposal.payload_txos[0].value, value);
         assert_eq!(proposal.tx.prefix.inputs.len(), 1); // uses just one input
         assert_eq!(proposal.tx.prefix.outputs.len(), 2); // two outputs to
                                                          // self
@@ -1209,10 +1231,18 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
-        builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
-        builder.add_recipient(recipient.clone(), 20 * MOB).unwrap();
-        builder.add_recipient(recipient.clone(), 30 * MOB).unwrap();
-        builder.add_recipient(recipient.clone(), 40 * MOB).unwrap();
+        builder
+            .add_recipient(recipient.clone(), 10 * MOB, Mob::ID)
+            .unwrap();
+        builder
+            .add_recipient(recipient.clone(), 20 * MOB, Mob::ID)
+            .unwrap();
+        builder
+            .add_recipient(recipient.clone(), 30 * MOB, Mob::ID)
+            .unwrap();
+        builder
+            .add_recipient(recipient.clone(), 40 * MOB, Mob::ID)
+            .unwrap();
 
         builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
@@ -1220,15 +1250,15 @@ mod tests {
         // Verify that not setting fee results in default fee
         let proposal = builder.build(&conn).unwrap();
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
-        assert_eq!(proposal.outlays.len(), 4);
-        assert_eq!(proposal.outlays[0].receiver, recipient);
-        assert_eq!(proposal.outlays[0].value, 10 * MOB);
-        assert_eq!(proposal.outlays[1].receiver, recipient);
-        assert_eq!(proposal.outlays[1].value, 20 * MOB);
-        assert_eq!(proposal.outlays[2].receiver, recipient);
-        assert_eq!(proposal.outlays[2].value, 30 * MOB);
-        assert_eq!(proposal.outlays[3].receiver, recipient);
-        assert_eq!(proposal.outlays[3].value, 40 * MOB);
+        assert_eq!(proposal.payload_txos.len(), 4);
+        assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);
+        assert_eq!(proposal.payload_txos[0].value, 10 * MOB);
+        assert_eq!(proposal.payload_txos[1].recipient_public_address, recipient);
+        assert_eq!(proposal.payload_txos[1].value, 20 * MOB);
+        assert_eq!(proposal.payload_txos[2].recipient_public_address, recipient);
+        assert_eq!(proposal.payload_txos[2].value, 30 * MOB);
+        assert_eq!(proposal.payload_txos[3].recipient_public_address, recipient);
+        assert_eq!(proposal.payload_txos[3].value, 40 * MOB);
         assert_eq!(proposal.tx.prefix.inputs.len(), 2);
         assert_eq!(proposal.tx.prefix.outputs.len(), 5); // outlays + change
     }
@@ -1263,13 +1293,13 @@ mod tests {
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
         builder
-            .add_recipient(recipient.clone(), 7_000_000 * MOB)
+            .add_recipient(recipient.clone(), 7_000_000 * MOB, Mob::ID)
             .unwrap();
         builder
-            .add_recipient(recipient.clone(), 7_000_000 * MOB)
+            .add_recipient(recipient.clone(), 7_000_000 * MOB, Mob::ID)
             .unwrap();
         builder
-            .add_recipient(recipient.clone(), 7_000_000 * MOB)
+            .add_recipient(recipient.clone(), 7_000_000 * MOB, Mob::ID)
             .unwrap();
 
         match builder.select_txos(&wallet_db.get_conn().unwrap(), None) {
@@ -1303,12 +1333,14 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
 
-        builder.add_recipient(recipient.clone(), 10 * MOB).unwrap();
+        builder
+            .add_recipient(recipient.clone(), 10 * MOB, Mob::ID)
+            .unwrap();
 
         // Create a new recipient
         let second_recipient = AccountKey::random(&mut rng).subaddress(0);
         builder
-            .add_recipient(second_recipient.clone(), 40 * MOB)
+            .add_recipient(second_recipient.clone(), 40 * MOB, Mob::ID)
             .unwrap();
     }
 }

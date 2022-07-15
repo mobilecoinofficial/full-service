@@ -329,7 +329,8 @@ impl LedgerDbConfig {
                     db.append_block(
                         block_data.block(),
                         block_data.contents(),
-                        block_data.signature().cloned(),
+                        block_data.signature(),
+                        block_data.metadata(),
                     )
                     .expect("Failed to appened initial transactions");
                     log::info!(logger, "Bootstrapping completed!");

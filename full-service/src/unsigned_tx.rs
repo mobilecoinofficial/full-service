@@ -178,27 +178,28 @@ fn add_payload_outputs<RNG: CryptoRng + RngCore>(
     rng: &mut RNG,
 ) -> Result<(u64, HashMap<TxOut, usize>, Vec<TxOutConfirmationNumber>), WalletTransactionBuilderError>
 {
-    // Add outputs to our destinations.
-    let mut total_value = 0;
-    let mut tx_out_to_outlay_index: HashMap<TxOut, usize> = HashMap::default();
-    let mut outlay_confirmation_numbers = Vec::default();
-    for (i, outlay) in outlays.iter().enumerate() {
-        let (tx_out, confirmation) = transaction_builder.add_output(
-            Amount::new(outlay.value, Mob::ID),
-            &outlay.receiver,
-            rng,
-        )?;
+    todo!();
+    // // Add outputs to our destinations.
+    // let mut total_value = 0;
+    // let mut tx_out_to_outlay_index: HashMap<TxOut, usize> =
+    // HashMap::default(); let mut outlay_confirmation_numbers =
+    // Vec::default(); for (i, outlay) in outlays.iter().enumerate() {
+    //     let (tx_out, confirmation) = transaction_builder.add_output(
+    //         Amount::new(outlay.value, Mob::ID),
+    //         &outlay.receiver,
+    //         rng,
+    //     )?;
 
-        tx_out_to_outlay_index.insert(tx_out, i);
-        outlay_confirmation_numbers.push(confirmation);
+    //     tx_out_to_outlay_index.insert(tx_out, i);
+    //     outlay_confirmation_numbers.push(confirmation);
 
-        total_value += outlay.value;
-    }
-    Ok((
-        total_value,
-        tx_out_to_outlay_index,
-        outlay_confirmation_numbers,
-    ))
+    //     total_value += outlay.value;
+    // }
+    // Ok((
+    //     total_value,
+    //     tx_out_to_outlay_index,
+    //     outlay_confirmation_numbers,
+    // ))
 }
 
 fn add_change_output<RNG: CryptoRng + RngCore>(

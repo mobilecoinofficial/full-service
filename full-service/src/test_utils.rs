@@ -9,7 +9,10 @@ use crate::{
         WalletDb, WalletDbError,
     },
     error::SyncError,
-    service::{sync::sync_account, transaction_builder::WalletTransactionBuilder},
+    service::{
+        models::tx_proposal::TxProposal, sync::sync_account,
+        transaction_builder::WalletTransactionBuilder,
+    },
     WalletService,
 };
 use diesel::{
@@ -29,7 +32,6 @@ use mc_crypto_rand::{CryptoRng, RngCore};
 use mc_fog_report_validation::{FullyValidatedFogPubkey, MockFogPubkeyResolver};
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::PollingNetworkState;
-use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::{
     encrypted_fog_hint::EncryptedFogHint,
     onetime_keys::{create_tx_out_target_key, recover_onetime_private_key},
@@ -510,7 +512,7 @@ pub fn create_test_minted_and_change_txos(
     );
 
     let conn = wallet_db.get_conn().unwrap();
-    builder.add_recipient(recipient, value).unwrap();
+    builder.add_recipient(recipient, value, Mob::ID).unwrap();
     builder.select_txos(&conn, None).unwrap();
     builder.set_tombstone(0).unwrap();
     let tx_proposal = builder.build(&conn).unwrap();
@@ -519,7 +521,7 @@ pub fn create_test_minted_and_change_txos(
     assert_eq!(tx_proposal.tx.prefix.outputs.len(), 2);
 
     TransactionLog::log_submitted(
-        tx_proposal,
+        &tx_proposal,
         10,
         "".to_string(),
         &AccountID::from(&src_account_key).to_string(),
