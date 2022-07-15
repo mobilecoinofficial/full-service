@@ -1433,7 +1433,6 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        println!("{}", serde_json::to_string_pretty(&unspent).unwrap());
         assert_eq!(unspent.len(), 2);
 
         let updated_txos = Txo::list_for_account(

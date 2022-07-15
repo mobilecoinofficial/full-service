@@ -423,7 +423,6 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         memo_builder.enable_destination_memo();
         let block_version = self.block_version.unwrap_or(BlockVersion::MAX);
         let (fee, token_id) = self.fee.unwrap_or((Mob::MINIMUM_FEE, Mob::ID));
-        println!("fee: {:?} token_id: {:?}", fee, *token_id);
         let fee = Amount::new(fee, token_id);
         let mut transaction_builder =
             TransactionBuilder::new(block_version, fee, fog_resolver, memo_builder)?;
@@ -627,11 +626,9 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             });
         }
 
-        println!("setting tombstone block...");
         // Set tombstone block.
         transaction_builder.set_tombstone_block(self.tombstone);
 
-        println!("building tx...");
         // Build tx.
         let tx = transaction_builder.build(&NoKeysRingSigner {}, &mut rng)?;
 
