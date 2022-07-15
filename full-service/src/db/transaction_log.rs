@@ -168,7 +168,7 @@ pub trait TransactionLogModel {
     /// change. Other wallets may choose to behave differently, but
     /// our TransactionLogs Table assumes this behavior.
     fn log_submitted(
-        tx_proposal: TxProposal,
+        tx_proposal: TxProposalModel,
         block_index: u64,
         comment: String,
         account_id_hex: &str,
@@ -408,7 +408,7 @@ impl TransactionLogModel for TransactionLog {
     }
 
     fn log_submitted(
-        tx_proposal: TxProposal,
+        tx_proposal: TxProposalModel,
         block_index: u64,
         comment: String,
         account_id_hex: &str,
@@ -417,12 +417,12 @@ impl TransactionLogModel for TransactionLog {
         // Verify that the account exists.
         Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
-        // Verify that the TxProposal is well-formed according to our
-        // assumptions about how to store the sent data in our wallet
-        // (num_output_TXOs = num_outlays + change_TXO).
-        if tx_proposal.tx.prefix.outputs.len() - tx_proposal.outlays.len() > 1 {
-            return Err(WalletDbError::UnexpectedNumberOfChangeOutputs);
-        }
+        // // Verify that the TxProposal is well-formed according to our
+        // // assumptions about how to store the sent data in our wallet
+        // // (num_output_TXOs = num_outlays + change_TXO).
+        // if tx_proposal.tx.prefix.outputs.len() - tx_proposal.outlays.len() > 1 {
+        //     return Err(WalletDbError::UnexpectedNumberOfChangeOutputs);
+        // }
 
         let transaction_log_id = TransactionID::from(&tx_proposal.tx);
         let tx = mc_util_serial::encode(&tx_proposal.tx);
@@ -450,9 +450,9 @@ impl TransactionLogModel for TransactionLog {
                     .values(&new_transaction_log)
                     .execute(conn)?;
 
-                for utxo in tx_proposal.utxos.iter() {
-                    let txo_id = TxoID::from(&utxo.tx_out);
-                    Txo::update_key_image(&txo_id.to_string(), &utxo.key_image, None, conn)?;
+                for input_txo in tx_proposal.input_txos.iter() {
+                    let txo_id = TxoID::from(&input_txo.tx_out);
+                    Txo::update_key_image(&txo_id.to_string(), &input_txo.key_image, None, conn)?;
                     let transaction_input_txo = NewTransactionInputTxo {
                         transaction_log_id: &transaction_log_id.to_string(),
                         txo_id: &txo_id.to_string(),
@@ -463,9 +463,12 @@ impl TransactionLogModel for TransactionLog {
                         .execute(conn)?;
                 }
 
-                // Next, add all of our minted outputs to the Txo Table
-                for (i, output) in tx_proposal.tx.prefix.outputs.iter().enumerate() {
-                    Txo::create_minted(output, &tx_proposal, i, conn)?;
+                for output_txo in tx_proposal.payload_txos.iter() {
+                    Txo::create_new_output(output_txo, false, &transaction_log_id, conn)?;
+                }
+
+                for change_txo in tx_proposal.change_txos.iter() {
+                    Txo::create_new_output(change_txo, true, &transaction_log_id, conn)?;
                 }
             }
 

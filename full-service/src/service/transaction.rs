@@ -168,7 +168,7 @@ pub trait TransactionService {
     /// Submits a pre-built TxProposal to the MobileCoin Consensus Network.
     fn submit_transaction(
         &self,
-        tx_proposal: TxProposal,
+        tx_proposal: FSTxProposal,
         comment: Option<String>,
         account_id_hex: Option<String>,
     ) -> Result<Option<(TransactionLog, AssociatedTxos, ValueMap)>, TransactionServiceError>;
@@ -184,7 +184,7 @@ pub trait TransactionService {
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
-    ) -> Result<(TransactionLog, AssociatedTxos, ValueMap, TxProposal), TransactionServiceError>;
+    ) -> Result<(TransactionLog, AssociatedTxos, ValueMap, FSTxProposal), TransactionServiceError>;
 }
 
 impl<T, FPR> TransactionService for WalletService<T, FPR>
@@ -331,77 +331,64 @@ where
 
     fn submit_transaction(
         &self,
-        tx_proposal: TxProposal,
+        tx_proposal: FSTxProposal,
         comment: Option<String>,
         account_id_hex: Option<String>,
     ) -> Result<Option<(TransactionLog, AssociatedTxos, ValueMap)>, TransactionServiceError> {
-        todo!();
-        // if self.offline {
-        //     return Err(TransactionServiceError::Offline);
-        // }
+        if self.offline {
+            return Err(TransactionServiceError::Offline);
+        }
 
-        // // Pick a peer to submit to.
-        // let responder_ids = self.peer_manager.responder_ids();
-        // if responder_ids.is_empty() {
-        //     return Err(TransactionServiceError::NoPeersConfigured);
-        // }
+        // Pick a peer to submit to.
+        let responder_ids = self.peer_manager.responder_ids();
+        if responder_ids.is_empty() {
+            return Err(TransactionServiceError::NoPeersConfigured);
+        }
 
-        // let idx = self.submit_node_offset.fetch_add(1, Ordering::SeqCst);
-        // let responder_id = &responder_ids[idx % responder_ids.len()];
+        let idx = self.submit_node_offset.fetch_add(1, Ordering::SeqCst);
+        let responder_id = &responder_ids[idx % responder_ids.len()];
 
-        // // FIXME: WS-34 - would prefer not to convert to proto as
-        // intermediary let tx_proposal_proto =
-        // mc_mobilecoind_api::TxProposal::try_from(&tx_proposal)
-        //     .map_err(|_|
-        // TransactionServiceError::ProtoConversionInfallible)?;
+        let block_index = self
+            .peer_manager
+            .conn(responder_id)
+            .ok_or(TransactionServiceError::NodeNotFound)?
+            .propose_tx(&tx_proposal.tx, empty())
+            .map_err(TransactionServiceError::from)?;
 
-        // // Try to submit.
-        // let tx = mc_transaction_core::tx::Tx::try_from(tx_proposal_proto.
-        // get_tx())     .map_err(|_|
-        // TransactionServiceError::ProtoConversionInfallible)?;
+        log::trace!(
+            self.logger,
+            "Tx {:?} submitted at block height {}",
+            tx_proposal.tx,
+            block_index
+        );
 
-        // let block_index = self
-        //     .peer_manager
-        //     .conn(responder_id)
-        //     .ok_or(TransactionServiceError::NodeNotFound)?
-        //     .propose_tx(&tx, empty())
-        //     .map_err(TransactionServiceError::from)?;
+        if let Some(account_id_hex) = account_id_hex {
+            let conn = self.wallet_db.get_conn()?;
+            let account_id = AccountID(account_id_hex.to_string());
 
-        // log::trace!(
-        //     self.logger,
-        //     "Tx {:?} submitted at block height {}",
-        //     tx,
-        //     block_index
-        // );
+            transaction(&conn, || {
+                if Account::get(&account_id, &conn).is_ok() {
+                    let transaction_log = TransactionLog::log_submitted(
+                        tx_proposal,
+                        block_index,
+                        comment.unwrap_or_else(|| "".to_string()),
+                        &account_id_hex,
+                        &conn,
+                    )?;
 
-        // if let Some(account_id_hex) = account_id_hex {
-        //     let conn = self.wallet_db.get_conn()?;
-        //     let account_id = AccountID(account_id_hex.to_string());
+                    let associated_txos = transaction_log.get_associated_txos(&conn)?;
+                    let value_map = transaction_log.value_map(&conn)?;
 
-        //     transaction(&conn, || {
-        //         if Account::get(&account_id, &conn).is_ok() {
-        //             let transaction_log = TransactionLog::log_submitted(
-        //                 tx_proposal,
-        //                 block_index,
-        //                 comment.unwrap_or_else(|| "".to_string()),
-        //                 &account_id_hex,
-        //                 &conn,
-        //             )?;
-
-        //             let associated_txos =
-        // transaction_log.get_associated_txos(&conn)?;             let
-        // value_map = transaction_log.value_map(&conn)?;
-
-        //             Ok(Some((transaction_log, associated_txos, value_map)))
-        //         } else {
-        //             Err(TransactionServiceError::Database(
-        //                 WalletDbError::AccountNotFound(account_id_hex),
-        //             ))
-        //         }
-        //     })
-        // } else {
-        //     Ok(None)
-        // }
+                    Ok(Some((transaction_log, associated_txos, value_map)))
+                } else {
+                    Err(TransactionServiceError::Database(
+                        WalletDbError::AccountNotFound(account_id_hex),
+                    ))
+                }
+            })
+        } else {
+            Ok(None)
+        }
     }
 
     fn build_and_submit(
@@ -413,7 +400,7 @@ where
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
-    ) -> Result<(TransactionLog, AssociatedTxos, ValueMap, TxProposal), TransactionServiceError>
+    ) -> Result<(TransactionLog, AssociatedTxos, ValueMap, FSTxProposal), TransactionServiceError>
     {
         todo!();
         // let tx_proposal = self.build_transaction(

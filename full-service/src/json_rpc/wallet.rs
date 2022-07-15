@@ -36,6 +36,7 @@ use crate::{
         confirmation_number::ConfirmationService,
         gift_code::{EncodedGiftCode, GiftCodeService},
         ledger::LedgerService,
+        models::tx_proposal::TxProposal as TxProposalModel,
         payment_request::PaymentRequestService,
         receipt::ReceiptService,
         transaction::TransactionService,
@@ -222,7 +223,7 @@ where
                     &associated_txos,
                     &value_map,
                 ),
-                tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
+                tx_proposal: TxProposalJSON::try_from(&tx_proposal).map_err(format_error)?,
             }
         }
         JsonCommandRequest::build_gift_code {
@@ -973,13 +974,9 @@ where
             comment,
             account_id,
         } => {
+            let tx_proposal = TxProposalModel::try_from(&tx_proposal).map_err(format_error)?;
             let result: Option<json_rpc::transaction_log::TransactionLog> = service
-                .submit_transaction(
-                    mc_mobilecoind::payments::TxProposal::try_from(&tx_proposal)
-                        .map_err(format_error)?,
-                    comment,
-                    account_id,
-                )
+                .submit_transaction(tx_proposal, comment, account_id)
                 .map_err(format_error)?
                 .map(|(transaction_log, associated_txos, value_map)| {
                     json_rpc::transaction_log::TransactionLog::new(

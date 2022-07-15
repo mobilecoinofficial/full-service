@@ -2,7 +2,7 @@
 
 //! The JSON RPC 2.0 Requests to the Wallet API for Full Service.
 
-use crate::json_rpc::tx_proposal::TxProposal;
+use crate::json_rpc::tx_proposal::{TxProposal, TxProposalJSON};
 
 use crate::json_rpc::receiver_receipt::ReceiverReceipt;
 use serde::{Deserialize, Serialize};
@@ -251,7 +251,7 @@ pub enum JsonCommandRequest {
         tx_proposal: TxProposal,
     },
     submit_transaction {
-        tx_proposal: TxProposal,
+        tx_proposal: TxProposalJSON,
         comment: Option<String>,
         account_id: Option<String>,
     },
