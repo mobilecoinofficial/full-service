@@ -52,108 +52,113 @@ impl UnsignedTx {
         account_key: &AccountKey,
         fog_resolver: FullServiceFogResolver,
     ) -> Result<TxProposal, WalletTransactionBuilderError> {
-        let mut rng = rand::thread_rng();
-        // Create transaction builder.
-        let mut memo_builder = RTHMemoBuilder::default();
-        memo_builder.set_sender_credential(SenderMemoCredential::from(account_key));
-        memo_builder.enable_destination_memo();
-        let fee = Amount::new(self.fee, Mob::ID);
-        let mut transaction_builder =
-            TransactionBuilder::new(self.block_version, fee, fog_resolver, memo_builder)?;
+        todo!();
+        // let mut rng = rand::thread_rng();
+        // // Create transaction builder.
+        // let mut memo_builder = RTHMemoBuilder::default();
+        // memo_builder.set_sender_credential(SenderMemoCredential::
+        // from(account_key)); memo_builder.enable_destination_memo();
+        // let fee = Amount::new(self.fee, Mob::ID);
+        // let mut transaction_builder =
+        //     TransactionBuilder::new(self.block_version, fee, fog_resolver,
+        // memo_builder)?;
 
-        transaction_builder.set_tombstone_block(self.tombstone_block_index);
+        // transaction_builder.set_tombstone_block(self.tombstone_block_index);
 
-        let mut selected_utxos: Vec<UnspentTxOut> = Vec::new();
+        // let mut selected_utxos: Vec<UnspentTxOut> = Vec::new();
 
-        for (tx_in, real_index, subaddress_index) in
-            self.inputs_and_real_indices_and_subaddress_indices
-        {
-            let tx_out = &tx_in.ring[real_index as usize];
-            let tx_public_key = RistrettoPublic::try_from(&tx_out.public_key)?;
+        // for (tx_in, real_index, subaddress_index) in
+        //     self.inputs_and_real_indices_and_subaddress_indices
+        // {
+        //     let tx_out = &tx_in.ring[real_index as usize];
+        //     let tx_public_key =
+        // RistrettoPublic::try_from(&tx_out.public_key)?;
 
-            let onetime_private_key = recover_onetime_private_key(
-                &tx_public_key,
-                account_key.view_private_key(),
-                &account_key.subaddress_spend_private(subaddress_index),
-            );
+        //     let onetime_private_key = recover_onetime_private_key(
+        //         &tx_public_key,
+        //         account_key.view_private_key(),
+        //         &account_key.subaddress_spend_private(subaddress_index),
+        //     );
 
-            let key_image = KeyImage::from(&onetime_private_key);
+        //     let key_image = KeyImage::from(&onetime_private_key);
 
-            let input_credentials = InputCredentials::new(
-                tx_in.ring.clone(),
-                tx_in.proofs.clone(),
-                real_index as usize,
-                onetime_private_key,
-                *account_key.view_private_key(),
-            )?;
+        //     let input_credentials = InputCredentials::new(
+        //         tx_in.ring.clone(),
+        //         tx_in.proofs.clone(),
+        //         real_index as usize,
+        //         onetime_private_key,
+        //         *account_key.view_private_key(),
+        //     )?;
 
-            transaction_builder.add_input(input_credentials);
+        //     transaction_builder.add_input(input_credentials);
 
-            let tx_out = &tx_in.ring[real_index as usize];
-            let (amount, _) = decode_amount(tx_out, account_key.view_private_key())?;
+        //     let tx_out = &tx_in.ring[real_index as usize];
+        //     let (amount, _) = decode_amount(tx_out,
+        // account_key.view_private_key())?;
 
-            let utxo = UnspentTxOut {
-                tx_out: tx_out.clone(),
-                subaddress_index,
-                key_image,
-                value: amount.value,
-                attempted_spend_height: 0,
-                attempted_spend_tombstone: 0,
-                token_id: *Mob::ID,
-            };
+        //     let utxo = UnspentTxOut {
+        //         tx_out: tx_out.clone(),
+        //         subaddress_index,
+        //         key_image,
+        //         value: amount.value,
+        //         attempted_spend_height: 0,
+        //         attempted_spend_tombstone: 0,
+        //         token_id: *Mob::ID,
+        //     };
 
-            selected_utxos.push(utxo);
-        }
+        //     selected_utxos.push(utxo);
+        // }
 
-        // Add the inputs and sum their values
-        let total_input_value = selected_utxos
-            .iter()
-            .map(|utxo| utxo.value as u128)
-            .sum::<u128>() as u64;
+        // // Add the inputs and sum their values
+        // let total_input_value = selected_utxos
+        //     .iter()
+        //     .map(|utxo| utxo.value as u128)
+        //     .sum::<u128>() as u64;
 
-        let mut outlays_decoded: Vec<Outlay> = Vec::new();
+        // let mut outlays_decoded: Vec<Outlay> = Vec::new();
 
-        for (public_address_b58, value) in self.outlays {
-            let receiver = b58_decode_public_address(&public_address_b58)?;
-            outlays_decoded.push(Outlay {
-                receiver,
-                value,
-                token_id: Mob::ID,
-            });
-        }
+        // for (public_address_b58, value) in self.outlays {
+        //     let receiver = b58_decode_public_address(&public_address_b58)?;
+        //     outlays_decoded.push(Outlay {
+        //         receiver,
+        //         value,
+        //         token_id: Mob::ID,
+        //     });
+        // }
 
-        let (total_payload_value, tx_out_to_outlay_index, outlay_confirmation_numbers) =
-            add_payload_outputs(&outlays_decoded, &mut transaction_builder, &mut rng)?;
+        // let (total_payload_value, tx_out_to_outlay_index,
+        // outlay_confirmation_numbers) =     add_payload_outputs(&
+        // outlays_decoded, &mut transaction_builder, &mut rng)?;
 
-        add_change_output(
-            account_key,
-            total_input_value,
-            total_payload_value,
-            &mut transaction_builder,
-            &mut rng,
-        )?;
+        // add_change_output(
+        //     account_key,
+        //     total_input_value,
+        //     total_payload_value,
+        //     &mut transaction_builder,
+        //     &mut rng,
+        // )?;
 
-        let tx = transaction_builder.build(&NoKeysRingSigner {}, &mut rng)?;
+        // let tx = transaction_builder.build(&NoKeysRingSigner {}, &mut rng)?;
 
-        let outlay_index_to_tx_out_index: HashMap<usize, usize> = tx
-            .prefix
-            .outputs
-            .iter()
-            .enumerate()
-            .filter_map(|(tx_out_index, tx_out)| {
-                tx_out_to_outlay_index
-                    .get(tx_out)
-                    .map(|outlay_index| (*outlay_index, tx_out_index))
-            })
-            .collect();
+        // let outlay_index_to_tx_out_index: HashMap<usize, usize> = tx
+        //     .prefix
+        //     .outputs
+        //     .iter()
+        //     .enumerate()
+        //     .filter_map(|(tx_out_index, tx_out)| {
+        //         tx_out_to_outlay_index
+        //             .get(tx_out)
+        //             .map(|outlay_index| (*outlay_index, tx_out_index))
+        //     })
+        //     .collect();
 
-        Ok(TxProposal {
-            utxos: selected_utxos,
-            outlays: outlays_decoded.to_vec(),
-            tx,
-            outlay_index_to_tx_out_index,
-            outlay_confirmation_numbers,
-        })
+        // Ok(TxProposal {
+        //     utxos: selected_utxos,
+        //     outlays: outlays_decoded.to_vec(),
+        //     tx,
+        //     outlay_index_to_tx_out_index,
+        //     outlay_confirmation_numbers,
+        // })
     }
 }
 

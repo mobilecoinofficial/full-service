@@ -5,7 +5,6 @@
 use diesel::prelude::*;
 use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
-use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::{tx::Tx, TokenId};
 use std::fmt;
 
@@ -19,7 +18,7 @@ use crate::db::{
     Conn, WalletDbError,
 };
 
-use crate::service::models::tx_proposal::TxProposal as TxProposalModel;
+use crate::service::models::tx_proposal::TxProposal;
 
 #[derive(Debug)]
 pub struct TransactionID(pub String);
@@ -32,12 +31,6 @@ impl From<&TransactionLog> for TransactionID {
 
 impl From<&TxProposal> for TransactionID {
     fn from(_tx_proposal: &TxProposal) -> Self {
-        Self::from(&_tx_proposal.tx)
-    }
-}
-
-impl From<&TxProposalModel> for TransactionID {
-    fn from(_tx_proposal: &TxProposalModel) -> Self {
         Self::from(&_tx_proposal.tx)
     }
 }
@@ -151,7 +144,7 @@ pub trait TransactionLogModel {
     ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletDbError>;
 
     fn log_built(
-        tx_proposal: TxProposalModel,
+        tx_proposal: TxProposal,
         comment: String,
         account_id_hex: &str,
         conn: &Conn,
@@ -168,7 +161,7 @@ pub trait TransactionLogModel {
     /// change. Other wallets may choose to behave differently, but
     /// our TransactionLogs Table assumes this behavior.
     fn log_submitted(
-        tx_proposal: TxProposalModel,
+        tx_proposal: &TxProposal,
         block_index: u64,
         comment: String,
         account_id_hex: &str,
@@ -347,7 +340,7 @@ impl TransactionLogModel for TransactionLog {
     }
 
     fn log_built(
-        tx_proposal: TxProposalModel,
+        tx_proposal: TxProposal,
         comment: String,
         account_id_hex: &str,
         conn: &Conn,
@@ -408,7 +401,7 @@ impl TransactionLogModel for TransactionLog {
     }
 
     fn log_submitted(
-        tx_proposal: TxProposalModel,
+        tx_proposal: &TxProposal,
         block_index: u64,
         comment: String,
         account_id_hex: &str,

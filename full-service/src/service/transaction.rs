@@ -12,7 +12,7 @@ use crate::{
     },
     error::WalletTransactionBuilderError,
     service::{
-        ledger::LedgerService, models::tx_proposal::TxProposal as FSTxProposal,
+        ledger::LedgerService, models::tx_proposal::TxProposal,
         transaction_builder::WalletTransactionBuilder, WalletService,
     },
     util::b58::{b58_decode_public_address, B58Error},
@@ -20,7 +20,6 @@ use crate::{
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::{
     constants::{MAX_INPUTS, MAX_OUTPUTS},
     tokens::Mob,
@@ -163,12 +162,12 @@ pub trait TransactionService {
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
-    ) -> Result<FSTxProposal, TransactionServiceError>;
+    ) -> Result<TxProposal, TransactionServiceError>;
 
     /// Submits a pre-built TxProposal to the MobileCoin Consensus Network.
     fn submit_transaction(
         &self,
-        tx_proposal: FSTxProposal,
+        tx_proposal: &TxProposal,
         comment: Option<String>,
         account_id_hex: Option<String>,
     ) -> Result<Option<(TransactionLog, AssociatedTxos, ValueMap)>, TransactionServiceError>;
@@ -184,7 +183,7 @@ pub trait TransactionService {
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
-    ) -> Result<(TransactionLog, AssociatedTxos, ValueMap, FSTxProposal), TransactionServiceError>;
+    ) -> Result<(TransactionLog, AssociatedTxos, ValueMap, TxProposal), TransactionServiceError>;
 }
 
 impl<T, FPR> TransactionService for WalletService<T, FPR>
@@ -260,7 +259,7 @@ where
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
-    ) -> Result<FSTxProposal, TransactionServiceError> {
+    ) -> Result<TxProposal, TransactionServiceError> {
         validate_number_inputs(input_txo_ids.unwrap_or(&Vec::new()).len() as u64)?;
         validate_number_outputs(addresses_and_values.len() as u64)?;
 
@@ -316,7 +315,7 @@ where
                 builder.select_txos(&conn, max_spendable)?;
             }
 
-            let tx_proposal: FSTxProposal = builder.build(&conn)?;
+            let tx_proposal: TxProposal = builder.build(&conn)?;
 
             TransactionLog::log_built(
                 tx_proposal.clone(),
@@ -331,7 +330,7 @@ where
 
     fn submit_transaction(
         &self,
-        tx_proposal: FSTxProposal,
+        tx_proposal: &TxProposal,
         comment: Option<String>,
         account_id_hex: Option<String>,
     ) -> Result<Option<(TransactionLog, AssociatedTxos, ValueMap)>, TransactionServiceError> {
@@ -400,32 +399,29 @@ where
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
-    ) -> Result<(TransactionLog, AssociatedTxos, ValueMap, FSTxProposal), TransactionServiceError>
+    ) -> Result<(TransactionLog, AssociatedTxos, ValueMap, TxProposal), TransactionServiceError>
     {
-        todo!();
-        // let tx_proposal = self.build_transaction(
-        //     account_id_hex,
-        //     addresses_and_values,
-        //     input_txo_ids,
-        //     fee,
-        //     tombstone_block,
-        //     max_spendable_value,
-        //     comment.clone(),
-        // )?;
-        // if let Some(transaction_log_and_associated_txos) =
-        // self.submit_transaction(     tx_proposal.clone(),
-        //     comment,
-        //     Some(account_id_hex.to_string()),
-        // )? {
-        //     Ok((
-        //         transaction_log_and_associated_txos.0,
-        //         transaction_log_and_associated_txos.1,
-        //         transaction_log_and_associated_txos.2,
-        //         tx_proposal,
-        //     ))
-        // } else {
-        //     Err(TransactionServiceError::MissingAccountOnSubmit)
-        // }
+        let tx_proposal = self.build_transaction(
+            account_id_hex,
+            addresses_and_values,
+            input_txo_ids,
+            fee,
+            tombstone_block,
+            max_spendable_value,
+            comment.clone(),
+        )?;
+        if let Some(transaction_log_and_associated_txos) =
+            self.submit_transaction(&tx_proposal, comment, Some(account_id_hex.to_string()))?
+        {
+            Ok((
+                transaction_log_and_associated_txos.0,
+                transaction_log_and_associated_txos.1,
+                transaction_log_and_associated_txos.2,
+                tx_proposal,
+            ))
+        } else {
+            Err(TransactionServiceError::MissingAccountOnSubmit)
+        }
     }
 }
 

@@ -18,7 +18,7 @@ use crate::{
     },
     error::WalletTransactionBuilderError,
     fog_resolver::{FullServiceFogResolver, FullServiceFullyValidatedFogPubkey},
-    service::models::tx_proposal::{InputTxo, OutputTxo, TxProposal as FSTxProposal},
+    service::models::tx_proposal::{InputTxo, OutputTxo, TxProposal},
     unsigned_tx::UnsignedTx,
     util::b58::b58_encode_public_address,
 };
@@ -31,10 +31,6 @@ use mc_crypto_keys::RistrettoPublic;
 use mc_crypto_ring_signature_signer::NoKeysRingSigner;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
-use mc_mobilecoind::{
-    payments::{Outlay, TxProposal},
-    UnspentTxOut,
-};
 use mc_transaction_core::{
     constants::RING_SIZE,
     onetime_keys::recover_onetime_private_key,
@@ -391,7 +387,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
     }
 
     /// Consumes self
-    pub fn build(&self, conn: &Conn) -> Result<FSTxProposal, WalletTransactionBuilderError> {
+    pub fn build(&self, conn: &Conn) -> Result<TxProposal, WalletTransactionBuilderError> {
         if self.inputs.is_empty() {
             return Err(WalletTransactionBuilderError::NoInputs);
         }
@@ -688,7 +684,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             })
             .collect();
 
-        Ok(FSTxProposal {
+        Ok(TxProposal {
             tx,
             input_txos,
             payload_txos,

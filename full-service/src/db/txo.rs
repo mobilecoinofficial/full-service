@@ -10,7 +10,6 @@ use mc_account_keys::{AccountKey, PublicAddress, CHANGE_SUBADDRESS_INDEX};
 use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
-use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::{
     constants::MAX_INPUTS,
     ring_signature::KeyImage,
@@ -100,14 +99,6 @@ impl fmt::Display for TxoID {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct ProcessedTxProposalOutput {
-    /// The recipient of this TxOut - None if change
-    pub recipient: Option<PublicAddress>,
-    pub txo_id_hex: String,
-    pub value: i64,
-}
-
 pub struct SpendableTxosResult {
     pub spendable_txos: Vec<Txo>,
     pub max_spendable_in_wallet: u128,
@@ -140,14 +131,6 @@ pub trait TxoModel {
         account_id_hex: &str,
         conn: &Conn,
     ) -> Result<String, WalletDbError>;
-
-    /// Processes a TxProposal to create a new minted Txo and a change Txo.
-    fn create_minted(
-        txo: &TxOut,
-        tx_proposal: &TxProposal,
-        outlay_index: usize,
-        conn: &Conn,
-    ) -> Result<(), WalletDbError>;
 
     fn create_new_output(
         output_txo: &OutputTxo,
@@ -366,94 +349,6 @@ impl TxoModel for Txo {
             }
         };
         Ok(txo_id.to_string())
-    }
-
-    fn create_minted(
-        output: &TxOut,
-        tx_proposal: &TxProposal,
-        output_index: usize,
-        conn: &Conn,
-    ) -> Result<(), WalletDbError> {
-        use crate::db::schema::txos;
-
-        let txo_id = TxoID::from(output);
-
-        let transaction_id: TransactionID = tx_proposal.into();
-
-        let total_input_value: u64 = tx_proposal.utxos.iter().map(|u| u.value).sum();
-        let total_output_value: u64 = tx_proposal.outlays.iter().map(|o| o.value).sum();
-        let change_value: u64 = total_input_value - total_output_value - tx_proposal.fee();
-
-        // Determine whether this output is an outlay destination, or change.
-        let (value, confirmation, outlay_receiver, txo_type) = if let Some(outlay_index) =
-            tx_proposal
-                .outlay_index_to_tx_out_index
-                .iter()
-                .find_map(|(k, &v)| if v == output_index { Some(k) } else { None })
-        {
-            let outlay = &tx_proposal.outlays[*outlay_index];
-            (
-                outlay.value,
-                Some(*outlay_index),
-                Some(outlay.receiver.clone()),
-                TxoType::Payload,
-            )
-        } else {
-            // This is the change output. Note: there should only be one change
-            // output per transaction, based on how we construct
-            // transactions. If we change how we construct transactions,
-            // these assumptions will change, and should be reflected in the
-            // TxProposal.
-            (change_value, None, None, TxoType::Change)
-        };
-
-        // Update receiver, transaction_value, and transaction_txo_type, if outlay was
-        // found.
-        let (recipient_public_address_b58, subaddress_index) = if let Some(r) = outlay_receiver {
-            (b58_encode_public_address(&r)?, None)
-        } else {
-            // If not in an outlay, this output is change, according to how we build
-            // transactions.
-            ("".to_string(), Some(CHANGE_SUBADDRESS_INDEX as i64))
-        };
-
-        let encoded_confirmation = confirmation
-            .map(|p| mc_util_serial::encode(&tx_proposal.outlay_confirmation_numbers[p]));
-
-        // TODO: Update this to use the txo id of the output we are minting, not
-        // defaulting to 0
-        let new_txo = NewTxo {
-            id: &txo_id.to_string(),
-            value: value as i64,
-            account_id: None,
-            token_id: 0,
-            target_key: &mc_util_serial::encode(&output.target_key),
-            public_key: &mc_util_serial::encode(&output.public_key),
-            e_fog_hint: &mc_util_serial::encode(&output.e_fog_hint),
-            txo: &mc_util_serial::encode(output),
-            subaddress_index,
-            key_image: None, // Only the recipient can calculate the KeyImage
-            received_block_index: None,
-            spent_block_index: None,
-            shared_secret: encoded_confirmation.as_deref(),
-        };
-
-        diesel::insert_into(txos::table)
-            .values(&new_txo)
-            .execute(conn)?;
-
-        let new_transaction_output_txo = NewTransactionOutputTxo {
-            transaction_log_id: &transaction_id.to_string(),
-            txo_id: &txo_id.to_string(),
-            recipient_public_address_b58: &recipient_public_address_b58,
-            is_change: txo_type == TxoType::Change,
-        };
-
-        diesel::insert_into(crate::db::schema::transaction_output_txos::table)
-            .values(&new_transaction_output_txo)
-            .execute(conn)?;
-
-        Ok(())
     }
 
     fn create_new_output(

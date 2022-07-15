@@ -17,14 +17,13 @@ use crate::{
         network_status::NetworkStatus,
         receiver_receipt::ReceiverReceipt,
         transaction_log::TransactionLog,
-        tx_proposal::{TxProposal, TxProposalJSON},
+        tx_proposal::TxProposalJSON,
         txo::Txo,
         wallet_status::WalletStatus,
     },
     service::{gift_code::GiftCodeStatus, receipt::ReceiptTransactionStatus},
     util::b58::PrintableWrapperType,
 };
-use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use std::collections::{BTreeMap, HashMap};
@@ -136,7 +135,7 @@ pub enum JsonCommandResponse {
         tx_proposal: TxProposalJSON,
     },
     build_gift_code {
-        tx_proposal: TxProposal,
+        tx_proposal: TxProposalJSON,
         gift_code_b58: String,
     },
     build_split_txo_transaction {
@@ -238,12 +237,12 @@ pub enum JsonCommandResponse {
     get_gift_code {
         gift_code: GiftCode,
     },
-    get_mc_protocol_transaction {
-        transaction: JsonTx,
-    },
-    get_mc_protocol_txo {
-        txo: JsonTxOut,
-    },
+    // get_mc_protocol_transaction {
+    //     transaction: JsonTx,
+    // },
+    // get_mc_protocol_txo {
+    //     txo: JsonTxOut,
+    // },
     get_network_status {
         network_status: NetworkStatus,
     },

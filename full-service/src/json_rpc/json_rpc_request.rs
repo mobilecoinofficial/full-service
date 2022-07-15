@@ -2,7 +2,7 @@
 
 //! The JSON RPC 2.0 Requests to the Wallet API for Full Service.
 
-use crate::json_rpc::tx_proposal::{TxProposal, TxProposalJSON};
+use crate::json_rpc::tx_proposal::TxProposalJSON;
 
 use crate::json_rpc::receiver_receipt::ReceiverReceipt;
 use serde::{Deserialize, Serialize};
@@ -136,7 +136,7 @@ pub enum JsonCommandRequest {
         memo: Option<String>,
     },
     create_receiver_receipts {
-        tx_proposal: TxProposal,
+        tx_proposal: TxProposalJSON,
     },
     create_view_only_account_sync_request {
         account_id: String,
@@ -186,12 +186,12 @@ pub enum JsonCommandRequest {
     get_gift_code {
         gift_code_b58: String,
     },
-    get_mc_protocol_transaction {
-        transaction_log_id: String,
-    },
-    get_mc_protocol_txo {
-        txo_id: String,
-    },
+    // get_mc_protocol_transaction {
+    //     transaction_log_id: String,
+    // },
+    // get_mc_protocol_txo {
+    //     txo_id: String,
+    // },
     get_network_status,
     get_transaction_log {
         transaction_log_id: String,
@@ -248,7 +248,7 @@ pub enum JsonCommandRequest {
     submit_gift_code {
         from_account_id: String,
         gift_code_b58: String,
-        tx_proposal: TxProposal,
+        tx_proposal: TxProposalJSON,
     },
     submit_transaction {
         tx_proposal: TxProposalJSON,

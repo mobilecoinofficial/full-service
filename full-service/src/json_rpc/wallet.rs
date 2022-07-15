@@ -24,7 +24,7 @@ use crate::{
         },
         network_status::NetworkStatus,
         receiver_receipt::ReceiverReceipt,
-        tx_proposal::{TxProposal, TxProposalJSON},
+        tx_proposal::TxProposalJSON,
         txo::Txo,
         wallet_status::WalletStatus,
     },
@@ -36,7 +36,7 @@ use crate::{
         confirmation_number::ConfirmationService,
         gift_code::{EncodedGiftCode, GiftCodeService},
         ledger::LedgerService,
-        models::tx_proposal::TxProposal as TxProposalModel,
+        models::tx_proposal::TxProposal,
         payment_request::PaymentRequestService,
         receipt::ReceiptService,
         transaction::TransactionService,
@@ -54,7 +54,6 @@ use mc_connection::{
     BlockchainConnection, HardcodedCredentialsProvider, ThickClient, UserTxConnection,
 };
 use mc_fog_report_validation::{FogPubkeyResolver, FogResolver};
-use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use mc_validator_connection::ValidatorConnection;
 use rocket::{
     self, get, http::Status, outcome::Outcome, post, request::FromRequest, routes, Request, State,
@@ -235,29 +234,31 @@ where
             tombstone_block,
             max_spendable_value,
         } => {
-            let (tx_proposal, gift_code_b58) = service
-                .build_gift_code(
-                    &AccountID(account_id),
-                    value_pmob.parse::<u64>().map_err(format_error)?,
-                    memo,
-                    input_txo_ids.as_ref(),
-                    fee.map(|f| f.parse::<u64>())
-                        .transpose()
-                        .map_err(format_error)?,
-                    tombstone_block
-                        .map(|t| t.parse::<u64>())
-                        .transpose()
-                        .map_err(format_error)?,
-                    max_spendable_value
-                        .map(|m| m.parse::<u64>())
-                        .transpose()
-                        .map_err(format_error)?,
-                )
-                .map_err(format_error)?;
-            JsonCommandResponse::build_gift_code {
-                tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
-                gift_code_b58: gift_code_b58.to_string(),
-            }
+            todo!();
+            // let (tx_proposal, gift_code_b58) = service
+            //     .build_gift_code(
+            //         &AccountID(account_id),
+            //         value_pmob.parse::<u64>().map_err(format_error)?,
+            //         memo,
+            //         input_txo_ids.as_ref(),
+            //         fee.map(|f| f.parse::<u64>())
+            //             .transpose()
+            //             .map_err(format_error)?,
+            //         tombstone_block
+            //             .map(|t| t.parse::<u64>())
+            //             .transpose()
+            //             .map_err(format_error)?,
+            //         max_spendable_value
+            //             .map(|m| m.parse::<u64>())
+            //             .transpose()
+            //             .map_err(format_error)?,
+            //     )
+            //     .map_err(format_error)?;
+            // JsonCommandResponse::build_gift_code {
+            //     tx_proposal:
+            // TxProposal::try_from(&tx_proposal).map_err(format_error)?,
+            //     gift_code_b58: gift_code_b58.to_string(),
+            // }
         }
         JsonCommandRequest::build_split_txo_transaction {
             txo_id,
@@ -438,20 +439,21 @@ where
                 .map_err(format_error)?,
         },
         JsonCommandRequest::create_receiver_receipts { tx_proposal } => {
-            let receipts = service
-                .create_receiver_receipts(
-                    &mc_mobilecoind::payments::TxProposal::try_from(&tx_proposal)
-                        .map_err(format_error)?,
-                )
-                .map_err(format_error)?;
-            let json_receipts: Vec<ReceiverReceipt> = receipts
-                .iter()
-                .map(ReceiverReceipt::try_from)
-                .collect::<Result<Vec<ReceiverReceipt>, String>>()
-                .map_err(format_error)?;
-            JsonCommandResponse::create_receiver_receipts {
-                receiver_receipts: json_receipts,
-            }
+            todo!();
+            // let receipts = service
+            //     .create_receiver_receipts(
+            //         &mc_mobilecoind::payments::TxProposal::try_from(&
+            // tx_proposal)             .map_err(format_error)?,
+            //     )
+            //     .map_err(format_error)?;
+            // let json_receipts: Vec<ReceiverReceipt> = receipts
+            //     .iter()
+            //     .map(ReceiverReceipt::try_from)
+            //     .collect::<Result<Vec<ReceiverReceipt>, String>>()
+            //     .map_err(format_error)?;
+            // JsonCommandResponse::create_receiver_receipts {
+            //     receiver_receipts: json_receipts,
+            // }
         }
         JsonCommandRequest::create_view_only_account_sync_request { account_id } => {
             let unverified_txos = service
@@ -709,22 +711,22 @@ where
                     .map_err(format_error)?,
             ),
         },
-        JsonCommandRequest::get_mc_protocol_transaction { transaction_log_id } => {
-            let tx = service
-                .get_transaction_object(&transaction_log_id)
-                .map_err(format_error)?;
-            let proto_tx = mc_api::external::Tx::from(&tx);
-            let json_tx = JsonTx::from(&proto_tx);
-            JsonCommandResponse::get_mc_protocol_transaction {
-                transaction: json_tx,
-            }
-        }
-        JsonCommandRequest::get_mc_protocol_txo { txo_id } => {
-            let tx_out = service.get_txo_object(&txo_id).map_err(format_error)?;
-            let proto_txo = mc_api::external::TxOut::from(&tx_out);
-            let json_txo = JsonTxOut::from(&proto_txo);
-            JsonCommandResponse::get_mc_protocol_txo { txo: json_txo }
-        }
+        // JsonCommandRequest::get_mc_protocol_transaction { transaction_log_id } => {
+        //     let tx = service
+        //         .get_transaction_object(&transaction_log_id)
+        //         .map_err(format_error)?;
+        //     let proto_tx = mc_api::external::Tx::from(&tx);
+        //     let json_tx = JsonTx::from(&proto_tx);
+        //     JsonCommandResponse::get_mc_protocol_transaction {
+        //         transaction: json_tx,
+        //     }
+        // }
+        // JsonCommandRequest::get_mc_protocol_txo { txo_id } => {
+        //     let tx_out = service.get_txo_object(&txo_id).map_err(format_error)?;
+        //     let proto_txo = mc_api::external::TxOut::from(&tx_out);
+        //     let json_txo = JsonTxOut::from(&proto_txo);
+        //     JsonCommandResponse::get_mc_protocol_txo { txo: json_txo }
+        // }
         JsonCommandRequest::get_network_status => JsonCommandResponse::get_network_status {
             network_status: NetworkStatus::try_from(
                 &service.get_network_status().map_err(format_error)?,
@@ -957,26 +959,27 @@ where
             gift_code_b58,
             tx_proposal,
         } => {
-            let gift_code = service
-                .submit_gift_code(
-                    &AccountID(from_account_id),
-                    &EncodedGiftCode(gift_code_b58),
-                    &mc_mobilecoind::payments::TxProposal::try_from(&tx_proposal)
-                        .map_err(format_error)?,
-                )
-                .map_err(format_error)?;
-            JsonCommandResponse::submit_gift_code {
-                gift_code: GiftCode::from(&gift_code),
-            }
+            todo!();
+            // let gift_code = service
+            //     .submit_gift_code(
+            //         &AccountID(from_account_id),
+            //         &EncodedGiftCode(gift_code_b58),
+            //         &mc_mobilecoind::payments::TxProposal::try_from(&
+            // tx_proposal)             .map_err(format_error)?,
+            //     )
+            //     .map_err(format_error)?;
+            // JsonCommandResponse::submit_gift_code {
+            //     gift_code: GiftCode::from(&gift_code),
+            // }
         }
         JsonCommandRequest::submit_transaction {
             tx_proposal,
             comment,
             account_id,
         } => {
-            let tx_proposal = TxProposalModel::try_from(&tx_proposal).map_err(format_error)?;
+            let tx_proposal = TxProposal::try_from(&tx_proposal).map_err(format_error)?;
             let result: Option<json_rpc::transaction_log::TransactionLog> = service
-                .submit_transaction(tx_proposal, comment, account_id)
+                .submit_transaction(&tx_proposal, comment, account_id)
                 .map_err(format_error)?
                 .map(|(transaction_log, associated_txos, value_map)| {
                     json_rpc::transaction_log::TransactionLog::new(
