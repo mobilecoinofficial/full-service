@@ -121,27 +121,8 @@ where
 
     fn verify_address(&self, public_address: &str) -> Result<bool, AddressServiceError> {
         match b58_decode_public_address(public_address) {
-            Ok(a) => {
-                log::info!(
-                    self.logger,
-                    "Verified address:\n\t\t{}\n\t\t{}\n\t\t{}\n\t\t{:?}\n\t\t{}",
-                    a.view_public_key(),
-                    a.spend_public_key(),
-                    a.fog_report_url().unwrap_or(""),
-                    a.fog_authority_sig().unwrap_or_default(),
-                    a.fog_report_id().unwrap_or(""),
-                );
-                Ok(true)
-            }
-            Err(e) => {
-                log::info!(
-                    self.logger,
-                    "Address did not verify {:?}: {:?}",
-                    public_address,
-                    e
-                );
-                Ok(false)
-            }
+            Ok(a) => Ok(true),
+            Err(e) => Ok(false),
         }
     }
 }

@@ -24,7 +24,7 @@ use crate::{
         },
         network_status::NetworkStatus,
         receiver_receipt::ReceiverReceipt,
-        tx_proposal::TxProposal,
+        tx_proposal::{TxProposal, TxProposalJSON},
         txo::Txo,
         wallet_status::WalletStatus,
     },
@@ -278,7 +278,7 @@ where
                 )
                 .map_err(format_error)?;
             JsonCommandResponse::build_split_txo_transaction {
-                tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
+                tx_proposal: TxProposalJSON::try_from(&tx_proposal).map_err(format_error)?,
                 transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
             }
         }
@@ -310,7 +310,7 @@ where
                 )
                 .map_err(format_error)?;
             JsonCommandResponse::build_transaction {
-                tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
+                tx_proposal: TxProposalJSON::try_from(&tx_proposal).map_err(format_error)?,
                 transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
             }
         }

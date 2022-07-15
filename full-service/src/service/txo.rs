@@ -10,13 +10,15 @@ use crate::{
         txo::{TxoID, TxoModel, TxoStatus},
         WalletDbError,
     },
-    service::transaction::{TransactionService, TransactionServiceError},
+    service::{
+        models::tx_proposal::TxProposal,
+        transaction::{TransactionService, TransactionServiceError},
+    },
     WalletService,
 };
 use displaydoc::Display;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_mobilecoind::payments::TxProposal;
 
 /// Errors for the Txo Service.
 #[derive(Display, Debug)]

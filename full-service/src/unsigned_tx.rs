@@ -115,7 +115,11 @@ impl UnsignedTx {
 
         for (public_address_b58, value) in self.outlays {
             let receiver = b58_decode_public_address(&public_address_b58)?;
-            outlays_decoded.push(Outlay { receiver, value });
+            outlays_decoded.push(Outlay {
+                receiver,
+                value,
+                token_id: Mob::ID,
+            });
         }
 
         let (total_payload_value, tx_out_to_outlay_index, outlay_confirmation_numbers) =

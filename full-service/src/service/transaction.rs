@@ -12,7 +12,8 @@ use crate::{
     },
     error::WalletTransactionBuilderError,
     service::{
-        ledger::LedgerService, transaction_builder::WalletTransactionBuilder, WalletService,
+        ledger::LedgerService, models::tx_proposal::TxProposal as FSTxProposal,
+        transaction_builder::WalletTransactionBuilder, WalletService,
     },
     util::b58::{b58_decode_public_address, B58Error},
 };
@@ -162,7 +163,7 @@ pub trait TransactionService {
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
-    ) -> Result<TxProposal, TransactionServiceError>;
+    ) -> Result<FSTxProposal, TransactionServiceError>;
 
     /// Submits a pre-built TxProposal to the MobileCoin Consensus Network.
     fn submit_transaction(
@@ -198,53 +199,56 @@ where
         fee: Option<(String, String)>,
         tombstone_block: Option<String>,
     ) -> Result<(UnsignedTx, FullServiceFogResolver), TransactionServiceError> {
-        validate_number_outputs(addresses_and_values.len() as u64)?;
+        todo!();
+        // validate_number_outputs(addresses_and_values.len() as u64)?;
 
-        let conn = self.wallet_db.get_conn()?;
-        transaction(&conn, || {
-            let mut builder = WalletTransactionBuilder::new(
-                account_id_hex.to_string(),
-                self.ledger_db.clone(),
-                self.fog_resolver_factory.clone(),
-                self.logger.clone(),
-            );
+        // let conn = self.wallet_db.get_conn()?;
+        // transaction(&conn, || {
+        //     let mut builder = WalletTransactionBuilder::new(
+        //         account_id_hex.to_string(),
+        //         self.ledger_db.clone(),
+        //         self.fog_resolver_factory.clone(),
+        //         self.logger.clone(),
+        //     );
 
-            for (recipient_public_address, value, token_id) in addresses_and_values {
-                if !self.verify_address(recipient_public_address)? {
-                    return Err(TransactionServiceError::InvalidPublicAddress(
-                        recipient_public_address.to_string(),
-                    ));
-                };
-                let recipient = b58_decode_public_address(recipient_public_address)?;
-                builder.add_recipient(
-                    recipient,
-                    value.parse::<u64>()?,
-                    TokenId::from(token_id.parse::<u64>()?),
-                )?;
-            }
+        //     for (recipient_public_address, value, token_id) in
+        // addresses_and_values {         if
+        // !self.verify_address(recipient_public_address)? {
+        // return Err(TransactionServiceError::InvalidPublicAddress(
+        //                 recipient_public_address.to_string(),
+        //             ));
+        //         };
+        //         let recipient =
+        // b58_decode_public_address(recipient_public_address)?;
+        //         builder.add_recipient(
+        //             recipient,
+        //             value.parse::<u64>()?,
+        //             TokenId::from(token_id.parse::<u64>()?),
+        //         )?;
+        //     }
 
-            if let Some(tombstone) = tombstone_block {
-                builder.set_tombstone(tombstone.parse::<u64>()?)?;
-            } else {
-                builder.set_tombstone(0)?;
-            }
+        //     if let Some(tombstone) = tombstone_block {
+        //         builder.set_tombstone(tombstone.parse::<u64>()?)?;
+        //     } else {
+        //         builder.set_tombstone(0)?;
+        //     }
 
-            let (fee, token_id) = match fee {
-                Some((f, t)) => (f.parse()?, TokenId::from(t.parse::<u64>()?)),
-                None => (self.get_network_fees()[&Mob::ID], Mob::ID),
-            };
+        //     let (fee, token_id) = match fee {
+        //         Some((f, t)) => (f.parse()?,
+        // TokenId::from(t.parse::<u64>()?)),         None =>
+        // (self.get_network_fees()[&Mob::ID], Mob::ID),     };
 
-            builder.set_fee(fee, token_id)?;
+        //     builder.set_fee(fee, token_id)?;
 
-            builder.set_block_version(self.get_network_block_version());
+        //     builder.set_block_version(self.get_network_block_version());
 
-            builder.select_txos(&conn, None)?;
+        //     builder.select_txos(&conn, None)?;
 
-            let unsigned_tx = builder.build_unsigned()?;
-            let fog_resolver = builder.get_fs_fog_resolver(&conn)?;
+        //     let unsigned_tx = builder.build_unsigned()?;
+        //     let fog_resolver = builder.get_fs_fog_resolver(&conn)?;
 
-            Ok((unsigned_tx, fog_resolver))
-        })
+        //     Ok((unsigned_tx, fog_resolver))
+        // })
     }
 
     fn build_transaction(
@@ -256,7 +260,7 @@ where
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
-    ) -> Result<TxProposal, TransactionServiceError> {
+    ) -> Result<FSTxProposal, TransactionServiceError> {
         validate_number_inputs(input_txo_ids.unwrap_or(&Vec::new()).len() as u64)?;
         validate_number_outputs(addresses_and_values.len() as u64)?;
 
@@ -269,6 +273,8 @@ where
                 self.logger.clone(),
             );
 
+            let mut default_fee_token_id = Mob::ID;
+
             for (recipient_public_address, value, token_id) in addresses_and_values {
                 if !self.verify_address(recipient_public_address)? {
                     return Err(TransactionServiceError::InvalidPublicAddress(
@@ -276,11 +282,9 @@ where
                     ));
                 };
                 let recipient = b58_decode_public_address(recipient_public_address)?;
-                builder.add_recipient(
-                    recipient,
-                    value.parse::<u64>()?,
-                    TokenId::from(token_id.parse::<u64>()?),
-                )?;
+                let token_id = TokenId::from(token_id.parse::<u64>()?);
+                builder.add_recipient(recipient, value.parse::<u64>()?, token_id)?;
+                default_fee_token_id = token_id;
             }
 
             if let Some(tombstone) = tombstone_block {
@@ -291,7 +295,10 @@ where
 
             let (fee, token_id) = match fee {
                 Some((f, t)) => (f.parse()?, TokenId::from(t.parse::<u64>()?)),
-                None => (self.get_network_fees()[&Mob::ID], Mob::ID),
+                None => (
+                    self.get_network_fees()[&default_fee_token_id],
+                    default_fee_token_id,
+                ),
             };
 
             builder.set_fee(fee, token_id)?;
@@ -309,7 +316,7 @@ where
                 builder.select_txos(&conn, max_spendable)?;
             }
 
-            let tx_proposal = builder.build(&conn)?;
+            let tx_proposal: FSTxProposal = builder.build(&conn)?;
 
             TransactionLog::log_built(
                 tx_proposal.clone(),
@@ -328,68 +335,73 @@ where
         comment: Option<String>,
         account_id_hex: Option<String>,
     ) -> Result<Option<(TransactionLog, AssociatedTxos, ValueMap)>, TransactionServiceError> {
-        if self.offline {
-            return Err(TransactionServiceError::Offline);
-        }
+        todo!();
+        // if self.offline {
+        //     return Err(TransactionServiceError::Offline);
+        // }
 
-        // Pick a peer to submit to.
-        let responder_ids = self.peer_manager.responder_ids();
-        if responder_ids.is_empty() {
-            return Err(TransactionServiceError::NoPeersConfigured);
-        }
+        // // Pick a peer to submit to.
+        // let responder_ids = self.peer_manager.responder_ids();
+        // if responder_ids.is_empty() {
+        //     return Err(TransactionServiceError::NoPeersConfigured);
+        // }
 
-        let idx = self.submit_node_offset.fetch_add(1, Ordering::SeqCst);
-        let responder_id = &responder_ids[idx % responder_ids.len()];
+        // let idx = self.submit_node_offset.fetch_add(1, Ordering::SeqCst);
+        // let responder_id = &responder_ids[idx % responder_ids.len()];
 
-        // FIXME: WS-34 - would prefer not to convert to proto as intermediary
-        let tx_proposal_proto = mc_mobilecoind_api::TxProposal::try_from(&tx_proposal)
-            .map_err(|_| TransactionServiceError::ProtoConversionInfallible)?;
+        // // FIXME: WS-34 - would prefer not to convert to proto as
+        // intermediary let tx_proposal_proto =
+        // mc_mobilecoind_api::TxProposal::try_from(&tx_proposal)
+        //     .map_err(|_|
+        // TransactionServiceError::ProtoConversionInfallible)?;
 
-        // Try to submit.
-        let tx = mc_transaction_core::tx::Tx::try_from(tx_proposal_proto.get_tx())
-            .map_err(|_| TransactionServiceError::ProtoConversionInfallible)?;
+        // // Try to submit.
+        // let tx = mc_transaction_core::tx::Tx::try_from(tx_proposal_proto.
+        // get_tx())     .map_err(|_|
+        // TransactionServiceError::ProtoConversionInfallible)?;
 
-        let block_index = self
-            .peer_manager
-            .conn(responder_id)
-            .ok_or(TransactionServiceError::NodeNotFound)?
-            .propose_tx(&tx, empty())
-            .map_err(TransactionServiceError::from)?;
+        // let block_index = self
+        //     .peer_manager
+        //     .conn(responder_id)
+        //     .ok_or(TransactionServiceError::NodeNotFound)?
+        //     .propose_tx(&tx, empty())
+        //     .map_err(TransactionServiceError::from)?;
 
-        log::trace!(
-            self.logger,
-            "Tx {:?} submitted at block height {}",
-            tx,
-            block_index
-        );
+        // log::trace!(
+        //     self.logger,
+        //     "Tx {:?} submitted at block height {}",
+        //     tx,
+        //     block_index
+        // );
 
-        if let Some(account_id_hex) = account_id_hex {
-            let conn = self.wallet_db.get_conn()?;
-            let account_id = AccountID(account_id_hex.to_string());
+        // if let Some(account_id_hex) = account_id_hex {
+        //     let conn = self.wallet_db.get_conn()?;
+        //     let account_id = AccountID(account_id_hex.to_string());
 
-            transaction(&conn, || {
-                if Account::get(&account_id, &conn).is_ok() {
-                    let transaction_log = TransactionLog::log_submitted(
-                        tx_proposal,
-                        block_index,
-                        comment.unwrap_or_else(|| "".to_string()),
-                        &account_id_hex,
-                        &conn,
-                    )?;
+        //     transaction(&conn, || {
+        //         if Account::get(&account_id, &conn).is_ok() {
+        //             let transaction_log = TransactionLog::log_submitted(
+        //                 tx_proposal,
+        //                 block_index,
+        //                 comment.unwrap_or_else(|| "".to_string()),
+        //                 &account_id_hex,
+        //                 &conn,
+        //             )?;
 
-                    let associated_txos = transaction_log.get_associated_txos(&conn)?;
-                    let value_map = transaction_log.value_map(&conn)?;
+        //             let associated_txos =
+        // transaction_log.get_associated_txos(&conn)?;             let
+        // value_map = transaction_log.value_map(&conn)?;
 
-                    Ok(Some((transaction_log, associated_txos, value_map)))
-                } else {
-                    Err(TransactionServiceError::Database(
-                        WalletDbError::AccountNotFound(account_id_hex),
-                    ))
-                }
-            })
-        } else {
-            Ok(None)
-        }
+        //             Ok(Some((transaction_log, associated_txos, value_map)))
+        //         } else {
+        //             Err(TransactionServiceError::Database(
+        //                 WalletDbError::AccountNotFound(account_id_hex),
+        //             ))
+        //         }
+        //     })
+        // } else {
+        //     Ok(None)
+        // }
     }
 
     fn build_and_submit(
@@ -403,29 +415,30 @@ where
         comment: Option<String>,
     ) -> Result<(TransactionLog, AssociatedTxos, ValueMap, TxProposal), TransactionServiceError>
     {
-        let tx_proposal = self.build_transaction(
-            account_id_hex,
-            addresses_and_values,
-            input_txo_ids,
-            fee,
-            tombstone_block,
-            max_spendable_value,
-            comment.clone(),
-        )?;
-        if let Some(transaction_log_and_associated_txos) = self.submit_transaction(
-            tx_proposal.clone(),
-            comment,
-            Some(account_id_hex.to_string()),
-        )? {
-            Ok((
-                transaction_log_and_associated_txos.0,
-                transaction_log_and_associated_txos.1,
-                transaction_log_and_associated_txos.2,
-                tx_proposal,
-            ))
-        } else {
-            Err(TransactionServiceError::MissingAccountOnSubmit)
-        }
+        todo!();
+        // let tx_proposal = self.build_transaction(
+        //     account_id_hex,
+        //     addresses_and_values,
+        //     input_txo_ids,
+        //     fee,
+        //     tombstone_block,
+        //     max_spendable_value,
+        //     comment.clone(),
+        // )?;
+        // if let Some(transaction_log_and_associated_txos) =
+        // self.submit_transaction(     tx_proposal.clone(),
+        //     comment,
+        //     Some(account_id_hex.to_string()),
+        // )? {
+        //     Ok((
+        //         transaction_log_and_associated_txos.0,
+        //         transaction_log_and_associated_txos.1,
+        //         transaction_log_and_associated_txos.2,
+        //         tx_proposal,
+        //     ))
+        // } else {
+        //     Err(TransactionServiceError::MissingAccountOnSubmit)
+        // }
     }
 }
 

@@ -13,11 +13,12 @@ use crate::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
         models::{Account, Txo},
-        txo::TxoModel,
+        txo::{TxoID, TxoModel},
         Conn,
     },
     error::WalletTransactionBuilderError,
     fog_resolver::{FullServiceFogResolver, FullServiceFullyValidatedFogPubkey},
+    service::models::tx_proposal::{InputTxo, OutputTxo, TxProposal as FSTxProposal},
     unsigned_tx::UnsignedTx,
     util::b58::b58_encode_public_address,
 };
@@ -178,12 +179,22 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         value: u64,
         token_id: TokenId,
     ) -> Result<(), WalletTransactionBuilderError> {
-        // // Verify that the maximum output value of this transaction remains under
-        // // u64::MAX
-        // let cur_sum = self.outlays.iter().map(|(_r, v)| *v as u128).sum::<u128>();
-        // if cur_sum > u64::MAX as u128 {
-        //     return Err(WalletTransactionBuilderError::OutboundValueTooLarge);
-        // }
+        // Verify that the maximum output value of this transaction remains under
+        // u64::MAX for the given Token Id
+        let cur_sum = self
+            .outlays
+            .iter()
+            .filter_map(|(_r, v, t)| {
+                if *t == token_id {
+                    Some(*v as u128)
+                } else {
+                    None
+                }
+            })
+            .sum::<u128>();
+        if cur_sum > u64::MAX as u128 {
+            return Err(WalletTransactionBuilderError::OutboundValueTooLarge);
+        }
         self.outlays.push((recipient, value, token_id));
         Ok(())
     }
@@ -380,7 +391,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
     }
 
     /// Consumes self
-    pub fn build(&self, conn: &Conn) -> Result<TxProposal, WalletTransactionBuilderError> {
+    pub fn build(&self, conn: &Conn) -> Result<FSTxProposal, WalletTransactionBuilderError> {
         if self.inputs.is_empty() {
             return Err(WalletTransactionBuilderError::NoInputs);
         }
@@ -416,6 +427,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         memo_builder.enable_destination_memo();
         let block_version = self.block_version.unwrap_or(BlockVersion::MAX);
         let (fee, token_id) = self.fee.unwrap_or((Mob::MINIMUM_FEE, Mob::ID));
+        println!("fee: {:?} token_id: {:?}", fee, *token_id);
         let fee = Amount::new(fee, token_id);
         let mut transaction_builder =
             TransactionBuilder::new(block_version, fee, fog_resolver, memo_builder)?;
@@ -542,7 +554,13 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         // Add outputs to our destinations.
         // Note that we make an assumption currently when logging submitted Txos that
         // they were built  with only one recip ient, and one change txo.
-        let mut total_value = 0;
+        let mut total_value_per_token: BTreeMap<TokenId, u64> = BTreeMap::new();
+        total_value_per_token.insert(
+            transaction_builder.get_fee_token_id(),
+            transaction_builder.get_fee(),
+        );
+        let mut payload_txos: Vec<OutputTxo> = Vec::new();
+        let mut change_txos: Vec<OutputTxo> = Vec::new();
         let mut tx_out_to_outlay_index: HashMap<TxOut, usize> = HashMap::default();
         let mut outlay_confirmation_numbers = Vec::default();
         let mut rng = rand::thread_rng();
@@ -553,38 +571,71 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 &mut rng,
             )?;
 
+            payload_txos.push(OutputTxo {
+                tx_out: tx_out.clone(),
+                recipient_public_address: recipient.clone(),
+                confirmation_number: confirmation.clone(),
+                value: *out_value,
+                token_id: *token_id,
+            });
+
             tx_out_to_outlay_index.insert(tx_out, i);
             outlay_confirmation_numbers.push(confirmation);
 
-            total_value += *out_value;
+            total_value_per_token
+                .entry(*token_id)
+                .and_modify(|v| *v += *out_value)
+                .or_insert(*out_value);
         }
 
         // Figure out if we have change.
-        let input_value = inputs_and_proofs
-            .iter()
-            .fold(0, |acc, (utxo, _proof)| acc + utxo.value);
-        if total_value + transaction_builder.get_fee() > input_value as u64 {
-            return Err(WalletTransactionBuilderError::InsufficientInputFunds(
-                format!(
-                    "Total value required to send transaction {:?}, but only {:?} in inputs",
-                    total_value + transaction_builder.get_fee(),
-                    input_value
-                ),
-            ));
+        let input_value_per_token =
+            inputs_and_proofs
+                .iter()
+                .fold(BTreeMap::new(), |mut acc, (utxo, _proof)| {
+                    acc.entry(TokenId::from(utxo.token_id as u64))
+                        .and_modify(|v| *v += utxo.value as u64)
+                        .or_insert(utxo.value as u64);
+                    acc
+                });
+
+        for (token_id, total_value) in total_value_per_token.iter() {
+            let input_value = input_value_per_token.get(token_id).ok_or(
+                WalletTransactionBuilderError::MissingInputsForTokenId(token_id.to_string()),
+            )?;
+            if total_value > input_value {
+                return Err(WalletTransactionBuilderError::InsufficientInputFunds(
+                    format!(
+                        "Total value required to send transaction {:?}, but only {:?} in inputs for token_id {:?}",
+                        total_value,
+                        input_value,
+                        token_id.to_string()
+                    ),
+                ));
+            }
+
+            let change = input_value - total_value;
+            let reserved_subaddresses = ReservedSubaddresses::from(&from_account_key);
+            let (tx_out, confirmation_number) = transaction_builder.add_change_output(
+                Amount::new(change, *token_id),
+                &reserved_subaddresses,
+                &mut rng,
+            )?;
+
+            change_txos.push(OutputTxo {
+                tx_out,
+                recipient_public_address: reserved_subaddresses.change_subaddress,
+                confirmation_number,
+                value: change,
+                token_id: *token_id,
+            });
         }
 
-        let change = input_value as u64 - total_value - transaction_builder.get_fee();
-
-        let reserved_subaddresses = ReservedSubaddresses::from(&from_account_key);
-        transaction_builder.add_change_output(
-            Amount::new(change, Mob::ID),
-            &reserved_subaddresses,
-            &mut rng,
-        )?;
-
+        println!("setting tombstone block...");
         // Set tombstone block.
         transaction_builder.set_tombstone_block(self.tombstone);
 
+        println!("building tx...");
         // Build tx.
         let tx = transaction_builder.build(&NoKeysRingSigner {}, &mut rng)?;
 
@@ -621,38 +672,27 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         // type from mobilecoind just to get around having to write a bunch of
         // tedious json conversions.
         // Return the TxProposal
-        let selected_utxos = inputs_and_proofs
+        let input_txos = inputs_and_proofs
             .iter()
             .map(|(utxo, _membership_proof)| {
                 let decoded_tx_out = mc_util_serial::decode(&utxo.txo).unwrap();
                 let decoded_key_image =
                     mc_util_serial::decode(&utxo.key_image.clone().unwrap()).unwrap();
 
-                UnspentTxOut {
+                InputTxo {
                     tx_out: decoded_tx_out,
-                    subaddress_index: utxo.subaddress_index.unwrap() as u64, /* verified not null
-                                                                              * earlier */
                     key_image: decoded_key_image,
                     value: utxo.value as u64,
-                    attempted_spend_height: 0, // NOTE: these are null because not tracked here
-                    attempted_spend_tombstone: 0,
-                    token_id: *Mob::ID,
+                    token_id: TokenId::from(utxo.token_id as u64),
                 }
             })
             .collect();
-        Ok(TxProposal {
-            utxos: selected_utxos,
-            outlays: self
-                .outlays
-                .iter()
-                .map(|(recipient, value, token_id)| Outlay {
-                    receiver: recipient.clone(),
-                    value: *value,
-                })
-                .collect::<Vec<Outlay>>(),
+
+        Ok(FSTxProposal {
             tx,
-            outlay_index_to_tx_out_index,
-            outlay_confirmation_numbers,
+            input_txos,
+            payload_txos,
+            change_txos,
         })
     }
 

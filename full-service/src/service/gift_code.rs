@@ -377,66 +377,71 @@ where
         max_spendable_value: Option<u64>,
     ) -> Result<(TxProposal, EncodedGiftCode), GiftCodeServiceError> {
         todo!();
-        // First we need to generate a new random bip39 entropy. The way that gift codes
-        // work currently is that the sender creates a middleman account and
-        // sends that account the amount of MOB desired, plus extra to cover the
-        // receivers fee. Then, that account and all of its secrets get encoded
-        // into a b58 string, and when the receiver gets that they can decode it,
+        // // First we need to generate a new random bip39 entropy. The way that
+        // gift codes // work currently is that the sender creates a
+        // middleman account and // sends that account the amount of MOB
+        // desired, plus extra to cover the // receivers fee. Then, that
+        // account and all of its secrets get encoded // into a b58
+        // string, and when the receiver gets that they can decode it, //
         // and create a new transaction liquidating the gift account of all
-        // of the MOB.
-        // There should never be a reason to check any other sub_address besides the
-        // main one. If there ever is any on a different subaddress, either
-        // something went terribly wrong and we messed up, or someone is being
-        // very dumb and using a gift account as a place to store their personal MOB.
-        let mnemonic = Mnemonic::new(MnemonicType::Words24, Language::English);
-        let gift_code_bip39_entropy_bytes = mnemonic.entropy().to_vec();
+        // // of the MOB.
+        // // There should never be a reason to check any other sub_address
+        // besides the // main one. If there ever is any on a different
+        // subaddress, either // something went terribly wrong and we
+        // messed up, or someone is being // very dumb and using a gift
+        // account as a place to store their personal MOB. let mnemonic
+        // = Mnemonic::new(MnemonicType::Words24, Language::English);
+        // let gift_code_bip39_entropy_bytes = mnemonic.entropy().to_vec();
 
-        let key = mnemonic.derive_slip10_key(0);
-        let gift_code_account_key = AccountKey::from(key);
+        // let key = mnemonic.derive_slip10_key(0);
+        // let gift_code_account_key = AccountKey::from(key);
 
-        // We should never actually need this account to exist in the wallet_db, as we
-        // will only ever be using it a single time at this instant with a
-        // single unspent txo in its main subaddress and the b58 encoded gc will
-        // contain all necessary info to generate a tx_proposal for it
-        let gift_code_account_main_subaddress_b58 =
-            b58_encode_public_address(&gift_code_account_key.default_subaddress())?;
+        // // We should never actually need this account to exist in the
+        // wallet_db, as we // will only ever be using it a single time
+        // at this instant with a // single unspent txo in its main
+        // subaddress and the b58 encoded gc will // contain all
+        // necessary info to generate a tx_proposal for it
+        // let gift_code_account_main_subaddress_b58 =
+        //     b58_encode_public_address(&gift_code_account_key.
+        // default_subaddress())?;
 
-        let conn = self.wallet_db.get_conn()?;
-        let from_account = Account::get(from_account_id, &conn)?;
+        // let conn = self.wallet_db.get_conn()?;
+        // let from_account = Account::get(from_account_id, &conn)?;
 
-        let fee = fee.map(|f| (f.to_string(), Mob::ID.to_string()));
+        // let fee = fee.map(|f| (f.to_string(), Mob::ID.to_string()));
 
-        let tx_proposal = self.build_transaction(
-            &from_account.id,
-            &[(
-                gift_code_account_main_subaddress_b58,
-                value.to_string(),
-                Mob::ID.to_string(),
-            )],
-            input_txo_ids,
-            fee,
-            tombstone_block.map(|t| t.to_string()),
-            max_spendable_value.map(|f| f.to_string()),
-            None,
-        )?;
+        // let tx_proposal = self.build_transaction(
+        //     &from_account.id,
+        //     &[(
+        //         gift_code_account_main_subaddress_b58,
+        //         value.to_string(),
+        //         Mob::ID.to_string(),
+        //     )],
+        //     input_txo_ids,
+        //     fee,
+        //     tombstone_block.map(|t| t.to_string()),
+        //     max_spendable_value.map(|f| f.to_string()),
+        //     None,
+        // )?;
 
-        if tx_proposal.outlay_index_to_tx_out_index.len() != 1 {
-            return Err(GiftCodeServiceError::UnexpectedTxProposalFormat);
-        }
+        // if tx_proposal.outlay_index_to_tx_out_index.len() != 1 {
+        //     return Err(GiftCodeServiceError::UnexpectedTxProposalFormat);
+        // }
 
-        let outlay_index = tx_proposal.outlay_index_to_tx_out_index[&0];
-        let tx_out = tx_proposal.tx.prefix.outputs[outlay_index].clone();
-        let txo_public_key = tx_out.public_key;
+        // let outlay_index = tx_proposal.outlay_index_to_tx_out_index[&0];
+        // let tx_out = tx_proposal.tx.prefix.outputs[outlay_index].clone();
+        // let txo_public_key = tx_out.public_key;
 
-        let proto_tx_pubkey: mc_api::external::CompressedRistretto = (&txo_public_key).into();
+        // let proto_tx_pubkey: mc_api::external::CompressedRistretto =
+        // (&txo_public_key).into();
 
-        let gift_code_b58 = b58_encode_transfer_payload(
-            gift_code_bip39_entropy_bytes.to_vec(),
-            proto_tx_pubkey,
-            memo.unwrap_or_else(|| "".to_string()),
-        )?;
+        // let gift_code_b58 = b58_encode_transfer_payload(
+        //     gift_code_bip39_entropy_bytes.to_vec(),
+        //     proto_tx_pubkey,
+        //     memo.unwrap_or_else(|| "".to_string()),
+        // )?;
 
-        Ok((tx_proposal, EncodedGiftCode(gift_code_b58)))
+        // Ok((tx_proposal, EncodedGiftCode(gift_code_b58)))
     }
 
     fn submit_gift_code(
@@ -445,33 +450,37 @@ where
         gift_code_b58: &EncodedGiftCode,
         tx_proposal: &TxProposal,
     ) -> Result<DecodedGiftCode, GiftCodeServiceError> {
-        let transfer_payload = decode_transfer_payload(gift_code_b58)?;
-        let value = tx_proposal.outlays[0].value as i64;
+        todo!()
+        // let transfer_payload = decode_transfer_payload(gift_code_b58)?;
+        // let value = tx_proposal.outlays[0].value as i64;
 
-        log::info!(
-            self.logger,
-            "submitting transaction for gift code... {:?}",
-            value
-        );
+        // log::info!(
+        //     self.logger,
+        //     "submitting transaction for gift code... {:?}",
+        //     value
+        // );
 
-        // Save the gift code to the database before attempting to send it out.
-        let conn = self.wallet_db.get_conn()?;
-        let gift_code = transaction(&conn, || GiftCode::create(gift_code_b58, value, &conn))?;
+        // // Save the gift code to the database before attempting to send it
+        // out. let conn = self.wallet_db.get_conn()?;
+        // let gift_code = transaction(&conn, || GiftCode::create(gift_code_b58,
+        // value, &conn))?;
 
-        self.submit_transaction(
-            tx_proposal.clone(),
-            Some(json!({"gift_code_memo": transfer_payload.memo}).to_string()),
-            Some(from_account_id.clone().0),
-        )?;
+        // self.submit_transaction(
+        //     tx_proposal.clone(),
+        //     Some(json!({"gift_code_memo":
+        // transfer_payload.memo}).to_string()),
+        //     Some(from_account_id.clone().0),
+        // )?;
 
-        Ok(DecodedGiftCode {
-            gift_code_b58: gift_code.gift_code_b58,
-            root_entropy: transfer_payload.root_entropy.map(|e| e.bytes.to_vec()),
-            bip39_entropy: transfer_payload.bip39_entropy,
-            txo_public_key: mc_util_serial::encode(&transfer_payload.txo_public_key),
-            value: tx_proposal.outlays[0].value,
-            memo: transfer_payload.memo,
-        })
+        // Ok(DecodedGiftCode {
+        //     gift_code_b58: gift_code.gift_code_b58,
+        //     root_entropy: transfer_payload.root_entropy.map(|e|
+        // e.bytes.to_vec()),     bip39_entropy:
+        // transfer_payload.bip39_entropy,     txo_public_key:
+        // mc_util_serial::encode(&transfer_payload.txo_public_key),
+        //     value: tx_proposal.outlays[0].value,
+        //     memo: transfer_payload.memo,
+        // })
     }
 
     fn get_gift_code(

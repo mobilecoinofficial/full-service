@@ -17,7 +17,7 @@ use crate::{
         network_status::NetworkStatus,
         receiver_receipt::ReceiverReceipt,
         transaction_log::TransactionLog,
-        tx_proposal::TxProposal,
+        tx_proposal::{TxProposal, TxProposalJSON},
         txo::Txo,
         wallet_status::WalletStatus,
     },
@@ -140,11 +140,11 @@ pub enum JsonCommandResponse {
         gift_code_b58: String,
     },
     build_split_txo_transaction {
-        tx_proposal: TxProposal,
+        tx_proposal: TxProposalJSON,
         transaction_log_id: String,
     },
     build_transaction {
-        tx_proposal: TxProposal,
+        tx_proposal: TxProposalJSON,
         transaction_log_id: String,
     },
     build_unsigned_transaction {

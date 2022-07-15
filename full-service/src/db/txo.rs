@@ -28,6 +28,7 @@ use crate::{
         transaction_log::{TransactionID, TxoType},
         Conn, WalletDbError,
     },
+    service::models::tx_proposal::OutputTxo,
     util::b58::b58_encode_public_address,
 };
 
@@ -87,6 +88,12 @@ impl From<&TxOut> for TxoID {
     }
 }
 
+impl From<&Txo> for TxoID {
+    fn from(src: &Txo) -> TxoID {
+        Self(src.id.clone())
+    }
+}
+
 impl fmt::Display for TxoID {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0)
@@ -139,6 +146,13 @@ pub trait TxoModel {
         txo: &TxOut,
         tx_proposal: &TxProposal,
         outlay_index: usize,
+        conn: &Conn,
+    ) -> Result<(), WalletDbError>;
+
+    fn create_new_output(
+        output_txo: &OutputTxo,
+        is_change: bool,
+        transaction_id: &TransactionID,
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
@@ -433,6 +447,54 @@ impl TxoModel for Txo {
             txo_id: &txo_id.to_string(),
             recipient_public_address_b58: &recipient_public_address_b58,
             is_change: txo_type == TxoType::Change,
+        };
+
+        diesel::insert_into(crate::db::schema::transaction_output_txos::table)
+            .values(&new_transaction_output_txo)
+            .execute(conn)?;
+
+        Ok(())
+    }
+
+    fn create_new_output(
+        output_txo: &OutputTxo,
+        is_change: bool,
+        transaction_id: &TransactionID,
+        conn: &Conn,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::txos;
+
+        let txo_id = TxoID::from(&output_txo.tx_out);
+        let encoded_confirmation = mc_util_serial::encode(&output_txo.confirmation_number);
+
+        let new_txo = NewTxo {
+            id: &txo_id.to_string(),
+            account_id: None,
+            value: output_txo.value as i64,
+            token_id: *output_txo.token_id as i64,
+            target_key: &mc_util_serial::encode(&output_txo.tx_out.target_key),
+            public_key: &mc_util_serial::encode(&output_txo.tx_out.public_key),
+            e_fog_hint: &mc_util_serial::encode(&output_txo.tx_out.e_fog_hint),
+            txo: &mc_util_serial::encode(&output_txo.tx_out),
+            subaddress_index: None,
+            key_image: None,
+            received_block_index: None,
+            spent_block_index: None,
+            shared_secret: Some(&encoded_confirmation),
+        };
+
+        diesel::insert_into(txos::table)
+            .values(&new_txo)
+            .execute(conn)?;
+
+        let recipient_public_address_b58 =
+            &b58_encode_public_address(&output_txo.recipient_public_address)?;
+
+        let new_transaction_output_txo = NewTransactionOutputTxo {
+            transaction_log_id: &transaction_id.to_string(),
+            txo_id: &txo_id.to_string(),
+            recipient_public_address_b58,
+            is_change,
         };
 
         diesel::insert_into(crate::db::schema::transaction_output_txos::table)
