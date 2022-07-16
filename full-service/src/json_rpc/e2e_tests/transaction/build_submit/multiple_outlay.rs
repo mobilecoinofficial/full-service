@@ -276,7 +276,7 @@ mod e2e_transaction {
         assert_eq!(pmob_value.as_str().unwrap(), "85000000000000");
 
         let mut output_addresses: Vec<String> = transaction_log
-            .get("output_txos")
+            .get("payload_txos")
             .unwrap()
             .as_array()
             .unwrap()

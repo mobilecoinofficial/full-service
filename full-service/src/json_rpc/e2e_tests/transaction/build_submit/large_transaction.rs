@@ -97,7 +97,7 @@ mod e2e_transaction {
         );
         assert_eq!(
             transaction_log
-                .get("output_txos")
+                .get("payload_txos")
                 .unwrap()
                 .get(0)
                 .unwrap()
