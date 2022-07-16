@@ -1,5 +1,5 @@
 ---
-description: Get the current balance for a given account.
+description: Get the current balance for a given account. The response will have a map of the total values for each token_id that is present in the account. If no tokens are found at the account, the map will be empty.
 ---
 
 # Get Balance For Account
@@ -31,18 +31,23 @@ description: Get the current balance for a given account.
 {
   "method": "get_balance_for_account",
   "result": {
-    "balance": {
-      "object": "balance",
-      "network_block_height": "152918",
-      "local_block_height": "152918",
-      "account_block_height": "152003",
-      "is_synced": false,
-      "unspent_pmob": "110000000000000000",
-      "max_spendable_pmob": "110000000000000000",
-      "pending_pmob": "0",
-      "spent_pmob": "0",
-      "secreted_pmob": "0",
-      "orphaned_pmob": "0"
+    "balance_per_token": {
+      "0": {
+        "unverified": "0000000000"
+        "unspent": "110000000000000000",
+        "pending": "0",
+        "spent": "0",
+        "secreted": "0",
+        "orphaned": "0"
+      },
+      "1": {
+        "unverified": "0000000000"
+        "unspent": "1100000000",
+        "pending": "0",
+        "spent": "0",
+        "secreted": "0",
+        "orphaned": "0"
+      }
     }
   },
   "error": null,

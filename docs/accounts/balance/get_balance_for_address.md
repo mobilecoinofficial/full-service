@@ -1,5 +1,5 @@
 ---
-description: Get the current balance for a given address.
+description: Get the current balance for a given address. The response will have a map of the total values for each token_id that is present at that address. If no tokens are found at that address, the map will be empty. Orphaned will always be 0 for addresses.
 ---
 
 # Get Balance For Address
@@ -28,18 +28,23 @@ description: Get the current balance for a given address.
 {
   "method": "get_balance_for_address",
   "result": {
-    "balance": {
-      "object": "balance",
-      "network_block_height": "152961",
-      "local_block_height": "152961",
-      "account_block_height": "152961",
-      "is_synced": true,
-      "unspent_pmob": "11881402222024",
-      "max_spendable_pmob": "11881402222024",
-      "pending_pmob": "0",
-      "spent_pmob": "84493835554166",
-      "secreted_pmob": "0",
-      "orphaned_pmob": "0"
+    "balance_per_token": {
+      "0": {
+        "unverified": "0000000000"
+        "unspent": "110000000000000000",
+        "pending": "0",
+        "spent": "0",
+        "secreted": "0",
+        "orphaned": "0"
+      },
+      "1": {
+        "unverified": "0000000000"
+        "unspent": "1100000000",
+        "pending": "0",
+        "spent": "0",
+        "secreted": "0",
+        "orphaned": "0"
+      }
     }
   },
   "error": null,
