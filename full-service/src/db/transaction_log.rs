@@ -714,11 +714,9 @@ mod tests {
 
         // Note, this will still be marked as not change until the txo
         // appears on the ledger and the account syncs.
-        // change becomes unspent once scanned
-        assert_eq!(
-            change_details.subaddress_index,
-            Some(CHANGE_SUBADDRESS_INDEX as i64)
-        );
+        // change becomes unspent once scanned.
+        // The subaddress will also be set once received.
+        assert_eq!(change_details.subaddress_index, None,);
 
         add_block_from_transaction_log(
             &mut ledger_db,
@@ -1062,7 +1060,7 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(input_details0.value as u64, 8 * MOB);
+        assert_eq!(input_details0.value as u64, 7 * MOB);
 
         assert_eq!(
             input_details0
@@ -1077,7 +1075,7 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(input_details1.value as u64, 7 * MOB);
+        assert_eq!(input_details1.value as u64, 8 * MOB);
 
         assert_eq!(
             input_details1
@@ -1114,10 +1112,7 @@ mod tests {
         .unwrap();
         // Change = (8 + 7) - 12 - fee
         assert_eq!(change_details.value as u64, 3 * MOB - Mob::MINIMUM_FEE);
-        assert_eq!(
-            change_details.subaddress_index,
-            Some(CHANGE_SUBADDRESS_INDEX as i64)
-        );
+        assert_eq!(change_details.subaddress_index, None);
 
         // Now - we will add the spent Txos, outputs, and change to the ledger, so we
         // can scan and verify

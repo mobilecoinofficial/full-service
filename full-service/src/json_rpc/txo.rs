@@ -11,17 +11,15 @@ use serde_derive::{Deserialize, Serialize};
 /// different statuses and types in relation to those accounts.
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct Txo {
-    /// String representing the object's type. Objects of the same type share
-    /// the same value.
-    pub object: String,
-
     /// Unique identifier for the Txo. Constructed from the contents of the
     /// TxOut in the ledger representation.
     pub id: String,
 
-    /// Available pico MOB for this account at the current account_block_height.
-    /// If the account is syncing, this value may change.
-    pub value_pmob: String,
+    /// the txo's value
+    pub value: String,
+
+    /// the txo's token id
+    pub token_id: String,
 
     /// Block index in which the txo was received by an account.
     pub received_block_index: Option<String>,
@@ -62,9 +60,9 @@ pub struct Txo {
 impl Txo {
     pub fn new(txo: &db::models::Txo, status: &TxoStatus) -> Txo {
         Txo {
-            object: "txo".to_string(),
             id: txo.id.clone(),
-            value_pmob: (txo.value as u64).to_string(),
+            value: (txo.value as u64).to_string(),
+            token_id: (txo.token_id as u64).to_string(),
             received_block_index: txo.received_block_index.map(|x| (x as u64).to_string()),
             spent_block_index: txo.spent_block_index.map(|x| (x as u64).to_string()),
             account_id: txo.account_id.clone(),
@@ -130,6 +128,7 @@ mod tests {
         let status = txo_details.status(&wallet_db.get_conn().unwrap()).unwrap();
         assert_eq!(txo_details.value as u64, 15_625_000 * MOB as u64);
         let json_txo = Txo::new(&txo_details, &status);
-        assert_eq!(json_txo.value_pmob, "15625000000000000000");
+        assert_eq!(json_txo.value, "15625000000000000000");
+        assert_eq!(json_txo.token_id, "0");
     }
 }

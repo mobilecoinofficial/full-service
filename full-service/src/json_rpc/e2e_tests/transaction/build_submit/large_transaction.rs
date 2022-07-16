@@ -70,7 +70,7 @@ mod e2e_transaction {
             "params": {
                 "account_id": account_id,
                 "recipient_public_address": b58_public_address,
-                "value_pmob": "10000000000000000000", // Ten million MOB, which is larger than i64::MAX picomob.
+                "value": ["10000000000000000000", "0"], // Ten million MOB, which is larger than i64::MAX picomob.
             }
         });
         let res = dispatch(&client, body, &logger);

@@ -136,30 +136,30 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         conn: &Conn,
         max_spendable_value: Option<u64>,
     ) -> Result<(), WalletTransactionBuilderError> {
-        let mut outlay_value_sum_map: BTreeMap<TokenId, u64> =
+        let mut outlay_value_sum_map: BTreeMap<TokenId, u128> =
             self.outlays
                 .iter()
                 .fold(BTreeMap::new(), |mut acc, (_, value, token_id)| {
                     acc.entry(*token_id)
-                        .and_modify(|v| *v += value)
-                        .or_insert(*value);
+                        .and_modify(|v| *v += *value as u128)
+                        .or_insert(*value as u128);
                     acc
                 });
 
         let (fee, token_id) = self.fee.unwrap_or((Mob::MINIMUM_FEE, Mob::ID));
         outlay_value_sum_map
             .entry(token_id)
-            .and_modify(|v| *v += fee)
-            .or_insert(fee);
+            .and_modify(|v| *v += fee as u128)
+            .or_insert(fee as u128);
 
         for (token_id, target_value) in outlay_value_sum_map {
-            if target_value > u64::MAX {
+            if target_value > u64::MAX as u128 {
                 return Err(WalletTransactionBuilderError::OutboundValueTooLarge);
             }
 
             self.inputs = Txo::select_spendable_txos_for_value(
                 &self.account_id_hex,
-                target_value,
+                target_value as u64,
                 max_spendable_value,
                 *token_id,
                 conn,

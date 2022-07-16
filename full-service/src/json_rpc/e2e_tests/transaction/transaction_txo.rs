@@ -116,7 +116,7 @@ mod e2e_transaction {
             "params": {
                 "account_id": account_id_1,
                 "recipient_public_address": b58_public_address_2,
-                "value_pmob": "84000000000000", // 84.0 MOB
+                "value": ["84000000000000", "0"], // 84.0 MOB
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -183,7 +183,7 @@ mod e2e_transaction {
             "params": {
                 "account_id": account_id_2,
                 "recipient_public_address": b58_public_address_3,
-                "value_pmob": "42000000000000", // 42.0 MOB
+                "value": ["42000000000000", "0"], // 42.0 MOB
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -419,7 +419,7 @@ mod e2e_transaction {
             "params": {
                 "account_id": account_id,
                 "recipient_public_address": b58_public_address_2,
-                "value_pmob": "50000000000000", // 50.0 MOB
+                "value": ["50000000000000", "0"], // 50.0 MOB
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -574,7 +574,7 @@ mod e2e_transaction {
         let txo = txo_map.get(txos[0].as_str().unwrap()).unwrap();
         let txo_status = txo.get("status").unwrap().as_str().unwrap();
         assert_eq!(txo_status, TxoStatus::Unspent.to_string());
-        let value = txo.get("value_pmob").unwrap().as_str().unwrap();
+        let value = txo.get("value").unwrap().as_str().unwrap();
         assert_eq!(value, "100");
 
         // Check the overall balance for the account
@@ -647,7 +647,7 @@ mod e2e_transaction {
         let txo = txo_map.get(txos[0].as_str().unwrap()).unwrap();
         let txo_status = txo.get("status").unwrap().as_str().unwrap();
         assert_eq!(txo_status, TxoStatus::Unspent.to_string());
-        let value = txo.get("value_pmob").unwrap().as_str().unwrap();
+        let value = txo.get("value").unwrap().as_str().unwrap();
         assert_eq!(value, "250000000000");
         let txo_id = &txos[0];
 
@@ -674,7 +674,7 @@ mod e2e_transaction {
             "params": {
                 "txo_id": txo_id,
                 "output_values": ["20000000000", "80000000000", "30000000000", "70000000000", "40000000000"],
-                "fee": "10000000000"
+                "fee_value": "10000000000"
             }
         });
         let res = dispatch(&client, body, &logger);

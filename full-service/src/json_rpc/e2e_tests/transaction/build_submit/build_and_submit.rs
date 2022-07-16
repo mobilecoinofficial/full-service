@@ -89,57 +89,33 @@ mod e2e_transaction {
             "params": {
                 "account_id": account_id,
                 "recipient_public_address": b58_public_address,
-                "value_pmob": "42000000000000", // 42.0 MOB
+                "value":["42000000000000", "0"], // 42.0 MOB
             }
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let tx_proposal = result.get("tx_proposal").unwrap();
-        let tx = tx_proposal.get("tx").unwrap();
-        let tx_prefix = tx.get("prefix").unwrap();
 
-        // Assert the fee is correct in both places
-        let prefix_fee = tx_prefix.get("fee").unwrap().as_str().unwrap();
         let fee = tx_proposal.get("fee").unwrap();
-        // FIXME: WS-9 - Note, minimum fee does not fit into i32 - need to make sure we
-        // are not losing precision with the JsonTxProposal treating Fee as number
+        let fee_token_id = tx_proposal.get("fee_token_id").unwrap();
         assert_eq!(fee, &Mob::MINIMUM_FEE.to_string());
-        assert_eq!(fee, prefix_fee);
+        assert_eq!(fee_token_id, &Mob::ID.to_string());
 
         // Transaction builder attempts to use as many inputs as we have txos
-        let inputs = tx_proposal.get("input_list").unwrap().as_array().unwrap();
+        let inputs = tx_proposal.get("input_txos").unwrap().as_array().unwrap();
         assert_eq!(inputs.len(), 2);
-        let prefix_inputs = tx_prefix.get("inputs").unwrap().as_array().unwrap();
-        assert_eq!(prefix_inputs.len(), inputs.len());
 
         // One destination
-        let outlays = tx_proposal.get("outlay_list").unwrap().as_array().unwrap();
-        assert_eq!(outlays.len(), 1);
+        let payload_txos = tx_proposal.get("payload_txos").unwrap().as_array().unwrap();
+        assert_eq!(payload_txos.len(), 1);
 
-        // Map outlay -> tx_out, should have one entry for one outlay
-        let outlay_index_to_tx_out_index = tx_proposal
-            .get("outlay_index_to_tx_out_index")
-            .unwrap()
-            .as_array()
-            .unwrap();
-        assert_eq!(outlay_index_to_tx_out_index.len(), 1);
-
-        // Two outputs in the prefix, one for change
-        let prefix_outputs = tx_prefix.get("outputs").unwrap().as_array().unwrap();
-        assert_eq!(prefix_outputs.len(), 2);
-
-        // One outlay confirmation number for our one outlay (no receipt for change)
-        let outlay_confirmation_numbers = tx_proposal
-            .get("outlay_confirmation_numbers")
-            .unwrap()
-            .as_array()
-            .unwrap();
-        assert_eq!(outlay_confirmation_numbers.len(), 1);
+        let change_txos = tx_proposal.get("change_txos").unwrap().as_array().unwrap();
+        assert_eq!(change_txos.len(), 1);
 
         // Tombstone block = ledger height (12 to start + 2 new blocks + 10 default
         // tombstone)
-        let prefix_tombstone = tx_prefix.get("tombstone_block").unwrap();
-        assert_eq!(prefix_tombstone, "24");
+        let tombstone_block_index = tx_proposal.get("tombstone_block_index").unwrap();
+        assert_eq!(tombstone_block_index, "24");
 
         let json_tx_proposal: TxProposalJSON = serde_json::from_value(tx_proposal.clone()).unwrap();
         let payments_tx_proposal = TxProposal::try_from(&json_tx_proposal).unwrap();

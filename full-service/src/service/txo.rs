@@ -123,8 +123,8 @@ where
         let txos_and_statuses = Txo::list_for_account(
             &account_id.to_string(),
             status,
-            limit,
             offset,
+            limit,
             token_id,
             conn,
         )?

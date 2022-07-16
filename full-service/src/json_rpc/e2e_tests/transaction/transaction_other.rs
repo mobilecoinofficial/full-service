@@ -91,7 +91,7 @@ mod e2e_transaction {
             "params": {
                 "account_id": account_id,
                 "recipient_public_address": b58_public_address,
-                "value_pmob": "42000000000000", // 42.0 MOB
+                "value": ["42000000000000", "0"], // 42.0 MOB
                 "tombstone_block": "16",
             }
         });
@@ -381,7 +381,7 @@ mod e2e_transaction {
             "params": {
                 "account_id": alice_account_id,
                 "recipient_public_address": bob_b58_public_address,
-                "value_pmob": "42000000000000", // 42 MOB
+                "value": ["42000000000000", "0"], // 42 MOB
             }
         });
         let res = dispatch(&client, body, &logger);

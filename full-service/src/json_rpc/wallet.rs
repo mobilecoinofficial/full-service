@@ -538,9 +538,18 @@ where
             offset,
             limit,
         } => {
-            let (o, l) = page_helper(offset, limit)?;
+            let offset = match offset {
+                Some(o) => Some(o.parse::<u64>().map_err(format_error)?),
+                None => None,
+            };
+
+            let limit = match limit {
+                Some(l) => Some(l.parse::<u64>().map_err(format_error)?),
+                None => None,
+            };
+
             let addresses = service
-                .get_addresses_for_account(&AccountID(account_id), Some(o), Some(l))
+                .get_addresses_for_account(&AccountID(account_id), offset, limit)
                 .map_err(format_error)?;
             let address_map: Map<String, serde_json::Value> = Map::from_iter(
                 addresses
@@ -758,7 +767,15 @@ where
             min_block_index,
             max_block_index,
         } => {
-            let (o, l) = page_helper(offset, limit)?;
+            let offset = match offset {
+                Some(o) => Some(o.parse::<u64>().map_err(format_error)?),
+                None => None,
+            };
+
+            let limit = match limit {
+                Some(l) => Some(l.parse::<u64>().map_err(format_error)?),
+                None => None,
+            };
 
             let min_block_index = min_block_index
                 .map(|i| i.parse::<u64>())
@@ -773,8 +790,8 @@ where
             let transaction_logs_and_txos = service
                 .list_transaction_logs(
                     &AccountID(account_id),
-                    Some(o),
-                    Some(l),
+                    offset,
+                    limit,
                     min_block_index,
                     max_block_index,
                 )
@@ -814,7 +831,15 @@ where
             offset,
             limit,
         } => {
-            let (o, l) = page_helper(offset, limit)?;
+            let offset = match offset {
+                Some(o) => Some(o.parse::<u64>().map_err(format_error)?),
+                None => None,
+            };
+
+            let limit = match limit {
+                Some(l) => Some(l.parse::<u64>().map_err(format_error)?),
+                None => None,
+            };
 
             let status = match status {
                 Some(s) => Some(TxoStatus::from_str(&s).map_err(format_error)?),
@@ -827,7 +852,7 @@ where
             };
 
             let txos_and_statuses = service
-                .list_txos(&AccountID(account_id), status, token_id, Some(o), Some(l))
+                .list_txos(&AccountID(account_id), status, token_id, offset, limit)
                 .map_err(format_error)?;
             let txo_map: Map<String, serde_json::Value> = Map::from_iter(
                 txos_and_statuses
