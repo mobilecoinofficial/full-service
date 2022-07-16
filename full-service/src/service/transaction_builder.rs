@@ -369,18 +369,19 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             ));
         }
 
-        let mut outlays_string: Vec<(String, u64)> = Vec::new();
-        for (receiver, amount, token_id) in self.outlays.iter() {
-            let b58_address = b58_encode_public_address(receiver)?;
-            outlays_string.push((b58_address, *amount));
+        let mut outlays_string = Vec::new();
+        for (receiver, amount, token_id) in self.outlays.into_iter() {
+            let b58_address = b58_encode_public_address(&receiver)?;
+            outlays_string.push((b58_address, amount, *token_id));
         }
 
-        let (fee, _token_id) = self.fee.unwrap_or((Mob::MINIMUM_FEE, Mob::ID));
+        let (fee, fee_token_id) = self.fee.unwrap_or((Mob::MINIMUM_FEE, Mob::ID));
 
         Ok(UnsignedTx {
             inputs_and_real_indices_and_subaddress_indices,
             outlays: outlays_string,
             fee,
+            fee_token_id: *fee_token_id,
             tombstone_block_index: self.tombstone,
             block_version: self.block_version.unwrap_or(BlockVersion::MAX),
         })

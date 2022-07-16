@@ -54,13 +54,14 @@ use mc_connection::{
     BlockchainConnection, HardcodedCredentialsProvider, ThickClient, UserTxConnection,
 };
 use mc_fog_report_validation::{FogPubkeyResolver, FogResolver};
+use mc_transaction_core::TokenId;
 use mc_validator_connection::ValidatorConnection;
 use rocket::{
     self, get, http::Status, outcome::Outcome, post, request::FromRequest, routes, Request, State,
 };
 use rocket_contrib::json::Json;
 use serde_json::Map;
-use std::{collections::HashMap, convert::TryFrom, iter::FromIterator, str::FromStr};
+use std::{collections::HashMap, convert::TryFrom, iter::FromIterator, str::FromStr, sync::Arc};
 
 /// State managed by rocket.
 pub struct WalletState<
@@ -194,7 +195,8 @@ where
             recipient_public_address,
             value,
             input_txo_ids,
-            fee,
+            fee_value,
+            fee_token_id,
             tombstone_block,
             max_spendable_value,
             comment,
@@ -210,7 +212,8 @@ where
                     &account_id,
                     &addresses_and_values,
                     input_txo_ids.as_ref(),
-                    fee,
+                    fee_value,
+                    fee_token_id,
                     tombstone_block,
                     max_spendable_value,
                     comment,
@@ -234,37 +237,36 @@ where
             tombstone_block,
             max_spendable_value,
         } => {
-            todo!();
-            // let (tx_proposal, gift_code_b58) = service
-            //     .build_gift_code(
-            //         &AccountID(account_id),
-            //         value_pmob.parse::<u64>().map_err(format_error)?,
-            //         memo,
-            //         input_txo_ids.as_ref(),
-            //         fee.map(|f| f.parse::<u64>())
-            //             .transpose()
-            //             .map_err(format_error)?,
-            //         tombstone_block
-            //             .map(|t| t.parse::<u64>())
-            //             .transpose()
-            //             .map_err(format_error)?,
-            //         max_spendable_value
-            //             .map(|m| m.parse::<u64>())
-            //             .transpose()
-            //             .map_err(format_error)?,
-            //     )
-            //     .map_err(format_error)?;
-            // JsonCommandResponse::build_gift_code {
-            //     tx_proposal:
-            // TxProposal::try_from(&tx_proposal).map_err(format_error)?,
-            //     gift_code_b58: gift_code_b58.to_string(),
-            // }
+            let (tx_proposal, gift_code_b58) = service
+                .build_gift_code(
+                    &AccountID(account_id),
+                    value_pmob.parse::<u64>().map_err(format_error)?,
+                    memo,
+                    input_txo_ids.as_ref(),
+                    fee.map(|f| f.parse::<u64>())
+                        .transpose()
+                        .map_err(format_error)?,
+                    tombstone_block
+                        .map(|t| t.parse::<u64>())
+                        .transpose()
+                        .map_err(format_error)?,
+                    max_spendable_value
+                        .map(|m| m.parse::<u64>())
+                        .transpose()
+                        .map_err(format_error)?,
+                )
+                .map_err(format_error)?;
+            JsonCommandResponse::build_gift_code {
+                tx_proposal: TxProposalJSON::try_from(&tx_proposal).map_err(format_error)?,
+                gift_code_b58: gift_code_b58.to_string(),
+            }
         }
         JsonCommandRequest::build_split_txo_transaction {
             txo_id,
             output_values,
             destination_subaddress_index,
-            fee,
+            fee_value,
+            fee_token_id,
             tombstone_block,
         } => {
             let tx_proposal = service
@@ -275,7 +277,8 @@ where
                         .map(|f| f.parse::<i64>())
                         .transpose()
                         .map_err(format_error)?,
-                    fee,
+                    fee_value,
+                    fee_token_id,
                     tombstone_block,
                 )
                 .map_err(format_error)?;
@@ -290,7 +293,8 @@ where
             recipient_public_address,
             value,
             input_txo_ids,
-            fee,
+            fee_value,
+            fee_token_id,
             tombstone_block,
             max_spendable_value,
         } => {
@@ -305,7 +309,8 @@ where
                     &account_id,
                     &addresses_and_values,
                     input_txo_ids.as_ref(),
-                    fee,
+                    fee_value,
+                    fee_token_id,
                     tombstone_block,
                     max_spendable_value,
                     None,
@@ -320,7 +325,8 @@ where
             account_id,
             recipient_public_address,
             value,
-            fee,
+            fee_value,
+            fee_token_id,
             tombstone_block,
         } => {
             let mut addresses_and_values = Vec::new();
@@ -331,7 +337,8 @@ where
                 .build_unsigned_transaction(
                     &account_id,
                     &addresses_and_values,
-                    fee,
+                    fee_value,
+                    fee_token_id,
                     tombstone_block,
                 )
                 .map_err(format_error)?;
@@ -439,27 +446,26 @@ where
                 .map_err(format_error)?,
         },
         JsonCommandRequest::create_receiver_receipts { tx_proposal } => {
-            todo!();
-            // let receipts = service
-            //     .create_receiver_receipts(
-            //         &mc_mobilecoind::payments::TxProposal::try_from(&
-            // tx_proposal)             .map_err(format_error)?,
-            //     )
-            //     .map_err(format_error)?;
-            // let json_receipts: Vec<ReceiverReceipt> = receipts
-            //     .iter()
-            //     .map(ReceiverReceipt::try_from)
-            //     .collect::<Result<Vec<ReceiverReceipt>, String>>()
-            //     .map_err(format_error)?;
-            // JsonCommandResponse::create_receiver_receipts {
-            //     receiver_receipts: json_receipts,
-            // }
+            let receipts = service
+                .create_receiver_receipts(
+                    &TxProposal::try_from(&tx_proposal).map_err(format_error)?,
+                )
+                .map_err(format_error)?;
+            let json_receipts: Vec<ReceiverReceipt> = receipts
+                .iter()
+                .map(ReceiverReceipt::try_from)
+                .collect::<Result<Vec<ReceiverReceipt>, String>>()
+                .map_err(format_error)?;
+            JsonCommandResponse::create_receiver_receipts {
+                receiver_receipts: json_receipts,
+            }
         }
         JsonCommandRequest::create_view_only_account_sync_request { account_id } => {
             let unverified_txos = service
                 .list_txos(
                     &AccountID(account_id.clone()),
                     Some(TxoStatus::Unverified),
+                    None,
                     None,
                     None,
                 )
@@ -804,19 +810,24 @@ where
         JsonCommandRequest::get_txos_for_account {
             account_id,
             status,
+            token_id,
             offset,
             limit,
         } => {
             let (o, l) = page_helper(offset, limit)?;
 
-            let status = if let Some(status) = status {
-                Some(TxoStatus::from_str(&status).map_err(format_error)?)
-            } else {
-                None
+            let status = match status {
+                Some(s) => Some(TxoStatus::from_str(&s).map_err(format_error)?),
+                None => None,
+            };
+
+            let token_id = match token_id {
+                Some(t) => Some(t.parse::<u64>().map_err(format_error)?),
+                None => None,
             };
 
             let txos_and_statuses = service
-                .list_txos(&AccountID(account_id), status, Some(o), Some(l))
+                .list_txos(&AccountID(account_id), status, token_id, Some(o), Some(l))
                 .map_err(format_error)?;
             let txo_map: Map<String, serde_json::Value> = Map::from_iter(
                 txos_and_statuses
@@ -959,18 +970,16 @@ where
             gift_code_b58,
             tx_proposal,
         } => {
-            todo!();
-            // let gift_code = service
-            //     .submit_gift_code(
-            //         &AccountID(from_account_id),
-            //         &EncodedGiftCode(gift_code_b58),
-            //         &mc_mobilecoind::payments::TxProposal::try_from(&
-            // tx_proposal)             .map_err(format_error)?,
-            //     )
-            //     .map_err(format_error)?;
-            // JsonCommandResponse::submit_gift_code {
-            //     gift_code: GiftCode::from(&gift_code),
-            // }
+            let gift_code = service
+                .submit_gift_code(
+                    &AccountID(from_account_id),
+                    &EncodedGiftCode(gift_code_b58),
+                    &TxProposal::try_from(&tx_proposal).map_err(format_error)?,
+                )
+                .map_err(format_error)?;
+            JsonCommandResponse::submit_gift_code {
+                gift_code: GiftCode::from(&gift_code),
+            }
         }
         JsonCommandRequest::submit_transaction {
             tx_proposal,

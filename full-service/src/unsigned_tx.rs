@@ -1,11 +1,8 @@
-use mc_account_keys::AccountKey;
+use mc_account_keys::{AccountKey, PublicAddress};
 use mc_common::HashMap;
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_crypto_ring_signature_signer::NoKeysRingSigner;
-use mc_mobilecoind::{
-    payments::{Outlay, TxProposal},
-    UnspentTxOut,
-};
+
 use mc_transaction_core::{
     get_tx_out_shared_secret,
     onetime_keys::recover_onetime_private_key,
@@ -23,7 +20,9 @@ use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
 use crate::{
-    error::WalletTransactionBuilderError, fog_resolver::FullServiceFogResolver,
+    error::WalletTransactionBuilderError,
+    fog_resolver::FullServiceFogResolver,
+    service::models::tx_proposal::{InputTxo, OutputTxo, TxProposal},
     util::b58::b58_decode_public_address,
 };
 
@@ -32,12 +31,15 @@ pub struct UnsignedTx {
     /// The fully constructed input rings
     pub inputs_and_real_indices_and_subaddress_indices: Vec<(TxIn, u64, u64)>,
 
-    /// Vector of (PublicAddressB58, Amount) for the recipients of this
+    /// Vector of (PublicAddressB58, Amount, TokenId) for the recipients of this
     /// transaction.
-    pub outlays: Vec<(String, u64)>,
+    pub outlays: Vec<(String, u64, u64)>,
 
     /// The fee to be paid
     pub fee: u64,
+
+    /// The fee's token id
+    pub fee_token_id: u64,
 
     /// The tombstone block index
     pub tombstone_block_index: u64,
@@ -173,7 +175,7 @@ pub fn decode_amount(
 
 #[allow(clippy::type_complexity)]
 fn add_payload_outputs<RNG: CryptoRng + RngCore>(
-    outlays: &[Outlay],
+    outlays: &[(PublicAddress, u64, u64)],
     transaction_builder: &mut TransactionBuilder<FullServiceFogResolver>,
     rng: &mut RNG,
 ) -> Result<(u64, HashMap<TxOut, usize>, Vec<TxOutConfirmationNumber>), WalletTransactionBuilderError>

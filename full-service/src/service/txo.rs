@@ -19,6 +19,7 @@ use crate::{
 use displaydoc::Display;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
+use mc_transaction_core::TokenId;
 
 /// Errors for the Txo Service.
 #[derive(Display, Debug)]
@@ -78,8 +79,9 @@ pub trait TxoService {
         &self,
         account_id: &AccountID,
         status: Option<TxoStatus>,
-        limit: Option<u64>,
+        token_id: Option<u64>,
         offset: Option<u64>,
+        limit: Option<u64>,
     ) -> Result<Vec<(Txo, TxoStatus)>, TxoServiceError>;
 
     /// Get a Txo from the wallet.
@@ -91,7 +93,8 @@ pub trait TxoService {
         txo_id: &TxoID,
         output_values: &[String],
         subaddress_index: Option<i64>,
-        fee: Option<(String, String)>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
         tombstone_block: Option<String>,
     ) -> Result<TxProposal, TxoServiceError>;
 
@@ -111,8 +114,9 @@ where
         &self,
         account_id: &AccountID,
         status: Option<TxoStatus>,
-        limit: Option<u64>,
+        token_id: Option<u64>,
         offset: Option<u64>,
+        limit: Option<u64>,
     ) -> Result<Vec<(Txo, TxoStatus)>, TxoServiceError> {
         let conn = &self.wallet_db.get_conn()?;
 
@@ -121,7 +125,7 @@ where
             status,
             limit,
             offset,
-            Some(0),
+            token_id,
             conn,
         )?
         .into_iter()
@@ -146,7 +150,8 @@ where
         txo_id: &TxoID,
         output_values: &[String],
         subaddress_index: Option<i64>,
-        fee: Option<(String, String)>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
         tombstone_block: Option<String>,
     ) -> Result<TxProposal, TxoServiceError> {
         use crate::service::txo::TxoServiceError::TxoNotSpendableByAnyAccount;
@@ -178,7 +183,8 @@ where
             &account_id_hex,
             &addresses_and_values,
             Some(&[txo_id.to_string()].to_vec()),
-            fee,
+            fee_value,
+            fee_token_id,
             tombstone_block,
             None,
             None,
@@ -262,7 +268,7 @@ mod tests {
 
         // Verify that we have 1 txo
         let txos = service
-            .list_txos(&alice_account_id, None, None, None)
+            .list_txos(&alice_account_id, None, None, None, None)
             .unwrap();
         assert_eq!(txos.len(), 1);
 
@@ -294,6 +300,7 @@ mod tests {
                 None,
                 None,
                 None,
+                None,
             )
             .unwrap();
         let _submitted = service
@@ -304,6 +311,7 @@ mod tests {
             .list_txos(
                 &AccountID(alice.id.clone()),
                 Some(TxoStatus::Pending),
+                None,
                 None,
                 None,
             )

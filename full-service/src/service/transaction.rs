@@ -147,7 +147,8 @@ pub trait TransactionService {
         &self,
         account_id_hex: &str,
         addresses_and_values: &[(String, String, String)],
-        fee: Option<(String, String)>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
         tombstone_block: Option<String>,
     ) -> Result<(UnsignedTx, FullServiceFogResolver), TransactionServiceError>;
 
@@ -158,7 +159,8 @@ pub trait TransactionService {
         account_id_hex: &str,
         addresses_and_values: &[(String, String, String)],
         input_txo_ids: Option<&Vec<String>>,
-        fee: Option<(String, String)>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
@@ -179,7 +181,8 @@ pub trait TransactionService {
         account_id_hex: &str,
         addresses_and_values: &[(String, String, String)],
         input_txo_ids: Option<&Vec<String>>,
-        fee: Option<(String, String)>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
@@ -195,7 +198,8 @@ where
         &self,
         account_id_hex: &str,
         addresses_and_values: &[(String, String, String)],
-        fee: Option<(String, String)>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
         tombstone_block: Option<String>,
     ) -> Result<(UnsignedTx, FullServiceFogResolver), TransactionServiceError> {
         todo!();
@@ -255,7 +259,8 @@ where
         account_id_hex: &str,
         addresses_and_values: &[(String, String, String)],
         input_txo_ids: Option<&Vec<String>>,
-        fee: Option<(String, String)>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
@@ -292,15 +297,17 @@ where
                 builder.set_tombstone(0)?;
             }
 
-            let (fee, token_id) = match fee {
-                Some((f, t)) => (f.parse()?, TokenId::from(t.parse::<u64>()?)),
-                None => (
-                    self.get_network_fees()[&default_fee_token_id],
-                    default_fee_token_id,
-                ),
+            let fee_token_id = match fee_token_id {
+                Some(t) => TokenId::from(t.parse::<u64>()?),
+                None => default_fee_token_id,
             };
 
-            builder.set_fee(fee, token_id)?;
+            let fee_value = match fee_value {
+                Some(f) => f.parse::<u64>()?,
+                None => self.get_network_fees()[&fee_token_id],
+            };
+
+            builder.set_fee(fee_value, fee_token_id)?;
 
             builder.set_block_version(self.get_network_block_version());
 
@@ -395,7 +402,8 @@ where
         account_id_hex: &str,
         addresses_and_values: &[(String, String, String)],
         input_txo_ids: Option<&Vec<String>>,
-        fee: Option<(String, String)>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
@@ -405,7 +413,8 @@ where
             account_id_hex,
             addresses_and_values,
             input_txo_ids,
-            fee,
+            fee_value,
+            fee_token_id,
             tombstone_block,
             max_spendable_value,
             comment.clone(),
@@ -550,6 +559,7 @@ mod tests {
                 None,
                 None,
                 None,
+                None,
             )
             .unwrap();
         log::info!(logger, "Built transaction from Alice");
@@ -578,6 +588,7 @@ mod tests {
                 None,
                 None,
                 None,
+                None,
             )
             .unwrap();
         log::info!(logger, "Built transaction from Alice");
@@ -601,6 +612,7 @@ mod tests {
                     (42 * MOB).to_string(),
                     Mob::ID.to_string(),
                 )],
+                None,
                 None,
                 None,
                 None,
@@ -690,6 +702,7 @@ mod tests {
                 None,
                 None,
                 None,
+                None,
             )
             .unwrap();
         log::info!(logger, "Built and submitted transaction from Alice");
@@ -757,6 +770,7 @@ mod tests {
                     (8 * MOB).to_string(),
                     Mob::ID.to_string(),
                 )],
+                None,
                 None,
                 None,
                 None,
@@ -842,6 +856,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         ) {
             Ok(_) => {
                 panic!("Should not be able to build transaction to invalid b58 public address")
@@ -893,7 +908,7 @@ mod tests {
                 Mob::ID.to_string(),
             ));
         }
-        match service.build_transaction(&alice.id, &outputs, None, None, None, None, None) {
+        match service.build_transaction(&alice.id, &outputs, None, None, None, None, None, None) {
             Ok(_) => {
                 panic!("Should not be able to build transaction with too many ouputs")
             }
@@ -916,8 +931,16 @@ mod tests {
         for _ in 0..17 {
             inputs.push("fake txo id".to_string());
         }
-        match service.build_transaction(&alice.id, &outputs, Some(&inputs), None, None, None, None)
-        {
+        match service.build_transaction(
+            &alice.id,
+            &outputs,
+            Some(&inputs),
+            None,
+            None,
+            None,
+            None,
+            None,
+        ) {
             Ok(_) => {
                 panic!("Should not be able to build transaction with too many inputs")
             }
