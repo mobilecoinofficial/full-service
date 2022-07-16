@@ -212,7 +212,7 @@ mod e2e_transaction {
         let payments_tx_proposal = TxProposal::try_from(&json_tx_proposal).unwrap();
 
         // The MockBlockchainConnection does not write to the ledger_db
-        add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
+        add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal, &mut rng);
         assert_eq!(ledger_db.num_blocks().unwrap(), 14);
 
         // Wait for accounts to sync.

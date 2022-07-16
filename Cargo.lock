@@ -2764,6 +2764,7 @@ dependencies = [
  "mc-account-keys-slip10",
  "mc-api",
  "mc-attest-verifier",
+ "mc-blockchain-test-utils",
  "mc-blockchain-types",
  "mc-common",
  "mc-connection",

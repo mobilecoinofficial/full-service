@@ -720,7 +720,12 @@ mod tests {
             Some(CHANGE_SUBADDRESS_INDEX as i64)
         );
 
-        add_block_from_transaction_log(&mut ledger_db, &wallet_db.get_conn().unwrap(), &tx_log);
+        add_block_from_transaction_log(
+            &mut ledger_db,
+            &wallet_db.get_conn().unwrap(),
+            &tx_log,
+            &mut rng,
+        );
 
         assert_eq!(ledger_db.num_blocks().unwrap(), 14);
         let _sync = manually_sync_account(
@@ -1126,6 +1131,7 @@ mod tests {
                 mc_util_serial::decode(&input_details0.key_image.unwrap()).unwrap(),
                 mc_util_serial::decode(&input_details1.key_image.unwrap()).unwrap(),
             ],
+            &mut rng,
         );
         assert_eq!(ledger_db.num_blocks().unwrap(), 15);
         let _sync = manually_sync_account(

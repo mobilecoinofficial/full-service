@@ -9,7 +9,7 @@ use mc_transaction_core::{
     ring_signature::{KeyImage, Scalar},
     tokens::Mob,
     tx::{TxIn, TxOut, TxOutConfirmationNumber},
-    Amount, BlockVersion, Token,
+    Amount, BlockVersion, Token, TokenId,
 };
 use mc_transaction_std::{
     InputCredentials, RTHMemoBuilder, ReservedSubaddresses, SenderMemoCredential,
@@ -60,14 +60,14 @@ impl UnsignedTx {
         // let mut memo_builder = RTHMemoBuilder::default();
         // memo_builder.set_sender_credential(SenderMemoCredential::
         // from(account_key)); memo_builder.enable_destination_memo();
-        // let fee = Amount::new(self.fee, Mob::ID);
+        // let fee = Amount::new(self.fee, TokenId::from(self.fee_token_id));
         // let mut transaction_builder =
         //     TransactionBuilder::new(self.block_version, fee, fog_resolver,
         // memo_builder)?;
 
         // transaction_builder.set_tombstone_block(self.tombstone_block_index);
 
-        // let mut selected_utxos: Vec<UnspentTxOut> = Vec::new();
+        // let mut inputs: Vec<InputTxo> = Vec::new();
 
         // for (tx_in, real_index, subaddress_index) in
         //     self.inputs_and_real_indices_and_subaddress_indices
@@ -94,28 +94,23 @@ impl UnsignedTx {
 
         //     transaction_builder.add_input(input_credentials);
 
-        //     let tx_out = &tx_in.ring[real_index as usize];
-        //     let (amount, _) = decode_amount(tx_out,
+        //     let tx_out = tx_in.ring[real_index as usize];
+        //     let (amount, _) = decode_amount(&tx_out,
         // account_key.view_private_key())?;
 
-        //     let utxo = UnspentTxOut {
-        //         tx_out: tx_out.clone(),
-        //         subaddress_index,
+        //     let input = InputTxo {
+        //         tx_out,
         //         key_image,
         //         value: amount.value,
-        //         attempted_spend_height: 0,
-        //         attempted_spend_tombstone: 0,
-        //         token_id: *Mob::ID,
+        //         token_id: amount.token_id,
         //     };
 
-        //     selected_utxos.push(utxo);
+        //     inputs.push(input);
         // }
 
         // // Add the inputs and sum their values
-        // let total_input_value = selected_utxos
-        //     .iter()
-        //     .map(|utxo| utxo.value as u128)
-        //     .sum::<u128>() as u64;
+        // let total_input_value = inputs.iter().map(|utxo| utxo.value as
+        // u128).sum::<u128>() as u64;
 
         // let mut outlays_decoded: Vec<Outlay> = Vec::new();
 
@@ -142,24 +137,11 @@ impl UnsignedTx {
 
         // let tx = transaction_builder.build(&NoKeysRingSigner {}, &mut rng)?;
 
-        // let outlay_index_to_tx_out_index: HashMap<usize, usize> = tx
-        //     .prefix
-        //     .outputs
-        //     .iter()
-        //     .enumerate()
-        //     .filter_map(|(tx_out_index, tx_out)| {
-        //         tx_out_to_outlay_index
-        //             .get(tx_out)
-        //             .map(|outlay_index| (*outlay_index, tx_out_index))
-        //     })
-        //     .collect();
-
         // Ok(TxProposal {
-        //     utxos: selected_utxos,
-        //     outlays: outlays_decoded.to_vec(),
         //     tx,
-        //     outlay_index_to_tx_out_index,
-        //     outlay_confirmation_numbers,
+        //     input_txos: inputs,
+        //     payload_txos: todo!(),
+        //     change_txos: todo!(),
         // })
     }
 }
@@ -178,30 +160,28 @@ fn add_payload_outputs<RNG: CryptoRng + RngCore>(
     outlays: &[(PublicAddress, u64, u64)],
     transaction_builder: &mut TransactionBuilder<FullServiceFogResolver>,
     rng: &mut RNG,
-) -> Result<(u64, HashMap<TxOut, usize>, Vec<TxOutConfirmationNumber>), WalletTransactionBuilderError>
-{
+) -> Result<(u64, Vec<OutputTxo>), WalletTransactionBuilderError> {
     todo!();
     // // Add outputs to our destinations.
     // let mut total_value = 0;
-    // let mut tx_out_to_outlay_index: HashMap<TxOut, usize> =
-    // HashMap::default(); let mut outlay_confirmation_numbers =
-    // Vec::default(); for (i, outlay) in outlays.iter().enumerate() {
-    //     let (tx_out, confirmation) = transaction_builder.add_output(
-    //         Amount::new(outlay.value, Mob::ID),
-    //         &outlay.receiver,
-    //         rng,
-    //     )?;
+    // let mut outputs = Vec::new();
+    // for (recipient, value, token_id) in outlays.into_iter() {
+    //     let token_id = TokenId::from(*token_id);
+    //     let tx_out_context =
+    //         transaction_builder.add_output(Amount::new(*value, token_id),
+    // recipient, rng)?;
 
-    //     tx_out_to_outlay_index.insert(tx_out, i);
-    //     outlay_confirmation_numbers.push(confirmation);
+    //     outputs.push(OutputTxo {
+    //         tx_out: tx_out_context.tx_out,
+    //         recipient_public_address: *recipient,
+    //         value: *value,
+    //         token_id,
+    //         confirmation_number: tx_out_context.confirmation,
+    //     });
 
     //     total_value += outlay.value;
     // }
-    // Ok((
-    //     total_value,
-    //     tx_out_to_outlay_index,
-    //     outlay_confirmation_numbers,
-    // ))
+    // Ok((total_value, outputs))
 }
 
 fn add_change_output<RNG: CryptoRng + RngCore>(

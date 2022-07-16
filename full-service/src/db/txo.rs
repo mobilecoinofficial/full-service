@@ -1230,6 +1230,7 @@ mod tests {
             &mut ledger_db,
             &[for_alice_txo.clone()],
             &[KeyImage::from(rng.next_u64())],
+            &mut rng,
         );
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
 
@@ -1306,6 +1307,7 @@ mod tests {
             &wallet_db,
             &[minted_txo.id.clone(), change_txo.id.clone()],
             &[KeyImage::from(for_alice_key_image)],
+            &mut rng,
         );
         assert_eq!(ledger_db.num_blocks().unwrap(), 14);
 
@@ -1502,6 +1504,7 @@ mod tests {
             &wallet_db,
             &[minted_txo.id.clone(), change_txo.id.clone()],
             &[KeyImage::from(for_bob_key_image)],
+            &mut rng,
         );
 
         // Process the latest block for Bob (note, Bob is starting to sync from block 0)
@@ -1910,7 +1913,7 @@ mod tests {
         // Now we need to let this txo hit the ledger, which will update sender and
         // receiver
         log::info!(logger, "Adding block from submitted");
-        add_block_with_tx_proposal(&mut ledger_db, proposal.clone());
+        add_block_with_tx_proposal(&mut ledger_db, proposal.clone(), &mut rng);
 
         // Now let our sync thread catch up for both sender and receiver
         log::info!(logger, "Manually syncing account");

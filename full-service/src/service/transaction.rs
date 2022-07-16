@@ -713,7 +713,7 @@ mod tests {
         {
             log::info!(logger, "Adding block from transaction log");
             let conn = service.wallet_db.get_conn().unwrap();
-            add_block_from_transaction_log(&mut ledger_db, &conn, &transaction_log);
+            add_block_from_transaction_log(&mut ledger_db, &conn, &transaction_log, &mut rng);
         }
 
         manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
@@ -786,7 +786,7 @@ mod tests {
         {
             log::info!(logger, "Adding block from transaction log");
             let conn = service.wallet_db.get_conn().unwrap();
-            add_block_from_transaction_log(&mut ledger_db, &conn, &transaction_log);
+            add_block_from_transaction_log(&mut ledger_db, &conn, &transaction_log, &mut rng);
         }
 
         manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);

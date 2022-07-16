@@ -22,6 +22,7 @@ use diesel::{
 use diesel_migrations::embed_migrations;
 use mc_account_keys::{AccountKey, PublicAddress, RootIdentity};
 use mc_attest_verifier::Verifier;
+use mc_blockchain_test_utils::make_block_metadata;
 use mc_blockchain_types::{Block, BlockContents, BlockVersion};
 use mc_common::logger::{log, Logger};
 use mc_connection::{Connection, ConnectionManager, HardcodedCredentialsProvider, ThickClient};
@@ -169,7 +170,11 @@ pub fn generate_ledger_db(path: &str) -> LedgerDB {
     db
 }
 
-fn append_test_block(ledger_db: &mut LedgerDB, block_contents: BlockContents) -> u64 {
+fn append_test_block(
+    ledger_db: &mut LedgerDB,
+    block_contents: BlockContents,
+    mut rng: &mut (impl CryptoRng + RngCore),
+) -> u64 {
     let num_blocks = ledger_db.num_blocks().expect("failed to get block height");
 
     let new_block;
@@ -187,8 +192,10 @@ fn append_test_block(ledger_db: &mut LedgerDB, block_contents: BlockContents) ->
         new_block = Block::new_origin_block(&block_contents.outputs);
     }
 
+    let block_metadata = make_block_metadata(new_block.id.clone(), &mut rng);
+
     ledger_db
-        .append_block(&new_block, &block_contents, None, None)
+        .append_block(&new_block, &block_contents, None, Some(&block_metadata))
         .expect("failed writing initial transactions");
 
     ledger_db.num_blocks().expect("failed to get block height")
@@ -231,33 +238,42 @@ pub fn add_block_to_ledger_db(
         validated_mint_config_txs: Vec::new(),
         mint_txs: Vec::new(),
     };
-    append_test_block(ledger_db, block_contents)
+    append_test_block(ledger_db, block_contents, rng)
 }
 
-pub fn add_block_with_tx_proposal(ledger_db: &mut LedgerDB, tx_proposal: TxProposal) -> u64 {
+pub fn add_block_with_tx_proposal(
+    ledger_db: &mut LedgerDB,
+    tx_proposal: TxProposal,
+    rng: &mut (impl CryptoRng + RngCore),
+) -> u64 {
     let block_contents = BlockContents {
         key_images: tx_proposal.tx.key_images(),
         outputs: tx_proposal.tx.prefix.outputs.clone(),
         validated_mint_config_txs: Vec::new(),
         mint_txs: Vec::new(),
     };
-    append_test_block(ledger_db, block_contents)
+    append_test_block(ledger_db, block_contents, rng)
 }
 
-pub fn add_block_with_tx(ledger_db: &mut LedgerDB, tx: Tx) -> u64 {
+pub fn add_block_with_tx(
+    ledger_db: &mut LedgerDB,
+    tx: Tx,
+    rng: &mut (impl CryptoRng + RngCore),
+) -> u64 {
     let block_contents = BlockContents {
         key_images: tx.key_images(),
         outputs: tx.prefix.outputs.clone(),
         validated_mint_config_txs: Vec::new(),
         mint_txs: Vec::new(),
     };
-    append_test_block(ledger_db, block_contents)
+    append_test_block(ledger_db, block_contents, rng)
 }
 
 pub fn add_block_from_transaction_log(
     ledger_db: &mut LedgerDB,
     conn: &PooledConnection<CM<SqliteConnection>>,
     transaction_log: &TransactionLog,
+    rng: &mut (impl CryptoRng + RngCore),
 ) -> u64 {
     let associated_txos = transaction_log.get_associated_txos(conn).unwrap();
 
@@ -282,13 +298,14 @@ pub fn add_block_from_transaction_log(
         mint_txs: Vec::new(),
     };
 
-    append_test_block(ledger_db, block_contents)
+    append_test_block(ledger_db, block_contents, rng)
 }
 
 pub fn add_block_with_tx_outs(
     ledger_db: &mut LedgerDB,
     outputs: &[TxOut],
     key_images: &[KeyImage],
+    rng: &mut (impl CryptoRng + RngCore),
 ) -> u64 {
     let block_contents = BlockContents {
         key_images: key_images.to_vec(),
@@ -296,7 +313,7 @@ pub fn add_block_with_tx_outs(
         validated_mint_config_txs: Vec::new(),
         mint_txs: Vec::new(),
     };
-    append_test_block(ledger_db, block_contents)
+    append_test_block(ledger_db, block_contents, rng)
 }
 
 pub fn setup_peer_manager_and_network_state(
@@ -344,6 +361,7 @@ pub fn add_block_with_db_txos(
     wallet_db: &WalletDb,
     output_txo_ids: &[String],
     key_images: &[KeyImage],
+    rng: &mut (impl CryptoRng + RngCore),
 ) -> u64 {
     let outputs: Vec<TxOut> = output_txo_ids
         .iter()
@@ -357,7 +375,7 @@ pub fn add_block_with_db_txos(
         })
         .collect();
 
-    add_block_with_tx_outs(ledger_db, &outputs, key_images)
+    add_block_with_tx_outs(ledger_db, &outputs, key_images, rng)
 }
 
 // Sync account to most recent block

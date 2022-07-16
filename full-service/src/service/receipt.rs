@@ -391,6 +391,7 @@ mod tests {
                 None,
                 None,
                 None,
+                None,
             )
             .expect("Could not build transaction");
 
@@ -413,7 +414,7 @@ mod tests {
         .expect("Could not log submitted");
 
         // Add the txo to the ledger
-        add_block_with_tx_proposal(&mut ledger_db, tx_proposal);
+        add_block_with_tx_proposal(&mut ledger_db, tx_proposal, &mut rng);
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,
@@ -429,7 +430,7 @@ mod tests {
 
         // Get corresponding Txo for Bob
         let txos_and_statuses = service
-            .list_txos(&AccountID(bob.id), None, None, None)
+            .list_txos(&AccountID(bob.id), None, None, None, None)
             .expect("Could not get Bob Txos");
         assert_eq!(txos_and_statuses.len(), 1);
 
@@ -520,6 +521,7 @@ mod tests {
                 None,
                 None,
                 None,
+                None,
             )
             .expect("Could not build transaction");
 
@@ -554,7 +556,7 @@ mod tests {
         assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
 
         // Add the txo to the ledger
-        add_block_with_tx_proposal(&mut ledger_db, tx_proposal);
+        add_block_with_tx_proposal(&mut ledger_db, tx_proposal, &mut rng);
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,
@@ -646,6 +648,7 @@ mod tests {
                 None,
                 None,
                 None,
+                None,
             )
             .expect("Could not build transaction");
 
@@ -663,7 +666,7 @@ mod tests {
             &service.wallet_db.get_conn().unwrap(),
         )
         .expect("Could not log submitted");
-        add_block_with_tx_proposal(&mut ledger_db, tx_proposal0);
+        add_block_with_tx_proposal(&mut ledger_db, tx_proposal0, &mut rng);
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,
@@ -779,6 +782,7 @@ mod tests {
                 None,
                 None,
                 None,
+                None,
             )
             .expect("Could not build transaction");
 
@@ -796,7 +800,7 @@ mod tests {
             &service.wallet_db.get_conn().unwrap(),
         )
         .expect("Could not log submitted");
-        add_block_with_tx_proposal(&mut ledger_db, tx_proposal0);
+        add_block_with_tx_proposal(&mut ledger_db, tx_proposal0, &mut rng);
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,
