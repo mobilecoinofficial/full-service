@@ -1,29 +1,9 @@
 ---
 description: >-
   A Transaction Log is a record of a MobileCoin transaction that was constructed
-  and sent from this wallet.
+  and sent from this wallet, or that was received at an address belonging to an
+  account in this wallet.
 ---
-
-# Input Txo
-
-## Attributes
-
-| _Name_ | _Type_ | _Description_ |
-| :--- | :--- | :--- |
-| `id` | string | Unique identifier for the txo. |
-| `value` | string \(uint64\) | Value of this txo. |
-| `token_id` | string \(uint64\) | Token id of this txo. |
-
-# Output Txo
-
-## Attributes
-
-| _Name_ | _Type_ | _Description_ |
-| :--- | :--- | :--- |
-| `id` | string | Unique identifier for the txo. |
-| `value` | string \(uint64\) | Value of this txo. |
-| `token_id` | string \(uint64\) | Token id of this txo. |
-| `recipient_public_address_b58` | string | Public address b58 of the recipient of this txo. |
 
 # Transaction Log
 
@@ -33,18 +13,21 @@ Due to the privacy properties of the MobileCoin ledger, transactions are ephemer
 
 | _Name_ | _Type_ | _Description_ |
 | :--- | :--- | :--- |
-| `id` | integer | Unique identifier for the transaction log. This value is not associated to the ledger. |
+| `object` | string, value is "transaction\_log" | String representing the object's type. Objects of the same type share the same value. |
+| `transaction_log_id` | integer | Unique identifier for the transaction log. This value is not associated to the ledger. |
+| `direction` | string | A string that identifies if this transaction log was sent or received. Valid values are "sent" or "received". |
+| `is_sent_recovered` | Boolean | Flag that indicates if the sent transaction log was recovered from the ledger. This value is null for "received" transaction logs. If true, some information may not be available on the transaction log and its TXOs without user input. If true, the fee `receipient_address_id`, fee, and `sent_time` will be null without user input. |
 | `account_id` | string | Unique identifier for the assigned associated account. If the transaction is outgoing, this account is from whence the TXO came. If received, this is the receiving account. |
-| `value_map` | map \(string, uint64\) | Total value per token associated to this transaction log. |
-| `fee_value` | string \(uint64\) | Fee value associated to this transaction log. |
-| `fee_token_id` | string \(uint64\) | Fee token id associated to this transaction log. |
+| `recipient_address_id` | string | Unique identifier for the recipient associated account. Only available if direction is "sent". |
+| `assigned_address_id` | string | Unique identifier for the assigned associated account. Only available if direction is "received". |
+| `value_pmob` | string \(uint64\) | Value in pico MOB associated to this transaction log. |
+| `fee_pmob` | string \(uint64\) | Fee in pico MOB associated to this transaction log. Only on outgoing transaction logs. Only available if direction is "sent". |
 | `submitted_block_index` | string \(uint64\) | The block index of the highest block on the network at the time the transaction was submitted. |
-| `tombstone_block_index` | string \(uint64\) | The tombstone block index. |
 | `finalized_block_index` | string \(uint64\) | The scanned block block index in which this transaction occurred. |
-| `status` | string | String representing the transaction log status. Valid statuses are "built", "pending", "succeeded", "failed". |
-| `input_txos` | \[InputTxo\] | A list of the TXOs which were inputs to this transaction. |
-| `payload_txos` | \[OutputTxo\] | A list of the TXOs which were payloads of this transaction. |
-| `change_txos` | \[OutputTxo\] | A list of the TXOs which were change in this transaction. |
+| `status` | string | String representing the transaction log status. On "sent", valid statuses are "built", "pending", "succeeded", "failed". On "received", the status is "succeeded". |
+| `input_txo_ids` | \[string\] | A list of the IDs of the TXOs which were inputs to this transaction. |
+| `output_txo_ids` | \[string\] | A list of the IDs of the TXOs which were outputs of this transaction. |
+| `change_txo_ids` | \[string\] | A list of the IDs of the TXOs which were change in this transaction. |
 | `sent_time` | Timestamp | Time at which sent transaction log was created. Only available if direction is "sent". This value is null if "received" or if the sent transactions were recovered from the ledger \(`is_sent_recovered = true`\). |
 | `comment` | string | An arbitrary string attached to the object. |
 | `failure_code` | integer | Code representing the cause of "failed" status. |
@@ -53,41 +36,29 @@ Due to the privacy properties of the MobileCoin ledger, transactions are ephemer
 ## Example
 
 {% tabs %}
-{% tab title="Sent - Pending" %}
+{% tab title="Received" %}
 ```text
 {
-  "id": "ab447d73553309ccaf60aedc1eaa67b47f65bee504872e4358682d76df486a87",
+  "object": "transaction_log",
+  "transaction_log_id": "ab447d73553309ccaf60aedc1eaa67b47f65bee504872e4358682d76df486a87",
+  "direction": "tx_direction_sent",
+  "is_sent_recovered": null,
   "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
-  "value_map": {
-    "0": "42000000000000"
-  },
-  "fee_value": "10000000000",
-  "fee_token_id": "0",
+  "recipient_address_id": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+  "assigned_address_id": null,
+  "value_pmob": "42000000000000",
+  "fee_pmob": "10000000000",
   "submitted_block_index": "152950",
   "finalized_block_index": null,
-  "status": "pending",
-  "input_txos": [
-    {
-      "id": "eb735cafa6d8b14a69361cc05cb3a5970752d27d1265a1ffdfd22c0171c2b20d",
-      "value": "50000000000",
-      "token_id": "0"
-    }
+  "status": "tx_status_pending",
+  "input_txo_ids": [
+    "eb735cafa6d8b14a69361cc05cb3a5970752d27d1265a1ffdfd22c0171c2b20d"
   ],
-  "payload_txos": [
-    {
-      "id": "fd39b4e740cb302edf5da89c22c20bea0e4408df40e31c1dbb2ec0055435861c",
-      "value": "30000000000",
-      "token_id": "0"
-      "recipient_public_address_b58": "vrewh94jfm43m430nmv2084j3k230j3mfm4i3mv39nffrwv43"
-    }
+  "output_txo_ids": [
+    "fd39b4e740cb302edf5da89c22c20bea0e4408df40e31c1dbb2ec0055435861c"
   ],
-  "change_txos": [
-    {
-      "id": "bcb45b4fab868324003631b6490a0bf46aaf37078a8d366b490437513c6786e4",
-      "value": "10000000000",
-      "token_id": "0"
-      "recipient_public_address_b58": "grewmvn3990435vm032492v43mgkvocdajcl2icas"
-    }
+  "change_txo_ids": [
+    "bcb45b4fab868324003631b6490a0bf46aaf37078a8d366b490437513c6786e4"
   ],
   "sent_time": "2021-02-28 01:42:28 UTC",
   "comment": "",
@@ -100,38 +71,26 @@ Due to the privacy properties of the MobileCoin ledger, transactions are ephemer
 {% tab title="Sent - Failed" %}
 ```text
 {
-  "id": "ab447d73553309ccaf60aedc1eaa67b47f65bee504872e4358682d76df486a87",
+  "object": "transaction_log",
+  "transaction_log_id": "ab447d73553309ccaf60aedc1eaa67b47f65bee504872e4358682d76df486a87",
+  "direction": "tx_direction_sent",
+  "is_sent_recovered": null,
   "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
-  "value_map": {
-    "0": "42000000000000"
-  },
-  "fee_value": "10000000000",
-  "fee_token_id": "0",
+  "recipient_address_id": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+  "assigned_address_id": null,
+  "value_pmob": "42000000000000",
+  "fee_pmob": "10000000000",
   "submitted_block_index": "152950",
   "finalized_block_index": null,
-  "status": "pending",
-  "input_txos": [
-    {
-      "id": "eb735cafa6d8b14a69361cc05cb3a5970752d27d1265a1ffdfd22c0171c2b20d",
-      "value": "50000000000",
-      "token_id": "0"
-    }
+  "status": "failed",
+  "input_txo_ids": [
+    "eb735cafa6d8b14a69361cc05cb3a5970752d27d1265a1ffdfd22c0171c2b20d"
   ],
-  "payload_txos": [
-    {
-      "id": "fd39b4e740cb302edf5da89c22c20bea0e4408df40e31c1dbb2ec0055435861c",
-      "value": "30000000000",
-      "token_id": "0"
-      "recipient_public_address_b58": "vrewh94jfm43m430nmv2084j3k230j3mfm4i3mv39nffrwv43"
-    }
+  "output_txo_ids": [
+    "fd39b4e740cb302edf5da89c22c20bea0e4408df40e31c1dbb2ec0055435861c"
   ],
-  "change_txos": [
-    {
-      "id": "bcb45b4fab868324003631b6490a0bf46aaf37078a8d366b490437513c6786e4",
-      "value": "10000000000",
-      "token_id": "0"
-      "recipient_public_address_b58": "grewmvn3990435vm032492v43mgkvocdajcl2icas"
-    }
+  "change_txo_ids": [
+    "bcb45b4fab868324003631b6490a0bf46aaf37078a8d366b490437513c6786e4"
   ],
   "sent_time": "2021-02-28 01:42:28 UTC",
   "comment": "This is an example of a failed sent transaction log of 1.288 MOB and 0.01 MOB fee!",
@@ -141,41 +100,29 @@ Due to the privacy properties of the MobileCoin ledger, transactions are ephemer
 ```
 {% endtab %}
 
-{% tab title="Sent - Success" %}
+{% tab title="Sent - Success, Recovered" %}
 ```text
 {
-  "id": "ab447d73553309ccaf60aedc1eaa67b47f65bee504872e4358682d76df486a87",
+  "object": "transaction_log",
+  "transaction_log_id": "ab447d73553309ccaf60aedc1eaa67b47f65bee504872e4358682d76df486a87",
+  "direction": "tx_direction_sent",
+  "is_sent_recovered": true,
   "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
-  "value_map": {
-    "0": "42000000000000"
-  },
-  "fee_value": "10000000000",
-  "fee_token_id": "0",
+  "recipient_address_id": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+  "assigned_address_id": null,
+  "value_pmob": "42000000000000",
+  "fee_pmob": "10000000000",
   "submitted_block_index": "152950",
-  "finalized_block_index": "152951",
-  "status": "succeeded",
-  "input_txos": [
-    {
-      "id": "eb735cafa6d8b14a69361cc05cb3a5970752d27d1265a1ffdfd22c0171c2b20d",
-      "value": "50000000000",
-      "token_id": "0"
-    }
+  "finalized_block_index": null,
+  "status": "tx_status_pending",
+  "input_txo_ids": [
+    "eb735cafa6d8b14a69361cc05cb3a5970752d27d1265a1ffdfd22c0171c2b20d"
   ],
-  "payload_txos": [
-    {
-      "id": "fd39b4e740cb302edf5da89c22c20bea0e4408df40e31c1dbb2ec0055435861c",
-      "value": "30000000000",
-      "token_id": "0"
-      "recipient_public_address_b58": "vrewh94jfm43m430nmv2084j3k230j3mfm4i3mv39nffrwv43"
-    }
+  "output_txo_ids": [
+    "fd39b4e740cb302edf5da89c22c20bea0e4408df40e31c1dbb2ec0055435861c"
   ],
-  "change_txos": [
-    {
-      "id": "bcb45b4fab868324003631b6490a0bf46aaf37078a8d366b490437513c6786e4",
-      "value": "10000000000",
-      "token_id": "0"
-      "recipient_public_address_b58": "grewmvn3990435vm032492v43mgkvocdajcl2icas"
-    }
+  "change_txo_ids": [
+    "bcb45b4fab868324003631b6490a0bf46aaf37078a8d366b490437513c6786e4"
   ],
   "sent_time": "2021-02-28 01:42:28 UTC",
   "comment": "",

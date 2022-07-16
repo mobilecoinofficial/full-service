@@ -14,6 +14,10 @@ use crate::{
 /// and/or submitted from an account in this wallet.
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct TransactionLog {
+    /// String representing the object's type. Objects of the same type share
+    /// the same value.
+    pub object: String,
+
     /// Unique identifier for the transaction log. This value is not associated
     /// to the ledger, but derived from the tx.
     pub id: String,
@@ -27,7 +31,7 @@ pub struct TransactionLog {
     pub input_txos: Vec<InputTxo>,
 
     /// A list of the Txos which were outputs from this transaction.
-    pub payload_txos: Vec<OutputTxo>,
+    pub output_txos: Vec<OutputTxo>,
 
     /// A list of the Txos which were change in this transaction.
     pub change_txos: Vec<OutputTxo>,
@@ -47,8 +51,9 @@ pub struct TransactionLog {
     ///  The scanned block block index in which this transaction occurred.
     pub finalized_block_index: Option<String>,
 
-    /// String representing the transaction log status. Valid
-    /// statuses are "built", "pending", "succeeded", "failed".
+    /// String representing the transaction log status. On "sent", valid
+    /// statuses are "built", "pending", "succeeded", "failed".  On "received",
+    /// the status is "succeeded".
     pub status: String,
 
     /// Time at which sent transaction log was created. Only available if
@@ -73,6 +78,7 @@ impl TransactionLog {
             .collect();
 
         Self {
+            object: "transaction_log".to_string(),
             id: transaction_log.id.clone(),
             account_id: transaction_log.account_id.clone(),
             submitted_block_index: transaction_log
@@ -86,7 +92,7 @@ impl TransactionLog {
                 .map(|b| (b as u64).to_string()),
             status: transaction_log.status().to_string(),
             input_txos: associated_txos.inputs.iter().map(InputTxo::new).collect(),
-            payload_txos: associated_txos
+            output_txos: associated_txos
                 .outputs
                 .iter()
                 .map(|(txo, recipient)| OutputTxo::new(txo, recipient.to_string()))
@@ -107,7 +113,7 @@ impl TransactionLog {
 
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct InputTxo {
-    pub id: String,
+    pub txo_id_hex: String,
 
     /// Value of this txo.
     pub value: String,
@@ -119,7 +125,7 @@ pub struct InputTxo {
 impl InputTxo {
     pub fn new(txo: &db::models::Txo) -> Self {
         Self {
-            id: txo.id.clone(),
+            txo_id_hex: txo.id.clone(),
             value: (txo.value as u64).to_string(),
             token_id: (txo.token_id as u64).to_string(),
         }
@@ -128,7 +134,7 @@ impl InputTxo {
 
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct OutputTxo {
-    pub id: String,
+    pub txo_id_hex: String,
 
     /// Value of this txo.
     pub value: String,
@@ -142,7 +148,7 @@ pub struct OutputTxo {
 impl OutputTxo {
     pub fn new(txo: &db::models::Txo, recipient_public_address_b58: String) -> Self {
         Self {
-            id: txo.id.clone(),
+            txo_id_hex: txo.id.clone(),
             value: (txo.value as u64).to_string(),
             token_id: (txo.token_id as u64).to_string(),
             recipient_public_address_b58,

@@ -2,13 +2,13 @@
 description: Get the current balance for a given account.
 ---
 
-# Get Balance For Account
+# Get Balance For View Only Account
 
 ## Parameters
 
 | Required Param | Purpose | Requirements |
 | :--- | :--- | :--- |
-| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+| `account_id` | The account on which to perform this action. | Account must exist in the wallet as a view only account. |
 
 ## Example
 
@@ -16,7 +16,7 @@ description: Get the current balance for a given account.
 {% tab title="Request Body" %}
 ```text
 {
-  "method": "get_balance_for_account",
+  "method": "get_balance_for_view_only_account",
   "params": {
     "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
   },
@@ -29,7 +29,7 @@ description: Get the current balance for a given account.
 {% tab title="Response" %}
 ```text
 {
-  "method": "get_balance_for_account",
+  "method": "get_balance_for_view_only_account",
   "result": {
     "balance": {
       "object": "balance",
