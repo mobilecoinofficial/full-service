@@ -6,7 +6,7 @@
 | :--- | :--- | :--- |
 | `account_id` | The account on which to perform this action. | Account must exist in the wallet as a view only account. |
 | `completed_txos` | signed txos. A array of tuples (txoID, KeyImage) | |
-| `next_subaddress_index` | The updated next subaddress index to assign for this account | |
+| `subaddresses` | The subaddress to sync | |
 
 ### subaddress import json fields:
 | field | description (all strings) |
@@ -28,7 +28,14 @@
     "params": {
         "account_id": "f85920dd83f69d8850799e28240e3d395f0ad46dec2561b71f4614dd90a3edb5",
         "completed_txos": "[(asdasedeerwe..., sadjashdoauihdkahwk...)]",
-        "next_subaddress_index": "3"
+        "subaddresses": "[{
+            object: "view_only_subaddress",
+            public_address: "USm3fpXnKG5EUBx2ndxBDMPVciP5hGey2Jh4NDv6gmeo1LkMeiKrLJUUBk6Z",
+            account_id: "f85920dd83f69d8850799e28240e3d395f0ad46dec2561b71f4614dd90a3edb5",
+            comment: "target address",
+            "subaddress_index: "5",
+            public_spend_key: "asdsfpXnKG5EUBx2ndxBDMPVciP5hGey2Jh4NDv6gmeo1LkMeiKrLJUUBk6Z"
+        }]"
     },
     "jsonrpc": "2.0",
     "id": 1

@@ -1,4 +1,4 @@
-# Create View Only Account Sync Request
+# Create Account Sync Request
 
 ## Parameters
 
