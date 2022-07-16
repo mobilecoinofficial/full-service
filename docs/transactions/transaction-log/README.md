@@ -109,7 +109,7 @@ Due to the privacy properties of the MobileCoin ledger, transactions are ephemer
   "fee_token_id": "0",
   "submitted_block_index": "152950",
   "finalized_block_index": null,
-  "status": "pending",
+  "status": "failed",
   "input_txos": [
     {
       "id": "eb735cafa6d8b14a69361cc05cb3a5970752d27d1265a1ffdfd22c0171c2b20d",
@@ -136,7 +136,7 @@ Due to the privacy properties of the MobileCoin ledger, transactions are ephemer
   "sent_time": "2021-02-28 01:42:28 UTC",
   "comment": "This is an example of a failed sent transaction log of 1.288 MOB and 0.01 MOB fee!",
   "failure_code": 3,
-  "failure_message:": "Contains sent key image."
+  "failure_message:": "Contains spent key image."
 }
 ```
 {% endtab %}
