@@ -42,17 +42,15 @@ description: >-
       "object": "account",
       "recovery_mode": false
     },
-    "balance": {
-      "account_block_height": "152918",
-      "is_synced": true,
-      "local_block_height": "152918",
-      "network_block_height": "152918",
-      "object": "balance",
-      "orphaned_pmob": "0",
-      "pending_pmob": "2040016523222112112",
-      "secreted_pmob": "204273415999956272",
-      "spent_pmob": "0",
-      "unspent_pmob": "51080511222211091"
+    "balance_per_token": {
+      "0": {
+        "orphaned": "0",
+        "pending": "2040016523222112112",
+        "secreted": "204273415999956272",
+        "spent": "0",
+        "unspent": "51080511222211091",
+        "unverified": "0"
+      }
     }
   },
   "error": null,
