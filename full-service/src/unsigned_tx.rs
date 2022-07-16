@@ -13,7 +13,7 @@ use mc_transaction_core::{
 };
 use mc_transaction_std::{
     InputCredentials, RTHMemoBuilder, ReservedSubaddresses, SenderMemoCredential,
-    TransactionBuilder,
+    TransactionBuilder, TxOutContext,
 };
 use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
@@ -127,7 +127,7 @@ impl UnsignedTx {
         // outlay_confirmation_numbers) =     add_payload_outputs(&
         // outlays_decoded, &mut transaction_builder, &mut rng)?;
 
-        // add_change_output(
+        // let change_txo = add_change_output(
         //     account_key,
         //     total_input_value,
         //     total_payload_value,
@@ -160,45 +160,47 @@ fn add_payload_outputs<RNG: CryptoRng + RngCore>(
     outlays: &[(PublicAddress, u64, u64)],
     transaction_builder: &mut TransactionBuilder<FullServiceFogResolver>,
     rng: &mut RNG,
-) -> Result<(u64, Vec<OutputTxo>), WalletTransactionBuilderError> {
-    todo!();
-    // // Add outputs to our destinations.
-    // let mut total_value = 0;
-    // let mut outputs = Vec::new();
-    // for (recipient, value, token_id) in outlays.into_iter() {
-    //     let token_id = TokenId::from(*token_id);
-    //     let tx_out_context =
-    //         transaction_builder.add_output(Amount::new(*value, token_id),
-    // recipient, rng)?;
+) -> Result<Vec<OutputTxo>, WalletTransactionBuilderError> {
+    // Add outputs to our destinations.
+    let mut outputs = Vec::new();
+    for (recipient, value, token_id) in outlays.into_iter() {
+        let token_id = TokenId::from(*token_id);
+        let tx_out_context =
+            transaction_builder.add_output(Amount::new(*value, token_id), recipient, rng)?;
 
-    //     outputs.push(OutputTxo {
-    //         tx_out: tx_out_context.tx_out,
-    //         recipient_public_address: *recipient,
-    //         value: *value,
-    //         token_id,
-    //         confirmation_number: tx_out_context.confirmation,
-    //     });
-
-    //     total_value += outlay.value;
-    // }
-    // Ok((total_value, outputs))
+        outputs.push(OutputTxo {
+            tx_out: tx_out_context.tx_out,
+            recipient_public_address: recipient.clone(),
+            value: *value,
+            token_id,
+            confirmation_number: tx_out_context.confirmation,
+        });
+    }
+    Ok(outputs)
 }
 
 fn add_change_output<RNG: CryptoRng + RngCore>(
     account_key: &AccountKey,
     total_input_value: u64,
-    total_payload_value: u64,
+    total_output_value: u64,
+    token_id: TokenId,
     transaction_builder: &mut TransactionBuilder<FullServiceFogResolver>,
     rng: &mut RNG,
-) -> Result<(), WalletTransactionBuilderError> {
-    let change_value = total_input_value - total_payload_value - transaction_builder.get_fee();
+) -> Result<OutputTxo, WalletTransactionBuilderError> {
+    let change_value = total_input_value - total_output_value;
 
     let reserved_subaddresses = ReservedSubaddresses::from(account_key);
-    transaction_builder.add_change_output(
-        Amount::new(change_value, Mob::ID),
+    let tx_out_context = transaction_builder.add_change_output(
+        Amount::new(change_value, token_id),
         &reserved_subaddresses,
         rng,
     )?;
 
-    Ok(())
+    Ok(OutputTxo {
+        tx_out: tx_out_context.tx_out,
+        recipient_public_address: reserved_subaddresses.change_subaddress,
+        value: change_value,
+        token_id,
+        confirmation_number: tx_out_context.confirmation,
+    })
 }
