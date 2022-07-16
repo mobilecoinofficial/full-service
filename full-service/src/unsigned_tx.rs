@@ -17,7 +17,7 @@ use mc_transaction_std::{
 };
 use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
+use std::{collections::BTreeMap, convert::TryFrom};
 
 use crate::{
     error::WalletTransactionBuilderError,
@@ -54,95 +54,105 @@ impl UnsignedTx {
         account_key: &AccountKey,
         fog_resolver: FullServiceFogResolver,
     ) -> Result<TxProposal, WalletTransactionBuilderError> {
-        todo!();
-        // let mut rng = rand::thread_rng();
-        // // Create transaction builder.
-        // let mut memo_builder = RTHMemoBuilder::default();
-        // memo_builder.set_sender_credential(SenderMemoCredential::
-        // from(account_key)); memo_builder.enable_destination_memo();
-        // let fee = Amount::new(self.fee, TokenId::from(self.fee_token_id));
-        // let mut transaction_builder =
-        //     TransactionBuilder::new(self.block_version, fee, fog_resolver,
-        // memo_builder)?;
+        let mut rng = rand::thread_rng();
+        // Create transaction builder.
+        let mut memo_builder = RTHMemoBuilder::default();
+        memo_builder.set_sender_credential(SenderMemoCredential::from(account_key));
+        memo_builder.enable_destination_memo();
+        let fee = Amount::new(self.fee, TokenId::from(self.fee_token_id));
+        let mut transaction_builder =
+            TransactionBuilder::new(self.block_version, fee, fog_resolver, memo_builder)?;
 
-        // transaction_builder.set_tombstone_block(self.tombstone_block_index);
+        transaction_builder.set_tombstone_block(self.tombstone_block_index);
 
-        // let mut inputs: Vec<InputTxo> = Vec::new();
+        let mut input_txos: Vec<InputTxo> = Vec::new();
+        let mut input_total_per_token: BTreeMap<TokenId, u64> = BTreeMap::new();
 
-        // for (tx_in, real_index, subaddress_index) in
-        //     self.inputs_and_real_indices_and_subaddress_indices
-        // {
-        //     let tx_out = &tx_in.ring[real_index as usize];
-        //     let tx_public_key =
-        // RistrettoPublic::try_from(&tx_out.public_key)?;
+        for (tx_in, real_index, subaddress_index) in
+            self.inputs_and_real_indices_and_subaddress_indices
+        {
+            let tx_out = &tx_in.ring[real_index as usize];
+            let tx_public_key = RistrettoPublic::try_from(&tx_out.public_key)?;
 
-        //     let onetime_private_key = recover_onetime_private_key(
-        //         &tx_public_key,
-        //         account_key.view_private_key(),
-        //         &account_key.subaddress_spend_private(subaddress_index),
-        //     );
+            let onetime_private_key = recover_onetime_private_key(
+                &tx_public_key,
+                account_key.view_private_key(),
+                &account_key.subaddress_spend_private(subaddress_index),
+            );
 
-        //     let key_image = KeyImage::from(&onetime_private_key);
+            let key_image = KeyImage::from(&onetime_private_key);
 
-        //     let input_credentials = InputCredentials::new(
-        //         tx_in.ring.clone(),
-        //         tx_in.proofs.clone(),
-        //         real_index as usize,
-        //         onetime_private_key,
-        //         *account_key.view_private_key(),
-        //     )?;
+            let input_credentials = InputCredentials::new(
+                tx_in.ring.clone(),
+                tx_in.proofs.clone(),
+                real_index as usize,
+                onetime_private_key,
+                *account_key.view_private_key(),
+            )?;
 
-        //     transaction_builder.add_input(input_credentials);
+            transaction_builder.add_input(input_credentials);
 
-        //     let tx_out = tx_in.ring[real_index as usize];
-        //     let (amount, _) = decode_amount(&tx_out,
-        // account_key.view_private_key())?;
+            let tx_out = &tx_in.ring[real_index as usize];
+            let (amount, _) = decode_amount(tx_out, account_key.view_private_key())?;
 
-        //     let input = InputTxo {
-        //         tx_out,
-        //         key_image,
-        //         value: amount.value,
-        //         token_id: amount.token_id,
-        //     };
+            let input = InputTxo {
+                tx_out: tx_out.clone(),
+                key_image,
+                value: amount.value,
+                token_id: amount.token_id,
+            };
 
-        //     inputs.push(input);
-        // }
+            input_txos.push(input);
+            input_total_per_token
+                .entry(amount.token_id)
+                .and_modify(|x| *x += amount.value)
+                .or_insert(amount.value);
+        }
 
-        // // Add the inputs and sum their values
-        // let total_input_value = inputs.iter().map(|utxo| utxo.value as
-        // u128).sum::<u128>() as u64;
+        let mut outlays_decoded: Vec<(PublicAddress, Amount)> = Vec::new();
 
-        // let mut outlays_decoded: Vec<Outlay> = Vec::new();
+        for (public_address_b58, amount, token_id) in &self.outlays {
+            let public_address = b58_decode_public_address(public_address_b58)?;
+            let amount = Amount::new(*amount, TokenId::from(*token_id));
+            outlays_decoded.push((public_address, amount));
+        }
 
-        // for (public_address_b58, value) in self.outlays {
-        //     let receiver = b58_decode_public_address(&public_address_b58)?;
-        //     outlays_decoded.push(Outlay {
-        //         receiver,
-        //         value,
-        //         token_id: Mob::ID,
-        //     });
-        // }
+        let payload_txos =
+            add_payload_outputs(&outlays_decoded, &mut transaction_builder, &mut rng)?;
 
-        // let (total_payload_value, tx_out_to_outlay_index,
-        // outlay_confirmation_numbers) =     add_payload_outputs(&
-        // outlays_decoded, &mut transaction_builder, &mut rng)?;
+        let mut output_total_per_token: BTreeMap<TokenId, u64> = BTreeMap::new();
+        output_total_per_token.insert(TokenId::from(self.fee_token_id), self.fee);
 
-        // let change_txo = add_change_output(
-        //     account_key,
-        //     total_input_value,
-        //     total_payload_value,
-        //     &mut transaction_builder,
-        //     &mut rng,
-        // )?;
+        for (_, amount, token_id) in self.outlays.into_iter() {
+            output_total_per_token
+                .entry(TokenId::from(token_id))
+                .and_modify(|x| *x += amount)
+                .or_insert(amount);
+        }
 
-        // let tx = transaction_builder.build(&NoKeysRingSigner {}, &mut rng)?;
+        let change_txos = input_total_per_token
+            .into_iter()
+            .map(|(token_id, input_total)| {
+                let output_total = output_total_per_token.get(&token_id).unwrap_or(&0);
+                Ok(add_change_output(
+                    account_key,
+                    input_total,
+                    *output_total,
+                    token_id,
+                    &mut transaction_builder,
+                    &mut rng,
+                )?)
+            })
+            .collect::<Result<Vec<_>, WalletTransactionBuilderError>>()?;
 
-        // Ok(TxProposal {
-        //     tx,
-        //     input_txos: inputs,
-        //     payload_txos: todo!(),
-        //     change_txos: todo!(),
-        // })
+        let tx = transaction_builder.build(&NoKeysRingSigner {}, &mut rng)?;
+
+        Ok(TxProposal {
+            tx,
+            input_txos,
+            payload_txos,
+            change_txos,
+        })
     }
 }
 
@@ -157,22 +167,20 @@ pub fn decode_amount(
 
 #[allow(clippy::type_complexity)]
 fn add_payload_outputs<RNG: CryptoRng + RngCore>(
-    outlays: &[(PublicAddress, u64, u64)],
+    outlays: &[(PublicAddress, Amount)],
     transaction_builder: &mut TransactionBuilder<FullServiceFogResolver>,
     rng: &mut RNG,
 ) -> Result<Vec<OutputTxo>, WalletTransactionBuilderError> {
     // Add outputs to our destinations.
     let mut outputs = Vec::new();
-    for (recipient, value, token_id) in outlays.into_iter() {
-        let token_id = TokenId::from(*token_id);
-        let tx_out_context =
-            transaction_builder.add_output(Amount::new(*value, token_id), recipient, rng)?;
+    for (recipient, amount) in outlays.into_iter() {
+        let tx_out_context = transaction_builder.add_output(*amount, recipient, rng)?;
 
         outputs.push(OutputTxo {
             tx_out: tx_out_context.tx_out,
             recipient_public_address: recipient.clone(),
-            value: *value,
-            token_id,
+            value: amount.value,
+            token_id: amount.token_id,
             confirmation_number: tx_out_context.confirmation,
         });
     }
