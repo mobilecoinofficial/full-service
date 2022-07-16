@@ -303,7 +303,7 @@ mod e2e_transaction {
         let transaction_log = transaction_log_map.get(transaction_id).unwrap();
         assert_eq!(
             transaction_log
-                .get("output_txos")
+                .get("payload_txos")
                 .unwrap()
                 .as_array()
                 .unwrap()
