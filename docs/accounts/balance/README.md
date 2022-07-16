@@ -1,6 +1,6 @@
 ---
 description: >-
-  The balance per token present on the account
+  The balance for a token, separated by status
 ---
 
 # Balance
@@ -20,21 +20,11 @@ description: >-
 
 ```text
 {
-  "0": {
-    "unverified": "0",
-    "unspent": "110000000000000000",
-    "pending": "0",
-    "spent": "0",
-    "secreted": "0",
-    "orphaned": "0"
-  },
-  "1": {
-    "unverified": "0",
-    "unspent": "110000000000000000",
-    "pending": "0",
-    "spent": "0",
-    "secreted": "0",
-    "orphaned": "0"
-  }
+  "unverified": "0",
+  "unspent": "110000000000000000",
+  "pending": "0",
+  "spent": "0",
+  "secreted": "0",
+  "orphaned": "0"
 }
 ```
