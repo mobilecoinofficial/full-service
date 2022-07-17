@@ -19,7 +19,6 @@ use crate::{
 use displaydoc::Display;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_transaction_core::TokenId;
 
 /// Errors for the Txo Service.
 #[derive(Display, Debug)]

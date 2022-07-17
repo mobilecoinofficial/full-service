@@ -10,7 +10,6 @@ use crate::{
     service::WalletService,
     util::b58::b58_decode_public_address,
 };
-use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 
@@ -121,8 +120,8 @@ where
 
     fn verify_address(&self, public_address: &str) -> Result<bool, AddressServiceError> {
         match b58_decode_public_address(public_address) {
-            Ok(a) => Ok(true),
-            Err(e) => Ok(false),
+            Ok(_) => Ok(true),
+            Err(_) => Ok(false),
         }
     }
 }

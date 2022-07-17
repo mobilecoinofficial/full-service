@@ -13,7 +13,7 @@ use crate::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
         models::{Account, Txo},
-        txo::{TxoID, TxoModel},
+        txo::TxoModel,
         Conn,
     },
     error::WalletTransactionBuilderError,

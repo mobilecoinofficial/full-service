@@ -7,7 +7,6 @@ mod e2e_transaction {
     use crate::{
         db::account::AccountID,
         json_rpc::{
-            self,
             api_test_utils::{dispatch, setup},
             tx_proposal::TxProposalJSON,
         },

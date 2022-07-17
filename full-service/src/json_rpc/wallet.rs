@@ -54,14 +54,13 @@ use mc_connection::{
     BlockchainConnection, HardcodedCredentialsProvider, ThickClient, UserTxConnection,
 };
 use mc_fog_report_validation::{FogPubkeyResolver, FogResolver};
-use mc_transaction_core::TokenId;
 use mc_validator_connection::ValidatorConnection;
 use rocket::{
     self, get, http::Status, outcome::Outcome, post, request::FromRequest, routes, Request, State,
 };
 use rocket_contrib::json::Json;
 use serde_json::Map;
-use std::{collections::HashMap, convert::TryFrom, iter::FromIterator, str::FromStr, sync::Arc};
+use std::{collections::HashMap, convert::TryFrom, iter::FromIterator, str::FromStr};
 
 /// State managed by rocket.
 pub struct WalletState<
@@ -1087,18 +1086,6 @@ fn wallet_help() -> Result<String, String> {
 #[get("/health")]
 fn health() -> Result<(), ()> {
     Ok(())
-}
-
-fn page_helper(offset: Option<String>, limit: Option<String>) -> Result<(u64, u64), JsonRPCError> {
-    let offset = match offset {
-        Some(o) => o.parse::<u64>().map_err(format_error)?,
-        None => 0, // Default offset is zero, at the start of the records.
-    };
-    let limit = match limit {
-        Some(l) => l.parse::<u64>().map_err(format_error)?,
-        None => 100, // Default page size is one hundred records.
-    };
-    Ok((offset, limit))
 }
 
 /// Returns an instance of a Rocket server.

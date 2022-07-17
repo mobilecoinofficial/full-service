@@ -6,7 +6,7 @@ use diesel::{
     dsl::{count, exists, not},
     prelude::*,
 };
-use mc_account_keys::{AccountKey, PublicAddress, CHANGE_SUBADDRESS_INDEX};
+use mc_account_keys::AccountKey;
 use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
@@ -24,7 +24,7 @@ use crate::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
         models::{Account, AssignedSubaddress, NewTransactionOutputTxo, NewTxo, Txo},
-        transaction_log::{TransactionID, TxoType},
+        transaction_log::TransactionID,
         Conn, WalletDbError,
     },
     service::models::tx_proposal::OutputTxo,
@@ -1155,7 +1155,7 @@ impl TxoModel for Txo {
 
 #[cfg(test)]
 mod tests {
-    use mc_account_keys::{AccountKey, RootIdentity, CHANGE_SUBADDRESS_INDEX};
+    use mc_account_keys::{AccountKey, PublicAddress, RootIdentity, CHANGE_SUBADDRESS_INDEX};
     use mc_common::{
         logger::{log, test_with_logger, Logger},
         HashSet,

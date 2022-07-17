@@ -32,7 +32,7 @@ use crate::{
     unsigned_tx::UnsignedTx,
 };
 use displaydoc::Display;
-use std::{convert::TryFrom, iter::empty, sync::atomic::Ordering};
+use std::{iter::empty, sync::atomic::Ordering};
 
 /// Errors for the Transaction Service.
 #[derive(Display, Debug)]

@@ -1,5 +1,4 @@
 use mc_account_keys::{AccountKey, PublicAddress};
-use mc_common::HashMap;
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_crypto_ring_signature_signer::NoKeysRingSigner;
 
@@ -7,13 +6,12 @@ use mc_transaction_core::{
     get_tx_out_shared_secret,
     onetime_keys::recover_onetime_private_key,
     ring_signature::{KeyImage, Scalar},
-    tokens::Mob,
-    tx::{TxIn, TxOut, TxOutConfirmationNumber},
-    Amount, BlockVersion, Token, TokenId,
+    tx::{TxIn, TxOut},
+    Amount, BlockVersion, TokenId,
 };
 use mc_transaction_std::{
     InputCredentials, RTHMemoBuilder, ReservedSubaddresses, SenderMemoCredential,
-    TransactionBuilder, TxOutContext,
+    TransactionBuilder,
 };
 use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};

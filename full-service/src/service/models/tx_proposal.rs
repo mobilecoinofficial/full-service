@@ -7,7 +7,7 @@ use mc_transaction_core::{
     TokenId,
 };
 
-use crate::{db::txo::TxoID, util::b58::b58_decode_public_address};
+use crate::util::b58::b58_decode_public_address;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InputTxo {
