@@ -165,7 +165,8 @@ fn sync_account_next_chunk(
 
         // Load subaddresses for this account into a hash map.
         let mut subaddress_keys: HashMap<RistrettoPublic, u64> = HashMap::default();
-        let subaddresses: Vec<_> = AssignedSubaddress::list_all(account_id_hex, None, None, conn)?;
+        let subaddresses: Vec<_> =
+            AssignedSubaddress::list_all(Some(account_id_hex.to_string()), None, None, conn)?;
         for s in subaddresses {
             let subaddress_key = mc_util_serial::decode(s.subaddress_spend_key.as_slice())?;
             subaddress_keys.insert(subaddress_key, s.subaddress_index as u64);
@@ -523,7 +524,14 @@ mod tests {
         let expected_value = 15_625_000 * MOB;
 
         let txos_and_statuses = service
-            .list_txos(&AccountID::from(&account_key), None, None, None, None)
+            .list_txos(
+                Some(AccountID::from(&account_key).to_string()),
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
             .unwrap();
 
         for (txo, _) in txos_and_statuses {

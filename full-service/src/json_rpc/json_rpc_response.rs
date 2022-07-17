@@ -196,30 +196,16 @@ pub enum JsonCommandResponse {
         account: Account,
         balance_per_token: BTreeMap<String, Balance>,
     },
-    get_address_for_account {
-        address: Address,
-    },
-    get_addresses_for_account {
-        public_addresses: Vec<String>,
-        address_map: Map<String, serde_json::Value>,
-    },
-    get_all_accounts {
+    get_accounts {
         account_ids: Vec<String>,
         account_map: Map<String, serde_json::Value>,
     },
-    get_all_gift_codes {
-        gift_codes: Vec<GiftCode>,
+    get_address_for_account_at_index {
+        address: Address,
     },
-    get_all_transaction_logs_for_block {
-        transaction_log_ids: Vec<String>,
-        transaction_log_map: Map<String, serde_json::Value>,
-    },
-    get_all_transaction_logs_ordered_by_block {
-        transaction_log_map: Map<String, serde_json::Value>,
-    },
-    get_all_txos_for_address {
-        txo_ids: Vec<String>,
-        txo_map: Map<String, serde_json::Value>,
+    get_addresses {
+        public_addresses: Vec<String>,
+        address_map: Map<String, serde_json::Value>,
     },
     get_balance_for_account {
         balance_per_token: BTreeMap<String, Balance>,
@@ -237,6 +223,9 @@ pub enum JsonCommandResponse {
     get_gift_code {
         gift_code: GiftCode,
     },
+    get_gift_codes {
+        gift_codes: Vec<GiftCode>,
+    },
     // get_mc_protocol_transaction {
     //     transaction: JsonTx,
     // },
@@ -249,14 +238,14 @@ pub enum JsonCommandResponse {
     get_transaction_log {
         transaction_log: TransactionLog,
     },
-    get_transaction_logs_for_account {
+    get_transaction_logs {
         transaction_log_ids: Vec<String>,
         transaction_log_map: Map<String, serde_json::Value>,
     },
     get_txo {
         txo: Txo,
     },
-    get_txos_for_account {
+    get_txos {
         txo_ids: Vec<String>,
         txo_map: Map<String, serde_json::Value>,
     },

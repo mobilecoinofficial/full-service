@@ -135,7 +135,7 @@ pub trait TransactionLogModel {
     /// Returns:
     /// * Vec(TransactionLog, AssociatedTxos(inputs, outputs, change))
     fn list_all(
-        account_id_hex: &str,
+        account_id: Option<String>,
         offset: Option<u64>,
         limit: Option<u64>,
         min_block_index: Option<u64>,
@@ -298,7 +298,7 @@ impl TransactionLogModel for TransactionLog {
     }
 
     fn list_all(
-        account_id_hex: &str,
+        account_id: Option<String>,
         offset: Option<u64>,
         limit: Option<u64>,
         min_block_index: Option<u64>,
@@ -307,9 +307,11 @@ impl TransactionLogModel for TransactionLog {
     ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletDbError> {
         use crate::db::schema::transaction_logs;
 
-        let mut query = transaction_logs::table
-            .into_boxed()
-            .filter(transaction_logs::account_id.eq(account_id_hex));
+        let mut query = transaction_logs::table.into_boxed();
+
+        if let Some(account_id) = account_id {
+            query = query.filter(transaction_logs::account_id.eq(account_id));
+        }
 
         if let (Some(o), Some(l)) = (offset, limit) {
             query = query.offset(o as i64).limit(l as i64);

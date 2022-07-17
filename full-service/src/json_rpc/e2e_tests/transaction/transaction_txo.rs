@@ -560,7 +560,7 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_txos_for_account",
+            "method": "get_txos",
             "params": {
                 "account_id": account_id,
             }
@@ -633,7 +633,7 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_txos_for_account",
+            "method": "get_txos",
             "params": {
                 "account_id": account_id,
             }

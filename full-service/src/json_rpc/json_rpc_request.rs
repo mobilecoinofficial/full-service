@@ -157,23 +157,18 @@ pub enum JsonCommandRequest {
     get_account_status {
         account_id: String,
     },
-    get_address_for_account {
+    get_accounts {
+        offset: Option<u64>,
+        limit: Option<u64>,
+    },
+    get_address_for_account_at_index {
         account_id: String,
         index: i64,
     },
-    get_addresses_for_account {
-        account_id: String,
-        offset: Option<String>,
-        limit: Option<String>,
-    },
-    get_all_accounts,
-    get_all_gift_codes,
-    get_all_transaction_logs_for_block {
-        block_index: String,
-    },
-    get_all_transaction_logs_ordered_by_block,
-    get_all_txos_for_address {
-        address: String,
+    get_addresses {
+        account_id: Option<String>,
+        offset: Option<u64>,
+        limit: Option<u64>,
     },
     get_balance_for_account {
         account_id: String,
@@ -190,6 +185,10 @@ pub enum JsonCommandRequest {
     get_gift_code {
         gift_code_b58: String,
     },
+    get_gift_codes {
+        offset: Option<u64>,
+        limit: Option<u64>,
+    },
     // get_mc_protocol_transaction {
     //     transaction_log_id: String,
     // },
@@ -200,22 +199,23 @@ pub enum JsonCommandRequest {
     get_transaction_log {
         transaction_log_id: String,
     },
-    get_transaction_logs_for_account {
-        account_id: String,
-        offset: Option<String>,
-        limit: Option<String>,
+    get_transaction_logs {
+        account_id: Option<String>,
         min_block_index: Option<String>,
         max_block_index: Option<String>,
+        offset: Option<u64>,
+        limit: Option<u64>,
     },
     get_txo {
         txo_id: String,
     },
-    get_txos_for_account {
-        account_id: String,
+    get_txos {
+        account_id: Option<String>,
+        address: Option<String>,
         status: Option<String>,
         token_id: Option<String>,
-        offset: Option<String>,
-        limit: Option<String>,
+        offset: Option<u64>,
+        limit: Option<u64>,
     },
     get_wallet_status,
     import_account {
@@ -282,9 +282,6 @@ pub enum JsonCommandRequest {
 
 fn method_alias(m: &str) -> &str {
     match m {
-        "get_all_addresses_for_account" => "get_addresses_for_account",
-        "get_all_transaction_logs_for_account" => "get_transaction_logs_for_account",
-        "get_all_txos_for_account" => "get_txos_for_account",
         _ => m,
     }
 }

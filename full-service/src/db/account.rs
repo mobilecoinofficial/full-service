@@ -637,7 +637,7 @@ mod tests {
 
         // Verify that the subaddress table entries were updated for main and change
         let subaddresses = AssignedSubaddress::list_all(
-            &account_id_hex.to_string(),
+            Some(account_id_hex.to_string()),
             None,
             None,
             &wallet_db.get_conn().unwrap(),

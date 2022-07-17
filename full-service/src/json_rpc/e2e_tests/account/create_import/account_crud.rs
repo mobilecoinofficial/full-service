@@ -42,7 +42,8 @@ mod e2e_account {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 2,
-            "method": "get_all_accounts",
+            "method": "get_accounts",
+            "params": {}
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
@@ -119,7 +120,8 @@ mod e2e_account {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 2,
-            "method": "get_all_accounts",
+            "method": "get_accounts",
+            "params": {}
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();

@@ -86,7 +86,7 @@ pub trait AssignedSubaddressModel {
 
     /// List all AssignedSubaddresses for a given account.
     fn list_all(
-        account_id_hex: &str,
+        account_id: Option<String>,
         offset: Option<u64>,
         limit: Option<u64>,
         conn: &Conn,
@@ -354,26 +354,25 @@ impl AssignedSubaddressModel for AssignedSubaddress {
     }
 
     fn list_all(
-        account_id_hex: &str,
+        account_id: Option<String>,
         offset: Option<u64>,
         limit: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<AssignedSubaddress>, WalletDbError> {
         use crate::db::schema::assigned_subaddresses;
 
-        let addresses_query = assigned_subaddresses::table
-            .filter(assigned_subaddresses::account_id.eq(account_id_hex));
+        let mut addresses_query = assigned_subaddresses::table.into_boxed();
 
-        let addresses: Vec<AssignedSubaddress> = if let (Some(o), Some(l)) = (offset, limit) {
-            addresses_query
-                .offset(o as i64)
-                .limit(l as i64)
-                .load(conn)?
-        } else {
-            addresses_query.load(conn)?
-        };
+        if let Some(account_id) = account_id {
+            addresses_query =
+                addresses_query.filter(assigned_subaddresses::account_id.eq(account_id));
+        }
 
-        Ok(addresses)
+        if let (Some(offset), Some(limit)) = (offset, limit) {
+            addresses_query = addresses_query.offset(offset as i64).limit(limit as i64);
+        }
+
+        Ok(addresses_query.load(conn)?)
     }
 
     fn delete_all(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError> {

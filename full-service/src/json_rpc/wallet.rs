@@ -462,7 +462,8 @@ where
         JsonCommandRequest::create_view_only_account_sync_request { account_id } => {
             let unverified_txos = service
                 .list_txos(
-                    &AccountID(account_id.clone()),
+                    Some(account_id.clone()),
+                    None,
                     Some(TxoStatus::Unverified),
                     None,
                     None,
@@ -524,54 +525,7 @@ where
                 balance_per_token: balance_formatted,
             }
         }
-        JsonCommandRequest::get_address_for_account { account_id, index } => {
-            let assigned_subaddress = service
-                .get_address_for_account(&AccountID(account_id), index)
-                .map_err(format_error)?;
-            JsonCommandResponse::get_address_for_account {
-                address: Address::from(&assigned_subaddress),
-            }
-        }
-        JsonCommandRequest::get_addresses_for_account {
-            account_id,
-            offset,
-            limit,
-        } => {
-            let offset = match offset {
-                Some(o) => Some(o.parse::<u64>().map_err(format_error)?),
-                None => None,
-            };
-
-            let limit = match limit {
-                Some(l) => Some(l.parse::<u64>().map_err(format_error)?),
-                None => None,
-            };
-
-            let addresses = service
-                .get_addresses_for_account(&AccountID(account_id), offset, limit)
-                .map_err(format_error)?;
-            let address_map: Map<String, serde_json::Value> = Map::from_iter(
-                addresses
-                    .iter()
-                    .map(|a| {
-                        (
-                            a.assigned_subaddress_b58.clone(),
-                            serde_json::to_value(&(Address::from(a)))
-                                .expect("Could not get json value"),
-                        )
-                    })
-                    .collect::<Vec<(String, serde_json::Value)>>(),
-            );
-
-            JsonCommandResponse::get_addresses_for_account {
-                public_addresses: addresses
-                    .iter()
-                    .map(|a| a.assigned_subaddress_b58.clone())
-                    .collect(),
-                address_map,
-            }
-        }
-        JsonCommandRequest::get_all_accounts => {
+        JsonCommandRequest::get_accounts { offset, limit } => {
             let accounts = service.list_accounts().map_err(format_error)?;
             let json_accounts: Vec<(String, serde_json::Value)> = accounts
                 .iter()
@@ -586,91 +540,46 @@ where
                 })
                 .collect::<Result<Vec<(String, serde_json::Value)>, JsonRPCError>>()?;
             let account_map: Map<String, serde_json::Value> = Map::from_iter(json_accounts);
-            JsonCommandResponse::get_all_accounts {
+            JsonCommandResponse::get_accounts {
                 account_ids: accounts.iter().map(|a| a.id.clone()).collect(),
                 account_map,
             }
         }
-        JsonCommandRequest::get_all_gift_codes {} => JsonCommandResponse::get_all_gift_codes {
-            gift_codes: service
-                .list_gift_codes()
-                .map_err(format_error)?
-                .iter()
-                .map(GiftCode::from)
-                .collect(),
-        },
-        JsonCommandRequest::get_all_transaction_logs_for_block { block_index } => {
-            let transaction_logs_and_txos = service
-                .get_all_transaction_logs_for_block(
-                    block_index.parse::<u64>().map_err(format_error)?,
-                )
+        JsonCommandRequest::get_address_for_account_at_index { account_id, index } => {
+            let assigned_subaddress = service
+                .get_address_for_account(&AccountID(account_id), index)
                 .map_err(format_error)?;
-            let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
-                transaction_logs_and_txos
-                    .iter()
-                    .map(|(t, a, v)| {
-                        (
-                            t.id.clone(),
-                            serde_json::json!(json_rpc::transaction_log::TransactionLog::new(
-                                t, a, v
-                            )),
-                        )
-                    })
-                    .collect::<Vec<(String, serde_json::Value)>>(),
-            );
-
-            JsonCommandResponse::get_all_transaction_logs_for_block {
-                transaction_log_ids: transaction_logs_and_txos
-                    .iter()
-                    .map(|(t, _a, _v)| t.id.clone())
-                    .collect(),
-                transaction_log_map,
+            JsonCommandResponse::get_address_for_account_at_index {
+                address: Address::from(&assigned_subaddress),
             }
         }
-        JsonCommandRequest::get_all_transaction_logs_ordered_by_block => {
-            let transaction_logs_and_txos = service
-                .get_all_transaction_logs_ordered_by_block()
+        JsonCommandRequest::get_addresses {
+            account_id,
+            offset,
+            limit,
+        } => {
+            let addresses = service
+                .get_addresses(account_id, offset, limit)
                 .map_err(format_error)?;
-            let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
-                transaction_logs_and_txos
+            let address_map: Map<String, serde_json::Value> = Map::from_iter(
+                addresses
                     .iter()
-                    .map(|(t, a, v)| {
+                    .map(|a| {
                         (
-                            t.id.clone(),
-                            serde_json::json!(json_rpc::transaction_log::TransactionLog::new(
-                                t, a, v
-                            )),
+                            a.assigned_subaddress_b58.clone(),
+                            serde_json::to_value(&(Address::from(a)))
+                                .expect("Could not get json value"),
                         )
                     })
                     .collect::<Vec<(String, serde_json::Value)>>(),
             );
 
-            JsonCommandResponse::get_all_transaction_logs_ordered_by_block {
-                transaction_log_map,
-            }
-        }
-        JsonCommandRequest::get_all_txos_for_address { address } => {
-            let txos_and_statuses = service
-                .get_all_txos_for_address(&address)
-                .map_err(format_error)?;
-            let txo_map: Map<String, serde_json::Value> = Map::from_iter(
-                txos_and_statuses
+            JsonCommandResponse::get_addresses {
+                public_addresses: addresses
                     .iter()
-                    .map(|(t, s)| {
-                        (
-                            t.id.clone(),
-                            serde_json::to_value(Txo::new(t, s)).expect("Could not get json value"),
-                        )
-                    })
-                    .collect::<Vec<(String, serde_json::Value)>>(),
-            );
-
-            JsonCommandResponse::get_all_txos_for_address {
-                txo_ids: txos_and_statuses
-                    .iter()
-                    .map(|(t, _)| t.id.clone())
+                    .map(|a| a.assigned_subaddress_b58.clone())
                     .collect(),
-                txo_map,
+                address_map,
             }
         }
         JsonCommandRequest::get_balance_for_account { account_id } => {
@@ -725,6 +634,16 @@ where
                     .map_err(format_error)?,
             ),
         },
+        JsonCommandRequest::get_gift_codes { offset, limit } => {
+            JsonCommandResponse::get_gift_codes {
+                gift_codes: service
+                    .list_gift_codes()
+                    .map_err(format_error)?
+                    .iter()
+                    .map(GiftCode::from)
+                    .collect(),
+            }
+        }
         // JsonCommandRequest::get_mc_protocol_transaction { transaction_log_id } => {
         //     let tx = service
         //         .get_transaction_object(&transaction_log_id)
@@ -759,23 +678,13 @@ where
                 ),
             }
         }
-        JsonCommandRequest::get_transaction_logs_for_account {
+        JsonCommandRequest::get_transaction_logs {
             account_id,
-            offset,
-            limit,
             min_block_index,
             max_block_index,
+            offset,
+            limit,
         } => {
-            let offset = match offset {
-                Some(o) => Some(o.parse::<u64>().map_err(format_error)?),
-                None => None,
-            };
-
-            let limit = match limit {
-                Some(l) => Some(l.parse::<u64>().map_err(format_error)?),
-                None => None,
-            };
-
             let min_block_index = min_block_index
                 .map(|i| i.parse::<u64>())
                 .transpose()
@@ -787,13 +696,7 @@ where
                 .map_err(format_error)?;
 
             let transaction_logs_and_txos = service
-                .list_transaction_logs(
-                    &AccountID(account_id),
-                    offset,
-                    limit,
-                    min_block_index,
-                    max_block_index,
-                )
+                .list_transaction_logs(account_id, offset, limit, min_block_index, max_block_index)
                 .map_err(format_error)?;
             let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
                 transaction_logs_and_txos
@@ -809,7 +712,7 @@ where
                     .collect::<Vec<(String, serde_json::Value)>>(),
             );
 
-            JsonCommandResponse::get_transaction_logs_for_account {
+            JsonCommandResponse::get_transaction_logs {
                 transaction_log_ids: transaction_logs_and_txos
                     .iter()
                     .map(|(t, _a, _v)| t.id.clone())
@@ -823,23 +726,14 @@ where
                 txo: Txo::new(&txo, &status),
             }
         }
-        JsonCommandRequest::get_txos_for_account {
+        JsonCommandRequest::get_txos {
             account_id,
+            address,
             status,
             token_id,
             offset,
             limit,
         } => {
-            let offset = match offset {
-                Some(o) => Some(o.parse::<u64>().map_err(format_error)?),
-                None => None,
-            };
-
-            let limit = match limit {
-                Some(l) => Some(l.parse::<u64>().map_err(format_error)?),
-                None => None,
-            };
-
             let status = match status {
                 Some(s) => Some(TxoStatus::from_str(&s).map_err(format_error)?),
                 None => None,
@@ -851,8 +745,9 @@ where
             };
 
             let txos_and_statuses = service
-                .list_txos(&AccountID(account_id), status, token_id, offset, limit)
+                .list_txos(account_id, address, status, token_id, offset, limit)
                 .map_err(format_error)?;
+
             let txo_map: Map<String, serde_json::Value> = Map::from_iter(
                 txos_and_statuses
                     .iter()
@@ -865,7 +760,7 @@ where
                     .collect::<Vec<(String, serde_json::Value)>>(),
             );
 
-            JsonCommandResponse::get_txos_for_account {
+            JsonCommandResponse::get_txos {
                 txo_ids: txos_and_statuses
                     .iter()
                     .map(|(t, _)| t.id.clone())

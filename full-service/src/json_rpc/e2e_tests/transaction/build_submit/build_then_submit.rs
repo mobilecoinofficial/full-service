@@ -282,7 +282,7 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_transaction_logs_for_account",
+            "method": "get_transaction_logs",
             "params": {
                 "account_id": account_id,
             }
@@ -338,7 +338,11 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_all_transaction_logs_ordered_by_block",
+            "method": "get_transaction_logs",
+            "params": {
+                "min_block_index": "14",
+                "max_block_index": "14",
+            }
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();

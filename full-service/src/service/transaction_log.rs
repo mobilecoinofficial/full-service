@@ -4,7 +4,6 @@
 
 use crate::{
     db::{
-        account::AccountID,
         models::TransactionLog,
         transaction_log::{AssociatedTxos, TransactionID, TransactionLogModel, ValueMap},
         WalletDbError,
@@ -45,7 +44,7 @@ pub trait TransactionLogService {
     /// List all transactions associated with the given Account ID.
     fn list_transaction_logs(
         &self,
-        account_id: &AccountID,
+        account_id: Option<String>,
         offset: Option<u64>,
         limit: Option<u64>,
         min_block_index: Option<u64>,
@@ -77,7 +76,7 @@ where
 {
     fn list_transaction_logs(
         &self,
-        account_id: &AccountID,
+        account_id: Option<String>,
         offset: Option<u64>,
         limit: Option<u64>,
         min_block_index: Option<u64>,
@@ -85,7 +84,7 @@ where
     ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletServiceError> {
         let conn = &self.wallet_db.get_conn()?;
         Ok(TransactionLog::list_all(
-            &account_id.to_string(),
+            account_id,
             offset,
             limit,
             min_block_index,
@@ -184,7 +183,7 @@ mod tests {
         let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None, None, None)
+            .list_transaction_logs(Some(alice_account_id.to_string()), None, None, None, None)
             .unwrap();
 
         assert_eq!(0, tx_logs.len());
@@ -233,25 +232,43 @@ mod tests {
         }
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None, None, None)
+            .list_transaction_logs(Some(alice_account_id.to_string()), None, None, None, None)
             .unwrap();
 
         assert_eq!(5, tx_logs.len());
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None, Some(20), None)
+            .list_transaction_logs(
+                Some(alice_account_id.to_string()),
+                None,
+                None,
+                Some(20),
+                None,
+            )
             .unwrap();
 
         assert_eq!(2, tx_logs.len());
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None, None, Some(18))
+            .list_transaction_logs(
+                Some(alice_account_id.to_string()),
+                None,
+                None,
+                None,
+                Some(18),
+            )
             .unwrap();
 
         assert_eq!(2, tx_logs.len());
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None, Some(18), Some(20))
+            .list_transaction_logs(
+                Some(alice_account_id.to_string()),
+                None,
+                None,
+                Some(18),
+                Some(20),
+            )
             .unwrap();
 
         assert_eq!(3, tx_logs.len());

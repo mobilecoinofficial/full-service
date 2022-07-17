@@ -373,7 +373,7 @@ mod tests {
             )
             .unwrap();
         let bob_addresses = service
-            .get_addresses_for_account(&AccountID(bob.id.clone()), None, None)
+            .get_addresses(Some(bob.id.clone()), None, None)
             .expect("Could not get addresses for Bob");
         let bob_address = bob_addresses[0].assigned_subaddress_b58.clone();
 
@@ -430,14 +430,14 @@ mod tests {
 
         // Get corresponding Txo for Bob
         let txos_and_statuses = service
-            .list_txos(&AccountID(bob.id), None, None, None, None)
+            .list_txos(Some(bob.id), None, None, None, None, None)
             .expect("Could not get Bob Txos");
         assert_eq!(txos_and_statuses.len(), 1);
 
         // Get the corresponding TransactionLog for Alice's Account - only the sender
         // has the confirmation number.
         let transaction_logs = service
-            .list_transaction_logs(&AccountID(alice.id), None, None, None, None)
+            .list_transaction_logs(Some(alice.id), None, None, None, None)
             .expect("Could not get transaction logs");
         // Alice should have one sent tranasction log
         assert_eq!(transaction_logs.len(), 1);
@@ -503,7 +503,7 @@ mod tests {
             )
             .unwrap();
         let bob_addresses = service
-            .get_addresses_for_account(&AccountID(bob.id.clone()), None, None)
+            .get_addresses(Some(bob.id.clone()), None, None)
             .expect("Could not get addresses for Bob");
         let bob_address = &bob_addresses[0].assigned_subaddress_b58.clone();
 
@@ -629,7 +629,7 @@ mod tests {
             )
             .unwrap();
         let bob_addresses = service
-            .get_addresses_for_account(&AccountID(bob.id.clone()), None, None)
+            .get_addresses(Some(bob.id.clone()), None, None)
             .expect("Could not get addresses for Bob");
         let bob_address = &bob_addresses[0].assigned_subaddress_b58.clone();
         let bob_account_id = AccountID(bob.id.to_string());
@@ -763,7 +763,7 @@ mod tests {
             )
             .unwrap();
         let bob_addresses = service
-            .get_addresses_for_account(&AccountID(bob.id.clone()), None, None)
+            .get_addresses(Some(bob.id.clone()), None, None)
             .expect("Could not get addresses for Bob");
         let bob_address = &bob_addresses[0].assigned_subaddress_b58.clone();
         let bob_account_id = AccountID(bob.id.to_string());

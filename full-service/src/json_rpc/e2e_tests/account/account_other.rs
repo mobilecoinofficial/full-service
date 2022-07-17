@@ -272,7 +272,7 @@ mod e2e_account {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_addresses_for_account",
+            "method": "get_addresses",
             "params": {
                 "account_id": account_id,
             },
@@ -285,11 +285,11 @@ mod e2e_account {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_addresses_for_account",
+            "method": "get_addresses",
             "params": {
                 "account_id": account_id,
-                "offset": "1",
-                "limit": "4",
+                "offset": 1,
+                "limit": 4,
             },
         });
         let res = dispatch(&client, body, &logger);
@@ -406,7 +406,7 @@ mod e2e_account {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_txos_for_account",
+            "method": "get_txos",
             "params": {
                 "account_id": account_id,
             }
@@ -452,7 +452,7 @@ mod e2e_account {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_address_for_account",
+            "method": "get_address_for_account_at_index",
             "params": {
                 "account_id": account_id,
                 "index": 2,
@@ -478,7 +478,7 @@ mod e2e_account {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_address_for_account",
+            "method": "get_address_for_account_at_index",
             "params": {
                 "account_id": account_id,
                 "index": 2,

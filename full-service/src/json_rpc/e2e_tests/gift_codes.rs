@@ -159,7 +159,8 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_all_gift_codes",
+            "method": "get_gift_codes",
+            "params": {}
         });
         let res = dispatch(&client, body, &logger);
         let result = res["result"]["gift_codes"].as_array().unwrap();
@@ -207,7 +208,8 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_all_gift_codes",
+            "method": "get_gift_codes",
+            "params": {}
         });
         let res = dispatch(&client, body, &logger);
         let result = res["result"]["gift_codes"].as_array().unwrap();
