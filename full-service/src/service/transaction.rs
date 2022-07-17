@@ -202,56 +202,58 @@ where
         fee_token_id: Option<String>,
         tombstone_block: Option<String>,
     ) -> Result<(UnsignedTx, FullServiceFogResolver), TransactionServiceError> {
-        todo!();
-        // validate_number_outputs(addresses_and_values.len() as u64)?;
+        validate_number_outputs(addresses_and_values.len() as u64)?;
 
-        // let conn = self.wallet_db.get_conn()?;
-        // transaction(&conn, || {
-        //     let mut builder = WalletTransactionBuilder::new(
-        //         account_id_hex.to_string(),
-        //         self.ledger_db.clone(),
-        //         self.fog_resolver_factory.clone(),
-        //         self.logger.clone(),
-        //     );
+        let conn = self.wallet_db.get_conn()?;
+        transaction(&conn, || {
+            let mut builder = WalletTransactionBuilder::new(
+                account_id_hex.to_string(),
+                self.ledger_db.clone(),
+                self.fog_resolver_factory.clone(),
+                self.logger.clone(),
+            );
 
-        //     for (recipient_public_address, value, token_id) in
-        // addresses_and_values {         if
-        // !self.verify_address(recipient_public_address)? {
-        // return Err(TransactionServiceError::InvalidPublicAddress(
-        //                 recipient_public_address.to_string(),
-        //             ));
-        //         };
-        //         let recipient =
-        // b58_decode_public_address(recipient_public_address)?;
-        //         builder.add_recipient(
-        //             recipient,
-        //             value.parse::<u64>()?,
-        //             TokenId::from(token_id.parse::<u64>()?),
-        //         )?;
-        //     }
+            let mut default_fee_token_id = Mob::ID;
 
-        //     if let Some(tombstone) = tombstone_block {
-        //         builder.set_tombstone(tombstone.parse::<u64>()?)?;
-        //     } else {
-        //         builder.set_tombstone(0)?;
-        //     }
+            for (recipient_public_address, value, token_id) in addresses_and_values {
+                if !self.verify_address(recipient_public_address)? {
+                    return Err(TransactionServiceError::InvalidPublicAddress(
+                        recipient_public_address.to_string(),
+                    ));
+                };
+                let recipient = b58_decode_public_address(recipient_public_address)?;
+                let token_id = TokenId::from(token_id.parse::<u64>()?);
+                builder.add_recipient(recipient, value.parse::<u64>()?, token_id)?;
+                default_fee_token_id = token_id;
+            }
 
-        //     let (fee, token_id) = match fee {
-        //         Some((f, t)) => (f.parse()?,
-        // TokenId::from(t.parse::<u64>()?)),         None =>
-        // (self.get_network_fees()[&Mob::ID], Mob::ID),     };
+            if let Some(tombstone) = tombstone_block {
+                builder.set_tombstone(tombstone.parse::<u64>()?)?;
+            } else {
+                builder.set_tombstone(0)?;
+            }
 
-        //     builder.set_fee(fee, token_id)?;
+            let fee_token_id = match fee_token_id {
+                Some(t) => TokenId::from(t.parse::<u64>()?),
+                None => default_fee_token_id,
+            };
 
-        //     builder.set_block_version(self.get_network_block_version());
+            let fee_value = match fee_value {
+                Some(f) => f.parse::<u64>()?,
+                None => self.get_network_fees()[&fee_token_id],
+            };
 
-        //     builder.select_txos(&conn, None)?;
+            builder.set_fee(fee_value, fee_token_id)?;
 
-        //     let unsigned_tx = builder.build_unsigned()?;
-        //     let fog_resolver = builder.get_fs_fog_resolver(&conn)?;
+            builder.set_block_version(self.get_network_block_version());
 
-        //     Ok((unsigned_tx, fog_resolver))
-        // })
+            builder.select_txos(&conn, None)?;
+
+            let unsigned_tx = builder.build_unsigned()?;
+            let fog_resolver = builder.get_fs_fog_resolver(&conn)?;
+
+            Ok((unsigned_tx, fog_resolver))
+        })
     }
 
     fn build_transaction(

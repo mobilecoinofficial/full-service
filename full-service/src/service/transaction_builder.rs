@@ -262,7 +262,6 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
     }
 
     pub fn build_unsigned(&self) -> Result<UnsignedTx, WalletTransactionBuilderError> {
-        todo!();
         if self.tombstone == 0 {
             return Err(WalletTransactionBuilderError::TombstoneNotSet);
         }
@@ -370,7 +369,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         }
 
         let mut outlays_string = Vec::new();
-        for (receiver, amount, token_id) in self.outlays.into_iter() {
+        for (receiver, amount, token_id) in self.outlays.clone().into_iter() {
             let b58_address = b58_encode_public_address(&receiver)?;
             outlays_string.push((b58_address, amount, *token_id));
         }

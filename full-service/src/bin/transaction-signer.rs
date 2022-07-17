@@ -210,52 +210,49 @@ fn sync_txos(secret_mnemonic: &str, sync_request: &str, num_subaddresses: u64) {
 }
 
 fn sign_transaction(secret_mnemonic: &str, sign_request: &str) {
-    todo!();
-    // // Load account key.
-    // let mnemonic_json =
-    //     fs::read_to_string(secret_mnemonic).expect("Could not open secret
-    // mnemonic file."); let account_secrets: AccountSecrets =
-    // serde_json::from_str(&mnemonic_json).unwrap(); let account_key =
-    // account_key_from_mnemonic_phrase(&account_secrets.mnemonic.unwrap());
+    // Load account key.
+    let mnemonic_json =
+        fs::read_to_string(secret_mnemonic).expect("Could not open secret mnemonic file.");
+    let account_secrets: AccountSecrets = serde_json::from_str(&mnemonic_json).unwrap();
+    let account_key = account_key_from_mnemonic_phrase(&account_secrets.mnemonic.unwrap());
 
-    // // Load input txos.
-    // let request_data =
-    //     fs::read_to_string(sign_request).expect("Could not open generate
-    // signing request file."); let request_json: serde_json::Value =
-    //     serde_json::from_str(&request_data).expect("Malformed generate
-    // signing request."); let account_id =
-    // request_json.get("account_id").unwrap().as_str().unwrap();
-    // assert_eq!(account_secrets.account_id, account_id);
+    // Load input txos.
+    let request_data =
+        fs::read_to_string(sign_request).expect("Could not open generate signing request file.");
+    let request_json: serde_json::Value =
+        serde_json::from_str(&request_data).expect("Malformed generate signing request.");
+    let account_id = request_json.get("account_id").unwrap().as_str().unwrap();
+    assert_eq!(account_secrets.account_id, account_id);
 
-    // let unsigned_tx: UnsignedTx = serde_json::from_value(
-    //     request_json
-    //         .get("unsigned_tx")
-    //         .expect("Could not find \"unsigned_tx\".")
-    //         .clone(),
-    // )
-    // .unwrap();
+    let unsigned_tx: UnsignedTx = serde_json::from_value(
+        request_json
+            .get("unsigned_tx")
+            .expect("Could not find \"unsigned_tx\".")
+            .clone(),
+    )
+    .unwrap();
 
-    // let fog_resolver: FullServiceFogResolver = serde_json::from_value(
-    //     request_json
-    //         .get("fog_resolver")
-    //         .expect("Could not find \"fog_resolver\".")
-    //         .clone(),
-    // )
-    // .unwrap();
+    let fog_resolver: FullServiceFogResolver = serde_json::from_value(
+        request_json
+            .get("fog_resolver")
+            .expect("Could not find \"fog_resolver\".")
+            .clone(),
+    )
+    .unwrap();
 
-    // let tx_proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
-    // let tx_proposal_json = TxProposal::try_from(&tx_proposal).unwrap();
-    // let json_command_request = JsonCommandRequest::submit_transaction {
-    //     tx_proposal: tx_proposal_json,
-    //     comment: None,
-    //     account_id: Some(account_id.to_string()),
-    // };
+    let tx_proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
+    let tx_proposal_json = TxProposalJSON::try_from(&tx_proposal).unwrap();
+    let json_command_request = JsonCommandRequest::submit_transaction {
+        tx_proposal: tx_proposal_json,
+        comment: None,
+        account_id: Some(account_id.to_string()),
+    };
 
-    // let filename = format!(
-    //     "{}_completed.json",
-    //     sign_request.trim_end_matches("_unsigned.json")
-    // );
-    // write_json_command_request_to_file(&json_command_request, &filename);
+    let filename = format!(
+        "{}_completed.json",
+        sign_request.trim_end_matches("_unsigned.json")
+    );
+    write_json_command_request_to_file(&json_command_request, &filename);
 }
 
 fn write_json_command_request_to_file(json_command_request: &JsonCommandRequest, filename: &str) {
