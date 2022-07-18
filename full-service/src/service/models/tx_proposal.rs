@@ -1,9 +1,10 @@
 use std::convert::TryInto;
 
 use mc_account_keys::PublicAddress;
+use mc_crypto_keys::{GenericArray, ReprBytes, RistrettoPublic};
 use mc_transaction_core::{
     ring_signature::KeyImage,
-    tx::{Tx, TxOut, TxOutConfirmationNumber},
+    tx::{Tx, TxOut},
     TokenId,
 };
 
@@ -21,7 +22,7 @@ pub struct InputTxo {
 pub struct OutputTxo {
     pub tx_out: TxOut,
     pub recipient_public_address: PublicAddress,
-    pub confirmation_number: TxOutConfirmationNumber,
+    pub shared_secret: RistrettoPublic,
     pub value: u64,
     pub token_id: TokenId,
 }
@@ -62,12 +63,11 @@ impl From<&crate::json_rpc::tx_proposal::TxProposalJSON> for TxProposal {
             .payload_txos
             .iter()
             .map(|payload_txo| {
-                let confirmation_number_bytes: [u8; 32] =
-                    hex::decode(&payload_txo.confirmation_number)
-                        .unwrap()
-                        .as_slice()
-                        .try_into()
-                        .unwrap();
+                let shared_secret_bytes: [u8; 32] = hex::decode(&payload_txo.shared_secret)
+                    .unwrap()
+                    .as_slice()
+                    .try_into()
+                    .unwrap();
                 OutputTxo {
                     tx_out: mc_util_serial::decode(
                         hex::decode(&payload_txo.tx_out_proto).unwrap().as_slice(),
@@ -77,7 +77,10 @@ impl From<&crate::json_rpc::tx_proposal::TxProposalJSON> for TxProposal {
                         &payload_txo.recipient_public_address_b58,
                     )
                     .unwrap(),
-                    confirmation_number: TxOutConfirmationNumber::from(&confirmation_number_bytes),
+                    shared_secret: RistrettoPublic::from_bytes(GenericArray::from_slice(
+                        &shared_secret_bytes,
+                    ))
+                    .unwrap(),
                     value: payload_txo.value.parse::<u64>().unwrap(),
                     token_id: TokenId::from(payload_txo.token_id.parse::<u64>().unwrap()),
                 }
@@ -88,12 +91,11 @@ impl From<&crate::json_rpc::tx_proposal::TxProposalJSON> for TxProposal {
             .change_txos
             .iter()
             .map(|change_txo| {
-                let confirmation_number_bytes: [u8; 32] =
-                    hex::decode(&change_txo.confirmation_number)
-                        .unwrap()
-                        .as_slice()
-                        .try_into()
-                        .unwrap();
+                let shared_secret_bytes: [u8; 32] = hex::decode(&change_txo.shared_secret)
+                    .unwrap()
+                    .as_slice()
+                    .try_into()
+                    .unwrap();
                 OutputTxo {
                     tx_out: mc_util_serial::decode(
                         hex::decode(&change_txo.tx_out_proto).unwrap().as_slice(),
@@ -103,7 +105,10 @@ impl From<&crate::json_rpc::tx_proposal::TxProposalJSON> for TxProposal {
                         &change_txo.recipient_public_address_b58,
                     )
                     .unwrap(),
-                    confirmation_number: TxOutConfirmationNumber::from(&confirmation_number_bytes),
+                    shared_secret: RistrettoPublic::from_bytes(GenericArray::from_slice(
+                        &shared_secret_bytes,
+                    ))
+                    .unwrap(),
                     value: change_txo.value.parse::<u64>().unwrap(),
                     token_id: TokenId::from(change_txo.token_id.parse::<u64>().unwrap()),
                 }

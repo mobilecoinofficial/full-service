@@ -9,7 +9,7 @@ mod address;
 mod amount;
 mod balance;
 mod block;
-mod confirmation_number;
+pub mod confirmation_number;
 mod gift_code;
 pub mod json_rpc_request;
 pub mod json_rpc_response;

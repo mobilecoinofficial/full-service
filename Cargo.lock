@@ -2756,6 +2756,7 @@ dependencies = [
  "diesel",
  "diesel-derive-enum",
  "diesel_migrations",
+ "digest",
  "displaydoc",
  "dotenv",
  "grpcio",

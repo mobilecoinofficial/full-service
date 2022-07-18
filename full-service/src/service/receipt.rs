@@ -255,7 +255,7 @@ where
             .map(|output_txo| ReceiverReceipt {
                 public_key: output_txo.tx_out.public_key,
                 tombstone_block: tx_proposal.tx.prefix.tombstone_block,
-                confirmation: output_txo.confirmation_number.clone(),
+                confirmation: TxOutConfirmationNumber::from(&output_txo.shared_secret),
                 amount: output_txo.tx_out.masked_amount.clone(),
             })
             .collect::<Vec<ReceiverReceipt>>();

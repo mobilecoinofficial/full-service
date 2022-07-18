@@ -569,7 +569,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             payload_txos.push(OutputTxo {
                 tx_out: tx_out_context.tx_out.clone(),
                 recipient_public_address: recipient.clone(),
-                confirmation_number: tx_out_context.confirmation.clone(),
+                shared_secret: tx_out_context.shared_secret,
                 value: *out_value,
                 token_id: *token_id,
             });
@@ -620,7 +620,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             change_txos.push(OutputTxo {
                 tx_out: tx_out_context.tx_out,
                 recipient_public_address: reserved_subaddresses.change_subaddress,
-                confirmation_number: tx_out_context.confirmation,
+                shared_secret: tx_out_context.shared_secret,
                 value: change,
                 token_id: *token_id,
             });

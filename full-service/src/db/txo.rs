@@ -360,7 +360,7 @@ impl TxoModel for Txo {
         use crate::db::schema::txos;
 
         let txo_id = TxoID::from(&output_txo.tx_out);
-        let encoded_confirmation = mc_util_serial::encode(&output_txo.confirmation_number);
+        let shared_secret_bytes = &output_txo.shared_secret.to_bytes();
 
         let new_txo = NewTxo {
             id: &txo_id.to_string(),
@@ -375,7 +375,7 @@ impl TxoModel for Txo {
             key_image: None,
             received_block_index: None,
             spent_block_index: None,
-            shared_secret: Some(&encoded_confirmation),
+            shared_secret: Some(shared_secret_bytes),
         };
 
         diesel::insert_into(txos::table)
@@ -1160,13 +1160,14 @@ mod tests {
         logger::{log, test_with_logger, Logger},
         HashSet,
     };
+    use mc_crypto_keys::{GenericArray, ReprBytes};
     use mc_crypto_rand::RngCore;
     use mc_fog_report_validation::MockFogPubkeyResolver;
     use mc_ledger_db::Ledger;
     use mc_transaction_core::{tokens::Mob, Amount, Token, TokenId};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
-    use std::{iter::FromIterator, time::Duration};
+    use std::{convert::TryInto, iter::FromIterator, time::Duration};
 
     use crate::{
         db::{
@@ -1969,9 +1970,17 @@ mod tests {
         // what differentiates them.
         assert_eq!(sent_txo_details, received_txo);
 
-        assert!(sent_txo_details.shared_secret.is_some());
-        let confirmation: TxOutConfirmationNumber =
-            mc_util_serial::decode(&sent_txo_details.shared_secret.unwrap()).unwrap();
+        let shared_secret_bytes: [u8; 32] = sent_txo_details
+            .shared_secret
+            .unwrap()
+            .as_slice()
+            .try_into()
+            .unwrap();
+
+        let shared_secret =
+            RistrettoPublic::from_bytes(GenericArray::from_slice(&shared_secret_bytes)).unwrap();
+
+        let confirmation = TxOutConfirmationNumber::from(&shared_secret);
         log::info!(logger, "Validating the confirmation number");
         let verified = Txo::validate_confirmation(
             &AccountID::from(&recipient_account_key),

@@ -3,6 +3,7 @@
 //! API definition for the Txo object.
 
 use crate::service;
+use mc_crypto_keys::ReprBytes;
 use serde::{Deserialize, Serialize};
 
 /// A confirmation number for a Txo in the wallet.
@@ -33,7 +34,7 @@ impl From<&service::confirmation_number::Confirmation> for Confirmation {
             object: "confirmation".to_string(),
             txo_id_hex: src.txo_id.to_string(),
             txo_index: src.txo_index.to_string(),
-            confirmation: hex::encode(mc_util_serial::encode(&src.confirmation)),
+            confirmation: hex::encode(src.confirmation.to_bytes().to_vec().as_slice()),
         }
     }
 }

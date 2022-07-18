@@ -21,7 +21,7 @@ pub struct OutputTxoJSON {
     pub value: String,
     pub token_id: String,
     pub recipient_public_address_b58: String,
-    pub confirmation_number: String,
+    pub shared_secret: String,
 }
 
 #[derive(Deserialize, Serialize, Default, Debug)]
@@ -61,7 +61,7 @@ impl TryFrom<&crate::service::models::tx_proposal::TxProposal> for TxProposalJSO
                     recipient_public_address_b58: b58_encode_public_address(
                         &output_txo.recipient_public_address,
                     )?,
-                    confirmation_number: hex::encode(output_txo.confirmation_number.as_ref()),
+                    shared_secret: hex::encode(output_txo.shared_secret.to_bytes()),
                 })
             })
             .collect::<Result<Vec<OutputTxoJSON>, B58Error>>()
@@ -78,7 +78,7 @@ impl TryFrom<&crate::service::models::tx_proposal::TxProposal> for TxProposalJSO
                     recipient_public_address_b58: b58_encode_public_address(
                         &output_txo.recipient_public_address,
                     )?,
-                    confirmation_number: hex::encode(output_txo.confirmation_number.as_ref()),
+                    shared_secret: hex::encode(output_txo.shared_secret.to_bytes()),
                 })
             })
             .collect::<Result<Vec<OutputTxoJSON>, B58Error>>()

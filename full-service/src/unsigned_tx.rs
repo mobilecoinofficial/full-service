@@ -179,7 +179,7 @@ fn add_payload_outputs<RNG: CryptoRng + RngCore>(
             recipient_public_address: recipient.clone(),
             value: amount.value,
             token_id: amount.token_id,
-            confirmation_number: tx_out_context.confirmation,
+            shared_secret: tx_out_context.shared_secret,
         });
     }
     Ok(outputs)
@@ -207,6 +207,6 @@ fn add_change_output<RNG: CryptoRng + RngCore>(
         recipient_public_address: reserved_subaddresses.change_subaddress,
         value: change_value,
         token_id,
-        confirmation_number: tx_out_context.confirmation,
+        shared_secret: tx_out_context.shared_secret,
     })
 }
