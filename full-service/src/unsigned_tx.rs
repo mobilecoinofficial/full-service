@@ -132,14 +132,14 @@ impl UnsignedTx {
             .into_iter()
             .map(|(token_id, input_total)| {
                 let output_total = output_total_per_token.get(&token_id).unwrap_or(&0);
-                Ok(add_change_output(
+                add_change_output(
                     account_key,
                     input_total,
                     *output_total,
                     token_id,
                     &mut transaction_builder,
                     &mut rng,
-                )?)
+                )
             })
             .collect::<Result<Vec<_>, WalletTransactionBuilderError>>()?;
 
