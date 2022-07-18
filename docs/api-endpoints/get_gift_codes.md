@@ -2,7 +2,14 @@
 description: Get all the gift codes currently in the database.
 ---
 
-# Get All Gift Codes
+# Get Gift Codes
+
+## Parameters
+
+| Optional Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `offset` | The pagination offset. Results start at the offset index | |
+| `limit` | Limit for the number of results | |
 
 ## Example
 
@@ -12,7 +19,8 @@ description: Get all the gift codes currently in the database.
 {
     "method": "get_all_gift_codes",
     "jsonrpc": "2.0",
-    "id": 1
+    "id": 1,
+    "params": {}
 }
 ```
 {% endtab %}

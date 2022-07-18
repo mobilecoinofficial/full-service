@@ -2,15 +2,15 @@
 description: Get assigned addresses for an account.
 ---
 
-# Get Address For Account
+# Get Addresses
 
 ## Parameters
 
-| Required Param | Purpose | Requirements |
+| Optional Param | Purpose | Requirements |
 | :--- | :--- | :--- |
 | `account_id` | The account on which to perform this action. | The account must exist in the wallet. |
-| `offset` | The pagination offset. Results start at the offset index. Optional, defaults to 0. | |
-| `limit` | Limit for the number of results. Optional, defaults to 100 | |
+| `offset` | The pagination offset. Results start at the offset index | |
+| `limit` | Limit for the number of results | |
 
 ## Example
 
@@ -21,8 +21,8 @@ description: Get assigned addresses for an account.
   "method": "get_addresses_for_account",
   "params": {
     "account_id": "b59b3d0efd6840ace19cdc258f035cc87e6a63b6c24498763c478c417c1f44ca",
-    "offset": "1",
-    "limit": "1"
+    "offset": 1,
+    "limit": 1
   },
   "jsonrpc": "2.0",
   "id": 1

@@ -2,7 +2,14 @@
 description: Get the details of all accounts in a given wallet.
 ---
 
-# Get All Accounts
+# Get Accounts
+
+## Parameters
+
+| Optional Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `offset` | | |
+| `limit` | | |
 
 ## Example
 
@@ -12,7 +19,8 @@ description: Get the details of all accounts in a given wallet.
 {
     "method": "get_all_accounts",
     "jsonrpc": "2.0",
-    "id": 1
+    "id": 1,
+    "params": {}
 }
 ```
 {% endtab %}

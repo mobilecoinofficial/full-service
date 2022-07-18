@@ -8,16 +8,6 @@
 | `completed_txos` | signed txos. A array of tuples (txoID, KeyImage) | |
 | `next_subaddress_index` | The updated next subaddress index to assign for this account | |
 
-### subaddress import json fields:
-| field | description (all strings) |
-| :--- | :--- |
-| `object` | "view_only_subaddress" |
-| `public_address` |A b58 encoding of the public address materials |
-| `account_id` | The account that owns this subaddress |
-| `comment` | Additional data associated with this address. |
-| `subaddress_index` | The index of this address in the subaddress space for the account |
-| `public_spend_key` | The public spend key for this addres |
-
 ## Example
 
 {% tabs %}

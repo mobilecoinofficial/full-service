@@ -16,12 +16,13 @@ description: >-
 | -------------- | ------------------------------------------- | -------------------------------- |
 | `account_id`   | The account on which to perform this action | Account must exist in the wallet |
 
-| Optional Param             | Purpose                                                                                                                                                                                                                            | Requirements                                                 |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| `recipient_public_address` | The recipient for this transaction                                                                                                                                                                                                 | b58-encoded public address bytes                             |
-| `value_pmob`               | The amount of MOB to send in this transaction                                                                                                                                                                                      |                                                              |
-| `fee`                      | The fee amount to submit with this transaction                                                                                                                                                                                     | If not provided, uses `MINIMUM_FEE` = .01 MOB                |
-| `tombstone_block`          | The block after which this transaction expires                                                                                                                                                                                     | If not provided, uses `cur_height` + 10                      |                                                       |
+| Optional Param | Purpose | Requirements|
+| -------------------------- | -------------------------------- | ------------------------------ |
+| `recipient_public_address` | The recipient for this transaction | b58-encoded public address bytes |
+| `value`| The value and token id transaction |   |
+| `fee_value` | The fee value to submit with this transaction | If not provided, uses `MINIMUM_FEE` of the appropriate token |
+| `fee_token_id` | The fee token id | |
+| `tombstone_block` | The block after which this transaction expires  | If not provided, uses `cur_height` + 10 |
 
 ## Example
 
@@ -33,7 +34,7 @@ description: >-
   "params": {
     "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
     "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-    "value_pmob": "42000000000000",
+    "value": ["42000000000000", "0"]
   },
   "jsonrpc": "2.0",
   "id": 1
@@ -50,7 +51,7 @@ Since the `tx_proposal`JSON object is quite large, you may wish to write the res
   "params": {
     "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
     "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-    "value_pmob": "42000000000000"
+    "value": ["42000000000000", "0"]
   },
   "jsonrpc": "2.0",
   "id": 1

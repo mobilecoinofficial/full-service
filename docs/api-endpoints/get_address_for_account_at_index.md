@@ -2,7 +2,7 @@
 description: Get an assigned address by index for an account.
 ---
 
-# Get Address For Account
+# Get Address For Account At Index
 
 ## Parameters
 

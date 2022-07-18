@@ -1,10 +1,14 @@
----
-description: >-
-  Get the transaction logs, grouped by the finalized_block_index, in ascending
-  order.
----
+# Get Transaction Logs For Account
 
-# Get All Transaction Logs Ordered By Block
+## Parameters
+
+| Optional Param | Purpose | Requirement |
+| :--- | :--- | :--- |
+| `account_id` | The account id to scan for transaction logs | Account must exist in the database |
+| `min_block_index` | The minimum block index to find transaction logs from | |
+| `max_block_index` | The maximum block index to find transaction logs from | |
+| `offset` | The pagination offset. Results start at the offset index. | |
+| `limit` | Limit for the number of results. | |
 
 ## Example
 
@@ -12,9 +16,14 @@ description: >-
 {% tab title="Request Body" %}
 ```text
 {
-    "method": "get_all_transaction_logs_ordered_by_block",
-    "jsonrpc": "2.0",
-    "id": 1
+  "method": "get_transaction_logs_for_account",
+  "params": {
+    "account_id": "b59b3d0efd6840ace19cdc258f035cc87e6a63b6c24498763c478c417c1f44ca",
+    "offset": 2,
+    "limit": 1
+  },
+  "jsonrpc": "2.0",
+  "id": 1
 }
 ```
 {% endtab %}
@@ -22,8 +31,13 @@ description: >-
 {% tab title="Response" %}
 ```text
 {
-  "method": "get_all_transaction_logs_ordered_by_block",
+  "method": "get_transaction_logs_for_account",
   "result": {
+    "transaction_log_ids": [
+      "ff1c85e7a488c2821110597ba75db30d913bb1595de549f83c6e8c56b06d70d1",
+      "58729797de0929eed37acb45225d3631235933b709c00015f46bfc002d5754fc",
+      "243494a0030bcbac40e87670b9288834047ef0727bcc6630a2fe2799439879ab"
+    ],
     "transaction_log_map": {
       "ff1c85e7a488c2821110597ba75db30d913bb1595de549f83c6e8c56b06d70d1": {
         "id": "ff1c85e7a488c2821110597ba75db30d913bb1595de549f83c6e8c56b06d70d1",
@@ -144,11 +158,9 @@ description: >-
       }
     }
   },
-  "error": null,
   "jsonrpc": "2.0",
-  "id": 1,
+  "id": 1
 }
 ```
 {% endtab %}
 {% endtabs %}
-

@@ -1,14 +1,18 @@
 ---
-description: Get all TXOs for a given address.
+description: Get TXOs for a given account with offset and limit parameters
 ---
 
-# Get All TXOs For Address
+# Get TXOs
 
 ## Parameters
 
-| Parameter | Purpose | Requirements |
+| Optional Param | Purpose | Requirements |
 | :--- | :--- | :--- |
-| `address` | The public address on which to perform this action. | Account must exist in the wallet. |
+| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+| `address` | The address b58 on which to perform this action. | Address must exist in the wallet. |
+| `status` | Txo status filer. Available status': "unverified", "unspent", "spent", "orphaned", "pending", "secreted", | |
+| `offset` | The pagination offset. Results start at the offset index. | |
+| `limit` | Limit for the number of results.| |
 
 ## Example
 
@@ -16,9 +20,11 @@ description: Get all TXOs for a given address.
 {% tab title="Request Body" %}
 ```text
 {
-  "method": "get_all_txos_for_address",
+  "method": "get_txos",
   "params": {
-    "address": "996ucua1TCxcSWTgvrwit9duR2oXk25ZAF41xh5QnkkEkwmNQfiFW8XXm7Uu3kCM2aVW9krJRtCWA9ZeMCYiLnNvajfB6hbLzvYF4HJD6ak"
+    "account_id": "b59b3d0efd6840ace19cdc258f035cc87e6a63b6c24498763c478c417c1f44ca",
+    "offset": 2,
+    "limit": 8
   },
   "jsonrpc": "2.0",
   "id": 1
@@ -29,13 +35,12 @@ description: Get all TXOs for a given address.
 {% tab title="Response" %}
 ```text
 {
-  "method": "get_all_txos_for_address",
+  "method": "get_txos",
   "result": {
     "txo_ids": [
       "001cdcc1f0a22dc0ddcdaac6020cc03d919cbc3c36923f157b4a6bf0dc980167",
       "00408833347550b046f0996afe92313745f76e307904686e93de5bab3590e9da",
-      "005b41a40be1401426f9a00965cc334e4703e4089adb8fa00616e7b25b92c6e5",
-      ...
+      "005b41a40be1401426f9a00965cc334e4703e4089adb8fa00616e7b25b92c6e5"
     ],
     "txo_map": {
       "001cdcc1f0a22dc0ddcdaac6020cc03d919cbc3c36923f157b4a6bf0dc980167": {
@@ -134,8 +139,10 @@ description: Get all TXOs for a given address.
         "txo_id": "b496f4f3ec3159bf48517aa7d9cda193ef8bfcac343f81eaed0e0a55849e4726",
         "value_pmob": "980000000000"
       }
-    ]
-  }
+    }
+  },
+  "jsonrpc": "2.0",
+  "id": 1
 }
 ```
 {% endtab %}

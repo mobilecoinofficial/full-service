@@ -14,9 +14,9 @@ description: >-
 
 | Optional Param | Purpose | Requirements |
 | :--- | :--- | :--- |
-| `recipient_public_address` | The recipient for this transaction | b58-encoded public address bytes |
-| `value_pmob` | The amount of MOB to send in this transaction |  |
 | `addresses_and_values` | An array of public addresses and value and token tuples | addresses are b58-encoded public addresses |
+| `recipient_public_address` | The recipient for this transaction | b58-encoded public address bytes |
+| `value` | The value and token id to send in this transaction as a tuple |  |
 | `input_txo_ids` | Specific TXOs to use as inputs to this transaction | TXO IDs \(obtain from `get_txos_for_account`\) |
 | `fee_value` | The fee amount to submit with this transaction | If not provided, uses `MINIMUM_FEE` of the first outputs token_id, if available, or defaults to MOB |
 | `fee_token_id` | The fee token_id to submit with this transaction | If not provided, uses token_id of first output, if available, or defaults to MOB |
