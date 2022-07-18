@@ -16,7 +16,7 @@
 {% tab title="Request Body" %}
 ```text
 {
-  "method": "get_transaction_logs_for_account",
+  "method": "get_transaction_logs",
   "params": {
     "account_id": "b59b3d0efd6840ace19cdc258f035cc87e6a63b6c24498763c478c417c1f44ca",
     "offset": 2,
@@ -31,7 +31,7 @@
 {% tab title="Response" %}
 ```text
 {
-  "method": "get_transaction_logs_for_account",
+  "method": "get_transaction_logs",
   "result": {
     "transaction_log_ids": [
       "ff1c85e7a488c2821110597ba75db30d913bb1595de549f83c6e8c56b06d70d1",

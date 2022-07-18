@@ -17,7 +17,7 @@ description: Get all the gift codes currently in the database.
 {% tab title="Request Body" %}
 ```text
 {
-    "method": "get_all_gift_codes",
+    "method": "get_gift_codes",
     "jsonrpc": "2.0",
     "id": 1,
     "params": {}
@@ -28,7 +28,7 @@ description: Get all the gift codes currently in the database.
 {% tab title="Response" %}
 ```text
 {
-  "method": "get_all_gift_codes",
+  "method": "get_gift_codes",
   "result": {
     "gift_codes": [
       {

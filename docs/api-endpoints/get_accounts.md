@@ -17,7 +17,7 @@ description: Get the details of all accounts in a given wallet.
 {% tab title="Request Body" %}
 ```text
 {
-    "method": "get_all_accounts",
+    "method": "get_accounts",
     "jsonrpc": "2.0",
     "id": 1,
     "params": {}
@@ -28,7 +28,7 @@ description: Get the details of all accounts in a given wallet.
 {% tab title="Response" %}
 ```text
 {
-  "method": "get_all_accounts",
+  "method": "get_accounts",
   "result": {
     "account_ids": [
       "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",

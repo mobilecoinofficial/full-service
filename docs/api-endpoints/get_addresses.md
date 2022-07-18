@@ -18,7 +18,7 @@ description: Get assigned addresses for an account.
 {% tab title="Request Body" %}
 ```text
 {
-  "method": "get_addresses_for_account",
+  "method": "get_addresses",
   "params": {
     "account_id": "b59b3d0efd6840ace19cdc258f035cc87e6a63b6c24498763c478c417c1f44ca",
     "offset": 1,
@@ -33,7 +33,7 @@ description: Get assigned addresses for an account.
 {% tab title="Response" %}
 ```text
 {
-  "method": "get_addresses_for_account",
+  "method": "get_addresses",
   "result": {
     "public_addresses": [
       "7RvvDmRa9CuB5Uf1aDeyKuyhjKtQhxHroAuDh8NFuwfRdQd1QvAhgA8E6Tg34nRo4sM6B1SbPEC8ffz86oYfDKziBw7xYVPKzZ4dvL8p961"

@@ -17,7 +17,7 @@ description: Get an assigned address by index for an account.
 {% tab title="Request Body" %}
 ```text
 {
-  "method": "get_address_for_account",
+  "method": "get_address_for_account_at_index",
   "params": {
     "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
     "index": 1
@@ -31,7 +31,7 @@ description: Get an assigned address by index for an account.
 {% tab title="Response" %}
 ```text
 {
-  "method": "get_address_for_account",
+  "method": "get_address_for_account_at_index",
   "result": {
       "address": {
         "object": "address",

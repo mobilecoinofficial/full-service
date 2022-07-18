@@ -12,7 +12,7 @@
 {% tab title="Request Body" %}
 ```
 {
-    "method": "export_view_only_account_package",
+    "method": "export_view_only_account_import_request",
     "params": {
         "account_id": "6d95067c5fcc0dd7bbcdd42d49cc3571fe1bb2597a9c397c75b7280eca534208"
     },
@@ -25,7 +25,7 @@
 {% tab title="Response" %}
 ```
 {
-    "method": "export_view_only_account_package",
+    "method": "export_view_only_account_import_request",
     "result": {
         "json_rpc_request": {
             "method": "import_view_only_account",
