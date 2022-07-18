@@ -196,7 +196,7 @@ where
         let network_block_height = self.get_network_block_height()?;
 
         let conn = self.wallet_db.get_conn()?;
-        let accounts = Account::list_all(&conn)?;
+        let accounts = Account::list_all(&conn, None, None)?;
         let mut account_map = HashMap::default();
 
         let mut balance_per_token = BTreeMap::new();

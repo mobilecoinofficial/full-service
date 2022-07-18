@@ -116,7 +116,7 @@ pub fn sync_all_accounts(
         let conn = &wallet_db
             .get_conn()
             .expect("Could not get connection to DB");
-        Account::list_all(conn).expect("Failed getting accounts from database")
+        Account::list_all(conn, None, None).expect("Failed getting accounts from database")
     };
 
     for account in accounts {

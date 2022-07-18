@@ -45,12 +45,7 @@ impl TryFrom<&JsonRPCRequest> for JsonCommandRequest {
     type Error = String;
 
     fn try_from(src: &JsonRPCRequest) -> Result<JsonCommandRequest, String> {
-        let mut src_json: serde_json::Value = serde_json::json!(src);
-
-        // Resolve deprecated method names to an alias.
-        let method = src_json.get_mut("method").ok_or("Missing method")?;
-        *method = method_alias(method.as_str().ok_or("Method is not a string")?).into();
-
+        let src_json: serde_json::Value = serde_json::json!(src);
         serde_json::from_value(src_json).map_err(|e| format!("Could not get value {:?}", e))
     }
 }
@@ -278,10 +273,4 @@ pub enum JsonCommandRequest {
         address: String,
     },
     version,
-}
-
-fn method_alias(m: &str) -> &str {
-    match m {
-        _ => m,
-    }
 }

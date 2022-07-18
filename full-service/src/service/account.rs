@@ -174,7 +174,11 @@ pub trait AccountService {
     ) -> Result<JsonRPCRequest, AccountServiceError>;
 
     /// List accounts in the wallet.
-    fn list_accounts(&self) -> Result<Vec<Account>, AccountServiceError>;
+    fn list_accounts(
+        &self,
+        offset: Option<u64>,
+        limit: Option<u64>,
+    ) -> Result<Vec<Account>, AccountServiceError>;
 
     /// Get an account in the wallet.
     fn get_account(&self, account_id: &AccountID) -> Result<Account, AccountServiceError>;
@@ -417,9 +421,13 @@ where
         })
     }
 
-    fn list_accounts(&self) -> Result<Vec<Account>, AccountServiceError> {
+    fn list_accounts(
+        &self,
+        offset: Option<u64>,
+        limit: Option<u64>,
+    ) -> Result<Vec<Account>, AccountServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        Ok(Account::list_all(&conn)?)
+        Ok(Account::list_all(&conn, offset, limit)?)
     }
 
     fn get_account(&self, account_id: &AccountID) -> Result<Account, AccountServiceError> {

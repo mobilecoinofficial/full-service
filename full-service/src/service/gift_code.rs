@@ -335,7 +335,11 @@ pub trait GiftCodeService {
     ) -> Result<DecodedGiftCode, GiftCodeServiceError>;
 
     /// List all gift codes in the wallet.
-    fn list_gift_codes(&self) -> Result<Vec<DecodedGiftCode>, GiftCodeServiceError>;
+    fn list_gift_codes(
+        &self,
+        offset: Option<u64>,
+        limit: Option<u64>,
+    ) -> Result<Vec<DecodedGiftCode>, GiftCodeServiceError>;
 
     /// Check the status of a gift code currently in your wallet. If the gift
     /// code is not yet in the wallet, add it.
@@ -460,7 +464,7 @@ where
         let gift_code = transaction(&conn, || GiftCode::create(gift_code_b58, value, &conn))?;
 
         self.submit_transaction(
-            &tx_proposal,
+            tx_proposal,
             Some(json!({"gift_code_memo": transfer_payload.memo}).to_string()),
             Some(from_account_id.clone().0),
         )?;
@@ -484,9 +488,13 @@ where
         DecodedGiftCode::try_from(gift_code)
     }
 
-    fn list_gift_codes(&self) -> Result<Vec<DecodedGiftCode>, GiftCodeServiceError> {
+    fn list_gift_codes(
+        &self,
+        offset: Option<u64>,
+        limit: Option<u64>,
+    ) -> Result<Vec<DecodedGiftCode>, GiftCodeServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        GiftCode::list_all(&conn)?
+        GiftCode::list_all(&conn, offset, limit)?
             .into_iter()
             .map(DecodedGiftCode::try_from)
             .collect()

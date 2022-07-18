@@ -526,7 +526,7 @@ where
             }
         }
         JsonCommandRequest::get_accounts { offset, limit } => {
-            let accounts = service.list_accounts().map_err(format_error)?;
+            let accounts = service.list_accounts(offset, limit).map_err(format_error)?;
             let json_accounts: Vec<(String, serde_json::Value)> = accounts
                 .iter()
                 .map(|a| {
@@ -637,7 +637,7 @@ where
         JsonCommandRequest::get_gift_codes { offset, limit } => {
             JsonCommandResponse::get_gift_codes {
                 gift_codes: service
-                    .list_gift_codes()
+                    .list_gift_codes(offset, limit)
                     .map_err(format_error)?
                     .iter()
                     .map(GiftCode::from)

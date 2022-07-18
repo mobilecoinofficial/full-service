@@ -595,9 +595,9 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 });
 
         for (token_id, total_value) in total_value_per_token.iter() {
-            let input_value = input_value_per_token.get(token_id).ok_or(
-                WalletTransactionBuilderError::MissingInputsForTokenId(token_id.to_string()),
-            )?;
+            let input_value = input_value_per_token.get(token_id).ok_or_else(|| {
+                WalletTransactionBuilderError::MissingInputsForTokenId(token_id.to_string())
+            })?;
             if total_value > input_value {
                 return Err(WalletTransactionBuilderError::InsufficientInputFunds(
                     format!(

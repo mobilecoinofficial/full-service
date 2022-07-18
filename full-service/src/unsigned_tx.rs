@@ -171,7 +171,7 @@ fn add_payload_outputs<RNG: CryptoRng + RngCore>(
 ) -> Result<Vec<OutputTxo>, WalletTransactionBuilderError> {
     // Add outputs to our destinations.
     let mut outputs = Vec::new();
-    for (recipient, amount) in outlays.into_iter() {
+    for (recipient, amount) in outlays.iter() {
         let tx_out_context = transaction_builder.add_output(*amount, recipient, rng)?;
 
         outputs.push(OutputTxo {

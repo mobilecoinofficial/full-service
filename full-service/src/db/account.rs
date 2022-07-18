@@ -159,7 +159,11 @@ pub trait AccountModel {
     ///
     /// Returns:
     /// * Vector of all Accounts in the DB
-    fn list_all(conn: &Conn) -> Result<Vec<Account>, WalletDbError>;
+    fn list_all(
+        conn: &Conn,
+        offset: Option<u64>,
+        limit: Option<u64>,
+    ) -> Result<Vec<Account>, WalletDbError>;
 
     /// Get a specific account.
     ///
@@ -473,12 +477,20 @@ impl AccountModel for Account {
         Account::get(&account_id, conn)
     }
 
-    fn list_all(conn: &Conn) -> Result<Vec<Account>, WalletDbError> {
+    fn list_all(
+        conn: &Conn,
+        offset: Option<u64>,
+        limit: Option<u64>,
+    ) -> Result<Vec<Account>, WalletDbError> {
         use crate::db::schema::accounts;
 
-        Ok(accounts::table
-            .select(accounts::all_columns)
-            .load::<Account>(conn)?)
+        let mut query = accounts::table.into_boxed();
+
+        if let (Some(offset), Some(limit)) = (offset, limit) {
+            query = query.limit(limit as i64).offset(offset as i64);
+        }
+
+        Ok(query.load(conn)?)
     }
 
     fn get(account_id: &AccountID, conn: &Conn) -> Result<Account, WalletDbError> {
@@ -613,7 +625,7 @@ mod tests {
 
         {
             let conn = wallet_db.get_conn().unwrap();
-            let res = Account::list_all(&conn).unwrap();
+            let res = Account::list_all(&conn, None, None).unwrap();
             assert_eq!(res.len(), 1);
         }
 
@@ -678,7 +690,7 @@ mod tests {
                 &wallet_db.get_conn().unwrap(),
             )
             .unwrap();
-        let res = Account::list_all(&wallet_db.get_conn().unwrap()).unwrap();
+        let res = Account::list_all(&wallet_db.get_conn().unwrap(), None, None).unwrap();
         assert_eq!(res.len(), 2);
 
         let acc_secondary =
@@ -717,7 +729,7 @@ mod tests {
             .delete(&wallet_db.get_conn().unwrap())
             .unwrap();
 
-        let res = Account::list_all(&wallet_db.get_conn().unwrap()).unwrap();
+        let res = Account::list_all(&wallet_db.get_conn().unwrap(), None, None).unwrap();
         assert_eq!(res.len(), 1);
 
         // Attempt to get the deleted account
@@ -792,7 +804,7 @@ mod tests {
 
         {
             let conn = wallet_db.get_conn().unwrap();
-            let res = Account::list_all(&conn).unwrap();
+            let res = Account::list_all(&conn, None, None).unwrap();
             assert_eq!(res.len(), 1);
         }
 
@@ -851,7 +863,7 @@ mod tests {
 
         {
             let conn = wallet_db.get_conn().unwrap();
-            let res = Account::list_all(&conn).unwrap();
+            let res = Account::list_all(&conn, None, None).unwrap();
             assert_eq!(res.len(), 1);
         }
 
