@@ -52,9 +52,9 @@ pub struct Txo {
     /// required to spend a Txo.
     pub key_image: Option<String>,
 
-    /// A confirmation number that the sender of the Txo can provide to verify
-    /// that they participated in the construction of this Txo.
-    pub confirmation: Option<String>,
+    /// Hex encoded bytes of the shared secret (Ristretto Public) for this txo,
+    /// which can be used to generate a confirmation number
+    pub shared_secret: Option<String>,
 }
 
 impl Txo {
@@ -72,7 +72,7 @@ impl Txo {
             e_fog_hint: hex::encode(&txo.e_fog_hint),
             subaddress_index: txo.subaddress_index.map(|s| (s as u64).to_string()),
             key_image: txo.key_image.as_ref().map(|k| hex::encode(&k)),
-            confirmation: txo.shared_secret.as_ref().map(hex::encode),
+            shared_secret: txo.shared_secret.as_ref().map(hex::encode),
         }
     }
 }

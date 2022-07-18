@@ -211,7 +211,6 @@ mod tests {
         service::{
             account::AccountService, address::AddressService,
             confirmation_number::ConfirmationService, transaction::TransactionService,
-            transaction_log::TransactionLogService,
         },
         test_utils::{
             add_block_from_transaction_log, add_block_to_ledger_db, get_test_ledger,
