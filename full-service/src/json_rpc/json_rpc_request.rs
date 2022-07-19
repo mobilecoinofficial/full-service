@@ -190,12 +190,12 @@ pub enum JsonCommandRequest {
     get_gift_code {
         gift_code_b58: String,
     },
-    // get_mc_protocol_transaction {
-    //     transaction_log_id: String,
-    // },
-    // get_mc_protocol_txo {
-    //     txo_id: String,
-    // },
+    get_mc_protocol_transaction {
+        transaction_log_id: String,
+    },
+    get_mc_protocol_txo {
+        txo_id: String,
+    },
     get_network_status,
     get_transaction_log {
         transaction_log_id: String,

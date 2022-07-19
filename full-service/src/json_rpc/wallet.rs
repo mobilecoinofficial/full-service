@@ -54,6 +54,7 @@ use mc_connection::{
     BlockchainConnection, HardcodedCredentialsProvider, ThickClient, UserTxConnection,
 };
 use mc_fog_report_validation::{FogPubkeyResolver, FogResolver};
+use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use mc_validator_connection::ValidatorConnection;
 use rocket::{
     self, get, http::Status, outcome::Outcome, post, request::FromRequest, routes, Request, State,
@@ -725,22 +726,22 @@ where
                     .map_err(format_error)?,
             ),
         },
-        // JsonCommandRequest::get_mc_protocol_transaction { transaction_log_id } => {
-        //     let tx = service
-        //         .get_transaction_object(&transaction_log_id)
-        //         .map_err(format_error)?;
-        //     let proto_tx = mc_api::external::Tx::from(&tx);
-        //     let json_tx = JsonTx::from(&proto_tx);
-        //     JsonCommandResponse::get_mc_protocol_transaction {
-        //         transaction: json_tx,
-        //     }
-        // }
-        // JsonCommandRequest::get_mc_protocol_txo { txo_id } => {
-        //     let tx_out = service.get_txo_object(&txo_id).map_err(format_error)?;
-        //     let proto_txo = mc_api::external::TxOut::from(&tx_out);
-        //     let json_txo = JsonTxOut::from(&proto_txo);
-        //     JsonCommandResponse::get_mc_protocol_txo { txo: json_txo }
-        // }
+        JsonCommandRequest::get_mc_protocol_transaction { transaction_log_id } => {
+            let tx = service
+                .get_transaction_object(&transaction_log_id)
+                .map_err(format_error)?;
+            let proto_tx = mc_api::external::Tx::from(&tx);
+            let json_tx = JsonTx::from(&proto_tx);
+            JsonCommandResponse::get_mc_protocol_transaction {
+                transaction: json_tx,
+            }
+        }
+        JsonCommandRequest::get_mc_protocol_txo { txo_id } => {
+            let tx_out = service.get_txo_object(&txo_id).map_err(format_error)?;
+            let proto_txo = mc_api::external::TxOut::from(&tx_out);
+            let json_txo = JsonTxOut::from(&proto_txo);
+            JsonCommandResponse::get_mc_protocol_txo { txo: json_txo }
+        }
         JsonCommandRequest::get_network_status => JsonCommandResponse::get_network_status {
             network_status: NetworkStatus::try_from(
                 &service.get_network_status().map_err(format_error)?,

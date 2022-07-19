@@ -17,13 +17,14 @@ use crate::{
         network_status::NetworkStatus,
         receiver_receipt::ReceiverReceipt,
         transaction_log::TransactionLog,
-        tx_proposal::TxProposalJSON,
+        tx_proposal::TxProposal as TxProposalJSON,
         txo::Txo,
         wallet_status::WalletStatus,
     },
     service::{gift_code::GiftCodeStatus, receipt::ReceiptTransactionStatus},
     util::b58::PrintableWrapperType,
 };
+use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use std::collections::{BTreeMap, HashMap};
@@ -194,6 +195,8 @@ pub enum JsonCommandResponse {
     },
     get_account_status {
         account: Account,
+        network_block_height: String,
+        local_block_height: String,
         balance_per_token: BTreeMap<String, Balance>,
     },
     get_address_for_account {
@@ -222,9 +225,15 @@ pub enum JsonCommandResponse {
         txo_map: Map<String, serde_json::Value>,
     },
     get_balance_for_account {
+        account_block_height: String,
+        network_block_height: String,
+        local_block_height: String,
         balance_per_token: BTreeMap<String, Balance>,
     },
     get_balance_for_address {
+        account_block_height: String,
+        network_block_height: String,
+        local_block_height: String,
         balance_per_token: BTreeMap<String, Balance>,
     },
     get_block {
@@ -237,12 +246,12 @@ pub enum JsonCommandResponse {
     get_gift_code {
         gift_code: GiftCode,
     },
-    // get_mc_protocol_transaction {
-    //     transaction: JsonTx,
-    // },
-    // get_mc_protocol_txo {
-    //     txo: JsonTxOut,
-    // },
+    get_mc_protocol_transaction {
+        transaction: JsonTx,
+    },
+    get_mc_protocol_txo {
+        txo: JsonTxOut,
+    },
     get_network_status {
         network_status: NetworkStatus,
     },
