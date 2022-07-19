@@ -175,7 +175,7 @@ mod e2e_account {
             "params": {
                 "account_id": account_id,
                 "recipient_public_address": main_address,
-                "value": ["50000000000000", "0"],
+                "amount": { "value": "50000000000000", "token_id": "0"},
             }
         });
         let res = dispatch(&client, body, &logger);

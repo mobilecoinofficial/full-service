@@ -71,7 +71,7 @@ mod e2e_transaction {
             "params": {
                 "account_id": account_id,
                 "recipient_public_address": b58_public_address,
-                "value": ["42", "0"],
+                "amount": { "value": "42", "token_id": "0"},
             }
         });
         // We will fail because we cannot afford the fee
@@ -119,7 +119,7 @@ mod e2e_transaction {
             "params": {
                 "account_id": account_id,
                 "recipient_public_address": b58_public_address,
-                "value": ["42000000000000", "0"], // 42.0 MOB
+                "amount": { "value": "42000000000000", "token_id": "0"}, // 42.0 MOB
             }
         });
         let res = dispatch(&client, body, &logger);
