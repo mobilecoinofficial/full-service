@@ -350,13 +350,6 @@ impl TransactionLogModel for TransactionLog {
         // Verify that the account exists.
         Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
-        // Verify that the TxProposal is well-formed according to our
-        // assumptions about how to store the sent data in our wallet
-        // (num_output_TXOs = num_outlays + change_TXO).
-        // if tx_proposal.tx.prefix.outputs.len() - tx_proposal.outlays.len() > 1 {
-        //     return Err(WalletDbError::UnexpectedNumberOfChangeOutputs);
-        // }
-
         let transaction_log_id = TransactionID::from(&tx_proposal);
         let tx = mc_util_serial::encode(&tx_proposal.tx);
 
@@ -380,7 +373,6 @@ impl TransactionLogModel for TransactionLog {
         for txo in tx_proposal.input_txos.iter() {
             let txo_id = TxoID::from(&txo.tx_out);
             Txo::update_key_image(&txo_id.to_string(), &txo.key_image, None, conn)?;
-            // Txo::update_key_image(&txo_id.to_string(), &utxo.key_image, None, conn)?;
             let transaction_input_txo = NewTransactionInputTxo {
                 transaction_log_id: &transaction_log_id.to_string(),
                 txo_id: &txo_id.to_string(),
@@ -411,13 +403,6 @@ impl TransactionLogModel for TransactionLog {
     ) -> Result<TransactionLog, WalletDbError> {
         // Verify that the account exists.
         Account::get(&AccountID(account_id_hex.to_string()), conn)?;
-
-        // // Verify that the TxProposal is well-formed according to our
-        // // assumptions about how to store the sent data in our wallet
-        // // (num_output_TXOs = num_outlays + change_TXO).
-        // if tx_proposal.tx.prefix.outputs.len() - tx_proposal.outlays.len() > 1 {
-        //     return Err(WalletDbError::UnexpectedNumberOfChangeOutputs);
-        // }
 
         let transaction_log_id = TransactionID::from(&tx_proposal.tx);
         let tx = mc_util_serial::encode(&tx_proposal.tx);

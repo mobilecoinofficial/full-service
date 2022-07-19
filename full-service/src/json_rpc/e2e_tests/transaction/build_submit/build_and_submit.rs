@@ -8,7 +8,7 @@ mod e2e_transaction {
         db::account::AccountID,
         json_rpc::{
             api_test_utils::{dispatch, setup},
-            tx_proposal::TxProposalJSON,
+            tx_proposal::TxProposal as TxProposalJSON,
         },
         service::models::tx_proposal::TxProposal,
         test_utils::{add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account},
@@ -88,7 +88,7 @@ mod e2e_transaction {
             "params": {
                 "account_id": account_id,
                 "recipient_public_address": b58_public_address,
-                "value":["42000000000000", "0"], // 42.0 MOB
+                "amount": { "value": "42000000000000", "token_id": "0" }, // 42.0 MOB
             }
         });
         let res = dispatch(&client, body, &logger);

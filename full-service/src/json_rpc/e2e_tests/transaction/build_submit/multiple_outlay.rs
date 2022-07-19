@@ -8,7 +8,7 @@ mod e2e_transaction {
         db::account::AccountID,
         json_rpc::{
             api_test_utils::{dispatch, setup},
-            tx_proposal::TxProposalJSON,
+            tx_proposal::TxProposal as TxProposalJSON,
         },
         service::models::tx_proposal::TxProposal,
         test_utils::{
@@ -97,9 +97,9 @@ mod e2e_transaction {
             "method": "build_transaction",
             "params": {
                 "account_id": alice_account_id,
-                "addresses_and_values": [
-                    [bob_b58_public_address, "42000000000000", "0"], // 42.0 MOB
-                    [charlie_b58_public_address, "43000000000000", "0"], // 43.0 MOB
+                "addresses_and_amounts": [
+                    [bob_b58_public_address, {"value": "42000000000000", "token_id": "0"}], // 42.0 MOB
+                    [charlie_b58_public_address, {"value": "43000000000000", "token_id": "0"}], // 43.0 MOB
                 ]
             }
         });

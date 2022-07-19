@@ -8,7 +8,7 @@ mod e2e_transaction {
         db::{account::AccountID, txo::TxoStatus},
         json_rpc::{
             api_test_utils::{dispatch, setup},
-            tx_proposal::TxProposalJSON,
+            tx_proposal::TxProposal as TxProposalJSON,
         },
         service::models::tx_proposal::TxProposal,
         test_utils::{add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account},
@@ -115,7 +115,7 @@ mod e2e_transaction {
             "params": {
                 "account_id": account_id_1,
                 "recipient_public_address": b58_public_address_2,
-                "value": ["84000000000000", "0"], // 84.0 MOB
+                "amount": {"value": "84000000000000", "token_id": "0"}, // 84.0 MOB
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -182,7 +182,7 @@ mod e2e_transaction {
             "params": {
                 "account_id": account_id_2,
                 "recipient_public_address": b58_public_address_3,
-                "value": ["42000000000000", "0"], // 42.0 MOB
+                "amount": { "value": "42000000000000", "token_id": "0" }, // 42.0 MOB
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -418,7 +418,7 @@ mod e2e_transaction {
             "params": {
                 "account_id": account_id,
                 "recipient_public_address": b58_public_address_2,
-                "value": ["50000000000000", "0"], // 50.0 MOB
+                "amount": { "value": "50000000000000", "token_id": "0"}, // 50.0 MOB
             }
         });
         let res = dispatch(&client, body, &logger);

@@ -49,6 +49,9 @@ pub trait AddressService {
         // FIXME: FS-32 - add "sync from block"
     ) -> Result<AssignedSubaddress, AddressServiceError>;
 
+    /// Get an assigned subaddress, if it exists.
+    fn get_address(&self, address_b58: &str) -> Result<AssignedSubaddress, AddressServiceError>;
+
     fn get_address_for_account(
         &self,
         account_id: &AccountID,
@@ -88,6 +91,11 @@ where
                 )?;
             Ok(AssignedSubaddress::get(&public_address_b58, &conn)?)
         })
+    }
+
+    fn get_address(&self, address_b58: &str) -> Result<AssignedSubaddress, AddressServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+        Ok(AssignedSubaddress::get(address_b58, &conn)?)
     }
 
     fn get_address_for_account(
