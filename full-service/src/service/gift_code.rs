@@ -462,7 +462,7 @@ where
         let gift_code = transaction(&conn, || GiftCode::create(gift_code_b58, value, &conn))?;
 
         self.submit_transaction(
-            &tx_proposal,
+            tx_proposal,
             Some(json!({"gift_code_memo": transfer_payload.memo}).to_string()),
             Some(from_account_id.clone().0),
         )?;

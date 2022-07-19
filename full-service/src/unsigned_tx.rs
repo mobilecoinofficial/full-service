@@ -132,14 +132,14 @@ impl UnsignedTx {
             .into_iter()
             .map(|(token_id, input_total)| {
                 let output_total = output_total_per_token.get(&token_id).unwrap_or(&0);
-                Ok(add_change_output(
+                add_change_output(
                     account_key,
                     input_total,
                     *output_total,
                     token_id,
                     &mut transaction_builder,
                     &mut rng,
-                )?)
+                )
             })
             .collect::<Result<Vec<_>, WalletTransactionBuilderError>>()?;
 
@@ -171,7 +171,7 @@ fn add_payload_outputs<RNG: CryptoRng + RngCore>(
 ) -> Result<Vec<OutputTxo>, WalletTransactionBuilderError> {
     // Add outputs to our destinations.
     let mut outputs = Vec::new();
-    for (recipient, amount) in outlays.into_iter() {
+    for (recipient, amount) in outlays.iter() {
         let tx_out_context = transaction_builder.add_output(*amount, recipient, rng)?;
 
         outputs.push(OutputTxo {
