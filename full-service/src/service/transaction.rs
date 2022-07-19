@@ -560,8 +560,10 @@ mod tests {
                 &alice.id,
                 &[(
                     bob_address_from_alice.assigned_subaddress_b58,
-                    (42 * MOB).to_string(),
-                    Mob::ID.to_string(),
+                    AmountJSON {
+                        value: (42 * MOB).to_string(),
+                        token_id: Mob::ID.to_string(),
+                    },
                 )],
                 None,
                 None,
@@ -589,8 +591,10 @@ mod tests {
                 &alice.id,
                 &[(
                     bob_address_from_alice_2.assigned_subaddress_b58,
-                    (42 * MOB).to_string(),
-                    Mob::ID.to_string(),
+                    AmountJSON {
+                        value: (42 * MOB).to_string(),
+                        token_id: Mob::ID.to_string(),
+                    },
                 )],
                 None,
                 None,
@@ -618,8 +622,10 @@ mod tests {
                 &alice.id,
                 &[(
                     bob_address_from_alice_3.clone().assigned_subaddress_b58,
-                    (42 * MOB).to_string(),
-                    Mob::ID.to_string(),
+                    AmountJSON {
+                        value: (42 * MOB).to_string(),
+                        token_id: Mob::ID.to_string(),
+                    },
                 )],
                 None,
                 None,
@@ -703,8 +709,10 @@ mod tests {
                 &alice.id,
                 &[(
                     bob_address_from_alice.assigned_subaddress_b58,
-                    (42 * MOB).to_string(),
-                    Mob::ID.to_string(),
+                    AmountJSON {
+                        value: (42 * MOB).to_string(),
+                        token_id: Mob::ID.to_string(),
+                    },
                 )],
                 None,
                 None,
@@ -776,8 +784,10 @@ mod tests {
                 &bob.id,
                 &[(
                     b58_encode_public_address(&alice_public_address).unwrap(),
-                    (8 * MOB).to_string(),
-                    Mob::ID.to_string(),
+                    AmountJSON {
+                        value: (8 * MOB).to_string(),
+                        token_id: Mob::ID.to_string(),
+                    },
                 )],
                 None,
                 None,
@@ -857,8 +867,10 @@ mod tests {
             &alice.id,
             &vec![(
                 "NOTB58".to_string(),
-                (42 * MOB).to_string(),
-                Mob::ID.to_string(),
+                AmountJSON {
+                    value: (42 * MOB).to_string(),
+                    token_id: Mob::ID.to_string(),
+                },
             )],
             None,
             None,
@@ -913,8 +925,10 @@ mod tests {
         for _ in 0..17 {
             outputs.push((
                 b58_encode_public_address(&alice_public_address).unwrap(),
-                (42 * MOB).to_string(),
-                Mob::ID.to_string(),
+                AmountJSON {
+                    value: (42 * MOB).to_string(),
+                    token_id: Mob::ID.to_string(),
+                },
             ));
         }
         match service.build_transaction(&alice.id, &outputs, None, None, None, None, None, None) {
@@ -932,8 +946,10 @@ mod tests {
         for _ in 0..2 {
             outputs.push((
                 b58_encode_public_address(&alice_public_address).unwrap(),
-                (42 * MOB).to_string(),
-                Mob::ID.to_string(),
+                AmountJSON {
+                    value: (42 * MOB).to_string(),
+                    token_id: Mob::ID.to_string(),
+                },
             ));
         }
         let mut inputs = Vec::new();

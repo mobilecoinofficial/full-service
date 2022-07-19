@@ -145,6 +145,7 @@ where
 mod tests {
     use crate::{
         db::account::AccountID,
+        json_rpc::amount::Amount,
         service::{
             account::AccountService, address::AddressService, transaction::TransactionService,
             transaction_log::TransactionLogService,
@@ -212,8 +213,10 @@ mod tests {
                     &alice_account_id.to_string(),
                     &[(
                         address.assigned_subaddress_b58.clone(),
-                        (50 * MOB).to_string(),
-                        Mob::ID.to_string(),
+                        Amount {
+                            value: (50 * MOB).to_string(),
+                            token_id: Mob::ID.to_string(),
+                        },
                     )],
                     None,
                     None,
