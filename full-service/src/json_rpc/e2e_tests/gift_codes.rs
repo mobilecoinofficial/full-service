@@ -8,7 +8,7 @@ mod e2e_transaction {
         db::account::AccountID,
         json_rpc::{
             api_test_utils::{dispatch, setup},
-            tx_proposal::TxProposalJSON,
+            tx_proposal::TxProposal as TxProposalJSON,
         },
         service::models::tx_proposal::TxProposal,
         test_utils::{

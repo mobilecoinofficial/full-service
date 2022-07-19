@@ -24,7 +24,7 @@ use crate::{
         },
         network_status::NetworkStatus,
         receiver_receipt::ReceiverReceipt,
-        tx_proposal::TxProposalJSON,
+        tx_proposal::TxProposal as TxProposalJSON,
         txo::Txo,
         wallet_status::WalletStatus,
     },

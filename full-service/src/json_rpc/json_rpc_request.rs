@@ -2,7 +2,7 @@
 
 //! The JSON RPC 2.0 Requests to the Wallet API for Full Service.
 
-use crate::json_rpc::tx_proposal::TxProposalJSON;
+use crate::json_rpc::tx_proposal::TxProposal as TxProposalJSON;
 
 use crate::json_rpc::receiver_receipt::ReceiverReceipt;
 use serde::{Deserialize, Serialize};
