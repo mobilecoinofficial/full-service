@@ -512,6 +512,8 @@ where
             )
             .map_err(format_error)?;
 
+            let network_status = service.get_network_status().map_err(format_error)?;
+
             let balance = service
                 .get_balance_for_account(&AccountID(account_id))
                 .map_err(format_error)?;
@@ -522,6 +524,8 @@ where
                 .collect();
             JsonCommandResponse::get_account_status {
                 account,
+                network_block_height: network_status.network_block_height.to_string(),
+                local_block_height: network_status.local_block_height.to_string(),
                 balance_per_token: balance_formatted,
             }
         }
@@ -675,8 +679,12 @@ where
             }
         }
         JsonCommandRequest::get_balance_for_account { account_id } => {
+            let account_id = AccountID(account_id);
+            let account = service.get_account(&account_id).map_err(format_error)?;
+            let network_status = service.get_network_status().map_err(format_error)?;
+
             let balance = service
-                .get_balance_for_account(&AccountID(account_id))
+                .get_balance_for_account(&account_id)
                 .map_err(format_error)?;
 
             let balance_formatted = balance
@@ -684,10 +692,18 @@ where
                 .map(|(a, b)| (a.to_string(), Balance::from(b)))
                 .collect();
             JsonCommandResponse::get_balance_for_account {
+                account_block_height: account.next_block_index.to_string(),
+                network_block_height: network_status.network_block_height.to_string(),
+                local_block_height: network_status.local_block_height.to_string(),
                 balance_per_token: balance_formatted,
             }
         }
         JsonCommandRequest::get_balance_for_address { address } => {
+            let subaddress = service.get_address(&address).map_err(format_error)?;
+            let account_id = AccountID(subaddress.account_id);
+            let account = service.get_account(&account_id).map_err(format_error)?;
+            let network_status = service.get_network_status().map_err(format_error)?;
+
             let balance = service
                 .get_balance_for_address(&address)
                 .map_err(format_error)?;
@@ -697,6 +713,9 @@ where
                 .map(|(a, b)| (a.to_string(), Balance::from(b)))
                 .collect();
             JsonCommandResponse::get_balance_for_address {
+                account_block_height: account.next_block_index.to_string(),
+                network_block_height: network_status.network_block_height.to_string(),
+                local_block_height: network_status.local_block_height.to_string(),
                 balance_per_token: balance_formatted,
             }
         }
