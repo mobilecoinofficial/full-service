@@ -2,7 +2,7 @@
 
 //! The JSON RPC 2.0 Requests to the Wallet API for Full Service.
 
-use crate::json_rpc::tx_proposal::TxProposal as TxProposalJSON;
+use crate::json_rpc::{amount::Amount, tx_proposal::TxProposal};
 
 use crate::json_rpc::receiver_receipt::ReceiverReceipt;
 use serde::{Deserialize, Serialize};
@@ -66,9 +66,9 @@ pub enum JsonCommandRequest {
     },
     build_and_submit_transaction {
         account_id: String,
-        addresses_and_values: Option<Vec<(String, String, String)>>,
+        addresses_and_amounts: Option<Vec<(String, Amount)>>,
         recipient_public_address: Option<String>,
-        value: Option<(String, String)>,
+        amount: Option<Amount>,
         input_txo_ids: Option<Vec<String>>,
         fee_value: Option<String>,
         fee_token_id: Option<String>,
@@ -95,9 +95,9 @@ pub enum JsonCommandRequest {
     },
     build_transaction {
         account_id: String,
-        addresses_and_values: Option<Vec<(String, String, String)>>,
+        addresses_and_amounts: Option<Vec<(String, Amount)>>,
         recipient_public_address: Option<String>,
-        value: Option<(String, String)>,
+        amount: Option<Amount>,
         input_txo_ids: Option<Vec<String>>,
         fee_value: Option<String>,
         fee_token_id: Option<String>,
@@ -107,7 +107,7 @@ pub enum JsonCommandRequest {
     build_unsigned_transaction {
         account_id: String,
         recipient_public_address: Option<String>,
-        value: Option<(String, String)>,
+        amount: Option<Amount>,
         fee_value: Option<String>,
         fee_token_id: Option<String>,
         tombstone_block: Option<String>,
@@ -140,7 +140,7 @@ pub enum JsonCommandRequest {
         memo: Option<String>,
     },
     create_receiver_receipts {
-        tx_proposal: TxProposalJSON,
+        tx_proposal: TxProposal,
     },
     create_view_only_account_sync_request {
         account_id: String,
@@ -253,10 +253,10 @@ pub enum JsonCommandRequest {
     submit_gift_code {
         from_account_id: String,
         gift_code_b58: String,
-        tx_proposal: TxProposalJSON,
+        tx_proposal: TxProposal,
     },
     submit_transaction {
-        tx_proposal: TxProposalJSON,
+        tx_proposal: TxProposal,
         comment: Option<String>,
         account_id: Option<String>,
     },

@@ -10,6 +10,7 @@ use crate::{
         txo::{TxoID, TxoModel, TxoStatus},
         WalletDbError,
     },
+    json_rpc::amount::Amount,
     service::{
         models::tx_proposal::TxProposal,
         transaction::{TransactionService, TransactionServiceError},
@@ -169,18 +170,20 @@ where
                 &conn,
             )?;
 
-        let mut addresses_and_values = Vec::new();
+        let mut addresses_and_amounts = Vec::new();
         for output_value in output_values.iter() {
-            addresses_and_values.push((
+            addresses_and_amounts.push((
                 address_to_split_into.assigned_subaddress_b58.clone(),
-                output_value.to_string(),
-                txo_details.token_id.to_string(),
+                Amount {
+                    value: output_value.to_string(),
+                    token_id: txo_details.token_id.to_string(),
+                },
             ))
         }
 
         Ok(self.build_transaction(
             &account_id_hex,
-            &addresses_and_values,
+            &addresses_and_amounts,
             Some(&[txo_id.to_string()].to_vec()),
             fee_value,
             fee_token_id,

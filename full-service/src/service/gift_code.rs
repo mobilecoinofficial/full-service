@@ -412,8 +412,10 @@ where
             &from_account.id,
             &[(
                 gift_code_account_main_subaddress_b58,
-                value.to_string(),
-                Mob::ID.to_string(),
+                crate::json_rpc::amount::Amount {
+                    value: value.to_string(),
+                    token_id: Mob::ID.to_string(),
+                },
             )],
             input_txo_ids,
             fee_value,

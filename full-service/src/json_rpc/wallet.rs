@@ -9,8 +9,8 @@ use crate::{
         transaction_log::TransactionID,
         txo::{TxoID, TxoStatus},
     },
-    json_rpc,
     json_rpc::{
+        self,
         account_secrets::AccountSecrets,
         address::Address,
         balance::Balance,
@@ -191,9 +191,9 @@ where
         },
         JsonCommandRequest::build_and_submit_transaction {
             account_id,
-            addresses_and_values,
+            addresses_and_amounts,
             recipient_public_address,
-            value,
+            amount,
             input_txo_ids,
             fee_value,
             fee_token_id,
@@ -201,16 +201,17 @@ where
             max_spendable_value,
             comment,
         } => {
-            // The user can specify either a single address and a single value, or a list of
-            // addresses and values.
-            let mut addresses_and_values = addresses_and_values.unwrap_or_default();
-            if let (Some(a), Some((v, t))) = (recipient_public_address, value) {
-                addresses_and_values.push((a, v, t));
+            // The user can specify a list of addresses and values,
+            // or a single address and a single value.
+            let mut addresses_and_amounts = addresses_and_amounts.unwrap_or_default();
+            if let (Some(address), Some(amount)) = (recipient_public_address, amount) {
+                addresses_and_amounts.push((address, amount));
             }
+
             let (transaction_log, associated_txos, value_map, tx_proposal) = service
                 .build_and_submit(
                     &account_id,
-                    &addresses_and_values,
+                    &addresses_and_amounts,
                     input_txo_ids.as_ref(),
                     fee_value,
                     fee_token_id,
@@ -289,9 +290,9 @@ where
         }
         JsonCommandRequest::build_transaction {
             account_id,
-            addresses_and_values,
+            addresses_and_amounts,
             recipient_public_address,
-            value,
+            amount,
             input_txo_ids,
             fee_value,
             fee_token_id,
@@ -299,15 +300,16 @@ where
             max_spendable_value,
         } => {
             // The user can specify a list of addresses and values,
-            // or a single address and a single value (deprecated).
-            let mut addresses_and_values = addresses_and_values.unwrap_or_default();
-            if let (Some(a), Some((v, t))) = (recipient_public_address, value) {
-                addresses_and_values.push((a, v, t));
+            // or a single address and a single value.
+            let mut addresses_and_amounts = addresses_and_amounts.unwrap_or_default();
+            if let (Some(address), Some(amount)) = (recipient_public_address, amount) {
+                addresses_and_amounts.push((address, amount));
             }
+
             let tx_proposal = service
                 .build_transaction(
                     &account_id,
-                    &addresses_and_values,
+                    &addresses_and_amounts,
                     input_txo_ids.as_ref(),
                     fee_value,
                     fee_token_id,
@@ -324,19 +326,19 @@ where
         JsonCommandRequest::build_unsigned_transaction {
             account_id,
             recipient_public_address,
-            value,
+            amount,
             fee_value,
             fee_token_id,
             tombstone_block,
         } => {
-            let mut addresses_and_values = Vec::new();
-            if let (Some(a), Some((v, t))) = (recipient_public_address, value) {
-                addresses_and_values.push((a, v, t));
+            let mut addresses_and_amounts = Vec::new();
+            if let (Some(address), Some(amount)) = (recipient_public_address, amount) {
+                addresses_and_amounts.push((address, amount));
             }
             let (unsigned_tx, fog_resolver) = service
                 .build_unsigned_transaction(
                     &account_id,
-                    &addresses_and_values,
+                    &addresses_and_amounts,
                     fee_value,
                     fee_token_id,
                     tombstone_block,
