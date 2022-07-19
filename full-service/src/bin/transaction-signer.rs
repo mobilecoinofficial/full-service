@@ -9,7 +9,7 @@ use mc_full_service::{
         account_key::AccountKey as AccountKeyJSON,
         account_secrets::AccountSecrets,
         json_rpc_request::{JsonCommandRequest, JsonRPCRequest},
-        tx_proposal::TxProposalJSON,
+        tx_proposal::TxProposal as TxProposalJSON,
     },
     unsigned_tx::UnsignedTx,
     util::encoding_helpers::{ristretto_public_to_hex, ristretto_to_hex},

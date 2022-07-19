@@ -9,8 +9,8 @@ use crate::{
         transaction_log::TransactionID,
         txo::{TxoID, TxoStatus},
     },
-    json_rpc,
     json_rpc::{
+        self,
         account_secrets::AccountSecrets,
         address::Address,
         balance::Balance,
@@ -24,7 +24,7 @@ use crate::{
         },
         network_status::NetworkStatus,
         receiver_receipt::ReceiverReceipt,
-        tx_proposal::TxProposalJSON,
+        tx_proposal::TxProposal as TxProposalJSON,
         txo::Txo,
         wallet_status::WalletStatus,
     },
@@ -54,6 +54,7 @@ use mc_connection::{
     BlockchainConnection, HardcodedCredentialsProvider, ThickClient, UserTxConnection,
 };
 use mc_fog_report_validation::{FogPubkeyResolver, FogResolver};
+use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use mc_validator_connection::ValidatorConnection;
 use rocket::{
     self, get, http::Status, outcome::Outcome, post, request::FromRequest, routes, Request, State,
@@ -190,9 +191,9 @@ where
         },
         JsonCommandRequest::build_and_submit_transaction {
             account_id,
-            addresses_and_values,
+            addresses_and_amounts,
             recipient_public_address,
-            value,
+            amount,
             input_txo_ids,
             fee_value,
             fee_token_id,
@@ -200,16 +201,17 @@ where
             max_spendable_value,
             comment,
         } => {
-            // The user can specify either a single address and a single value, or a list of
-            // addresses and values.
-            let mut addresses_and_values = addresses_and_values.unwrap_or_default();
-            if let (Some(a), Some((v, t))) = (recipient_public_address, value) {
-                addresses_and_values.push((a, v, t));
+            // The user can specify a list of addresses and values,
+            // or a single address and a single value.
+            let mut addresses_and_amounts = addresses_and_amounts.unwrap_or_default();
+            if let (Some(address), Some(amount)) = (recipient_public_address, amount) {
+                addresses_and_amounts.push((address, amount));
             }
+
             let (transaction_log, associated_txos, value_map, tx_proposal) = service
                 .build_and_submit(
                     &account_id,
-                    &addresses_and_values,
+                    &addresses_and_amounts,
                     input_txo_ids.as_ref(),
                     fee_value,
                     fee_token_id,
@@ -288,9 +290,9 @@ where
         }
         JsonCommandRequest::build_transaction {
             account_id,
-            addresses_and_values,
+            addresses_and_amounts,
             recipient_public_address,
-            value,
+            amount,
             input_txo_ids,
             fee_value,
             fee_token_id,
@@ -298,15 +300,16 @@ where
             max_spendable_value,
         } => {
             // The user can specify a list of addresses and values,
-            // or a single address and a single value (deprecated).
-            let mut addresses_and_values = addresses_and_values.unwrap_or_default();
-            if let (Some(a), Some((v, t))) = (recipient_public_address, value) {
-                addresses_and_values.push((a, v, t));
+            // or a single address and a single value.
+            let mut addresses_and_amounts = addresses_and_amounts.unwrap_or_default();
+            if let (Some(address), Some(amount)) = (recipient_public_address, amount) {
+                addresses_and_amounts.push((address, amount));
             }
+
             let tx_proposal = service
                 .build_transaction(
                     &account_id,
-                    &addresses_and_values,
+                    &addresses_and_amounts,
                     input_txo_ids.as_ref(),
                     fee_value,
                     fee_token_id,
@@ -323,19 +326,19 @@ where
         JsonCommandRequest::build_unsigned_transaction {
             account_id,
             recipient_public_address,
-            value,
+            amount,
             fee_value,
             fee_token_id,
             tombstone_block,
         } => {
-            let mut addresses_and_values = Vec::new();
-            if let (Some(a), Some((v, t))) = (recipient_public_address, value) {
-                addresses_and_values.push((a, v, t));
+            let mut addresses_and_amounts = Vec::new();
+            if let (Some(address), Some(amount)) = (recipient_public_address, amount) {
+                addresses_and_amounts.push((address, amount));
             }
             let (unsigned_tx, fog_resolver) = service
                 .build_unsigned_transaction(
                     &account_id,
-                    &addresses_and_values,
+                    &addresses_and_amounts,
                     fee_value,
                     fee_token_id,
                     tombstone_block,
@@ -512,6 +515,8 @@ where
             )
             .map_err(format_error)?;
 
+            let network_status = service.get_network_status().map_err(format_error)?;
+
             let balance = service
                 .get_balance_for_account(&AccountID(account_id))
                 .map_err(format_error)?;
@@ -522,6 +527,8 @@ where
                 .collect();
             JsonCommandResponse::get_account_status {
                 account,
+                network_block_height: network_status.network_block_height.to_string(),
+                local_block_height: network_status.local_block_height.to_string(),
                 balance_per_token: balance_formatted,
             }
         }
@@ -583,8 +590,12 @@ where
             }
         }
         JsonCommandRequest::get_balance_for_account { account_id } => {
+            let account_id = AccountID(account_id);
+            let account = service.get_account(&account_id).map_err(format_error)?;
+            let network_status = service.get_network_status().map_err(format_error)?;
+
             let balance = service
-                .get_balance_for_account(&AccountID(account_id))
+                .get_balance_for_account(&account_id)
                 .map_err(format_error)?;
 
             let balance_formatted = balance
@@ -592,10 +603,18 @@ where
                 .map(|(a, b)| (a.to_string(), Balance::from(b)))
                 .collect();
             JsonCommandResponse::get_balance_for_account {
+                account_block_height: account.next_block_index.to_string(),
+                network_block_height: network_status.network_block_height.to_string(),
+                local_block_height: network_status.local_block_height.to_string(),
                 balance_per_token: balance_formatted,
             }
         }
         JsonCommandRequest::get_balance_for_address { address } => {
+            let subaddress = service.get_address(&address).map_err(format_error)?;
+            let account_id = AccountID(subaddress.account_id);
+            let account = service.get_account(&account_id).map_err(format_error)?;
+            let network_status = service.get_network_status().map_err(format_error)?;
+
             let balance = service
                 .get_balance_for_address(&address)
                 .map_err(format_error)?;
@@ -605,6 +624,9 @@ where
                 .map(|(a, b)| (a.to_string(), Balance::from(b)))
                 .collect();
             JsonCommandResponse::get_balance_for_address {
+                account_block_height: account.next_block_index.to_string(),
+                network_block_height: network_status.network_block_height.to_string(),
+                local_block_height: network_status.local_block_height.to_string(),
                 balance_per_token: balance_formatted,
             }
         }
@@ -644,22 +666,22 @@ where
                     .collect(),
             }
         }
-        // JsonCommandRequest::get_mc_protocol_transaction { transaction_log_id } => {
-        //     let tx = service
-        //         .get_transaction_object(&transaction_log_id)
-        //         .map_err(format_error)?;
-        //     let proto_tx = mc_api::external::Tx::from(&tx);
-        //     let json_tx = JsonTx::from(&proto_tx);
-        //     JsonCommandResponse::get_mc_protocol_transaction {
-        //         transaction: json_tx,
-        //     }
-        // }
-        // JsonCommandRequest::get_mc_protocol_txo { txo_id } => {
-        //     let tx_out = service.get_txo_object(&txo_id).map_err(format_error)?;
-        //     let proto_txo = mc_api::external::TxOut::from(&tx_out);
-        //     let json_txo = JsonTxOut::from(&proto_txo);
-        //     JsonCommandResponse::get_mc_protocol_txo { txo: json_txo }
-        // }
+        JsonCommandRequest::get_mc_protocol_transaction { transaction_log_id } => {
+            let tx = service
+                .get_transaction_object(&transaction_log_id)
+                .map_err(format_error)?;
+            let proto_tx = mc_api::external::Tx::from(&tx);
+            let json_tx = JsonTx::from(&proto_tx);
+            JsonCommandResponse::get_mc_protocol_transaction {
+                transaction: json_tx,
+            }
+        }
+        JsonCommandRequest::get_mc_protocol_txo { txo_id } => {
+            let tx_out = service.get_txo_object(&txo_id).map_err(format_error)?;
+            let proto_txo = mc_api::external::TxOut::from(&tx_out);
+            let json_txo = JsonTxOut::from(&proto_txo);
+            JsonCommandResponse::get_mc_protocol_txo { txo: json_txo }
+        }
         JsonCommandRequest::get_network_status => JsonCommandResponse::get_network_status {
             network_status: NetworkStatus::try_from(
                 &service.get_network_status().map_err(format_error)?,

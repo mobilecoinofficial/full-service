@@ -268,6 +268,7 @@ mod tests {
     use super::*;
     use crate::{
         db::{account::AccountID, models::TransactionLog, transaction_log::TransactionLogModel},
+        json_rpc::amount::Amount as AmountJSON,
         service::{
             account::AccountService, address::AddressService,
             confirmation_number::ConfirmationService, transaction::TransactionService,
@@ -383,8 +384,10 @@ mod tests {
                 &alice.id,
                 &vec![(
                     bob_address.to_string(),
-                    (24 * MOB).to_string(),
-                    Mob::ID.to_string(),
+                    AmountJSON {
+                        value: (24 * MOB).to_string(),
+                        token_id: Mob::ID.to_string(),
+                    },
                 )],
                 None,
                 None,
@@ -513,8 +516,10 @@ mod tests {
                 &alice.id,
                 &vec![(
                     bob_address.to_string(),
-                    (24 * MOB).to_string(),
-                    Mob::ID.to_string(),
+                    AmountJSON {
+                        value: (24 * MOB).to_string(),
+                        token_id: Mob::ID.to_string(),
+                    },
                 )],
                 None,
                 None,
@@ -640,8 +645,10 @@ mod tests {
                 &alice.id,
                 &vec![(
                     bob_address.to_string(),
-                    (24 * MOB).to_string(),
-                    Mob::ID.to_string(),
+                    AmountJSON {
+                        value: (24 * MOB).to_string(),
+                        token_id: Mob::ID.to_string(),
+                    },
                 )],
                 None,
                 None,
@@ -774,8 +781,10 @@ mod tests {
                 &alice.id,
                 &vec![(
                     bob_address.to_string(),
-                    (24 * MOB).to_string(),
-                    Mob::ID.to_string(),
+                    AmountJSON {
+                        value: (24 * MOB).to_string(),
+                        token_id: Mob::ID.to_string(),
+                    },
                 )],
                 None,
                 None,
