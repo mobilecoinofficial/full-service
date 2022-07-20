@@ -412,6 +412,7 @@ mod tests {
             &account.account_id_hex,
             None,
             None,
+            None,
             Some(0),
             &wallet_db.get_conn().unwrap(),
         )
@@ -425,6 +426,7 @@ mod tests {
 
         let txos = Txo::list_for_account(
             &account.account_id_hex,
+            None,
             None,
             None,
             Some(0),

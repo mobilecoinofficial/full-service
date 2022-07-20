@@ -340,23 +340,44 @@ where
         let max_spendable =
             Txo::list_spendable(account_id_hex, None, assigned_subaddress_b58, Some(0), conn)?
                 .max_spendable_in_wallet;
-        let unspent = Txo::list_unspent(account_id_hex, assigned_subaddress_b58, Some(0), conn)?
-            .iter()
-            .map(|t| (t.value as u64) as u128)
-            .sum::<u128>();
-        let spent = Txo::list_spent(account_id_hex, assigned_subaddress_b58, Some(0), conn)?
-            .iter()
-            .map(|t| (t.value as u64) as u128)
-            .sum::<u128>();
-        let pending = Txo::list_pending(account_id_hex, assigned_subaddress_b58, Some(0), conn)?
-            .iter()
-            .map(|t| (t.value as u64) as u128)
-            .sum::<u128>();
+        let unspent = Txo::list_unspent(
+            account_id_hex,
+            assigned_subaddress_b58,
+            Some(0),
+            None,
+            None,
+            conn,
+        )?
+        .iter()
+        .map(|t| (t.value as u64) as u128)
+        .sum::<u128>();
+        let spent = Txo::list_spent(
+            account_id_hex,
+            assigned_subaddress_b58,
+            Some(0),
+            None,
+            None,
+            conn,
+        )?
+        .iter()
+        .map(|t| (t.value as u64) as u128)
+        .sum::<u128>();
+        let pending = Txo::list_pending(
+            account_id_hex,
+            assigned_subaddress_b58,
+            Some(0),
+            None,
+            None,
+            conn,
+        )?
+        .iter()
+        .map(|t| (t.value as u64) as u128)
+        .sum::<u128>();
 
         let secreted = if assigned_subaddress_b58.is_some() {
             0
         } else {
-            Txo::list_secreted(account_id_hex, Some(0), conn)?
+            Txo::list_secreted(account_id_hex, Some(0), None, None, conn)?
                 .iter()
                 .map(|t| t.value as u128)
                 .sum::<u128>()
@@ -365,7 +386,7 @@ where
         let orphaned = if assigned_subaddress_b58.is_some() {
             0
         } else {
-            Txo::list_orphaned(account_id_hex, Some(0), conn)?
+            Txo::list_orphaned(account_id_hex, Some(0), None, None, conn)?
                 .iter()
                 .map(|t| t.value as u128)
                 .sum::<u128>()

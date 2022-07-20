@@ -53,6 +53,7 @@ pub struct AssociatedTxos {
     pub change: Vec<Txo>,
 }
 
+const MOB_TOKEN_ID: i64 = 0;
 pub trait TransactionLogModel {
     /// Get a transaction log from the TransactionId.
     fn get(transaction_id_hex: &str, conn: &Conn) -> Result<TransactionLog, WalletDbError>;
@@ -155,26 +156,32 @@ impl TransactionLogModel for TransactionLog {
         block_index: u64,
         conn: &Conn,
     ) -> Result<Vec<TransactionLog>, WalletDbError> {
-        use crate::db::schema::transaction_logs::{
-            all_columns, dsl::transaction_logs, finalized_block_index,
-        };
+        use crate::db::schema::{transaction_logs, transaction_txo_types, txos};
 
-        let matches: Vec<TransactionLog> = transaction_logs
-            .select(all_columns)
-            .filter(finalized_block_index.eq(block_index as i64))
+        let matches: Vec<TransactionLog> = transaction_logs::table
+            .inner_join(transaction_txo_types::table.on(
+                transaction_logs::transaction_id_hex.eq(transaction_txo_types::transaction_id_hex),
+            ))
+            .inner_join(txos::table.on(transaction_txo_types::txo_id_hex.eq(txos::txo_id_hex)))
+            .filter(txos::token_id.eq(MOB_TOKEN_ID))
+            .filter(transaction_logs::finalized_block_index.eq(block_index as i64))
+            .select(transaction_logs::all_columns)
             .load::<TransactionLog>(conn)?;
 
         Ok(matches)
     }
 
     fn get_all_ordered_by_block_index(conn: &Conn) -> Result<Vec<TransactionLog>, WalletDbError> {
-        use crate::db::schema::transaction_logs::{
-            all_columns, dsl::transaction_logs, finalized_block_index,
-        };
+        use crate::db::schema::{transaction_logs, transaction_txo_types, txos};
 
-        let matches = transaction_logs
-            .select(all_columns)
-            .order_by(finalized_block_index.asc())
+        let matches = transaction_logs::table
+            .inner_join(transaction_txo_types::table.on(
+                transaction_logs::transaction_id_hex.eq(transaction_txo_types::transaction_id_hex),
+            ))
+            .inner_join(txos::table.on(transaction_txo_types::txo_id_hex.eq(txos::txo_id_hex)))
+            .filter(txos::token_id.eq(MOB_TOKEN_ID))
+            .select(transaction_logs::all_columns)
+            .order_by(transaction_logs::finalized_block_index.asc())
             .load(conn)?;
 
         Ok(matches)
@@ -188,6 +195,7 @@ impl TransactionLogModel for TransactionLog {
         let transaction_txos: Vec<(TransactionTxoType, Txo)> = transaction_txo_types::table
             .inner_join(txos::table.on(transaction_txo_types::txo_id_hex.eq(txos::txo_id_hex)))
             .filter(transaction_txo_types::transaction_id_hex.eq(&self.transaction_id_hex))
+            .filter(txos::token_id.eq(MOB_TOKEN_ID))
             .select((transaction_txo_types::all_columns, txos::all_columns))
             .load(conn)?;
 
@@ -216,13 +224,15 @@ impl TransactionLogModel for TransactionLog {
     }
 
     fn select_for_txo(txo_id_hex: &str, conn: &Conn) -> Result<Vec<TransactionLog>, WalletDbError> {
-        use crate::db::schema::{transaction_logs, transaction_txo_types};
+        use crate::db::schema::{transaction_logs, transaction_txo_types, txos};
 
         Ok(transaction_logs::table
             .inner_join(transaction_txo_types::table.on(
                 transaction_logs::transaction_id_hex.eq(transaction_txo_types::transaction_id_hex),
             ))
+            .inner_join(txos::table.on(transaction_txo_types::txo_id_hex.eq(txos::txo_id_hex)))
             .filter(transaction_txo_types::txo_id_hex.eq(txo_id_hex))
+            .filter(txos::token_id.eq(MOB_TOKEN_ID))
             .select(transaction_logs::all_columns)
             .load(conn)?)
     }
@@ -248,6 +258,7 @@ impl TransactionLogModel for TransactionLog {
                 transaction_logs::transaction_id_hex.eq(transaction_txo_types::transaction_id_hex),
             ))
             .inner_join(txos::table.on(transaction_txo_types::txo_id_hex.eq(txos::txo_id_hex)))
+            .filter(txos::token_id.eq(MOB_TOKEN_ID))
             .select((
                 transaction_logs::all_columns,
                 transaction_txo_types::all_columns,
@@ -551,7 +562,7 @@ mod tests {
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::RngCore;
     use mc_ledger_db::Ledger;
-    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Amount, Token};
+    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Amount, Token, TokenId};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
@@ -1250,6 +1261,92 @@ mod tests {
             updated_change_details.subaddress_index,
             Some(CHANGE_SUBADDRESS_INDEX as i64)
         );
+    }
+
+    #[test_with_logger]
+    fn test_token_filtering(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        let (account_id, _address) = Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(0),
+            None,
+            None,
+            "",
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        // Populate our DB with some received txos in the same block
+        let subaddress = account_key.subaddress(0);
+        let assigned_subaddress_b58 = Some(b58_encode_public_address(&subaddress).unwrap());
+
+        // add one non-mob token
+        let (non_mob_txo_id_hex, _txo, _key_image) = create_test_received_txo(
+            &account_key,
+            0, // All to the same subaddress
+            Amount::new((100 * MOB) as u64, TokenId::from(2 as u64)),
+            144,
+            &mut rng,
+            &wallet_db,
+        );
+
+        let conn = wallet_db.get_conn().unwrap();
+
+        TransactionLog::log_received(
+            &account_id.to_string(),
+            assigned_subaddress_b58.as_ref().map(|s| s.as_str()),
+            &non_mob_txo_id_hex,
+            Amount::new(100 * MOB, TokenId::from(2 as u64)),
+            144,
+            &conn,
+        )
+        .unwrap();
+
+        // add one mob token
+        let (mob_txo_id_hex, _txo, _key_image) = create_test_received_txo(
+            &account_key,
+            0, // All to the same subaddress
+            Amount::new((100 * MOB) as u64, TokenId::from(MOB_TOKEN_ID as u64)),
+            144,
+            &mut rng,
+            &wallet_db,
+        );
+
+        TransactionLog::log_received(
+            &account_id.to_string(),
+            assigned_subaddress_b58.as_ref().map(|s| s.as_str()),
+            &mob_txo_id_hex,
+            Amount::new(100 * MOB, TokenId::from(2 as u64)),
+            144,
+            &conn,
+        )
+        .unwrap();
+
+        let from_block = TransactionLog::get_all_for_block_index(144, &conn).unwrap();
+        assert_eq!(from_block.len(), 1);
+
+        let for_mob_txo = TransactionLog::select_for_txo(&mob_txo_id_hex, &conn).unwrap();
+        assert_eq!(for_mob_txo.len(), 1);
+
+        let for_non_mob_txo = TransactionLog::select_for_txo(&non_mob_txo_id_hex, &conn).unwrap();
+        assert_eq!(for_non_mob_txo.len(), 0);
+
+        let all_logs =
+            TransactionLog::list_all(&account_id.to_string(), None, None, None, None, &conn)
+                .unwrap();
+        assert_eq!(all_logs.len(), 1);
+
+        let all_logs = TransactionLog::get_all_ordered_by_block_index(&conn).unwrap();
+        assert_eq!(all_logs.len(), 1);
     }
 
     // FIXME: test_log_submitted for recovered

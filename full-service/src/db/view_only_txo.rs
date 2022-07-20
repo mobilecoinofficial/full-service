@@ -589,13 +589,14 @@ impl ViewOnlyTxoModel for ViewOnlyTxo {
         conn: &Conn,
     ) -> Result<Vec<TxOut>, WalletDbError> {
         use schema::view_only_txos::dsl::{
-            key_image as dsl_key_image, subaddress_index as dsl_subaddress_index,
+            key_image as dsl_key_image, subaddress_index as dsl_subaddress_index, token_id,
             view_only_account_id_hex as dsl_account_id,
         };
 
         let txos: Vec<ViewOnlyTxo> = schema::view_only_txos::table
             .filter(dsl_account_id.eq(account_id_hex))
             .filter(dsl_key_image.is_null().or(dsl_subaddress_index.is_null()))
+            .filter(token_id.eq(0))
             .load(conn)?;
 
         let mut txouts: Vec<TxOut> = Vec::new();
