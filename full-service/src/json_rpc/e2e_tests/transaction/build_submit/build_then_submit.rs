@@ -241,7 +241,7 @@ mod e2e_transaction {
         assert_eq!(pmob_value.as_str().unwrap(), "42000000000000");
 
         assert_eq!(
-            transaction_log.get("payload_txos").unwrap()[0]
+            transaction_log.get("output_txos").unwrap()[0]
                 .get("recipient_public_address_b58")
                 .unwrap()
                 .as_str()
@@ -302,7 +302,7 @@ mod e2e_transaction {
         let transaction_log = transaction_log_map.get(transaction_id).unwrap();
         assert_eq!(
             transaction_log
-                .get("payload_txos")
+                .get("output_txos")
                 .unwrap()
                 .as_array()
                 .unwrap()

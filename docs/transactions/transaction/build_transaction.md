@@ -1,32 +1,53 @@
 ---
 description: >-
-  Submit a transaction for an account with or without recording it in the
-  transaction log.
+  Build a transaction to confirm its contents before submitting it to the
+  network.
 ---
 
-# Submit Transaction
+# Build Transaction
 
 ## Parameters
 
-| Required Param | Purpose                        | Requirements                     |
-| -------------- | ------------------------------ | -------------------------------- |
-| `tx_proposal`  | Transaction proposal to submit | Created with `build_transaction` |
+| Required Param | Purpose                                     | Requirements                     |
+| -------------- | ------------------------------------------- | -------------------------------- |
+| `account_id`   | The account on which to perform this action | Account must exist in the wallet |
 
-| Optional Param | Purpose                                                                                                                                                                                                                                                | Requirements |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------ |
-| `account_id`   | Account ID for which to log the transaction. If omitted, the transaction is not logged and therefor the txos used will not be set to pending, if they exist. This could inadvertently cause an attempt to spend the same txo in multiple transactions. |              |
-| `comment`      | Comment to annotate this transaction in the transaction log                                                                                                                                                                                            |              |
+| Optional Param             | Purpose                                                                                                                                                                                                                            | Requirements                                                 |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `recipient_public_address` | The recipient for this transaction                                                                                                                                                                                                 | b58-encoded public address bytes                             |
+| `value_pmob`               | The amount of MOB to send in this transaction                                                                                                                                                                                      |                                                              |
+| `addresses_and_values`     | An array of public addresses and value tuples                                                                                                                                                                                      | addresses are b58-encoded public addresses, value is in pmob |
+| `input_txo_ids`            | Specific TXOs to use as inputs to this transaction                                                                                                                                                                                 | TXO IDs (obtain from `get_txos_for_account`)             |
+| `fee`                      | The fee amount to submit with this transaction                                                                                                                                                                                     | If not provided, uses `MINIMUM_FEE` = .01 MOB                |
+| `tombstone_block`          | The block after which this transaction expires                                                                                                                                                                                     | If not provided, uses `cur_height` + 10                      |
+| `max_spendable_value`      | The maximum amount for an input TXO selected for this transaction                                                                                                                                                                  |                                                              |
+| `log_tx_proposal`          | Whether or not to log the tx proposal on build. If this is false, it will not lock the txos in this step and other build and build-and-submit calls may use the same txos, causing one of them to fail if they are both submitted. | If not provided, is false                                    |
 
-## Examples
-
-### Submit with Log
+## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
 ```
 {
-  "method": "submit_transaction",
+  "method": "build_transaction",
   "params": {
+    "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
+    "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+    "value_pmob": "42000000000000",
+    "log_tx_proposal": false
+  },
+  "jsonrpc": "2.0",
+  "id": 1
+}
+```
+{% endtab %}
+
+{% tab title="Response" %}
+```
+{
+  "method": "build_transaction",
+  "result": {
+    "transaction_log_id": "ab447d73553309ccaf60aedc1eaa67b47f65bee504872e4358682d76df486a87",
     "tx_proposal": {
       "input_list": [
         {
@@ -204,84 +225,26 @@ description: >-
       "outlay_confirmation_numbers": [
         [...]
       ]
-    },
-    "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
-  },
-  "jsonrpc": "2.0",
-  "id": 1
-}
-```
-{% endtab %}
-
-{% tab title="Response" %}
-```
-{
-  "method": "submit_transaction",
-  "result": {
-    "transaction_log": {
-      "object": "transaction_log",
-      "transaction_log_id": "ab447d73553309ccaf60aedc1eaa67b47f65bee504872e4358682d76df486a87",
-      "direction": "tx_direction_sent",
-      "is_sent_recovered": null,
-      "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
-      "recipient_address_id": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-      "assigned_address_id": null,
-      "value_pmob": "42000000000000",
-      "fee_pmob": "10000000000",
-      "submitted_block_index": "152950",
-      "finalized_block_index": null,
-      "status": "tx_status_pending",
-      "input_txo_ids": [
-        "eb735cafa6d8b14a69361cc05cb3a5970752d27d1265a1ffdfd22c0171c2b20d"
-      ],
-      "output_txo_ids": [
-        "fd39b4e740cb302edf5da89c22c20bea0e4408df40e31c1dbb2ec0055435861c"
-      ],
-      "change_txo_ids": [
-        "bcb45b4fab868324003631b6490a0bf46aaf37078a8d366b490437513c6786e4"
-      ],
-      "sent_time": "2021-02-28 01:42:28 UTC",
-      "comment": "",
-      "failure_code": null,
-      "failure_message": null,
-      "offset_count": 2252
     }
-  },
-  "error": null,
-  "jsonrpc": "2.0",
-  "id": 1,
+  }
 }
 ```
 {% endtab %}
 {% endtabs %}
 
-### Submit without Log
+{% hint style="info" %}
+Since the `tx_proposal`JSON object is quite large, you may wish to write the result to a file for use in the `submit_transaction` call, such as:
 
-{% tabs %}
-{% tab title="Request Body" %}
 ```
 {
-  "method": "submit_transaction",
+  "method": "build_transaction",
   "params": {
-    "tx_proposal": '$(cat test-tx-proposal.json)'
+    "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
+    "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+    "value_pmob": "42000000000000"
   },
   "jsonrpc": "2.0",
   "id": 1
 }
 ```
-{% endtab %}
-
-{% tab title="Response" %}
-```
-{
-  "method": "submit_transaction",
-  "result": {
-    "transaction_log": null
-  },
-  "error": null,
-  "jsonrpc": "2.0",
-  "id": 1
-}
-```
-{% endtab %}
-{% endtabs %}
+{% endhint %}

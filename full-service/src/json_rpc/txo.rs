@@ -11,6 +11,10 @@ use serde_derive::{Deserialize, Serialize};
 /// different statuses and types in relation to those accounts.
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct Txo {
+    /// String representing the object's type. Objects of the same type share
+    /// the same value.
+    pub object: String,
+
     /// Unique identifier for the Txo. Constructed from the contents of the
     /// TxOut in the ledger representation.
     pub id: String,
@@ -60,6 +64,7 @@ pub struct Txo {
 impl Txo {
     pub fn new(txo: &db::models::Txo, status: &TxoStatus) -> Txo {
         Txo {
+            object: "txo".to_string(),
             id: txo.id.clone(),
             value: (txo.value as u64).to_string(),
             token_id: (txo.token_id as u64).to_string(),
