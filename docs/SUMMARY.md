@@ -9,6 +9,7 @@
       * [Create Account](v2/api-endpoints/create_account.md)
       * [Import Account](v2/api-endpoints/import_account.md)
       * [Import Account Legacy](v2/api-endpoints/import\_account\_from\_legacy\_root\_entropy.md)
+      * [Import View Only Account](v2/api-endpoints/import_view_only_account.md)
       * [Get Account](v2/api-endpoints/get\_account.md)
       * [Get Accounts](v2/api-endpoints/get_accounts.md)
       * [Get Account Status](v2/api-endpoints/get\_account\_status.md)
@@ -74,6 +75,7 @@
       * [Create Account](v1/api-endpoints/create\_account.md)
       * [Import Account](v1/api-endpoints/import\_account.md)
       * [Import Account Legacy](v1/api-endpoints/import\_account\_from\_legacy\_root\_entropy-deprecated.md)
+      * [Import View Only Account](v1/api-endpoints/import_view_only_account.md)
       * [Get Account](v1/api-endpoints/get\_account.md)
       * [Get All Accounts](v1/api-endpoints/get\_all\_accounts.md)
       * [Get Account Status](v1/api-endpoints/get\_account\_status.md)
@@ -89,6 +91,9 @@
     * [Balance](v1/accounts/balance/README.md)
       * [Get Balance For Account](v1/api-endpoints/get\_balance\_for\_account.md)
       * [Get Balance For Address](v1/api-endpoints/get\_balance\_for\_address.md)
+    * Syncing
+      * [Create View Only Account Sync Request](v1/api-endpoints/create_view_only_account_sync_request.md)
+      * [Sync View Only Account](v1/api-endpoints/sync_view_only_account.md)
   * Transaction
     * [Transaction](v1/transactions/transaction/README.md)
       * [Build Transaction](v1/api-endpoints/build\_transaction.md)
