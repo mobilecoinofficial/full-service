@@ -3,8 +3,8 @@
 * [Welcome!](README.md)
 
 ## API Endpoints
-* [Version 1]
-  * [Account]
+* v1
+  * Account
     * [Account](accounts/account/README.md)
       * [Create Account](accounts/account/create\_account.md)
       * [Import Account](accounts/account/import\_account.md)
@@ -24,7 +24,7 @@
     * [Balance](accounts/balance/README.md)
       * [Get Balance For Account](accounts/balance/get\_balance\_for\_account.md)
       * [Get Balance For Address](accounts/balance/get\_balance\_for\_address.md)
-  * [View Only Account]
+  * View Only Account
     * [Account](view-only-accounts/account/README.md)
       * [Import](view-only-accounts/account/import\_view\_only\_account.md)
       * [Get All](view-only-accounts/account/get\_all\_view\_only\_accounts.md)
@@ -42,7 +42,7 @@
     * [Subaddress](view-only-accounts/subaddress/README.md)
       * [Create New Subaddress Request](view-only-accounts/subaddress/create\_new\_subaddress\_request.md)
       * [Import Subaddresses](view-only-accounts/subaddress/import\_subaddresses\_to\_view\_only\_account.md)
-  * [Transaction]
+  * Transaction
     * [Transaction](transactions/transaction/README.md)
       * [Build Transaction](transactions/transaction/build\_transaction.md)
       * [Submit Transaction](transactions/transaction/submit\_transaction.md)
@@ -87,9 +87,9 @@
     * [Get Wallet Status](other/wallet-status/get\_wallet\_status.md)
   * [Version](other/version/README.md)
     * [Get Version](other/version/version.md)
-* [Version 2]
-  * [Account](api-endpoints/v2/account/README.md)
-    * [Account](accounts/account/README.md)
+* v2
+  * Account
+    * Account
       * [Create Account](api-endpoints/v2/create_account.md)
       * [Import Account](api-endpoints/v2/import_account.md)
       * [Import Account Legacy](api-endpoints/v2/import\_account\_from\_legacy\_root\_entropy.md)
@@ -98,45 +98,45 @@
       * [Get Account Status](api-endpoints/v2/get\_account\_status.md)
       * [Update Account Name](api-endpoints/v2/update\_account\_name.md)
       * [Remove Account](api-endpoints/v2/remove\_account.md)
-    * [Account Secrets](accounts/account-secrets/README.md)
+    * Account Secrets
       * [Export Account Secrets](api-endpoints/v2/export\_account\_secrets.md)
       * [Export View Only Account Import Request](api-endpoints/v2/export\_view\_only\_account\_import_request.md)
-    * [Address](accounts/address/README.md)
+    * Address
       * [Assign Address For Account](api-endpoints/v2/assign\_address\_for\_account.md)
       * [Get Address For Account At Index](api-endpoints/v2/get_address_for_account_at_index.md)
       * [Get Addresses](api-endpoints/v2/get_addresses.md)
       * [Verify Address](api-endpoints/v2/verify\_address.md)
-    * [Balance](accounts/balance/README.md)
+    * Balance
       * [Get Balance For Account](api-endpoints/v2/get\_balance\_for\_account.md)
       * [Get Balance For Address](api-endpoints/v2/get\_balance\_for\_address.md)\
-    * [Syncing](accounts/syncing/README.md)
+    * Syncing
       * [Create View Only Account Sync Request](api-endpoints/v2/create_view_only_account_sync_request.md)
       * [Sync View Only Account](api-endpoints/v2/sync_view_only_account.md)
-  * [Transaction](api-endpoints/v2/transaction/README.md)
-    * [Transaction](transactions/transaction/README.md)
+  * Transaction
+    * Transaction
       * [Build Transaction](api-endpoints/v2/build\_transaction.md)
       * [Submit Transaction](api-endpoints/v2/submit\_transaction.md)
       * [Build And Submit Transaction](api-endpoints/v2/build\_and\_submit\_transaction.md)
       * [Build Split Txo Transaction](api-endpoints/v2/build\_split\_txo\_transaction.md)
       * [Build Unsigned Transaction](api-endpoints/v2/build\_unsigned\_transaction.md)
-    * [Transaction Output TXO](transactions/txo/README.md)
+    * Transaction Output TXO
       * [Get TXO](api-endpoints/v2/get\_txo.md)
       * [Get TXOs](api-endpoints/v2/get_txos.md)
       * [Get MobileCoin Protocol TXO](api-endpoints/v2/get\_mc\_protocol\_txo.md)
-    * [Confirmation](transactions/transaction-confirmation/README.md)
+    * Confirmation
       * [Get Confirmations](api-endpoints/v2/get\_confirmations.md)
       * [Validate Confirmations](api-endpoints/v2/validate\_confirmation.md)
-    * [Receiver Receipt](transactions/transaction-receipt/README.md)
+    * Receiver Receipt
       * [Check Receiver Receipt Status](api-endpoints/v2/check\_receiver\_receipt\_status.md)
       * [Create Receiver Receipts](api-endpoints/v2/create\_receiver\_receipts.md)
-    * [Transaction Log](transactions/transaction-log/README.md)
+    * Transaction Log
       * [Get Transaction Log](api-endpoints/v2/get\_transaction\_log.md)
       * [Get Transaction Logs](api-endpoints/v2/get_transaction_logs.md)
       * [Get MobileCoin Protocol Transaction](api-endpoints/v2/get\_mc\_protocol\_transaction.md)
-    * [Payment Request](transactions/payment-request/README.md)
+    * Payment Request
       * [Create Payment Request](api-endpoints/v2/create\_payment\_request.md)
       * [Check B58 Type](api-endpoints/v2/check\_b58\_type.md)
-  * [Gift Code](gift-codes/gift-code/README.md)
+  * Gift Code
     * [Build Gift Code](api-endpoints/v2/build\_gift\_code.md)
     * [Submit Gift Code](api-endpoints/v2/submit\_gift\_code.md)
     * [Get Gift Code](api-endpoints/v2/get\_gift\_code.md)
@@ -144,13 +144,13 @@
     * [Check Gift Code Status](api-endpoints/v2/check\_gift\_code\_status.md)
     * [Claim Gift Code](api-endpoints/v2/claim\_gift\_code.md)
     * [Remove Gift Code](api-endpoints/v2/remove\_gift\_code.md)
-  * [Block](other/block/README.md)
+  * Block
     * [Get Block](api-endpoints/v2/get\_block.md)
-  * [Network Status](other/network-status/README.md)
+  * Network Status
     * [Get Network Status](api-endpoints/v2/get\_network\_status.md)
-  * [Wallet Status](other/wallet-status/README.md)
+  * Wallet Status
     * [Get Wallet Status](api-endpoints/v2/get\_wallet\_status.md)
-  * [Version](other/version/README.md)
+  * Version
     * [Get Version](api-endpoints/v2/version.md)
 
 ## Usage
