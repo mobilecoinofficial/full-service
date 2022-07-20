@@ -42,6 +42,8 @@ description: >-
       "object": "account",
       "recovery_mode": false
     },
+    "network_block_height": "2",
+    "local_block_height": "2",
     "balance_per_token": {
       "0": {
         "orphaned": "0",

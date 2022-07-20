@@ -8,6 +8,11 @@ description: Get the current balance for a given address. The response will have
 | :--- | :--- | :--- |
 | `address` | The address on which to perform this action. | Address must be assigned for an account in the wallet. |
 
+| Optional Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `min_block_index` | The minimum block index to filter on txos received | |
+| `max_block_index` | The maximum block index to filter on txos received | |
+
 {% tabs %}
 {% tab title="Request Body" %}
 ```text
@@ -28,6 +33,9 @@ description: Get the current balance for a given address. The response will have
 {
   "method": "get_balance_for_address",
   "result": {
+    "account_block_height": "154320",
+    "network_block_height": "154320",
+    "local_block_height": "154320",
     "balance_per_token": {
       "0": {
         "unverified": "0000000000"

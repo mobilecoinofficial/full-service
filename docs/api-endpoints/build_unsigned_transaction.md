@@ -19,7 +19,7 @@ description: >-
 | Optional Param | Purpose | Requirements|
 | -------------------------- | -------------------------------- | ------------------------------ |
 | `recipient_public_address` | The recipient for this transaction | b58-encoded public address bytes |
-| `value`| The value and token id transaction |   |
+| `amount`| The Amount to send in this transaction |   |
 | `fee_value` | The fee value to submit with this transaction | If not provided, uses `MINIMUM_FEE` of the appropriate token |
 | `fee_token_id` | The fee token id | |
 | `tombstone_block` | The block after which this transaction expires  | If not provided, uses `cur_height` + 10 |

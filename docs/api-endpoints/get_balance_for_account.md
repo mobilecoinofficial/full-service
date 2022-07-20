@@ -10,6 +10,11 @@ description: Get the current balance for a given account. The response will have
 | :--- | :--- | :--- |
 | `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
 
+| Optional Param | Purpose | Requirements |
+| :--- | :--- | :--- |
+| `min_block_index` | The minimum block index to filter on txos received | |
+| `max_block_index` | The maximum block index to filter on txos received | |
+
 ## Example
 
 {% tabs %}
@@ -31,6 +36,9 @@ description: Get the current balance for a given account. The response will have
 {
   "method": "get_balance_for_account",
   "result": {
+    "account_block_height": "154320",
+    "network_block_height": "154320",
+    "local_block_height": "154320",
     "balance_per_token": {
       "0": {
         "unverified": "0000000000"
