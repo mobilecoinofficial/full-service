@@ -12,21 +12,17 @@ In order to construct a transaction, the wallet will select "Unspent Transaction
 
 | _Name_ | _Type_ | _Description_ |
 | :--- | :--- | :--- |
-| `object` | string, value is "txo" | String representing the object's type. Objects of the same type share the same value. |
-| `value_pmob` | string \(uint64\) | Available pico MOB for this account at the current `account_block_height`. If the account is syncing, this value may change. |
+| `id` | string | |
+| `value` | string \(uint64\) | Available value for this account at the current `account_block_height`. If the account is syncing, this value may change. |
+| `token_id` | string \(uint64\) | |
 | `received_block_index` | string \(uint64\) | Block index in which the TXO was received by an account. |
 | `spent_block_index` | string \(uint64\) | Block index in which the TXO was spent by an account. |
-| `is_spent_recovered` | boolean | Flag that indicates if the `spent_block_index` was recovered from the ledger. This value is null if the TXO is unspent. If true, some information may not be available on the TXO without user input. If true, the confirmation number will be null without user input. |
-| `received_account_id` | string | The `account_id` for the account which has received this TXO. This account has spend authority. |
-| `minted_account_i` | string | The `account_id` for the account which minted this TXO. |
-| `account_status_map` | hash map | A normalized hash mapping account\_id to account objects. Keys include "type" and "status". |
-| `txo_type` | string \(enum\) | With respect to this account, the TXO may be "minted" or "received". |
-| `txo_status` | string \(enum\) | With respect to this account, the TXO may be "unspent", "pending", "spent", "secreted" or "orphaned". For received TXOs received as an assigned address, the lifecycle is "unspent" -&gt; "pending" -&gt; "spent". For outbound, minted TXOs, we cannot monitor its received lifecycle status with respect to the minting account, we note its status as "secreted". If a TXO is received at an address unassigned \(likely due to a recovered account or using the account on another client\), the TXO is considered "orphaned" until its address is calculated -- in this case, there are manual ways to discover the missing assigned address for orphaned TXOs or to recover an entire account. |
+| `account_id` | string | The `account_id` for the account which has received this TXO. This account has spend authority. |
+| `status` | string \(enum\) | With respect to this account, the TXO may be "unverified", "unspent", "pending", "spent", "secreted" or "orphaned". For received TXOs received as an assigned address, the lifecycle is "unspent" -&gt; "pending" -&gt; "spent", the TXO is considered "orphaned" until its address is calculated -- in this case, there are manual ways to discover the missing assigned address for orphaned TXOs or to recover an entire account. |
 | `target_key` | string \(hex\) | A cryptographic key for this TXO. |
 | `public_key` | string \(hex\) | The public key for this TXO, can be used as an identifier to find the TXO in the ledger. |
 | `e_fog_hint` | string \(hex\) | The encrypted fog hint for this TXO. |
 | `subaddress_index` | string \(uint64\) | The assigned subaddress index for this TXO with respect to its received account. |
-| `assigned_address` | string \(uint64\) | The address corresponding to the subaddress index which was assigned as an intended sender for this TXO. |
 | `key_image` \(only on pending/spent\) | string \(hex\) | A fingerprint of the TXO derived from your private spend key materials, required to spend a TXO |
 | `confirmation` | string \(hex\) | A confirmation that the sender of the TXO can provide to validate that they participated in the construction of this TXO. |
 
