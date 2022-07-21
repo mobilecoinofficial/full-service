@@ -243,20 +243,6 @@ pub fn add_block_to_ledger_db(
     append_test_block(ledger_db, block_contents, rng)
 }
 
-pub fn add_block_with_tx_proposal(
-    ledger_db: &mut LedgerDB,
-    tx_proposal: TxProposal,
-    rng: &mut (impl CryptoRng + RngCore),
-) -> u64 {
-    let block_contents = BlockContents {
-        key_images: tx_proposal.tx.key_images(),
-        outputs: tx_proposal.tx.prefix.outputs.clone(),
-        validated_mint_config_txs: Vec::new(),
-        mint_txs: Vec::new(),
-    };
-    append_test_block(ledger_db, block_contents, rng)
-}
-
 pub fn add_block_with_tx(
     ledger_db: &mut LedgerDB,
     tx: Tx,
