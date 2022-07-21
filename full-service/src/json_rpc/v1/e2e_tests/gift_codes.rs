@@ -101,7 +101,7 @@ mod e2e_transaction {
         dispatch(&client, body, &logger);
 
         // Add the TxProposal for the gift code
-        let json_tx_proposal: json_rpc::tx_proposal::TxProposal =
+        let json_tx_proposal: json_rpc::v1::models::tx_proposal::TxProposal =
             serde_json::from_value(tx_proposal.clone()).unwrap();
         let payments_tx_proposal =
             mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();

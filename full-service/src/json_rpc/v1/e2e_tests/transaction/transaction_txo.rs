@@ -5,10 +5,7 @@
 #[cfg(test)]
 mod e2e_transaction {
     use crate::{
-        db::{
-            account::AccountID,
-            models::{TXO_STATUS_UNSPENT, TXO_TYPE_RECEIVED},
-        },
+        db::account::AccountID,
         json_rpc,
         json_rpc::v1::api::test_utils::{dispatch, setup},
         test_utils::{add_block_to_ledger_db, add_block_with_tx, manually_sync_account},
@@ -80,7 +77,7 @@ mod e2e_transaction {
         // Add a block to fund account 1.
         assert_eq!(
             txos::table
-                .select(count(txos::txo_id_hex))
+                .select(count(txos::id))
                 .first::<i64>(&wallet_db.get_conn().unwrap())
                 .unwrap(),
             0
@@ -101,7 +98,7 @@ mod e2e_transaction {
         );
         assert_eq!(
             txos::table
-                .select(count(txos::txo_id_hex))
+                .select(count(txos::id))
                 .first::<i64>(&wallet_db.get_conn().unwrap())
                 .unwrap(),
             1
@@ -135,7 +132,7 @@ mod e2e_transaction {
         let result = res.get("result");
         assert!(result.is_some());
 
-        let json_tx_proposal: json_rpc::tx_proposal::TxProposal =
+        let json_tx_proposal: json_rpc::v1::models::tx_proposal::TxProposal =
             serde_json::from_value(tx_proposal.clone()).unwrap();
         let payments_tx_proposal =
             mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
@@ -150,7 +147,7 @@ mod e2e_transaction {
         );
         assert_eq!(
             txos::table
-                .select(count(txos::txo_id_hex))
+                .select(count(txos::id))
                 .first::<i64>(&wallet_db.get_conn().unwrap())
                 .unwrap(),
             3
@@ -170,7 +167,7 @@ mod e2e_transaction {
         assert_eq!(result["removed"].as_bool().unwrap(), true,);
         assert_eq!(
             txos::table
-                .select(count(txos::txo_id_hex))
+                .select(count(txos::id))
                 .first::<i64>(&wallet_db.get_conn().unwrap())
                 .unwrap(),
             1
@@ -204,7 +201,7 @@ mod e2e_transaction {
         let result = res.get("result");
         assert!(result.is_some());
 
-        let json_tx_proposal: json_rpc::tx_proposal::TxProposal =
+        let json_tx_proposal: json_rpc::v1::models::tx_proposal::TxProposal =
             serde_json::from_value(tx_proposal.clone()).unwrap();
         let payments_tx_proposal =
             mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
@@ -219,7 +216,7 @@ mod e2e_transaction {
         );
         assert_eq!(
             txos::table
-                .select(count(txos::txo_id_hex))
+                .select(count(txos::id))
                 .first::<i64>(&wallet_db.get_conn().unwrap())
                 .unwrap(),
             3
@@ -438,7 +435,7 @@ mod e2e_transaction {
         let result = res.get("result");
         assert!(result.is_some());
 
-        let json_tx_proposal: json_rpc::tx_proposal::TxProposal =
+        let json_tx_proposal: json_rpc::v1::models::tx_proposal::TxProposal =
             serde_json::from_value(tx_proposal.clone()).unwrap();
         let payments_tx_proposal =
             mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
@@ -584,13 +581,13 @@ mod e2e_transaction {
             .unwrap()
             .as_str()
             .unwrap();
-        assert_eq!(txo_status, TXO_STATUS_UNSPENT);
+        assert_eq!(txo_status, "txo_status_unspent");
         let txo_type = account_status_map
             .get("txo_type")
             .unwrap()
             .as_str()
             .unwrap();
-        assert_eq!(txo_type, TXO_TYPE_RECEIVED);
+        assert_eq!(txo_type, "txo_type_received");
         let value = txo.get("value_pmob").unwrap().as_str().unwrap();
         assert_eq!(value, "100");
 
@@ -673,13 +670,13 @@ mod e2e_transaction {
             .unwrap()
             .as_str()
             .unwrap();
-        assert_eq!(txo_status, TXO_STATUS_UNSPENT);
+        assert_eq!(txo_status, "txo_status_unspent");
         let txo_type = account_status_map
             .get("txo_type")
             .unwrap()
             .as_str()
             .unwrap();
-        assert_eq!(txo_type, TXO_TYPE_RECEIVED);
+        assert_eq!(txo_type, "txo_type_received");
         let value = txo.get("value_pmob").unwrap().as_str().unwrap();
         assert_eq!(value, "250000000000");
         let txo_id = &txos[0];
