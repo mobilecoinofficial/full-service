@@ -736,8 +736,8 @@ mod tests {
     use crate::{
         service::{account::AccountService, balance::BalanceService},
         test_utils::{
-            add_block_to_ledger_db, add_block_with_tx, add_block_with_tx_proposal, get_test_ledger,
-            manually_sync_account, setup_wallet_service, MOB,
+            add_block_to_ledger_db, add_block_with_tx, get_test_ledger, manually_sync_account,
+            setup_wallet_service, MOB,
         },
     };
     use mc_account_keys::PublicAddress;
@@ -816,7 +816,7 @@ mod tests {
         assert_eq!(status, GiftCodeStatus::GiftCodeSubmittedPending);
         assert!(gift_code_value_opt.is_none());
 
-        add_block_with_tx_proposal(&mut ledger_db, tx_proposal, &mut rng);
+        add_block_with_tx(&mut ledger_db, tx_proposal.tx, &mut rng);
         manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
 
         // Now the Gift Code should be Available
@@ -990,7 +990,7 @@ mod tests {
         assert!(gift_code_value_opt.is_none());
 
         // Let transaction hit the ledger
-        add_block_with_tx_proposal(&mut ledger_db, tx_proposal, &mut rng);
+        add_block_with_tx(&mut ledger_db, tx_proposal.tx, &mut rng);
         manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
 
         // Check that it landed

@@ -8,9 +8,7 @@ mod e2e_transaction {
         db::account::AccountID,
         json_rpc,
         json_rpc::v1::api::test_utils::{dispatch, setup},
-        test_utils::{
-            add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account, MOB,
-        },
+        test_utils::{add_block_to_ledger_db, add_block_with_tx, manually_sync_account, MOB},
         util::b58::b58_decode_public_address,
     };
 
@@ -221,7 +219,7 @@ mod e2e_transaction {
             mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
 
         // The MockBlockchainConnection does not write to the ledger_db
-        add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
+        add_block_with_tx(&mut ledger_db, payments_tx_proposal.tx, &mut rng);
         assert_eq!(ledger_db.num_blocks().unwrap(), 14);
 
         // Wait for accounts to sync.

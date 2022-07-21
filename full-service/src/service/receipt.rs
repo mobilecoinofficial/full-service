@@ -275,8 +275,8 @@ mod tests {
             transaction_log::TransactionLogService, txo::TxoService,
         },
         test_utils::{
-            add_block_to_ledger_db, add_block_with_tx_proposal, get_test_ledger,
-            manually_sync_account, setup_wallet_service, MOB,
+            add_block_to_ledger_db, add_block_with_tx, get_test_ledger, manually_sync_account,
+            setup_wallet_service, MOB,
         },
         util::b58::b58_encode_public_address,
     };
@@ -411,7 +411,7 @@ mod tests {
         .expect("Could not log submitted");
 
         // Add the txo to the ledger
-        add_block_with_tx_proposal(&mut ledger_db, tx_proposal, &mut rng);
+        add_block_with_tx(&mut ledger_db, tx_proposal.tx, &mut rng);
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,
@@ -549,7 +549,7 @@ mod tests {
         assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
 
         // Add the txo to the ledger
-        add_block_with_tx_proposal(&mut ledger_db, tx_proposal, &mut rng);
+        add_block_with_tx(&mut ledger_db, tx_proposal.tx, &mut rng);
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,
@@ -655,7 +655,7 @@ mod tests {
             &service.wallet_db.get_conn().unwrap(),
         )
         .expect("Could not log submitted");
-        add_block_with_tx_proposal(&mut ledger_db, tx_proposal0, &mut rng);
+        add_block_with_tx(&mut ledger_db, tx_proposal0.tx, &mut rng);
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,
@@ -785,7 +785,7 @@ mod tests {
             &service.wallet_db.get_conn().unwrap(),
         )
         .expect("Could not log submitted");
-        add_block_with_tx_proposal(&mut ledger_db, tx_proposal0, &mut rng);
+        add_block_with_tx(&mut ledger_db, tx_proposal0.tx, &mut rng);
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,

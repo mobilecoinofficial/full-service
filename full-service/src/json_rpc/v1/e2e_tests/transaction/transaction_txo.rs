@@ -11,7 +11,7 @@ mod e2e_transaction {
         },
         json_rpc,
         json_rpc::v1::api::test_utils::{dispatch, setup},
-        test_utils::{add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account},
+        test_utils::{add_block_to_ledger_db, add_block_with_tx, manually_sync_account},
         util::b58::b58_decode_public_address,
     };
 
@@ -140,7 +140,7 @@ mod e2e_transaction {
         let payments_tx_proposal =
             mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
 
-        add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
+        add_block_with_tx(&mut ledger_db, payments_tx_proposal.tx, &mut rng);
 
         manually_sync_account(
             &ledger_db,
@@ -209,7 +209,7 @@ mod e2e_transaction {
         let payments_tx_proposal =
             mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
 
-        add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
+        add_block_with_tx(&mut ledger_db, payments_tx_proposal.tx, &mut rng);
 
         manually_sync_account(
             &ledger_db,
@@ -443,7 +443,7 @@ mod e2e_transaction {
         let payments_tx_proposal =
             mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
 
-        add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
+        add_block_with_tx(&mut ledger_db, payments_tx_proposal.tx, &mut rng);
 
         manually_sync_account(
             &ledger_db,
@@ -731,7 +731,7 @@ mod e2e_transaction {
         let payments_tx_proposal =
             mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
 
-        add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
+        add_block_with_tx(&mut ledger_db, payments_tx_proposal.tx, &mut rng);
 
         manually_sync_account(
             &ledger_db,

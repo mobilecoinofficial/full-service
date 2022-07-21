@@ -12,7 +12,7 @@ mod e2e_transaction {
         },
         service::models::tx_proposal::TxProposal,
         test_utils::{
-            add_block_to_ledger_db, add_block_with_tx_outs, add_block_with_tx_proposal,
+            add_block_to_ledger_db, add_block_with_tx, add_block_with_tx_outs,
             manually_sync_account,
         },
         util::b58::b58_decode_public_address,
@@ -151,7 +151,7 @@ mod e2e_transaction {
         let json_tx_proposal: TxProposalJSON = serde_json::from_value(tx_proposal.clone()).unwrap();
         let payments_tx_proposal = TxProposal::try_from(&json_tx_proposal).unwrap();
 
-        add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal, &mut rng);
+        add_block_with_tx(&mut ledger_db, payments_tx_proposal.tx, &mut rng);
         manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
@@ -296,7 +296,7 @@ mod e2e_transaction {
         let json_tx_proposal: TxProposalJSON = serde_json::from_value(tx_proposal.clone()).unwrap();
         let payments_tx_proposal = TxProposal::try_from(&json_tx_proposal).unwrap();
 
-        add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal, &mut rng);
+        add_block_with_tx(&mut ledger_db, payments_tx_proposal.tx, &mut rng);
 
         // Get balance after submission
         let body = json!({
