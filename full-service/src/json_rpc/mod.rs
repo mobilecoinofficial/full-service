@@ -23,9 +23,3 @@ pub mod v1;
 pub mod v2;
 pub mod wallet;
 mod wallet_status;
-
-#[cfg(any(test, feature = "test_utils"))]
-pub mod api_test_utils;
-
-#[cfg(any(test))]
-pub mod e2e_tests;

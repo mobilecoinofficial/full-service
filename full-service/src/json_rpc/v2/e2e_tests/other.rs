@@ -4,7 +4,7 @@
 
 #[cfg(test)]
 mod e2e_misc {
-    use crate::json_rpc::api_test_utils::{
+    use crate::json_rpc::v2::api_test_utils::{
         dispatch, dispatch_with_header, dispatch_with_header_expect_error, setup,
         setup_with_api_key,
     };

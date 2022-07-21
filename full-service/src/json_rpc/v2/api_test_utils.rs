@@ -2,9 +2,12 @@
 
 use crate::{
     json_rpc::{
-        json_rpc_request::{JsonCommandRequest, JsonRPCRequest},
+        json_rpc_request::JsonRPCRequest,
         json_rpc_response::JsonRPCResponse,
-        wallet::wallet_api_inner,
+        v2::{
+            api_request::JsonCommandRequest, api_response::JsonCommandResponse,
+            wallet::wallet_api_inner,
+        },
     },
     service::WalletService,
     test_utils::{
@@ -46,12 +49,12 @@ pub struct TestWalletState {
 
 // Note: the reason this is duplicated from wallet.rs is to be able to pass the
 // TestWalletState, which handles Mock objects.
-#[post("/wallet", format = "json", data = "<command>")]
+#[post("/wallet/v2", format = "json", data = "<command>")]
 fn test_wallet_api(
     _guard: ApiKeyGuard,
     state: rocket::State<TestWalletState>,
     command: Json<JsonRPCRequest>,
-) -> Result<Json<JsonRPCResponse>, String> {
+) -> Result<Json<JsonRPCResponse<JsonCommandResponse>>, String> {
     let req: JsonRPCRequest = command.0.clone();
 
     let mut response = JsonRPCResponse {
@@ -171,7 +174,7 @@ pub fn dispatch(client: &Client, request_body: JsonValue, logger: &Logger) -> Js
     log::info!(logger, "Attempting dispatch of\n{}\n", request_body,);
 
     let mut res = client
-        .post("/wallet")
+        .post("/wallet/v2")
         .header(ContentType::JSON)
         .body(request_body)
         .dispatch();
@@ -195,7 +198,7 @@ pub fn dispatch_with_header(
     log::info!(logger, "Attempting dispatch of\n{}\n", request_body,);
 
     let mut res = client
-        .post("/wallet")
+        .post("/wallet/v2")
         .header(ContentType::JSON)
         .header(header)
         .body(request_body)
@@ -217,7 +220,7 @@ pub fn dispatch_with_header_expect_error(
     expected_err: Status,
 ) {
     let res = client
-        .post("/wallet")
+        .post("/wallet/v2")
         .header(ContentType::JSON)
         .header(header)
         .body(request_body.to_string())
@@ -232,7 +235,7 @@ pub fn dispatch_expect_error(
     expected_err: String,
 ) {
     let mut res = client
-        .post("/wallet")
+        .post("/wallet/v2")
         .header(ContentType::JSON)
         .body(request_body.to_string())
         .dispatch();

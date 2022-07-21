@@ -6,7 +6,7 @@
 mod e2e_account {
     use crate::{
         db::account::AccountID,
-        json_rpc::api_test_utils::{dispatch, dispatch_expect_error, setup},
+        json_rpc::v2::api_test_utils::{dispatch, dispatch_expect_error, setup},
         test_utils::{add_block_to_ledger_db, manually_sync_account},
         util::b58::b58_decode_public_address,
     };
