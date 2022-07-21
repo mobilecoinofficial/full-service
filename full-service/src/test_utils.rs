@@ -27,6 +27,7 @@ use mc_blockchain_types::{Block, BlockContents, BlockVersion};
 use mc_common::logger::{log, Logger};
 use mc_connection::{Connection, ConnectionManager, HardcodedCredentialsProvider, ThickClient};
 use mc_connection_test_utils::{test_client_uri, MockBlockchainConnection};
+use mc_consensus_enclave_api::FeeMap;
 use mc_consensus_scp::QuorumSet;
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_crypto_rand::{CryptoRng, RngCore};
@@ -39,12 +40,13 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tokens::Mob,
     tx::{Tx, TxOut},
-    Amount, Token,
+    Amount, Token, TokenId,
 };
 use mc_util_from_random::FromRandom;
 use mc_util_uri::{ConnectionUri, FogUri};
 use rand::{distributions::Alphanumeric, rngs::StdRng, thread_rng, Rng, SeedableRng};
 use std::{
+    collections::BTreeMap,
     convert::TryFrom,
     env,
     path::PathBuf,
@@ -327,8 +329,19 @@ pub fn setup_peer_manager_and_network_state(
     let (peers, node_ids) = if offline {
         (vec![], vec![])
     } else {
-        let peer1 = MockBlockchainConnection::new(test_client_uri(1), ledger_db.clone(), 0);
-        let peer2 = MockBlockchainConnection::new(test_client_uri(2), ledger_db.clone(), 0);
+        let mut minimum_fees = BTreeMap::new();
+        minimum_fees.insert(Mob::ID, Mob::MINIMUM_FEE);
+        minimum_fees.insert(TokenId::from(1), 1024);
+        let fee_map = FeeMap::try_from(minimum_fees).unwrap();
+
+        let peer1 = MockBlockchainConnection::new(
+            test_client_uri(1),
+            ledger_db.clone(),
+            0,
+            Some(fee_map.clone()),
+        );
+        let peer2 =
+            MockBlockchainConnection::new(test_client_uri(2), ledger_db.clone(), 0, Some(fee_map));
 
         (
             vec![peer1.clone(), peer2.clone()],
