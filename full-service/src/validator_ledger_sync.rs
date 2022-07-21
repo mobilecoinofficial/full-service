@@ -161,7 +161,7 @@ impl ValidatorLedgerSyncThread {
                 .append_block(
                     block_data.block(),
                     block_data.contents(),
-                    block_data.signature(),
+                    None,
                     block_data.metadata(),
                 )
                 .unwrap_or_else(|err| {
