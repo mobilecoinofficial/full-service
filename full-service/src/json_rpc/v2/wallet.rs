@@ -15,17 +15,13 @@ use crate::{
         gift_code::GiftCode,
         json_rpc_request::JsonRPCRequest,
         json_rpc_response::{
-            format_error, format_invalid_request_error, JsonRPCError, JsonRPCErrorCodes,
-            JsonRPCResponse,
+            format_error, format_invalid_request_error, JsonRPCError, JsonRPCResponse,
         },
         network_status::NetworkStatus,
         receiver_receipt::ReceiverReceipt,
         tx_proposal::TxProposal as TxProposalJSON,
         txo::Txo,
-        v2::{
-            api_request::{help_str, JsonCommandRequest},
-            api_response::JsonCommandResponse,
-        },
+        v2::{api_request::JsonCommandRequest, api_response::JsonCommandResponse},
         wallet::{ApiKeyGuard, WalletState},
         wallet_status::WalletStatus,
     },
@@ -51,15 +47,10 @@ use crate::{
     },
 };
 use mc_common::logger::global_log;
-use mc_connection::{
-    BlockchainConnection, HardcodedCredentialsProvider, ThickClient, UserTxConnection,
-};
-use mc_fog_report_validation::{FogPubkeyResolver, FogResolver};
+use mc_connection::{BlockchainConnection, UserTxConnection};
+use mc_fog_report_validation::FogPubkeyResolver;
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
-use mc_validator_connection::ValidatorConnection;
-use rocket::{
-    self, get, http::Status, outcome::Outcome, post, request::FromRequest, routes, Request, State,
-};
+use rocket::{self};
 use rocket_contrib::json::Json;
 use serde_json::Map;
 use std::{collections::HashMap, convert::TryFrom, iter::FromIterator, str::FromStr};

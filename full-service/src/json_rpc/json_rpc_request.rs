@@ -2,15 +2,7 @@
 
 //! The JSON RPC 2.0 Requests to the Wallet API for Full Service.
 
-use crate::json_rpc::{amount::Amount, tx_proposal::TxProposal};
-
-use crate::json_rpc::receiver_receipt::ReceiverReceipt;
 use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
-use strum::IntoEnumIterator;
-use strum_macros::EnumIter;
-
-pub trait JsonCommandRequest {}
 
 /// JSON-RPC 2.0 Request.
 #[derive(Deserialize, Serialize, Debug, Clone)]

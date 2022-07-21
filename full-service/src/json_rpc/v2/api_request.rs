@@ -3,9 +3,7 @@
 //! The JSON RPC 2.0 Requests to the Wallet API for Full Service.
 
 use crate::json_rpc::{
-    amount::Amount,
-    json_rpc_request::{JsonCommandRequest as JsonCommandRequestTrait, JsonRPCRequest},
-    receiver_receipt::ReceiverReceipt,
+    amount::Amount, json_rpc_request::JsonRPCRequest, receiver_receipt::ReceiverReceipt,
     tx_proposal::TxProposal,
 };
 
@@ -255,5 +253,3 @@ pub enum JsonCommandRequest {
     },
     version,
 }
-
-impl JsonCommandRequestTrait for JsonCommandRequest {}

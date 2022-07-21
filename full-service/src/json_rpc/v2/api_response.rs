@@ -29,7 +29,6 @@ use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use std::collections::{BTreeMap, HashMap};
-use strum::Display;
 
 use crate::{fog_resolver::FullServiceFogResolver, unsigned_tx::UnsignedTx};
 /// Responses from the Full Service Wallet.
