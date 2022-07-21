@@ -11,10 +11,6 @@ use serde::{Deserialize, Serialize};
 /// A gift code is a self-contained account which has been funded with MOB.
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct GiftCode {
-    /// String representing the object's type. Objects of the same type share
-    /// the same value.
-    pub object: String,
-
     /// The base58-encoded gift code string to share.
     pub gift_code_b58: String,
 
@@ -34,7 +30,6 @@ pub struct GiftCode {
 impl From<&DecodedGiftCode> for GiftCode {
     fn from(src: &DecodedGiftCode) -> GiftCode {
         GiftCode {
-            object: "gift_code".to_string(),
             gift_code_b58: src.gift_code_b58.clone(),
             root_entropy: src
                 .root_entropy

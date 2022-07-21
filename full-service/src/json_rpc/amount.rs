@@ -10,10 +10,6 @@ use std::convert::TryFrom;
 /// The encrypted amount of pMOB in a Txo.
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct MaskedAmount {
-    /// String representing the object's type. Objects of the same type share
-    /// the same value.
-    pub object: String,
-
     /// A Pedersen commitment `v*G + s*H`
     pub commitment: String,
 
@@ -32,7 +28,6 @@ pub struct MaskedAmount {
 impl From<&mc_api::external::MaskedAmount> for MaskedAmount {
     fn from(src: &mc_api::external::MaskedAmount) -> Self {
         Self {
-            object: "amount".to_string(),
             commitment: hex::encode(src.get_commitment().get_data()),
             masked_value: src.get_masked_value().to_string(),
             masked_token_id: hex::encode(&src.get_masked_token_id()),
@@ -43,7 +38,6 @@ impl From<&mc_api::external::MaskedAmount> for MaskedAmount {
 impl From<&mc_transaction_core::MaskedAmount> for MaskedAmount {
     fn from(src: &mc_transaction_core::MaskedAmount) -> Self {
         Self {
-            object: "amount".to_string(),
             commitment: hex::encode(src.commitment.to_bytes()),
             masked_value: src.masked_value.to_string(),
             masked_token_id: hex::encode(&src.masked_token_id),

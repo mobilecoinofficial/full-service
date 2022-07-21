@@ -12,10 +12,6 @@ use std::convert::TryFrom;
 /// a Spend keypair.
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct Account {
-    /// String representing the object's type. Objects of the same type share
-    /// the same value.
-    pub object: String,
-
     /// Unique identifier for the account. Constructed from the public key
     /// materials of the account key.
     pub account_id: String,
@@ -76,7 +72,6 @@ impl TryFrom<&db::models::Account> for Account {
             .map_err(|e| format!("Could not b58 encode public address {:?}", e))?;
 
         Ok(Account {
-            object: "account".to_string(),
             account_id: src.id.clone(),
             key_derivation_version: src.key_derivation_version.to_string(),
             name: src.name.clone(),

@@ -19,6 +19,8 @@ mod transaction_log;
 pub mod tx_proposal;
 mod txo;
 mod unspent_tx_out;
+pub mod v1;
+pub mod v2;
 pub mod wallet;
 mod wallet_status;
 

@@ -32,9 +32,14 @@ use strum::Display;
 
 use crate::{fog_resolver::FullServiceFogResolver, unsigned_tx::UnsignedTx};
 
+pub trait JsonCommandResponse {}
+
 /// A JSON RPC 2.0 Response.
 #[derive(Deserialize, Serialize, Debug)]
-pub struct JsonRPCResponse {
+pub struct JsonRPCResponse<Response>
+where
+    Response: JsonCommandResponse,
+{
     /// The method which was invoked on the server.
     ///
     /// Optional because JSON RPC does not require returning the method invoked,
@@ -46,7 +51,7 @@ pub struct JsonRPCResponse {
     ///
     /// Optional: if error occurs, result is not returned.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub result: Option<JsonCommandResponse>,
+    pub result: Option<Response>,
 
     /// The error that occurred when invoking the method on the server.
     ///
@@ -120,181 +125,4 @@ pub fn format_invalid_request_error<T: std::fmt::Display + std::fmt::Debug>(e: T
         message: JsonRPCErrorCodes::InvalidRequest.to_string(),
         data,
     }
-}
-
-/// Responses from the Full Service Wallet.
-#[derive(Deserialize, Serialize, Debug)]
-#[serde(untagged)]
-#[allow(non_camel_case_types)]
-#[allow(clippy::large_enum_variant)]
-pub enum JsonCommandResponse {
-    assign_address_for_account {
-        address: Address,
-    },
-    build_and_submit_transaction {
-        transaction_log: TransactionLog,
-        tx_proposal: TxProposalJSON,
-    },
-    build_gift_code {
-        tx_proposal: TxProposalJSON,
-        gift_code_b58: String,
-    },
-    build_split_txo_transaction {
-        tx_proposal: TxProposalJSON,
-        transaction_log_id: String,
-    },
-    build_transaction {
-        tx_proposal: TxProposalJSON,
-        transaction_log_id: String,
-    },
-    build_unsigned_transaction {
-        account_id: String,
-        unsigned_tx: UnsignedTx,
-        fog_resolver: FullServiceFogResolver,
-    },
-    check_b58_type {
-        b58_type: PrintableWrapperType,
-        data: HashMap<String, String>,
-    },
-    check_gift_code_status {
-        gift_code_status: GiftCodeStatus,
-        gift_code_value: Option<i64>,
-        gift_code_memo: String,
-    },
-    check_receiver_receipt_status {
-        receipt_transaction_status: ReceiptTransactionStatus,
-        txo: Option<Txo>,
-    },
-    claim_gift_code {
-        txo_id: String,
-    },
-    create_account {
-        account: Account,
-    },
-    create_payment_request {
-        payment_request_b58: String,
-    },
-    create_receiver_receipts {
-        receiver_receipts: Vec<ReceiverReceipt>,
-    },
-    create_view_only_account_sync_request {
-        account_id: String,
-        incomplete_txos_encoded: Vec<String>,
-    },
-    export_account_secrets {
-        account_secrets: AccountSecrets,
-    },
-    export_spent_txo_ids {
-        spent_txo_ids: Vec<String>,
-    },
-    export_view_only_account_import_request {
-        json_rpc_request: JsonRPCRequest,
-    },
-    get_account {
-        account: Account,
-    },
-    get_account_status {
-        account: Account,
-        network_block_height: String,
-        local_block_height: String,
-        balance_per_token: BTreeMap<String, Balance>,
-    },
-    get_accounts {
-        account_ids: Vec<String>,
-        account_map: Map<String, serde_json::Value>,
-    },
-    get_address_for_account_at_index {
-        address: Address,
-    },
-    get_addresses {
-        public_addresses: Vec<String>,
-        address_map: Map<String, serde_json::Value>,
-    },
-    get_balance_for_account {
-        account_block_height: String,
-        network_block_height: String,
-        local_block_height: String,
-        balance_per_token: BTreeMap<String, Balance>,
-    },
-    get_balance_for_address {
-        account_block_height: String,
-        network_block_height: String,
-        local_block_height: String,
-        balance_per_token: BTreeMap<String, Balance>,
-    },
-    get_block {
-        block: Block,
-        block_contents: BlockContents,
-    },
-    get_confirmations {
-        confirmations: Vec<Confirmation>,
-    },
-    get_gift_code {
-        gift_code: GiftCode,
-    },
-    get_gift_codes {
-        gift_codes: Vec<GiftCode>,
-    },
-    get_mc_protocol_transaction {
-        transaction: JsonTx,
-    },
-    get_mc_protocol_txo {
-        txo: JsonTxOut,
-    },
-    get_network_status {
-        network_status: NetworkStatus,
-    },
-    get_transaction_log {
-        transaction_log: TransactionLog,
-    },
-    get_transaction_logs {
-        transaction_log_ids: Vec<String>,
-        transaction_log_map: Map<String, serde_json::Value>,
-    },
-    get_txo {
-        txo: Txo,
-    },
-    get_txos {
-        txo_ids: Vec<String>,
-        txo_map: Map<String, serde_json::Value>,
-    },
-    get_wallet_status {
-        wallet_status: WalletStatus,
-    },
-    import_account {
-        account: Account,
-    },
-    import_account_from_legacy_root_entropy {
-        account: Account,
-    },
-    import_view_only_account {
-        account: Account,
-    },
-    remove_account {
-        removed: bool,
-    },
-    remove_gift_code {
-        removed: bool,
-    },
-    submit_gift_code {
-        gift_code: GiftCode,
-    },
-    submit_transaction {
-        transaction_log: Option<TransactionLog>,
-    },
-    sync_view_only_account,
-    update_account_name {
-        account: Account,
-    },
-    validate_confirmation {
-        validated: bool,
-    },
-    verify_address {
-        verified: bool,
-    },
-    version {
-        string: String,
-        number: (String, String, String, String),
-        commit: String,
-    },
 }

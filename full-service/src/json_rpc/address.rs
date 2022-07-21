@@ -14,10 +14,6 @@ use serde_derive::{Deserialize, Serialize};
 /// address to which to send.
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct Address {
-    /// String representing the object's type. Objects of the same type share
-    /// the same value.
-    pub object: String,
-
     /// A b58 encoding of the public address materials.
     ///
     /// The public_address is the unique identifier for the address.
@@ -36,7 +32,6 @@ pub struct Address {
 impl From<&AssignedSubaddress> for Address {
     fn from(src: &AssignedSubaddress) -> Address {
         Address {
-            object: "address".to_string(),
             public_address: src.assigned_subaddress_b58.clone(),
             account_id: src.account_id.clone(),
             metadata: src.comment.clone(),

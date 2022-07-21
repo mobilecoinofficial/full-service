@@ -11,7 +11,7 @@ use crate::{
         txo::TxoModel,
         WalletDbError,
     },
-    json_rpc::json_rpc_request::{JsonCommandRequest, JsonRPCRequest},
+    json_rpc::{json_rpc_request::JsonRPCRequest, v2::api_request::JsonCommandRequest},
     service::{
         ledger::{LedgerService, LedgerServiceError},
         WalletService,

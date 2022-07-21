@@ -15,10 +15,6 @@ use std::convert::TryFrom;
 /// https://github.com/mobilecoinfoundation/mobilecoin/blob/master/api/proto/external.proto#L255
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct ReceiverReceipt {
-    /// String representing the object's type. Objects of the same type share
-    /// the same value.
-    pub object: String,
-
     /// The public key of the Txo sent to the recipient.
     pub public_key: String,
 
@@ -38,7 +34,6 @@ impl TryFrom<&service::receipt::ReceiverReceipt> for ReceiverReceipt {
 
     fn try_from(src: &service::receipt::ReceiverReceipt) -> Result<ReceiverReceipt, String> {
         Ok(ReceiverReceipt {
-            object: "receiver_receipt".to_string(),
             public_key: hex::encode(&mc_util_serial::encode(&src.public_key)),
             tombstone_block: src.tombstone_block.to_string(),
             confirmation: hex::encode(&mc_util_serial::encode(&src.confirmation)),

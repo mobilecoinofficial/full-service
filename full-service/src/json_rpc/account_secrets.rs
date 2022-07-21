@@ -15,10 +15,6 @@ use std::convert::TryFrom;
 /// that entropy.
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct AccountSecrets {
-    /// String representing the object's type. Objects of the same type share
-    /// the same value.
-    pub object: String,
-
     /// The account ID for this account key in the wallet database.
     pub account_id: String,
 
@@ -58,7 +54,6 @@ impl TryFrom<&Account> for AccountSecrets {
                 })?;
 
             Ok(AccountSecrets {
-                object: "account_secrets".to_string(),
                 account_id: src.id.clone(),
                 name: src.name.clone(),
                 entropy: None,
@@ -87,7 +82,6 @@ impl TryFrom<&Account> for AccountSecrets {
             };
 
             Ok(AccountSecrets {
-                object: "account_secrets".to_string(),
                 name: src.name.clone(),
                 account_id: src.id.clone(),
                 entropy,

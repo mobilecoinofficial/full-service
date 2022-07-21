@@ -857,7 +857,7 @@ mod tests {
 
         // Check that we can list all
         log::info!(logger, "Listing all gift codes");
-        let gift_codes = service.list_gift_codes().unwrap();
+        let gift_codes = service.list_gift_codes(None, None).unwrap();
         assert_eq!(gift_codes.len(), 1);
         assert_eq!(gift_codes[0], gotten_gift_code);
 
@@ -1002,7 +1002,7 @@ mod tests {
 
         // Check that we get all gift codes
         let gift_codes = service
-            .list_gift_codes()
+            .list_gift_codes(None, None)
             .expect("Could not list gift codes");
         assert_eq!(gift_codes.len(), 1);
 
@@ -1011,7 +1011,7 @@ mod tests {
             .remove_gift_code(&gift_code_b58)
             .expect("Could not remove gift code"));
         let gift_codes = service
-            .list_gift_codes()
+            .list_gift_codes(None, None)
             .expect("Could not list gift codes");
         assert_eq!(gift_codes.len(), 0);
     }

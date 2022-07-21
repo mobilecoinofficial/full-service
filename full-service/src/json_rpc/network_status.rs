@@ -9,10 +9,6 @@ use std::{collections::BTreeMap, convert::TryFrom};
 
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct NetworkStatus {
-    /// String representing the object's type. Objects of the same type share
-    /// the same value.
-    pub object: String,
-
     /// The block count of MobileCoin's distributed ledger.
     pub network_block_height: String,
 
@@ -32,7 +28,6 @@ impl TryFrom<&service::balance::NetworkStatus> for NetworkStatus {
 
     fn try_from(src: &service::balance::NetworkStatus) -> Result<NetworkStatus, String> {
         Ok(NetworkStatus {
-            object: "network_status".to_string(),
             network_block_height: src.network_block_height.to_string(),
             local_block_height: src.local_block_height.to_string(),
             fees: src

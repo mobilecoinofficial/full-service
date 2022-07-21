@@ -13,10 +13,6 @@ use std::convert::TryFrom;
 /// construct and receive transactions.
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct AccountKey {
-    /// String representing the object's type. Objects of the same type share
-    /// the same value.
-    pub object: String,
-
     ///  Private key used for view-key matching, hex-encoded Ristretto bytes.
     pub view_private_key: String,
 
@@ -39,7 +35,6 @@ pub struct AccountKey {
 impl From<&mc_account_keys::AccountKey> for AccountKey {
     fn from(src: &mc_account_keys::AccountKey) -> AccountKey {
         AccountKey {
-            object: "account_key".to_string(),
             view_private_key: ristretto_to_hex(src.view_private_key()),
             spend_private_key: ristretto_to_hex(src.spend_private_key()),
             fog_report_url: src.fog_report_url().unwrap_or("").to_string(),

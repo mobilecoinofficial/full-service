@@ -14,10 +14,6 @@ use crate::{
 /// and/or submitted from an account in this wallet.
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct TransactionLog {
-    /// String representing the object's type. Objects of the same type share
-    /// the same value.
-    pub object: String,
-
     /// Unique identifier for the transaction log. This value is not associated
     /// to the ledger, but derived from the tx.
     pub id: String,
@@ -78,7 +74,6 @@ impl TransactionLog {
             .collect();
 
         Self {
-            object: "transaction_log".to_string(),
             id: transaction_log.id.clone(),
             account_id: transaction_log.account_id.clone(),
             submitted_block_index: transaction_log
