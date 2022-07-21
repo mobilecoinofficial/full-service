@@ -338,10 +338,10 @@ pub fn setup_peer_manager_and_network_state(
             test_client_uri(1),
             ledger_db.clone(),
             0,
-            Some(fee_map.clone()),
+            fee_map.clone(),
         );
         let peer2 =
-            MockBlockchainConnection::new(test_client_uri(2), ledger_db.clone(), 0, Some(fee_map));
+            MockBlockchainConnection::new(test_client_uri(2), ledger_db.clone(), 0, fee_map);
 
         (
             vec![peer1.clone(), peer2.clone()],
