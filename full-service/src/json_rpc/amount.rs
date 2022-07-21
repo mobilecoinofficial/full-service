@@ -82,6 +82,15 @@ pub struct Amount {
     pub token_id: String,
 }
 
+impl Amount {
+    pub fn new(value: u64, token_id: TokenId) -> Self {
+        Self {
+            value: value.to_string(),
+            token_id: token_id.to_string(),
+        }
+    }
+}
+
 impl From<&mc_transaction_core::Amount> for Amount {
     fn from(src: &mc_transaction_core::Amount) -> Self {
         Self {

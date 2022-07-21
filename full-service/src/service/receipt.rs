@@ -382,13 +382,7 @@ mod tests {
         let tx_proposal = service
             .build_transaction(
                 &alice.id,
-                &vec![(
-                    bob_address.to_string(),
-                    AmountJSON {
-                        value: (24 * MOB).to_string(),
-                        token_id: Mob::ID.to_string(),
-                    },
-                )],
+                &vec![(bob_address.to_string(), AmountJSON::new(24 * MOB, Mob::ID))],
                 None,
                 None,
                 None,
@@ -514,13 +508,7 @@ mod tests {
         let tx_proposal = service
             .build_transaction(
                 &alice.id,
-                &vec![(
-                    bob_address.to_string(),
-                    AmountJSON {
-                        value: (24 * MOB).to_string(),
-                        token_id: Mob::ID.to_string(),
-                    },
-                )],
+                &vec![(bob_address.to_string(), AmountJSON::new(24 * MOB, Mob::ID))],
                 None,
                 None,
                 None,
@@ -643,13 +631,7 @@ mod tests {
         let tx_proposal0 = service
             .build_transaction(
                 &alice.id,
-                &vec![(
-                    bob_address.to_string(),
-                    AmountJSON {
-                        value: (24 * MOB).to_string(),
-                        token_id: Mob::ID.to_string(),
-                    },
-                )],
+                &vec![(bob_address.to_string(), AmountJSON::new(24 * MOB, Mob::ID))],
                 None,
                 None,
                 None,
@@ -779,13 +761,7 @@ mod tests {
         let tx_proposal0 = service
             .build_transaction(
                 &alice.id,
-                &vec![(
-                    bob_address.to_string(),
-                    AmountJSON {
-                        value: (24 * MOB).to_string(),
-                        token_id: Mob::ID.to_string(),
-                    },
-                )],
+                &vec![(bob_address.to_string(), AmountJSON::new(24 * MOB, Mob::ID))],
                 None,
                 None,
                 None,
