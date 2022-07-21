@@ -6,14 +6,14 @@ use crate::{
     json_rpc::{
         json_rpc_request::JsonRPCRequest,
         json_rpc_response::JsonRPCResponse,
-        v1::{
-            api_request::help_str as help_str_v1,
-            api_response::JsonCommandResponse as JsonCommandResponse_v1,
+        v1::api::{
+            request::help_str as help_str_v1,
+            response::JsonCommandResponse as JsonCommandResponse_v1,
             wallet::generic_wallet_api as generic_wallet_api_v1,
         },
-        v2::{
-            api_request::help_str as help_str_v2,
-            api_response::JsonCommandResponse as JsonCommandResponse_v2,
+        v2::api::{
+            request::help_str as help_str_v2,
+            response::JsonCommandResponse as JsonCommandResponse_v2,
             wallet::generic_wallet_api as generic_wallet_api_v2,
         },
     },

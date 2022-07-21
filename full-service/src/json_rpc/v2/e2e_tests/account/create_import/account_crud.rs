@@ -4,7 +4,7 @@
 
 #[cfg(test)]
 mod e2e_account {
-    use crate::json_rpc::v2::api_test_utils::{dispatch, setup};
+    use crate::json_rpc::v2::api::test_utils::{dispatch, setup};
 
     use mc_common::logger::{test_with_logger, Logger};
 

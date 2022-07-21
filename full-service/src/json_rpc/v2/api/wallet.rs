@@ -21,7 +21,7 @@ use crate::{
         receiver_receipt::ReceiverReceipt,
         tx_proposal::TxProposal as TxProposalJSON,
         txo::Txo,
-        v2::{api_request::JsonCommandRequest, api_response::JsonCommandResponse},
+        v2::api::{request::JsonCommandRequest, response::JsonCommandResponse},
         wallet::{ApiKeyGuard, WalletState},
         wallet_status::WalletStatus,
     },

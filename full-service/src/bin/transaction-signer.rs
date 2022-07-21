@@ -8,7 +8,7 @@ use mc_full_service::{
     json_rpc::{
         account_key::AccountKey as AccountKeyJSON, account_secrets::AccountSecrets,
         json_rpc_request::JsonRPCRequest, tx_proposal::TxProposal as TxProposalJSON,
-        v2::api_request::JsonCommandRequest,
+        v2::api::request::JsonCommandRequest,
     },
     unsigned_tx::UnsignedTx,
     util::encoding_helpers::{ristretto_public_to_hex, ristretto_to_hex},

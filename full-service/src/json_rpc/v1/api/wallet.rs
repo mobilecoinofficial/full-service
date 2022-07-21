@@ -22,9 +22,9 @@ use crate::{
         receiver_receipt::ReceiverReceipt,
         tx_proposal::TxProposal as TxProposalJSON,
         txo::Txo,
-        v1::{
-            api_request::{help_str, JsonCommandRequest},
-            api_response::JsonCommandResponse,
+        v1::api::{
+            request::{help_str, JsonCommandRequest},
+            response::JsonCommandResponse,
         },
         wallet::{ApiKeyGuard, WalletState},
         wallet_status::WalletStatus,
