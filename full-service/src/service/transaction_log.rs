@@ -212,10 +212,7 @@ mod tests {
                     &alice_account_id.to_string(),
                     &[(
                         address.assigned_subaddress_b58.clone(),
-                        Amount {
-                            value: (50 * MOB).to_string(),
-                            token_id: Mob::ID.to_string(),
-                        },
+                        Amount::new(50 * MOB, Mob::ID),
                     )],
                     None,
                     None,

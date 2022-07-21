@@ -288,10 +288,7 @@ mod tests {
                         &bob_account_key.subaddress(bob.main_subaddress_index as u64),
                     )
                     .unwrap(),
-                    Amount {
-                        value: "42000000000000".to_string(),
-                        token_id: Mob::ID.to_string(),
-                    },
+                    Amount::new(42 * MOB, Mob::ID),
                 )],
                 None,
                 None,
