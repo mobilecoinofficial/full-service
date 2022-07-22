@@ -7,23 +7,27 @@ use crate::{
     },
     json_rpc::{
         self,
-        account_secrets::AccountSecrets,
-        address::Address,
-        balance::Balance,
-        block::{Block, BlockContents},
-        confirmation_number::Confirmation,
-        gift_code::GiftCode,
         json_rpc_request::JsonRPCRequest,
         json_rpc_response::{
             format_error, format_invalid_request_error, JsonRPCError, JsonRPCResponse,
         },
-        network_status::NetworkStatus,
-        receiver_receipt::ReceiverReceipt,
-        tx_proposal::TxProposal as TxProposalJSON,
-        txo::Txo,
-        v2::api::{request::JsonCommandRequest, response::JsonCommandResponse},
+        v2::{
+            api::{request::JsonCommandRequest, response::JsonCommandResponse},
+            models::{
+                account_secrets::AccountSecrets,
+                address::Address,
+                balance::Balance,
+                block::{Block, BlockContents},
+                confirmation_number::Confirmation,
+                gift_code::GiftCode,
+                network_status::NetworkStatus,
+                receiver_receipt::ReceiverReceipt,
+                tx_proposal::TxProposal as TxProposalJSON,
+                txo::Txo,
+                wallet_status::WalletStatus,
+            },
+        },
         wallet::{ApiKeyGuard, WalletState},
-        wallet_status::WalletStatus,
     },
     service,
     service::{
@@ -153,7 +157,7 @@ where
                 )
                 .map_err(format_error)?;
             JsonCommandResponse::build_and_submit_transaction {
-                transaction_log: json_rpc::transaction_log::TransactionLog::new(
+                transaction_log: json_rpc::v2::models::transaction_log::TransactionLog::new(
                     &transaction_log,
                     &associated_txos,
                     &value_map,
@@ -364,9 +368,9 @@ where
                 .map_err(format_error)?;
 
             JsonCommandResponse::create_account {
-                account: json_rpc::account::Account::try_from(&account).map_err(|e| {
-                    format_error(format!("Could not get RPC Account from DB Account {:?}", e))
-                })?,
+                account: json_rpc::v2::models::account::Account::try_from(&account).map_err(
+                    |e| format_error(format!("Could not get RPC Account from DB Account {:?}", e)),
+                )?,
             }
         }
         JsonCommandRequest::create_payment_request {
@@ -432,7 +436,7 @@ where
             }
         }
         JsonCommandRequest::get_account { account_id } => JsonCommandResponse::get_account {
-            account: json_rpc::account::Account::try_from(
+            account: json_rpc::v2::models::account::Account::try_from(
                 &service
                     .get_account(&AccountID(account_id))
                     .map_err(format_error)?,
@@ -440,7 +444,7 @@ where
             .map_err(format_error)?,
         },
         JsonCommandRequest::get_account_status { account_id } => {
-            let account = json_rpc::account::Account::try_from(
+            let account = json_rpc::v2::models::account::Account::try_from(
                 &service
                     .get_account(&AccountID(account_id.clone()))
                     .map_err(format_error)?,
@@ -469,7 +473,7 @@ where
             let json_accounts: Vec<(String, serde_json::Value)> = accounts
                 .iter()
                 .map(|a| {
-                    json_rpc::account::Account::try_from(a)
+                    json_rpc::v2::models::account::Account::try_from(a)
                         .map_err(format_error)
                         .and_then(|v| {
                             serde_json::to_value(v)
@@ -625,7 +629,7 @@ where
                 .get_transaction_log(&transaction_log_id)
                 .map_err(format_error)?;
             JsonCommandResponse::get_transaction_log {
-                transaction_log: json_rpc::transaction_log::TransactionLog::new(
+                transaction_log: json_rpc::v2::models::transaction_log::TransactionLog::new(
                     &transaction_log,
                     &associated_txos,
                     &value_map,
@@ -658,9 +662,9 @@ where
                     .map(|(t, a, v)| {
                         (
                             t.id.clone(),
-                            serde_json::json!(json_rpc::transaction_log::TransactionLog::new(
-                                t, a, v
-                            )),
+                            serde_json::json!(
+                                json_rpc::v2::models::transaction_log::TransactionLog::new(t, a, v)
+                            ),
                         )
                     })
                     .collect::<Vec<(String, serde_json::Value)>>(),
@@ -749,7 +753,7 @@ where
             let kdv = key_derivation_version.parse::<u8>().map_err(format_error)?;
 
             JsonCommandResponse::import_account {
-                account: json_rpc::account::Account::try_from(
+                account: json_rpc::v2::models::account::Account::try_from(
                     &service
                         .import_account(
                             mnemonic,
@@ -785,7 +789,7 @@ where
                 .map_err(format_error)?;
 
             JsonCommandResponse::import_account {
-                account: json_rpc::account::Account::try_from(
+                account: json_rpc::v2::models::account::Account::try_from(
                     &service
                         .import_account_from_legacy_root_entropy(
                             entropy,
@@ -818,7 +822,7 @@ where
                 .map_err(format_error)?;
 
             JsonCommandResponse::import_view_only_account {
-                account: json_rpc::account::Account::try_from(
+                account: json_rpc::v2::models::account::Account::try_from(
                     &service
                         .import_view_only_account(view_private_key, spend_public_key, name, fb, ns)
                         .map_err(format_error)?,
@@ -860,11 +864,11 @@ where
             account_id,
         } => {
             let tx_proposal = TxProposal::try_from(&tx_proposal).map_err(format_error)?;
-            let result: Option<json_rpc::transaction_log::TransactionLog> = service
+            let result: Option<json_rpc::v2::models::transaction_log::TransactionLog> = service
                 .submit_transaction(&tx_proposal, comment, account_id)
                 .map_err(format_error)?
                 .map(|(transaction_log, associated_txos, value_map)| {
-                    json_rpc::transaction_log::TransactionLog::new(
+                    json_rpc::v2::models::transaction_log::TransactionLog::new(
                         &transaction_log,
                         &associated_txos,
                         &value_map,
@@ -891,7 +895,7 @@ where
         }
         JsonCommandRequest::update_account_name { account_id, name } => {
             JsonCommandResponse::update_account_name {
-                account: json_rpc::account::Account::try_from(
+                account: json_rpc::v2::models::account::Account::try_from(
                     &service
                         .update_account_name(&AccountID(account_id), name)
                         .map_err(format_error)?,

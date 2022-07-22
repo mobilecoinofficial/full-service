@@ -2,7 +2,7 @@
 
 //! API definition for the Wallet Status object.
 
-use crate::{json_rpc, json_rpc::balance::Balance, service};
+use crate::{json_rpc, json_rpc::v2::models::balance::Balance, service};
 
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Map;
@@ -44,7 +44,7 @@ impl TryFrom<&service::balance::WalletStatus> for WalletStatus {
             .account_map
             .iter()
             .map(|(i, a)| {
-                json_rpc::account::Account::try_from(a).and_then(|a| {
+                json_rpc::v2::models::account::Account::try_from(a).and_then(|a| {
                     serde_json::to_value(a)
                         .map(|v| (i.to_string(), v))
                         .map_err(|e| {

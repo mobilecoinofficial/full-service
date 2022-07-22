@@ -2,7 +2,7 @@
 
 //! API definition for the TxProposal object.
 
-use crate::json_rpc::unspent_tx_out::UnspentTxOut;
+use crate::json_rpc::v1::models::unspent_tx_out::UnspentTxOut;
 use mc_mobilecoind_json::data_types::{JsonOutlay, JsonTx, JsonUnspentTxOut};
 
 use serde_derive::{Deserialize, Serialize};

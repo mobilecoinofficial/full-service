@@ -9,7 +9,7 @@ use crate::{
         txo::{TxoID, TxoModel, TxoStatus},
         WalletDbError,
     },
-    json_rpc::amount::Amount,
+    json_rpc::v2::models::amount::Amount,
     service::{
         models::tx_proposal::TxProposal,
         transaction::{TransactionService, TransactionServiceError},

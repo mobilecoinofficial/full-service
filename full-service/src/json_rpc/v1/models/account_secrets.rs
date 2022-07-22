@@ -4,7 +4,7 @@
 
 use crate::{
     db::models::Account,
-    json_rpc::account_key::{AccountKey, ViewAccountKey},
+    json_rpc::v1::models::account_key::{AccountKey, ViewAccountKey},
 };
 
 use bip39::{Language, Mnemonic};

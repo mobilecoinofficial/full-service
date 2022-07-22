@@ -11,7 +11,7 @@ use crate::{
         WalletDbError,
     },
     error::WalletTransactionBuilderError,
-    json_rpc::amount::Amount as AmountJSON,
+    json_rpc::v2::models::amount::Amount as AmountJSON,
     service::{
         ledger::LedgerService, models::tx_proposal::TxProposal,
         transaction_builder::WalletTransactionBuilder, WalletService,

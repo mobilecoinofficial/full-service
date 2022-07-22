@@ -416,7 +416,7 @@ where
             &from_account.id,
             &[(
                 gift_code_account_main_subaddress_b58,
-                crate::json_rpc::amount::Amount {
+                crate::json_rpc::v2::models::amount::Amount {
                     value: value.to_string(),
                     token_id: Mob::ID.to_string(),
                 },

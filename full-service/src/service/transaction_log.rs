@@ -144,7 +144,7 @@ where
 mod tests {
     use crate::{
         db::account::AccountID,
-        json_rpc::amount::Amount,
+        json_rpc::v2::models::amount::Amount,
         service::{
             account::AccountService, address::AddressService, transaction::TransactionService,
             transaction_log::TransactionLogService,

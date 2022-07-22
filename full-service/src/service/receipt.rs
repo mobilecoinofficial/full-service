@@ -268,7 +268,7 @@ mod tests {
     use super::*;
     use crate::{
         db::{account::AccountID, models::TransactionLog, transaction_log::TransactionLogModel},
-        json_rpc::amount::Amount as AmountJSON,
+        json_rpc::v2::models::amount::Amount as AmountJSON,
         service::{
             account::AccountService, address::AddressService,
             confirmation_number::ConfirmationService, transaction::TransactionService,

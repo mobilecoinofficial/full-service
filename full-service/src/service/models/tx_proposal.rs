@@ -34,8 +34,8 @@ pub struct TxProposal {
     pub change_txos: Vec<OutputTxo>,
 }
 
-impl From<&crate::json_rpc::tx_proposal::TxProposal> for TxProposal {
-    fn from(src: &crate::json_rpc::tx_proposal::TxProposal) -> Self {
+impl From<&crate::json_rpc::v2::models::tx_proposal::TxProposal> for TxProposal {
+    fn from(src: &crate::json_rpc::v2::models::tx_proposal::TxProposal) -> Self {
         let tx = mc_util_serial::decode(hex::decode(&src.tx_proto).unwrap().as_slice()).unwrap();
         let input_txos = src
             .input_txos

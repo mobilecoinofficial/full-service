@@ -6,9 +6,9 @@
 mod e2e_transaction {
     use crate::{
         db::account::AccountID,
-        json_rpc::{
-            tx_proposal::TxProposal as TxProposalJSON,
-            v2::api::test_utils::{dispatch, setup},
+        json_rpc::v2::{
+            api::test_utils::{dispatch, setup},
+            models::tx_proposal::TxProposal as TxProposalJSON,
         },
         service::models::tx_proposal::TxProposal,
         test_utils::{add_block_to_ledger_db, add_block_with_tx, manually_sync_account, MOB},
