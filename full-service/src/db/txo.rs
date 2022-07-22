@@ -372,7 +372,7 @@ impl TxoModel for Txo {
             e_fog_hint: &mc_util_serial::encode(&output_txo.tx_out.e_fog_hint),
             txo: &mc_util_serial::encode(&output_txo.tx_out),
             subaddress_index: None,
-            key_image: None,
+            key_image: None, // Only the recipient can calculate the KeyImage
             received_block_index: None,
             spent_block_index: None,
             shared_secret: Some(&encoded_confirmation),
