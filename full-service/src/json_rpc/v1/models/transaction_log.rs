@@ -5,7 +5,10 @@
 use chrono::{offset::TimeZone, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::{db, db::transaction_log::AssociatedTxos};
+use crate::{
+    db,
+    db::transaction_log::{AssociatedTxos, TransactionLogModel},
+};
 
 /// A log of a transaction that occurred on the MobileCoin network, constructed
 /// and/or submitted from an account in this wallet.
@@ -87,7 +90,54 @@ impl TransactionLog {
         transaction_log: &db::models::TransactionLog,
         associated_txos: &AssociatedTxos,
     ) -> Self {
-        unimplemented!();
+        let input_txos: Vec<TxoAbbrev> = associated_txos
+            .inputs
+            .iter()
+            .map(|txo| TxoAbbrev::new(txo, "".to_string()))
+            .collect();
+
+        let output_txos: Vec<TxoAbbrev> = associated_txos
+            .outputs
+            .iter()
+            .map(|(txo, recipient_address_id)| TxoAbbrev::new(txo, recipient_address_id.clone()))
+            .collect();
+
+        let value_pmob = associated_txos
+            .outputs
+            .iter()
+            .fold(0, |acc, (txo, _)| acc + txo.value)
+            .to_string();
+
+        let change_txos: Vec<TxoAbbrev> = associated_txos
+            .change
+            .iter()
+            .map(|(txo, recipient_address_id)| TxoAbbrev::new(txo, recipient_address_id.clone()))
+            .collect();
+
+        let assigned_address_id = output_txos
+            .first()
+            .map(|txo| txo.recipient_address_id.clone());
+
+        Self {
+            object: "transaction_log".to_string(),
+            transaction_log_id: transaction_log.id.clone(),
+            direction: "tx_direction_sent".to_string(),
+            is_sent_recovered: None,
+            account_id: transaction_log.account_id.clone(),
+            input_txos,
+            output_txos,
+            change_txos,
+            assigned_address_id,
+            value_pmob,
+            fee_pmob: Some(transaction_log.fee_value.to_string()),
+            submitted_block_index: transaction_log.submitted_block_index.map(|i| i.to_string()),
+            finalized_block_index: transaction_log.finalized_block_index.map(|i| i.to_string()),
+            status: transaction_log.status().to_string(),
+            sent_time: None,
+            comment: transaction_log.comment.clone(),
+            failure_code: None,
+            failure_message: None,
+        }
         // let assigned_address_id =
         // transaction_log.assigned_subaddress_b58.clone(); Self {
         //     object: "transaction_log".to_string(),
@@ -135,12 +185,11 @@ pub struct TxoAbbrev {
 }
 
 impl TxoAbbrev {
-    pub fn new(txo: &db::models::Txo) -> Self {
-        unimplemented!();
-        // Self {
-        //     txo_id_hex: txo.txo_id_hex.clone(),
-        //     recipient_address_id: txo.recipient_public_address_b58.clone(),
-        //     value_pmob: (txo.value as u64).to_string(),
-        // }
+    pub fn new(txo: &db::models::Txo, recipient_address_id: String) -> Self {
+        Self {
+            txo_id_hex: txo.id.clone(),
+            recipient_address_id,
+            value_pmob: (txo.value as u64).to_string(),
+        }
     }
 }

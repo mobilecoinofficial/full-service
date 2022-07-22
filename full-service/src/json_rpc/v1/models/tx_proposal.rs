@@ -2,9 +2,14 @@
 
 //! API definition for the TxProposal object.
 
-use crate::json_rpc::v1::models::unspent_tx_out::UnspentTxOut;
+use crate::{
+    json_rpc::v1::models::unspent_tx_out::UnspentTxOut,
+    service::models::tx_proposal::TxProposal as TxProposalServiceModel,
+};
+use mc_common::HashMap;
 use mc_mobilecoind_json::data_types::{JsonOutlay, JsonTx, JsonUnspentTxOut};
 
+use mc_transaction_core::tx::TxOutConfirmationNumber;
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
@@ -16,6 +21,75 @@ pub struct TxProposal {
     pub fee: String,
     pub outlay_index_to_tx_out_index: Vec<(String, String)>,
     pub outlay_confirmation_numbers: Vec<Vec<u8>>,
+}
+
+impl TryFrom<&TxProposalServiceModel> for TxProposal {
+    type Error = String;
+
+    fn try_from(src: &TxProposalServiceModel) -> Result<Self, String> {
+        let mcd_tx_proposal = mc_mobilecoind::payments::TxProposal::try_from(src)?;
+
+        let tx_proposal = TxProposal::try_from(&mcd_tx_proposal)?;
+
+        Ok(tx_proposal)
+    }
+}
+
+impl TryFrom<&TxProposalServiceModel> for mc_mobilecoind::payments::TxProposal {
+    type Error = String;
+
+    #[allow(clippy::bind_instead_of_map)]
+    fn try_from(
+        src: &TxProposalServiceModel,
+    ) -> Result<mc_mobilecoind::payments::TxProposal, String> {
+        let unspent_txos: Vec<mc_mobilecoind::UnspentTxOut> = src
+            .input_txos
+            .iter()
+            .map(|input_txo| mc_mobilecoind::UnspentTxOut {
+                tx_out: input_txo.tx_out.clone(),
+                subaddress_index: input_txo.subaddress_index,
+                key_image: input_txo.key_image,
+                value: input_txo.value,
+                attempted_spend_height: 0,
+                attempted_spend_tombstone: 0,
+                token_id: *input_txo.token_id,
+            })
+            .collect();
+
+        let mut outlay_list: Vec<mc_mobilecoind::payments::Outlay> = Vec::new();
+        let mut outlay_map: HashMap<usize, usize> = HashMap::default();
+        let mut confirmation_numbers: Vec<TxOutConfirmationNumber> = Vec::new();
+
+        for (tx_out_index, payload_txo) in src.payload_txos.iter().enumerate() {
+            let outlay_index = src
+                .tx
+                .prefix
+                .outputs
+                .iter()
+                .enumerate()
+                .position(|(outlay_index, tx_out)| {
+                    payload_txo.tx_out.public_key == tx_out.public_key
+                })
+                .unwrap();
+
+            outlay_map.insert(outlay_index, tx_out_index);
+            confirmation_numbers.push(payload_txo.confirmation_number.clone());
+            outlay_list.push(mc_mobilecoind::payments::Outlay {
+                value: payload_txo.value,
+                receiver: payload_txo.recipient_public_address.clone(),
+            });
+        }
+
+        let res = mc_mobilecoind::payments::TxProposal {
+            utxos: unspent_txos,
+            outlays: outlay_list,
+            tx: src.tx.clone(),
+            outlay_index_to_tx_out_index: outlay_map,
+            outlay_confirmation_numbers: confirmation_numbers,
+        };
+
+        Ok(res)
+    }
 }
 
 impl TryFrom<&mc_mobilecoind::payments::TxProposal> for TxProposal {

@@ -674,6 +674,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
 
                 InputTxo {
                     tx_out: decoded_tx_out,
+                    subaddress_index: utxo.subaddress_index.unwrap() as u64,
                     key_image: decoded_key_image,
                     value: utxo.value as u64,
                     token_id: TokenId::from(utxo.token_id as u64),

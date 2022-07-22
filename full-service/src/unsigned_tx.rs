@@ -95,6 +95,7 @@ impl UnsignedTx {
 
             let input = InputTxo {
                 tx_out: tx_out.clone(),
+                subaddress_index,
                 key_image,
                 value: amount.value,
                 token_id: amount.token_id,

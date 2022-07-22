@@ -31,6 +31,7 @@ use crate::{
                 wallet_status::WalletStatus,
             },
         },
+        v2::models::amount::Amount,
         wallet::{ApiKeyGuard, WalletState},
     },
     service,
@@ -59,6 +60,7 @@ use mc_connection::{
 };
 use mc_fog_report_validation::{FogPubkeyResolver, FogResolver};
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
+use mc_transaction_core::{tokens::Mob, Token};
 use mc_validator_connection::ValidatorConnection;
 use rocket::{self};
 use rocket_contrib::json::Json;
@@ -124,16 +126,13 @@ where
         JsonCommandRequest::assign_address_for_account {
             account_id,
             metadata,
-        } => {
-            unimplemented!();
-            //     JsonCommandResponse::assign_address_for_account {
-            //     address: Address::from(
-            //         &service
-            //             .assign_address_for_account(&AccountID(account_id),
-            // metadata.as_deref())
-            // .map_err(format_error)?,     ),
-            // },
-        }
+        } => JsonCommandResponse::assign_address_for_account {
+            address: Address::from(
+                &service
+                    .assign_address_for_account(&AccountID(account_id), metadata.as_deref())
+                    .map_err(format_error)?,
+            ),
+        },
         JsonCommandRequest::build_and_submit_transaction {
             account_id,
             addresses_and_values,
@@ -145,34 +144,44 @@ where
             max_spendable_value,
             comment,
         } => {
-            unimplemented!();
             // The user can specify either a single address and a single value,
             // or a list of addresses and values.
-            // let mut addresses_and_values =
-            // addresses_and_values.unwrap_or_default();
-            // if let (Some(a), Some(v)) = (recipient_public_address,
-            // value_pmob) {     addresses_and_values.push((a, v));
-            // }
-            // let (transaction_log, associated_txos, tx_proposal) = service
-            //     .build_and_submit(
-            //         &account_id,
-            //         &addresses_and_values,
-            //         input_txo_ids.as_ref(),
-            //         fee,
-            //         tombstone_block,
-            //         max_spendable_value,
-            //         comment,
-            //     )
-            //     .map_err(format_error)?;
-            // JsonCommandResponse::build_and_submit_transaction {
-            //     transaction_log:
-            // json_rpc::transaction_log::TransactionLog::new(
-            //         &transaction_log,
-            //         &associated_txos,
-            //     ),
-            //     tx_proposal:
-            // TxProposal::try_from(&tx_proposal).map_err(format_error)?,
-            // }
+            let mut addresses_and_values = addresses_and_values.unwrap_or_default();
+            if let (Some(a), Some(v)) = (recipient_public_address, value_pmob) {
+                addresses_and_values.push((a, v));
+            }
+
+            let addresses_and_amounts: Vec<(String, Amount)> = addresses_and_values
+                .into_iter()
+                .map(|(a, v)| {
+                    (
+                        a,
+                        Amount {
+                            value: v,
+                            token_id: Mob::ID.to_string(),
+                        },
+                    )
+                })
+                .collect();
+            let (transaction_log, associated_txos, value_map, tx_proposal) = service
+                .build_and_submit(
+                    &account_id,
+                    &addresses_and_amounts,
+                    input_txo_ids.as_ref(),
+                    fee,
+                    Some(Mob::ID.to_string()),
+                    tombstone_block,
+                    max_spendable_value,
+                    comment,
+                )
+                .map_err(format_error)?;
+            JsonCommandResponse::build_and_submit_transaction {
+                transaction_log: json_rpc::v1::models::transaction_log::TransactionLog::new(
+                    &transaction_log,
+                    &associated_txos,
+                ),
+                tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
+            }
         }
         JsonCommandRequest::build_gift_code {
             account_id,
@@ -270,44 +279,38 @@ where
             // TransactionID::from(&tx_proposal.tx).to_string(), }
         }
         JsonCommandRequest::check_b58_type { b58_code } => {
-            unimplemented!();
-            // let b58_type =
-            // b58_printable_wrapper_type(b58_code.clone()).
-            // map_err(format_error)?; let mut b58_data =
-            // HashMap::new(); match b58_type {
-            //     PrintableWrapperType::PublicAddress => {
-            //         b58_data.insert("public_address_b58".to_string(),
-            // b58_code);     }
-            //     PrintableWrapperType::TransferPayload => {}
-            //     PrintableWrapperType::PaymentRequest => {
-            //         let payment_request =
-            //
-            // b58_decode_payment_request(b58_code).map_err(format_error)?;
-            //         let public_address_b58 =
-            //
-            // b58_encode_public_address(&payment_request.public_address)
-            //                 .map_err(format_error)?;
-            //         b58_data.insert("public_address_b58".to_string(),
-            // public_address_b58);         b58_data.insert("value".
-            // to_string(), payment_request.value.to_string());
-            //         b58_data.insert("memo".to_string(),
-            // payment_request.memo);     }
-            // }
-            // JsonCommandResponse::check_b58_type {
-            //     b58_type,
-            //     data: b58_data,
-            // }
+            let b58_type = b58_printable_wrapper_type(b58_code.clone()).map_err(format_error)?;
+            let mut b58_data = HashMap::new();
+            match b58_type {
+                PrintableWrapperType::PublicAddress => {
+                    b58_data.insert("public_address_b58".to_string(), b58_code);
+                }
+                PrintableWrapperType::TransferPayload => {}
+                PrintableWrapperType::PaymentRequest => {
+                    let payment_request =
+                        b58_decode_payment_request(b58_code).map_err(format_error)?;
+                    let public_address_b58 =
+                        b58_encode_public_address(&payment_request.public_address)
+                            .map_err(format_error)?;
+                    b58_data.insert("public_address_b58".to_string(), public_address_b58);
+                    b58_data.insert("value".to_string(), payment_request.value.to_string());
+                    b58_data.insert("memo".to_string(), payment_request.memo);
+                }
+            }
+            JsonCommandResponse::check_b58_type {
+                b58_type,
+                data: b58_data,
+            }
         }
         JsonCommandRequest::check_gift_code_status { gift_code_b58 } => {
-            unimplemented!();
-            // let (status, value, memo) = service
-            //     .check_gift_code_status(&EncodedGiftCode(gift_code_b58))
-            //     .map_err(format_error)?;
-            // JsonCommandResponse::check_gift_code_status {
-            //     gift_code_status: status,
-            //     gift_code_value: value,
-            //     gift_code_memo: memo,
-            // }
+            let (status, value, memo) = service
+                .check_gift_code_status(&EncodedGiftCode(gift_code_b58))
+                .map_err(format_error)?;
+            JsonCommandResponse::check_gift_code_status {
+                gift_code_status: status,
+                gift_code_value: value,
+                gift_code_memo: memo,
+            }
         }
         JsonCommandRequest::check_receiver_receipt_status {
             address,
@@ -330,17 +333,16 @@ where
             account_id,
             address,
         } => {
-            unimplemented!();
-            // let tx = service
-            //     .claim_gift_code(
-            //         &EncodedGiftCode(gift_code_b58),
-            //         &AccountID(account_id),
-            //         address,
-            //     )
-            //     .map_err(format_error)?;
-            // JsonCommandResponse::claim_gift_code {
-            //     txo_id: TxoID::from(&tx.prefix.outputs[0]).to_string(),
-            // }
+            let tx = service
+                .claim_gift_code(
+                    &EncodedGiftCode(gift_code_b58),
+                    &AccountID(account_id),
+                    address,
+                )
+                .map_err(format_error)?;
+            JsonCommandResponse::claim_gift_code {
+                txo_id: TxoID::from(&tx.prefix.outputs[0]).to_string(),
+            }
         }
         JsonCommandRequest::create_account {
             name,
@@ -348,77 +350,68 @@ where
             fog_report_id,
             fog_authority_spki,
         } => {
-            unimplemented!();
-            // let account: db::models::Account = service
-            //     .create_account(
-            //         name,
-            //         fog_report_url.unwrap_or_default(),
-            //         fog_report_id.unwrap_or_default(),
-            //         fog_authority_spki.unwrap_or_default(),
-            //     )
-            //     .map_err(format_error)?;
+            let account: db::models::Account = service
+                .create_account(
+                    name,
+                    fog_report_url.unwrap_or_default(),
+                    fog_report_id.unwrap_or_default(),
+                    fog_authority_spki.unwrap_or_default(),
+                )
+                .map_err(format_error)?;
 
-            // JsonCommandResponse::create_account {
-            //     account:
-            // json_rpc::account::Account::try_from(&account).map_err(|e| {
-            //         format_error(format!("Could not get RPC Account from DB
-            // Account {:?}", e))     })?,
-            // }
+            JsonCommandResponse::create_account {
+                account: json_rpc::v1::models::account::Account::try_from(&account).map_err(
+                    |e| format_error(format!("Could not get RPC Account from DB Account {:?}", e)),
+                )?,
+            }
         }
         JsonCommandRequest::create_payment_request {
             account_id,
             subaddress_index,
             amount_pmob,
             memo,
-        } => {
-            unimplemented!();
-            //     JsonCommandResponse::create_payment_request {
-            //     payment_request_b58: service
-            //         .create_payment_request(account_id, subaddress_index,
-            // amount_pmob, memo)         .map_err(format_error)?,
-            // },
-        }
+        } => JsonCommandResponse::create_payment_request {
+            payment_request_b58: service
+                .create_payment_request(account_id, subaddress_index, amount_pmob, memo)
+                .map_err(format_error)?,
+        },
         JsonCommandRequest::create_receiver_receipts { tx_proposal } => {
             unimplemented!();
-            // let receipts = service
-            //     .create_receiver_receipts(
-            //         &mc_mobilecoind::payments::TxProposal::try_from(&
-            // tx_proposal)             .map_err(format_error)?,
-            //     )
-            //     .map_err(format_error)?;
-            // let json_receipts: Vec<ReceiverReceipt> = receipts
-            //     .iter()
-            //     .map(ReceiverReceipt::try_from)
-            //     .collect::<Result<Vec<ReceiverReceipt>, String>>()
-            //     .map_err(format_error)?;
-            // JsonCommandResponse::create_receiver_receipts {
-            //     receiver_receipts: json_receipts,
-            // }
+            //     let receipts = service
+            //         .create_receiver_receipts(
+            //
+            // &mc_mobilecoind::payments::TxProposal::try_from(&tx_proposal)
+            //                 .map_err(format_error)?,
+            //         )
+            //         .map_err(format_error)?;
+            //     let json_receipts: Vec<ReceiverReceipt> = receipts
+            //         .iter()
+            //         .map(ReceiverReceipt::try_from)
+            //         .collect::<Result<Vec<ReceiverReceipt>, String>>()
+            //         .map_err(format_error)?;
+            //     JsonCommandResponse::create_receiver_receipts {
+            //         receiver_receipts: json_receipts,
+            //     }
         }
         JsonCommandRequest::export_account_secrets { account_id } => {
-            unimplemented!();
-            // let account = service
-            //     .get_account(&AccountID(account_id))
-            //     .map_err(format_error)?;
-            // JsonCommandResponse::export_account_secrets {
-            //     account_secrets:
-            // AccountSecrets::try_from(&account).map_err(format_error)?,
-            // }
+            let account = service
+                .get_account(&AccountID(account_id))
+                .map_err(format_error)?;
+            JsonCommandResponse::export_account_secrets {
+                account_secrets: AccountSecrets::try_from(&account).map_err(format_error)?,
+            }
         }
-        JsonCommandRequest::get_account { account_id } => {
-            unimplemented!();
-            //     JsonCommandResponse::get_account {
-            //     account: json_rpc::account::Account::try_from(
-            //         &service
-            //             .get_account(&AccountID(account_id))
-            //             .map_err(format_error)?,
-            //     )
-            //     .map_err(format_error)?,
-            // },
-        }
+        JsonCommandRequest::get_account { account_id } => JsonCommandResponse::get_account {
+            account: json_rpc::v1::models::account::Account::try_from(
+                &service
+                    .get_account(&AccountID(account_id))
+                    .map_err(format_error)?,
+            )
+            .map_err(format_error)?,
+        },
         JsonCommandRequest::get_account_status { account_id } => {
             unimplemented!();
-            // let account = json_rpc::account::Account::try_from(
+            // let account = json_rpc::v1::models::account::Account::try_from(
             //     &service
             //         .get_account(&AccountID(account_id.clone()))
             //         .map_err(format_error)?,
@@ -432,13 +425,12 @@ where
             // JsonCommandResponse::get_account_status { account, balance }
         }
         JsonCommandRequest::get_address_for_account { account_id, index } => {
-            unimplemented!();
-            // let assigned_subaddress = service
-            //     .get_address_for_account(&AccountID(account_id), index)
-            //     .map_err(format_error)?;
-            // JsonCommandResponse::get_address_for_account {
-            //     address: Address::from(&assigned_subaddress),
-            // }
+            let assigned_subaddress = service
+                .get_address_for_account(&AccountID(account_id), index)
+                .map_err(format_error)?;
+            JsonCommandResponse::get_address_for_account {
+                address: Address::from(&assigned_subaddress),
+            }
         }
         JsonCommandRequest::get_addresses_for_account {
             account_id,
@@ -472,38 +464,33 @@ where
             // }
         }
         JsonCommandRequest::get_all_accounts => {
-            unimplemented!();
-            // let accounts = service.list_accounts().map_err(format_error)?;
-            // let json_accounts: Vec<(String, serde_json::Value)> = accounts
-            //     .iter()
-            //     .map(|a| {
-            //         json_rpc::account::Account::try_from(a)
-            //             .map_err(format_error)
-            //             .and_then(|v| {
-            //                 serde_json::to_value(v)
-            //                     .map(|v| (a.account_id_hex.clone(), v))
-            //                     .map_err(format_error)
-            //             })
-            //     })
-            //     .collect::<Result<Vec<(String, serde_json::Value)>,
-            // JsonRPCError>>()?; let account_map: Map<String,
-            // serde_json::Value> = Map::from_iter(json_accounts);
-            // JsonCommandResponse::get_all_accounts {
-            //     account_ids: accounts.iter().map(|a|
-            // a.account_id_hex.clone()).collect(),     account_map,
-            // }
+            let accounts = service.list_accounts(None, None).map_err(format_error)?;
+            let json_accounts: Vec<(String, serde_json::Value)> = accounts
+                .iter()
+                .map(|a| {
+                    json_rpc::v1::models::account::Account::try_from(a)
+                        .map_err(format_error)
+                        .and_then(|v| {
+                            serde_json::to_value(v)
+                                .map(|v| (a.id.clone(), v))
+                                .map_err(format_error)
+                        })
+                })
+                .collect::<Result<Vec<(String, serde_json::Value)>, JsonRPCError>>()?;
+            let account_map: Map<String, serde_json::Value> = Map::from_iter(json_accounts);
+            JsonCommandResponse::get_all_accounts {
+                account_ids: accounts.iter().map(|a| a.id.clone()).collect(),
+                account_map,
+            }
         }
-        JsonCommandRequest::get_all_gift_codes {} => {
-            unimplemented!();
-            //     JsonCommandResponse::get_all_gift_codes {
-            //     gift_codes: service
-            //         .list_gift_codes(None, None)
-            //         .map_err(format_error)?
-            //         .iter()
-            //         .map(GiftCode::from)
-            //         .collect(),
-            // }
-        }
+        JsonCommandRequest::get_all_gift_codes {} => JsonCommandResponse::get_all_gift_codes {
+            gift_codes: service
+                .list_gift_codes(None, None)
+                .map_err(format_error)?
+                .iter()
+                .map(GiftCode::from)
+                .collect(),
+        },
         JsonCommandRequest::get_all_transaction_logs_for_block { block_index } => {
             unimplemented!();
             // let transaction_logs_and_txos = service
@@ -596,54 +583,46 @@ where
             // }
         }
         JsonCommandRequest::get_block { block_index } => {
-            unimplemented!();
-            // let (block, block_contents) = service
-            //     .get_block_object(block_index.parse::<u64>().
-            // map_err(format_error)?)     .map_err(format_error)?;
-            // JsonCommandResponse::get_block {
-            //     block: Block::new(&block),
-            //     block_contents: BlockContents::new(&block_contents),
-            // }
+            let (block, block_contents) = service
+                .get_block_object(block_index.parse::<u64>().map_err(format_error)?)
+                .map_err(format_error)?;
+            JsonCommandResponse::get_block {
+                block: Block::new(&block),
+                block_contents: BlockContents::new(&block_contents),
+            }
         }
         JsonCommandRequest::get_confirmations { transaction_log_id } => {
-            unimplemented!();
-            // JsonCommandResponse::get_confirmations {
-            //     confirmations: service
-            //         .get_confirmations(&transaction_log_id)
-            //         .map_err(format_error)?
-            //         .iter()
-            //         .map(Confirmation::from)
-            //         .collect(),
-            // }
+            JsonCommandResponse::get_confirmations {
+                confirmations: service
+                    .get_confirmations(&transaction_log_id)
+                    .map_err(format_error)?
+                    .iter()
+                    .map(Confirmation::from)
+                    .collect(),
+            }
         }
-        JsonCommandRequest::get_gift_code { gift_code_b58 } => {
-            unimplemented!();
-            //     JsonCommandResponse::get_gift_code {
-            //     gift_code: GiftCode::from(
-            //         &service
-            //             .get_gift_code(&EncodedGiftCode(gift_code_b58))
-            //             .map_err(format_error)?,
-            //     ),
-            // }
-        }
+        JsonCommandRequest::get_gift_code { gift_code_b58 } => JsonCommandResponse::get_gift_code {
+            gift_code: GiftCode::from(
+                &service
+                    .get_gift_code(&EncodedGiftCode(gift_code_b58))
+                    .map_err(format_error)?,
+            ),
+        },
         JsonCommandRequest::get_mc_protocol_transaction { transaction_log_id } => {
-            unimplemented!();
-            // let tx = service
-            //     .get_transaction_object(&transaction_log_id)
-            //     .map_err(format_error)?;
-            // let proto_tx = mc_api::external::Tx::from(&tx);
-            // let json_tx = JsonTx::from(&proto_tx);
-            // JsonCommandResponse::get_mc_protocol_transaction {
-            //     transaction: json_tx,
-            // }
+            let tx = service
+                .get_transaction_object(&transaction_log_id)
+                .map_err(format_error)?;
+            let proto_tx = mc_api::external::Tx::from(&tx);
+            let json_tx = JsonTx::from(&proto_tx);
+            JsonCommandResponse::get_mc_protocol_transaction {
+                transaction: json_tx,
+            }
         }
         JsonCommandRequest::get_mc_protocol_txo { txo_id } => {
-            unimplemented!();
-            // let tx_out =
-            // service.get_txo_object(&txo_id).map_err(format_error)?;
-            // let proto_txo = mc_api::external::TxOut::from(&tx_out);
-            // let json_txo = JsonTxOut::from(&proto_txo);
-            // JsonCommandResponse::get_mc_protocol_txo { txo: json_txo }
+            let tx_out = service.get_txo_object(&txo_id).map_err(format_error)?;
+            let proto_txo = mc_api::external::TxOut::from(&tx_out);
+            let json_txo = JsonTxOut::from(&proto_txo);
+            JsonCommandResponse::get_mc_protocol_txo { txo: json_txo }
         }
         JsonCommandRequest::get_network_status => {
             unimplemented!();
@@ -768,35 +747,33 @@ where
             fog_report_id,
             fog_authority_spki,
         } => {
-            unimplemented!();
-            // let fb = first_block_index
-            //     .map(|fb| fb.parse::<u64>())
-            //     .transpose()
-            //     .map_err(format_error)?;
-            // let ns = next_subaddress_index
-            //     .map(|ns| ns.parse::<u64>())
-            //     .transpose()
-            //     .map_err(format_error)?;
-            // let kdv = key_derivation_version.parse::<u8>().
-            // map_err(format_error)?;
+            let fb = first_block_index
+                .map(|fb| fb.parse::<u64>())
+                .transpose()
+                .map_err(format_error)?;
+            let ns = next_subaddress_index
+                .map(|ns| ns.parse::<u64>())
+                .transpose()
+                .map_err(format_error)?;
+            let kdv = key_derivation_version.parse::<u8>().map_err(format_error)?;
 
-            // JsonCommandResponse::import_account {
-            //     account: json_rpc::account::Account::try_from(
-            //         &service
-            //             .import_account(
-            //                 mnemonic,
-            //                 kdv,
-            //                 name,
-            //                 fb,
-            //                 ns,
-            //                 fog_report_url.unwrap_or_default(),
-            //                 fog_report_id.unwrap_or_default(),
-            //                 fog_authority_spki.unwrap_or_default(),
-            //             )
-            //             .map_err(format_error)?,
-            //     )
-            //     .map_err(format_error)?,
-            // }
+            JsonCommandResponse::import_account {
+                account: json_rpc::v1::models::account::Account::try_from(
+                    &service
+                        .import_account(
+                            mnemonic,
+                            kdv,
+                            name,
+                            fb,
+                            ns,
+                            fog_report_url.unwrap_or_default(),
+                            fog_report_id.unwrap_or_default(),
+                            fog_authority_spki.unwrap_or_default(),
+                        )
+                        .map_err(format_error)?,
+                )
+                .map_err(format_error)?,
+            }
         }
         JsonCommandRequest::import_account_from_legacy_root_entropy {
             entropy,
@@ -807,48 +784,43 @@ where
             fog_report_id,
             fog_authority_spki,
         } => {
-            unimplemented!();
-            // let fb = first_block_index
-            //     .map(|fb| fb.parse::<u64>())
-            //     .transpose()
-            //     .map_err(format_error)?;
-            // let ns = next_subaddress_index
-            //     .map(|ns| ns.parse::<u64>())
-            //     .transpose()
-            //     .map_err(format_error)?;
+            let fb = first_block_index
+                .map(|fb| fb.parse::<u64>())
+                .transpose()
+                .map_err(format_error)?;
+            let ns = next_subaddress_index
+                .map(|ns| ns.parse::<u64>())
+                .transpose()
+                .map_err(format_error)?;
 
-            // JsonCommandResponse::import_account {
-            //     account: json_rpc::account::Account::try_from(
-            //         &service
-            //             .import_account_from_legacy_root_entropy(
-            //                 entropy,
-            //                 name,
-            //                 fb,
-            //                 ns,
-            //                 fog_report_url.unwrap_or_default(),
-            //                 fog_report_id.unwrap_or_default(),
-            //                 fog_authority_spki.unwrap_or_default(),
-            //             )
-            //             .map_err(format_error)?,
-            //     )
-            //     .map_err(format_error)?,
-            // }
+            JsonCommandResponse::import_account {
+                account: json_rpc::v1::models::account::Account::try_from(
+                    &service
+                        .import_account_from_legacy_root_entropy(
+                            entropy,
+                            name,
+                            fb,
+                            ns,
+                            fog_report_url.unwrap_or_default(),
+                            fog_report_id.unwrap_or_default(),
+                            fog_authority_spki.unwrap_or_default(),
+                        )
+                        .map_err(format_error)?,
+                )
+                .map_err(format_error)?,
+            }
         }
-        JsonCommandRequest::remove_account { account_id } => {
-            unimplemented!();
-            // JsonCommandResponse::remove_account {
-            // removed: service
-            //     .remove_account(&AccountID(account_id))
-            //     .map_err(format_error)?,
-            // }
-        }
+        JsonCommandRequest::remove_account { account_id } => JsonCommandResponse::remove_account {
+            removed: service
+                .remove_account(&AccountID(account_id))
+                .map_err(format_error)?,
+        },
         JsonCommandRequest::remove_gift_code { gift_code_b58 } => {
-            unimplemented!();
-            // JsonCommandResponse::remove_gift_code {
-            //     removed: service
-            //         .remove_gift_code(&EncodedGiftCode(gift_code_b58))
-            //         .map_err(format_error)?,
-            // }
+            JsonCommandResponse::remove_gift_code {
+                removed: service
+                    .remove_gift_code(&EncodedGiftCode(gift_code_b58))
+                    .map_err(format_error)?,
+            }
         }
         JsonCommandRequest::submit_gift_code {
             from_account_id,
@@ -893,35 +865,28 @@ where
             // }
         }
         JsonCommandRequest::update_account_name { account_id, name } => {
-            unimplemented!();
-            // JsonCommandResponse::update_account_name {
-            //     account: json_rpc::account::Account::try_from(
-            //         &service
-            //             .update_account_name(&AccountID(account_id), name)
-            //             .map_err(format_error)?,
-            //     )
-            //     .map_err(format_error)?,
-            // }
+            JsonCommandResponse::update_account_name {
+                account: json_rpc::v1::models::account::Account::try_from(
+                    &service
+                        .update_account_name(&AccountID(account_id), name)
+                        .map_err(format_error)?,
+                )
+                .map_err(format_error)?,
+            }
         }
         JsonCommandRequest::validate_confirmation {
             account_id,
             txo_id,
             confirmation,
         } => {
-            unimplemented!();
-            // let result = service
-            //     .validate_confirmation(&AccountID(account_id),
-            // &TxoID(txo_id), &confirmation)
-            //     .map_err(format_error)?;
-            // JsonCommandResponse::validate_confirmation { validated: result }
+            let result = service
+                .validate_confirmation(&AccountID(account_id), &TxoID(txo_id), &confirmation)
+                .map_err(format_error)?;
+            JsonCommandResponse::validate_confirmation { validated: result }
         }
-        JsonCommandRequest::verify_address { address } => {
-            unimplemented!();
-            //     JsonCommandResponse::verify_address {
-            //     verified:
-            // service.verify_address(&address).map_err(format_error)?,
-            // }
-        }
+        JsonCommandRequest::verify_address { address } => JsonCommandResponse::verify_address {
+            verified: service.verify_address(&address).map_err(format_error)?,
+        },
         JsonCommandRequest::version => JsonCommandResponse::version {
             string: env!("CARGO_PKG_VERSION").to_string(),
             number: (

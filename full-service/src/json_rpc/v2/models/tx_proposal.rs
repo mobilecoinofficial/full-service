@@ -12,6 +12,7 @@ pub struct InputTxo {
     pub tx_out_proto: String,
     pub value: String,
     pub token_id: String,
+    pub subaddress_index: String,
     pub key_image: String,
 }
 
@@ -46,6 +47,7 @@ impl TryFrom<&crate::service::models::tx_proposal::TxProposal> for TxProposal {
                 tx_out_proto: hex::encode(mc_util_serial::encode(&input_txo.tx_out)),
                 value: input_txo.value.to_string(),
                 token_id: input_txo.token_id.to_string(),
+                subaddress_index: input_txo.subaddress_index.to_string(),
                 key_image: hex::encode(&input_txo.key_image.as_bytes()),
             })
             .collect();

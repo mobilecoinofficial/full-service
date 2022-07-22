@@ -12,6 +12,7 @@ use crate::util::b58::b58_decode_public_address;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InputTxo {
     pub tx_out: TxOut,
+    pub subaddress_index: u64,
     pub key_image: KeyImage,
     pub value: u64,
     pub token_id: TokenId,
@@ -51,6 +52,7 @@ impl From<&crate::json_rpc::v2::models::tx_proposal::TxProposal> for TxProposal 
                         hex::decode(&input_txo.tx_out_proto).unwrap().as_slice(),
                     )
                     .unwrap(),
+                    subaddress_index: input_txo.subaddress_index.parse::<u64>().unwrap(),
                     key_image: KeyImage::from(key_image_bytes),
                     value: input_txo.value.parse::<u64>().unwrap(),
                     token_id: TokenId::from(input_txo.token_id.parse::<u64>().unwrap()),
