@@ -3,9 +3,11 @@
 //! API definition for the Txo object.
 
 use crate::{db, db::txo::TxoModel};
+use mc_crypto_keys::RistrettoPrivate;
+use mc_transaction_core::tx::TxOutConfirmationNumber;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Map;
-use std::fmt;
+use std::{convert::TryFrom, fmt, str::FromStr};
 
 pub enum TxoStatus {
     Orphaned,
@@ -23,6 +25,37 @@ impl fmt::Display for TxoStatus {
             TxoStatus::Secreted => write!(f, "txo_status_secreted"),
             TxoStatus::Spent => write!(f, "txo_status_spent"),
             TxoStatus::Unspent => write!(f, "txo_status_unspent"),
+        }
+    }
+}
+
+impl FromStr for TxoStatus {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "txo_status_secreted" => Ok(TxoStatus::Secreted),
+            "txo_status_unspent" => Ok(TxoStatus::Unspent),
+            "txo_status_pending" => Ok(TxoStatus::Pending),
+            "txo_status_spent" => Ok(TxoStatus::Spent),
+            "txo_status_orphaned" => Ok(TxoStatus::Orphaned),
+            _ => Err(format!("Unknown TxoStatus: {}", s)),
+        }
+    }
+}
+
+impl TryFrom<TxoStatus> for db::txo::TxoStatus {
+    type Error = String;
+
+    fn try_from(status: TxoStatus) -> Result<Self, Self::Error> {
+        match status {
+            TxoStatus::Orphaned => Ok(db::txo::TxoStatus::Orphaned),
+            TxoStatus::Pending => Ok(db::txo::TxoStatus::Pending),
+            TxoStatus::Secreted => Err(format!(
+                "TxoStatus::Secreted is not a valid db::txo::TxoStatus"
+            )),
+            TxoStatus::Spent => Ok(db::txo::TxoStatus::Spent),
+            TxoStatus::Unspent => Ok(db::txo::TxoStatus::Unspent),
         }
     }
 }
@@ -126,6 +159,32 @@ pub struct Txo {
     /// A confirmation number that the sender of the Txo can provide to verify
     /// that they participated in the construction of this Txo.
     pub confirmation: Option<String>,
+}
+
+impl Txo {
+    pub fn new(txo: &db::models::Txo, status: &db::txo::TxoStatus) -> Txo {
+        let mut account_status_map: Map<String, serde_json::Value> = Map::new();
+
+        Txo {
+            object: "txo".to_string(),
+            txo_id_hex: txo.id.clone(),
+            value_pmob: txo.value.to_string(),
+            recipient_address_id: None,
+            received_block_index: txo.received_block_index.map(|i| i.to_string()),
+            spent_block_index: txo.spent_block_index.map(|i| i.to_string()),
+            is_spent_recovered: false,
+            received_account_id: txo.clone().account_id,
+            minted_account_id: None,
+            account_status_map,
+            target_key: hex::encode(&txo.target_key),
+            public_key: hex::encode(&txo.public_key),
+            e_fog_hint: hex::encode(&txo.e_fog_hint),
+            subaddress_index: txo.subaddress_index.map(|i| i.to_string()),
+            assigned_address: None,
+            key_image: txo.key_image.as_ref().map(|k| hex::encode(&k)),
+            confirmation: txo.shared_secret.as_ref().map(hex::encode),
+        }
+    }
 }
 
 impl From<&db::models::Txo> for Txo {

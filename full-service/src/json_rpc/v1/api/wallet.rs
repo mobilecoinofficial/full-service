@@ -1,22 +1,13 @@
 use crate::{
-    db::{
-        self,
-        account::AccountID,
-        transaction_log::TransactionID,
-        txo::{TxoID, TxoStatus},
-    },
+    db::{self, account::AccountID, transaction_log::TransactionID, txo::TxoID},
     json_rpc::{
         self,
         json_rpc_request::JsonRPCRequest,
         json_rpc_response::{
-            format_error, format_invalid_request_error, JsonRPCError, JsonRPCErrorCodes,
-            JsonRPCResponse,
+            format_error, format_invalid_request_error, JsonRPCError, JsonRPCResponse,
         },
         v1::{
-            api::{
-                request::{help_str, JsonCommandRequest},
-                response::JsonCommandResponse,
-            },
+            api::{request::JsonCommandRequest, response::JsonCommandResponse},
             models::{
                 account_secrets::AccountSecrets,
                 address::Address,
@@ -504,75 +495,74 @@ where
                 .collect(),
         },
         JsonCommandRequest::get_all_transaction_logs_for_block { block_index } => {
-            unimplemented!();
-            // let transaction_logs_and_txos = service
-            //     .get_all_transaction_logs_for_block(
-            //         block_index.parse::<u64>().map_err(format_error)?,
-            //     )
-            //     .map_err(format_error)?;
-            // let transaction_log_map: Map<String, serde_json::Value> =
-            // Map::from_iter(     transaction_logs_and_txos
-            //         .iter()
-            //         .map(|(t, a)| {
-            //             (
-            //                 t.transaction_id_hex.clone(),
-            //
-            // serde_json::json!(json_rpc::transaction_log::TransactionLog::
-            // new(t, a)),             )
-            //         })
-            //         .collect::<Vec<(String, serde_json::Value)>>(),
-            // );
+            let transaction_logs_and_txos = service
+                .get_all_transaction_logs_for_block(
+                    block_index.parse::<u64>().map_err(format_error)?,
+                )
+                .map_err(format_error)?;
+            let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
+                transaction_logs_and_txos
+                    .iter()
+                    .map(|(t, a, _v)| {
+                        (
+                            t.id.clone(),
+                            serde_json::json!(
+                                json_rpc::v1::models::transaction_log::TransactionLog::new(t, a)
+                            ),
+                        )
+                    })
+                    .collect::<Vec<(String, serde_json::Value)>>(),
+            );
 
-            // JsonCommandResponse::get_all_transaction_logs_for_block {
-            //     transaction_log_ids: transaction_logs_and_txos
-            //         .iter()
-            //         .map(|(t, _a)| t.transaction_id_hex.to_string())
-            //         .collect(),
-            //     transaction_log_map,
-            // }
+            JsonCommandResponse::get_all_transaction_logs_for_block {
+                transaction_log_ids: transaction_logs_and_txos
+                    .iter()
+                    .map(|(t, _a, _v)| t.id.to_string())
+                    .collect(),
+                transaction_log_map,
+            }
         }
         JsonCommandRequest::get_all_transaction_logs_ordered_by_block => {
-            unimplemented!();
-            // let transaction_logs_and_txos = service
-            //     .get_all_transaction_logs_ordered_by_block()
-            //     .map_err(format_error)?;
-            // let transaction_log_map: Map<String, serde_json::Value> =
-            // Map::from_iter(     transaction_logs_and_txos
-            //         .iter()
-            //         .map(|(t, a)| {
-            //             (
-            //                 t.transaction_id_hex.clone(),
-            //
-            // serde_json::json!(json_rpc::transaction_log::TransactionLog::
-            // new(t, a)),             )
-            //         })
-            //         .collect::<Vec<(String, serde_json::Value)>>(),
-            // );
+            let transaction_logs_and_txos = service
+                .get_all_transaction_logs_ordered_by_block()
+                .map_err(format_error)?;
+            let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
+                transaction_logs_and_txos
+                    .iter()
+                    .map(|(t, a, _v)| {
+                        (
+                            t.id.clone(),
+                            serde_json::json!(
+                                json_rpc::v1::models::transaction_log::TransactionLog::new(t, a)
+                            ),
+                        )
+                    })
+                    .collect::<Vec<(String, serde_json::Value)>>(),
+            );
 
-            // JsonCommandResponse::get_all_transaction_logs_ordered_by_block {
-            //     transaction_log_map,
-            // }
+            JsonCommandResponse::get_all_transaction_logs_ordered_by_block {
+                transaction_log_map,
+            }
         }
         JsonCommandRequest::get_all_txos_for_address { address } => {
-            unimplemented!();
-            // let txos = service
-            //     .get_all_txos_for_address(&address)
-            //     .map_err(format_error)?;
-            // let txo_map: Map<String, serde_json::Value> = Map::from_iter(
-            //     txos.iter()
-            //         .map(|t| {
-            //             (
-            //                 t.txo_id_hex.clone(),
-            //                 serde_json::to_value(Txo::from(t)).expect("Could
-            // not get json value"),             )
-            //         })
-            //         .collect::<Vec<(String, serde_json::Value)>>(),
-            // );
+            let txos = service
+                .list_txos(None, Some(address), None, Some(*Mob::ID), None, None)
+                .map_err(format_error)?;
+            let txo_map: Map<String, serde_json::Value> = Map::from_iter(
+                txos.iter()
+                    .map(|(t, s)| {
+                        (
+                            t.id.clone(),
+                            serde_json::to_value(Txo::new(t, s)).expect("Could not get json value"),
+                        )
+                    })
+                    .collect::<Vec<(String, serde_json::Value)>>(),
+            );
 
-            // JsonCommandResponse::get_all_txos_for_address {
-            //     txo_ids: txos.iter().map(|t| t.txo_id_hex.clone()).collect(),
-            //     txo_map,
-            // }
+            JsonCommandResponse::get_all_txos_for_address {
+                txo_ids: txos.iter().map(|(t, _s)| t.id.clone()).collect(),
+                txo_map,
+            }
         }
         JsonCommandRequest::get_balance_for_account { account_id } => {
             let account_id = AccountID(account_id);
@@ -659,17 +649,18 @@ where
             .map_err(format_error)?,
         },
         JsonCommandRequest::get_transaction_log { transaction_log_id } => {
-            unimplemented!();
-            //     let (transaction_log, associated_txos) = service
-            //         .get_transaction_log(&transaction_log_id)
-            //         .map_err(format_error)?;
-            //     JsonCommandResponse::get_transaction_log {
-            //         transaction_log:
-            // json_rpc::transaction_log::TransactionLog::new(
-            //             &transaction_log,
-            //             &associated_txos,
-            //         ),
-            //     }
+            let (transaction_log, associated_txos, _) = service
+                .get_transaction_log(&transaction_log_id)
+                .map_err(format_error)?;
+
+            let json_tx_log = json_rpc::v1::models::transaction_log::TransactionLog::new(
+                &transaction_log,
+                &associated_txos,
+            );
+
+            JsonCommandResponse::get_transaction_log {
+                transaction_log: json_tx_log,
+            }
         }
         JsonCommandRequest::get_transaction_logs_for_account {
             account_id,
@@ -678,56 +669,54 @@ where
             min_block_index,
             max_block_index,
         } => {
-            unimplemented!();
-            // let (o, l) = page_helper(offset, limit)?;
+            let (o, l) = page_helper(offset, limit)?;
 
-            // let min_block_index = min_block_index
-            //     .map(|i| i.parse::<u64>())
-            //     .transpose()
-            //     .map_err(format_error)?;
+            let min_block_index = min_block_index
+                .map(|i| i.parse::<u64>())
+                .transpose()
+                .map_err(format_error)?;
 
-            // let max_block_index = max_block_index
-            //     .map(|i| i.parse::<u64>())
-            //     .transpose()
-            //     .map_err(format_error)?;
+            let max_block_index = max_block_index
+                .map(|i| i.parse::<u64>())
+                .transpose()
+                .map_err(format_error)?;
 
-            // let transaction_logs_and_txos = service
-            //     .list_transaction_logs(
-            //         &AccountID(account_id),
-            //         Some(o),
-            //         Some(l),
-            //         min_block_index,
-            //         max_block_index,
-            //     )
-            //     .map_err(format_error)?;
-            // let transaction_log_map: Map<String, serde_json::Value> =
-            // Map::from_iter(     transaction_logs_and_txos
-            //         .iter()
-            //         .map(|(t, a)| {
-            //             (
-            //                 t.transaction_id_hex.clone(),
-            //
-            // serde_json::json!(json_rpc::transaction_log::TransactionLog::
-            // new(t, a)),             )
-            //         })
-            //         .collect::<Vec<(String, serde_json::Value)>>(),
-            // );
+            let transaction_logs_and_txos = service
+                .list_transaction_logs(
+                    Some(account_id),
+                    Some(o),
+                    Some(l),
+                    min_block_index,
+                    max_block_index,
+                )
+                .map_err(format_error)?;
+            let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
+                transaction_logs_and_txos
+                    .iter()
+                    .map(|(t, a, _v)| {
+                        (
+                            t.id.clone(),
+                            serde_json::json!(
+                                json_rpc::v1::models::transaction_log::TransactionLog::new(t, a)
+                            ),
+                        )
+                    })
+                    .collect::<Vec<(String, serde_json::Value)>>(),
+            );
 
-            // JsonCommandResponse::get_transaction_logs_for_account {
-            //     transaction_log_ids: transaction_logs_and_txos
-            //         .iter()
-            //         .map(|(t, _a)| t.transaction_id_hex.to_string())
-            //         .collect(),
-            //     transaction_log_map,
-            // }
+            JsonCommandResponse::get_transaction_logs_for_account {
+                transaction_log_ids: transaction_logs_and_txos
+                    .iter()
+                    .map(|(t, _a, _v)| t.id.to_string())
+                    .collect(),
+                transaction_log_map,
+            }
         }
         JsonCommandRequest::get_txo { txo_id } => {
-            unimplemented!();
-            // let result =
-            // service.get_txo(&TxoID(txo_id)).map_err(format_error)?;
-            // JsonCommandResponse::get_txo {
-            //     txo: Txo::from(&result),
-            // }
+            let (txo, status) = service.get_txo(&TxoID(txo_id)).map_err(format_error)?;
+            JsonCommandResponse::get_txo {
+                txo: Txo::new(&txo, &status),
+            }
         }
         JsonCommandRequest::get_txos_for_account {
             account_id,
@@ -735,26 +724,40 @@ where
             offset,
             limit,
         } => {
-            unimplemented!();
-            // let (o, l) = page_helper(offset, limit)?;
-            // let txos = service
-            //     .list_txos(&AccountID(account_id), status, Some(o), Some(l))
-            //     .map_err(format_error)?;
-            // let txo_map: Map<String, serde_json::Value> = Map::from_iter(
-            //     txos.iter()
-            //         .map(|t| {
-            //             (
-            //                 t.txo_id_hex.clone(),
-            //                 serde_json::to_value(Txo::from(t)).expect("Could
-            // not get json value"),             )
-            //         })
-            //         .collect::<Vec<(String, serde_json::Value)>>(),
-            // );
+            let status = status.map(|s| {
+                let status = s
+                    .parse::<json_rpc::v1::models::txo::TxoStatus>()
+                    .map_err(format_error)
+                    .unwrap();
+                crate::db::txo::TxoStatus::try_from(status).unwrap()
+            });
 
-            // JsonCommandResponse::get_txos_for_account {
-            //     txo_ids: txos.iter().map(|t| t.txo_id_hex.clone()).collect(),
-            //     txo_map,
-            // }
+            let (o, l) = page_helper(offset, limit)?;
+            let txos = service
+                .list_txos(
+                    Some(account_id),
+                    None,
+                    status,
+                    Some(*Mob::ID),
+                    Some(o),
+                    Some(l),
+                )
+                .map_err(format_error)?;
+            let txo_map: Map<String, serde_json::Value> = Map::from_iter(
+                txos.iter()
+                    .map(|(t, s)| {
+                        (
+                            t.id.clone(),
+                            serde_json::to_value(Txo::new(t, s)).expect("Could not get json value"),
+                        )
+                    })
+                    .collect::<Vec<(String, serde_json::Value)>>(),
+            );
+
+            JsonCommandResponse::get_txos_for_account {
+                txo_ids: txos.iter().map(|(t, _s)| t.id.clone()).collect(),
+                txo_map,
+            }
         }
         JsonCommandRequest::get_wallet_status => JsonCommandResponse::get_wallet_status {
             wallet_status: WalletStatus::try_from(

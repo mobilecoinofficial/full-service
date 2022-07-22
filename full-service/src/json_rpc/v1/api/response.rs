@@ -144,6 +144,10 @@ pub enum JsonCommandResponse {
     get_transaction_log {
         transaction_log: TransactionLog,
     },
+    get_transaction_logs_for_account {
+        transaction_log_ids: Vec<String>,
+        transaction_log_map: Map<String, serde_json::Value>,
+    },
     get_txo {
         txo: Txo,
     },
