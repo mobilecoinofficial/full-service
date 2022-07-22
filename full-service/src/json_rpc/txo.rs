@@ -170,7 +170,7 @@ mod tests {
     use crate::{
         db,
         db::{account::AccountModel, models::Account, txo::TxoModel},
-        test_utils::{create_test_received_txo, WalletDbTestContext, MOB},
+        test_utils::{create_test_received_txo, get_test_ledger, WalletDbTestContext, MOB},
     };
     use mc_account_keys::{AccountKey, RootIdentity};
     use mc_common::logger::{test_with_logger, Logger};
@@ -184,6 +184,7 @@ mod tests {
 
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
+        let ledger_db = get_test_ledger(5, &[], 12, &mut rng);
 
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
@@ -196,6 +197,7 @@ mod tests {
             "".to_string(),
             "".to_string(),
             "".to_string(),
+            &ledger_db,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();

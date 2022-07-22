@@ -4,9 +4,9 @@
 
 use crate::{
     db::{
-        account::AccountID,
+        account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        models::{AssignedSubaddress, ViewOnlySubaddress},
+        models::{Account, AssignedSubaddress, ViewOnlySubaddress},
         transaction,
         view_only_subaddress::ViewOnlySubaddressModel,
         WalletDbError,
@@ -14,6 +14,7 @@ use crate::{
     service::WalletService,
     util::b58::b58_decode_public_address,
 };
+use mc_account_keys::{AccountKey, CHANGE_SUBADDRESS_INDEX};
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
@@ -83,6 +84,8 @@ pub trait AddressService {
 
     /// Verifies whether an address can be decoded from b58.
     fn verify_address(&self, public_address: &str) -> Result<bool, AddressServiceError>;
+
+    fn assign_missing_reserved_subaddresses_for_accounts(&self) -> Result<(), AddressServiceError>;
 }
 
 impl<T, FPR> AddressService for WalletService<T, FPR>
@@ -188,6 +191,33 @@ where
                 Ok(false)
             }
         }
+    }
+
+    fn assign_missing_reserved_subaddresses_for_accounts(&self) -> Result<(), AddressServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+        let accounts = Account::list_all(&conn)?;
+
+        for account in accounts.iter() {
+            if AssignedSubaddress::get_for_account_by_index(
+                &account.account_id_hex,
+                CHANGE_SUBADDRESS_INDEX as i64,
+                &conn,
+            )
+            .is_err()
+            {
+                let account_key: AccountKey = mc_util_serial::decode(&account.account_key).unwrap();
+                AssignedSubaddress::create(
+                    &account_key,
+                    None,
+                    CHANGE_SUBADDRESS_INDEX,
+                    "Change",
+                    &self.ledger_db,
+                    &conn,
+                )?;
+            };
+        }
+
+        Ok(())
     }
 }
 
