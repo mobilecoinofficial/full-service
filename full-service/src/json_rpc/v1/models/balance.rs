@@ -59,21 +59,24 @@ pub struct Balance {
     pub orphaned_pmob: String,
 }
 
-impl From<&service::balance::Balance> for Balance {
-    fn from(src: &service::balance::Balance) -> Balance {
-        unimplemented!();
-        // Balance {
-        //     object: "balance".to_string(),
-        //     network_block_height: src.network_block_height.to_string(),
-        //     local_block_height: src.local_block_height.to_string(),
-        //     account_block_height: src.synced_blocks.to_string(),
-        //     is_synced: src.synced_blocks == src.network_block_height,
-        //     unspent_pmob: src.unspent.to_string(),
-        //     max_spendable_pmob: src.max_spendable.to_string(),
-        //     pending_pmob: src.pending.to_string(),
-        //     spent_pmob: src.spent.to_string(),
-        //     secreted_pmob: src.secreted.to_string(),
-        //     orphaned_pmob: src.orphaned.to_string(),
-        // }
+impl Balance {
+    pub fn new(
+        balance: &service::balance::Balance,
+        account_block_height: u64,
+        network_status: &service::balance::NetworkStatus,
+    ) -> Self {
+        Balance {
+            object: "balance".to_string(),
+            network_block_height: network_status.network_block_height.to_string(),
+            local_block_height: network_status.local_block_height.to_string(),
+            account_block_height: account_block_height.to_string(),
+            is_synced: account_block_height == network_status.network_block_height,
+            unspent_pmob: (balance.unspent + balance.unverified).to_string(),
+            max_spendable_pmob: "0".to_string(),
+            pending_pmob: balance.pending.to_string(),
+            spent_pmob: balance.spent.to_string(),
+            secreted_pmob: balance.secreted.to_string(),
+            orphaned_pmob: balance.orphaned.to_string(),
+        }
     }
 }

@@ -81,6 +81,7 @@ impl From<AccountServiceError> for BalanceServiceError {
 ///
 /// This must be a service object because there is no "Balance" table in our
 /// data model.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Balance {
     pub unverified: u128,
     pub unspent: u128,
@@ -88,6 +89,32 @@ pub struct Balance {
     pub spent: u128,
     pub secreted: u128,
     pub orphaned: u128,
+}
+
+impl Default for Balance {
+    fn default() -> Self {
+        Self {
+            unverified: 0,
+            unspent: 0,
+            pending: 0,
+            spent: 0,
+            secreted: 0,
+            orphaned: 0,
+        }
+    }
+}
+
+impl Default for &Balance {
+    fn default() -> &'static Balance {
+        &Balance {
+            unverified: 0,
+            unspent: 0,
+            pending: 0,
+            spent: 0,
+            secreted: 0,
+            orphaned: 0,
+        }
+    }
 }
 
 /// The Network Status object.

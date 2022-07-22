@@ -192,31 +192,29 @@ where
             tombstone_block,
             max_spendable_value,
         } => {
-            unimplemented!();
-            // let (tx_proposal, gift_code_b58) = service
-            //     .build_gift_code(
-            //         &AccountID(account_id),
-            //         value_pmob.parse::<u64>().map_err(format_error)?,
-            //         memo,
-            //         input_txo_ids.as_ref(),
-            //         fee.map(|f| f.parse::<u64>())
-            //             .transpose()
-            //             .map_err(format_error)?,
-            //         tombstone_block
-            //             .map(|t| t.parse::<u64>())
-            //             .transpose()
-            //             .map_err(format_error)?,
-            //         max_spendable_value
-            //             .map(|m| m.parse::<u64>())
-            //             .transpose()
-            //             .map_err(format_error)?,
-            //     )
-            //     .map_err(format_error)?;
-            // JsonCommandResponse::build_gift_code {
-            //     tx_proposal:
-            // TxProposal::try_from(&tx_proposal).map_err(format_error)?,
-            //     gift_code_b58: gift_code_b58.to_string(),
-            // }
+            let (tx_proposal, gift_code_b58) = service
+                .build_gift_code(
+                    &AccountID(account_id),
+                    value_pmob.parse::<u64>().map_err(format_error)?,
+                    memo,
+                    input_txo_ids.as_ref(),
+                    fee.map(|f| f.parse::<u64>())
+                        .transpose()
+                        .map_err(format_error)?,
+                    tombstone_block
+                        .map(|t| t.parse::<u64>())
+                        .transpose()
+                        .map_err(format_error)?,
+                    max_spendable_value
+                        .map(|m| m.parse::<u64>())
+                        .transpose()
+                        .map_err(format_error)?,
+                )
+                .map_err(format_error)?;
+            JsonCommandResponse::build_gift_code {
+                tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
+                gift_code_b58: gift_code_b58.to_string(),
+            }
         }
         JsonCommandRequest::build_split_txo_transaction {
             txo_id,
@@ -225,24 +223,23 @@ where
             fee,
             tombstone_block,
         } => {
-            unimplemented!();
-            // let tx_proposal = service
-            //     .split_txo(
-            //         &TxoID(txo_id),
-            //         &output_values,
-            //         destination_subaddress_index
-            //             .map(|f| f.parse::<i64>())
-            //             .transpose()
-            //             .map_err(format_error)?,
-            //         fee,
-            //         tombstone_block,
-            //     )
-            //     .map_err(format_error)?;
-            // JsonCommandResponse::build_split_txo_transaction {
-            //     tx_proposal:
-            // TxProposal::try_from(&tx_proposal).map_err(format_error)?,
-            //     transaction_log_id:
-            // TransactionID::from(&tx_proposal.tx).to_string(), }
+            let tx_proposal = service
+                .split_txo(
+                    &TxoID(txo_id),
+                    &output_values,
+                    destination_subaddress_index
+                        .map(|f| f.parse::<i64>())
+                        .transpose()
+                        .map_err(format_error)?,
+                    fee,
+                    Some(Mob::ID.to_string()),
+                    tombstone_block,
+                )
+                .map_err(format_error)?;
+            JsonCommandResponse::build_split_txo_transaction {
+                tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
+                transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
+            }
         }
         JsonCommandRequest::build_transaction {
             account_id,
@@ -255,28 +252,43 @@ where
             max_spendable_value,
             log_tx_proposal,
         } => {
-            unimplemented!();
-            // let mut addresses_and_values =
-            // addresses_and_values.unwrap_or_default();
-            // if let (Some(a), Some(v)) = (recipient_public_address,
-            // value_pmob) {     addresses_and_values.push((a, v));
-            // }
-            // let tx_proposal = service
-            //     .build_transaction(
-            //         &account_id,
-            //         &addresses_and_values,
-            //         input_txo_ids.as_ref(),
-            //         fee,
-            //         tombstone_block,
-            //         max_spendable_value,
-            //         log_tx_proposal,
-            //     )
-            //     .map_err(format_error)?;
-            // JsonCommandResponse::build_transaction {
-            //     tx_proposal:
-            // TxProposal::try_from(&tx_proposal).map_err(format_error)?,
-            //     transaction_log_id:
-            // TransactionID::from(&tx_proposal.tx).to_string(), }
+            // The user can specify either a single address and a single value,
+            // or a list of addresses and values.
+            let mut addresses_and_values = addresses_and_values.unwrap_or_default();
+            if let (Some(a), Some(v)) = (recipient_public_address, value_pmob) {
+                addresses_and_values.push((a, v));
+            }
+
+            let addresses_and_amounts: Vec<(String, Amount)> = addresses_and_values
+                .into_iter()
+                .map(|(a, v)| {
+                    (
+                        a,
+                        Amount {
+                            value: v,
+                            token_id: Mob::ID.to_string(),
+                        },
+                    )
+                })
+                .collect();
+
+            let tx_proposal = service
+                .build_transaction(
+                    &account_id,
+                    &addresses_and_amounts,
+                    input_txo_ids.as_ref(),
+                    fee,
+                    Some(Mob::ID.to_string()),
+                    tombstone_block,
+                    max_spendable_value,
+                    None,
+                )
+                .map_err(format_error)?;
+
+            JsonCommandResponse::build_transaction {
+                tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
+                transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
+            }
         }
         JsonCommandRequest::check_b58_type { b58_code } => {
             let b58_type = b58_printable_wrapper_type(b58_code.clone()).map_err(format_error)?;
@@ -316,17 +328,15 @@ where
             address,
             receiver_receipt,
         } => {
-            unimplemented!();
-            // let receipt =
-            // service::receipt::ReceiverReceipt::try_from(&receiver_receipt)
-            //     .map_err(format_error)?;
-            // let (status, txo) = service
-            //     .check_receipt_status(&address, &receipt)
-            //     .map_err(format_error)?;
-            // JsonCommandResponse::check_receiver_receipt_status {
-            //     receipt_transaction_status: status,
-            //     txo: txo.as_ref().map(Txo::from),
-            // }
+            let receipt = service::receipt::ReceiverReceipt::try_from(&receiver_receipt)
+                .map_err(format_error)?;
+            let (status, txo_and_status) = service
+                .check_receipt_status(&address, &receipt)
+                .map_err(format_error)?;
+            JsonCommandResponse::check_receiver_receipt_status {
+                receipt_transaction_status: status,
+                txo: txo_and_status.as_ref().map(|(t, _)| Txo::from(t)),
+            }
         }
         JsonCommandRequest::claim_gift_code {
             gift_code_b58,
@@ -376,22 +386,19 @@ where
                 .map_err(format_error)?,
         },
         JsonCommandRequest::create_receiver_receipts { tx_proposal } => {
-            unimplemented!();
-            //     let receipts = service
-            //         .create_receiver_receipts(
-            //
-            // &mc_mobilecoind::payments::TxProposal::try_from(&tx_proposal)
-            //                 .map_err(format_error)?,
-            //         )
-            //         .map_err(format_error)?;
-            //     let json_receipts: Vec<ReceiverReceipt> = receipts
-            //         .iter()
-            //         .map(ReceiverReceipt::try_from)
-            //         .collect::<Result<Vec<ReceiverReceipt>, String>>()
-            //         .map_err(format_error)?;
-            //     JsonCommandResponse::create_receiver_receipts {
-            //         receiver_receipts: json_receipts,
-            //     }
+            let receipts = service
+                .create_receiver_receipts(&service::models::tx_proposal::TxProposal::from(
+                    &tx_proposal,
+                ))
+                .map_err(format_error)?;
+            let json_receipts: Vec<ReceiverReceipt> = receipts
+                .iter()
+                .map(ReceiverReceipt::try_from)
+                .collect::<Result<Vec<ReceiverReceipt>, String>>()
+                .map_err(format_error)?;
+            JsonCommandResponse::create_receiver_receipts {
+                receiver_receipts: json_receipts,
+            }
         }
         JsonCommandRequest::export_account_secrets { account_id } => {
             let account = service
@@ -410,19 +417,25 @@ where
             .map_err(format_error)?,
         },
         JsonCommandRequest::get_account_status { account_id } => {
-            unimplemented!();
-            // let account = json_rpc::v1::models::account::Account::try_from(
-            //     &service
-            //         .get_account(&AccountID(account_id.clone()))
-            //         .map_err(format_error)?,
-            // )
-            // .map_err(format_error)?;
-            // let balance = Balance::from(
-            //     &service
-            //         .get_balance_for_account(&AccountID(account_id))
-            //         .map_err(format_error)?,
-            // );
-            // JsonCommandResponse::get_account_status { account, balance }
+            let account_id = AccountID(account_id);
+            let account = &service.get_account(&account_id).map_err(format_error)?;
+
+            let balance_map = service
+                .get_balance_for_account(&account_id)
+                .map_err(format_error)?;
+            let balance_mob = balance_map.get(&Mob::ID).unwrap_or_default();
+
+            let network_status = service.get_network_status().map_err(format_error)?;
+
+            let balance = Balance::new(
+                balance_mob,
+                account.next_block_index as u64,
+                &network_status,
+            );
+
+            let account =
+                json_rpc::v1::models::account::Account::try_from(account).map_err(format_error)?;
+            JsonCommandResponse::get_account_status { account, balance }
         }
         JsonCommandRequest::get_address_for_account { account_id, index } => {
             let assigned_subaddress = service
@@ -437,31 +450,30 @@ where
             offset,
             limit,
         } => {
-            unimplemented!();
-            // let (o, l) = page_helper(offset, limit)?;
-            // let addresses = service
-            //     .get_addresses_for_account(&AccountID(account_id), Some(o),
-            // Some(l))     .map_err(format_error)?;
-            // let address_map: Map<String, serde_json::Value> = Map::from_iter(
-            //     addresses
-            //         .iter()
-            //         .map(|a| {
-            //             (
-            //                 a.assigned_subaddress_b58.clone(),
-            //                 serde_json::to_value(&(Address::from(a)))
-            //                     .expect("Could not get json value"),
-            //             )
-            //         })
-            //         .collect::<Vec<(String, serde_json::Value)>>(),
-            // );
+            let (o, l) = page_helper(offset, limit)?;
+            let addresses = service
+                .get_addresses(Some(account_id), Some(o), Some(l))
+                .map_err(format_error)?;
+            let address_map: Map<String, serde_json::Value> = Map::from_iter(
+                addresses
+                    .iter()
+                    .map(|a| {
+                        (
+                            a.assigned_subaddress_b58.clone(),
+                            serde_json::to_value(&(Address::from(a)))
+                                .expect("Could not get json value"),
+                        )
+                    })
+                    .collect::<Vec<(String, serde_json::Value)>>(),
+            );
 
-            // JsonCommandResponse::get_addresses_for_account {
-            //     public_addresses: addresses
-            //         .iter()
-            //         .map(|a| a.assigned_subaddress_b58.clone())
-            //         .collect(),
-            //     address_map,
-            // }
+            JsonCommandResponse::get_addresses_for_account {
+                public_addresses: addresses
+                    .iter()
+                    .map(|a| a.assigned_subaddress_b58.clone())
+                    .collect(),
+                address_map,
+            }
         }
         JsonCommandRequest::get_all_accounts => {
             let accounts = service.list_accounts(None, None).map_err(format_error)?;
@@ -563,24 +575,40 @@ where
             // }
         }
         JsonCommandRequest::get_balance_for_account { account_id } => {
-            unimplemented!();
-            // JsonCommandResponse::get_balance_for_account {
-            //     balance: Balance::from(
-            //         &service
-            //             .get_balance_for_account(&AccountID(account_id))
-            //             .map_err(format_error)?,
-            //     ),
-            // }
+            let account_id = AccountID(account_id);
+            let account = service.get_account(&account_id).map_err(format_error)?;
+            let balance_map = service
+                .get_balance_for_account(&account_id)
+                .map_err(format_error)?;
+            let balance_mob = balance_map.get(&Mob::ID).unwrap_or_default();
+
+            let network_status = service.get_network_status().map_err(format_error)?;
+            JsonCommandResponse::get_balance_for_account {
+                balance: Balance::new(
+                    balance_mob,
+                    account.next_subaddress_index as u64,
+                    &network_status,
+                ),
+            }
         }
         JsonCommandRequest::get_balance_for_address { address } => {
-            unimplemented!();
-            // JsonCommandResponse::get_balance_for_address {
-            //     balance: Balance::from(
-            //         &service
-            //             .get_balance_for_address(&address)
-            //             .map_err(format_error)?,
-            //     ),
-            // }
+            let assigned_subaddress = service.get_address(&address).map_err(format_error)?;
+            let account_id = AccountID(assigned_subaddress.account_id);
+            let account = service.get_account(&account_id).map_err(format_error)?;
+
+            let balance_map = service
+                .get_balance_for_address(&address)
+                .map_err(format_error)?;
+
+            let balance_mob = balance_map.get(&Mob::ID).unwrap_or_default();
+
+            JsonCommandResponse::get_balance_for_address {
+                balance: Balance::new(
+                    balance_mob,
+                    account.next_subaddress_index as u64,
+                    &service.get_network_status().map_err(format_error)?,
+                ),
+            }
         }
         JsonCommandRequest::get_block { block_index } => {
             let (block, block_contents) = service
@@ -624,15 +652,12 @@ where
             let json_txo = JsonTxOut::from(&proto_txo);
             JsonCommandResponse::get_mc_protocol_txo { txo: json_txo }
         }
-        JsonCommandRequest::get_network_status => {
-            unimplemented!();
-            //     JsonCommandResponse::get_network_status {
-            //     network_status: NetworkStatus::try_from(
-            //         &service.get_network_status().map_err(format_error)?,
-            //     )
-            //     .map_err(format_error)?,
-            // }
-        }
+        JsonCommandRequest::get_network_status => JsonCommandResponse::get_network_status {
+            network_status: NetworkStatus::try_from(
+                &service.get_network_status().map_err(format_error)?,
+            )
+            .map_err(format_error)?,
+        },
         JsonCommandRequest::get_transaction_log { transaction_log_id } => {
             unimplemented!();
             //     let (transaction_log, associated_txos) = service
@@ -827,42 +852,38 @@ where
             gift_code_b58,
             tx_proposal,
         } => {
-            unimplemented!();
-            // let gift_code = service
-            //     .submit_gift_code(
-            //         &AccountID(from_account_id),
-            //         &EncodedGiftCode(gift_code_b58),
-            //         &mc_mobilecoind::payments::TxProposal::try_from(&
-            // tx_proposal)             .map_err(format_error)?,
-            //     )
-            //     .map_err(format_error)?;
-            // JsonCommandResponse::submit_gift_code {
-            //     gift_code: GiftCode::from(&gift_code),
-            // }
+            let gift_code = service
+                .submit_gift_code(
+                    &AccountID(from_account_id),
+                    &EncodedGiftCode(gift_code_b58),
+                    &service::models::tx_proposal::TxProposal::from(&tx_proposal),
+                )
+                .map_err(format_error)?;
+            JsonCommandResponse::submit_gift_code {
+                gift_code: GiftCode::from(&gift_code),
+            }
         }
         JsonCommandRequest::submit_transaction {
             tx_proposal,
             comment,
             account_id,
         } => {
-            unimplemented!();
-            // let result: Option<json_rpc::transaction_log::TransactionLog> =
-            // service     .submit_transaction(
-            //         mc_mobilecoind::payments::TxProposal::try_from(&
-            // tx_proposal)             .map_err(format_error)?,
-            //         comment,
-            //         account_id,
-            //     )
-            //     .map_err(format_error)?
-            //     .map(|(transaction_log, associated_txos)| {
-            //         json_rpc::transaction_log::TransactionLog::new(
-            //             &transaction_log,
-            //             &associated_txos,
-            //         )
-            //     });
-            // JsonCommandResponse::submit_transaction {
-            //     transaction_log: result,
-            // }
+            let result = service
+                .submit_transaction(
+                    &service::models::tx_proposal::TxProposal::from(&tx_proposal),
+                    comment,
+                    account_id,
+                )
+                .map_err(format_error)?
+                .map(|(tx_log, associated_txos, value_map)| {
+                    json_rpc::v1::models::transaction_log::TransactionLog::new(
+                        &tx_log,
+                        &associated_txos,
+                    )
+                });
+            JsonCommandResponse::submit_transaction {
+                transaction_log: result,
+            }
         }
         JsonCommandRequest::update_account_name { account_id, name } => {
             JsonCommandResponse::update_account_name {

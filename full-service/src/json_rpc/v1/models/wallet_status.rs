@@ -4,6 +4,7 @@
 
 use crate::{json_rpc, service};
 
+use mc_transaction_core::{tokens::Mob, Token};
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Map;
 use std::{convert::TryFrom, iter::FromIterator};
@@ -64,33 +65,33 @@ impl TryFrom<&service::balance::WalletStatus> for WalletStatus {
     type Error = String;
 
     fn try_from(src: &service::balance::WalletStatus) -> Result<WalletStatus, String> {
-        unimplemented!();
-        // let account_mapped: Vec<(String, serde_json::Value)> = src
-        //     .account_map
-        //     .iter()
-        //     .map(|(i, a)| {
-        //         json_rpc::account::Account::try_from(a).and_then(|a| {
-        //             serde_json::to_value(a)
-        //                 .map(|v| (i.to_string(), v))
-        //                 .map_err(|e| format!("Could not convert account map:
-        // {:?}", e))         })
-        //     })
-        //     .collect::<Result<Vec<(String, serde_json::Value)>, String>>()?;
+        let account_mapped: Vec<(String, serde_json::Value)> = src
+            .account_map
+            .iter()
+            .map(|(i, a)| {
+                json_rpc::v1::models::account::Account::try_from(a).and_then(|a| {
+                    serde_json::to_value(a)
+                        .map(|v| (i.to_string(), v))
+                        .map_err(|e| format!("Could not convert account map:{:?}", e))
+                })
+            })
+            .collect::<Result<Vec<(String, serde_json::Value)>, String>>()?;
 
-        // Ok(WalletStatus {
-        //     object: "wallet_status".to_string(),
-        //     network_block_height: src.network_block_height.to_string(),
-        //     local_block_height: src.local_block_height.to_string(),
-        //     is_synced_all: src.min_synced_block_index + 1 >=
-        // src.network_block_height,     min_synced_block_index:
-        // src.min_synced_block_index.to_string(),
-        //     total_unspent_pmob: src.unspent.to_string(),
-        //     total_pending_pmob: src.pending.to_string(),
-        //     total_spent_pmob: src.spent.to_string(),
-        //     total_secreted_pmob: src.secreted.to_string(),
-        //     total_orphaned_pmob: src.orphaned.to_string(),
-        //     account_ids: src.account_ids.iter().map(|a|
-        // a.to_string()).collect(),     account_map:
-        // Map::from_iter(account_mapped), })
+        let balance_mob = src.balance_per_token.get(&Mob::ID).unwrap_or_default();
+
+        Ok(WalletStatus {
+            object: "wallet_status".to_string(),
+            network_block_height: src.network_block_height.to_string(),
+            local_block_height: src.local_block_height.to_string(),
+            is_synced_all: src.min_synced_block_index + 1 >= src.network_block_height,
+            min_synced_block_index: src.min_synced_block_index.to_string(),
+            total_unspent_pmob: (balance_mob.unspent + balance_mob.unverified).to_string(),
+            total_pending_pmob: balance_mob.pending.to_string(),
+            total_spent_pmob: balance_mob.spent.to_string(),
+            total_secreted_pmob: balance_mob.secreted.to_string(),
+            total_orphaned_pmob: balance_mob.orphaned.to_string(),
+            account_ids: src.account_ids.iter().map(|a| a.to_string()).collect(),
+            account_map: Map::from_iter(account_mapped),
+        })
     }
 }

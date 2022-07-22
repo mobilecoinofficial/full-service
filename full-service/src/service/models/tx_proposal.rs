@@ -1,10 +1,11 @@
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
 
 use mc_account_keys::PublicAddress;
 use mc_transaction_core::{
     ring_signature::KeyImage,
-    tx::{Tx, TxOut, TxOutConfirmationNumber},
-    TokenId,
+    tokens::Mob,
+    tx::{self, Tx, TxOut, TxOutConfirmationNumber},
+    Token, TokenId,
 };
 
 use crate::util::b58::b58_decode_public_address;
@@ -33,6 +34,39 @@ pub struct TxProposal {
     pub input_txos: Vec<InputTxo>,
     pub payload_txos: Vec<OutputTxo>,
     pub change_txos: Vec<OutputTxo>,
+}
+
+impl From<&crate::json_rpc::v1::models::tx_proposal::TxProposal> for TxProposal {
+    fn from(src: &crate::json_rpc::v1::models::tx_proposal::TxProposal) -> Self {
+        unimplemented!();
+        // let tx = Tx::try_from(&src.tx).unwrap();
+        // let input_txos = src
+        //     .input_list
+        //     .iter()
+        //     .map(|input_txo| {
+        //         let key_image_bytes: [u8; 32] =
+        // hex::decode(&input_txo.key_image)             .unwrap()
+        //             .as_slice()
+        //             .try_into()
+        //             .unwrap();
+        //         InputTxo {
+        //             tx_out: TxOut::try_from(&input_txo.tx_out).unwrap(),
+        //             subaddress_index:
+        // input_txo.subaddress_index.parse::<u64>().unwrap(),
+        //             key_image: KeyImage::from(key_image_bytes),
+        //             value: input_txo.value,
+        //             token_id: Mob::ID,
+        //         }
+        //     })
+        //     .collect();
+
+        // Self {
+        //     tx,
+        //     input_txos: Vec::new(),
+        //     payload_txos: Vec::new(),
+        //     change_txos: Vec::new(),
+        // }
+    }
 }
 
 impl From<&crate::json_rpc::v2::models::tx_proposal::TxProposal> for TxProposal {
