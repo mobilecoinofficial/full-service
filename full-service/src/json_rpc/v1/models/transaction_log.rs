@@ -4,11 +4,66 @@
 
 use chrono::{offset::TimeZone, Utc};
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 use crate::{
     db,
     db::transaction_log::{AssociatedTxos, TransactionLogModel},
 };
+
+pub enum TxStatus {
+    Built,
+    Pending,
+    Succeeded,
+    Failed,
+}
+
+impl fmt::Display for TxStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TxStatus::Built => write!(f, "tx_status_built"),
+            TxStatus::Pending => write!(f, "tx_status_pending"),
+            TxStatus::Succeeded => write!(f, "tx_status_succeeded"),
+            TxStatus::Failed => write!(f, "tx_status_failed"),
+        }
+    }
+}
+
+impl From<&db::transaction_log::TxStatus> for TxStatus {
+    fn from(tx_status: &db::transaction_log::TxStatus) -> Self {
+        match tx_status {
+            db::transaction_log::TxStatus::Built => TxStatus::Built,
+            db::transaction_log::TxStatus::Pending => TxStatus::Pending,
+            db::transaction_log::TxStatus::Succeeded => TxStatus::Succeeded,
+            db::transaction_log::TxStatus::Failed => TxStatus::Failed,
+        }
+    }
+}
+
+impl From<&TxStatus> for db::transaction_log::TxStatus {
+    fn from(tx_status: &TxStatus) -> Self {
+        match tx_status {
+            TxStatus::Built => db::transaction_log::TxStatus::Built,
+            TxStatus::Pending => db::transaction_log::TxStatus::Pending,
+            TxStatus::Succeeded => db::transaction_log::TxStatus::Pending,
+            TxStatus::Failed => db::transaction_log::TxStatus::Pending,
+        }
+    }
+}
+
+pub enum TxDirection {
+    Received,
+    Sent,
+}
+
+impl fmt::Display for TxDirection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TxDirection::Received => write!(f, "tx_direction_received"),
+            TxDirection::Sent => write!(f, "tx_direction_sent"),
+        }
+    }
+}
 
 /// A log of a transaction that occurred on the MobileCoin network, constructed
 /// and/or submitted from an account in this wallet.
@@ -85,6 +140,31 @@ pub struct TransactionLog {
     pub failure_message: Option<String>,
 }
 
+impl From<&db::models::Txo> for TransactionLog {
+    fn from(txo: &db::models::Txo) -> Self {
+        TransactionLog {
+            object: "transaction_log".to_string(),
+            transaction_log_id: txo.id.to_string(),
+            direction: TxDirection::Received.to_string(),
+            is_sent_recovered: None,
+            account_id: txo.clone().account_id.unwrap(),
+            input_txos: vec![],
+            output_txos: vec![],
+            change_txos: vec![],
+            assigned_address_id: None,
+            value_pmob: txo.value.to_string(),
+            fee_pmob: None,
+            submitted_block_index: None,
+            finalized_block_index: None,
+            status: TxStatus::Succeeded.to_string(),
+            sent_time: None,
+            comment: "".to_string(),
+            failure_code: None,
+            failure_message: None,
+        }
+    }
+}
+
 impl TransactionLog {
     pub fn new(
         transaction_log: &db::models::TransactionLog,
@@ -121,7 +201,7 @@ impl TransactionLog {
         Self {
             object: "transaction_log".to_string(),
             transaction_log_id: transaction_log.id.clone(),
-            direction: "tx_direction_sent".to_string(),
+            direction: TxDirection::Sent.to_string(),
             is_sent_recovered: None,
             account_id: transaction_log.account_id.clone(),
             input_txos,
@@ -132,7 +212,7 @@ impl TransactionLog {
             fee_pmob: Some(transaction_log.fee_value.to_string()),
             submitted_block_index: transaction_log.submitted_block_index.map(|i| i.to_string()),
             finalized_block_index: transaction_log.finalized_block_index.map(|i| i.to_string()),
-            status: transaction_log.status().to_string(),
+            status: TxStatus::from(&transaction_log.status()).to_string(),
             sent_time: None,
             comment: transaction_log.comment.clone(),
             failure_code: None,

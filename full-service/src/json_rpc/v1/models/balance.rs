@@ -72,7 +72,7 @@ impl Balance {
             account_block_height: account_block_height.to_string(),
             is_synced: account_block_height == network_status.network_block_height,
             unspent_pmob: (balance.unspent + balance.unverified).to_string(),
-            max_spendable_pmob: "0".to_string(),
+            max_spendable_pmob: balance.max_spendable.to_string(),
             pending_pmob: balance.pending.to_string(),
             spent_pmob: balance.spent.to_string(),
             secreted_pmob: balance.secreted.to_string(),

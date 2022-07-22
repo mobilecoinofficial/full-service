@@ -83,6 +83,7 @@ impl From<AccountServiceError> for BalanceServiceError {
 /// data model.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Balance {
+    pub max_spendable: u128,
     pub unverified: u128,
     pub unspent: u128,
     pub pending: u128,
@@ -94,6 +95,7 @@ pub struct Balance {
 impl Default for Balance {
     fn default() -> Self {
         Self {
+            max_spendable: 0,
             unverified: 0,
             unspent: 0,
             pending: 0,
@@ -107,6 +109,7 @@ impl Default for Balance {
 impl Default for &Balance {
     fn default() -> &'static Balance {
         &Balance {
+            max_spendable: 0,
             unverified: 0,
             unspent: 0,
             pending: 0,
@@ -338,7 +341,16 @@ where
             )?)
         };
 
+        let spendable_txos_result = Txo::list_spendable(
+            account_id_hex,
+            None,
+            assigned_subaddress_b58,
+            *token_id,
+            conn,
+        )?;
+
         Ok(Balance {
+            max_spendable: spendable_txos_result.max_spendable_in_wallet,
             unverified,
             unspent,
             pending,

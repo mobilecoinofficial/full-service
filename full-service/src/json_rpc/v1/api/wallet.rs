@@ -681,34 +681,63 @@ where
                 .transpose()
                 .map_err(format_error)?;
 
+            let mut transaction_log_map: Map<String, serde_json::Value> = Map::new();
+            let mut transaction_log_ids: Vec<String> = Vec::new();
+
             let transaction_logs_and_txos = service
                 .list_transaction_logs(
-                    Some(account_id),
-                    Some(o),
-                    Some(l),
+                    Some(account_id.clone()),
+                    None,
+                    None,
                     min_block_index,
                     max_block_index,
                 )
                 .map_err(format_error)?;
-            let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
-                transaction_logs_and_txos
+
+            let received_txos = service
+                .list_txos(Some(account_id), None, None, Some(*Mob::ID), None, None)
+                .map_err(format_error)?;
+
+            let received_tx_logs: Vec<json_rpc::v1::models::transaction_log::TransactionLog> =
+                received_txos
                     .iter()
-                    .map(|(t, a, _v)| {
-                        (
-                            t.id.clone(),
-                            serde_json::json!(
-                                json_rpc::v1::models::transaction_log::TransactionLog::new(t, a)
-                            ),
-                        )
+                    .map(|(txo, _)| {
+                        json_rpc::v1::models::transaction_log::TransactionLog::from(txo)
                     })
-                    .collect::<Vec<(String, serde_json::Value)>>(),
-            );
+                    .collect();
+
+            for received_tx_log in received_tx_logs.iter() {
+                let tx_log_json = serde_json::to_value(received_tx_log).map_err(format_error)?;
+                transaction_log_map.insert(received_tx_log.transaction_log_id.clone(), tx_log_json);
+                transaction_log_ids.push(received_tx_log.transaction_log_id.clone());
+            }
+
+            for (tx_log, associated_txos, status) in transaction_logs_and_txos {
+                let tx_log_json =
+                    serde_json::json!(json_rpc::v1::models::transaction_log::TransactionLog::new(
+                        &tx_log,
+                        &associated_txos
+                    ));
+                transaction_log_map.insert(tx_log.id.clone(), tx_log_json);
+                transaction_log_ids.push(tx_log.id.clone());
+            }
+
+            transaction_log_ids.sort();
+
+            let transaction_log_ids_limitted;
+
+            if l - o < transaction_log_ids.len() as u64 {
+                let mut max = (o + l) as usize;
+                if max > transaction_log_ids.len() {
+                    max = transaction_log_ids.len();
+                }
+                transaction_log_ids_limitted = transaction_log_ids[o as usize..max].to_vec();
+            } else {
+                transaction_log_ids_limitted = transaction_log_ids.clone();
+            }
 
             JsonCommandResponse::get_transaction_logs_for_account {
-                transaction_log_ids: transaction_logs_and_txos
-                    .iter()
-                    .map(|(t, _a, _v)| t.id.to_string())
-                    .collect(),
+                transaction_log_ids: transaction_log_ids_limitted,
                 transaction_log_map,
             }
         }

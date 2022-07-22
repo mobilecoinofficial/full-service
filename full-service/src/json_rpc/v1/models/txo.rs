@@ -60,6 +60,18 @@ impl TryFrom<TxoStatus> for db::txo::TxoStatus {
     }
 }
 
+impl From<&db::txo::TxoStatus> for TxoStatus {
+    fn from(src: &db::txo::TxoStatus) -> Self {
+        match src {
+            db::txo::TxoStatus::Orphaned => TxoStatus::Orphaned,
+            db::txo::TxoStatus::Pending => TxoStatus::Pending,
+            db::txo::TxoStatus::Spent => TxoStatus::Spent,
+            db::txo::TxoStatus::Unspent => TxoStatus::Unspent,
+            db::txo::TxoStatus::Unverified => TxoStatus::Unspent,
+        }
+    }
+}
+
 pub enum TxoType {
     Minted,
     Received,
@@ -164,6 +176,15 @@ pub struct Txo {
 impl Txo {
     pub fn new(txo: &db::models::Txo, status: &db::txo::TxoStatus) -> Txo {
         let mut account_status_map: Map<String, serde_json::Value> = Map::new();
+
+        let status = TxoStatus::from(status);
+
+        if let Some(account_id) = &txo.account_id {
+            account_status_map.insert(
+                account_id.clone(),
+                json!({"txo_type": TxoType::Received.to_string(), "txo_status": status.to_string()}).into(),
+            );
+        }
 
         Txo {
             object: "txo".to_string(),
