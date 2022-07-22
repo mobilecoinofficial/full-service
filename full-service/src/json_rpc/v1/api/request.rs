@@ -3,7 +3,8 @@
 //! The JSON RPC 2.0 Requests to the Wallet API for Full Service.
 
 use crate::json_rpc::{
-    json_rpc_request::JsonRPCRequest, receiver_receipt::ReceiverReceipt, tx_proposal::TxProposal,
+    json_rpc_request::JsonRPCRequest,
+    v1::models::{receiver_receipt::ReceiverReceipt, tx_proposal::TxProposal},
 };
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;

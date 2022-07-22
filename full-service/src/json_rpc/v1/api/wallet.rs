@@ -7,27 +7,31 @@ use crate::{
     },
     json_rpc::{
         self,
-        account_secrets::AccountSecrets,
-        address::Address,
-        balance::Balance,
-        block::{Block, BlockContents},
-        confirmation_number::Confirmation,
-        gift_code::GiftCode,
         json_rpc_request::JsonRPCRequest,
         json_rpc_response::{
             format_error, format_invalid_request_error, JsonRPCError, JsonRPCErrorCodes,
             JsonRPCResponse,
         },
-        network_status::NetworkStatus,
-        receiver_receipt::ReceiverReceipt,
-        tx_proposal::TxProposal as TxProposalJSON,
-        txo::Txo,
-        v1::api::{
-            request::{help_str, JsonCommandRequest},
-            response::JsonCommandResponse,
+        v1::{
+            api::{
+                request::{help_str, JsonCommandRequest},
+                response::JsonCommandResponse,
+            },
+            models::{
+                account_secrets::AccountSecrets,
+                address::Address,
+                balance::Balance,
+                block::{Block, BlockContents},
+                confirmation_number::Confirmation,
+                gift_code::GiftCode,
+                network_status::NetworkStatus,
+                receiver_receipt::ReceiverReceipt,
+                tx_proposal::TxProposal,
+                txo::Txo,
+                wallet_status::WalletStatus,
+            },
         },
         wallet::{ApiKeyGuard, WalletState},
-        wallet_status::WalletStatus,
     },
     service,
     service::{
@@ -37,7 +41,6 @@ use crate::{
         confirmation_number::ConfirmationService,
         gift_code::{EncodedGiftCode, GiftCodeService},
         ledger::LedgerService,
-        models::tx_proposal::TxProposal,
         payment_request::PaymentRequestService,
         receipt::ReceiptService,
         transaction::TransactionService,
@@ -890,28 +893,35 @@ where
             // }
         }
         JsonCommandRequest::update_account_name { account_id, name } => {
-            JsonCommandResponse::update_account_name {
-                account: json_rpc::account::Account::try_from(
-                    &service
-                        .update_account_name(&AccountID(account_id), name)
-                        .map_err(format_error)?,
-                )
-                .map_err(format_error)?,
-            }
+            unimplemented!();
+            // JsonCommandResponse::update_account_name {
+            //     account: json_rpc::account::Account::try_from(
+            //         &service
+            //             .update_account_name(&AccountID(account_id), name)
+            //             .map_err(format_error)?,
+            //     )
+            //     .map_err(format_error)?,
+            // }
         }
         JsonCommandRequest::validate_confirmation {
             account_id,
             txo_id,
             confirmation,
         } => {
-            let result = service
-                .validate_confirmation(&AccountID(account_id), &TxoID(txo_id), &confirmation)
-                .map_err(format_error)?;
-            JsonCommandResponse::validate_confirmation { validated: result }
+            unimplemented!();
+            // let result = service
+            //     .validate_confirmation(&AccountID(account_id),
+            // &TxoID(txo_id), &confirmation)
+            //     .map_err(format_error)?;
+            // JsonCommandResponse::validate_confirmation { validated: result }
         }
-        JsonCommandRequest::verify_address { address } => JsonCommandResponse::verify_address {
-            verified: service.verify_address(&address).map_err(format_error)?,
-        },
+        JsonCommandRequest::verify_address { address } => {
+            unimplemented!();
+            //     JsonCommandResponse::verify_address {
+            //     verified:
+            // service.verify_address(&address).map_err(format_error)?,
+            // }
+        }
         JsonCommandRequest::version => JsonCommandResponse::version {
             string: env!("CARGO_PKG_VERSION").to_string(),
             number: (
