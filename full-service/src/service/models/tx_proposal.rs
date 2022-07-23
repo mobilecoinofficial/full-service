@@ -38,34 +38,64 @@ pub struct TxProposal {
 
 impl From<&crate::json_rpc::v1::models::tx_proposal::TxProposal> for TxProposal {
     fn from(src: &crate::json_rpc::v1::models::tx_proposal::TxProposal) -> Self {
-        unimplemented!();
-        // let tx = Tx::try_from(&src.tx).unwrap();
-        // let input_txos = src
-        //     .input_list
-        //     .iter()
-        //     .map(|input_txo| {
-        //         let key_image_bytes: [u8; 32] =
-        // hex::decode(&input_txo.key_image)             .unwrap()
-        //             .as_slice()
-        //             .try_into()
-        //             .unwrap();
-        //         InputTxo {
-        //             tx_out: TxOut::try_from(&input_txo.tx_out).unwrap(),
-        //             subaddress_index:
-        // input_txo.subaddress_index.parse::<u64>().unwrap(),
-        //             key_image: KeyImage::from(key_image_bytes),
-        //             value: input_txo.value,
-        //             token_id: Mob::ID,
-        //         }
-        //     })
-        //     .collect();
+        let mc_api_tx = mc_api::external::Tx::try_from(&src.tx).unwrap();
+        let tx = Tx::try_from(&mc_api_tx).unwrap();
 
-        // Self {
-        //     tx,
-        //     input_txos: Vec::new(),
-        //     payload_txos: Vec::new(),
-        //     change_txos: Vec::new(),
-        // }
+        let input_txos = src
+            .input_list
+            .iter()
+            .map(|unspent_txo| {
+                let mc_api_tx_out = mc_api::external::TxOut::try_from(&unspent_txo.tx_out).unwrap();
+                let tx_out = TxOut::try_from(&mc_api_tx_out).unwrap();
+
+                let key_image_bytes = hex::decode(unspent_txo.key_image.clone()).unwrap();
+                let key_image = KeyImage::try_from(key_image_bytes.as_slice()).unwrap();
+
+                InputTxo {
+                    tx_out,
+                    subaddress_index: unspent_txo.subaddress_index.parse::<u64>().unwrap(),
+                    key_image,
+                    value: unspent_txo.value,
+                    token_id: Mob::ID,
+                }
+            })
+            .collect();
+
+        let mut payload_txos = Vec::new();
+
+        for (outlay_index, tx_out_index) in src.outlay_index_to_tx_out_index.iter() {
+            let outlay_index = outlay_index.parse::<usize>().unwrap();
+            let outlay = &src.outlay_list[outlay_index];
+            let tx_out_index = tx_out_index.parse::<usize>().unwrap();
+            let tx_out = tx.prefix.outputs[tx_out_index].clone();
+            let confirmation_number_bytes: [u8; 32] = src.outlay_confirmation_numbers[outlay_index]
+                .clone()
+                .try_into()
+                .unwrap();
+
+            let confirmation_number = TxOutConfirmationNumber::from(confirmation_number_bytes);
+
+            let mc_api_public_address =
+                mc_api::external::PublicAddress::try_from(&outlay.receiver).unwrap();
+            let public_address = PublicAddress::try_from(&mc_api_public_address).unwrap();
+
+            let payload_txo = OutputTxo {
+                tx_out,
+                recipient_public_address: public_address,
+                confirmation_number,
+                value: outlay.value.0,
+                token_id: Mob::ID,
+            };
+
+            payload_txos.push(payload_txo);
+        }
+
+        Self {
+            tx,
+            input_txos,
+            payload_txos,
+            change_txos: Vec::new(),
+        }
     }
 }
 

@@ -125,9 +125,7 @@ where
         } else if let Some(account_id) = account_id {
             txos = Txo::list_for_account(&account_id, status, offset, limit, token_id, conn)?;
         } else {
-            return Err(TxoServiceError::InvalidQuery(
-                "Must query with either an account ID or a subaddress b58".to_string(),
-            ));
+            txos = Txo::list(status, offset, limit, token_id, conn)?;
         }
 
         let txos_and_statuses = txos

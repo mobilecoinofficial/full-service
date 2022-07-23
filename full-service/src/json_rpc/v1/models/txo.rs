@@ -189,7 +189,7 @@ impl Txo {
         Txo {
             object: "txo".to_string(),
             txo_id_hex: txo.id.clone(),
-            value_pmob: txo.value.to_string(),
+            value_pmob: (txo.value as u64).to_string(),
             recipient_address_id: None,
             received_block_index: txo.received_block_index.map(|i| i.to_string()),
             spent_block_index: txo.spent_block_index.map(|i| i.to_string()),
@@ -205,71 +205,6 @@ impl Txo {
             key_image: txo.key_image.as_ref().map(|k| hex::encode(&k)),
             confirmation: txo.shared_secret.as_ref().map(hex::encode),
         }
-    }
-}
-
-impl From<&db::models::Txo> for Txo {
-    fn from(txo: &db::models::Txo) -> Txo {
-        unimplemented!();
-        // let mut account_status_map: Map<String, serde_json::Value> =
-        // Map::new();
-
-        // if let Some(received_account_id_hex) = &txo.received_account_id_hex {
-        //     let txo_status = if txo.is_spent() {
-        //         TXO_STATUS_SPENT
-        //     } else if txo.is_pending() {
-        //         TXO_STATUS_PENDING
-        //     } else if txo.is_orphaned() {
-        //         TXO_STATUS_ORPHANED
-        //     } else {
-        //         TXO_STATUS_UNSPENT
-        //     };
-
-        //     account_status_map.insert(
-        //         received_account_id_hex.to_string(),
-        //         json!({"txo_type": TXO_TYPE_RECEIVED, "txo_status":
-        // txo_status}).into(),     );
-        // }
-
-        // if let Some(minted_account_id_hex) = &txo.minted_account_id_hex {
-        //     let txo_status = if Some(minted_account_id_hex.clone()) !=
-        // txo.received_account_id_hex {         TXO_STATUS_SECRETED
-        //     } else if txo.is_spent() {
-        //         TXO_STATUS_SPENT
-        //     } else if txo.is_pending() {
-        //         TXO_STATUS_PENDING
-        //     } else if txo.is_orphaned() {
-        //         TXO_STATUS_ORPHANED
-        //     } else {
-        //         TXO_STATUS_UNSPENT
-        //     };
-
-        //     account_status_map.insert(
-        //         minted_account_id_hex.to_string(),
-        //         json!({"txo_type": TXO_TYPE_MINTED, "txo_status":
-        // txo_status}).into(),     );
-        // }
-
-        // Txo {
-        //     object: "txo".to_string(),
-        //     txo_id_hex: txo.txo_id_hex.clone(),
-        //     value_pmob: (txo.value as u64).to_string(),
-        //     recipient_address_id: None,
-        //     received_block_index: txo.received_block_index.map(|x| (x as
-        // u64).to_string()),     spent_block_index:
-        // txo.spent_block_index.map(|x| (x as u64).to_string()),
-        //     is_spent_recovered: false,
-        //     received_account_id: txo.received_account_id_hex.clone(),
-        //     minted_account_id: txo.minted_account_id_hex.clone(),
-        //     target_key: hex::encode(&txo.target_key),
-        //     public_key: hex::encode(&txo.public_key),
-        //     e_fog_hint: hex::encode(&txo.e_fog_hint),
-        //     subaddress_index: txo.subaddress_index.map(|s| (s as
-        // u64).to_string()),     assigned_address: None,
-        //     key_image: txo.key_image.as_ref().map(|k| hex::encode(&k)),
-        //     confirmation: txo.confirmation.as_ref().map(hex::encode),
-        //     account_status_map,
-        // }
     }
 }
 
@@ -321,8 +256,9 @@ mod tests {
 
         let txo_details = db::models::Txo::get(&txo_hex, &wallet_db.get_conn().unwrap())
             .expect("Could not get Txo");
+        let txo_status = txo_details.status(&wallet_db.get_conn().unwrap()).unwrap();
         assert_eq!(txo_details.value as u64, 15_625_000 * MOB as u64);
-        let json_txo = Txo::from(&txo_details);
+        let json_txo = Txo::new(&txo_details, &txo_status);
         assert_eq!(json_txo.value_pmob, "15625000000000000000");
     }
 }

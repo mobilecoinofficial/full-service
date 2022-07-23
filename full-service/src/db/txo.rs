@@ -164,6 +164,14 @@ pub trait TxoModel {
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
+    fn list(
+        status: Option<TxoStatus>,
+        offset: Option<u64>,
+        limit: Option<u64>,
+        token_id: Option<u64>,
+        conn: &Conn,
+    ) -> Result<Vec<Txo>, WalletDbError>;
+
     /// Get all Txos associated with a given account.
     fn list_for_account(
         account_id_hex: &str,
@@ -453,6 +461,48 @@ impl TxoModel for Txo {
             .execute(conn)?;
 
         Ok(())
+    }
+
+    fn list(
+        status: Option<TxoStatus>,
+        offset: Option<u64>,
+        limit: Option<u64>,
+        token_id: Option<u64>,
+        conn: &Conn,
+    ) -> Result<Vec<Txo>, WalletDbError> {
+        use crate::db::schema::txos;
+
+        if let Some(status) = status {
+            match status {
+                TxoStatus::Unverified => {
+                    return Txo::list_unverified(None, None, token_id, offset, limit, conn)
+                }
+                TxoStatus::Unspent => {
+                    return Txo::list_unspent(None, None, token_id, offset, limit, conn)
+                }
+                TxoStatus::Pending => {
+                    return Txo::list_pending(None, None, token_id, offset, limit, conn)
+                }
+                TxoStatus::Spent => {
+                    return Txo::list_spent(None, None, token_id, offset, limit, conn)
+                }
+                TxoStatus::Orphaned => {
+                    return Txo::list_orphaned(None, token_id, offset, limit, conn)
+                }
+            }
+        }
+
+        let mut query = txos::table.into_boxed();
+
+        if let (Some(o), Some(l)) = (offset, limit) {
+            query = query.offset(o as i64).limit(l as i64);
+        }
+
+        if let Some(token_id) = token_id {
+            query = query.filter(txos::token_id.eq(token_id as i64));
+        }
+
+        Ok(query.load(conn)?)
     }
 
     fn list_for_account(

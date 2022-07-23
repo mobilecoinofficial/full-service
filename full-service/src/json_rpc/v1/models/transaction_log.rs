@@ -185,7 +185,8 @@ impl TransactionLog {
         let value_pmob = associated_txos
             .outputs
             .iter()
-            .fold(0, |acc, (txo, _)| acc + txo.value)
+            .map(|(txo, _)| txo.value as u64)
+            .sum::<u64>()
             .to_string();
 
         let change_txos: Vec<TxoAbbrev> = associated_txos

@@ -60,8 +60,8 @@ impl TryFrom<&TxProposalServiceModel> for mc_mobilecoind::payments::TxProposal {
         let mut outlay_map: HashMap<usize, usize> = HashMap::default();
         let mut confirmation_numbers: Vec<TxOutConfirmationNumber> = Vec::new();
 
-        for (tx_out_index, payload_txo) in src.payload_txos.iter().enumerate() {
-            let outlay_index = src
+        for (outlay_index, payload_txo) in src.payload_txos.iter().enumerate() {
+            let tx_out_index = src
                 .tx
                 .prefix
                 .outputs

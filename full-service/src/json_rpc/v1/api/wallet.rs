@@ -326,7 +326,7 @@ where
                 .map_err(format_error)?;
             JsonCommandResponse::check_receiver_receipt_status {
                 receipt_transaction_status: status,
-                txo: txo_and_status.as_ref().map(|(t, _)| Txo::from(t)),
+                txo: txo_and_status.as_ref().map(|(t, s)| Txo::new(t, s)),
             }
         }
         JsonCommandRequest::claim_gift_code {
@@ -526,19 +526,34 @@ where
             let transaction_logs_and_txos = service
                 .get_all_transaction_logs_ordered_by_block()
                 .map_err(format_error)?;
-            let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
-                transaction_logs_and_txos
+
+            let mut transaction_log_map: Map<String, serde_json::Value> = Map::new();
+
+            let received_txos = service
+                .list_txos(None, None, None, Some(*Mob::ID), None, None)
+                .map_err(format_error)?;
+
+            let received_tx_logs: Vec<json_rpc::v1::models::transaction_log::TransactionLog> =
+                received_txos
                     .iter()
-                    .map(|(t, a, _v)| {
-                        (
-                            t.id.clone(),
-                            serde_json::json!(
-                                json_rpc::v1::models::transaction_log::TransactionLog::new(t, a)
-                            ),
-                        )
+                    .map(|(txo, _)| {
+                        json_rpc::v1::models::transaction_log::TransactionLog::from(txo)
                     })
-                    .collect::<Vec<(String, serde_json::Value)>>(),
-            );
+                    .collect();
+
+            for received_tx_log in received_tx_logs.iter() {
+                let tx_log_json = serde_json::to_value(received_tx_log).map_err(format_error)?;
+                transaction_log_map.insert(received_tx_log.transaction_log_id.clone(), tx_log_json);
+            }
+
+            for (tx_log, associated_txos, status) in transaction_logs_and_txos {
+                let tx_log_json =
+                    serde_json::json!(json_rpc::v1::models::transaction_log::TransactionLog::new(
+                        &tx_log,
+                        &associated_txos
+                    ));
+                transaction_log_map.insert(tx_log.id.clone(), tx_log_json);
+            }
 
             JsonCommandResponse::get_all_transaction_logs_ordered_by_block {
                 transaction_log_map,
