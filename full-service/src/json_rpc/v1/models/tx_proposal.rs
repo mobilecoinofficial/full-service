@@ -67,7 +67,7 @@ impl TryFrom<&TxProposalServiceModel> for mc_mobilecoind::payments::TxProposal {
                 .outputs
                 .iter()
                 .enumerate()
-                .position(|(outlay_index, tx_out)| {
+                .position(|(_outlay_index, tx_out)| {
                     payload_txo.tx_out.public_key == tx_out.public_key
                 })
                 .unwrap();

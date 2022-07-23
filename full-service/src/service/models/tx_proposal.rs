@@ -4,7 +4,7 @@ use mc_account_keys::PublicAddress;
 use mc_transaction_core::{
     ring_signature::KeyImage,
     tokens::Mob,
-    tx::{self, Tx, TxOut, TxOutConfirmationNumber},
+    tx::{Tx, TxOut, TxOutConfirmationNumber},
     Token, TokenId,
 };
 

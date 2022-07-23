@@ -46,17 +46,14 @@ use crate::{
     },
 };
 use mc_common::logger::global_log;
-use mc_connection::{
-    BlockchainConnection, HardcodedCredentialsProvider, ThickClient, UserTxConnection,
-};
-use mc_fog_report_validation::{FogPubkeyResolver, FogResolver};
+use mc_connection::{BlockchainConnection, UserTxConnection};
+use mc_fog_report_validation::FogPubkeyResolver;
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use mc_transaction_core::{tokens::Mob, Token};
-use mc_validator_connection::ValidatorConnection;
 use rocket::{self};
 use rocket_contrib::json::Json;
 use serde_json::Map;
-use std::{collections::HashMap, convert::TryFrom, iter::FromIterator, str::FromStr};
+use std::{collections::HashMap, convert::TryFrom, iter::FromIterator};
 
 pub fn generic_wallet_api<T, FPR>(
     _api_key_guard: ApiKeyGuard,
@@ -154,7 +151,7 @@ where
                     )
                 })
                 .collect();
-            let (transaction_log, associated_txos, value_map, tx_proposal) = service
+            let (transaction_log, associated_txos, _value_map, tx_proposal) = service
                 .build_and_submit(
                     &account_id,
                     &addresses_and_amounts,
@@ -241,7 +238,7 @@ where
             fee,
             tombstone_block,
             max_spendable_value,
-            log_tx_proposal,
+            log_tx_proposal: _,
         } => {
             // The user can specify either a single address and a single value,
             // or a list of addresses and values.
@@ -546,7 +543,7 @@ where
                 transaction_log_map.insert(received_tx_log.transaction_log_id.clone(), tx_log_json);
             }
 
-            for (tx_log, associated_txos, status) in transaction_logs_and_txos {
+            for (tx_log, associated_txos, _status) in transaction_logs_and_txos {
                 let tx_log_json =
                     serde_json::json!(json_rpc::v1::models::transaction_log::TransactionLog::new(
                         &tx_log,
@@ -727,7 +724,7 @@ where
                 transaction_log_ids.push(received_tx_log.transaction_log_id.clone());
             }
 
-            for (tx_log, associated_txos, status) in transaction_logs_and_txos {
+            for (tx_log, associated_txos, _status) in transaction_logs_and_txos {
                 let tx_log_json =
                     serde_json::json!(json_rpc::v1::models::transaction_log::TransactionLog::new(
                         &tx_log,
@@ -922,7 +919,7 @@ where
                     account_id,
                 )
                 .map_err(format_error)?
-                .map(|(tx_log, associated_txos, value_map)| {
+                .map(|(tx_log, associated_txos, _value_map)| {
                     json_rpc::v1::models::transaction_log::TransactionLog::new(
                         &tx_log,
                         &associated_txos,

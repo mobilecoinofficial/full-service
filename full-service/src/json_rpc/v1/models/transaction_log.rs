@@ -2,7 +2,6 @@
 
 //! API definition for the TransactionLog object.
 
-use chrono::{offset::TimeZone, Utc};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 

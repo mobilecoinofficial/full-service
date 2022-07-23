@@ -2,9 +2,7 @@
 
 //! API definition for the Txo object.
 
-use crate::{db, db::txo::TxoModel};
-use mc_crypto_keys::RistrettoPrivate;
-use mc_transaction_core::tx::TxOutConfirmationNumber;
+use crate::db;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Map;
 use std::{convert::TryFrom, fmt, str::FromStr};
