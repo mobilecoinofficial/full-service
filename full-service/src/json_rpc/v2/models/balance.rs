@@ -10,6 +10,9 @@ use serde_derive::{Deserialize, Serialize};
 /// needed to interpret the balance correctly.
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct Balance {
+    /// The max spendable amount in a single transaction.
+    pub max_spendable: String,
+
     /// Unverified pico MOB. The Unverified value represents the Txos which were
     /// NOT view-key matched, but do have an assigned subaddress.
     pub unverified: String,
@@ -40,6 +43,7 @@ pub struct Balance {
 impl From<&service::balance::Balance> for Balance {
     fn from(src: &service::balance::Balance) -> Balance {
         Balance {
+            max_spendable: src.max_spendable.to_string(),
             unverified: src.unverified.to_string(),
             unspent: src.unspent.to_string(),
             pending: src.pending.to_string(),
