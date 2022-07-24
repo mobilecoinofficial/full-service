@@ -532,7 +532,7 @@ where
             let mut transaction_log_map: Map<String, serde_json::Value> = Map::new();
 
             let received_txos = service
-                .list_txos(None, None, None, Some(*Mob::ID), None, None)
+                .list_txos(None, None, None, Some(*Mob::ID), None, None, None, None)
                 .map_err(format_error)?;
 
             let received_tx_logs: Vec<json_rpc::v1::models::transaction_log::TransactionLog> =
@@ -563,7 +563,16 @@ where
         }
         JsonCommandRequest::get_all_txos_for_address { address } => {
             let txos = service
-                .list_txos(None, Some(address), None, Some(*Mob::ID), None, None)
+                .list_txos(
+                    None,
+                    Some(address),
+                    None,
+                    Some(*Mob::ID),
+                    None,
+                    None,
+                    None,
+                    None,
+                )
                 .map_err(format_error)?;
             let txo_map: Map<String, serde_json::Value> = Map::from_iter(
                 txos.iter()
@@ -712,7 +721,16 @@ where
                 .map_err(format_error)?;
 
             let received_txos = service
-                .list_txos(Some(account_id), None, None, Some(*Mob::ID), None, None)
+                .list_txos(
+                    Some(account_id),
+                    None,
+                    None,
+                    Some(*Mob::ID),
+                    None,
+                    None,
+                    None,
+                    None,
+                )
                 .map_err(format_error)?;
 
             let received_tx_logs: Vec<json_rpc::v1::models::transaction_log::TransactionLog> =
@@ -785,6 +803,8 @@ where
                     None,
                     status,
                     Some(*Mob::ID),
+                    None,
+                    None,
                     Some(o),
                     Some(l),
                 )

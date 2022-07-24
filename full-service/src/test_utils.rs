@@ -594,6 +594,8 @@ pub fn random_account_with_seed_values(
                 None,
                 None,
                 None,
+                None,
+                None,
                 Some(0),
                 &wallet_db.get_conn().unwrap(),
             )

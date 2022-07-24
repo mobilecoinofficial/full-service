@@ -83,6 +83,8 @@ pub trait TxoService {
         address: Option<String>,
         status: Option<TxoStatus>,
         token_id: Option<u64>,
+        min_received_block_index: Option<u64>,
+        max_received_block_index: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
     ) -> Result<Vec<(Txo, TxoStatus)>, TxoServiceError>;
@@ -113,6 +115,8 @@ where
         address: Option<String>,
         status: Option<TxoStatus>,
         token_id: Option<u64>,
+        min_received_block_index: Option<u64>,
+        max_received_block_index: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
     ) -> Result<Vec<(Txo, TxoStatus)>, TxoServiceError> {
@@ -121,11 +125,37 @@ where
         let txos;
 
         if let Some(address) = address {
-            txos = Txo::list_for_address(&address, status, offset, limit, token_id, conn)?;
+            txos = Txo::list_for_address(
+                &address,
+                status,
+                min_received_block_index,
+                max_received_block_index,
+                offset,
+                limit,
+                token_id,
+                conn,
+            )?;
         } else if let Some(account_id) = account_id {
-            txos = Txo::list_for_account(&account_id, status, offset, limit, token_id, conn)?;
+            txos = Txo::list_for_account(
+                &account_id,
+                status,
+                min_received_block_index,
+                max_received_block_index,
+                offset,
+                limit,
+                token_id,
+                conn,
+            )?;
         } else {
-            txos = Txo::list(status, offset, limit, token_id, conn)?;
+            txos = Txo::list(
+                status,
+                min_received_block_index,
+                max_received_block_index,
+                offset,
+                limit,
+                token_id,
+                conn,
+            )?;
         }
 
         let txos_and_statuses = txos
@@ -262,6 +292,8 @@ mod tests {
                 None,
                 None,
                 None,
+                None,
+                None,
             )
             .unwrap();
         assert_eq!(txos.len(), 1);
@@ -305,6 +337,8 @@ mod tests {
                 Some(alice.id.clone()),
                 None,
                 Some(TxoStatus::Pending),
+                None,
+                None,
                 None,
                 None,
                 None,

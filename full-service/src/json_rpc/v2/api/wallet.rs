@@ -323,6 +323,8 @@ where
                     None,
                     None,
                     None,
+                    None,
+                    None,
                 )
                 .map_err(format_error)?;
 
@@ -556,6 +558,8 @@ where
             address,
             status,
             token_id,
+            min_received_block_index,
+            max_received_block_index,
             offset,
             limit,
         } => {
@@ -570,7 +574,16 @@ where
             };
 
             let txos_and_statuses = service
-                .list_txos(account_id, address, status, token_id, offset, limit)
+                .list_txos(
+                    account_id,
+                    address,
+                    status,
+                    token_id,
+                    min_received_block_index,
+                    max_received_block_index,
+                    offset,
+                    limit,
+                )
                 .map_err(format_error)?;
 
             let txo_map = TxoMap(

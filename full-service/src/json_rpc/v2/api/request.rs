@@ -154,6 +154,8 @@ pub enum JsonCommandRequest {
         address: Option<String>,
         status: Option<String>,
         token_id: Option<String>,
+        min_received_block_index: Option<u64>,
+        max_received_block_index: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
     },

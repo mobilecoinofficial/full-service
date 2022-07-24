@@ -283,6 +283,8 @@ where
             Some(*token_id),
             None,
             None,
+            None,
+            None,
             conn,
         )?);
 
@@ -290,6 +292,8 @@ where
             account_id_hex,
             assigned_subaddress_b58,
             Some(*token_id),
+            None,
+            None,
             None,
             None,
             conn,
@@ -301,6 +305,8 @@ where
             Some(*token_id),
             None,
             None,
+            None,
+            None,
             conn,
         )?);
 
@@ -308,6 +314,8 @@ where
             account_id_hex,
             assigned_subaddress_b58,
             Some(*token_id),
+            None,
+            None,
             None,
             None,
             conn,
@@ -321,6 +329,8 @@ where
             sum_query_result(Txo::list_orphaned(
                 account_id_hex,
                 Some(*token_id),
+                None,
+                None,
                 None,
                 None,
                 conn,
