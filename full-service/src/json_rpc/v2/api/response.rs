@@ -45,10 +45,6 @@ pub enum JsonCommandResponse {
         transaction_log: TransactionLog,
         tx_proposal: TxProposalJSON,
     },
-    build_split_txo_transaction {
-        tx_proposal: TxProposalJSON,
-        transaction_log_id: String,
-    },
     build_transaction {
         tx_proposal: TxProposalJSON,
         transaction_log_id: String,
@@ -75,21 +71,15 @@ pub enum JsonCommandResponse {
     create_receiver_receipts {
         receiver_receipts: Vec<ReceiverReceipt>,
     },
+    create_view_only_account_import_request {
+        json_rpc_request: JsonRPCRequest,
+    },
     create_view_only_account_sync_request {
         account_id: String,
         incomplete_txos_encoded: Vec<String>,
     },
     export_account_secrets {
         account_secrets: AccountSecrets,
-    },
-    export_spent_txo_ids {
-        spent_txo_ids: Vec<String>,
-    },
-    export_view_only_account_import_request {
-        json_rpc_request: JsonRPCRequest,
-    },
-    get_account {
-        account: Account,
     },
     get_account_status {
         account: Account,
@@ -108,13 +98,8 @@ pub enum JsonCommandResponse {
         public_addresses: Vec<String>,
         address_map: Map<String, serde_json::Value>,
     },
-    get_balance_for_account {
-        account_block_height: String,
-        network_block_height: String,
-        local_block_height: String,
-        balance_per_token: BTreeMap<String, Balance>,
-    },
-    get_balance_for_address {
+    get_address_status {
+        address: Address,
         account_block_height: String,
         network_block_height: String,
         local_block_height: String,

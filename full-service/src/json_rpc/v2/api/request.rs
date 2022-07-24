@@ -50,14 +50,6 @@ pub enum JsonCommandRequest {
         max_spendable_value: Option<String>,
         comment: Option<String>,
     },
-    build_split_txo_transaction {
-        txo_id: String,
-        output_values: Vec<String>,
-        destination_subaddress_index: Option<String>,
-        fee_value: Option<String>,
-        fee_token_id: Option<String>,
-        tombstone_block: Option<String>,
-    },
     build_transaction {
         account_id: String,
         addresses_and_amounts: Option<Vec<(String, Amount)>>,
@@ -99,16 +91,13 @@ pub enum JsonCommandRequest {
     create_receiver_receipts {
         tx_proposal: TxProposal,
     },
+    create_view_only_account_import_request {
+        account_id: String,
+    },
     create_view_only_account_sync_request {
         account_id: String,
     },
     export_account_secrets {
-        account_id: String,
-    },
-    export_view_only_account_import_request {
-        account_id: String,
-    },
-    get_account {
         account_id: String,
     },
     get_account_status {
@@ -127,10 +116,7 @@ pub enum JsonCommandRequest {
         offset: Option<u64>,
         limit: Option<u64>,
     },
-    get_balance_for_account {
-        account_id: String,
-    },
-    get_balance_for_address {
+    get_address_status {
         address: String,
     },
     get_block {

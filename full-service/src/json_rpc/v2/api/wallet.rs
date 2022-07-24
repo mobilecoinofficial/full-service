@@ -156,32 +156,6 @@ where
                 tx_proposal: TxProposalJSON::try_from(&tx_proposal).map_err(format_error)?,
             }
         }
-        JsonCommandRequest::build_split_txo_transaction {
-            txo_id,
-            output_values,
-            destination_subaddress_index,
-            fee_value,
-            fee_token_id,
-            tombstone_block,
-        } => {
-            let tx_proposal = service
-                .split_txo(
-                    &TxoID(txo_id),
-                    &output_values,
-                    destination_subaddress_index
-                        .map(|f| f.parse::<i64>())
-                        .transpose()
-                        .map_err(format_error)?,
-                    fee_value,
-                    fee_token_id,
-                    tombstone_block,
-                )
-                .map_err(format_error)?;
-            JsonCommandResponse::build_split_txo_transaction {
-                tx_proposal: TxProposalJSON::try_from(&tx_proposal).map_err(format_error)?,
-                transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
-            }
-        }
         JsonCommandRequest::build_transaction {
             account_id,
             addresses_and_amounts,
@@ -330,6 +304,13 @@ where
                 receiver_receipts: json_receipts,
             }
         }
+        JsonCommandRequest::create_view_only_account_import_request { account_id } => {
+            JsonCommandResponse::create_view_only_account_import_request {
+                json_rpc_request: service
+                    .get_view_only_account_import_request(&AccountID(account_id))
+                    .map_err(format_error)?,
+            }
+        }
         JsonCommandRequest::create_view_only_account_sync_request { account_id } => {
             let unverified_txos = service
                 .list_txos(
@@ -360,21 +341,6 @@ where
                 account_secrets: AccountSecrets::try_from(&account).map_err(format_error)?,
             }
         }
-        JsonCommandRequest::export_view_only_account_import_request { account_id } => {
-            JsonCommandResponse::export_view_only_account_import_request {
-                json_rpc_request: service
-                    .get_view_only_account_import_request(&AccountID(account_id))
-                    .map_err(format_error)?,
-            }
-        }
-        JsonCommandRequest::get_account { account_id } => JsonCommandResponse::get_account {
-            account: json_rpc::v2::models::account::Account::try_from(
-                &service
-                    .get_account(&AccountID(account_id))
-                    .map_err(format_error)?,
-            )
-            .map_err(format_error)?,
-        },
         JsonCommandRequest::get_account_status { account_id } => {
             let account = json_rpc::v2::models::account::Account::try_from(
                 &service
@@ -457,29 +423,9 @@ where
                 address_map,
             }
         }
-        JsonCommandRequest::get_balance_for_account { account_id } => {
-            let account_id = AccountID(account_id);
-            let account = service.get_account(&account_id).map_err(format_error)?;
-            let network_status = service.get_network_status().map_err(format_error)?;
-
-            let balance = service
-                .get_balance_for_account(&account_id)
-                .map_err(format_error)?;
-
-            let balance_formatted = balance
-                .iter()
-                .map(|(a, b)| (a.to_string(), Balance::from(b)))
-                .collect();
-            JsonCommandResponse::get_balance_for_account {
-                account_block_height: account.next_block_index.to_string(),
-                network_block_height: network_status.network_block_height.to_string(),
-                local_block_height: network_status.local_block_height.to_string(),
-                balance_per_token: balance_formatted,
-            }
-        }
-        JsonCommandRequest::get_balance_for_address { address } => {
+        JsonCommandRequest::get_address_status { address } => {
             let subaddress = service.get_address(&address).map_err(format_error)?;
-            let account_id = AccountID(subaddress.account_id);
+            let account_id = AccountID(subaddress.account_id.clone());
             let account = service.get_account(&account_id).map_err(format_error)?;
             let network_status = service.get_network_status().map_err(format_error)?;
 
@@ -491,7 +437,8 @@ where
                 .iter()
                 .map(|(a, b)| (a.to_string(), Balance::from(b)))
                 .collect();
-            JsonCommandResponse::get_balance_for_address {
+            JsonCommandResponse::get_address_status {
+                address: Address::from(&subaddress),
                 account_block_height: account.next_block_index.to_string(),
                 network_block_height: network_status.network_block_height.to_string(),
                 local_block_height: network_status.local_block_height.to_string(),
