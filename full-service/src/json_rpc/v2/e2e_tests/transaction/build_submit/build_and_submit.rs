@@ -8,7 +8,7 @@ mod e2e_transaction {
         db::account::AccountID,
         json_rpc::v2::{
             api::test_utils::{dispatch, setup},
-            models::tx_proposal::TxProposal as TxProposalJSON,
+            models::{amount::Amount as AmountJSON, tx_proposal::TxProposal as TxProposalJSON},
         },
         service::models::tx_proposal::TxProposal,
         test_utils::{
@@ -92,7 +92,7 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_balance_for_account",
+            "method": "get_account_status",
             "params": {
                 "account_id": account_id,
             }
@@ -165,7 +165,7 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_balance_for_account",
+            "method": "get_account_status",
             "params": {
                 "account_id": account_id,
             }
@@ -212,7 +212,7 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_balance_for_account",
+            "method": "get_account_status",
             "params": {
                 "account_id": account_id,
             }
@@ -275,8 +275,10 @@ mod e2e_transaction {
         let result = res.get("result").unwrap();
         let tx_proposal = result.get("tx_proposal").unwrap();
 
-        let fee_token_id = tx_proposal.get("fee_token_id").unwrap();
-        assert_eq!(fee_token_id, "1");
+        let fee_amount: AmountJSON =
+            serde_json::from_value(tx_proposal.get("fee_amount").unwrap().clone()).unwrap();
+
+        assert_eq!(fee_amount.token_id, "1");
 
         let inputs = tx_proposal.get("input_txos").unwrap().as_array().unwrap();
         assert_eq!(inputs.len(), 1);
@@ -302,7 +304,7 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_balance_for_account",
+            "method": "get_account_status",
             "params": {
                 "account_id": account_id,
             }
@@ -348,7 +350,7 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_balance_for_account",
+            "method": "get_account_status",
             "params": {
                 "account_id": account_id,
             }

@@ -225,7 +225,7 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_balance_for_account",
+            "method": "get_account_status",
             "params": {
                 "account_id": account_id_3,
             }
@@ -341,7 +341,7 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_balance_for_account",
+            "method": "get_account_status",
             "params": {
                 "account_id": *account_id,
             }
@@ -369,7 +369,7 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_balance_for_account",
+            "method": "get_account_status",
             "params": {
                 "account_id": *account_id,
             }
@@ -453,7 +453,7 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_balance_for_account",
+            "method": "get_account_status",
             "params": {
                 "account_id": *account_id,
             }
@@ -506,7 +506,7 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_balance_for_account",
+            "method": "get_account_status",
             "params": {
                 "account_id": *account_id,
             }
@@ -580,7 +580,7 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_balance_for_account",
+            "method": "get_account_status",
             "params": {
                 "account_id": account_id,
             }
@@ -591,134 +591,5 @@ mod e2e_transaction {
         let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
         let unspent = balance_mob["unspent"].as_str().unwrap();
         assert_eq!(unspent, "100");
-    }
-
-    #[test_with_logger]
-    fn test_split_txo(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
-
-        // Add an account
-        let body = json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "create_account",
-            "params": {
-                "name": "Alice Main Account",
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let account_obj = result.get("account").unwrap();
-        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
-        let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
-        let public_address = b58_decode_public_address(b58_public_address).unwrap();
-
-        // Add a block with a txo for this address
-        add_block_to_ledger_db(
-            &mut ledger_db,
-            &vec![public_address],
-            250000000000,
-            &vec![KeyImage::from(rng.next_u64())],
-            &mut rng,
-        );
-
-        manually_sync_account(
-            &ledger_db,
-            &db_ctx.get_db_instance(logger.clone()),
-            &AccountID(account_id.to_string()),
-            &logger,
-        );
-
-        let body = json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "get_txos",
-            "params": {
-                "account_id": account_id,
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let txos = result.get("txo_ids").unwrap().as_array().unwrap();
-        assert_eq!(txos.len(), 1);
-        let txo_map = result.get("txo_map").unwrap().as_object().unwrap();
-        let txo = txo_map.get(txos[0].as_str().unwrap()).unwrap();
-        let txo_status = txo.get("status").unwrap().as_str().unwrap();
-        assert_eq!(txo_status, TxoStatus::Unspent.to_string());
-        let value = txo.get("value").unwrap().as_str().unwrap();
-        assert_eq!(value, "250000000000");
-        let txo_id = &txos[0];
-
-        // Check the overall balance for the account
-        let body = json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "get_balance_for_account",
-            "params": {
-                "account_id": account_id,
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let balance_per_token = result.get("balance_per_token").unwrap();
-        let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
-        let unspent = balance_mob["unspent"].as_str().unwrap();
-        assert_eq!(unspent, "250000000000");
-
-        let body = json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "build_split_txo_transaction",
-            "params": {
-                "txo_id": txo_id,
-                "output_values": ["20000000000", "80000000000", "30000000000", "70000000000", "40000000000"],
-                "fee_value": "10000000000"
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let tx_proposal = result.get("tx_proposal").unwrap();
-
-        let body = json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "submit_transaction",
-            "params": {
-                "tx_proposal": tx_proposal,
-                "account_id": account_id,
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result");
-        assert!(result.is_some());
-
-        let json_tx_proposal: TxProposalJSON = serde_json::from_value(tx_proposal.clone()).unwrap();
-        let payments_tx_proposal = TxProposal::try_from(&json_tx_proposal).unwrap();
-
-        add_block_with_tx(&mut ledger_db, payments_tx_proposal.tx, &mut rng);
-
-        manually_sync_account(
-            &ledger_db,
-            &db_ctx.get_db_instance(logger.clone()),
-            &AccountID(account_id.to_string()),
-            &logger,
-        );
-
-        // Check the overall balance for the account
-        let body = json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "get_balance_for_account",
-            "params": {
-                "account_id": account_id,
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let balance_per_token = result.get("balance_per_token").unwrap();
-        let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
-        let unspent = balance_mob["unspent"].as_str().unwrap();
-        assert_eq!(unspent, "240000000000");
     }
 }

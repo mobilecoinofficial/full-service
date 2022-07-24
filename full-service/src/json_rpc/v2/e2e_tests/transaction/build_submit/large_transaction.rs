@@ -8,7 +8,11 @@ mod e2e_transaction {
         db::account::AccountID,
         json_rpc::v2::{
             api::test_utils::{dispatch, setup},
-            models::tx_proposal::TxProposal as TxProposalJSON,
+            models::{
+                amount::Amount,
+                transaction_log::{InputTxo, TransactionLog},
+                tx_proposal::TxProposal as TxProposalJSON,
+            },
         },
         service::models::tx_proposal::TxProposal,
         test_utils::{add_block_to_ledger_db, add_block_with_tx, manually_sync_account},
@@ -77,46 +81,24 @@ mod e2e_transaction {
         let tx_proposal = result.get("tx_proposal").unwrap();
 
         // Check that the value was recorded correctly.
-        let transaction_log = result.get("transaction_log").unwrap();
-        let value_map = transaction_log.get("value_map").unwrap();
-        let value_pmob = value_map.get("0").unwrap();
-        assert_eq!(value_pmob.as_str().unwrap(), "10000000000000000000");
+        let transaction_log: TransactionLog =
+            serde_json::from_value(result.get("transaction_log").unwrap().clone()).unwrap();
+        let value_pmob = transaction_log.value_map.get(&Mob::ID.to_string()).unwrap();
+        assert_eq!(value_pmob, "10000000000000000000");
 
         assert_eq!(
-            transaction_log
-                .get("input_txos")
-                .unwrap()
-                .get(0)
-                .unwrap()
-                .get("value")
-                .unwrap()
-                .as_str()
-                .unwrap(),
-            11_000_000_000_000_000_000u64.to_string(),
+            transaction_log.input_txos[0].amount,
+            Amount::new(11_000_000_000_000_000_000u64, Mob::ID),
         );
+
         assert_eq!(
-            transaction_log
-                .get("output_txos")
-                .unwrap()
-                .get(0)
-                .unwrap()
-                .get("value")
-                .unwrap()
-                .as_str()
-                .unwrap(),
-            10_000_000_000_000_000_000u64.to_string(),
+            transaction_log.output_txos[0].amount,
+            Amount::new(10_000_000_000_000_000_000u64, Mob::ID),
         );
+
         assert_eq!(
-            transaction_log
-                .get("change_txos")
-                .unwrap()
-                .get(0)
-                .unwrap()
-                .get("value")
-                .unwrap()
-                .as_str()
-                .unwrap(),
-            (1_000_000_000_000_000_000u64 - Mob::MINIMUM_FEE).to_string(),
+            transaction_log.change_txos[0].amount,
+            Amount::new(1_000_000_000_000_000_000u64 - Mob::MINIMUM_FEE, Mob::ID),
         );
 
         // Sync the proposal.
@@ -136,7 +118,7 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_balance_for_account",
+            "method": "get_account_status",
             "params": {
                 "account_id": account_id,
             }

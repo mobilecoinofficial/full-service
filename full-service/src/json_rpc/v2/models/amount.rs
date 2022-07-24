@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
 /// The value and token_id of a txo.
-#[derive(Deserialize, Serialize, Default, Debug, Clone)]
+#[derive(Deserialize, Serialize, Default, Debug, Clone, PartialEq, Eq)]
 pub struct Amount {
     /// The value of a Txo
     pub value: String,

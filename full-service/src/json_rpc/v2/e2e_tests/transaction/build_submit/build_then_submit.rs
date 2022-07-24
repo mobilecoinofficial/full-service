@@ -160,7 +160,7 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_balance_for_account",
+            "method": "get_account_status",
             "params": {
                 "account_id": account_id,
             }
@@ -211,7 +211,7 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_balance_for_account",
+            "method": "get_account_status",
             "params": {
                 "account_id": account_id,
             }
@@ -257,16 +257,13 @@ mod e2e_transaction {
             b58_public_address
         );
         transaction_log.get("account_id").unwrap().as_str().unwrap();
+        let fee_amount = transaction_log.get("fee_amount").unwrap();
         assert_eq!(
-            transaction_log.get("fee_value").unwrap().as_str().unwrap(),
+            fee_amount.get("value").unwrap().as_str().unwrap(),
             &Mob::MINIMUM_FEE.to_string()
         );
         assert_eq!(
-            transaction_log
-                .get("fee_token_id")
-                .unwrap()
-                .as_str()
-                .unwrap(),
+            fee_amount.get("token_id").unwrap().as_str().unwrap(),
             Mob::ID.to_string()
         );
         assert_eq!(
@@ -438,7 +435,7 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_balance_for_account",
+            "method": "get_account_status",
             "params": {
                 "account_id": account_id,
             }
@@ -469,7 +466,7 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_balance_for_account",
+            "method": "get_account_status",
             "params": {
                 "account_id": account_id,
             }
@@ -519,7 +516,7 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_balance_for_account",
+            "method": "get_account_status",
             "params": {
                 "account_id": account_id,
             }

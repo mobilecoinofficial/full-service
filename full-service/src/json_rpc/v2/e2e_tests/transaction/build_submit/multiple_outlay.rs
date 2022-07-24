@@ -8,7 +8,7 @@ mod e2e_transaction {
         db::account::AccountID,
         json_rpc::v2::{
             api::test_utils::{dispatch, setup},
-            models::tx_proposal::TxProposal as TxProposalJSON,
+            models::{amount::Amount, tx_proposal::TxProposal as TxProposalJSON},
         },
         service::models::tx_proposal::TxProposal,
         test_utils::{add_block_to_ledger_db, add_block_with_tx, manually_sync_account, MOB},
@@ -106,8 +106,10 @@ mod e2e_transaction {
 
         let tx_proposal = result.get("tx_proposal").unwrap();
 
-        let fee = tx_proposal.get("fee").unwrap();
-        assert_eq!(fee, &Mob::MINIMUM_FEE.to_string());
+        let fee_amount: Amount =
+            serde_json::from_value(tx_proposal.get("fee_amount").unwrap().clone()).unwrap();
+
+        assert_eq!(fee_amount, Amount::new(Mob::MINIMUM_FEE, Mob::ID));
 
         // Two destinations.
         let payload_txos = tx_proposal.get("payload_txos").unwrap().as_array().unwrap();
@@ -120,7 +122,7 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_balance_for_account",
+            "method": "get_account_status",
             "params": {
                 "account_id": alice_account_id,
             }
@@ -135,7 +137,7 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_balance_for_account",
+            "method": "get_account_status",
             "params": {
                 "account_id": bob_account_id,
             }
@@ -149,7 +151,7 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_balance_for_account",
+            "method": "get_account_status",
             "params": {
                 "account_id": charlie_account_id,
             }
@@ -212,7 +214,7 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_balance_for_account",
+            "method": "get_account_status",
             "params": {
                 "account_id": alice_account_id,
             }
@@ -227,7 +229,7 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_balance_for_account",
+            "method": "get_account_status",
             "params": {
                 "account_id": bob_account_id,
             }
@@ -242,7 +244,7 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_balance_for_account",
+            "method": "get_account_status",
             "params": {
                 "account_id": charlie_account_id,
             }
@@ -292,12 +294,9 @@ mod e2e_transaction {
         assert_eq!(output_addresses, target_addresses);
 
         transaction_log.get("account_id").unwrap().as_str().unwrap();
-        let fee_value = transaction_log.get("fee_value").unwrap().as_str().unwrap();
-        let fee_token_id = transaction_log
-            .get("fee_token_id")
-            .unwrap()
-            .as_str()
-            .unwrap();
+        let fee_amount = transaction_log.get("fee_amount").unwrap();
+        let fee_value = fee_amount.get("value").unwrap().as_str().unwrap();
+        let fee_token_id = transaction_log.get("token_id").unwrap().as_str().unwrap();
         assert_eq!(fee_value, &Mob::MINIMUM_FEE.to_string());
         assert_eq!(fee_token_id, &Mob::ID.to_string());
         assert_eq!(
