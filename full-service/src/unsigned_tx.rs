@@ -97,8 +97,7 @@ impl UnsignedTx {
                 tx_out: tx_out.clone(),
                 subaddress_index,
                 key_image,
-                value: amount.value,
-                token_id: amount.token_id,
+                amount: amount.into(),
             };
 
             input_txos.push(input);
@@ -178,8 +177,7 @@ fn add_payload_outputs<RNG: CryptoRng + RngCore>(
         outputs.push(OutputTxo {
             tx_out: tx_out_context.tx_out,
             recipient_public_address: recipient.clone(),
-            value: amount.value,
-            token_id: amount.token_id,
+            amount: *amount,
             confirmation_number: tx_out_context.confirmation,
         });
     }
@@ -195,10 +193,11 @@ fn add_change_output<RNG: CryptoRng + RngCore>(
     rng: &mut RNG,
 ) -> Result<OutputTxo, WalletTransactionBuilderError> {
     let change_value = total_input_value - total_output_value;
+    let change_amount = Amount::new(change_value, token_id);
 
     let reserved_subaddresses = ReservedSubaddresses::from(account_key);
     let tx_out_context = transaction_builder.add_change_output(
-        Amount::new(change_value, token_id),
+        change_amount.clone(),
         &reserved_subaddresses,
         rng,
     )?;
@@ -206,8 +205,7 @@ fn add_change_output<RNG: CryptoRng + RngCore>(
     Ok(OutputTxo {
         tx_out: tx_out_context.tx_out,
         recipient_public_address: reserved_subaddresses.change_subaddress,
-        value: change_value,
-        token_id,
+        amount: change_amount,
         confirmation_number: tx_out_context.confirmation,
     })
 }

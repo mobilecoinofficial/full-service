@@ -10,6 +10,8 @@ use crate::{
     db::transaction_log::{AssociatedTxos, TransactionLogModel, ValueMap},
 };
 
+use super::amount::Amount;
+
 /// A log of a transaction that occurred on the MobileCoin network, constructed
 /// and/or submitted from an account in this wallet.
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
@@ -34,9 +36,7 @@ pub struct TransactionLog {
 
     pub value_map: HashMap<String, String>,
 
-    pub fee_value: String,
-
-    pub fee_token_id: String,
+    pub fee_amount: Amount,
 
     /// The block index of the highest block on the network at the time the
     /// transaction was submitted.
@@ -98,8 +98,7 @@ impl TransactionLog {
                 .map(|(txo, recipient)| OutputTxo::new(txo, recipient.to_string()))
                 .collect(),
             value_map: values,
-            fee_value: transaction_log.fee_value.to_string(),
-            fee_token_id: transaction_log.fee_token_id.to_string(),
+            fee_amount: Amount::from(&transaction_log.fee_amount()),
             sent_time: None,
             comment: transaction_log.comment.clone(),
         }
@@ -108,21 +107,17 @@ impl TransactionLog {
 
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct InputTxo {
-    pub txo_id_hex: String,
+    pub txo_id: String,
 
-    /// Value of this txo.
-    pub value: String,
-
-    /// Token ID of this txo
-    pub token_id: String,
+    /// Amount of this Txo
+    pub amount: Amount,
 }
 
 impl InputTxo {
     pub fn new(txo: &db::models::Txo) -> Self {
         Self {
-            txo_id_hex: txo.id.clone(),
-            value: (txo.value as u64).to_string(),
-            token_id: (txo.token_id as u64).to_string(),
+            txo_id: txo.id.clone(),
+            amount: Amount::from(&txo.amount()),
         }
     }
 }
@@ -131,11 +126,7 @@ impl InputTxo {
 pub struct OutputTxo {
     pub txo_id_hex: String,
 
-    /// Value of this txo.
-    pub value: String,
-
-    /// Token ID of this txo
-    pub token_id: String,
+    pub amount: Amount,
 
     pub recipient_public_address_b58: String,
 }
@@ -144,8 +135,7 @@ impl OutputTxo {
     pub fn new(txo: &db::models::Txo, recipient_public_address_b58: String) -> Self {
         Self {
             txo_id_hex: txo.id.clone(),
-            value: (txo.value as u64).to_string(),
-            token_id: (txo.token_id as u64).to_string(),
+            amount: Amount::from(&txo.amount()),
             recipient_public_address_b58,
         }
     }

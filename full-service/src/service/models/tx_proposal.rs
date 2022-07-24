@@ -5,7 +5,7 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tokens::Mob,
     tx::{Tx, TxOut, TxOutConfirmationNumber},
-    Token, TokenId,
+    Amount, Token, TokenId,
 };
 
 use crate::util::b58::b58_decode_public_address;
@@ -15,8 +15,7 @@ pub struct InputTxo {
     pub tx_out: TxOut,
     pub subaddress_index: u64,
     pub key_image: KeyImage,
-    pub value: u64,
-    pub token_id: TokenId,
+    pub amount: Amount,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -24,8 +23,7 @@ pub struct OutputTxo {
     pub tx_out: TxOut,
     pub recipient_public_address: PublicAddress,
     pub confirmation_number: TxOutConfirmationNumber,
-    pub value: u64,
-    pub token_id: TokenId,
+    pub amount: Amount,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -55,8 +53,7 @@ impl From<&crate::json_rpc::v1::models::tx_proposal::TxProposal> for TxProposal 
                     tx_out,
                     subaddress_index: unspent_txo.subaddress_index.parse::<u64>().unwrap(),
                     key_image,
-                    value: unspent_txo.value,
-                    token_id: Mob::ID,
+                    amount: Amount::new(unspent_txo.value, Mob::ID),
                 }
             })
             .collect();
@@ -83,8 +80,7 @@ impl From<&crate::json_rpc::v1::models::tx_proposal::TxProposal> for TxProposal 
                 tx_out,
                 recipient_public_address: public_address,
                 confirmation_number,
-                value: outlay.value.0,
-                token_id: Mob::ID,
+                amount: Amount::new(outlay.value.0, Mob::ID),
             };
 
             payload_txos.push(payload_txo);
@@ -118,8 +114,7 @@ impl From<&crate::json_rpc::v2::models::tx_proposal::TxProposal> for TxProposal 
                     .unwrap(),
                     subaddress_index: input_txo.subaddress_index.parse::<u64>().unwrap(),
                     key_image: KeyImage::from(key_image_bytes),
-                    value: input_txo.value.parse::<u64>().unwrap(),
-                    token_id: TokenId::from(input_txo.token_id.parse::<u64>().unwrap()),
+                    amount: Amount::try_from(&input_txo.amount).unwrap(),
                 }
             })
             .collect();
@@ -144,8 +139,7 @@ impl From<&crate::json_rpc::v2::models::tx_proposal::TxProposal> for TxProposal 
                     )
                     .unwrap(),
                     confirmation_number: TxOutConfirmationNumber::from(&confirmation_number_bytes),
-                    value: payload_txo.value.parse::<u64>().unwrap(),
-                    token_id: TokenId::from(payload_txo.token_id.parse::<u64>().unwrap()),
+                    amount: Amount::try_from(&payload_txo.amount).unwrap(),
                 }
             })
             .collect();
@@ -170,8 +164,7 @@ impl From<&crate::json_rpc::v2::models::tx_proposal::TxProposal> for TxProposal 
                     )
                     .unwrap(),
                     confirmation_number: TxOutConfirmationNumber::from(&confirmation_number_bytes),
-                    value: change_txo.value.parse::<u64>().unwrap(),
-                    token_id: TokenId::from(change_txo.token_id.parse::<u64>().unwrap()),
+                    amount: Amount::try_from(&change_txo.amount).unwrap(),
                 }
             })
             .collect();

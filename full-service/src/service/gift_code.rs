@@ -453,7 +453,7 @@ where
         tx_proposal: &TxProposal,
     ) -> Result<DecodedGiftCode, GiftCodeServiceError> {
         let transfer_payload = decode_transfer_payload(gift_code_b58)?;
-        let value = tx_proposal.payload_txos[0].value as i64;
+        let value = tx_proposal.payload_txos[0].amount.value as i64;
 
         log::info!(
             self.logger,
@@ -476,7 +476,7 @@ where
             root_entropy: transfer_payload.root_entropy.map(|e| e.bytes.to_vec()),
             bip39_entropy: transfer_payload.bip39_entropy,
             txo_public_key: mc_util_serial::encode(&transfer_payload.txo_public_key),
-            value: tx_proposal.payload_txos[0].value,
+            value: tx_proposal.payload_txos[0].amount.value,
             memo: transfer_payload.memo,
         })
     }

@@ -15,7 +15,7 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tokens::Mob,
     tx::{TxOut, TxOutConfirmationNumber},
-    Amount, Token,
+    Amount, Token, TokenId,
 };
 use std::{fmt, str::FromStr};
 
@@ -102,6 +102,12 @@ impl fmt::Display for TxoID {
 pub struct SpendableTxosResult {
     pub spendable_txos: Vec<Txo>,
     pub max_spendable_in_wallet: u128,
+}
+
+impl Txo {
+    pub fn amount(&self) -> Amount {
+        Amount::new(self.value as u64, TokenId::from(self.token_id as u64))
+    }
 }
 
 pub trait TxoModel {
@@ -373,8 +379,8 @@ impl TxoModel for Txo {
         let new_txo = NewTxo {
             id: &txo_id.to_string(),
             account_id: None,
-            value: output_txo.value as i64,
-            token_id: *output_txo.token_id as i64,
+            value: output_txo.amount.value as i64,
+            token_id: *output_txo.amount.token_id as i64,
             target_key: &mc_util_serial::encode(&output_txo.tx_out.target_key),
             public_key: &mc_util_serial::encode(&output_txo.tx_out.public_key),
             e_fog_hint: &mc_util_serial::encode(&output_txo.tx_out.e_fog_hint),

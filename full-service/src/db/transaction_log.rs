@@ -5,7 +5,7 @@
 use diesel::prelude::*;
 use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
-use mc_transaction_core::{tx::Tx, TokenId};
+use mc_transaction_core::{tx::Tx, Amount, TokenId};
 use std::fmt;
 
 use crate::db::{
@@ -102,6 +102,15 @@ pub struct AssociatedTxos {
     pub inputs: Vec<Txo>,
     pub outputs: Vec<(Txo, String)>,
     pub change: Vec<(Txo, String)>,
+}
+
+impl TransactionLog {
+    pub fn fee_amount(&self) -> Amount {
+        Amount::new(
+            self.fee_value as u64,
+            TokenId::from(self.fee_token_id as u64),
+        )
+    }
 }
 
 pub trait TransactionLogModel {
@@ -959,7 +968,7 @@ mod tests {
         let tx_proposal = builder.build(&conn).unwrap();
 
         assert_eq!(
-            tx_proposal.payload_txos[0].value,
+            tx_proposal.payload_txos[0].amount.value,
             10_000_000_000_000_000_000
         );
 

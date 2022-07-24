@@ -2,7 +2,7 @@
 
 //! API definition for the ReceiverReceipt object.
 
-use crate::{json_rpc::v2::models::amount::MaskedAmount, service};
+use crate::{json_rpc::v2::models::masked_amount::MaskedAmount, service};
 use mc_crypto_keys::CompressedRistrettoPublic;
 use mc_transaction_core::tx::TxOutConfirmationNumber;
 use serde_derive::{Deserialize, Serialize};

@@ -11,12 +11,8 @@ use serde::{Deserialize, Serialize};
 /// involved in the construction of an associated Txo.
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct Confirmation {
-    /// String representing the object's type. Objects of the same type share
-    /// the same value.
-    object: String,
-
     /// Unique identifier for the Txo.
-    txo_id_hex: String,
+    txo_id: String,
 
     /// The index of the Txo in the ledger.
     txo_index: String,
@@ -30,8 +26,7 @@ pub struct Confirmation {
 impl From<&service::confirmation_number::Confirmation> for Confirmation {
     fn from(src: &service::confirmation_number::Confirmation) -> Confirmation {
         Confirmation {
-            object: "confirmation".to_string(),
-            txo_id_hex: src.txo_id.to_string(),
+            txo_id: src.txo_id.to_string(),
             txo_index: src.txo_index.to_string(),
             confirmation: hex::encode(mc_util_serial::encode(&src.confirmation)),
         }

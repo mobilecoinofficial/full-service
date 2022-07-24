@@ -560,18 +560,16 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let mut outlay_confirmation_numbers = Vec::default();
         let mut rng = rand::thread_rng();
         for (i, (recipient, out_value, token_id)) in self.outlays.iter().enumerate() {
-            let tx_out_context = transaction_builder.add_output(
-                Amount::new(*out_value, *token_id),
-                recipient,
-                &mut rng,
-            )?;
+            let amount = Amount::new(*out_value, *token_id);
+
+            let tx_out_context =
+                transaction_builder.add_output(amount.clone(), recipient, &mut rng)?;
 
             payload_txos.push(OutputTxo {
                 tx_out: tx_out_context.tx_out.clone(),
                 recipient_public_address: recipient.clone(),
                 confirmation_number: tx_out_context.confirmation.clone(),
-                value: *out_value,
-                token_id: *token_id,
+                amount,
             });
 
             tx_out_to_outlay_index.insert(tx_out_context.tx_out, i);
@@ -609,10 +607,12 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 ));
             }
 
-            let change = input_value - total_value;
+            let change_value = input_value - total_value;
+            let change_amount = Amount::new(change_value, *token_id);
+
             let reserved_subaddresses = ReservedSubaddresses::from(&from_account_key);
             let tx_out_context = transaction_builder.add_change_output(
-                Amount::new(change, *token_id),
+                change_amount.clone(),
                 &reserved_subaddresses,
                 &mut rng,
             )?;
@@ -621,8 +621,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 tx_out: tx_out_context.tx_out,
                 recipient_public_address: reserved_subaddresses.change_subaddress,
                 confirmation_number: tx_out_context.confirmation,
-                value: change,
-                token_id: *token_id,
+                amount: change_amount,
             });
         }
 
@@ -676,8 +675,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                     tx_out: decoded_tx_out,
                     subaddress_index: utxo.subaddress_index.unwrap() as u64,
                     key_image: decoded_key_image,
-                    value: utxo.value as u64,
-                    token_id: TokenId::from(utxo.token_id as u64),
+                    amount: utxo.amount(),
                 }
             })
             .collect();
@@ -813,7 +811,7 @@ mod tests {
         let proposal = builder.build(&conn).unwrap();
         assert_eq!(proposal.payload_txos.len(), 1);
         assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);
-        assert_eq!(proposal.payload_txos[0].value, value);
+        assert_eq!(proposal.payload_txos[0].amount.value, value);
         assert_eq!(proposal.tx.prefix.inputs.len(), 2);
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
         assert_eq!(proposal.tx.prefix.outputs.len(), 2);
@@ -939,7 +937,10 @@ mod tests {
         let proposal = builder.build(&conn).unwrap();
         assert_eq!(proposal.payload_txos.len(), 1);
         assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);
-        assert_eq!(proposal.payload_txos[0].value, txos[0].value as u64 + 10);
+        assert_eq!(
+            proposal.payload_txos[0].amount.value,
+            txos[0].value as u64 + 10
+        );
         assert_eq!(proposal.tx.prefix.inputs.len(), 2); // need one more for fee
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
         assert_eq!(proposal.tx.prefix.outputs.len(), 2); // self and change
@@ -999,7 +1000,7 @@ mod tests {
         let proposal = builder.build(&conn).unwrap();
         assert_eq!(proposal.payload_txos.len(), 1);
         assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);
-        assert_eq!(proposal.payload_txos[0].value, 80 * MOB);
+        assert_eq!(proposal.payload_txos[0].amount.value, 80 * MOB);
         assert_eq!(proposal.tx.prefix.inputs.len(), 2); // uses both 70 and 80
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
         assert_eq!(proposal.tx.prefix.outputs.len(), 2); // self and change
@@ -1200,7 +1201,7 @@ mod tests {
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
         assert_eq!(proposal.payload_txos.len(), 1);
         assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);
-        assert_eq!(proposal.payload_txos[0].value, value);
+        assert_eq!(proposal.payload_txos[0].amount.value, value);
         assert_eq!(proposal.tx.prefix.inputs.len(), 1); // uses just one input
         assert_eq!(proposal.tx.prefix.outputs.len(), 2); // two outputs to
                                                          // self
@@ -1253,13 +1254,13 @@ mod tests {
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
         assert_eq!(proposal.payload_txos.len(), 4);
         assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);
-        assert_eq!(proposal.payload_txos[0].value, 10 * MOB);
+        assert_eq!(proposal.payload_txos[0].amount.value, 10 * MOB);
         assert_eq!(proposal.payload_txos[1].recipient_public_address, recipient);
-        assert_eq!(proposal.payload_txos[1].value, 20 * MOB);
+        assert_eq!(proposal.payload_txos[1].amount.value, 20 * MOB);
         assert_eq!(proposal.payload_txos[2].recipient_public_address, recipient);
-        assert_eq!(proposal.payload_txos[2].value, 30 * MOB);
+        assert_eq!(proposal.payload_txos[2].amount.value, 30 * MOB);
         assert_eq!(proposal.payload_txos[3].recipient_public_address, recipient);
-        assert_eq!(proposal.payload_txos[3].value, 40 * MOB);
+        assert_eq!(proposal.payload_txos[3].amount.value, 40 * MOB);
         assert_eq!(proposal.tx.prefix.inputs.len(), 2);
         assert_eq!(proposal.tx.prefix.outputs.len(), 5); // outlays + change
     }

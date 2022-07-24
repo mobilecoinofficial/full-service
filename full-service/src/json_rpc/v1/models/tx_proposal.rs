@@ -49,10 +49,10 @@ impl TryFrom<&TxProposalServiceModel> for mc_mobilecoind::payments::TxProposal {
                 tx_out: input_txo.tx_out.clone(),
                 subaddress_index: input_txo.subaddress_index,
                 key_image: input_txo.key_image,
-                value: input_txo.value,
+                value: input_txo.amount.value,
                 attempted_spend_height: 0,
                 attempted_spend_tombstone: 0,
-                token_id: *input_txo.token_id,
+                token_id: *input_txo.amount.token_id,
             })
             .collect();
 
@@ -75,7 +75,7 @@ impl TryFrom<&TxProposalServiceModel> for mc_mobilecoind::payments::TxProposal {
             outlay_map.insert(outlay_index, tx_out_index);
             confirmation_numbers.push(payload_txo.confirmation_number.clone());
             outlay_list.push(mc_mobilecoind::payments::Outlay {
-                value: payload_txo.value,
+                value: payload_txo.amount.value,
                 receiver: payload_txo.recipient_public_address.clone(),
             });
         }
