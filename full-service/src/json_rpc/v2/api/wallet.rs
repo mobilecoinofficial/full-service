@@ -386,11 +386,11 @@ where
                 account_map,
             }
         }
-        JsonCommandRequest::get_address_for_account_at_index { account_id, index } => {
+        JsonCommandRequest::get_address_for_account { account_id, index } => {
             let assigned_subaddress = service
                 .get_address_for_account(&AccountID(account_id), index)
                 .map_err(format_error)?;
-            JsonCommandResponse::get_address_for_account_at_index {
+            JsonCommandResponse::get_address_for_account {
                 address: Address::from(&assigned_subaddress),
             }
         }

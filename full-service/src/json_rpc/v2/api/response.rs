@@ -91,7 +91,7 @@ pub enum JsonCommandResponse {
         account_ids: Vec<String>,
         account_map: Map<String, serde_json::Value>,
     },
-    get_address_for_account_at_index {
+    get_address_for_account {
         address: Address,
     },
     get_addresses {
