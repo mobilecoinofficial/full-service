@@ -10,7 +10,6 @@ description: >-
 
 | Name | Type | Description |
 | :--- | :--- | :--- |
-| `object` | string, value is "account" | String representing the object's type. Objects of the same type share the same value. |
 | `account_id` | string | The unique identifier for the account. |
 | `name` | string | The display name for the account. |
 | `main_address` | string | The b58 address code for the account's main address. The main address is determined by the seed subaddress. It is not assigned to a single recipient and should be considered a free-for-all address. |
