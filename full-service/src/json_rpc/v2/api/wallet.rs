@@ -258,18 +258,15 @@ where
                     .map(|(txo, status)| Txo::new(txo, status)),
             }
         }
-        JsonCommandRequest::create_account {
-            name,
-            fog_report_url,
-            fog_report_id,
-            fog_authority_spki,
-        } => {
+        JsonCommandRequest::create_account { name, fog_info } => {
+            let fog_info = fog_info.unwrap_or_default();
+
             let account: db::models::Account = service
                 .create_account(
                     name,
-                    fog_report_url.unwrap_or_default(),
-                    fog_report_id.unwrap_or_default(),
-                    fog_authority_spki.unwrap_or_default(),
+                    fog_info.report_url,
+                    fog_info.report_id,
+                    fog_info.authority_spki,
                 )
                 .map_err(format_error)?;
 
@@ -600,9 +597,7 @@ where
             name,
             first_block_index,
             next_subaddress_index,
-            fog_report_url,
-            fog_report_id,
-            fog_authority_spki,
+            fog_info,
         } => {
             let fb = first_block_index
                 .map(|fb| fb.parse::<u64>())
@@ -614,6 +609,8 @@ where
                 .map_err(format_error)?;
             let kdv = key_derivation_version.parse::<u8>().map_err(format_error)?;
 
+            let fog_info = fog_info.unwrap_or_default();
+
             JsonCommandResponse::import_account {
                 account: json_rpc::v2::models::account::Account::try_from(
                     &service
@@ -623,9 +620,9 @@ where
                             name,
                             fb,
                             ns,
-                            fog_report_url.unwrap_or_default(),
-                            fog_report_id.unwrap_or_default(),
-                            fog_authority_spki.unwrap_or_default(),
+                            fog_info.report_url,
+                            fog_info.report_id,
+                            fog_info.authority_spki,
                         )
                         .map_err(format_error)?,
                 )
@@ -637,9 +634,7 @@ where
             name,
             first_block_index,
             next_subaddress_index,
-            fog_report_url,
-            fog_report_id,
-            fog_authority_spki,
+            fog_info,
         } => {
             let fb = first_block_index
                 .map(|fb| fb.parse::<u64>())
@@ -650,6 +645,8 @@ where
                 .transpose()
                 .map_err(format_error)?;
 
+            let fog_info = fog_info.unwrap_or_default();
+
             JsonCommandResponse::import_account {
                 account: json_rpc::v2::models::account::Account::try_from(
                     &service
@@ -658,9 +655,9 @@ where
                             name,
                             fb,
                             ns,
-                            fog_report_url.unwrap_or_default(),
-                            fog_report_id.unwrap_or_default(),
-                            fog_authority_spki.unwrap_or_default(),
+                            fog_info.report_url,
+                            fog_info.report_id,
+                            fog_info.authority_spki,
                         )
                         .map_err(format_error)?,
                 )

@@ -4,7 +4,10 @@
 
 use crate::json_rpc::{
     json_rpc_request::JsonRPCRequest,
-    v2::models::{amount::Amount, receiver_receipt::ReceiverReceipt, tx_proposal::TxProposal},
+    v2::models::{
+        account_key::FogInfo, amount::Amount, receiver_receipt::ReceiverReceipt,
+        tx_proposal::TxProposal,
+    },
 };
 
 use serde::{Deserialize, Serialize};
@@ -78,9 +81,7 @@ pub enum JsonCommandRequest {
     },
     create_account {
         name: Option<String>,
-        fog_report_url: Option<String>,
-        fog_report_id: Option<String>,
-        fog_authority_spki: Option<String>,
+        fog_info: Option<FogInfo>,
     },
     create_payment_request {
         account_id: String,
@@ -160,18 +161,14 @@ pub enum JsonCommandRequest {
         name: Option<String>,
         first_block_index: Option<String>,
         next_subaddress_index: Option<String>,
-        fog_report_url: Option<String>,
-        fog_report_id: Option<String>,
-        fog_authority_spki: Option<String>,
+        fog_info: Option<FogInfo>,
     },
     import_account_from_legacy_root_entropy {
         entropy: String,
         name: Option<String>,
         first_block_index: Option<String>,
         next_subaddress_index: Option<String>,
-        fog_report_url: Option<String>,
-        fog_report_id: Option<String>,
-        fog_authority_spki: Option<String>,
+        fog_info: Option<FogInfo>,
     },
     import_view_only_account {
         view_private_key: String,
