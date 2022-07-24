@@ -391,6 +391,14 @@ where
                 account_map,
             }
         }
+        JsonCommandRequest::get_address { public_address_b58 } => {
+            let assigned_address = service
+                .get_address(&public_address_b58)
+                .map_err(format_error)?;
+            JsonCommandResponse::get_address {
+                address: Address::from(&assigned_address),
+            }
+        }
         JsonCommandRequest::get_address_for_account { account_id, index } => {
             let assigned_subaddress = service
                 .get_address_for_account(&AccountID(account_id), index)

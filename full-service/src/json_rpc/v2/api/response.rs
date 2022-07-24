@@ -90,6 +90,9 @@ pub enum JsonCommandResponse {
         account_ids: Vec<String>,
         account_map: AccountMap,
     },
+    get_address {
+        address: Address,
+    },
     get_address_for_account {
         address: Address,
     },
