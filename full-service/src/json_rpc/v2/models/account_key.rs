@@ -62,6 +62,22 @@ impl TryFrom<&AccountKey> for mc_account_keys::AccountKey {
     }
 }
 
+/// The Fog Info contains the information needed to construct a Fog Report.
+#[derive(Deserialize, Serialize, Default, Debug, Clone)]
+pub struct FogInfo {
+    /// Fog Report server url (if user has Fog service), empty string otherwise.
+    pub report_url: String,
+
+    /// Fog Report Key (if user has Fog service), empty otherwise
+    /// The key labelling the report to use, from among the several reports
+    /// which might be served by the fog report server.
+    pub report_id: String,
+
+    /// Fog Authority Subject Public Key Info (if user has Fog service),
+    /// empty string otherwise.
+    pub authority_spki: String,
+}
+
 /// The ViewAccountKey contains a View private key and a Spend public key
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct ViewAccountKey {
