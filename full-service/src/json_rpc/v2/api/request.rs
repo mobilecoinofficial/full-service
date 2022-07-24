@@ -86,7 +86,7 @@ pub enum JsonCommandRequest {
     create_payment_request {
         account_id: String,
         subaddress_index: Option<i64>,
-        amount_pmob: u64,
+        amount: Amount,
         memo: Option<String>,
     },
     create_receiver_receipts {

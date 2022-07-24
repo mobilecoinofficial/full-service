@@ -45,6 +45,7 @@ use mc_common::logger::global_log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
+use mc_transaction_core::Amount;
 use rocket::{self};
 use rocket_contrib::json::Json;
 use serde_json::Map;
@@ -279,11 +280,16 @@ where
         JsonCommandRequest::create_payment_request {
             account_id,
             subaddress_index,
-            amount_pmob,
+            amount,
             memo,
         } => JsonCommandResponse::create_payment_request {
             payment_request_b58: service
-                .create_payment_request(account_id, subaddress_index, amount_pmob, memo)
+                .create_payment_request(
+                    account_id,
+                    subaddress_index,
+                    Amount::try_from(&amount).map_err(format_error)?,
+                    memo,
+                )
                 .map_err(format_error)?,
         },
         JsonCommandRequest::create_receiver_receipts { tx_proposal } => {

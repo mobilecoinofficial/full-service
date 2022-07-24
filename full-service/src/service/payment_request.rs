@@ -9,6 +9,7 @@ use crate::{
 };
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
+use mc_transaction_core::Amount;
 
 use crate::service::ledger::LedgerServiceError;
 use displaydoc::Display;
@@ -82,7 +83,7 @@ pub trait PaymentRequestService {
         &self,
         account_id: String,
         subaddress_index: Option<i64>,
-        amount_pmob: u64,
+        amount: Amount,
         memo: Option<String>,
     ) -> Result<String, PaymentRequestServiceError>;
 }
@@ -96,7 +97,7 @@ where
         &self,
         account_id: String,
         subaddress_index: Option<i64>,
-        amount_pmob: u64,
+        amount: Amount,
         memo: Option<String>,
     ) -> Result<String, PaymentRequestServiceError> {
         let conn = self.wallet_db.get_conn()?;
@@ -112,7 +113,7 @@ where
 
         let payment_request_b58 = b58_encode_payment_request(
             &public_address,
-            amount_pmob,
+            &amount,
             memo.unwrap_or_else(|| "".to_string()),
         )?;
 
