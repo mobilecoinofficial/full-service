@@ -19,7 +19,6 @@ use crate::{
                 balance::Balance,
                 block::{Block, BlockContents},
                 confirmation_number::Confirmation,
-                gift_code::GiftCode,
                 network_status::NetworkStatus,
                 receiver_receipt::ReceiverReceipt,
                 tx_proposal::TxProposal as TxProposalJSON,
@@ -31,19 +30,11 @@ use crate::{
     },
     service,
     service::{
-        account::AccountService,
-        address::AddressService,
-        balance::BalanceService,
-        confirmation_number::ConfirmationService,
-        gift_code::{EncodedGiftCode, GiftCodeService},
-        ledger::LedgerService,
-        models::tx_proposal::TxProposal,
-        payment_request::PaymentRequestService,
-        receipt::ReceiptService,
-        transaction::TransactionService,
-        transaction_log::TransactionLogService,
-        txo::TxoService,
-        WalletService,
+        account::AccountService, address::AddressService, balance::BalanceService,
+        confirmation_number::ConfirmationService, ledger::LedgerService,
+        models::tx_proposal::TxProposal, payment_request::PaymentRequestService,
+        receipt::ReceiptService, transaction::TransactionService,
+        transaction_log::TransactionLogService, txo::TxoService, WalletService,
     },
     util::b58::{
         b58_decode_payment_request, b58_encode_public_address, b58_printable_wrapper_type,
@@ -165,39 +156,6 @@ where
                 tx_proposal: TxProposalJSON::try_from(&tx_proposal).map_err(format_error)?,
             }
         }
-        JsonCommandRequest::build_gift_code {
-            account_id,
-            value_pmob,
-            memo,
-            input_txo_ids,
-            fee,
-            tombstone_block,
-            max_spendable_value,
-        } => {
-            let (tx_proposal, gift_code_b58) = service
-                .build_gift_code(
-                    &AccountID(account_id),
-                    value_pmob.parse::<u64>().map_err(format_error)?,
-                    memo,
-                    input_txo_ids.as_ref(),
-                    fee.map(|f| f.parse::<u64>())
-                        .transpose()
-                        .map_err(format_error)?,
-                    tombstone_block
-                        .map(|t| t.parse::<u64>())
-                        .transpose()
-                        .map_err(format_error)?,
-                    max_spendable_value
-                        .map(|m| m.parse::<u64>())
-                        .transpose()
-                        .map_err(format_error)?,
-                )
-                .map_err(format_error)?;
-            JsonCommandResponse::build_gift_code {
-                tx_proposal: TxProposalJSON::try_from(&tx_proposal).map_err(format_error)?,
-                gift_code_b58: gift_code_b58.to_string(),
-            }
-        }
         JsonCommandRequest::build_split_txo_transaction {
             txo_id,
             output_values,
@@ -310,16 +268,6 @@ where
                 data: b58_data,
             }
         }
-        JsonCommandRequest::check_gift_code_status { gift_code_b58 } => {
-            let (status, value, memo) = service
-                .check_gift_code_status(&EncodedGiftCode(gift_code_b58))
-                .map_err(format_error)?;
-            JsonCommandResponse::check_gift_code_status {
-                gift_code_status: status,
-                gift_code_value: value,
-                gift_code_memo: memo,
-            }
-        }
         JsonCommandRequest::check_receiver_receipt_status {
             address,
             receiver_receipt,
@@ -334,22 +282,6 @@ where
                 txo: txo_and_status
                     .as_ref()
                     .map(|(txo, status)| Txo::new(txo, status)),
-            }
-        }
-        JsonCommandRequest::claim_gift_code {
-            gift_code_b58,
-            account_id,
-            address,
-        } => {
-            let tx = service
-                .claim_gift_code(
-                    &EncodedGiftCode(gift_code_b58),
-                    &AccountID(account_id),
-                    address,
-                )
-                .map_err(format_error)?;
-            JsonCommandResponse::claim_gift_code {
-                txo_id: TxoID::from(&tx.prefix.outputs[0]).to_string(),
             }
         }
         JsonCommandRequest::create_account {
@@ -582,23 +514,6 @@ where
                     .map_err(format_error)?
                     .iter()
                     .map(Confirmation::from)
-                    .collect(),
-            }
-        }
-        JsonCommandRequest::get_gift_code { gift_code_b58 } => JsonCommandResponse::get_gift_code {
-            gift_code: GiftCode::from(
-                &service
-                    .get_gift_code(&EncodedGiftCode(gift_code_b58))
-                    .map_err(format_error)?,
-            ),
-        },
-        JsonCommandRequest::get_gift_codes { offset, limit } => {
-            JsonCommandResponse::get_gift_codes {
-                gift_codes: service
-                    .list_gift_codes(offset, limit)
-                    .map_err(format_error)?
-                    .iter()
-                    .map(GiftCode::from)
                     .collect(),
             }
         }
@@ -835,29 +750,6 @@ where
                 .remove_account(&AccountID(account_id))
                 .map_err(format_error)?,
         },
-        JsonCommandRequest::remove_gift_code { gift_code_b58 } => {
-            JsonCommandResponse::remove_gift_code {
-                removed: service
-                    .remove_gift_code(&EncodedGiftCode(gift_code_b58))
-                    .map_err(format_error)?,
-            }
-        }
-        JsonCommandRequest::submit_gift_code {
-            from_account_id,
-            gift_code_b58,
-            tx_proposal,
-        } => {
-            let gift_code = service
-                .submit_gift_code(
-                    &AccountID(from_account_id),
-                    &EncodedGiftCode(gift_code_b58),
-                    &TxProposal::try_from(&tx_proposal).map_err(format_error)?,
-                )
-                .map_err(format_error)?;
-            JsonCommandResponse::submit_gift_code {
-                gift_code: GiftCode::from(&gift_code),
-            }
-        }
         JsonCommandRequest::submit_transaction {
             tx_proposal,
             comment,

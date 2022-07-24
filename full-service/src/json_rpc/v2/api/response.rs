@@ -15,7 +15,6 @@ use crate::{
             balance::Balance,
             block::{Block, BlockContents},
             confirmation_number::Confirmation,
-            gift_code::GiftCode,
             network_status::NetworkStatus,
             receiver_receipt::ReceiverReceipt,
             transaction_log::TransactionLog,
@@ -24,7 +23,7 @@ use crate::{
             wallet_status::WalletStatus,
         },
     },
-    service::{gift_code::GiftCodeStatus, receipt::ReceiptTransactionStatus},
+    service::receipt::ReceiptTransactionStatus,
     util::b58::PrintableWrapperType,
 };
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
@@ -46,10 +45,6 @@ pub enum JsonCommandResponse {
         transaction_log: TransactionLog,
         tx_proposal: TxProposalJSON,
     },
-    build_gift_code {
-        tx_proposal: TxProposalJSON,
-        gift_code_b58: String,
-    },
     build_split_txo_transaction {
         tx_proposal: TxProposalJSON,
         transaction_log_id: String,
@@ -67,17 +62,9 @@ pub enum JsonCommandResponse {
         b58_type: PrintableWrapperType,
         data: HashMap<String, String>,
     },
-    check_gift_code_status {
-        gift_code_status: GiftCodeStatus,
-        gift_code_value: Option<i64>,
-        gift_code_memo: String,
-    },
     check_receiver_receipt_status {
         receipt_transaction_status: ReceiptTransactionStatus,
         txo: Option<Txo>,
-    },
-    claim_gift_code {
-        txo_id: String,
     },
     create_account {
         account: Account,
@@ -140,12 +127,6 @@ pub enum JsonCommandResponse {
     get_confirmations {
         confirmations: Vec<Confirmation>,
     },
-    get_gift_code {
-        gift_code: GiftCode,
-    },
-    get_gift_codes {
-        gift_codes: Vec<GiftCode>,
-    },
     get_mc_protocol_transaction {
         transaction: JsonTx,
     },
@@ -183,12 +164,6 @@ pub enum JsonCommandResponse {
     },
     remove_account {
         removed: bool,
-    },
-    remove_gift_code {
-        removed: bool,
-    },
-    submit_gift_code {
-        gift_code: GiftCode,
     },
     submit_transaction {
         transaction_log: Option<TransactionLog>,

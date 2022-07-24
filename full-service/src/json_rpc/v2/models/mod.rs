@@ -6,7 +6,6 @@ pub mod amount;
 pub mod balance;
 pub mod block;
 pub mod confirmation_number;
-pub mod gift_code;
 pub mod network_status;
 pub mod receiver_receipt;
 pub mod transaction_log;

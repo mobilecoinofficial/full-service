@@ -50,15 +50,6 @@ pub enum JsonCommandRequest {
         max_spendable_value: Option<String>,
         comment: Option<String>,
     },
-    build_gift_code {
-        account_id: String,
-        value_pmob: String,
-        memo: Option<String>,
-        input_txo_ids: Option<Vec<String>>,
-        fee: Option<String>,
-        tombstone_block: Option<String>,
-        max_spendable_value: Option<String>,
-    },
     build_split_txo_transaction {
         txo_id: String,
         output_values: Vec<String>,
@@ -89,17 +80,9 @@ pub enum JsonCommandRequest {
     check_b58_type {
         b58_code: String,
     },
-    check_gift_code_status {
-        gift_code_b58: String,
-    },
     check_receiver_receipt_status {
         address: String,
         receiver_receipt: ReceiverReceipt,
-    },
-    claim_gift_code {
-        gift_code_b58: String,
-        account_id: String,
-        address: Option<String>,
     },
     create_account {
         name: Option<String>,
@@ -155,13 +138,6 @@ pub enum JsonCommandRequest {
     },
     get_confirmations {
         transaction_log_id: String,
-    },
-    get_gift_code {
-        gift_code_b58: String,
-    },
-    get_gift_codes {
-        offset: Option<u64>,
-        limit: Option<u64>,
     },
     get_mc_protocol_transaction {
         transaction_log_id: String,
@@ -220,14 +196,6 @@ pub enum JsonCommandRequest {
     },
     remove_account {
         account_id: String,
-    },
-    remove_gift_code {
-        gift_code_b58: String,
-    },
-    submit_gift_code {
-        from_account_id: String,
-        gift_code_b58: String,
-        tx_proposal: TxProposal,
     },
     submit_transaction {
         tx_proposal: TxProposal,
