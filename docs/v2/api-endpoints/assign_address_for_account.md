@@ -4,7 +4,7 @@ description: Assign an address to a given account.
 
 # Assign Address For Account
 
-## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
+## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40-L43)
 
 ### Required Params
 | Param | Purpose | Requirements |
@@ -16,7 +16,7 @@ description: Assign an address to a given account.
 | :--- | :--- | :--- |
 | ​`metadata` | The metadata for this address. | String; can contain stringified JSON. |
 
-## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
+## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41-L43)
 
 ## Example
 
