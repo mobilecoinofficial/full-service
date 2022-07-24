@@ -9,22 +9,22 @@ description: >-
 ## Parameters
 
 ### Required
-| Param | Type | Purpose | Requirements |
-| :--- | :--- | :--- | :--- |
-| `account_id` | string | The account on which to perform this action | Account must exist in the wallet |
+| Param | Type | Description |
+| :--- | :--- | :--- |
+| `account_id` | string | The account on which to perform this action. Must exist in the wallet. | 
 
 ### Optional
-| Param | Type | Purpose | Requirements |
-| :--- | :--- | :--- | :--- |
-| `addresses_and_amounts` | Optional([(String, [Amount](../../../full-service/src/json_rpc/v2/models/amount.rs))]) | An array of public addresses and Amount object tuples | addresses are b58-encoded public addresses |
-| `recipient_public_address` | The recipient for this transaction | b58-encoded public address bytes |
-| `amount` | [Amount](../../../full-service/src/json_rpc/v2/models/amount.rs) | The Amount to send in this transaction |  |
-| `input_txo_ids` | [string] | Specific TXOs to use as inputs to this transaction | TXO IDs \(obtain from `get_txos_for_account`\) |
-| `fee_value` | string(u64) | The fee value to submit with this transaction | If not provided, uses `MINIMUM_FEE` of the first outputs token_id, if available, or defaults to MOB |
-| `fee_token_id` | string(u64) | The fee token to submit with this transaction | If not provided, uses token_id of first output, if available, or defaults to MOB |
-| `tombstone_block` | string(u64) | The block after which this transaction expires | If not provided, uses `cur_height` + 10 |
-| `max_spendable_value` | string(u64) | The maximum amount for an input TXO selected for this transaction |  |
-| `comment` | string | Comment to annotate this transaction in the transaction log |  |
+| Param | Type | Description |
+| :--- | :--- | :--- |
+| `addresses_and_amounts` | (string, [Amount](../../../full-service/src/json_rpc/v2/models/amount.rs))[] | An array of public addresses and Amount object tuples |
+| `recipient_public_address` | string | b58-encoded public address bytes of the recipient for this transaction. |
+| `amount` | [Amount](../../../full-service/src/json_rpc/v2/models/amount.rs) | The Amount to send in this transaction |
+| `input_txo_ids` | string[]] | Specific TXOs to use as inputs to this transaction |
+| `fee_value` | string(u64) | The fee value to submit with this transaction. If not provided, uses `MINIMUM_FEE` of the first outputs token_id, if available, or defaults to MOB |
+| `fee_token_id` | string(u64) | The fee token to submit with this transaction. If not provided, uses token_id of first output, if available, or defaults to MOB |
+| `tombstone_block` | string(u64) | The block after which this transaction expires. If not provided, uses `cur_height` + 10 |
+| `max_spendable_value` | string(u64) | The maximum amount for an input TXO selected for this transaction |
+| `comment` | string | Comment to annotate this transaction in the transaction log |
 
 ## Example
 
