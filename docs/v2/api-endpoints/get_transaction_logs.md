@@ -1,6 +1,6 @@
 # Get Transaction Logs For Account
 
-## Parameters
+## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Optional Param | Purpose | Requirement |
 | :--- | :--- | :--- |
@@ -9,6 +9,8 @@
 | `max_block_index` | The maximum block index to find transaction logs from | |
 | `offset` | The pagination offset. Results start at the offset index. | |
 | `limit` | Limit for the number of results. | |
+
+## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 

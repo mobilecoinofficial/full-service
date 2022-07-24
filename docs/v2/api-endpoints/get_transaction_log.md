@@ -1,10 +1,12 @@
 # Get Transaction Log
 
-## Parameters
+## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Required Param | Purpose | Requirement |
 | :--- | :--- | :--- |
 | `transaction_log_id` | The transaction log ID to get. | Transaction log must exist in the wallet. |
+
+## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 

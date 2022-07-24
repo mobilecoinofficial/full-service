@@ -4,7 +4,7 @@ description: Import an existing account from the secret entropy.
 
 # Import Account Legacy
 
-## Parameters
+## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Required Param | Purpose | Requirements |
 | :--- | :--- | :--- |
@@ -18,6 +18,8 @@ description: Import an existing account from the secret entropy.
 | `fog_report_url` |  |  |
 | `fog_report_id` |  |  |
 | `fog_authority_spki` |  |  |
+
+## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 

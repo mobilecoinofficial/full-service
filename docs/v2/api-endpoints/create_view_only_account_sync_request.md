@@ -1,10 +1,12 @@
 # Create View Only Account Sync Request
 
-## Parameters
+## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Required Param | Purpose | Requirements |
 | :--- | :--- | :--- |
 | `account_id` | The account on which to perform this action. | Account must exist in the wallet as a view only account. |
+
+## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
 
 {% tabs %}
 {% tab title="Request" %}

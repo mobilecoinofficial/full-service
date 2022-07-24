@@ -2,8 +2,9 @@
 description: Get the current balance for a given address. The response will have a map of the total values for each token_id that is present at that address. If no tokens are found at that address, the map will be empty. Orphaned will always be 0 for addresses.
 ---
 
-# Get Balance For Address
+# Get Address Status
 
+## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
 | Required Param | Purpose | Requirements |
 | :--- | :--- | :--- |
 | `address` | The address on which to perform this action. | Address must be assigned for an account in the wallet. |
@@ -12,6 +13,8 @@ description: Get the current balance for a given address. The response will have
 | :--- | :--- | :--- |
 | `min_block_index` | The minimum block index to filter on txos received | |
 | `max_block_index` | The maximum block index to filter on txos received | |
+
+## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
 
 {% tabs %}
 {% tab title="Request Body" %}

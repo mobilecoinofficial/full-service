@@ -4,7 +4,7 @@ description: Create a payment request b58 code to give to someone else
 
 # Create Payment Request
 
-## Parameters
+## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Required Param | Purpose | Requirements |
 | :--- | :--- | :--- |
@@ -15,6 +15,8 @@ description: Create a payment request b58 code to give to someone else
 | :--- | :--- | :--- |
 | `subaddress_index` | The subaddress index on the account to generate the request with | `i64` |
 | `memo` | Memo for the payment request |  |
+
+## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 

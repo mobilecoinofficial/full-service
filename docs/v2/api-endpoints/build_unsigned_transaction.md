@@ -10,7 +10,7 @@ description: >-
         fee: Option<String>,
         tombstone_block: Option<String>,
 
-## Parameters
+## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Required Param | Purpose                                     | Requirements                     |
 | -------------- | ------------------------------------------- | -------------------------------- |
@@ -23,6 +23,8 @@ description: >-
 | `fee_value` | The fee value to submit with this transaction | If not provided, uses `MINIMUM_FEE` of the appropriate token |
 | `fee_token_id` | The fee token id | |
 | `tombstone_block` | The block after which this transaction expires  | If not provided, uses `cur_height` + 10 |
+
+## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 

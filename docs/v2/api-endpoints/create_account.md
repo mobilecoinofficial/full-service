@@ -4,7 +4,7 @@ description: Create a new account in the wallet.
 
 # Create Account
 
-Parameters
+## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Optional Param | Purpose | Requirements |
 | :--- | :--- | :--- |
@@ -12,6 +12,8 @@ Parameters
 | `fog_report_url` | The Fog Report URL to include in public addresses | |
 | `fog_report_id` | The Fog Report Id to include in public addresses | |
 | `fog_authority_spki` | The Fog Authority SPKI to include in public addresses |  |
+
+## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
 
 {% tabs %}
 {% tab title="Request Body" %}

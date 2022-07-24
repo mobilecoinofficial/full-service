@@ -4,12 +4,14 @@ description: Get an assigned address by index for an account.
 
 # Get Address For Account At Index
 
-## Parameters
+## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Required Param | Purpose | Requirements |
 | :--- | :--- | :--- |
 | `account_id` | The account on which to perform this action. | The account must exist in the wallet. |
 | `index` | The subaddress index to lookup | The address must have already been assigned. |
+
+## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 

@@ -4,11 +4,13 @@ description: Get the JSON representation of the "Block" object in the ledger.
 
 # Get Block
 
-## Parameters
+## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Required Param | Purpose | Requirements |
 | :--- | :--- | :--- |
 | `block_index` | The block on which to perform this action. | Block must exist in the wallet. |
+
+## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 

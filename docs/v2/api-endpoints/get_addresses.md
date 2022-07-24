@@ -4,13 +4,15 @@ description: Get assigned addresses for an account.
 
 # Get Addresses
 
-## Parameters
+## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Optional Param | Purpose | Requirements |
 | :--- | :--- | :--- |
 | `account_id` | The account on which to perform this action. | The account must exist in the wallet. |
 | `offset` | The pagination offset. Results start at the offset index | |
 | `limit` | Limit for the number of results | |
+
+## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 

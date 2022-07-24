@@ -6,7 +6,7 @@ description: >-
 
 # Submit Transaction
 
-## Parameters
+## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Required Param | Purpose                        | Requirements                     |
 | -------------- | ------------------------------ | -------------------------------- |
@@ -16,6 +16,8 @@ description: >-
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------ |
 | `account_id`   | Account ID for which to log the transaction. If omitted, the transaction is not logged and therefor the txos used will not be set to pending, if they exist. This could inadvertently cause an attempt to spend the same txo in multiple transactions. |              |
 | `comment`      | Comment to annotate this transaction in the transaction log                                                                                                                                                                                            |              |
+
+## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Examples
 

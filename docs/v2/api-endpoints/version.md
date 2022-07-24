@@ -4,6 +4,10 @@ description: 'Get the version number of the software.'
 
 # Get Version Number
 
+## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
+
+## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
+
 ## Example
 
 {% tabs %}

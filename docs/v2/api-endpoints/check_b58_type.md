@@ -4,11 +4,13 @@ description: Check the type of the b58 code
 
 # Check B58 Type
 
-## Parameters
+## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Required Param | Purpose | Requirements |
 | :--- | :--- | :--- |
 | `b58_code` | The code to check | `String` |
+
+## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 

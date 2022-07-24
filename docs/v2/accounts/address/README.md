@@ -17,7 +17,6 @@ Important: If you receive funds at a subaddress that has not yet been assigned, 
 
 | Name | Type | Description |
 | :--- | :--- | :--- |
-| `object` | string, value is "address" | String representing the object's type. Objects of the same type share the same value. |
 | `public_address` | string | A shareable B58-encoded string representing the address. |
 | `account_id` | string | A unique identifier for the assigned associated account. |
 | `metadata` | string | An arbitrary string attached to the object. |

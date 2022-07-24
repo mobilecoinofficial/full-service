@@ -6,7 +6,7 @@ description: >-
 
 # Import
 
-## Parameters
+## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Required Param | Purpose                                                                            | Requirements |
 | -------------- | ---------------------------------------------------------------------------------- | ------------ |
@@ -18,6 +18,8 @@ description: >-
 | `name`      |  |              |
 | `first_block_index`      |  |              |
 | `next_subaddress_index`      |  |              |
+
+## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 

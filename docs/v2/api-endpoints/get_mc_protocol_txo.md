@@ -4,11 +4,13 @@ description: 'Get the MobileCoin transaction TXO'
 
 # Get MobileCoin Protocol TXO
 
-## Parameters
+## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Required Param | Purpose | Requirements |
 | :--- | :--- | :--- |
 | `txo_id` | The id of the TXO. | Must be a valid id for a TXO. |
+
+## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 

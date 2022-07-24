@@ -4,7 +4,7 @@ description: Get TXOs for a given account with offset and limit parameters
 
 # Get TXOs
 
-## Parameters
+## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Optional Param | Purpose | Requirements |
 | :--- | :--- | :--- |
@@ -13,6 +13,8 @@ description: Get TXOs for a given account with offset and limit parameters
 | `status` | Txo status filer. Available status': "unverified", "unspent", "spent", "orphaned", "pending", "secreted", | |
 | `offset` | The pagination offset. Results start at the offset index. | |
 | `limit` | Limit for the number of results.| |
+
+## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 

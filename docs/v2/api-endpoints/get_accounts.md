@@ -4,12 +4,14 @@ description: Get the details of all accounts in a given wallet.
 
 # Get Accounts
 
-## Parameters
+## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Optional Param | Purpose | Requirements |
 | :--- | :--- | :--- |
 | `offset` | | |
 | `limit` | | |
+
+## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 

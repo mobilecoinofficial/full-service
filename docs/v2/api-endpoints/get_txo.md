@@ -4,11 +4,13 @@ description: Get details of a given TXO.
 
 # Get TXO
 
-## Parameters
+## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Parameter | Purpose | Requirements |
 | :--- | :--- | :--- |
 | `txo_id` | The TXO ID for which to get details. |  |
+
+## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 

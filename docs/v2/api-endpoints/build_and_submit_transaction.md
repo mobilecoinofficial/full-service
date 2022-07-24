@@ -6,14 +6,14 @@ description: >-
 
 # Build And Submit Transaction
 
-## Parameters
+## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
 
-### Required
+### Required Params
 | Param | Type | Description |
 | :--- | :--- | :--- |
 | `account_id` | string | The account on which to perform this action. Must exist in the wallet. | 
 
-### Optional
+### Optional Params
 | Param | Type | Description |
 | :--- | :--- | :--- |
 | `addresses_and_amounts` | (string, [Amount](../../../full-service/src/json_rpc/v2/models/amount.rs))[] | An array of public addresses and Amount object tuples |
@@ -26,6 +26,8 @@ description: >-
 | `max_spendable_value` | string(u64) | The maximum amount for an input TXO selected for this transaction |
 | `comment` | string | Comment to annotate this transaction in the transaction log |
 
+## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
+
 ## Example
 
 {% tabs %}
@@ -36,7 +38,7 @@ description: >-
   "params": {
     "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
     "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-    "amount": ["42000000000000", "0"]
+    "amount": { "value": "42000000000000", "token_id": "0" }
   },
   "jsonrpc": "2.0",
   "id": 1

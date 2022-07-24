@@ -7,11 +7,13 @@ description: >-
 
 # Get Confirmations
 
-## Parameters
+## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Param | Purpose | Requirements |
 | :--- | :--- | :--- |
 | `transaction_log_id` | The transaction log ID for which to get confirmation numbers. | The transaction log must exist in the wallet. |
+
+## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 

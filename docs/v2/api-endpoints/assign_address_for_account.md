@@ -4,15 +4,19 @@ description: Assign an address to a given account.
 
 # Assign Address For Account
 
-## Parameters
+## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
 
-| Required Param | Purpose | Requirements |
+### Required Params
+| Param | Purpose | Requirements |
 | :--- | :--- | :--- |
 | `account_id` | The account on which to perform this action. | The account must exist in the wallet. |
 
-| Optional Param | Purpose | Requirements |
+### Optional Params
+| Param | Purpose | Requirements |
 | :--- | :--- | :--- |
 | ​`metadata` | The metadata for this address. | String; can contain stringified JSON. |
+
+## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 
