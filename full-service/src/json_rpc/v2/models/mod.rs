@@ -12,5 +12,4 @@ pub mod receiver_receipt;
 pub mod transaction_log;
 pub mod tx_proposal;
 pub mod txo;
-pub mod unspent_tx_out;
 pub mod wallet_status;
