@@ -4,14 +4,14 @@ description: Check the status of a receiver receipt.
 
 # Check Receiver Receipt Status
 
-## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
+## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L78)
 
 | Required Param | Purpose | Requirements |
 | :--- | :--- | :--- |
 | `address` | The account's public address. | Must be a valid account address. |
 | `receiver_receipt` | The receipt whose status is being checked. | |
 
-## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
+## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L61)
 
 ## Example
 

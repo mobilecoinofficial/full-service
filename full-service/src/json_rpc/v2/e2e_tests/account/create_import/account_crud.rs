@@ -29,14 +29,14 @@ mod e2e_account {
 
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
-        assert!(account_obj.get("account_id").is_some());
+        assert!(account_obj.get("id").is_some());
         assert_eq!(account_obj.get("name").unwrap(), "Alice Main Account");
         assert!(account_obj.get("main_address").is_some());
         assert_eq!(account_obj.get("next_subaddress_index").unwrap(), "2");
         assert_eq!(account_obj.get("recovery_mode").unwrap(), false);
         assert_eq!(account_obj.get("fog_enabled").unwrap(), false);
 
-        let account_id = account_obj.get("account_id").unwrap();
+        let account_id = account_obj.get("id").unwrap();
 
         // Read Accounts via Get All
         let body = json!({
@@ -54,7 +54,7 @@ mod e2e_account {
             account_map
                 .get(accounts[0].as_str().unwrap())
                 .unwrap()
-                .get("account_id")
+                .get("id")
                 .unwrap(),
             &account_id.clone()
         );
@@ -153,7 +153,7 @@ mod e2e_account {
 
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
-        assert!(account_obj.get("account_id").is_some());
+        assert!(account_obj.get("id").is_some());
         assert_eq!(account_obj.get("name").unwrap(), "Alice Main Account");
         assert_eq!(account_obj.get("recovery_mode").unwrap(), false);
         assert!(account_obj.get("main_address").is_some());

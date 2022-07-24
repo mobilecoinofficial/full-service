@@ -9,17 +9,17 @@ use crate::{
         json_rpc_request::JsonRPCRequest,
         json_rpc_response::JsonCommandResponse as JsonCommandResponseTrait,
         v2::models::{
-            account::Account,
+            account::{Account, AccountMap},
             account_secrets::AccountSecrets,
-            address::Address,
-            balance::Balance,
+            address::{Address, AddressMap},
+            balance::BalanceMap,
             block::{Block, BlockContents},
             confirmation_number::Confirmation,
             network_status::NetworkStatus,
             receiver_receipt::ReceiverReceipt,
-            transaction_log::TransactionLog,
-            tx_proposal::TxProposal as TxProposalJSON,
-            txo::Txo,
+            transaction_log::{TransactionLog, TransactionLogMap},
+            tx_proposal::TxProposal,
+            txo::{Txo, TxoMap},
             wallet_status::WalletStatus,
         },
     },
@@ -28,8 +28,7 @@ use crate::{
 };
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use serde::{Deserialize, Serialize};
-use serde_json::Map;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
 use crate::{fog_resolver::FullServiceFogResolver, unsigned_tx::UnsignedTx};
 /// Responses from the Full Service Wallet.
@@ -43,10 +42,10 @@ pub enum JsonCommandResponse {
     },
     build_and_submit_transaction {
         transaction_log: TransactionLog,
-        tx_proposal: TxProposalJSON,
+        tx_proposal: TxProposal,
     },
     build_transaction {
-        tx_proposal: TxProposalJSON,
+        tx_proposal: TxProposal,
         transaction_log_id: String,
     },
     build_unsigned_transaction {
@@ -85,25 +84,25 @@ pub enum JsonCommandResponse {
         account: Account,
         network_block_height: String,
         local_block_height: String,
-        balance_per_token: BTreeMap<String, Balance>,
+        balance_per_token: BalanceMap,
     },
     get_accounts {
         account_ids: Vec<String>,
-        account_map: Map<String, serde_json::Value>,
+        account_map: AccountMap,
     },
     get_address_for_account {
         address: Address,
     },
     get_addresses {
         public_addresses: Vec<String>,
-        address_map: Map<String, serde_json::Value>,
+        address_map: AddressMap,
     },
     get_address_status {
         address: Address,
         account_block_height: String,
         network_block_height: String,
         local_block_height: String,
-        balance_per_token: BTreeMap<String, Balance>,
+        balance_per_token: BalanceMap,
     },
     get_block {
         block: Block,
@@ -126,14 +125,14 @@ pub enum JsonCommandResponse {
     },
     get_transaction_logs {
         transaction_log_ids: Vec<String>,
-        transaction_log_map: Map<String, serde_json::Value>,
+        transaction_log_map: TransactionLogMap,
     },
     get_txo {
         txo: Txo,
     },
     get_txos {
         txo_ids: Vec<String>,
-        txo_map: Map<String, serde_json::Value>,
+        txo_map: TxoMap,
     },
     get_wallet_status {
         wallet_status: WalletStatus,

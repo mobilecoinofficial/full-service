@@ -4,7 +4,7 @@ description: Create a payment request b58 code to give to someone else
 
 # Create Payment Request
 
-## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
+## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L86)
 
 | Required Param | Purpose | Requirements |
 | :--- | :--- | :--- |

@@ -40,7 +40,7 @@ mod e2e_account {
         });
         let res = dispatch(&client, body, &logger);
         let account_obj = res["result"]["account"].clone();
-        let account_id = account_obj["account_id"].clone();
+        let account_id = account_obj["id"].clone();
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -95,7 +95,7 @@ mod e2e_account {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
-        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let account_id = account_obj.get("id").unwrap().as_str().unwrap();
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -142,7 +142,7 @@ mod e2e_account {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
-        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let account_id = account_obj.get("id").unwrap().as_str().unwrap();
         let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
         let public_address = b58_decode_public_address(b58_public_address).unwrap();
 
@@ -196,7 +196,7 @@ mod e2e_account {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
-        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let account_id = account_obj.get("id").unwrap().as_str().unwrap();
         let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
         let public_address = b58_decode_public_address(b58_public_address).unwrap();
 
@@ -251,7 +251,7 @@ mod e2e_account {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
-        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let account_id = account_obj.get("id").unwrap().as_str().unwrap();
 
         // Assign some addresses.
         for _ in 0..10 {
@@ -323,7 +323,7 @@ mod e2e_account {
         let creation_res = dispatch(&client, body, &logger);
         let creation_result = creation_res.get("result").unwrap();
         let account_obj = creation_result.get("account").unwrap();
-        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let account_id = account_obj.get("id").unwrap().as_str().unwrap();
         assert_eq!(creation_res.get("jsonrpc").unwrap(), "2.0");
 
         // assign next subaddress for account
@@ -362,7 +362,7 @@ mod e2e_account {
         let account_id = result
             .get("account")
             .unwrap()
-            .get("account_id")
+            .get("id")
             .unwrap()
             .as_str()
             .unwrap();
@@ -445,7 +445,7 @@ mod e2e_account {
         let account_id = result
             .get("account")
             .unwrap()
-            .get("account_id")
+            .get("id")
             .unwrap()
             .as_str()
             .unwrap();
@@ -552,7 +552,7 @@ mod e2e_account {
             }
         });
         let res = dispatch(&client, body, &logger);
-        let account_id = res["result"]["account"]["account_id"].as_str().unwrap();
+        let account_id = res["result"]["account"]["id"].as_str().unwrap();
         let b58_public_address = res["result"]["account"]["main_address"].as_str().unwrap();
 
         let alice_public_address = b58_decode_public_address(&b58_public_address)

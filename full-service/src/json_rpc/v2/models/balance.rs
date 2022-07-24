@@ -2,9 +2,14 @@
 
 //! API definition for the Balance object.
 
+use std::collections::BTreeMap;
+
 use crate::service;
 
 use serde_derive::{Deserialize, Serialize};
+
+#[derive(Deserialize, Serialize, Default, Debug, Clone)]
+pub struct BalanceMap(pub BTreeMap<String, Balance>);
 
 /// The balance for an account, as well as some information about syncing status
 /// needed to interpret the balance correctly.

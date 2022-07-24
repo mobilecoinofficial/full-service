@@ -34,7 +34,7 @@ mod e2e_account {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
-        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let account_id = account_obj.get("id").unwrap().as_str().unwrap();
         let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
         let public_address = b58_decode_public_address(b58_public_address).unwrap();
 
@@ -88,7 +88,7 @@ mod e2e_account {
             }
         });
         let res = dispatch(&client, body, &logger);
-        let account_id = res["result"]["account"]["account_id"].as_str().unwrap();
+        let account_id = res["result"]["account"]["id"].as_str().unwrap();
         let b58_public_address = res["result"]["account"]["main_address"].as_str().unwrap();
 
         let alice_public_address = b58_decode_public_address(&b58_public_address)

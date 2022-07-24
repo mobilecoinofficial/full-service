@@ -6,7 +6,7 @@ description: >-
 
 # Build And Submit Transaction
 
-## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
+## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L44-L55)
 
 ### Required Params
 | Param | Type | Description |
@@ -26,7 +26,7 @@ description: >-
 | `max_spendable_value` | string(u64) | The maximum amount for an input TXO selected for this transaction |
 | `comment` | string | Comment to annotate this transaction in the transaction log |
 
-## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
+##[Response](../../../full-service/src/json_rpc/v2/api/response.rs#L44-L47)
 
 ## Example
 

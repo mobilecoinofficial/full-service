@@ -40,7 +40,7 @@ mod e2e_transaction {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
-        let alice_account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let alice_account_id = account_obj.get("id").unwrap().as_str().unwrap();
         let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
         let alice_public_address = b58_decode_public_address(b58_public_address).unwrap();
 
@@ -55,7 +55,7 @@ mod e2e_transaction {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
-        let bob_account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let bob_account_id = account_obj.get("id").unwrap().as_str().unwrap();
         let bob_b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
 
         let body = json!({
@@ -69,7 +69,7 @@ mod e2e_transaction {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
-        let charlie_account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let charlie_account_id = account_obj.get("id").unwrap().as_str().unwrap();
         let charlie_b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
 
         // Add some money to Alice's account.

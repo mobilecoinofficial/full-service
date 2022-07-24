@@ -43,7 +43,7 @@ mod e2e_transaction {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
-        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let account_id = account_obj.get("id").unwrap().as_str().unwrap();
         let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
         let public_address = b58_decode_public_address(b58_public_address).unwrap();
 

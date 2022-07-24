@@ -4,16 +4,14 @@ description: Create a new account in the wallet.
 
 # Create Account
 
-## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
+## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L82)
 
 | Optional Param | Purpose | Requirements |
 | :--- | :--- | :--- |
 | `name` | A label for this account. | A label can have duplicates, but it is not recommended. |
-| `fog_report_url` | The Fog Report URL to include in public addresses | |
-| `fog_report_id` | The Fog Report Id to include in public addresses | |
-| `fog_authority_spki` | The Fog Authority SPKI to include in public addresses |  |
+| `fog_info` | The [Fog Info](../../../full-service/src/json_rpc/v2/models/account_key.rs#L67) to include in public addresses | |
 
-## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
+## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L65)
 
 {% tabs %}
 {% tab title="Request Body" %}

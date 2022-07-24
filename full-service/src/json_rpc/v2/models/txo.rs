@@ -2,8 +2,13 @@
 
 //! API definition for the Txo object.
 
+use std::collections::BTreeMap;
+
 use crate::{db, db::txo::TxoStatus};
 use serde_derive::{Deserialize, Serialize};
+
+#[derive(Deserialize, Serialize, Default, Debug, Clone)]
+pub struct TxoMap(pub BTreeMap<String, Txo>);
 
 /// An Txo in the wallet.
 ///

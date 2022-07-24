@@ -4,7 +4,10 @@
 
 use crate::{db, util::b58::b58_encode_public_address};
 use serde_derive::{Deserialize, Serialize};
-use std::convert::TryFrom;
+use std::{collections::BTreeMap, convert::TryFrom};
+
+#[derive(Deserialize, Serialize, Default, Debug, Clone)]
+pub struct AccountMap(pub BTreeMap<String, Account>);
 
 /// An account in the wallet.
 ///
@@ -14,7 +17,7 @@ use std::convert::TryFrom;
 pub struct Account {
     /// Unique identifier for the account. Constructed from the public key
     /// materials of the account key.
-    pub account_id: String,
+    pub id: String,
 
     /// Display name for the account.
     pub name: String,
@@ -72,7 +75,7 @@ impl TryFrom<&db::models::Account> for Account {
             .map_err(|e| format!("Could not b58 encode public address {:?}", e))?;
 
         Ok(Account {
-            account_id: src.id.clone(),
+            id: src.id.clone(),
             key_derivation_version: src.key_derivation_version.to_string(),
             name: src.name.clone(),
             main_address: main_public_address_b58,

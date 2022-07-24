@@ -6,7 +6,7 @@ description: >-
 
 # Build Transaction
 
-## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
+## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L56-L66)
 
 | Required Param | Purpose | Requirements |
 | :--- | :--- | :--- |
@@ -14,16 +14,16 @@ description: >-
 
 | Optional Param | Purpose | Requirements |
 | :--- | :--- | :--- |
-| `addresses_and_amounts` | An array of public addresses and Amounts as a tuple | addresses are b58-encoded public addresses |
+| `addresses_and_amounts` | An array of public addresses and [Amounts](../../../full-service/src/json_rpc/v2/models/amount.rs) as a tuple | addresses are b58-encoded public addresses |
 | `recipient_public_address` | The recipient for this transaction | b58-encoded public address bytes |
-| `amount` | The Amount to send in this transaction |  |
+| `amount` | The [Amount](../../../full-service/src/json_rpc/v2/models/amount.rs) to send in this transaction |  |
 | `input_txo_ids` | Specific TXOs to use as inputs to this transaction | TXO IDs \(obtain from `get_txos_for_account`\) |
 | `fee_value` | The fee value to submit with this transaction | If not provided, uses `MINIMUM_FEE` of the first outputs token_id, if available, or defaults to MOB |
 | `fee_token_id` | The fee token_id to submit with this transaction | If not provided, uses token_id of first output, if available, or defaults to MOB |
 | `tombstone_block` | The block after which this transaction expires | If not provided, uses `cur_height` + 10 |
 | `max_spendable_value` | The maximum amount for an input TXO selected for this transaction |  |
 
-## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
+## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L48-51)
 
 ## Example
 
@@ -35,7 +35,7 @@ description: >-
   "params": {
     "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
     "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-    "value": ["42000000000000", "0"],
+    "amount": { "value": "42000000000000", "token_id": "0" },
   },
   "jsonrpc": "2.0",
   "id": 1

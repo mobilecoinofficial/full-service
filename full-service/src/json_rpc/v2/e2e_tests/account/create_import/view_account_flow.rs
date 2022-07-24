@@ -38,9 +38,9 @@ mod e2e_account {
 
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
-        assert!(account_obj.get("account_id").is_some());
+        assert!(account_obj.get("id").is_some());
         assert_eq!(account_obj.get("name").unwrap(), "Alice Main Account");
-        let account_id = account_obj.get("account_id").unwrap();
+        let account_id = account_obj.get("id").unwrap();
         let main_address = account_obj.get("main_address").unwrap().as_str().unwrap();
         let main_account_address = b58_decode_public_address(main_address).unwrap();
 
@@ -106,7 +106,7 @@ mod e2e_account {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let account = result.get("account").unwrap();
-        let vo_account_id = account.get("account_id").unwrap();
+        let vo_account_id = account.get("id").unwrap();
         assert_eq!(vo_account_id, account_id);
 
         // sync the view only account
@@ -136,7 +136,7 @@ mod e2e_account {
         assert_eq!(unspent, "0");
 
         let account = result.get("account").unwrap();
-        let vo_account_id = account.get("account_id").unwrap();
+        let vo_account_id = account.get("id").unwrap();
         assert_eq!(vo_account_id, account_id);
 
         // test update name

@@ -4,13 +4,8 @@ description: >-
 ---
 
 # Build Unsigned Transaction
-        account_id: String,
-        recipient_public_address: Option<String>,
-        value_pmob: Option<String>,
-        fee: Option<String>,
-        tombstone_block: Option<String>,
 
-## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
+## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L67-L74)
 
 | Required Param | Purpose                                     | Requirements                     |
 | -------------- | ------------------------------------------- | -------------------------------- |
@@ -19,12 +14,12 @@ description: >-
 | Optional Param | Purpose | Requirements|
 | -------------------------- | -------------------------------- | ------------------------------ |
 | `recipient_public_address` | The recipient for this transaction | b58-encoded public address bytes |
-| `amount`| The Amount to send in this transaction |   |
+| `amount`| The [Amount](../../../full-service/src/json_rpc/v2/models/amount.rs) to send in this transaction |   |
 | `fee_value` | The fee value to submit with this transaction | If not provided, uses `MINIMUM_FEE` of the appropriate token |
 | `fee_token_id` | The fee token id | |
 | `tombstone_block` | The block after which this transaction expires  | If not provided, uses `cur_height` + 10 |
 
-## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
+## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L52-L56)
 
 ## Example
 

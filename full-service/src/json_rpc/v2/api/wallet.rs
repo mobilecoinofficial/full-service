@@ -6,7 +6,6 @@ use crate::{
         txo::{TxoID, TxoStatus},
     },
     json_rpc::{
-        self,
         json_rpc_request::JsonRPCRequest,
         json_rpc_response::{
             format_error, format_invalid_request_error, JsonRPCError, JsonRPCResponse,
@@ -14,15 +13,17 @@ use crate::{
         v2::{
             api::{request::JsonCommandRequest, response::JsonCommandResponse},
             models::{
+                account::{Account, AccountMap},
                 account_secrets::AccountSecrets,
-                address::Address,
-                balance::Balance,
+                address::{Address, AddressMap},
+                balance::{Balance, BalanceMap},
                 block::{Block, BlockContents},
                 confirmation_number::Confirmation,
                 network_status::NetworkStatus,
                 receiver_receipt::ReceiverReceipt,
+                transaction_log::{TransactionLog, TransactionLogMap},
                 tx_proposal::TxProposal as TxProposalJSON,
-                txo::Txo,
+                txo::{Txo, TxoMap},
                 wallet_status::WalletStatus,
             },
         },
@@ -48,8 +49,7 @@ use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use mc_transaction_core::Amount;
 use rocket::{self};
 use rocket_contrib::json::Json;
-use serde_json::Map;
-use std::{collections::HashMap, convert::TryFrom, iter::FromIterator, str::FromStr};
+use std::{collections::HashMap, convert::TryFrom, str::FromStr};
 
 pub fn generic_wallet_api<T, FPR>(
     _api_key_guard: ApiKeyGuard,
@@ -149,7 +149,7 @@ where
                 )
                 .map_err(format_error)?;
             JsonCommandResponse::build_and_submit_transaction {
-                transaction_log: json_rpc::v2::models::transaction_log::TransactionLog::new(
+                transaction_log: TransactionLog::new(
                     &transaction_log,
                     &associated_txos,
                     &value_map,
@@ -272,9 +272,9 @@ where
                 .map_err(format_error)?;
 
             JsonCommandResponse::create_account {
-                account: json_rpc::v2::models::account::Account::try_from(&account).map_err(
-                    |e| format_error(format!("Could not get RPC Account from DB Account {:?}", e)),
-                )?,
+                account: Account::try_from(&account).map_err(|e| {
+                    format_error(format!("Could not get RPC Account from DB Account {:?}", e))
+                })?,
             }
         }
         JsonCommandRequest::create_payment_request {
@@ -345,7 +345,7 @@ where
             }
         }
         JsonCommandRequest::get_account_status { account_id } => {
-            let account = json_rpc::v2::models::account::Account::try_from(
+            let account = Account::try_from(
                 &service
                     .get_account(&AccountID(account_id.clone()))
                     .map_err(format_error)?,
@@ -358,10 +358,13 @@ where
                 .get_balance_for_account(&AccountID(account_id))
                 .map_err(format_error)?;
 
-            let balance_formatted = balance
-                .iter()
-                .map(|(k, v)| (k.to_string(), Balance::from(v)))
-                .collect();
+            let balance_formatted = BalanceMap(
+                balance
+                    .iter()
+                    .map(|(k, v)| (k.to_string(), Balance::from(v)))
+                    .collect(),
+            );
+
             JsonCommandResponse::get_account_status {
                 account,
                 network_block_height: network_status.network_block_height.to_string(),
@@ -371,19 +374,18 @@ where
         }
         JsonCommandRequest::get_accounts { offset, limit } => {
             let accounts = service.list_accounts(offset, limit).map_err(format_error)?;
-            let json_accounts: Vec<(String, serde_json::Value)> = accounts
-                .iter()
-                .map(|a| {
-                    json_rpc::v2::models::account::Account::try_from(a)
-                        .map_err(format_error)
-                        .and_then(|v| {
-                            serde_json::to_value(v)
-                                .map(|v| (a.id.clone(), v))
-                                .map_err(format_error)
-                        })
-                })
-                .collect::<Result<Vec<(String, serde_json::Value)>, JsonRPCError>>()?;
-            let account_map: Map<String, serde_json::Value> = Map::from_iter(json_accounts);
+            let account_map = AccountMap(
+                accounts
+                    .iter()
+                    .map(|a| {
+                        Ok((
+                            a.id.to_string(),
+                            Account::try_from(a).map_err(format_error)?,
+                        ))
+                    })
+                    .collect::<Result<_, _>>()?,
+            );
+
             JsonCommandResponse::get_accounts {
                 account_ids: accounts.iter().map(|a| a.id.clone()).collect(),
                 account_map,
@@ -405,17 +407,12 @@ where
             let addresses = service
                 .get_addresses(account_id, offset, limit)
                 .map_err(format_error)?;
-            let address_map: Map<String, serde_json::Value> = Map::from_iter(
+
+            let address_map = AddressMap(
                 addresses
                     .iter()
-                    .map(|a| {
-                        (
-                            a.assigned_subaddress_b58.clone(),
-                            serde_json::to_value(&(Address::from(a)))
-                                .expect("Could not get json value"),
-                        )
-                    })
-                    .collect::<Vec<(String, serde_json::Value)>>(),
+                    .map(|a| (a.assigned_subaddress_b58.clone(), Address::from(a)))
+                    .collect(),
             );
 
             JsonCommandResponse::get_addresses {
@@ -436,16 +433,19 @@ where
                 .get_balance_for_address(&address)
                 .map_err(format_error)?;
 
-            let balance_formatted = balance
-                .iter()
-                .map(|(a, b)| (a.to_string(), Balance::from(b)))
-                .collect();
+            let balance_per_token = BalanceMap(
+                balance
+                    .iter()
+                    .map(|(a, b)| (a.to_string(), Balance::from(b)))
+                    .collect(),
+            );
+
             JsonCommandResponse::get_address_status {
                 address: Address::from(&subaddress),
                 account_block_height: account.next_block_index.to_string(),
                 network_block_height: network_status.network_block_height.to_string(),
                 local_block_height: network_status.local_block_height.to_string(),
-                balance_per_token: balance_formatted,
+                balance_per_token,
             }
         }
         JsonCommandRequest::get_block { block_index } => {
@@ -494,7 +494,7 @@ where
                 .get_transaction_log(&transaction_log_id)
                 .map_err(format_error)?;
             JsonCommandResponse::get_transaction_log {
-                transaction_log: json_rpc::v2::models::transaction_log::TransactionLog::new(
+                transaction_log: TransactionLog::new(
                     &transaction_log,
                     &associated_txos,
                     &value_map,
@@ -521,24 +521,18 @@ where
             let transaction_logs_and_txos = service
                 .list_transaction_logs(account_id, offset, limit, min_block_index, max_block_index)
                 .map_err(format_error)?;
-            let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
+
+            let transaction_log_map = TransactionLogMap(
                 transaction_logs_and_txos
                     .iter()
-                    .map(|(t, a, v)| {
-                        (
-                            t.id.clone(),
-                            serde_json::json!(
-                                json_rpc::v2::models::transaction_log::TransactionLog::new(t, a, v)
-                            ),
-                        )
-                    })
-                    .collect::<Vec<(String, serde_json::Value)>>(),
+                    .map(|(t, a, v)| (t.id.clone(), TransactionLog::new(t, a, v)))
+                    .collect(),
             );
 
             JsonCommandResponse::get_transaction_logs {
                 transaction_log_ids: transaction_logs_and_txos
                     .iter()
-                    .map(|(t, _a, _v)| t.id.clone())
+                    .map(|(t, _, _)| t.id.clone())
                     .collect(),
                 transaction_log_map,
             }
@@ -571,16 +565,11 @@ where
                 .list_txos(account_id, address, status, token_id, offset, limit)
                 .map_err(format_error)?;
 
-            let txo_map: Map<String, serde_json::Value> = Map::from_iter(
+            let txo_map = TxoMap(
                 txos_and_statuses
                     .iter()
-                    .map(|(t, s)| {
-                        (
-                            t.id.clone(),
-                            serde_json::to_value(Txo::new(t, s)).expect("Could not get json value"),
-                        )
-                    })
-                    .collect::<Vec<(String, serde_json::Value)>>(),
+                    .map(|(t, s)| (t.id.clone(), Txo::new(t, s)))
+                    .collect(),
             );
 
             JsonCommandResponse::get_txos {
@@ -618,7 +607,7 @@ where
             let fog_info = fog_info.unwrap_or_default();
 
             JsonCommandResponse::import_account {
-                account: json_rpc::v2::models::account::Account::try_from(
+                account: Account::try_from(
                     &service
                         .import_account(
                             mnemonic,
@@ -654,7 +643,7 @@ where
             let fog_info = fog_info.unwrap_or_default();
 
             JsonCommandResponse::import_account {
-                account: json_rpc::v2::models::account::Account::try_from(
+                account: Account::try_from(
                     &service
                         .import_account_from_legacy_root_entropy(
                             entropy,
@@ -687,7 +676,7 @@ where
                 .map_err(format_error)?;
 
             JsonCommandResponse::import_view_only_account {
-                account: json_rpc::v2::models::account::Account::try_from(
+                account: Account::try_from(
                     &service
                         .import_view_only_account(view_private_key, spend_public_key, name, fb, ns)
                         .map_err(format_error)?,
@@ -706,15 +695,11 @@ where
             account_id,
         } => {
             let tx_proposal = TxProposal::try_from(&tx_proposal).map_err(format_error)?;
-            let result: Option<json_rpc::v2::models::transaction_log::TransactionLog> = service
+            let result: Option<TransactionLog> = service
                 .submit_transaction(&tx_proposal, comment, account_id)
                 .map_err(format_error)?
                 .map(|(transaction_log, associated_txos, value_map)| {
-                    json_rpc::v2::models::transaction_log::TransactionLog::new(
-                        &transaction_log,
-                        &associated_txos,
-                        &value_map,
-                    )
+                    TransactionLog::new(&transaction_log, &associated_txos, &value_map)
                 });
             JsonCommandResponse::submit_transaction {
                 transaction_log: result,
@@ -737,7 +722,7 @@ where
         }
         JsonCommandRequest::update_account_name { account_id, name } => {
             JsonCommandResponse::update_account_name {
-                account: json_rpc::v2::models::account::Account::try_from(
+                account: Account::try_from(
                     &service
                         .update_account_name(&AccountID(account_id), name)
                         .map_err(format_error)?,

@@ -38,7 +38,7 @@ mod e2e_account {
         let account_obj = result.get("account").unwrap();
         let public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
         assert_eq!(public_address, "3CnfxAc2LvKw4FDNRVgj3GndwAhgQDd7v2Cne66GTUJyzBr3WzSikk9nJ5sCAb1jgSSKaqpWQtcEjV1nhoadVKjq2Soa8p3XZy6u2tpHdor");
-        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let account_id = account_obj.get("id").unwrap().as_str().unwrap();
         assert_eq!(
             account_id,
             "7872edf0d4094643213aabc92aa0d07379cfb58eda0722b21a44868f22f75b4e"
@@ -108,7 +108,7 @@ mod e2e_account {
         let account_obj = result.get("account").unwrap();
         let public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
         assert_eq!(public_address, "8JtpPPh9mV2PTLrrDz4f2j4PtUpNWnrRg8HKpnuwkZbj5j8bGqtNMNLC9E3zjzcw456215yMjkCVYK4FPZTX4gijYHiuDT31biNHrHmQmsU");
-        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let account_id = account_obj.get("id").unwrap().as_str().unwrap();
         // Catches if a change results in changed accounts_ids, which should always be
         // made to be backward compatible.
         assert_eq!(
@@ -150,7 +150,7 @@ mod e2e_account {
         let account_obj = result.get("account").unwrap();
         let public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
         assert_eq!(public_address, "2kD4vRp3DaBdRrNLNhJ5BKf5FsZxcAijoMt5pxjJpbk5jQRubngUXnd92vuXWkFyezuLgjCiKu4JHjpjNCnmzf1gAdW6PbqXsecQtp8Qr8uoeeDKrd1a5PtA6apXuDVtnrKsDCcHiJqdeSt3bRsPBvkBP4JqpGyAeKFsC7s2LQwuZ88BxFe2kyeZp5G3zENfvLaMripxTKkWGDopok2LCyA9NiCDf1vwjA5opLU7eqaRfh9");
-        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let account_id = account_obj.get("id").unwrap().as_str().unwrap();
         assert_eq!(
             account_id,
             "0b8a95253a7d57faf8510d8092ab55fb8610a9d691a7fa3bfafbf49945b845a2"
@@ -185,7 +185,7 @@ mod e2e_account {
         let account_obj = result.get("account").unwrap();
         let public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
         assert_eq!(public_address, "d3FhtyUQDYJFpEmzoXmRtF9VA5FTLycgQBKf1JEJJj8K6UXCuwzGD2uVYw1cxzZpbSivZLSxf9nZpMgUnuRxSpJA9qCDpDZd2qtc7j2N2x4758dQ91jrSCxzyuR1aJR7zgdcgdF2KwSShUhQ5n7M9uebf2HqiCWt8vttqESJ7aRNDwiW8TVmeKWviWunzYG46c8vo4DeZYK4wFfLNdwmeSn9HXKkQVpNgzsMz87cKpHRnzn");
-        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let account_id = account_obj.get("id").unwrap().as_str().unwrap();
         // Catches if a change results in changed accounts_ids, which should always be
         // made to be backward compatible.
         assert_eq!(
@@ -216,7 +216,7 @@ mod e2e_account {
         let account_obj = result.get("account").unwrap();
         let public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
         assert_eq!(public_address, "8JtpPPh9mV2PTLrrDz4f2j4PtUpNWnrRg8HKpnuwkZbj5j8bGqtNMNLC9E3zjzcw456215yMjkCVYK4FPZTX4gijYHiuDT31biNHrHmQmsU");
-        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let account_id = account_obj.get("id").unwrap().as_str().unwrap();
         // Catches if a change results in changed accounts_ids, which should always be
         // made to be backward compatible.
         assert_eq!(
@@ -273,7 +273,7 @@ mod e2e_account {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
-        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let account_id = account_obj.get("id").unwrap().as_str().unwrap();
 
         // assign next subaddress for account
         let body = json!({

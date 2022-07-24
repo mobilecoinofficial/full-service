@@ -2,8 +2,13 @@
 
 //! API definition for the Address object.
 
+use std::collections::BTreeMap;
+
 use crate::db::models::AssignedSubaddress;
 use serde_derive::{Deserialize, Serialize};
+
+#[derive(Deserialize, Serialize, Default, Debug, Clone)]
+pub struct AddressMap(pub BTreeMap<String, Address>);
 
 /// An address for an account in the wallet.
 ///
