@@ -9,8 +9,7 @@ mod e2e_transaction {
         json_rpc::v2::{
             api::test_utils::{dispatch, setup},
             models::{
-                amount::Amount,
-                transaction_log::{InputTxo, TransactionLog},
+                amount::Amount, transaction_log::TransactionLog,
                 tx_proposal::TxProposal as TxProposalJSON,
             },
         },

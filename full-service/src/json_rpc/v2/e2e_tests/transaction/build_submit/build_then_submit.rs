@@ -5,10 +5,13 @@
 #[cfg(test)]
 mod e2e_transaction {
     use crate::{
-        db::account::AccountID,
+        db::{account::AccountID, transaction_log::TxStatus},
         json_rpc::v2::{
             api::test_utils::{dispatch, dispatch_expect_error, setup},
-            models::tx_proposal::TxProposal as TxProposalJSON,
+            models::{
+                amount::Amount as AmountJSON, transaction_log::TransactionLog,
+                tx_proposal::TxProposal as TxProposalJSON,
+            },
         },
         service::models::tx_proposal::TxProposal,
         test_utils::{
@@ -132,28 +135,25 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let tx_proposal = result.get("tx_proposal").unwrap();
+        let tx_proposal: TxProposalJSON =
+            serde_json::from_value(result.get("tx_proposal").unwrap().clone()).unwrap();
 
-        let fee = tx_proposal.get("fee").unwrap();
-        let fee_token_id = tx_proposal.get("fee_token_id").unwrap();
-        assert_eq!(fee, &Mob::MINIMUM_FEE.to_string());
-        assert_eq!(fee_token_id, &Mob::ID.to_string());
+        assert_eq!(
+            tx_proposal.fee_amount,
+            AmountJSON::new(Mob::MINIMUM_FEE, Mob::ID)
+        );
 
         // Transaction builder attempts to use as many inputs as we have txos
-        let inputs = tx_proposal.get("input_txos").unwrap().as_array().unwrap();
-        assert_eq!(inputs.len(), 2);
+        assert_eq!(tx_proposal.input_txos.len(), 2);
 
         // One payload txo
-        let payload_txos = tx_proposal.get("payload_txos").unwrap().as_array().unwrap();
-        assert_eq!(payload_txos.len(), 1);
+        assert_eq!(tx_proposal.payload_txos.len(), 1);
 
-        let change_txos = tx_proposal.get("change_txos").unwrap().as_array().unwrap();
-        assert_eq!(change_txos.len(), 1);
+        assert_eq!(tx_proposal.change_txos.len(), 1);
 
         // Tombstone block = ledger height (12 to start + 2 new blocks + 10 default
         // tombstone)
-        let tombstone_block_index = tx_proposal.get("tombstone_block_index").unwrap();
-        assert_eq!(tombstone_block_index, "24");
+        assert_eq!(tx_proposal.tombstone_block_index, "24");
 
         // Get current balance
         assert_eq!(ledger_db.num_blocks().unwrap(), 14);
@@ -194,8 +194,7 @@ mod e2e_transaction {
         // Note - we cannot test here that the transaction ID is consistent, because
         // there is randomness in the transaction creation.
 
-        let json_tx_proposal: TxProposalJSON = serde_json::from_value(tx_proposal.clone()).unwrap();
-        let payments_tx_proposal = TxProposal::try_from(&json_tx_proposal).unwrap();
+        let payments_tx_proposal = TxProposal::try_from(&tx_proposal).unwrap();
 
         // The MockBlockchainConnection does not write to the ledger_db
         add_block_with_tx(&mut ledger_db, payments_tx_proposal.tx, &mut rng);
@@ -242,46 +241,25 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let transaction_log = result.get("transaction_log").unwrap();
-        let value_map = transaction_log.get("value_map").unwrap();
+        let transaction_log: TransactionLog =
+            serde_json::from_value(result.get("transaction_log").unwrap().clone()).unwrap();
 
-        let pmob_value = value_map.get("0").unwrap();
-        assert_eq!(pmob_value.as_str().unwrap(), "42000000000000");
+        let pmob_value = transaction_log.value_map.get(&Mob::ID.to_string()).unwrap();
+        assert_eq!(pmob_value, "42000000000000");
 
         assert_eq!(
-            transaction_log.get("output_txos").unwrap()[0]
-                .get("recipient_public_address_b58")
-                .unwrap()
-                .as_str()
-                .unwrap(),
+            transaction_log.output_txos[0].recipient_public_address_b58,
             b58_public_address
         );
-        transaction_log.get("account_id").unwrap().as_str().unwrap();
-        let fee_amount = transaction_log.get("fee_amount").unwrap();
+
         assert_eq!(
-            fee_amount.get("value").unwrap().as_str().unwrap(),
-            &Mob::MINIMUM_FEE.to_string()
+            transaction_log.fee_amount,
+            AmountJSON::new(Mob::MINIMUM_FEE, Mob::ID)
         );
-        assert_eq!(
-            fee_amount.get("token_id").unwrap().as_str().unwrap(),
-            Mob::ID.to_string()
-        );
-        assert_eq!(
-            transaction_log.get("status").unwrap().as_str().unwrap(),
-            "succeeded"
-        );
-        assert_eq!(
-            transaction_log
-                .get("submitted_block_index")
-                .unwrap()
-                .as_str()
-                .unwrap(),
-            "14"
-        );
-        assert_eq!(
-            transaction_log.get("id").unwrap().as_str().unwrap(),
-            transaction_id
-        );
+
+        assert_eq!(transaction_log.status, TxStatus::Succeeded.to_string());
+        assert_eq!(transaction_log.submitted_block_index.unwrap(), "14");
+        assert_eq!(transaction_log.id, transaction_id);
 
         // Get All Transaction Logs
         let body = json!({
@@ -410,25 +388,23 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let tx_proposal = result.get("tx_proposal").unwrap();
+        let tx_proposal: TxProposalJSON =
+            serde_json::from_value(result.get("tx_proposal").unwrap().clone()).unwrap();
 
-        let fee_token_id = tx_proposal.get("fee_token_id").unwrap();
-        assert_eq!(fee_token_id, "1");
+        assert_eq!(
+            tx_proposal.fee_amount.token_id,
+            TokenId::from(1).to_string()
+        );
 
-        let inputs = tx_proposal.get("input_txos").unwrap().as_array().unwrap();
-        assert_eq!(inputs.len(), 1);
+        assert_eq!(tx_proposal.input_txos.len(), 1);
 
-        // One destination
-        let payload_txos = tx_proposal.get("payload_txos").unwrap().as_array().unwrap();
-        assert_eq!(payload_txos.len(), 1);
+        assert_eq!(tx_proposal.payload_txos.len(), 1);
 
-        let change_txos = tx_proposal.get("change_txos").unwrap().as_array().unwrap();
-        assert_eq!(change_txos.len(), 1);
+        assert_eq!(tx_proposal.change_txos.len(), 1);
 
         // Tombstone block = ledger height (12 to start + 4 new blocks + 10 default
         // tombstone)
-        let tombstone_block_index = tx_proposal.get("tombstone_block_index").unwrap();
-        assert_eq!(tombstone_block_index, "26");
+        assert_eq!(tx_proposal.tombstone_block_index, "26");
 
         // Get current balance
         assert_eq!(ledger_db.num_blocks().unwrap(), 16);
@@ -459,8 +435,7 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let _result = res.get("result").unwrap();
-        let json_tx_proposal: TxProposalJSON = serde_json::from_value(tx_proposal.clone()).unwrap();
-        let payments_tx_proposal = TxProposal::try_from(&json_tx_proposal).unwrap();
+        let payments_tx_proposal = TxProposal::try_from(&tx_proposal).unwrap();
 
         // Get balance after submission
         let body = json!({

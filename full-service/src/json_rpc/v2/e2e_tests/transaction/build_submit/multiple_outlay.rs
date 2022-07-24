@@ -296,7 +296,7 @@ mod e2e_transaction {
         transaction_log.get("account_id").unwrap().as_str().unwrap();
         let fee_amount = transaction_log.get("fee_amount").unwrap();
         let fee_value = fee_amount.get("value").unwrap().as_str().unwrap();
-        let fee_token_id = transaction_log.get("token_id").unwrap().as_str().unwrap();
+        let fee_token_id = fee_amount.get("token_id").unwrap().as_str().unwrap();
         assert_eq!(fee_value, &Mob::MINIMUM_FEE.to_string());
         assert_eq!(fee_token_id, &Mob::ID.to_string());
         assert_eq!(

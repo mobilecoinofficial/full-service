@@ -5,7 +5,7 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tokens::Mob,
     tx::{Tx, TxOut, TxOutConfirmationNumber},
-    Amount, Token, TokenId,
+    Amount, Token,
 };
 
 use crate::util::b58::b58_decode_public_address;

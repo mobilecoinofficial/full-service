@@ -57,7 +57,7 @@ mod e2e_account {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_balance_for_account",
+            "method": "get_account_status",
             "params": {
                 "account_id": account_id,
             }
@@ -67,16 +67,9 @@ mod e2e_account {
         let balance_per_token = result.get("balance_per_token").unwrap();
         let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
         let unspent = balance_mob["unspent"].as_str().unwrap();
+        let max_spendable = balance_mob["max_spendable"].as_str().unwrap();
         assert_eq!(unspent, (42 * MOB).to_string());
-        // assert_eq!(
-        //     balance
-        //         .get("max_spendable_pmob")
-        //         .unwrap()
-        //         .as_str()
-        //         .unwrap()
-        //         .to_string(),
-        //     (42 * MOB - Mob::MINIMUM_FEE).to_string()
-        // );
+        assert_eq!(max_spendable, (42 * MOB - Mob::MINIMUM_FEE).to_string());
     }
 
     #[test_with_logger]
@@ -119,7 +112,7 @@ mod e2e_account {
             "jsonrpc": "2.0",
             "api_version": "2",
             "id": 1,
-            "method": "get_balance_for_address",
+            "method": "get_address_status",
             "params": {
                 "address": b58_public_address,
             }
@@ -182,7 +175,7 @@ mod e2e_account {
             "jsonrpc": "2.0",
             "api_version": "2",
             "id": 1,
-            "method": "get_balance_for_address",
+            "method": "get_address_status",
             "params": {
                 "address": from_bob_b58_public_address,
             }

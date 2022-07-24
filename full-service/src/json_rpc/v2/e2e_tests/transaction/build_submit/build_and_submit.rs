@@ -125,31 +125,27 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let tx_proposal = result.get("tx_proposal").unwrap();
+        let tx_proposal: TxProposalJSON =
+            serde_json::from_value(result.get("tx_proposal").unwrap().clone()).unwrap();
 
-        let fee = tx_proposal.get("fee").unwrap();
-        let fee_token_id = tx_proposal.get("fee_token_id").unwrap();
-        assert_eq!(fee, &Mob::MINIMUM_FEE.to_string());
-        assert_eq!(fee_token_id, &Mob::ID.to_string());
+        assert_eq!(
+            tx_proposal.fee_amount,
+            AmountJSON::new(Mob::MINIMUM_FEE, Mob::ID)
+        );
 
         // Transaction builder attempts to use as many inputs as we have txos
-        let inputs = tx_proposal.get("input_txos").unwrap().as_array().unwrap();
-        assert_eq!(inputs.len(), 2);
+        assert_eq!(tx_proposal.input_txos.len(), 2);
 
         // One destination
-        let payload_txos = tx_proposal.get("payload_txos").unwrap().as_array().unwrap();
-        assert_eq!(payload_txos.len(), 1);
+        assert_eq!(tx_proposal.payload_txos.len(), 1);
 
-        let change_txos = tx_proposal.get("change_txos").unwrap().as_array().unwrap();
-        assert_eq!(change_txos.len(), 1);
+        assert_eq!(tx_proposal.change_txos.len(), 1);
 
         // Tombstone block = ledger height (12 to start + 2 new blocks + 10 default
         // tombstone)
-        let tombstone_block_index = tx_proposal.get("tombstone_block_index").unwrap();
-        assert_eq!(tombstone_block_index, "24");
+        assert_eq!(tx_proposal.tombstone_block_index, "24");
 
-        let json_tx_proposal: TxProposalJSON = serde_json::from_value(tx_proposal.clone()).unwrap();
-        let payments_tx_proposal = TxProposal::try_from(&json_tx_proposal).unwrap();
+        let payments_tx_proposal = TxProposal::try_from(&tx_proposal).unwrap();
 
         add_block_with_tx(&mut ledger_db, payments_tx_proposal.tx, &mut rng);
         manually_sync_account(
@@ -273,30 +269,28 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let tx_proposal = result.get("tx_proposal").unwrap();
+        let tx_proposal: TxProposalJSON =
+            serde_json::from_value(result.get("tx_proposal").unwrap().clone()).unwrap();
 
-        let fee_amount: AmountJSON =
-            serde_json::from_value(tx_proposal.get("fee_amount").unwrap().clone()).unwrap();
+        // 1024 is the known minimum fee for token id 1, it just isn't in the mobilecoin
+        // library anywhere yet as a const
+        assert_eq!(
+            tx_proposal.fee_amount,
+            AmountJSON::new(1024, TokenId::from(1))
+        );
 
-        assert_eq!(fee_amount.token_id, "1");
-
-        let inputs = tx_proposal.get("input_txos").unwrap().as_array().unwrap();
-        assert_eq!(inputs.len(), 1);
+        assert_eq!(tx_proposal.input_txos.len(), 1);
 
         // One destination
-        let payload_txos = tx_proposal.get("payload_txos").unwrap().as_array().unwrap();
-        assert_eq!(payload_txos.len(), 1);
+        assert_eq!(tx_proposal.payload_txos.len(), 1);
 
-        let change_txos = tx_proposal.get("change_txos").unwrap().as_array().unwrap();
-        assert_eq!(change_txos.len(), 1);
+        assert_eq!(tx_proposal.change_txos.len(), 1);
 
         // Tombstone block = ledger height (14 to start + 2 new blocks + 10 default
         // tombstone)
-        let tombstone_block_index = tx_proposal.get("tombstone_block_index").unwrap();
-        assert_eq!(tombstone_block_index, "26");
+        assert_eq!(tx_proposal.tombstone_block_index, "26");
 
-        let json_tx_proposal: TxProposalJSON = serde_json::from_value(tx_proposal.clone()).unwrap();
-        let payments_tx_proposal = TxProposal::try_from(&json_tx_proposal).unwrap();
+        let payments_tx_proposal = TxProposal::try_from(&tx_proposal).unwrap();
 
         add_block_with_tx(&mut ledger_db, payments_tx_proposal.tx, &mut rng);
 

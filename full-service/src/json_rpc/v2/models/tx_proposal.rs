@@ -5,7 +5,6 @@
 use super::amount::Amount as AmountJSON;
 use crate::util::b58::{b58_encode_public_address, B58Error};
 
-use mc_transaction_core::Amount;
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
 

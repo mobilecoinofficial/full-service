@@ -63,7 +63,7 @@ mod e2e_account {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_balance_for_account",
+            "method": "get_account_status",
             "params": {
                 "account_id": account_id,
             },
@@ -79,7 +79,7 @@ mod e2e_account {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "export_view_only_account_import_request",
+            "method": "create_view_only_account_import_request",
             "params": {
                 "account_id": account_id,
             },
@@ -121,7 +121,7 @@ mod e2e_account {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "get_balance_for_account",
+            "method": "get_account_status",
             "params": {
                 "account_id": vo_account_id,
             },
@@ -135,17 +135,6 @@ mod e2e_account {
         assert_eq!(unverified, "100000000000000");
         assert_eq!(unspent, "0");
 
-        // test get
-        let body = json!({
-            "jsonrpc": "2.0",
-            "id": 2,
-            "method": "get_account",
-            "params": {
-                "account_id": vo_account_id,
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
         let account = result.get("account").unwrap();
         let vo_account_id = account.get("account_id").unwrap();
         assert_eq!(vo_account_id, account_id);

@@ -81,7 +81,7 @@ impl From<AccountServiceError> for BalanceServiceError {
 ///
 /// This must be a service object because there is no "Balance" table in our
 /// data model.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct Balance {
     pub max_spendable: u128,
     pub unverified: u128,
@@ -90,20 +90,6 @@ pub struct Balance {
     pub spent: u128,
     pub secreted: u128,
     pub orphaned: u128,
-}
-
-impl Default for Balance {
-    fn default() -> Self {
-        Self {
-            max_spendable: 0,
-            unverified: 0,
-            unspent: 0,
-            pending: 0,
-            spent: 0,
-            secreted: 0,
-            orphaned: 0,
-        }
-    }
 }
 
 impl Default for &Balance {

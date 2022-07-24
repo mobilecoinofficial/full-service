@@ -49,9 +49,9 @@ impl TryFrom<TxoStatus> for db::txo::TxoStatus {
         match status {
             TxoStatus::Orphaned => Ok(db::txo::TxoStatus::Orphaned),
             TxoStatus::Pending => Ok(db::txo::TxoStatus::Pending),
-            TxoStatus::Secreted => Err(format!(
-                "TxoStatus::Secreted is not a valid db::txo::TxoStatus"
-            )),
+            TxoStatus::Secreted => {
+                Err("TxoStatus::Secreted is not a valid db::txo::TxoStatus".to_string())
+            }
             TxoStatus::Spent => Ok(db::txo::TxoStatus::Spent),
             TxoStatus::Unspent => Ok(db::txo::TxoStatus::Unspent),
         }

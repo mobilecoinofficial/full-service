@@ -562,8 +562,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         for (i, (recipient, out_value, token_id)) in self.outlays.iter().enumerate() {
             let amount = Amount::new(*out_value, *token_id);
 
-            let tx_out_context =
-                transaction_builder.add_output(amount.clone(), recipient, &mut rng)?;
+            let tx_out_context = transaction_builder.add_output(amount, recipient, &mut rng)?;
 
             payload_txos.push(OutputTxo {
                 tx_out: tx_out_context.tx_out.clone(),
@@ -612,7 +611,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
 
             let reserved_subaddresses = ReservedSubaddresses::from(&from_account_key);
             let tx_out_context = transaction_builder.add_change_output(
-                change_amount.clone(),
+                change_amount,
                 &reserved_subaddresses,
                 &mut rng,
             )?;

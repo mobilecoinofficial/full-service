@@ -97,7 +97,7 @@ impl UnsignedTx {
                 tx_out: tx_out.clone(),
                 subaddress_index,
                 key_image,
-                amount: amount.into(),
+                amount,
             };
 
             input_txos.push(input);
@@ -196,11 +196,8 @@ fn add_change_output<RNG: CryptoRng + RngCore>(
     let change_amount = Amount::new(change_value, token_id);
 
     let reserved_subaddresses = ReservedSubaddresses::from(account_key);
-    let tx_out_context = transaction_builder.add_change_output(
-        change_amount.clone(),
-        &reserved_subaddresses,
-        rng,
-    )?;
+    let tx_out_context =
+        transaction_builder.add_change_output(change_amount, &reserved_subaddresses, rng)?;
 
     Ok(OutputTxo {
         tx_out: tx_out_context.tx_out,

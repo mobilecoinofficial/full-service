@@ -2,8 +2,7 @@
 
 //! API definition for the Account object.
 
-use mc_crypto_keys::ReprBytes;
-use mc_transaction_core::{CompressedCommitment, TokenId};
+use mc_transaction_core::TokenId;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
