@@ -211,6 +211,7 @@ where
                 fog_report_url,
                 fog_report_id,
                 fog_authority_spki,
+                &self.ledger_db,
                 &conn,
             )?;
             let account = Account::get(&account_id, &conn)?;
@@ -267,6 +268,7 @@ where
                 fog_report_url,
                 fog_report_id,
                 fog_authority_spki,
+                &self.ledger_db,
                 &conn,
             )?)
         })
@@ -307,6 +309,7 @@ where
                 fog_report_url,
                 fog_report_id,
                 fog_authority_spki,
+                &self.ledger_db,
                 &conn,
             )?)
         })

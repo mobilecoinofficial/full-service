@@ -42,6 +42,7 @@ pub trait AssignedSubaddressModel {
         address_book_entry: Option<i64>,
         subaddress_index: u64,
         comment: &str,
+        ledger_db: &LedgerDB,
         conn: &Conn,
     ) -> Result<String, WalletDbError>;
 
@@ -94,12 +95,19 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         address_book_entry: Option<i64>,
         subaddress_index: u64,
         comment: &str,
+        ledger_db: &LedgerDB,
         conn: &Conn,
     ) -> Result<String, WalletDbError> {
-        use crate::db::schema::assigned_subaddresses;
+        use crate::db::schema::{
+            assigned_subaddresses,
+            transaction_logs::dsl::{
+                account_id_hex as tx_log_account_id_hex,
+                transaction_id_hex as tx_log_transaction_id_hex, transaction_logs,
+            },
+        };
 
         let account_id = AccountID::from(account_key);
-
+        let view_private_key = account_key.view_private_key();
         let subaddress = account_key.subaddress(subaddress_index);
         let subaddress_b58 = b58_encode_public_address(&subaddress)?;
 
@@ -116,6 +124,64 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         diesel::insert_into(assigned_subaddresses::table)
             .values(&subaddress_entry)
             .execute(conn)?;
+
+        // Find and repair orphaned txos at this subaddress.
+        let orphaned_txos = Txo::list_orphaned(&account_id.to_string(), None, None, None, conn)?;
+
+        for orphaned_txo in orphaned_txos.iter() {
+            let tx_out_target_key: RistrettoPublic =
+                mc_util_serial::decode(&orphaned_txo.target_key).unwrap();
+            let tx_public_key: RistrettoPublic =
+                mc_util_serial::decode(&orphaned_txo.public_key).unwrap();
+            let txo_public_key = CompressedRistrettoPublic::from(tx_public_key);
+
+            let txo_subaddress_spk: RistrettoPublic = recover_public_subaddress_spend_key(
+                view_private_key,
+                &tx_out_target_key,
+                &tx_public_key,
+            );
+
+            if txo_subaddress_spk == *subaddress.spend_public_key() {
+                let onetime_private_key = recover_onetime_private_key(
+                    &tx_public_key,
+                    account_key.view_private_key(),
+                    &account_key.subaddress_spend_private(subaddress_index),
+                );
+
+                let key_image = KeyImage::from(&onetime_private_key);
+
+                if ledger_db.contains_key_image(&key_image)? {
+                    let txo_index = ledger_db.get_tx_out_index_by_public_key(&txo_public_key)?;
+                    let block_index = ledger_db.get_block_index_by_tx_out_index(txo_index)?;
+                    diesel::update(orphaned_txo)
+                        .set(
+                            crate::db::schema::txos::spent_block_index.eq(Some(block_index as i64)),
+                        )
+                        .execute(conn)?;
+                }
+
+                let key_image_bytes = mc_util_serial::encode(&key_image);
+
+                // Update the account status mapping.
+                diesel::update(orphaned_txo)
+                    .set((
+                        crate::db::schema::txos::subaddress_index.eq(subaddress_index as i64),
+                        crate::db::schema::txos::key_image.eq(key_image_bytes),
+                    ))
+                    .execute(conn)?;
+
+                diesel::update(
+                    transaction_logs
+                        .filter(tx_log_transaction_id_hex.eq(&orphaned_txo.txo_id_hex))
+                        .filter(tx_log_account_id_hex.eq(&account_id.to_string())),
+                )
+                .set(
+                    (crate::db::schema::transaction_logs::assigned_subaddress_b58
+                        .eq(&subaddress_b58),),
+                )
+                .execute(conn)?;
+            }
+        }
         Ok(subaddress_b58)
     }
 

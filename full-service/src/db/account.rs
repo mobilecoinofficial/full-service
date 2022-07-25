@@ -25,6 +25,7 @@ use mc_account_keys::{
 };
 use mc_account_keys_slip10::Slip10Key;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
+use mc_ledger_db::LedgerDB;
 use std::fmt;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -70,6 +71,7 @@ pub trait AccountModel {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
+        ledger_db: &LedgerDB,
         conn: &Conn,
     ) -> Result<(AccountID, String), WalletDbError>;
 
@@ -87,6 +89,7 @@ pub trait AccountModel {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
+        ledger_db: &LedgerDB,
         conn: &Conn,
     ) -> Result<(AccountID, String), WalletDbError>;
 
@@ -104,6 +107,7 @@ pub trait AccountModel {
         next_subaddress_index: Option<u64>,
         name: &str,
         fog_enabled: bool,
+        ledger_db: &LedgerDB,
         conn: &Conn,
     ) -> Result<(AccountID, String), WalletDbError>;
 
@@ -118,6 +122,7 @@ pub trait AccountModel {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
+        ledger_db: &LedgerDB,
         conn: &Conn,
     ) -> Result<Account, WalletDbError>;
 
@@ -132,6 +137,7 @@ pub trait AccountModel {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
+        ledger_db: &LedgerDB,
         conn: &Conn,
     ) -> Result<Account, WalletDbError>;
 
@@ -176,6 +182,7 @@ impl AccountModel for Account {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
+        ledger_db: &LedgerDB,
         conn: &Conn,
     ) -> Result<(AccountID, String), WalletDbError> {
         let fog_enabled = !fog_report_url.is_empty();
@@ -195,6 +202,7 @@ impl AccountModel for Account {
             next_subaddress_index,
             name,
             fog_enabled,
+            ledger_db,
             conn,
         )
     }
@@ -208,6 +216,7 @@ impl AccountModel for Account {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
+        ledger_db: &LedgerDB,
         conn: &Conn,
     ) -> Result<(AccountID, String), WalletDbError> {
         let fog_enabled = !fog_report_url.is_empty();
@@ -229,6 +238,7 @@ impl AccountModel for Account {
             next_subaddress_index,
             name,
             fog_enabled,
+            ledger_db,
             conn,
         )
     }
@@ -242,6 +252,7 @@ impl AccountModel for Account {
         next_subaddress_index: Option<u64>,
         name: &str,
         fog_enabled: bool,
+        ledger_db: &LedgerDB,
         conn: &Conn,
     ) -> Result<(AccountID, String), WalletDbError> {
         use crate::db::schema::accounts;
@@ -295,6 +306,7 @@ impl AccountModel for Account {
                    * always for main? */
             DEFAULT_SUBADDRESS_INDEX,
             "Main",
+            ledger_db,
             conn,
         )?;
         if !fog_enabled {
@@ -303,6 +315,7 @@ impl AccountModel for Account {
                 None,
                 LEGACY_CHANGE_SUBADDRESS_INDEX,
                 "Legacy Change",
+                ledger_db,
                 conn,
             )?;
 
@@ -312,11 +325,19 @@ impl AccountModel for Account {
                        * always for main? */
                 CHANGE_SUBADDRESS_INDEX,
                 "Change",
+                ledger_db,
                 conn,
             )?;
 
             for subaddress_index in 2..next_subaddress_index {
-                AssignedSubaddress::create(account_key, None, subaddress_index as u64, "", conn)?;
+                AssignedSubaddress::create(
+                    account_key,
+                    None,
+                    subaddress_index as u64,
+                    "",
+                    ledger_db,
+                    conn,
+                )?;
             }
         }
 
@@ -332,6 +353,7 @@ impl AccountModel for Account {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
+        ledger_db: &LedgerDB,
         conn: &Conn,
     ) -> Result<Account, WalletDbError> {
         let (account_id, _public_address_b58) = Account::create_from_mnemonic(
@@ -343,6 +365,7 @@ impl AccountModel for Account {
             fog_report_url,
             fog_report_id,
             fog_authority_spki,
+            ledger_db,
             conn,
         )?;
         Account::get(&account_id, conn)
@@ -357,6 +380,7 @@ impl AccountModel for Account {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
+        ledger_db: &LedgerDB,
         conn: &Conn,
     ) -> Result<Account, WalletDbError> {
         let (account_id, _public_address_b58) = Account::create_from_root_entropy(
@@ -368,6 +392,7 @@ impl AccountModel for Account {
             fog_report_url,
             fog_report_id,
             fog_authority_spki,
+            ledger_db,
             conn,
         )?;
         Account::get(&account_id, conn)
@@ -460,7 +485,7 @@ impl AccountModel for Account {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::WalletDbTestContext;
+    use crate::test_utils::{get_test_ledger, WalletDbTestContext};
     use mc_account_keys::RootIdentity;
     use mc_common::logger::{test_with_logger, Logger};
     use mc_util_from_random::FromRandom;
@@ -473,6 +498,7 @@ mod tests {
 
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
+        let ledger_db = get_test_ledger(5, &[], 12, &mut rng);
 
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
@@ -487,6 +513,7 @@ mod tests {
                 "".to_string(),
                 "".to_string(),
                 "".to_string(),
+                &ledger_db,
                 &conn,
             )
             .unwrap();
@@ -557,6 +584,7 @@ mod tests {
                 "".to_string(),
                 "".to_string(),
                 "".to_string(),
+                &ledger_db,
                 &wallet_db.get_conn().unwrap(),
             )
             .unwrap();
@@ -620,6 +648,7 @@ mod tests {
 
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
+        let ledger_db = get_test_ledger(5, &[], 12, &mut rng);
 
         // Test providing entropy.
         let root_id = RootIdentity::from_random(&mut rng);
@@ -635,6 +664,7 @@ mod tests {
                 "".to_string(),
                 "".to_string(),
                 "".to_string(),
+                &ledger_db,
                 &conn,
             )
             .unwrap();
@@ -653,6 +683,7 @@ mod tests {
 
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
+        let ledger_db = get_test_ledger(5, &[], 12, &mut rng);
 
         let root_id = RootIdentity::from_random(&mut rng);
         let account_id_hex = {
@@ -666,6 +697,7 @@ mod tests {
                 "fog//some.fog.url".to_string(),
                 "".to_string(),
                 "DefinitelyARealFOGAuthoritySPKI".to_string(),
+                &ledger_db,
                 &conn,
             )
             .unwrap();
@@ -683,13 +715,13 @@ mod tests {
             id: 1,
             account_id_hex: account_id_hex.to_string(),
             account_key: [
-                10, 34, 10, 32, 129, 223, 141, 215, 200, 104, 120, 117, 123, 154, 151, 210, 253,
-                23, 148, 151, 2, 18, 182, 100, 83, 138, 144, 99, 225, 74, 214, 14, 175, 68, 167, 4,
-                18, 34, 10, 32, 24, 98, 18, 92, 9, 50, 142, 184, 114, 99, 34, 125, 211, 54, 146,
-                33, 98, 71, 179, 56, 136, 67, 98, 97, 230, 228, 31, 194, 119, 169, 189, 8, 26, 17,
-                102, 111, 103, 47, 47, 115, 111, 109, 101, 46, 102, 111, 103, 46, 117, 114, 108,
-                42, 23, 13, 231, 226, 158, 43, 94, 151, 32, 17, 121, 169, 69, 56, 96, 46, 182, 26,
-                43, 138, 220, 146, 60, 162,
+                10, 34, 10, 32, 135, 37, 92, 17, 29, 203, 205, 96, 6, 72, 229, 193, 11, 153, 50, 3,
+                233, 116, 186, 132, 203, 190, 186, 77, 17, 15, 246, 254, 22, 4, 161, 13, 18, 34,
+                10, 32, 207, 106, 86, 24, 232, 51, 148, 230, 19, 117, 228, 119, 164, 182, 133, 190,
+                22, 197, 0, 66, 5, 57, 33, 188, 231, 11, 121, 197, 253, 113, 40, 3, 26, 17, 102,
+                111, 103, 47, 47, 115, 111, 109, 101, 46, 102, 111, 103, 46, 117, 114, 108, 42, 23,
+                13, 231, 226, 158, 43, 94, 151, 32, 17, 121, 169, 69, 56, 96, 46, 182, 26, 43, 138,
+                220, 146, 60, 162,
             ]
             .to_vec(),
             entropy: root_id.root_entropy.bytes.to_vec(),
@@ -703,6 +735,7 @@ mod tests {
             name: "Alice's FOG Account".to_string(),
             fog_enabled: true,
         };
+
         assert_eq!(expected_account, acc);
     }
 }

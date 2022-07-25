@@ -1185,6 +1185,7 @@ mod tests {
             "".to_string(),
             "".to_string(),
             "".to_string(),
+            &ledger_db,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1467,6 +1468,7 @@ mod tests {
             "".to_string(),
             "".to_string(),
             "".to_string(),
+            &ledger_db,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1520,6 +1522,7 @@ mod tests {
 
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
+        let ledger_db = get_test_ledger(5, &[], 12, &mut rng);
 
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
@@ -1532,6 +1535,7 @@ mod tests {
             "".to_string(),
             "".to_string(),
             "".to_string(),
+            &ledger_db,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1635,6 +1639,7 @@ mod tests {
 
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
+        let ledger_db = get_test_ledger(5, &[], 12, &mut rng);
 
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
@@ -1647,6 +1652,7 @@ mod tests {
             "".to_string(),
             "".to_string(),
             "".to_string(),
+            &ledger_db,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1698,6 +1704,7 @@ mod tests {
 
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
+        let ledger_db = get_test_ledger(5, &[], 12, &mut rng);
 
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
@@ -1710,6 +1717,7 @@ mod tests {
             "".to_string(),
             "".to_string(),
             "".to_string(),
+            &ledger_db,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1768,6 +1776,7 @@ mod tests {
             "".to_string(),
             "".to_string(),
             "".to_string(),
+            &ledger_db,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1833,6 +1842,7 @@ mod tests {
             "".to_string(),
             "".to_string(),
             "".to_string(),
+            &ledger_db,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1964,6 +1974,8 @@ mod tests {
 
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
@@ -1976,6 +1988,7 @@ mod tests {
             "".to_string(),
             "".to_string(),
             "".to_string(),
+            &ledger_db,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -2015,6 +2028,7 @@ mod tests {
 
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
+        let ledger_db = get_test_ledger(5, &[], 12, &mut rng);
 
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
@@ -2027,6 +2041,7 @@ mod tests {
             "".to_string(),
             "".to_string(),
             "".to_string(),
+            &ledger_db,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -2099,6 +2114,7 @@ mod tests {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
         let conn = wallet_db.get_conn().unwrap();
+        let ledger_db = get_test_ledger(5, &[], 12, &mut rng);
 
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
@@ -2111,6 +2127,7 @@ mod tests {
             "".to_string(),
             "".to_string(),
             "".to_string(),
+            &ledger_db,
             &conn,
         )
         .unwrap();
@@ -2147,6 +2164,7 @@ mod tests {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
         let conn = wallet_db.get_conn().unwrap();
+        let ledger_db = get_test_ledger(5, &[], 12, &mut rng);
 
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
@@ -2159,6 +2177,7 @@ mod tests {
             "".to_string(),
             "".to_string(),
             "".to_string(),
+            &ledger_db,
             &conn,
         )
         .unwrap();
@@ -2192,6 +2211,7 @@ mod tests {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
         let conn = wallet_db.get_conn().unwrap();
+        let ledger_db = get_test_ledger(5, &[], 12, &mut rng);
 
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
@@ -2204,6 +2224,7 @@ mod tests {
             "".to_string(),
             "".to_string(),
             "".to_string(),
+            &ledger_db,
             &conn,
         )
         .unwrap();
@@ -2277,6 +2298,7 @@ mod tests {
 
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
+        let ledger_db = get_test_ledger(5, &[], 12, &mut rng);
 
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
@@ -2289,6 +2311,7 @@ mod tests {
             "".to_string(),
             "".to_string(),
             "".to_string(),
+            &ledger_db,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();

@@ -13,6 +13,7 @@ use mc_fog_report_validation::FogResolver;
 use mc_full_service::{
     check_host,
     config::APIConfig,
+    service::address::AddressService,
     wallet::{consensus_backed_rocket, validator_backed_rocket, APIKeyState, WalletState},
     ValidatorLedgerSyncThread, WalletDb, WalletService,
 };
@@ -102,7 +103,8 @@ fn consensus_backed_full_service(
     // Verifier
     let mut mr_signer_verifier =
         MrSignerVerifier::from(mc_consensus_enclave_measurement::sigstruct());
-    mr_signer_verifier.allow_hardening_advisories(mc_consensus_enclave_measurement::HARDENING_ADVISORIES);
+    mr_signer_verifier
+        .allow_hardening_advisories(mc_consensus_enclave_measurement::HARDENING_ADVISORIES);
 
     let mut verifier = Verifier::default();
     verifier.mr_signer(mr_signer_verifier).debug(DEBUG_ENCLAVE);
@@ -163,6 +165,11 @@ fn consensus_backed_full_service(
         config.offline,
         logger,
     );
+
+    service
+        .assign_missing_reserved_subaddresses_for_accounts()
+        .unwrap();
+
     let state = WalletState { service };
 
     let rocket = consensus_backed_rocket(rocket_config, state);
@@ -250,6 +257,11 @@ fn validator_backed_full_service(
         false,
         logger,
     );
+
+    service
+        .assign_missing_reserved_subaddresses_for_accounts()
+        .unwrap();
+
     let state = WalletState { service };
 
     let rocket = validator_backed_rocket(rocket_config, state);

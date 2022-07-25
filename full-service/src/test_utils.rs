@@ -605,6 +605,7 @@ pub fn random_account_with_seed_values(
             "".to_string(),
             "".to_string(),
             "".to_string(),
+            &ledger_db,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
