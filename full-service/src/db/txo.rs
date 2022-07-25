@@ -15,7 +15,9 @@ use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::{
     constants::MAX_INPUTS,
     ring_signature::KeyImage,
+    tokens::Mob,
     tx::{TxOut, TxOutConfirmationNumber},
+    Token,
 };
 use std::fmt;
 
@@ -143,6 +145,12 @@ pub trait TxoModel {
         limit: Option<i64>,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
     ) -> Result<Vec<Txo>, WalletDbError>;
+
+    fn list_max_spendable(
+        account_id_hex: &str,
+        assigned_subaddress_b58: Option<&str>,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<u128, WalletDbError>;
 
     fn list_for_address(
         assigned_subaddress_b58: &str,
@@ -527,6 +535,36 @@ impl TxoModel for Txo {
             .filter(txos::received_account_id_hex.eq(subaddress.account_id_hex))
             .load(conn)?;
         Ok(results)
+    }
+
+    fn list_max_spendable(
+        account_id_hex: &str,
+        assigned_subaddress_b58: Option<&str>,
+        conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
+    ) -> Result<u128, WalletDbError> {
+        use crate::db::schema::txos;
+
+        let mut query = txos::table.into_boxed();
+
+        query = query
+            .filter(txos::received_account_id_hex.eq(account_id_hex))
+            .filter(txos::subaddress_index.is_not_null())
+            .filter(txos::pending_tombstone_block_index.is_null())
+            .filter(txos::spent_block_index.is_null());
+
+        if let Some(assigned_subaddress_b58) = assigned_subaddress_b58 {
+            let subaddress = AssignedSubaddress::get(assigned_subaddress_b58, conn)?;
+            query = query.filter(txos::subaddress_index.eq(subaddress.subaddress_index));
+        }
+
+        let results: Vec<Txo> = query
+            .order_by(txos::value.desc())
+            .limit(MAX_INPUTS as i64)
+            .load(conn)?;
+
+        let max_spendable = results.iter().fold(0, |acc, txo| acc + txo.value as u128);
+
+        Ok(max_spendable - Mob::MINIMUM_FEE as u128)
     }
 
     fn list_unspent(

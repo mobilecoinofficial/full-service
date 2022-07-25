@@ -31,6 +31,8 @@ pub struct WalletStatus {
     /// The minimum synced block across all accounts
     pub min_synced_block_index: String,
 
+    pub total_max_spendable_pmob: String,
+
     /// Unspent pico mob for ALL accounts at the account_block_height. If the
     /// account is syncing, this value may change.
     pub total_unspent_pmob: String,
@@ -82,6 +84,7 @@ impl TryFrom<&service::balance::WalletStatus> for WalletStatus {
             local_block_height: src.local_block_height.to_string(),
             is_synced_all: src.min_synced_block_index + 1 >= src.network_block_height,
             min_synced_block_index: src.min_synced_block_index.to_string(),
+            total_max_spendable_pmob: src.max_spendable.to_string(),
             total_unspent_pmob: src.unspent.to_string(),
             total_pending_pmob: src.pending.to_string(),
             total_spent_pmob: src.spent.to_string(),

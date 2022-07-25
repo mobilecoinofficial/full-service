@@ -76,6 +76,7 @@ impl From<LedgerServiceError> for BalanceServiceError {
 /// This must be a service object because there is no "Balance" table in our
 /// data model.
 pub struct Balance {
+    pub max_spendable: u128,
     pub unspent: u128,
     pub pending: u128,
     pub spent: u128,
@@ -102,6 +103,7 @@ pub struct NetworkStatus {
 /// It shares several fields with balance, but also returns details about the
 /// accounts in the wallet.
 pub struct WalletStatus {
+    pub max_spendable: u128,
     pub unspent: u128,
     pub pending: u128,
     pub spent: u128,
@@ -145,7 +147,7 @@ where
 
         let conn = self.wallet_db.get_conn()?;
         conn.transaction(|| {
-            let (unspent, pending, spent, secreted, orphaned) =
+            let (max_spendable, unspent, pending, spent, secreted, orphaned) =
                 Self::get_balance_inner(account_id_hex, &conn)?;
 
             let network_block_height = self.get_network_block_height()?;
@@ -153,6 +155,7 @@ where
             let account = Account::get(account_id, &conn)?;
 
             Ok(Balance {
+                max_spendable,
                 unspent,
                 pending,
                 spent,
@@ -177,6 +180,9 @@ where
             // be orphaned.
             let orphaned: u128 = 0;
 
+            let max_spendable =
+                Txo::list_max_spendable(&assigned_address.account_id_hex, Some(address), &conn)?;
+
             let unspent =
                 Txo::list_unspent(&assigned_address.account_id_hex, Some(address), &conn)?
                     .iter()
@@ -199,6 +205,7 @@ where
             let account = Account::get(&AccountID(assigned_address.account_id_hex), &conn)?;
 
             Ok(Balance {
+                max_spendable,
                 unspent,
                 pending,
                 spent,
@@ -228,6 +235,7 @@ where
             let accounts = Account::list_all(&conn)?;
             let mut account_map = HashMap::default();
 
+            let mut max_spendable: u128 = 0;
             let mut unspent: u128 = 0;
             let mut pending: u128 = 0;
             let mut spent: u128 = 0;
@@ -240,11 +248,12 @@ where
                 let account_id = AccountID(account.account_id_hex.clone());
                 let balance = Self::get_balance_inner(&account_id.to_string(), &conn)?;
                 account_map.insert(account_id.clone(), account.clone());
-                unspent += balance.0;
-                pending += balance.1;
-                spent += balance.2;
-                secreted += balance.3;
-                orphaned += balance.4;
+                max_spendable += balance.0;
+                unspent += balance.1;
+                pending += balance.2;
+                spent += balance.3;
+                secreted += balance.4;
+                orphaned += balance.5;
 
                 // account.next_block_index is an index in range [0..ledger_db.num_blocks()]
                 min_synced_block_index = std::cmp::min(
@@ -254,6 +263,7 @@ where
                 account_ids.push(account_id);
             }
             Ok(WalletStatus {
+                max_spendable,
                 unspent,
                 pending,
                 spent,
@@ -277,9 +287,11 @@ where
     fn get_balance_inner(
         account_id_hex: &str,
         conn: &PooledConnection<ConnectionManager<SqliteConnection>>,
-    ) -> Result<(u128, u128, u128, u128, u128), BalanceServiceError> {
+    ) -> Result<(u128, u128, u128, u128, u128, u128), BalanceServiceError> {
         // Note: We need to cast to u64 first, because i64 could have wrapped, then to
         // u128
+        let max_spendable = Txo::list_max_spendable(account_id_hex, None, &conn)?;
+
         let unspent = Txo::list_unspent(account_id_hex, None, conn)?
             .iter()
             .map(|t| (t.value as u64) as u128)
@@ -301,7 +313,7 @@ where
             .map(|t| (t.value as u64) as u128)
             .sum::<u128>();
 
-        let result = (unspent, pending, spent, secreted, orphaned);
+        let result = (max_spendable, unspent, pending, spent, secreted, orphaned);
         Ok(result)
     }
 }
@@ -310,12 +322,16 @@ where
 mod tests {
     use super::*;
     use crate::{
-        service::{account::AccountService, address::AddressService},
-        test_utils::{get_test_ledger, manually_sync_account, setup_wallet_service, MOB},
+        service::{account::AccountService, address::AddressService, txo::TxoService},
+        test_utils::{
+            get_test_ledger, manually_sync_account, setup_wallet_service,
+            DEFAULT_PER_RECIPIENT_AMOUNT, MOB,
+        },
         util::b58::b58_encode_public_address,
     };
     use mc_account_keys::{AccountKey, PublicAddress, RootEntropy, RootIdentity};
     use mc_common::logger::{test_with_logger, Logger};
+    use mc_transaction_core::{constants::MAX_INPUTS, tokens::Mob, Token};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
@@ -363,15 +379,25 @@ mod tests {
         let _account = manually_sync_account(
             &ledger_db,
             &service.wallet_db,
-            &AccountID(account.account_id_hex.to_string()),
+            &AccountID(account.account_id_hex.clone()),
             &logger,
         );
 
         let account_balance = service
-            .get_balance_for_account(&AccountID(account.account_id_hex))
+            .get_balance_for_account(&AccountID(account.account_id_hex.clone()))
             .expect("Could not get balance for account");
 
+        let unspent_txos = service
+            .list_txos(&AccountID(account.account_id_hex), None, None)
+            .unwrap();
+        // 12 blocks, 4 addresses, 1 txo per address per block
+        assert_eq!(unspent_txos.len(), 48);
+
+        let max_spendable =
+            (MAX_INPUTS as u128 * DEFAULT_PER_RECIPIENT_AMOUNT as u128) - Mob::MINIMUM_FEE as u128;
+
         // 3 accounts * 5_000 MOB * 12 blocks
+        assert_eq!(account_balance.max_spendable, max_spendable,);
         assert_eq!(account_balance.unspent, 180_000 * MOB as u128);
         assert_eq!(account_balance.pending, 0);
         assert_eq!(account_balance.spent, 0);
@@ -388,6 +414,10 @@ mod tests {
             .get_balance_for_address(&b58_pub_address)
             .expect("Could not get balance for address");
 
+        assert_eq!(
+            address_balance.max_spendable,
+            (60_000 * MOB as u64 - Mob::MINIMUM_FEE) as u128
+        );
         assert_eq!(address_balance.unspent, 60_000 * MOB as u128);
         assert_eq!(address_balance.pending, 0);
         assert_eq!(address_balance.spent, 0);
@@ -397,7 +427,10 @@ mod tests {
         let address_balance2 = service
             .get_balance_for_address(&address.assigned_subaddress_b58)
             .expect("Could not get balance for address");
-        assert_eq!(address_balance2.unspent, 60_000 * MOB as u128);
+        assert_eq!(
+            address_balance2.max_spendable,
+            (60_000 * MOB as u64 - Mob::MINIMUM_FEE) as u128
+        );
         assert_eq!(address_balance2.pending, 0);
         assert_eq!(address_balance2.spent, 0);
         assert_eq!(address_balance2.secreted, 0);

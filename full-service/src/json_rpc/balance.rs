@@ -31,6 +31,10 @@ pub struct Balance {
     /// may not appear correct if the account is still syncing.
     pub is_synced: bool,
 
+    /// This is the max spendable in a single transaction, which is the 16
+    /// largest txos minus the minimum fee.
+    pub max_spendable_pmob: String,
+
     /// Unspent pico MOB for this account at the current account_block_height.
     /// If the account is syncing, this value may change.
     pub unspent_pmob: String,
@@ -62,6 +66,7 @@ impl From<&service::balance::Balance> for Balance {
             local_block_height: src.local_block_height.to_string(),
             account_block_height: src.synced_blocks.to_string(),
             is_synced: src.synced_blocks == src.network_block_height,
+            max_spendable_pmob: src.max_spendable.to_string(),
             unspent_pmob: src.unspent.to_string(),
             pending_pmob: src.pending.to_string(),
             spent_pmob: src.spent.to_string(),
