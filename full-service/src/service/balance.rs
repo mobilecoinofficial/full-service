@@ -12,6 +12,7 @@ use crate::{
         Conn, WalletDbError,
     },
     service::{
+        account::{AccountService, AccountServiceError},
         ledger::{LedgerService, LedgerServiceError},
         WalletService,
     },
@@ -21,7 +22,7 @@ use mc_common::HashMap;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
-use mc_transaction_core::{tokens::Mob, Token, TokenId};
+use mc_transaction_core::TokenId;
 
 /// Errors for the Address Service.
 #[derive(Display, Debug)]
@@ -41,6 +42,9 @@ pub enum BalanceServiceError {
 
     /// Unexpected Account Txo Status: {0}
     UnexpectedAccountTxoStatus(String),
+
+    /// AccountServiceError
+    AccountServiceError(AccountServiceError),
 }
 
 impl From<WalletDbError> for BalanceServiceError {
@@ -67,21 +71,23 @@ impl From<LedgerServiceError> for BalanceServiceError {
     }
 }
 
+impl From<AccountServiceError> for BalanceServiceError {
+    fn from(src: AccountServiceError) -> Self {
+        Self::AccountServiceError(src)
+    }
+}
+
 /// The balance object returned by balance services.
 ///
 /// This must be a service object because there is no "Balance" table in our
 /// data model.
 pub struct Balance {
+    pub unverified: u128,
     pub unspent: u128,
     pub pending: u128,
     pub spent: u128,
     pub secreted: u128,
     pub orphaned: u128,
-    pub unverified: u128,
-    pub network_block_height: u64,
-    pub local_block_height: u64,
-    pub synced_blocks: u64,
-    pub max_spendable: u128,
 }
 
 /// The Network Status object.
@@ -101,12 +107,7 @@ pub struct NetworkStatus {
 /// It shares several fields with balance, but also returns details about the
 /// accounts in the wallet.
 pub struct WalletStatus {
-    pub unspent: u128,
-    pub pending: u128,
-    pub spent: u128,
-    pub secreted: u128,
-    pub orphaned: u128,
-    pub unverified: u128,
+    pub balance_per_token: BTreeMap<TokenId, Balance>,
     pub network_block_height: u64,
     pub local_block_height: u64,
     pub min_synced_block_index: u64,
@@ -123,9 +124,12 @@ pub trait BalanceService {
     fn get_balance_for_account(
         &self,
         account_id: &AccountID,
-    ) -> Result<Balance, BalanceServiceError>;
+    ) -> Result<BTreeMap<TokenId, Balance>, BalanceServiceError>;
 
-    fn get_balance_for_address(&self, address: &str) -> Result<Balance, BalanceServiceError>;
+    fn get_balance_for_address(
+        &self,
+        address: &str,
+    ) -> Result<BTreeMap<TokenId, Balance>, BalanceServiceError>;
 
     fn get_network_status(&self) -> Result<NetworkStatus, BalanceServiceError>;
 
@@ -140,55 +144,42 @@ where
     fn get_balance_for_account(
         &self,
         account_id: &AccountID,
-    ) -> Result<Balance, BalanceServiceError> {
-        let account_id_hex = &account_id.to_string();
+    ) -> Result<BTreeMap<TokenId, Balance>, BalanceServiceError> {
+        let conn = &self.wallet_db.get_conn()?;
+        let account = self.get_account(account_id)?;
+        let distinct_token_ids = account.get_token_ids(conn)?;
 
-        let conn = self.wallet_db.get_conn()?;
-        let (unspent, max_spendable, pending, spent, secreted, orphaned, unverified) =
-            Self::get_balance_inner(Some(account_id_hex), None, &conn)?;
+        let balances = distinct_token_ids
+            .into_iter()
+            .map(|token_id| {
+                let balance =
+                    Self::get_balance_inner(Some(&account_id.to_string()), None, token_id, conn)?;
+                Ok((token_id, balance))
+            })
+            .collect::<Result<BTreeMap<TokenId, Balance>, BalanceServiceError>>()?;
 
-        let network_block_height = self.get_network_block_height()?;
-        let local_block_height = self.ledger_db.num_blocks()?;
-        let account = Account::get(account_id, &conn)?;
-
-        Ok(Balance {
-            unspent,
-            max_spendable,
-            pending,
-            spent,
-            secreted,
-            orphaned,
-            unverified,
-            network_block_height,
-            local_block_height,
-            synced_blocks: account.next_block_index as u64,
-        })
+        Ok(balances)
     }
 
-    fn get_balance_for_address(&self, address: &str) -> Result<Balance, BalanceServiceError> {
-        let network_block_height = self.get_network_block_height()?;
-        let local_block_height = self.ledger_db.num_blocks()?;
+    fn get_balance_for_address(
+        &self,
+        address: &str,
+    ) -> Result<BTreeMap<TokenId, Balance>, BalanceServiceError> {
+        let conn = &self.wallet_db.get_conn()?;
+        let assigned_address = AssignedSubaddress::get(address, conn)?;
+        let account_id = AccountID::from(assigned_address.account_id);
+        let account = self.get_account(&account_id)?;
+        let distinct_token_ids = account.get_token_ids(conn)?;
 
-        let conn = self.wallet_db.get_conn()?;
-        let assigned_address = AssignedSubaddress::get(address, &conn)?;
+        let balances = distinct_token_ids
+            .into_iter()
+            .map(|token_id| {
+                let balance = Self::get_balance_inner(None, Some(address), token_id, conn)?;
+                Ok((token_id, balance))
+            })
+            .collect::<Result<BTreeMap<TokenId, Balance>, BalanceServiceError>>()?;
 
-        let (unspent, max_spendable, pending, spent, secreted, orphaned, unverified) =
-            Self::get_balance_inner(None, Some(address), &conn)?;
-
-        let account = Account::get(&AccountID(assigned_address.account_id), &conn)?;
-
-        Ok(Balance {
-            unspent,
-            max_spendable,
-            pending,
-            spent,
-            secreted,
-            orphaned,
-            unverified,
-            network_block_height,
-            local_block_height,
-            synced_blocks: account.next_block_index as u64,
-        })
+        Ok(balances)
     }
 
     fn get_network_status(&self) -> Result<NetworkStatus, BalanceServiceError> {
@@ -208,26 +199,32 @@ where
         let accounts = Account::list_all(&conn)?;
         let mut account_map = HashMap::default();
 
-        let mut unspent: u128 = 0;
-        let mut pending: u128 = 0;
-        let mut spent: u128 = 0;
-        let mut secreted: u128 = 0;
-        let mut orphaned: u128 = 0;
-        let mut unverified: u128 = 0;
+        let mut balance_per_token = BTreeMap::new();
 
         let mut min_synced_block_index = network_block_height.saturating_sub(1);
         let mut account_ids = Vec::new();
 
         for account in accounts {
             let account_id = AccountID(account.id.clone());
-            let balance = Self::get_balance_inner(Some(&account_id.to_string()), None, &conn)?;
+            let token_ids = account.clone().get_token_ids(&conn)?;
+
+            for token_id in token_ids {
+                let balance =
+                    Self::get_balance_inner(Some(&account_id.to_string()), None, token_id, &conn)?;
+                balance_per_token
+                    .entry(token_id)
+                    .and_modify(|b: &mut Balance| {
+                        b.unverified += balance.unverified;
+                        b.unspent += balance.unspent;
+                        b.pending += balance.pending;
+                        b.spent += balance.spent;
+                        b.secreted += balance.secreted;
+                        b.orphaned += balance.orphaned;
+                    })
+                    .or_insert(balance);
+            }
+
             account_map.insert(account_id.clone(), account.clone());
-            unspent += balance.0;
-            pending += balance.2;
-            spent += balance.3;
-            secreted += balance.4;
-            orphaned += balance.5;
-            unverified += balance.6;
 
             // account.next_block_index is an index in range [0..ledger_db.num_blocks()]
             min_synced_block_index = std::cmp::min(
@@ -238,15 +235,10 @@ where
         }
 
         Ok(WalletStatus {
-            unspent,
-            pending,
-            spent,
-            secreted,
-            orphaned,
-            unverified,
+            balance_per_token,
             network_block_height,
             local_block_height: self.ledger_db.num_blocks()?,
-            min_synced_block_index: min_synced_block_index as u64,
+            min_synced_block_index,
             account_ids,
             account_map,
         })
@@ -266,21 +258,13 @@ where
     fn get_balance_inner(
         account_id_hex: Option<&str>,
         assigned_subaddress_b58: Option<&str>,
+        token_id: TokenId,
         conn: &Conn,
-    ) -> Result<(u128, u128, u128, u128, u128, u128, u128), BalanceServiceError> {
-        let max_spendable = Txo::list_spendable(
-            account_id_hex,
-            None,
-            assigned_subaddress_b58,
-            *Mob::ID,
-            conn,
-        )?
-        .max_spendable_in_wallet;
-
+    ) -> Result<Balance, BalanceServiceError> {
         let unspent = sum_query_result(Txo::list_unspent(
             account_id_hex,
             assigned_subaddress_b58,
-            Some(0),
+            Some(*token_id),
             None,
             None,
             conn,
@@ -289,7 +273,7 @@ where
         let spent = sum_query_result(Txo::list_spent(
             account_id_hex,
             assigned_subaddress_b58,
-            Some(0),
+            Some(*token_id),
             None,
             None,
             conn,
@@ -298,7 +282,7 @@ where
         let pending = sum_query_result(Txo::list_pending(
             account_id_hex,
             assigned_subaddress_b58,
-            Some(0),
+            Some(*token_id),
             None,
             None,
             conn,
@@ -307,7 +291,7 @@ where
         let unverified = sum_query_result(Txo::list_unverified(
             account_id_hex,
             assigned_subaddress_b58,
-            Some(0),
+            Some(*token_id),
             None,
             None,
             conn,
@@ -320,23 +304,21 @@ where
         } else {
             sum_query_result(Txo::list_orphaned(
                 account_id_hex,
-                Some(0),
+                Some(*token_id),
                 None,
                 None,
                 conn,
             )?)
         };
 
-        let result = (
+        Ok(Balance {
+            unverified,
             unspent,
-            max_spendable,
             pending,
             spent,
             secreted,
             orphaned,
-            unverified,
-        );
-        Ok(result)
+        })
     }
 }
 
@@ -350,6 +332,7 @@ mod tests {
     };
     use mc_account_keys::{AccountKey, PublicAddress, RootEntropy, RootIdentity};
     use mc_common::logger::{test_with_logger, Logger};
+    use mc_transaction_core::{tokens::Mob, Token};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
@@ -404,15 +387,18 @@ mod tests {
         let account_balance = service
             .get_balance_for_account(&AccountID(account.id))
             .expect("Could not get balance for account");
-
+        let account_balance_pmob = account_balance.get(&Mob::ID).unwrap();
         // 3 accounts * 5_000 MOB * 12 blocks
-        assert_eq!(account_balance.unspent, 180_000 * MOB as u128);
+        assert_eq!(account_balance_pmob.unspent, 180_000 * MOB as u128);
         // 5_000 MOB per txo, max 16 txos input - network fee
-        assert_eq!(account_balance.max_spendable, 79999999600000000 as u128);
-        assert_eq!(account_balance.pending, 0);
-        assert_eq!(account_balance.spent, 0);
-        assert_eq!(account_balance.secreted, 0);
-        assert_eq!(account_balance.orphaned, 60_000 * MOB as u128); // Public address 3
+        // assert_eq!(
+        //     account_balance_pmob.max_spendable,
+        //     79999999600000000 as u128
+        // );
+        assert_eq!(account_balance_pmob.pending, 0);
+        assert_eq!(account_balance_pmob.spent, 0);
+        assert_eq!(account_balance_pmob.secreted, 0);
+        assert_eq!(account_balance_pmob.orphaned, 60_000 * MOB as u128); // Public address 3
 
         let db_account_key: AccountKey =
             mc_util_serial::decode(&account.account_key).expect("Could not decode account key");
@@ -423,23 +409,30 @@ mod tests {
         let address_balance = service
             .get_balance_for_address(&b58_pub_address)
             .expect("Could not get balance for address");
-
-        assert_eq!(address_balance.unspent, 60_000 * MOB as u128);
-        assert_eq!(address_balance.max_spendable, 59999999600000000 as u128);
-        assert_eq!(address_balance.pending, 0);
-        assert_eq!(address_balance.spent, 0);
-        assert_eq!(address_balance.secreted, 0);
-        assert_eq!(address_balance.orphaned, 0);
+        let address_balance_pmob = address_balance.get(&Mob::ID).unwrap();
+        assert_eq!(address_balance_pmob.unspent, 60_000 * MOB as u128);
+        // assert_eq!(
+        //     address_balance_pmob.max_spendable,
+        //     59999999600000000 as u128
+        // );
+        assert_eq!(address_balance_pmob.pending, 0);
+        assert_eq!(address_balance_pmob.spent, 0);
+        assert_eq!(address_balance_pmob.secreted, 0);
+        assert_eq!(address_balance_pmob.orphaned, 0);
 
         let address_balance2 = service
             .get_balance_for_address(&address.assigned_subaddress_b58)
             .expect("Could not get balance for address");
-        assert_eq!(address_balance2.unspent, 60_000 * MOB as u128);
-        assert_eq!(address_balance2.max_spendable, 59999999600000000 as u128);
-        assert_eq!(address_balance2.pending, 0);
-        assert_eq!(address_balance2.spent, 0);
-        assert_eq!(address_balance2.secreted, 0);
-        assert_eq!(address_balance2.orphaned, 0);
+        let address_balance2_pmob = address_balance2.get(&Mob::ID).unwrap();
+        assert_eq!(address_balance2_pmob.unspent, 60_000 * MOB as u128);
+        // assert_eq!(
+        //     address_balance2_pmob.max_spendable,
+        //     59999999600000000 as u128
+        // );
+        assert_eq!(address_balance2_pmob.pending, 0);
+        assert_eq!(address_balance2_pmob.spent, 0);
+        assert_eq!(address_balance2_pmob.secreted, 0);
+        assert_eq!(address_balance2_pmob.orphaned, 0);
 
         // Even though subaddress 3 has funds, we are not watching it, so we should get
         // an error.

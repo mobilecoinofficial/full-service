@@ -150,13 +150,10 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let balance_status = result.get("balance").unwrap();
-        let alice_unspent = balance_status
-            .get("unspent_pmob")
-            .unwrap()
-            .as_str()
-            .unwrap();
-        assert_eq!(alice_unspent, "100000000000000");
+        let balance_per_token = result.get("balance_per_token").unwrap();
+        let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
+        let unspent = balance_mob["unspent"].as_str().unwrap();
+        assert_eq!(unspent, "100000000000000");
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -168,13 +165,9 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let balance_status = result.get("balance").unwrap();
-        let bob_unspent = balance_status
-            .get("unspent_pmob")
-            .unwrap()
-            .as_str()
-            .unwrap();
-        assert_eq!(bob_unspent, "0");
+        let balance_per_token = result.get("balance_per_token").unwrap();
+        let balance_mob = balance_per_token.get(Mob::ID.to_string());
+        assert!(balance_mob.is_none());
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -186,13 +179,9 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let balance_status = result.get("balance").unwrap();
-        let charlie_unspent = balance_status
-            .get("unspent_pmob")
-            .unwrap()
-            .as_str()
-            .unwrap();
-        assert_eq!(charlie_unspent, "0");
+        let balance_per_token = result.get("balance_per_token").unwrap();
+        let balance_mob = balance_per_token.get(Mob::ID.to_string());
+        assert!(balance_mob.is_none());
 
         // Submit the tx_proposal
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
@@ -255,12 +244,9 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let balance_status = result.get("balance").unwrap();
-        let unspent = balance_status
-            .get("unspent_pmob")
-            .unwrap()
-            .as_str()
-            .unwrap();
+        let balance_per_token = result.get("balance_per_token").unwrap();
+        let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
+        let unspent = balance_mob["unspent"].as_str().unwrap();
         assert_eq!(unspent, &(15 * MOB - Mob::MINIMUM_FEE).to_string());
 
         let body = json!({
@@ -273,13 +259,10 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let balance_status = result.get("balance").unwrap();
-        let bob_unspent = balance_status
-            .get("unspent_pmob")
-            .unwrap()
-            .as_str()
-            .unwrap();
-        assert_eq!(bob_unspent, "42000000000000");
+        let balance_per_token = result.get("balance_per_token").unwrap();
+        let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
+        let unspent = balance_mob["unspent"].as_str().unwrap();
+        assert_eq!(unspent, "42000000000000");
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -291,13 +274,10 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let balance_status = result.get("balance").unwrap();
-        let charlie_unspent = balance_status
-            .get("unspent_pmob")
-            .unwrap()
-            .as_str()
-            .unwrap();
-        assert_eq!(charlie_unspent, "43000000000000");
+        let balance_per_token = result.get("balance_per_token").unwrap();
+        let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
+        let unspent = balance_mob["unspent"].as_str().unwrap();
+        assert_eq!(unspent, "43000000000000");
 
         // Get the transaction log and verify it contains what we expect
         let body = json!({

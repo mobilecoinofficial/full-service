@@ -455,6 +455,7 @@ mod tests {
     };
     use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
     use mc_common::logger::{test_with_logger, Logger};
+    use mc_transaction_core::{tokens::Mob, Token};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
@@ -533,7 +534,8 @@ mod tests {
         let balance = service
             .get_balance_for_account(&AccountID::from(&account_key))
             .expect("Could not get balance");
-        assert_eq!(balance.unspent, 250_000_000 * MOB as u128);
+        let balance_pmob = balance.get(&Mob::ID).unwrap();
+        assert_eq!(balance_pmob.unspent, 250_000_000 * MOB as u128);
     }
 
     // #[test_with_logger]
