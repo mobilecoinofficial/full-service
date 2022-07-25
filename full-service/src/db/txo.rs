@@ -181,6 +181,7 @@ pub trait TxoModel {
     ) -> Result<Vec<Txo>, WalletDbError>;
 
     /// Get all Txos associated with a given account.
+    #[allow(clippy::too_many_arguments)]
     fn list_for_account(
         account_id_hex: &str,
         status: Option<TxoStatus>,
@@ -192,6 +193,7 @@ pub trait TxoModel {
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
+    #[allow(clippy::too_many_arguments)]
     fn list_for_address(
         assigned_subaddress_b58: &str,
         status: Option<TxoStatus>,
@@ -210,6 +212,7 @@ pub trait TxoModel {
         conn: &Conn,
     ) -> Result<HashMap<KeyImage, String>, WalletDbError>;
 
+    #[allow(clippy::too_many_arguments)]
     fn list_unspent(
         account_id_hex: Option<&str>,
         assigned_subaddress_b58: Option<&str>,
@@ -221,6 +224,7 @@ pub trait TxoModel {
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
+    #[allow(clippy::too_many_arguments)]
     fn list_spent(
         account_id_hex: Option<&str>,
         assigned_subaddress_b58: Option<&str>,
@@ -242,6 +246,7 @@ pub trait TxoModel {
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
+    #[allow(clippy::too_many_arguments)]
     fn list_pending(
         account_id_hex: Option<&str>,
         assigned_subaddress_b58: Option<&str>,
@@ -253,6 +258,7 @@ pub trait TxoModel {
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
+    #[allow(clippy::too_many_arguments)]
     fn list_unverified(
         account_id_hex: Option<&str>,
         assigned_subaddress_b58: Option<&str>,

@@ -77,6 +77,7 @@ impl From<TransactionServiceError> for TxoServiceError {
 /// Txos.
 pub trait TxoService {
     /// List the Txos for a given account in the wallet.
+    #[allow(clippy::too_many_arguments)]
     fn list_txos(
         &self,
         account_id: Option<String>,
