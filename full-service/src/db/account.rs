@@ -197,6 +197,10 @@ pub trait AccountModel {
 
     /// Get all of the token ids present for the account
     fn get_token_ids(self, conn: &Conn) -> Result<Vec<TokenId>, WalletDbError>;
+
+    /// Get the next sequentially unassigned subaddress index for the account
+    /// (reserved addresses are not included)
+    fn next_subaddress_index(self, conn: &Conn) -> Result<u64, WalletDbError>;
 }
 
 impl AccountModel for Account {
@@ -284,26 +288,14 @@ impl AccountModel for Account {
         let first_block_index = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX);
         let next_block_index = first_block_index;
 
-        let change_subaddress_index = if fog_enabled {
-            DEFAULT_SUBADDRESS_INDEX as i64
-        } else {
-            CHANGE_SUBADDRESS_INDEX as i64
-        };
-
-        let next_subaddress_index = if fog_enabled {
-            1
-        } else {
-            next_subaddress_index.unwrap_or(DEFAULT_NEXT_SUBADDRESS_INDEX) as i64
-        };
+        let next_subaddress_index =
+            next_subaddress_index.unwrap_or(DEFAULT_NEXT_SUBADDRESS_INDEX) as i64;
 
         let new_account = NewAccount {
             id: &account_id.to_string(),
             account_key: &mc_util_serial::encode(account_key),
             entropy: Some(entropy),
             key_derivation_version: key_derivation_version as i32,
-            main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
-            change_subaddress_index,
-            next_subaddress_index,
             first_block_index: first_block_index as i64,
             next_block_index: next_block_index as i64,
             import_block_index: import_block_index.map(|i| i as i64),
@@ -324,21 +316,22 @@ impl AccountModel for Account {
             "Main",
             conn,
         )?;
+
+        AssignedSubaddress::create(
+            account_key,
+            None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
+                   * always for main? */
+            CHANGE_SUBADDRESS_INDEX,
+            "Change",
+            conn,
+        )?;
+
         if !fog_enabled {
             AssignedSubaddress::create(
                 account_key,
                 None,
                 LEGACY_CHANGE_SUBADDRESS_INDEX,
                 "Legacy Change",
-                conn,
-            )?;
-
-            AssignedSubaddress::create(
-                account_key,
-                None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
-                       * always for main? */
-                CHANGE_SUBADDRESS_INDEX,
-                "Change",
                 conn,
             )?;
 
@@ -425,9 +418,6 @@ impl AccountModel for Account {
             account_key: &mc_util_serial::encode(&view_account_key),
             entropy: None,
             key_derivation_version: MNEMONIC_KEY_DERIVATION_VERSION as i32,
-            main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
-            change_subaddress_index: CHANGE_SUBADDRESS_INDEX as i64,
-            next_subaddress_index,
             first_block_index,
             next_block_index,
             import_block_index: Some(import_block_index as i64),
@@ -564,11 +554,15 @@ impl AccountModel for Account {
     }
 
     fn change_subaddress(self, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError> {
-        AssignedSubaddress::get_for_account_by_index(&self.id, self.change_subaddress_index, conn)
+        AssignedSubaddress::get_for_account_by_index(&self.id, CHANGE_SUBADDRESS_INDEX as i64, conn)
     }
 
     fn main_subaddress(self, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError> {
-        AssignedSubaddress::get_for_account_by_index(&self.id, self.main_subaddress_index, conn)
+        AssignedSubaddress::get_for_account_by_index(
+            &self.id,
+            DEFAULT_SUBADDRESS_INDEX as i64,
+            conn,
+        )
     }
 
     fn get_token_ids(self, conn: &Conn) -> Result<Vec<TokenId>, WalletDbError> {
@@ -584,6 +578,18 @@ impl AccountModel for Account {
             .collect();
 
         Ok(distinct_token_ids)
+    }
+
+    fn next_subaddress_index(self, conn: &Conn) -> Result<u64, WalletDbError> {
+        use crate::db::schema::assigned_subaddresses;
+
+        let highest_subaddress: AssignedSubaddress = assigned_subaddresses::table
+            .filter(assigned_subaddresses::account_id.eq(&self.id))
+            .select(assigned_subaddresses::subaddress_index)
+            .order_by(assigned_subaddresses::subaddress_index.desc())
+            .first(conn)?;
+
+        return highest_subaddress + 1;
     }
 }
 
@@ -635,9 +641,6 @@ mod tests {
             account_key: mc_util_serial::encode(&account_key),
             entropy: Some(root_id.root_entropy.bytes.to_vec()),
             key_derivation_version: 1,
-            main_subaddress_index: 0,
-            change_subaddress_index: CHANGE_SUBADDRESS_INDEX as i64,
-            next_subaddress_index: 2,
             first_block_index: 0,
             next_block_index: 0,
             import_block_index: None,
@@ -700,9 +703,6 @@ mod tests {
             account_key: mc_util_serial::encode(&account_key_secondary),
             entropy: Some(root_id_secondary.root_entropy.bytes.to_vec()),
             key_derivation_version: 1,
-            main_subaddress_index: 0,
-            change_subaddress_index: CHANGE_SUBADDRESS_INDEX as i64,
-            next_subaddress_index: 2,
             first_block_index: 50,
             next_block_index: 50,
             import_block_index: Some(50),
@@ -823,9 +823,7 @@ mod tests {
             .to_vec(),
             entropy: Some(root_id.root_entropy.bytes.to_vec()),
             key_derivation_version: 1,
-            main_subaddress_index: 0,
-            change_subaddress_index: 0,
-            next_subaddress_index: 1,
+
             first_block_index: 0,
             next_block_index: 0,
             import_block_index: None,
@@ -878,9 +876,6 @@ mod tests {
             .to_vec(),
             entropy: None,
             key_derivation_version: 2,
-            main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
-            change_subaddress_index: CHANGE_SUBADDRESS_INDEX as i64,
-            next_subaddress_index: 2,
             first_block_index: 0,
             next_block_index: 0,
             import_block_index: Some(12),
