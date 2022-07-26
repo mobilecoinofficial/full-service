@@ -1,5 +1,5 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
-
+#[cfg(test)]
 use crate::{
     db::{
         account::{AccountID, AccountModel},

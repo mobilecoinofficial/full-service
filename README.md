@@ -82,10 +82,10 @@ sudo xcode-select -s /Applications/<name of xcode application>.app/Contents/Deve
 
     ```sh
     NAMESPACE=test
-
+   
     CONSENSUS_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${NAMESPACE}.mobilecoin.com/production.json | grep consensus-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
     curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${CONSENSUS_SIGSTRUCT_URI}
-
+   
     INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${NAMESPACE}.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
     curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${INGEST_SIGSTRUCT_URI}
     ```
@@ -106,13 +106,12 @@ sudo xcode-select -s /Applications/<name of xcode application>.app/Contents/Deve
 
    This works on more recent Ubuntu distributions, even though it specifies 18.04.
 
-7. Build
-   Put this line in your .bashrc or .zhrc:
+7. Put this line in your .bashrc or .zhrc:
     ```sh
     export OPENSSL_ROOT_DIR="/usr/local/opt/openssl@3"
     ```
 
-
+8. Build
     ```sh
     SGX_MODE=HW \
     IAS_MODE=PROD \
@@ -121,12 +120,12 @@ sudo xcode-select -s /Applications/<name of xcode application>.app/Contents/Deve
     cargo build --release -p mc-full-service
     ```
 
-1. Set database password if using encryption.
+9. Set database password if using encryption.
     ```sh
     read -rs MC_PASSWORD
     export MC_PASSWORD=$MC_PASSWORD
     ```
-8. Run
+10. Run
 
 
    TestNet Example
@@ -190,9 +189,9 @@ sudo xcode-select -s /Applications/<name of xcode application>.app/Contents/Deve
 
     ```sh
     mkdir -p /opt/full-service/data
-
+   
     chown 1000:1000 /opt/full-service/data
-
+   
     docker run -it -p 127.0.0.1:9090:9090 \
         -v /opt/full-service/data:data \
         --name full-service \
@@ -347,7 +346,7 @@ The recommended flow to get balance and submit transaction is the following:
     }
     }' \
     -X POST -H 'Content-type: application/json' | jq '.result' > /keyfs/tx_proposal.json
-
+   
     cp /keyfs/tx_proposal.json /media/
     ```
 
