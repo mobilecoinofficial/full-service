@@ -17,7 +17,7 @@ use crate::{
         network_status::NetworkStatus,
         receiver_receipt::ReceiverReceipt,
         transaction_log::TransactionLog,
-        tx_proposal::TxProposal,
+        tx_proposal::TxProposal as TxProposalJSON,
         txo::Txo,
         wallet_status::WalletStatus,
     },
@@ -133,18 +133,18 @@ pub enum JsonCommandResponse {
     },
     build_and_submit_transaction {
         transaction_log: TransactionLog,
-        tx_proposal: TxProposal,
+        tx_proposal: TxProposalJSON,
     },
     build_gift_code {
-        tx_proposal: TxProposal,
+        tx_proposal: TxProposalJSON,
         gift_code_b58: String,
     },
     build_split_txo_transaction {
-        tx_proposal: TxProposal,
+        tx_proposal: TxProposalJSON,
         transaction_log_id: String,
     },
     build_transaction {
-        tx_proposal: TxProposal,
+        tx_proposal: TxProposalJSON,
         transaction_log_id: String,
     },
     build_unsigned_transaction {
@@ -195,6 +195,8 @@ pub enum JsonCommandResponse {
     },
     get_account_status {
         account: Account,
+        network_block_height: String,
+        local_block_height: String,
         balance_per_token: BTreeMap<String, Balance>,
     },
     get_address_for_account {
@@ -223,9 +225,15 @@ pub enum JsonCommandResponse {
         txo_map: Map<String, serde_json::Value>,
     },
     get_balance_for_account {
+        account_block_height: String,
+        network_block_height: String,
+        local_block_height: String,
         balance_per_token: BTreeMap<String, Balance>,
     },
     get_balance_for_address {
+        account_block_height: String,
+        network_block_height: String,
+        local_block_height: String,
         balance_per_token: BTreeMap<String, Balance>,
     },
     get_block {

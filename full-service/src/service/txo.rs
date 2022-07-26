@@ -10,13 +10,16 @@ use crate::{
         txo::{TxoID, TxoModel, TxoStatus},
         WalletDbError,
     },
-    service::transaction::{TransactionService, TransactionServiceError},
+    json_rpc::amount::Amount,
+    service::{
+        models::tx_proposal::TxProposal,
+        transaction::{TransactionService, TransactionServiceError},
+    },
     WalletService,
 };
 use displaydoc::Display;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_mobilecoind::payments::TxProposal;
 
 /// Errors for the Txo Service.
 #[derive(Display, Debug)]
@@ -76,8 +79,9 @@ pub trait TxoService {
         &self,
         account_id: &AccountID,
         status: Option<TxoStatus>,
-        limit: Option<u64>,
+        token_id: Option<u64>,
         offset: Option<u64>,
+        limit: Option<u64>,
     ) -> Result<Vec<(Txo, TxoStatus)>, TxoServiceError>;
 
     /// Get a Txo from the wallet.
@@ -89,7 +93,8 @@ pub trait TxoService {
         txo_id: &TxoID,
         output_values: &[String],
         subaddress_index: Option<i64>,
-        fee: Option<String>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
         tombstone_block: Option<String>,
     ) -> Result<TxProposal, TxoServiceError>;
 
@@ -109,17 +114,18 @@ where
         &self,
         account_id: &AccountID,
         status: Option<TxoStatus>,
-        limit: Option<u64>,
+        token_id: Option<u64>,
         offset: Option<u64>,
+        limit: Option<u64>,
     ) -> Result<Vec<(Txo, TxoStatus)>, TxoServiceError> {
         let conn = &self.wallet_db.get_conn()?;
 
         let txos_and_statuses = Txo::list_for_account(
             &account_id.to_string(),
             status,
-            limit,
             offset,
-            Some(0),
+            limit,
+            token_id,
             conn,
         )?
         .into_iter()
@@ -144,7 +150,8 @@ where
         txo_id: &TxoID,
         output_values: &[String],
         subaddress_index: Option<i64>,
-        fee: Option<String>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
         tombstone_block: Option<String>,
     ) -> Result<TxProposal, TxoServiceError> {
         use crate::service::txo::TxoServiceError::TxoNotSpendableByAnyAccount;
@@ -163,19 +170,23 @@ where
                 &conn,
             )?;
 
-        let mut addresses_and_values = Vec::new();
+        let mut addresses_and_amounts = Vec::new();
         for output_value in output_values.iter() {
-            addresses_and_values.push((
+            addresses_and_amounts.push((
                 address_to_split_into.assigned_subaddress_b58.clone(),
-                output_value.to_string(),
+                Amount {
+                    value: output_value.to_string(),
+                    token_id: txo_details.token_id.to_string(),
+                },
             ))
         }
 
         Ok(self.build_transaction(
             &account_id_hex,
-            &addresses_and_values,
+            &addresses_and_amounts,
             Some(&[txo_id.to_string()].to_vec()),
-            fee,
+            fee_value,
+            fee_token_id,
             tombstone_block,
             None,
             None,
@@ -259,7 +270,7 @@ mod tests {
 
         // Verify that we have 1 txo
         let txos = service
-            .list_txos(&alice_account_id, None, None, None)
+            .list_txos(&alice_account_id, None, None, None, None)
             .unwrap();
         assert_eq!(txos.len(), 1);
 
@@ -283,8 +294,9 @@ mod tests {
                         &bob_account_key.subaddress(bob.main_subaddress_index as u64),
                     )
                     .unwrap(),
-                    "42000000000000".to_string(),
+                    Amount::new(42 * MOB, Mob::ID),
                 )],
+                None,
                 None,
                 None,
                 None,
@@ -293,13 +305,14 @@ mod tests {
             )
             .unwrap();
         let _submitted = service
-            .submit_transaction(tx_proposal, None, Some(alice.id.clone()))
+            .submit_transaction(&tx_proposal, None, Some(alice.id.clone()))
             .unwrap();
 
         let pending: Vec<(Txo, TxoStatus)> = service
             .list_txos(
                 &AccountID(alice.id.clone()),
                 Some(TxoStatus::Pending),
+                None,
                 None,
                 None,
             )

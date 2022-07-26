@@ -6,8 +6,11 @@
 mod e2e_transaction {
     use crate::{
         db::account::AccountID,
-        json_rpc,
-        json_rpc::api_test_utils::{dispatch, setup},
+        json_rpc::{
+            api_test_utils::{dispatch, setup},
+            tx_proposal::TxProposal as TxProposalJSON,
+        },
+        service::models::tx_proposal::TxProposal,
         test_utils::{
             add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account, MOB,
         },
@@ -87,7 +90,7 @@ mod e2e_transaction {
             "params": {
                 "account_id": account_id,
                 "recipient_public_address": b58_public_address,
-                "value_pmob": "42000000000000", // 42.0 MOB
+                "amount": { "value": "42000000000000", "token_id": "0"}, // 42.0 MOB
                 "tombstone_block": "16",
             }
         });
@@ -377,7 +380,7 @@ mod e2e_transaction {
             "params": {
                 "account_id": alice_account_id,
                 "recipient_public_address": bob_b58_public_address,
-                "value_pmob": "42000000000000", // 42 MOB
+                "amount": { "value": "42000000000000", "token_id": "0" }, // 42 MOB
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -415,13 +418,11 @@ mod e2e_transaction {
         assert_eq!(status, "TransactionPending");
 
         // Add the block to the ledger with the tx proposal
-        let json_tx_proposal: json_rpc::tx_proposal::TxProposal =
-            serde_json::from_value(tx_proposal.clone()).unwrap();
-        let payments_tx_proposal =
-            mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
+        let json_tx_proposal: TxProposalJSON = serde_json::from_value(tx_proposal.clone()).unwrap();
+        let payments_tx_proposal = TxProposal::try_from(&json_tx_proposal).unwrap();
 
         // The MockBlockchainConnection does not write to the ledger_db
-        add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
+        add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal, &mut rng);
 
         manually_sync_account(
             &ledger_db,

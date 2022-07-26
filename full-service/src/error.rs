@@ -306,6 +306,9 @@ pub enum WalletTransactionBuilderError {
 
     /// Error passed up from KeyError
     KeyError(mc_crypto_keys::KeyError),
+
+    /// Transaction is missing inputs for outputs with token id {0}
+    MissingInputsForTokenId(String),
 }
 
 impl From<mc_transaction_core::AmountError> for WalletTransactionBuilderError {

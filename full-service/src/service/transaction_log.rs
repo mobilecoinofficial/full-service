@@ -145,6 +145,7 @@ where
 mod tests {
     use crate::{
         db::account::AccountID,
+        json_rpc::amount::Amount,
         service::{
             account::AccountService, address::AddressService, transaction::TransactionService,
             transaction_log::TransactionLogService,
@@ -157,7 +158,7 @@ mod tests {
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
-    use mc_transaction_core::ring_signature::KeyImage;
+    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
 
     #[test_with_logger]
@@ -212,8 +213,9 @@ mod tests {
                     &alice_account_id.to_string(),
                     &[(
                         address.assigned_subaddress_b58.clone(),
-                        (50 * MOB).to_string(),
+                        Amount::new(50 * MOB, Mob::ID),
                     )],
+                    None,
                     None,
                     None,
                     None,
@@ -224,7 +226,7 @@ mod tests {
 
             {
                 let conn = service.wallet_db.get_conn().unwrap();
-                add_block_from_transaction_log(&mut ledger_db, &conn, &transaction_log);
+                add_block_from_transaction_log(&mut ledger_db, &conn, &transaction_log, &mut rng);
             }
 
             manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);

@@ -6,8 +6,11 @@
 mod e2e_transaction {
     use crate::{
         db::account::AccountID,
-        json_rpc,
-        json_rpc::api_test_utils::{dispatch, setup},
+        json_rpc::{
+            api_test_utils::{dispatch, setup},
+            tx_proposal::TxProposal as TxProposalJSON,
+        },
+        service::models::tx_proposal::TxProposal,
         test_utils::{add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account},
         util::b58::b58_decode_public_address,
     };
@@ -66,7 +69,7 @@ mod e2e_transaction {
             "params": {
                 "account_id": account_id,
                 "recipient_public_address": b58_public_address,
-                "value_pmob": "10000000000000000000", // Ten million MOB, which is larger than i64::MAX picomob.
+                "amount": { "value": "10000000000000000000", "token_id": "0"}, // Ten million MOB, which is larger than i64::MAX picomob.
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -117,12 +120,10 @@ mod e2e_transaction {
         );
 
         // Sync the proposal.
-        let json_tx_proposal: json_rpc::tx_proposal::TxProposal =
-            serde_json::from_value(tx_proposal.clone()).unwrap();
-        let payments_tx_proposal =
-            mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
+        let json_tx_proposal: TxProposalJSON = serde_json::from_value(tx_proposal.clone()).unwrap();
+        let payments_tx_proposal = TxProposal::try_from(&json_tx_proposal).unwrap();
 
-        add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
+        add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal, &mut rng);
         manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),

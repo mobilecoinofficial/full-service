@@ -395,8 +395,10 @@ mod e2e_account {
         let txo = &txo_map.get(txos[0].as_str().unwrap()).unwrap();
         let txo_status = txo.get("status").unwrap().as_str().unwrap();
         assert_eq!(txo_status, TxoStatus::Unspent.to_string());
-        let value = txo.get("value_pmob").unwrap().as_str().unwrap();
+        let value = txo.get("value").unwrap();
+        let token_id = txo.get("token_id").unwrap();
         assert_eq!(value, "42000000000000");
+        assert_eq!(token_id, "0");
     }
 
     #[test_with_logger]

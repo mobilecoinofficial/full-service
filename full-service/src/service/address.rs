@@ -10,7 +10,6 @@ use crate::{
     service::WalletService,
     util::b58::b58_decode_public_address,
 };
-use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 
@@ -49,6 +48,9 @@ pub trait AddressService {
         metadata: Option<&str>,
         // FIXME: FS-32 - add "sync from block"
     ) -> Result<AssignedSubaddress, AddressServiceError>;
+
+    /// Get an assigned subaddress, if it exists.
+    fn get_address(&self, address_b58: &str) -> Result<AssignedSubaddress, AddressServiceError>;
 
     fn get_address_for_account(
         &self,
@@ -91,6 +93,11 @@ where
         })
     }
 
+    fn get_address(&self, address_b58: &str) -> Result<AssignedSubaddress, AddressServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+        Ok(AssignedSubaddress::get(address_b58, &conn)?)
+    }
+
     fn get_address_for_account(
         &self,
         account_id: &AccountID,
@@ -121,27 +128,8 @@ where
 
     fn verify_address(&self, public_address: &str) -> Result<bool, AddressServiceError> {
         match b58_decode_public_address(public_address) {
-            Ok(a) => {
-                log::info!(
-                    self.logger,
-                    "Verified address:\n\t\t{}\n\t\t{}\n\t\t{}\n\t\t{:?}\n\t\t{}",
-                    a.view_public_key(),
-                    a.spend_public_key(),
-                    a.fog_report_url().unwrap_or(""),
-                    a.fog_authority_sig().unwrap_or_default(),
-                    a.fog_report_id().unwrap_or(""),
-                );
-                Ok(true)
-            }
-            Err(e) => {
-                log::info!(
-                    self.logger,
-                    "Address did not verify {:?}: {:?}",
-                    public_address,
-                    e
-                );
-                Ok(false)
-            }
+            Ok(_) => Ok(true),
+            Err(_) => Ok(false),
         }
     }
 }

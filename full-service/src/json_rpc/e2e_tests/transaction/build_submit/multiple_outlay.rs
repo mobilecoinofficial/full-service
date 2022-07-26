@@ -6,8 +6,11 @@
 mod e2e_transaction {
     use crate::{
         db::account::AccountID,
-        json_rpc,
-        json_rpc::api_test_utils::{dispatch, setup},
+        json_rpc::{
+            api_test_utils::{dispatch, setup},
+            tx_proposal::TxProposal as TxProposalJSON,
+        },
+        service::models::tx_proposal::TxProposal,
         test_utils::{
             add_block_to_ledger_db, add_block_with_tx_proposal, manually_sync_account, MOB,
         },
@@ -94,9 +97,9 @@ mod e2e_transaction {
             "method": "build_transaction",
             "params": {
                 "account_id": alice_account_id,
-                "addresses_and_values": [
-                    [bob_b58_public_address, "42000000000000"], // 42.0 MOB
-                    [charlie_b58_public_address, "43000000000000"], // 43.0 MOB
+                "addresses_and_amounts": [
+                    [bob_b58_public_address, {"value": "42000000000000", "token_id": "0"}], // 42.0 MOB
+                    [charlie_b58_public_address, {"value": "43000000000000", "token_id": "0"}], // 43.0 MOB
                 ]
             }
         });
@@ -104,40 +107,16 @@ mod e2e_transaction {
         let result = res.get("result").unwrap();
 
         let tx_proposal = result.get("tx_proposal").unwrap();
-        let tx = tx_proposal.get("tx").unwrap();
-        let tx_prefix = tx.get("prefix").unwrap();
 
-        // Assert the fee is correct in both places
-        let prefix_fee = tx_prefix.get("fee").unwrap().as_str().unwrap();
         let fee = tx_proposal.get("fee").unwrap();
-        // FIXME: WS-9 - Note, minimum fee does not fit into i32 - need to make sure we
-        // are not losing precision with the JsonTxProposal treating Fee as number
         assert_eq!(fee, &Mob::MINIMUM_FEE.to_string());
-        assert_eq!(fee, prefix_fee);
 
         // Two destinations.
-        let outlays = tx_proposal.get("outlay_list").unwrap().as_array().unwrap();
-        assert_eq!(outlays.len(), 2);
+        let payload_txos = tx_proposal.get("payload_txos").unwrap().as_array().unwrap();
+        assert_eq!(payload_txos.len(), 2);
 
-        // Map outlay -> tx_out, should have one entry for one outlay
-        let outlay_index_to_tx_out_index = tx_proposal
-            .get("outlay_index_to_tx_out_index")
-            .unwrap()
-            .as_array()
-            .unwrap();
-        assert_eq!(outlay_index_to_tx_out_index.len(), 2);
-
-        // Three outputs in the prefix, one for change
-        let prefix_outputs = tx_prefix.get("outputs").unwrap().as_array().unwrap();
-        assert_eq!(prefix_outputs.len(), 3);
-
-        // Two outlay confirmation numbers for our two outlays (no receipt for change)
-        let outlay_confirmation_numbers = tx_proposal
-            .get("outlay_confirmation_numbers")
-            .unwrap()
-            .as_array()
-            .unwrap();
-        assert_eq!(outlay_confirmation_numbers.len(), 2);
+        let change_txos = tx_proposal.get("change_txos").unwrap().as_array().unwrap();
+        assert_eq!(change_txos.len(), 1);
 
         // Get balances before submitting.
         let body = json!({
@@ -204,13 +183,11 @@ mod e2e_transaction {
             .as_str()
             .unwrap();
 
-        let json_tx_proposal: json_rpc::tx_proposal::TxProposal =
-            serde_json::from_value(tx_proposal.clone()).unwrap();
-        let payments_tx_proposal =
-            mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
+        let json_tx_proposal: TxProposalJSON = serde_json::from_value(tx_proposal.clone()).unwrap();
+        let payments_tx_proposal = TxProposal::try_from(&json_tx_proposal).unwrap();
 
         // The MockBlockchainConnection does not write to the ledger_db
-        add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal);
+        add_block_with_tx_proposal(&mut ledger_db, payments_tx_proposal, &mut rng);
         assert_eq!(ledger_db.num_blocks().unwrap(), 14);
 
         // Wait for accounts to sync.

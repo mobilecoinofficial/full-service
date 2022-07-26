@@ -2,7 +2,7 @@
 
 //! The JSON RPC 2.0 Requests to the Wallet API for Full Service.
 
-use crate::json_rpc::tx_proposal::TxProposal;
+use crate::json_rpc::{amount::Amount, tx_proposal::TxProposal};
 
 use crate::json_rpc::receiver_receipt::ReceiverReceipt;
 use serde::{Deserialize, Serialize};
@@ -66,11 +66,12 @@ pub enum JsonCommandRequest {
     },
     build_and_submit_transaction {
         account_id: String,
-        addresses_and_values: Option<Vec<(String, String)>>,
+        addresses_and_amounts: Option<Vec<(String, Amount)>>,
         recipient_public_address: Option<String>,
-        value_pmob: Option<String>,
+        amount: Option<Amount>,
         input_txo_ids: Option<Vec<String>>,
-        fee: Option<String>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
@@ -88,24 +89,27 @@ pub enum JsonCommandRequest {
         txo_id: String,
         output_values: Vec<String>,
         destination_subaddress_index: Option<String>,
-        fee: Option<String>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
         tombstone_block: Option<String>,
     },
     build_transaction {
         account_id: String,
-        addresses_and_values: Option<Vec<(String, String)>>,
+        addresses_and_amounts: Option<Vec<(String, Amount)>>,
         recipient_public_address: Option<String>,
-        value_pmob: Option<String>,
+        amount: Option<Amount>,
         input_txo_ids: Option<Vec<String>>,
-        fee: Option<String>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
     },
     build_unsigned_transaction {
         account_id: String,
         recipient_public_address: Option<String>,
-        value_pmob: Option<String>,
-        fee: Option<String>,
+        amount: Option<Amount>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
         tombstone_block: Option<String>,
     },
     check_b58_type {
@@ -209,6 +213,7 @@ pub enum JsonCommandRequest {
     get_txos_for_account {
         account_id: String,
         status: Option<String>,
+        token_id: Option<String>,
         offset: Option<String>,
         limit: Option<String>,
     },

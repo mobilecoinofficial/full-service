@@ -16,6 +16,7 @@ use crate::{
         txo::{TxoModel, TxoStatus},
         WalletDbError,
     },
+    service::models::tx_proposal::TxProposal,
     WalletService,
 };
 use displaydoc::Display;
@@ -23,7 +24,6 @@ use mc_account_keys::AccountKey;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::{get_tx_out_shared_secret, tx::TxOutConfirmationNumber, MaskedAmount};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -250,18 +250,13 @@ where
         tx_proposal: &TxProposal,
     ) -> Result<Vec<ReceiverReceipt>, ReceiptServiceError> {
         let receiver_tx_receipts: Vec<ReceiverReceipt> = tx_proposal
-            .outlays
+            .payload_txos
             .iter()
-            .enumerate()
-            .map(|(outlay_index, _outlay)| {
-                let tx_out_index = tx_proposal.outlay_index_to_tx_out_index[&outlay_index];
-                let tx_out = tx_proposal.tx.prefix.outputs[tx_out_index].clone();
-                ReceiverReceipt {
-                    public_key: tx_out.public_key,
-                    tombstone_block: tx_proposal.tx.prefix.tombstone_block,
-                    confirmation: tx_proposal.outlay_confirmation_numbers[outlay_index].clone(),
-                    amount: tx_out.masked_amount,
-                }
+            .map(|output_txo| ReceiverReceipt {
+                public_key: output_txo.tx_out.public_key,
+                tombstone_block: tx_proposal.tx.prefix.tombstone_block,
+                confirmation: output_txo.confirmation_number.clone(),
+                amount: output_txo.tx_out.masked_amount.clone(),
             })
             .collect::<Vec<ReceiverReceipt>>();
         Ok(receiver_tx_receipts)
@@ -273,6 +268,7 @@ mod tests {
     use super::*;
     use crate::{
         db::{account::AccountID, models::TransactionLog, transaction_log::TransactionLogModel},
+        json_rpc::amount::Amount as AmountJSON,
         service::{
             account::AccountService, address::AddressService,
             confirmation_number::ConfirmationService, transaction::TransactionService,
@@ -386,7 +382,8 @@ mod tests {
         let tx_proposal = service
             .build_transaction(
                 &alice.id,
-                &vec![(bob_address.to_string(), (24 * MOB).to_string())],
+                &vec![(bob_address.to_string(), AmountJSON::new(24 * MOB, Mob::ID))],
+                None,
                 None,
                 None,
                 None,
@@ -405,7 +402,7 @@ mod tests {
         // else we will get a Unique constraint failed if we had already scanned
         // before logging submitted.
         TransactionLog::log_submitted(
-            tx_proposal.clone(),
+            &tx_proposal,
             14,
             "".to_string(),
             &alice.id,
@@ -414,7 +411,7 @@ mod tests {
         .expect("Could not log submitted");
 
         // Add the txo to the ledger
-        add_block_with_tx_proposal(&mut ledger_db, tx_proposal);
+        add_block_with_tx_proposal(&mut ledger_db, tx_proposal, &mut rng);
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,
@@ -430,7 +427,7 @@ mod tests {
 
         // Get corresponding Txo for Bob
         let txos_and_statuses = service
-            .list_txos(&AccountID(bob.id), None, None, None)
+            .list_txos(&AccountID(bob.id), None, None, None, None)
             .expect("Could not get Bob Txos");
         assert_eq!(txos_and_statuses.len(), 1);
 
@@ -511,7 +508,8 @@ mod tests {
         let tx_proposal = service
             .build_transaction(
                 &alice.id,
-                &vec![(bob_address.to_string(), (24 * MOB).to_string())],
+                &vec![(bob_address.to_string(), AmountJSON::new(24 * MOB, Mob::ID))],
+                None,
                 None,
                 None,
                 None,
@@ -535,7 +533,7 @@ mod tests {
 
         // Land the Txo in the ledger - only sync for the sender
         TransactionLog::log_submitted(
-            tx_proposal.clone(),
+            &tx_proposal,
             14,
             "".to_string(),
             &alice.id,
@@ -551,7 +549,7 @@ mod tests {
         assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
 
         // Add the txo to the ledger
-        add_block_with_tx_proposal(&mut ledger_db, tx_proposal);
+        add_block_with_tx_proposal(&mut ledger_db, tx_proposal, &mut rng);
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,
@@ -633,7 +631,8 @@ mod tests {
         let tx_proposal0 = service
             .build_transaction(
                 &alice.id,
-                &vec![(bob_address.to_string(), (24 * MOB).to_string())],
+                &vec![(bob_address.to_string(), AmountJSON::new(24 * MOB, Mob::ID))],
+                None,
                 None,
                 None,
                 None,
@@ -649,14 +648,14 @@ mod tests {
 
         // Land the Txo in the ledger - only sync for the sender
         TransactionLog::log_submitted(
-            tx_proposal0.clone(),
+            &tx_proposal0,
             14,
             "".to_string(),
             &alice.id,
             &service.wallet_db.get_conn().unwrap(),
         )
         .expect("Could not log submitted");
-        add_block_with_tx_proposal(&mut ledger_db, tx_proposal0);
+        add_block_with_tx_proposal(&mut ledger_db, tx_proposal0, &mut rng);
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,
@@ -762,7 +761,8 @@ mod tests {
         let tx_proposal0 = service
             .build_transaction(
                 &alice.id,
-                &vec![(bob_address.to_string(), (24 * MOB).to_string())],
+                &vec![(bob_address.to_string(), AmountJSON::new(24 * MOB, Mob::ID))],
+                None,
                 None,
                 None,
                 None,
@@ -778,14 +778,14 @@ mod tests {
 
         // Land the Txo in the ledger - only sync for the sender
         TransactionLog::log_submitted(
-            tx_proposal0.clone(),
+            &tx_proposal0,
             14,
             "".to_string(),
             &alice.id,
             &service.wallet_db.get_conn().unwrap(),
         )
         .expect("Could not log submitted");
-        add_block_with_tx_proposal(&mut ledger_db, tx_proposal0);
+        add_block_with_tx_proposal(&mut ledger_db, tx_proposal0, &mut rng);
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,

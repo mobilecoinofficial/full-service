@@ -11,19 +11,20 @@ use crate::{
         WalletDbError,
     },
     error::WalletTransactionBuilderError,
+    json_rpc::amount::Amount as AmountJSON,
     service::{
-        ledger::LedgerService, transaction_builder::WalletTransactionBuilder, WalletService,
+        ledger::LedgerService, models::tx_proposal::TxProposal,
+        transaction_builder::WalletTransactionBuilder, WalletService,
     },
     util::b58::{b58_decode_public_address, B58Error},
 };
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::{
     constants::{MAX_INPUTS, MAX_OUTPUTS},
     tokens::Mob,
-    Token,
+    Amount, Token, TokenId,
 };
 
 use crate::{
@@ -84,6 +85,9 @@ pub enum TransactionServiceError {
 
     /// Ledger DB Error: {0}
     LedgerDB(mc_ledger_db::Error),
+
+    /// Invalid Amount: {0}
+    InvalidAmount(String),
 }
 
 impl From<WalletDbError> for TransactionServiceError {
@@ -146,8 +150,9 @@ pub trait TransactionService {
     fn build_unsigned_transaction(
         &self,
         account_id_hex: &str,
-        addresses_and_values: &[(String, String)],
-        fee: Option<String>,
+        addresses_and_amounts: &[(String, AmountJSON)],
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
         tombstone_block: Option<String>,
     ) -> Result<(UnsignedTx, FullServiceFogResolver), TransactionServiceError>;
 
@@ -156,9 +161,10 @@ pub trait TransactionService {
     fn build_transaction(
         &self,
         account_id_hex: &str,
-        addresses_and_values: &[(String, String)],
+        addresses_and_amounts: &[(String, AmountJSON)],
         input_txo_ids: Option<&Vec<String>>,
-        fee: Option<String>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
@@ -167,7 +173,7 @@ pub trait TransactionService {
     /// Submits a pre-built TxProposal to the MobileCoin Consensus Network.
     fn submit_transaction(
         &self,
-        tx_proposal: TxProposal,
+        tx_proposal: &TxProposal,
         comment: Option<String>,
         account_id_hex: Option<String>,
     ) -> Result<Option<(TransactionLog, AssociatedTxos, ValueMap)>, TransactionServiceError>;
@@ -177,9 +183,10 @@ pub trait TransactionService {
     fn build_and_submit(
         &self,
         account_id_hex: &str,
-        addresses_and_values: &[(String, String)],
+        addresses_and_amounts: &[(String, AmountJSON)],
         input_txo_ids: Option<&Vec<String>>,
-        fee: Option<String>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
@@ -194,11 +201,12 @@ where
     fn build_unsigned_transaction(
         &self,
         account_id_hex: &str,
-        addresses_and_values: &[(String, String)],
-        fee: Option<String>,
+        addresses_and_amounts: &[(String, AmountJSON)],
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
         tombstone_block: Option<String>,
     ) -> Result<(UnsignedTx, FullServiceFogResolver), TransactionServiceError> {
-        validate_number_outputs(addresses_and_values.len() as u64)?;
+        validate_number_outputs(addresses_and_amounts.len() as u64)?;
 
         let conn = self.wallet_db.get_conn()?;
         transaction(&conn, || {
@@ -209,14 +217,20 @@ where
                 self.logger.clone(),
             );
 
-            for (recipient_public_address, value) in addresses_and_values {
+            let mut default_fee_token_id = Mob::ID;
+
+            for (recipient_public_address, amount) in addresses_and_amounts {
                 if !self.verify_address(recipient_public_address)? {
                     return Err(TransactionServiceError::InvalidPublicAddress(
                         recipient_public_address.to_string(),
                     ));
                 };
                 let recipient = b58_decode_public_address(recipient_public_address)?;
-                builder.add_recipient(recipient, value.parse::<u64>()?)?;
+                let amount =
+                    Amount::try_from(amount).map_err(TransactionServiceError::InvalidAmount)?;
+                // let token_id = TokenId::from(token_id.parse::<u64>()?);
+                builder.add_recipient(recipient, amount.value, amount.token_id)?;
+                default_fee_token_id = amount.token_id;
             }
 
             if let Some(tombstone) = tombstone_block {
@@ -225,10 +239,17 @@ where
                 builder.set_tombstone(0)?;
             }
 
-            builder.set_fee(match fee {
-                Some(f) => f.parse()?,
-                None => self.get_network_fees()[&Mob::ID],
-            })?;
+            let fee_token_id = match fee_token_id {
+                Some(t) => TokenId::from(t.parse::<u64>()?),
+                None => default_fee_token_id,
+            };
+
+            let fee_value = match fee_value {
+                Some(f) => f.parse::<u64>()?,
+                None => self.get_network_fees()[&fee_token_id],
+            };
+
+            builder.set_fee(fee_value, fee_token_id)?;
 
             builder.set_block_version(self.get_network_block_version());
 
@@ -244,15 +265,16 @@ where
     fn build_transaction(
         &self,
         account_id_hex: &str,
-        addresses_and_values: &[(String, String)],
+        addresses_and_amounts: &[(String, AmountJSON)],
         input_txo_ids: Option<&Vec<String>>,
-        fee: Option<String>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
     ) -> Result<TxProposal, TransactionServiceError> {
         validate_number_inputs(input_txo_ids.unwrap_or(&Vec::new()).len() as u64)?;
-        validate_number_outputs(addresses_and_values.len() as u64)?;
+        validate_number_outputs(addresses_and_amounts.len() as u64)?;
 
         let conn = self.wallet_db.get_conn()?;
         transaction(&conn, || {
@@ -263,14 +285,19 @@ where
                 self.logger.clone(),
             );
 
-            for (recipient_public_address, value) in addresses_and_values {
+            let mut default_fee_token_id = Mob::ID;
+
+            for (recipient_public_address, amount) in addresses_and_amounts {
                 if !self.verify_address(recipient_public_address)? {
                     return Err(TransactionServiceError::InvalidPublicAddress(
                         recipient_public_address.to_string(),
                     ));
                 };
                 let recipient = b58_decode_public_address(recipient_public_address)?;
-                builder.add_recipient(recipient, value.parse::<u64>()?)?;
+                let amount =
+                    Amount::try_from(amount).map_err(TransactionServiceError::InvalidAmount)?;
+                builder.add_recipient(recipient, amount.value, amount.token_id)?;
+                default_fee_token_id = amount.token_id;
             }
 
             if let Some(tombstone) = tombstone_block {
@@ -279,10 +306,17 @@ where
                 builder.set_tombstone(0)?;
             }
 
-            builder.set_fee(match fee {
-                Some(f) => f.parse()?,
-                None => self.get_network_fees()[&Mob::ID],
-            })?;
+            let fee_token_id = match fee_token_id {
+                Some(t) => TokenId::from(t.parse::<u64>()?),
+                None => default_fee_token_id,
+            };
+
+            let fee_value = match fee_value {
+                Some(f) => f.parse::<u64>()?,
+                None => self.get_network_fees()[&fee_token_id],
+            };
+
+            builder.set_fee(fee_value, fee_token_id)?;
 
             builder.set_block_version(self.get_network_block_version());
 
@@ -297,7 +331,7 @@ where
                 builder.select_txos(&conn, max_spendable)?;
             }
 
-            let tx_proposal = builder.build(&conn)?;
+            let tx_proposal: TxProposal = builder.build(&conn)?;
 
             TransactionLog::log_built(
                 tx_proposal.clone(),
@@ -312,7 +346,7 @@ where
 
     fn submit_transaction(
         &self,
-        tx_proposal: TxProposal,
+        tx_proposal: &TxProposal,
         comment: Option<String>,
         account_id_hex: Option<String>,
     ) -> Result<Option<(TransactionLog, AssociatedTxos, ValueMap)>, TransactionServiceError> {
@@ -329,25 +363,17 @@ where
         let idx = self.submit_node_offset.fetch_add(1, Ordering::SeqCst);
         let responder_id = &responder_ids[idx % responder_ids.len()];
 
-        // FIXME: WS-34 - would prefer not to convert to proto as intermediary
-        let tx_proposal_proto = mc_mobilecoind_api::TxProposal::try_from(&tx_proposal)
-            .map_err(|_| TransactionServiceError::ProtoConversionInfallible)?;
-
-        // Try to submit.
-        let tx = mc_transaction_core::tx::Tx::try_from(tx_proposal_proto.get_tx())
-            .map_err(|_| TransactionServiceError::ProtoConversionInfallible)?;
-
         let block_index = self
             .peer_manager
             .conn(responder_id)
             .ok_or(TransactionServiceError::NodeNotFound)?
-            .propose_tx(&tx, empty())
+            .propose_tx(&tx_proposal.tx, empty())
             .map_err(TransactionServiceError::from)?;
 
         log::trace!(
             self.logger,
             "Tx {:?} submitted at block height {}",
-            tx,
+            tx_proposal.tx,
             block_index
         );
 
@@ -383,9 +409,10 @@ where
     fn build_and_submit(
         &self,
         account_id_hex: &str,
-        addresses_and_values: &[(String, String)],
+        addresses_and_amounts: &[(String, AmountJSON)],
         input_txo_ids: Option<&Vec<String>>,
-        fee: Option<String>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
@@ -393,18 +420,17 @@ where
     {
         let tx_proposal = self.build_transaction(
             account_id_hex,
-            addresses_and_values,
+            addresses_and_amounts,
             input_txo_ids,
-            fee,
+            fee_value,
+            fee_token_id,
             tombstone_block,
             max_spendable_value,
             comment.clone(),
         )?;
-        if let Some(transaction_log_and_associated_txos) = self.submit_transaction(
-            tx_proposal.clone(),
-            comment,
-            Some(account_id_hex.to_string()),
-        )? {
+        if let Some(transaction_log_and_associated_txos) =
+            self.submit_transaction(&tx_proposal, comment, Some(account_id_hex.to_string()))?
+        {
             Ok((
                 transaction_log_and_associated_txos.0,
                 transaction_log_and_associated_txos.1,
@@ -534,8 +560,9 @@ mod tests {
                 &alice.id,
                 &[(
                     bob_address_from_alice.assigned_subaddress_b58,
-                    (42 * MOB).to_string(),
+                    AmountJSON::new(42 * MOB, Mob::ID),
                 )],
+                None,
                 None,
                 None,
                 None,
@@ -561,8 +588,9 @@ mod tests {
                 &alice.id,
                 &[(
                     bob_address_from_alice_2.assigned_subaddress_b58,
-                    (42 * MOB).to_string(),
+                    AmountJSON::new(42 * MOB, Mob::ID),
                 )],
+                None,
                 None,
                 None,
                 None,
@@ -588,8 +616,9 @@ mod tests {
                 &alice.id,
                 &[(
                     bob_address_from_alice_3.clone().assigned_subaddress_b58,
-                    (42 * MOB).to_string(),
+                    AmountJSON::new(42 * MOB, Mob::ID),
                 )],
+                None,
                 None,
                 None,
                 None,
@@ -671,8 +700,9 @@ mod tests {
                 &alice.id,
                 &[(
                     bob_address_from_alice.assigned_subaddress_b58,
-                    (42 * MOB).to_string(),
+                    AmountJSON::new(42 * MOB, Mob::ID),
                 )],
+                None,
                 None,
                 None,
                 None,
@@ -688,7 +718,7 @@ mod tests {
         {
             log::info!(logger, "Adding block from transaction log");
             let conn = service.wallet_db.get_conn().unwrap();
-            add_block_from_transaction_log(&mut ledger_db, &conn, &transaction_log);
+            add_block_from_transaction_log(&mut ledger_db, &conn, &transaction_log, &mut rng);
         }
 
         manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
@@ -742,8 +772,9 @@ mod tests {
                 &bob.id,
                 &[(
                     b58_encode_public_address(&alice_public_address).unwrap(),
-                    (8 * MOB).to_string(),
+                    AmountJSON::new(8 * MOB, Mob::ID),
                 )],
+                None,
                 None,
                 None,
                 None,
@@ -759,7 +790,7 @@ mod tests {
         {
             log::info!(logger, "Adding block from transaction log");
             let conn = service.wallet_db.get_conn().unwrap();
-            add_block_from_transaction_log(&mut ledger_db, &conn, &transaction_log);
+            add_block_from_transaction_log(&mut ledger_db, &conn, &transaction_log, &mut rng);
         }
 
         manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
@@ -819,7 +850,8 @@ mod tests {
 
         match service.build_transaction(
             &alice.id,
-            &vec![("NOTB58".to_string(), (42 * MOB).to_string())],
+            &vec![("NOTB58".to_string(), AmountJSON::new(42 * MOB, Mob::ID))],
+            None,
             None,
             None,
             None,
@@ -872,10 +904,10 @@ mod tests {
         for _ in 0..17 {
             outputs.push((
                 b58_encode_public_address(&alice_public_address).unwrap(),
-                (42 * MOB).to_string(),
+                AmountJSON::new(42 * MOB, Mob::ID),
             ));
         }
-        match service.build_transaction(&alice.id, &outputs, None, None, None, None, None) {
+        match service.build_transaction(&alice.id, &outputs, None, None, None, None, None, None) {
             Ok(_) => {
                 panic!("Should not be able to build transaction with too many ouputs")
             }
@@ -890,15 +922,23 @@ mod tests {
         for _ in 0..2 {
             outputs.push((
                 b58_encode_public_address(&alice_public_address).unwrap(),
-                (42 * MOB).to_string(),
+                AmountJSON::new(42 * MOB, Mob::ID),
             ));
         }
         let mut inputs = Vec::new();
         for _ in 0..17 {
             inputs.push("fake txo id".to_string());
         }
-        match service.build_transaction(&alice.id, &outputs, Some(&inputs), None, None, None, None)
-        {
+        match service.build_transaction(
+            &alice.id,
+            &outputs,
+            Some(&inputs),
+            None,
+            None,
+            None,
+            None,
+            None,
+        ) {
             Ok(_) => {
                 panic!("Should not be able to build transaction with too many inputs")
             }

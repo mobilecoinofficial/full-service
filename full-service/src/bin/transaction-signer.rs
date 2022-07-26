@@ -9,7 +9,7 @@ use mc_full_service::{
         account_key::AccountKey as AccountKeyJSON,
         account_secrets::AccountSecrets,
         json_rpc_request::{JsonCommandRequest, JsonRPCRequest},
-        tx_proposal::TxProposal,
+        tx_proposal::TxProposal as TxProposalJSON,
     },
     unsigned_tx::UnsignedTx,
     util::encoding_helpers::{ristretto_public_to_hex, ristretto_to_hex},
@@ -241,7 +241,7 @@ fn sign_transaction(secret_mnemonic: &str, sign_request: &str) {
     .unwrap();
 
     let tx_proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
-    let tx_proposal_json = TxProposal::try_from(&tx_proposal).unwrap();
+    let tx_proposal_json = TxProposalJSON::try_from(&tx_proposal).unwrap();
     let json_command_request = JsonCommandRequest::submit_transaction {
         tx_proposal: tx_proposal_json,
         comment: None,
