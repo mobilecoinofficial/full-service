@@ -1,5 +1,5 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
-
+#[cfg(test)]
 use crate::{
     db::{
         account::{AccountID, AccountModel},
@@ -9,10 +9,7 @@ use crate::{
         WalletDb, WalletDbError,
     },
     error::SyncError,
-    service::{
-        models::tx_proposal::TxProposal, sync::sync_account,
-        transaction_builder::WalletTransactionBuilder,
-    },
+    service::{sync::sync_account, transaction_builder::WalletTransactionBuilder},
     WalletService,
 };
 use diesel::{

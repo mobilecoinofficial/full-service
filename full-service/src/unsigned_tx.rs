@@ -97,6 +97,7 @@ impl UnsignedTx {
                 tx_out: tx_out.clone(),
                 key_image,
                 amount,
+                subaddress_index,
             };
 
             input_txos.push(input);
