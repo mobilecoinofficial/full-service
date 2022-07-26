@@ -15,7 +15,7 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tokens::Mob,
     tx::{TxOut, TxOutConfirmationNumber},
-    Amount, Token,
+    Amount, Token, TokenId,
 };
 use std::{fmt, str::FromStr};
 
@@ -104,6 +104,12 @@ pub struct SpendableTxosResult {
     pub max_spendable_in_wallet: u128,
 }
 
+impl Txo {
+    pub fn amount(&self) -> Amount {
+        Amount::new(self.value as u64, TokenId::from(self.token_id as u64))
+    }
+}
+
 pub trait TxoModel {
     /// Upserts a received Txo.
     ///
@@ -164,19 +170,35 @@ pub trait TxoModel {
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
-    /// Get all Txos associated with a given account.
-    fn list_for_account(
-        account_id_hex: &str,
+    fn list(
         status: Option<TxoStatus>,
+        min_received_block_index: Option<u64>,
+        max_received_block_index: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
         token_id: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
+    /// Get all Txos associated with a given account.
+    #[allow(clippy::too_many_arguments)]
+    fn list_for_account(
+        account_id_hex: &str,
+        status: Option<TxoStatus>,
+        min_received_block_index: Option<u64>,
+        max_received_block_index: Option<u64>,
+        offset: Option<u64>,
+        limit: Option<u64>,
+        token_id: Option<u64>,
+        conn: &Conn,
+    ) -> Result<Vec<Txo>, WalletDbError>;
+
+    #[allow(clippy::too_many_arguments)]
     fn list_for_address(
         assigned_subaddress_b58: &str,
         status: Option<TxoStatus>,
+        min_received_block_index: Option<u64>,
+        max_received_block_index: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
         token_id: Option<u64>,
@@ -190,19 +212,25 @@ pub trait TxoModel {
         conn: &Conn,
     ) -> Result<HashMap<KeyImage, String>, WalletDbError>;
 
+    #[allow(clippy::too_many_arguments)]
     fn list_unspent(
         account_id_hex: Option<&str>,
         assigned_subaddress_b58: Option<&str>,
         token_id: Option<u64>,
+        min_received_block_index: Option<u64>,
+        max_received_block_index: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
+    #[allow(clippy::too_many_arguments)]
     fn list_spent(
         account_id_hex: Option<&str>,
         assigned_subaddress_b58: Option<&str>,
         token_id: Option<u64>,
+        min_received_block_index: Option<u64>,
+        max_received_block_index: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
         conn: &Conn,
@@ -211,24 +239,32 @@ pub trait TxoModel {
     fn list_orphaned(
         account_id_hex: Option<&str>,
         token_id: Option<u64>,
+        min_received_block_index: Option<u64>,
+        max_received_block_index: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
+    #[allow(clippy::too_many_arguments)]
     fn list_pending(
         account_id_hex: Option<&str>,
         assigned_subaddress_b58: Option<&str>,
         token_id: Option<u64>,
+        min_received_block_index: Option<u64>,
+        max_received_block_index: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
+    #[allow(clippy::too_many_arguments)]
     fn list_unverified(
         account_id_hex: Option<&str>,
         assigned_subaddress_b58: Option<&str>,
         token_id: Option<u64>,
+        min_received_block_index: Option<u64>,
+        max_received_block_index: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
         conn: &Conn,
@@ -365,14 +401,14 @@ impl TxoModel for Txo {
         let new_txo = NewTxo {
             id: &txo_id.to_string(),
             account_id: None,
-            value: output_txo.value as i64,
-            token_id: *output_txo.token_id as i64,
+            value: output_txo.amount.value as i64,
+            token_id: *output_txo.amount.token_id as i64,
             target_key: &mc_util_serial::encode(&output_txo.tx_out.target_key),
             public_key: &mc_util_serial::encode(&output_txo.tx_out.public_key),
             e_fog_hint: &mc_util_serial::encode(&output_txo.tx_out.e_fog_hint),
             txo: &mc_util_serial::encode(&output_txo.tx_out),
             subaddress_index: None,
-            key_image: None, // Only the recipient can calculate the KeyImage
+            key_image: None,
             received_block_index: None,
             spent_block_index: None,
             shared_secret: Some(&encoded_confirmation),
@@ -455,9 +491,107 @@ impl TxoModel for Txo {
         Ok(())
     }
 
+    fn list(
+        status: Option<TxoStatus>,
+        min_received_block_index: Option<u64>,
+        max_received_block_index: Option<u64>,
+        offset: Option<u64>,
+        limit: Option<u64>,
+        token_id: Option<u64>,
+        conn: &Conn,
+    ) -> Result<Vec<Txo>, WalletDbError> {
+        use crate::db::schema::txos;
+
+        if let Some(status) = status {
+            match status {
+                TxoStatus::Unverified => {
+                    return Txo::list_unverified(
+                        None,
+                        None,
+                        token_id,
+                        min_received_block_index,
+                        max_received_block_index,
+                        offset,
+                        limit,
+                        conn,
+                    )
+                }
+                TxoStatus::Unspent => {
+                    return Txo::list_unspent(
+                        None,
+                        None,
+                        token_id,
+                        min_received_block_index,
+                        max_received_block_index,
+                        offset,
+                        limit,
+                        conn,
+                    )
+                }
+                TxoStatus::Pending => {
+                    return Txo::list_pending(
+                        None,
+                        None,
+                        token_id,
+                        min_received_block_index,
+                        max_received_block_index,
+                        offset,
+                        limit,
+                        conn,
+                    )
+                }
+                TxoStatus::Spent => {
+                    return Txo::list_spent(
+                        None,
+                        None,
+                        token_id,
+                        min_received_block_index,
+                        max_received_block_index,
+                        offset,
+                        limit,
+                        conn,
+                    )
+                }
+                TxoStatus::Orphaned => {
+                    return Txo::list_orphaned(
+                        None,
+                        token_id,
+                        min_received_block_index,
+                        max_received_block_index,
+                        offset,
+                        limit,
+                        conn,
+                    )
+                }
+            }
+        }
+
+        let mut query = txos::table.into_boxed();
+
+        if let (Some(o), Some(l)) = (offset, limit) {
+            query = query.offset(o as i64).limit(l as i64);
+        }
+
+        if let Some(token_id) = token_id {
+            query = query.filter(txos::token_id.eq(token_id as i64));
+        }
+
+        if let Some(min_received_block_index) = min_received_block_index {
+            query = query.filter(txos::received_block_index.ge(min_received_block_index as i64));
+        }
+
+        if let Some(max_received_block_index) = max_received_block_index {
+            query = query.filter(txos::received_block_index.le(max_received_block_index as i64));
+        }
+
+        Ok(query.load(conn)?)
+    }
+
     fn list_for_account(
         account_id_hex: &str,
         status: Option<TxoStatus>,
+        min_received_block_index: Option<u64>,
+        max_received_block_index: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
         token_id: Option<u64>,
@@ -472,6 +606,8 @@ impl TxoModel for Txo {
                         Some(account_id_hex),
                         None,
                         token_id,
+                        min_received_block_index,
+                        max_received_block_index,
                         offset,
                         limit,
                         conn,
@@ -482,6 +618,8 @@ impl TxoModel for Txo {
                         Some(account_id_hex),
                         None,
                         token_id,
+                        min_received_block_index,
+                        max_received_block_index,
                         offset,
                         limit,
                         conn,
@@ -492,6 +630,8 @@ impl TxoModel for Txo {
                         Some(account_id_hex),
                         None,
                         token_id,
+                        min_received_block_index,
+                        max_received_block_index,
                         offset,
                         limit,
                         conn,
@@ -502,13 +642,23 @@ impl TxoModel for Txo {
                         Some(account_id_hex),
                         None,
                         token_id,
+                        min_received_block_index,
+                        max_received_block_index,
                         offset,
                         limit,
                         conn,
                     )
                 }
                 TxoStatus::Orphaned => {
-                    return Txo::list_orphaned(Some(account_id_hex), token_id, offset, limit, conn)
+                    return Txo::list_orphaned(
+                        Some(account_id_hex),
+                        token_id,
+                        min_received_block_index,
+                        max_received_block_index,
+                        offset,
+                        limit,
+                        conn,
+                    )
                 }
             }
         }
@@ -525,12 +675,22 @@ impl TxoModel for Txo {
             query = query.filter(txos::token_id.eq(token_id as i64));
         }
 
+        if let Some(min_received_block_index) = min_received_block_index {
+            query = query.filter(txos::received_block_index.ge(min_received_block_index as i64));
+        }
+
+        if let Some(max_received_block_index) = max_received_block_index {
+            query = query.filter(txos::received_block_index.le(max_received_block_index as i64));
+        }
+
         Ok(query.load(conn)?)
     }
 
     fn list_for_address(
         assigned_subaddress_b58: &str,
         status: Option<TxoStatus>,
+        min_received_block_index: Option<u64>,
+        max_received_block_index: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
         token_id: Option<u64>,
@@ -545,6 +705,8 @@ impl TxoModel for Txo {
                         None,
                         Some(assigned_subaddress_b58),
                         token_id,
+                        min_received_block_index,
+                        max_received_block_index,
                         offset,
                         limit,
                         conn,
@@ -555,6 +717,8 @@ impl TxoModel for Txo {
                         None,
                         Some(assigned_subaddress_b58),
                         token_id,
+                        min_received_block_index,
+                        max_received_block_index,
                         offset,
                         limit,
                         conn,
@@ -565,6 +729,8 @@ impl TxoModel for Txo {
                         None,
                         Some(assigned_subaddress_b58),
                         token_id,
+                        min_received_block_index,
+                        max_received_block_index,
                         offset,
                         limit,
                         conn,
@@ -575,6 +741,8 @@ impl TxoModel for Txo {
                         None,
                         Some(assigned_subaddress_b58),
                         token_id,
+                        min_received_block_index,
+                        max_received_block_index,
                         offset,
                         limit,
                         conn,
@@ -598,6 +766,14 @@ impl TxoModel for Txo {
             query = query.filter(txos::token_id.eq(token_id as i64));
         }
 
+        if let Some(min_received_block_index) = min_received_block_index {
+            query = query.filter(txos::received_block_index.ge(min_received_block_index as i64));
+        }
+
+        if let Some(max_received_block_index) = max_received_block_index {
+            query = query.filter(txos::received_block_index.le(max_received_block_index as i64));
+        }
+
         let txos: Vec<Txo> = query.load(conn)?;
 
         Ok(txos)
@@ -607,6 +783,8 @@ impl TxoModel for Txo {
         account_id_hex: Option<&str>,
         assigned_subaddress_b58: Option<&str>,
         token_id: Option<u64>,
+        min_received_block_index: Option<u64>,
+        max_received_block_index: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
         conn: &Conn,
@@ -664,6 +842,14 @@ impl TxoModel for Txo {
             query = query.filter(txos::token_id.eq(token_id as i64));
         }
 
+        if let Some(min_received_block_index) = min_received_block_index {
+            query = query.filter(txos::received_block_index.ge(min_received_block_index as i64));
+        }
+
+        if let Some(max_received_block_index) = max_received_block_index {
+            query = query.filter(txos::received_block_index.le(max_received_block_index as i64));
+        }
+
         Ok(query.select(txos::all_columns).load(conn)?)
     }
 
@@ -671,6 +857,8 @@ impl TxoModel for Txo {
         account_id_hex: Option<&str>,
         assigned_subaddress_b58: Option<&str>,
         token_id: Option<u64>,
+        min_received_block_index: Option<u64>,
+        max_received_block_index: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
         conn: &Conn,
@@ -716,6 +904,14 @@ impl TxoModel for Txo {
             query = query.filter(txos::token_id.eq(token_id as i64));
         }
 
+        if let Some(min_received_block_index) = min_received_block_index {
+            query = query.filter(txos::received_block_index.ge(min_received_block_index as i64));
+        }
+
+        if let Some(max_received_block_index) = max_received_block_index {
+            query = query.filter(txos::received_block_index.le(max_received_block_index as i64));
+        }
+
         Ok(query.load(conn)?)
     }
 
@@ -757,6 +953,8 @@ impl TxoModel for Txo {
         account_id_hex: Option<&str>,
         assigned_subaddress_b58: Option<&str>,
         token_id: Option<u64>,
+        min_received_block_index: Option<u64>,
+        max_received_block_index: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
         conn: &Conn,
@@ -784,12 +982,22 @@ impl TxoModel for Txo {
             query = query.offset(o as i64).limit(l as i64);
         }
 
+        if let Some(min_received_block_index) = min_received_block_index {
+            query = query.filter(txos::received_block_index.ge(min_received_block_index as i64));
+        }
+
+        if let Some(max_received_block_index) = max_received_block_index {
+            query = query.filter(txos::received_block_index.le(max_received_block_index as i64));
+        }
+
         Ok(query.load(conn)?)
     }
 
     fn list_orphaned(
         account_id_hex: Option<&str>,
         token_id: Option<u64>,
+        min_received_block_index: Option<u64>,
+        max_received_block_index: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
         conn: &Conn,
@@ -814,6 +1022,14 @@ impl TxoModel for Txo {
             query = query.offset(o as i64).limit(l as i64);
         }
 
+        if let Some(min_received_block_index) = min_received_block_index {
+            query = query.filter(txos::received_block_index.ge(min_received_block_index as i64));
+        }
+
+        if let Some(max_received_block_index) = max_received_block_index {
+            query = query.filter(txos::received_block_index.le(max_received_block_index as i64));
+        }
+
         let txos: Vec<Txo> = query.load(conn)?;
 
         Ok(txos)
@@ -823,6 +1039,8 @@ impl TxoModel for Txo {
         account_id_hex: Option<&str>,
         assigned_subaddress_b58: Option<&str>,
         token_id: Option<u64>,
+        min_received_block_index: Option<u64>,
+        max_received_block_index: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
         conn: &Conn,
@@ -860,6 +1078,14 @@ impl TxoModel for Txo {
 
         if let (Some(o), Some(l)) = (offset, limit) {
             query = query.offset(o as i64).limit(l as i64);
+        }
+
+        if let Some(min_received_block_index) = min_received_block_index {
+            query = query.filter(txos::received_block_index.ge(min_received_block_index as i64));
+        }
+
+        if let Some(max_received_block_index) = max_received_block_index {
+            query = query.filter(txos::received_block_index.le(max_received_block_index as i64));
         }
 
         let txos: Vec<Txo> = query.select(txos::all_columns).load(conn)?;
@@ -1179,7 +1405,7 @@ mod tests {
             transaction_builder::WalletTransactionBuilder,
         },
         test_utils::{
-            add_block_with_db_txos, add_block_with_tx_outs, add_block_with_tx_proposal,
+            add_block_with_db_txos, add_block_with_tx, add_block_with_tx_outs,
             create_test_minted_and_change_txos, create_test_received_txo,
             create_test_txo_for_recipient, get_resolver_factory, get_test_ledger,
             manually_sync_account, random_account_with_seed_values, WalletDbTestContext, MOB,
@@ -1242,6 +1468,8 @@ mod tests {
             None,
             None,
             None,
+            None,
+            None,
             Some(0),
             &wallet_db.get_conn().unwrap(),
         )
@@ -1272,6 +1500,8 @@ mod tests {
             Some(&alice_account_id.to_string()),
             None,
             Some(0),
+            None,
+            None,
             None,
             None,
             &wallet_db.get_conn().unwrap(),
@@ -1322,6 +1552,8 @@ mod tests {
             None,
             None,
             None,
+            None,
+            None,
             Some(0),
             &wallet_db.get_conn().unwrap(),
         )
@@ -1334,6 +1566,8 @@ mod tests {
             Some(TxoStatus::Spent),
             None,
             None,
+            None,
+            None,
             Some(0),
             &wallet_db.get_conn().unwrap(),
         )
@@ -1344,6 +1578,8 @@ mod tests {
         let unspent_txos = Txo::list_for_account(
             &alice_account_id.to_string(),
             Some(TxoStatus::Unspent),
+            None,
+            None,
             None,
             None,
             Some(0),
@@ -1364,6 +1600,8 @@ mod tests {
             Some(0),
             None,
             None,
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1381,6 +1619,8 @@ mod tests {
             Some(0),
             None,
             None,
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1395,6 +1635,8 @@ mod tests {
             Some(&alice_account_id.to_string()),
             None,
             Some(0),
+            None,
+            None,
             None,
             None,
             &wallet_db.get_conn().unwrap(),
@@ -1432,6 +1674,8 @@ mod tests {
             Some(0),
             None,
             None,
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1439,6 +1683,8 @@ mod tests {
 
         let updated_txos = Txo::list_for_account(
             &alice_account_id.to_string(),
+            None,
+            None,
             None,
             None,
             None,
@@ -1516,6 +1762,8 @@ mod tests {
         // We should now have 1 txo in Bob's account.
         let txos = Txo::list_for_account(
             &AccountID::from(&bob_account_key).to_string(),
+            None,
+            None,
             None,
             None,
             None,
@@ -1802,6 +2050,8 @@ mod tests {
             None,
             None,
             None,
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1913,7 +2163,7 @@ mod tests {
         // Now we need to let this txo hit the ledger, which will update sender and
         // receiver
         log::info!(logger, "Adding block from submitted");
-        add_block_with_tx_proposal(&mut ledger_db, proposal.clone(), &mut rng);
+        add_block_with_tx(&mut ledger_db, proposal.tx.clone(), &mut rng);
 
         // Now let our sync thread catch up for both sender and receiver
         log::info!(logger, "Manually syncing account");
@@ -1924,6 +2174,8 @@ mod tests {
         log::info!(logger, "Listing all Txos for recipient account");
         let txos = Txo::list_for_account(
             &recipient_account_id.to_string(),
+            None,
+            None,
             None,
             None,
             None,
@@ -1944,6 +2196,8 @@ mod tests {
         log::info!(logger, "Listing all Txos for sender account");
         let sender_txos = Txo::list_for_account(
             &sender_account_id.to_string(),
+            None,
+            None,
             None,
             None,
             None,
@@ -2088,6 +2342,8 @@ mod tests {
             None,
             None,
             None,
+            None,
+            None,
             Some(0),
             &wallet_db.get_conn().unwrap(),
         )
@@ -2099,6 +2355,8 @@ mod tests {
 
         let txos = Txo::list_for_account(
             &account_id_hex.to_string(),
+            None,
+            None,
             None,
             None,
             None,
@@ -2338,8 +2596,17 @@ mod tests {
         )
         .unwrap();
 
-        let txos = Txo::list_unspent(Some(&account_id.to_string()), None, None, None, None, &conn)
-            .unwrap();
+        let txos = Txo::list_unspent(
+            Some(&account_id.to_string()),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            &conn,
+        )
+        .unwrap();
         assert_eq!(txos.len(), 0);
 
         // create 1 txo with subaddress, but not key image
@@ -2354,8 +2621,17 @@ mod tests {
         )
         .unwrap();
 
-        let txos = Txo::list_unspent(Some(&account_id.to_string()), None, None, None, None, &conn)
-            .unwrap();
+        let txos = Txo::list_unspent(
+            Some(&account_id.to_string()),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            &conn,
+        )
+        .unwrap();
         assert_eq!(txos.len(), 0);
 
         // create 1 txo with key image and subaddress
@@ -2370,8 +2646,17 @@ mod tests {
         )
         .unwrap();
 
-        let txos = Txo::list_unspent(Some(&account_id.to_string()), None, None, None, None, &conn)
-            .unwrap();
+        let txos = Txo::list_unspent(
+            Some(&account_id.to_string()),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            &conn,
+        )
+        .unwrap();
         assert_eq!(txos.len(), 1);
     }
 

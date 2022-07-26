@@ -6,10 +6,14 @@ use mc_full_service::{
     db::{account::AccountID, txo::TxoID},
     fog_resolver::FullServiceFogResolver,
     json_rpc::{
-        account_key::AccountKey as AccountKeyJSON,
-        account_secrets::AccountSecrets,
-        json_rpc_request::{JsonCommandRequest, JsonRPCRequest},
-        tx_proposal::TxProposal as TxProposalJSON,
+        json_rpc_request::JsonRPCRequest,
+        v2::{
+            api::request::JsonCommandRequest,
+            models::{
+                account_key::AccountKey as AccountKeyJSON, account_secrets::AccountSecrets,
+                tx_proposal::TxProposal as TxProposalJSON,
+            },
+        },
     },
     unsigned_tx::UnsignedTx,
     util::encoding_helpers::{ristretto_public_to_hex, ristretto_to_hex},
@@ -99,7 +103,6 @@ fn create_account(name: &str) {
     let account_id = AccountID::from(&account_key);
 
     let secrets = AccountSecrets {
-        object: "account_secrets".to_string(),
         account_id: account_id.to_string(),
         entropy: None,
         mnemonic: Some(mnemonic.phrase().to_string()),

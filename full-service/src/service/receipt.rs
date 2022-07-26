@@ -268,15 +268,15 @@ mod tests {
     use super::*;
     use crate::{
         db::{account::AccountID, models::TransactionLog, transaction_log::TransactionLogModel},
-        json_rpc::amount::Amount as AmountJSON,
+        json_rpc::v2::models::amount::Amount as AmountJSON,
         service::{
             account::AccountService, address::AddressService,
             confirmation_number::ConfirmationService, transaction::TransactionService,
             transaction_log::TransactionLogService, txo::TxoService,
         },
         test_utils::{
-            add_block_to_ledger_db, add_block_with_tx_proposal, get_test_ledger,
-            manually_sync_account, setup_wallet_service, MOB,
+            add_block_to_ledger_db, add_block_with_tx, get_test_ledger, manually_sync_account,
+            setup_wallet_service, MOB,
         },
         util::b58::b58_encode_public_address,
     };
@@ -374,7 +374,7 @@ mod tests {
             )
             .unwrap();
         let bob_addresses = service
-            .get_addresses_for_account(&AccountID(bob.id.clone()), None, None)
+            .get_addresses(Some(bob.id.clone()), None, None)
             .expect("Could not get addresses for Bob");
         let bob_address = bob_addresses[0].assigned_subaddress_b58.clone();
 
@@ -411,7 +411,7 @@ mod tests {
         .expect("Could not log submitted");
 
         // Add the txo to the ledger
-        add_block_with_tx_proposal(&mut ledger_db, tx_proposal, &mut rng);
+        add_block_with_tx(&mut ledger_db, tx_proposal.tx, &mut rng);
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,
@@ -427,14 +427,14 @@ mod tests {
 
         // Get corresponding Txo for Bob
         let txos_and_statuses = service
-            .list_txos(&AccountID(bob.id), None, None, None, None)
+            .list_txos(Some(bob.id), None, None, None, None, None, None, None)
             .expect("Could not get Bob Txos");
         assert_eq!(txos_and_statuses.len(), 1);
 
         // Get the corresponding TransactionLog for Alice's Account - only the sender
         // has the confirmation number.
         let transaction_logs = service
-            .list_transaction_logs(&AccountID(alice.id), None, None, None, None)
+            .list_transaction_logs(Some(alice.id), None, None, None, None)
             .expect("Could not get transaction logs");
         // Alice should have one sent tranasction log
         assert_eq!(transaction_logs.len(), 1);
@@ -500,7 +500,7 @@ mod tests {
             )
             .unwrap();
         let bob_addresses = service
-            .get_addresses_for_account(&AccountID(bob.id.clone()), None, None)
+            .get_addresses(Some(bob.id.clone()), None, None)
             .expect("Could not get addresses for Bob");
         let bob_address = &bob_addresses[0].assigned_subaddress_b58.clone();
 
@@ -549,7 +549,7 @@ mod tests {
         assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
 
         // Add the txo to the ledger
-        add_block_with_tx_proposal(&mut ledger_db, tx_proposal, &mut rng);
+        add_block_with_tx(&mut ledger_db, tx_proposal.tx, &mut rng);
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,
@@ -622,7 +622,7 @@ mod tests {
             )
             .unwrap();
         let bob_addresses = service
-            .get_addresses_for_account(&AccountID(bob.id.clone()), None, None)
+            .get_addresses(Some(bob.id.clone()), None, None)
             .expect("Could not get addresses for Bob");
         let bob_address = &bob_addresses[0].assigned_subaddress_b58.clone();
         let bob_account_id = AccountID(bob.id.to_string());
@@ -655,7 +655,7 @@ mod tests {
             &service.wallet_db.get_conn().unwrap(),
         )
         .expect("Could not log submitted");
-        add_block_with_tx_proposal(&mut ledger_db, tx_proposal0, &mut rng);
+        add_block_with_tx(&mut ledger_db, tx_proposal0.tx, &mut rng);
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,
@@ -752,7 +752,7 @@ mod tests {
             )
             .unwrap();
         let bob_addresses = service
-            .get_addresses_for_account(&AccountID(bob.id.clone()), None, None)
+            .get_addresses(Some(bob.id.clone()), None, None)
             .expect("Could not get addresses for Bob");
         let bob_address = &bob_addresses[0].assigned_subaddress_b58.clone();
         let bob_account_id = AccountID(bob.id.to_string());
@@ -785,7 +785,7 @@ mod tests {
             &service.wallet_db.get_conn().unwrap(),
         )
         .expect("Could not log submitted");
-        add_block_with_tx_proposal(&mut ledger_db, tx_proposal0, &mut rng);
+        add_block_with_tx(&mut ledger_db, tx_proposal0.tx, &mut rng);
         manually_sync_account(
             &ledger_db,
             &service.wallet_db,

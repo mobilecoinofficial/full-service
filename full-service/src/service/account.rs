@@ -11,7 +11,7 @@ use crate::{
         txo::TxoModel,
         WalletDbError,
     },
-    json_rpc::json_rpc_request::{JsonCommandRequest, JsonRPCRequest},
+    json_rpc::{json_rpc_request::JsonRPCRequest, v2::api::request::JsonCommandRequest},
     service::{
         ledger::{LedgerService, LedgerServiceError},
         WalletService,
@@ -174,7 +174,11 @@ pub trait AccountService {
     ) -> Result<JsonRPCRequest, AccountServiceError>;
 
     /// List accounts in the wallet.
-    fn list_accounts(&self) -> Result<Vec<Account>, AccountServiceError>;
+    fn list_accounts(
+        &self,
+        offset: Option<u64>,
+        limit: Option<u64>,
+    ) -> Result<Vec<Account>, AccountServiceError>;
 
     /// Get an account in the wallet.
     fn get_account(&self, account_id: &AccountID) -> Result<Account, AccountServiceError>;
@@ -417,9 +421,13 @@ where
         })
     }
 
-    fn list_accounts(&self) -> Result<Vec<Account>, AccountServiceError> {
+    fn list_accounts(
+        &self,
+        offset: Option<u64>,
+        limit: Option<u64>,
+    ) -> Result<Vec<Account>, AccountServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        Ok(Account::list_all(&conn)?)
+        Ok(Account::list_all(&conn, offset, limit)?)
     }
 
     fn get_account(&self, account_id: &AccountID) -> Result<Account, AccountServiceError> {
@@ -537,6 +545,8 @@ mod tests {
             None,
             None,
             None,
+            None,
+            None,
             Some(0),
             &wallet_db.get_conn().unwrap(),
         )
@@ -550,6 +560,8 @@ mod tests {
 
         let txos = Txo::list_for_account(
             &account.id,
+            None,
+            None,
             None,
             None,
             None,
@@ -673,6 +685,8 @@ mod tests {
             None,
             None,
             None,
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -683,6 +697,8 @@ mod tests {
 
         let orphaned_txos = Txo::list_orphaned(
             Some(&account_id.to_string()),
+            None,
+            None,
             None,
             None,
             None,
@@ -726,6 +742,8 @@ mod tests {
             None,
             None,
             None,
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -737,6 +755,8 @@ mod tests {
             None,
             None,
             None,
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -745,6 +765,8 @@ mod tests {
 
         let unspent_txos = Txo::list_unspent(
             Some(&account_id.to_string()),
+            None,
+            None,
             None,
             None,
             None,

@@ -335,7 +335,11 @@ pub trait GiftCodeService {
     ) -> Result<DecodedGiftCode, GiftCodeServiceError>;
 
     /// List all gift codes in the wallet.
-    fn list_gift_codes(&self) -> Result<Vec<DecodedGiftCode>, GiftCodeServiceError>;
+    fn list_gift_codes(
+        &self,
+        offset: Option<u64>,
+        limit: Option<u64>,
+    ) -> Result<Vec<DecodedGiftCode>, GiftCodeServiceError>;
 
     /// Check the status of a gift code currently in your wallet. If the gift
     /// code is not yet in the wallet, add it.
@@ -412,7 +416,7 @@ where
             &from_account.id,
             &[(
                 gift_code_account_main_subaddress_b58,
-                crate::json_rpc::amount::Amount {
+                crate::json_rpc::v2::models::amount::Amount {
                     value: value.to_string(),
                     token_id: Mob::ID.to_string(),
                 },
@@ -449,7 +453,7 @@ where
         tx_proposal: &TxProposal,
     ) -> Result<DecodedGiftCode, GiftCodeServiceError> {
         let transfer_payload = decode_transfer_payload(gift_code_b58)?;
-        let value = tx_proposal.payload_txos[0].value as i64;
+        let value = tx_proposal.payload_txos[0].amount.value as i64;
 
         log::info!(
             self.logger,
@@ -472,7 +476,7 @@ where
             root_entropy: transfer_payload.root_entropy.map(|e| e.bytes.to_vec()),
             bip39_entropy: transfer_payload.bip39_entropy,
             txo_public_key: mc_util_serial::encode(&transfer_payload.txo_public_key),
-            value: tx_proposal.payload_txos[0].value,
+            value: tx_proposal.payload_txos[0].amount.value,
             memo: transfer_payload.memo,
         })
     }
@@ -486,9 +490,13 @@ where
         DecodedGiftCode::try_from(gift_code)
     }
 
-    fn list_gift_codes(&self) -> Result<Vec<DecodedGiftCode>, GiftCodeServiceError> {
+    fn list_gift_codes(
+        &self,
+        offset: Option<u64>,
+        limit: Option<u64>,
+    ) -> Result<Vec<DecodedGiftCode>, GiftCodeServiceError> {
         let conn = self.wallet_db.get_conn()?;
-        GiftCode::list_all(&conn)?
+        GiftCode::list_all(&conn, offset, limit)?
             .into_iter()
             .map(DecodedGiftCode::try_from)
             .collect()
@@ -728,8 +736,8 @@ mod tests {
     use crate::{
         service::{account::AccountService, balance::BalanceService},
         test_utils::{
-            add_block_to_ledger_db, add_block_with_tx, add_block_with_tx_proposal, get_test_ledger,
-            manually_sync_account, setup_wallet_service, MOB,
+            add_block_to_ledger_db, add_block_with_tx, get_test_ledger, manually_sync_account,
+            setup_wallet_service, MOB,
         },
     };
     use mc_account_keys::PublicAddress;
@@ -808,7 +816,7 @@ mod tests {
         assert_eq!(status, GiftCodeStatus::GiftCodeSubmittedPending);
         assert!(gift_code_value_opt.is_none());
 
-        add_block_with_tx_proposal(&mut ledger_db, tx_proposal, &mut rng);
+        add_block_with_tx(&mut ledger_db, tx_proposal.tx, &mut rng);
         manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
 
         // Now the Gift Code should be Available
@@ -849,7 +857,7 @@ mod tests {
 
         // Check that we can list all
         log::info!(logger, "Listing all gift codes");
-        let gift_codes = service.list_gift_codes().unwrap();
+        let gift_codes = service.list_gift_codes(None, None).unwrap();
         assert_eq!(gift_codes.len(), 1);
         assert_eq!(gift_codes[0], gotten_gift_code);
 
@@ -982,7 +990,7 @@ mod tests {
         assert!(gift_code_value_opt.is_none());
 
         // Let transaction hit the ledger
-        add_block_with_tx_proposal(&mut ledger_db, tx_proposal, &mut rng);
+        add_block_with_tx(&mut ledger_db, tx_proposal.tx, &mut rng);
         manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
 
         // Check that it landed
@@ -994,7 +1002,7 @@ mod tests {
 
         // Check that we get all gift codes
         let gift_codes = service
-            .list_gift_codes()
+            .list_gift_codes(None, None)
             .expect("Could not list gift codes");
         assert_eq!(gift_codes.len(), 1);
 
@@ -1003,7 +1011,7 @@ mod tests {
             .remove_gift_code(&gift_code_b58)
             .expect("Could not remove gift code"));
         let gift_codes = service
-            .list_gift_codes()
+            .list_gift_codes(None, None)
             .expect("Could not list gift codes");
         assert_eq!(gift_codes.len(), 0);
     }

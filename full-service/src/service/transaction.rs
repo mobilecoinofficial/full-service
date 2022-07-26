@@ -11,7 +11,7 @@ use crate::{
         WalletDbError,
     },
     error::WalletTransactionBuilderError,
-    json_rpc::amount::Amount as AmountJSON,
+    json_rpc::v2::models::amount::Amount as AmountJSON,
     service::{
         ledger::LedgerService, models::tx_proposal::TxProposal,
         transaction_builder::WalletTransactionBuilder, WalletService,
@@ -509,7 +509,7 @@ mod tests {
         let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None, None, None)
+            .list_transaction_logs(Some(alice_account_id.to_string()), None, None, None, None)
             .unwrap();
 
         assert_eq!(0, tx_logs.len());
@@ -525,7 +525,7 @@ mod tests {
         manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None, None, None)
+            .list_transaction_logs(Some(alice_account_id.to_string()), None, None, None, None)
             .unwrap();
 
         assert_eq!(0, tx_logs.len());
@@ -573,7 +573,7 @@ mod tests {
         log::info!(logger, "Built transaction from Alice");
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None, None, None)
+            .list_transaction_logs(Some(alice_account_id.to_string()), None, None, None, None)
             .unwrap();
 
         assert_eq!(1, tx_logs.len());
@@ -601,7 +601,7 @@ mod tests {
         log::info!(logger, "Built transaction from Alice");
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None, None, None)
+            .list_transaction_logs(Some(alice_account_id.to_string()), None, None, None, None)
             .unwrap();
 
         assert_eq!(2, tx_logs.len());
@@ -629,7 +629,7 @@ mod tests {
         log::info!(logger, "Built transaction from Alice");
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None, None, None)
+            .list_transaction_logs(Some(alice_account_id.to_string()), None, None, None, None)
             .unwrap();
 
         assert_eq!(3, tx_logs.len());

@@ -5,7 +5,7 @@
 use diesel::prelude::*;
 use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
-use mc_transaction_core::{tx::Tx, TokenId};
+use mc_transaction_core::{tx::Tx, Amount, TokenId};
 use std::fmt;
 
 use crate::db::{
@@ -104,6 +104,15 @@ pub struct AssociatedTxos {
     pub change: Vec<(Txo, String)>,
 }
 
+impl TransactionLog {
+    pub fn fee_amount(&self) -> Amount {
+        Amount::new(
+            self.fee_value as u64,
+            TokenId::from(self.fee_token_id as u64),
+        )
+    }
+}
+
 pub trait TransactionLogModel {
     /// Get a transaction log from the TransactionId.
     fn get(id: &TransactionID, conn: &Conn) -> Result<TransactionLog, WalletDbError>;
@@ -135,7 +144,7 @@ pub trait TransactionLogModel {
     /// Returns:
     /// * Vec(TransactionLog, AssociatedTxos(inputs, outputs, change))
     fn list_all(
-        account_id_hex: &str,
+        account_id: Option<String>,
         offset: Option<u64>,
         limit: Option<u64>,
         min_block_index: Option<u64>,
@@ -298,7 +307,7 @@ impl TransactionLogModel for TransactionLog {
     }
 
     fn list_all(
-        account_id_hex: &str,
+        account_id: Option<String>,
         offset: Option<u64>,
         limit: Option<u64>,
         min_block_index: Option<u64>,
@@ -307,9 +316,11 @@ impl TransactionLogModel for TransactionLog {
     ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletDbError> {
         use crate::db::schema::transaction_logs;
 
-        let mut query = transaction_logs::table
-            .into_boxed()
-            .filter(transaction_logs::account_id.eq(account_id_hex));
+        let mut query = transaction_logs::table.into_boxed();
+
+        if let Some(account_id) = account_id {
+            query = query.filter(transaction_logs::account_id.eq(account_id));
+        }
 
         if let (Some(o), Some(l)) = (offset, limit) {
             query = query.offset(o as i64).limit(l as i64);
@@ -957,7 +968,7 @@ mod tests {
         let tx_proposal = builder.build(&conn).unwrap();
 
         assert_eq!(
-            tx_proposal.payload_txos[0].value,
+            tx_proposal.payload_txos[0].amount.value,
             10_000_000_000_000_000_000
         );
 

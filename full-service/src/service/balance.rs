@@ -81,13 +81,29 @@ impl From<AccountServiceError> for BalanceServiceError {
 ///
 /// This must be a service object because there is no "Balance" table in our
 /// data model.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct Balance {
+    pub max_spendable: u128,
     pub unverified: u128,
     pub unspent: u128,
     pub pending: u128,
     pub spent: u128,
     pub secreted: u128,
     pub orphaned: u128,
+}
+
+impl Default for &Balance {
+    fn default() -> &'static Balance {
+        &Balance {
+            max_spendable: 0,
+            unverified: 0,
+            unspent: 0,
+            pending: 0,
+            spent: 0,
+            secreted: 0,
+            orphaned: 0,
+        }
+    }
 }
 
 /// The Network Status object.
@@ -196,7 +212,7 @@ where
         let network_block_height = self.get_network_block_height()?;
 
         let conn = self.wallet_db.get_conn()?;
-        let accounts = Account::list_all(&conn)?;
+        let accounts = Account::list_all(&conn, None, None)?;
         let mut account_map = HashMap::default();
 
         let mut balance_per_token = BTreeMap::new();
@@ -267,6 +283,8 @@ where
             Some(*token_id),
             None,
             None,
+            None,
+            None,
             conn,
         )?);
 
@@ -274,6 +292,8 @@ where
             account_id_hex,
             assigned_subaddress_b58,
             Some(*token_id),
+            None,
+            None,
             None,
             None,
             conn,
@@ -285,6 +305,8 @@ where
             Some(*token_id),
             None,
             None,
+            None,
+            None,
             conn,
         )?);
 
@@ -292,6 +314,8 @@ where
             account_id_hex,
             assigned_subaddress_b58,
             Some(*token_id),
+            None,
+            None,
             None,
             None,
             conn,
@@ -307,11 +331,22 @@ where
                 Some(*token_id),
                 None,
                 None,
+                None,
+                None,
                 conn,
             )?)
         };
 
+        let spendable_txos_result = Txo::list_spendable(
+            account_id_hex,
+            None,
+            assigned_subaddress_b58,
+            *token_id,
+            conn,
+        )?;
+
         Ok(Balance {
+            max_spendable: spendable_txos_result.max_spendable_in_wallet,
             unverified,
             unspent,
             pending,

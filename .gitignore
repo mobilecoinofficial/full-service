@@ -73,3 +73,5 @@ release/
 cli/build/**
 
 dbml-error.log
+
+*.profraw

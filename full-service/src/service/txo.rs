@@ -4,13 +4,12 @@
 
 use crate::{
     db::{
-        account::AccountID,
         assigned_subaddress::AssignedSubaddressModel,
         models::{AssignedSubaddress, Txo},
         txo::{TxoID, TxoModel, TxoStatus},
         WalletDbError,
     },
-    json_rpc::amount::Amount,
+    json_rpc::v2::models::amount::Amount,
     service::{
         models::tx_proposal::TxProposal,
         transaction::{TransactionService, TransactionServiceError},
@@ -45,6 +44,9 @@ pub enum TxoServiceError {
 
     /// Txo Not Spendable
     TxoNotSpendable(String),
+
+    /// Must query with either an account ID or a subaddress b58.
+    InvalidQuery(String),
 }
 
 impl From<WalletDbError> for TxoServiceError {
@@ -75,11 +77,15 @@ impl From<TransactionServiceError> for TxoServiceError {
 /// Txos.
 pub trait TxoService {
     /// List the Txos for a given account in the wallet.
+    #[allow(clippy::too_many_arguments)]
     fn list_txos(
         &self,
-        account_id: &AccountID,
+        account_id: Option<String>,
+        address: Option<String>,
         status: Option<TxoStatus>,
         token_id: Option<u64>,
+        min_received_block_index: Option<u64>,
+        max_received_block_index: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
     ) -> Result<Vec<(Txo, TxoStatus)>, TxoServiceError>;
@@ -97,12 +103,6 @@ pub trait TxoService {
         fee_token_id: Option<String>,
         tombstone_block: Option<String>,
     ) -> Result<TxProposal, TxoServiceError>;
-
-    /// List the Txos for a given address for an account in the wallet.
-    fn get_all_txos_for_address(
-        &self,
-        address: &str,
-    ) -> Result<Vec<(Txo, TxoStatus)>, TxoServiceError>;
 }
 
 impl<T, FPR> TxoService for WalletService<T, FPR>
@@ -112,28 +112,60 @@ where
 {
     fn list_txos(
         &self,
-        account_id: &AccountID,
+        account_id: Option<String>,
+        address: Option<String>,
         status: Option<TxoStatus>,
         token_id: Option<u64>,
+        min_received_block_index: Option<u64>,
+        max_received_block_index: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
     ) -> Result<Vec<(Txo, TxoStatus)>, TxoServiceError> {
         let conn = &self.wallet_db.get_conn()?;
 
-        let txos_and_statuses = Txo::list_for_account(
-            &account_id.to_string(),
-            status,
-            offset,
-            limit,
-            token_id,
-            conn,
-        )?
-        .into_iter()
-        .map(|txo| {
-            let status = txo.status(conn)?;
-            Ok((txo, status))
-        })
-        .collect::<Result<Vec<(Txo, TxoStatus)>, WalletDbError>>()?;
+        let txos;
+
+        if let Some(address) = address {
+            txos = Txo::list_for_address(
+                &address,
+                status,
+                min_received_block_index,
+                max_received_block_index,
+                offset,
+                limit,
+                token_id,
+                conn,
+            )?;
+        } else if let Some(account_id) = account_id {
+            txos = Txo::list_for_account(
+                &account_id,
+                status,
+                min_received_block_index,
+                max_received_block_index,
+                offset,
+                limit,
+                token_id,
+                conn,
+            )?;
+        } else {
+            txos = Txo::list(
+                status,
+                min_received_block_index,
+                max_received_block_index,
+                offset,
+                limit,
+                token_id,
+                conn,
+            )?;
+        }
+
+        let txos_and_statuses = txos
+            .into_iter()
+            .map(|txo| {
+                let status = txo.status(conn)?;
+                Ok((txo, status))
+            })
+            .collect::<Result<Vec<(Txo, TxoStatus)>, WalletDbError>>()?;
 
         Ok(txos_and_statuses)
     }
@@ -192,29 +224,13 @@ where
             None,
         )?)
     }
-
-    fn get_all_txos_for_address(
-        &self,
-        address: &str,
-    ) -> Result<Vec<(Txo, TxoStatus)>, TxoServiceError> {
-        let conn = &self.wallet_db.get_conn()?;
-        let txos = Txo::list_for_address(address, None, None, None, Some(0), conn)?;
-
-        let txos_and_statuses = txos
-            .into_iter()
-            .map(|txo| {
-                let status = txo.status(conn)?;
-                Ok((txo, status))
-            })
-            .collect::<Result<Vec<(Txo, TxoStatus)>, WalletDbError>>()?;
-        Ok(txos_and_statuses)
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{
+        db::account::AccountID,
         service::{
             account::AccountService, balance::BalanceService, transaction::TransactionService,
         },
@@ -270,7 +286,16 @@ mod tests {
 
         // Verify that we have 1 txo
         let txos = service
-            .list_txos(&alice_account_id, None, None, None, None)
+            .list_txos(
+                Some(alice_account_id.to_string()),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
             .unwrap();
         assert_eq!(txos.len(), 1);
 
@@ -310,8 +335,11 @@ mod tests {
 
         let pending: Vec<(Txo, TxoStatus)> = service
             .list_txos(
-                &AccountID(alice.id.clone()),
+                Some(alice.id.clone()),
+                None,
                 Some(TxoStatus::Pending),
+                None,
+                None,
                 None,
                 None,
                 None,

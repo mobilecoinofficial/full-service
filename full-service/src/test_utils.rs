@@ -1,5 +1,5 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
-
+#[cfg(test)]
 use crate::{
     db::{
         account::{AccountID, AccountModel},
@@ -9,10 +9,7 @@ use crate::{
         WalletDb, WalletDbError,
     },
     error::SyncError,
-    service::{
-        models::tx_proposal::TxProposal, sync::sync_account,
-        transaction_builder::WalletTransactionBuilder,
-    },
+    service::{sync::sync_account, transaction_builder::WalletTransactionBuilder},
     WalletService,
 };
 use diesel::{
@@ -237,20 +234,6 @@ pub fn add_block_to_ledger_db(
     let block_contents = BlockContents {
         key_images: key_images.to_vec(),
         outputs,
-        validated_mint_config_txs: Vec::new(),
-        mint_txs: Vec::new(),
-    };
-    append_test_block(ledger_db, block_contents, rng)
-}
-
-pub fn add_block_with_tx_proposal(
-    ledger_db: &mut LedgerDB,
-    tx_proposal: TxProposal,
-    rng: &mut (impl CryptoRng + RngCore),
-) -> u64 {
-    let block_contents = BlockContents {
-        key_images: tx_proposal.tx.key_images(),
-        outputs: tx_proposal.tx.prefix.outputs.clone(),
         validated_mint_config_txs: Vec::new(),
         mint_txs: Vec::new(),
     };
@@ -608,6 +591,8 @@ pub fn random_account_with_seed_values(
         assert_eq!(
             Txo::list_for_account(
                 &AccountID::from(&account_key).to_string(),
+                None,
+                None,
                 None,
                 None,
                 None,
