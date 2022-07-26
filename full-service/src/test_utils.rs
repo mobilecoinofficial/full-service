@@ -9,7 +9,10 @@ use crate::{
         WalletDb, WalletDbError,
     },
     error::SyncError,
-    service::{sync::sync_account, transaction_builder::WalletTransactionBuilder},
+    service::{
+        models::tx_proposal::TxProposal, sync::sync_account,
+        transaction_builder::WalletTransactionBuilder,
+    },
     WalletService,
 };
 use diesel::{
