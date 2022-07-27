@@ -2,12 +2,11 @@
 
 //! API definition for the Wallet Status object.
 
-use crate::{json_rpc, service};
+use crate::service;
 
 use mc_transaction_core::{tokens::Mob, Token};
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Map;
-use std::{convert::TryFrom, iter::FromIterator};
 
 /// The status of the wallet, including the sum of the balances for all
 /// accounts.
@@ -61,22 +60,11 @@ pub struct WalletStatus {
     pub account_map: Map<String, serde_json::Value>,
 }
 
-impl TryFrom<&service::balance::WalletStatus> for WalletStatus {
-    type Error = String;
-
-    fn try_from(src: &service::balance::WalletStatus) -> Result<WalletStatus, String> {
-        let account_mapped: Vec<(String, serde_json::Value)> = src
-            .account_map
-            .iter()
-            .map(|(i, a)| {
-                json_rpc::v1::models::account::Account::try_from(a).and_then(|a| {
-                    serde_json::to_value(a)
-                        .map(|v| (i.to_string(), v))
-                        .map_err(|e| format!("Could not convert account map:{:?}", e))
-                })
-            })
-            .collect::<Result<Vec<(String, serde_json::Value)>, String>>()?;
-
+impl WalletStatus {
+    pub fn new(
+        src: &service::balance::WalletStatus,
+        account_map: Map<String, serde_json::Value>,
+    ) -> Result<Self, String> {
         let balance_mob = src.balance_per_token.get(&Mob::ID).unwrap_or_default();
 
         Ok(WalletStatus {
@@ -91,7 +79,7 @@ impl TryFrom<&service::balance::WalletStatus> for WalletStatus {
             total_secreted_pmob: balance_mob.secreted.to_string(),
             total_orphaned_pmob: balance_mob.orphaned.to_string(),
             account_ids: src.account_ids.iter().map(|a| a.to_string()).collect(),
-            account_map: Map::from_iter(account_mapped),
+            account_map,
         })
     }
 }

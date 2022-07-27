@@ -47,19 +47,6 @@ mod e2e_misc {
         let balance_per_token = status.get("balance_per_token").unwrap();
         let balance_mob = balance_per_token.get(Mob::ID.to_string());
         assert!(balance_mob.is_none());
-        assert_eq!(
-            status.get("account_ids").unwrap().as_array().unwrap().len(),
-            1
-        );
-        assert_eq!(
-            status
-                .get("account_map")
-                .unwrap()
-                .as_object()
-                .unwrap()
-                .len(),
-            1
-        );
     }
 
     #[test_with_logger]

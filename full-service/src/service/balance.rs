@@ -437,7 +437,7 @@ mod tests {
 
         let db_account_key: AccountKey =
             mc_util_serial::decode(&account.account_key).expect("Could not decode account key");
-        let db_pub_address = db_account_key.subaddress(account.main_subaddress_index as u64);
+        let db_pub_address = db_account_key.default_subaddress();
         assert_eq!(db_pub_address, public_address0);
         let b58_pub_address =
             b58_encode_public_address(&db_pub_address).expect("Could not encode public address");

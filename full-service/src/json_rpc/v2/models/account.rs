@@ -4,7 +4,7 @@
 
 use crate::{db, util::b58::b58_encode_public_address};
 use serde_derive::{Deserialize, Serialize};
-use std::{collections::BTreeMap, convert::TryFrom};
+use std::collections::BTreeMap;
 
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct AccountMap(pub BTreeMap<String, Account>);
@@ -56,19 +56,17 @@ pub struct Account {
     pub view_only: bool,
 }
 
-impl TryFrom<&db::models::Account> for Account {
-    type Error = String;
-
-    fn try_from(src: &db::models::Account) -> Result<Account, String> {
+impl Account {
+    pub fn new(src: &db::models::Account, next_subaddress_index: u64) -> Result<Self, String> {
         let main_public_address = if src.view_only {
             let account_key: mc_account_keys::ViewAccountKey =
                 mc_util_serial::decode(&src.account_key)
                     .map_err(|e| format!("Failed to decode view account key: {}", e))?;
-            account_key.subaddress(src.main_subaddress_index as u64)
+            account_key.default_subaddress()
         } else {
             let account_key: mc_account_keys::AccountKey = mc_util_serial::decode(&src.account_key)
                 .map_err(|e| format!("Failed to decode account key: {}", e))?;
-            account_key.subaddress(src.main_subaddress_index as u64)
+            account_key.default_subaddress()
         };
 
         let main_public_address_b58 = b58_encode_public_address(&main_public_address)
@@ -79,7 +77,7 @@ impl TryFrom<&db::models::Account> for Account {
             key_derivation_version: src.key_derivation_version.to_string(),
             name: src.name.clone(),
             main_address: main_public_address_b58,
-            next_subaddress_index: (src.next_subaddress_index as u64).to_string(),
+            next_subaddress_index: next_subaddress_index.to_string(),
             first_block_index: (src.first_block_index as u64).to_string(),
             next_block_index: (src.next_block_index as u64).to_string(),
             recovery_mode: false,

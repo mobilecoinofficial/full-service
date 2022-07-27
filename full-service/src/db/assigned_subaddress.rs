@@ -168,25 +168,24 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         ledger_db: &LedgerDB,
         conn: &Conn,
     ) -> Result<(String, i64), WalletDbError> {
-        use crate::db::schema::accounts;
-
         let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
         if account.fog_enabled {
             return Err(WalletDbError::SubaddressesNotSupportedForFOGEnabledAccounts);
         }
 
-        let subaddress_b58 = if account.view_only {
+        let (subaddress_b58, next_subaddress_index) = if account.view_only {
             let view_account_key: ViewAccountKey = mc_util_serial::decode(&account.account_key)?;
+            let next_subaddress_index = account.next_subaddress_index(conn)?;
             let subaddress_b58 = AssignedSubaddress::create_for_view_only_account(
                 &view_account_key,
                 None,
-                account.next_subaddress_index as u64,
+                next_subaddress_index,
                 comment,
                 conn,
             )?;
 
-            let subaddress = view_account_key.subaddress(account.next_subaddress_index as u64);
+            let subaddress = view_account_key.subaddress(next_subaddress_index);
 
             // Find and repair orphaned txos at this subaddress.
             let orphaned_txos =
@@ -208,23 +207,24 @@ impl AssignedSubaddressModel for AssignedSubaddress {
                     // Update the account status mapping.
                     diesel::update(orphaned_txo)
                         .set((crate::db::schema::txos::subaddress_index
-                            .eq(account.next_subaddress_index),))
+                            .eq(next_subaddress_index as i64),))
                         .execute(conn)?;
                 }
             }
 
-            subaddress_b58
+            (subaddress_b58, next_subaddress_index)
         } else {
             let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+            let next_subaddress_index = account.next_subaddress_index(conn)?;
             let subaddress_b58 = AssignedSubaddress::create(
                 &account_key,
                 None,
-                account.next_subaddress_index as u64,
+                next_subaddress_index,
                 comment,
                 conn,
             )?;
 
-            let subaddress = account_key.subaddress(account.next_subaddress_index as u64);
+            let subaddress = account_key.subaddress(next_subaddress_index);
 
             // Find and repair orphaned txos at this subaddress.
             let orphaned_txos =
@@ -247,7 +247,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
                     let onetime_private_key = recover_onetime_private_key(
                         &tx_public_key,
                         account_key.view_private_key(),
-                        &account_key.subaddress_spend_private(account.next_subaddress_index as u64),
+                        &account_key.subaddress_spend_private(next_subaddress_index),
                     );
 
                     let key_image = KeyImage::from(&onetime_private_key);
@@ -270,23 +270,17 @@ impl AssignedSubaddressModel for AssignedSubaddress {
                     diesel::update(orphaned_txo)
                         .set((
                             crate::db::schema::txos::subaddress_index
-                                .eq(account.next_subaddress_index),
+                                .eq(next_subaddress_index as i64),
                             crate::db::schema::txos::key_image.eq(key_image_bytes),
                         ))
                         .execute(conn)?;
                 }
             }
 
-            subaddress_b58
+            (subaddress_b58, next_subaddress_index)
         };
 
-        // Update the next subaddress index for the account
-        diesel::update(accounts::table.filter(accounts::id.eq(account_id_hex)))
-            .set((crate::db::schema::accounts::next_subaddress_index
-                .eq(account.next_subaddress_index + 1),))
-            .execute(conn)?;
-
-        Ok((subaddress_b58, account.next_subaddress_index))
+        Ok((subaddress_b58, next_subaddress_index as i64))
     }
 
     fn get(public_address_b58: &str, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError> {

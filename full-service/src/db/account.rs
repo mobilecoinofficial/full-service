@@ -583,13 +583,14 @@ impl AccountModel for Account {
     fn next_subaddress_index(self, conn: &Conn) -> Result<u64, WalletDbError> {
         use crate::db::schema::assigned_subaddresses;
 
-        let highest_subaddress: AssignedSubaddress = assigned_subaddresses::table
+        let highest_subaddress_index: i64 = assigned_subaddresses::table
             .filter(assigned_subaddresses::account_id.eq(&self.id))
-            .select(assigned_subaddresses::subaddress_index)
             .order_by(assigned_subaddresses::subaddress_index.desc())
+            .select(diesel::dsl::max(assigned_subaddresses::subaddress_index))
+            .select(assigned_subaddresses::subaddress_index)
             .first(conn)?;
 
-        return highest_subaddress + 1;
+        Ok(highest_subaddress_index as u64 + 1)
     }
 }
 

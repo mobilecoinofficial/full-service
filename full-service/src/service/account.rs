@@ -183,6 +183,11 @@ pub trait AccountService {
     /// Get an account in the wallet.
     fn get_account(&self, account_id: &AccountID) -> Result<Account, AccountServiceError>;
 
+    fn get_next_subaddress_index_for_account(
+        &self,
+        account_id: &AccountID,
+    ) -> Result<u64, AccountServiceError>;
+
     /// Update the name for an account.
     fn update_account_name(
         &self,
@@ -404,9 +409,9 @@ where
         let json_command_request = JsonCommandRequest::import_view_only_account {
             view_private_key: ristretto_to_hex(view_private_key),
             spend_public_key: ristretto_public_to_hex(&spend_public_key),
-            name: Some(account.name),
+            name: Some(account.name.clone()),
             first_block_index: Some(account.first_block_index.to_string()),
-            next_subaddress_index: Some(account.next_subaddress_index.to_string()),
+            next_subaddress_index: Some(account.next_subaddress_index(&conn)?.to_string()),
         };
 
         let src_json: serde_json::Value = serde_json::json!(json_command_request);
@@ -433,6 +438,15 @@ where
     fn get_account(&self, account_id: &AccountID) -> Result<Account, AccountServiceError> {
         let conn = self.wallet_db.get_conn()?;
         Ok(Account::get(account_id, &conn)?)
+    }
+
+    fn get_next_subaddress_index_for_account(
+        &self,
+        account_id: &AccountID,
+    ) -> Result<u64, AccountServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+        let account = Account::get(account_id, &conn)?;
+        Ok(account.next_subaddress_index(&conn)?)
     }
 
     fn update_account_name(
@@ -466,7 +480,7 @@ where
             Txo::update_key_image(&txo_id_hex, &key_image, spent_block_index, &conn)?;
         }
 
-        for _ in account.next_subaddress_index..next_subaddress_index as i64 {
+        for _ in account.next_subaddress_index(&conn)?..next_subaddress_index {
             AssignedSubaddress::create_next_for_account(
                 &account_id.to_string(),
                 "Recovered In Account Sync",
@@ -647,6 +661,7 @@ mod tests {
 
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
         let wallet_db = &service.wallet_db;
+        let conn = wallet_db.get_conn().unwrap();
 
         let view_private_key = RistrettoPrivate::from_random(&mut rng);
         let spend_private_key = RistrettoPrivate::from_random(&mut rng);
@@ -711,7 +726,7 @@ mod tests {
         assert_eq!(orphaned_txos[0].key_image, None);
 
         let view_only_account = service.get_account(&account_id).unwrap();
-        assert_eq!(view_only_account.next_subaddress_index, 2);
+        assert_eq!(view_only_account.next_subaddress_index(&conn).unwrap(), 2);
 
         let key_image_1 = KeyImage::from(rng.next_u64());
         let key_image_2 = KeyImage::from(rng.next_u64());
@@ -734,7 +749,7 @@ mod tests {
             .unwrap();
 
         let view_only_account = service.get_account(&account_id).unwrap();
-        assert_eq!(view_only_account.next_subaddress_index, 3);
+        assert_eq!(view_only_account.next_subaddress_index(&conn).unwrap(), 3);
 
         let unverified_txos = Txo::list_unverified(
             Some(&account_id.to_string()),
