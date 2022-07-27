@@ -181,7 +181,7 @@ mod tests {
 
         let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
         let alice_account_id = AccountID::from(&alice_account_key);
-        let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
+        let alice_public_address = alice_account_key.default_subaddress();
 
         let tx_logs = service
             .list_transaction_logs(Some(alice_account_id.to_string()), None, None, None, None)

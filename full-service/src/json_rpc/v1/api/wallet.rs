@@ -1,5 +1,5 @@
 use crate::{
-    db::{self, account::AccountID, transaction_log::TransactionID, txo::TxoID},
+    db::{account::AccountID, transaction_log::TransactionID, txo::TxoID},
     json_rpc::{
         self,
         json_rpc_request::JsonRPCRequest,
@@ -9,6 +9,7 @@ use crate::{
         v1::{
             api::{request::JsonCommandRequest, response::JsonCommandResponse},
             models::{
+                account::Account,
                 account_secrets::AccountSecrets,
                 address::Address,
                 balance::Balance,
@@ -348,7 +349,7 @@ where
             fog_report_id,
             fog_authority_spki,
         } => {
-            let account: db::models::Account = service
+            let account = service
                 .create_account(
                     name,
                     fog_report_url.unwrap_or_default(),
@@ -356,11 +357,12 @@ where
                     fog_authority_spki.unwrap_or_default(),
                 )
                 .map_err(format_error)?;
+            let next_subaddress_index = service
+                .get_next_subaddress_index_for_account(&AccountID(account.id.clone()))
+                .map_err(format_error)?;
 
             JsonCommandResponse::create_account {
-                account: json_rpc::v1::models::account::Account::try_from(&account).map_err(
-                    |e| format_error(format!("Could not get RPC Account from DB Account {:?}", e)),
-                )?,
+                account: Account::new(&account, next_subaddress_index).map_err(format_error)?,
             }
         }
         JsonCommandRequest::create_payment_request {
@@ -401,17 +403,23 @@ where
                 account_secrets: AccountSecrets::try_from(&account).map_err(format_error)?,
             }
         }
-        JsonCommandRequest::get_account { account_id } => JsonCommandResponse::get_account {
-            account: json_rpc::v1::models::account::Account::try_from(
-                &service
-                    .get_account(&AccountID(account_id))
-                    .map_err(format_error)?,
-            )
-            .map_err(format_error)?,
-        },
+        JsonCommandRequest::get_account { account_id } => {
+            let account_id = AccountID(account_id);
+            let account = service.get_account(&account_id).map_err(format_error)?;
+            let next_subaddress_index = service
+                .get_next_subaddress_index_for_account(&account_id)
+                .map_err(format_error)?;
+
+            JsonCommandResponse::get_account {
+                account: Account::new(&account, next_subaddress_index).map_err(format_error)?,
+            }
+        }
         JsonCommandRequest::get_account_status { account_id } => {
             let account_id = AccountID(account_id);
             let account = &service.get_account(&account_id).map_err(format_error)?;
+            let next_subaddress_index = service
+                .get_next_subaddress_index_for_account(&account_id)
+                .map_err(format_error)?;
 
             let balance_map = service
                 .get_balance_for_account(&account_id)
@@ -426,8 +434,7 @@ where
                 &network_status,
             );
 
-            let account =
-                json_rpc::v1::models::account::Account::try_from(account).map_err(format_error)?;
+            let account = Account::new(account, next_subaddress_index).map_err(format_error)?;
             JsonCommandResponse::get_account_status { account, balance }
         }
         JsonCommandRequest::get_address_for_account { account_id, index } => {
@@ -473,13 +480,15 @@ where
             let json_accounts: Vec<(String, serde_json::Value)> = accounts
                 .iter()
                 .map(|a| {
-                    json_rpc::v1::models::account::Account::try_from(a)
+                    let next_subaddress_index = service
+                        .get_next_subaddress_index_for_account(&AccountID(a.id.clone()))
+                        .map_err(format_error)?;
+                    let account_json =
+                        Account::new(a, next_subaddress_index).map_err(format_error)?;
+
+                    serde_json::to_value(account_json)
+                        .map(|v| (a.id.clone(), v))
                         .map_err(format_error)
-                        .and_then(|v| {
-                            serde_json::to_value(v)
-                                .map(|v| (a.id.clone(), v))
-                                .map_err(format_error)
-                        })
                 })
                 .collect::<Result<Vec<(String, serde_json::Value)>, JsonRPCError>>()?;
             let account_map: Map<String, serde_json::Value> = Map::from_iter(json_accounts);
@@ -592,7 +601,9 @@ where
         }
         JsonCommandRequest::get_balance_for_account { account_id } => {
             let account_id = AccountID(account_id);
-            let account = service.get_account(&account_id).map_err(format_error)?;
+            let next_subaddress_index = service
+                .get_next_subaddress_index_for_account(&account_id)
+                .map_err(format_error)?;
             let balance_map = service
                 .get_balance_for_account(&account_id)
                 .map_err(format_error)?;
@@ -600,17 +611,15 @@ where
 
             let network_status = service.get_network_status().map_err(format_error)?;
             JsonCommandResponse::get_balance_for_account {
-                balance: Balance::new(
-                    balance_mob,
-                    account.next_subaddress_index as u64,
-                    &network_status,
-                ),
+                balance: Balance::new(balance_mob, next_subaddress_index, &network_status),
             }
         }
         JsonCommandRequest::get_balance_for_address { address } => {
             let assigned_subaddress = service.get_address(&address).map_err(format_error)?;
             let account_id = AccountID(assigned_subaddress.account_id);
-            let account = service.get_account(&account_id).map_err(format_error)?;
+            let next_subaddress_index_for_account = service
+                .get_next_subaddress_index_for_account(&account_id)
+                .map_err(format_error)?;
 
             let balance_map = service
                 .get_balance_for_address(&address)
@@ -621,7 +630,7 @@ where
             JsonCommandResponse::get_balance_for_address {
                 balance: Balance::new(
                     balance_mob,
-                    account.next_subaddress_index as u64,
+                    next_subaddress_index_for_account,
                     &service.get_network_status().map_err(format_error)?,
                 ),
             }
@@ -825,12 +834,32 @@ where
                 txo_map,
             }
         }
-        JsonCommandRequest::get_wallet_status => JsonCommandResponse::get_wallet_status {
-            wallet_status: WalletStatus::try_from(
-                &service.get_wallet_status().map_err(format_error)?,
-            )
-            .map_err(format_error)?,
-        },
+        JsonCommandRequest::get_wallet_status => {
+            let wallet_status = service.get_wallet_status().map_err(format_error)?;
+
+            let account_mapped: Vec<(String, serde_json::Value)> = wallet_status
+                .account_map
+                .iter()
+                .map(|(i, a)| {
+                    let next_subaddress_index = service
+                        .get_next_subaddress_index_for_account(i)
+                        .map_err(|_| {
+                            ("Could not get next subaddress index for account").to_string()
+                        })?;
+                    let account = Account::new(a, next_subaddress_index)?;
+                    serde_json::to_value(account)
+                        .map(|v| (i.to_string(), v))
+                        .map_err(|e| format!("Coult not convert account map:{:?}", e))
+                })
+                .collect::<Result<Vec<(String, serde_json::Value)>, String>>()
+                .map_err(format_error)?;
+            let account_map = Map::from_iter(account_mapped);
+
+            let wallet_status =
+                WalletStatus::new(&wallet_status, account_map).map_err(format_error)?;
+
+            JsonCommandResponse::get_wallet_status { wallet_status }
+        }
         JsonCommandRequest::import_account {
             mnemonic,
             key_derivation_version,
@@ -851,22 +880,28 @@ where
                 .map_err(format_error)?;
             let kdv = key_derivation_version.parse::<u8>().map_err(format_error)?;
 
-            JsonCommandResponse::import_account {
-                account: json_rpc::v1::models::account::Account::try_from(
-                    &service
-                        .import_account(
-                            mnemonic,
-                            kdv,
-                            name,
-                            fb,
-                            ns,
-                            fog_report_url.unwrap_or_default(),
-                            fog_report_id.unwrap_or_default(),
-                            fog_authority_spki.unwrap_or_default(),
-                        )
-                        .map_err(format_error)?,
+            let account = service
+                .import_account(
+                    mnemonic,
+                    kdv,
+                    name,
+                    fb,
+                    ns,
+                    fog_report_url.unwrap_or_default(),
+                    fog_report_id.unwrap_or_default(),
+                    fog_authority_spki.unwrap_or_default(),
                 )
-                .map_err(format_error)?,
+                .map_err(format_error)?;
+
+            let next_subaddress_index = service
+                .get_next_subaddress_index_for_account(&AccountID(account.id.clone()))
+                .map_err(format_error)?;
+
+            let account_json =
+                Account::new(&account, next_subaddress_index).map_err(format_error)?;
+
+            JsonCommandResponse::import_account {
+                account: account_json,
             }
         }
         JsonCommandRequest::import_account_from_legacy_root_entropy {
@@ -887,21 +922,27 @@ where
                 .transpose()
                 .map_err(format_error)?;
 
-            JsonCommandResponse::import_account {
-                account: json_rpc::v1::models::account::Account::try_from(
-                    &service
-                        .import_account_from_legacy_root_entropy(
-                            entropy,
-                            name,
-                            fb,
-                            ns,
-                            fog_report_url.unwrap_or_default(),
-                            fog_report_id.unwrap_or_default(),
-                            fog_authority_spki.unwrap_or_default(),
-                        )
-                        .map_err(format_error)?,
+            let account = service
+                .import_account_from_legacy_root_entropy(
+                    entropy,
+                    name,
+                    fb,
+                    ns,
+                    fog_report_url.unwrap_or_default(),
+                    fog_report_id.unwrap_or_default(),
+                    fog_authority_spki.unwrap_or_default(),
                 )
-                .map_err(format_error)?,
+                .map_err(format_error)?;
+
+            let next_subaddress_index = service
+                .get_next_subaddress_index_for_account(&AccountID(account.id.clone()))
+                .map_err(format_error)?;
+
+            let account_json =
+                Account::new(&account, next_subaddress_index).map_err(format_error)?;
+
+            JsonCommandResponse::import_account {
+                account: account_json,
             }
         }
         JsonCommandRequest::remove_account { account_id } => JsonCommandResponse::remove_account {
@@ -955,13 +996,17 @@ where
             }
         }
         JsonCommandRequest::update_account_name { account_id, name } => {
+            let account_id = AccountID(account_id);
+            let next_subaddress_index = service
+                .get_next_subaddress_index_for_account(&account_id)
+                .map_err(format_error)?;
+            let account = service
+                .update_account_name(&account_id, name)
+                .map_err(format_error)?;
+            let account_json =
+                Account::new(&account, next_subaddress_index).map_err(format_error)?;
             JsonCommandResponse::update_account_name {
-                account: json_rpc::v1::models::account::Account::try_from(
-                    &service
-                        .update_account_name(&AccountID(account_id), name)
-                        .map_err(format_error)?,
-                )
-                .map_err(format_error)?,
+                account: account_json,
             }
         }
         JsonCommandRequest::validate_confirmation {

@@ -20,13 +20,6 @@ pub struct Account {
     pub account_key: Vec<u8>,
     pub entropy: Option<Vec<u8>>,
     pub key_derivation_version: i32,
-    /// Default subadress that is given out to refer to this account.
-    pub main_subaddress_index: i64,
-    /// Subaddress used to return transaction "change" to self.
-    pub change_subaddress_index: i64,
-    /// The next unused subaddress index. (Assumes indices are used sequentially
-    /// from 0).
-    pub next_subaddress_index: i64,
     /// Index of the first block where this account may have held funds.
     pub first_block_index: i64,
     /// Index of the next block to inspect for transactions related to this
@@ -51,9 +44,6 @@ pub struct NewAccount<'a> {
     pub account_key: &'a [u8],
     pub entropy: Option<&'a [u8]>,
     pub key_derivation_version: i32,
-    pub main_subaddress_index: i64,
-    pub change_subaddress_index: i64,
-    pub next_subaddress_index: i64,
     pub first_block_index: i64,
     pub next_block_index: i64,
     pub import_block_index: Option<i64>,

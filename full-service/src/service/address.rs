@@ -135,6 +135,7 @@ where
 mod tests {
     use super::*;
     use crate::{
+        db::account::AccountModel,
         service::account::AccountService,
         test_utils::{get_test_ledger, setup_wallet_service},
         util::{
@@ -157,12 +158,13 @@ mod tests {
 
         let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+        let conn = service.wallet_db.get_conn().unwrap();
 
         // Create an account.
         let account = service
             .create_account(None, "".to_string(), "".to_string(), "".to_string())
             .unwrap();
-        assert_eq!(account.next_subaddress_index, 2);
+        assert_eq!(account.clone().next_subaddress_index(&conn).unwrap(), 2);
 
         let account_id = AccountID(account.id);
 
@@ -171,7 +173,7 @@ mod tests {
             .unwrap();
 
         let account = service.get_account(&account_id).unwrap();
-        assert_eq!(account.next_subaddress_index, 3);
+        assert_eq!(account.next_subaddress_index(&conn).unwrap(), 3);
     }
 
     #[test_with_logger]
@@ -182,6 +184,7 @@ mod tests {
 
         let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+        let conn = service.wallet_db.get_conn().unwrap();
 
         let view_private_key = RistrettoPrivate::from_random(&mut rng);
         let spend_public_key = RistrettoPublic::from_random(&mut rng);
@@ -193,7 +196,7 @@ mod tests {
         let account = service
             .import_view_only_account(vpk_hex, spk_hex, None, None, None)
             .unwrap();
-        assert_eq!(account.next_subaddress_index, 2);
+        assert_eq!(account.clone().next_subaddress_index(&conn).unwrap(), 2);
 
         let account_id = AccountID(account.id);
 
@@ -202,7 +205,7 @@ mod tests {
             .unwrap();
 
         let account = service.get_account(&account_id).unwrap();
-        assert_eq!(account.next_subaddress_index, 3);
+        assert_eq!(account.next_subaddress_index(&conn).unwrap(), 3);
     }
 
     // A properly encoded address should verify.

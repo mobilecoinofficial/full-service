@@ -402,8 +402,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         // Collect all required FogUris from public addresses, then pass to resolver
         // factory
         let fog_resolver = {
-            let change_address =
-                from_account_key.subaddress(account.change_subaddress_index as u64);
+            let change_address = from_account_key.change_subaddress();
             let fog_uris = core::slice::from_ref(&change_address)
                 .iter()
                 .chain(
