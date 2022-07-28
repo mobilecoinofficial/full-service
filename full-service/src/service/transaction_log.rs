@@ -211,7 +211,7 @@ mod tests {
                 .build_and_submit(
                     &alice_account_id.to_string(),
                     &[(
-                        address.assigned_subaddress_b58.clone(),
+                        address.public_address_b58.clone(),
                         Amount::new(50 * MOB, Mob::ID),
                     )],
                     None,

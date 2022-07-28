@@ -37,7 +37,7 @@ impl From<&AssignedSubaddress> for Address {
     fn from(src: &AssignedSubaddress) -> Address {
         Address {
             object: "address".to_string(),
-            public_address: src.assigned_subaddress_b58.clone(),
+            public_address: src.public_address_b58.clone(),
             account_id: src.account_id.clone(),
             metadata: src.comment.clone(),
             subaddress_index: (src.subaddress_index as u64).to_string(),

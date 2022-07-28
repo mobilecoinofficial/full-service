@@ -350,13 +350,13 @@ pub trait GiftCodeService {
 
     /// Execute a transaction from the gift code account to drain the account to
     /// the destination specified by the account_id_hex and
-    /// assigned_subaddress_b58. If no assigned_subaddress_b58 is provided,
+    /// public_address_b58. If no public_address_b58 is provided,
     /// then a new AssignedSubaddress will be created to receive the funds.
     fn claim_gift_code(
         &self,
         gift_code_b58: &EncodedGiftCode,
         account_id: &AccountID,
-        assigned_subaddress_b58: Option<String>,
+        public_address_b58: Option<String>,
     ) -> Result<Tx, GiftCodeServiceError>;
 
     fn remove_gift_code(
@@ -572,7 +572,7 @@ where
         &self,
         gift_code_b58: &EncodedGiftCode,
         account_id: &AccountID,
-        assigned_subaddress_b58: Option<String>,
+        public_address_b58: Option<String>,
     ) -> Result<Tx, GiftCodeServiceError> {
         let (status, gift_value, _memo) = self.check_gift_code_status(gift_code_b58)?;
 
@@ -589,14 +589,14 @@ where
         let transfer_payload = decode_transfer_payload(gift_code_b58)?;
         let gift_account_key = transfer_payload.account_key;
 
-        let default_subaddress = if assigned_subaddress_b58.is_some() {
-            assigned_subaddress_b58.ok_or(GiftCodeServiceError::AccountNotFound)
+        let default_subaddress = if public_address_b58.is_some() {
+            public_address_b58.ok_or(GiftCodeServiceError::AccountNotFound)
         } else {
             let address = self.assign_address_for_account(
                 account_id,
                 Some(&json!({"gift_code_memo": transfer_payload.memo}).to_string()),
             )?;
-            Ok(address.assigned_subaddress_b58)
+            Ok(address.public_address_b58)
         }?;
 
         let recipient_public_address = b58_decode_public_address(&default_subaddress)?;

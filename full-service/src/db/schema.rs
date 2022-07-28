@@ -14,15 +14,12 @@ table! {
 }
 
 table! {
-    assigned_subaddresses (id) {
-        id -> Integer,
-        assigned_subaddress_b58 -> Text,
+    assigned_subaddresses (public_address_b58) {
+        public_address_b58 -> Text,
         account_id -> Text,
-        address_book_entry -> Nullable<BigInt>,
-        public_address -> Binary,
         subaddress_index -> BigInt,
         comment -> Text,
-        subaddress_spend_key -> Binary,
+        spend_public_key -> Binary,
     }
 }
 

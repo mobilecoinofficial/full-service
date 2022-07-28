@@ -22,7 +22,7 @@ pub struct Address {
     /// A b58 encoding of the public address materials.
     ///
     /// The public_address is the unique identifier for the address.
-    pub public_address: String,
+    pub public_address_b58: String,
 
     /// The account which owns this address.
     pub account_id: String,
@@ -37,7 +37,7 @@ pub struct Address {
 impl From<&AssignedSubaddress> for Address {
     fn from(src: &AssignedSubaddress) -> Address {
         Address {
-            public_address: src.assigned_subaddress_b58.clone(),
+            public_address_b58: src.public_address_b58.clone(),
             account_id: src.account_id.clone(),
             metadata: src.comment.clone(),
             subaddress_index: (src.subaddress_index as u64).to_string(),

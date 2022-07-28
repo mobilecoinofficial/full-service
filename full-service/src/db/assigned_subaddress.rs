@@ -3,10 +3,13 @@
 //! A subaddress assigned to a particular contact for the purpose of tracking
 //! funds received from that contact.
 
-use crate::db::{
-    account::{AccountID, AccountModel},
-    models::{Account, AssignedSubaddress, NewAssignedSubaddress, Txo},
-    txo::TxoModel,
+use crate::{
+    db::{
+        account::{AccountID, AccountModel},
+        models::{Account, AssignedSubaddress, NewAssignedSubaddress, Txo},
+        txo::TxoModel,
+    },
+    util::b58::b58_decode_public_address,
 };
 
 use crate::util::b58::b58_encode_public_address;
@@ -36,10 +39,9 @@ pub trait AssignedSubaddressModel {
     /// * `conn` -
     ///
     /// # Returns
-    /// * assigned_subaddress_b58
+    /// * public_address_b58
     fn create(
         account_key: &AccountKey,
-        address_book_entry: Option<i64>,
         subaddress_index: u64,
         comment: &str,
         conn: &Conn,
@@ -47,7 +49,6 @@ pub trait AssignedSubaddressModel {
 
     fn create_for_view_only_account(
         account_key: &ViewAccountKey,
-        address_book_entry: Option<i64>,
         subaddress_index: u64,
         comment: &str,
         conn: &Conn,
@@ -56,7 +57,7 @@ pub trait AssignedSubaddressModel {
     /// Create the next subaddress for a given account.
     ///
     /// Returns:
-    /// * (assigned_subaddress_b58, subaddress_index)
+    /// * (public_address_b58, subaddress_index)
     fn create_next_for_account(
         account_id_hex: &str,
         comment: &str,
@@ -64,7 +65,7 @@ pub trait AssignedSubaddressModel {
         conn: &Conn,
     ) -> Result<(String, i64), WalletDbError>;
 
-    /// Get the AssignedSubaddress for a given assigned_subaddress_b58
+    /// Get the AssignedSubaddress for a given public_address_b58
     fn get(public_address_b58: &str, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError>;
 
     /// Get the Assigned Subaddress for a given index in an account, if it
@@ -78,7 +79,7 @@ pub trait AssignedSubaddressModel {
     /// Find an AssignedSubaddress by the subaddress spend public key
     ///
     /// Returns:
-    /// * (subaddress_index, assigned_subaddress_b58)
+    /// * (subaddress_index, public_address_b58)
     fn find_by_subaddress_spend_public_key(
         subaddress_spend_public_key: &RistrettoPublic,
         conn: &Conn,
@@ -102,7 +103,6 @@ pub trait AssignedSubaddressModel {
 impl AssignedSubaddressModel for AssignedSubaddress {
     fn create(
         account_key: &AccountKey,
-        address_book_entry: Option<i64>,
         subaddress_index: u64,
         comment: &str,
         conn: &Conn,
@@ -115,13 +115,11 @@ impl AssignedSubaddressModel for AssignedSubaddress {
 
         let subaddress_b58 = b58_encode_public_address(&subaddress)?;
         let subaddress_entry = NewAssignedSubaddress {
-            assigned_subaddress_b58: &subaddress_b58,
+            public_address_b58: &subaddress_b58,
             account_id: &account_id.to_string(),
-            address_book_entry,
-            public_address: &mc_util_serial::encode(&subaddress),
             subaddress_index: subaddress_index as i64,
             comment,
-            subaddress_spend_key: &mc_util_serial::encode(subaddress.spend_public_key()),
+            spend_public_key: &subaddress.spend_public_key().to_bytes(),
         };
 
         diesel::insert_into(assigned_subaddresses::table)
@@ -133,7 +131,6 @@ impl AssignedSubaddressModel for AssignedSubaddress {
 
     fn create_for_view_only_account(
         account_key: &ViewAccountKey,
-        address_book_entry: Option<i64>,
         subaddress_index: u64,
         comment: &str,
         conn: &Conn,
@@ -143,23 +140,21 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         let account_id = AccountID::from(account_key);
 
         let subaddress = account_key.subaddress(subaddress_index);
-        let subaddress_b58 = b58_encode_public_address(&subaddress)?;
+        let public_address_b58 = b58_encode_public_address(&subaddress)?;
 
         let subaddress_entry = NewAssignedSubaddress {
-            assigned_subaddress_b58: &subaddress_b58,
+            public_address_b58: &public_address_b58,
             account_id: &account_id.to_string(),
-            address_book_entry,
-            public_address: &mc_util_serial::encode(&subaddress),
             subaddress_index: subaddress_index as i64,
             comment,
-            subaddress_spend_key: &mc_util_serial::encode(subaddress.spend_public_key()),
+            spend_public_key: &subaddress.spend_public_key().to_bytes(),
         };
 
         diesel::insert_into(assigned_subaddresses::table)
             .values(&subaddress_entry)
             .execute(conn)?;
 
-        Ok(subaddress_b58)
+        Ok(public_address_b58)
     }
 
     fn create_next_for_account(
@@ -179,7 +174,6 @@ impl AssignedSubaddressModel for AssignedSubaddress {
             let next_subaddress_index = account.next_subaddress_index(conn)?;
             let subaddress_b58 = AssignedSubaddress::create_for_view_only_account(
                 &view_account_key,
-                None,
                 next_subaddress_index,
                 comment,
                 conn,
@@ -216,13 +210,8 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         } else {
             let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
             let next_subaddress_index = account.next_subaddress_index(conn)?;
-            let subaddress_b58 = AssignedSubaddress::create(
-                &account_key,
-                None,
-                next_subaddress_index,
-                comment,
-                conn,
-            )?;
+            let subaddress_b58 =
+                AssignedSubaddress::create(&account_key, next_subaddress_index, comment, conn)?;
 
             let subaddress = account_key.subaddress(next_subaddress_index);
 
@@ -287,7 +276,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         use crate::db::schema::assigned_subaddresses;
 
         let assigned_subaddress: AssignedSubaddress = match assigned_subaddresses::table
-            .filter(assigned_subaddresses::assigned_subaddress_b58.eq(&public_address_b58))
+            .filter(assigned_subaddresses::public_address_b58.eq(&public_address_b58))
             .get_result::<AssignedSubaddress>(conn)
         {
             Ok(t) => t,
@@ -329,8 +318,8 @@ impl AssignedSubaddressModel for AssignedSubaddress {
                 assigned_subaddresses::account_id,
             ))
             .filter(
-                assigned_subaddresses::subaddress_spend_key
-                    .eq(mc_util_serial::encode(subaddress_spend_public_key)),
+                assigned_subaddresses::spend_public_key
+                    .eq(subaddress_spend_public_key.to_bytes().to_vec()),
             )
             .load::<(i64, String)>(conn)?;
 
@@ -383,7 +372,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
     }
 
     fn public_address(self) -> Result<PublicAddress, WalletDbError> {
-        let public_address: PublicAddress = mc_util_serial::decode(&self.public_address)?;
+        let public_address = b58_decode_public_address(&self.public_address_b58)?;
         Ok(public_address)
     }
 }

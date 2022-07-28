@@ -559,7 +559,7 @@ mod tests {
             .build_transaction(
                 &alice.id,
                 &[(
-                    bob_address_from_alice.assigned_subaddress_b58,
+                    bob_address_from_alice.public_address_b58,
                     AmountJSON::new(42 * MOB, Mob::ID),
                 )],
                 None,
@@ -587,7 +587,7 @@ mod tests {
             .build_transaction(
                 &alice.id,
                 &[(
-                    bob_address_from_alice_2.assigned_subaddress_b58,
+                    bob_address_from_alice_2.public_address_b58,
                     AmountJSON::new(42 * MOB, Mob::ID),
                 )],
                 None,
@@ -615,7 +615,7 @@ mod tests {
             .build_transaction(
                 &alice.id,
                 &[(
-                    bob_address_from_alice_3.clone().assigned_subaddress_b58,
+                    bob_address_from_alice_3.clone().public_address_b58,
                     AmountJSON::new(42 * MOB, Mob::ID),
                 )],
                 None,
@@ -699,7 +699,7 @@ mod tests {
             .build_and_submit(
                 &alice.id,
                 &[(
-                    bob_address_from_alice.assigned_subaddress_b58,
+                    bob_address_from_alice.public_address_b58,
                     AmountJSON::new(42 * MOB, Mob::ID),
                 )],
                 None,

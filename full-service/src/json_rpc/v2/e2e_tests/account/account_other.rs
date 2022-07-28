@@ -382,7 +382,7 @@ mod e2e_account {
         let b58_public_address = result
             .get("address")
             .unwrap()
-            .get("public_address")
+            .get("public_address_b58")
             .unwrap()
             .as_str()
             .unwrap();
@@ -612,7 +612,7 @@ mod e2e_account {
         let from_bob_b58_public_address = result
             .get("address")
             .unwrap()
-            .get("public_address")
+            .get("public_address_b58")
             .unwrap()
             .as_str()
             .unwrap();

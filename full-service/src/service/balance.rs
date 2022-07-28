@@ -273,13 +273,13 @@ where
     #[allow(clippy::type_complexity)]
     fn get_balance_inner(
         account_id_hex: Option<&str>,
-        assigned_subaddress_b58: Option<&str>,
+        public_address_b58: Option<&str>,
         token_id: TokenId,
         conn: &Conn,
     ) -> Result<Balance, BalanceServiceError> {
         let unspent = sum_query_result(Txo::list_unspent(
             account_id_hex,
-            assigned_subaddress_b58,
+            public_address_b58,
             Some(*token_id),
             None,
             None,
@@ -290,7 +290,7 @@ where
 
         let spent = sum_query_result(Txo::list_spent(
             account_id_hex,
-            assigned_subaddress_b58,
+            public_address_b58,
             Some(*token_id),
             None,
             None,
@@ -301,7 +301,7 @@ where
 
         let pending = sum_query_result(Txo::list_pending(
             account_id_hex,
-            assigned_subaddress_b58,
+            public_address_b58,
             Some(*token_id),
             None,
             None,
@@ -312,7 +312,7 @@ where
 
         let unverified = sum_query_result(Txo::list_unverified(
             account_id_hex,
-            assigned_subaddress_b58,
+            public_address_b58,
             Some(*token_id),
             None,
             None,
@@ -323,7 +323,7 @@ where
 
         let secreted = 0;
 
-        let orphaned = if assigned_subaddress_b58.is_some() {
+        let orphaned = if public_address_b58.is_some() {
             0
         } else {
             sum_query_result(Txo::list_orphaned(
@@ -337,13 +337,8 @@ where
             )?)
         };
 
-        let spendable_txos_result = Txo::list_spendable(
-            account_id_hex,
-            None,
-            assigned_subaddress_b58,
-            *token_id,
-            conn,
-        )?;
+        let spendable_txos_result =
+            Txo::list_spendable(account_id_hex, None, public_address_b58, *token_id, conn)?;
 
         Ok(Balance {
             max_spendable: spendable_txos_result.max_spendable_in_wallet,
@@ -456,7 +451,7 @@ mod tests {
         assert_eq!(address_balance_pmob.orphaned, 0);
 
         let address_balance2 = service
-            .get_balance_for_address(&address.assigned_subaddress_b58)
+            .get_balance_for_address(&address.public_address_b58)
             .expect("Could not get balance for address");
         let address_balance2_pmob = address_balance2.get(&Mob::ID).unwrap();
         assert_eq!(address_balance2_pmob.unspent, 60_000 * MOB as u128);

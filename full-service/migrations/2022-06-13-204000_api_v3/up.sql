@@ -29,18 +29,13 @@ CREATE TABLE txos (
 );
 
 CREATE TABLE assigned_subaddresses (
-  id INTEGER NOT NULL PRIMARY KEY,
-  assigned_subaddress_b58 VARCHAR NOT NULL UNIQUE,
+  public_address_b58 VARCHAR NOT NULL PRIMARY KEY,
   account_id VARCHAR NOT NULL,
-  address_book_entry UNSIGNED BIG INT, -- FIXME: WS-8 add foreign key to address book table, also address_book_entry_id
-  public_address BLOB NOT NULL,
   subaddress_index UNSIGNED BIG INT NOT NULL,
   comment VARCHAR NOT NULL DEFAULT '',
-  subaddress_spend_key BLOB NOT NULL,
+  spend_public_key BLOB NOT NULL,
   FOREIGN KEY (account_id) REFERENCES accounts(id)
 );
-
-CREATE UNIQUE INDEX idx_assigned_subaddresses__assigned_subaddress_b58 ON assigned_subaddresses (assigned_subaddress_b58);
 
 CREATE TABLE transaction_logs (
     id VARCHAR NOT NULL PRIMARY KEY,

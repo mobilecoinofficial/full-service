@@ -108,30 +108,25 @@ pub struct NewTxo<'a> {
 /// funds received from that contact.
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
 #[belongs_to(Account, foreign_key = "account_id")]
-#[primary_key(id)]
+#[primary_key(public_address_b58)]
 #[table_name = "assigned_subaddresses"]
 pub struct AssignedSubaddress {
-    pub id: i32,
-    pub assigned_subaddress_b58: String,
+    pub public_address_b58: String,
     pub account_id: String,
-    pub address_book_entry: Option<i64>,
-    pub public_address: Vec<u8>,
     pub subaddress_index: i64,
-    pub comment: String,               // empty string for nullable
-    pub subaddress_spend_key: Vec<u8>, // FIXME: WS-28 - Index on subaddress_spend_key?
+    pub comment: String,
+    pub spend_public_key: Vec<u8>,
 }
 
 /// A structure that can be inserted to create a new AssignedSubaddress entity.
 #[derive(Insertable)]
 #[table_name = "assigned_subaddresses"]
 pub struct NewAssignedSubaddress<'a> {
-    pub assigned_subaddress_b58: &'a str,
+    pub public_address_b58: &'a str,
     pub account_id: &'a str,
-    pub address_book_entry: Option<i64>,
-    pub public_address: &'a [u8],
     pub subaddress_index: i64,
     pub comment: &'a str,
-    pub subaddress_spend_key: &'a [u8],
+    pub spend_public_key: &'a [u8],
 }
 
 /// The status of a sent transaction OR a received transaction output.
