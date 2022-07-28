@@ -428,14 +428,14 @@ where
             let address_map = AddressMap(
                 addresses
                     .iter()
-                    .map(|a| (a.assigned_subaddress_b58.clone(), Address::from(a)))
+                    .map(|a| (a.public_address_b58.clone(), Address::from(a)))
                     .collect(),
             );
 
             JsonCommandResponse::get_addresses {
                 public_addresses: addresses
                     .iter()
-                    .map(|a| a.assigned_subaddress_b58.clone())
+                    .map(|a| a.public_address_b58.clone())
                     .collect(),
                 address_map,
             }

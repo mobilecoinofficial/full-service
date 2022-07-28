@@ -459,7 +459,7 @@ where
                     .iter()
                     .map(|a| {
                         (
-                            a.assigned_subaddress_b58.clone(),
+                            a.public_address_b58.clone(),
                             serde_json::to_value(&(Address::from(a)))
                                 .expect("Could not get json value"),
                         )
@@ -470,7 +470,7 @@ where
             JsonCommandResponse::get_addresses_for_account {
                 public_addresses: addresses
                     .iter()
-                    .map(|a| a.assigned_subaddress_b58.clone())
+                    .map(|a| a.public_address_b58.clone())
                     .collect(),
                 address_map,
             }

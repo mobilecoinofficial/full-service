@@ -308,35 +308,21 @@ impl AccountModel for Account {
             .values(&new_account)
             .execute(conn)?;
 
-        let main_subaddress_b58 = AssignedSubaddress::create(
-            account_key,
-            None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
-                   * always for main? */
-            DEFAULT_SUBADDRESS_INDEX,
-            "Main",
-            conn,
-        )?;
+        let main_subaddress_b58 =
+            AssignedSubaddress::create(account_key, DEFAULT_SUBADDRESS_INDEX, "Main", conn)?;
 
-        AssignedSubaddress::create(
-            account_key,
-            None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
-                   * always for main? */
-            CHANGE_SUBADDRESS_INDEX,
-            "Change",
-            conn,
-        )?;
+        AssignedSubaddress::create(account_key, CHANGE_SUBADDRESS_INDEX, "Change", conn)?;
 
         if !fog_enabled {
             AssignedSubaddress::create(
                 account_key,
-                None,
                 LEGACY_CHANGE_SUBADDRESS_INDEX,
                 "Legacy Change",
                 conn,
             )?;
 
-            for subaddress_index in 2..next_subaddress_index {
-                AssignedSubaddress::create(account_key, None, subaddress_index as u64, "", conn)?;
+            for subaddress_index in DEFAULT_NEXT_SUBADDRESS_INDEX..next_subaddress_index as u64 {
+                AssignedSubaddress::create(account_key, subaddress_index as u64, "", conn)?;
             }
         }
 
@@ -432,7 +418,6 @@ impl AccountModel for Account {
 
         AssignedSubaddress::create_for_view_only_account(
             &view_account_key,
-            None,
             DEFAULT_SUBADDRESS_INDEX,
             "Main",
             conn,
@@ -440,7 +425,6 @@ impl AccountModel for Account {
 
         AssignedSubaddress::create_for_view_only_account(
             &view_account_key,
-            None,
             LEGACY_CHANGE_SUBADDRESS_INDEX,
             "Legacy Change",
             conn,
@@ -448,16 +432,14 @@ impl AccountModel for Account {
 
         AssignedSubaddress::create_for_view_only_account(
             &view_account_key,
-            None,
             CHANGE_SUBADDRESS_INDEX,
             "Change",
             conn,
         )?;
 
-        for subaddress_index in 2..next_subaddress_index {
+        for subaddress_index in DEFAULT_NEXT_SUBADDRESS_INDEX..next_subaddress_index as u64 {
             AssignedSubaddress::create_for_view_only_account(
                 &view_account_key,
-                None,
                 subaddress_index as u64,
                 "",
                 conn,

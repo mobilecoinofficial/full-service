@@ -31,7 +31,7 @@ use mc_transaction_core::{
 use rayon::prelude::*;
 
 use std::{
-    convert::TryFrom,
+    convert::{TryFrom, TryInto},
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -168,7 +168,7 @@ fn sync_account_next_chunk(
         let subaddresses: Vec<_> =
             AssignedSubaddress::list_all(Some(account_id_hex.to_string()), None, None, conn)?;
         for s in subaddresses {
-            let subaddress_key = mc_util_serial::decode(s.subaddress_spend_key.as_slice())?;
+            let subaddress_key: RistrettoPublic = s.spend_public_key.as_slice().try_into()?;
             subaddress_keys.insert(subaddress_key, s.subaddress_index as u64);
         }
 
@@ -408,6 +408,7 @@ pub fn decode_subaddress_index(
         Ok(k) => k,
         Err(_) => return None,
     };
+
     let subaddress_spk: RistrettoPublic =
         recover_public_subaddress_spend_key(view_private_key, &tx_out_target_key, &tx_public_key);
     subaddress_keys.get(&subaddress_spk).copied()

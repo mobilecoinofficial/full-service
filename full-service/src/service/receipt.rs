@@ -376,7 +376,7 @@ mod tests {
         let bob_addresses = service
             .get_addresses(Some(bob.id.clone()), None, None)
             .expect("Could not get addresses for Bob");
-        let bob_address = bob_addresses[0].assigned_subaddress_b58.clone();
+        let bob_address = bob_addresses[0].public_address_b58.clone();
 
         // Create a TxProposal to Bob
         let tx_proposal = service
@@ -502,7 +502,7 @@ mod tests {
         let bob_addresses = service
             .get_addresses(Some(bob.id.clone()), None, None)
             .expect("Could not get addresses for Bob");
-        let bob_address = &bob_addresses[0].assigned_subaddress_b58.clone();
+        let bob_address = &bob_addresses[0].public_address_b58.clone();
 
         // Create a TxProposal to Bob
         let tx_proposal = service
@@ -624,7 +624,7 @@ mod tests {
         let bob_addresses = service
             .get_addresses(Some(bob.id.clone()), None, None)
             .expect("Could not get addresses for Bob");
-        let bob_address = &bob_addresses[0].assigned_subaddress_b58.clone();
+        let bob_address = &bob_addresses[0].public_address_b58.clone();
         let bob_account_id = AccountID(bob.id.to_string());
 
         // Create a TxProposal to Bob
@@ -754,7 +754,7 @@ mod tests {
         let bob_addresses = service
             .get_addresses(Some(bob.id.clone()), None, None)
             .expect("Could not get addresses for Bob");
-        let bob_address = &bob_addresses[0].assigned_subaddress_b58.clone();
+        let bob_address = &bob_addresses[0].public_address_b58.clone();
         let bob_account_id = AccountID(bob.id.to_string());
 
         // Create a TxProposal to Bob

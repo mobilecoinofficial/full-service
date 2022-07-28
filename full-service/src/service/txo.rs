@@ -205,7 +205,7 @@ where
         let mut addresses_and_amounts = Vec::new();
         for output_value in output_values.iter() {
             addresses_and_amounts.push((
-                address_to_split_into.assigned_subaddress_b58.clone(),
+                address_to_split_into.public_address_b58.clone(),
                 Amount {
                     value: output_value.to_string(),
                     token_id: txo_details.token_id.to_string(),

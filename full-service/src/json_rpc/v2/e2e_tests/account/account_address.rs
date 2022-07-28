@@ -50,7 +50,7 @@ mod e2e_account {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let address = result.get("address").unwrap();
-        let b58_public_address = address.get("public_address").unwrap().as_str().unwrap();
+        let b58_public_address = address.get("public_address_b58").unwrap().as_str().unwrap();
         let public_address = b58_decode_public_address(b58_public_address).unwrap();
 
         // Add a block to fund account at the new subaddress.
@@ -359,7 +359,7 @@ mod e2e_account {
         let b58_public_address = result
             .get("address")
             .unwrap()
-            .get("public_address")
+            .get("public_address_b58")
             .unwrap()
             .as_str()
             .unwrap();
