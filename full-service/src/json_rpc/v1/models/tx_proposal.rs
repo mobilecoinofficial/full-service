@@ -70,7 +70,7 @@ impl TryFrom<&TxProposalServiceModel> for mc_mobilecoind::payments::TxProposal {
                 .position(|(_outlay_index, tx_out)| {
                     payload_txo.tx_out.public_key == tx_out.public_key
                 })
-                .unwrap();
+                .ok_or("Could not find tx_out in tx")?;
 
             outlay_map.insert(outlay_index, tx_out_index);
             confirmation_numbers.push(payload_txo.confirmation_number.clone());
