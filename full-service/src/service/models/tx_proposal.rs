@@ -146,59 +146,51 @@ impl TryFrom<&crate::json_rpc::v2::models::tx_proposal::TxProposal> for TxPropos
             .payload_txos
             .iter()
             .map(|payload_txo| {
-                let confirmation_number_bytes: &[u8; 32] = &hex::decode(&payload_txo.tx_out_proto)
-                    .map_err(|e| e.to_string())?
-                    .as_slice()
-                    .try_into()
-                    .map_err(|_| {
-                        "confirmation number is not the right number of bytes (expecting 32)"
-                            .to_string()
-                    })?;
-                Ok(OutputTxo {
+                let confirmation_number_bytes: [u8; 32] =
+                    hex::decode(&payload_txo.confirmation_number)
+                        .unwrap()
+                        .as_slice()
+                        .try_into()
+                        .unwrap();
+                OutputTxo {
                     tx_out: mc_util_serial::decode(
-                        hex::decode(&payload_txo.tx_out_proto)
-                            .map_err(|e| e.to_string())?
-                            .as_slice(),
+                        hex::decode(&payload_txo.tx_out_proto).unwrap().as_slice(),
                     )
-                    .map_err(|e| e.to_string())?,
+                    .unwrap(),
                     recipient_public_address: b58_decode_public_address(
                         &payload_txo.recipient_public_address_b58,
                     )
-                    .map_err(|e| e.to_string())?,
-                    confirmation_number: TxOutConfirmationNumber::from(confirmation_number_bytes),
-                    amount: Amount::try_from(&payload_txo.amount).map_err(|e| e.to_string())?,
-                })
+                    .unwrap(),
+                    confirmation_number: TxOutConfirmationNumber::from(&confirmation_number_bytes),
+                    amount: Amount::try_from(&payload_txo.amount).unwrap(),
+                }
             })
-            .collect::<Result<Vec<_>, String>>()?;
+            .collect();
 
         let change_txos = src
             .change_txos
             .iter()
             .map(|change_txo| {
-                let confirmation_number_bytes: &[u8; 32] = &hex::decode(&change_txo.tx_out_proto)
-                    .map_err(|e| e.to_string())?
-                    .as_slice()
-                    .try_into()
-                    .map_err(|_| {
-                        "confirmation number is not the right number of bytes (expecting 32)"
-                            .to_string()
-                    })?;
-                Ok(OutputTxo {
+                let confirmation_number_bytes: [u8; 32] =
+                    hex::decode(&change_txo.confirmation_number)
+                        .unwrap()
+                        .as_slice()
+                        .try_into()
+                        .unwrap();
+                OutputTxo {
                     tx_out: mc_util_serial::decode(
-                        hex::decode(&change_txo.tx_out_proto)
-                            .map_err(|e| e.to_string())?
-                            .as_slice(),
+                        hex::decode(&change_txo.tx_out_proto).unwrap().as_slice(),
                     )
-                    .map_err(|e| e.to_string())?,
+                    .unwrap(),
                     recipient_public_address: b58_decode_public_address(
                         &change_txo.recipient_public_address_b58,
                     )
-                    .map_err(|e| e.to_string())?,
-                    confirmation_number: TxOutConfirmationNumber::from(confirmation_number_bytes),
-                    amount: Amount::try_from(&change_txo.amount).map_err(|e| e.to_string())?,
-                })
+                    .unwrap(),
+                    confirmation_number: TxOutConfirmationNumber::from(&confirmation_number_bytes),
+                    amount: Amount::try_from(&change_txo.amount).unwrap(),
+                }
             })
-            .collect::<Result<Vec<_>, String>>()?;
+            .collect();
 
         Ok(Self {
             tx,
