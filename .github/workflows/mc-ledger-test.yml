@@ -14,15 +14,16 @@ on:
       - setup-mobilecoin
 
 # TESTING WITH NEKTOS/ACT
-# nektos/act is a 3rd party github library that allows for the local testing of github actions
+# nektos/act is a 3rd party github library that allows for the LOCAL testing of github actions
 # best nektox/act testing flow is:
-  # 1 remove all other github workflow files (.github/workflows) except the one you're testing
-    # 1.1 nektos/act will complain for full commented-out scripts -- my workflow has been to delete them and just not commit the deletions
   # 2 change the runs-on tag to point to `ubuntu-latest` if its set to a self-hosted tag
     # 2.1 `ubuntu-latest` will use Github Action minutes, but is required for testing with nektos/act
     # 2.2 `[self-hosted, Linux, large]` will use a self-hosted machine (free for us), but fails with nektos/act
-  # 3 only run the steps up through the build steps. Don't run the `python3 tools/local_network.py --network-type a-b-c` step for local testing
-  # 4 when nektos/act has finished building, open a new terminal and run `docker ps -a` and grab the relevant container ID
+  # 3 Below, uncomment the "run bash" step, and comment out the "Run Integration" step
+  # 4 From your full-service root dir, run `act -W .github/workflows/mc-ledger-test.yml`. Nektos/act will run this yml job,
+  #    resulting in a containtainer that has all the code built and ready to run for local development. It will look like your
+  #    terminal window is hanging on `docker exec cmd=[bash --noprofile --norc -e -o pipefail /var/run/act/workflow/4.sh] user= workdir=`
+  # 4 Open a new terminal and run `docker ps -a` and grab the relevant container ID
   # 5 run `docker exec -it <container id> /bin/bash` in the non-nektos/act terminal
   # 6 in the docker container, run `python3 tools/local_network.py --network-type a-b-c` to run the script
   # 7 iterate and change the local_network script
@@ -64,13 +65,13 @@ jobs:
           python3 tools/build_full_service.py
       
       # test locally (run local_network.py via exec'ing into the container from the terminal)
-      # - name: run bash
-      #   shell: bash
-      #   run: /bin/bash
+      - name: run bash
+        shell: bash
+        run: /bin/bash
       
       # programmatically run the script:
-      - name: Run Integration
-        shell: bash
-        run: |
-          python3 tools/local_network.py --network-type a-b-c
+      # - name: Run Integration
+      #   shell: bash
+      #   run: |
+      #     python3 tools/local_network.py --network-type a-b-c
 
