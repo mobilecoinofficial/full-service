@@ -19,21 +19,20 @@ from pprint import pformat
 from typing import Tuple
 from urllib.parse import urlparse
 
-
 BASE_CLIENT_PORT = 3200
 BASE_PEER_PORT = 3300
 BASE_ADMIN_PORT = 3400
 BASE_ADMIN_HTTP_GATEWAY_PORT = 3500
 
 # TODO make these command line arguments
-IAS_API_KEY = os.getenv('IAS_API_KEY', default='0'*64) # 32 bytes
-IAS_SPID = os.getenv('IAS_SPID', default='0'*32) # 16 bytes
+IAS_API_KEY = os.getenv('IAS_API_KEY', default='0' * 64)  # 32 bytes
+IAS_SPID = os.getenv('IAS_SPID', default='0' * 32)  # 16 bytes
 MOBILECOIN_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'mobilecoin'))
 FULLSERVICE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 MOB_RELEASE = os.getenv('MOB_RELEASE', '1')
 TARGET_DIR = 'target/release'
 KEY_DIR = 'mobilecoin/target/sample_data/keys'
-WORK_DIR =  os.path.join(MOBILECOIN_DIR, TARGET_DIR, 'mc-local-network')
+WORK_DIR = os.path.join(MOBILECOIN_DIR, TARGET_DIR, 'mc-local-network')
 LEDGER_BASE = os.path.join(MOBILECOIN_DIR, 'target', "sample_data", "ledger")
 MINTING_KEYS_DIR = os.path.join(WORK_DIR, 'minting-keys')
 CLI_PORT = 31337
@@ -43,9 +42,11 @@ if MOB_RELEASE == '0':
 
 # Sane default log configuration
 if 'MC_LOG' not in os.environ:
-    os.environ['MC_LOG'] = 'debug,rustls=warn,hyper=warn,tokio_reactor=warn,mio=warn,want=warn,rusoto_core=error,h2=error,reqwest=error,rocket=error,<unknown>=error'
+    os.environ[
+        'MC_LOG'] = 'debug,rustls=warn,hyper=warn,tokio_reactor=warn,mio=warn,want=warn,rusoto_core=error,h2=error,reqwest=error,rocket=error,<unknown>=error'
 if 'FS_LOG' not in os.environ:
     os.environ['FS_LOG'] = 'info'
+
 
 class QuorumSet:
     def __init__(self, threshold, members):
@@ -78,7 +79,8 @@ class Peer:
 
 
 class Node:
-    def __init__(self, name, node_num, client_port, peer_port, admin_port, admin_http_gateway_port, peers, quorum_set, block_version):
+    def __init__(self, name, node_num, client_port, peer_port, admin_port, admin_http_gateway_port, peers, quorum_set,
+                 block_version):
         assert all(isinstance(peer, Peer) for peer in peers)
         assert isinstance(quorum_set, QuorumSet)
 
@@ -103,7 +105,9 @@ class Node:
         subprocess.check_output(f'openssl genpkey -algorithm ed25519 -out {self.msg_signer_key_file}', shell=True)
 
     def peer_uri(self, broadcast_consensus_msgs=True):
-        pub_key = subprocess.check_output(f'openssl pkey -in {self.msg_signer_key_file} -pubout | head -n-1 | tail -n+2 | sed "s/+/-/g; s/\//_/g"', shell=True).decode().strip()
+        pub_key = subprocess.check_output(
+            f'openssl pkey -in {self.msg_signer_key_file} -pubout | head -n-1 | tail -n+2 | sed "s/+/-/g; s/\//_/g"',
+            shell=True).decode().strip()
         broadcast_consensus_msgs = '1' if broadcast_consensus_msgs else '0'
         return f'insecure-mcp://localhost:{self.peer_port}/?consensus-msg-key={pub_key}&broadcast-consensus-msgs={broadcast_consensus_msgs}'
 
@@ -125,7 +129,8 @@ class Node:
         nodes_by_name = {node.name: node for node in network.nodes}
 
         # Private SCP signing key
-        msg_signer_key = subprocess.check_output(f'cat {self.msg_signer_key_file} | head -n-1 | tail -n+2', shell=True).decode().strip()
+        msg_signer_key = subprocess.check_output(f'cat {self.msg_signer_key_file} | head -n-1 | tail -n+2',
+                                                 shell=True).decode().strip()
 
         # URIs for the peers above
         peer_uris = [nodes_by_name[peer.name].peer_uri(
@@ -134,7 +139,8 @@ class Node:
 
         # URIs for all additional nodes in the network, in case they appear in our quorum set
         peer_names = [peer.name for peer in self.peers]
-        known_peers = [node.peer_uri() for node in network.nodes if node.name not in peer_names and node.name != self.name]
+        known_peers = [node.peer_uri() for node in network.nodes if
+                       node.name not in peer_names and node.name != self.name]
         tx_source_urls = [f'file://{node.ledger_distribution_dir}' for node in network.nodes if node.name in peer_names]
 
         # Our quorum set and associated JSON
@@ -156,7 +162,7 @@ class Node:
         # Tokens config file
         tokens_config = {
             "tokens": [
-                { "token_id": 0, "minimum_fee": self.minimum_fee },
+                {"token_id": 0, "minimum_fee": self.minimum_fee},
                 {
                     "token_id": 1,
                     "minimum_fee": 1024,
@@ -173,7 +179,7 @@ class Node:
                         "threshold": 1
                     }
                 },
-             ],
+            ],
         }
         with open(self.tokens_config_file, 'w') as f:
             json.dump(tokens_config, f)
@@ -206,7 +212,8 @@ class Node:
             f'--tokens={self.tokens_config_file}',
         ])
 
-        print(f'Starting node {self.name}: client_port={self.client_port} peer_port={self.peer_port} admin_port={self.admin_port}')
+        print(
+            f'Starting node {self.name}: client_port={self.client_port} peer_port={self.peer_port} admin_port={self.admin_port}')
         print(f' - Peers: {self.peers}')
         print(f' - Quorum set: {pformat(quorum_set)}')
         print(cmd)
@@ -268,6 +275,7 @@ class Node:
 
 class NetworkCLI(threading.Thread):
     """Network command line interface (over TCP)"""
+
     def __init__(self, network):
         super().__init__()
         self.network = network
@@ -332,6 +340,7 @@ class NetworkCLI(threading.Thread):
     def stop(self):
         self.server.shutdown()
 
+
 class Network:
     def __init__(self):
         self.nodes = []
@@ -363,16 +372,20 @@ class Network:
                 return node
 
     def generate_minting_keys(self):
-       os.mkdir(MINTING_KEYS_DIR)
+        os.mkdir(MINTING_KEYS_DIR)
 
-       subprocess.check_output(f'openssl genpkey -algorithm ed25519 -out {MINTING_KEYS_DIR}/governor1', shell=True)
-       subprocess.check_output(f'openssl pkey -pubout -in {MINTING_KEYS_DIR}/governor1 -out {MINTING_KEYS_DIR}/governor1.pub', shell=True)
+        subprocess.check_output(f'openssl genpkey -algorithm ed25519 -out {MINTING_KEYS_DIR}/governor1', shell=True)
+        subprocess.check_output(
+            f'openssl pkey -pubout -in {MINTING_KEYS_DIR}/governor1 -out {MINTING_KEYS_DIR}/governor1.pub', shell=True)
 
-       subprocess.check_output(f'openssl genpkey -algorithm ed25519 -out {MINTING_KEYS_DIR}/governor2', shell=True)
-       subprocess.check_output(f'openssl pkey -pubout -in {MINTING_KEYS_DIR}/governor2 -out {MINTING_KEYS_DIR}/governor2.pub', shell=True)
+        subprocess.check_output(f'openssl genpkey -algorithm ed25519 -out {MINTING_KEYS_DIR}/governor2', shell=True)
+        subprocess.check_output(
+            f'openssl pkey -pubout -in {MINTING_KEYS_DIR}/governor2 -out {MINTING_KEYS_DIR}/governor2.pub', shell=True)
 
-       # This matches the hardcoded key in consensus/enclave/impl/build.rs
-       subprocess.check_output(f'cd {MOBILECOIN_DIR} && exec {TARGET_DIR}/mc-util-seeded-ed25519-key-gen --seed abababababababababababababababababababababababababababababababab > {MINTING_KEYS_DIR}/minting-trust-root.pem', shell=True)
+        # This matches the hardcoded key in consensus/enclave/impl/build.rs
+        subprocess.check_output(
+            f'cd {MOBILECOIN_DIR} && exec {TARGET_DIR}/mc-util-seeded-ed25519-key-gen --seed abababababababababababababababababababababababababababababababab > {MINTING_KEYS_DIR}/minting-trust-root.pem',
+            shell=True)
 
     def start(self):
         self.stop()
@@ -388,7 +401,6 @@ class Network:
         self.cli = NetworkCLI(self)
         self.cli.start()
 
-
     def wait(self):
         """Block until one of our processes dies."""
         while True:
@@ -398,11 +410,13 @@ class Network:
                     return False
 
                 if node.admin_http_gateway_process and node.admin_http_gateway_process.poll() is not None:
-                    print(f'Node {node} admin http gateway died with exit code {node.admin_http_gateway_process.poll()}')
+                    print(
+                        f'Node {node} admin http gateway died with exit code {node.admin_http_gateway_process.poll()}')
                     return False
 
                 if node.ledger_distribution_process and node.ledger_distribution_process.poll() is not None:
-                    print(f'Node {node} ledger distribution died with exit code {node.ledger_distribution_process.poll()}')
+                    print(
+                        f'Node {node} ledger distribution died with exit code {node.ledger_distribution_process.poll()}')
                     return False
 
             time.sleep(1)
@@ -412,22 +426,20 @@ class Network:
             self.cli.stop()
             self.cli = None
 
-
         print("Killing any existing processes")
         try:
             kill_cmd = ' '.join([
-                'pkill -9 consensus-service',
+                'pkill -9 consensus-servi',
+                '&& pkill -9 ledger-distribu',
+                '&& pkill -9 mc-admin-http-g',
                 '&& pkill -9 filebeat',
-                '&& pkill -9 ledger-distribution',
                 '&& pkill -9 prometheus',
-                '&& pkill -9 mc-admin-http-gateway',
                 '&& pkill -9 mobilecoind',
             ])
             subprocess.check_output(kill_cmd, shell=True)
         except subprocess.CalledProcessError as exc:
             if exc.returncode != 1:
                 raise
-
 
     def default_entry_point(self, network_type, block_version=None):
         self.block_version = block_version
@@ -497,14 +509,14 @@ class FullService:
         print('starting full service')
         print(cmd)
         self.full_service_process = subprocess.Popen(cmd, shell=True)
-        
+
     def stop(self):
         try:
             subprocess.check_output("pkill full-service", shell=True)
         except subprocess.CalledProcessError as exc:
             if exc.returncode != 1:
                 raise
-    
+
     # return the result field of the request
     def _request(self, request_data):
         self.request_count += 1
@@ -539,7 +551,7 @@ class FullService:
             return response_data['error']
         else:
             return response_data['result']
-    
+
     def import_account(self, mnemonic) -> bool:
         print(f'importing full service account {mnemonic}')
         params = {
@@ -572,7 +584,7 @@ class FullService:
         return (keydata_0['mnemonic'], keydata_1['mnemonic'])
 
     # check if full service is synced within margin
-    def sync_status(self, eps = 5) -> bool:
+    def sync_status(self, eps=5) -> bool:
         # ping network
         try:
             r = self._request({
@@ -581,7 +593,7 @@ class FullService:
         except ConnectionError as e:
             print(e)
             return False
-            
+
         # network offline
         if int(r['network_status']['network_block_height']) == 0:
             return False
@@ -589,6 +601,7 @@ class FullService:
         # network online
         network_block_height = int(r['network_status']['network_block_height'])
         local_block_height = int(r['network_status']['local_block_height'])
+
         # network is acceptably synced
         return (network_block_height - local_block_height < eps)
 
@@ -613,7 +626,7 @@ class FullService:
         account_ids, account_map = self.get_all_accounts()
 
     # retrieve all accounts full service is aware of
-    def get_all_accounts(self)-> Tuple[list, dict]:
+    def get_all_accounts(self) -> Tuple[list, dict]:
         r = self._request({"method": "get_all_accounts"})
         print(r)
         return (r['account_ids'], r['account_map'])
@@ -627,7 +640,7 @@ class FullService:
             "method": "get_account_status",
             "params": params
         })
-        return r        
+        return r
 
     # build and submit a transaction from `account_id` to `to_address` for `amount` of pmob
     def send_transaction(self, account_id, to_address, amount):
@@ -648,24 +661,60 @@ class FullService:
         print('testing transaction sends')
         if self.account_ids is None:
             print(f'accounts not found in wallet')
-            exit(1)
+            cleanup_and_exit(1)
         elif len(self.account_ids) < 2:
             print(f'found {len(self.account_ids)} account(s), minimum required is 2')
-            exit(1)
+            cleanup_and_exit(1)
         account_0 = self.account_map[self.account_ids[0]]
         account_1 = self.account_map[self.account_ids[1]]
         p_mob_amount = str(600_000_000)
 
-
         # flakey tests due to accounts having a variable amount of pmob. This needs to be controlled for use.
         log_0 = self.send_transaction(account_0['account_id'], account_1['main_address'], p_mob_amount)
         log_1 = self.send_transaction(account_1['account_id'], account_0['main_address'], p_mob_amount)
-        
+
         print(('==================================================='))
         print('transactions completed')
         print(f'transaction 0 log: {log_0}')
         print(f'transaction 1 log: {log_1}')
 
+
+def stop_network_services():
+    print('stopping network services')
+    if full_service:
+        full_service.stop()
+    if mobilecoin_network:
+        mobilecoin_network.stop()
+
+
+def cleanup_and_exit(exit_status):
+    print('===================================================')
+    # shut down networks
+    stop_network_services()
+    print(f"Exiting with {exit_status}")
+    exit(exit_status)
+
+
+def start_and_sync_full_service():
+    try:
+        full_service.start()
+        # wait for networks to start
+        network_synced = False
+        count = 0
+        attempt_limit = 100
+        while network_synced is False and count < attempt_limit:
+            count += 1
+            network_synced = full_service.sync_status()
+            if count % 10 == 0:
+                print(f'attempt: {count}/{attempt_limit}')
+            time.sleep(1)
+        if count >= attempt_limit:
+            print(f'full service sync failed after {attempt_limit} attempts')
+            cleanup_and_exit(1)
+        print('Full service synced')
+    except:
+        print("Full service failed to start and sync")
+        cleanup_and_exit(1)
 
 if __name__ == '__main__':
     # pull args from command line
@@ -675,58 +724,41 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # start networks
+    print('===================================================')
+    print('Starting networks')
+    full_service = mobilecoin_network = None
     mobilecoin_network = Network()
     mobilecoin_network.default_entry_point(args.network_type, args.block_version)
     full_service = FullService()
-    full_service.start()
+    start_and_sync_full_service()
 
-    # wait for networks to start
-    network_synced = False
-    count = 0
-    timeout_seconds = 600
-    while network_synced == False:
-        count += 1
-        network_synced = full_service.sync_status()
-        print(f'attempt: {count}/{timeout_seconds}')
-        time.sleep(1)
+    try:
+        print('===================================================')
+        print('Importing accounts')
+        # import accounts
+        full_service.setup_accounts()
+        wallet_status = full_service.get_wallet_status()
 
-        if (count >= timeout_seconds):
-            print(f'full service sync timed out at {timeout_seconds} seconds')
-            exit(1)
+        # verify accounts have been imported, view initial account state
+        for account_id in full_service.account_ids:
+            balance = full_service.get_account_status(account_id)
+            print(f'account_id {account_id} : balance {balance}')
 
+        # run test suite
+        full_service.test_transactions()
 
-    print('===================================================')
-    print('full service synced, importing accounts')
+        # allow for transactions to pass through
+        # flakey -- replace with checker function
+        time.sleep(20)
 
-    # import accounts
-    full_service.setup_accounts()
-    wallet_status = full_service.get_wallet_status()    
+        # verify accounts have been updated with changed state
+        # TODO: bundle with test suite, exiting code 0 on success, or code 1 on failure
+        for account_id in full_service.account_ids:
+            print(account_id)
+            balance = full_service.get_account_status(account_id)['balance']
+            print(f'account_id {account_id} : balance {balance}')
 
-    # verify accounts have been imported, view initial account state
-    for account_id in full_service.account_ids:
-        balance = full_service.get_account_status(account_id)
-        print(f'account_id {account_id} : balance {balance}')
-
-    # run test suite
-    full_service.test_transactions()
-
-    # allow for transactions to pass through
-    # flakey -- replace with checker function
-    time.sleep(20)
-
-    # verify accounts have been updated with changed state
-    # TODO: bundle with test suite, exiting code 0 on success, or code 1 on failure
-    for account_id in full_service.account_ids:
-        print(account_id)
-        balance = full_service.get_account_status(account_id)['balance']
-        print(f'account_id {account_id} : balance {balance}')
-
-    # shut down networks
-    print('===================================================')
-    print('stopping services')
-    full_service.stop()
-    mobilecoin_network.stop()
-
-    # successful exit on no error
-    exit(0)
-    
+        # successful exit on no error
+        cleanup_and_exit(0)
+    except:
+        cleanup_and_exit(1)
