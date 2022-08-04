@@ -1,0 +1,76 @@
+name: mc-ledger-test
+
+env:
+  SGX_MODE: SW
+  IAS_MODE: DEV
+  RUST_BACKTRACE: full
+  MC_SEED: a4aa76e4a5ca70c8447dd544a63f180b5a6fe0aff96495802506354c10f2886e
+  IAS_API_KEY: ${{ secrets.SGX_PRIMARY_API_KEY }}
+  IAS_SPID: ${{ secrets.SGX_SPID }}
+
+on:
+  push:
+    branches:
+      - setup-mobilecoin
+
+# TESTING WITH NEKTOS/ACT
+# nektos/act is a 3rd party github library that allows for the local testing of github actions
+# best nektox/act testing flow is:
+  # 1 remove all other github workflow files (.github/workflows) except the one you're testing
+    # 1.1 nektos/act will complain for full commented-out scripts -- my workflow has been to delete them and just not commit the deletions
+  # 2 change the runs-on tag to point to `ubuntu-latest` if its set to a self-hosted tag
+    # 2.1 `ubuntu-latest` will use Github Action minutes, but is required for testing with nektos/act
+    # 2.2 `[self-hosted, Linux, large]` will use a self-hosted machine (free for us), but fails with nektos/act
+  # 3 only run the steps up through the build steps. Don't run the `python3 tools/local_network.py --network-type a-b-c` step for local testing
+  # 4 when nektos/act has finished building, open a new terminal and run `docker ps -a` and grab the relevant container ID
+  # 5 run `docker exec -it <container id> /bin/bash` in the non-nektos/act terminal
+  # 6 in the docker container, run `python3 tools/local_network.py --network-type a-b-c` to run the script
+  # 7 iterate and change the local_network script
+    # 7.1 make changes to the script
+    # 7.2 stop the `python3 tools/local_network.py --network-type a-b-c` script, and exit the container
+    # 7.3 out of the container (in normal terminal), run `docker cp address/to/the/script <container id>:address/to/the/script`
+      # 7.3.1 this should copy your local version of the script to the docker container without requiring a restart
+    # 7.4 exec back into the container and run the script, following steps 5 and 6
+
+
+jobs:
+  integration-test:
+    # set runs-on to `[self-hosted, Linux, large]` for running on github actions
+    # and `ubuntu-latest` for running on locally with nektos/act. 
+    runs-on: [self-hosted, Linux, large]
+    container:
+      # image should be kept up to date with the url and tag listed in mobilecoin/.mobconf
+      # e.g. {{url}}:{{tag}} to prevent build failures
+      image: mobilecoin/builder-install:v0.0.10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Bootstrap MobileCoin
+        if: steps.cache-bootstrap.outputs.cache-hit != 'true'
+        run: |
+          mobilecoin/tools/local-network/bootstrap.sh
+
+      - name: Build MobileCoin
+        shell: bash
+        run: |
+          python3 tools/build_mobilecoin.py
+      
+      - name: Build FullService
+        shell: bash
+        run: |
+          python3 tools/build_full_service.py
+      
+      # test locally (run local_network.py via exec'ing into the container from the terminal)
+      # - name: run bash
+      #   shell: bash
+      #   run: /bin/bash
+      
+      # programmatically run the script:
+      - name: Run Integration
+        shell: bash
+        run: |
+          python3 tools/local_network.py --network-type a-b-c
+
