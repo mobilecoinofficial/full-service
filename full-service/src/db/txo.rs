@@ -850,7 +850,7 @@ impl TxoModel for Txo {
             query = query.filter(txos::received_block_index.le(max_received_block_index as i64));
         }
 
-        Ok(query.select(txos::all_columns).load(conn)?)
+        Ok(query.select(txos::all_columns).distinct().load(conn)?)
     }
 
     fn list_unverified(
@@ -912,7 +912,7 @@ impl TxoModel for Txo {
             query = query.filter(txos::received_block_index.le(max_received_block_index as i64));
         }
 
-        Ok(query.load(conn)?)
+        Ok(query.distinct().load(conn)?)
     }
 
     fn list_unspent_or_pending_key_images(
@@ -1088,7 +1088,7 @@ impl TxoModel for Txo {
             query = query.filter(txos::received_block_index.le(max_received_block_index as i64));
         }
 
-        let txos: Vec<Txo> = query.select(txos::all_columns).load(conn)?;
+        let txos: Vec<Txo> = query.select(txos::all_columns).distinct().load(conn)?;
 
         Ok(txos)
     }
@@ -1183,6 +1183,7 @@ impl TxoModel for Txo {
 
         let spendable_txos = query
             .select(txos::all_columns)
+            .distinct()
             .order_by(txos::value.desc())
             .load(conn)?;
 
