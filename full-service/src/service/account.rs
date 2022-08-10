@@ -69,6 +69,9 @@ pub enum AccountServiceError {
 
     /// Account is not a view only account and should be
     AccountIsNotViewOnly(AccountID),
+
+    /// JSON Rpc Request was formatted incorrectly
+    InvalidJsonRPCRequest,
 }
 
 impl From<WalletDbError> for AccountServiceError {
@@ -415,8 +418,14 @@ where
         };
 
         let src_json: serde_json::Value = serde_json::json!(json_command_request);
-        let method = src_json.get("method").unwrap().as_str().unwrap();
-        let params = src_json.get("params").unwrap();
+        let method = src_json
+            .get("method")
+            .ok_or(AccountServiceError::InvalidJsonRPCRequest)?
+            .as_str()
+            .ok_or(AccountServiceError::InvalidJsonRPCRequest)?;
+        let params = src_json
+            .get("params")
+            .ok_or(AccountServiceError::InvalidJsonRPCRequest)?;
 
         Ok(JsonRPCRequest {
             method: method.to_string(),

@@ -3,7 +3,7 @@
 //! API definition for the TransactionLog object.
 
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::{convert::TryFrom, fmt};
 
 use crate::{
     db,
@@ -139,14 +139,19 @@ pub struct TransactionLog {
     pub failure_message: Option<String>,
 }
 
-impl From<&db::models::Txo> for TransactionLog {
-    fn from(txo: &db::models::Txo) -> Self {
-        TransactionLog {
+impl TryFrom<&db::models::Txo> for TransactionLog {
+    type Error = String;
+
+    fn try_from(txo: &db::models::Txo) -> Result<Self, Self::Error> {
+        Ok(TransactionLog {
             object: "transaction_log".to_string(),
             transaction_log_id: txo.id.to_string(),
             direction: TxDirection::Received.to_string(),
             is_sent_recovered: None,
-            account_id: txo.clone().account_id.unwrap(),
+            account_id: txo
+                .clone()
+                .account_id
+                .ok_or("Txo has no account_id but it is required for a transaction log")?,
             input_txos: vec![],
             output_txos: vec![],
             change_txos: vec![],
@@ -160,7 +165,7 @@ impl From<&db::models::Txo> for TransactionLog {
             comment: "".to_string(),
             failure_code: None,
             failure_message: None,
-        }
+        })
     }
 }
 

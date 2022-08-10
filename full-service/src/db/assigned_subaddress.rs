@@ -187,9 +187,9 @@ impl AssignedSubaddressModel for AssignedSubaddress {
 
             for orphaned_txo in orphaned_txos.iter() {
                 let tx_out_target_key: RistrettoPublic =
-                    mc_util_serial::decode(&orphaned_txo.target_key).unwrap();
+                    mc_util_serial::decode(&orphaned_txo.target_key)?;
                 let tx_public_key: RistrettoPublic =
-                    mc_util_serial::decode(&orphaned_txo.public_key).unwrap();
+                    mc_util_serial::decode(&orphaned_txo.public_key)?;
 
                 let txo_subaddress_spk: RistrettoPublic = recover_public_subaddress_spend_key(
                     view_account_key.view_private_key(),
@@ -221,9 +221,9 @@ impl AssignedSubaddressModel for AssignedSubaddress {
 
             for orphaned_txo in orphaned_txos.iter() {
                 let tx_out_target_key: RistrettoPublic =
-                    mc_util_serial::decode(&orphaned_txo.target_key).unwrap();
+                    mc_util_serial::decode(&orphaned_txo.target_key)?;
                 let tx_public_key: RistrettoPublic =
-                    mc_util_serial::decode(&orphaned_txo.public_key).unwrap();
+                    mc_util_serial::decode(&orphaned_txo.public_key)?;
                 let txo_public_key = CompressedRistrettoPublic::from(tx_public_key);
 
                 let txo_subaddress_spk: RistrettoPublic = recover_public_subaddress_spend_key(

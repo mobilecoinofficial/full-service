@@ -151,6 +151,9 @@ pub enum GiftCodeServiceError {
 
     /// Invalid Fog Uri: {0}
     InvalidFogUri(String),
+
+    /// Amount Error: {0}
+    Amount(mc_transaction_core::AmountError),
 }
 
 impl From<WalletDbError> for GiftCodeServiceError {
@@ -240,6 +243,12 @@ impl From<retry::Error<mc_connection::Error>> for GiftCodeServiceError {
 impl From<AddressServiceError> for GiftCodeServiceError {
     fn from(src: AddressServiceError) -> Self {
         Self::AddressService(src)
+    }
+}
+
+impl From<mc_transaction_core::AmountError> for GiftCodeServiceError {
+    fn from(src: mc_transaction_core::AmountError) -> Self {
+        Self::Amount(src)
     }
 }
 
@@ -539,7 +548,7 @@ where
             &RistrettoPublic::try_from(&gift_txo.public_key)?,
         );
 
-        let (value, _blinding) = gift_txo.masked_amount.get_value(&shared_secret).unwrap();
+        let (value, _blinding) = gift_txo.masked_amount.get_value(&shared_secret)?;
 
         // Check if the Gift Code has been spent - by convention gift codes are always
         // to the main subaddress index and gift accounts should NEVER have MOB stored
@@ -584,7 +593,7 @@ where
             GiftCodeStatus::GiftCodeAvailable => {}
         }
 
-        let gift_value = gift_value.unwrap();
+        let gift_value = gift_value.ok_or(GiftCodeServiceError::GiftCodeNotYetAvailable)?;
 
         let transfer_payload = decode_transfer_payload(gift_code_b58)?;
         let gift_account_key = transfer_payload.account_key;
