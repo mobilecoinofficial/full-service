@@ -40,15 +40,14 @@ impl TryFrom<&crate::json_rpc::v1::models::tx_proposal::TxProposal> for TxPropos
     fn try_from(
         src: &crate::json_rpc::v1::models::tx_proposal::TxProposal,
     ) -> Result<Self, Self::Error> {
-        let mc_api_tx = mc_api::external::Tx::try_from(&src.tx).map_err(|e| e.to_string())?;
+        let mc_api_tx = mc_api::external::Tx::try_from(&src.tx)?;
         let tx = Tx::try_from(&mc_api_tx).map_err(|e| e.to_string())?;
 
         let input_txos = src
             .input_list
             .iter()
             .map(|unspent_txo| {
-                let mc_api_tx_out = mc_api::external::TxOut::try_from(&unspent_txo.tx_out)
-                    .map_err(|e| e.to_string())?;
+                let mc_api_tx_out = mc_api::external::TxOut::try_from(&unspent_txo.tx_out)?;
                 let tx_out = TxOut::try_from(&mc_api_tx_out).map_err(|e| e.to_string())?;
 
                 let key_image_bytes =
@@ -86,8 +85,8 @@ impl TryFrom<&crate::json_rpc::v1::models::tx_proposal::TxProposal> for TxPropos
 
             let confirmation_number = TxOutConfirmationNumber::from(confirmation_number_bytes);
 
-            let mc_api_public_address = mc_api::external::PublicAddress::try_from(&outlay.receiver)
-                .map_err(|e| e.to_string())?;
+            let mc_api_public_address =
+                mc_api::external::PublicAddress::try_from(&outlay.receiver)?;
             let public_address =
                 PublicAddress::try_from(&mc_api_public_address).map_err(|e| e.to_string())?;
 
@@ -137,60 +136,70 @@ impl TryFrom<&crate::json_rpc::v2::models::tx_proposal::TxProposal> for TxPropos
                         .map_err(|e| e.to_string())?,
                     key_image: KeyImage::try_from(key_image_bytes.as_slice())
                         .map_err(|e| e.to_string())?,
-                    amount: Amount::try_from(&input_txo.amount).map_err(|e| e.to_string())?,
+                    amount: Amount::try_from(&input_txo.amount)?,
                 })
             })
             .collect::<Result<Vec<_>, String>>()?;
 
-        let payload_txos = src
-            .payload_txos
-            .iter()
-            .map(|payload_txo| {
-                let confirmation_number_bytes: [u8; 32] =
-                    hex::decode(&payload_txo.confirmation_number)
-                        .unwrap()
-                        .as_slice()
-                        .try_into()
-                        .unwrap();
-                OutputTxo {
-                    tx_out: mc_util_serial::decode(
-                        hex::decode(&payload_txo.tx_out_proto).unwrap().as_slice(),
-                    )
-                    .unwrap(),
-                    recipient_public_address: b58_decode_public_address(
-                        &payload_txo.recipient_public_address_b58,
-                    )
-                    .unwrap(),
-                    confirmation_number: TxOutConfirmationNumber::from(&confirmation_number_bytes),
-                    amount: Amount::try_from(&payload_txo.amount).unwrap(),
-                }
-            })
-            .collect();
+        let mut payload_txos = Vec::new();
 
-        let change_txos = src
-            .change_txos
-            .iter()
-            .map(|change_txo| {
-                let confirmation_number_bytes: [u8; 32] =
-                    hex::decode(&change_txo.confirmation_number)
-                        .unwrap()
-                        .as_slice()
-                        .try_into()
-                        .unwrap();
-                OutputTxo {
-                    tx_out: mc_util_serial::decode(
-                        hex::decode(&change_txo.tx_out_proto).unwrap().as_slice(),
-                    )
-                    .unwrap(),
-                    recipient_public_address: b58_decode_public_address(
-                        &change_txo.recipient_public_address_b58,
-                    )
-                    .unwrap(),
-                    confirmation_number: TxOutConfirmationNumber::from(&confirmation_number_bytes),
-                    amount: Amount::try_from(&change_txo.amount).unwrap(),
-                }
-            })
-            .collect();
+        for txo in src.payload_txos.iter() {
+            let confirmation_number_hex =
+                hex::decode(&txo.confirmation_number).map_err(|e| format!("{}", e))?;
+            let confirmation_number_bytes: [u8; 32] =
+                confirmation_number_hex.as_slice().try_into().map_err(|_| {
+                    "confirmation number is not the right number of bytes (expecting 32)"
+                })?;
+            let confirmation_number = TxOutConfirmationNumber::from(confirmation_number_bytes);
+
+            let txo_out_hex = hex::decode(&txo.tx_out_proto).map_err(|e| e.to_string())?;
+            let tx_out =
+                mc_util_serial::decode(txo_out_hex.as_slice()).map_err(|e| e.to_string())?;
+            let recipient_public_address =
+                b58_decode_public_address(&txo.recipient_public_address_b58)
+                    .map_err(|e| e.to_string())?;
+
+            let amount = Amount::try_from(&txo.amount)?;
+
+            let output_txo = OutputTxo {
+                tx_out,
+                recipient_public_address,
+                confirmation_number,
+                amount,
+            };
+
+            payload_txos.push(output_txo);
+        }
+
+        let mut change_txos = Vec::new();
+
+        for txo in src.change_txos.iter() {
+            let confirmation_number_hex =
+                hex::decode(&txo.confirmation_number).map_err(|e| format!("{}", e))?;
+            let confirmation_number_bytes: [u8; 32] =
+                confirmation_number_hex.as_slice().try_into().map_err(|_| {
+                    "confirmation number is not the right number of bytes (expecting 32)"
+                })?;
+            let confirmation_number = TxOutConfirmationNumber::from(confirmation_number_bytes);
+
+            let txo_out_hex = hex::decode(&txo.tx_out_proto).map_err(|e| e.to_string())?;
+            let tx_out =
+                mc_util_serial::decode(txo_out_hex.as_slice()).map_err(|e| e.to_string())?;
+            let recipient_public_address =
+                b58_decode_public_address(&txo.recipient_public_address_b58)
+                    .map_err(|e| e.to_string())?;
+
+            let amount = Amount::try_from(&txo.amount)?;
+
+            let output_txo = OutputTxo {
+                tx_out,
+                recipient_public_address,
+                confirmation_number,
+                amount,
+            };
+
+            change_txos.push(output_txo);
+        }
 
         Ok(Self {
             tx,
