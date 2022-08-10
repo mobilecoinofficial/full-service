@@ -1057,7 +1057,8 @@ impl TxoModel for Txo {
 
         query = query
             .filter(transaction_logs::failed.eq(false))
-            .filter(transaction_logs::finalized_block_index.is_null());
+            .filter(transaction_logs::finalized_block_index.is_null())
+            .filter(transaction_logs::submitted_block_index.is_not_null());
 
         query = query
             .filter(txos::subaddress_index.is_not_null())

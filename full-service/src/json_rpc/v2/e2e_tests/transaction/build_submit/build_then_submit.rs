@@ -525,4 +525,191 @@ mod e2e_transaction {
         assert_eq!(secreted, "0");
         assert_eq!(orphaned, "0");
     }
+
+    #[test_with_logger]
+    fn test_build_then_submit_transaction_multiple_accounts(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let alice_account_id = account_obj.get("id").unwrap().as_str().unwrap();
+        let alice_b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+        let alice_public_address = b58_decode_public_address(alice_b58_public_address).unwrap();
+
+        // Add a second account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Bob Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let bob_account_id = account_obj.get("id").unwrap().as_str().unwrap();
+        let bob_b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+
+        // Add a block with a txo for this address (note that value is smaller than
+        // MINIMUM_FEE, so it is a "dust" TxOut that should get opportunistically swept
+        // up when we construct the transaction)
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![
+                alice_public_address.clone(),
+                alice_public_address.clone(),
+                alice_public_address.clone(),
+                alice_public_address.clone(),
+                alice_public_address.clone(),
+            ],
+            100000000000000,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        manually_sync_account(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(alice_account_id.to_string()),
+            &logger,
+        );
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "build_transaction",
+            "params": {
+                "account_id": alice_account_id,
+                "recipient_public_address": bob_b58_public_address,
+                "amount": { "value": "42000000000000", "token_id": "0"}, // 42.0 MOB
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let tx_proposal: TxProposalJSON =
+            serde_json::from_value(result.get("tx_proposal").unwrap().clone()).unwrap();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_account_status",
+            "params": {
+                "account_id": alice_account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance_per_token = result.get("balance_per_token").unwrap();
+        let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
+        let unspent = balance_mob["unspent"].as_str().unwrap();
+        assert_eq!(unspent, "500000000000000");
+
+        // Submit the tx_proposal
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "submit_transaction",
+            "params": {
+                "tx_proposal": tx_proposal,
+                "account_id": alice_account_id,
+            }
+        });
+        let _res = dispatch(&client, body, &logger);
+
+        let payments_tx_proposal = TxProposal::try_from(&tx_proposal).unwrap();
+
+        // The MockBlockchainConnection does not write to the ledger_db
+        add_block_with_tx(&mut ledger_db, payments_tx_proposal.tx, &mut rng);
+        manually_sync_account(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(alice_account_id.to_string()),
+            &logger,
+        );
+        manually_sync_account(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(bob_account_id.to_string()),
+            &logger,
+        );
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "build_transaction",
+            "params": {
+                "account_id": bob_account_id,
+                "recipient_public_address": bob_b58_public_address,
+                "amount": { "value": "10000000000000", "token_id": "0"}, // 42.0 MOB
+            }
+        });
+        let _res = dispatch(&client, body, &logger);
+
+        // Get balance after submission
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_account_status",
+            "params": {
+                "account_id": alice_account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance_per_token = result.get("balance_per_token").unwrap();
+        let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
+        let max_spendable = balance_mob["max_spendable"].as_str().unwrap();
+        let unspent = balance_mob["unspent"].as_str().unwrap();
+        let pending = balance_mob["pending"].as_str().unwrap();
+        let spent = balance_mob["spent"].as_str().unwrap();
+        let secreted = balance_mob["secreted"].as_str().unwrap();
+        let orphaned = balance_mob["orphaned"].as_str().unwrap();
+        assert_eq!(max_spendable, "457999200000000");
+        assert_eq!(unspent, "457999600000000");
+        assert_eq!(pending, "0");
+        assert_eq!(spent, "100000000000000");
+        assert_eq!(secreted, "0");
+        assert_eq!(orphaned, "0");
+
+        // Get balance after submission
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_account_status",
+            "params": {
+                "account_id": bob_account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let balance_per_token = result.get("balance_per_token").unwrap();
+        let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
+        let max_spendable = balance_mob["max_spendable"].as_str().unwrap();
+        let unspent = balance_mob["unspent"].as_str().unwrap();
+        let pending = balance_mob["pending"].as_str().unwrap();
+        let spent = balance_mob["spent"].as_str().unwrap();
+        let secreted = balance_mob["secreted"].as_str().unwrap();
+        let orphaned = balance_mob["orphaned"].as_str().unwrap();
+        assert_eq!(
+            max_spendable,
+            (42000000000000 - Mob::MINIMUM_FEE).to_string()
+        );
+        assert_eq!(unspent, "42000000000000");
+        assert_eq!(pending, "0");
+        assert_eq!(spent, "0");
+        assert_eq!(secreted, "0");
+        assert_eq!(orphaned, "0");
+    }
 }
