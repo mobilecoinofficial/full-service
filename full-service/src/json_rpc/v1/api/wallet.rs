@@ -1,5 +1,9 @@
 use crate::{
-    db::{account::AccountID, transaction_log::TransactionID, txo::TxoID},
+    db::{
+        account::AccountID,
+        transaction_log::TransactionID,
+        txo::{TxoID, TxoStatus},
+    },
     json_rpc::{
         self,
         json_rpc_request::JsonRPCRequest,
@@ -18,6 +22,7 @@ use crate::{
                 gift_code::GiftCode,
                 network_status::NetworkStatus,
                 receiver_receipt::ReceiverReceipt,
+                transaction_log::TransactionLog,
                 tx_proposal::TxProposal,
                 txo::Txo,
                 wallet_status::WalletStatus,
@@ -382,9 +387,10 @@ where
         },
         JsonCommandRequest::create_receiver_receipts { tx_proposal } => {
             let receipts = service
-                .create_receiver_receipts(&service::models::tx_proposal::TxProposal::from(
-                    &tx_proposal,
-                ))
+                .create_receiver_receipts(
+                    &service::models::tx_proposal::TxProposal::try_from(&tx_proposal)
+                        .map_err(format_error)?,
+                )
                 .map_err(format_error)?;
             let json_receipts: Vec<ReceiverReceipt> = receipts
                 .iter()
@@ -544,13 +550,11 @@ where
                 .list_txos(None, None, None, Some(*Mob::ID), None, None, None, None)
                 .map_err(format_error)?;
 
-            let received_tx_logs: Vec<json_rpc::v1::models::transaction_log::TransactionLog> =
-                received_txos
-                    .iter()
-                    .map(|(txo, _)| {
-                        json_rpc::v1::models::transaction_log::TransactionLog::from(txo)
-                    })
-                    .collect();
+            let received_tx_logs: Vec<TransactionLog> = received_txos
+                .iter()
+                .map(|(txo, _)| TransactionLog::try_from(txo))
+                .collect::<Result<Vec<TransactionLog>, _>>()
+                .map_err(format_error)?;
 
             for received_tx_log in received_tx_logs.iter() {
                 let tx_log_json = serde_json::to_value(received_tx_log).map_err(format_error)?;
@@ -742,13 +746,11 @@ where
                 )
                 .map_err(format_error)?;
 
-            let received_tx_logs: Vec<json_rpc::v1::models::transaction_log::TransactionLog> =
-                received_txos
-                    .iter()
-                    .map(|(txo, _)| {
-                        json_rpc::v1::models::transaction_log::TransactionLog::from(txo)
-                    })
-                    .collect();
+            let received_tx_logs: Vec<TransactionLog> = received_txos
+                .iter()
+                .map(|(txo, _)| TransactionLog::try_from(txo))
+                .collect::<Result<Vec<TransactionLog>, _>>()
+                .map_err(format_error)?;
 
             for received_tx_log in received_tx_logs.iter() {
                 let tx_log_json = serde_json::to_value(received_tx_log).map_err(format_error)?;
@@ -797,13 +799,11 @@ where
             offset,
             limit,
         } => {
-            let status = status.map(|s| {
-                let status = s
-                    .parse::<json_rpc::v1::models::txo::TxoStatus>()
-                    .map_err(format_error)
-                    .unwrap();
-                crate::db::txo::TxoStatus::try_from(status).unwrap()
-            });
+            let status = if let Some(status) = status {
+                Some(status.parse::<TxoStatus>().map_err(format_error)?)
+            } else {
+                None
+            };
 
             let (o, l) = page_helper(offset, limit)?;
             let txos = service
@@ -966,7 +966,8 @@ where
                 .submit_gift_code(
                     &AccountID(from_account_id),
                     &EncodedGiftCode(gift_code_b58),
-                    &service::models::tx_proposal::TxProposal::from(&tx_proposal),
+                    &service::models::tx_proposal::TxProposal::try_from(&tx_proposal)
+                        .map_err(format_error)?,
                 )
                 .map_err(format_error)?;
             JsonCommandResponse::submit_gift_code {
@@ -980,16 +981,14 @@ where
         } => {
             let result = service
                 .submit_transaction(
-                    &service::models::tx_proposal::TxProposal::from(&tx_proposal),
+                    &service::models::tx_proposal::TxProposal::try_from(&tx_proposal)
+                        .map_err(format_error)?,
                     comment,
                     account_id,
                 )
                 .map_err(format_error)?
                 .map(|(tx_log, associated_txos, _value_map)| {
-                    json_rpc::v1::models::transaction_log::TransactionLog::new(
-                        &tx_log,
-                        &associated_txos,
-                    )
+                    TransactionLog::new(&tx_log, &associated_txos)
                 });
             JsonCommandResponse::submit_transaction {
                 transaction_log: result,
