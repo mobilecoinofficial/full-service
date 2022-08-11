@@ -147,6 +147,7 @@ impl From<mc_ledger_db::Error> for TransactionServiceError {
 /// Trait defining the ways in which the wallet can interact with and manage
 /// transactions.
 pub trait TransactionService {
+    #[allow(clippy::too_many_arguments)]
     fn build_unsigned_transaction(
         &self,
         account_id_hex: &str,
