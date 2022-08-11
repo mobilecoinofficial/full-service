@@ -198,8 +198,11 @@ where
             fee_value,
             fee_token_id,
             tombstone_block,
+            addresses_and_amounts,
+            input_txo_ids,
+            max_spendable_value,
         } => {
-            let mut addresses_and_amounts = Vec::new();
+            let mut addresses_and_amounts = addresses_and_amounts.unwrap_or_default();
             if let (Some(address), Some(amount)) = (recipient_public_address, amount) {
                 addresses_and_amounts.push((address, amount));
             }
@@ -207,9 +210,11 @@ where
                 .build_unsigned_transaction(
                     &account_id,
                     &addresses_and_amounts,
+                    input_txo_ids.as_ref(),
                     fee_value,
                     fee_token_id,
                     tombstone_block,
+                    max_spendable_value,
                 )
                 .map_err(format_error)?;
             JsonCommandResponse::build_unsigned_transaction {
