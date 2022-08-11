@@ -812,10 +812,6 @@ impl TxoModel for Txo {
                     .on(transaction_logs::id.eq(transaction_input_txos::transaction_log_id)),
             );
 
-        if let Some(account_id_hex) = account_id_hex {
-            query = query.filter(txos::account_id.eq(account_id_hex));
-        }
-
         query = query.filter(
             transaction_logs::id
                 .is_null()
@@ -828,6 +824,10 @@ impl TxoModel for Txo {
         query = query.filter(txos::received_block_index.is_not_null());
         query = query.filter(txos::key_image.is_not_null());
         query = query.filter(txos::spent_block_index.is_null());
+
+        if let Some(account_id_hex) = account_id_hex {
+            query = query.filter(txos::account_id.eq(account_id_hex));
+        }
 
         if let (Some(o), Some(l)) = (offset, limit) {
             query = query.offset(o as i64).limit(l as i64);
@@ -873,10 +873,6 @@ impl TxoModel for Txo {
                     .on(transaction_logs::id.eq(transaction_input_txos::transaction_log_id)),
             );
 
-        if let Some(account_id_hex) = account_id_hex {
-            query = query.filter(txos::account_id.eq(account_id_hex));
-        }
-
         query = query.filter(
             transaction_logs::id
                 .is_null()
@@ -890,6 +886,10 @@ impl TxoModel for Txo {
             .filter(txos::received_block_index.is_not_null())
             .filter(txos::subaddress_index.is_not_null())
             .filter(txos::key_image.is_null());
+
+        if let Some(account_id_hex) = account_id_hex {
+            query = query.filter(txos::account_id.eq(account_id_hex));
+        }
 
         if let (Some(o), Some(l)) = (offset, limit) {
             query = query.offset(o as i64).limit(l as i64);
@@ -1057,7 +1057,8 @@ impl TxoModel for Txo {
 
         query = query
             .filter(transaction_logs::failed.eq(false))
-            .filter(transaction_logs::finalized_block_index.is_null());
+            .filter(transaction_logs::finalized_block_index.is_null())
+            .filter(transaction_logs::submitted_block_index.is_not_null());
 
         query = query
             .filter(txos::subaddress_index.is_not_null())
@@ -1153,10 +1154,6 @@ impl TxoModel for Txo {
                     .on(transaction_logs::id.eq(transaction_input_txos::transaction_log_id)),
             );
 
-        if let Some(account_id_hex) = account_id_hex {
-            query = query.filter(txos::account_id.eq(account_id_hex));
-        }
-
         query = query
             .filter(transaction_logs::id.is_null())
             .or_filter(transaction_logs::failed.eq(true))
@@ -1179,6 +1176,10 @@ impl TxoModel for Txo {
 
         if let Some(max_spendable_value) = max_spendable_value {
             query = query.filter(txos::value.le(max_spendable_value as i64));
+        }
+
+        if let Some(account_id_hex) = account_id_hex {
+            query = query.filter(txos::account_id.eq(account_id_hex));
         }
 
         let spendable_txos = query
