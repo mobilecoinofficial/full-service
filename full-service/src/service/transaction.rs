@@ -151,9 +151,11 @@ pub trait TransactionService {
         &self,
         account_id_hex: &str,
         addresses_and_amounts: &[(String, AmountJSON)],
+        input_txo_ids: Option<&Vec<String>>,
         fee_value: Option<String>,
         fee_token_id: Option<String>,
         tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
     ) -> Result<(UnsignedTx, FullServiceFogResolver), TransactionServiceError>;
 
     /// Builds a transaction from the given account to the specified recipients.
@@ -202,9 +204,11 @@ where
         &self,
         account_id_hex: &str,
         addresses_and_amounts: &[(String, AmountJSON)],
+        input_txo_ids: Option<&Vec<String>>,
         fee_value: Option<String>,
         fee_token_id: Option<String>,
         tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
     ) -> Result<(UnsignedTx, FullServiceFogResolver), TransactionServiceError> {
         validate_number_outputs(addresses_and_amounts.len() as u64)?;
 
@@ -228,7 +232,6 @@ where
                 let recipient = b58_decode_public_address(recipient_public_address)?;
                 let amount =
                     Amount::try_from(amount).map_err(TransactionServiceError::InvalidAmount)?;
-                // let token_id = TokenId::from(token_id.parse::<u64>()?);
                 builder.add_recipient(recipient, amount.value, amount.token_id)?;
                 default_fee_token_id = amount.token_id;
             }
@@ -253,7 +256,16 @@ where
 
             builder.set_block_version(self.get_network_block_version());
 
-            builder.select_txos(&conn, None)?;
+            if let Some(inputs) = input_txo_ids {
+                builder.set_txos(&conn, inputs)?;
+            } else {
+                let max_spendable = if let Some(msv) = max_spendable_value {
+                    Some(msv.parse::<u64>()?)
+                } else {
+                    None
+                };
+                builder.select_txos(&conn, max_spendable)?;
+            }
 
             let unsigned_tx = builder.build_unsigned()?;
             let fog_resolver = builder.get_fs_fog_resolver(&conn)?;
