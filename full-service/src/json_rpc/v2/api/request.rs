@@ -66,11 +66,14 @@ pub enum JsonCommandRequest {
     },
     build_unsigned_transaction {
         account_id: String,
+        addresses_and_amounts: Option<Vec<(String, Amount)>>,
         recipient_public_address: Option<String>,
         amount: Option<Amount>,
+        input_txo_ids: Option<Vec<String>>,
         fee_value: Option<String>,
         fee_token_id: Option<String>,
         tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
     },
     check_b58_type {
         b58_code: String,
