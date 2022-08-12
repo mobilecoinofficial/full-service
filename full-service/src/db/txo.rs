@@ -13,9 +13,8 @@ use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
 use mc_transaction_core::{
     constants::MAX_INPUTS,
     ring_signature::KeyImage,
-    tokens::Mob,
     tx::{TxOut, TxOutConfirmationNumber},
-    Amount, Token, TokenId,
+    Amount, TokenId,
 };
 use std::{fmt, str::FromStr};
 
@@ -275,6 +274,7 @@ pub trait TxoModel {
         max_spendable_value: Option<u64>,
         assigned_subaddress_b58: Option<&str>,
         token_id: u64,
+        default_token_fee: u64,
         conn: &Conn,
     ) -> Result<SpendableTxosResult, WalletDbError>;
 
@@ -308,6 +308,7 @@ pub trait TxoModel {
         target_value: u64,
         max_spendable_value: Option<u64>,
         token_id: u64,
+        default_token_fee: u64,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
@@ -1142,6 +1143,7 @@ impl TxoModel for Txo {
         max_spendable_value: Option<u64>,
         assigned_subaddress_b58: Option<&str>,
         token_id: u64,
+        default_token_fee: u64,
         conn: &Conn,
     ) -> Result<SpendableTxosResult, WalletDbError> {
         use crate::db::schema::{transaction_input_txos, transaction_logs, txos};
@@ -1200,8 +1202,8 @@ impl TxoModel for Txo {
             .map(|utxo: &Txo| (utxo.value as u64) as u128)
             .sum();
 
-        if max_spendable_in_wallet > Mob::MINIMUM_FEE as u128 {
-            max_spendable_in_wallet -= Mob::MINIMUM_FEE as u128;
+        if max_spendable_in_wallet > default_token_fee as u128 {
+            max_spendable_in_wallet -= default_token_fee as u128;
         } else {
             max_spendable_in_wallet = 0;
         }
@@ -1217,6 +1219,7 @@ impl TxoModel for Txo {
         target_value: u64,
         max_spendable_value: Option<u64>,
         token_id: u64,
+        default_token_fee: u64,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
         let SpendableTxosResult {
@@ -1227,6 +1230,7 @@ impl TxoModel for Txo {
             max_spendable_value,
             None,
             token_id,
+            default_token_fee,
             conn,
         )?;
 
@@ -1236,14 +1240,14 @@ impl TxoModel for Txo {
 
         // If we're trying to spend more than we have in the wallet, we may need to
         // defrag
-        if target_value as u128 > max_spendable_in_wallet + Mob::MINIMUM_FEE as u128 {
+        if target_value as u128 > max_spendable_in_wallet + default_token_fee as u128 {
             // See if we merged the UTXOs we would be able to spend this amount.
             let total_unspent_value_in_wallet: u128 = spendable_txos
                 .iter()
                 .map(|utxo| (utxo.value as u64) as u128)
                 .sum();
 
-            if total_unspent_value_in_wallet >= (target_value + Mob::MINIMUM_FEE) as u128 {
+            if total_unspent_value_in_wallet >= (target_value + default_token_fee) as u128 {
                 return Err(WalletDbError::InsufficientFundsFragmentedTxos);
             } else {
                 return Err(WalletDbError::InsufficientFundsUnderMaxSpendable(format!(
@@ -1826,6 +1830,7 @@ mod tests {
             300 * MOB,
             None,
             0,
+            Mob::MINIMUM_FEE,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1838,6 +1843,7 @@ mod tests {
             300 * MOB + Mob::MINIMUM_FEE,
             None,
             0,
+            Mob::MINIMUM_FEE,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1853,6 +1859,7 @@ mod tests {
             300 * MOB + Mob::MINIMUM_FEE,
             Some(200 * MOB),
             0,
+            Mob::MINIMUM_FEE,
             &wallet_db.get_conn().unwrap(),
         );
 
@@ -1869,6 +1876,7 @@ mod tests {
             16800 * MOB,
             None,
             0,
+            Mob::MINIMUM_FEE,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1938,6 +1946,7 @@ mod tests {
             16800 * MOB,
             None,
             0,
+            Mob::MINIMUM_FEE,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1947,6 +1956,7 @@ mod tests {
             16800 * MOB,
             Some(100 * MOB),
             0,
+            Mob::MINIMUM_FEE,
             &wallet_db.get_conn().unwrap(),
         );
 
@@ -2000,6 +2010,7 @@ mod tests {
             1800 * MOB,
             None,
             0,
+            Mob::MINIMUM_FEE,
             &wallet_db.get_conn().unwrap(),
         );
         match res {
@@ -2421,7 +2432,15 @@ mod tests {
         let SpendableTxosResult {
             spendable_txos,
             max_spendable_in_wallet,
-        } = Txo::list_spendable(Some(&account_id.to_string()), None, None, 0, &conn).unwrap();
+        } = Txo::list_spendable(
+            Some(&account_id.to_string()),
+            None,
+            None,
+            0,
+            Mob::MINIMUM_FEE,
+            &conn,
+        )
+        .unwrap();
 
         assert_eq!(spendable_txos.len(), 20);
         assert_eq!(
@@ -2469,7 +2488,15 @@ mod tests {
         let SpendableTxosResult {
             spendable_txos,
             max_spendable_in_wallet,
-        } = Txo::list_spendable(Some(&account_id.to_string()), None, None, 0, &conn).unwrap();
+        } = Txo::list_spendable(
+            Some(&account_id.to_string()),
+            None,
+            None,
+            0,
+            Mob::MINIMUM_FEE,
+            &conn,
+        )
+        .unwrap();
 
         assert_eq!(spendable_txos.len(), 10);
         assert_eq!(max_spendable_in_wallet as u64, 0);
@@ -2551,6 +2578,7 @@ mod tests {
             Some(100 * MOB),
             None,
             0,
+            Mob::MINIMUM_FEE,
             &conn,
         )
         .unwrap();
@@ -2767,6 +2795,7 @@ mod tests {
             target_value,
             None,
             0,
+            Mob::MINIMUM_FEE,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -2784,6 +2813,7 @@ mod tests {
             201 as u64 * MOB,
             None,
             0,
+            Mob::MINIMUM_FEE,
             &wallet_db.get_conn().unwrap(),
         );
 
@@ -2801,6 +2831,7 @@ mod tests {
             3 as u64,
             None,
             0,
+            Mob::MINIMUM_FEE,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -2816,6 +2847,7 @@ mod tests {
             500 as u64 * MOB,
             None,
             0,
+            Mob::MINIMUM_FEE,
             &wallet_db.get_conn().unwrap(),
         );
         assert!(result.is_err());
@@ -2832,6 +2864,7 @@ mod tests {
             12400000000 as u64,
             None,
             0,
+            Mob::MINIMUM_FEE,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();

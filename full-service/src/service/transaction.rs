@@ -88,6 +88,9 @@ pub enum TransactionServiceError {
 
     /// Invalid Amount: {0}
     InvalidAmount(String),
+
+    /// No default fee found for token id: {0}
+    DefaultFeeNotFoundForToken(TokenId),
 }
 
 impl From<WalletDbError> for TransactionServiceError {
@@ -250,7 +253,9 @@ where
 
             let fee_value = match fee_value {
                 Some(f) => f.parse::<u64>()?,
-                None => self.get_network_fees()[&fee_token_id],
+                None => *self.get_network_fees().get(&fee_token_id).ok_or(
+                    TransactionServiceError::DefaultFeeNotFoundForToken(fee_token_id),
+                )?,
             };
 
             builder.set_fee(fee_value, fee_token_id)?;
@@ -326,7 +331,9 @@ where
 
             let fee_value = match fee_value {
                 Some(f) => f.parse::<u64>()?,
-                None => self.get_network_fees()[&fee_token_id],
+                None => *self.get_network_fees().get(&fee_token_id).ok_or(
+                    TransactionServiceError::DefaultFeeNotFoundForToken(fee_token_id),
+                )?,
             };
 
             builder.set_fee(fee_value, fee_token_id)?;
