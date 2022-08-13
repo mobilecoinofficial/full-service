@@ -2666,7 +2666,7 @@ dependencies = [
 
 [[package]]
 name = "mc-full-service"
-version = "1.9.2"
+version = "1.9.3"
 dependencies = [
  "anyhow",
  "base64 0.13.0",
