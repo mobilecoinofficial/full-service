@@ -146,22 +146,29 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                     acc
                 });
 
-        let (fee, token_id) = self.fee.unwrap_or((Mob::MINIMUM_FEE, Mob::ID));
+        let (fee_value, fee_token_id) = self.fee.unwrap_or((Mob::MINIMUM_FEE, Mob::ID));
         outlay_value_sum_map
-            .entry(token_id)
-            .and_modify(|v| *v += fee as u128)
-            .or_insert(fee as u128);
+            .entry(fee_token_id)
+            .and_modify(|v| *v += fee_value as u128)
+            .or_insert(fee_value as u128);
 
         for (token_id, target_value) in outlay_value_sum_map {
             if target_value > u64::MAX as u128 {
                 return Err(WalletTransactionBuilderError::OutboundValueTooLarge);
             }
 
+            let fee_value = if token_id == fee_token_id {
+                fee_value
+            } else {
+                0
+            };
+
             self.inputs = Txo::select_spendable_txos_for_value(
                 &self.account_id_hex,
                 target_value as u64,
                 max_spendable_value,
                 *token_id,
+                fee_value,
                 conn,
             )?;
         }
