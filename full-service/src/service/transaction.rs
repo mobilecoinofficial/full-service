@@ -18,6 +18,7 @@ use crate::{
     },
     util::b58::{b58_decode_public_address, B58Error},
 };
+use mc_account_keys::AccountKey;
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
@@ -26,6 +27,7 @@ use mc_transaction_core::{
     tokens::Mob,
     Amount, Token, TokenId,
 };
+use mc_transaction_std::{RTHMemoBuilder, SenderMemoCredential};
 
 use crate::{
     fog_resolver::FullServiceFogResolver,
@@ -296,6 +298,10 @@ where
 
         let conn = self.wallet_db.get_conn()?;
         transaction(&conn, || {
+            let account = Account::get(&AccountID(account_id_hex.to_string()), &conn)?;
+            let from_account_key: AccountKey =
+                mc_util_serial::decode(&account.account_key).unwrap();
+
             let mut builder = WalletTransactionBuilder::new(
                 account_id_hex.to_string(),
                 self.ledger_db.clone(),
@@ -351,7 +357,11 @@ where
                 builder.select_txos(&conn, max_spendable)?;
             }
 
-            let tx_proposal: TxProposal = builder.build(&conn)?;
+            let mut memo_builder = RTHMemoBuilder::default();
+            memo_builder.set_sender_credential(SenderMemoCredential::from(&from_account_key));
+            memo_builder.enable_destination_memo();
+
+            let tx_proposal: TxProposal = builder.build(Some(Box::new(memo_builder)), &conn)?;
 
             TransactionLog::log_built(
                 tx_proposal.clone(),

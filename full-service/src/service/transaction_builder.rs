@@ -40,8 +40,8 @@ use mc_transaction_core::{
     Amount, BlockVersion, Token, TokenId,
 };
 use mc_transaction_std::{
-    InputCredentials, RTHMemoBuilder, ReservedSubaddresses, SenderMemoCredential,
-    TransactionBuilder,
+    EmptyMemoBuilder, InputCredentials, MemoBuilder, RTHMemoBuilder, ReservedSubaddresses,
+    SenderMemoCredential, TransactionBuilder,
 };
 use mc_util_uri::FogUri;
 
@@ -394,7 +394,11 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
     }
 
     /// Consumes self
-    pub fn build(&self, conn: &Conn) -> Result<TxProposal, WalletTransactionBuilderError> {
+    pub fn build(
+        &self,
+        memo_builder: Option<Box<dyn MemoBuilder + 'static + Send + Sync>>,
+        conn: &Conn,
+    ) -> Result<TxProposal, WalletTransactionBuilderError> {
         if self.inputs.is_empty() {
             return Err(WalletTransactionBuilderError::NoInputs);
         }
@@ -424,14 +428,13 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         };
 
         // Create transaction builder.
-        let mut memo_builder = RTHMemoBuilder::default();
-        memo_builder.set_sender_credential(SenderMemoCredential::from(&from_account_key));
-        memo_builder.enable_destination_memo();
         let block_version = self.block_version.unwrap_or(BlockVersion::MAX);
         let (fee, token_id) = self.fee.unwrap_or((Mob::MINIMUM_FEE, Mob::ID));
         let fee = Amount::new(fee, token_id);
+        let memo_builder: Box<dyn MemoBuilder + Send + Sync> =
+            memo_builder.unwrap_or_else(|| Box::new(EmptyMemoBuilder::default()));
         let mut transaction_builder =
-            TransactionBuilder::new(block_version, fee, fog_resolver, memo_builder)?;
+            TransactionBuilder::new_with_box(block_version, fee, fog_resolver, memo_builder)?;
 
         // Get membership proofs for our inputs
         let indexes = self
@@ -813,7 +816,7 @@ mod tests {
         builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
 
-        let proposal = builder.build(&conn).unwrap();
+        let proposal = builder.build(None, &conn).unwrap();
         assert_eq!(proposal.payload_txos.len(), 1);
         assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);
         assert_eq!(proposal.payload_txos[0].amount.value, value);
@@ -922,7 +925,7 @@ mod tests {
 
         builder.set_txos(&conn, &vec![txos[0].id.clone()]).unwrap();
         builder.set_tombstone(0).unwrap();
-        match builder.build(&conn) {
+        match builder.build(None, &conn) {
             Ok(_) => {
                 panic!("Should not be able to construct Tx with > inputs value as output value")
             }
@@ -943,7 +946,7 @@ mod tests {
             .set_txos(&conn, &vec![txos[0].id.clone(), txos[1].id.clone()])
             .unwrap();
         builder.set_tombstone(0).unwrap();
-        let proposal = builder.build(&conn).unwrap();
+        let proposal = builder.build(None, &conn).unwrap();
         assert_eq!(proposal.payload_txos.len(), 1);
         assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);
         assert_eq!(
@@ -1006,7 +1009,7 @@ mod tests {
         // pick up both 70 and 80
         builder.select_txos(&conn, Some(80 * MOB)).unwrap();
         builder.set_tombstone(0).unwrap();
-        let proposal = builder.build(&conn).unwrap();
+        let proposal = builder.build(None, &conn).unwrap();
         assert_eq!(proposal.payload_txos.len(), 1);
         assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);
         assert_eq!(proposal.payload_txos[0].amount.value, 80 * MOB);
@@ -1049,7 +1052,7 @@ mod tests {
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
 
         // We must set tombstone block before building
-        match builder.build(&conn) {
+        match builder.build(None, &conn) {
             Ok(_) => panic!("Expected TombstoneNotSet error"),
             Err(WalletTransactionBuilderError::TombstoneNotSet) => {}
             Err(e) => panic!("Unexpected error {:?}", e),
@@ -1068,7 +1071,7 @@ mod tests {
 
         // Not setting the tombstone results in tombstone = 0. This is an acceptable
         // value,
-        let proposal = builder.build(&conn).unwrap();
+        let proposal = builder.build(None, &conn).unwrap();
         assert_eq!(proposal.tx.prefix.tombstone_block, 23);
 
         // Build a transaction and explicitly set tombstone
@@ -1085,7 +1088,7 @@ mod tests {
 
         // Not setting the tombstone results in tombstone = 0. This is an acceptable
         // value,
-        let proposal = builder.build(&conn).unwrap();
+        let proposal = builder.build(None, &conn).unwrap();
         assert_eq!(proposal.tx.prefix.tombstone_block, 20);
     }
 
@@ -1121,7 +1124,7 @@ mod tests {
         builder.set_tombstone(0).unwrap();
 
         // Verify that not setting fee results in default fee
-        let proposal = builder.build(&conn).unwrap();
+        let proposal = builder.build(None, &conn).unwrap();
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
 
         // You cannot set fee to 0
@@ -1140,7 +1143,7 @@ mod tests {
         }
 
         // Verify that not setting fee results in default fee
-        let proposal = builder.build(&conn).unwrap();
+        let proposal = builder.build(None, &conn).unwrap();
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
 
         // Setting fee less than minimum fee should fail
@@ -1168,7 +1171,7 @@ mod tests {
         builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
         builder.set_fee(Mob::MINIMUM_FEE * 10, Mob::ID).unwrap();
-        let proposal = builder.build(&conn).unwrap();
+        let proposal = builder.build(None, &conn).unwrap();
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE * 10);
     }
 
@@ -1206,7 +1209,7 @@ mod tests {
         builder.set_tombstone(0).unwrap();
 
         // Verify that not setting fee results in default fee
-        let proposal = builder.build(&conn).unwrap();
+        let proposal = builder.build(None, &conn).unwrap();
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
         assert_eq!(proposal.payload_txos.len(), 1);
         assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);
@@ -1259,7 +1262,7 @@ mod tests {
         builder.set_tombstone(0).unwrap();
 
         // Verify that not setting fee results in default fee
-        let proposal = builder.build(&conn).unwrap();
+        let proposal = builder.build(None, &conn).unwrap();
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
         assert_eq!(proposal.payload_txos.len(), 4);
         assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);

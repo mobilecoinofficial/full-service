@@ -1396,6 +1396,7 @@ mod tests {
     use mc_fog_report_validation::MockFogPubkeyResolver;
     use mc_ledger_db::Ledger;
     use mc_transaction_core::{tokens::Mob, Amount, Token, TokenId};
+    use mc_transaction_std::EmptyMemoBuilder;
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
     use std::{iter::FromIterator, time::Duration};
@@ -2145,6 +2146,7 @@ mod tests {
         // Number
         log::info!(logger, "Creating transaction builder");
         let conn = wallet_db.get_conn().unwrap();
+
         let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
             WalletTransactionBuilder::new(
                 AccountID::from(&sender_account_key).to_string(),
@@ -2161,7 +2163,7 @@ mod tests {
             .unwrap();
         builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
-        let proposal = builder.build(&conn).unwrap();
+        let proposal = builder.build(None, &conn).unwrap();
 
         // Sleep to make sure that the foreign keys exist
         std::thread::sleep(Duration::from_secs(3));
