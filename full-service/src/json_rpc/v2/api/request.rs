@@ -56,6 +56,7 @@ pub enum JsonCommandRequest {
     build_burn_transaction {
         account_id: String,
         amount: Amount,
+        redemption_memo: Option<String>,
         input_txo_ids: Option<Vec<String>>,
         fee_value: Option<String>,
         fee_token_id: Option<String>,
@@ -67,6 +68,15 @@ pub enum JsonCommandRequest {
         addresses_and_amounts: Option<Vec<(String, Amount)>>,
         recipient_public_address: Option<String>,
         amount: Option<Amount>,
+        input_txo_ids: Option<Vec<String>>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
+        tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
+    },
+    build_unsigned_burn_transaction {
+        account_id: String,
+        amount: Amount,
         input_txo_ids: Option<Vec<String>>,
         fee_value: Option<String>,
         fee_token_id: Option<String>,

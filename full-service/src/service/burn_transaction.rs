@@ -9,11 +9,7 @@
 
 use crate::{
     db::{
-        account::{AccountID, AccountModel},
-        models::{Account, TransactionLog},
-        transaction,
-        transaction_log::{AssociatedTxos, TransactionLogModel, ValueMap},
-        WalletDbError,
+        models::TransactionLog, transaction, transaction_log::TransactionLogModel, WalletDbError,
     },
     error::WalletTransactionBuilderError,
     json_rpc::v2::models::amount::Amount as AmountJSON,
@@ -21,22 +17,16 @@ use crate::{
         ledger::LedgerService, models::tx_proposal::TxProposal,
         transaction_builder::WalletTransactionBuilder, WalletService,
     },
-    util::b58::{b58_decode_public_address, B58Error},
+    util::b58::B58Error,
 };
-use mc_account_keys::{burn_address, AccountKey};
-use mc_common::logger::log;
-use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
+use mc_account_keys::burn_address;
+use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_transaction_core::{
-    constants::{MAX_INPUTS, MAX_OUTPUTS},
-    tokens::Mob,
-    Amount, Token, TokenId,
-};
-use mc_transaction_std::{BurnRedemptionMemo, BurnRedemptionMemoBuilder, SenderMemoCredential};
+use mc_transaction_core::{Amount, TokenId};
+use mc_transaction_std::{BurnRedemptionMemo, BurnRedemptionMemoBuilder};
 
 use crate::{
-    fog_resolver::FullServiceFogResolver,
-    service::address::{AddressService, AddressServiceError},
+    fog_resolver::FullServiceFogResolver, service::address::AddressServiceError,
     unsigned_tx::UnsignedTx,
 };
 use displaydoc::Display;
@@ -98,6 +88,9 @@ pub enum BurnTransactionServiceError {
 
     /// No default fee found for token id: {0}
     DefaultFeeNotFoundForToken(TokenId),
+
+    /// Error from hex: {0}
+    FromHexError(hex::FromHexError),
 }
 
 impl From<WalletDbError> for BurnTransactionServiceError {
@@ -153,6 +146,12 @@ impl From<mc_ledger_db::Error> for BurnTransactionServiceError {
         Self::LedgerDB(src)
     }
 }
+
+impl From<hex::FromHexError> for BurnTransactionServiceError {
+    fn from(src: hex::FromHexError) -> Self {
+        Self::FromHexError(src)
+    }
+}
 /// Trait defining the ways in which the wallet can interact with and manage
 /// burn transactions.
 pub trait BurnTransactionService {
@@ -161,12 +160,25 @@ pub trait BurnTransactionService {
         &self,
         account_id_hex: &str,
         amount: &AmountJSON,
+        redemption_memo: Option<String>,
         input_txo_ids: Option<&Vec<String>>,
         fee_value: Option<String>,
         fee_token_id: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
     ) -> Result<TxProposal, BurnTransactionServiceError>;
+
+    #[allow(clippy::too_many_arguments)]
+    fn build_unsigned_burn_transaction(
+        &self,
+        account_id_hex: &str,
+        amount: &AmountJSON,
+        input_txo_ids: Option<&Vec<String>>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
+        tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
+    ) -> Result<(UnsignedTx, FullServiceFogResolver), BurnTransactionServiceError>;
 }
 
 impl<T, FPR> BurnTransactionService for WalletService<T, FPR>
@@ -178,6 +190,7 @@ where
         &self,
         account_id_hex: &str,
         amount: &AmountJSON,
+        redemption_memo: Option<String>,
         input_txo_ids: Option<&Vec<String>>,
         fee_value: Option<String>,
         fee_token_id: Option<String>,
@@ -187,10 +200,6 @@ where
         let conn = self.wallet_db.get_conn()?;
 
         transaction(&conn, || {
-            let account = Account::get(&AccountID(account_id_hex.to_string()), &conn)?;
-            let from_account_key: AccountKey =
-                mc_util_serial::decode(&account.account_key).unwrap();
-
             let mut builder = WalletTransactionBuilder::new(
                 account_id_hex.to_string(),
                 self.ledger_db.clone(),
@@ -202,7 +211,7 @@ where
                 Amount::try_from(amount).map_err(BurnTransactionServiceError::InvalidAmount)?;
             let default_fee_token_id = amount.token_id;
 
-            builder.add_recipient(burn_address(), amount.value, amount.token_id);
+            builder.add_recipient(burn_address(), amount.value, amount.token_id)?;
 
             if let Some(tombstone) = tombstone_block {
                 builder.set_tombstone(tombstone.parse::<u64>()?)?;
@@ -237,7 +246,12 @@ where
                 builder.select_txos(&conn, max_spendable)?;
             }
 
-            let memo_data = [1; BurnRedemptionMemo::MEMO_DATA_LEN];
+            let mut memo_data = [0; BurnRedemptionMemo::MEMO_DATA_LEN];
+
+            if let Some(redemption_memo) = redemption_memo {
+                hex::decode_to_slice(&redemption_memo, &mut memo_data)?;
+            }
+
             let mut memo_builder = BurnRedemptionMemoBuilder::new(memo_data);
             memo_builder.enable_destination_memo();
             let tx_proposal: TxProposal =
@@ -246,6 +260,71 @@ where
             TransactionLog::log_built(tx_proposal.clone(), "".to_string(), account_id_hex, &conn)?;
 
             Ok(tx_proposal)
+        })
+    }
+
+    fn build_unsigned_burn_transaction(
+        &self,
+        account_id_hex: &str,
+        amount: &AmountJSON,
+        input_txo_ids: Option<&Vec<String>>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
+        tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
+    ) -> Result<(UnsignedTx, FullServiceFogResolver), BurnTransactionServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+        transaction(&conn, || {
+            let mut builder = WalletTransactionBuilder::new(
+                account_id_hex.to_string(),
+                self.ledger_db.clone(),
+                self.fog_resolver_factory.clone(),
+                self.logger.clone(),
+            );
+
+            let amount =
+                Amount::try_from(amount).map_err(BurnTransactionServiceError::InvalidAmount)?;
+            let default_fee_token_id = amount.token_id;
+
+            builder.add_recipient(burn_address(), amount.value, amount.token_id)?;
+
+            if let Some(tombstone) = tombstone_block {
+                builder.set_tombstone(tombstone.parse::<u64>()?)?;
+            } else {
+                builder.set_tombstone(0)?;
+            }
+
+            let fee_token_id = match fee_token_id {
+                Some(t) => TokenId::from(t.parse::<u64>()?),
+                None => default_fee_token_id,
+            };
+
+            let fee_value = match fee_value {
+                Some(f) => f.parse::<u64>()?,
+                None => *self.get_network_fees().get(&fee_token_id).ok_or(
+                    BurnTransactionServiceError::DefaultFeeNotFoundForToken(fee_token_id),
+                )?,
+            };
+
+            builder.set_fee(fee_value, fee_token_id)?;
+
+            builder.set_block_version(self.get_network_block_version());
+
+            if let Some(inputs) = input_txo_ids {
+                builder.set_txos(&conn, inputs)?;
+            } else {
+                let max_spendable = if let Some(msv) = max_spendable_value {
+                    Some(msv.parse::<u64>()?)
+                } else {
+                    None
+                };
+                builder.select_txos(&conn, max_spendable)?;
+            }
+
+            let unsigned_tx = builder.build_unsigned()?;
+            let fog_resolver = builder.get_fs_fog_resolver(&conn)?;
+
+            Ok((unsigned_tx, fog_resolver))
         })
     }
 }

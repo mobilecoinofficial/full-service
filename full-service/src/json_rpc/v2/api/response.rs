@@ -52,6 +52,11 @@ pub enum JsonCommandResponse {
         tx_proposal: TxProposal,
         transaction_log_id: String,
     },
+    build_unsigned_burn_transaction {
+        account_id: String,
+        unsigned_tx: UnsignedTx,
+        fog_resolver: FullServiceFogResolver,
+    },
     build_unsigned_transaction {
         account_id: String,
         unsigned_tx: UnsignedTx,
