@@ -45,7 +45,7 @@ use std::convert::TryFrom;
 /// Errors for the Transaction Service.
 #[derive(Display, Debug)]
 #[allow(clippy::large_enum_variant)]
-pub enum BurnTxServiceError {
+pub enum BurnTransactionServiceError {
     ///Error interacting with the B58 Util: {0}
     B58(B58Error),
 
@@ -100,62 +100,62 @@ pub enum BurnTxServiceError {
     DefaultFeeNotFoundForToken(TokenId),
 }
 
-impl From<WalletDbError> for BurnTxServiceError {
+impl From<WalletDbError> for BurnTransactionServiceError {
     fn from(src: WalletDbError) -> Self {
         Self::Database(src)
     }
 }
 
-impl From<B58Error> for BurnTxServiceError {
+impl From<B58Error> for BurnTransactionServiceError {
     fn from(src: B58Error) -> Self {
         Self::B58(src)
     }
 }
 
-impl From<std::num::ParseIntError> for BurnTxServiceError {
+impl From<std::num::ParseIntError> for BurnTransactionServiceError {
     fn from(_src: std::num::ParseIntError) -> Self {
         Self::U64Parse
     }
 }
 
-impl From<WalletTransactionBuilderError> for BurnTxServiceError {
+impl From<WalletTransactionBuilderError> for BurnTransactionServiceError {
     fn from(src: WalletTransactionBuilderError) -> Self {
         Self::TransactionBuilder(src)
     }
 }
 
-impl From<mc_api::ConversionError> for BurnTxServiceError {
+impl From<mc_api::ConversionError> for BurnTransactionServiceError {
     fn from(src: mc_api::ConversionError) -> Self {
         Self::ProtoConversion(src)
     }
 }
 
-impl From<retry::Error<mc_connection::Error>> for BurnTxServiceError {
+impl From<retry::Error<mc_connection::Error>> for BurnTransactionServiceError {
     fn from(e: retry::Error<mc_connection::Error>) -> Self {
         Self::Connection(e)
     }
 }
 
-impl From<AddressServiceError> for BurnTxServiceError {
+impl From<AddressServiceError> for BurnTransactionServiceError {
     fn from(e: AddressServiceError) -> Self {
         Self::AddressService(e)
     }
 }
 
-impl From<diesel::result::Error> for BurnTxServiceError {
+impl From<diesel::result::Error> for BurnTransactionServiceError {
     fn from(src: diesel::result::Error) -> Self {
         Self::Diesel(src)
     }
 }
 
-impl From<mc_ledger_db::Error> for BurnTxServiceError {
+impl From<mc_ledger_db::Error> for BurnTransactionServiceError {
     fn from(src: mc_ledger_db::Error) -> Self {
         Self::LedgerDB(src)
     }
 }
 /// Trait defining the ways in which the wallet can interact with and manage
 /// burn transactions.
-pub trait BurnTxService {
+pub trait BurnTransactionService {
     #[allow(clippy::too_many_arguments)]
     fn build_burn_transaction(
         &self,
@@ -166,10 +166,10 @@ pub trait BurnTxService {
         fee_token_id: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
-    ) -> Result<TxProposal, BurnTxServiceError>;
+    ) -> Result<TxProposal, BurnTransactionServiceError>;
 }
 
-impl<T, FPR> BurnTxService for WalletService<T, FPR>
+impl<T, FPR> BurnTransactionService for WalletService<T, FPR>
 where
     T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
@@ -183,7 +183,7 @@ where
         fee_token_id: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
-    ) -> Result<TxProposal, BurnTxServiceError> {
+    ) -> Result<TxProposal, BurnTransactionServiceError> {
         let conn = self.wallet_db.get_conn()?;
 
         transaction(&conn, || {
@@ -198,7 +198,8 @@ where
                 self.logger.clone(),
             );
 
-            let amount = Amount::try_from(amount).map_err(BurnTxServiceError::InvalidAmount)?;
+            let amount =
+                Amount::try_from(amount).map_err(BurnTransactionServiceError::InvalidAmount)?;
             let default_fee_token_id = amount.token_id;
 
             builder.add_recipient(burn_address(), amount.value, amount.token_id);
@@ -216,10 +217,9 @@ where
 
             let fee_value = match fee_value {
                 Some(f) => f.parse::<u64>()?,
-                None => *self
-                    .get_network_fees()
-                    .get(&fee_token_id)
-                    .ok_or(BurnTxServiceError::DefaultFeeNotFoundForToken(fee_token_id))?,
+                None => *self.get_network_fees().get(&fee_token_id).ok_or(
+                    BurnTransactionServiceError::DefaultFeeNotFoundForToken(fee_token_id),
+                )?,
             };
 
             builder.set_fee(fee_value, fee_token_id)?;

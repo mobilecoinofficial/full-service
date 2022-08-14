@@ -30,10 +30,11 @@ use crate::{
     },
     service::{
         self, account::AccountService, address::AddressService, balance::BalanceService,
-        burn_tx::BurnTxService, confirmation_number::ConfirmationService, ledger::LedgerService,
-        models::tx_proposal::TxProposal, payment_request::PaymentRequestService,
-        receipt::ReceiptService, transaction::TransactionService,
-        transaction_log::TransactionLogService, txo::TxoService, WalletService,
+        burn_tx::BurnTransactionService, confirmation_number::ConfirmationService,
+        ledger::LedgerService, models::tx_proposal::TxProposal,
+        payment_request::PaymentRequestService, receipt::ReceiptService,
+        transaction::TransactionService, transaction_log::TransactionLogService, txo::TxoService,
+        WalletService,
     },
     util::b58::{
         b58_decode_payment_request, b58_encode_public_address, b58_printable_wrapper_type,
