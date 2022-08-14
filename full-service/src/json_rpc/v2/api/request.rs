@@ -53,6 +53,15 @@ pub enum JsonCommandRequest {
         max_spendable_value: Option<String>,
         comment: Option<String>,
     },
+    build_burn_transaction {
+        account_id: String,
+        amount: Amount,
+        input_txo_ids: Option<Vec<String>>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
+        tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
+    },
     build_transaction {
         account_id: String,
         addresses_and_amounts: Option<Vec<(String, Amount)>>,

@@ -40,8 +40,7 @@ use mc_transaction_core::{
     Amount, BlockVersion, Token, TokenId,
 };
 use mc_transaction_std::{
-    EmptyMemoBuilder, InputCredentials, MemoBuilder, RTHMemoBuilder, ReservedSubaddresses,
-    SenderMemoCredential, TransactionBuilder,
+    EmptyMemoBuilder, InputCredentials, MemoBuilder, ReservedSubaddresses, TransactionBuilder,
 };
 use mc_util_uri::FogUri;
 

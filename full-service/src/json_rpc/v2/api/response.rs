@@ -44,6 +44,10 @@ pub enum JsonCommandResponse {
         transaction_log: TransactionLog,
         tx_proposal: TxProposal,
     },
+    build_burn_transaction {
+        tx_proposal: TxProposal,
+        transaction_log_id: String,
+    },
     build_transaction {
         tx_proposal: TxProposal,
         transaction_log_id: String,

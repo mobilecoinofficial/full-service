@@ -28,10 +28,9 @@ use crate::{
         },
         wallet::{ApiKeyGuard, WalletState},
     },
-    service,
     service::{
-        account::AccountService, address::AddressService, balance::BalanceService,
-        confirmation_number::ConfirmationService, ledger::LedgerService,
+        self, account::AccountService, address::AddressService, balance::BalanceService,
+        burn_tx::BurnTxService, confirmation_number::ConfirmationService, ledger::LedgerService,
         models::tx_proposal::TxProposal, payment_request::PaymentRequestService,
         receipt::ReceiptService, transaction::TransactionService,
         transaction_log::TransactionLogService, txo::TxoService, WalletService,
@@ -154,6 +153,31 @@ where
                     &value_map,
                 ),
                 tx_proposal: TxProposalJSON::try_from(&tx_proposal).map_err(format_error)?,
+            }
+        }
+        JsonCommandRequest::build_burn_transaction {
+            account_id,
+            amount,
+            input_txo_ids,
+            fee_value,
+            fee_token_id,
+            tombstone_block,
+            max_spendable_value,
+        } => {
+            let tx_proposal = service
+                .build_burn_transaction(
+                    &account_id,
+                    &amount,
+                    input_txo_ids.as_ref(),
+                    fee_value,
+                    fee_token_id,
+                    tombstone_block,
+                    max_spendable_value,
+                )
+                .map_err(format_error)?;
+            JsonCommandResponse::build_burn_transaction {
+                tx_proposal: TxProposalJSON::try_from(&tx_proposal).map_err(format_error)?,
+                transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
             }
         }
         JsonCommandRequest::build_transaction {
