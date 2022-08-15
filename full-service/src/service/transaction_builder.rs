@@ -393,7 +393,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             fee_token_id: *fee_token_id,
             tombstone_block_index: self.tombstone,
             block_version: self.block_version.unwrap_or(BlockVersion::MAX),
-            redemption_memo: redemption_memo.map(|memo| hex::encode(memo)),
+            redemption_memo: redemption_memo.map(hex::encode),
         })
     }
 
