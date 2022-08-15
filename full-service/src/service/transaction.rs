@@ -275,7 +275,7 @@ where
                 builder.select_txos(&conn, max_spendable)?;
             }
 
-            let unsigned_tx = builder.build_unsigned()?;
+            let unsigned_tx = builder.build_unsigned(None)?;
             let fog_resolver = builder.get_fs_fog_resolver(&conn)?;
 
             Ok((unsigned_tx, fog_resolver))

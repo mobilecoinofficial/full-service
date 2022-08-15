@@ -221,6 +221,7 @@ where
         JsonCommandRequest::build_unsigned_burn_transaction {
             account_id,
             amount,
+            redemption_memo,
             input_txo_ids,
             fee_value,
             fee_token_id,
@@ -231,6 +232,7 @@ where
                 .build_unsigned_burn_transaction(
                     &account_id,
                     &amount,
+                    redemption_memo,
                     input_txo_ids.as_ref(),
                     fee_value,
                     fee_token_id,

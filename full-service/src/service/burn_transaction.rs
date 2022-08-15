@@ -167,6 +167,7 @@ pub trait BurnTransactionService {
         &self,
         account_id_hex: &str,
         amount: &AmountJSON,
+        redemption_memo: Option<String>,
         input_txo_ids: Option<&Vec<String>>,
         fee_value: Option<String>,
         fee_token_id: Option<String>,
@@ -262,6 +263,7 @@ where
         &self,
         account_id_hex: &str,
         amount: &AmountJSON,
+        redemption_memo: Option<String>,
         input_txo_ids: Option<&Vec<String>>,
         fee_value: Option<String>,
         fee_token_id: Option<String>,
@@ -316,7 +318,14 @@ where
                 builder.select_txos(&conn, max_spendable)?;
             }
 
-            let unsigned_tx = builder.build_unsigned()?;
+            let mut memo_data = [0; BurnRedemptionMemo::MEMO_DATA_LEN];
+
+            if let Some(redemption_memo) = redemption_memo {
+                hex::decode_to_slice(&redemption_memo, &mut memo_data)
+                    .map_err(|_| BurnTransactionServiceError::InvalidNumberOfBytes)?;
+            }
+
+            let unsigned_tx = builder.build_unsigned(Some(memo_data))?;
             let fog_resolver = builder.get_fs_fog_resolver(&conn)?;
 
             Ok((unsigned_tx, fog_resolver))

@@ -40,7 +40,8 @@ use mc_transaction_core::{
     Amount, BlockVersion, Token, TokenId,
 };
 use mc_transaction_std::{
-    EmptyMemoBuilder, InputCredentials, MemoBuilder, ReservedSubaddresses, TransactionBuilder,
+    BurnRedemptionMemo, EmptyMemoBuilder, InputCredentials, MemoBuilder, ReservedSubaddresses,
+    TransactionBuilder,
 };
 use mc_util_uri::FogUri;
 
@@ -267,7 +268,10 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         Ok(FullServiceFogResolver(fully_validated_fog_pubkeys))
     }
 
-    pub fn build_unsigned(&self) -> Result<UnsignedTx, WalletTransactionBuilderError> {
+    pub fn build_unsigned(
+        &self,
+        redemption_memo: Option<[u8; BurnRedemptionMemo::MEMO_DATA_LEN]>,
+    ) -> Result<UnsignedTx, WalletTransactionBuilderError> {
         if self.tombstone == 0 {
             return Err(WalletTransactionBuilderError::TombstoneNotSet);
         }
@@ -389,6 +393,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             fee_token_id: *fee_token_id,
             tombstone_block_index: self.tombstone,
             block_version: self.block_version.unwrap_or(BlockVersion::MAX),
+            redemption_memo: redemption_memo.map(|memo| hex::encode(memo)),
         })
     }
 
