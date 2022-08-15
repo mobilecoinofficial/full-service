@@ -89,8 +89,8 @@ pub enum BurnTransactionServiceError {
     /// No default fee found for token id: {0}
     DefaultFeeNotFoundForToken(TokenId),
 
-    /// Error from hex: {0}
-    FromHexError(hex::FromHexError),
+    /// Invalid number of bytes, expecting exactly 64
+    InvalidNumberOfBytes,
 }
 
 impl From<WalletDbError> for BurnTransactionServiceError {
@@ -144,12 +144,6 @@ impl From<diesel::result::Error> for BurnTransactionServiceError {
 impl From<mc_ledger_db::Error> for BurnTransactionServiceError {
     fn from(src: mc_ledger_db::Error) -> Self {
         Self::LedgerDB(src)
-    }
-}
-
-impl From<hex::FromHexError> for BurnTransactionServiceError {
-    fn from(src: hex::FromHexError) -> Self {
-        Self::FromHexError(src)
     }
 }
 /// Trait defining the ways in which the wallet can interact with and manage
@@ -249,7 +243,8 @@ where
             let mut memo_data = [0; BurnRedemptionMemo::MEMO_DATA_LEN];
 
             if let Some(redemption_memo) = redemption_memo {
-                hex::decode_to_slice(&redemption_memo, &mut memo_data)?;
+                hex::decode_to_slice(&redemption_memo, &mut memo_data)
+                    .map_err(|_| BurnTransactionServiceError::InvalidNumberOfBytes)?;
             }
 
             let mut memo_builder = BurnRedemptionMemoBuilder::new(memo_data);
