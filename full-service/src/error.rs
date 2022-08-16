@@ -309,6 +309,9 @@ pub enum WalletTransactionBuilderError {
 
     /// Transaction is missing inputs for outputs with token id {0}
     MissingInputsForTokenId(String),
+
+    /// Error decoding the hex string: {0}
+    FromHexError(hex::FromHexError),
 }
 
 impl From<mc_transaction_core::AmountError> for WalletTransactionBuilderError {
@@ -362,5 +365,11 @@ impl From<mc_util_uri::UriParseError> for WalletTransactionBuilderError {
 impl From<B58Error> for WalletTransactionBuilderError {
     fn from(src: B58Error) -> Self {
         Self::B58(src)
+    }
+}
+
+impl From<hex::FromHexError> for WalletTransactionBuilderError {
+    fn from(src: hex::FromHexError) -> Self {
+        Self::FromHexError(src)
     }
 }

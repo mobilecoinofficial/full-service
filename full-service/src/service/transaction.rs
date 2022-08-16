@@ -27,7 +27,9 @@ use mc_transaction_core::{
     tokens::Mob,
     Amount, Token, TokenId,
 };
-use mc_transaction_std::{RTHMemoBuilder, SenderMemoCredential};
+use mc_transaction_std::{
+    BurnRedemptionMemo, BurnRedemptionMemoBuilder, RTHMemoBuilder, SenderMemoCredential,
+};
 
 use crate::{
     fog_resolver::FullServiceFogResolver,
@@ -35,6 +37,7 @@ use crate::{
     unsigned_tx::UnsignedTx,
 };
 use displaydoc::Display;
+use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, iter::empty, sync::atomic::Ordering};
 
 /// Errors for the Transaction Service.
@@ -93,6 +96,9 @@ pub enum TransactionServiceError {
 
     /// No default fee found for token id: {0}
     DefaultFeeNotFoundForToken(TokenId),
+
+    /// Error decoding hex string: {0}
+    FromHexError(hex::FromHexError),
 }
 
 impl From<WalletDbError> for TransactionServiceError {
@@ -149,6 +155,21 @@ impl From<mc_ledger_db::Error> for TransactionServiceError {
     }
 }
 
+impl From<hex::FromHexError> for TransactionServiceError {
+    fn from(src: hex::FromHexError) -> Self {
+        Self::FromHexError(src)
+    }
+}
+
+#[derive(Debug, Display, Serialize, Deserialize, Clone, PartialEq)]
+pub enum TransactionMemo {
+    /// The transaction memo.
+    RTH,
+
+    /// The transaction memo.
+    BurnRedemption(Option<String>),
+}
+
 /// Trait defining the ways in which the wallet can interact with and manage
 /// transactions.
 pub trait TransactionService {
@@ -162,6 +183,7 @@ pub trait TransactionService {
         fee_token_id: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
+        memo: TransactionMemo,
     ) -> Result<(UnsignedTx, FullServiceFogResolver), TransactionServiceError>;
 
     /// Builds a transaction from the given account to the specified recipients.
@@ -176,6 +198,7 @@ pub trait TransactionService {
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
+        memo: TransactionMemo,
     ) -> Result<TxProposal, TransactionServiceError>;
 
     /// Submits a pre-built TxProposal to the MobileCoin Consensus Network.
@@ -215,6 +238,7 @@ where
         fee_token_id: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
+        memo: TransactionMemo,
     ) -> Result<(UnsignedTx, FullServiceFogResolver), TransactionServiceError> {
         validate_number_outputs(addresses_and_amounts.len() as u64)?;
 
@@ -275,7 +299,7 @@ where
                 builder.select_txos(&conn, max_spendable)?;
             }
 
-            let unsigned_tx = builder.build_unsigned(None)?;
+            let unsigned_tx = builder.build_unsigned(memo)?;
             let fog_resolver = builder.get_fs_fog_resolver(&conn)?;
 
             Ok((unsigned_tx, fog_resolver))
@@ -292,6 +316,7 @@ where
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
+        memo: TransactionMemo,
     ) -> Result<TxProposal, TransactionServiceError> {
         validate_number_inputs(input_txo_ids.unwrap_or(&Vec::new()).len() as u64)?;
         validate_number_outputs(addresses_and_amounts.len() as u64)?;
@@ -357,11 +382,26 @@ where
                 builder.select_txos(&conn, max_spendable)?;
             }
 
-            let mut memo_builder = RTHMemoBuilder::default();
-            memo_builder.set_sender_credential(SenderMemoCredential::from(&from_account_key));
-            memo_builder.enable_destination_memo();
+            let tx_proposal = match memo {
+                TransactionMemo::RTH => {
+                    let mut memo_builder = RTHMemoBuilder::default();
+                    memo_builder
+                        .set_sender_credential(SenderMemoCredential::from(&from_account_key));
+                    memo_builder.enable_destination_memo();
+                    builder.build(Some(Box::new(memo_builder)), &conn)?
+                }
+                TransactionMemo::BurnRedemption(redemption_memo_hex) => {
+                    let mut memo_data = [0; BurnRedemptionMemo::MEMO_DATA_LEN];
 
-            let tx_proposal: TxProposal = builder.build(Some(Box::new(memo_builder)), &conn)?;
+                    if let Some(redemption_memo_hex) = redemption_memo_hex {
+                        hex::decode_to_slice(&redemption_memo_hex, &mut memo_data)?;
+                    }
+
+                    let mut memo_builder = BurnRedemptionMemoBuilder::new(memo_data);
+                    memo_builder.enable_destination_memo();
+                    builder.build(Some(Box::new(memo_builder)), &conn)?
+                }
+            };
 
             TransactionLog::log_built(
                 tx_proposal.clone(),
@@ -457,6 +497,7 @@ where
             tombstone_block,
             max_spendable_value,
             comment.clone(),
+            TransactionMemo::RTH,
         )?;
         if let Some(transaction_log_and_associated_txos) =
             self.submit_transaction(&tx_proposal, comment, Some(account_id_hex.to_string()))?
@@ -598,6 +639,7 @@ mod tests {
                 None,
                 None,
                 None,
+                TransactionMemo::RTH,
             )
             .unwrap();
         log::info!(logger, "Built transaction from Alice");
@@ -626,6 +668,7 @@ mod tests {
                 None,
                 None,
                 None,
+                TransactionMemo::RTH,
             )
             .unwrap();
         log::info!(logger, "Built transaction from Alice");
@@ -654,6 +697,7 @@ mod tests {
                 None,
                 None,
                 None,
+                TransactionMemo::RTH,
             )
             .unwrap();
         log::info!(logger, "Built transaction from Alice");
@@ -887,6 +931,7 @@ mod tests {
             None,
             None,
             None,
+            TransactionMemo::RTH,
         ) {
             Ok(_) => {
                 panic!("Should not be able to build transaction to invalid b58 public address")
@@ -937,7 +982,17 @@ mod tests {
                 AmountJSON::new(42 * MOB, Mob::ID),
             ));
         }
-        match service.build_transaction(&alice.id, &outputs, None, None, None, None, None, None) {
+        match service.build_transaction(
+            &alice.id,
+            &outputs,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            TransactionMemo::RTH,
+        ) {
             Ok(_) => {
                 panic!("Should not be able to build transaction with too many ouputs")
             }
@@ -968,6 +1023,7 @@ mod tests {
             None,
             None,
             None,
+            TransactionMemo::RTH,
         ) {
             Ok(_) => {
                 panic!("Should not be able to build transaction with too many inputs")

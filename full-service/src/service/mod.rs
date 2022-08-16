@@ -5,7 +5,6 @@
 pub mod account;
 pub mod address;
 pub mod balance;
-pub mod burn_transaction;
 pub mod confirmation_number;
 pub mod gift_code;
 pub mod ledger;

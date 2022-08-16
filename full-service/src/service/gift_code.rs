@@ -54,6 +54,8 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, fmt, iter::empty, str::FromStr, sync::atomic::Ordering};
 
+use super::transaction::TransactionMemo;
+
 #[derive(Display, Debug)]
 #[allow(clippy::large_enum_variant)]
 pub enum GiftCodeServiceError {
@@ -436,6 +438,7 @@ where
             tombstone_block.map(|t| t.to_string()),
             max_spendable_value.map(|f| f.to_string()),
             None,
+            TransactionMemo::RTH,
         )?;
 
         if tx_proposal.payload_txos.len() != 1 {

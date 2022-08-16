@@ -1396,7 +1396,6 @@ mod tests {
     use mc_fog_report_validation::MockFogPubkeyResolver;
     use mc_ledger_db::Ledger;
     use mc_transaction_core::{tokens::Mob, Amount, Token, TokenId};
-    use mc_transaction_std::EmptyMemoBuilder;
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
     use std::{iter::FromIterator, time::Duration};

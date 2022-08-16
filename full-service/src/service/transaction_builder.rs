@@ -40,13 +40,14 @@ use mc_transaction_core::{
     Amount, BlockVersion, Token, TokenId,
 };
 use mc_transaction_std::{
-    BurnRedemptionMemo, EmptyMemoBuilder, InputCredentials, MemoBuilder, ReservedSubaddresses,
-    TransactionBuilder,
+    EmptyMemoBuilder, InputCredentials, MemoBuilder, ReservedSubaddresses, TransactionBuilder,
 };
 use mc_util_uri::FogUri;
 
 use rand::Rng;
 use std::{collections::BTreeMap, convert::TryFrom, str::FromStr, sync::Arc};
+
+use super::transaction::TransactionMemo;
 
 /// Default number of blocks used for calculating transaction tombstone block
 /// number.
@@ -270,7 +271,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
 
     pub fn build_unsigned(
         &self,
-        redemption_memo: Option<[u8; BurnRedemptionMemo::MEMO_DATA_LEN]>,
+        memo: TransactionMemo,
     ) -> Result<UnsignedTx, WalletTransactionBuilderError> {
         if self.tombstone == 0 {
             return Err(WalletTransactionBuilderError::TombstoneNotSet);
@@ -341,7 +342,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 Some(position) => {
                     // The input is already present in the ring.
                     // This could happen if ring elements are sampled
-                    // randomly from the             // ledger.
+                    // randomly from the ledger.
                     position
                 }
                 None => {
@@ -393,7 +394,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             fee_token_id: *fee_token_id,
             tombstone_block_index: self.tombstone,
             block_version: self.block_version.unwrap_or(BlockVersion::MAX),
-            redemption_memo: redemption_memo.map(hex::encode),
+            memo,
         })
     }
 

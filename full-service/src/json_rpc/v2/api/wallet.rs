@@ -29,11 +29,18 @@ use crate::{
         wallet::{ApiKeyGuard, WalletState},
     },
     service::{
-        self, account::AccountService, address::AddressService, balance::BalanceService,
-        burn_transaction::BurnTransactionService, confirmation_number::ConfirmationService,
-        ledger::LedgerService, models::tx_proposal::TxProposal,
-        payment_request::PaymentRequestService, receipt::ReceiptService,
-        transaction::TransactionService, transaction_log::TransactionLogService, txo::TxoService,
+        self,
+        account::AccountService,
+        address::AddressService,
+        balance::BalanceService,
+        confirmation_number::ConfirmationService,
+        ledger::LedgerService,
+        models::tx_proposal::TxProposal,
+        payment_request::PaymentRequestService,
+        receipt::ReceiptService,
+        transaction::{TransactionMemo, TransactionService},
+        transaction_log::TransactionLogService,
+        txo::TxoService,
         WalletService,
     },
     util::b58::{
@@ -41,6 +48,7 @@ use crate::{
         PrintableWrapperType,
     },
 };
+use mc_account_keys::burn_address;
 use mc_common::logger::global_log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
@@ -159,7 +167,7 @@ where
         JsonCommandRequest::build_burn_transaction {
             account_id,
             amount,
-            redemption_memo,
+            redemption_memo_hex: redemption_memo,
             input_txo_ids,
             fee_value,
             fee_token_id,
@@ -167,17 +175,22 @@ where
             max_spendable_value,
         } => {
             let tx_proposal = service
-                .build_burn_transaction(
+                .build_transaction(
                     &account_id,
-                    &amount,
-                    redemption_memo,
+                    &[(
+                        b58_encode_public_address(&burn_address()).map_err(format_error)?,
+                        amount,
+                    )],
                     input_txo_ids.as_ref(),
                     fee_value,
                     fee_token_id,
                     tombstone_block,
                     max_spendable_value,
+                    None,
+                    TransactionMemo::BurnRedemption(redemption_memo),
                 )
                 .map_err(format_error)?;
+
             JsonCommandResponse::build_burn_transaction {
                 tx_proposal: TxProposalJSON::try_from(&tx_proposal).map_err(format_error)?,
                 transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
@@ -211,6 +224,7 @@ where
                     tombstone_block,
                     max_spendable_value,
                     None,
+                    TransactionMemo::RTH,
                 )
                 .map_err(format_error)?;
             JsonCommandResponse::build_transaction {
@@ -221,7 +235,7 @@ where
         JsonCommandRequest::build_unsigned_burn_transaction {
             account_id,
             amount,
-            redemption_memo,
+            redemption_memo_hex: redemption_memo,
             input_txo_ids,
             fee_value,
             fee_token_id,
@@ -229,17 +243,21 @@ where
             max_spendable_value,
         } => {
             let (unsigned_tx, fog_resolver) = service
-                .build_unsigned_burn_transaction(
+                .build_unsigned_transaction(
                     &account_id,
-                    &amount,
-                    redemption_memo,
+                    &[(
+                        b58_encode_public_address(&burn_address()).map_err(format_error)?,
+                        amount,
+                    )],
                     input_txo_ids.as_ref(),
                     fee_value,
                     fee_token_id,
                     tombstone_block,
                     max_spendable_value,
+                    TransactionMemo::BurnRedemption(redemption_memo),
                 )
                 .map_err(format_error)?;
+
             JsonCommandResponse::build_unsigned_burn_transaction {
                 account_id,
                 unsigned_tx,
@@ -270,6 +288,7 @@ where
                     fee_token_id,
                     tombstone_block,
                     max_spendable_value,
+                    TransactionMemo::RTH,
                 )
                 .map_err(format_error)?;
             JsonCommandResponse::build_unsigned_transaction {

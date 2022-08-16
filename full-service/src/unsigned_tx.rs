@@ -20,7 +20,10 @@ use std::{collections::BTreeMap, convert::TryFrom};
 use crate::{
     error::WalletTransactionBuilderError,
     fog_resolver::FullServiceFogResolver,
-    service::models::tx_proposal::{InputTxo, OutputTxo, TxProposal},
+    service::{
+        models::tx_proposal::{InputTxo, OutputTxo, TxProposal},
+        transaction::TransactionMemo,
+    },
     util::b58::b58_decode_public_address,
 };
 
@@ -45,9 +48,8 @@ pub struct UnsignedTx {
     /// The block version
     pub block_version: BlockVersion,
 
-    /// Optional redemption memo bytes (hex encoded), for burn transactions.
-    /// Setting this indicates that this is a burn transaction.
-    pub redemption_memo: Option<String>,
+    /// Memo field that indicates what type of transaction this is.
+    pub memo: TransactionMemo,
 }
 
 impl UnsignedTx {
@@ -60,17 +62,25 @@ impl UnsignedTx {
 
         // Create transaction builder.
         let fee = Amount::new(self.fee, TokenId::from(self.fee_token_id));
-        let mut transaction_builder = if let Some(redemption_memo) = self.redemption_memo {
-            let mut memo_data = [0; BurnRedemptionMemo::MEMO_DATA_LEN];
-            hex::decode_to_slice(&redemption_memo, &mut memo_data).unwrap();
-            let mut memo_builder = BurnRedemptionMemoBuilder::new(memo_data);
-            memo_builder.enable_destination_memo();
-            TransactionBuilder::new(self.block_version, fee, fog_resolver, memo_builder)?
-        } else {
-            let mut memo_builder = RTHMemoBuilder::default();
-            memo_builder.set_sender_credential(SenderMemoCredential::from(account_key));
-            memo_builder.enable_destination_memo();
-            TransactionBuilder::new(self.block_version, fee, fog_resolver, memo_builder)?
+
+        let mut transaction_builder = match self.memo {
+            TransactionMemo::RTH => {
+                let mut memo_builder = RTHMemoBuilder::default();
+                memo_builder.set_sender_credential(SenderMemoCredential::from(account_key));
+                memo_builder.enable_destination_memo();
+                TransactionBuilder::new(self.block_version, fee, fog_resolver, memo_builder)?
+            }
+            TransactionMemo::BurnRedemption(redemption_memo_hex) => {
+                let mut memo_data = [0; BurnRedemptionMemo::MEMO_DATA_LEN];
+
+                if let Some(redemption_memo_hex) = redemption_memo_hex {
+                    hex::decode_to_slice(&redemption_memo_hex, &mut memo_data)?;
+                }
+
+                let mut memo_builder = BurnRedemptionMemoBuilder::new(memo_data);
+                memo_builder.enable_destination_memo();
+                TransactionBuilder::new(self.block_version, fee, fog_resolver, memo_builder)?
+            }
         };
 
         transaction_builder.set_tombstone_block(self.tombstone_block_index);

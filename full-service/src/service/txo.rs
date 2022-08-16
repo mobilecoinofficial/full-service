@@ -12,7 +12,7 @@ use crate::{
     json_rpc::v2::models::amount::Amount,
     service::{
         models::tx_proposal::TxProposal,
-        transaction::{TransactionService, TransactionServiceError},
+        transaction::{TransactionMemo, TransactionService, TransactionServiceError},
     },
     WalletService,
 };
@@ -222,6 +222,7 @@ where
             tombstone_block,
             None,
             None,
+            TransactionMemo::RTH,
         )?)
     }
 }
@@ -324,6 +325,7 @@ mod tests {
                 None,
                 None,
                 None,
+                TransactionMemo::RTH,
             )
             .unwrap();
         let _submitted = service
