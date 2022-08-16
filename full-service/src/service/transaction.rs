@@ -102,7 +102,7 @@ pub enum TransactionServiceError {
     /// Error decoding hex string
     FromHexError(hex::FromHexError),
 
-    /// Burn Redemption Memo must be exactly 128 characters (64 bytes) long.
+    /// Invalid burn redemption memo: {0}
     InvalidBurnRedemptionMemo(String),
 
     /// Error decoding with mc_util_serial
