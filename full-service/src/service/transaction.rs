@@ -163,10 +163,11 @@ impl From<hex::FromHexError> for TransactionServiceError {
 
 #[derive(Debug, Display, Serialize, Deserialize, Clone, PartialEq)]
 pub enum TransactionMemo {
-    /// The transaction memo.
+    /// Recoverable Transaction History memo.
     RTH,
 
-    /// The transaction memo.
+    /// Burn Redemption memo, with an optional 64 byte redemption memo hex
+    /// string.
     BurnRedemption(Option<String>),
 }
 
