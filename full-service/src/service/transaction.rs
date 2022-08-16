@@ -99,11 +99,14 @@ pub enum TransactionServiceError {
     /// No default fee found for token id: {0}
     DefaultFeeNotFoundForToken(TokenId),
 
-    /// Error decoding hex string: {0}
+    /// Error decoding hex string
     FromHexError(hex::FromHexError),
 
     /// Burn Redemption Memo must be exactly 128 characters (64 bytes) long.
     InvalidBurnRedemptionMemo(String),
+
+    /// Error decoding with mc_util_serial
+    DecodeError(mc_util_serial::DecodeError),
 }
 
 impl From<WalletDbError> for TransactionServiceError {
@@ -166,6 +169,12 @@ impl From<hex::FromHexError> for TransactionServiceError {
     }
 }
 
+impl From<mc_util_serial::DecodeError> for TransactionServiceError {
+    fn from(src: mc_util_serial::DecodeError) -> Self {
+        Self::DecodeError(src)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum TransactionMemo {
     /// Recoverable Transaction History memo.
@@ -175,6 +184,24 @@ pub enum TransactionMemo {
     /// string.
     #[serde(with = "BigArray")]
     BurnRedemption([u8; BurnRedemptionMemo::MEMO_DATA_LEN]),
+}
+
+impl TransactionMemo {
+    pub fn memo_builder(&self, account_key: &AccountKey) -> Box<dyn MemoBuilder + Send + Sync> {
+        match self {
+            Self::RTH => {
+                let mut memo_builder = RTHMemoBuilder::default();
+                memo_builder.set_sender_credential(SenderMemoCredential::from(account_key));
+                memo_builder.enable_destination_memo();
+                Box::new(memo_builder)
+            }
+            Self::BurnRedemption(memo_data) => {
+                let mut memo_builder = BurnRedemptionMemoBuilder::new(*memo_data);
+                memo_builder.enable_destination_memo();
+                Box::new(memo_builder)
+            }
+        }
+    }
 }
 
 /// Trait defining the ways in which the wallet can interact with and manage
@@ -331,8 +358,7 @@ where
         let conn = self.wallet_db.get_conn()?;
         transaction(&conn, || {
             let account = Account::get(&AccountID(account_id_hex.to_string()), &conn)?;
-            let from_account_key: AccountKey =
-                mc_util_serial::decode(&account.account_key).unwrap();
+            let from_account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
 
             let mut builder = WalletTransactionBuilder::new(
                 account_id_hex.to_string(),
@@ -389,22 +415,7 @@ where
                 builder.select_txos(&conn, max_spendable)?;
             }
 
-            let memo_builder: Box<dyn MemoBuilder + Send + Sync> = match memo {
-                TransactionMemo::RTH => {
-                    let mut memo_builder = RTHMemoBuilder::default();
-                    memo_builder
-                        .set_sender_credential(SenderMemoCredential::from(&from_account_key));
-                    memo_builder.enable_destination_memo();
-                    Box::new(memo_builder)
-                }
-                TransactionMemo::BurnRedemption(memo_data) => {
-                    let mut memo_builder = BurnRedemptionMemoBuilder::new(memo_data);
-                    memo_builder.enable_destination_memo();
-                    Box::new(memo_builder)
-                }
-            };
-
-            let tx_proposal = builder.build(Some(memo_builder), &conn)?;
+            let tx_proposal = builder.build(Some(memo.memo_builder(&from_account_key)), &conn)?;
 
             TransactionLog::log_built(
                 tx_proposal.clone(),

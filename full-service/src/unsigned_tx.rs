@@ -9,10 +9,7 @@ use mc_transaction_core::{
     tx::{TxIn, TxOut},
     Amount, BlockVersion, TokenId,
 };
-use mc_transaction_std::{
-    BurnRedemptionMemoBuilder, InputCredentials, MemoBuilder, RTHMemoBuilder, ReservedSubaddresses,
-    SenderMemoCredential, TransactionBuilder,
-};
+use mc_transaction_std::{InputCredentials, ReservedSubaddresses, TransactionBuilder};
 use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, convert::TryFrom};
@@ -63,22 +60,12 @@ impl UnsignedTx {
         // Create transaction builder.
         let fee = Amount::new(self.fee, TokenId::from(self.fee_token_id));
 
-        let memo_builder: Box<dyn MemoBuilder + Send + Sync> = match self.memo {
-            TransactionMemo::RTH => {
-                let mut memo_builder = RTHMemoBuilder::default();
-                memo_builder.set_sender_credential(SenderMemoCredential::from(account_key));
-                memo_builder.enable_destination_memo();
-                Box::new(memo_builder)
-            }
-            TransactionMemo::BurnRedemption(memo_data) => {
-                let mut memo_builder = BurnRedemptionMemoBuilder::new(memo_data);
-                memo_builder.enable_destination_memo();
-                Box::new(memo_builder)
-            }
-        };
-
-        let mut transaction_builder =
-            TransactionBuilder::new_with_box(self.block_version, fee, fog_resolver, memo_builder)?;
+        let mut transaction_builder = TransactionBuilder::new_with_box(
+            self.block_version,
+            fee,
+            fog_resolver,
+            self.memo.memo_builder(account_key),
+        )?;
 
         transaction_builder.set_tombstone_block(self.tombstone_block_index);
 
