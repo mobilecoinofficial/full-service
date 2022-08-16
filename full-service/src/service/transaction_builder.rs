@@ -18,37 +18,25 @@ use crate::{
     },
     error::WalletTransactionBuilderError,
     fog_resolver::{FullServiceFogResolver, FullServiceFullyValidatedFogPubkey},
-    service::{
-        models::tx_proposal::{InputTxo, OutputTxo, TxProposal},
-        transaction::TransactionMemo,
-    },
+    service::transaction::TransactionMemo,
     unsigned_tx::UnsignedTx,
     util::b58::b58_encode_public_address,
 };
-use mc_account_keys::{AccountKey, PublicAddress};
-use mc_common::{
-    logger::{log, Logger},
-    HashMap, HashSet,
-};
-use mc_crypto_keys::RistrettoPublic;
-use mc_crypto_ring_signature_signer::NoKeysRingSigner;
+use mc_account_keys::PublicAddress;
+use mc_common::{HashMap, HashSet};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_transaction_core::{
     constants::RING_SIZE,
-    onetime_keys::recover_onetime_private_key,
-    ring_signature::KeyImage,
     tokens::Mob,
     tx::{TxIn, TxOut, TxOutMembershipProof},
-    Amount, BlockVersion, Token, TokenId,
+    BlockVersion, Token, TokenId,
 };
-use mc_transaction_std::{
-    EmptyMemoBuilder, InputCredentials, MemoBuilder, ReservedSubaddresses, TransactionBuilder,
-};
+
 use mc_util_uri::FogUri;
 
 use rand::Rng;
-use std::{collections::BTreeMap, convert::TryFrom, str::FromStr, sync::Arc};
+use std::{collections::BTreeMap, str::FromStr, sync::Arc};
 
 /// Default number of blocks used for calculating transaction tombstone block
 /// number.
@@ -83,9 +71,6 @@ pub struct WalletTransactionBuilder<FPR: FogPubkeyResolver + 'static> {
     /// This is abstracted because in tests, we don't want to form grpc
     /// connections to fog.
     fog_resolver_factory: Arc<dyn Fn(&[FogUri]) -> Result<FPR, String> + Send + Sync>,
-
-    /// Logger.
-    logger: Logger,
 }
 
 impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
@@ -93,7 +78,6 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         account_id_hex: String,
         ledger_db: LedgerDB,
         fog_resolver_factory: Arc<dyn Fn(&[FogUri]) -> Result<FPR, String> + Send + Sync + 'static>,
-        logger: Logger,
     ) -> Self {
         WalletTransactionBuilder {
             account_id_hex,
@@ -104,7 +88,6 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             fee: None,
             block_version: None,
             fog_resolver_factory,
-            logger,
         }
     }
 
@@ -396,309 +379,6 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             tombstone_block_index: self.tombstone,
             block_version: self.block_version.unwrap_or(BlockVersion::MAX),
             memo,
-        })
-    }
-
-    /// Consumes self
-    pub fn build(
-        &self,
-        memo_builder: Option<Box<dyn MemoBuilder + 'static + Send + Sync>>,
-        conn: &Conn,
-    ) -> Result<TxProposal, WalletTransactionBuilderError> {
-        if self.inputs.is_empty() {
-            return Err(WalletTransactionBuilderError::NoInputs);
-        }
-
-        if self.tombstone == 0 {
-            return Err(WalletTransactionBuilderError::TombstoneNotSet);
-        }
-
-        let account: Account = Account::get(&AccountID(self.account_id_hex.to_string()), conn)?;
-        let from_account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
-
-        // Collect all required FogUris from public addresses, then pass to resolver
-        // factory
-        let fog_resolver = {
-            let change_address = from_account_key.change_subaddress();
-            let fog_uris = core::slice::from_ref(&change_address)
-                .iter()
-                .chain(
-                    self.outlays
-                        .iter()
-                        .map(|(receiver, _amount, _token_id)| receiver),
-                )
-                .filter_map(|x| extract_fog_uri(x).transpose())
-                .collect::<Result<Vec<_>, _>>()?;
-            (self.fog_resolver_factory)(&fog_uris)
-                .map_err(WalletTransactionBuilderError::FogPubkeyResolver)?
-        };
-
-        // Create transaction builder.
-        let block_version = self.block_version.unwrap_or(BlockVersion::MAX);
-        let (fee, token_id) = self.fee.unwrap_or((Mob::MINIMUM_FEE, Mob::ID));
-        let fee = Amount::new(fee, token_id);
-        let memo_builder: Box<dyn MemoBuilder + Send + Sync> =
-            memo_builder.unwrap_or_else(|| Box::new(EmptyMemoBuilder::default()));
-        let mut transaction_builder =
-            TransactionBuilder::new_with_box(block_version, fee, fog_resolver, memo_builder)?;
-
-        // Get membership proofs for our inputs
-        let indexes = self
-            .inputs
-            .iter()
-            .map(|utxo| {
-                let txo: TxOut = mc_util_serial::decode(&utxo.txo)?;
-                self.ledger_db.get_tx_out_index_by_hash(&txo.hash())
-            })
-            .collect::<Result<Vec<u64>, mc_ledger_db::Error>>()?;
-        let proofs = self.ledger_db.get_tx_out_proof_of_memberships(&indexes)?;
-
-        let inputs_and_proofs: Vec<(Txo, TxOutMembershipProof)> = self
-            .inputs
-            .clone()
-            .into_iter()
-            .zip(proofs.into_iter())
-            .collect();
-
-        let excluded_tx_out_indices: Vec<u64> = inputs_and_proofs
-            .iter()
-            .map(|(utxo, _membership_proof)| {
-                let txo: TxOut = mc_util_serial::decode(&utxo.txo)?;
-                self.ledger_db
-                    .get_tx_out_index_by_hash(&txo.hash())
-                    .map_err(WalletTransactionBuilderError::LedgerDB)
-            })
-            .collect::<Result<Vec<u64>, WalletTransactionBuilderError>>()?;
-
-        let rings = self.get_rings(inputs_and_proofs.len(), &excluded_tx_out_indices)?;
-
-        if rings.len() != inputs_and_proofs.len() {
-            return Err(WalletTransactionBuilderError::RingSizeMismatch);
-        }
-
-        if self.outlays.is_empty() {
-            return Err(WalletTransactionBuilderError::NoRecipient);
-        }
-
-        // Unzip each vec of tuples into a tuple of vecs.
-        let mut rings_and_proofs: Vec<(Vec<TxOut>, Vec<TxOutMembershipProof>)> = rings
-            .into_iter()
-            .map(|tuples| tuples.into_iter().unzip())
-            .collect();
-
-        // Add inputs to the tx.
-        for (utxo, proof) in inputs_and_proofs.iter() {
-            let db_tx_out: TxOut = mc_util_serial::decode(&utxo.txo)?;
-            let (mut ring, mut membership_proofs) = rings_and_proofs
-                .pop()
-                .ok_or(WalletTransactionBuilderError::RingsAndProofsEmpty)?;
-            if ring.len() != membership_proofs.len() {
-                return Err(WalletTransactionBuilderError::RingSizeMismatch);
-            }
-
-            // Add the input to the ring.
-            let position_opt = ring.iter().position(|txo| *txo == db_tx_out);
-            let real_key_index = match position_opt {
-                Some(position) => {
-                    // The input is already present in the ring.
-                    // This could happen if ring elements are sampled randomly from the
-                    // ledger.
-                    position
-                }
-                None => {
-                    // The input is not already in the ring.
-                    if ring.is_empty() {
-                        // Append the input and its proof of membership.
-                        ring.push(db_tx_out.clone());
-                        membership_proofs.push(proof.clone());
-                    } else {
-                        // Replace the first element of the ring.
-                        ring[0] = db_tx_out.clone();
-                        membership_proofs[0] = proof.clone();
-                    }
-                    // The real input is always the first element. This is safe because
-                    // TransactionBuilder sorts each ring.
-                    0
-                }
-            };
-
-            if ring.len() != membership_proofs.len() {
-                return Err(WalletTransactionBuilderError::RingSizeMismatch);
-            }
-
-            let public_key = RistrettoPublic::try_from(&db_tx_out.public_key).unwrap();
-
-            let subaddress_index = if let Some(s) = utxo.subaddress_index {
-                s
-            } else {
-                return Err(WalletTransactionBuilderError::NullSubaddress(
-                    utxo.id.to_string(),
-                ));
-            };
-
-            let onetime_private_key = recover_onetime_private_key(
-                &public_key,
-                from_account_key.view_private_key(),
-                &from_account_key.subaddress_spend_private(subaddress_index as u64),
-            );
-
-            let key_image = KeyImage::from(&onetime_private_key);
-            log::debug!(
-                self.logger,
-                "Adding input: ring {:?}, utxo index {:?}, key image {:?}, pubkey {:?}",
-                ring,
-                real_key_index,
-                key_image,
-                public_key
-            );
-
-            transaction_builder.add_input(InputCredentials::new(
-                ring,
-                membership_proofs,
-                real_key_index,
-                onetime_private_key,
-                *from_account_key.view_private_key(),
-            )?);
-        }
-
-        // Add outputs to our destinations.
-        // Note that we make an assumption currently when logging submitted Txos that
-        // they were built  with only one recip ient, and one change txo.
-        let mut total_value_per_token: BTreeMap<TokenId, u64> = BTreeMap::new();
-        total_value_per_token.insert(
-            transaction_builder.get_fee_token_id(),
-            transaction_builder.get_fee(),
-        );
-        let mut payload_txos: Vec<OutputTxo> = Vec::new();
-        let mut change_txos: Vec<OutputTxo> = Vec::new();
-        let mut tx_out_to_outlay_index: HashMap<TxOut, usize> = HashMap::default();
-        let mut outlay_confirmation_numbers = Vec::default();
-        let mut rng = rand::thread_rng();
-        for (i, (recipient, out_value, token_id)) in self.outlays.iter().enumerate() {
-            let amount = Amount::new(*out_value, *token_id);
-
-            let tx_out_context = transaction_builder.add_output(amount, recipient, &mut rng)?;
-
-            payload_txos.push(OutputTxo {
-                tx_out: tx_out_context.tx_out.clone(),
-                recipient_public_address: recipient.clone(),
-                confirmation_number: tx_out_context.confirmation.clone(),
-                amount,
-            });
-
-            tx_out_to_outlay_index.insert(tx_out_context.tx_out, i);
-            outlay_confirmation_numbers.push(tx_out_context.confirmation);
-
-            total_value_per_token
-                .entry(*token_id)
-                .and_modify(|v| *v += *out_value)
-                .or_insert(*out_value);
-        }
-
-        // Figure out if we have change.
-        let input_value_per_token =
-            inputs_and_proofs
-                .iter()
-                .fold(BTreeMap::new(), |mut acc, (utxo, _proof)| {
-                    acc.entry(TokenId::from(utxo.token_id as u64))
-                        .and_modify(|v| *v += utxo.value as u64)
-                        .or_insert(utxo.value as u64);
-                    acc
-                });
-
-        for (token_id, total_value) in total_value_per_token.iter() {
-            let input_value = input_value_per_token.get(token_id).ok_or_else(|| {
-                WalletTransactionBuilderError::MissingInputsForTokenId(token_id.to_string())
-            })?;
-            if total_value > input_value {
-                return Err(WalletTransactionBuilderError::InsufficientInputFunds(
-                    format!(
-                        "Total value required to send transaction {:?}, but only {:?} in inputs for token_id {:?}",
-                        total_value,
-                        input_value,
-                        token_id.to_string()
-                    ),
-                ));
-            }
-
-            let change_value = input_value - total_value;
-            let change_amount = Amount::new(change_value, *token_id);
-
-            let reserved_subaddresses = ReservedSubaddresses::from(&from_account_key);
-            let tx_out_context = transaction_builder.add_change_output(
-                change_amount,
-                &reserved_subaddresses,
-                &mut rng,
-            )?;
-
-            change_txos.push(OutputTxo {
-                tx_out: tx_out_context.tx_out,
-                recipient_public_address: reserved_subaddresses.change_subaddress,
-                confirmation_number: tx_out_context.confirmation,
-                amount: change_amount,
-            });
-        }
-
-        // Set tombstone block.
-        transaction_builder.set_tombstone_block(self.tombstone);
-
-        // Build tx.
-        let tx = transaction_builder.build(&NoKeysRingSigner {}, &mut rng)?;
-
-        // Map each TxOut in the constructed transaction to its respective outlay.
-        let outlay_index_to_tx_out_index: HashMap<usize, usize> = tx
-            .prefix
-            .outputs
-            .iter()
-            .enumerate()
-            .filter_map(|(tx_out_index, tx_out)| {
-                tx_out_to_outlay_index
-                    .get(tx_out)
-                    .map(|outlay_index| (*outlay_index, tx_out_index))
-            })
-            .collect();
-
-        // Sanity check: All of our outlays should have a unique index in the map.
-        assert_eq!(outlay_index_to_tx_out_index.len(), self.outlays.len());
-        let mut found_tx_out_indices: HashSet<&usize> = HashSet::default();
-        for i in 0..self.outlays.len() {
-            let tx_out_index = outlay_index_to_tx_out_index
-                .get(&i)
-                .expect("index not in map");
-            if !found_tx_out_indices.insert(tx_out_index) {
-                panic!("duplicate index {} found in map", tx_out_index);
-            }
-        }
-
-        // Make the UnspentTxOut for each Txo
-        // FIXME: WS-27 - I would prefer to provide just the txo_id_hex per txout, but
-        // this at least preserves some interoperability between
-        // mobilecoind and wallet-service. However, this is
-        // pretty clunky and I would rather not expose a storage
-        // type from mobilecoind just to get around having to write a bunch of
-        // tedious json conversions.
-        // Return the TxProposal
-        let input_txos = inputs_and_proofs
-            .iter()
-            .map(|(utxo, _membership_proof)| {
-                let decoded_tx_out = mc_util_serial::decode(&utxo.txo).unwrap();
-                let decoded_key_image =
-                    mc_util_serial::decode(&utxo.key_image.clone().unwrap()).unwrap();
-
-                InputTxo {
-                    tx_out: decoded_tx_out,
-                    subaddress_index: utxo.subaddress_index.unwrap() as u64,
-                    key_image: decoded_key_image,
-                    amount: utxo.amount(),
-                }
-            })
-            .collect();
-
-        Ok(TxProposal {
-            tx,
-            input_txos,
-            payload_txos,
-            change_txos,
         })
     }
 

@@ -48,7 +48,7 @@ use crate::{
         PrintableWrapperType,
     },
 };
-use mc_account_keys::burn_address;
+use mc_account_keys::{burn_address, AccountKey};
 use mc_common::logger::global_log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
@@ -144,8 +144,8 @@ where
                 addresses_and_amounts.push((address, amount));
             }
 
-            let (transaction_log, associated_txos, value_map, tx_proposal) = service
-                .build_and_submit(
+            let (unsigned_tx, fog_resolver) = service
+                .build_unsigned_transaction(
                     &account_id,
                     &addresses_and_amounts,
                     input_txo_ids.as_ref(),
@@ -153,15 +153,30 @@ where
                     fee_token_id,
                     tombstone_block,
                     max_spendable_value,
-                    comment,
+                    TransactionMemo::RTH,
                 )
                 .map_err(format_error)?;
+
+            let account = service
+                .get_account(&AccountID(account_id.clone()))
+                .map_err(format_error)?;
+            let account_key: AccountKey =
+                mc_util_serial::decode(&account.account_key).map_err(format_error)?;
+
+            let tx_proposal = unsigned_tx
+                .sign(&account_key, fog_resolver)
+                .map_err(format_error)?;
+
+            let transaction_log = service
+                .submit_transaction(&tx_proposal, comment, Some(account_id))
+                .map_err(format_error)?
+                .map(|(transaction_log, associated_txos, value_map)| {
+                    TransactionLog::new(&transaction_log, &associated_txos, &value_map)
+                })
+                .ok_or(format_error(""))?;
+
             JsonCommandResponse::build_and_submit_transaction {
-                transaction_log: TransactionLog::new(
-                    &transaction_log,
-                    &associated_txos,
-                    &value_map,
-                ),
+                transaction_log,
                 tx_proposal: TxProposalJSON::try_from(&tx_proposal).map_err(format_error)?,
             }
         }
@@ -187,8 +202,8 @@ where
                 hex::decode_to_slice(&redemption_memo_hex, &mut memo_data).map_err(format_error)?;
             }
 
-            let tx_proposal = service
-                .build_transaction(
+            let (unsigned_tx, fog_resolver) = service
+                .build_unsigned_transaction(
                     &account_id,
                     &[(
                         b58_encode_public_address(&burn_address()).map_err(format_error)?,
@@ -199,9 +214,18 @@ where
                     fee_token_id,
                     tombstone_block,
                     max_spendable_value,
-                    None,
                     TransactionMemo::BurnRedemption(memo_data),
                 )
+                .map_err(format_error)?;
+
+            let account = service
+                .get_account(&AccountID(account_id.clone()))
+                .map_err(format_error)?;
+            let account_key: AccountKey =
+                mc_util_serial::decode(&account.account_key).map_err(format_error)?;
+
+            let tx_proposal = unsigned_tx
+                .sign(&account_key, fog_resolver)
                 .map_err(format_error)?;
 
             JsonCommandResponse::build_burn_transaction {
@@ -227,8 +251,8 @@ where
                 addresses_and_amounts.push((address, amount));
             }
 
-            let tx_proposal = service
-                .build_transaction(
+            let (unsigned_tx, fog_resolver) = service
+                .build_unsigned_transaction(
                     &account_id,
                     &addresses_and_amounts,
                     input_txo_ids.as_ref(),
@@ -236,10 +260,20 @@ where
                     fee_token_id,
                     tombstone_block,
                     max_spendable_value,
-                    None,
                     TransactionMemo::RTH,
                 )
                 .map_err(format_error)?;
+
+            let account = service
+                .get_account(&AccountID(account_id.clone()))
+                .map_err(format_error)?;
+            let account_key: AccountKey =
+                mc_util_serial::decode(&account.account_key).map_err(format_error)?;
+
+            let tx_proposal = unsigned_tx
+                .sign(&account_key, fog_resolver)
+                .map_err(format_error)?;
+
             JsonCommandResponse::build_transaction {
                 tx_proposal: TxProposalJSON::try_from(&tx_proposal).map_err(format_error)?,
                 transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
