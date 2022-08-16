@@ -161,7 +161,7 @@ impl From<hex::FromHexError> for TransactionServiceError {
     }
 }
 
-#[derive(Debug, Display, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum TransactionMemo {
     /// Recoverable Transaction History memo.
     RTH,
