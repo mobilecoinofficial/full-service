@@ -105,7 +105,7 @@ pub enum TransactionServiceError {
     /// Invalid burn redemption memo: {0}
     InvalidBurnRedemptionMemo(String),
 
-    /// Error decoding with mc_util_serial
+    /// mc_util_serial decode error: {0}
     DecodeError(mc_util_serial::DecodeError),
 }
 
