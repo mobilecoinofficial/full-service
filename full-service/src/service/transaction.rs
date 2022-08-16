@@ -100,13 +100,13 @@ pub enum TransactionServiceError {
     DefaultFeeNotFoundForToken(TokenId),
 
     /// Error decoding hex string
-    FromHexError(hex::FromHexError),
+    FromHex(hex::FromHexError),
 
     /// Invalid burn redemption memo: {0}
     InvalidBurnRedemptionMemo(String),
 
     /// mc_util_serial decode error: {0}
-    DecodeError(mc_util_serial::DecodeError),
+    Decode(mc_util_serial::DecodeError),
 }
 
 impl From<WalletDbError> for TransactionServiceError {
@@ -165,13 +165,13 @@ impl From<mc_ledger_db::Error> for TransactionServiceError {
 
 impl From<hex::FromHexError> for TransactionServiceError {
     fn from(src: hex::FromHexError) -> Self {
-        Self::FromHexError(src)
+        Self::FromHex(src)
     }
 }
 
 impl From<mc_util_serial::DecodeError> for TransactionServiceError {
     fn from(src: mc_util_serial::DecodeError) -> Self {
-        Self::DecodeError(src)
+        Self::Decode(src)
     }
 }
 
