@@ -74,6 +74,12 @@ impl UnsignedTx {
                 let mut memo_data = [0; BurnRedemptionMemo::MEMO_DATA_LEN];
 
                 if let Some(redemption_memo_hex) = redemption_memo_hex {
+                    if redemption_memo_hex.len() != memo_data.len() * 2 {
+                        return Err(WalletTransactionBuilderError::InvalidBurnRedemptionMemo(
+                            redemption_memo_hex.to_string(),
+                        ));
+                    }
+
                     hex::decode_to_slice(&redemption_memo_hex, &mut memo_data)?;
                 }
 
