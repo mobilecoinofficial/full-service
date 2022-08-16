@@ -28,7 +28,8 @@ use mc_transaction_core::{
     Amount, Token, TokenId,
 };
 use mc_transaction_std::{
-    BurnRedemptionMemo, BurnRedemptionMemoBuilder, RTHMemoBuilder, SenderMemoCredential,
+    BurnRedemptionMemo, BurnRedemptionMemoBuilder, MemoBuilder, RTHMemoBuilder,
+    SenderMemoCredential,
 };
 
 use crate::{
@@ -386,13 +387,13 @@ where
                 builder.select_txos(&conn, max_spendable)?;
             }
 
-            let tx_proposal = match memo {
+            let memo_builder: Box<dyn MemoBuilder + Send + Sync> = match memo {
                 TransactionMemo::RTH => {
                     let mut memo_builder = RTHMemoBuilder::default();
                     memo_builder
                         .set_sender_credential(SenderMemoCredential::from(&from_account_key));
                     memo_builder.enable_destination_memo();
-                    builder.build(Some(Box::new(memo_builder)), &conn)?
+                    Box::new(memo_builder)
                 }
                 TransactionMemo::BurnRedemption(redemption_memo_hex) => {
                     let mut memo_data = [0; BurnRedemptionMemo::MEMO_DATA_LEN];
@@ -409,9 +410,11 @@ where
 
                     let mut memo_builder = BurnRedemptionMemoBuilder::new(memo_data);
                     memo_builder.enable_destination_memo();
-                    builder.build(Some(Box::new(memo_builder)), &conn)?
+                    Box::new(memo_builder)
                 }
             };
+
+            let tx_proposal = builder.build(Some(memo_builder), &conn)?;
 
             TransactionLog::log_built(
                 tx_proposal.clone(),

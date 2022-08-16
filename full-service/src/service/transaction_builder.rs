@@ -18,7 +18,10 @@ use crate::{
     },
     error::WalletTransactionBuilderError,
     fog_resolver::{FullServiceFogResolver, FullServiceFullyValidatedFogPubkey},
-    service::models::tx_proposal::{InputTxo, OutputTxo, TxProposal},
+    service::{
+        models::tx_proposal::{InputTxo, OutputTxo, TxProposal},
+        transaction::TransactionMemo,
+    },
     unsigned_tx::UnsignedTx,
     util::b58::b58_encode_public_address,
 };
@@ -46,8 +49,6 @@ use mc_util_uri::FogUri;
 
 use rand::Rng;
 use std::{collections::BTreeMap, convert::TryFrom, str::FromStr, sync::Arc};
-
-use super::transaction::TransactionMemo;
 
 /// Default number of blocks used for calculating transaction tombstone block
 /// number.
