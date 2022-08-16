@@ -39,6 +39,7 @@ use crate::{
 };
 use displaydoc::Display;
 use serde::{Deserialize, Serialize};
+use serde_big_array::BigArray;
 use std::{convert::TryFrom, iter::empty, sync::atomic::Ordering};
 
 /// Errors for the Transaction Service.
@@ -172,7 +173,8 @@ pub enum TransactionMemo {
 
     /// Burn Redemption memo, with an optional 64 byte redemption memo hex
     /// string.
-    BurnRedemption(Option<String>),
+    #[serde(with = "BigArray")]
+    BurnRedemption([u8; BurnRedemptionMemo::MEMO_DATA_LEN]),
 }
 
 /// Trait defining the ways in which the wallet can interact with and manage
@@ -395,19 +397,7 @@ where
                     memo_builder.enable_destination_memo();
                     Box::new(memo_builder)
                 }
-                TransactionMemo::BurnRedemption(redemption_memo_hex) => {
-                    let mut memo_data = [0; BurnRedemptionMemo::MEMO_DATA_LEN];
-
-                    if let Some(redemption_memo_hex) = redemption_memo_hex {
-                        if redemption_memo_hex.len() != memo_data.len() * 2 {
-                            return Err(TransactionServiceError::InvalidBurnRedemptionMemo(
-                                redemption_memo_hex.to_string(),
-                            ));
-                        }
-
-                        hex::decode_to_slice(&redemption_memo_hex, &mut memo_data)?;
-                    }
-
+                TransactionMemo::BurnRedemption(memo_data) => {
                     let mut memo_builder = BurnRedemptionMemoBuilder::new(memo_data);
                     memo_builder.enable_destination_memo();
                     Box::new(memo_builder)

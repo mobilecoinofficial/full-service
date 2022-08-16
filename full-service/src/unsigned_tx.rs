@@ -10,8 +10,8 @@ use mc_transaction_core::{
     Amount, BlockVersion, TokenId,
 };
 use mc_transaction_std::{
-    BurnRedemptionMemo, BurnRedemptionMemoBuilder, InputCredentials, RTHMemoBuilder,
-    ReservedSubaddresses, SenderMemoCredential, TransactionBuilder,
+    BurnRedemptionMemoBuilder, InputCredentials, MemoBuilder, RTHMemoBuilder, ReservedSubaddresses,
+    SenderMemoCredential, TransactionBuilder,
 };
 use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
@@ -63,31 +63,22 @@ impl UnsignedTx {
         // Create transaction builder.
         let fee = Amount::new(self.fee, TokenId::from(self.fee_token_id));
 
-        let mut transaction_builder = match self.memo {
+        let memo_builder: Box<dyn MemoBuilder + Send + Sync> = match self.memo {
             TransactionMemo::RTH => {
                 let mut memo_builder = RTHMemoBuilder::default();
                 memo_builder.set_sender_credential(SenderMemoCredential::from(account_key));
                 memo_builder.enable_destination_memo();
-                TransactionBuilder::new(self.block_version, fee, fog_resolver, memo_builder)?
+                Box::new(memo_builder)
             }
-            TransactionMemo::BurnRedemption(redemption_memo_hex) => {
-                let mut memo_data = [0; BurnRedemptionMemo::MEMO_DATA_LEN];
-
-                if let Some(redemption_memo_hex) = redemption_memo_hex {
-                    if redemption_memo_hex.len() != memo_data.len() * 2 {
-                        return Err(WalletTransactionBuilderError::InvalidBurnRedemptionMemo(
-                            redemption_memo_hex.to_string(),
-                        ));
-                    }
-
-                    hex::decode_to_slice(&redemption_memo_hex, &mut memo_data)?;
-                }
-
+            TransactionMemo::BurnRedemption(memo_data) => {
                 let mut memo_builder = BurnRedemptionMemoBuilder::new(memo_data);
                 memo_builder.enable_destination_memo();
-                TransactionBuilder::new(self.block_version, fee, fog_resolver, memo_builder)?
+                Box::new(memo_builder)
             }
         };
+
+        let mut transaction_builder =
+            TransactionBuilder::new_with_box(self.block_version, fee, fog_resolver, memo_builder)?;
 
         transaction_builder.set_tombstone_block(self.tombstone_block_index);
 

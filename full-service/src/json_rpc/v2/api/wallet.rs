@@ -54,6 +54,7 @@ use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use mc_transaction_core::Amount;
+use mc_transaction_std::BurnRedemptionMemo;
 use rocket::{self};
 use rocket_contrib::json::Json;
 use std::{collections::HashMap, convert::TryFrom, str::FromStr};
@@ -167,13 +168,25 @@ where
         JsonCommandRequest::build_burn_transaction {
             account_id,
             amount,
-            redemption_memo_hex: redemption_memo,
+            redemption_memo_hex,
             input_txo_ids,
             fee_value,
             fee_token_id,
             tombstone_block,
             max_spendable_value,
         } => {
+            let mut memo_data = [0; BurnRedemptionMemo::MEMO_DATA_LEN];
+            if let Some(redemption_memo_hex) = redemption_memo_hex {
+                if redemption_memo_hex.len() != BurnRedemptionMemo::MEMO_DATA_LEN * 2 {
+                    return Err(format_error(format!(
+                        "Invalid redemption memo length: {}. Must be 128 characters (64 bytes).",
+                        redemption_memo_hex.len()
+                    )));
+                }
+
+                hex::decode_to_slice(&redemption_memo_hex, &mut memo_data).map_err(format_error)?;
+            }
+
             let tx_proposal = service
                 .build_transaction(
                     &account_id,
@@ -187,7 +200,7 @@ where
                     tombstone_block,
                     max_spendable_value,
                     None,
-                    TransactionMemo::BurnRedemption(redemption_memo),
+                    TransactionMemo::BurnRedemption(memo_data),
                 )
                 .map_err(format_error)?;
 
@@ -235,13 +248,25 @@ where
         JsonCommandRequest::build_unsigned_burn_transaction {
             account_id,
             amount,
-            redemption_memo_hex: redemption_memo,
+            redemption_memo_hex,
             input_txo_ids,
             fee_value,
             fee_token_id,
             tombstone_block,
             max_spendable_value,
         } => {
+            let mut memo_data = [0; BurnRedemptionMemo::MEMO_DATA_LEN];
+            if let Some(redemption_memo_hex) = redemption_memo_hex {
+                if redemption_memo_hex.len() != BurnRedemptionMemo::MEMO_DATA_LEN * 2 {
+                    return Err(format_error(format!(
+                        "Invalid redemption memo length: {}. Must be 128 characters (64 bytes).",
+                        redemption_memo_hex.len()
+                    )));
+                }
+
+                hex::decode_to_slice(&redemption_memo_hex, &mut memo_data).map_err(format_error)?;
+            }
+
             let (unsigned_tx, fog_resolver) = service
                 .build_unsigned_transaction(
                     &account_id,
@@ -254,7 +279,7 @@ where
                     fee_token_id,
                     tombstone_block,
                     max_spendable_value,
-                    TransactionMemo::BurnRedemption(redemption_memo),
+                    TransactionMemo::BurnRedemption(memo_data),
                 )
                 .map_err(format_error)?;
 
