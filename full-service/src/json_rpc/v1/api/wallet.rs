@@ -31,8 +31,8 @@ use crate::{
         v2::models::amount::Amount,
         wallet::{ApiKeyGuard, WalletState},
     },
-    service,
     service::{
+        self,
         account::AccountService,
         address::AddressService,
         balance::BalanceService,
@@ -41,7 +41,7 @@ use crate::{
         ledger::LedgerService,
         payment_request::PaymentRequestService,
         receipt::ReceiptService,
-        transaction::TransactionService,
+        transaction::{TransactionMemo, TransactionService},
         transaction_log::TransactionLogService,
         txo::TxoService,
         WalletService,
@@ -276,6 +276,7 @@ where
                     tombstone_block,
                     max_spendable_value,
                     None,
+                    TransactionMemo::RTH,
                 )
                 .map_err(format_error)?;
 

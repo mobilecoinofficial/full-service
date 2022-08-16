@@ -18,7 +18,7 @@ use crate::{
         account::AccountServiceError,
         address::{AddressService, AddressServiceError},
         models::tx_proposal::TxProposal,
-        transaction::{TransactionService, TransactionServiceError},
+        transaction::{TransactionMemo, TransactionService, TransactionServiceError},
         transaction_builder::DEFAULT_NEW_TX_BLOCK_ATTEMPTS,
         WalletService,
     },
@@ -436,6 +436,7 @@ where
             tombstone_block.map(|t| t.to_string()),
             max_spendable_value.map(|f| f.to_string()),
             None,
+            TransactionMemo::RTH,
         )?;
 
         if tx_proposal.payload_txos.len() != 1 {

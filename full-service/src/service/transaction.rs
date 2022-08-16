@@ -18,6 +18,7 @@ use crate::{
     },
     util::b58::{b58_decode_public_address, B58Error},
 };
+use mc_account_keys::AccountKey;
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
@@ -26,6 +27,10 @@ use mc_transaction_core::{
     tokens::Mob,
     Amount, Token, TokenId,
 };
+use mc_transaction_std::{
+    BurnRedemptionMemo, BurnRedemptionMemoBuilder, MemoBuilder, RTHMemoBuilder,
+    SenderMemoCredential,
+};
 
 use crate::{
     fog_resolver::FullServiceFogResolver,
@@ -33,6 +38,8 @@ use crate::{
     unsigned_tx::UnsignedTx,
 };
 use displaydoc::Display;
+use serde::{Deserialize, Serialize};
+use serde_big_array::BigArray;
 use std::{convert::TryFrom, iter::empty, sync::atomic::Ordering};
 
 /// Errors for the Transaction Service.
@@ -91,6 +98,15 @@ pub enum TransactionServiceError {
 
     /// No default fee found for token id: {0}
     DefaultFeeNotFoundForToken(TokenId),
+
+    /// Error decoding hex string
+    FromHex(hex::FromHexError),
+
+    /// Invalid burn redemption memo: {0}
+    InvalidBurnRedemptionMemo(String),
+
+    /// mc_util_serial decode error: {0}
+    Decode(mc_util_serial::DecodeError),
 }
 
 impl From<WalletDbError> for TransactionServiceError {
@@ -147,6 +163,47 @@ impl From<mc_ledger_db::Error> for TransactionServiceError {
     }
 }
 
+impl From<hex::FromHexError> for TransactionServiceError {
+    fn from(src: hex::FromHexError) -> Self {
+        Self::FromHex(src)
+    }
+}
+
+impl From<mc_util_serial::DecodeError> for TransactionServiceError {
+    fn from(src: mc_util_serial::DecodeError) -> Self {
+        Self::Decode(src)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub enum TransactionMemo {
+    /// Recoverable Transaction History memo.
+    RTH,
+
+    /// Burn Redemption memo, with an optional 64 byte redemption memo hex
+    /// string.
+    #[serde(with = "BigArray")]
+    BurnRedemption([u8; BurnRedemptionMemo::MEMO_DATA_LEN]),
+}
+
+impl TransactionMemo {
+    pub fn memo_builder(&self, account_key: &AccountKey) -> Box<dyn MemoBuilder + Send + Sync> {
+        match self {
+            Self::RTH => {
+                let mut memo_builder = RTHMemoBuilder::default();
+                memo_builder.set_sender_credential(SenderMemoCredential::from(account_key));
+                memo_builder.enable_destination_memo();
+                Box::new(memo_builder)
+            }
+            Self::BurnRedemption(memo_data) => {
+                let mut memo_builder = BurnRedemptionMemoBuilder::new(*memo_data);
+                memo_builder.enable_destination_memo();
+                Box::new(memo_builder)
+            }
+        }
+    }
+}
+
 /// Trait defining the ways in which the wallet can interact with and manage
 /// transactions.
 pub trait TransactionService {
@@ -160,6 +217,7 @@ pub trait TransactionService {
         fee_token_id: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
+        memo: TransactionMemo,
     ) -> Result<(UnsignedTx, FullServiceFogResolver), TransactionServiceError>;
 
     /// Builds a transaction from the given account to the specified recipients.
@@ -174,6 +232,7 @@ pub trait TransactionService {
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
+        memo: TransactionMemo,
     ) -> Result<TxProposal, TransactionServiceError>;
 
     /// Submits a pre-built TxProposal to the MobileCoin Consensus Network.
@@ -213,6 +272,7 @@ where
         fee_token_id: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
+        memo: TransactionMemo,
     ) -> Result<(UnsignedTx, FullServiceFogResolver), TransactionServiceError> {
         validate_number_outputs(addresses_and_amounts.len() as u64)?;
 
@@ -273,7 +333,7 @@ where
                 builder.select_txos(&conn, max_spendable)?;
             }
 
-            let unsigned_tx = builder.build_unsigned()?;
+            let unsigned_tx = builder.build_unsigned(memo)?;
             let fog_resolver = builder.get_fs_fog_resolver(&conn)?;
 
             Ok((unsigned_tx, fog_resolver))
@@ -290,12 +350,16 @@ where
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
+        memo: TransactionMemo,
     ) -> Result<TxProposal, TransactionServiceError> {
         validate_number_inputs(input_txo_ids.unwrap_or(&Vec::new()).len() as u64)?;
         validate_number_outputs(addresses_and_amounts.len() as u64)?;
 
         let conn = self.wallet_db.get_conn()?;
         transaction(&conn, || {
+            let account = Account::get(&AccountID(account_id_hex.to_string()), &conn)?;
+            let from_account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+
             let mut builder = WalletTransactionBuilder::new(
                 account_id_hex.to_string(),
                 self.ledger_db.clone(),
@@ -351,7 +415,7 @@ where
                 builder.select_txos(&conn, max_spendable)?;
             }
 
-            let tx_proposal: TxProposal = builder.build(&conn)?;
+            let tx_proposal = builder.build(Some(memo.memo_builder(&from_account_key)), &conn)?;
 
             TransactionLog::log_built(
                 tx_proposal.clone(),
@@ -447,6 +511,7 @@ where
             tombstone_block,
             max_spendable_value,
             comment.clone(),
+            TransactionMemo::RTH,
         )?;
         if let Some(transaction_log_and_associated_txos) =
             self.submit_transaction(&tx_proposal, comment, Some(account_id_hex.to_string()))?
@@ -588,6 +653,7 @@ mod tests {
                 None,
                 None,
                 None,
+                TransactionMemo::RTH,
             )
             .unwrap();
         log::info!(logger, "Built transaction from Alice");
@@ -616,6 +682,7 @@ mod tests {
                 None,
                 None,
                 None,
+                TransactionMemo::RTH,
             )
             .unwrap();
         log::info!(logger, "Built transaction from Alice");
@@ -644,6 +711,7 @@ mod tests {
                 None,
                 None,
                 None,
+                TransactionMemo::RTH,
             )
             .unwrap();
         log::info!(logger, "Built transaction from Alice");
@@ -877,6 +945,7 @@ mod tests {
             None,
             None,
             None,
+            TransactionMemo::RTH,
         ) {
             Ok(_) => {
                 panic!("Should not be able to build transaction to invalid b58 public address")
@@ -927,7 +996,17 @@ mod tests {
                 AmountJSON::new(42 * MOB, Mob::ID),
             ));
         }
-        match service.build_transaction(&alice.id, &outputs, None, None, None, None, None, None) {
+        match service.build_transaction(
+            &alice.id,
+            &outputs,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            TransactionMemo::RTH,
+        ) {
             Ok(_) => {
                 panic!("Should not be able to build transaction with too many ouputs")
             }
@@ -958,6 +1037,7 @@ mod tests {
             None,
             None,
             None,
+            TransactionMemo::RTH,
         ) {
             Ok(_) => {
                 panic!("Should not be able to build transaction with too many inputs")

@@ -270,9 +270,12 @@ mod tests {
         db::{account::AccountID, models::TransactionLog, transaction_log::TransactionLogModel},
         json_rpc::v2::models::amount::Amount as AmountJSON,
         service::{
-            account::AccountService, address::AddressService,
-            confirmation_number::ConfirmationService, transaction::TransactionService,
-            transaction_log::TransactionLogService, txo::TxoService,
+            account::AccountService,
+            address::AddressService,
+            confirmation_number::ConfirmationService,
+            transaction::{TransactionMemo, TransactionService},
+            transaction_log::TransactionLogService,
+            txo::TxoService,
         },
         test_utils::{
             add_block_to_ledger_db, add_block_with_tx, get_test_ledger, manually_sync_account,
@@ -389,6 +392,7 @@ mod tests {
                 None,
                 None,
                 None,
+                TransactionMemo::RTH,
             )
             .expect("Could not build transaction");
 
@@ -515,6 +519,7 @@ mod tests {
                 None,
                 None,
                 None,
+                TransactionMemo::RTH,
             )
             .expect("Could not build transaction");
 
@@ -638,6 +643,7 @@ mod tests {
                 None,
                 None,
                 None,
+                TransactionMemo::RTH,
             )
             .expect("Could not build transaction");
 
@@ -768,6 +774,7 @@ mod tests {
                 None,
                 None,
                 None,
+                TransactionMemo::RTH,
             )
             .expect("Could not build transaction");
 

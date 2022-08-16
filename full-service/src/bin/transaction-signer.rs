@@ -69,7 +69,7 @@ fn main() {
             create_account(&name, None);
         }
         Opts::Import { mnemonic, name } => {
-            let name = name.clone().unwrap_or_else(|| "".into());
+            let name = name.unwrap_or_else(|| "".into());
             create_account(&name, Some(&mnemonic));
         }
         Opts::ViewOnlyImportPackage {
