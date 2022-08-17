@@ -28,24 +28,33 @@ use crate::{
         },
         wallet::{ApiKeyGuard, WalletState},
     },
-    service,
     service::{
-        account::AccountService, address::AddressService, balance::BalanceService,
-        confirmation_number::ConfirmationService, ledger::LedgerService,
-        models::tx_proposal::TxProposal, payment_request::PaymentRequestService,
-        receipt::ReceiptService, transaction::TransactionService,
-        transaction_log::TransactionLogService, txo::TxoService, WalletService,
+        self,
+        account::AccountService,
+        address::AddressService,
+        balance::BalanceService,
+        confirmation_number::ConfirmationService,
+        ledger::LedgerService,
+        models::tx_proposal::TxProposal,
+        payment_request::PaymentRequestService,
+        receipt::ReceiptService,
+        transaction::{TransactionMemo, TransactionService},
+        transaction_log::TransactionLogService,
+        txo::TxoService,
+        WalletService,
     },
     util::b58::{
         b58_decode_payment_request, b58_encode_public_address, b58_printable_wrapper_type,
         PrintableWrapperType,
     },
 };
+use mc_account_keys::burn_address;
 use mc_common::logger::global_log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use mc_transaction_core::Amount;
+use mc_transaction_std::BurnRedemptionMemo;
 use rocket::{self};
 use rocket_contrib::json::Json;
 use std::{collections::HashMap, convert::TryFrom, str::FromStr};
@@ -136,7 +145,7 @@ where
             }
 
             let (transaction_log, associated_txos, value_map, tx_proposal) = service
-                .build_and_submit(
+                .build_sign_and_submit_transaction(
                     &account_id,
                     &addresses_and_amounts,
                     input_txo_ids.as_ref(),
@@ -145,8 +154,10 @@ where
                     tombstone_block,
                     max_spendable_value,
                     comment,
+                    TransactionMemo::RTH,
                 )
                 .map_err(format_error)?;
+
             JsonCommandResponse::build_and_submit_transaction {
                 transaction_log: TransactionLog::new(
                     &transaction_log,
@@ -154,6 +165,49 @@ where
                     &value_map,
                 ),
                 tx_proposal: TxProposalJSON::try_from(&tx_proposal).map_err(format_error)?,
+            }
+        }
+        JsonCommandRequest::build_burn_transaction {
+            account_id,
+            amount,
+            redemption_memo_hex,
+            input_txo_ids,
+            fee_value,
+            fee_token_id,
+            tombstone_block,
+            max_spendable_value,
+        } => {
+            let mut memo_data = [0; BurnRedemptionMemo::MEMO_DATA_LEN];
+            if let Some(redemption_memo_hex) = redemption_memo_hex {
+                if redemption_memo_hex.len() != BurnRedemptionMemo::MEMO_DATA_LEN * 2 {
+                    return Err(format_error(format!(
+                        "Invalid redemption memo length: {}. Must be 128 characters (64 bytes).",
+                        redemption_memo_hex.len()
+                    )));
+                }
+
+                hex::decode_to_slice(&redemption_memo_hex, &mut memo_data).map_err(format_error)?;
+            }
+
+            let tx_proposal = service
+                .build_and_sign_transaction(
+                    &account_id,
+                    &[(
+                        b58_encode_public_address(&burn_address()).map_err(format_error)?,
+                        amount,
+                    )],
+                    input_txo_ids.as_ref(),
+                    fee_value,
+                    fee_token_id,
+                    tombstone_block,
+                    max_spendable_value,
+                    TransactionMemo::BurnRedemption(memo_data),
+                )
+                .map_err(format_error)?;
+
+            JsonCommandResponse::build_burn_transaction {
+                tx_proposal: TxProposalJSON::try_from(&tx_proposal).map_err(format_error)?,
+                transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
             }
         }
         JsonCommandRequest::build_transaction {
@@ -175,7 +229,7 @@ where
             }
 
             let tx_proposal = service
-                .build_transaction(
+                .build_and_sign_transaction(
                     &account_id,
                     &addresses_and_amounts,
                     input_txo_ids.as_ref(),
@@ -183,12 +237,57 @@ where
                     fee_token_id,
                     tombstone_block,
                     max_spendable_value,
-                    None,
+                    TransactionMemo::RTH,
                 )
                 .map_err(format_error)?;
+
             JsonCommandResponse::build_transaction {
                 tx_proposal: TxProposalJSON::try_from(&tx_proposal).map_err(format_error)?,
                 transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
+            }
+        }
+        JsonCommandRequest::build_unsigned_burn_transaction {
+            account_id,
+            amount,
+            redemption_memo_hex,
+            input_txo_ids,
+            fee_value,
+            fee_token_id,
+            tombstone_block,
+            max_spendable_value,
+        } => {
+            let mut memo_data = [0; BurnRedemptionMemo::MEMO_DATA_LEN];
+            if let Some(redemption_memo_hex) = redemption_memo_hex {
+                if redemption_memo_hex.len() != BurnRedemptionMemo::MEMO_DATA_LEN * 2 {
+                    return Err(format_error(format!(
+                        "Invalid redemption memo length: {}. Must be 128 characters (64 bytes).",
+                        redemption_memo_hex.len()
+                    )));
+                }
+
+                hex::decode_to_slice(&redemption_memo_hex, &mut memo_data).map_err(format_error)?;
+            }
+
+            let (unsigned_tx, fog_resolver) = service
+                .build_transaction(
+                    &account_id,
+                    &[(
+                        b58_encode_public_address(&burn_address()).map_err(format_error)?,
+                        amount,
+                    )],
+                    input_txo_ids.as_ref(),
+                    fee_value,
+                    fee_token_id,
+                    tombstone_block,
+                    max_spendable_value,
+                    TransactionMemo::BurnRedemption(memo_data),
+                )
+                .map_err(format_error)?;
+
+            JsonCommandResponse::build_unsigned_burn_transaction {
+                account_id,
+                unsigned_tx,
+                fog_resolver,
             }
         }
         JsonCommandRequest::build_unsigned_transaction {
@@ -207,7 +306,7 @@ where
                 addresses_and_amounts.push((address, amount));
             }
             let (unsigned_tx, fog_resolver) = service
-                .build_unsigned_transaction(
+                .build_transaction(
                     &account_id,
                     &addresses_and_amounts,
                     input_txo_ids.as_ref(),
@@ -215,6 +314,7 @@ where
                     fee_token_id,
                     tombstone_block,
                     max_spendable_value,
+                    TransactionMemo::RTH,
                 )
                 .map_err(format_error)?;
             JsonCommandResponse::build_unsigned_transaction {

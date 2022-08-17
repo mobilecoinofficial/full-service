@@ -40,6 +40,11 @@ enum Opts {
         #[structopt(short, long)]
         name: Option<String>,
     },
+    Import {
+        #[structopt(short, long)]
+        name: Option<String>,
+        mnemonic: String,
+    },
     r#Sync {
         secret_mnemonic: String,
         sync_request: String,
@@ -61,7 +66,11 @@ fn main() {
     match opts {
         Opts::Create { ref name } => {
             let name = name.clone().unwrap_or_else(|| "".into());
-            create_account(&name);
+            create_account(&name, None);
+        }
+        Opts::Import { mnemonic, name } => {
+            let name = name.unwrap_or_else(|| "".into());
+            create_account(&name, Some(&mnemonic));
         }
         Opts::ViewOnlyImportPackage {
             ref secret_mnemonic,
@@ -84,11 +93,13 @@ fn main() {
     }
 }
 
-fn create_account(name: &str) {
+fn create_account(name: &str, mnemonic: Option<&str>) {
     println!("Creating account {}", name);
 
-    // Generate new seed mnemonic.
-    let mnemonic = Mnemonic::new(MnemonicType::Words24, Language::English);
+    let mnemonic = match mnemonic {
+        Some(mnemonic) => Mnemonic::from_phrase(mnemonic, Language::English).unwrap(),
+        None => Mnemonic::new(MnemonicType::Words24, Language::English),
+    };
 
     let fog_report_url = "".to_string();
     let fog_report_id = "".to_string();

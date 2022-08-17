@@ -170,7 +170,6 @@ pub fn setup_with_api_key(
 pub fn dispatch(client: &Client, request_body: JsonValue, logger: &Logger) -> JsonValue {
     log::info!(logger, "Attempting dispatch of\n{:?}\n", request_body,);
     let request_body = request_body.to_string();
-    log::info!(logger, "Attempting dispatch of\n{}\n", request_body,);
 
     let mut res = client
         .post("/wallet/v2")

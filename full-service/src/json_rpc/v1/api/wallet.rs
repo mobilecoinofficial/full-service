@@ -31,8 +31,8 @@ use crate::{
         v2::models::amount::Amount,
         wallet::{ApiKeyGuard, WalletState},
     },
-    service,
     service::{
+        self,
         account::AccountService,
         address::AddressService,
         balance::BalanceService,
@@ -41,7 +41,7 @@ use crate::{
         ledger::LedgerService,
         payment_request::PaymentRequestService,
         receipt::ReceiptService,
-        transaction::TransactionService,
+        transaction::{TransactionMemo, TransactionService},
         transaction_log::TransactionLogService,
         txo::TxoService,
         WalletService,
@@ -157,8 +157,9 @@ where
                     )
                 })
                 .collect();
-            let (transaction_log, associated_txos, _value_map, tx_proposal) = service
-                .build_and_submit(
+
+            let (transaction_log, associated_txos, _, tx_proposal) = service
+                .build_sign_and_submit_transaction(
                     &account_id,
                     &addresses_and_amounts,
                     input_txo_ids.as_ref(),
@@ -167,8 +168,10 @@ where
                     tombstone_block,
                     max_spendable_value,
                     comment,
+                    TransactionMemo::RTH,
                 )
                 .map_err(format_error)?;
+
             JsonCommandResponse::build_and_submit_transaction {
                 transaction_log: json_rpc::v1::models::transaction_log::TransactionLog::new(
                     &transaction_log,
@@ -267,7 +270,7 @@ where
                 .collect();
 
             let tx_proposal = service
-                .build_transaction(
+                .build_and_sign_transaction(
                     &account_id,
                     &addresses_and_amounts,
                     input_txo_ids.as_ref(),
@@ -275,7 +278,7 @@ where
                     Some(Mob::ID.to_string()),
                     tombstone_block,
                     max_spendable_value,
-                    None,
+                    TransactionMemo::RTH,
                 )
                 .map_err(format_error)?;
 

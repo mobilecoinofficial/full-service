@@ -9,10 +9,7 @@ use mc_transaction_core::{
     tx::{TxIn, TxOut},
     Amount, BlockVersion, TokenId,
 };
-use mc_transaction_std::{
-    InputCredentials, RTHMemoBuilder, ReservedSubaddresses, SenderMemoCredential,
-    TransactionBuilder,
-};
+use mc_transaction_std::{InputCredentials, ReservedSubaddresses, TransactionBuilder};
 use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, convert::TryFrom};
@@ -20,7 +17,10 @@ use std::{collections::BTreeMap, convert::TryFrom};
 use crate::{
     error::WalletTransactionBuilderError,
     fog_resolver::FullServiceFogResolver,
-    service::models::tx_proposal::{InputTxo, OutputTxo, TxProposal},
+    service::{
+        models::tx_proposal::{InputTxo, OutputTxo, TxProposal},
+        transaction::TransactionMemo,
+    },
     util::b58::b58_decode_public_address,
 };
 
@@ -44,6 +44,9 @@ pub struct UnsignedTx {
 
     /// The block version
     pub block_version: BlockVersion,
+
+    /// Memo field that indicates what type of transaction this is.
+    pub memo: TransactionMemo,
 }
 
 impl UnsignedTx {
@@ -53,13 +56,16 @@ impl UnsignedTx {
         fog_resolver: FullServiceFogResolver,
     ) -> Result<TxProposal, WalletTransactionBuilderError> {
         let mut rng = rand::thread_rng();
+
         // Create transaction builder.
-        let mut memo_builder = RTHMemoBuilder::default();
-        memo_builder.set_sender_credential(SenderMemoCredential::from(account_key));
-        memo_builder.enable_destination_memo();
         let fee = Amount::new(self.fee, TokenId::from(self.fee_token_id));
-        let mut transaction_builder =
-            TransactionBuilder::new(self.block_version, fee, fog_resolver, memo_builder)?;
+
+        let mut transaction_builder = TransactionBuilder::new_with_box(
+            self.block_version,
+            fee,
+            fog_resolver,
+            self.memo.memo_builder(account_key),
+        )?;
 
         transaction_builder.set_tombstone_block(self.tombstone_block_index);
 

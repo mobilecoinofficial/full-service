@@ -146,7 +146,9 @@ mod tests {
         db::account::AccountID,
         json_rpc::v2::models::amount::Amount,
         service::{
-            account::AccountService, address::AddressService, transaction::TransactionService,
+            account::AccountService,
+            address::AddressService,
+            transaction::{TransactionMemo, TransactionService},
             transaction_log::TransactionLogService,
         },
         test_utils::{
@@ -208,7 +210,7 @@ mod tests {
 
         for _ in 0..5 {
             let (transaction_log, _, _, _) = service
-                .build_and_submit(
+                .build_sign_and_submit_transaction(
                     &alice_account_id.to_string(),
                     &[(
                         address.public_address_b58.clone(),
@@ -220,6 +222,7 @@ mod tests {
                     None,
                     None,
                     None,
+                    TransactionMemo::RTH,
                 )
                 .unwrap();
 

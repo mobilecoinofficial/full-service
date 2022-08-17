@@ -4,19 +4,22 @@
 
 use crate::{
     db::{
+        account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        models::{AssignedSubaddress, Txo},
+        models::{Account, AssignedSubaddress, Txo},
         txo::{TxoID, TxoModel, TxoStatus},
         WalletDbError,
     },
+    error::WalletTransactionBuilderError,
     json_rpc::v2::models::amount::Amount,
     service::{
         models::tx_proposal::TxProposal,
-        transaction::{TransactionService, TransactionServiceError},
+        transaction::{TransactionMemo, TransactionService, TransactionServiceError},
     },
     WalletService,
 };
 use displaydoc::Display;
+use mc_account_keys::AccountKey;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 
@@ -47,6 +50,12 @@ pub enum TxoServiceError {
 
     /// Must query with either an account ID or a subaddress b58.
     InvalidQuery(String),
+
+    /// Error decoding
+    Decode(mc_util_serial::DecodeError),
+
+    /// Wallet Transaction Builder Error: {0}
+    WalletTransactionBuilder(WalletTransactionBuilderError),
 }
 
 impl From<WalletDbError> for TxoServiceError {
@@ -70,6 +79,18 @@ impl From<diesel::result::Error> for TxoServiceError {
 impl From<TransactionServiceError> for TxoServiceError {
     fn from(src: TransactionServiceError) -> Self {
         Self::TransactionService(src)
+    }
+}
+
+impl From<mc_util_serial::DecodeError> for TxoServiceError {
+    fn from(src: mc_util_serial::DecodeError) -> Self {
+        Self::Decode(src)
+    }
+}
+
+impl From<WalletTransactionBuilderError> for TxoServiceError {
+    fn from(src: WalletTransactionBuilderError) -> Self {
+        Self::WalletTransactionBuilder(src)
     }
 }
 
@@ -213,7 +234,7 @@ where
             ))
         }
 
-        Ok(self.build_transaction(
+        let (unsigned_tx, fog_resolver) = self.build_transaction(
             &account_id_hex,
             &addresses_and_amounts,
             Some(&[txo_id.to_string()].to_vec()),
@@ -221,8 +242,13 @@ where
             fee_token_id,
             tombstone_block,
             None,
-            None,
-        )?)
+            TransactionMemo::RTH,
+        )?;
+
+        let account = Account::get(&AccountID(account_id_hex), &conn)?;
+        let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+
+        Ok(unsigned_tx.sign(&account_key, fog_resolver)?)
     }
 }
 
@@ -312,7 +338,7 @@ mod tests {
         // Construct a new transaction to Bob
         let bob_account_key: AccountKey = mc_util_serial::decode(&bob.account_key).unwrap();
         let tx_proposal = service
-            .build_transaction(
+            .build_and_sign_transaction(
                 &alice.id,
                 &vec![(
                     b58_encode_public_address(&bob_account_key.default_subaddress()).unwrap(),
@@ -323,7 +349,7 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
+                TransactionMemo::RTH,
             )
             .unwrap();
         let _submitted = service
