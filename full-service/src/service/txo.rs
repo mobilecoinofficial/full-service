@@ -234,7 +234,7 @@ where
             ))
         }
 
-        let (unsigned_tx, fog_resolver) = self.build_unsigned_transaction(
+        let (unsigned_tx, fog_resolver) = self.build_transaction(
             &account_id_hex,
             &addresses_and_amounts,
             Some(&[txo_id.to_string()].to_vec()),
@@ -338,13 +338,12 @@ mod tests {
         // Construct a new transaction to Bob
         let bob_account_key: AccountKey = mc_util_serial::decode(&bob.account_key).unwrap();
         let tx_proposal = service
-            .build_transaction(
+            .build_and_sign_transaction(
                 &alice.id,
                 &vec![(
                     b58_encode_public_address(&bob_account_key.default_subaddress()).unwrap(),
                     Amount::new(42 * MOB, Mob::ID),
                 )],
-                None,
                 None,
                 None,
                 None,

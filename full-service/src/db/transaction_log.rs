@@ -8,17 +8,18 @@ use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_transaction_core::{tx::Tx, Amount, TokenId};
 use std::fmt;
 
-use crate::db::{
-    account::{AccountID, AccountModel},
-    models::{
-        Account, NewTransactionInputTxo, NewTransactionLog, TransactionInputTxo, TransactionLog,
-        TransactionOutputTxo, Txo,
+use crate::{
+    db::{
+        account::{AccountID, AccountModel},
+        models::{
+            Account, NewTransactionInputTxo, NewTransactionLog, TransactionInputTxo,
+            TransactionLog, TransactionOutputTxo, Txo,
+        },
+        txo::{TxoID, TxoModel},
+        Conn, WalletDbError,
     },
-    txo::{TxoID, TxoModel},
-    Conn, WalletDbError,
+    service::models::tx_proposal::TxProposal,
 };
-
-use crate::service::models::tx_proposal::TxProposal;
 
 #[derive(Debug)]
 pub struct TransactionID(pub String);
@@ -582,7 +583,10 @@ mod tests {
 
     use crate::{
         db::{account::AccountID, transaction_log::TransactionID, txo::TxoStatus},
-        service::{sync::SyncThread, transaction_builder::WalletTransactionBuilder},
+        service::{
+            sync::SyncThread, transaction::TransactionMemo,
+            transaction_builder::WalletTransactionBuilder,
+        },
         test_utils::{
             add_block_from_transaction_log, add_block_with_tx_outs, builder_for_random_recipient,
             get_resolver_factory, get_test_ledger, manually_sync_account,
@@ -631,7 +635,9 @@ mod tests {
             .unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
-        let tx_proposal = builder.build(None, &conn).unwrap();
+        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
+        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
+        let tx_proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
 
         // Log submitted transaction from tx_proposal
         let tx_log = TransactionLog::log_submitted(
@@ -790,7 +796,9 @@ mod tests {
 
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
-        let tx_proposal = builder.build(None, &conn).unwrap();
+        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
+        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
+        let tx_proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
 
         let tx_log = TransactionLog::log_submitted(
             &tx_proposal,
@@ -868,7 +876,9 @@ mod tests {
             .unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
-        let tx_proposal = builder.build(None, &conn).unwrap();
+        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
+        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
+        let tx_proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
 
         // Log submitted transaction from tx_proposal
         TransactionLog::log_submitted(
@@ -965,7 +975,9 @@ mod tests {
             .unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
-        let tx_proposal = builder.build(None, &conn).unwrap();
+        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
+        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
+        let tx_proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
 
         assert_eq!(
             tx_proposal.payload_txos[0].amount.value,
@@ -1024,7 +1036,6 @@ mod tests {
             AccountID::from(&account_key).to_string(),
             ledger_db.clone(),
             get_resolver_factory(&mut rng).unwrap(),
-            logger.clone(),
         );
         // Add self at main subaddress as the recipient
         builder
@@ -1032,7 +1043,9 @@ mod tests {
             .unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
-        let tx_proposal = builder.build(None, &conn).unwrap();
+        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
+        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
+        let tx_proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
 
         // Log submitted transaction from tx_proposal
         let tx_log = TransactionLog::log_submitted(

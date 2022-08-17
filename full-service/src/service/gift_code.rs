@@ -431,7 +431,7 @@ where
 
         let fee_value = fee.map(|f| f.to_string());
 
-        let (unsigned_tx, fog_resolver) = self.build_unsigned_transaction(
+        let (unsigned_tx, fog_resolver) = self.build_transaction(
             &from_account.id,
             &[(
                 gift_code_account_main_subaddress_b58,

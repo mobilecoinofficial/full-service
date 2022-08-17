@@ -9,7 +9,10 @@ use crate::{
         WalletDb, WalletDbError,
     },
     error::SyncError,
-    service::{sync::sync_account, transaction_builder::WalletTransactionBuilder},
+    service::{
+        sync::sync_account, transaction::TransactionMemo,
+        transaction_builder::WalletTransactionBuilder,
+    },
     WalletService,
 };
 use diesel::{
@@ -28,7 +31,7 @@ use mc_consensus_enclave_api::FeeMap;
 use mc_consensus_scp::QuorumSet;
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_crypto_rand::{CryptoRng, RngCore};
-use mc_fog_report_validation::{FullyValidatedFogPubkey, MockFogPubkeyResolver};
+use mc_fog_report_validation::{FogPubkeyResolver, FullyValidatedFogPubkey, MockFogPubkeyResolver};
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::PollingNetworkState;
 use mc_transaction_core::{
@@ -522,14 +525,15 @@ pub fn create_test_minted_and_change_txos(
         AccountID::from(&src_account_key).to_string(),
         ledger_db,
         get_resolver_factory(&mut rng).unwrap(),
-        logger,
     );
 
     let conn = wallet_db.get_conn().unwrap();
     builder.add_recipient(recipient, value, Mob::ID).unwrap();
     builder.select_txos(&conn, None).unwrap();
     builder.set_tombstone(0).unwrap();
-    let tx_proposal = builder.build(None, &conn).unwrap();
+    let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
+    let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
+    let tx_proposal = unsigned_tx.sign(&src_account_key, fog_resolver).unwrap();
 
     // There should be 2 outputs, one to dest and one change
     assert_eq!(tx_proposal.tx.prefix.outputs.len(), 2);
@@ -622,7 +626,6 @@ pub fn builder_for_random_recipient(
         AccountID::from(account_key).to_string(),
         ledger_db.clone(),
         get_resolver_factory(&mut rng).unwrap(),
-        logger.clone(),
     );
 
     let recipient_account_key = AccountKey::random(&mut rng);
@@ -642,7 +645,7 @@ pub fn get_resolver_factory(
         let pubkey = RistrettoPublic::from(&fog_private_key);
         fog_pubkey_resolver
             .expect_get_fog_pubkey()
-            .return_once(move |_recipient| {
+            .returning(move |_| {
                 Ok(FullyValidatedFogPubkey {
                     pubkey,
                     pubkey_expiry: 10000,

@@ -1408,13 +1408,15 @@ mod tests {
         },
         service::{
             sync::{sync_account, SyncThread},
+            transaction::{TransactionMemo, TransactionService},
             transaction_builder::WalletTransactionBuilder,
         },
         test_utils::{
             add_block_with_db_txos, add_block_with_tx, add_block_with_tx_outs,
             create_test_minted_and_change_txos, create_test_received_txo,
             create_test_txo_for_recipient, get_resolver_factory, get_test_ledger,
-            manually_sync_account, random_account_with_seed_values, WalletDbTestContext, MOB,
+            manually_sync_account, random_account_with_seed_values, setup_wallet_service,
+            WalletDbTestContext, MOB,
         },
         WalletDb,
     };
@@ -2108,6 +2110,7 @@ mod tests {
         let wallet_db = db_test_context.get_db_instance(logger.clone());
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
 
         // The account which will receive the Txo
         log::info!(logger, "Creating account");
@@ -2151,7 +2154,6 @@ mod tests {
                 AccountID::from(&sender_account_key).to_string(),
                 ledger_db.clone(),
                 get_resolver_factory(&mut rng).unwrap(),
-                logger.clone(),
             );
         builder
             .add_recipient(
@@ -2162,7 +2164,9 @@ mod tests {
             .unwrap();
         builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
-        let proposal = builder.build(None, &conn).unwrap();
+        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
+        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
+        let proposal = unsigned_tx.sign(&sender_account_key, fog_resolver).unwrap();
 
         // Sleep to make sure that the foreign keys exist
         std::thread::sleep(Duration::from_secs(3));
