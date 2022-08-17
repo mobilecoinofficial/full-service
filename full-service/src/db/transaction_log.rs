@@ -629,7 +629,7 @@ mod tests {
         // Build a transaction
         let conn = wallet_db.get_conn().unwrap();
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
         builder
             .add_recipient(recipient.clone(), 50 * MOB, Mob::ID)
             .unwrap();
@@ -787,7 +787,7 @@ mod tests {
         // Build a transaction
         let conn = wallet_db.get_conn().unwrap();
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
         // Add outlays all to the same recipient, so that we exceed u64::MAX in this tx
         let value = 100 * MOB - Mob::MINIMUM_FEE;
         builder
@@ -870,7 +870,7 @@ mod tests {
         // Build a transaction
         let conn = wallet_db.get_conn().unwrap();
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
         builder
             .add_recipient(recipient.clone(), 50 * MOB, Mob::ID)
             .unwrap();
@@ -969,7 +969,7 @@ mod tests {
         // Build a transaction for > i64::Max
         let conn = wallet_db.get_conn().unwrap();
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
         builder
             .add_recipient(recipient.clone(), 10_000_000 * MOB, Mob::ID)
             .unwrap();

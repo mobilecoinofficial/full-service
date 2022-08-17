@@ -245,7 +245,7 @@ where
             TransactionMemo::RTH,
         )?;
 
-        let account = Account::get(&AccountID(account_id_hex.clone()), &conn)?;
+        let account = Account::get(&AccountID(account_id_hex), &conn)?;
         let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
 
         Ok(unsigned_tx.sign(&account_key, fog_resolver)?)

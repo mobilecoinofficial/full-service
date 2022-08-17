@@ -31,7 +31,7 @@ use mc_consensus_enclave_api::FeeMap;
 use mc_consensus_scp::QuorumSet;
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_crypto_rand::{CryptoRng, RngCore};
-use mc_fog_report_validation::{FogPubkeyResolver, FullyValidatedFogPubkey, MockFogPubkeyResolver};
+use mc_fog_report_validation::{FullyValidatedFogPubkey, MockFogPubkeyResolver};
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::PollingNetworkState;
 use mc_transaction_core::{
@@ -516,7 +516,6 @@ pub fn create_test_minted_and_change_txos(
     value: u64,
     wallet_db: WalletDb,
     ledger_db: LedgerDB,
-    logger: Logger,
 ) -> TransactionLog {
     let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
@@ -616,7 +615,6 @@ pub fn builder_for_random_recipient(
     account_key: &AccountKey,
     ledger_db: &LedgerDB,
     mut rng: &mut StdRng,
-    logger: &Logger,
 ) -> (
     PublicAddress,
     WalletTransactionBuilder<MockFogPubkeyResolver>,

@@ -48,7 +48,7 @@ use crate::{
         PrintableWrapperType,
     },
 };
-use mc_account_keys::{burn_address, AccountKey};
+use mc_account_keys::burn_address;
 use mc_common::logger::global_log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;

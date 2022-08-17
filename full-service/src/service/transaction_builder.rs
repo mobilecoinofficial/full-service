@@ -220,7 +220,6 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         &self,
         conn: &Conn,
     ) -> Result<FullServiceFogResolver, WalletTransactionBuilderError> {
-        println!("Getting fog resolver");
         let account = Account::get(&AccountID(self.account_id_hex.clone()), conn)?;
         let change_subaddress = account.change_subaddress(conn)?;
         let change_public_address = change_subaddress.public_address()?;
@@ -237,9 +236,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
 
         let mut fully_validated_fog_pubkeys: HashMap<String, FullServiceFullyValidatedFogPubkey> =
             HashMap::default();
-        println!("-----Getting fully validated fog pubkeys");
         for (public_address, _, _) in self.outlays.iter() {
-            println!("\tGetting fog pubkey for {}", public_address);
             let b58_public_address = b58_encode_public_address(public_address)?;
             if fully_validated_fog_pubkeys.contains_key(&b58_public_address) {
                 continue;
@@ -254,7 +251,6 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 fully_validated_fog_pubkeys.insert(b58_public_address, fs_fog_pubkey);
             }
         }
-        println!("-----Done getting fully validated fog pubkeys");
 
         Ok(FullServiceFogResolver(fully_validated_fog_pubkeys))
     }
@@ -528,7 +524,7 @@ mod tests {
         // Construct a transaction
         let conn = wallet_db.get_conn().unwrap();
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
         // Send value specifically for your smallest Txo size. Should take 2 inputs
         // and also make change.
@@ -592,7 +588,7 @@ mod tests {
         // Now try to send a transaction with a value > u64::MAX
         let conn = wallet_db.get_conn().unwrap();
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
         let value = u64::MAX;
         builder
@@ -643,7 +639,7 @@ mod tests {
 
         let conn = wallet_db.get_conn().unwrap();
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
         // Setting value to exactly the input will fail because you need funds for fee
         builder
@@ -662,7 +658,7 @@ mod tests {
 
         // Now build, setting to multiple TXOs
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
         // Set value to just slightly more than what fits in the one TXO
         builder
@@ -710,7 +706,7 @@ mod tests {
 
         let conn = wallet_db.get_conn().unwrap();
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
         // Setting value to exactly the input will fail because you need funds for fee
         builder
@@ -772,7 +768,7 @@ mod tests {
         );
 
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
         builder
             .add_recipient(recipient.clone(), 10 * MOB, Mob::ID)
@@ -790,7 +786,7 @@ mod tests {
         }
 
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
         builder
             .add_recipient(recipient.clone(), 10 * MOB, Mob::ID)
@@ -809,7 +805,7 @@ mod tests {
 
         // Build a transaction and explicitly set tombstone
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
         builder
             .add_recipient(recipient.clone(), 10 * MOB, Mob::ID)
@@ -850,7 +846,7 @@ mod tests {
 
         let conn = wallet_db.get_conn().unwrap();
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
         builder
             .add_recipient(recipient.clone(), 10 * MOB, Mob::ID)
@@ -866,7 +862,7 @@ mod tests {
 
         // You cannot set fee to 0
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
         builder
             .add_recipient(recipient.clone(), 10 * MOB, Mob::ID)
@@ -887,7 +883,7 @@ mod tests {
 
         // Setting fee less than minimum fee should fail
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
         builder
             .add_recipient(recipient.clone(), 10 * MOB, Mob::ID)
@@ -902,7 +898,7 @@ mod tests {
 
         // Setting fee greater than MINIMUM_FEE works
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
         builder
             .add_recipient(recipient.clone(), 10 * MOB, Mob::ID)
@@ -939,7 +935,7 @@ mod tests {
 
         let conn = wallet_db.get_conn().unwrap();
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
         // Set value to consume the whole TXO and not produce change
         let value = 70 * MOB - Mob::MINIMUM_FEE;
@@ -986,7 +982,7 @@ mod tests {
 
         let conn = wallet_db.get_conn().unwrap();
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
         builder
             .add_recipient(recipient.clone(), 10 * MOB, Mob::ID)
@@ -1049,7 +1045,7 @@ mod tests {
         );
 
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
         builder
             .add_recipient(recipient.clone(), 7_000_000 * MOB, Mob::ID)
@@ -1090,7 +1086,7 @@ mod tests {
         );
 
         let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &ledger_db, &mut rng, &logger);
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
         builder
             .add_recipient(recipient.clone(), 10 * MOB, Mob::ID)

@@ -19,7 +19,7 @@ use crate::{
     util::b58::{b58_decode_public_address, B58Error},
 };
 use mc_account_keys::AccountKey;
-use mc_common::logger::{log, slog::debug};
+use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_transaction_core::{
