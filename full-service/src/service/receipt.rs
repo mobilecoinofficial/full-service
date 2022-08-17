@@ -383,10 +383,9 @@ mod tests {
 
         // Create a TxProposal to Bob
         let tx_proposal = service
-            .build_transaction(
+            .build_and_sign_transaction(
                 &alice.id,
                 &vec![(bob_address.to_string(), AmountJSON::new(24 * MOB, Mob::ID))],
-                None,
                 None,
                 None,
                 None,
@@ -510,10 +509,9 @@ mod tests {
 
         // Create a TxProposal to Bob
         let tx_proposal = service
-            .build_transaction(
+            .build_and_sign_transaction(
                 &alice.id,
                 &vec![(bob_address.to_string(), AmountJSON::new(24 * MOB, Mob::ID))],
-                None,
                 None,
                 None,
                 None,
@@ -634,10 +632,9 @@ mod tests {
 
         // Create a TxProposal to Bob
         let tx_proposal0 = service
-            .build_transaction(
+            .build_and_sign_transaction(
                 &alice.id,
                 &vec![(bob_address.to_string(), AmountJSON::new(24 * MOB, Mob::ID))],
-                None,
                 None,
                 None,
                 None,
@@ -765,10 +762,9 @@ mod tests {
 
         // Create a TxProposal to Bob
         let tx_proposal0 = service
-            .build_transaction(
+            .build_and_sign_transaction(
                 &alice.id,
                 &vec![(bob_address.to_string(), AmountJSON::new(24 * MOB, Mob::ID))],
-                None,
                 None,
                 None,
                 None,

@@ -145,7 +145,7 @@ where
             }
 
             let (transaction_log, associated_txos, value_map, tx_proposal) = service
-                .build_and_submit(
+                .build_sign_and_submit_transaction(
                     &account_id,
                     &addresses_and_amounts,
                     input_txo_ids.as_ref(),
@@ -154,8 +154,10 @@ where
                     tombstone_block,
                     max_spendable_value,
                     comment,
+                    TransactionMemo::RTH,
                 )
                 .map_err(format_error)?;
+
             JsonCommandResponse::build_and_submit_transaction {
                 transaction_log: TransactionLog::new(
                     &transaction_log,
@@ -188,7 +190,7 @@ where
             }
 
             let tx_proposal = service
-                .build_transaction(
+                .build_and_sign_transaction(
                     &account_id,
                     &[(
                         b58_encode_public_address(&burn_address()).map_err(format_error)?,
@@ -199,7 +201,6 @@ where
                     fee_token_id,
                     tombstone_block,
                     max_spendable_value,
-                    None,
                     TransactionMemo::BurnRedemption(memo_data),
                 )
                 .map_err(format_error)?;
@@ -228,7 +229,7 @@ where
             }
 
             let tx_proposal = service
-                .build_transaction(
+                .build_and_sign_transaction(
                     &account_id,
                     &addresses_and_amounts,
                     input_txo_ids.as_ref(),
@@ -236,10 +237,10 @@ where
                     fee_token_id,
                     tombstone_block,
                     max_spendable_value,
-                    None,
                     TransactionMemo::RTH,
                 )
                 .map_err(format_error)?;
+
             JsonCommandResponse::build_transaction {
                 tx_proposal: TxProposalJSON::try_from(&tx_proposal).map_err(format_error)?,
                 transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
@@ -268,7 +269,7 @@ where
             }
 
             let (unsigned_tx, fog_resolver) = service
-                .build_unsigned_transaction(
+                .build_transaction(
                     &account_id,
                     &[(
                         b58_encode_public_address(&burn_address()).map_err(format_error)?,
@@ -305,7 +306,7 @@ where
                 addresses_and_amounts.push((address, amount));
             }
             let (unsigned_tx, fog_resolver) = service
-                .build_unsigned_transaction(
+                .build_transaction(
                     &account_id,
                     &addresses_and_amounts,
                     input_txo_ids.as_ref(),

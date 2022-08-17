@@ -1408,6 +1408,7 @@ mod tests {
         },
         service::{
             sync::{sync_account, SyncThread},
+            transaction::TransactionMemo,
             transaction_builder::WalletTransactionBuilder,
         },
         test_utils::{
@@ -1525,7 +1526,6 @@ mod tests {
             33 * MOB,
             wallet_db.clone(),
             ledger_db.clone(),
-            logger.clone(),
         );
 
         let associated_txos = transaction_log
@@ -1742,7 +1742,6 @@ mod tests {
             72 * MOB,
             wallet_db.clone(),
             ledger_db.clone(),
-            logger.clone(),
         );
 
         let associated_txos = transaction_log
@@ -2082,7 +2081,6 @@ mod tests {
             1 * MOB,
             wallet_db.clone(),
             ledger_db,
-            logger,
         );
 
         let associated_txos = transaction_log
@@ -2151,7 +2149,6 @@ mod tests {
                 AccountID::from(&sender_account_key).to_string(),
                 ledger_db.clone(),
                 get_resolver_factory(&mut rng).unwrap(),
-                logger.clone(),
             );
         builder
             .add_recipient(
@@ -2162,7 +2159,9 @@ mod tests {
             .unwrap();
         builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
-        let proposal = builder.build(None, &conn).unwrap();
+        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
+        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
+        let proposal = unsigned_tx.sign(&sender_account_key, fog_resolver).unwrap();
 
         // Sleep to make sure that the foreign keys exist
         std::thread::sleep(Duration::from_secs(3));

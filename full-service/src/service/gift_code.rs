@@ -14,6 +14,7 @@ use crate::{
         models::{Account, GiftCode},
         transaction, WalletDbError,
     },
+    error::WalletTransactionBuilderError,
     service::{
         account::AccountServiceError,
         address::{AddressService, AddressServiceError},
@@ -154,6 +155,9 @@ pub enum GiftCodeServiceError {
 
     /// Amount Error: {0}
     Amount(mc_transaction_core::AmountError),
+
+    /// Wallet Transaction Builder Error: {0}
+    WalletTransactionBuilder(WalletTransactionBuilderError),
 }
 
 impl From<WalletDbError> for GiftCodeServiceError {
@@ -249,6 +253,12 @@ impl From<AddressServiceError> for GiftCodeServiceError {
 impl From<mc_transaction_core::AmountError> for GiftCodeServiceError {
     fn from(src: mc_transaction_core::AmountError) -> Self {
         Self::Amount(src)
+    }
+}
+
+impl From<WalletTransactionBuilderError> for GiftCodeServiceError {
+    fn from(src: WalletTransactionBuilderError) -> Self {
+        Self::WalletTransactionBuilder(src)
     }
 }
 
@@ -421,7 +431,7 @@ where
 
         let fee_value = fee.map(|f| f.to_string());
 
-        let tx_proposal = self.build_transaction(
+        let (unsigned_tx, fog_resolver) = self.build_transaction(
             &from_account.id,
             &[(
                 gift_code_account_main_subaddress_b58,
@@ -435,9 +445,11 @@ where
             None,
             tombstone_block.map(|t| t.to_string()),
             max_spendable_value.map(|f| f.to_string()),
-            None,
             TransactionMemo::RTH,
         )?;
+
+        let account_key: AccountKey = mc_util_serial::decode(&from_account.account_key)?;
+        let tx_proposal = unsigned_tx.sign(&account_key, fog_resolver)?;
 
         if tx_proposal.payload_txos.len() != 1 {
             return Err(GiftCodeServiceError::UnexpectedTxProposalFormat);
