@@ -65,6 +65,11 @@ pub struct APIConfig {
     /// network directly.
     #[structopt(long)]
     pub validator: Option<ValidatorUri>,
+
+    /// Full Service instance to connect to an import accounts and transaction
+    /// history from.
+    #[structopt(long)]
+    pub import_uri: Option<String>,
 }
 
 fn parse_quorum_set_from_json(src: &str) -> Result<QuorumSet<ResponderId>, String> {
