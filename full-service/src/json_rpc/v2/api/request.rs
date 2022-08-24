@@ -182,6 +182,9 @@ pub enum JsonCommandRequest {
         offset: Option<u64>,
         limit: Option<u64>,
     },
+    get_txo_membership_proofs {
+        txo_ids: Vec<String>,
+    },
     get_wallet_status,
     import_account {
         mnemonic: String,

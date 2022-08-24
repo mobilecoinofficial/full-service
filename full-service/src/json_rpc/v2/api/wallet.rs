@@ -713,6 +713,19 @@ where
                 txo_map,
             }
         }
+        JsonCommandRequest::get_txo_membership_proofs { txo_ids } => {
+            let proofs = service
+                .get_membership_proofs(&txo_ids)
+                .map_err(format_error)?;
+            let txo_ids_and_proofs = txo_ids.into_iter().zip(proofs.into_iter()).fold(
+                HashMap::new(),
+                |mut map, (txo_id, proof)| {
+                    map.insert(txo_id, proof);
+                    map
+                },
+            );
+            JsonCommandResponse::get_txo_membership_proofs { txo_ids_and_proofs }
+        }
         JsonCommandRequest::get_wallet_status => JsonCommandResponse::get_wallet_status {
             wallet_status: WalletStatus::try_from(
                 &service.get_wallet_status().map_err(format_error)?,

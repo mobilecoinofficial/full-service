@@ -22,6 +22,8 @@ use displaydoc::Display;
 use mc_account_keys::AccountKey;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
+use mc_ledger_db::Ledger;
+use mc_transaction_core::tx::TxOutMembershipProof;
 
 /// Errors for the Txo Service.
 #[derive(Display, Debug)]
@@ -56,6 +58,9 @@ pub enum TxoServiceError {
 
     /// Wallet Transaction Builder Error: {0}
     WalletTransactionBuilder(WalletTransactionBuilderError),
+
+    /// Key Error
+    Key(mc_crypto_keys::KeyError),
 }
 
 impl From<WalletDbError> for TxoServiceError {
@@ -94,6 +99,12 @@ impl From<WalletTransactionBuilderError> for TxoServiceError {
     }
 }
 
+impl From<mc_crypto_keys::KeyError> for TxoServiceError {
+    fn from(src: mc_crypto_keys::KeyError) -> Self {
+        Self::Key(src)
+    }
+}
+
 /// Trait defining the ways in which the wallet can interact with and manage
 /// Txos.
 pub trait TxoService {
@@ -124,6 +135,11 @@ pub trait TxoService {
         fee_token_id: Option<String>,
         tombstone_block: Option<String>,
     ) -> Result<TxProposal, TxoServiceError>;
+
+    fn get_membership_proofs(
+        &self,
+        txo_ids: &Vec<String>,
+    ) -> Result<Vec<TxOutMembershipProof>, TxoServiceError>;
 }
 
 impl<T, FPR> TxoService for WalletService<T, FPR>
@@ -186,7 +202,7 @@ where
                 let status = txo.status(conn)?;
                 Ok((txo, status))
             })
-            .collect::<Result<Vec<(Txo, TxoStatus)>, WalletDbError>>()?;
+            .collect::<Result<Vec<(Txo, TxoStatus)>, TxoServiceError>>()?;
 
         Ok(txos_and_statuses)
     }
@@ -249,6 +265,25 @@ where
         let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
 
         Ok(unsigned_tx.sign(&account_key, fog_resolver)?)
+    }
+
+    fn get_membership_proofs(
+        &self,
+        txo_ids: &Vec<String>,
+    ) -> Result<Vec<TxOutMembershipProof>, TxoServiceError> {
+        let conn = self.wallet_db.get_conn()?;
+
+        let indices = txo_ids
+            .iter()
+            .map(|txo_id| {
+                let txo = Txo::get(txo_id, &conn)?;
+                Ok(self
+                    .ledger_db
+                    .get_tx_out_index_by_public_key(&txo.public_key()?)?)
+            })
+            .collect::<Result<Vec<u64>, TxoServiceError>>()?;
+
+        Ok(self.ledger_db.get_tx_out_proof_of_memberships(&indices)?)
     }
 }
 
