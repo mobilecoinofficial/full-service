@@ -5,19 +5,20 @@
 use diesel::prelude::*;
 use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
-use mc_transaction_core::{tx::Tx, Amount, TokenId};
-use std::fmt;
+use mc_transaction_core::{tokens::Mob, tx::Tx, Amount, Token, TokenId};
+use std::{convert::TryFrom, fmt};
 
 use crate::{
     db::{
         account::{AccountID, AccountModel},
         models::{
-            Account, NewTransactionInputTxo, NewTransactionLog, TransactionInputTxo,
-            TransactionLog, TransactionOutputTxo, Txo,
+            Account, NewTransactionInputTxo, NewTransactionLog, NewTransactionOutputTxo,
+            TransactionInputTxo, TransactionLog, TransactionOutputTxo, Txo,
         },
         txo::{TxoID, TxoModel},
         Conn, WalletDbError,
     },
+    json_rpc::v1::models::transaction_log::TransactionLog as JsonTransactionLog,
     service::models::tx_proposal::TxProposal,
 };
 
@@ -197,6 +198,11 @@ pub trait TransactionLogModel {
     fn value_for_token_id(&self, token_id: TokenId, conn: &Conn) -> Result<u64, WalletDbError>;
 
     fn value_map(&self, conn: &Conn) -> Result<ValueMap, WalletDbError>;
+
+    fn log_imported_from_v1(
+        json_tx_log: JsonTransactionLog,
+        conn: &Conn,
+    ) -> Result<(), WalletDbError>;
 }
 
 impl TransactionLogModel for TransactionLog {
@@ -570,6 +576,75 @@ impl TransactionLogModel for TransactionLog {
             *value += txo.value as u64;
         }
         Ok(ValueMap(value_map))
+    }
+
+    fn log_imported_from_v1(
+        json_tx_log: JsonTransactionLog,
+        conn: &Conn,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::{
+            transaction_input_txos, transaction_logs, transaction_output_txos, txos,
+        };
+
+        let transaction_log = NewTransactionLog {
+            id: &json_tx_log.transaction_log_id,
+            account_id: &json_tx_log.account_id,
+            fee_value: json_tx_log.fee_pmob.unwrap().parse::<i64>().unwrap(),
+            fee_token_id: *Mob::ID as i64,
+            submitted_block_index: json_tx_log
+                .submitted_block_index
+                .map(|x| x.parse::<i64>().unwrap()),
+            tombstone_block_index: None,
+            finalized_block_index: json_tx_log
+                .finalized_block_index
+                .map(|x| x.parse::<i64>().unwrap()),
+            comment: &json_tx_log.comment,
+            tx: &[],
+            failed: false,
+        };
+
+        diesel::insert_into(transaction_logs::table)
+            .values(&transaction_log)
+            .execute(conn)?;
+
+        for tx_input in json_tx_log.input_txos {
+            let tx_input = NewTransactionInputTxo {
+                transaction_log_id: &json_tx_log.transaction_log_id,
+                txo_id: &tx_input.txo_id_hex,
+            };
+
+            diesel::insert_into(transaction_input_txos::table)
+                .values(&tx_input)
+                .execute(conn)?;
+        }
+
+        for tx_payload in json_tx_log.output_txos {
+            let tx_payload = NewTransactionOutputTxo {
+                transaction_log_id: &json_tx_log.transaction_log_id,
+                txo_id: &tx_payload.txo_id_hex,
+                recipient_public_address_b58: &tx_payload.recipient_address_id,
+                is_change: false,
+            };
+
+            diesel::insert_into(transaction_output_txos::table)
+                .values(&tx_payload)
+                .execute(conn)?;
+        }
+
+        for tx_change in json_tx_log.change_txos {
+            let tx_change = NewTransactionOutputTxo {
+                transaction_log_id: &json_tx_log.transaction_log_id,
+                txo_id: &tx_change.txo_id_hex,
+                recipient_public_address_b58: &tx_change.recipient_address_id,
+                is_change: true,
+            };
+
+            diesel::insert_into(transaction_output_txos::table)
+                .values(&tx_change)
+                .execute(conn)?;
+        }
+
+        Ok(())
     }
 }
 

@@ -13,8 +13,9 @@ use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
 use mc_transaction_core::{
     constants::MAX_INPUTS,
     ring_signature::KeyImage,
+    tokens::Mob,
     tx::{TxOut, TxOutConfirmationNumber},
-    Amount, TokenId,
+    Amount, Token, TokenId,
 };
 use std::{fmt, str::FromStr};
 
@@ -26,6 +27,7 @@ use crate::{
         transaction_log::TransactionID,
         Conn, WalletDbError,
     },
+    json_rpc::v1::models::txo::Txo as TxoV1,
     service::models::tx_proposal::OutputTxo,
     util::b58::b58_encode_public_address,
 };
@@ -329,6 +331,8 @@ pub trait TxoModel {
     fn delete_unreferenced(conn: &Conn) -> Result<(), WalletDbError>;
 
     fn status(&self, conn: &Conn) -> Result<TxoStatus, WalletDbError>;
+
+    fn import_from_v1(txo: TxoV1, conn: &Conn) -> Result<(), WalletDbError>;
 }
 
 impl TxoModel for Txo {
@@ -1382,6 +1386,36 @@ impl TxoModel for Txo {
         } else {
             Ok(TxoStatus::Orphaned)
         }
+    }
+
+    fn import_from_v1(txo: TxoV1, conn: &Conn) -> Result<(), WalletDbError> {
+        use crate::db::schema::txos;
+
+        if Txo::get(&txo.txo_id_hex, conn).is_ok() {
+            return Ok(());
+        }
+
+        let new_txo = NewTxo {
+            id: &txo.txo_id_hex,
+            account_id: txo.received_account_id,
+            value: txo.value_pmob.parse::<i64>().unwrap(),
+            token_id: *Mob::ID as i64,
+            target_key: &hex::decode(&txo.target_key).unwrap(),
+            public_key: &hex::decode(&txo.public_key).unwrap(),
+            e_fog_hint: &hex::decode(&txo.e_fog_hint).unwrap(),
+            txo: &[],
+            subaddress_index: None,
+            key_image: None,
+            received_block_index: None,
+            spent_block_index: None,
+            shared_secret: None,
+        };
+
+        diesel::insert_into(txos::table)
+            .values(&new_txo)
+            .execute(conn)?;
+
+        Ok(())
     }
 }
 
