@@ -212,6 +212,10 @@ pub enum JsonCommandRequest {
     remove_account {
         account_id: String,
     },
+    sample_mixins {
+        num_mixins: u64,
+        excluded_outputs: Vec<JsonTxOut>,
+    },
     submit_transaction {
         tx_proposal: TxProposal,
         comment: Option<String>,
