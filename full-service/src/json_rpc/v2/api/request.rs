@@ -10,6 +10,7 @@ use crate::json_rpc::{
     },
 };
 
+use mc_mobilecoind_json::data_types::JsonTxOut;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use strum::IntoEnumIterator;
@@ -207,6 +208,10 @@ pub enum JsonCommandRequest {
     },
     remove_account {
         account_id: String,
+    },
+    sample_mixins {
+        num_mixins: u64,
+        excluded_outputs: Vec<JsonTxOut>,
     },
     submit_transaction {
         tx_proposal: TxProposal,
