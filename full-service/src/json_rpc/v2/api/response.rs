@@ -26,8 +26,7 @@ use crate::{
     service::receipt::ReceiptTransactionStatus,
     util::b58::PrintableWrapperType,
 };
-use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
-use mc_transaction_core::tx::TxOutMembershipProof;
+use mc_mobilecoind_json::data_types::{JsonMembershipProofResponse, JsonTx, JsonTxOut};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -148,7 +147,7 @@ pub enum JsonCommandResponse {
         txo_map: TxoMap,
     },
     get_txo_membership_proofs {
-        txo_ids_and_proofs: HashMap<String, TxOutMembershipProof>,
+        txo_ids_and_proofs: JsonMembershipProofResponse,
     },
     get_wallet_status {
         wallet_status: WalletStatus,

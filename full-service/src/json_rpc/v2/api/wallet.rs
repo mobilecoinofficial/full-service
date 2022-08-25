@@ -52,7 +52,7 @@ use mc_account_keys::burn_address;
 use mc_common::logger::global_log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
+use mc_mobilecoind_json::data_types::{JsonMembershipProofResponse, JsonTx, JsonTxOut};
 use mc_transaction_core::Amount;
 use mc_transaction_std::BurnRedemptionMemo;
 use rocket::{self};
@@ -713,18 +713,16 @@ where
                 txo_map,
             }
         }
-        JsonCommandRequest::get_txo_membership_proofs { txo_ids } => {
-            let proofs = service
-                .get_membership_proofs(&txo_ids)
+        JsonCommandRequest::get_txo_membership_proofs { outputs } => {
+            let membership_proofs = service
+                .get_membership_proofs(&outputs)
                 .map_err(format_error)?;
-            let txo_ids_and_proofs = txo_ids.into_iter().zip(proofs.into_iter()).fold(
-                HashMap::new(),
-                |mut map, (txo_id, proof)| {
-                    map.insert(txo_id, proof);
-                    map
+            JsonCommandResponse::get_txo_membership_proofs {
+                txo_ids_and_proofs: JsonMembershipProofResponse {
+                    outputs,
+                    membership_proofs,
                 },
-            );
-            JsonCommandResponse::get_txo_membership_proofs { txo_ids_and_proofs }
+            }
         }
         JsonCommandRequest::get_wallet_status => JsonCommandResponse::get_wallet_status {
             wallet_status: WalletStatus::try_from(

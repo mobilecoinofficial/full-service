@@ -2,6 +2,8 @@
 
 //! Service for managing Txos.
 
+use std::convert::{TryFrom, TryInto};
+
 use crate::{
     db::{
         account::{AccountID, AccountModel},
@@ -23,7 +25,7 @@ use mc_account_keys::AccountKey;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
-use mc_transaction_core::tx::TxOutMembershipProof;
+use mc_mobilecoind_json::data_types::{JsonTxOut, JsonTxOutMembershipProof};
 
 /// Errors for the Txo Service.
 #[derive(Display, Debug)]
@@ -61,6 +63,9 @@ pub enum TxoServiceError {
 
     /// Key Error
     Key(mc_crypto_keys::KeyError),
+
+    /// From String Error: {0}
+    From(String),
 }
 
 impl From<WalletDbError> for TxoServiceError {
@@ -105,6 +110,12 @@ impl From<mc_crypto_keys::KeyError> for TxoServiceError {
     }
 }
 
+impl From<String> for TxoServiceError {
+    fn from(src: String) -> Self {
+        Self::From(src)
+    }
+}
+
 /// Trait defining the ways in which the wallet can interact with and manage
 /// Txos.
 pub trait TxoService {
@@ -138,8 +149,8 @@ pub trait TxoService {
 
     fn get_membership_proofs(
         &self,
-        txo_ids: &Vec<String>,
-    ) -> Result<Vec<TxOutMembershipProof>, TxoServiceError>;
+        outputs: &Vec<JsonTxOut>,
+    ) -> Result<Vec<JsonTxOutMembershipProof>, TxoServiceError>;
 }
 
 impl<T, FPR> TxoService for WalletService<T, FPR>
@@ -269,21 +280,31 @@ where
 
     fn get_membership_proofs(
         &self,
-        txo_ids: &Vec<String>,
-    ) -> Result<Vec<TxOutMembershipProof>, TxoServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-
-        let indices = txo_ids
+        outputs: &Vec<JsonTxOut>,
+    ) -> Result<Vec<JsonTxOutMembershipProof>, TxoServiceError> {
+        let tx_outs = outputs
             .iter()
-            .map(|txo_id| {
-                let txo = Txo::get(txo_id, &conn)?;
-                Ok(self
-                    .ledger_db
-                    .get_tx_out_index_by_public_key(&txo.public_key()?)?)
-            })
-            .collect::<Result<Vec<u64>, TxoServiceError>>()?;
+            .map(mc_api::external::TxOut::try_from)
+            .collect::<Result<Vec<_>, _>>()?;
 
-        Ok(self.ledger_db.get_tx_out_proof_of_memberships(&indices)?)
+        let indices = tx_outs
+            .iter()
+            .map(|tx_out| {
+                let tx_out: mc_transaction_core::tx::TxOut =
+                    tx_out.try_into().map_err(TransactionServiceError::from)?;
+                self.ledger_db
+                    .get_tx_out_index_by_hash(&tx_out.hash())
+                    .map_err(TransactionServiceError::from)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(self
+            .ledger_db
+            .get_tx_out_proof_of_memberships(&indices)?
+            .iter()
+            .map(mc_api::external::TxOutMembershipProof::from)
+            .map(|proof| JsonTxOutMembershipProof::from(&proof))
+            .collect())
     }
 }
 
