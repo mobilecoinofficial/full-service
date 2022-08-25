@@ -149,7 +149,7 @@ pub trait TxoService {
 
     fn get_membership_proofs(
         &self,
-        outputs: &Vec<JsonTxOut>,
+        outputs: &[JsonTxOut],
     ) -> Result<Vec<JsonTxOutMembershipProof>, TxoServiceError>;
 }
 
@@ -280,7 +280,7 @@ where
 
     fn get_membership_proofs(
         &self,
-        outputs: &Vec<JsonTxOut>,
+        outputs: &[JsonTxOut],
     ) -> Result<Vec<JsonTxOutMembershipProof>, TxoServiceError> {
         let tx_outs = outputs
             .iter()

@@ -1396,7 +1396,7 @@ impl TxoModel for Txo {
         let membership_proof = ledger_db
             .get_tx_out_proof_of_memberships(&[index])?
             .first()
-            .ok_or(WalletDbError::MissingTxoMembershipProof(self.id.clone()))?
+            .ok_or_else(|| WalletDbError::MissingTxoMembershipProof(self.id.clone()))?
             .clone();
 
         Ok(membership_proof)
