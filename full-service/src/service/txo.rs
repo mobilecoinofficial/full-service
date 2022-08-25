@@ -2,8 +2,6 @@
 
 //! Service for managing Txos.
 
-use std::convert::{TryFrom, TryInto};
-
 use crate::{
     db::{
         account::{AccountID, AccountModel},
@@ -24,8 +22,6 @@ use displaydoc::Display;
 use mc_account_keys::AccountKey;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_ledger_db::Ledger;
-use mc_mobilecoind_json::data_types::{JsonTxOut, JsonTxOutMembershipProof};
 
 /// Errors for the Txo Service.
 #[derive(Display, Debug)]
@@ -146,11 +142,6 @@ pub trait TxoService {
         fee_token_id: Option<String>,
         tombstone_block: Option<String>,
     ) -> Result<TxProposal, TxoServiceError>;
-
-    fn get_membership_proofs(
-        &self,
-        outputs: &[JsonTxOut],
-    ) -> Result<Vec<JsonTxOutMembershipProof>, TxoServiceError>;
 }
 
 impl<T, FPR> TxoService for WalletService<T, FPR>
@@ -276,35 +267,6 @@ where
         let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
 
         Ok(unsigned_tx.sign(&account_key, fog_resolver)?)
-    }
-
-    fn get_membership_proofs(
-        &self,
-        outputs: &[JsonTxOut],
-    ) -> Result<Vec<JsonTxOutMembershipProof>, TxoServiceError> {
-        let tx_outs = outputs
-            .iter()
-            .map(mc_api::external::TxOut::try_from)
-            .collect::<Result<Vec<_>, _>>()?;
-
-        let indices = tx_outs
-            .iter()
-            .map(|tx_out| {
-                let tx_out: mc_transaction_core::tx::TxOut =
-                    tx_out.try_into().map_err(TransactionServiceError::from)?;
-                self.ledger_db
-                    .get_tx_out_index_by_hash(&tx_out.hash())
-                    .map_err(TransactionServiceError::from)
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-
-        Ok(self
-            .ledger_db
-            .get_tx_out_proof_of_memberships(&indices)?
-            .iter()
-            .map(mc_api::external::TxOutMembershipProof::from)
-            .map(|proof| JsonTxOutMembershipProof::from(&proof))
-            .collect())
     }
 }
 

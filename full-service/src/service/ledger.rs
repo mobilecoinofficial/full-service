@@ -112,6 +112,11 @@ pub trait LedgerService {
 
     fn get_network_block_version(&self) -> BlockVersion;
 
+    fn get_tx_out_proof_of_memberships(
+        &self,
+        indices: &[u64],
+    ) -> Result<Vec<TxOutMembershipProof>, LedgerServiceError>;
+
     fn get_indices_from_txo_public_keys(
         &self,
         public_keys: &[CompressedRistrettoPublic],
@@ -202,6 +207,13 @@ where
 
             BlockVersion::try_from(block_version).unwrap_or(BlockVersion::MAX)
         }
+    }
+
+    fn get_tx_out_proof_of_memberships(
+        &self,
+        indices: &[u64],
+    ) -> Result<Vec<TxOutMembershipProof>, LedgerServiceError> {
+        Ok(self.ledger_db.get_tx_out_proof_of_memberships(indices)?)
     }
 
     fn get_indices_from_txo_public_keys(

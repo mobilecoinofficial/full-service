@@ -53,7 +53,9 @@ use mc_common::logger::global_log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_crypto_keys::CompressedRistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxOutMembershipProof};
+use mc_mobilecoind_json::data_types::{
+    JsonMembershipProofResponse, JsonTx, JsonTxOut, JsonTxOutMembershipProof,
+};
 use mc_transaction_core::Amount;
 use mc_transaction_std::BurnRedemptionMemo;
 use rocket::{self};
@@ -719,11 +721,36 @@ where
             }
         }
         JsonCommandRequest::get_txo_membership_proofs { outputs } => {
-            let membership_proofs = service
-                .get_membership_proofs(&outputs)
+            let public_keys = outputs
+                .clone()
+                .into_iter()
+                .map(|tx_out| {
+                    let public_key_bytes = hex::decode(tx_out.public_key).map_err(format_error)?;
+                    let public_key: CompressedRistrettoPublic = public_key_bytes
+                        .as_slice()
+                        .try_into()
+                        .map_err(format_error)?;
+                    Ok(public_key)
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            let indices = service
+                .get_indices_from_txo_public_keys(&public_keys)
                 .map_err(format_error)?;
+
+            let membership_proofs = service
+                .get_tx_out_proof_of_memberships(&indices)
+                .map_err(format_error)?
+                .iter()
+                .map(|proof| {
+                    let proof: mc_api::external::TxOutMembershipProof =
+                        proof.try_into().map_err(format_error)?;
+                    let json_proof = JsonTxOutMembershipProof::from(&proof);
+                    Ok(json_proof)
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
             JsonCommandResponse::get_txo_membership_proofs {
-                txo_ids_and_proofs: JsonMembershipProofResponse {
+                outputs_and_proofs: JsonMembershipProofResponse {
                     outputs,
                     membership_proofs,
                 },
