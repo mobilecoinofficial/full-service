@@ -274,6 +274,10 @@ pub enum JsonCommandResponse {
     get_network_status {
         network_status: NetworkStatus,
     },
+    get_sent_transaction_logs_for_account {
+        transaction_log_ids: Vec<String>,
+        transaction_log_map: Map<String, serde_json::Value>,
+    },
     get_transaction_log {
         transaction_log: TransactionLog,
     },

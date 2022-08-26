@@ -224,6 +224,9 @@ pub enum JsonCommandRequest {
         txo_id: String,
     },
     get_network_status,
+    get_sent_transaction_logs_for_account {
+        account_id: String,
+    },
     get_transaction_log {
         transaction_log_id: String,
     },

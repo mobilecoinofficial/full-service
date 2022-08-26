@@ -54,6 +54,11 @@ pub struct AssociatedTxos {
 }
 
 const MOB_TOKEN_ID: i64 = 0;
+
+pub enum TxDirection {
+    Sent,
+    Received,
+}
 pub trait TransactionLogModel {
     /// Get a transaction log from the TransactionId.
     fn get(transaction_id_hex: &str, conn: &Conn) -> Result<TransactionLog, WalletDbError>;
@@ -87,6 +92,7 @@ pub trait TransactionLogModel {
         limit: Option<u64>,
         min_block_index: Option<u64>,
         max_block_index: Option<u64>,
+        direction: Option<TxDirection>,
         conn: &Conn,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletDbError>;
 
@@ -243,6 +249,7 @@ impl TransactionLogModel for TransactionLog {
         limit: Option<u64>,
         min_block_index: Option<u64>,
         max_block_index: Option<u64>,
+        direction: Option<TxDirection>,
         conn: &Conn,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos)>, WalletDbError> {
         use crate::db::schema::{transaction_logs, transaction_txo_types, txos};
@@ -278,6 +285,18 @@ impl TransactionLogModel for TransactionLog {
         if let Some(max_block_index) = max_block_index {
             transactions_query = transactions_query
                 .filter(transaction_logs::finalized_block_index.le(max_block_index as i64));
+        }
+
+        match direction {
+            Some(TxDirection::Received) => {
+                transactions_query = transactions_query
+                    .filter(transaction_logs::direction.eq(TX_DIRECTION_RECEIVED));
+            }
+            Some(TxDirection::Sent) => {
+                transactions_query =
+                    transactions_query.filter(transaction_logs::direction.eq(TX_DIRECTION_SENT));
+            }
+            None => {}
         }
 
         let transactions: Vec<(TransactionLog, TransactionTxoType, Txo)> =
@@ -1347,7 +1366,7 @@ mod tests {
         assert_eq!(for_non_mob_txo.len(), 0);
 
         let all_logs =
-            TransactionLog::list_all(&account_id.to_string(), None, None, None, None, &conn)
+            TransactionLog::list_all(&account_id.to_string(), None, None, None, None, None, &conn)
                 .unwrap();
         assert_eq!(all_logs.len(), 1);
 
