@@ -3,7 +3,12 @@
 //! Entrypoint for Wallet API.
 
 use crate::{
-    db::{self, account::AccountID, transaction_log::TransactionID, txo::TxoID},
+    db::{
+        self,
+        account::AccountID,
+        transaction_log::{TransactionID, TxDirection},
+        txo::TxoID,
+    },
     json_rpc,
     json_rpc::{
         account_secrets::AccountSecrets,
@@ -814,6 +819,37 @@ where
             )
             .map_err(format_error)?,
         },
+        JsonCommandRequest::get_sent_transaction_logs_for_account { account_id } => {
+            let transaction_logs_and_txos = service
+                .list_transaction_logs(
+                    &AccountID(account_id),
+                    None,
+                    None,
+                    None,
+                    None,
+                    Some(TxDirection::Sent),
+                )
+                .map_err(format_error)?;
+            let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
+                transaction_logs_and_txos
+                    .iter()
+                    .map(|(t, a)| {
+                        (
+                            t.transaction_id_hex.clone(),
+                            serde_json::json!(json_rpc::transaction_log::TransactionLog::new(t, a)),
+                        )
+                    })
+                    .collect::<Vec<(String, serde_json::Value)>>(),
+            );
+
+            JsonCommandResponse::get_sent_transaction_logs_for_account {
+                transaction_log_ids: transaction_logs_and_txos
+                    .iter()
+                    .map(|(t, _a)| t.transaction_id_hex.to_string())
+                    .collect(),
+                transaction_log_map,
+            }
+        }
         JsonCommandRequest::get_transaction_log { transaction_log_id } => {
             let (transaction_log, associated_txos) = service
                 .get_transaction_log(&transaction_log_id)
@@ -851,6 +887,7 @@ where
                     Some(l),
                     min_block_index,
                     max_block_index,
+                    None,
                 )
                 .map_err(format_error)?;
             let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
