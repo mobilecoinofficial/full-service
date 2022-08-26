@@ -41,29 +41,17 @@ jobs:
         run: |
           git submodule update --checkout --init --recursive
 
-      # CACHE_VERSION secret is 'date --iso-8601=minutes' and is used to invalidate cache if needed
-      - name: Cache Build Binaries
-        id: artifact_cache
-        uses: actions/cache@v3
-        with:
-          path: |
-            build_artifacts
-          key: ${{ runner.os }}-x86-${{ matrix.network }}-${{ secrets.CACHE_VERSION }}-build-cargo-artifacts-${{ hashFiles('**/*.rs', '**/*.proto', '**/Cargo.toml')}}
-
       - name: Consensus SigStruct
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
         run: |
           CONSENSUS_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/production.json | grep consensus-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
           (cd /var/tmp && curl -O https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/${CONSENSUS_SIGSTRUCT_URI})
 
       - name: Ingest SigStruct
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
         run: |
           INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
           (cd /var/tmp && curl -O https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/${INGEST_SIGSTRUCT_URI})
 
       - name: Cargo Build
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
         run: |
           export PATH="/usr/local/opt/openssl@3/bin:$PATH"
           export LDFLAGS="-L/usr/local/opt/openssl@3/lib"
@@ -72,12 +60,12 @@ jobs:
           cargo build --release
 
       - name: Copy binaries to cache folder
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
         run: |
           mkdir -pv build_artifacts/${{ matrix.network }}/bin
           cp /var/tmp/*.css build_artifacts/${{ matrix.network }}
           cp target/release/full-service build_artifacts/${{ matrix.network }}/bin/
           cp target/release/transaction-signer build_artifacts/${{ matrix.network }}/bin/
+          cp target/release/mc-validator-service build_artifacts/${{ matrix.network }}/bin/
 
       - name: Create Artifact
         run: |
@@ -131,29 +119,17 @@ jobs:
         run: |
           git submodule update --checkout --init --recursive
 
-      # CACHE_VERSION secret is 'date --iso-8601=minutes' and is used to invalidate cache if needed
-      - name: Cache Build Binaries
-        id: artifact_cache
-        uses: actions/cache@v3
-        with:
-          path: |
-            build_artifacts
-          key: ${{ runner.os }}-arm64-${{ matrix.network }}-${{ secrets.CACHE_VERSION }}-build-cargo-artifacts-${{ hashFiles('**/*.rs', '**/*.proto', '**/Cargo.toml')}}
-
       - name: Consensus SigStruct
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
         run: |
           CONSENSUS_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/production.json | grep consensus-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
           (cd /var/tmp && curl -O https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/${CONSENSUS_SIGSTRUCT_URI})
 
       - name: Ingest SigStruct
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
         run: |
           INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
           (cd /var/tmp && curl -O https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/${INGEST_SIGSTRUCT_URI})
 
       - name: Cargo Build
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
         run: |
           export PATH="/opt/homebrew/opt/openssl@3/bin:$PATH"
           export LDFLAGS="-L/opt/homebrew/opt/openssl@3/lib"
@@ -162,12 +138,12 @@ jobs:
           cargo build --release
 
       - name: Copy binaries to cache folder
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
         run: |
           mkdir -pv build_artifacts/${{ matrix.network }}/bin
           cp /var/tmp/*.css build_artifacts/${{ matrix.network }}
           cp target/release/full-service build_artifacts/${{ matrix.network }}/bin/
           cp target/release/transaction-signer build_artifacts/${{ matrix.network }}/bin/
+          cp target/release/mc-validator-service build_artifacts/${{ matrix.network }}/bin/
 
       - name: Create Artifact
         run: |
@@ -215,39 +191,27 @@ jobs:
         with:
           submodules: recursive
 
-      # CACHE_VERSION secret is 'date --iso-8601=minutes' and is used to invalidate cache if needed
-      - name: Cache Build Binaries
-        id: artifact_cache
-        uses: actions/cache@v3
-        with:
-          path: |
-            build_artifacts
-          key: ${{ runner.os }}-${{ matrix.network }}-${{ secrets.CACHE_VERSION }}-build-cargo-artifacts-${{ hashFiles('**/*.rs', '**/*.proto', '**/Cargo.toml')}}
-
       - name: Consensus SigStruct
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
         run: |
           CONSENSUS_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/production.json | grep consensus-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
           (cd /var/tmp && curl -O https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/${CONSENSUS_SIGSTRUCT_URI})
 
       - name: Ingest SigStruct
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
         run: |
           INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
           (cd /var/tmp && curl -O https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/${INGEST_SIGSTRUCT_URI})
 
       - name: Cargo Build
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
         run: |
           cargo build --release
 
       - name: Copy binaries to cache folder
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
         run: |
           mkdir -pv build_artifacts/${{ matrix.network }}/bin
           cp /var/tmp/*.css build_artifacts/${{ matrix.network }}
           cp target/release/full-service build_artifacts/${{ matrix.network }}/bin/
           cp target/release/transaction-signer build_artifacts/${{ matrix.network }}/bin/
+          cp target/release/mc-validator-service build_artifacts/${{ matrix.network }}/bin/
 
       - name: Create Artifact
         run: |
