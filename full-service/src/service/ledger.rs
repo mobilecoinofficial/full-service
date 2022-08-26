@@ -11,16 +11,19 @@ use crate::{
     WalletService,
 };
 use mc_blockchain_types::{Block, BlockContents, BlockVersion};
+use mc_common::HashSet;
 use mc_connection::{BlockchainConnection, RetryableBlockchainConnection, UserTxConnection};
+use mc_crypto_keys::CompressedRistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_ledger_sync::NetworkState;
 use mc_transaction_core::{
     ring_signature::KeyImage,
     tokens::Mob,
-    tx::{Tx, TxOut},
+    tx::{Tx, TxOut, TxOutMembershipProof},
     Token, TokenId,
 };
+use rand::Rng;
 
 use crate::db::WalletDbError;
 use displaydoc::Display;
@@ -44,6 +47,18 @@ pub enum LedgerServiceError {
      * received transactions do not have transaction objects.
      */
     NoTxInTransaction,
+
+    /// Error converting from hex string to bytes.
+    FromHex(hex::FromHexError),
+
+    /// Key Error from mc_crypto_keys
+    Key(mc_crypto_keys::KeyError),
+
+    /// Invalid Argument: {0}
+    InvalidArgument(String),
+
+    /// Insufficient Tx Outs
+    InsufficientTxOuts,
 }
 
 impl From<mc_ledger_db::Error> for LedgerServiceError {
@@ -61,6 +76,18 @@ impl From<mc_util_serial::DecodeError> for LedgerServiceError {
 impl From<WalletDbError> for LedgerServiceError {
     fn from(src: WalletDbError) -> Self {
         Self::Database(src)
+    }
+}
+
+impl From<hex::FromHexError> for LedgerServiceError {
+    fn from(src: hex::FromHexError) -> Self {
+        Self::FromHex(src)
+    }
+}
+
+impl From<mc_crypto_keys::KeyError> for LedgerServiceError {
+    fn from(src: mc_crypto_keys::KeyError) -> Self {
+        Self::Key(src)
     }
 }
 
@@ -84,6 +111,22 @@ pub trait LedgerService {
     fn get_network_fees(&self) -> BTreeMap<TokenId, u64>;
 
     fn get_network_block_version(&self) -> BlockVersion;
+
+    fn get_tx_out_proof_of_memberships(
+        &self,
+        indices: &[u64],
+    ) -> Result<Vec<TxOutMembershipProof>, LedgerServiceError>;
+
+    fn get_indices_from_txo_public_keys(
+        &self,
+        public_keys: &[CompressedRistrettoPublic],
+    ) -> Result<Vec<u64>, LedgerServiceError>;
+
+    fn sample_mixins(
+        &self,
+        num_mixins: usize,
+        excluded_indices: &[u64],
+    ) -> Result<Vec<(TxOut, TxOutMembershipProof)>, LedgerServiceError>;
 }
 
 impl<T, FPR> LedgerService for WalletService<T, FPR>
@@ -164,5 +207,65 @@ where
 
             BlockVersion::try_from(block_version).unwrap_or(BlockVersion::MAX)
         }
+    }
+
+    fn get_tx_out_proof_of_memberships(
+        &self,
+        indices: &[u64],
+    ) -> Result<Vec<TxOutMembershipProof>, LedgerServiceError> {
+        Ok(self.ledger_db.get_tx_out_proof_of_memberships(indices)?)
+    }
+
+    fn get_indices_from_txo_public_keys(
+        &self,
+        public_keys: &[CompressedRistrettoPublic],
+    ) -> Result<Vec<u64>, LedgerServiceError> {
+        let indices = public_keys
+            .iter()
+            .map(|public_key| self.ledger_db.get_tx_out_index_by_public_key(public_key))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(indices)
+    }
+
+    fn sample_mixins(
+        &self,
+        num_mixins: usize,
+        excluded_indices: &[u64],
+    ) -> Result<Vec<(TxOut, TxOutMembershipProof)>, LedgerServiceError> {
+        let num_txos = self.ledger_db.num_txos()?;
+
+        // Check that the ledger contains enough tx outs.
+        if excluded_indices.len() as u64 > num_txos {
+            return Err(LedgerServiceError::InvalidArgument(
+                "excluded_tx_out_indices exceeds amount of tx outs in ledger".to_string(),
+            ));
+        }
+
+        if num_mixins > (num_txos as usize - excluded_indices.len()) {
+            return Err(LedgerServiceError::InsufficientTxOuts);
+        }
+
+        let mut rng = rand::thread_rng();
+        let mut sampled_indices: HashSet<u64> = HashSet::default();
+        while sampled_indices.len() < num_mixins {
+            let index = rng.gen_range(0..num_txos);
+            if excluded_indices.contains(&index) {
+                continue;
+            }
+            sampled_indices.insert(index);
+        }
+        let sampled_indices_vec: Vec<u64> = sampled_indices.into_iter().collect();
+
+        // Get proofs for all of those indexes.
+        let proofs = self
+            .ledger_db
+            .get_tx_out_proof_of_memberships(&sampled_indices_vec)?;
+
+        let tx_outs = sampled_indices_vec
+            .iter()
+            .map(|index| self.ledger_db.get_tx_out_by_index(*index))
+            .collect::<Result<Vec<TxOut>, _>>()?;
+
+        Ok(tx_outs.into_iter().zip(proofs).collect())
     }
 }
