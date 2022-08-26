@@ -56,6 +56,12 @@ pub enum TxoServiceError {
 
     /// Wallet Transaction Builder Error: {0}
     WalletTransactionBuilder(WalletTransactionBuilderError),
+
+    /// Key Error
+    Key(mc_crypto_keys::KeyError),
+
+    /// From String Error: {0}
+    From(String),
 }
 
 impl From<WalletDbError> for TxoServiceError {
@@ -91,6 +97,18 @@ impl From<mc_util_serial::DecodeError> for TxoServiceError {
 impl From<WalletTransactionBuilderError> for TxoServiceError {
     fn from(src: WalletTransactionBuilderError) -> Self {
         Self::WalletTransactionBuilder(src)
+    }
+}
+
+impl From<mc_crypto_keys::KeyError> for TxoServiceError {
+    fn from(src: mc_crypto_keys::KeyError) -> Self {
+        Self::Key(src)
+    }
+}
+
+impl From<String> for TxoServiceError {
+    fn from(src: String) -> Self {
+        Self::From(src)
     }
 }
 
@@ -186,7 +204,7 @@ where
                 let status = txo.status(conn)?;
                 Ok((txo, status))
             })
-            .collect::<Result<Vec<(Txo, TxoStatus)>, WalletDbError>>()?;
+            .collect::<Result<Vec<(Txo, TxoStatus)>, TxoServiceError>>()?;
 
         Ok(txos_and_statuses)
     }

@@ -10,12 +10,14 @@ use mc_account_keys::AccountKey;
 use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
+use mc_ledger_db::{Ledger, LedgerDB};
 use mc_transaction_core::{
     constants::MAX_INPUTS,
     ring_signature::KeyImage,
     tokens::Mob,
     tx::{TxOut, TxOutConfirmationNumber},
     Amount, Token, TokenId,
+    tx::{TxOut, TxOutConfirmationNumber, TxOutMembershipProof},
 };
 use std::{fmt, str::FromStr};
 
@@ -333,6 +335,9 @@ pub trait TxoModel {
     fn status(&self, conn: &Conn) -> Result<TxoStatus, WalletDbError>;
 
     fn import_from_v1(txo: TxoV1, conn: &Conn) -> Result<(), WalletDbError>;
+
+    fn membership_proof(&self, ledger_db: &LedgerDB)
+        -> Result<TxOutMembershipProof, WalletDbError>;
 }
 
 impl TxoModel for Txo {
@@ -1416,6 +1421,20 @@ impl TxoModel for Txo {
             .execute(conn)?;
 
         Ok(())
+    }
+
+    fn membership_proof(
+        &self,
+        ledger_db: &LedgerDB,
+    ) -> Result<TxOutMembershipProof, WalletDbError> {
+        let index = ledger_db.get_tx_out_index_by_public_key(&self.public_key()?)?;
+        let membership_proof = ledger_db
+            .get_tx_out_proof_of_memberships(&[index])?
+            .first()
+            .ok_or_else(|| WalletDbError::MissingTxoMembershipProof(self.id.clone()))?
+            .clone();
+
+        Ok(membership_proof)
     }
 }
 

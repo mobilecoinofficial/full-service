@@ -143,6 +143,9 @@ pub enum WalletDbError {
 
     /// Expected to find TxOut as an outlay
     ExpectedTxOutAsOutlay,
+
+    /// Expected to find a membership proof for txo with id: {0}
+    MissingTxoMembershipProof(String),
 }
 
 impl From<diesel::result::Error> for WalletDbError {
