@@ -15,9 +15,8 @@ use mc_transaction_core::{
     constants::MAX_INPUTS,
     ring_signature::KeyImage,
     tokens::Mob,
-    tx::{TxOut, TxOutConfirmationNumber},
-    Amount, Token, TokenId,
     tx::{TxOut, TxOutConfirmationNumber, TxOutMembershipProof},
+    Amount, Token, TokenId,
 };
 use std::{fmt, str::FromStr};
 
