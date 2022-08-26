@@ -3,10 +3,8 @@
 //! MobileCoin wallet service
 
 #![feature(proc_macro_hygiene, decl_macro)]
-use bip39::Mnemonic;
 use diesel::{prelude::*, SqliteConnection};
 use dotenv::dotenv;
-use mc_api::external::Tx;
 use mc_attest_verifier::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
 use mc_common::logger::{create_app_logger, log, o, Logger};
 use mc_connection::ConnectionManager;
@@ -15,28 +13,14 @@ use mc_fog_report_validation::FogResolver;
 use mc_full_service::{
     check_host,
     config::APIConfig,
-    db::{
-        account::AccountModel,
-        models::{Account, TransactionLog, Txo},
-        transaction_log::TransactionLogModel,
-        txo::TxoModel,
-        Conn,
-    },
-    json_rpc::v1::models::{
-        account::Account as AccountJSON, account_secrets::AccountSecrets,
-        transaction_log::TransactionLog as JsonTransactionLog, txo::Txo as JsonTxo,
-    },
+    util::import_from_v1::import_accounts,
     wallet::{consensus_backed_rocket, validator_backed_rocket, APIKeyState, WalletState},
     ValidatorLedgerSyncThread, WalletDb, WalletService,
 };
 use mc_ledger_sync::{LedgerSyncServiceThread, PollingNetworkState, ReqwestTransactionsFetcher};
-use mc_mobilecoind_json::data_types::JsonTx;
 use mc_validator_api::ValidatorUri;
 use mc_validator_connection::ValidatorConnection;
-use reqwest::header::CONTENT_TYPE;
-use serde_json::json;
 use std::{
-    convert::TryFrom,
     env,
     process::exit,
     sync::{Arc, RwLock},
@@ -103,7 +87,8 @@ fn main() {
     .expect("Could not access wallet db");
 
     if let Some(import_uri) = config.import_uri.clone() {
-        import_accounts(&wallet_db.get_conn().unwrap(), &import_uri);
+        let client = reqwest::blocking::Client::new();
+        import_accounts(&wallet_db.get_conn().unwrap(), &client, &import_uri);
     }
 
     // Start WalletService based on our configuration
@@ -112,215 +97,6 @@ fn main() {
     } else {
         consensus_backed_full_service(&config, wallet_db, rocket_config, logger)
     };
-}
-
-fn import_accounts(conn: &Conn, import_uri: &str) {
-    let request_uri = format!("{}/wallet", import_uri);
-    let get_accounts_body = json!({
-        "method": "get_all_accounts",
-        "jsonrpc": "2.0",
-        "id": 1
-    });
-    let client = reqwest::blocking::Client::new();
-
-    let response = client
-        .post(request_uri.clone())
-        .header(CONTENT_TYPE, "application/json")
-        .body(get_accounts_body.to_string())
-        .send()
-        .unwrap()
-        .json::<serde_json::Value>()
-        .unwrap();
-
-    let account_map = response.get("result").unwrap().get("account_map").unwrap();
-    let account_ids = response
-        .get("result")
-        .unwrap()
-        .get("account_ids")
-        .unwrap()
-        .as_array()
-        .unwrap();
-
-    for account_id in account_ids {
-        let account: AccountJSON = serde_json::from_value(
-            account_map
-                .get(account_id.as_str().unwrap())
-                .unwrap()
-                .clone(),
-        )
-        .unwrap();
-
-        let get_account_secrets_body = json!({
-            "method": "export_account_secrets",
-            "jsonrpc": "2.0",
-            "id": 1,
-            "params": {
-                "account_id": account_id.as_str().unwrap()
-            }
-        });
-
-        let response = client
-            .post(request_uri.clone())
-            .header(CONTENT_TYPE, "application/json")
-            .body(get_account_secrets_body.to_string())
-            .send()
-            .unwrap()
-            .json::<serde_json::Value>()
-            .unwrap();
-
-        let account_secrets: AccountSecrets = serde_json::from_value(
-            response
-                .get("result")
-                .unwrap()
-                .get("account_secrets")
-                .unwrap()
-                .clone(),
-        )
-        .unwrap();
-
-        if let Some(mnemonic) = account_secrets.mnemonic {
-            let mnemonic = Mnemonic::from_phrase(&mnemonic, bip39::Language::English).unwrap();
-            Account::import(
-                &mnemonic,
-                Some(account.name),
-                0,
-                Some(account.first_block_index.parse::<u64>().unwrap()),
-                Some(account.next_subaddress_index.parse::<u64>().unwrap()),
-                "".to_string(),
-                "".to_string(),
-                "".to_string(),
-                conn,
-            )
-            .unwrap();
-        } else if let Some(entropy) = account_secrets.entropy {
-            panic!("Entropy not yet supported");
-        } else {
-            panic!("No entropy or mnemonic found for account {}", account_id);
-        };
-
-        let get_sent_transaction_logs_body = json!({
-            "method": "get_sent_transaction_logs_for_account",
-            "jsonrpc": "2.0",
-            "id": 1,
-            "params": {
-                "account_id": account_id.as_str().unwrap()
-            }
-        });
-
-        let response = client
-            .post(request_uri.clone())
-            .header(CONTENT_TYPE, "application/json")
-            .body(get_sent_transaction_logs_body.to_string())
-            .send()
-            .unwrap()
-            .json::<serde_json::Value>()
-            .unwrap();
-
-        let transaction_log_ids = response
-            .get("result")
-            .unwrap()
-            .get("transaction_log_ids")
-            .unwrap()
-            .as_array()
-            .unwrap();
-
-        for transaction_log_id in transaction_log_ids {
-            let transaction_log: JsonTransactionLog = serde_json::from_value(
-                response
-                    .get("result")
-                    .unwrap()
-                    .get("transaction_log_map")
-                    .unwrap()
-                    .get(transaction_log_id.as_str().unwrap())
-                    .unwrap()
-                    .clone(),
-            )
-            .unwrap();
-
-            for input_txo in &transaction_log.input_txos {
-                let get_txo_body = json!({
-                    "method": "get_txo",
-                    "jsonrpc": "2.0",
-                    "id": 1,
-                    "params": {
-                        "txo_id": input_txo.txo_id_hex
-                    }
-                });
-
-                let response = client
-                    .post(request_uri.clone())
-                    .header(CONTENT_TYPE, "application/json")
-                    .body(get_txo_body.to_string())
-                    .send()
-                    .unwrap()
-                    .json::<serde_json::Value>()
-                    .unwrap();
-
-                let txo: JsonTxo = serde_json::from_value(
-                    response.get("result").unwrap().get("txo").unwrap().clone(),
-                )
-                .unwrap();
-
-                Txo::import_from_v1(txo, conn).unwrap();
-            }
-
-            for input_txo in &transaction_log.output_txos {
-                let get_txo_body = json!({
-                    "method": "get_txo",
-                    "jsonrpc": "2.0",
-                    "id": 1,
-                    "params": {
-                        "txo_id": input_txo.txo_id_hex
-                    }
-                });
-
-                let response = client
-                    .post(request_uri.clone())
-                    .header(CONTENT_TYPE, "application/json")
-                    .body(get_txo_body.to_string())
-                    .send()
-                    .unwrap()
-                    .json::<serde_json::Value>()
-                    .unwrap();
-
-                let txo: JsonTxo = serde_json::from_value(
-                    response.get("result").unwrap().get("txo").unwrap().clone(),
-                )
-                .unwrap();
-
-                Txo::import_from_v1(txo, conn).unwrap();
-            }
-
-            for input_txo in &transaction_log.change_txos {
-                let get_txo_body = json!({
-                    "method": "get_txo",
-                    "jsonrpc": "2.0",
-                    "id": 1,
-                    "params": {
-                        "txo_id": input_txo.txo_id_hex
-                    }
-                });
-
-                let response = client
-                    .post(request_uri.clone())
-                    .header(CONTENT_TYPE, "application/json")
-                    .body(get_txo_body.to_string())
-                    .send()
-                    .unwrap()
-                    .json::<serde_json::Value>()
-                    .unwrap();
-
-                let txo: JsonTxo = serde_json::from_value(
-                    response.get("result").unwrap().get("txo").unwrap().clone(),
-                )
-                .unwrap();
-
-                Txo::import_from_v1(txo, conn).unwrap();
-            }
-
-            TransactionLog::log_imported_from_v1(transaction_log, conn).unwrap();
-        }
-    }
 }
 
 fn consensus_backed_full_service(

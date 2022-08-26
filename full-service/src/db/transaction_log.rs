@@ -6,7 +6,7 @@ use diesel::prelude::*;
 use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_transaction_core::{tokens::Mob, tx::Tx, Amount, Token, TokenId};
-use std::{convert::TryFrom, fmt};
+use std::fmt;
 
 use crate::{
     db::{
@@ -583,7 +583,7 @@ impl TransactionLogModel for TransactionLog {
         conn: &Conn,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::{
-            transaction_input_txos, transaction_logs, transaction_output_txos, txos,
+            transaction_input_txos, transaction_logs, transaction_output_txos,
         };
 
         let transaction_log = NewTransactionLog {
