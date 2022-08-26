@@ -7,6 +7,7 @@ use super::schema::{
     transaction_output_txos, txos,
 };
 
+use mc_crypto_keys::CompressedRistrettoPublic;
 use serde::Serialize;
 
 /// An Account entity.
@@ -83,6 +84,13 @@ pub struct Txo {
     pub received_block_index: Option<i64>,
     pub spent_block_index: Option<i64>,
     pub shared_secret: Option<Vec<u8>>,
+}
+
+impl Txo {
+    pub fn public_key(&self) -> Result<CompressedRistrettoPublic, mc_util_serial::DecodeError> {
+        let public_key: CompressedRistrettoPublic = mc_util_serial::decode(&self.public_key)?;
+        Ok(public_key)
+    }
 }
 
 /// A structure that can be inserted to create a new entity in the `txos` table.

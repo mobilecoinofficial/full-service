@@ -10,6 +10,7 @@ use crate::json_rpc::{
     },
 };
 
+use mc_mobilecoind_json::data_types::JsonTxOut;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use strum::IntoEnumIterator;
@@ -182,6 +183,9 @@ pub enum JsonCommandRequest {
         offset: Option<u64>,
         limit: Option<u64>,
     },
+    get_txo_membership_proofs {
+        outputs: Vec<JsonTxOut>,
+    },
     get_wallet_status,
     import_account {
         mnemonic: String,
@@ -207,6 +211,10 @@ pub enum JsonCommandRequest {
     },
     remove_account {
         account_id: String,
+    },
+    sample_mixins {
+        num_mixins: u64,
+        excluded_outputs: Vec<JsonTxOut>,
     },
     submit_transaction {
         tx_proposal: TxProposal,

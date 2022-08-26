@@ -51,13 +51,20 @@ use crate::{
 use mc_account_keys::burn_address;
 use mc_common::logger::global_log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
+use mc_crypto_keys::CompressedRistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
+use mc_mobilecoind_json::data_types::{
+    JsonMembershipProofResponse, JsonTx, JsonTxOut, JsonTxOutMembershipProof,
+};
 use mc_transaction_core::Amount;
 use mc_transaction_std::BurnRedemptionMemo;
 use rocket::{self};
 use rocket_contrib::json::Json;
-use std::{collections::HashMap, convert::TryFrom, str::FromStr};
+use std::{
+    collections::HashMap,
+    convert::{TryFrom, TryInto},
+    str::FromStr,
+};
 
 pub fn generic_wallet_api<T, FPR>(
     _api_key_guard: ApiKeyGuard,
@@ -713,6 +720,42 @@ where
                 txo_map,
             }
         }
+        JsonCommandRequest::get_txo_membership_proofs { outputs } => {
+            let public_keys = outputs
+                .clone()
+                .into_iter()
+                .map(|tx_out| {
+                    let public_key_bytes = hex::decode(tx_out.public_key).map_err(format_error)?;
+                    let public_key: CompressedRistrettoPublic = public_key_bytes
+                        .as_slice()
+                        .try_into()
+                        .map_err(format_error)?;
+                    Ok(public_key)
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            let indices = service
+                .get_indices_from_txo_public_keys(&public_keys)
+                .map_err(format_error)?;
+
+            let membership_proofs = service
+                .get_tx_out_proof_of_memberships(&indices)
+                .map_err(format_error)?
+                .iter()
+                .map(|proof| {
+                    let proof: mc_api::external::TxOutMembershipProof =
+                        proof.try_into().map_err(format_error)?;
+                    let json_proof = JsonTxOutMembershipProof::from(&proof);
+                    Ok(json_proof)
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            JsonCommandResponse::get_txo_membership_proofs {
+                outputs_and_proofs: JsonMembershipProofResponse {
+                    outputs,
+                    membership_proofs,
+                },
+            }
+        }
         JsonCommandRequest::get_wallet_status => JsonCommandResponse::get_wallet_status {
             wallet_status: WalletStatus::try_from(
                 &service.get_wallet_status().map_err(format_error)?,
@@ -829,6 +872,44 @@ where
                 .remove_account(&AccountID(account_id))
                 .map_err(format_error)?,
         },
+        JsonCommandRequest::sample_mixins {
+            num_mixins,
+            excluded_outputs,
+        } => {
+            let public_keys = excluded_outputs
+                .into_iter()
+                .map(|tx_out| {
+                    let public_key_bytes = hex::decode(tx_out.public_key).map_err(format_error)?;
+                    let public_key: CompressedRistrettoPublic = public_key_bytes
+                        .as_slice()
+                        .try_into()
+                        .map_err(format_error)?;
+                    Ok(public_key)
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            let excluded_indices = service
+                .get_indices_from_txo_public_keys(&public_keys)
+                .map_err(format_error)?;
+            let mixins = service
+                .sample_mixins(num_mixins as usize, &excluded_indices)
+                .map_err(format_error)?;
+
+            let mixins = mixins
+                .iter()
+                .map(|(tx_out, proof)| {
+                    let tx_out: mc_api::external::TxOut =
+                        tx_out.try_into().map_err(format_error)?;
+                    let proof: mc_api::external::TxOutMembershipProof =
+                        proof.try_into().map_err(format_error)?;
+                    let json_tx_out = JsonTxOut::from(&tx_out);
+                    let json_proof = JsonTxOutMembershipProof::from(&proof);
+
+                    Ok((json_tx_out, json_proof))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            JsonCommandResponse::sample_mixins { mixins }
+        }
         JsonCommandRequest::submit_transaction {
             tx_proposal,
             comment,
