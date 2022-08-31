@@ -7,13 +7,17 @@ use crate::{
         Conn,
     },
     json_rpc::v1::models::{
-        account::Account as AccountJSON, account_secrets::AccountSecrets,
-        transaction_log::TransactionLog as JsonTransactionLog, txo::Txo as JsonTxo,
+        account::Account as AccountJSON,
+        account_secrets::AccountSecrets,
+        transaction_log::{TransactionLog as JsonTransactionLog, TxoAbbrev},
+        txo::Txo as JsonTxo,
     },
 };
 use bip39::Mnemonic;
+use mc_mobilecoind_json::data_types::JsonTx;
 use reqwest::header::CONTENT_TYPE;
 use serde_json::json;
+use std::convert::TryFrom;
 
 pub fn import_accounts(conn: &Conn, client: &reqwest::blocking::Client, request_uri: &str) {
     let get_accounts_body = json!({
@@ -159,13 +163,59 @@ fn import_tx_log(
     request_uri: &str,
     client: &reqwest::blocking::Client,
 ) {
-    for input_txo in &transaction_log.input_txos {
+    import_txos(&transaction_log.input_txos, client, conn, request_uri);
+    import_txos(&transaction_log.output_txos, client, conn, request_uri);
+    import_txos(&transaction_log.change_txos, client, conn, request_uri);
+
+    let get_mc_tx_body = json!({
+        "method": "get_mc_protocol_transaction",
+        "jsonrpc": "2.0",
+        "id": 1,
+        "params": {
+            "transaction_log_id": transaction_log.transaction_log_id
+        }
+    });
+
+    let response = client
+        .post(request_uri.clone())
+        .header(CONTENT_TYPE, "application/json")
+        .body(get_mc_tx_body.to_string())
+        .send()
+        .unwrap()
+        .json::<serde_json::Value>()
+        .unwrap();
+
+    let tx_json: JsonTx = serde_json::from_value(
+        response
+            .get("result")
+            .unwrap()
+            .get("transaction")
+            .unwrap()
+            .clone(),
+    )
+    .unwrap();
+
+    let tx = mc_api::external::Tx::try_from(&tx_json).unwrap();
+    let tx = mc_transaction_core::tx::Tx::try_from(&tx).unwrap();
+    let tx_proto_bytes = mc_util_serial::encode(&tx);
+
+    TransactionLog::log_imported_from_v1(transaction_log.clone(), tx_proto_bytes.as_slice(), conn)
+        .unwrap();
+}
+
+fn import_txos(
+    txo_abbrevs: &[TxoAbbrev],
+    client: &reqwest::blocking::Client,
+    conn: &Conn,
+    request_uri: &str,
+) {
+    for txo_abbrev in txo_abbrevs {
         let get_txo_body = json!({
             "method": "get_txo",
             "jsonrpc": "2.0",
             "id": 1,
             "params": {
-                "txo_id": input_txo.txo_id_hex
+                "txo_id": txo_abbrev.txo_id_hex
             }
         });
 
@@ -184,58 +234,4 @@ fn import_tx_log(
 
         Txo::import_from_v1(txo, conn).unwrap();
     }
-
-    for input_txo in &transaction_log.output_txos {
-        let get_txo_body = json!({
-            "method": "get_txo",
-            "jsonrpc": "2.0",
-            "id": 1,
-            "params": {
-                "txo_id": input_txo.txo_id_hex
-            }
-        });
-
-        let response = client
-            .post(request_uri.clone())
-            .header(CONTENT_TYPE, "application/json")
-            .body(get_txo_body.to_string())
-            .send()
-            .unwrap()
-            .json::<serde_json::Value>()
-            .unwrap();
-
-        let txo: JsonTxo =
-            serde_json::from_value(response.get("result").unwrap().get("txo").unwrap().clone())
-                .unwrap();
-
-        Txo::import_from_v1(txo, conn).unwrap();
-    }
-
-    for input_txo in &transaction_log.change_txos {
-        let get_txo_body = json!({
-            "method": "get_txo",
-            "jsonrpc": "2.0",
-            "id": 1,
-            "params": {
-                "txo_id": input_txo.txo_id_hex
-            }
-        });
-
-        let response = client
-            .post(request_uri.clone())
-            .header(CONTENT_TYPE, "application/json")
-            .body(get_txo_body.to_string())
-            .send()
-            .unwrap()
-            .json::<serde_json::Value>()
-            .unwrap();
-
-        let txo: JsonTxo =
-            serde_json::from_value(response.get("result").unwrap().get("txo").unwrap().clone())
-                .unwrap();
-
-        Txo::import_from_v1(txo, conn).unwrap();
-    }
-
-    TransactionLog::log_imported_from_v1(transaction_log.clone(), conn).unwrap();
 }

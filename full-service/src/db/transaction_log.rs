@@ -201,6 +201,7 @@ pub trait TransactionLogModel {
 
     fn log_imported_from_v1(
         json_tx_log: JsonTransactionLog,
+        tx_proto_bytes: &[u8],
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
 }
@@ -580,6 +581,7 @@ impl TransactionLogModel for TransactionLog {
 
     fn log_imported_from_v1(
         json_tx_log: JsonTransactionLog,
+        tx_proto_bytes: &[u8],
         conn: &Conn,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::{
@@ -599,7 +601,7 @@ impl TransactionLogModel for TransactionLog {
                 .finalized_block_index
                 .map(|x| x.parse::<i64>().unwrap()),
             comment: &json_tx_log.comment,
-            tx: &[],
+            tx: tx_proto_bytes,
             failed: false,
         };
 
