@@ -681,6 +681,7 @@ class FullService:
 
 def stop_network_services():
     print('stopping network services')
+    # TODO: Will need to end these processes more gracefully since pkill returns and error status code
     if full_service:
         full_service.stop()
     if mobilecoin_network:
@@ -690,7 +691,10 @@ def stop_network_services():
 def cleanup_and_exit(exit_status):
     print('===================================================')
     # shut down networks
-    stop_network_services()
+    try:
+        stop_network_services()
+    except Exception:
+        pass
     print(f"Exiting with {exit_status}")
     exit(exit_status)
 
@@ -726,6 +730,7 @@ if __name__ == '__main__':
     # start networks
     print('===================================================')
     print('Starting networks')
+    breakpoint()
     full_service = mobilecoin_network = None
     mobilecoin_network = Network()
     mobilecoin_network.default_entry_point(args.network_type, args.block_version)
@@ -757,8 +762,9 @@ if __name__ == '__main__':
             print(account_id)
             balance = full_service.get_account_status(account_id)['balance']
             print(f'account_id {account_id} : balance {balance}')
-
+        
         # successful exit on no error
         cleanup_and_exit(0)
+
     except:
         cleanup_and_exit(1)
