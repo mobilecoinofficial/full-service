@@ -71,6 +71,7 @@ impl<UTC: UserTxConnection + 'static> ValidatorApi<UTC> {
             conn_manager,
             submit_node_offset: Arc::new(AtomicUsize::new(0)),
             fog_report_connection: GrpcFogReportConnection::new(
+                "".to_string(),
                 Arc::new(
                     EnvBuilder::new()
                         .name_prefix("FogReportGrpc".to_string())

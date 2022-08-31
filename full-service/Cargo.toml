@@ -31,6 +31,7 @@ mc-crypto-keys = { path = "../mobilecoin/crypto/keys", default-features = false 
 mc-crypto-rand = { path = "../mobilecoin/crypto/rand", default-features = false }
 mc-crypto-ring-signature-signer = { path = "../mobilecoin/crypto/ring-signature/signer" }
 mc-fog-report-connection = { path = "../mobilecoin/fog/report/connection" }
+mc-fog-report-resolver = { path = "../mobilecoin/fog/report/resolver" }
 mc-fog-report-validation = { path = "../mobilecoin/fog/report/validation" }
 mc-ledger-db = { path = "../mobilecoin/ledger/db" }
 mc-ledger-migration = { path = "../mobilecoin/ledger/migration" }

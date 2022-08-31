@@ -11,7 +11,7 @@ use mc_common::{
 use mc_connection::{ConnectionManager, HardcodedCredentialsProvider, ThickClient};
 use mc_consensus_scp::QuorumSet;
 use mc_fog_report_connection::GrpcFogReportConnection;
-use mc_fog_report_validation::FogResolver;
+use mc_fog_report_resolver::FogResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_sgx_css::Signature;
 use mc_util_parse::parse_duration_in_seconds;
@@ -120,7 +120,7 @@ impl APIConfig {
                 .build(),
         );
 
-        let conn = GrpcFogReportConnection::new(env, logger.clone());
+        let conn = GrpcFogReportConnection::new("".to_string(), env, logger.clone());
 
         let verifier = self.get_fog_ingest_verifier();
 
@@ -213,6 +213,7 @@ impl PeersConfig {
             .iter()
             .map(|client_uri| {
                 ThickClient::new(
+                    "".to_string(),
                     client_uri.clone(),
                     verifier.clone(),
                     grpc_env.clone(),

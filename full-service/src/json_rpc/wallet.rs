@@ -22,7 +22,8 @@ use crate::{
 use mc_connection::{
     BlockchainConnection, HardcodedCredentialsProvider, ThickClient, UserTxConnection,
 };
-use mc_fog_report_validation::{FogPubkeyResolver, FogResolver};
+use mc_fog_report_resolver::FogResolver;
+use mc_fog_report_validation::FogPubkeyResolver;
 use mc_validator_connection::ValidatorConnection;
 use rocket::{
     self, get, http::Status, outcome::Outcome, post, request::FromRequest, routes, Request, State,

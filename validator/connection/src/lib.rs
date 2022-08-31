@@ -11,7 +11,7 @@ use mc_connection::{
     BlockInfo, BlockchainConnection, Connection, Error as ConnectionError,
     Result as ConnectionResult, UserTxConnection,
 };
-use mc_fog_report_validation::FogReportResponses;
+use mc_fog_report_types::FogReportResponses;
 use mc_transaction_core::tx::Tx;
 use mc_util_grpc::ConnectionUriGrpcioChannel;
 use mc_util_uri::{ConnectionUri, FogUri};
