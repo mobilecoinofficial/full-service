@@ -39,7 +39,16 @@ LEDGER_BASE = os.path.join(MOBILECOIN_DIR, 'target', "sample_data", "ledger")
 MINTING_KEYS_DIR = os.path.join(WORK_DIR, 'minting-keys')
 CLI_PORT = 31337
 
-if MOB_RELEASE == '0':
+# There is no environment when running in Nektos so if None, we will manually set defaults
+print("********************************")
+print(f"IAS_API_KEY: {IAS_API_KEY}")
+print(f"IAS_SPID: {IAS_SPID}")
+print("********************************")
+
+IAS_API_KEY = '0' * 64 if not IAS_API_KEY else IAS_API_KEY  # 32 bytes
+IAS_SPID ='0' * 32 if not IAS_SPID  else IAS_SPID # 16 bytes
+
+if not MOB_RELEASE or MOB_RELEASE == '0':
     TARGET_DIR = 'target/debug'
 
 # Sane default log configuration
@@ -219,7 +228,6 @@ class Node:
         print(f' - Peers: {self.peers}')
         print(f' - Quorum set: {pformat(quorum_set)}')
         print(cmd)
-        print()
 
         self.consensus_process = subprocess.Popen(cmd, shell=True)
 
@@ -231,6 +239,7 @@ class Node:
                 return self.stop()
             print(f'Waiting for {ledger_db}')
             time.sleep(1)
+
 
         cmd = ' '.join([
             f'cd {MOBILECOIN_DIR} && exec {TARGET_DIR}/ledger-distribution',
