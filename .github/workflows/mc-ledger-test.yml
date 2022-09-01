@@ -12,6 +12,7 @@ on:
   push:
     branches:
       - setup-mobilecoin
+      - pouneh/e2e_test_infra
 
 # TESTING WITH NEKTOS/ACT
 # nektos/act is a 3rd party github library that allows for the LOCAL testing of github actions
