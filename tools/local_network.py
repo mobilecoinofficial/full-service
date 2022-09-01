@@ -19,6 +19,8 @@ from pprint import pformat
 from typing import Tuple
 from urllib.parse import urlparse
 
+import pathlib
+
 BASE_CLIENT_PORT = 3200
 BASE_PEER_PORT = 3300
 BASE_ADMIN_PORT = 3400
@@ -547,6 +549,8 @@ class FullService:
             raise ValueError('API returned invalid JSON:', raw_response)
         print(f'request returned {response_data}')
 
+        # TODO requests might be flakey due to timing issues... waiting 2 seconds to bypass most of these issues
+        time.sleep(2)
         if 'error' in response_data:
             return response_data['error']
         else:
@@ -623,7 +627,7 @@ class FullService:
             self.import_account(mnemonic_0)
             self.import_account(mnemonic_1)
 
-        account_ids, account_map = self.get_all_accounts()
+        self.account_ids, self.account_map = self.get_all_accounts()
 
     # retrieve all accounts full service is aware of
     def get_all_accounts(self) -> Tuple[list, dict]:
@@ -693,10 +697,16 @@ def cleanup_and_exit(exit_status):
     # shut down networks
     try:
         stop_network_services()
+        print(f"Removing ledger/wallet dbs")
+        tmpdir = pathlib.Path('/tmp')
+        shutil.rmtree(tmpdir/'wallet-db')
+        shutil.rmtree(tmpdir/'ledger-db')
+        print(f"Exiting with {exit_status}")
+        if exit_status != 0:
+            exit(exit_status)
     except Exception:
         pass
-    print(f"Exiting with {exit_status}")
-    exit(exit_status)
+
 
 
 def start_and_sync_full_service():
@@ -730,7 +740,6 @@ if __name__ == '__main__':
     # start networks
     print('===================================================')
     print('Starting networks')
-    breakpoint()
     full_service = mobilecoin_network = None
     mobilecoin_network = Network()
     mobilecoin_network.default_entry_point(args.network_type, args.block_version)
