@@ -660,15 +660,15 @@ class FullService:
         return r['transaction_log']
 
     # run sample test transactions between the first two accounts in full service
-    def test_transactions(self):
+    def test_transactions(self, mc: Network):
         print(('==================================================='))
         print('testing transaction sends')
         if self.account_ids is None:
             print(f'accounts not found in wallet')
-            cleanup_and_exit(1)
+            cleanup_and_exit(self, mc, 1)
         elif len(self.account_ids) < 2:
             print(f'found {len(self.account_ids)} account(s), minimum required is 2')
-            cleanup_and_exit(1)
+            cleanup_and_exit(self, mc, 1)
         account_0 = self.account_map[self.account_ids[0]]
         account_1 = self.account_map[self.account_ids[1]]
         p_mob_amount = str(600_000_000)
@@ -683,20 +683,20 @@ class FullService:
         print(f'transaction 1 log: {log_1}')
 
 
-def stop_network_services():
+def stop_network_services(fs: FullService, mc_network : Network): 
     print('stopping network services')
     # TODO: Will need to end these processes more gracefully since pkill returns and error status code
-    if full_service:
-        full_service.stop()
-    if mobilecoin_network:
-        mobilecoin_network.stop()
+    if fs:
+        fs.stop()
+    if mc_network:
+        mc_network.stop()
 
 
-def cleanup_and_exit(exit_status):
+def cleanup_and_exit(fs: FullService, mc_network : Network, exit_status):
     print('===================================================')
     # shut down networks
     try:
-        stop_network_services()
+        stop_network_services(fs, mc_network )
         print(f"Removing ledger/wallet dbs")
         tmpdir = pathlib.Path('/tmp')
         shutil.rmtree(tmpdir/'wallet-db')
@@ -708,27 +708,27 @@ def cleanup_and_exit(exit_status):
         pass
 
 
-
-def start_and_sync_full_service():
+def start_and_sync_full_service(fs: FullService, mc_network : Network):
     try:
-        full_service.start()
+        fs.start()
         # wait for networks to start
         network_synced = False
         count = 0
         attempt_limit = 100
         while network_synced is False and count < attempt_limit:
             count += 1
-            network_synced = full_service.sync_status()
+            network_synced = fs.sync_status()
             if count % 10 == 0:
                 print(f'attempt: {count}/{attempt_limit}')
             time.sleep(1)
         if count >= attempt_limit:
             print(f'full service sync failed after {attempt_limit} attempts')
-            cleanup_and_exit(1)
+            cleanup_and_exit(fs, mc_network, 1)
         print('Full service synced')
-    except:
+    except Exception as e:
         print("Full service failed to start and sync")
-        cleanup_and_exit(1)
+        print(e)
+        cleanup_and_exit(fs, mc_network, 1)
 
 if __name__ == '__main__':
     # pull args from command line
@@ -744,7 +744,7 @@ if __name__ == '__main__':
     mobilecoin_network = Network()
     mobilecoin_network.default_entry_point(args.network_type, args.block_version)
     full_service = FullService()
-    start_and_sync_full_service()
+    start_and_sync_full_service(full_service, mobilecoin_network)
 
     try:
         print('===================================================')
@@ -759,7 +759,7 @@ if __name__ == '__main__':
             print(f'account_id {account_id} : balance {balance}')
 
         # run test suite
-        full_service.test_transactions()
+        full_service.test_transactions(mobilecoin_network)
 
         # allow for transactions to pass through
         # flakey -- replace with checker function
@@ -773,7 +773,7 @@ if __name__ == '__main__':
             print(f'account_id {account_id} : balance {balance}')
         
         # successful exit on no error
-        cleanup_and_exit(0)
+        cleanup_and_exit(full_service, mobilecoin_network, 0)
 
     except:
-        cleanup_and_exit(1)
+        cleanup_and_exit(full_service, mobilecoin_network,1)
