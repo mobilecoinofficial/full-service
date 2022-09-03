@@ -74,5 +74,5 @@ jobs:
       - name: Run Integration
         shell: bash
         run: |
-          python3 tools/local_network.py --network-type a-b-c
+          python3 tools/mc_ledger_test.py --network-type a-b-c
 
