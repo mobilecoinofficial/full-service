@@ -167,7 +167,8 @@ pub enum JsonCommandResponse {
         removed: bool,
     },
     sample_mixins {
-        mixins: Vec<(JsonTxOut, JsonTxOutMembershipProof)>,
+        mixins: Vec<JsonTxOut>,
+        membership_proofs: Vec<JsonTxOutMembershipProof>,
     },
     submit_transaction {
         transaction_log: Option<TransactionLog>,
