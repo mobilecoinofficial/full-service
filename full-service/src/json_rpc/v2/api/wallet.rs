@@ -53,9 +53,7 @@ use mc_common::logger::global_log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_crypto_keys::CompressedRistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_mobilecoind_json::data_types::{
-    JsonMembershipProofResponse, JsonTx, JsonTxOut, JsonTxOutMembershipProof,
-};
+use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxOutMembershipProof};
 use mc_transaction_core::Amount;
 use mc_transaction_std::BurnRedemptionMemo;
 use rocket::{self};
@@ -750,10 +748,8 @@ where
                 .collect::<Result<Vec<_>, _>>()?;
 
             JsonCommandResponse::get_txo_membership_proofs {
-                outputs_and_proofs: JsonMembershipProofResponse {
-                    outputs,
-                    membership_proofs,
-                },
+                outputs,
+                membership_proofs,
             }
         }
         JsonCommandRequest::get_wallet_status => JsonCommandResponse::get_wallet_status {
