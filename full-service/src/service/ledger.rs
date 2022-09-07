@@ -126,7 +126,7 @@ pub trait LedgerService {
         &self,
         num_mixins: usize,
         excluded_indices: &[u64],
-    ) -> Result<Vec<(TxOut, TxOutMembershipProof)>, LedgerServiceError>;
+    ) -> Result<(Vec<TxOut>, Vec<TxOutMembershipProof>), LedgerServiceError>;
 }
 
 impl<T, FPR> LedgerService for WalletService<T, FPR>
@@ -231,7 +231,7 @@ where
         &self,
         num_mixins: usize,
         excluded_indices: &[u64],
-    ) -> Result<Vec<(TxOut, TxOutMembershipProof)>, LedgerServiceError> {
+    ) -> Result<(Vec<TxOut>, Vec<TxOutMembershipProof>), LedgerServiceError> {
         let num_txos = self.ledger_db.num_txos()?;
 
         // Check that the ledger contains enough tx outs.
@@ -266,6 +266,6 @@ where
             .map(|index| self.ledger_db.get_tx_out_by_index(*index))
             .collect::<Result<Vec<TxOut>, _>>()?;
 
-        Ok(tx_outs.into_iter().zip(proofs).collect())
+        Ok((tx_outs, proofs))
     }
 }
