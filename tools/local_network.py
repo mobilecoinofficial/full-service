@@ -668,7 +668,7 @@ def stop_network_services(fs: FullService, mc_network : Network):
         mc_network.stop()
 
 
-def cleanup(fs: FullService, mc_network : Network, exit_status):
+def cleanup(fs: FullService, mc_network : Network):
     print('===================================================')
     # shut down networks
     try:
