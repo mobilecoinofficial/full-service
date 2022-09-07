@@ -659,30 +659,6 @@ class FullService:
         print(r)
         return r['transaction_log']
 
-    # run sample test transactions between the first two accounts in full service
-    def test_transactions(self, mc: Network):
-        print(('==================================================='))
-        print('testing transaction sends')
-        if self.account_ids is None:
-            print(f'accounts not found in wallet')
-            cleanup_and_exit(self, mc)
-        elif len(self.account_ids) < 2:
-            print(f'found {len(self.account_ids)} account(s), minimum required is 2')
-            cleanup_and_exit(self, mc)
-        account_0 = self.account_map[self.account_ids[0]]
-        account_1 = self.account_map[self.account_ids[1]]
-        p_mob_amount = str(600_000_000)
-
-        # flakey tests due to accounts having a variable amount of pmob. This needs to be controlled for use.
-        log_0 = self.send_transaction(account_0['account_id'], account_1['main_address'], p_mob_amount)
-        log_1 = self.send_transaction(account_1['account_id'], account_0['main_address'], p_mob_amount)
-
-        print(('==================================================='))
-        print('transactions completed')
-        print(f'transaction 0 log: {log_0}')
-        print(f'transaction 1 log: {log_1}')
-
-
 def stop_network_services(fs: FullService, mc_network : Network): 
     print('stopping network services')
     # TODO: Will need to end these processes more gracefully since pkill returns and error status code
@@ -692,7 +668,7 @@ def stop_network_services(fs: FullService, mc_network : Network):
         mc_network.stop()
 
 
-def cleanup_and_exit(fs: FullService, mc_network : Network, exit_status):
+def cleanup(fs: FullService, mc_network : Network, exit_status):
     print('===================================================')
     # shut down networks
     try:
@@ -720,12 +696,12 @@ def start_and_sync_full_service(fs: FullService, mc_network : Network):
             time.sleep(1)
         if count >= attempt_limit:
             print(f'full service sync failed after {attempt_limit} attempts')
-            cleanup_and_exit(fs, mc_network)
+            cleanup(fs, mc_network)
         print('Full service synced')
     except Exception as e:
         print("Full service failed to start and sync")
         print(e)
-        cleanup_and_exit(fs, mc_network)
+        cleanup(fs, mc_network)
 
 if __name__ == '__main__':
     # pull args from command line
@@ -770,7 +746,7 @@ if __name__ == '__main__':
             print(f'account_id {account_id} : balance {balance}')
         
         # successful exit on no error
-        cleanup_and_exit(full_service, mobilecoin_network)
+        cleanup(full_service, mobilecoin_network)
 
     except:
-        cleanup_and_exit(full_service, mobilecoin_network)
+        cleanup(full_service, mobilecoin_network)
