@@ -14,6 +14,7 @@ use crate::{
     },
 };
 use bip39::Mnemonic;
+use mc_account_keys::RootEntropy;
 use mc_mobilecoind_json::data_types::JsonTx;
 use reqwest::header::CONTENT_TYPE;
 use serde_json::json;
@@ -106,7 +107,20 @@ fn import_account(
         )
         .unwrap();
     } else if let Some(entropy) = account_secrets.entropy {
-        panic!("Entropy not yet supported");
+        let entropy_bytes = hex::decode(entropy).unwrap();
+        let entropy = RootEntropy::try_from(entropy_bytes.as_slice()).unwrap();
+        Account::import_legacy(
+            &entropy,
+            Some(account.name.clone()),
+            0,
+            Some(account.first_block_index.parse::<u64>().unwrap()),
+            Some(account.next_subaddress_index.parse::<u64>().unwrap()),
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
+            conn,
+        )
+        .unwrap();
     } else {
         panic!(
             "No entropy or mnemonic found for account {}",
