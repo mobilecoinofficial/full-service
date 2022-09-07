@@ -17,24 +17,17 @@ use bip39::Mnemonic;
 use mc_account_keys::RootEntropy;
 use mc_mobilecoind_json::data_types::JsonTx;
 use reqwest::header::CONTENT_TYPE;
-use serde_json::json;
+use serde_json::{json, Value};
 use std::convert::TryFrom;
 
 pub fn import_accounts(conn: &Conn, client: &reqwest::blocking::Client, request_uri: &str) {
-    let get_accounts_body = json!({
+    let body = json!({
         "method": "get_all_accounts",
         "jsonrpc": "2.0",
         "id": 1
     });
 
-    let response = client
-        .post(request_uri.clone())
-        .header(CONTENT_TYPE, "application/json")
-        .body(get_accounts_body.to_string())
-        .send()
-        .unwrap()
-        .json::<serde_json::Value>()
-        .unwrap();
+    let response = send_request(client, request_uri, body);
 
     let account_map = response.get("result").unwrap().get("account_map").unwrap();
     let account_ids = response
@@ -64,7 +57,7 @@ fn import_account(
     request_uri: &str,
     client: &reqwest::blocking::Client,
 ) {
-    let get_account_secrets_body = json!({
+    let body = json!({
         "method": "export_account_secrets",
         "jsonrpc": "2.0",
         "id": 1,
@@ -73,14 +66,7 @@ fn import_account(
         }
     });
 
-    let response = client
-        .post(request_uri.clone())
-        .header(CONTENT_TYPE, "application/json")
-        .body(get_account_secrets_body.to_string())
-        .send()
-        .unwrap()
-        .json::<serde_json::Value>()
-        .unwrap();
+    let response = send_request(client, request_uri, body);
 
     let account_secrets: AccountSecrets = serde_json::from_value(
         response
@@ -128,7 +114,7 @@ fn import_account(
         );
     };
 
-    let get_sent_transaction_logs_body = json!({
+    let body = json!({
         "method": "get_sent_transaction_logs_for_account",
         "jsonrpc": "2.0",
         "id": 1,
@@ -137,14 +123,7 @@ fn import_account(
         }
     });
 
-    let response = client
-        .post(request_uri.clone())
-        .header(CONTENT_TYPE, "application/json")
-        .body(get_sent_transaction_logs_body.to_string())
-        .send()
-        .unwrap()
-        .json::<serde_json::Value>()
-        .unwrap();
+    let response = send_request(client, request_uri, body);
 
     let transaction_log_ids = response
         .get("result")
@@ -181,7 +160,7 @@ fn import_tx_log(
     import_txos(&transaction_log.output_txos, client, conn, request_uri);
     import_txos(&transaction_log.change_txos, client, conn, request_uri);
 
-    let get_mc_tx_body = json!({
+    let body = json!({
         "method": "get_mc_protocol_transaction",
         "jsonrpc": "2.0",
         "id": 1,
@@ -190,14 +169,7 @@ fn import_tx_log(
         }
     });
 
-    let response = client
-        .post(request_uri.clone())
-        .header(CONTENT_TYPE, "application/json")
-        .body(get_mc_tx_body.to_string())
-        .send()
-        .unwrap()
-        .json::<serde_json::Value>()
-        .unwrap();
+    let response = send_request(client, request_uri, body);
 
     let tx_json: JsonTx = serde_json::from_value(
         response
@@ -224,7 +196,7 @@ fn import_txos(
     request_uri: &str,
 ) {
     for txo_abbrev in txo_abbrevs {
-        let get_txo_body = json!({
+        let body = json!({
             "method": "get_txo",
             "jsonrpc": "2.0",
             "id": 1,
@@ -233,14 +205,7 @@ fn import_txos(
             }
         });
 
-        let response = client
-            .post(request_uri.clone())
-            .header(CONTENT_TYPE, "application/json")
-            .body(get_txo_body.to_string())
-            .send()
-            .unwrap()
-            .json::<serde_json::Value>()
-            .unwrap();
+        let response = send_request(client, request_uri, body);
 
         let txo: JsonTxo =
             serde_json::from_value(response.get("result").unwrap().get("txo").unwrap().clone())
@@ -248,4 +213,15 @@ fn import_txos(
 
         Txo::import_from_v1(txo, conn).unwrap();
     }
+}
+
+fn send_request(client: &reqwest::blocking::Client, request_uri: &str, body: Value) -> Value {
+    client
+        .post(request_uri)
+        .header(CONTENT_TYPE, "application/json")
+        .body(body.to_string())
+        .send()
+        .unwrap()
+        .json::<Value>()
+        .unwrap()
 }
