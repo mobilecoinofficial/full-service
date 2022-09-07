@@ -665,10 +665,10 @@ class FullService:
         print('testing transaction sends')
         if self.account_ids is None:
             print(f'accounts not found in wallet')
-            cleanup_and_exit(self, mc, 1)
+            cleanup_and_exit(self, mc)
         elif len(self.account_ids) < 2:
             print(f'found {len(self.account_ids)} account(s), minimum required is 2')
-            cleanup_and_exit(self, mc, 1)
+            cleanup_and_exit(self, mc)
         account_0 = self.account_map[self.account_ids[0]]
         account_1 = self.account_map[self.account_ids[1]]
         p_mob_amount = str(600_000_000)
@@ -701,11 +701,8 @@ def cleanup_and_exit(fs: FullService, mc_network : Network, exit_status):
         tmpdir = pathlib.Path('/tmp')
         shutil.rmtree(tmpdir/'wallet-db')
         shutil.rmtree(tmpdir/'ledger-db')
-        print(f"Exiting with {exit_status}")
-        if exit_status != 0:
-            exit(exit_status)
     except Exception:
-        pass
+        print("Clean up failed. There may be some left-over processes.")
 
 
 def start_and_sync_full_service(fs: FullService, mc_network : Network):
@@ -723,12 +720,12 @@ def start_and_sync_full_service(fs: FullService, mc_network : Network):
             time.sleep(1)
         if count >= attempt_limit:
             print(f'full service sync failed after {attempt_limit} attempts')
-            cleanup_and_exit(fs, mc_network, 1)
+            cleanup_and_exit(fs, mc_network)
         print('Full service synced')
     except Exception as e:
         print("Full service failed to start and sync")
         print(e)
-        cleanup_and_exit(fs, mc_network, 1)
+        cleanup_and_exit(fs, mc_network)
 
 if __name__ == '__main__':
     # pull args from command line
@@ -773,7 +770,7 @@ if __name__ == '__main__':
             print(f'account_id {account_id} : balance {balance}')
         
         # successful exit on no error
-        cleanup_and_exit(full_service, mobilecoin_network, 0)
+        cleanup_and_exit(full_service, mobilecoin_network)
 
     except:
-        cleanup_and_exit(full_service, mobilecoin_network,1)
+        cleanup_and_exit(full_service, mobilecoin_network)

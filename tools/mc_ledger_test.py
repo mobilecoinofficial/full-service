@@ -8,10 +8,10 @@ def test_transactions(fs):
     print('testing transaction sends')
     if fs.account_ids is None:
         print(f'accounts not found in wallet')
-        local_network.cleanup_and_exit(1)
+        local_network.cleanup(1)
     elif len(fs.account_ids) < 2:
         print(f'found {len(fs.account_ids)} account(s), minimum required is 2')
-        local_network.cleanup_and_exit(1)
+        local_network.cleanup(1)
     account_0 = fs.account_map[fs.account_ids[0]]
     account_1 = fs.account_map[fs.account_ids[1]]
     p_mob_amount = str(600_000_000)
@@ -69,7 +69,8 @@ if __name__ == '__main__':
             print(f'account_id {account_id} : balance {balance}')
         
         # successful exit on no error
-        local_network.cleanup_and_exit(full_service, mobilecoin_network, 0)
+        local_network.cleanup(full_service, mobilecoin_network)
 
-    except:
-        local_network.cleanup_and_exit(full_service, mobilecoin_network, 1)
+    except Exception as e:
+        print(e)
+        local_network.cleanup(full_service, mobilecoin_network)
