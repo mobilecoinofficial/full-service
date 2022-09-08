@@ -1,3 +1,13 @@
+#from . 
+import constants
+import subprocess
+from urllib.parse import urlparse
+import json
+import http.client
+from typing import Tuple
+import time
+import os
+
 class FullService:
     def __init__(self):
         self.full_service_process = None
@@ -8,13 +18,13 @@ class FullService:
     def start(self):
         cmd = ' '.join([
             'mkdir -p /tmp/wallet-db/',
-            f'&& {FULLSERVICE_DIR}/target/release/full-service',
+            f'&& {constants.FULLSERVICE_DIR}/target/release/full-service',
             '--wallet-db /tmp/wallet-db/wallet.db',
             '--ledger-db /tmp/ledger-db/',
             '--peer insecure-mc://localhost:3200',
             '--peer insecure-mc://localhost:3201',
-            f'--tx-source-url file://{MOBILECOIN_DIR}/target/release/mc-local-network/node-ledger-distribution-0',
-            f'--tx-source-url file://{MOBILECOIN_DIR}/target/release/mc-local-network/node-ledger-distribution-1',
+            f'--tx-source-url file://{constants.MOBILECOIN_DIR}/target/release/mc-local-network/node-ledger-distribution-0',
+            f'--tx-source-url file://{constants.MOBILECOIN_DIR}/target/release/mc-local-network/node-ledger-distribution-1',
         ])
         print('===================================================')
         print('starting full service')
@@ -86,8 +96,8 @@ class FullService:
     # retrieve accounts from mobilecoin/target/sample_data/keys
     def get_test_accounts(self) -> Tuple[str, str]:
         print(f'retrieving accounts for account_keys_0 and account_keys_1')
-        keyfile_0 = open(os.path.join(KEY_DIR, 'account_keys_0.json'))
-        keyfile_1 = open(os.path.join(KEY_DIR, 'account_keys_1.json'))
+        keyfile_0 = open(os.path.join(constants.KEY_DIR, 'account_keys_0.json'))
+        keyfile_1 = open(os.path.join(constants.KEY_DIR, 'account_keys_1.json'))
         keydata_0 = json.load(keyfile_0)
         keydata_1 = json.load(keyfile_1)
 
