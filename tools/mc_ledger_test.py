@@ -1,6 +1,6 @@
 import local_network
-import argparse
 import time
+from test_utils.utilities import parse_cmd_line_args
 
 # run sample test transactions between the first two accounts in full service
 def test_transactions(fs):
@@ -27,11 +27,7 @@ def test_transactions(fs):
 
 
 if __name__ == '__main__':
-    # pull args from command line
-    parser = argparse.ArgumentParser(description='Local network tester')
-    parser.add_argument('--network-type', help='Type of network to create', required=True)
-    parser.add_argument('--block-version', help='Set the block version argument', type=int)
-    args = parser.parse_args()
+    args = parse_cmd_line_args()
 
     # start networks
     print('________________________________________________________________________________')
@@ -70,6 +66,7 @@ if __name__ == '__main__':
         
         # successful exit on no error
         local_network.cleanup(full_service, mobilecoin_network)
+        print("Yay test passed!")
 
     except Exception as e:
         print(e)
