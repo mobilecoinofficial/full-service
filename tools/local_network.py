@@ -18,37 +18,9 @@ import time
 from pprint import pformat
 from typing import Tuple
 from urllib.parse import urlparse
-
 import pathlib
 
-BASE_CLIENT_PORT = 3200
-BASE_PEER_PORT = 3300
-BASE_ADMIN_PORT = 3400
-BASE_ADMIN_HTTP_GATEWAY_PORT = 3500
-
-# TODO make these command line arguments
-IAS_API_KEY = os.getenv('IAS_API_KEY', default='0' * 64)  # 32 bytes
-IAS_SPID = os.getenv('IAS_SPID', default='0' * 32)  # 16 bytes
-MOBILECOIN_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'mobilecoin'))
-FULLSERVICE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-MOB_RELEASE = os.getenv('MOB_RELEASE', '1')
-TARGET_DIR = 'target/release'
-KEY_DIR = 'mobilecoin/target/sample_data/keys'
-WORK_DIR = os.path.join(MOBILECOIN_DIR, TARGET_DIR, 'mc-local-network')
-LEDGER_BASE = os.path.join(MOBILECOIN_DIR, 'target', "sample_data", "ledger")
-MINTING_KEYS_DIR = os.path.join(WORK_DIR, 'minting-keys')
-CLI_PORT = 31337
-
-if not MOB_RELEASE or MOB_RELEASE == '0':
-    TARGET_DIR = 'target/debug'
-
-# Sane default log configuration
-if 'MC_LOG' not in os.environ:
-    os.environ[
-        'MC_LOG'] = 'debug,rustls=warn,hyper=warn,tokio_reactor=warn,mio=warn,want=warn,rusoto_core=error,h2=error,reqwest=error,rocket=error,<unknown>=error'
-if 'FS_LOG' not in os.environ:
-    os.environ['FS_LOG'] = 'info'
-
+from test_utils import constants
 
 class QuorumSet:
     def __init__(self, threshold, members):
@@ -100,10 +72,10 @@ class Node:
         self.consensus_process = None
         self.ledger_distribution_process = None
         self.admin_http_gateway_process = None
-        self.ledger_dir = os.path.join(WORK_DIR, f'node-ledger-{self.node_num}')
-        self.ledger_distribution_dir = os.path.join(WORK_DIR, f'node-ledger-distribution-{self.node_num}')
-        self.msg_signer_key_file = os.path.join(WORK_DIR, f'node-scp-{self.node_num}.pem')
-        self.tokens_config_file = os.path.join(WORK_DIR, f'node-tokens-{self.node_num}.json')
+        self.ledger_dir = os.path.join(constants.WORK_DIR, f'node-ledger-{self.node_num}')
+        self.ledger_distribution_dir = os.path.join(constants.WORK_DIR, f'node-ledger-distribution-{self.node_num}')
+        self.msg_signer_key_file = os.path.join(constants.WORK_DIR, f'node-scp-{self.node_num}.pem')
+        self.tokens_config_file = os.path.join(constants.WORK_DIR, f'node-tokens-{self.node_num}.json')
         subprocess.check_output(f'openssl genpkey -algorithm ed25519 -out {self.msg_signer_key_file}', shell=True)
 
     def peer_uri(self, broadcast_consensus_msgs=True):
@@ -152,12 +124,12 @@ class Node:
             'known_peers': known_peers,
             'tx_source_urls': tx_source_urls,
         }
-        network_json_path = os.path.join(WORK_DIR, f'node{self.node_num}-network.json')
+        network_json_path = os.path.join(constants.WORK_DIR, f'node{self.node_num}-network.json')
         with open(network_json_path, 'w') as f:
             json.dump(quorum_set, f)
 
         try:
-            shutil.rmtree(f'{WORK_DIR}/scp-debug-dump-{self.node_num}')
+            shutil.rmtree(f'{constants.WORK_DIR}/scp-debug-dump-{self.node_num}')
         except FileNotFoundError:
             pass
 
@@ -169,7 +141,7 @@ class Node:
                     "token_id": 1,
                     "minimum_fee": 1024,
                     "governors": {
-                        "signers": open(os.path.join(MINTING_KEYS_DIR, 'governor1.pub')).read(),
+                        "signers": open(os.path.join(constants.MINTING_KEYS_DIR, 'governor1.pub')).read(),
                         "threshold": 1
                     }
                 },
@@ -177,7 +149,7 @@ class Node:
                     "token_id": 2,
                     "minimum_fee": 1024,
                     "governors": {
-                        "signers": open(os.path.join(MINTING_KEYS_DIR, 'governor2.pub')).read(),
+                        "signers": open(os.path.join(constants.MINTING_KEYS_DIR, 'governor2.pub')).read(),
                         "threshold": 1
                     }
                 },
@@ -188,29 +160,29 @@ class Node:
 
         #  Sign the governors with the admin key.
         subprocess.check_output(' '.join([
-            f'cd {MOBILECOIN_DIR} && exec {TARGET_DIR}/mc-consensus-mint-client',
+            f'cd {constants.MOBILECOIN_DIR} && exec {constants.TARGET_DIR}/mc-consensus-mint-client',
             'sign-governors',
             f'--tokens {self.tokens_config_file}',
-            f'--signing-key {MINTING_KEYS_DIR}/minting-trust-root.pem',
+            f'--signing-key {constants.MINTING_KEYS_DIR}/minting-trust-root.pem',
             f'--output-json {self.tokens_config_file}',
         ]), shell=True)
 
         cmd = ' '.join([
-            f'cd {MOBILECOIN_DIR} && exec {TARGET_DIR}/consensus-service',
+            f'cd {constants.MOBILECOIN_DIR} && exec {constants.TARGET_DIR}/consensus-service',
             f'--client-responder-id localhost:{self.client_port}',
             f'--peer-responder-id localhost:{self.peer_port}',
             f'--msg-signer-key "{msg_signer_key}"',
             f'--network {network_json_path}',
-            f'--ias-api-key={IAS_API_KEY}',
-            f'--ias-spid={IAS_SPID}',
-            f'--origin-block-path {LEDGER_BASE}',
+            f'--ias-api-key={constants.IAS_API_KEY}',
+            f'--ias-spid={constants.IAS_SPID}',
+            f'--origin-block-path {constants.LEDGER_BASE}',
             f'--block-version {self.block_version}',
             f'--ledger-path {self.ledger_dir}',
             f'--admin-listen-uri="insecure-mca://0.0.0.0:{self.admin_port}/"',
             f'--client-listen-uri="insecure-mc://0.0.0.0:{self.client_port}/"',
             f'--peer-listen-uri="insecure-mcp://0.0.0.0:{self.peer_port}/"',
-            f'--scp-debug-dump {WORK_DIR}/scp-debug-dump-{self.node_num}',
-            f'--sealed-block-signing-key {WORK_DIR}/consensus-sealed-block-signing-key-{self.node_num}',
+            f'--scp-debug-dump {constants.WORK_DIR}/scp-debug-dump-{self.node_num}',
+            f'--sealed-block-signing-key {constants.WORK_DIR}/consensus-sealed-block-signing-key-{self.node_num}',
             f'--tokens={self.tokens_config_file}',
         ])
 
@@ -233,16 +205,16 @@ class Node:
 
 
         cmd = ' '.join([
-            f'cd {MOBILECOIN_DIR} && exec {TARGET_DIR}/ledger-distribution',
+            f'cd {constants.MOBILECOIN_DIR} && exec {constants.TARGET_DIR}/ledger-distribution',
             f'--ledger-path {self.ledger_dir}',
             f'--dest "file://{self.ledger_distribution_dir}"',
-            f'--state-file {WORK_DIR}/ledger-distribution-state-{self.node_num}',
+            f'--state-file {constants.WORK_DIR}/ledger-distribution-state-{self.node_num}',
         ])
         print(f'Starting local ledger distribution: {cmd}')
         self.ledger_distribution_process = subprocess.Popen(cmd, shell=True)
 
         cmd = ' '.join([
-            f'cd {MOBILECOIN_DIR} && export ROCKET_CLI_COLORS=0 && exec {TARGET_DIR}/mc-admin-http-gateway',
+            f'cd {constants.MOBILECOIN_DIR} && export ROCKET_CLI_COLORS=0 && exec {constants.TARGET_DIR}/mc-admin-http-gateway',
             f'--listen-host 0.0.0.0',
             f'--listen-port {self.admin_http_gateway_port}',
             f'--admin-uri insecure-mca://127.0.0.1:{self.admin_port}/',
@@ -336,7 +308,7 @@ class NetworkCLI(threading.Thread):
 
         assert self.server is None
         socketserver.TCPServer.allow_reuse_address = True
-        self.server = socketserver.TCPServer(('0.0.0.0', CLI_PORT), NetworkCLITCPHandler)
+        self.server = socketserver.TCPServer(('0.0.0.0', constants.CLI_PORT), NetworkCLITCPHandler)
         self.server.serve_forever()
 
     def stop(self):
@@ -349,20 +321,20 @@ class Network:
         self.ledger_distribution = None
         self.cli = None
         try:
-            shutil.rmtree(WORK_DIR)
+            shutil.rmtree(constants.WORK_DIR)
         except FileNotFoundError:
             pass
-        os.mkdir(WORK_DIR)
+        os.mkdir(constants.WORK_DIR)
 
     def add_node(self, name, peers, quorum_set):
         node_num = len(self.nodes)
         self.nodes.append(Node(
             name,
             node_num,
-            BASE_CLIENT_PORT + node_num,
-            BASE_PEER_PORT + node_num,
-            BASE_ADMIN_PORT + node_num,
-            BASE_ADMIN_HTTP_GATEWAY_PORT + node_num,
+            constants.BASE_CLIENT_PORT + node_num,
+            constants.BASE_PEER_PORT + node_num,
+            constants.BASE_ADMIN_PORT + node_num,
+            constants.BASE_ADMIN_HTTP_GATEWAY_PORT + node_num,
             peers,
             quorum_set,
             self.block_version,
@@ -374,19 +346,19 @@ class Network:
                 return node
 
     def generate_minting_keys(self):
-        os.mkdir(MINTING_KEYS_DIR)
+        os.mkdir(constants.MINTING_KEYS_DIR)
 
-        subprocess.check_output(f'openssl genpkey -algorithm ed25519 -out {MINTING_KEYS_DIR}/governor1', shell=True)
+        subprocess.check_output(f'openssl genpkey -algorithm ed25519 -out {constants.MINTING_KEYS_DIR}/governor1', shell=True)
         subprocess.check_output(
-            f'openssl pkey -pubout -in {MINTING_KEYS_DIR}/governor1 -out {MINTING_KEYS_DIR}/governor1.pub', shell=True)
+            f'openssl pkey -pubout -in {constants.MINTING_KEYS_DIR}/governor1 -out {constants.MINTING_KEYS_DIR}/governor1.pub', shell=True)
 
-        subprocess.check_output(f'openssl genpkey -algorithm ed25519 -out {MINTING_KEYS_DIR}/governor2', shell=True)
+        subprocess.check_output(f'openssl genpkey -algorithm ed25519 -out {constants.MINTING_KEYS_DIR}/governor2', shell=True)
         subprocess.check_output(
-            f'openssl pkey -pubout -in {MINTING_KEYS_DIR}/governor2 -out {MINTING_KEYS_DIR}/governor2.pub', shell=True)
+            f'openssl pkey -pubout -in {constants.MINTING_KEYS_DIR}/governor2 -out {constants.MINTING_KEYS_DIR}/governor2.pub', shell=True)
 
         # This matches the hardcoded key in consensus/enclave/impl/build.rs
         subprocess.check_output(
-            f'cd {MOBILECOIN_DIR} && exec {TARGET_DIR}/mc-util-seeded-ed25519-key-gen --seed abababababababababababababababababababababababababababababababab > {MINTING_KEYS_DIR}/minting-trust-root.pem',
+            f'cd {constants.MOBILECOIN_DIR} && exec {constants.TARGET_DIR}/mc-util-seeded-ed25519-key-gen --seed abababababababababababababababababababababababababababababababab > {constants.MINTING_KEYS_DIR}/minting-trust-root.pem',
             shell=True)
 
     def start(self):
@@ -488,7 +460,6 @@ class Network:
         # self.wait()
         # self.stop()
 
-
 class FullService:
     def __init__(self):
         self.full_service_process = None
@@ -499,13 +470,13 @@ class FullService:
     def start(self):
         cmd = ' '.join([
             'mkdir -p /tmp/wallet-db/',
-            f'&& {FULLSERVICE_DIR}/target/release/full-service',
+            f'&& {constants.FULLSERVICE_DIR}/target/release/full-service',
             '--wallet-db /tmp/wallet-db/wallet.db',
             '--ledger-db /tmp/ledger-db/',
             '--peer insecure-mc://localhost:3200',
             '--peer insecure-mc://localhost:3201',
-            f'--tx-source-url file://{MOBILECOIN_DIR}/target/release/mc-local-network/node-ledger-distribution-0',
-            f'--tx-source-url file://{MOBILECOIN_DIR}/target/release/mc-local-network/node-ledger-distribution-1',
+            f'--tx-source-url file://{constants.MOBILECOIN_DIR}/target/release/mc-local-network/node-ledger-distribution-0',
+            f'--tx-source-url file://{constants.MOBILECOIN_DIR}/target/release/mc-local-network/node-ledger-distribution-1',
         ])
         print('===================================================')
         print('starting full service')
@@ -577,8 +548,8 @@ class FullService:
     # retrieve accounts from mobilecoin/target/sample_data/keys
     def get_test_accounts(self) -> Tuple[str, str]:
         print(f'retrieving accounts for account_keys_0 and account_keys_1')
-        keyfile_0 = open(os.path.join(KEY_DIR, 'account_keys_0.json'))
-        keyfile_1 = open(os.path.join(KEY_DIR, 'account_keys_1.json'))
+        keyfile_0 = open(os.path.join(constants.KEY_DIR, 'account_keys_0.json'))
+        keyfile_1 = open(os.path.join(constants.KEY_DIR, 'account_keys_1.json'))
         keydata_0 = json.load(keyfile_0)
         keydata_1 = json.load(keyfile_1)
 
@@ -659,6 +630,7 @@ class FullService:
         print(r)
         return r['transaction_log']
 
+
 def stop_network_services(fs: FullService, mc_network : Network): 
     print('stopping network services')
     # TODO: Will need to end these processes more gracefully since pkill returns and error status code
@@ -701,7 +673,7 @@ def start_and_sync_full_service(fs: FullService, mc_network : Network):
     except Exception as e:
         print("Full service failed to start and sync")
         print(e)
-        cleanup(fs, mc_network)
+        cleanup(fs, mc_network) 
 
 if __name__ == '__main__':
     # pull args from command line
