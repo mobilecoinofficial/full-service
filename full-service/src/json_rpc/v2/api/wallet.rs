@@ -53,9 +53,7 @@ use mc_common::logger::global_log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_crypto_keys::CompressedRistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_mobilecoind_json::data_types::{
-    JsonMembershipProofResponse, JsonTx, JsonTxOut, JsonTxOutMembershipProof,
-};
+use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxOutMembershipProof};
 use mc_transaction_core::Amount;
 use mc_transaction_std::BurnRedemptionMemo;
 use rocket::{self};
@@ -750,10 +748,8 @@ where
                 .collect::<Result<Vec<_>, _>>()?;
 
             JsonCommandResponse::get_txo_membership_proofs {
-                outputs_and_proofs: JsonMembershipProofResponse {
-                    outputs,
-                    membership_proofs,
-                },
+                outputs,
+                membership_proofs,
             }
         }
         JsonCommandRequest::get_wallet_status => JsonCommandResponse::get_wallet_status {
@@ -890,25 +886,34 @@ where
             let excluded_indices = service
                 .get_indices_from_txo_public_keys(&public_keys)
                 .map_err(format_error)?;
-            let mixins = service
+            let (mixins, membership_proofs) = service
                 .sample_mixins(num_mixins as usize, &excluded_indices)
                 .map_err(format_error)?;
 
             let mixins = mixins
                 .iter()
-                .map(|(tx_out, proof)| {
+                .map(|tx_out| {
                     let tx_out: mc_api::external::TxOut =
                         tx_out.try_into().map_err(format_error)?;
-                    let proof: mc_api::external::TxOutMembershipProof =
-                        proof.try_into().map_err(format_error)?;
                     let json_tx_out = JsonTxOut::from(&tx_out);
-                    let json_proof = JsonTxOutMembershipProof::from(&proof);
-
-                    Ok((json_tx_out, json_proof))
+                    Ok(json_tx_out)
                 })
                 .collect::<Result<Vec<_>, _>>()?;
 
-            JsonCommandResponse::sample_mixins { mixins }
+            let membership_proofs = membership_proofs
+                .iter()
+                .map(|proof| {
+                    let proof: mc_api::external::TxOutMembershipProof =
+                        proof.try_into().map_err(format_error)?;
+                    let json_proof = JsonTxOutMembershipProof::from(&proof);
+                    Ok(json_proof)
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            JsonCommandResponse::sample_mixins {
+                mixins,
+                membership_proofs,
+            }
         }
         JsonCommandRequest::submit_transaction {
             tx_proposal,
