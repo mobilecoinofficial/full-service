@@ -1,6 +1,8 @@
 import local_network
 import time
-from test_utils.utilities import parse_cmd_line_args
+
+from test_utils.utilities import parse_network_type_cmd_line_args
+from test_utils import fullservice as fslib
 
 # run sample test transactions between the first two accounts in full service
 def test_transactions(fs):
@@ -27,7 +29,9 @@ def test_transactions(fs):
 
 
 if __name__ == '__main__':
-    args = parse_cmd_line_args()
+    # TODO: This test can probably just always use the same network argument so we don't need it from command line
+
+    args = parse_network_type_cmd_line_args()
 
     # start networks
     print('________________________________________________________________________________')
@@ -35,7 +39,7 @@ if __name__ == '__main__':
     full_service = mobilecoin_network = None
     mobilecoin_network = local_network.Network()
     mobilecoin_network.default_entry_point(args.network_type, args.block_version)
-    full_service = local_network.FullService()
+    full_service = fslib.FullService()
     local_network.start_and_sync_full_service(full_service, mobilecoin_network)
 
     try:
