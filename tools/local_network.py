@@ -466,8 +466,8 @@ class Network:
 def stop_network_services(fs: fslib.FullService, mc_network : Network): 
     print('stopping network services')
     # TODO: Will need to end these processes more gracefully since pkill returns and error status code
-    if fs:
-        fs.stop()
+    #if fs:
+    #    fs.stop()
     if mc_network:
         mc_network.stop()
 
@@ -477,35 +477,13 @@ def cleanup(fs: fslib.FullService, mc_network : Network):
     # shut down networks
     try:
         stop_network_services(fs, mc_network )
-        print(f"Removing ledger/wallet dbs")
-        tmpdir = pathlib.Path('/tmp')
-        shutil.rmtree(tmpdir/'wallet-db')
-        shutil.rmtree(tmpdir/'ledger-db')
+        #print(f"Removing ledger/wallet dbs")
+        #tmpdir = pathlib.Path('/tmp')
+        #shutil.rmtree(tmpdir/'wallet-db')
+        #shutil.rmtree(tmpdir/'ledger-db')
     except Exception:
         print("Clean up failed. There may be some left-over processes.")
 
-
-def start_and_sync_full_service(fs: fslib.FullService, mc_network : Network):
-    try:
-        fs.start()
-        # wait for networks to start
-        network_synced = False
-        count = 0
-        attempt_limit = 100
-        while network_synced is False and count < attempt_limit:
-            count += 1
-            network_synced = fs.sync_status()
-            if count % 10 == 0:
-                print(f'attempt: {count}/{attempt_limit}')
-            time.sleep(1)
-        if count >= attempt_limit:
-            print(f'full service sync failed after {attempt_limit} attempts')
-            cleanup(fs, mc_network)
-        print('Full service synced')
-    except Exception as e:
-        print("Full service failed to start and sync")
-        print(e)
-        cleanup(fs, mc_network) 
 
 if __name__ == '__main__':
     # pull args from command line

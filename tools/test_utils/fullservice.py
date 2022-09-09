@@ -1,5 +1,6 @@
-#from . 
-import constants
+# TODO: This should actually be more generic so that the python CLI 
+#   can also use it as a library (or maybe tests will use the CLI's library)
+from . import constants
 import subprocess
 from urllib.parse import urlparse
 import json
@@ -7,13 +8,33 @@ import http.client
 from typing import Tuple
 import time
 import os
+import shutil
+import pathlib
 
 class FullService:
-    def __init__(self):
+    def __init__(self, remove_wallet_and_ledger=False):
         self.full_service_process = None
         self.account_map = None
         self.account_ids = None
         self.request_count = 0
+        self.remove_wallet_and_ledger = remove_wallet_and_ledger
+        
+    def __enter__(self):
+        self.remove_wallet_and_ledger = True
+        self.start()
+    
+    def __exit__(self,exc_type, exc_val, exc_tb):
+        self.stop()
+        if self.remove_wallet_and_ledger:
+            try:
+                print(f"Removing ledger/wallet dbs")
+                tmpdir = pathlib.Path('/tmp')
+                shutil.rmtree(tmpdir/'wallet-db')
+                shutil.rmtree(tmpdir/'ledger-db')
+            except Exception as e:
+                print(e)            
+        
+
 
     def start(self):
         cmd = ' '.join([
@@ -177,3 +198,17 @@ class FullService:
         })
         print(r)
         return r['transaction_log']
+
+    def sync_full_service_to_network(self, mc_network):
+        network_synced = False
+        count = 0
+        attempt_limit = 100
+        while network_synced is False and count < attempt_limit:
+            count += 1
+            network_synced = self.sync_status()
+            if count % 10 == 0:
+                print(f'attempt: {count}/{attempt_limit}')
+            time.sleep(1)
+        if count >= attempt_limit:
+            raise Exception(f'Full service sync failed after {attempt_limit} attempts')
+        print('Full service synced')
