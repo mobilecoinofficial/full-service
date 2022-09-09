@@ -22,6 +22,7 @@ class FullService:
     def __enter__(self):
         self.remove_wallet_and_ledger = True
         self.start()
+        return self
     
     def __exit__(self,exc_type, exc_val, exc_tb):
         self.stop()
@@ -32,7 +33,7 @@ class FullService:
                 shutil.rmtree(tmpdir/'wallet-db')
                 shutil.rmtree(tmpdir/'ledger-db')
             except Exception as e:
-                print(e)            
+                print(e) 
         
 
 
